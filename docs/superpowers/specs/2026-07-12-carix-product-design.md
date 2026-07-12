@@ -37,4 +37,3 @@ effects and must degrade transparently when an external API is unavailable.
 
 The repository remains documentation-first until the team approves detailed MVP
 requirements and selects the application stack.
-
