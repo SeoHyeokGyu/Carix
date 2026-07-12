@@ -7,14 +7,15 @@ consumption patterns with labor-market skill demand and disclosed salaries.
 
 ## Product Model
 
-The product exposes three independent indices:
+The product exposes two indices and one categorical decision signal:
 
 1. Purchasing Power Index
 2. Market Value Index
-3. Optionality Index
+3. Decision Signal
 
-The indices remain separate so users can understand conflicting signals and
-the evidence behind each recommendation.
+The results remain separate so users can understand conflicting signals and
+the evidence behind each recommendation. The decision signal is categorical to
+avoid false precision.
 
 ## MVP Boundary
 
@@ -35,5 +36,7 @@ effects and must degrade transparently when an external API is unavailable.
 
 ## Current Decision
 
-The repository remains documentation-first until the team approves detailed MVP
-requirements and selects the application stack.
+The detailed MVP requirements are approved. The application uses a Next.js
+frontend, a Java 21 Spring Boot backend, PostgreSQL, and a separate Spring Batch
+worker. Data feasibility for KOSIS and Work24 must be verified before full
+implementation.
