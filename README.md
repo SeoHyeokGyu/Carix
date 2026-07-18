@@ -156,7 +156,14 @@ Carix는 명목연봉이나 채용공고 수처럼 분리된 숫자를 보여주
 - 커밋은 변경 목적이 드러나는 작은 단위로 작성합니다.
 - API 키와 개인정보는 저장소에 커밋하지 않습니다.
 
-상세 요구사항은
-[`docs/superpowers/specs/2026-07-12-carix-mvp-design.md`](docs/superpowers/specs/2026-07-12-carix-mvp-design.md)에
-정리되어 있습니다. 구현 스택은 Next.js, Java 21 Spring Boot, PostgreSQL,
-Spring Batch를 사용합니다.
+상세 요구사항은 [`docs/superpowers/specs/2026-07-12-carix-mvp-design.md`](docs/superpowers/specs/2026-07-12-carix-mvp-design.md)에 정리되어 있으며, 추가 설계 문서들은 아래 링크에서 확인하실 수 있습니다.
+*   **데이터 수집 분석:** [`docs/superpowers/specs/2026-07-18-data-collection-feasibility.md`](docs/superpowers/specs/2026-07-18-data-collection-feasibility.md)
+*   **상세 기술 명세(DB/Rules):** [`docs/superpowers/specs/2026-07-18-detailed-technical-specifications.md`](docs/superpowers/specs/2026-07-18-detailed-technical-specifications.md)
+*   **REST API 규격:** [`docs/superpowers/specs/2026-07-18-api-endpoints-specification.md`](docs/superpowers/specs/2026-07-18-api-endpoints-specification.md)
+*   **UI/UX 화면 레이아웃:** [`docs/superpowers/specs/2026-07-18-ui-ux-layout-design.md`](docs/superpowers/specs/2026-07-18-ui-ux-layout-design.md)
+*   **애플리케이션 작업 흐름:** [`docs/superpowers/specs/2026-07-18-application-workflow-spec.md`](docs/superpowers/specs/2026-07-18-application-workflow-spec.md)
+*   **도메인 계산 공식 정의:** [`docs/superpowers/specs/2026-07-18-domain-logic-refinement.md`](docs/superpowers/specs/2026-07-18-domain-logic-refinement.md)
+*   **아키텍처 고도화 설계:** [`docs/superpowers/specs/2026-07-18-advanced-architecture-enhancements.md`](docs/superpowers/specs/2026-07-18-advanced-architecture-enhancements.md)
+
+구현 스택은 Next.js, Java 21 Spring Boot, PostgreSQL, Spring Batch를 사용합니다.
+
