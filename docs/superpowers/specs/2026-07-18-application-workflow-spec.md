@@ -6,31 +6,17 @@
 
 ## 1. Carix 전체 서비스 아키텍처 및 흐름도
 
-사용자의 실시간 요청을 처리하는 **API 영역**과 주기적으로 대량의 외부 데이터를 수집·가공하는 **배치 워커 영역**이 유기적으로 연결된 데이터 파이프라인 구조입니다.
+사용자의 실시간 요청을 처리하는 **API 영역**과 주기적으로 대량의 외부 데이터를 수집·가공하는 **배치 워커 영역**이 유기적으로 연결된 데이터 파이프라인 구조입니다. 가로 너비를 최소화하고 세로 흐름을 따라 배치되었습니다.
 
 ```mermaid
 flowchart TD
-    subgraph Frontend [Next.js 웹 프런트엔드]
-        UI[대시보드 / 온보딩 화면]
-        Sim[12개월 시뮬레이터 UI]
+    %% 1. 외부 데이터 및 수집 (Top)
+    subgraph External [외부 OpenAPI]
+        Kosis[KOSIS 물가통계 API]
+        Work24[고용24 채용정보 API]
     end
 
-    subgraph API [Spring Boot API 서버]
-        AC[AuthController: 매직링크 로그인]
-        PC[ProfileController: 소득/소비/스킬]
-        DC[DashboardController: 지표 조회]
-        SC[ScenarioController: 시나리오 계산]
-        
-        Encrypt[JPA Attribute Converter: 데이터 암호화]
-        DecEng[결정 신호 룰 엔진]
-    end
-
-    subgraph DB [PostgreSQL 데이터베이스]
-        AccountDB[(사용자 계정/이력 테이블)]
-        RawDB[(수집 원천 데이터 - CPI/공고)]
-        AggDB[(시장 데이터 집계 테이블)]
-    end
-
+    %% 2. 배치 프로세서 (Down 1)
     subgraph Batch [Spring Batch Worker 프로세스]
         Job1[CPI 수집 Job]
         Job2[구인공고 수집 & 스킬 파싱 Job]
@@ -38,39 +24,55 @@ flowchart TD
         Job4[사용자 지수 스냅샷 갱신 Job]
     end
 
-    subgraph External [외부 OpenAPI]
-        Kosis[KOSIS 물가통계 API]
-        Work24[고용24 채용정보 API]
+    %% 3. 데이터베이스 (Down 2)
+    subgraph DB [PostgreSQL 데이터베이스]
+        RawDB[(수집 원천 데이터 - CPI/공고)]
+        AggDB[(시장 데이터 집계 테이블)]
+        AccountDB[(사용자 계정/이력 테이블)]
     end
 
-    %% 사용자 가입 및 온보딩 흐름
+    %% 4. API 서버 (Down 3)
+    subgraph API [Spring Boot API 서버]
+        AC[AuthController: 매직링크 로그인]
+        PC[ProfileController: 소득/소비/스킬]
+        DC[DashboardController: 지표 조회]
+        SC[ScenarioController: 시나리오 계산]
+        Encrypt[JPA Attribute Converter: 데이터 암호화]
+        DecEng[결정 신호 룰 엔진]
+    end
+
+    %% 5. 프런트엔드 (Bottom)
+    subgraph Frontend [Next.js 웹 프런트엔드]
+        UI[대시보드 / 온보딩 화면]
+        Sim[12개월 시뮬레이터 UI]
+    end
+
+    %% 외부 -> 배치 연동
+    Kosis -->|데이터 응답| Job1
+    Work24 -->|본문 텍스트 응답| Job2
+    Job1 -->|API 호출| Kosis
+    Job2 -->|API 호출| Work24
+
+    %% 배치 -> DB 연동
+    Job1 -->|raw CPI 저장| RawDB
+    Job2 -->|정규화 스킬 저장| RawDB
+    RawDB -->|데이터 조회| Job3
+    Job3 -->|통계 적재| AggDB
+    AggDB & AccountDB -->|지수 계산| Job4
+    Job4 -->|snap 저장| AccountDB
+
+    %% 사용자 입력 -> API -> DB 연동
     UI -->|1. 이메일 로그인| AC
     UI -->|2. 소득/소비/스킬 입력| PC
     PC -->|3. 민감 데이터 암호화| Encrypt
     Encrypt -->|4. 데이터 저장| AccountDB
 
-    %% 배치 수집 파이프라인
-    Job1 -->|월 1회 API 호출| Kosis
-    Job2 -->|일별/주별 호출| Work24
-    Kosis -->|데이터 적재| Job1
-    Work24 -->|본문 텍스트 적재| Job2
-    
-    Job1 -->|5. raw 데이터 저장| RawDB
-    Job2 -->|6. 스킬 파싱 및 저장| RawDB
-    
-    %% 통계 집계 및 스냅샷 갱신
-    RawDB -->|7. 데이터 취합| Job3
-    Job3 -->|8. 동료집단 통계 적재| AggDB
-    
-    AggDB & AccountDB -->|9. 지수 계산| Job4
-    Job4 -->|10. snap 저장| AccountDB
-
-    %% 서비스 서빙 흐름
-    AccountDB & AggDB -->|11. 지표 가공| DecEng
-    DecEng -->|12. 결정 신호 및 결과 반환| DC
-    DC -->|13. 데이터 시각화 렌더링| UI
-    UI -->|14. 시뮬레이션 인풋 전송| SC
-    SC -->|15. 잔류/이직 세후 비교 계산| Sim
+    %% API -> 프런트엔드 서빙 연동
+    AccountDB & AggDB -->|지표 가공| DecEng
+    DecEng -->|결정 신호 반환| DC
+    DC -->|결과 렌더링| UI
+    UI -->|시뮬레이션 인풋| SC
+    SC -->|세후 비교 결과 반환| Sim
 ```
 
 ---
@@ -92,10 +94,10 @@ stateDiagram-v2
 ```
 
 ### 2.2 Job 2: 고용24 구인공고 수집 및 스킬 정규화 (일/주 1회 실행)
-가장 많은 연산과 파싱이 필요한 핵심 배치 파이프라인입니다.
+가장 많은 연산과 파싱이 필요한 핵심 배치 파이프라인입니다. 세로형 흐름도로 가독성을 개선했습니다.
 
 ```mermaid
-flowchart LR
+flowchart TD
     Start([Job 시작]) --> Reader[고용24 API Reader: <br>IT/개발 직군 목록 조회]
     Reader --> Filter[Duplicate Filter: <br>wantedAuthNo 중복 및 만료공고 제외]
     Filter --> DetailReader[Detail Reader: <br>공고별 상세 본문 및 연봉 수집]
@@ -107,7 +109,7 @@ flowchart LR
     end
     
     DetailReader --> SkillParser
-    TagSkill --> Writer[Writer: job_posting 테이블 적재]
+    SkillParser --> Writer[Writer: job_posting 테이블 적재]
     Writer --> End([Job 완료])
 ```
 
@@ -144,30 +146,34 @@ flowchart TD
 
 실제 사용자가 매직링크로 유입되어 의사결정 시뮬레이션을 받기까지의 API 통신 순서입니다.
 
-```text
-[사용자]                 [Next.js 웹]             [Spring API]            [DB (PG)]
-   │                          │                        │                     │
-   │ 1. 이메일 로그인 요청 ────▶│                        │                     │
-   │                          │ 2. POST /auth/magic ──▶│                     │
-   │                          │                        │ 3. 토큰 해시 저장 ──▶│
-   │◀─────────────────────────┼────────────────────────┼─────────────────────│ (이메일 수신 및 링크 클릭)
-   │ 4. 매직링크 토큰 제출 ──▶│                        │                     │
-   │                          │ 5. POST /auth/verify ─▶│                     │
-   │                          │◀───────────────────────┼ 6. 세션 쿠키 발급 ──│
-   │                          │                        │                     │
-   │ 7. 프로필/소득/소비 입력 ─▶│                        │                     │
-   │                          │ 8. PUT /profile ──────▶│                     │
-   │                          │                        │ 9. 대칭키 암호화 ───▶│ (연봉/소비 데이터 암호화)
-   │                          │                        │                     │
-   │ 10. 대시보드 진입 ──────▶│                        │                     │
-   │                          │ 11. GET /db/summary ──▶│                     │
-   │                          │                        │ 12. 통계 데이터 ◀───│ (집계된 MVI, CPI, 연봉조회)
-   │                          │                        │ 13. 결정룰 엔진 기동│
-   │                          │◀───────────────────────┼─────────────────────│ (구매력/시장가치/결정신호 반환)
-   │ 14. 화면에 차트 렌더링   │                        │                     │
-   │                          │                        │                     │
-   │ 15. 이직 시뮬레이션 시도 ─▶│                        │                     │
-   │ (목표액, 이직비용 조정)  │ 16. POST /scenarios ──▶│                     │
-   │                          │                        │ 17. 세후 소득 계산 │
-   │                          │◀───────────────────────┼─────────────────────│ (추정 기회비용 피드백 제공)
+```mermaid
+sequenceDiagram
+    autonumber
+    actor User as 사용자
+    participant Web as Next.js 웹
+    participant API as Spring API
+    participant DB as PostgreSQL DB
+
+    User->>Web: 이메일 로그인 요청
+    Web->>API: POST /auth/magic (이메일 전송 요청)
+    API->>DB: 토큰 해시 저장
+    Note over User, API: (이메일 수신 및 매직링크 클릭)
+    User->>Web: 매직링크 토큰 제출
+    Web->>API: POST /auth/verify (토큰 검증)
+    API-->>Web: 세션 쿠키 발급
+    User->>Web: 프로필/소득/소비 입력
+    Web->>API: PUT /profile (저장 요청)
+    API->>DB: 연봉/소비 데이터 암호화 저장 (JPA Converter)
+    User->>Web: 대시보드 진입
+    Web->>API: GET /dashboard/summary (지표 조회)
+    API->>DB: 통계 데이터 조회 (CPI, MVI, 연봉 등)
+    DB-->>API: 통계 데이터 반환
+    Note over API: 결정 신호 룰 엔진 기동
+    API-->>Web: 구매력/시장가치/결정신호 반환
+    Web-->>User: 화면에 차트 및 지표 렌더링
+    User->>Web: 이직 시뮬레이션 시도 (목표액, 비용 조정)
+    Web->>API: POST /scenarios/simulate (시뮬레이션 요청)
+    Note over API: 세후 소득 계산 및 차이 연산
+    API-->>Web: 추정 기회비용 피드백 반환
+    Web-->>User: 시뮬레이션 비교 차트 표시
 ```
