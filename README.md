@@ -162,6 +162,7 @@ Carix는 명목연봉이나 채용공고 수처럼 분리된 숫자를 보여주
 *   **REST API 규격:** [`docs/superpowers/specs/2026-07-18-api-endpoints-specification.md`](docs/superpowers/specs/2026-07-18-api-endpoints-specification.md)
 *   **UI/UX 화면 레이아웃:** [`docs/superpowers/specs/2026-07-18-ui-ux-layout-design.md`](docs/superpowers/specs/2026-07-18-ui-ux-layout-design.md)
 *   **애플리케이션 작업 흐름:** [`docs/superpowers/specs/2026-07-18-application-workflow-spec.md`](docs/superpowers/specs/2026-07-18-application-workflow-spec.md)
+*   **도메인 계산 공식 정의:** [`docs/superpowers/specs/2026-07-18-domain-logic-refinement.md`](docs/superpowers/specs/2026-07-18-domain-logic-refinement.md)
 
 구현 스택은 Next.js, Java 21 Spring Boot, PostgreSQL, Spring Batch를 사용합니다.
 
