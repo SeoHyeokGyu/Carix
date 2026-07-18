@@ -135,6 +135,54 @@ Carix는 명목연봉이나 채용공고 수처럼 분리된 숫자를 보여주
 - 개인 데이터는 지수 계산에 필요한 최소 범위만 수집하고 민감정보 저장 여부를 명확히 고지합니다.
 - 외부 API 중단과 스키마 변경에 대비해 수집 시점과 출처를 기록합니다.
 
+## 기술 구성
+
+| 계층 | 기술 | 책임 |
+| --- | --- | --- |
+| 프런트엔드 | Vite, React, TypeScript, React Router Framework Mode | UI, 라우팅, SSR·사전 렌더링 |
+| Node SSR | Node.js 24 LTS, Express, `@react-router/express` | HTML 렌더링, SEO metadata, 공개 콘텐츠 |
+| 클라이언트 데이터 | TanStack Query, React Hook Form, Zod | API 상태, 입력 폼, 검증 |
+| UI·시각화 | Tailwind CSS, shadcn/ui, Recharts | 컴포넌트, 스타일, 지수 차트 |
+| 백엔드 | Java 21, Spring Boot | 인증, 도메인 로직, REST API, 데이터 접근 |
+| 데이터 | PostgreSQL, Spring Batch | 영속화, 외부 데이터 수집·집계 |
+| 엣지·배포 | Nginx, Docker Compose, OCI | TLS, reverse proxy, 컨테이너 운영 |
+
+```text
+Internet
+   |
+Nginx
+   |
+   +-- /*       Node SSR :3000
+   +-- /api/*   Spring Boot :8080
+   +-- /assets  정적 파일
+                    |
+                PostgreSQL
+```
+
+Nginx는 동일 출처에서 화면과 API를 제공해 CORS 구성을 최소화합니다. Node 서버는
+HTML과 SEO를 담당하고 Spring Boot는 인증과 비즈니스 로직을 담당합니다. Node
+서버는 DB에 직접 접근하거나 Spring Boot 로직을 복제하지 않습니다.
+
+### 렌더링 전략
+
+- `/`, `/about`: 빌드 시 사전 렌더링
+- `/content/:slug`: Node SSR
+- `/login`: Node SSR
+- `/dashboard/*`, `/settings/*`: SSR shell 후 hydration
+- 차트·필터·사용자 데이터: hydration 이후 TanStack Query로 갱신
+
+공개 페이지는 title, description, canonical URL, Open Graph metadata, sitemap,
+robots 정책과 필요한 구조화 데이터를 제공합니다.
+
+### 테스트
+
+- 단위·컴포넌트: Vitest, Testing Library
+- API 모킹: MSW
+- 브라우저 E2E: Playwright
+
+OCI VM에서는 `nginx`, `frontend-node`, `spring-api`, `spring-batch`,
+`postgres` 컨테이너를 Docker Compose로 운영할 예정입니다.
+
 ## 프로젝트 상태
 
 현재 단계는 **제품 발견 및 MVP 설계**입니다.
@@ -164,6 +212,5 @@ Carix는 명목연봉이나 채용공고 수처럼 분리된 숫자를 보여주
 *   **애플리케이션 작업 흐름:** [`docs/superpowers/specs/2026-07-18-application-workflow-spec.md`](docs/superpowers/specs/2026-07-18-application-workflow-spec.md)
 *   **도메인 계산 공식 정의:** [`docs/superpowers/specs/2026-07-18-domain-logic-refinement.md`](docs/superpowers/specs/2026-07-18-domain-logic-refinement.md)
 *   **아키텍처 고도화 설계:** [`docs/superpowers/specs/2026-07-18-advanced-architecture-enhancements.md`](docs/superpowers/specs/2026-07-18-advanced-architecture-enhancements.md)
-
-구현 스택은 Next.js, Java 21 Spring Boot, PostgreSQL, Spring Batch를 사용합니다.
+*   **Vite·Node.js 프런트엔드 설계:** [`docs/superpowers/specs/2026-07-18-vite-node-frontend-design.md`](docs/superpowers/specs/2026-07-18-vite-node-frontend-design.md)
 
