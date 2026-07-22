@@ -21,8 +21,10 @@ avoid false precision.
 
 The first release targets developer, data, and AI roles. Users manually enter
 salary history, consumption weights, career attributes, and skills. KOSIS CPI
-data supports purchasing-power calculations, while Work24 job postings support
-skill-demand and disclosed-salary analysis.
+data supports purchasing-power calculations. Skill demand is measured from job
+postings across Work24 and Saramin, and the salary-gap baseline comes from
+official wage statistics (posting salaries are shown only as reference). See the
+hybrid lineage decision in the feature breakdown §6.1.
 
 The MVP compares staying and changing jobs. It does not include financial
 account connections, automatic applications, guaranteed salary predictions, or
@@ -36,7 +38,7 @@ effects and must degrade transparently when an external API is unavailable.
 
 ## Current Decision
 
-The detailed MVP requirements are approved. The application uses a Next.js
-frontend, a Java 21 Spring Boot backend, PostgreSQL, and a separate Spring Batch
-worker. Data feasibility for KOSIS and Work24 must be verified before full
-implementation.
+The detailed MVP requirements are approved. The application uses a Vite + React
+(React Router, Node SSR) frontend, a Java 21 Spring Boot backend, PostgreSQL, and
+a separate Spring Batch worker. Data feasibility for KOSIS, Work24, Saramin, and
+the wage-statistics source must be verified before full implementation.
