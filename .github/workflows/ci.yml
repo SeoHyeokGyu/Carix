@@ -1,0 +1,95 @@
+# Carix CI — 프런트엔드·백엔드 검증.
+# frontend/backend가 스캐폴드되기 전에는 각 잡의 guard 스텝이 나머지를 건너뛴다.
+# 스캐폴드(package.json / build.gradle 생성) 후 자동으로 활성화된다.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Guard — frontend 스캐폴드 여부
+        id: guard
+        run: |
+          if [ -f frontend/package.json ]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "frontend 미스캐폴드 — 검증 건너뜀"
+          fi
+
+      - name: Setup Node
+        if: steps.guard.outputs.ready == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+
+      - name: Enable pnpm
+        if: steps.guard.outputs.ready == 'true'
+        run: corepack enable
+
+      - name: Install
+        if: steps.guard.outputs.ready == 'true'
+        working-directory: frontend
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint
+        if: steps.guard.outputs.ready == 'true'
+        working-directory: frontend
+        run: pnpm lint
+
+      - name: Type check
+        if: steps.guard.outputs.ready == 'true'
+        working-directory: frontend
+        run: pnpm typecheck
+
+      - name: Unit test
+        if: steps.guard.outputs.ready == 'true'
+        working-directory: frontend
+        run: pnpm test --run
+
+      - name: Build
+        if: steps.guard.outputs.ready == 'true'
+        working-directory: frontend
+        run: pnpm build
+
+  backend:
+    runs-on: ubuntu-latest
+    # ubuntu-latest 러너는 Docker를 제공하므로 Testcontainers 통합 테스트가 여기서 실행된다.
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Guard — backend 스캐폴드 여부
+        id: guard
+        run: |
+          if [ -f backend/build.gradle ] || [ -f backend/build.gradle.kts ]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "backend 미스캐폴드 — 검증 건너뜀"
+          fi
+
+      - name: Setup Java
+        if: steps.guard.outputs.ready == 'true'
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+          cache: gradle
+
+      - name: Build & test (Testcontainers 포함)
+        if: steps.guard.outputs.ready == 'true'
+        working-directory: backend
+        run: ./gradlew build
