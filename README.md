@@ -320,9 +320,14 @@ Carix/
 ├── frontend/                  Vite·React·Node SSR (스캐폴드 예정)
 ├── backend/                   Spring Boot (스캐폴드 예정)
 ├── docs/
-│   └── superpowers/
-│       ├── specs/             제품·기술 설계 문서 (MVP, API, DB, UI/UX 등)
-│       └── plans/             구현·배포 계획 문서 (데이터 검증, OCI 배포 등)
+│   ├── README.md             문서 맵 (주제별 인덱스 — 여기서 시작)
+│   ├── specs/                설계 문서 정본 (MVP, API, DB, UI/UX 등)
+│   ├── plans/                계획 문서 정본 (데이터 검증, OCI 배포)
+│   ├── adr/                  아키텍처 결정 기록 (ADR)
+│   ├── SECURITY.md           보안·개인정보 처리
+│   ├── DEVELOPMENT.md        로컬 개발 가이드
+│   └── superpowers/          최초 작성 원본 (동결, 갱신 안 함)
+├── .github/workflows/        CI
 ├── .claude/                   Claude Code 로컬 설정
 └── .superpowers/              설계 워크플로우 작업 기록
 ```
@@ -339,6 +344,10 @@ Carix/
 
 버전 기준: 컨테이너는 Java 21, Node.js 24 LTS로 고정합니다 (로컬 개발 머신의 상위 버전과 별개).
 
+구체적인 실행 절차(런타임 설치, SSH 터널, dev server, 테스트)는
+[`docs/DEVELOPMENT.md`](docs/DEVELOPMENT.md)를, CI 구성은
+[`.github/workflows/ci.yml`](.github/workflows/ci.yml)를 참조합니다.
+
 ## 협업 방식
 
 - `main`에 직접 작업하지 않고 기능 브랜치를 사용합니다.
@@ -347,18 +356,7 @@ Carix/
 - 커밋은 변경 목적이 드러나는 작은 단위로 작성합니다.
 - API 키와 개인정보는 저장소에 커밋하지 않습니다.
 
-설계 기준: 제품 기능은 [`2026-07-12-carix-mvp-design.md`](docs/superpowers/specs/2026-07-12-carix-mvp-design.md)와 [`2026-07-19-mvp-feature-breakdown.md`](docs/superpowers/specs/2026-07-19-mvp-feature-breakdown.md), 데이터 아키텍처는 [`2026-07-15-carix-pipeline-redesign-design.md`](docs/superpowers/specs/2026-07-15-carix-pipeline-redesign-design.md)를 따릅니다 (하이브리드 계보 결정은 기능 분해 명세 §6.1). 추가 설계 문서들은 아래 링크에서 확인하실 수 있습니다.
-*   **데이터 수집 분석:** [`docs/superpowers/specs/2026-07-18-data-collection-feasibility.md`](docs/superpowers/specs/2026-07-18-data-collection-feasibility.md)
-*   **상세 기술 명세(DB/Rules):** [`docs/superpowers/specs/2026-07-18-detailed-technical-specifications.md`](docs/superpowers/specs/2026-07-18-detailed-technical-specifications.md)
-*   **REST API 규격:** [`docs/superpowers/specs/2026-07-18-api-endpoints-specification.md`](docs/superpowers/specs/2026-07-18-api-endpoints-specification.md)
-*   **UI/UX 화면 레이아웃:** [`docs/superpowers/specs/2026-07-18-ui-ux-layout-design.md`](docs/superpowers/specs/2026-07-18-ui-ux-layout-design.md)
-*   **애플리케이션 작업 흐름:** [`docs/superpowers/specs/2026-07-18-application-workflow-spec.md`](docs/superpowers/specs/2026-07-18-application-workflow-spec.md)
-*   **도메인 계산 공식 정의:** [`docs/superpowers/specs/2026-07-18-domain-logic-refinement.md`](docs/superpowers/specs/2026-07-18-domain-logic-refinement.md)
-*   **아키텍처 고도화 설계:** [`docs/superpowers/specs/2026-07-18-advanced-architecture-enhancements.md`](docs/superpowers/specs/2026-07-18-advanced-architecture-enhancements.md)
-*   **Vite·Node.js 프런트엔드 설계:** [`docs/superpowers/specs/2026-07-18-vite-node-frontend-design.md`](docs/superpowers/specs/2026-07-18-vite-node-frontend-design.md)
-*   **MVP 기능 상세 분해(스토리·인수 조건):** [`docs/superpowers/specs/2026-07-19-mvp-feature-breakdown.md`](docs/superpowers/specs/2026-07-19-mvp-feature-breakdown.md)
+전체 문서는 **[문서 맵(`docs/README.md`)](docs/README.md)**에서 주제별로 탐색할 수 있습니다. 정본은 `docs/specs/`·`docs/plans/`이며, 최초 작성 원본은 `docs/superpowers/`에 동결 보존합니다.
 
-구현·배포 계획 문서:
-*   **데이터 수집 검증 계획:** [`docs/superpowers/plans/2026-07-15-carix-data-verification.md`](docs/superpowers/plans/2026-07-15-carix-data-verification.md)
-*   **OCI 배포 계획:** [`docs/superpowers/plans/2026-07-14-oci-deployment-plan.md`](docs/superpowers/plans/2026-07-14-oci-deployment-plan.md)
+설계 기준: 제품 기능은 [MVP 설계](docs/specs/2026-07-12-carix-mvp-design.md)와 [기능 명세서](docs/specs/2026-07-19-mvp-feature-breakdown.md), 데이터 아키텍처는 [파이프라인 재설계](docs/specs/2026-07-15-carix-pipeline-redesign-design.md)를 따릅니다 (하이브리드 계보 결정은 [ADR 0001](docs/adr/0001-hybrid-design-lineage.md)).
 

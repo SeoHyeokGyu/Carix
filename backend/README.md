@@ -3,9 +3,9 @@
 Java 21 + Spring Boot. 인증, 도메인 로직, REST API, 데이터 접근, Spring Batch 수집·집계.
 
 상세 설계:
-- DB 스키마·규칙: [`../docs/superpowers/specs/2026-07-18-detailed-technical-specifications.md`](../docs/superpowers/specs/2026-07-18-detailed-technical-specifications.md)
-- API 규격: [`../docs/superpowers/specs/2026-07-18-api-endpoints-specification.md`](../docs/superpowers/specs/2026-07-18-api-endpoints-specification.md)
-- 도메인 계산: [`../docs/superpowers/specs/2026-07-18-domain-logic-refinement.md`](../docs/superpowers/specs/2026-07-18-domain-logic-refinement.md)
+- DB 스키마·규칙: [`../docs/specs/2026-07-18-detailed-technical-specifications.md`](../docs/specs/2026-07-18-detailed-technical-specifications.md)
+- API 규격: [`../docs/specs/2026-07-18-api-endpoints-specification.md`](../docs/specs/2026-07-18-api-endpoints-specification.md)
+- 도메인 계산: [`../docs/specs/2026-07-18-domain-logic-refinement.md`](../docs/specs/2026-07-18-domain-logic-refinement.md)
 
 아직 스캐폴드 전. 다음 단계에서 Spring Boot 프로젝트(Gradle, JPA, Flyway, Security, Batch)를 초기화한다.
 
