@@ -16,6 +16,9 @@ coverage/
 .vscode/
 *.swp
 
+# Local AI tool state
+.codex/
+
 # Logs
 *.log
 npm-debug.log*

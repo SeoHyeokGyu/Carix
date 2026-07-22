@@ -313,17 +313,31 @@ OCI VM에서는 `nginx`, `frontend-node`, `spring-api`, `spring-batch`,
 ```text
 Carix/
 ├── README.md                  프로젝트 소개와 설계 요약 (현재 문서)
+├── docker-compose.yml         OCI 배포 오케스트레이션 (로컬 실행용 아님)
+├── .env.example               환경 변수 템플릿 (.env는 커밋 금지)
+├── deploy/
+│   └── nginx/nginx.conf       reverse proxy 설정
+├── frontend/                  Vite·React·Node SSR (스캐폴드 예정)
+├── backend/                   Spring Boot (스캐폴드 예정)
 ├── docs/
 │   └── superpowers/
 │       ├── specs/             제품·기술 설계 문서 (MVP, API, DB, UI/UX 등)
 │       └── plans/             구현·배포 계획 문서 (데이터 검증, OCI 배포 등)
 ├── .claude/                   Claude Code 로컬 설정
-├── .codex/                    Codex 실행 환경 설정
 └── .superpowers/              설계 워크플로우 작업 기록
 ```
 
-현재는 설계 단계로 문서 중심 저장소이며, 애플리케이션 코드는 구현 단계에서
-`frontend/`(Vite·React·Node SSR), `backend/`(Spring Boot) 구조로 추가될 예정입니다.
+## 개발 환경
+
+로컬 개발은 순수 코드 중심이며, **Docker와 PostgreSQL은 OCI 서버에서만 기동**합니다.
+
+- **docker-compose.yml은 OCI 배포 전용**입니다. 로컬에서 `docker compose up`으로 사용하지 않습니다.
+- **로컬 프런트엔드:** Vite dev server를 띄우고 `/api`를 백엔드로 프록시합니다. Docker 불필요.
+- **로컬 백엔드:** 로컬에 DB를 띄우지 않고 **OCI dev DB에 원격 연결**합니다 (`SPRING_DATASOURCE_URL` → SSH 터널 또는 방화벽 허용 주소). 운영 DB와 dev DB는 분리합니다.
+- **통합 테스트:** 설계는 Testcontainers를 쓰지만 로컬 Docker가 필요하므로, 통합 테스트는 CI(Docker 가능 러너) 또는 OCI dev DB 대상으로 실행하고 로컬에서는 단위 테스트를 중심으로 돌립니다.
+- 환경 변수는 [`.env.example`](.env.example)을 복사해 `.env`로 채웁니다. API 키·시크릿은 저장소에 커밋하지 않습니다.
+
+버전 기준: 컨테이너는 Java 21, Node.js 24 LTS로 고정합니다 (로컬 개발 머신의 상위 버전과 별개).
 
 ## 협업 방식
 
