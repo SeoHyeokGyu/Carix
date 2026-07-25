@@ -31,7 +31,7 @@ flowchart TD
     subgraph DB [PostgreSQL 데이터베이스]
         RawDB[(수집 원천 데이터 - CPI/공고)]
         AggDB[(시장 데이터 집계 테이블)]
-        AccountDB[(사용자 계정/이력 테이블)]
+        UsersDB[(사용자 정보/이력 테이블)]
     end
 
     %% 4. API 서버 (Down 3)
@@ -66,17 +66,17 @@ flowchart TD
     Job2 -->|정규화 스킬 저장| RawDB
     RawDB -->|데이터 조회| Job3
     Job3 -->|통계 적재| AggDB
-    AggDB & AccountDB -->|지수 계산| Job4
-    Job4 -->|snap 저장| AccountDB
+    AggDB & UsersDB -->|지수 계산| Job4
+    Job4 -->|snap 저장| UsersDB
 
     %% 사용자 입력 -> API -> DB 연동
     UI -->|1. 이메일 로그인| AC
     UI -->|2. 소득/소비/스킬 입력| PC
     PC -->|3. 민감 데이터 암호화| Encrypt
-    Encrypt -->|4. 데이터 저장| AccountDB
+    Encrypt -->|4. 데이터 저장| UsersDB
 
     %% API -> 프런트엔드 서빙 연동
-    AccountDB & AggDB -->|지표 가공| DecEng
+    UsersDB & AggDB -->|지표 가공| DecEng
     DecEng -->|결정 신호 반환| DC
     DC -->|결과 렌더링| UI
     UI -->|시뮬레이션 인풋| SC

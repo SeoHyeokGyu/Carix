@@ -4,15 +4,15 @@
 
 ```mermaid
 erDiagram
-    account ||--o| career_profile : has
-    account ||--o{ magic_link_token : uses
-    account ||--o{ session : establishes
-    account ||--o{ income_history : records
-    account ||--o{ expense_history : logs
-    account ||--o{ user_skill : possesses
-    account ||--o{ skill : creates
-    account ||--o{ index_snapshot : generates
-    account ||--o{ career_scenario : simulates
+    users ||--o| career_profile : has
+    users ||--o{ magic_link_token : uses
+    users ||--o{ session : establishes
+    users ||--o{ income_history : records
+    users ||--o{ expense_history : logs
+    users ||--o{ user_skill : possesses
+    users ||--o{ skill : creates
+    users ||--o{ index_snapshot : generates
+    users ||--o{ career_scenario : simulates
 
     expense_history ||--|{ expense_item : details
 
@@ -23,7 +23,7 @@ erDiagram
 
     job_posting ||--o{ job_posting_skill : has
 
-    account {
+    users {
         uuid id PK
         varchar email
         varchar onboarding_step
@@ -40,7 +40,7 @@ erDiagram
 
     magic_link_token {
         uuid id PK
-        uuid account_id FK
+        uuid user_id FK
         varchar token_hash
         timestamp expires_at
         timestamp used_at
@@ -48,7 +48,7 @@ erDiagram
 
     session {
         uuid id PK
-        uuid account_id FK
+        uuid user_id FK
         varchar session_token
         timestamp expires_at
         timestamp created_at
@@ -56,7 +56,7 @@ erDiagram
 
     career_profile {
         uuid id PK
-        uuid account_id FK
+        uuid user_id FK
         varchar job_family
         int years_of_experience
         varchar region
@@ -66,7 +66,7 @@ erDiagram
 
     income_history {
         uuid id PK
-        uuid account_id FK
+        uuid user_id FK
         varchar gross_salary_encrypted
         varchar net_salary_encrypted
         date effective_date
@@ -75,7 +75,7 @@ erDiagram
 
     expense_history {
         uuid id PK
-        uuid account_id FK
+        uuid user_id FK
         varchar base_year_month
         timestamp created_at
     }
@@ -103,7 +103,7 @@ erDiagram
 
     user_skill {
         uuid id PK
-        uuid account_id FK
+        uuid user_id FK
         uuid skill_id FK
         int months_of_experience
         date last_used_date
@@ -192,7 +192,7 @@ erDiagram
 
     index_snapshot {
         uuid id PK
-        uuid account_id FK
+        uuid user_id FK
         varchar base_year_month
         varchar data_version
         varchar rule_version
@@ -205,7 +205,7 @@ erDiagram
 
     career_scenario {
         uuid id PK
-        uuid account_id FK
+        uuid user_id FK
         decimal stay_expected_raise_rate
         bigint move_target_gross_salary
         bigint move_one_time_cost

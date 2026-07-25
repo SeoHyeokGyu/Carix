@@ -16,8 +16,8 @@
 ### 1.2 DDL 스펙
 
 ```sql
--- 1. 인증 및 계정 영역
-CREATE TABLE account (
+-- 1. 인증 및 사용자 영역
+CREATE TABLE users (
     id UUID PRIMARY KEY,
     email VARCHAR(255) NOT NULL UNIQUE,
     onboarding_step VARCHAR(20) NOT NULL DEFAULT 'PROFILE', -- 'PROFILE', 'INCOME', 'EXPENSE', 'SKILLS', 'REVIEW', 'COMPLETED'
@@ -31,21 +31,21 @@ CREATE TABLE invitation (
     status VARCHAR(50) NOT NULL, -- 'PENDING', 'ACCEPTED', 'EXPIRED'
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
--- 계정 삭제 시 동일 이메일의 invitation 행도 애플리케이션 레벨에서 함께 삭제한다 (개인 데이터 잔존 방지).
+-- 사용자 삭제 시 동일 이메일의 invitation 행도 애플리케이션 레벨에서 함께 삭제한다 (개인 데이터 잔존 방지).
 
 CREATE TABLE magic_link_token (
     id UUID PRIMARY KEY,
-    account_id UUID NOT NULL REFERENCES account(id) ON DELETE CASCADE,
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     token_hash VARCHAR(255) NOT NULL UNIQUE,
     expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
     used_at TIMESTAMP WITH TIME ZONE
 );
--- 계정 생성 시점: 초대된 이메일이 매직링크를 처음 요청하는 시점에 account가 없으면 생성한다.
--- 토큰은 항상 account_id에 바인딩되며, 초대되지 않은 이메일은 계정·토큰을 만들지 않고 동일 응답만 반환한다.
+-- 사용자 생성 시점: 초대된 이메일이 매직링크를 처음 요청하는 시점에 users가 없으면 생성한다.
+-- 토큰은 항상 user_id에 바인딩되며, 초대되지 않은 이메일은 사용자·토큰을 만들지 않고 동일 응답만 반환한다.
 
 CREATE TABLE session (
     id UUID PRIMARY KEY,
-    account_id UUID NOT NULL REFERENCES account(id) ON DELETE CASCADE,
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     session_token VARCHAR(255) NOT NULL UNIQUE,
     expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
@@ -54,7 +54,7 @@ CREATE TABLE session (
 -- 2. 사용자 프로필 및 이력 데이터 영역
 CREATE TABLE career_profile (
     id UUID PRIMARY KEY,
-    account_id UUID NOT NULL UNIQUE REFERENCES account(id) ON DELETE CASCADE,
+    user_id UUID NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
     job_family VARCHAR(100), -- 'DEVELOPER', 'DATA', 'AI'
     years_of_experience INT,
     region VARCHAR(100), -- 예: 'SEOUL_GANGNAM', 'GYEONGGI' 등 코드화
@@ -67,20 +67,20 @@ CREATE TABLE career_profile (
 
 CREATE TABLE income_history (
     id UUID PRIMARY KEY,
-    account_id UUID NOT NULL REFERENCES account(id) ON DELETE CASCADE,
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     gross_salary_encrypted VARCHAR(512) NOT NULL, -- 세전연봉 (암호화)
     net_salary_encrypted VARCHAR(512),            -- 월 실수령액 (선택적, 암호화)
     effective_date DATE NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE (account_id, effective_date)
+    UNIQUE (user_id, effective_date)
 );
 
 CREATE TABLE expense_history (
     id UUID PRIMARY KEY,
-    account_id UUID NOT NULL REFERENCES account(id) ON DELETE CASCADE,
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     base_year_month VARCHAR(6) NOT NULL, -- 'YYYYMM' 형식
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE (account_id, base_year_month)
+    UNIQUE (user_id, base_year_month)
 );
 
 CREATE TABLE expense_item (
@@ -99,10 +99,10 @@ CREATE TABLE skill (
     standard_name VARCHAR(100) NOT NULL UNIQUE,
     category VARCHAR(50) NOT NULL, -- 'BACKEND', 'FRONTEND', 'DEVOPS', 'DATA', 'AI_ML', 'ETC' (커스텀 스킬은 생성 시 필수 입력)
     is_custom BOOLEAN NOT NULL DEFAULT false, -- 사용자 정의 스킬 여부
-    created_by UUID REFERENCES account(id) ON DELETE SET NULL -- 사용자 정의 스킬 생성자 (표준 스킬은 NULL)
+    created_by UUID REFERENCES users(id) ON DELETE SET NULL -- 사용자 정의 스킬 생성자 (표준 스킬은 NULL)
 );
 -- 사용자 정의 스킬(is_custom = true)은 시장 집계·지수 계산에서 제외하고 `통계 미제공`으로 표시한다.
--- 커스텀 스킬 정리: 해당 스킬을 참조하는 마지막 user_skill 삭제 또는 생성자 계정 삭제 시,
+-- 커스텀 스킬 정리: 해당 스킬을 참조하는 마지막 user_skill 삭제 또는 생성자 사용자 삭제 시,
 -- 애플리케이션 레벨 트랜잭션으로 skill 행을 함께 삭제한다. created_by의 ON DELETE SET NULL은
 -- 커스텀 스킬이 표준 사전으로 승격(is_custom = false)된 경우에만 의미를 가진다.
 
@@ -114,11 +114,11 @@ CREATE TABLE skill_alias (
 
 CREATE TABLE user_skill (
     id UUID PRIMARY KEY,
-    account_id UUID NOT NULL REFERENCES account(id) ON DELETE CASCADE,
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     skill_id UUID NOT NULL REFERENCES skill(id) ON DELETE CASCADE,
     months_of_experience INT NOT NULL CHECK (months_of_experience BETWEEN 1 AND 600),
     last_used_date DATE NOT NULL,
-    UNIQUE (account_id, skill_id)
+    UNIQUE (user_id, skill_id)
 );
 
 -- 4. 외부 수집 및 집계 영역
@@ -218,7 +218,7 @@ CREATE TABLE market_aggregate (
 -- 5. 지수 스냅샷 및 시나리오 영역
 CREATE TABLE index_snapshot (
     id UUID PRIMARY KEY,
-    account_id UUID NOT NULL REFERENCES account(id) ON DELETE CASCADE,
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     base_year_month VARCHAR(6) NOT NULL, -- 'YYYYMM'
     data_version VARCHAR(50) NOT NULL,   -- 사용자 입력 + 외부 데이터 상태를 식별하는 버전
     rule_version VARCHAR(50) NOT NULL,   -- 결정 신호 규칙표 버전
@@ -227,12 +227,12 @@ CREATE TABLE index_snapshot (
     decision_signal VARCHAR(50) NOT NULL, -- 'NEGOTIATE', 'SEEK_JOB', 'STAY', 'UPSKILL', 'INSUFFICIENT_DATA'
     rationale JSONB NOT NULL, -- 적용 규칙, 근거, 제외 데이터 사유, 원천 기준일
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE (account_id, base_year_month, data_version, rule_version)
+    UNIQUE (user_id, base_year_month, data_version, rule_version)
 );
 
 CREATE TABLE career_scenario (
     id UUID PRIMARY KEY,
-    account_id UUID NOT NULL REFERENCES account(id) ON DELETE CASCADE,
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     stay_expected_raise_rate DECIMAL(5,2) NOT NULL,
     move_target_gross_salary BIGINT NOT NULL,
     move_one_time_cost BIGINT NOT NULL,
@@ -248,7 +248,7 @@ CREATE TABLE career_scenario (
 
 ### 1.3 스냅샷 갱신 의미론 (Snapshot Replacement Semantics)
 
-*   동일 `(account_id, base_year_month, data_version, rule_version)` 키의 재실행은 기존 행을 대체(upsert)하며 중복 행을 만들지 않는다.
+*   동일 `(user_id, base_year_month, data_version, rule_version)` 키의 재실행은 기존 행을 대체(upsert)하며 중복 행을 만들지 않는다.
 *   사용자 입력 변경(과거 소득·소비·스킬 수정 포함) 시 새 `data_version`을 발급하고, 변경의 가장 이른 유효월부터 현재까지의 스냅샷을 새 버전으로 재계산해 저장한다.
 *   조회의 짝 선택 순서: 월별로 먼저 최신 `data_version`을 고르고, 그 안에서 최신 `rule_version`(숫자 세그먼트 비교)을 고른다. 규칙 버전만 배포된 경우 다음 정기 스냅샷 갱신 때 최신 데이터 버전으로 재계산되어 반영된다. 이전 버전 행은 근거 추적을 위해 보존한다.
 *   시나리오는 사용자당 최근 1건을 유효 시나리오로 취급하며, `GET /api/v1/scenarios/latest`는 `calculated_at DESC, id DESC` 순 첫 행을 반환한다 (동일 시각 타이브레이커: `id`).

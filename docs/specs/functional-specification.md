@@ -41,7 +41,7 @@
 | S-10 | `/dashboard` | 대시보드 메인 | SSR shell + hydration | 세션 + 온보딩 완료 |
 | S-11 | `/dashboard/history` | 월별 스냅샷 이력 | SSR shell + hydration | 세션 + 온보딩 완료 |
 | S-12 | `/settings/records` | 소득·소비·스킬 이력 관리 | SSR shell + hydration | 세션 |
-| S-13 | `/settings/account` | 세션·계정 관리, 삭제 | SSR shell + hydration | 세션 |
+| S-13 | `/settings/profile` | 세션·사용자 정보 관리, 삭제 | SSR shell + hydration | 세션 |
 
 라우팅 가드 규칙:
 
@@ -151,15 +151,15 @@
 - Given 스킬 삭제 / When 확인 / Then 시장가치 지수에서 제외되고 다음 계산부터 반영된다.
 - Given 미래 날짜 입력 / When 저장 시도 / Then 거부하고 오류를 표시한다.
 
-### 2.6 계정 (ACCT)
+### 2.6 사용자 설정 (USER)
 
 **US-C1. 세션 관리 (S-13)**
 
 - Given 로그인 상태 / When 모든 기기에서 로그아웃 선택 / Then 전체 세션이 폐기되고 로그인 화면으로 이동한다.
 
-**US-C2. 계정 삭제**
+**US-C2. 사용자 및 개인 데이터 삭제**
 
-- Given 설정 화면 / When 계정 삭제 요청 / Then 삭제 범위(프로필, 입력 이력, 스냅샷, 시나리오, 세션)를 고지하고 이메일 재입력으로 확인받는다.
+- Given 설정 화면 / When 삭제 요청 / Then 삭제 범위(프로필, 입력 이력, 스냅샷, 시나리오, 세션)를 고지하고 이메일 재입력으로 확인받는다.
 - Given 삭제 확인 / When 실행 / Then 개인 데이터와 동일 이메일의 초대 기록을 삭제하고 완료 화면을 표시한다. 공용 시장 집계 데이터는 영향받지 않는다.
 
 ---
@@ -217,7 +217,7 @@
 
 ### 4.4 스냅샷 멱등성과 재계산 범위
 
-- 스냅샷 키는 `(account_id, base_year_month, 데이터 버전, 규칙 버전)`. 동일 키 재실행은 기존 행을 대체하며 중복 행을 만들지 않는다.
+- 스냅샷 키는 `(user_id, base_year_month, 데이터 버전, 규칙 버전)`. 동일 키 재실행은 기존 행을 대체하며 중복 행을 만들지 않는다.
 - 사용자 입력 변경 시 새 데이터 버전을 발급하고, 변경의 가장 이른 유효월부터 현재까지의 스냅샷을 새 버전으로 재계산해 저장한다. 과거 소비 수정에 따른 가중치 전파(US-R1) 재계산도 이 규칙을 따른다.
 - 조회는 월별 최신 `(데이터 버전, 규칙 버전)` 스냅샷을 사용하고, 이전 버전 행은 근거 추적용으로 보존한다.
 - 상세 DDL과 대체 의미론은 [상세 기술 명세 §1.3](technical-specification.md)을 따른다.
@@ -299,17 +299,17 @@ MVP 완료 기준 10개 항목(MVP 스펙 §11)과 본 문서 스토리의 매�
 
 | 화면 | 스토리 | 주요 API | 주요 테이블 |
 | --- | --- | --- | --- |
-| S-02~04 로그인·검증 | US-A1, US-A2 | `POST /auth/magic-link`, `POST /auth/verify` | `invitation`, `magic_link_token`, `session`, `account` |
+| S-02~04 로그인·검증 | US-A1, US-A2 | `POST /auth/magic-link`, `POST /auth/verify` | `invitation`, `magic_link_token`, `session`, `users` |
 | S-05 프로필 | US-O2 | `PATCH /profile` | `career_profile` |
 | S-06 소득 | US-O3 | `POST /income`, `PUT /income/{id}` | `income_history` |
 | S-07 소비 | US-O4 | `PUT /expenses/{ym}` | `expense_history`, `expense_item` |
 | S-08 스킬 | US-O5 | `GET /skills/search`, `POST /user-skills` | `skill`, `skill_alias`, `user_skill` |
-| S-09 검토·완료 | US-O6 | `PATCH /onboarding` | `account`(onboarding_step) |
+| S-09 검토·완료 | US-O6 | `PATCH /onboarding` | `users`(onboarding_step) |
 | S-10 대시보드 | US-D1~D3 | `GET /dashboard/summary`, `/trends`, `/salary-distribution`, `/skills` | `index_snapshot`, `market_aggregate`, `wage_stat_observation` |
 | S-11 이력 | US-D4 | `GET /dashboard/history` | `index_snapshot` |
 | 시뮬레이터 | US-S1 | `POST /scenarios/simulate`, `GET /scenarios/latest` | `career_scenario` |
 | S-12 이력 관리 | US-R1 | `PUT`·`DELETE /income`·`/user-skills`, `PUT /expenses/{ym}` | `income_history`, `expense_*`, `user_skill` |
-| S-13 계정 | US-C1, US-C2 | `POST /auth/logout`·`/logout-all`, `DELETE /account` | `session`, 전 개인 테이블 |
+| S-13 설정/탈퇴 | US-C1, US-C2 | `POST /auth/logout`·`/logout-all`, `DELETE /users` | `session`, 전 개인 테이블 |
 
 API 경로는 `/api/v1` 접두사를 생략했다. 상세는
 [API 규격](api-specification.md), 테이블은

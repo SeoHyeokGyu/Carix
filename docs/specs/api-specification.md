@@ -54,7 +54,7 @@
 *   **Response (200 OK):**
     ```json
     {
-      "accountId": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+      "userId": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
       "email": "user@example.com",
       "isOnboardingComplete": false
     }
@@ -359,13 +359,13 @@
 *   `PUT /api/v1/user-skills/{id}` / `DELETE /api/v1/user-skills/{id}` — 수정·삭제
 
 ### 7.3 온보딩 상태
-*   `GET /api/v1/onboarding` — `{ "currentStep": "EXPENSE", "completed": false }` (`account.onboarding_step` 기반)
+*   `GET /api/v1/onboarding` — `{ "currentStep": "EXPENSE", "completed": false }` (`users.onboarding_step` 기반)
 *   `PATCH /api/v1/onboarding` — 단계 진행 갱신. `REVIEW` → `COMPLETED` 전환 시 첫 지수 계산을 트리거
 
 ### 7.4 소득 이력 수정·삭제
 *   `PUT /api/v1/income/{id}` / `DELETE /api/v1/income/{id}` — 유효 시작일 중복 시 `409 Conflict`. 변경 시 영향 유효월부터 스냅샷 재계산 트리거
 
-### 7.5 세션·계정
+### 7.5 세션·사용자
 *   `POST /api/v1/auth/logout` — 현재 세션 폐기
 *   `POST /api/v1/auth/logout-all` — 전체 세션 폐기
-*   `DELETE /api/v1/account` — 계정·개인 데이터 삭제. Request Body에 확인용 `{"email": "..."}` 필수, 불일치 시 `400`
+*   `DELETE /api/v1/users` — 사용자·개인 데이터 삭제. Request Body에 확인용 `{"email": "..."}` 필수, 불일치 시 `400`
