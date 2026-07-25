@@ -62,23 +62,14 @@
 
 ## 3. 데이터 수집 아키텍처 가이드 (Data Pipeline)
 
-```text
-  [KOSIS OpenAPI]  [고용24 OpenAPI]  [사람인 오픈 API]  [임금통계 API]
-         │                │                │                │
-         │ (월 1회)       │ (일 1회 증분)  │ (일 1회 증분)  │ (발표 주기)
-         ▼                ▼                ▼                ▼
-   [Spring Batch 외부 수집 어댑터 모듈 (원천별 어댑터)]
-         │
-         ▼
-┌───────────────────────────────────────┐
-│     [데이터 정제 및 가공 파이프라인]     │
-│  - 중복 공고 필터링 (Hash값 비교)      │
-│  - 상세 텍스트 내 스킬 키워드 파싱    │
-│  - 유효 연봉 값 검증 및 정규화        │
-└───────────────────────────────────────┘
-         │
-         ▼
-   [PostgreSQL Raw / 집계 DB]
+```mermaid
+flowchart TD
+    Kosis[KOSIS OpenAPI] -->|월 1회 수집| Batch[Spring Batch 외부 수집 어댑터 모듈 <br> 원천별 어댑터]
+    Work24[고용24 OpenAPI] -->|일 1회 증분 수집| Batch
+    Saramin[사람인 오픈 API] -->|일 1회 증분 수집| Batch
+    Wage[임금통계 API] -->|발표 주기 수집| Batch
+    Batch --> Pipeline[데이터 정제 및 가공 파이프라인<br>- 중복 공고 필터링 Hash값 비교<br>- 상세 텍스트 내 스킬 키워드 파싱<br>- 유효 연봉 값 검증 및 정규화]
+    Pipeline --> DB[(PostgreSQL Raw / 집계 DB)]
 ```
 
 ### 3.1 장애 대책 (Fallback Strategy)

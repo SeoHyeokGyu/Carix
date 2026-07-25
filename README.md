@@ -31,20 +31,21 @@ Carix는 명목연봉이나 채용공고 수처럼 분리된 숫자를 보여주
 
 ## 데이터 연결 구조
 
-```text
-개인 입력
-연봉 이력 + 소비 비중 + 경력 + 지역 + 보유 스킬
-                         │
-      ┌───────────┬──────┴──────┬───────────┐
-      │           │             │           │
- KOSIS CPI    고용24 공고    사람인 공고   임금통계
- 품목별 물가   직종·경력·본문  IT 공고 보완  직종별 연봉 기준선
-      │           │             │           │
-      └───────────┴──────┬──────┴───────────┘
-                         │
-         구매력 지수 + 시장가치 지수 + 결정 신호
-                         │
-        잔류·이직 시나리오와 행동 제안
+```mermaid
+flowchart TD
+    Input[개인 입력<br>연봉 이력 + 소비 비중 + 경력 + 지역 + 보유 스킬]
+    Kosis[KOSIS CPI<br>품목별 물가]
+    Work24[고용24 공고<br>직종·경력·본문]
+    Saramin[사람인 공고<br>IT 공고 보완]
+    Wage[임금통계<br>직종별 연봉 기준선]
+    
+    Input --> Output[구매력 지수 + 시장가치 지수 + 결정 신호]
+    Kosis --> Output
+    Work24 --> Output
+    Saramin --> Output
+    Wage --> Output
+    
+    Output --> Scenario[잔류·이직 시나리오와 행동 제안]
 ```
 
 ### 구매력 계산
@@ -259,16 +260,14 @@ Carix는 명목연봉이나 채용공고 수처럼 분리된 숫자를 보여주
 | 데이터 | PostgreSQL, Spring Batch | 영속화, 외부 데이터 수집·집계 |
 | 엣지·배포 | Nginx, Docker Compose, OCI | TLS, reverse proxy, 컨테이너 운영 |
 
-```text
-Internet
-   |
-Nginx
-   |
-   +-- /*       Node SSR :3000
-   +-- /api/*   Spring Boot :8080
-   +-- /assets  정적 파일
-                    |
-                PostgreSQL
+```mermaid
+flowchart TD
+    Internet([Internet]) --> Nginx[Nginx]
+    Nginx -->|"/*"| NodeSSR[Node SSR :3000]
+    Nginx -->|"/api/*"| SpringBoot[Spring Boot :8080]
+    Nginx -->|"/assets"| Static[정적 파일]
+    NodeSSR -.-> SpringBoot
+    SpringBoot --> DB[(PostgreSQL)]
 ```
 
 Nginx는 동일 출처에서 화면과 API를 제공해 CORS 구성을 최소화합니다. Node 서버는

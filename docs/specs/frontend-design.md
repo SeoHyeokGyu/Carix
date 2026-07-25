@@ -26,16 +26,14 @@ PostgreSQL, Spring Batch와 관련된 기존 백엔드·데이터 설계는 유�
 
 ## 시스템 경계
 
-```text
-Internet
-   |
-Nginx
-   |
-   +-- /*       Node SSR :3000
-   +-- /api/*   Spring Boot :8080
-   +-- /assets  정적 파일
-                    |
-                PostgreSQL
+```mermaid
+flowchart TD
+    Internet([Internet]) --> Nginx[Nginx]
+    Nginx -->|"/*"| NodeSSR[Node SSR :3000]
+    Nginx -->|"/api/*"| SpringBoot[Spring Boot :8080]
+    Nginx -->|"/assets"| Static[정적 파일]
+    NodeSSR -.-> SpringBoot
+    SpringBoot --> DB[(PostgreSQL)]
 ```
 
 - Nginx는 TLS 종료, 압축, 정적 파일 제공, reverse proxy를 담당한다.
