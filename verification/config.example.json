@@ -1,0 +1,18 @@
+{
+  "kosis": {
+    "base_url": "공식 문서에서 확인한 KOSIS 통계자료 API URL",
+    "key_env": "CARIX_KOSIS_KEY"
+  },
+  "work24": {
+    "base_url": "공식 문서에서 확인한 고용24 채용정보 API URL",
+    "key_env": "CARIX_WORK24_KEY"
+  },
+  "saramin": {
+    "base_url": "공식 문서에서 확인한 사람인 채용공고 API URL",
+    "key_env": "CARIX_SARAMIN_KEY"
+  },
+  "wagestat": {
+    "base_url": "임금 통계 API URL (임금직무정보시스템 또는 KOSIS 대체)",
+    "key_env": "CARIX_WAGESTAT_KEY"
+  }
+}
