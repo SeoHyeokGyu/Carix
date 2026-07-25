@@ -1,44 +1,29 @@
-# Carix Product Design
+# Carix 제품 설계
 
-## Purpose
+## 목적
 
-Carix measures a user's real career value by connecting personal income and
-consumption patterns with labor-market skill demand and disclosed salaries.
+Carix는 개인의 소득 및 소비 패턴을 노동 시장의 스킬 수요 및 공개된 연봉 정보와 연결하여 사용자의 실제 경력 가치를 측정한다.
 
-## Product Model
+## 제품 모델
 
-The product exposes two indices and one categorical decision signal:
+이 제품은 두 가지 지수와 하나의 범주형 의사결정 신호를 제시한다:
 
-1. Purchasing Power Index
-2. Market Value Index
-3. Decision Signal
+1. 구매력 지수 (Purchasing Power Index)
+2. 시장 가치 지수 (Market Value Index)
+3. 의사결정 신호 (Decision Signal)
 
-The results remain separate so users can understand conflicting signals and
-the evidence behind each recommendation. The decision signal is categorical to
-avoid false precision.
+사용자가 상충되는 신호와 각 추천의 근거를 이해할 수 있도록 결과는 분리된 상태로 유지된다. 거짓 정밀도를 방지하기 위해 의사결정 신호는 범주형으로 설계된다.
 
-## MVP Boundary
+## MVP 범위
 
-The first release targets developer, data, and AI roles. Users manually enter
-salary history, consumption weights, career attributes, and skills. KOSIS CPI
-data supports purchasing-power calculations. Skill demand is measured from job
-postings across Work24 and Saramin, and the salary-gap baseline comes from
-official wage statistics (posting salaries are shown only as reference). See the
-hybrid lineage decision in the feature breakdown §6.1.
+첫 번째 출시는 개발, 데이터, AI 직군을 대상으로 한다. 사용자는 연봉 이력, 소비 가중치, 경력 특성, 스킬을 직접 입력한다. 통계청(KOSIS) 소비자물가지수(CPI) 데이터로 구매력을 계산한다. 스킬 수요는 워크24 및 사람인의 채용공고를 통해 측정되며, 연봉 격차 기준은 공식 임금 통계를 사용한다(공고의 연봉은 참고용으로만 표시됨). 기능 분류 §6.1의 하이브리드 계통 의사결정을 참조한다.
 
-The MVP compares staying and changing jobs. It does not include financial
-account connections, automatic applications, guaranteed salary predictions, or
-professional financial, tax, or labor advice.
+MVP는 현재 직장 유지와 이직을 비교한다. 금융 계좌 연동, 자동 입사 지원, 보장된 연봉 예측, 또는 전문적인 재무, 세무, 노무 자문은 포함하지 않는다.
 
-## Reliability
+## 신뢰성
 
-Every result must include its source date, sample size, and relevant missing-data
-rate. The product must label observed associations as trends rather than causal
-effects and must degrade transparently when an external API is unavailable.
+모든 결과에는 출처 날짜, 표본 크기, 관련 결측률이 포함되어야 한다. 관찰된 연관 관계는 인과 관계가 아닌 추세로 표시해야 하며, 외부 API를 사용할 수 없는 경우 투명하게 단계적으로 기능이 저하되어야 한다.
 
-## Current Decision
+## 현재 결정
 
-The detailed MVP requirements are approved. The application uses a Vite + React
-(React Router, Node SSR) frontend, a Java 21 Spring Boot backend, PostgreSQL, and
-a separate Spring Batch worker. Data feasibility for KOSIS, Work24, Saramin, and
-the wage-statistics source must be verified before full implementation.
+상세 MVP 요구사항이 승인되었다. 애플리케이션은 Vite + React(React Router, Node SSR) 프런트엔드, Java 21 Spring Boot 백엔드, PostgreSQL, 그리고 별도의 Spring Batch 워커를 사용한다. 본격적인 구현에 앞서 KOSIS, 워크24, 사람인, 임금 통계 출처의 데이터 수집 가능성을 검증해야 한다.
