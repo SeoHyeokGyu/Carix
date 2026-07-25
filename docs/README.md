@@ -35,7 +35,8 @@
 
 | 문서 | 내용 |
 | --- | --- |
-| [REST API 규격](specs/api-specification.md) | 엔드포인트, 요청·응답, 인증, 에러 포맷 |
+| [REST API 규격](specs/api-specification.md) | 내부 API: 엔드포인트, 요청·응답, 인증, 에러 포맷 |
+| [외부 원천 API 연동 명세](specs/external-api-integration.md) | 배치 어댑터 경계: KOSIS 실측 명세, 미검증 원천 확인 항목 |
 
 > 실무 관점 개선 여지: 산문 규격 → OpenAPI(`docs/api/openapi.yaml`) 기계 판독본으로 승격 가능(선택).
 

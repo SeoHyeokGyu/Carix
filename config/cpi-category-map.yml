@@ -1,0 +1,55 @@
+# KOSIS 지출목적별 소비자물가지수(12대 분류) -> Carix 소비 카테고리(6종) N:1 매핑.
+#
+# 주의: CPI 통계표와 가계동향조사 통계표는 같은 12대 분류를 쓰지만 코드 문자가 다르다.
+#       예) 01 식료품 = CPI 'A' / 가계동향 'H',  08 통신 = CPI 'H' / 가계동향 'P'.
+#       두 코드계를 하나로 합치면 조용히 잘못된 값이 나온다. 반드시 분리해 다룬다.
+#
+# 카테고리 CPI 변화율은 하위 CPI 계열의 가중평균으로 합성한다. 합성 가중치는
+# default-expense-weights.yml 의 subWeights 를 사용한다.
+
+version: 1
+source:
+  orgId: "101"
+  tblId: DT_1J22001            # 지출목적별 소비자물가지수(품목포함, 2020=100)
+  itmId: T                     # 소비자물가지수
+  objL1: T10                   # 시도별 = 전국
+  objL2Axis: 지출목적별          # objL1=시도별, objL2=지출목적별 (축 순서 주의)
+  periodType: M
+  availableFrom: "198501"
+  baseYear: "2020"
+
+# CPI 지출목적 코드 -> Carix 카테고리
+categories:
+  HOUSING:
+    label: 주거·공공요금
+    cpiCodes:
+      - { code: D, name: "04 주택 수도 전기 및 연료" }
+      - { code: H, name: "08 통신" }
+  FOOD:
+    label: 식비
+    cpiCodes:
+      - { code: A, name: "01 식료품 및 비주류음료" }
+      - { code: K, name: "11 음식 및 숙박" }
+  TRANSPORT:
+    label: 교통
+    cpiCodes:
+      - { code: G, name: "07 교통" }
+  MEDICAL:
+    label: 의료
+    cpiCodes:
+      - { code: F, name: "06 보건" }
+  EDUCATION:
+    label: 교육·자기계발
+    cpiCodes:
+      - { code: J, name: "10 교육" }
+  LEISURE:
+    label: 여가·기타
+    cpiCodes:
+      - { code: B, name: "02 주류 및 담배" }
+      - { code: C, name: "03 의류 및 신발" }
+      - { code: E, name: "05 가정용품 및 가사 서비스" }
+      - { code: I, name: "09 오락 및 문화" }
+      - { code: L, name: "12 기타 상품 및 서비스" }
+
+# 참고용: 총지수 코드 '0'. Carix 카테고리에 매핑하지 않는다.
+totalIndexCode: "0"

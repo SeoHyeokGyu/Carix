@@ -1,0 +1,65 @@
+# 소비 카테고리 기본 가중치 시드 (도메인 정의서 §1.1 - DEFAULT_CPI 폴백).
+# 사용자가 소비 금액을 입력하지 않았거나 과거 이력도 없을 때 주입한다.
+#
+# 출처: KOSIS 가구당 월평균 가계수지(전국, 1인이상) 전체가구 소비지출 비중.
+# MVP는 가구원수를 수집하지 않으므로 가구원수별 세분 가중치를 쓰지 않는다.
+#
+# 갱신: 가계동향조사는 연 단위 공표. 새 연도 반영 시 version 을 올리고
+#       Flyway 마이그레이션으로 재적재한다. 기존 스냅샷은 데이터 버전으로 구분된다.
+#
+# 주의: 2026-07 확인 결과 구 통계표 DT_1L9E102 는 2016년에서 시계열이 끊긴다
+#       (가계동향조사 개편). 현행 시리즈는 DT_1L9U101 이다.
+
+version: 1
+sourceStatTable:
+  orgId: "101"
+  tblId: DT_1L9U101            # 가구당 월평균 가계수지 (전국, 1인이상)
+  itmId: T110                  # 전체가구
+  totalCode: F                 # 소비지출 합계
+basePeriod: "2025"             # 연 단위
+verifiedAt: "2026-07-25"
+
+# 카테고리 비중 합계 = 1.0000
+# subWeights: 카테고리 CPI 변화율 합성용 하위 가중치 (카테고리 내 합계 1.0).
+#             hhCode = 가계동향 코드, cpi = 대응 CPI 코드 (cpi-category-map.yml 과 일치).
+#
+# IMPORTANT: subWeights 는 **전월 대비 변화율에만** 적용한다.
+#   올바름: categoryRate(t) = Σ(subWeight_i × (CPI_i(t)/CPI_i(t-1) - 1))
+#   틀림  : categoryIndex(t) = Σ(subWeight_i × CPI_i(t))   ← 지수 레벨 가중평균 금지
+#   지수 레벨을 평균하면 기준시점이 조용히 재설정되어 실제 카테고리 계열과 어긋난다.
+weights:
+  HOUSING:
+    weight: 0.1795
+    subWeights:
+      - { hhCode: L, cpi: D, weight: 0.6835, name: "04 주거·수도·광열" }
+      - { hhCode: P, cpi: H, weight: 0.3165, name: "08 정보통신" }
+  FOOD:
+    weight: 0.3112
+    subWeights:
+      - { hhCode: H, cpi: A, weight: 0.4911, name: "01 식료품·비주류음료" }
+      - { hhCode: T, cpi: K, weight: 0.5089, name: "11 음식·숙박" }
+  TRANSPORT:
+    weight: 0.1146
+    subWeights:
+      - { hhCode: O, cpi: G, weight: 1.0000, name: "07 교통·운송" }
+  MEDICAL:
+    weight: 0.0774
+    subWeights:
+      - { hhCode: N, cpi: F, weight: 1.0000, name: "06 보건" }
+  EDUCATION:
+    weight: 0.0710
+    subWeights:
+      - { hhCode: S, cpi: J, weight: 1.0000, name: "10 교육" }
+  LEISURE:
+    weight: 0.2463
+    subWeights:
+      - { hhCode: J, cpi: B, weight: 0.0520, name: "02 주류·담배" }
+      - { hhCode: K, cpi: C, weight: 0.1949, name: "03 의류·신발" }
+      - { hhCode: M, cpi: E, weight: 0.1655, name: "05 가정용품·가사서비스" }
+      - { hhCode: Q, cpi: I, weight: 0.2422, name: "09 오락·문화" }
+      - { hhCode: U, cpi: L, weight: 0.3454, name: "12 기타상품·서비스" }
+
+# NOTE: (cjkang) 08 정보통신은 HOUSING(주거·공공요금)에 포함한다. 2026-07-25 결정.
+#       CPI 원 분류상 04와 08은 별개 대분류이나, Carix 카테고리명이 '공공요금'을
+#       포함하므로 사용자 직관에 맞춘다. 되돌릴 경우 LEISURE 로 이동하고
+#       HOUSING 0.1227 / LEISURE 0.3032 가 된다.
