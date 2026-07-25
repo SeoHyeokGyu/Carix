@@ -29,6 +29,7 @@ CREATE TABLE invitation (
     id UUID PRIMARY KEY,
     email VARCHAR(255) NOT NULL UNIQUE,
     status VARCHAR(50) NOT NULL, -- 'PENDING', 'ACCEPTED', 'EXPIRED'
+    expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 -- 사용자 삭제 시 동일 이메일의 invitation 행도 애플리케이션 레벨에서 함께 삭제한다 (개인 데이터 잔존 방지).

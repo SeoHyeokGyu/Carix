@@ -35,6 +35,7 @@ erDiagram
         uuid id PK
         varchar email
         varchar status
+        timestamp expires_at
         timestamp created_at
     }
 
