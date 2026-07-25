@@ -30,5 +30,5 @@
 - 계정 열거 방지: 미초대 이메일에도 동일한 발송 안내 응답. 이메일당 5회/시간, IP당
   20회/시간 속도 제한.
 - 매직링크 원본 토큰은 저장하지 않고 해시만 저장, `used_at`으로 재사용 차단.
-- 상세는 [상세 기술 명세](../specs/2026-07-18-detailed-technical-specifications.md)와
+- 상세는 [상세 기술 명세](../specs/technical-specification.md)와
   [보안 문서](../SECURITY.md)를 따른다.

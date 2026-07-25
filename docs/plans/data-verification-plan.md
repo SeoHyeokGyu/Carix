@@ -8,7 +8,7 @@
 
 **Tech Stack:** Python 3 (표준 라이브러리만), Git
 
-**참조 스펙:** `docs/superpowers/specs/2026-07-15-carix-pipeline-redesign-design.md` 7장
+**참조 스펙:** `docs/superpowers/specs/data-architecture.md` 7장
 
 ## Global Constraints
 
@@ -618,7 +618,7 @@ Task 1 Step 5의 4번 결과에 따라:
 # Carix 데이터 선행 검증 결과
 
 검증 기간: YYYY-MM-DD ~ YYYY-MM-DD
-스펙: 2026-07-15-carix-pipeline-redesign-design.md 7장
+스펙: data-architecture.md 7장
 
 ## 원천별 판정
 

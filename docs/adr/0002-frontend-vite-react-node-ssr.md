@@ -12,7 +12,7 @@
 ## 결정
 
 Vite + React + TypeScript + React Router Framework Mode + Node SSR(Express)로 간다.
-상세: [Vite·Node 프런트엔드 설계](../specs/2026-07-18-vite-node-frontend-design.md).
+상세: [Vite·Node 프런트엔드 설계](../specs/frontend-design.md).
 
 - 런타임 Node.js 24 LTS, 빌드 Vite, 라우팅·렌더링 React Router Framework Mode.
 - Node 서버는 HTML SSR·SEO만 담당하고 DB 직접 접근·비즈니스 로직 복제를 하지 않는다.

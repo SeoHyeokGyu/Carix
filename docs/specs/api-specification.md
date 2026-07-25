@@ -295,7 +295,7 @@
       "isEligibleForUnemploymentBenefit": true
     }
     ```
-    *(`expectedUnemploymentMonths`: 0~6. `isEligibleForUnemploymentBenefit` 기본값 true, false면 실업급여 0으로 계산하고 `실업급여 미반영` 안내 표시. 공식은 [도메인 정의서 §4](2026-07-18-domain-logic-refinement.md)를 따릅니다)*
+    *(`expectedUnemploymentMonths`: 0~6. `isEligibleForUnemploymentBenefit` 기본값 true, false면 실업급여 0으로 계산하고 `실업급여 미반영` 안내 표시. 공식은 [도메인 정의서 §4](domain-logic.md)를 따릅니다)*
 *   **Response (200 OK):**
     ```json
     {
@@ -349,7 +349,7 @@
 
 ### 7.1 지출 이력
 *   `GET /api/v1/expenses` — 기준월별 지출 기록 목록. 각 항목: `baseYearMonth`, `items[{category, amount, status}]`
-*   `PUT /api/v1/expenses/{baseYearMonth}` — 해당 기준월 지출 등록·수정 (6개 카테고리 부분 입력 허용). 미입력 카테고리는 기본 가중치로 보간 (혼합 규칙: [도메인 정의서 §1.1-4](2026-07-18-domain-logic-refinement.md))
+*   `PUT /api/v1/expenses/{baseYearMonth}` — 해당 기준월 지출 등록·수정 (6개 카테고리 부분 입력 허용). 미입력 카테고리는 기본 가중치로 보간 (혼합 규칙: [도메인 정의서 §1.1-4](domain-logic.md))
 *   상태는 **카테고리별** `status`(`USER_DEFINED` / `DEFAULT_CPI`)로 반환하고, 월 요약 `weightStatus`는 `USER_DEFINED` / `PARTIALLY_ESTIMATED` / `PROPAGATED` / `DEFAULT_CPI`
 
 ### 7.2 스킬

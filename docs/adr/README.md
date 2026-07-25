@@ -21,5 +21,5 @@
 ## 관련 문서
 
 리뷰 라운드별 세부 수정 이력은
-[기능 분해 명세 §6.2](../specs/2026-07-19-mvp-feature-breakdown.md)의 정합성
+[기능 분해 명세 §6.2](../specs/functional-specification.md)의 정합성
 표를 참조한다. ADR은 그중 구조적·재논의 결정만 승격해 기록한다.

@@ -5,8 +5,8 @@ Carix는 연봉·실수령액·소비 금액 등 민감한 개인 재무 정보�
 참조하되, 정책 기준은 이 문서를 따른다.
 
 관련: [ADR 0005 서버 세션 인증](adr/0005-server-session-auth.md),
-[상세 기술 명세](specs/2026-07-18-detailed-technical-specifications.md),
-[MVP 설계 §8](specs/2026-07-12-carix-mvp-design.md).
+[상세 기술 명세](specs/technical-specification.md),
+[MVP 설계 §8](specs/mvp-requirements.md).
 
 ## 1. 인증
 
@@ -71,7 +71,7 @@ Carix는 연봉·실수령액·소비 금액 등 민감한 개인 재무 정보�
 ## 6. 입력 검증
 
 - 시스템 경계에서 모든 사용자 입력을 검증한다. 허용 범위는
-  [기능 분해 명세 §3](specs/2026-07-19-mvp-feature-breakdown.md)을 따른다.
+  [기능 분해 명세 §3](specs/functional-specification.md)을 따른다.
 - 음수·범위 초과 금액, 미래 시점 이력, 중복 유효일 소득, 중복 스킬을 거부한다.
 - 파라미터화 쿼리·ORM으로 SQL 인젝션을 방지하고, 프런트엔드 출력은 이스케이프한다.
 

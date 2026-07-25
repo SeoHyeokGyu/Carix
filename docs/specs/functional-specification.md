@@ -6,7 +6,7 @@
 | 버전 | 1.0 |
 | 최종 갱신 | 2026-07-19 |
 | 대상 독자 | 프런트엔드·백엔드 구현자, 리뷰어 |
-| 상위 문서 | [MVP 설계](2026-07-12-carix-mvp-design.md), [상세 기술 명세](2026-07-18-detailed-technical-specifications.md) |
+| 상위 문서 | [MVP 설계](mvp-requirements.md), [상세 기술 명세](technical-specification.md) |
 
 ## 목적과 범위
 
@@ -15,7 +15,7 @@
 화면 상태, 완료 기준 매핑, 화면–스토리–API–데이터 추적 매트릭스를 정의한다.
 
 계산 공식, 결정 규칙표, 스킬 사전, 동료집단 완화 알고리즘, DB 스키마는 상위 문서와
-[도메인 정의서](2026-07-18-domain-logic-refinement.md)·[API 규격](2026-07-18-api-endpoints-specification.md)에서
+[도메인 정의서](domain-logic.md)·[API 규격](api-specification.md)에서
 정의하며, 이 문서는 이를 참조한다. 문서 간 충돌 시 각 주제의 소관 문서와
 [ADR](../adr/README.md)을 우선한다.
 
@@ -24,8 +24,8 @@
 ## 1. 화면 맵과 라우트
 
 공개 랜딩부터 대시보드·설정까지 MVP 전체 화면과 라우팅 규칙을 정의한다. 렌더링
-전략은 [프런트엔드 설계](2026-07-18-vite-node-frontend-design.md), 레이아웃은
-[UI/UX 설계](2026-07-18-ui-ux-layout-design.md)를 따른다.
+전략은 [프런트엔드 설계](frontend-design.md), 레이아웃은
+[UI/UX 설계](ui-ux-design.md)를 따른다.
 
 | # | 라우트 | 화면 | 렌더링 | 접근 조건 |
 | --- | --- | --- | --- | --- |
@@ -190,7 +190,7 @@
 
 ## 4. 계산 경계 규칙
 
-[도메인 정의서](2026-07-18-domain-logic-refinement.md)의 계산 공식이 다루지 않는
+[도메인 정의서](domain-logic.md)의 계산 공식이 다루지 않는
 경계·예외 조건을 정의한다.
 
 ### 4.1 스킬 수요 지수
@@ -220,7 +220,7 @@
 - 스냅샷 키는 `(account_id, base_year_month, 데이터 버전, 규칙 버전)`. 동일 키 재실행은 기존 행을 대체하며 중복 행을 만들지 않는다.
 - 사용자 입력 변경 시 새 데이터 버전을 발급하고, 변경의 가장 이른 유효월부터 현재까지의 스냅샷을 새 버전으로 재계산해 저장한다. 과거 소비 수정에 따른 가중치 전파(US-R1) 재계산도 이 규칙을 따른다.
 - 조회는 월별 최신 `(데이터 버전, 규칙 버전)` 스냅샷을 사용하고, 이전 버전 행은 근거 추적용으로 보존한다.
-- 상세 DDL과 대체 의미론은 [상세 기술 명세 §1.3](2026-07-18-detailed-technical-specifications.md)을 따른다.
+- 상세 DDL과 대체 의미론은 [상세 기술 명세 §1.3](technical-specification.md)을 따른다.
 
 ---
 
@@ -312,5 +312,5 @@ MVP 완료 기준 10개 항목(MVP 스펙 §11)과 본 문서 스토리의 매�
 | S-13 계정 | US-C1, US-C2 | `POST /auth/logout`·`/logout-all`, `DELETE /account` | `session`, 전 개인 테이블 |
 
 API 경로는 `/api/v1` 접두사를 생략했다. 상세는
-[API 규격](2026-07-18-api-endpoints-specification.md), 테이블은
-[상세 기술 명세](2026-07-18-detailed-technical-specifications.md)를 따른다.
+[API 규격](api-specification.md), 테이블은
+[상세 기술 명세](technical-specification.md)를 따른다.

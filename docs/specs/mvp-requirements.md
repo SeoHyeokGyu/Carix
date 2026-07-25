@@ -3,9 +3,9 @@
 > **계보 주의 (2026-07-19 하이브리드 결정):** 이 문서의 제품 기능 정의는 유효하다.
 > 단, 데이터 아키텍처 관련 서술(공개연봉 기반 격차 판정, KOSIS·고용24 2원천 구조,
 > §5.3 공개연봉 프리미엄, §7.2 워커 구성)은
-> [2026-07-15 파이프라인 재설계](2026-07-15-carix-pipeline-redesign-design.md)의
+> [2026-07-15 파이프라인 재설계](data-architecture.md)의
 > 원천 4개·임금통계 기준선·RawIngest 구조로 대체되었다.
-> 결정 기록: [기능 분해 명세 §6.1](2026-07-19-mvp-feature-breakdown.md).
+> 결정 기록: [기능 분해 명세 §6.1](functional-specification.md).
 
 ## 1. 문서 목적
 
@@ -214,7 +214,7 @@
 ```
 
 구직 공백 기간과 실업급여는 사용자가 입력한 가정을 기반으로 추정하며, 상세 공식은
-[도메인 정의서 §4](2026-07-18-domain-logic-refinement.md)를 따른다. MVP는 세금,
+[도메인 정의서 §4](domain-logic.md)를 따른다. MVP는 세금,
 성과급, 주식보상, 퇴직금을 자동 추정하지 않는다. 해당 항목이 결과에 포함되지
 않았음을 명확히 표시한다.
 
@@ -253,7 +253,7 @@
 
 Spring Boot와 React Router, Vite의 세부 버전은 구현 시작 시 지원 중인 안정 버전으로
 잠그고 저장소에 명시한다. 프런트엔드 상세 설계는
-[2026-07-18-vite-node-frontend-design.md](2026-07-18-vite-node-frontend-design.md)를 따른다.
+[frontend-design.md](frontend-design.md)를 따른다.
 
 ### 7.2 구조
 
