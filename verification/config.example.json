@@ -1,18 +1,27 @@
 {
   "kosis": {
-    "base_url": "공식 문서에서 확인한 KOSIS 통계자료 API URL",
-    "key_env": "CARIX_KOSIS_KEY"
+    "base_url": "https://kosis.kr/openapi/Param/statisticsParameterData.do",
+    "key_env": "KOSIS_API_KEY",
+    "_note": "통계자료 조회. 축 순서는 kosis_meta 로 OBJ_ID_SN 확인 후 objL1/objL2 지정."
   },
-  "work24": {
-    "base_url": "공식 문서에서 확인한 고용24 채용정보 API URL",
-    "key_env": "CARIX_WORK24_KEY"
+  "kosis_meta": {
+    "base_url": "https://kosis.kr/openapi/statisticsData.do",
+    "key_env": "KOSIS_API_KEY",
+    "_note": "method=getMeta&type=ITM 으로 통계표 분류 축과 코드 조회."
   },
   "saramin": {
-    "base_url": "공식 문서에서 확인한 사람인 채용공고 API URL",
-    "key_env": "CARIX_SARAMIN_KEY"
+    "base_url": "https://oapi.saramin.co.kr/job-search",
+    "key_env": "SARAMIN_API_KEY",
+    "_note": "인증 파라미터명은 access-key. 기간 필터 published_min/published_max, 직군 필터 job_mid_cd=22(IT개발·데이터), count 최대 110."
+  },
+  "work24": {
+    "base_url": "https://www.work24.go.kr/cm/openApi/call/wk/callOpenApiSvcInfo210L01.do",
+    "key_env": "WORK24_API_KEY",
+    "_note": "채용정보 API는 기업회원 전용. 개인 계정은 호출 단계에서 차단된다 (2026-07-25 실측). 계정 유형이 바뀌기 전까지 측정 대상이 아니다."
   },
   "wagestat": {
-    "base_url": "임금 통계 API URL (임금직무정보시스템 또는 KOSIS 대체)",
-    "key_env": "CARIX_WAGESTAT_KEY"
+    "base_url": "https://kosis.kr/openapi/Param/statisticsParameterData.do",
+    "key_env": "KOSIS_API_KEY",
+    "_note": "wage.go.kr OpenAPI 미등록. KOSIS 고용형태별근로실태조사 계열 통계표로 대체. 통계표 ID와 차원은 미실측."
   }
 }
