@@ -24,6 +24,7 @@
 | 문서 | 내용 |
 | --- | --- |
 | [파이프라인 재설계](specs/data-architecture.md) | 데이터 아키텍처: 원천 4개, RawIngest, dedup, 임금통계 기준선 |
+| [데이터베이스 ERD](specs/erd.md) | 데이터베이스 엔티티 관계도 (Mermaid) |
 | [애플리케이션 워크플로우](specs/application-workflow.md) | E2E 데이터 흐름, Spring Batch Job 파이프라인, 시퀀스 |
 | [상세 기술 명세](specs/technical-specification.md) | DB 스키마(DDL), 결정 규칙표, 스킬 사전, 외부 API 연동 |
 | [도메인 계산 정의](specs/domain-logic.md) | 지수·시나리오 계산 공식, 가중치 전파, 완화 알고리즘 |
