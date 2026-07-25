@@ -221,7 +221,7 @@ Carix는 명목연봉이나 채용공고 수처럼 분리된 숫자를 보여주
 - 스냅샷은 `(사용자, 기준월, 데이터 버전, 규칙 버전)` 키로 멱등 — 재실행해도 중복 없음
 
 전체 사용자 스토리와 인수 조건은
-[`docs/superpowers/specs/2026-07-19-mvp-feature-breakdown.md`](docs/superpowers/specs/2026-07-19-mvp-feature-breakdown.md)를
+[`docs/specs/functional-specification.md`](docs/specs/functional-specification.md)를
 참고하세요.
 
 ## 데이터 출처
@@ -358,5 +358,5 @@ Carix/
 
 전체 문서는 **[문서 맵(`docs/README.md`)](docs/README.md)**에서 주제별로 탐색할 수 있습니다. 정본은 `docs/specs/`·`docs/plans/`이며, 최초 작성 원본은 `docs/superpowers/`에 동결 보존합니다.
 
-설계 기준: 제품 기능은 [MVP 설계](docs/specs/2026-07-12-carix-mvp-design.md)와 [기능 명세서](docs/specs/2026-07-19-mvp-feature-breakdown.md), 데이터 아키텍처는 [파이프라인 재설계](docs/specs/2026-07-15-carix-pipeline-redesign-design.md)를 따릅니다 (하이브리드 계보 결정은 [ADR 0001](docs/adr/0001-hybrid-design-lineage.md)).
+설계 기준: 제품 기능은 [MVP 설계](docs/specs/mvp-requirements.md)와 [기능 명세서](docs/specs/functional-specification.md), 데이터 아키텍처는 [파이프라인 재설계](docs/specs/data-architecture.md)를 따릅니다 (하이브리드 계보 결정은 [ADR 0001](docs/adr/0001-hybrid-design-lineage.md)).
 
