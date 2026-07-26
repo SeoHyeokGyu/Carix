@@ -1,5 +1,9 @@
 # OCI Deployment Plan Documentation Design
 
+> **완료·대체됨.** README 체크리스트 한 줄을 추가하기 위한 문서 설계였다. 실제 배포 아키텍처
+> (2단 엣지, GHCR pull 방식, CD 워크플로)는
+> [OCI 서버 구성·배포 계획](../plans/oci-server-provisioning-plan.md)이 정본이다.
+
 ## 목적
 
 Carix의 향후 운영 배포 대상이 Oracle Cloud Infrastructure(OCI)임을 프로젝트

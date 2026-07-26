@@ -1,5 +1,10 @@
 # OCI Deployment Plan Documentation Implementation Plan
 
+> **완료·대체됨.** 이 계획은 README에 "OCI 배포 예정" 체크리스트 한 줄을 추가하는 문서 작업이었고
+> 이미 반영됐다 (해당 항목은 2026-07-26 배포 성공으로 완료 표시됨). 실제 인프라 구성과 배포
+> 절차는 [OCI 서버 구성·배포 계획](oci-server-provisioning-plan.md)이 정본이다.
+> 아래 체크박스는 당시 원문 그대로 두며 더 이상 실행 대상이 아니다.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** README의 프로젝트 상태에 Carix가 Oracle Cloud Infrastructure(OCI) 배포를 예정하고 있음을 기록한다.

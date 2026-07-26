@@ -30,7 +30,7 @@
 | Mukzzi | **이 호스트에서 돌던 것.** `~/mukzzi` 삭제됨, 컨테이너·볼륨 없음. 별도 인스턴스는 존재하지 않는다 |
 | 저장소 | `SeoHyeokGyu/Carix` private. ARM 러너는 2026-01-29부터 private도 free-tier 대상 (2 vCPU) |
 | 참조 구현 | `Mukzzi/.github/workflows/backend-deploy.yml` — `ubuntu-24.04-arm` → buildx → GHCR → SSH `compose pull`. 최근 5회 전부 성공 (1m45s–1m56s) |
-| `backend/`, `frontend/` | `README.md`만. Dockerfile·`build.gradle`·`package.json` 없음 → **Phase 6 게이트** |
+| `backend/`, `frontend/` | ~~`README.md`만~~ → PR #15에서 최소 스캐폴드 완료. Phase 6 게이트 해제 |
 
 ## 실행 현황 (2026-07-26)
 
@@ -40,17 +40,56 @@
 | 2. 저장소 변경 | **완료** — PR #11 머지됨 (`cec2ab3`) |
 | 3. 엣지 구성 | **완료** — 라우터(`infra_caddy`) + 프로젝트별 Caddy(`carix_caddy`, `asset_pulse_caddy`). 양 도메인 정상 TLS |
 | 4. 서버 준비 | **완료** — `/home/opc/carix`가 main(`cec2ab3`) 체크아웃, `.env` 생성(600), deploy key 등록 |
-| 5. CD 워크플로 | **부분 완료** — 워크플로·Secrets 등록됨. 실행은 스캐폴드 후 |
-| 6. 첫 배포 검증 | **대기** — 최소 스캐폴드(백엔드 Boot 4.1 + springdoc, 프런트 스텁) 완료. 첫 배포 미실행 |
+| 5. CD 워크플로 | **완료** — 워크플로·Secrets 등록. 2026-07-26 실행 성공 |
+| 6. 첫 배포 검증 | **완료** — 2026-07-26, [run 30193778838](https://github.com/SeoHyeokGyu/Carix/actions/runs/30193778838) |
 | 7. 운영 | 미착수 |
 
 검증된 상태 (2단 엣지 전환 후):
 
 - `https://pulse.144.24.90.88.sslip.io/` → 200, TLS 검증 통과 (라우터 → `asset_pulse_caddy` → frontend)
-- `https://carix.144.24.90.88.sslip.io/` → 502 (백엔드 없음), TLS 검증 통과 (라우터 → `carix_caddy`)
 - `infra_caddy`만 호스트 포트(80/443)를 바인딩한다. 프로젝트 Caddy는 `expose`만
 - 컨테이너 비정상 0
 - 5432·8080·3000·8000 외부 차단 확인
+
+### 첫 배포 실측 (2026-07-26, run 30193778838)
+
+전 구간 통과. 총 2분 37초.
+
+| 잡 | 소요 | 비고 |
+| --- | --- | --- |
+| Test & Build backend | 1m 44s | `ubuntu-24.04-arm`, `BUILD SUCCESSFUL in 56s` |
+| Build frontend | 40s | buildx + GHA 레이어 캐시 |
+| Deploy to Oracle Cloud | 40s | SSH → `compose pull` → `up -d` |
+| Health check | 4s | 첫 시도에 200 |
+
+배포 직후 공개 도메인 실측:
+
+| 경로 | 결과 |
+| --- | --- |
+| `/api/health` | `{"status":"UP"}` 200, TLS 검증 통과 |
+| `/api/v3/api-docs` | 200 |
+| `/api/swagger-ui/index.html` | 200 |
+| `/` | 200 (프런트엔드 스텁) |
+
+**`ubuntu-24.04-arm` free-tier가 private 저장소에서 동작한다**는 것도 이 실행으로 확인됐다.
+그 전까지는 Mukzzi 참조와 공지에 근거한 전제였다.
+
+### 겪은 장애: 첫 배포가 이미지 태그·buildx로 두 번 실패
+
+[run 30193645689](https://github.com/SeoHyeokGyu/Carix/actions/runs/30193645689)에서 `backend`·`frontend` 잡이
+모두 이미지 빌드 단계에서 죽었다. Gradle 빌드 자체는 성공했으므로 애플리케이션 문제가 아니었다.
+
+1. **태그 대문자.** `IMAGE_BASE`가 `ghcr.io/${{ github.repository }}`인데 `github.repository`는
+   `SeoHyeokGyu/Carix`다. Docker는 repository 이름이 소문자여야 한다:
+   `invalid tag "...": repository name must be lowercase`.
+   `docker-compose.yml`은 이미 소문자를 참조하고 있었으므로 그 값으로 고정했다.
+2. **buildx 드라이버 부재.** `frontend` 잡이 `cache-to: type=gha`를 쓰는데
+   `docker/setup-buildx-action`이 없어 기본 `docker` 드라이버로 돌았다:
+   `Cache export is not supported for the docker driver`. GHA 캐시 export에는
+   `docker-container` 드라이버가 필요하다.
+
+둘 다 PR #16에서 수정. **교훈:** `${{ github.repository }}`를 이미지 이름에 그대로 쓰지 않는다.
+계정·저장소 이름에 대문자가 있으면 반드시 깨진다.
 
 ### 겪은 장애: bind mount inode 끊김
 
@@ -260,7 +299,10 @@ ssh -N -L 5432:localhost:5432 carix-oci
 
 ### Task 2.3: 스캐폴드 담당자에게 전달할 계약
 
-- [ ] **`backend/Dockerfile` — 컴파일하지 않는다.** JAR은 GitHub Actions 러너가 Gradle 캐시를 써서
+> **이행 완료 (PR #15).** 아래는 계약 원문이며, 실제 스캐폴드에서 달라진 점은 각 항목 아래
+> 인용문으로 덧붙였다. 실물은 [`backend/Dockerfile`](../../backend/Dockerfile) 참조.
+
+- [x] **`backend/Dockerfile` — 컴파일하지 않는다.** JAR은 GitHub Actions 러너가 Gradle 캐시를 써서
       만들고, Dockerfile은 그 산출물을 layered로 풀어 담기만 한다.
 
 ```dockerfile
@@ -269,13 +311,15 @@ FROM eclipse-temurin:21-jre AS builder
 WORKDIR /builder
 ARG JAR_FILE=build/libs/*.jar
 COPY ${JAR_FILE} application.jar
-RUN java -Djarmode=tools -jar application.jar extract --layers --destination extracted
+RUN java -Djarmode=tools -jar application.jar extract \
+      --layers \
+      --application-filename application.jar \
+      --destination extracted
 
-# 2단계: 런타임
+# 2단계: 런타임 (자주 안 바뀌는 레이어부터)
 FROM eclipse-temurin:21-jre
 WORKDIR /application
 COPY --from=builder /builder/extracted/dependencies/ ./
-COPY --from=builder /builder/extracted/spring-boot-loader/ ./
 COPY --from=builder /builder/extracted/snapshot-dependencies/ ./
 COPY --from=builder /builder/extracted/application/ ./
 ENTRYPOINT ["java", "-jar", "application.jar"]
@@ -284,17 +328,38 @@ ENTRYPOINT ["java", "-jar", "application.jar"]
 효과: 의존성이 안 바뀌면 배포마다 애플리케이션 레이어(수 MB)만 push·pull된다.
 통짜 JAR을 COPY하면 매번 60–100MB가 통째로 바뀐다 — **디스크 85%인 서버에 직결되는 차이**다.
 
-> `-Djarmode=tools ... extract --layers`는 Spring Boot 3.3 이상 문법이다.
-> 3.2 이하를 쓰면 `-Djarmode=layertools extract`이고 ENTRYPOINT도
-> `org.springframework.boot.loader.launch.JarLauncher`가 된다. 스캐폴드 시 Boot 버전에 맞춘다.
-> `.dockerignore`에 `src`, `.gradle`을 넣어 빌드 컨텍스트를 줄인다.
+> **스캐폴드에서 확인된 세 가지 (계약 원문과 다름):**
+>
+> 1. **`--application-filename` 이 필요하다.** 추출된 애플리케이션 JAR의 이름은 기본적으로
+>    입력 JAR 파일명을 따라간다. 이 플래그가 없으면 `ENTRYPOINT`가 버전 문자열에 묶인다.
+> 2. **`spring-boot-loader` 레이어는 비어 있다.** `--launcher`를 쓰지 않으면 `lib/` +
+>    manifest Class-Path 방식이라 로더가 추출되지 않는다. 해당 `COPY` 줄은 뺐다.
+> 3. **plain jar를 꺼야 한다.** `build/libs/*.jar` 글롭이 `bootJar` 산출물과 `-plain.jar`
+>    두 개를 집어 `COPY`가 실패한다. `tasks.named('jar') { enabled = false }`.
+>
+> 채택 버전은 Spring Boot 4.1.0이며 `-Djarmode=tools ... extract --layers`가 그대로 유효하다.
+> (Boot 3.2 이하라면 `-Djarmode=layertools extract`에 ENTRYPOINT도
+> `org.springframework.boot.loader.launch.JarLauncher`가 된다.)
+> `.dockerignore`는 `*` + 부정(`!`) 대신 명시적 제외 목록을 쓴다 — 부정 패턴은 buildkit
+> 구현에 따라 부모 경로 재포함이 필요하다.
 
 - [ ] **`frontend/Dockerfile`** — 멀티스테이지(pnpm install → build → 런타임 prod deps만),
       Node SSR 3000 노출. 프런트엔드는 Dockerfile 안에서 빌드해도 pnpm 레이어 캐시가 잘 듣는다.
-- [ ] 두 이미지 모두 **linux/arm64**로 빌드된다 (러너가 `ubuntu-24.04-arm`, 서버가 aarch64).
+
+> 현재는 의존성 없는 스텁이라 단일 스테이지다. 실제 프런트엔드 스캐폴드 시 이 계약대로 교체한다.
+> `cache-to: type=gha`를 쓰므로 **`docker/setup-buildx-action`이 반드시 있어야 한다** —
+> 기본 `docker` 드라이버는 캐시 export를 지원하지 않는다.
+
+- [x] 두 이미지 모두 **linux/arm64**로 빌드된다 (러너가 `ubuntu-24.04-arm`, 서버가 aarch64).
       QEMU 에뮬레이션은 쓰지 않는다.
-- [ ] 백엔드가 **정확히 `/api/health`** 를 서빙할 것. Caddy가 `/api/*`를 경로 그대로 `spring-api:8080`에 넘긴다.
+- [x] 백엔드가 **정확히 `/api/health`** 를 서빙할 것. Caddy가 `/api/*`를 경로 그대로 `spring-api:8080`에 넘긴다.
       Actuator 기본 경로(`/actuator/health`)로는 맞지 않는다. Phase 5 헬스체크가 이 경로에 의존한다.
+
+> **채택 방식: `server.servlet.context-path=/api`.** 컨트롤러에 `/api`를 직접 박는 대신
+> 컨텍스트 패스로 두면 헬스체크뿐 아니라 OpenAPI 문서(`/api/v3/api-docs`)와 Swagger UI 정적
+> 자원(`/api/swagger-ui/**`)까지 전부 `/api` 아래로 들어와 `deploy/caddy/Caddyfile`을
+> 건드릴 필요가 없다. springdoc의 `swagger-ui.path`만 바꾸면 리다이렉트 대상과 webjar 자원이
+> `/api` 밖으로 나가 Caddy가 `frontend-node`로 보낸다.
 
 ---
 
@@ -535,7 +600,9 @@ Mukzzi 워크플로는 **Go** 프로젝트다. Carix는 Gradle/JVM + Node SSR이
 | 7 | `deploy` 잡에 `permissions` 없음 | Mukzzi는 public이라 통과. **Carix는 private → GHCR 패키지도 private → `compose pull` 403** | **교체** — `packages: read` 추가 |
 | 8 | 워크플로 2개(backend/frontend)로 분리 + 각자 `paths` | SHA 고정 배포와 충돌한다. 프런트만 바뀐 커밋에는 백엔드 이미지의 해당 SHA 태그가 없다 | **교체** — 항상 둘 다 빌드 |
 | 9 | `set -eux` | `-x`가 `docker login` 라인을 트레이스에 찍는다 | **교체** — `set -eu` |
-| 10 | `appleboy/ssh-action@v1` (가변 태그) | 서드파티 액션 공급망 리스크 | 커밋 SHA 핀 권장 |
+| 10 | `appleboy/ssh-action@v1` (가변 태그) | 서드파티 액션 공급망 리스크 | **적용됨** — v1.2.5 커밋 SHA로 고정 |
+| 11 | `IMAGE_BASE: ghcr.io/${{ github.repository }}` | `github.repository`가 `SeoHyeokGyu/Carix`라 대문자가 섞인다. Docker repository 이름은 소문자여야 한다 | **교체** — 소문자 하드코딩 (첫 배포에서 실패로 드러남) |
+| 12 | `cache-to: type=gha` + buildx 셋업 없음 | 기본 `docker` 드라이버는 캐시 export를 지원하지 않는다 | **교체** — `docker/setup-buildx-action` 추가 (첫 배포에서 실패로 드러남) |
 
 추가로 **현재 `ci.yml`과 중복**이 있다. `ci.yml` backend 잡이 `ubuntu-latest`(x86)에서
 `./gradlew build`를 돌리는데, 배포가 또 컴파일한다. 게다가 **테스트는 x86, 배포 이미지는 arm64**라
@@ -549,6 +616,9 @@ Mukzzi 워크플로는 **Go** 프로젝트다. Carix는 Gradle/JVM + Node SSR이
 > `cache-to: type=gha,mode=max`는 프런트엔드에만 건다.
 > 그럼에도 최대 소비자는 프런트엔드의 `mode=max`다. **백엔드 빌드가 갑자기 느려지면 Gradle 캐시가
 > 축출된 것**이므로, 캐시를 늘리지 말고 프런트엔드를 `mode=min`으로 낮춘다.
+>
+> 같은 이유로 `ci.yml`과 `deploy.yml`은 **둘 다 `gradle/actions/setup-gradle`** 을 쓴다.
+> 한쪽만 `setup-java`의 `cache: gradle`을 쓰면 캐시 키 스킴이 갈라져 같은 의존성이 두 벌 저장된다.
 
 ### 워크플로 구성
 

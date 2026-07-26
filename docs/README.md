@@ -58,14 +58,16 @@
 | --- | --- |
 | [보안·개인정보 처리](SECURITY.md) | 인증, 컬럼 암호화, 개인정보 수명주기, 로그 배제 |
 | [로컬 개발 가이드](DEVELOPMENT.md) | 런타임 설치, OCI dev DB 터널, dev server, 테스트 |
-| [CI 워크플로우](../.github/workflows/ci.yml) | 프런트엔드·백엔드 검증 (스캐폴드 후 활성) |
+| [CI 워크플로우](../.github/workflows/ci.yml) | PR 게이트 — 프런트엔드·백엔드 검증 |
+| [배포 워크플로우](../.github/workflows/deploy.yml) | main 푸시 — ARM 러너 빌드 → GHCR → SSH → 헬스체크 |
 
 ## 계획 (Plans)
 
 | 문서 | 내용 |
 | --- | --- |
 | [데이터 선행 검증](plans/data-verification-plan.md) | 원천 4개 API 실측·약관·표본 기준 산출 (구현 착수 선결) |
-| [OCI 배포 계획](plans/oci-deployment-plan.md) | OCI 배포 환경 구성 |
+| [OCI 서버 구성·배포](plans/oci-server-provisioning-plan.md) | 정본. 디스크·엣지·서버 준비·CD 워크플로·첫 배포 실측과 장애 기록 |
+| [OCI 배포 계획](plans/oci-deployment-plan.md) | 초기 문서화 작업 기록 (완료·대체됨). 배포 실무는 위 문서를 본다 |
 
 ---
 

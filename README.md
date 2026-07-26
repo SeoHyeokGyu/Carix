@@ -308,7 +308,8 @@ OCI VM에서는 `carix-caddy`, `frontend-node`, `spring-api`, `spring-batch`, `p
 - [x] 기술 스택 결정
 - [ ] 데이터 수집 가능성 검증
 - [ ] 애플리케이션 구현
-- [ ] Oracle Cloud Infrastructure(OCI) 배포 환경 구성
+- [x] Oracle Cloud Infrastructure(OCI) 배포 환경 구성 — 2026-07-26 첫 배포 성공.
+      최소 스캐폴드 기준 빌드 → GHCR → SSH → 헬스체크 전 구간 검증 ([배포 계획](docs/plans/oci-server-provisioning-plan.md))
 
 ## 저장소 구성
 
@@ -321,8 +322,10 @@ Carix/
 │   ├── caddy/Caddyfile        Carix 전용 Caddy의 애플리케이션 라우팅
 │   ├── caddy/router.caddy     라우터 Caddy가 import하는 호스트명 분기
 │   └── postgres/initdb/       dev DB 분리 초기화 스크립트
-├── frontend/                  Vite·React·Node SSR (스캐폴드 예정)
-├── backend/                   Spring Boot (스캐폴드 예정)
+├── config/                    CPI 분류 매핑, 기본 지출 가중치
+├── verification/              데이터 원천 선행 검증 스크립트와 실측 노트
+├── frontend/                  Node SSR (현재는 배포 검증용 스텁 — Vite·React 스캐폴드 예정)
+├── backend/                   Spring Boot 4.1 + springdoc (최소 스캐폴드 — JPA·Batch 도입 예정)
 ├── docs/
 │   ├── README.md             문서 맵 (주제별 인덱스 — 여기서 시작)
 │   ├── specs/                설계 문서 정본 (MVP, API, DB, UI/UX 등)
@@ -331,7 +334,7 @@ Carix/
 │   ├── SECURITY.md           보안·개인정보 처리
 │   ├── DEVELOPMENT.md        로컬 개발 가이드
 │   └── superpowers/          최초 작성 원본 (동결, 갱신 안 함)
-├── .github/workflows/        CI
+├── .github/workflows/         CI (PR 게이트) + Deploy (main 푸시)
 ├── .claude/                   Claude Code 로컬 설정
 └── .superpowers/              설계 워크플로우 작업 기록
 ```
@@ -350,7 +353,12 @@ Carix/
 
 구체적인 실행 절차(런타임 설치, SSH 터널, dev server, 테스트)는
 [`docs/DEVELOPMENT.md`](docs/DEVELOPMENT.md)를, CI 구성은
-[`.github/workflows/ci.yml`](.github/workflows/ci.yml)를 참조합니다.
+[`.github/workflows/ci.yml`](.github/workflows/ci.yml), 배포는
+[`.github/workflows/deploy.yml`](.github/workflows/deploy.yml)를 참조합니다.
+
+현재 스캐폴드 상태는 배포 파이프라인 검증용 최소 구성입니다. 백엔드는 Spring Boot 4.1 +
+springdoc으로 `/api/health` 하나를 서빙하고(JPA·Flyway·Security·Batch 미도입), 프런트엔드는
+`:3000`을 채우는 스텁입니다. 실제 기능 구현은 이후 단계입니다.
 
 ## 협업 방식
 

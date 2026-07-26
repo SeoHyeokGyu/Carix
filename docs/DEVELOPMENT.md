@@ -3,8 +3,17 @@
 로컬은 순수 코드 개발이다. **Docker와 PostgreSQL은 OCI 서버에서만 기동**하고, 로컬
 백엔드는 OCI dev DB에 원격 연결한다. 배경과 결정은 [루트 README 개발 환경](../README.md#개발-환경)을 참조한다.
 
-> 프런트엔드·백엔드 프로젝트는 아직 스캐폴드 전이다. 아래 명령 중 앱 실행·테스트
-> 부분은 각 프로젝트 초기화(`frontend/` Vite, `backend/` Spring Boot) 이후 활성화된다.
+> **현재 스캐폴드 상태 (2026-07-26).** 이 문서는 목표 상태를 기술한다. 지금 실제로 되는 것과
+> 다음 스캐폴드를 기다리는 것을 구분한다.
+>
+> | 항목 | 지금 |
+> | --- | --- |
+> | 백엔드 | Spring Boot 4.1 + springdoc. `./gradlew build`·`bootRun` 동작. **JPA·Flyway·Security·Batch 없음** |
+> | 프런트엔드 | 배포 검증용 스텁(`server.js`)만. **Vite·React 없음.** `pnpm dev`·`test:e2e` 스크립트 없음 |
+> | DB | 백엔드가 아직 DB를 쓰지 않는다. §3 터널은 JPA 도입 후부터 필요 |
+>
+> 따라서 §4(프런트엔드)와 §5의 Flyway·배치 항목, §6의 Playwright는 각 프로젝트 초기화 이후
+> 활성화된다.
 
 ## 1. 사전 준비
 
