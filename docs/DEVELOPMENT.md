@@ -58,20 +58,29 @@ cp .env.example .env
 
 로컬엔 Postgres를 띄우지 않는다. OCI의 dev 스키마에 연결한다.
 
-### 3.1 SSH 터널 (권장)
+### 3.1 SSH 터널
 
 ```bash
 # 로컬 5432 → OCI 서버의 Postgres 5432
-ssh -N -L 5432:localhost:5432 opc@<oci-host> -i ~/.ssh/<oci-key>
+ssh -N -L 5432:localhost:5432 carix-oci
+```
+
+`~/.ssh/config`에 별칭을 둔다.
+
+```
+Host carix-oci
+  HostName 144.24.90.88
+  User opc
+  IdentityFile ~/.ssh/carix-oci.key
+  IdentitiesOnly yes
 ```
 
 터널이 열린 동안 `.env`의 `SPRING_DATASOURCE_URL`을
 `jdbc:postgresql://localhost:5432/carix_dev`로 둔다.
 
-### 3.2 방화벽 직접 허용 (대안)
-
-OCI 보안 목록에서 개발자 IP에 5432를 허용한 경우, 터널 없이 직접 주소를 사용한다.
-운영 DB가 아닌 dev DB에만 허용한다.
+터널이 유일한 접근 경로다. **5432를 외부에 직접 열지 않는다.** `docker-compose.yml`이
+`expose`만 쓰므로 포트가 호스트에 바인딩되지 않으며, 이를 `ports`로 바꾸면 DB가 인터넷에
+노출된다.
 
 ## 4. 프런트엔드 개발
 

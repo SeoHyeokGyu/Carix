@@ -1,44 +1,56 @@
 # Carix — OCI 배포 전용 오케스트레이션.
 # 로컬에서 `docker compose up`으로 쓰지 않는다. Docker와 PostgreSQL은 OCI 서버에서만 기동한다.
 # 로컬 개발은 순수 코드로 하고, 백엔드는 OCI dev DB에 원격 연결한다 (README 개발 환경 참조).
+#
+# 이미지는 GitHub Actions(ubuntu-24.04-arm)가 빌드해 GHCR에 올린다. 서버는 pull만 한다.
+# IMAGE_TAG는 배포 워크플로가 커밋 SHA로 서버 .env에 기록한다. 롤백은 이 값을 바꿔 재기동.
+#
+# 엣지(TLS·라우팅)는 이 compose가 아니라 서버의 공용 Caddy(~/infra)가 담당한다.
+# 라우팅 정본은 deploy/caddy/carix.caddy 이고 Caddy 컨테이너에 bind-mount된다.
 services:
-  nginx:
-    image: nginx:1.27-alpine
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - ./deploy/nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
-    depends_on:
-      - frontend-node
-      - spring-api
-    restart: unless-stopped
-
   frontend-node:
-    build: ./frontend
+    image: ghcr.io/seohyeokgyu/carix/frontend:${IMAGE_TAG:-latest}
     environment:
       - NODE_ENV=production
       - API_ORIGIN=http://spring-api:8080
     expose:
       - "3000"
+    networks:
+      - default
+      - edge
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     restart: unless-stopped
 
   spring-api:
-    build: ./backend
+    image: ghcr.io/seohyeokgyu/carix/backend:${IMAGE_TAG:-latest}
     environment:
       - SPRING_PROFILES_ACTIVE=prod
       - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/${POSTGRES_DB}
       - SPRING_DATASOURCE_USERNAME=${POSTGRES_USER}
       - SPRING_DATASOURCE_PASSWORD=${POSTGRES_PASSWORD}
       - CARIX_ENCRYPTION_KEY=${CARIX_ENCRYPTION_KEY}
+      - JAVA_TOOL_OPTIONS=-XX:MaxRAMPercentage=50
     expose:
       - "8080"
     depends_on:
       - postgres
+    networks:
+      - default
+      - edge
+    mem_limit: 1500m
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     restart: unless-stopped
 
   spring-batch:
-    build: ./backend
+    image: ghcr.io/seohyeokgyu/carix/backend:${IMAGE_TAG:-latest}
     command: ["--spring.batch.job.enabled=true", "--carix.role=batch"]
     environment:
       - SPRING_PROFILES_ACTIVE=prod,batch
@@ -49,8 +61,17 @@ services:
       - KOSIS_API_KEY=${KOSIS_API_KEY}
       - WORK24_API_KEY=${WORK24_API_KEY}
       - SARAMIN_API_KEY=${SARAMIN_API_KEY}
+      - JAVA_TOOL_OPTIONS=-XX:MaxRAMPercentage=50
     depends_on:
       - postgres
+    mem_limit: 1500m
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    # TODO: (cjkang) 상주 스케줄러인지 원샷 잡인지 확정 후 재검토.
+    # 원샷이면 restart: "no" 로 바꾸고 크론이나 `docker compose run`으로 돌린다.
     restart: unless-stopped
 
   postgres:
@@ -59,11 +80,22 @@ services:
       - POSTGRES_DB=${POSTGRES_DB}
       - POSTGRES_USER=${POSTGRES_USER}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - CARIX_DEV_PASSWORD=${CARIX_DEV_PASSWORD}
     volumes:
       - carix-pgdata:/var/lib/postgresql/data
+      - ./deploy/postgres/initdb:/docker-entrypoint-initdb.d:ro
     expose:
       - "5432"
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     restart: unless-stopped
+
+networks:
+  edge:
+    external: true
 
 volumes:
   carix-pgdata:

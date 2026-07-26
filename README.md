@@ -258,21 +258,21 @@ flowchart TD
 | UI·시각화 | Tailwind CSS, shadcn/ui, Recharts | 컴포넌트, 스타일, 지수 차트 |
 | 백엔드 | Java 21, Spring Boot | 인증, 도메인 로직, REST API, 데이터 접근 |
 | 데이터 | PostgreSQL, Spring Batch | 영속화, 외부 데이터 수집·집계 |
-| 엣지·배포 | Nginx, Docker Compose, OCI | TLS, reverse proxy, 컨테이너 운영 |
+| 엣지·배포 | Caddy, Docker Compose, GitHub Actions, OCI | TLS, reverse proxy, 컨테이너 운영 |
 
 ```mermaid
 flowchart TD
-    Internet([Internet]) --> Nginx[Nginx]
-    Nginx -->|"/*"| NodeSSR[Node SSR :3000]
-    Nginx -->|"/api/*"| SpringBoot[Spring Boot :8080]
-    Nginx -->|"/assets"| Static[정적 파일]
+    Internet([Internet]) --> Caddy[Caddy]
+    Caddy -->|"/*"| NodeSSR[Node SSR :3000]
+    Caddy -->|"/api/*"| SpringBoot[Spring Boot :8080]
+    Caddy -->|"/assets"| Static[정적 파일]
     NodeSSR -.-> SpringBoot
     SpringBoot --> DB[(PostgreSQL)]
 ```
 
-Nginx는 동일 출처에서 화면과 API를 제공해 CORS 구성을 최소화합니다. Node 서버는
-HTML과 SEO를 담당하고 Spring Boot는 인증과 비즈니스 로직을 담당합니다. Node
-서버는 DB에 직접 접근하거나 Spring Boot 로직을 복제하지 않습니다.
+Caddy는 동일 출처에서 화면과 API를 제공해 CORS 구성을 최소화하고 TLS 인증서를 자동으로
+발급·갱신합니다. Node 서버는 HTML과 SEO를 담당하고 Spring Boot는 인증과 비즈니스 로직을
+담당합니다. Node 서버는 DB에 직접 접근하거나 Spring Boot 로직을 복제하지 않습니다.
 
 ### 렌더링 전략
 
@@ -291,8 +291,10 @@ robots 정책과 필요한 구조화 데이터를 제공합니다.
 - API 모킹: MSW
 - 브라우저 E2E: Playwright
 
-OCI VM에서는 `nginx`, `frontend-node`, `spring-api`, `spring-batch`,
-`postgres` 컨테이너를 Docker Compose로 운영할 예정입니다.
+OCI VM에서는 `frontend-node`, `spring-api`, `spring-batch`, `postgres` 컨테이너를
+Docker Compose로 운영합니다. 이미지는 GitHub Actions(ARM 러너)가 빌드해 GHCR에 올리고
+서버는 pull만 합니다. TLS와 라우팅은 서버의 공용 Caddy가 담당합니다
+([배포 계획](docs/plans/oci-server-provisioning-plan.md)).
 
 ## 프로젝트 상태
 
@@ -315,7 +317,8 @@ Carix/
 ├── docker-compose.yml         OCI 배포 오케스트레이션 (로컬 실행용 아님)
 ├── .env.example               환경 변수 템플릿 (.env는 커밋 금지)
 ├── deploy/
-│   └── nginx/nginx.conf       reverse proxy 설정
+│   ├── caddy/carix.caddy      엣지 라우팅 정본 (서버 Caddy에 마운트)
+│   └── postgres/initdb/       dev DB 분리 초기화 스크립트
 ├── frontend/                  Vite·React·Node SSR (스캐폴드 예정)
 ├── backend/                   Spring Boot (스캐폴드 예정)
 ├── docs/
