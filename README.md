@@ -334,7 +334,7 @@ Carix/
 │   ├── SECURITY.md           보안·개인정보 처리
 │   ├── DEVELOPMENT.md        로컬 개발 가이드
 │   └── superpowers/          최초 작성 원본 (동결, 갱신 안 함)
-├── .github/workflows/         CI (PR 게이트) + Deploy (main 푸시)
+├── .github/workflows/         Deploy (main 푸시). PR 단계 CI는 없음
 ├── .claude/                   Claude Code 로컬 설정
 └── .superpowers/              설계 워크플로우 작업 기록
 ```
@@ -352,9 +352,11 @@ Carix/
 버전 기준: 컨테이너는 Java 21, Node.js 24 LTS로 고정합니다 (로컬 개발 머신의 상위 버전과 별개).
 
 구체적인 실행 절차(런타임 설치, SSH 터널, dev server, 테스트)는
-[`docs/DEVELOPMENT.md`](docs/DEVELOPMENT.md)를, CI 구성은
-[`.github/workflows/ci.yml`](.github/workflows/ci.yml), 배포는
+[`docs/DEVELOPMENT.md`](docs/DEVELOPMENT.md)를, 배포는
 [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml)를 참조합니다.
+
+PR 단계 CI는 두지 않습니다. 자동 검증은 배포 워크플로가 main 푸시에서 수행하는
+`./gradlew build` 하나이며, 프런트엔드 lint·타입체크·테스트는 로컬에서 직접 돌립니다.
 
 현재 스캐폴드 상태는 배포 파이프라인 검증용 최소 구성입니다. 백엔드는 Spring Boot 4.1 +
 springdoc으로 `/api/health` 하나를 서빙하고(JPA·Flyway·Security·Batch 미도입), 프런트엔드는
