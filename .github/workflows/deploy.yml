@@ -1,4 +1,14 @@
 # Carix 배포 — GitHub Actions(ARM 러너)가 이미지를 빌드해 GHCR에 올리고, OCI 서버는 pull만 한다.
+#
+# 이미지 태그는 컴포넌트별로 나뉘고(BACKEND_TAG / FRONTEND_TAG), 값은 커밋 SHA가 아니라
+# **그 컴포넌트를 마지막으로 바꾼 커밋**이다. 그래서 빌드 여부 판정이 따로 필요 없다 —
+# 그 태그의 이미지가 레지스트리에 이미 있으면 만들 것이 없다.
+#
+# 백엔드만 바꾼 커밋에서는 FRONTEND_TAG 값이 그대로라 compose 가 frontend-node 를
+# 재생성하지 않는다. 반대도 같다.
+#
+# 태그를 SHA 로 고정하는 이유는 롤백이 아니라 관측성·재현성이다. .env 두 줄만 보면
+# 어떤 코드가 돌고 있는지 확정되고, 서버를 재기동해도 같은 이미지가 뜬다.
 name: Deploy
 
 on:
@@ -10,6 +20,11 @@ on:
       - docker-compose.yml
       - deploy/**
       - .github/workflows/deploy.yml
+      # 문서만 바뀐 커밋은 배포하지 않는다. backend/README.md 같은 파일이
+      # `backend/**`에 걸려 코드 변경 0인 재배포를 유발했다 (run 30201703174).
+      # paths는 마지막에 매칭된 패턴이 이기므로 포함 규칙 뒤에 둔다.
+      # 코드와 문서를 함께 바꾼 커밋은 코드 쪽이 위 패턴에 걸려 정상 실행된다.
+      - '!**/*.md'
   workflow_dispatch:
 
 concurrency:
@@ -31,23 +46,15 @@ jobs:
     permissions:
       contents: read
       packages: write
+    outputs:
+      tag: ${{ steps.tag.outputs.tag }}
     steps:
+      # 태그를 `git log`로 구하므로 전체 히스토리가 필요하다.
       - uses: actions/checkout@v4
-
-      - uses: actions/setup-java@v4
         with:
-          distribution: temurin
-          java-version: 21
+          fetch-depth: 0
 
-      # Gradle 의존성·빌드 캐시를 GHA 캐시에 보관한다.
-      # Dockerfile 안에서 빌드하면 이 캐시를 쓸 수 없어 매번 전체 컴파일이 된다.
-      - uses: gradle/actions/setup-gradle@v4
-
-      # Testcontainers 통합 테스트가 여기서 돈다. 러너에 Docker가 있고 aarch64라
-      # 운영 아키텍처와 일치한다.
-      - name: Build & test
-        working-directory: backend
-        run: ./gradlew build
+      - uses: docker/setup-buildx-action@v3
 
       - name: Login to GHCR
         uses: docker/login-action@v3
@@ -56,8 +63,46 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: 태그 결정과 이미지 존재 확인
+        id: tag
+        run: |
+          # 태그는 backend/ 를 마지막으로 바꾼 커밋이다. 워크플로가 바뀌면 빌드 방식이
+          # 달라졌을 수 있으므로 함께 본다.
+          TAG=$(git log -1 --format=%H -- backend/ .github/workflows/deploy.yml)
+          [ -n "$TAG" ] || TAG="$GITHUB_SHA"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+
+          # 그 코드로 만든 이미지가 이미 있으면 다시 만들 것이 없다.
+          # 앞선 실행에서 빌드가 실패했다면 태그가 없으므로 자동으로 다시 시도된다.
+          if docker buildx imagetools inspect "${IMAGE_BASE}/backend:${TAG}" >/dev/null 2>&1; then
+            echo "build=false" >> "$GITHUB_OUTPUT"
+            echo "backend:${TAG} 이미 있음 — 빌드 건너뜀"
+          else
+            echo "build=true" >> "$GITHUB_OUTPUT"
+            echo "backend:${TAG} 없음 — 빌드"
+          fi
+
+      - uses: actions/setup-java@v4
+        if: steps.tag.outputs.build == 'true'
+        with:
+          distribution: temurin
+          java-version: 21
+
+      # Gradle 의존성·빌드 캐시를 GHA 캐시에 보관한다.
+      # Dockerfile 안에서 빌드하면 이 캐시를 쓸 수 없어 매번 전체 컴파일이 된다.
+      - uses: gradle/actions/setup-gradle@v4
+        if: steps.tag.outputs.build == 'true'
+
+      # Testcontainers 통합 테스트가 여기서 돈다. 러너에 Docker가 있고 aarch64라
+      # 운영 아키텍처와 일치한다.
+      - name: Build & test
+        if: steps.tag.outputs.build == 'true'
+        working-directory: backend
+        run: ./gradlew build
+
       # Dockerfile은 컴파일하지 않는다. 위에서 만든 JAR을 layered로 풀어 담기만 한다.
       - name: Build & push image
+        if: steps.tag.outputs.build == 'true'
         uses: docker/build-push-action@v6
         with:
           context: ./backend
@@ -65,7 +110,7 @@ jobs:
           provenance: false   # GHCR에 unknown/unknown 매니페스트가 생기는 것을 막는다
           sbom: false
           tags: |
-            ${{ env.IMAGE_BASE }}/backend:${{ github.sha }}
+            ${{ env.IMAGE_BASE }}/backend:${{ steps.tag.outputs.tag }}
             ${{ env.IMAGE_BASE }}/backend:latest
 
   frontend:
@@ -75,8 +120,12 @@ jobs:
     permissions:
       contents: read
       packages: write
+    outputs:
+      tag: ${{ steps.tag.outputs.tag }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       # 기본 docker 드라이버는 `cache-to: type=gha` 를 지원하지 않는다
       # ("Cache export is not supported for the docker driver").
@@ -90,9 +139,25 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: 태그 결정과 이미지 존재 확인
+        id: tag
+        run: |
+          TAG=$(git log -1 --format=%H -- frontend/ .github/workflows/deploy.yml)
+          [ -n "$TAG" ] || TAG="$GITHUB_SHA"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+
+          if docker buildx imagetools inspect "${IMAGE_BASE}/frontend:${TAG}" >/dev/null 2>&1; then
+            echo "build=false" >> "$GITHUB_OUTPUT"
+            echo "frontend:${TAG} 이미 있음 — 빌드 건너뜀"
+          else
+            echo "build=true" >> "$GITHUB_OUTPUT"
+            echo "frontend:${TAG} 없음 — 빌드"
+          fi
+
       # 프런트엔드는 Dockerfile 안에서 빌드한다. pnpm은 레이어 캐시가 잘 듣는다.
       # 캐시가 GHA 10GB 한도를 압박하면 mode=min으로 낮춘다 (백엔드 Gradle 캐시와 공유).
       - name: Build & push image
+        if: steps.tag.outputs.build == 'true'
         uses: docker/build-push-action@v6
         with:
           context: ./frontend
@@ -100,7 +165,7 @@ jobs:
           provenance: false
           sbom: false
           tags: |
-            ${{ env.IMAGE_BASE }}/frontend:${{ github.sha }}
+            ${{ env.IMAGE_BASE }}/frontend:${{ steps.tag.outputs.tag }}
             ${{ env.IMAGE_BASE }}/frontend:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
@@ -118,14 +183,17 @@ jobs:
         # 서드파티 액션이 SSH_PRIVATE_KEY를 받는 자리다. 가변 태그 대신 커밋 SHA로 고정한다 (v1.2.5).
         uses: appleboy/ssh-action@0ff4204d59e8e51228ff73bce53f80d53301dee2
         env:
-          IMAGE_TAG: ${{ github.sha }}
+          # IMAGE_BASE는 워크플로 수준 env라 모든 스텝 환경에 이미 있다. envs 목록에만 넣는다.
+          DEPLOY_SHA: ${{ github.sha }}
+          BACKEND_TAG: ${{ needs.backend.outputs.tag }}
+          FRONTEND_TAG: ${{ needs.frontend.outputs.tag }}
           GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_ACTOR: ${{ github.actor }}
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USERNAME }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          envs: IMAGE_TAG,GHCR_TOKEN,GH_ACTOR
+          envs: DEPLOY_SHA,BACKEND_TAG,FRONTEND_TAG,IMAGE_BASE,GHCR_TOKEN,GH_ACTOR
           script: |
             set -eu   # -x 금지: docker login 라인이 트레이스에 남는다
             cd /home/opc/carix
@@ -133,16 +201,27 @@ jobs:
             # SHA를 명시적으로 fetch한다. main 팁이 이미 움직였거나 workflow_dispatch를
             # 다른 ref로 돌리면 `fetch origin main`만으로는 그 객체가 안 올 수 있다.
             git fetch --prune origin main
-            git fetch origin "$IMAGE_TAG"
-            git reset --hard "$IMAGE_TAG"
+            git fetch origin "$DEPLOY_SHA"
+            git reset --hard "$DEPLOY_SHA"
 
             # 순서 주의: reset → .env 갱신 → pull.
             # .env는 gitignore 대상이라 reset에 지워지지 않고, compose pull이 이 값을 읽는다.
-            if grep -q '^IMAGE_TAG=' .env; then
-              sed -i "s|^IMAGE_TAG=.*|IMAGE_TAG=${IMAGE_TAG}|" .env
-            else
-              echo "IMAGE_TAG=${IMAGE_TAG}" >> .env
-            fi
+            #
+            # 두 태그는 항상 채워진다. 안 바뀐 컴포넌트는 값이 이전과 같으므로
+            # compose가 그 서비스를 재생성하지 않는다.
+            set_tag() {
+              key=$1
+              val=$2
+              if grep -q "^${key}=" .env; then
+                sed -i "s|^${key}=.*|${key}=${val}|" .env
+              else
+                echo "${key}=${val}" >> .env
+              fi
+              echo "${key}=${val}"
+            }
+
+            set_tag BACKEND_TAG "$BACKEND_TAG"
+            set_tag FRONTEND_TAG "$FRONTEND_TAG"
 
             printf '%s' "$GHCR_TOKEN" | docker login ghcr.io -u "$GH_ACTOR" --password-stdin
             docker compose pull
@@ -164,6 +243,38 @@ jobs:
             # 이미지가 여럿 있어 소스 재빌드로만 복구된다.
             docker image prune -f
 
+            # prune -f 는 태그가 붙은 구버전을 지우지 않아 SHA 태그 이미지가 무한히 쌓인다.
+            # carix 이미지에 한정해 최근 3개만 남긴다.
+            #
+            # 지금 배포된 태그는 반드시 지킨다. 컴포넌트별 태그가 갈라져 있어서 한쪽은
+            # 여러 배포 전 이미지에 머물 수 있고, 그러면 생성 시각 정렬에서 아래로 밀려
+            # 현재 사용 중인 태그가 삭제 대상에 들어간다. .env 에서 실제 값을 읽어 제외한다.
+            #
+            # 아래 루프는 실패를 전부 삼키도록 짜여 있다. IMAGE_BASE 가 안 넘어오면
+            # `docker images "/backend"` 가 빈 결과를 내고 조용히 아무것도 안 하므로,
+            # 값이 없으면 여기서 크게 터뜨린다.
+            : "${IMAGE_BASE:?IMAGE_BASE 가 원격 스크립트에 전달되지 않았다}"
+
+            LIVE_BACKEND=$(grep '^BACKEND_TAG=' .env | head -1 | cut -d= -f2- || true)
+            LIVE_FRONTEND=$(grep '^FRONTEND_TAG=' .env | head -1 | cut -d= -f2- || true)
+
+            prune_repo() {
+              repo=$1
+              keep=$2
+              docker images "$repo" --format '{{.CreatedAt}}\t{{.Tag}}' \
+                | awk -F'\t' '$2 != "latest"' \
+                | sort -r \
+                | tail -n +4 \
+                | cut -f2 \
+                | while read -r old; do
+                    [ "$old" = "$keep" ] && continue
+                    docker rmi "${repo}:${old}" >/dev/null 2>&1 || true
+                  done
+            }
+
+            prune_repo "${IMAGE_BASE}/backend" "$LIVE_BACKEND"
+            prune_repo "${IMAGE_BASE}/frontend" "$LIVE_FRONTEND"
+
   healthcheck:
     name: Health check
     runs-on: ubuntu-latest
@@ -171,15 +282,21 @@ jobs:
     timeout-minutes: 5
     permissions: {}
     steps:
-      - name: Wait for /api/health
+      - name: Wait for /api/health and /
         run: |
+          # 컴포넌트별 태그로 나뉜 뒤로는 한쪽만 재생성될 수 있다. 양쪽 다 확인한다.
           for i in $(seq 1 30); do
-            code=$(curl -sS -o /dev/null -w '%{http_code}' https://carix.144.24.90.88.sslip.io/api/health || true)
-            if [ "$code" = "200" ]; then
-              echo "healthy"
+            api=$(curl -sS -o /dev/null -w '%{http_code}' https://carix.144.24.90.88.sslip.io/api/health || true)
+            web=$(curl -sS -o /dev/null -w '%{http_code}' https://carix.144.24.90.88.sslip.io/ || true)
+            if [ "$api" = "200" ] && [ "$web" = "200" ]; then
+              echo "healthy (api=$api web=$web)"
               exit 0
             fi
             sleep 5
           done
-          echo "헬스체크 실패"
+          echo "마지막 응답: api=$api web=$web"
+          # 자동 롤백은 두지 않는다. 실패하면 서버는 이 배포 상태로 남으므로,
+          # .env의 BACKEND_TAG / FRONTEND_TAG 를 직전 SHA로 되돌리고
+          # `docker compose up -d` 로 수동 복구한다.
+          echo "헬스체크 실패 — 서버는 이 배포 상태로 남아 있다. 수동 복구 필요."
           exit 1

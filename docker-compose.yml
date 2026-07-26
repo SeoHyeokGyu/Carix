@@ -3,7 +3,9 @@
 # 로컬 개발은 순수 코드로 하고, 백엔드는 OCI dev DB에 원격 연결한다 (README 개발 환경 참조).
 #
 # 이미지는 GitHub Actions(ubuntu-24.04-arm)가 빌드해 GHCR에 올린다. 서버는 pull만 한다.
-# IMAGE_TAG는 배포 워크플로가 커밋 SHA로 서버 .env에 기록한다. 롤백은 이 값을 바꿔 재기동.
+# BACKEND_TAG / FRONTEND_TAG 는 배포 워크플로가 커밋 SHA로 서버 .env에 기록한다.
+# 컴포넌트별로 나뉘어 있어, 한쪽만 바뀐 커밋에서는 그쪽 태그만 갱신되고 반대쪽 컨테이너는
+# 재생성되지 않는다. compose 가 이미지 태그가 그대로인 서비스를 건드리지 않기 때문이다.
 #
 # 엣지는 2단이다.
 #   - 서버의 라우터 Caddy(~/infra): 80/443 소유, TLS 종료, 호스트명 분기
@@ -28,7 +30,7 @@ services:
     restart: unless-stopped
 
   frontend-node:
-    image: ghcr.io/seohyeokgyu/carix/frontend:${IMAGE_TAG:-latest}
+    image: ghcr.io/seohyeokgyu/carix/frontend:${FRONTEND_TAG:-latest}
     environment:
       - NODE_ENV=production
       - API_ORIGIN=http://spring-api:8080
@@ -42,7 +44,7 @@ services:
     restart: unless-stopped
 
   spring-api:
-    image: ghcr.io/seohyeokgyu/carix/backend:${IMAGE_TAG:-latest}
+    image: ghcr.io/seohyeokgyu/carix/backend:${BACKEND_TAG:-latest}
     environment:
       - SPRING_PROFILES_ACTIVE=prod
       - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/${POSTGRES_DB}
@@ -63,7 +65,7 @@ services:
     restart: unless-stopped
 
   spring-batch:
-    image: ghcr.io/seohyeokgyu/carix/backend:${IMAGE_TAG:-latest}
+    image: ghcr.io/seohyeokgyu/carix/backend:${BACKEND_TAG:-latest}
     command: ["--spring.batch.job.enabled=true", "--carix.role=batch"]
     environment:
       - SPRING_PROFILES_ACTIVE=prod,batch
