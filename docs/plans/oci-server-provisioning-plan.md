@@ -604,6 +604,60 @@ Mukzzi 워크플로는 **Go** 프로젝트다. Carix는 Gradle/JVM + Node SSR이
 | 11 | `IMAGE_BASE: ghcr.io/${{ github.repository }}` | `github.repository`가 `SeoHyeokGyu/Carix`라 대문자가 섞인다. Docker repository 이름은 소문자여야 한다 | **교체** — 소문자 하드코딩 (첫 배포에서 실패로 드러남) |
 | 12 | `cache-to: type=gha` + buildx 셋업 없음 | 기본 `docker` 드라이버는 캐시 export를 지원하지 않는다 | **교체** — `docker/setup-buildx-action` 추가 (첫 배포에서 실패로 드러남) |
 
+### 배포 실패 시 복구와 이미지 보존
+
+**자동 롤백은 두지 않는다 (사용자 결정).** 헬스체크가 실패하면 워크플로만 빨간불이 되고
+서버는 그 배포 상태로 남는다. 복구는 수동이다.
+
+```bash
+ssh carix-oci
+cd /home/opc/carix
+# 직전 SHA는 GitHub Actions 배포 실행 목록이나 git log 에서 찾는다
+sed -i "s|^IMAGE_TAG=.*|IMAGE_TAG=<직전 SHA>|" .env
+git reset --hard <직전 SHA>          # compose 파일·Caddyfile도 함께 되돌릴 때
+docker compose up -d --remove-orphans
+docker compose up -d --force-recreate carix-caddy
+```
+
+아래 이미지 보존 정책이 최근 3개를 남기므로, 직전 배포 이미지는 서버에 남아 있어 pull 없이 뜬다.
+그보다 오래된 SHA로 되돌리려면 GHCR에서 다시 pull된다.
+
+**이미지 보존.** `docker image prune -f`는 dangling만 지우므로 SHA 태그 이미지가 무한히 쌓인다.
+carix 이미지에 한정해 최근 3개(현재 + 롤백 대상 + 여유 1)만 남기고 나머지 태그를 지운다.
+`prune -a`는 여전히 금지 — 이 호스트엔 레지스트리 없이 로컬 빌드된 타 프로젝트 이미지가 있다.
+
+**안 바뀐 컴포넌트는 빌드하지 않고 재태깅한다.** 백엔드만 바뀐 커밋에서 프런트를 다시
+빌드하는 것은 낭비다. 그렇다고 `IMAGE_TAG`를 서비스별로 쪼개면 배포 상태가 SHA 한 개에서
+쌍으로 바뀌어, 자동 롤백이 없는 지금 수동 복구가 어려워진다.
+
+대신 단일 SHA 불변식을 유지하면서 빌드만 건너뛴다.
+
+```bash
+docker buildx imagetools create -t "$REPO:$GITHUB_SHA" "$REPO:latest"
+```
+
+레지스트리 매니페스트 복사라 빌드 없이 몇 초면 끝난다.
+
+판정은 [`.github/scripts/decide-build.sh`](../../.github/scripts/decide-build.sh)가 한다.
+기준점은 `:latest` 이미지에 박은 `org.opencontainers.image.revision` 라벨이다.
+
+> **`github.event.before`를 쓰지 않는 이유.** 그것은 "직전 푸시"일 뿐 "직전에 성공한 빌드"가
+> 아니다. 앞선 실행에서 이 잡이 실패했거나 푸시가 `paths`에 걸려 스킵됐다면, `before` 기준
+> diff는 그 사이의 변경을 놓치고 낡은 이미지를 재태깅한다. `:latest`의 revision 라벨은
+> 정의상 재태깅 원본이므로 그 구멍이 없다.
+
+판정 불가는 전부 빌드로 떨어진다 (`:latest` 없음, 라벨 없음, revision이 히스토리에 없음,
+`workflow_dispatch`). 최악이 현행 유지라 안전하다. `deploy.yml`이나 판정 스크립트가 바뀌어도
+빌드 방식이 달라졌을 수 있으므로 다시 만든다.
+
+부수 효과 하나: 재태깅된 이미지는 생성 시각이 옛날이라 위 보존 정책의 삭제 대상 정렬에서
+아래쪽에 온다. 지금 배포한 태그가 지워지지 않도록 `IMAGE_TAG`는 건너뛴다.
+
+**문서 커밋으로 배포되지 않게.** `backend/README.md`가 `paths`의 `backend/**`에 걸려
+코드 변경 0인 재배포가 한 번 돌았다 ([run 30201703174](https://github.com/SeoHyeokGyu/Carix/actions/runs/30201703174)).
+`paths` 끝에 `'!**/*.md'`를 두어 제외한다. 마지막에 매칭된 패턴이 이기므로 순서가 중요하다.
+**잡 단위 `paths` 필터로 바꾸면 안 된다** — 위 8번 항목의 SHA 고정 배포와 충돌한다.
+
 추가로 **현재 `ci.yml`과 중복**이 있다. `ci.yml` backend 잡이 `ubuntu-latest`(x86)에서
 `./gradlew build`를 돌리는데, 배포가 또 컴파일한다. 게다가 **테스트는 x86, 배포 이미지는 arm64**라
 아키텍처가 어긋난다.
