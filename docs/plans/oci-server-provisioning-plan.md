@@ -39,7 +39,7 @@
 | 1. 디스크 정리 | **완료** — 85% → 81% |
 | 2. 저장소 변경 | **완료** — PR #11 머지됨 (`cec2ab3`) |
 | 3. 엣지 구성 | **완료** — 라우터(`infra_caddy`) + 프로젝트별 Caddy(`carix_caddy`, `asset_pulse_caddy`). 양 도메인 정상 TLS |
-| 4. 서버 준비 | **완료** — `/opt/carix`가 main(`cec2ab3`) 체크아웃, `.env` 생성(600), deploy key 등록 |
+| 4. 서버 준비 | **완료** — `/home/opc/carix`가 main(`cec2ab3`) 체크아웃, `.env` 생성(600), deploy key 등록 |
 | 5. CD 워크플로 | **부분 완료** — 워크플로·Secrets 등록됨. 실행은 스캐폴드 후 |
 | 6. 첫 배포 검증 | **차단** — `backend/`·`frontend/` 미스캐폴드 |
 | 7. 운영 | 미착수 |
@@ -58,7 +58,7 @@
 `git checkout`이 `deploy/caddy` 디렉터리를 지웠다 다시 만들면서 inode가 바뀌었고,
 컨테이너의 bind mount는 옛 inode를 계속 가리켜 마운트 지점이 빈 디렉터리로 보였다.
 
-**대응:** git이 건드리지 않는 `/opt/carix`를 마운트하고
+**대응:** git이 건드리지 않는 `/home/opc/carix`를 마운트하고
 `import /etc/carix-repo/deploy/caddy/*.caddy`로 참조한다. 배포 워크플로의
 `git reset --hard`에도 같은 함정이 있었으므로 이 수정이 필수다.
 
@@ -300,8 +300,8 @@ ENTRYPOINT ["java", "-jar", "application.jar"]
 
 ## Phase 3 — 엣지: 라우터 + 프로젝트별 Caddy
 
-> **선행 조건: Phase 4 Task 4.2(`/opt/carix` 클론)를 먼저 끝낸다.**
-> 라우터가 `/opt/carix`를 마운트하므로 클론이 없으면 Docker가 빈 디렉터리를 만들고
+> **선행 조건: Phase 4 Task 4.2(`/home/opc/carix` 클론)를 먼저 끝낸다.**
+> 라우터가 `/home/opc/carix`를 마운트하므로 클론이 없으면 Docker가 빈 디렉터리를 만들고
 > import가 아무것도 못 찾는다.
 
 ### 구조
@@ -349,11 +349,11 @@ ssh carix-oci 'docker network inspect edge >/dev/null 2>&1 || docker network cre
 import /etc/carix-repo/deploy/caddy/*.caddy
 ```
 
-> **마운트 경로 주의 (두 번 데인 함정):** `/opt/carix/deploy/caddy`처럼 **git이 재생성하는
+> **마운트 경로 주의 (두 번 데인 함정):** `/home/opc/carix/deploy/caddy`처럼 **git이 재생성하는
 > 하위 디렉터리나 파일을 마운트하면 안 된다.** 브랜치 전환이나 `git reset --hard`가 디렉터리를 지웠다 다시 만들면 inode가 바뀌어
 > 컨테이너의 bind mount가 옛 inode를 가리킨 채 빈 디렉터리로 보인다. 실제로 겪었고
 > `carix` 도메인이 TLS 핸드셰이크 실패로 죽었다.
-> `mkdir`로 만든 `/opt/carix` 자체를 마운트하면 git이 그 디렉터리를 건드리지 않아 안전하다.
+> `mkdir`로 만든 `/home/opc/carix` 자체를 마운트하면 git이 그 디렉터리를 건드리지 않아 안전하다.
 >
 > `carix_caddy`는 `./deploy/caddy/Caddyfile`을 파일째 마운트하므로 같은 함정에 걸린다.
 > 이쪽은 배포 시 `docker compose up -d --force-recreate carix-caddy`로 재생성해 해결한다.
@@ -373,7 +373,7 @@ import /etc/carix-repo/deploy/caddy/*.caddy
       - "443:443"
     volumes:
       - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
-      - /opt/carix:/etc/carix-repo:ro
+      - /home/opc/carix:/etc/carix-repo:ro
       - caddy_data:/data
       - caddy_config:/config
     networks: [default, edge]
@@ -409,7 +409,7 @@ volumes:
 애플리케이션 이미지가 없어도 단독 기동된다.
 
 ```bash
-ssh carix-oci 'cd /opt/carix && docker compose up -d carix-caddy'
+ssh carix-oci 'cd /home/opc/carix && docker compose up -d carix-caddy'
 ```
 
 - [ ] **Step 6: 검증**
@@ -447,6 +447,11 @@ Verified: `ssh carix-oci 'echo CONNECTED'` → `CONNECTED`
 
 서버는 이미지를 빌드하지 않는다. 체크아웃이 필요한 이유는 `docker-compose.yml`과 `deploy/` 뿐이다.
 
+> **경로가 `/home/opc/carix`인 이유:** 이 호스트는 Dockge(`infra` 스택, 포트 3001)로 컨테이너를
+> 관리한다. Dockge는 `DOCKGE_STACKS_DIR=/home/opc` 아래에서 **디렉터리 이름을 스택 이름으로**
+> 인식하므로, 그 밖에 있으면 "이 스택은 Dockge에 의해 관리되지 않아요"로 표시된다.
+> 심볼릭 링크는 디렉터리로 취급되지 않아 우회가 되지 않는다.
+
 - [ ] **Step 1: deploy key 생성·회수**
 
 ```bash
@@ -468,12 +473,12 @@ gh repo deploy-key add /tmp/carix-deploy.pub -R SeoHyeokGyu/Carix -t carix-oci
 ```bash
 ssh carix-oci '
   printf "\nHost github-carix\n  HostName github.com\n  User git\n  IdentityFile ~/.ssh/carix-deploy\n  IdentitiesOnly yes\n" >> ~/.ssh/config
-  sudo mkdir -p /opt/carix && sudo chown opc:opc /opt/carix
-  git clone git@github-carix:SeoHyeokGyu/Carix.git /opt/carix
+  mkdir -p /home/opc/carix
+  git clone git@github-carix:SeoHyeokGyu/Carix.git /home/opc/carix
 '
 ```
 
-Verify: `ssh carix-oci 'git -C /opt/carix log --oneline -1'`
+Verify: `ssh carix-oci 'git -C /home/opc/carix log --oneline -1'`
 
 ### Task 4.3: 시크릿과 `.env`
 
@@ -487,16 +492,16 @@ ssh carix-oci 'openssl rand -base64 32'
 > 생성 즉시 비밀번호 관리자나 OCI Vault에 별도 보관한다.
 > 이 문서와 저장소에 실제 값을 절대 기록하지 않는다.
 
-- [ ] **Step 2: `/opt/carix/.env`** — 값 입력은 사용자가 한다
+- [ ] **Step 2: `/home/opc/carix/.env`** — 값 입력은 사용자가 한다
 
 ```bash
-ssh carix-oci 'cp /opt/carix/.env.example /opt/carix/.env && chmod 600 /opt/carix/.env'
+ssh carix-oci 'cp /home/opc/carix/.env.example /home/opc/carix/.env && chmod 600 /home/opc/carix/.env'
 ```
 
 채울 항목: `POSTGRES_PASSWORD`, `CARIX_DEV_PASSWORD`, `CARIX_ENCRYPTION_KEY`,
 `KOSIS_API_KEY`, `WORK24_API_KEY`, `SARAMIN_API_KEY`, `WAGE_STAT_API_KEY`.
 
-Verify: `ssh carix-oci 'ls -l /opt/carix/.env; git -C /opt/carix status --porcelain'`
+Verify: `ssh carix-oci 'ls -l /home/opc/carix/.env; git -C /home/opc/carix status --porcelain'`
 Expected: `-rw-------`, git status에 `.env` 미표시.
 
 ### Task 4.4: 방화벽 확인 (변경 최소)
@@ -683,7 +688,7 @@ jobs:
           envs: IMAGE_TAG,GHCR_TOKEN,GH_ACTOR
           script: |
             set -eu   # -x 금지: docker login 라인이 트레이스에 남는다
-            cd /opt/carix
+            cd /home/opc/carix
             # SHA를 명시적으로 fetch한다. main 팁이 이미 움직였거나 workflow_dispatch를
             # 다른 ref로 돌리면 `fetch origin main`만으로는 그 객체가 안 올 수 있다.
             git fetch --prune origin main
@@ -708,7 +713,7 @@ jobs:
             # reload는 성공 보고하면서 구버전을 읽는다(초록불인데 미반영). 반드시 재생성.
             docker compose up -d --force-recreate carix-caddy
 
-            # infra_caddy는 /opt/carix(mkdir 생성, git 미관여)를 마운트하므로 reload로 충분하다.
+            # infra_caddy는 /home/opc/carix(mkdir 생성, git 미관여)를 마운트하므로 reload로 충분하다.
             docker exec infra_caddy caddy reload --config /etc/caddy/Caddyfile
 
             # 디스크 85%에서 출발한 호스트다. 매 배포마다 정리한다.
@@ -781,7 +786,7 @@ rg -n "nginx" docker-compose.yml   # 결과 없어야 한다
 - [ ] **Step 2: 배포 후 상태**
 
 ```bash
-ssh carix-oci 'cd /opt/carix && docker compose ps && docker compose logs --tail=50 spring-api'
+ssh carix-oci 'cd /home/opc/carix && docker compose ps && docker compose logs --tail=50 spring-api'
 curl -sS -o /dev/null -w "%{http_code}\n" https://carix.144.24.90.88.sslip.io/
 curl -sS -o /dev/null -w "%{http_code}\n" https://carix.144.24.90.88.sslip.io/api/health
 ```
@@ -810,18 +815,18 @@ Expected: `enabled` (+ compose의 `restart: unless-stopped`).
 
 ## Phase 7 — 운영
 
-- [ ] **DB 백업:** `pg_dump` 일일 크론 → `/opt/carix/backups`, 7일 보관. **복원 1회 실검증.** (`~/backups`가 이미 있으니 규칙을 맞춘다.)
+- [ ] **DB 백업:** `pg_dump` 일일 크론 → `/home/opc/carix/backups`, 7일 보관. **복원 1회 실검증.** (`~/backups`가 이미 있으니 규칙을 맞춘다.)
 - [ ] **모니터링:** 이 호스트에 Dozzle(8888)·Dockge(3001)가 이미 돈다. Carix 컨테이너가 거기 보이는지 확인하고, 헬스체크 감시를 붙인다.
 - [ ] **디스크 감시:** 85%에서 출발했다. 주간 `docker system prune` 또는 사용률 알림을 건다.
 - [ ] **엣지 설정 형상관리:** `~/infra/`는 git 추적 대상이 아닌데 이제 **두 서비스의 엣지를 소유**한다.
   `caddy/Caddyfile`과 `docker-compose.yml`이 날짜 붙은 `.bak` 하나만 있는 단일 사본이다.
   별도 private 저장소로 옮기거나 Carix 저장소 `deploy/infra-edge/`에 참조용 사본을 둔다.
-- [ ] **암호화 키 백업:** `CARIX_ENCRYPTION_KEY`가 `/opt/carix/.env`에만 있다.
+- [ ] **암호화 키 백업:** `CARIX_ENCRYPTION_KEY`가 `/home/opc/carix/.env`에만 있다.
   **아직 암호화된 데이터가 없으므로 지금은 재생성이 자유롭다.** 첫 운영 쓰기 전에 아래로 꺼내
   비밀번호 관리자나 OCI Vault에 보관한다. 그 시점 이후 분실은 복구 불가다.
 
   ```bash
-  ssh carix-oci 'grep ^CARIX_ENCRYPTION_KEY= /opt/carix/.env'
+  ssh carix-oci 'grep ^CARIX_ENCRYPTION_KEY= /home/opc/carix/.env'
   ```
 
 ---
@@ -831,7 +836,7 @@ Expected: `enabled` (+ compose의 `restart: unless-stopped`).
 1. Phase 1 정리 후 루트 사용률이 70% 아래다.
 2. compose가 `image: ghcr.io/...`를 쓰고 `nginx` 서비스가 없다. 서버에서 `docker build`가 일어나지 않는다.
 3. `https://carix.144.24.90.88.sslip.io/`가 Let's Encrypt 인증서로 200을 반환한다.
-4. `/opt/carix`에 main이 체크아웃되고 `.env`가 600 권한으로 있다.
+4. `/home/opc/carix`에 main이 체크아웃되고 `.env`가 600 권한으로 있다.
 5. 외부에서 5432·8080·3000이 닫혀 있다.
 6. main 푸시 → ARM 러너 빌드 → GHCR 푸시 → 서버 pull → 헬스체크 200까지 사람 개입이 없다.
 7. `pulse.144.24.90.88.sslip.io` 등 기존 서비스가 영향받지 않는다.
