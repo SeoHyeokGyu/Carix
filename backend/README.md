@@ -7,7 +7,11 @@ Java 21 + Spring Boot. 인증, 도메인 로직, REST API, 데이터 접근, Spr
 - API 규격: [`../docs/specs/api-specification.md`](../docs/specs/api-specification.md)
 - 도메인 계산: [`../docs/specs/domain-logic.md`](../docs/specs/domain-logic.md)
 
-아직 스캐폴드 전. 다음 단계에서 Spring Boot 프로젝트(Gradle, JPA, Flyway, Security, Batch)를 초기화한다.
+현재는 배포 파이프라인 검증용 최소 스캐폴드다. Spring Boot 4.1 + springdoc(OpenAPI)만 있고
+`GET /api/health` 하나를 서빙한다. JPA·Flyway·Security·Batch는 다음 단계에서 추가한다.
+
+컨텍스트 패스는 `/api`다. 엣지 Caddy가 `/api/*`를 경로 그대로 넘기므로, 헬스체크와
+Swagger UI(`/api/swagger-ui`), OpenAPI 문서(`/api/v3/api-docs`)가 모두 그 아래로 들어온다.
 
 ## 로컬 개발과 DB
 

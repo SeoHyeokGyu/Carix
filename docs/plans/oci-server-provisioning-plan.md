@@ -41,7 +41,7 @@
 | 3. 엣지 구성 | **완료** — 라우터(`infra_caddy`) + 프로젝트별 Caddy(`carix_caddy`, `asset_pulse_caddy`). 양 도메인 정상 TLS |
 | 4. 서버 준비 | **완료** — `/home/opc/carix`가 main(`cec2ab3`) 체크아웃, `.env` 생성(600), deploy key 등록 |
 | 5. CD 워크플로 | **부분 완료** — 워크플로·Secrets 등록됨. 실행은 스캐폴드 후 |
-| 6. 첫 배포 검증 | **차단** — `backend/`·`frontend/` 미스캐폴드 |
+| 6. 첫 배포 검증 | **대기** — 최소 스캐폴드(백엔드 Boot 4.1 + springdoc, 프런트 스텁) 완료. 첫 배포 미실행 |
 | 7. 운영 | 미착수 |
 
 검증된 상태 (2단 엣지 전환 후):

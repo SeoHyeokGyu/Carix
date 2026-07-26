@@ -1,0 +1,10 @@
+spring:
+  application:
+    name: carix
+
+# 엣지 Caddy가 /api/* 를 경로 그대로 spring-api:8080 에 넘긴다.
+# 컨텍스트 패스를 /api 로 두면 헬스체크·OpenAPI 문서·Swagger UI 정적 자원이
+# 전부 /api 아래로 들어와 Caddy 설정을 건드리지 않아도 된다.
+server:
+  servlet:
+    context-path: /api
