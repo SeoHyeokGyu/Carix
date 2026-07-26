@@ -151,7 +151,7 @@ jobs:
           envs: IMAGE_TAG,GHCR_TOKEN,GH_ACTOR
           script: |
             set -eu   # -x 금지: docker login 라인이 트레이스에 남는다
-            cd /opt/carix
+            cd /home/opc/carix
 
             # SHA를 명시적으로 fetch한다. main 팁이 이미 움직였거나 workflow_dispatch를
             # 다른 ref로 돌리면 `fetch origin main`만으로는 그 객체가 안 올 수 있다.
@@ -178,7 +178,7 @@ jobs:
             # 배포가 초록불인 채 라우팅만 반영되지 않는다. 반드시 재생성한다.
             docker compose up -d --force-recreate carix-caddy
 
-            # infra_caddy는 mkdir로 만든 /opt/carix를 마운트한다. git이 그 디렉터리를
+            # infra_caddy는 mkdir로 만든 /home/opc/carix를 마운트한다. git이 그 디렉터리를
             # 재생성하지 않으므로 마운트가 살아 있고 reload로 충분하다. reload로 되돌리지 말 것.
             docker exec infra_caddy caddy reload --config /etc/caddy/Caddyfile
 
