@@ -37,7 +37,7 @@
 | 1. 디스크 정리 | **완료** — 85% → 81% |
 | 2. 저장소 변경 | **완료** — PR #11 (머지 대기) |
 | 3. Caddy 이관 | **완료** — `infra_caddy`가 80/443 소유, 양 도메인 인증서 발급 |
-| 4. 서버 준비 | **완료** — `/opt/carix` 체크아웃, `.env` 생성(600), deploy key 등록 |
+| 4. 서버 준비 | **부분 완료** — `.env` 생성(600), deploy key 등록 완료. `/opt/carix`는 **`feature/oci-deployment` 브랜치에 체크아웃돼 있다** (PR 머지 전이라 main엔 `deploy/caddy`가 없다). 머지 직후 아래 명령으로 main으로 되돌려야 한다 |
 | 5. CD 워크플로 | **부분 완료** — 워크플로·Secrets 등록됨. 실행은 스캐폴드 후 |
 | 6. 첫 배포 검증 | **차단** — `backend/`·`frontend/` 미스캐폴드 |
 | 7. 운영 | 미착수 |
@@ -48,6 +48,26 @@
 - `https://carix.144.24.90.88.sslip.io/` → 502 (백엔드 없음), TLS 검증 통과
 - 컨테이너 18개 전부 Up, 비정상 0
 - 5432·8080·3000·8000 외부 차단 확인
+
+### PR #11 머지 직후 반드시 할 일
+
+`infra_caddy`가 `/opt/carix/deploy/caddy`를 마운트하므로, 서버 체크아웃이 feature 브랜치에
+머무르면 Caddy 라우팅이 계속 그 브랜치 파일을 읽는다. 배포 워크플로의 `git reset --hard`는
+스캐폴드 guard에 막혀 한동안 실행되지 않으므로 자동 동기화를 기대할 수 없다.
+
+```bash
+ssh carix-oci 'cd /opt/carix && git fetch --prune origin main && git checkout main && git reset --hard origin/main && git log --oneline -1 && ls deploy/caddy/'
+```
+
+### 서버에 남긴 미커밋 변경 (asset-pulse)
+
+`/home/opc/.codex/worktrees/asset-pulse-hardening/docker-compose.yml`에서 `caddy` 서비스를
+제거하고 `frontend`를 `edge` 네트워크에 붙인 변경이 **커밋되지 않은 채 운영에 반영돼 있다.**
+
+그 워크트리에서 `git checkout` / `git reset --hard` / `git stash`를 하거나
+`docker-compose.yml.bak-BEFORE-caddy-migration-2026-07-26`으로 복원하면 `caddy` 서비스가
+되살아나 포트 80 바인딩에 실패하고 `pulse` 도메인이 죽는다.
+경고문을 같은 디렉터리의 `CADDY-MIGRATION-NOTE.md`에 남겼다. **그 저장소에 커밋할지는 사용자 판단.**
 
 ## 결정 요약
 
@@ -811,7 +831,16 @@ Expected: `enabled` (+ compose의 `restart: unless-stopped`).
 - [ ] **DB 백업:** `pg_dump` 일일 크론 → `/opt/carix/backups`, 7일 보관. **복원 1회 실검증.** (`~/backups`가 이미 있으니 규칙을 맞춘다.)
 - [ ] **모니터링:** 이 호스트에 Dozzle(8888)·Dockge(3001)가 이미 돈다. Carix 컨테이너가 거기 보이는지 확인하고, 헬스체크 감시를 붙인다.
 - [ ] **디스크 감시:** 85%에서 출발했다. 주간 `docker system prune` 또는 사용률 알림을 건다.
-- [ ] **엣지 설정 백업:** `~/infra/`는 git 추적 대상이 아니다. Caddyfile과 compose를 저장소나 별도 백업에 둘지 결정한다.
+- [ ] **엣지 설정 형상관리:** `~/infra/`는 git 추적 대상이 아닌데 이제 **두 서비스의 엣지를 소유**한다.
+  `caddy/Caddyfile`, `caddy/conf.d/`, `docker-compose.yml`이 날짜 붙은 `.bak` 하나만 있는 단일 사본이다.
+  별도 private 저장소로 옮기거나 Carix 저장소 `deploy/infra-edge/`에 참조용 사본을 둔다.
+- [ ] **암호화 키 백업:** `CARIX_ENCRYPTION_KEY`가 `/opt/carix/.env`에만 있다.
+  **아직 암호화된 데이터가 없으므로 지금은 재생성이 자유롭다.** 첫 운영 쓰기 전에 아래로 꺼내
+  비밀번호 관리자나 OCI Vault에 보관한다. 그 시점 이후 분실은 복구 불가다.
+
+  ```bash
+  ssh carix-oci 'grep ^CARIX_ENCRYPTION_KEY= /opt/carix/.env'
+  ```
 
 ---
 
