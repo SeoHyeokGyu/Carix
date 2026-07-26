@@ -1,5 +1,4 @@
 # Carix 배포 — GitHub Actions(ARM 러너)가 이미지를 빌드해 GHCR에 올리고, OCI 서버는 pull만 한다.
-# backend/frontend가 스캐폴드되기 전에는 guard 스텝이 나머지를 건너뛴다.
 name: Deploy
 
 on:
@@ -25,46 +24,29 @@ jobs:
     name: Test & Build backend
     # private 저장소도 ARM 러너 free-tier 대상 (2 vCPU). 서버가 aarch64라 QEMU가 필요 없다.
     runs-on: ubuntu-24.04-arm
+    timeout-minutes: 25
     permissions:
       contents: read
       packages: write
-    outputs:
-      ready: ${{ steps.guard.outputs.ready }}
     steps:
       - uses: actions/checkout@v4
 
-      - name: Guard — backend 스캐폴드 여부
-        id: guard
-        run: |
-          if { [ -f backend/build.gradle ] || [ -f backend/build.gradle.kts ]; } && [ -f backend/Dockerfile ]; then
-            echo "ready=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "ready=false" >> "$GITHUB_OUTPUT"
-            echo "backend 미스캐폴드 — 빌드 건너뜀"
-          fi
-
-      - name: Setup Java
-        if: steps.guard.outputs.ready == 'true'
-        uses: actions/setup-java@v4
+      - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: 21
 
       # Gradle 의존성·빌드 캐시를 GHA 캐시에 보관한다.
       # Dockerfile 안에서 빌드하면 이 캐시를 쓸 수 없어 매번 전체 컴파일이 된다.
-      - name: Setup Gradle
-        if: steps.guard.outputs.ready == 'true'
-        uses: gradle/actions/setup-gradle@v4
+      - uses: gradle/actions/setup-gradle@v4
 
       # Testcontainers 통합 테스트가 여기서 돈다. 러너에 Docker가 있고 aarch64라
       # 운영 아키텍처와 일치한다.
       - name: Build & test
-        if: steps.guard.outputs.ready == 'true'
         working-directory: backend
         run: ./gradlew build
 
       - name: Login to GHCR
-        if: steps.guard.outputs.ready == 'true'
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
@@ -73,7 +55,6 @@ jobs:
 
       # Dockerfile은 컴파일하지 않는다. 위에서 만든 JAR을 layered로 풀어 담기만 한다.
       - name: Build & push image
-        if: steps.guard.outputs.ready == 'true'
         uses: docker/build-push-action@v6
         with:
           context: ./backend
@@ -87,26 +68,14 @@ jobs:
   frontend:
     name: Build frontend
     runs-on: ubuntu-24.04-arm
+    timeout-minutes: 15
     permissions:
       contents: read
       packages: write
-    outputs:
-      ready: ${{ steps.guard.outputs.ready }}
     steps:
       - uses: actions/checkout@v4
 
-      - name: Guard — frontend 스캐폴드 여부
-        id: guard
-        run: |
-          if [ -f frontend/package.json ] && [ -f frontend/Dockerfile ]; then
-            echo "ready=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "ready=false" >> "$GITHUB_OUTPUT"
-            echo "frontend 미스캐폴드 — 빌드 건너뜀"
-          fi
-
       - name: Login to GHCR
-        if: steps.guard.outputs.ready == 'true'
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
@@ -116,7 +85,6 @@ jobs:
       # 프런트엔드는 Dockerfile 안에서 빌드한다. pnpm은 레이어 캐시가 잘 듣는다.
       # 캐시가 GHA 10GB 한도를 압박하면 mode=min으로 낮춘다 (백엔드 Gradle 캐시와 공유).
       - name: Build & push image
-        if: steps.guard.outputs.ready == 'true'
         uses: docker/build-push-action@v6
         with:
           context: ./frontend
@@ -133,13 +101,14 @@ jobs:
     name: Deploy to Oracle Cloud
     runs-on: ubuntu-latest
     needs: [backend, frontend]
-    if: needs.backend.outputs.ready == 'true' && needs.frontend.outputs.ready == 'true'
+    timeout-minutes: 15
     permissions:
       contents: read
       packages: read   # private 저장소 → GHCR 패키지도 private. 없으면 compose pull이 403
     steps:
       - name: Deploy via SSH
-        uses: appleboy/ssh-action@v1
+        # 서드파티 액션이 SSH_PRIVATE_KEY를 받는 자리다. 가변 태그 대신 커밋 SHA로 고정한다 (v1.2.5).
+        uses: appleboy/ssh-action@0ff4204d59e8e51228ff73bce53f80d53301dee2
         env:
           IMAGE_TAG: ${{ github.sha }}
           GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -182,13 +151,17 @@ jobs:
             # 재생성하지 않으므로 마운트가 살아 있고 reload로 충분하다. reload로 되돌리지 말 것.
             docker exec infra_caddy caddy reload --config /etc/caddy/Caddyfile
 
-            # 디스크가 빡빡한 호스트다. 매 배포마다 정리한다.
+            # 디스크가 빡빡한 호스트다(81%). dangling 이미지를 매 배포마다 정리한다.
+            # `prune -a`는 금지 — 이 호스트엔 레지스트리 없이 로컬 빌드된 타 프로젝트
+            # 이미지가 여럿 있어 소스 재빌드로만 복구된다.
             docker image prune -f
 
   healthcheck:
     name: Health check
     runs-on: ubuntu-latest
     needs: deploy
+    timeout-minutes: 5
+    permissions: {}
     steps:
       - name: Wait for /api/health
         run: |

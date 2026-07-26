@@ -1,0 +1,18 @@
+{
+  "name": "carix-frontend",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@11.0.7",
+  "scripts": {
+    "start": "node server.js",
+    "lint": "echo 'TODO: (cjkang) 프런트엔드 스캐폴드 시 실제 linter로 교체'",
+    "typecheck": "tsc --noEmit",
+    "test": "node --test",
+    "build": "echo 'TODO: (cjkang) 프런트엔드 스캐폴드 시 실제 번들 빌드로 교체'"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "typescript": "^5.9.0"
+  }
+}
