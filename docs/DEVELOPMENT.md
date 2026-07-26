@@ -131,8 +131,9 @@ cd backend && ./gradlew test
 설계는 Testcontainers를 쓰나 로컬 Docker가 필요하다. Docker가 OCI 전용이므로:
 
 - **로컬**: 단위 테스트 중심으로 돌린다.
-- **통합 테스트(Testcontainers)**: CI(Docker 가능 러너)에서 실행한다. CI 워크플로우는
-  [`.github/workflows/ci.yml`](../.github/workflows/ci.yml) 참조.
+- **통합 테스트(Testcontainers)**: main 푸시 시 배포 워크플로의 backend 잡(Docker 가능 러너)에서
+  실행된다. [`.github/workflows/deploy.yml`](../.github/workflows/deploy.yml) 참조.
+  **PR 단계에서는 아무것도 돌지 않는다** — 머지 전에 확인하려면 로컬에서 직접 돌린다.
 - 급히 로컬에서 통합 테스트가 필요하면 OCI dev DB를 대상으로 실행하되, 스키마
   드리프트에 주의한다.
 

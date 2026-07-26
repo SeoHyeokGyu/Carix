@@ -604,12 +604,17 @@ Mukzzi 워크플로는 **Go** 프로젝트다. Carix는 Gradle/JVM + Node SSR이
 | 11 | `IMAGE_BASE: ghcr.io/${{ github.repository }}` | `github.repository`가 `SeoHyeokGyu/Carix`라 대문자가 섞인다. Docker repository 이름은 소문자여야 한다 | **교체** — 소문자 하드코딩 (첫 배포에서 실패로 드러남) |
 | 12 | `cache-to: type=gha` + buildx 셋업 없음 | 기본 `docker` 드라이버는 캐시 export를 지원하지 않는다 | **교체** — `docker/setup-buildx-action` 추가 (첫 배포에서 실패로 드러남) |
 
-추가로 **현재 `ci.yml`과 중복**이 있다. `ci.yml` backend 잡이 `ubuntu-latest`(x86)에서
-`./gradlew build`를 돌리는데, 배포가 또 컴파일한다. 게다가 **테스트는 x86, 배포 이미지는 arm64**라
-아키텍처가 어긋난다.
+추가로 **당시 `ci.yml`과 중복**이 있었다. `ci.yml` backend 잡이 `ubuntu-latest`(x86)에서
+`./gradlew build`를 돌리는데, 배포가 또 컴파일했다. 게다가 **테스트는 x86, 배포 이미지는 arm64**라
+아키텍처가 어긋났다.
 
-→ `ci.yml`은 `on: pull_request`만 남기고, main 푸시의 테스트·빌드는 `deploy.yml`이 ARM 러너에서
+→ 최종적으로 **`ci.yml`을 제거**했다 (사용자 결정). 테스트·빌드는 `deploy.yml`이 ARM 러너에서
 한 번만 수행한다. Testcontainers는 ARM 러너의 Docker로 돌고 `postgres:16-alpine`은 arm64 이미지가 있다.
+
+> **대가:** PR 단계 자동 검증이 없다. 백엔드는 머지 후 main에서 드러나고(빌드 실패 시 deploy 잡이
+> 스킵되므로 서버는 마지막 정상 버전 유지), **프런트엔드는 lint·typecheck·test가 어디서도 자동으로
+> 돌지 않는다** — `deploy.yml`의 frontend 잡은 `docker build`만 하기 때문이다.
+> 실제 프런트엔드 스캐폴드 시 Dockerfile 빌드 단계에 넣거나 CI를 되살릴지 재검토한다.
 
 > **GHA 캐시 한도:** 저장소당 10GB이며 Gradle 캐시·buildx 캐시가 이 한도를 공유한다.
 > 백엔드를 러너 빌드로 돌리면 buildx 레이어 캐시가 거의 필요 없어져 한도 경쟁이 줄어든다.
@@ -617,8 +622,7 @@ Mukzzi 워크플로는 **Go** 프로젝트다. Carix는 Gradle/JVM + Node SSR이
 > 그럼에도 최대 소비자는 프런트엔드의 `mode=max`다. **백엔드 빌드가 갑자기 느려지면 Gradle 캐시가
 > 축출된 것**이므로, 캐시를 늘리지 말고 프런트엔드를 `mode=min`으로 낮춘다.
 >
-> 같은 이유로 `ci.yml`과 `deploy.yml`은 **둘 다 `gradle/actions/setup-gradle`** 을 쓴다.
-> 한쪽만 `setup-java`의 `cache: gradle`을 쓰면 캐시 키 스킴이 갈라져 같은 의존성이 두 벌 저장된다.
+> `ci.yml`을 제거한 뒤로는 Gradle 캐시 사용처가 `deploy.yml` 하나뿐이라 키 분기 문제가 없다.
 
 ### 워크플로 구성
 
@@ -806,7 +810,7 @@ jobs:
           echo "헬스체크 실패" && exit 1
 ```
 
-- [ ] **Step 5: `ci.yml`을 PR 전용으로 축소**
+- [x] **Step 5: `ci.yml` 처리** — PR 전용으로 축소했다가 최종적으로 제거했다 (아래는 당시 원문)
 
 ```yaml
 on:
