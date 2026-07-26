@@ -1,0 +1,8 @@
+# 라우터 Caddy(~/infra)가 import하는 Carix 항목.
+# 라우터는 TLS 종료와 호스트명 분기만 하고, 애플리케이션 라우팅은 carix_caddy가 맡는다.
+#
+# 인증서는 sslip.io 와일드카드 DNS + 자동 ACME로 발급된다.
+carix.144.24.90.88.sslip.io {
+	encode zstd gzip
+	reverse_proxy carix_caddy:80
+}
