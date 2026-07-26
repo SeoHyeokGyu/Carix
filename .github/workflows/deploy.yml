@@ -172,7 +172,10 @@ jobs:
             docker compose up -d --remove-orphans
             docker logout ghcr.io
 
-            # 저장소의 carix.caddy가 공용 Caddy에 bind-mount돼 있다. 변경분을 반영한다.
+            # 두 Caddy 모두 저장소 파일을 bind-mount한다. compose up만으로는 재적용되지 않는다.
+            #   carix_caddy → deploy/caddy/Caddyfile  (애플리케이션 라우팅)
+            #   infra_caddy → deploy/caddy/router.caddy (호스트명 분기)
+            docker exec carix_caddy caddy reload --config /etc/caddy/Caddyfile
             docker exec infra_caddy caddy reload --config /etc/caddy/Caddyfile
 
             # 디스크가 빡빡한 호스트다. 매 배포마다 정리한다.

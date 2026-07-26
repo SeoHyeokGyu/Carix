@@ -5,9 +5,28 @@
 # 이미지는 GitHub Actions(ubuntu-24.04-arm)가 빌드해 GHCR에 올린다. 서버는 pull만 한다.
 # IMAGE_TAG는 배포 워크플로가 커밋 SHA로 서버 .env에 기록한다. 롤백은 이 값을 바꿔 재기동.
 #
-# 엣지(TLS·라우팅)는 이 compose가 아니라 서버의 공용 Caddy(~/infra)가 담당한다.
-# 라우팅 정본은 deploy/caddy/carix.caddy 이고 Caddy 컨테이너에 bind-mount된다.
+# 엣지는 2단이다.
+#   - 서버의 라우터 Caddy(~/infra): 80/443 소유, TLS 종료, 호스트명 분기
+#   - 이 compose의 carix-caddy: Carix 애플리케이션 라우팅 (deploy/caddy/Caddyfile)
+# 라우터가 참조하는 항목은 deploy/caddy/router.caddy 에 있다.
 services:
+  carix-caddy:
+    image: caddy:2-alpine
+    container_name: carix_caddy
+    volumes:
+      - ./deploy/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+    expose:
+      - "80"
+    networks:
+      - default
+      - edge
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    restart: unless-stopped
+
   frontend-node:
     image: ghcr.io/seohyeokgyu/carix/frontend:${IMAGE_TAG:-latest}
     environment:
@@ -15,9 +34,6 @@ services:
       - API_ORIGIN=http://spring-api:8080
     expose:
       - "3000"
-    networks:
-      - default
-      - edge
     logging:
       driver: json-file
       options:
@@ -38,9 +54,6 @@ services:
       - "8080"
     depends_on:
       - postgres
-    networks:
-      - default
-      - edge
     mem_limit: 1500m
     logging:
       driver: json-file

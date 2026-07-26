@@ -5,7 +5,9 @@
 
 **Goal:** 기존 OCI 인스턴스 `opc@144.24.90.88`에 Carix를 얹는다.
 **빌드는 GitHub Actions ARM 러너에서 하고 서버는 이미지를 pull만** 한다.
-엣지는 이미 도는 Caddy를 재사용해 `carix.144.24.90.88.sslip.io`로 HTTPS를 즉시 확보한다.
+엣지는 2단이다. 서버의 라우터 Caddy가 TLS를 종료하고 호스트명으로 분기하면,
+프로젝트 전용 `carix-caddy`가 애플리케이션 라우팅을 맡는다. 도메인은
+`carix.144.24.90.88.sslip.io`(sslip.io + 자동 ACME)다.
 
 ---
 
@@ -22,7 +24,7 @@
 | Docker 회수 가능 | 이미지 **18.84GB** + 빌드 캐시 **5.02GB** ≈ 24GB |
 | Docker | 29.0.3 / compose v2.40.3 (설치 완료, `enabled`) |
 | 가동 컨테이너 | 18개 — web-archiver(11), asset-pulse(4), isa-risk-dashboard, infra(dockge 3001, dozzle 8888), flaresolverr×4, warp×3, autoheal |
-| **80 / 443** | `asset_pulse_caddy` 점유. **Carix compose의 `nginx: 80:80`은 충돌한다** |
+| **80 / 443** | 라우터 `infra_caddy`가 소유. **어떤 프로젝트도 호스트 포트를 직접 바인딩하지 않는다** |
 | TLS | `pulse.144.24.90.88.sslip.io`에 Let's Encrypt 인증서 발급 완료. 외부 `curl` 200, 검증 통과 |
 | DNS | `carix.144.24.90.88.sslip.io` → `144.24.90.88` (sslip.io 와일드카드, 확인함) |
 | Mukzzi | **이 호스트에서 돌던 것.** `~/mukzzi` 삭제됨, 컨테이너·볼륨 없음. 별도 인스턴스는 존재하지 않는다 |
@@ -35,9 +37,9 @@
 | Phase | 상태 |
 | --- | --- |
 | 1. 디스크 정리 | **완료** — 85% → 81% |
-| 2. 저장소 변경 | **완료** — PR #11 (머지 대기) |
-| 3. Caddy 이관 | **완료** — `infra_caddy`가 80/443 소유, 양 도메인 인증서 발급 |
-| 4. 서버 준비 | **부분 완료** — `.env` 생성(600), deploy key 등록 완료. `/opt/carix`는 **`feature/oci-deployment` 브랜치에 체크아웃돼 있다** (PR 머지 전이라 main엔 `deploy/caddy`가 없다). 머지 직후 아래 명령으로 main으로 되돌려야 한다 |
+| 2. 저장소 변경 | **완료** — PR #11 머지됨 (`cec2ab3`) |
+| 3. 엣지 구성 | **재구성 중** — 라우터(`infra_caddy`) + 프로젝트별 Caddy로 전환. 양 도메인 인증서는 발급 완료 |
+| 4. 서버 준비 | **완료** — `/opt/carix`가 main(`cec2ab3`) 체크아웃, `.env` 생성(600), deploy key 등록 |
 | 5. CD 워크플로 | **부분 완료** — 워크플로·Secrets 등록됨. 실행은 스캐폴드 후 |
 | 6. 첫 배포 검증 | **차단** — `backend/`·`frontend/` 미스캐폴드 |
 | 7. 운영 | 미착수 |
@@ -49,15 +51,15 @@
 - 컨테이너 18개 전부 Up, 비정상 0
 - 5432·8080·3000·8000 외부 차단 확인
 
-### PR #11 머지 직후 반드시 할 일
+### 겪은 장애: bind mount inode 끊김
 
-`infra_caddy`가 `/opt/carix/deploy/caddy`를 마운트하므로, 서버 체크아웃이 feature 브랜치에
-머무르면 Caddy 라우팅이 계속 그 브랜치 파일을 읽는다. 배포 워크플로의 `git reset --hard`는
-스캐폴드 guard에 막혀 한동안 실행되지 않으므로 자동 동기화를 기대할 수 없다.
+브랜치를 main으로 전환하는 순간 `carix` 도메인이 TLS 핸드셰이크 실패로 죽었다.
+`git checkout`이 `deploy/caddy` 디렉터리를 지웠다 다시 만들면서 inode가 바뀌었고,
+컨테이너의 bind mount는 옛 inode를 계속 가리켜 마운트 지점이 빈 디렉터리로 보였다.
 
-```bash
-ssh carix-oci 'cd /opt/carix && git fetch --prune origin main && git checkout main && git reset --hard origin/main && git log --oneline -1 && ls deploy/caddy/'
-```
+**대응:** git이 건드리지 않는 `/opt/carix`를 마운트하고
+`import /etc/carix-repo/deploy/caddy/*.caddy`로 참조한다. 배포 워크플로의
+`git reset --hard`에도 같은 함정이 있었으므로 이 수정이 필수다.
 
 ### 서버에 남긴 미커밋 변경 (asset-pulse)
 
@@ -72,14 +74,14 @@ ssh carix-oci 'cd /opt/carix && git fetch --prune origin main && git checkout ma
 ## 결정 요약
 
 - **빌드는 GitHub Actions `ubuntu-24.04-arm`.** 서버는 `docker compose pull`만. `build:` 지시자를 저장소에서 없앤다.
-- **Carix compose에서 `nginx` 서비스를 제거**한다. 라우팅은 기존 Caddy가 맡는다.
+- **Carix compose에서 `nginx` 서비스를 제거**하고 `carix-caddy`를 둔다. TLS 종료와 호스트명 분기는 서버 라우터 Caddy가 맡는다.
 - TLS는 sslip.io + Caddy ACME로 즉시 확보. certbot·도메인 구매 불필요.
 - Postgres 5432는 외부 미개방. 로컬 개발은 SSH 터널만.
 - 서버 직접 배포 금지 (`~/.claude/rules/common/cmux-workflow.md` §9). Phase 1·3·4의 준비 작업만이 정당한 수동 개입이다.
 
 ## 범위 밖 관찰 (조치하지 않음)
 
-- `asset-pulse`가 `/home/opc/.codex/worktrees/asset-pulse-hardening/docker-compose.yml`에서 80/443 실서비스를 돌린다. Codex 워크트리가 운영 트래픽을 받는 상태. Phase 3에서 Caddy만 떼어내고 나머지는 그대로 둔다.
+- `asset-pulse`가 `/home/opc/.codex/worktrees/asset-pulse-hardening/docker-compose.yml`에서 실서비스를 돌린다. Codex 워크트리가 운영 트래픽을 받는 상태. Phase 3에서 그쪽 Caddy의 호스트 포트 바인딩만 걷어내고 나머지는 그대로 둔다.
 
 ---
 
@@ -144,8 +146,8 @@ Phase 5·6보다 **먼저 main에 들어가야 한다.**
 
 - [ ] **Step 1: `nginx` 서비스 삭제**
 
-80/443은 Caddy가 이미 쓴다. `deploy/nginx/nginx.conf`의 라우팅은 Phase 3에서 Caddyfile로 옮긴다.
-`depends_on`에서 nginx 참조도 함께 제거한다.
+80/443은 서버의 라우터 Caddy가 쓴다. `deploy/nginx/nginx.conf`의 라우팅은
+`deploy/caddy/Caddyfile`로 옮긴다. `depends_on`에서 nginx 참조도 함께 제거한다.
 
 - [ ] **Step 2: `build:` → `image:`**
 
@@ -167,16 +169,21 @@ Phase 5·6보다 **먼저 main에 들어가야 한다.**
     command: ["--spring.batch.job.enabled=true", "--carix.role=batch"]
 ```
 
-- [ ] **Step 3: 엣지 공유 네트워크 참여**
+- [ ] **Step 3: Carix 전용 Caddy 서비스 추가**
 
-Caddy가 `frontend-node`·`spring-api`에 도달해야 한다.
+라우터가 도달할 접점은 이 컨테이너 하나다. 애플리케이션 서비스는 `edge`에 노출하지 않는다.
 
 ```yaml
 services:
-  frontend-node:
+  carix-caddy:
+    image: caddy:2-alpine
+    container_name: carix_caddy
+    volumes:
+      - ./deploy/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+    expose:
+      - "80"
     networks: [default, edge]
-  spring-api:
-    networks: [default, edge]
+    restart: unless-stopped
 
 networks:
   edge:
@@ -287,71 +294,69 @@ ENTRYPOINT ["java", "-jar", "application.jar"]
 
 ---
 
-## Phase 3 — 엣지(Caddy) 연결
+## Phase 3 — 엣지: 라우터 + 프로젝트별 Caddy
 
 > **선행 조건: Phase 4 Task 4.2(`/opt/carix` 클론)를 먼저 끝낸다.**
-> Step 3이 `/opt/carix/deploy/caddy/carix.caddy`를 파일로 bind-mount하는데, 그 경로가 없으면
-> Docker가 **디렉터리를 대신 만들고** `import /etc/caddy/conf.d/*.caddy`가 그 디렉터리를 파싱하려다
-> 실패한다. 번호 순서보다 이 의존성이 우선이다.
+> 라우터가 `/opt/carix`를 마운트하므로 클론이 없으면 Docker가 빈 디렉터리를 만들고
+> import가 아무것도 못 찾는다.
 
-현재 Caddyfile은 asset-pulse 소유다. 단일 사이트 블록이고
-`/home/opc/.codex/worktrees/asset-pulse-hardening/Caddyfile`에서 bind-mount된다.
+### 구조
 
 ```
-{$PUBLIC_HOST} {
-    encode zstd gzip
-    reverse_proxy frontend:80 { header_up X-Forwarded-For {remote_host} }
-}
+Internet :443
+   └─ infra_caddy (라우터, ~/infra)        TLS 종료 + 호스트명 분기만
+        ├─ pulse.144.24.90.88.sslip.io → asset_pulse_caddy:80   (asset-pulse 저장소 소유)
+        └─ carix.144.24.90.88.sslip.io → carix_caddy:80         (Carix 저장소 소유)
+                                            ├─ /api/*  → spring-api:8080
+                                            └─ /*      → frontend-node:3000
 ```
 
-### 방침: A안 — Caddy를 `~/infra/` 공용 엣지로 이관 (확정)
+**왜 라우터가 필요한가.** 80/443은 한 컨테이너만 바인딩할 수 있다. 그리고 Let's Encrypt는
+HTTP-01(80)이나 TLS-ALPN-01(443)로만 검증하러 온다 — 8443 같은 대체 포트로는 오지 않는다.
+sslip.io는 소유 도메인이 아니라 DNS-01 우회도 불가능하다. 따라서 **포트만 분리하면 표준 포트를
+못 쓰는 쪽이 정상 인증서를 받지 못한다.** 라우터 한 단을 두면 두 프로젝트 모두 정상 TLS를 받으면서
+각자 자기 저장소에서 애플리케이션 라우팅을 소유한다.
 
-Carix 라우팅이 남의 프로젝트 워크트리에 얹히지 않도록 엣지 소유권을 분리한다.
-asset-pulse는 `caddy` 서비스만 잃고 나머지(frontend/backend/db)는 그대로 둔다.
+전용 Caddy는 `auto_https off` + `:80` 으로 뜨므로 인증서를 발급하지 않는다. 인증서 관리 지점은
+라우터 하나뿐이다.
 
-> **다운타임:** Caddy 컨테이너 교체 동안 수 초. `pulse.144.24.90.88.sslip.io`가 잠시 끊긴다.
-> **인증서:** 기존 볼륨 `asset_pulse_caddy_data`를 **external로 재사용**한다. 새로 발급받으면
-> Let's Encrypt rate limit을 소모한다.
+### 저장소가 소유하는 파일
 
-- [ ] **Step 1: 공유 네트워크 생성**
+| 파일 | 역할 | 마운트 대상 |
+| --- | --- | --- |
+| `deploy/caddy/Caddyfile` | Carix 애플리케이션 라우팅 | `carix_caddy:/etc/caddy/Caddyfile` |
+| `deploy/caddy/router.caddy` | 라우터의 호스트명 분기 항목 | 라우터가 `/etc/carix-repo/deploy/caddy/*.caddy`로 import |
+
+- [ ] **Step 1: 공유 네트워크**
 
 ```bash
-ssh carix-oci 'docker network create edge 2>/dev/null; docker network ls | grep edge'
+ssh carix-oci 'docker network inspect edge >/dev/null 2>&1 || docker network create edge'
 ```
 
-- [ ] **Step 2: `~/infra/caddy/Caddyfile` 작성**
+- [ ] **Step 2: 라우터 `~/infra/caddy/Caddyfile`**
 
 ```
-# 공용 엣지 프록시. 사이트별 설정은 conf.d에서 import한다.
+# 라우터. TLS 종료와 호스트명 분기만 한다. 애플리케이션 라우팅은 각 프로젝트 Caddy가 맡는다.
 {$PULSE_HOST} {
     encode zstd gzip
-    reverse_proxy asset_pulse_frontend:80 {
-        header_up X-Forwarded-For {remote_host}
-    }
+    reverse_proxy asset_pulse_caddy:80
 }
 
-import /etc/caddy/conf.d/*.caddy
-import /etc/caddy/sites-carix/*.caddy
+import /etc/carix-repo/deploy/caddy/*.caddy
 ```
 
-> **`sites-carix`가 별도인 이유:** Carix 설정 파일을 `/etc/caddy/conf.d/carix.caddy`로 겹쳐
-> 마운트하려 했으나 실패한다. `conf.d` 자체가 `:ro`로 마운트돼 있어 그 안에 mountpoint를 만들 수 없다.
->
-> ```
-> error mounting "/opt/carix/deploy/caddy/carix.caddy" to rootfs at "/etc/caddy/conf.d/carix.caddy":
-> create mountpoint ...: read-only file system
-> ```
->
-> 디렉터리를 별도 경로에 마운트하고 import를 하나 더 두는 방식으로 해결했다.
+> **마운트 경로 주의:** `/opt/carix/deploy/caddy`처럼 **git이 재생성하는 하위 디렉터리를 마운트하면
+> 안 된다.** 브랜치 전환이나 `git reset --hard`가 디렉터리를 지웠다 다시 만들면 inode가 바뀌어
+> 컨테이너의 bind mount가 옛 inode를 가리킨 채 빈 디렉터리로 보인다. 실제로 겪었고
+> `carix` 도메인이 TLS 핸드셰이크 실패로 죽었다.
+> `mkdir`로 만든 `/opt/carix` 자체를 마운트하면 git이 그 디렉터리를 건드리지 않아 안전하다.
 
-- [ ] **Step 3: `~/infra/docker-compose.yml`에 caddy 추가**
+- [ ] **Step 3: `~/infra/docker-compose.yml`의 caddy 서비스**
 
 ```yaml
-services:
   caddy:
     image: caddy:2-alpine
     container_name: infra_caddy
-    restart: unless-stopped
     environment:
       PULSE_HOST: ${PULSE_HOST}
     ports:
@@ -359,18 +364,18 @@ services:
       - "443:443"
     volumes:
       - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
-      - ./caddy/conf.d:/etc/caddy/conf.d:ro
-      # ro 마운트 내부에 파일을 겹쳐 마운트할 수 없다. 디렉터리를 별도 경로로 마운트한다.
-      - /opt/carix/deploy/caddy:/etc/caddy/sites-carix:ro
+      - /opt/carix:/etc/carix-repo:ro
       - caddy_data:/data
       - caddy_config:/config
     networks: [default, edge]
+    restart: unless-stopped
 
 networks:
   edge:
     external: true
 
 volumes:
+  # asset-pulse가 만든 인증서 볼륨을 재사용한다. 재발급은 LE rate limit을 소모한다.
   caddy_data:
     external: true
     name: asset_pulse_caddy_data
@@ -379,73 +384,37 @@ volumes:
     name: asset_pulse_caddy_config
 ```
 
-`~/infra/.env`에 `PULSE_HOST=pulse.144.24.90.88.sslip.io`를 넣는다.
-`./caddy/conf.d/`는 빈 디렉터리로 미리 만든다(mount 실패 방지).
+`~/infra/.env`에 `PULSE_HOST=pulse.144.24.90.88.sslip.io`.
 
-> `/opt/carix/deploy/caddy`를 통째로 bind-mount하므로 **저장소가 정본**이 된다.
-> Phase 5 deploy 스크립트의 `caddy reload`가 이를 실제로 적용한다.
-> 단, `/opt/carix` 체크아웃(Phase 4)이 Caddy 기동보다 먼저여야 한다. 순서를 지킨다.
+- [ ] **Step 4: asset-pulse에 자기 Caddy 복원**
 
-- [ ] **Step 4: `deploy/caddy/carix.caddy` (Carix 저장소, Phase 2와 함께 커밋)**
+`/home/opc/.codex/worktrees/asset-pulse-hardening/`:
 
-```
-carix.144.24.90.88.sslip.io {
-    encode zstd gzip
+- `caddy` 서비스를 되살리되 **호스트 포트 바인딩은 없앤다**(라우터가 80/443을 소유)
+- `networks: [default, edge]` 추가
+- 그쪽 `Caddyfile`은 `{$PUBLIC_HOST}` 대신 `:80` 사이트로 바꾼다 (TLS는 라우터가 종료)
 
-    handle_path /assets/* {
-        header Cache-Control "public, max-age=31536000, immutable"
-        reverse_proxy frontend-node:3000
-    }
+- [ ] **Step 5: Carix 전용 Caddy**
 
-    handle /api/* {
-        reverse_proxy spring-api:8080 {
-            header_up X-Forwarded-For {remote_host}
-            header_up X-Forwarded-Proto {scheme}
-        }
-    }
-
-    handle {
-        reverse_proxy frontend-node:3000 {
-            header_up X-Forwarded-For {remote_host}
-            header_up X-Forwarded-Proto {scheme}
-        }
-    }
-}
-```
-
-> `handle_path`는 `/assets` 접두사를 벗겨서 넘긴다. 프런트엔드가 `/assets/...` 경로를 그대로
-> 기대하면 `handle`을 쓴다. 스캐폴드 시 실제 라우팅에 맞춰 확정한다.
-
-- [ ] **Step 5: asset-pulse에서 caddy 분리**
-
-`/home/opc/.codex/worktrees/asset-pulse-hardening/docker-compose.yml`에서:
-
-- `caddy` 서비스 블록 삭제
-- `frontend`에 `networks: [default, edge]` 추가
-- 최상위에 `networks: {edge: {external: true}}` 추가
+`docker-compose.yml`의 `carix-caddy` 서비스. `deploy/caddy/Caddyfile`을 마운트하고 `edge`에 붙는다.
+애플리케이션 이미지가 없어도 단독 기동된다.
 
 ```bash
-ssh carix-oci 'cd /home/opc/.codex/worktrees/asset-pulse-hardening && docker compose up -d --remove-orphans'
-ssh carix-oci 'cd ~/infra && docker compose up -d'
+ssh carix-oci 'cd /opt/carix && docker compose up -d carix-caddy'
 ```
 
 - [ ] **Step 6: 검증**
 
 ```bash
 ssh carix-oci 'docker exec infra_caddy caddy validate --config /etc/caddy/Caddyfile'
-curl -sS -o /dev/null -w "pulse=%{http_code}\n" https://pulse.144.24.90.88.sslip.io/
-curl -sS -o /dev/null -w "carix=%{http_code}\n" https://carix.144.24.90.88.sslip.io/
+curl -sS -o /dev/null -w "pulse=%{http_code} tls=%{ssl_verify_result}\n" https://pulse.144.24.90.88.sslip.io/
+curl -sS -o /dev/null -w "carix=%{http_code} tls=%{ssl_verify_result}\n" https://carix.144.24.90.88.sslip.io/
 ssh carix-oci 'docker exec infra_caddy ls /data/caddy/certificates/acme-v02.api.letsencrypt.org-directory/'
 ```
 
-Expected: pulse 200(기존 인증서 그대로 재사용), carix는 백엔드 전이라 502,
-인증서 디렉터리에 `carix.144.24.90.88.sslip.io` 생성.
+Expected: pulse 200, carix는 백엔드 전이라 502, 둘 다 `tls=0`(검증 통과),
+인증서 디렉터리에 두 호스트 모두 존재.
 
-- [ ] **Step 7: `deploy/nginx/` 삭제**
-
-Caddy로 옮겼으므로 `deploy/nginx/nginx.conf`는 죽은 설정이다. 삭제한다.
-
----
 
 ## Phase 4 — 서버 준비
 
@@ -726,7 +695,10 @@ jobs:
             docker compose up -d --remove-orphans
             docker logout ghcr.io
 
-            # 저장소의 carix.caddy가 bind-mount돼 있다. 변경분을 반영한다.
+            # 두 Caddy 모두 저장소 파일을 bind-mount한다. compose up만으로는 재적용되지 않는다.
+            #   carix_caddy → deploy/caddy/Caddyfile  (애플리케이션 라우팅)
+            #   infra_caddy → deploy/caddy/router.caddy (호스트명 분기)
+            docker exec carix_caddy caddy reload --config /etc/caddy/Caddyfile
             docker exec infra_caddy caddy reload --config /etc/caddy/Caddyfile
 
             # 디스크 85%에서 출발한 호스트다. 매 배포마다 정리한다.
@@ -832,7 +804,7 @@ Expected: `enabled` (+ compose의 `restart: unless-stopped`).
 - [ ] **모니터링:** 이 호스트에 Dozzle(8888)·Dockge(3001)가 이미 돈다. Carix 컨테이너가 거기 보이는지 확인하고, 헬스체크 감시를 붙인다.
 - [ ] **디스크 감시:** 85%에서 출발했다. 주간 `docker system prune` 또는 사용률 알림을 건다.
 - [ ] **엣지 설정 형상관리:** `~/infra/`는 git 추적 대상이 아닌데 이제 **두 서비스의 엣지를 소유**한다.
-  `caddy/Caddyfile`, `caddy/conf.d/`, `docker-compose.yml`이 날짜 붙은 `.bak` 하나만 있는 단일 사본이다.
+  `caddy/Caddyfile`과 `docker-compose.yml`이 날짜 붙은 `.bak` 하나만 있는 단일 사본이다.
   별도 private 저장소로 옮기거나 Carix 저장소 `deploy/infra-edge/`에 참조용 사본을 둔다.
 - [ ] **암호화 키 백업:** `CARIX_ENCRYPTION_KEY`가 `/opt/carix/.env`에만 있다.
   **아직 암호화된 데이터가 없으므로 지금은 재생성이 자유롭다.** 첫 운영 쓰기 전에 아래로 꺼내

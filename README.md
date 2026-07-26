@@ -291,9 +291,10 @@ robots 정책과 필요한 구조화 데이터를 제공합니다.
 - API 모킹: MSW
 - 브라우저 E2E: Playwright
 
-OCI VM에서는 `frontend-node`, `spring-api`, `spring-batch`, `postgres` 컨테이너를
-Docker Compose로 운영합니다. 이미지는 GitHub Actions(ARM 러너)가 빌드해 GHCR에 올리고
-서버는 pull만 합니다. TLS와 라우팅은 서버의 공용 Caddy가 담당합니다
+OCI VM에서는 `carix-caddy`, `frontend-node`, `spring-api`, `spring-batch`, `postgres`
+컨테이너를 Docker Compose로 운영합니다. 이미지는 GitHub Actions(ARM 러너)가 빌드해 GHCR에
+올리고 서버는 pull만 합니다. 엣지는 2단으로, 서버의 라우터 Caddy가 TLS를 종료하고 호스트명으로
+분기하면 프로젝트 전용 `carix-caddy`가 애플리케이션 라우팅을 맡습니다
 ([배포 계획](docs/plans/oci-server-provisioning-plan.md)).
 
 ## 프로젝트 상태
@@ -317,7 +318,8 @@ Carix/
 ├── docker-compose.yml         OCI 배포 오케스트레이션 (로컬 실행용 아님)
 ├── .env.example               환경 변수 템플릿 (.env는 커밋 금지)
 ├── deploy/
-│   ├── caddy/carix.caddy      엣지 라우팅 정본 (서버 Caddy에 마운트)
+│   ├── caddy/Caddyfile        Carix 전용 Caddy의 애플리케이션 라우팅
+│   ├── caddy/router.caddy     라우터 Caddy가 import하는 호스트명 분기
 │   └── postgres/initdb/       dev DB 분리 초기화 스크립트
 ├── frontend/                  Vite·React·Node SSR (스캐폴드 예정)
 ├── backend/                   Spring Boot (스캐폴드 예정)
