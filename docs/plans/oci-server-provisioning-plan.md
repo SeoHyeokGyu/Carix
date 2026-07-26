@@ -30,6 +30,25 @@
 | 참조 구현 | `Mukzzi/.github/workflows/backend-deploy.yml` — `ubuntu-24.04-arm` → buildx → GHCR → SSH `compose pull`. 최근 5회 전부 성공 (1m45s–1m56s) |
 | `backend/`, `frontend/` | `README.md`만. Dockerfile·`build.gradle`·`package.json` 없음 → **Phase 6 게이트** |
 
+## 실행 현황 (2026-07-26)
+
+| Phase | 상태 |
+| --- | --- |
+| 1. 디스크 정리 | **완료** — 85% → 81% |
+| 2. 저장소 변경 | **완료** — PR #11 (머지 대기) |
+| 3. Caddy 이관 | **완료** — `infra_caddy`가 80/443 소유, 양 도메인 인증서 발급 |
+| 4. 서버 준비 | **완료** — `/opt/carix` 체크아웃, `.env` 생성(600), deploy key 등록 |
+| 5. CD 워크플로 | **부분 완료** — 워크플로·Secrets 등록됨. 실행은 스캐폴드 후 |
+| 6. 첫 배포 검증 | **차단** — `backend/`·`frontend/` 미스캐폴드 |
+| 7. 운영 | 미착수 |
+
+검증된 상태:
+
+- `https://pulse.144.24.90.88.sslip.io/` → 200, TLS 검증 통과
+- `https://carix.144.24.90.88.sslip.io/` → 502 (백엔드 없음), TLS 검증 통과
+- 컨테이너 18개 전부 Up, 비정상 0
+- 5432·8080·3000·8000 외부 차단 확인
+
 ## 결정 요약
 
 - **빌드는 GitHub Actions `ubuntu-24.04-arm`.** 서버는 `docker compose pull`만. `build:` 지시자를 저장소에서 없앤다.
@@ -75,7 +94,16 @@ Expected: 출력 없음. 있으면 해당 이미지를 먼저 확인하고 정�
 ssh carix-oci 'docker image prune -a -f && docker builder prune -a -f && df -h /'
 ```
 
-Expected: 루트 사용률 70% 아래. 미달이면 Phase 6 진입 전 추가 정리를 결정한다.
+**실행 결과 (2026-07-26):** 113G → 107G, 85% → **81%**, 6GB 회수. 빌드 캐시 7.4GB 전량 삭제.
+
+> `docker system df`의 `RECLAIMABLE 18.85GB`는 과대계상이다. 실행 중 컨테이너가 안 쓰는 이미지를
+> 모두 회수 가능으로 세지만, 실제 미사용 named 이미지는 684MB뿐이었다
+> (`polymarket-alerts-*`, `node:24-alpine`, `alpine:3.20`, `dperson/torproxy`).
+> 실질 회수분은 빌드 캐시다. **`prune -a`는 실행하지 않았다** — 로컬 빌드 이미지의 이전 버전을
+> 지우면 소스 재빌드로만 복구된다.
+>
+> 남은 용량 상위: `/var/lib/docker/volumes` 44G, `/home/opc/backups` 22G. 둘 다 사용자 데이터라
+> 손대지 않았다. 27G 여유면 Carix에 충분하다.
 
 - [ ] **Step 3: 메모리 여유 재확인**
 
@@ -274,6 +302,7 @@ ssh carix-oci 'docker network create edge 2>/dev/null; docker network ls | grep 
 - [ ] **Step 2: `~/infra/caddy/Caddyfile` 작성**
 
 ```
+# 공용 엣지 프록시. 사이트별 설정은 conf.d에서 import한다.
 {$PULSE_HOST} {
     encode zstd gzip
     reverse_proxy asset_pulse_frontend:80 {
@@ -282,7 +311,18 @@ ssh carix-oci 'docker network create edge 2>/dev/null; docker network ls | grep 
 }
 
 import /etc/caddy/conf.d/*.caddy
+import /etc/caddy/sites-carix/*.caddy
 ```
+
+> **`sites-carix`가 별도인 이유:** Carix 설정 파일을 `/etc/caddy/conf.d/carix.caddy`로 겹쳐
+> 마운트하려 했으나 실패한다. `conf.d` 자체가 `:ro`로 마운트돼 있어 그 안에 mountpoint를 만들 수 없다.
+>
+> ```
+> error mounting "/opt/carix/deploy/caddy/carix.caddy" to rootfs at "/etc/caddy/conf.d/carix.caddy":
+> create mountpoint ...: read-only file system
+> ```
+>
+> 디렉터리를 별도 경로에 마운트하고 import를 하나 더 두는 방식으로 해결했다.
 
 - [ ] **Step 3: `~/infra/docker-compose.yml`에 caddy 추가**
 
@@ -300,7 +340,8 @@ services:
     volumes:
       - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
       - ./caddy/conf.d:/etc/caddy/conf.d:ro
-      - /opt/carix/deploy/caddy/carix.caddy:/etc/caddy/conf.d/carix.caddy:ro
+      # ro 마운트 내부에 파일을 겹쳐 마운트할 수 없다. 디렉터리를 별도 경로로 마운트한다.
+      - /opt/carix/deploy/caddy:/etc/caddy/sites-carix:ro
       - caddy_data:/data
       - caddy_config:/config
     networks: [default, edge]
@@ -321,8 +362,8 @@ volumes:
 `~/infra/.env`에 `PULSE_HOST=pulse.144.24.90.88.sslip.io`를 넣는다.
 `./caddy/conf.d/`는 빈 디렉터리로 미리 만든다(mount 실패 방지).
 
-> Carix 설정 파일을 `/opt/carix/deploy/caddy/carix.caddy`에서 직접 bind-mount하므로
-> **저장소가 정본**이 된다. Phase 5 deploy 스크립트의 `caddy reload`가 이를 실제로 적용한다.
+> `/opt/carix/deploy/caddy`를 통째로 bind-mount하므로 **저장소가 정본**이 된다.
+> Phase 5 deploy 스크립트의 `caddy reload`가 이를 실제로 적용한다.
 > 단, `/opt/carix` 체크아웃(Phase 4)이 Caddy 기동보다 먼저여야 한다. 순서를 지킨다.
 
 - [ ] **Step 4: `deploy/caddy/carix.caddy` (Carix 저장소, Phase 2와 함께 커밋)**
