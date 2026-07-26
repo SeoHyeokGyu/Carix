@@ -604,6 +604,88 @@ Mukzzi 워크플로는 **Go** 프로젝트다. Carix는 Gradle/JVM + Node SSR이
 | 11 | `IMAGE_BASE: ghcr.io/${{ github.repository }}` | `github.repository`가 `SeoHyeokGyu/Carix`라 대문자가 섞인다. Docker repository 이름은 소문자여야 한다 | **교체** — 소문자 하드코딩 (첫 배포에서 실패로 드러남) |
 | 12 | `cache-to: type=gha` + buildx 셋업 없음 | 기본 `docker` 드라이버는 캐시 export를 지원하지 않는다 | **교체** — `docker/setup-buildx-action` 추가 (첫 배포에서 실패로 드러남) |
 
+### 배포 실패 시 복구와 이미지 보존
+
+**자동 롤백은 두지 않는다 (사용자 결정).** 헬스체크가 실패하면 워크플로만 빨간불이 되고
+서버는 그 배포 상태로 남는다. 복구는 수동이다.
+
+```bash
+ssh carix-oci
+cd /home/opc/carix
+# 되돌릴 커밋은 Actions 배포 실행 목록이나 `git log` 에서 찾는다
+sed -i "s|^BACKEND_TAG=.*|BACKEND_TAG=<직전 SHA>|" .env
+sed -i "s|^FRONTEND_TAG=.*|FRONTEND_TAG=<직전 SHA>|" .env
+git reset --hard <직전 SHA>          # compose 파일·Caddyfile도 함께 되돌릴 때
+docker compose up -d --remove-orphans
+docker compose up -d --force-recreate carix-caddy
+```
+
+아래 이미지 보존 정책이 최근 3개를 남기므로, 직전 배포 이미지는 서버에 남아 있어 pull 없이 뜬다.
+그보다 오래된 SHA로 되돌리려면 GHCR에서 다시 pull된다.
+
+**이미지 보존.** `docker image prune -f`는 dangling만 지우므로 SHA 태그 이미지가 무한히 쌓인다.
+carix 이미지에 한정해 최근 3개만 남기고 나머지 태그를 지운다.
+`prune -a`는 여전히 금지 — 이 호스트엔 레지스트리 없이 로컬 빌드된 타 프로젝트 이미지가 있다.
+
+**이미지 태그를 컴포넌트별로 나눈다.** 백엔드만 바뀐 커밋에서 프런트를 다시 빌드하는 것은 낭비다.
+
+```yaml
+spring-api:     image: ...backend:${BACKEND_TAG:-latest}
+spring-batch:   image: ...backend:${BACKEND_TAG:-latest}
+frontend-node:  image: ...frontend:${FRONTEND_TAG:-latest}
+```
+
+**태그 값은 배포 커밋이 아니라 그 컴포넌트를 마지막으로 바꾼 커밋이다.**
+
+```bash
+TAG=$(git log -1 --format=%H -- backend/ .github/workflows/deploy.yml)
+docker buildx imagetools inspect "$REPO:$TAG" >/dev/null 2>&1 || build_and_push
+```
+
+이 정의 덕분에 "빌드가 필요한가"를 따로 판정할 필요가 없다. **그 코드로 만든 이미지가 레지스트리에
+이미 있으면 만들 것이 없다.** 백엔드만 바뀐 커밋에서는 `FRONTEND_TAG` 값이 그대로라 compose가
+`frontend-node`를 재생성하지 않는다.
+
+부수 효과로 빌드 실패가 자동 복구된다. 실패하면 그 태그의 이미지가 없으므로 다음 실행이 다시 시도한다.
+`github.event.before` 기준으로 변경을 감지하면 이 구멍에 빠진다 — 그것은 "직전 푸시"일 뿐
+"직전에 성공한 빌드"가 아니라서, 앞선 실행이 실패했거나 푸시가 `paths`에 걸려 스킵되면 변경을 놓친다.
+
+워크플로 파일이 바뀌면 빌드 방식이 달라졌을 수 있으므로 `git log` 경로에 포함해 양쪽을 다시 만든다.
+
+실제 히스토리로 확인한 동작:
+
+| 커밋 | `BACKEND_TAG` | `FRONTEND_TAG` |
+| --- | --- | --- |
+| backend 수정 | 갱신 | 고정 |
+| backend 또 수정 | 갱신 | 고정 |
+| 문서만 수정 | 고정 | 고정 |
+| frontend 수정 | 고정 | 갱신 |
+| 워크플로 수정 | 갱신 | 갱신 |
+
+> **점검표 6번(`latest` 대신 SHA 고정)은 그대로 지켜진다.** 변수를 하나만 둔 것은 당시 가장 단순한
+> 구현이었을 뿐 요구사항이 아니었다. SHA 고정의 목적은 롤백이 아니라 관측성·재현성이며,
+> 그것은 변수 두 개로도 유지된다. `.env` 두 줄만 보면 어떤 코드가 돌고 있는지 확정되고,
+> 서버를 재기동해도 같은 이미지가 뜬다.
+>
+> 다만 태그가 배포 커밋과 1:1로 대응하지 않는다. `BACKEND_TAG=abc123`은 "abc123을 배포했다"가
+> 아니라 "백엔드를 마지막으로 바꾼 커밋이 abc123"이다. 배포 이력은 Actions 실행 목록에서 본다.
+
+**워크플로 파일은 하나로 유지한다.** 둘로 쪼개면 두 워크플로가 동시에 `git reset --hard`와 `.env`를
+건드려 경쟁이 생긴다. 잡만 조건부로 만들면 SSH 로직이 한 곳에 남는다.
+
+**헬스체크는 양쪽을 본다.** 한쪽만 재생성될 수 있으므로 `/api/health`와 `/`를 함께 확인한다.
+
+**보존 정책과의 상호작용.** 컴포넌트별 태그는 서로 다른 커밋에 머물 수 있고, 오래된 쪽은 생성 시각
+정렬에서 아래로 밀려 삭제 대상에 들어간다. 서버 `.env`에서 실제 사용 중인 두 값을 읽어 제외한다.
+
+**강제 재빌드가 필요하면** GHCR에서 해당 태그를 지우고 워크플로를 다시 돌린다. 태그가 없으면
+자동으로 빌드된다.
+
+**문서 커밋으로 배포되지 않게.** `backend/README.md`가 `paths`의 `backend/**`에 걸려
+코드 변경 0인 재배포가 한 번 돌았다 ([run 30201703174](https://github.com/SeoHyeokGyu/Carix/actions/runs/30201703174)).
+`paths` 끝에 `'!**/*.md'`를 두어 제외한다. 마지막에 매칭된 패턴이 이기므로 순서가 중요하다.
+**잡 단위 `paths` 필터로 바꾸면 안 된다** — 위 8번 항목의 SHA 고정 배포와 충돌한다.
+
 추가로 **당시 `ci.yml`과 중복**이 있었다. `ci.yml` backend 잡이 `ubuntu-latest`(x86)에서
 `./gradlew build`를 돌리는데, 배포가 또 컴파일했다. 게다가 **테스트는 x86, 배포 이미지는 arm64**라
 아키텍처가 어긋났다.
@@ -823,9 +905,9 @@ on:
 
 설계 메모:
 
-- `git reset --hard "$IMAGE_TAG"`는 배포 커밋 SHA로 고정한다. `origin/main` 팁을 쓰면 CI가 검증하지 않은 후속 커밋이 섞인다.
-- **롤백:** 서버 `.env`의 `IMAGE_TAG`를 이전 SHA로 바꾸고 `docker compose up -d`. 또는 `gh workflow run deploy.yml --ref <이전-SHA>`.
-- 프런트만 바뀌어도 백엔드를 빌드한다(약 2–4분 손해). 대신 두 이미지에 동일 SHA 태그가 항상 존재해 고정 배포·롤백이 단순해진다. `dorny/paths-filter`로 건너뛰려면 `BACKEND_TAG`/`FRONTEND_TAG`를 분리해야 한다.
+- `git reset --hard "$DEPLOY_SHA"`는 배포 커밋 SHA로 고정한다. `origin/main` 팁을 쓰면 검증하지 않은 후속 커밋이 섞인다.
+- **롤백:** 자동 롤백은 두지 않는다. 서버 `.env`의 `BACKEND_TAG`·`FRONTEND_TAG`를 이전 SHA로 바꾸고 `docker compose up -d`.
+- ~~프런트만 바뀌어도 백엔드를 빌드한다(약 2–4분 손해).~~ → **해소됨.** `BACKEND_TAG`/`FRONTEND_TAG`를 분리하고 태그 값을 "그 컴포넌트를 마지막으로 바꾼 커밋"으로 두어, 안 바뀐 쪽은 빌드도 재생성도 하지 않는다. 위 「배포 실패 시 복구와 이미지 보존」 참조.
 - GHCR 패키지는 첫 푸시 시 private이다. 서버 `docker login`이 필수다.
 - `caddy reload`가 실패하면 배포가 실패한다. 의도된 동작 — 라우팅이 깨진 채로 성공 처리되면 안 된다.
 
