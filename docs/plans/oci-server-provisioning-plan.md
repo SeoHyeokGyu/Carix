@@ -38,17 +38,18 @@
 | --- | --- |
 | 1. 디스크 정리 | **완료** — 85% → 81% |
 | 2. 저장소 변경 | **완료** — PR #11 머지됨 (`cec2ab3`) |
-| 3. 엣지 구성 | **재구성 중** — 라우터(`infra_caddy`) + 프로젝트별 Caddy로 전환. 양 도메인 인증서는 발급 완료 |
+| 3. 엣지 구성 | **완료** — 라우터(`infra_caddy`) + 프로젝트별 Caddy(`carix_caddy`, `asset_pulse_caddy`). 양 도메인 정상 TLS |
 | 4. 서버 준비 | **완료** — `/opt/carix`가 main(`cec2ab3`) 체크아웃, `.env` 생성(600), deploy key 등록 |
 | 5. CD 워크플로 | **부분 완료** — 워크플로·Secrets 등록됨. 실행은 스캐폴드 후 |
 | 6. 첫 배포 검증 | **차단** — `backend/`·`frontend/` 미스캐폴드 |
 | 7. 운영 | 미착수 |
 
-검증된 상태:
+검증된 상태 (2단 엣지 전환 후):
 
-- `https://pulse.144.24.90.88.sslip.io/` → 200, TLS 검증 통과
-- `https://carix.144.24.90.88.sslip.io/` → 502 (백엔드 없음), TLS 검증 통과
-- 컨테이너 18개 전부 Up, 비정상 0
+- `https://pulse.144.24.90.88.sslip.io/` → 200, TLS 검증 통과 (라우터 → `asset_pulse_caddy` → frontend)
+- `https://carix.144.24.90.88.sslip.io/` → 502 (백엔드 없음), TLS 검증 통과 (라우터 → `carix_caddy`)
+- `infra_caddy`만 호스트 포트(80/443)를 바인딩한다. 프로젝트 Caddy는 `expose`만
+- 컨테이너 비정상 0
 - 5432·8080·3000·8000 외부 차단 확인
 
 ### 겪은 장애: bind mount inode 끊김
@@ -63,12 +64,15 @@
 
 ### 서버에 남긴 미커밋 변경 (asset-pulse)
 
-`/home/opc/.codex/worktrees/asset-pulse-hardening/docker-compose.yml`에서 `caddy` 서비스를
-제거하고 `frontend`를 `edge` 네트워크에 붙인 변경이 **커밋되지 않은 채 운영에 반영돼 있다.**
+`/home/opc/.codex/worktrees/asset-pulse-hardening/`의 `docker-compose.yml`과 `Caddyfile`이
+**커밋되지 않은 채 운영에 반영돼 있다.**
 
-그 워크트리에서 `git checkout` / `git reset --hard` / `git stash`를 하거나
-`docker-compose.yml.bak-BEFORE-caddy-migration-2026-07-26`으로 복원하면 `caddy` 서비스가
-되살아나 포트 80 바인딩에 실패하고 `pulse` 도메인이 죽는다.
+- `docker-compose.yml`: `caddy` 서비스에서 호스트 포트 바인딩(80/443) 제거, `expose: 80` +
+  `networks: [default, edge]` 추가. `frontend`는 edge에서 제외
+- `Caddyfile`: `{$PUBLIC_HOST}` 사이트 → `:80` + `auto_https off`
+
+그 워크트리에서 `git checkout` / `git reset --hard` / `git stash`를 하거나 `*.bak-BEFORE-*`로
+복원하면 `caddy`가 80/443 바인딩을 시도해 `infra_caddy`와 충돌하고 `pulse` 도메인이 죽는다.
 경고문을 같은 디렉터리의 `CADDY-MIGRATION-NOTE.md`에 남겼다. **그 저장소에 커밋할지는 사용자 판단.**
 
 ## 결정 요약
@@ -345,11 +349,16 @@ ssh carix-oci 'docker network inspect edge >/dev/null 2>&1 || docker network cre
 import /etc/carix-repo/deploy/caddy/*.caddy
 ```
 
-> **마운트 경로 주의:** `/opt/carix/deploy/caddy`처럼 **git이 재생성하는 하위 디렉터리를 마운트하면
-> 안 된다.** 브랜치 전환이나 `git reset --hard`가 디렉터리를 지웠다 다시 만들면 inode가 바뀌어
+> **마운트 경로 주의 (두 번 데인 함정):** `/opt/carix/deploy/caddy`처럼 **git이 재생성하는
+> 하위 디렉터리나 파일을 마운트하면 안 된다.** 브랜치 전환이나 `git reset --hard`가 디렉터리를 지웠다 다시 만들면 inode가 바뀌어
 > 컨테이너의 bind mount가 옛 inode를 가리킨 채 빈 디렉터리로 보인다. 실제로 겪었고
 > `carix` 도메인이 TLS 핸드셰이크 실패로 죽었다.
 > `mkdir`로 만든 `/opt/carix` 자체를 마운트하면 git이 그 디렉터리를 건드리지 않아 안전하다.
+>
+> `carix_caddy`는 `./deploy/caddy/Caddyfile`을 파일째 마운트하므로 같은 함정에 걸린다.
+> 이쪽은 배포 시 `docker compose up -d --force-recreate carix-caddy`로 재생성해 해결한다.
+> **`caddy reload`로 바꾸면 안 된다** — 구버전을 읽고도 성공을 보고해 배포가 초록불인 채
+> 라우팅만 반영되지 않는다.
 
 - [ ] **Step 3: `~/infra/docker-compose.yml`의 caddy 서비스**
 
@@ -695,10 +704,11 @@ jobs:
             docker compose up -d --remove-orphans
             docker logout ghcr.io
 
-            # 두 Caddy 모두 저장소 파일을 bind-mount한다. compose up만으로는 재적용되지 않는다.
-            #   carix_caddy → deploy/caddy/Caddyfile  (애플리케이션 라우팅)
-            #   infra_caddy → deploy/caddy/router.caddy (호스트명 분기)
-            docker exec carix_caddy caddy reload --config /etc/caddy/Caddyfile
+            # carix_caddy는 git 관리 파일을 직접 마운트한다. git reset --hard가 inode를 바꾸면
+            # reload는 성공 보고하면서 구버전을 읽는다(초록불인데 미반영). 반드시 재생성.
+            docker compose up -d --force-recreate carix-caddy
+
+            # infra_caddy는 /opt/carix(mkdir 생성, git 미관여)를 마운트하므로 reload로 충분하다.
             docker exec infra_caddy caddy reload --config /etc/caddy/Caddyfile
 
             # 디스크 85%에서 출발한 호스트다. 매 배포마다 정리한다.
