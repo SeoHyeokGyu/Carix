@@ -349,11 +349,16 @@ ssh carix-oci 'docker network inspect edge >/dev/null 2>&1 || docker network cre
 import /etc/carix-repo/deploy/caddy/*.caddy
 ```
 
-> **마운트 경로 주의:** `/opt/carix/deploy/caddy`처럼 **git이 재생성하는 하위 디렉터리를 마운트하면
-> 안 된다.** 브랜치 전환이나 `git reset --hard`가 디렉터리를 지웠다 다시 만들면 inode가 바뀌어
+> **마운트 경로 주의 (두 번 데인 함정):** `/opt/carix/deploy/caddy`처럼 **git이 재생성하는
+> 하위 디렉터리나 파일을 마운트하면 안 된다.** 브랜치 전환이나 `git reset --hard`가 디렉터리를 지웠다 다시 만들면 inode가 바뀌어
 > 컨테이너의 bind mount가 옛 inode를 가리킨 채 빈 디렉터리로 보인다. 실제로 겪었고
 > `carix` 도메인이 TLS 핸드셰이크 실패로 죽었다.
 > `mkdir`로 만든 `/opt/carix` 자체를 마운트하면 git이 그 디렉터리를 건드리지 않아 안전하다.
+>
+> `carix_caddy`는 `./deploy/caddy/Caddyfile`을 파일째 마운트하므로 같은 함정에 걸린다.
+> 이쪽은 배포 시 `docker compose up -d --force-recreate carix-caddy`로 재생성해 해결한다.
+> **`caddy reload`로 바꾸면 안 된다** — 구버전을 읽고도 성공을 보고해 배포가 초록불인 채
+> 라우팅만 반영되지 않는다.
 
 - [ ] **Step 3: `~/infra/docker-compose.yml`의 caddy 서비스**
 
@@ -699,10 +704,11 @@ jobs:
             docker compose up -d --remove-orphans
             docker logout ghcr.io
 
-            # 두 Caddy 모두 저장소 파일을 bind-mount한다. compose up만으로는 재적용되지 않는다.
-            #   carix_caddy → deploy/caddy/Caddyfile  (애플리케이션 라우팅)
-            #   infra_caddy → deploy/caddy/router.caddy (호스트명 분기)
-            docker exec carix_caddy caddy reload --config /etc/caddy/Caddyfile
+            # carix_caddy는 git 관리 파일을 직접 마운트한다. git reset --hard가 inode를 바꾸면
+            # reload는 성공 보고하면서 구버전을 읽는다(초록불인데 미반영). 반드시 재생성.
+            docker compose up -d --force-recreate carix-caddy
+
+            # infra_caddy는 /opt/carix(mkdir 생성, git 미관여)를 마운트하므로 reload로 충분하다.
             docker exec infra_caddy caddy reload --config /etc/caddy/Caddyfile
 
             # 디스크 85%에서 출발한 호스트다. 매 배포마다 정리한다.
