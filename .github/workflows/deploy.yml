@@ -113,6 +113,19 @@ jobs:
             ${{ env.IMAGE_BASE }}/backend:${{ steps.tag.outputs.tag }}
             ${{ env.IMAGE_BASE }}/backend:latest
 
+      # GHCR 스토리지는 무한하지 않다 (Free 플랜 private 패키지 한도).
+      # 최신 2개(현재 + 직전)만 남긴다. 태그가 컴포넌트별로 나뉜 뒤로 서버가 쓰는 태그는
+      # 항상 그 패키지의 최신 버전이므로 최신 N개 보존이 그것을 지울 일은 없다.
+      #
+      # 지워진 커밋을 나중에 다시 배포해야 하면 위 존재 확인이 실패해 자동으로 다시 빌드된다.
+      - name: 오래된 GHCR 버전 정리
+        if: steps.tag.outputs.build == 'true'
+        uses: actions/delete-package-versions@e5bc658cc4c965c472efe991f8beea3981499c55   # v5.0.0
+        with:
+          package-name: carix/backend
+          package-type: container
+          min-versions-to-keep: 2
+
   frontend:
     name: Build frontend
     runs-on: ubuntu-24.04-arm
@@ -169,6 +182,19 @@ jobs:
             ${{ env.IMAGE_BASE }}/frontend:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      # GHCR 스토리지는 무한하지 않다 (Free 플랜 private 패키지 한도).
+      # 최신 2개(현재 + 직전)만 남긴다. 태그가 컴포넌트별로 나뉜 뒤로 서버가 쓰는 태그는
+      # 항상 그 패키지의 최신 버전이므로 최신 N개 보존이 그것을 지울 일은 없다.
+      #
+      # 지워진 커밋을 나중에 다시 배포해야 하면 위 존재 확인이 실패해 자동으로 다시 빌드된다.
+      - name: 오래된 GHCR 버전 정리
+        if: steps.tag.outputs.build == 'true'
+        uses: actions/delete-package-versions@e5bc658cc4c965c472efe991f8beea3981499c55   # v5.0.0
+        with:
+          package-name: carix/frontend
+          package-type: container
+          min-versions-to-keep: 2
 
   deploy:
     name: Deploy to Oracle Cloud
