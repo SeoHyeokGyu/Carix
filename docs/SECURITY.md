@@ -52,9 +52,12 @@ Carix는 연봉·실수령액·소비 금액 등 민감한 개인 재무 정보�
   복구 절차 검증, 이미지 버전 고정을 함께 한다 ([ADR 0003](adr/0003-docker-db-oci-only.md)).
 - **운영과 개발이 같은 DB를 쓴다** ([ADR 0007](adr/0007-single-database-for-prod-and-dev.md)).
   따라서 팀원은 실사용자 데이터에 직접 접근한다. 감수한 위험과 재검토 시점은 해당 ADR 참조.
-- 접근에는 SSH 키와 **개인별 DB 롤**이 필요하다. 공용 계정을 돌려쓰지 않는다 — 이탈 시 회수가
-  불가능하다. 개인키는 공유하지 않고 각자 생성한다 ([DEVELOPMENT.md §3.0](DEVELOPMENT.md)).
-- 팀원이 빠지면 `authorized_keys`의 공개키와 DB 롤을 함께 제거한다.
+- 접근 경로는 **Tailscale**이다 ([ADR 0008](adr/0008-db-access-via-tailscale.md)). DB 포트는
+  `127.0.0.1`에만 바인딩하고 `tailscale serve`가 tailnet 내부로만 중계한다. 인터넷 노출은 없고
+  구간은 WireGuard로 암호화된다.
+- 신원은 Tailscale SSO로 확인하고, DB 인증은 **개인별 롤**을 쓴다. 공용 계정을 돌려쓰지 않는다 —
+  이탈 시 회수가 불가능하다 ([DEVELOPMENT.md §3.0](DEVELOPMENT.md)).
+- 팀원이 빠지면 Tailscale 콘솔에서 사용자를 제거하고 DB 롤도 함께 삭제한다.
 - **DB 백업이 아직 구현돼 있지 않다.** 운영 DB를 개발에 함께 쓰는 구성에서는 마이그레이션
   사고가 곧 운영 데이터 손실이므로, 실데이터 유입 전 최우선으로 갖춘다.
 - **PostgreSQL은 인터넷에 노출하지 않는다.** 컨테이너 포트를 `127.0.0.1`에만 바인딩하고

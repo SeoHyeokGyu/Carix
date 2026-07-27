@@ -73,24 +73,23 @@ cp .env.example .env
 
 ### 3.0 팀원 온보딩
 
-새 팀원은 이 순서로 접근 권한을 받는다. 개인키를 복사해 주지 않는다 — 각자 만든다.
+접근 경로는 **Tailscale**이다 ([ADR 0008](adr/0008-db-access-via-tailscale.md)).
+SSH 키를 배포하지 않고 SSO 로그인으로 신원을 확인한다.
 
-1. **본인 SSH 키 생성** (신규 팀원)
+1. **Tailscale 초대** (관리자) — 관리 콘솔에서 팀원을 tailnet에 초대한다.
+   무료 Personal 플랜은 사용자 6명까지다.
 
-   ```bash
-   ssh-keygen -t ed25519 -f ~/.ssh/carix-oci.key -C "<이름>@carix"
-   ```
-
-2. **공개키 등록** (서버 접근 권한이 있는 사람)
+2. **클라이언트 설치·로그인** (신규 팀원)
 
    ```bash
-   ssh carix-oci 'cat >> ~/.ssh/authorized_keys' < carix-oci.key.pub
+   brew install --cask tailscale     # macOS
+   tailscale up                      # 브라우저 SSO 로그인
    ```
 
 3. **개인별 DB 롤 발급** — 공용 계정을 돌려쓰지 않는다. 이탈 시 회수가 안 되기 때문이다.
 
    ```bash
-   ssh carix-oci 'docker exec -i carix-postgres-1 psql -U carix -d carix' <<SQL
+   docker exec -i carix-postgres-1 psql -U carix -d carix <<SQL
    CREATE ROLE "<이름>" LOGIN PASSWORD '<생성한-비밀번호>';
    GRANT ALL ON DATABASE carix TO "<이름>";
    GRANT ALL ON SCHEMA public TO "<이름>";
@@ -99,54 +98,47 @@ cp .env.example .env
 
    비밀번호는 비밀번호 관리자 등 안전한 경로로 전달한다. 채팅·이슈에 붙여넣지 않는다.
 
-4. 아래 §3.1 터널 설정과 §2의 `.env` 작성
+4. §2의 `.env` 작성
 
-**팀원이 빠지면** `authorized_keys`에서 공개키를 지우고 DB 롤도 함께 삭제한다.
-
-```bash
-ssh carix-oci 'docker exec -i carix-postgres-1 psql -U carix -d carix -c "DROP ROLE \"<이름>\""'
-```
-
-### 3.1 SSH 터널
-
-`~/.ssh/config`에 별칭과 포워딩을 함께 둔다. 그러면 접속만으로 터널이 붙어 매번 옵션을
-칠 필요가 없다.
-
-```
-Host carix-oci
-  HostName 144.24.90.88
-  User opc
-  IdentityFile ~/.ssh/carix-oci.key
-  IdentitiesOnly yes
-  LocalForward 5432 localhost:5432
-```
-
-백그라운드로 띄운다.
+**팀원이 빠지면** Tailscale 콘솔에서 사용자를 제거하고 DB 롤도 함께 삭제한다.
 
 ```bash
-ssh -fN carix-oci          # 셸 없이 포워딩만
+docker exec -i carix-postgres-1 psql -U carix -d carix -c 'DROP ROLE "<이름>"'
 ```
 
-끊김이 잦으면 자동 재연결을 쓴다.
+### 3.1 Tailscale 연결
+
+서버는 tailnet에 참여해 DB 포트를 tailnet 안에만 노출한다. **서버 1회 설정**(관리자):
 
 ```bash
-autossh -M 0 -fN carix-oci
+sudo tailscale up                                          # 브라우저 인증 필요
+sudo tailscale serve --bg --tcp=5432 tcp://localhost:5432
 ```
 
-터널이 열린 동안 `.env`의 `SPRING_DATASOURCE_URL`을
-`jdbc:postgresql://localhost:5432/carix`로 둔다.
+`--bg`는 백그라운드 상시 실행이며 재부팅 후에도 유지된다. `serve`는 tailnet 내부에만
+공개한다 — 인터넷에 여는 것은 `funnel`이며 쓰지 않는다.
 
-### 3.2 왜 터널인가
+팀원은 클라이언트가 켜져 있으면 그냥 붙는다. 터널 명령이 없다.
+
+```
+SPRING_DATASOURCE_URL=jdbc:postgresql://<서버-tailnet-이름>:5432/carix
+```
+
+서버의 tailnet 이름은 `tailscale status`로 확인한다.
+
+### 3.2 왜 이 구성인가
 
 **5432를 인터넷에 직접 열지 않는다.** 현재 Postgres는 TLS가 꺼져 있어(SSLRequest에 `N` 응답)
 직접 노출하면 비밀번호와 모든 쿼리·결과가 평문으로 오간다. 운영 DB이므로 더 그렇다.
+Tailscale 구간은 WireGuard로 암호화된다.
 
-`docker-compose.yml`의 postgres는 `127.0.0.1:5432:5432`로 **루프백에만** 바인딩한다.
+`docker-compose.yml`의 postgres는 `127.0.0.1:5432:5432`로 **루프백에만** 바인딩하고,
+`tailscale serve`가 그 루프백 포트를 tailnet에 중계한다.
 
-- `expose`만 두면 호스트에 포트가 없어 터널이 갈 곳이 없다.
+- `expose`만 두면 호스트에 포트가 없어 `serve`가 중계할 대상이 없다.
 - `"5432:5432"`로 쓰면 `0.0.0.0`에 붙어 인터넷에 노출된다. Docker 발행 포트는 firewalld를
   우회하므로 호스트 방화벽으로 막을 수 없고, OCI Security List에서 걸러야 한다.
-- `127.0.0.1:`을 명시하면 외부 경로가 없고 SSH 터널만 닿는다.
+- `127.0.0.1:`을 명시하면 외부 경로가 없고 tailnet 안에서만 닿는다.
 
 ### 3.3 Flyway 규약
 
@@ -178,15 +170,13 @@ spring:
 
 ### 3.4 IntelliJ 설정
 
-**애플리케이션 실행**(`bootRun`, 테스트)은 위 터널이 떠 있어야 한다. 실행 구성마다 붙이려면
-Run Configuration → *Before launch* → *Run External tool* 에 `ssh -fN carix-oci`를 등록한다.
-이미 떠 있으면 포트 충돌로 실패하지만 무해하다 — 기존 터널이 그대로 쓰인다.
+Tailscale 클라이언트가 켜져 있으면 별도 설정이 없다. 실행 구성의 before-launch 훅도,
+Database 도구의 SSH 터널 설정도 필요 없다.
 
-**Database 도구 창**은 자체 SSH 터널을 지원하므로 셸 터널 없이도 붙는다.
+**Database 도구 창**
 
 1. Data Source → PostgreSQL
-2. *SSH/SSL* 탭 → *Use SSH tunnel* → `~/.ssh/config`의 `carix-oci` 선택
-3. Host `localhost`, Port `5432`, Database `carix`, User `<본인 롤>`
+2. Host `<서버-tailnet-이름>`, Port `5432`, Database `carix`, User `<본인 롤>`
 
 **이 연결은 운영 DB다.** 데이터 편집·삭제 전에 무엇을 지우는지 확인한다.
 
