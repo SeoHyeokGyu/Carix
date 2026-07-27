@@ -17,7 +17,7 @@
 | [0003](0003-docker-db-oci-only.md) | Docker·PostgreSQL은 OCI 서버 전용 | 채택 |
 | [0004](0004-salary-baseline-wage-stat.md) | 연봉 격차 기준선을 공고 공개연봉 → 공식 임금통계 | 채택 |
 | [0005](0005-server-session-auth.md) | 서버 세션 단일 인증 (매직링크 + 쿠키) | 채택 |
-| [0006](0006-app-edge-stays-caddy.md) | 애플리케이션 엣지는 Caddy 유지 (nginx 미채택) | 채택 |
+| [0006](0006-app-edge-stays-caddy.md) | 엣지 프록시 선택: Caddy vs nginx | 채택 |
 
 ## 관련 문서
 
