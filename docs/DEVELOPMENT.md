@@ -10,7 +10,7 @@
 > | --- | --- |
 > | 백엔드 | Spring Boot 4.1 + springdoc. `./gradlew build`·`bootRun` 동작. **JPA·Flyway·Security·Batch 없음** |
 > | 프런트엔드 | 배포 검증용 스텁(`server.js`)만. **Vite·React 없음.** `pnpm dev`·`test:e2e` 스크립트 없음 |
-> | DB | 백엔드가 아직 DB를 쓰지 않는다. §3 터널은 JPA 도입 후부터 필요 |
+> | DB | 백엔드가 아직 DB를 쓰지 않는다. §3 접근 설정은 JPA 도입 후부터 필요 |
 >
 > 따라서 §4(프런트엔드)와 §5의 Flyway·배치 항목, §6의 Playwright는 각 프로젝트 초기화 이후
 > 활성화된다.
@@ -58,7 +58,7 @@ cp .env.example .env
 
 | 변수 | 용도 | 비고 |
 | --- | --- | --- |
-| `SPRING_DATASOURCE_URL` | 백엔드 DB 연결 | §3 터널 사용 시 `localhost:5432/carix` |
+| `SPRING_DATASOURCE_URL` | 백엔드 DB 연결 | `<서버-tailnet-이름>:5432/carix` (§3) |
 | `SPRING_DATASOURCE_USERNAME` / `_PASSWORD` | 개인별 DB 롤 | §3.0 에서 발급받는다 |
 | `CARIX_ENCRYPTION_KEY` | 컬럼 암호화(AES-256-GCM) | `openssl rand -base64 32` |
 | `KOSIS_API_KEY` 외 3종 | 배치 원천 API | 선행 검증 후 발급 |
@@ -66,7 +66,8 @@ cp .env.example .env
 ## 3. OCI DB 원격 연결
 
 로컬엔 Postgres를 띄우지 않는다. **운영과 개발이 같은 DB(`carix`)를 쓴다**
-([ADR 0007](adr/0007-single-database-for-prod-and-dev.md)). 팀원은 SSH 터널로 여기에 붙는다.
+([ADR 0007](adr/0007-single-database-for-prod-and-dev.md)). 팀원은 Headscale tailnet 을 통해
+여기에 붙는다 ([ADR 0008](adr/0008-db-access-via-tailscale.md)).
 
 > **여기서 실행하는 쿼리와 마이그레이션은 곧 운영에 적용된다.** 개발용 사본이 아니다.
 > 파괴적 변경 전에는 팀에 알리고, 마이그레이션은 §3.3 규약을 지킨다.
@@ -194,7 +195,7 @@ spring:
 ### 3.4 IntelliJ 설정
 
 Tailscale 클라이언트가 켜져 있으면 별도 설정이 없다. 실행 구성의 before-launch 훅도,
-Database 도구의 SSH 터널 설정도 필요 없다.
+Database 도구의 SSH 터널 설정도 필요 없다. 노트북에 컨테이너를 띄우지 않는다.
 
 **Database 도구 창**
 
@@ -217,7 +218,7 @@ pnpm dev              # Vite dev server (기본 5173)
 
 ## 5. 백엔드 개발
 
-터널(§3)이 열린 상태에서:
+Tailscale 클라이언트가 켜진 상태에서(§3):
 
 ```bash
 cd backend
@@ -232,7 +233,7 @@ cd backend
 | `http://localhost:8080/api/swagger-ui/index.html` | Swagger UI |
 | `http://localhost:8080/api/v3/api-docs` | OpenAPI JSON |
 
-- **DB 없이 뜬다.** 아직 DataSource 자동설정이 없으므로 §3 터널 없이도 기동된다.
+- **DB 없이 뜬다.** 아직 DataSource 자동설정이 없으므로 §3 설정 없이도 기동된다.
   아래 두 항목은 JPA·Batch 도입 이후 적용된다.
 - Flyway가 기동 시 마이그레이션을 적용한다. dev DB에만 적용되도록 프로파일을 확인한다.
 - 배치 워커는 별도 프로파일(`--spring.profiles.active=dev,batch`)로 실행한다.

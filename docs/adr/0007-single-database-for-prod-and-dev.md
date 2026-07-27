@@ -13,7 +13,8 @@
 
 ## 결정
 
-**DB를 하나만 둔다.** 운영과 개발이 모두 `carix`를 쓴다. 팀원은 SSH 터널로 이 DB에 붙는다.
+**DB를 하나만 둔다.** 운영과 개발이 모두 `carix`를 쓴다. 접근 경로는
+[ADR 0008](0008-db-access-via-tailscale.md)에서 Headscale tailnet 으로 정했다.
 
 - `carix_dev` DB·롤과 initdb 스크립트를 제거한다.
 - 팀원은 **개인별 DB 롤**을 발급받는다. 공용 계정을 돌려쓰지 않는다 — 이탈 시 회수가 안 된다.

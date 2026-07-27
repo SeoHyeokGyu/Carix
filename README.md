@@ -406,13 +406,13 @@ Carix/
 
 - **docker-compose.yml은 OCI 배포 전용**입니다. 로컬에서 `docker compose up`으로 사용하지 않습니다.
 - **로컬 프런트엔드:** Vite dev server를 띄우고 `/api`를 백엔드로 프록시합니다. Docker 불필요.
-- **로컬 백엔드:** 로컬에 DB를 띄우지 않고 **OCI dev DB에 원격 연결**합니다 (`SPRING_DATASOURCE_URL` → SSH 터널 또는 방화벽 허용 주소). 운영 DB와 dev DB는 분리합니다.
+- **로컬 백엔드:** 로컬에 DB를 띄우지 않고 **OCI의 `carix` DB에 원격 연결**합니다. 접근은 Headscale tailnet 이며 노트북에는 Tailscale 앱만 설치합니다. 운영과 개발이 같은 DB입니다 ([ADR 0007](docs/adr/0007-single-database-for-prod-and-dev.md), [ADR 0008](docs/adr/0008-db-access-via-tailscale.md)).
 - **통합 테스트:** 설계는 Testcontainers를 쓰지만 로컬 Docker가 필요하므로, 통합 테스트는 배포 워크플로(Docker 제공 러너) 또는 OCI dev DB 대상으로 실행하고 로컬에서는 단위 테스트를 중심으로 돌립니다. PR 단계 CI가 없으므로 자동 실행 지점은 main 푸시뿐입니다.
 - 환경 변수는 [`.env.example`](.env.example)을 복사해 `.env`로 채웁니다. API 키·시크릿은 저장소에 커밋하지 않습니다.
 
 버전 기준: 컨테이너는 Java 21, Node.js 24 LTS로 고정합니다 (로컬 개발 머신의 상위 버전과 별개).
 
-구체적인 실행 절차(런타임 설치, SSH 터널, dev server, 테스트)는
+구체적인 실행 절차(런타임 설치, Headscale 온보딩, DB 접근, dev server, 테스트)는
 [`docs/DEVELOPMENT.md`](docs/DEVELOPMENT.md)를, 배포는
 [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml)를 참조합니다.
 

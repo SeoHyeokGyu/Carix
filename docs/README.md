@@ -57,7 +57,7 @@
 | 문서 | 내용 |
 | --- | --- |
 | [보안·개인정보 처리](SECURITY.md) | 인증, 컬럼 암호화, 개인정보 수명주기, 로그 배제 |
-| [로컬 개발 가이드](DEVELOPMENT.md) | 런타임 설치, OCI dev DB 터널, dev server, 테스트 |
+| [로컬 개발 가이드](DEVELOPMENT.md) | 런타임 설치, Headscale 온보딩, DB 접근, dev server, 테스트 |
 | [배포 워크플로우](../.github/workflows/deploy.yml) | main 푸시 — ARM 러너 테스트·빌드 → GHCR → SSH → 헬스체크 |
 
 > **PR 단계 CI는 없다.** 자동 검증은 `deploy.yml`의 backend 잡(`./gradlew build`)이 main 푸시에서

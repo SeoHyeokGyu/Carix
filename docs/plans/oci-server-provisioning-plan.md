@@ -119,7 +119,7 @@
 - **빌드는 GitHub Actions `ubuntu-24.04-arm`.** 서버는 `docker compose pull`만. `build:` 지시자를 저장소에서 없앤다.
 - **Carix compose에서 `nginx` 서비스를 제거**하고 `carix-caddy`를 둔다. TLS 종료와 호스트명 분기는 서버 라우터 Caddy가 맡는다.
 - TLS는 sslip.io + Caddy ACME로 즉시 확보. certbot·도메인 구매 불필요.
-- Postgres 5432는 외부 미개방. 로컬 개발은 SSH 터널만.
+- Postgres 5432는 외부 미개방. 로컬 개발은 Headscale tailnet 으로 접근한다 (당초 SSH 터널에서 변경, ADR 0008).
 - 서버 직접 배포 금지 (`~/.claude/rules/common/cmux-workflow.md` §9). Phase 1·3·4의 준비 작업만이 정당한 수동 개입이다.
 
 ## 범위 밖 관찰 (조치하지 않음)
