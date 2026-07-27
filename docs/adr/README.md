@@ -19,7 +19,7 @@
 | [0005](0005-server-session-auth.md) | 서버 세션 단일 인증 (매직링크 + 쿠키) | 채택 |
 | [0006](0006-app-edge-stays-caddy.md) | 엣지 프록시 선택: Caddy vs nginx | 채택 |
 | [0007](0007-single-database-for-prod-and-dev.md) | 운영과 개발이 같은 데이터베이스를 사용 | 채택 |
-| [0008](0008-db-access-via-tailscale.md) | DB 접근 경로는 Tailscale | 채택 |
+| [0008](0008-db-access-via-tailscale.md) | DB 접근 경로는 Headscale (자체 호스팅 Tailscale) | 채택 |
 
 ## 관련 문서
 

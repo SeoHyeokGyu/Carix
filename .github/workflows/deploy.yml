@@ -264,6 +264,9 @@ jobs:
             # 배포가 초록불인 채 라우팅만 반영되지 않는다. 반드시 재생성한다.
             docker compose up -d --force-recreate carix-caddy
 
+            # headscale 도 git 관리 디렉터리(deploy/headscale)를 bind-mount 한다. 같은 함정이다.
+            docker compose up -d --force-recreate headscale
+
             # infra_caddy는 mkdir로 만든 /home/opc/carix를 마운트한다. git이 그 디렉터리를
             # 재생성하지 않으므로 마운트가 살아 있고 reload로 충분하다. reload로 되돌리지 말 것.
             docker exec infra_caddy caddy reload --config /etc/caddy/Caddyfile

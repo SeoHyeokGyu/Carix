@@ -267,6 +267,7 @@ flowchart TD
 | 엣지 — 라우터 | Caddy 2 (`infra_caddy`) | 80/443 소유, TLS 종료·자동 발급, 호스트명 분기 | 도입 — **이 저장소 밖**(`~/infra`, 타 프로젝트와 공유) |
 | 엣지 — 앱 라우팅 | Caddy 2 (`carix_caddy`) | 경로 분기(`/api/*` → 백엔드, 그 외 → 프런트), 압축, 캐시 헤더 | 도입 |
 | 빌드·배포 | GitHub Actions (ARM 러너), GHCR, Docker Compose, OCI | 이미지 빌드·레지스트리·컨테이너 운영 | 도입 |
+| 팀 DB 접근 | Headscale (자체 호스팅 Tailscale) | 팀원 노트북과 서버를 같은 사설망에 | 도입 |
 
 엣지는 2단입니다. 서버의 라우터 Caddy가 80/443과 TLS를 소유하고 호스트명으로 분기하면,
 프로젝트 전용 Caddy가 애플리케이션 라우팅을 맡습니다. 두 계층의 소유권이 다릅니다 — 라우터는
@@ -297,6 +298,7 @@ flowchart TD
 | GHCR | `GITHUB_TOKEN`이 자동 제공돼 시크릿이 늘지 않고, pull 시 바뀐 레이어만 전송됩니다 |
 | 서버는 pull만 | 서버가 메모리 압박이 있는 공유 호스트라 빌드를 올리지 않습니다 |
 | 이미지 태그 = 컴포넌트 변경 커밋 | `.env` 두 줄로 어떤 코드가 돌고 있는지 확정되고, 재기동해도 같은 이미지가 뜹니다 |
+| Headscale (Tailscale SaaS 대체) | 무료 플랜 6명 제한과 외부 계정 의존을 없앱니다. 클라이언트는 공식 Tailscale 그대로라 사용 경험이 같습니다 ([ADR 0008](docs/adr/0008-db-access-via-tailscale.md)) |
 
 인증 방식(서버 세션 + 매직링크)의 근거는 [ADR 0005](docs/adr/0005-server-session-auth.md),
 연봉 기준선 선택은 [ADR 0004](docs/adr/0004-salary-baseline-wage-stat.md)를 참조합니다.
@@ -350,7 +352,7 @@ PR 단계 CI는 두지 않습니다. `./gradlew build`가 자동으로 도는 �
 워크플로뿐이며, 프런트엔드 검증은 로컬에서 직접 돌립니다
 ([ADR 인덱스](docs/adr/README.md) 참조).
 
-OCI VM에서는 `carix-caddy`, `frontend-node`, `spring-api`, `postgres` 컨테이너를
+OCI VM에서는 `carix-caddy`, `headscale`, `frontend-node`, `spring-api`, `postgres` 컨테이너를
 Docker Compose로 운영합니다 (`spring-batch`는 배치 코드 도입 시 추가). 이미지는 GitHub Actions(ARM 러너)가 빌드해 GHCR에
 올리고 서버는 pull만 합니다. 엣지는 2단으로, 서버의 라우터 Caddy가 TLS를 종료하고 호스트명으로
 분기하면 프로젝트 전용 `carix-caddy`가 애플리케이션 라우팅을 맡습니다
@@ -380,7 +382,7 @@ Carix/
 ├── deploy/
 │   ├── caddy/Caddyfile        Carix 전용 Caddy의 애플리케이션 라우팅
 │   ├── caddy/router.caddy     라우터 Caddy가 import하는 호스트명 분기
-│   └── postgres/initdb/       dev DB 분리 초기화 스크립트
+│   ├── headscale/config.yaml  자체 호스팅 Tailscale 컨트롤 서버
 ├── config/                    CPI 분류 매핑, 기본 지출 가중치
 ├── verification/              데이터 원천 선행 검증 스크립트와 실측 노트
 ├── frontend/                  Node SSR (현재는 배포 검증용 스텁 — Vite·React 스캐폴드 예정)

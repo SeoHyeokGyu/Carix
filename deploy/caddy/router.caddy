@@ -6,3 +6,9 @@ carix.144.24.90.88.sslip.io {
 	encode zstd gzip
 	reverse_proxy carix_caddy:80
 }
+
+# Headscale 컨트롤 서버. Tailscale 클라이언트가 여기로 붙는다.
+# TLS 는 라우터가 종료하고 평문으로 넘긴다 — headscale 은 인증서를 다루지 않는다.
+headscale.144.24.90.88.sslip.io {
+	reverse_proxy carix_headscale:8080
+}
