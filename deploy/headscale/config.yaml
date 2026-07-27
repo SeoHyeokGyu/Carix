@@ -42,11 +42,9 @@ derp:
 
 disable_check_updates: false
 
-# 만료된 노드를 정리하는 주기. 기본값을 따른다.
+# 노드 키 기본 만료. Tailscale SaaS 는 180d 를 쓴다. 0 이면 만료 없음.
 node:
-  expiry:
-    check_interval: 10m
-    default_duration: 180d
+  expiry: 180d
 
 database:
   type: sqlite
@@ -83,5 +81,3 @@ unix_socket_permission: "0770"
 
 logtail:
   enabled: false
-
-randomize_client_port: false
