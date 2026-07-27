@@ -10,7 +10,7 @@
 > | --- | --- |
 > | 백엔드 | Spring Boot 4.1 + springdoc. `./gradlew build`·`bootRun` 동작. **JPA·Flyway·Security·Batch 없음** |
 > | 프런트엔드 | 배포 검증용 스텁(`server.js`)만. **Vite·React 없음.** `pnpm dev`·`test:e2e` 스크립트 없음 |
-> | DB | 백엔드가 아직 DB를 쓰지 않는다. §3 터널은 JPA 도입 후부터 필요 |
+> | DB | 백엔드가 아직 DB를 쓰지 않는다. §3 접근 설정은 JPA 도입 후부터 필요 |
 >
 > 따라서 §4(프런트엔드)와 §5의 Flyway·배치 항목, §6의 Playwright는 각 프로젝트 초기화 이후
 > 활성화된다.
@@ -58,69 +58,151 @@ cp .env.example .env
 
 | 변수 | 용도 | 비고 |
 | --- | --- | --- |
-| `SPRING_DATASOURCE_URL` | 백엔드 DB 연결 | OCI dev DB (§3 터널 사용 시 `localhost:5432`) |
-| `SPRING_DATASOURCE_USERNAME` / `_PASSWORD` | dev DB 인증 | 운영 계정과 분리 |
+| `SPRING_DATASOURCE_URL` | 백엔드 DB 연결 | `<서버-tailnet-이름>:5432/carix` (§3) |
+| `SPRING_DATASOURCE_USERNAME` / `_PASSWORD` | 개인별 DB 롤 | §3.0 에서 발급받는다 |
 | `CARIX_ENCRYPTION_KEY` | 컬럼 암호화(AES-256-GCM) | `openssl rand -base64 32` |
 | `KOSIS_API_KEY` 외 3종 | 배치 원천 API | 선행 검증 후 발급 |
 
-## 3. OCI dev DB 원격 연결
+## 3. OCI DB 원격 연결
 
-로컬엔 Postgres를 띄우지 않는다. OCI의 dev 스키마에 연결한다.
+로컬엔 Postgres를 띄우지 않는다. **운영과 개발이 같은 DB(`carix`)를 쓴다**
+([ADR 0007](adr/0007-single-database-for-prod-and-dev.md)). 팀원은 Headscale tailnet 을 통해
+여기에 붙는다 ([ADR 0008](adr/0008-db-access-via-tailscale.md)).
 
-### 3.1 SSH 터널
+> **여기서 실행하는 쿼리와 마이그레이션은 곧 운영에 적용된다.** 개발용 사본이 아니다.
+> 파괴적 변경 전에는 팀에 알리고, 마이그레이션은 §3.3 규약을 지킨다.
 
-`~/.ssh/config`에 별칭과 포워딩을 함께 둔다. 그러면 접속만으로 터널이 붙어 매번 옵션을
-칠 필요가 없다.
+### 3.0 팀원 온보딩
 
-```
-Host carix-oci
-  HostName 144.24.90.88
-  User opc
-  IdentityFile ~/.ssh/carix-oci.key
-  IdentitiesOnly yes
-  LocalForward 5432 localhost:5432
-```
+접근 경로는 **Headscale**(자체 호스팅 Tailscale)이다
+([ADR 0008](adr/0008-db-access-via-tailscale.md)). 클라이언트는 Tailscale 공식 클라이언트를
+그대로 쓴다. SSH 키를 배포하지 않는다.
 
-백그라운드로 띄운다.
+1. **사용자·preauth key 발급** (관리자)
+
+   ```bash
+   ssh carix-oci 'docker exec carix_headscale headscale users create <이름>'
+   ssh carix-oci 'docker exec carix_headscale headscale preauthkeys create --user <이름> --expiration 24h'
+   ```
+
+   출력된 키를 비밀번호 관리자 등 안전한 경로로 전달한다. 24시간 뒤 만료된다.
+
+2. **클라이언트 설치·등록** (신규 팀원)
+
+   노트북에는 **Tailscale 앱 하나만** 설치한다. Docker 도 컨테이너도 필요 없다.
+
+   ```bash
+   brew install --cask tailscale     # macOS — standalone 변형
+   tailscale up --login-server https://headscale.144.24.90.88.sslip.io --authkey <preauth-key>
+   ```
+
+   > **App Store 버전을 쓰지 않는다.** 샌드박스 제약이 있고 Tailscale 문서도 standalone 을
+   > 기본으로 권장한다. `brew install --cask tailscale` 이 standalone 이다.
+   >
+   > GUI 로 하려면 Option 키를 누른 채 메뉴 아이콘 클릭 → Debug → Custom Login Server →
+   > *Add Account...* 에 위 URL 을 넣는다.
+
+3. **개인별 DB 롤 발급** — 공용 계정을 돌려쓰지 않는다. 이탈 시 회수가 안 되기 때문이다.
+
+   ```bash
+   docker exec -i carix-postgres-1 psql -U carix -d carix <<SQL
+   CREATE ROLE "<이름>" LOGIN PASSWORD '<생성한-비밀번호>';
+   GRANT ALL ON DATABASE carix TO "<이름>";
+   GRANT ALL ON SCHEMA public TO "<이름>";
+   SQL
+   ```
+
+4. §2의 `.env` 작성
+
+**팀원이 빠지면** Headscale 사용자와 DB 롤을 함께 제거한다.
 
 ```bash
-ssh -fN carix-oci          # 셸 없이 포워딩만
+ssh carix-oci 'docker exec carix_headscale headscale users destroy <이름>'
+docker exec -i carix-postgres-1 psql -U carix -d carix -c 'DROP ROLE "<이름>"'
 ```
 
-끊김이 잦으면 자동 재연결을 쓴다.
+### 3.1 서버 1회 설정 (관리자)
+
+Headscale 컨테이너는 배포로 뜬다. 서버 **호스트**가 그 tailnet에 참여해야 DB 포트를 중계할 수 있다.
 
 ```bash
-autossh -M 0 -fN carix-oci
+# 호스트에 Tailscale 클라이언트 설치
+curl -fsSL https://tailscale.com/install.sh | sh
+
+# 자기 자신의 headscale 에 등록
+docker exec carix_headscale headscale users create server
+docker exec carix_headscale headscale preauthkeys create --user server --expiration 1h
+sudo tailscale up --login-server https://headscale.144.24.90.88.sslip.io --authkey <키>
+
+# DB 포트를 tailnet 안에만 중계 (재부팅 후에도 유지)
+sudo tailscale serve --bg --tcp=5432 tcp://localhost:5432
 ```
 
-터널이 열린 동안 `.env`의 `SPRING_DATASOURCE_URL`을
-`jdbc:postgresql://localhost:5432/carix_dev`로 둔다.
+`serve`는 tailnet 내부에만 공개한다 — 인터넷에 여는 것은 `funnel`이며 쓰지 않는다.
 
-### 3.2 왜 터널인가
+팀원은 클라이언트가 켜져 있으면 그냥 붙는다. 터널 명령이 없다.
+
+```
+SPRING_DATASOURCE_URL=jdbc:postgresql://<서버-tailnet-이름>:5432/carix
+```
+
+tailnet 이름은 `tailscale status` 또는
+`docker exec carix_headscale headscale nodes list`로 확인한다.
+
+### 3.2 왜 이 구성인가
 
 **5432를 인터넷에 직접 열지 않는다.** 현재 Postgres는 TLS가 꺼져 있어(SSLRequest에 `N` 응답)
-직접 노출하면 비밀번호와 모든 쿼리·결과가 평문으로 오간다. 같은 컨테이너에 운영 DB도 있다.
+직접 노출하면 비밀번호와 모든 쿼리·결과가 평문으로 오간다. 운영 DB이므로 더 그렇다.
+tailnet 구간은 WireGuard로 암호화된다.
 
-`docker-compose.yml`의 postgres는 `127.0.0.1:5432:5432`로 **루프백에만** 바인딩한다.
+`docker-compose.yml`의 postgres는 `127.0.0.1:5432:5432`로 **루프백에만** 바인딩하고,
+호스트의 `tailscale serve`가 그 루프백 포트를 tailnet에 중계한다. Headscale 컨테이너 자체도
+호스트 포트를 발행하지 않고 라우터 Caddy 만 닿는다.
 
-- `expose`만 두면 호스트에 포트가 없어 터널이 갈 곳이 없다.
+- `expose`만 두면 호스트에 포트가 없어 `serve`가 중계할 대상이 없다.
 - `"5432:5432"`로 쓰면 `0.0.0.0`에 붙어 인터넷에 노출된다. Docker 발행 포트는 firewalld를
   우회하므로 호스트 방화벽으로 막을 수 없고, OCI Security List에서 걸러야 한다.
-- `127.0.0.1:`을 명시하면 외부 경로가 없고 SSH 터널만 닿는다.
+- `127.0.0.1:`을 명시하면 외부 경로가 없고 tailnet 안에서만 닿는다.
 
-### 3.3 IntelliJ 설정
+### 3.3 Flyway 규약
 
-**애플리케이션 실행**(`bootRun`, 테스트)은 위 터널이 떠 있어야 한다. 실행 구성마다 붙이려면
-Run Configuration → *Before launch* → *Run External tool* 에 `ssh -fN carix-oci`를 등록한다.
-이미 떠 있으면 포트 충돌로 실패하지만 무해하다 — 기존 터널이 그대로 쓰인다.
+DB가 하나뿐이므로 마이그레이션 파일 이름이 충돌하면 **운영 스키마에서** 막힌다.
 
-**Database 도구 창**은 자체 SSH 터널을 지원하므로 셸 터널 없이도 붙는다.
+```
+A 브랜치: V3__add_income.sql   → 공유 dev DB에 먼저 적용됨
+B 브랜치: V3__add_skill.sql    → 같은 버전, 다른 체크섬 → checksum mismatch
+```
+
+**버전은 순번이 아니라 타임스탬프로 짓는다.** 같은 초에 두 명이 파일을 만들 일은 사실상 없다.
+
+```
+V20260727_143000__add_income_history.sql
+V20260727_151200__add_skill_catalog.sql
+```
+
+dev 프로파일에서만 순서 뒤바뀜을 허용한다. 운영은 엄격하게 둔다.
+
+```yaml
+# application-dev.yml
+spring:
+  flyway:
+    out-of-order: true
+```
+
+그래도 막히면 본인 브랜치 작업분만 되돌린다. **DB를 통째로 초기화하지 않는다** — 운영
+데이터가 사라진다. `flyway clean`은 절대 실행하지 않는다.
+
+### 3.4 IntelliJ 설정
+
+Tailscale 클라이언트가 켜져 있으면 별도 설정이 없다. 실행 구성의 before-launch 훅도,
+Database 도구의 SSH 터널 설정도 필요 없다. 노트북에 컨테이너를 띄우지 않는다.
+
+**Database 도구 창**
 
 1. Data Source → PostgreSQL
-2. *SSH/SSL* 탭 → *Use SSH tunnel* → `~/.ssh/config`의 `carix-oci` 선택
-3. Host `localhost`, Port `5432`, Database `carix_dev`, User `carix_dev`
+2. Host `<서버-tailnet-이름>`, Port `5432`, Database `carix`, User `<본인 롤>`
 
-운영 DB(`carix`)에는 붙지 않는다. dev 스키마만 사용한다.
+**이 연결은 운영 DB다.** 데이터 편집·삭제 전에 무엇을 지우는지 확인한다.
 
 ## 4. 프런트엔드 개발
 
@@ -136,7 +218,7 @@ pnpm dev              # Vite dev server (기본 5173)
 
 ## 5. 백엔드 개발
 
-터널(§3)이 열린 상태에서:
+Tailscale 클라이언트가 켜진 상태에서(§3):
 
 ```bash
 cd backend
@@ -151,7 +233,7 @@ cd backend
 | `http://localhost:8080/api/swagger-ui/index.html` | Swagger UI |
 | `http://localhost:8080/api/v3/api-docs` | OpenAPI JSON |
 
-- **DB 없이 뜬다.** 아직 DataSource 자동설정이 없으므로 §3 터널 없이도 기동된다.
+- **DB 없이 뜬다.** 아직 DataSource 자동설정이 없으므로 §3 설정 없이도 기동된다.
   아래 두 항목은 JPA·Batch 도입 이후 적용된다.
 - Flyway가 기동 시 마이그레이션을 적용한다. dev DB에만 적용되도록 프로파일을 확인한다.
 - 배치 워커는 별도 프로파일(`--spring.profiles.active=dev,batch`)로 실행한다.

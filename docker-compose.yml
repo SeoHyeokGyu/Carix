@@ -33,6 +33,27 @@ services:
         max-file: "3"
     restart: unless-stopped
 
+  # 자체 호스팅 Tailscale 컨트롤 서버. 팀원 노트북과 이 서버를 같은 사설망에 넣어
+  # 운영 DB 에 접근시킨다 (ADR 0008). 호스트 포트를 발행하지 않고 라우터 Caddy 만 닿는다.
+  headscale:
+    image: headscale/headscale:0.29.2
+    container_name: carix_headscale
+    command: serve
+    volumes:
+      - ./deploy/headscale:/etc/headscale:ro
+      - headscale-data:/var/lib/headscale
+    expose:
+      - "8080"
+    networks:
+      - default
+      - edge
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    restart: unless-stopped
+
   frontend-node:
     image: ghcr.io/seohyeokgyu/carix/frontend:${FRONTEND_TAG:-latest}
     environment:
@@ -74,10 +95,8 @@ services:
       - POSTGRES_DB=${POSTGRES_DB}
       - POSTGRES_USER=${POSTGRES_USER}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
-      - CARIX_DEV_PASSWORD=${CARIX_DEV_PASSWORD}
     volumes:
       - carix-pgdata:/var/lib/postgresql/data
-      - ./deploy/postgres/initdb:/docker-entrypoint-initdb.d:ro
     # 루프백 전용 바인딩. 로컬 개발이 SSH 터널로 붙으려면 호스트에 포트가 있어야 하는데,
     # expose 만으로는 컨테이너 밖에 아무것도 없어 터널이 갈 곳이 없다.
     #
@@ -98,3 +117,5 @@ networks:
 
 volumes:
   carix-pgdata:
+  # 노드 키와 ACL. 잃으면 팀원 전원이 재인증해야 한다. 백업 대상이다.
+  headscale-data:

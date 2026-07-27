@@ -14,10 +14,12 @@
 | --- | --- | --- |
 | [0001](0001-hybrid-design-lineage.md) | 설계 계보 하이브리드 (제품 7/18 · 데이터 7/15) | 채택 |
 | [0002](0002-frontend-vite-react-node-ssr.md) | 프런트엔드 Vite + React + Node SSR (Next.js 대체) | 채택 |
-| [0003](0003-docker-db-oci-only.md) | Docker·PostgreSQL은 OCI 서버 전용 | 채택 |
+| [0003](0003-docker-db-oci-only.md) | Docker·PostgreSQL은 OCI 서버 전용 | 채택 (dev/운영 DB 분리 항목은 [0007]로 대체) |
 | [0004](0004-salary-baseline-wage-stat.md) | 연봉 격차 기준선을 공고 공개연봉 → 공식 임금통계 | 채택 |
 | [0005](0005-server-session-auth.md) | 서버 세션 단일 인증 (매직링크 + 쿠키) | 채택 |
 | [0006](0006-app-edge-stays-caddy.md) | 엣지 프록시 선택: Caddy vs nginx | 채택 |
+| [0007](0007-single-database-for-prod-and-dev.md) | 운영과 개발이 같은 데이터베이스를 사용 | 채택 |
+| [0008](0008-db-access-via-tailscale.md) | DB 접근 경로는 Headscale (자체 호스팅 Tailscale) | 채택 |
 
 ## 관련 문서
 

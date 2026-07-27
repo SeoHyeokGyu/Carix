@@ -50,9 +50,21 @@ Carix는 연봉·실수령액·소비 금액 등 민감한 개인 재무 정보�
   공유 호스트에서 80/443을 한 컨테이너만 바인딩할 수 있다는 제약에서 나왔다.
 - 운영 DB는 OCI VM PostgreSQL 컨테이너로 운영하며 볼륨 암호화, 일일 자동 백업과
   복구 절차 검증, 이미지 버전 고정을 함께 한다 ([ADR 0003](adr/0003-docker-db-oci-only.md)).
-- dev DB와 운영 DB는 분리한다. 본인 실제 재무 데이터를 공개 인스턴스에 넣지 않는다.
+- **운영과 개발이 같은 DB를 쓴다** ([ADR 0007](adr/0007-single-database-for-prod-and-dev.md)).
+  따라서 팀원은 실사용자 데이터에 직접 접근한다. 감수한 위험과 재검토 시점은 해당 ADR 참조.
+- 접근 경로는 **Headscale**(자체 호스팅 Tailscale)이다
+  ([ADR 0008](adr/0008-db-access-via-tailscale.md)). DB 포트는 `127.0.0.1`에만 바인딩하고
+  호스트의 `tailscale serve`가 tailnet 내부로만 중계한다. 인터넷 노출은 없고 구간은
+  WireGuard로 암호화된다.
+- 신원은 Headscale preauth key로 등록하고, DB 인증은 **개인별 롤**을 쓴다. 공용 계정을
+  돌려쓰지 않는다 — 이탈 시 회수가 불가능하다 ([DEVELOPMENT.md §3.0](DEVELOPMENT.md)).
+- 팀원이 빠지면 Headscale 사용자와 DB 롤을 함께 제거한다.
+- **`headscale-data` 볼륨은 백업 대상이다.** 노드 키와 ACL을 담고 있어 잃으면 팀원 전원이
+  재인증해야 한다.
+- **DB 백업이 아직 구현돼 있지 않다.** 운영 DB를 개발에 함께 쓰는 구성에서는 마이그레이션
+  사고가 곧 운영 데이터 손실이므로, 실데이터 유입 전 최우선으로 갖춘다.
 - **PostgreSQL은 인터넷에 노출하지 않는다.** 컨테이너 포트를 `127.0.0.1`에만 바인딩하고
-  로컬 개발은 SSH 터널로 접근한다. 현재 Postgres는 TLS가 꺼져 있어 직접 노출하면 자격증명과
+  로컬 개발은 Headscale tailnet 으로 접근한다. 현재 Postgres는 TLS가 꺼져 있어 직접 노출하면 자격증명과
   쿼리·결과가 평문으로 오간다. Docker가 발행한 포트는 호스트 방화벽(firewalld)을 우회하므로,
   실수로 `0.0.0.0`에 바인딩하면 OCI Security List 외에는 막을 수단이 없다.
 

@@ -267,6 +267,7 @@ flowchart TD
 | 엣지 — 라우터 | Caddy 2 (`infra_caddy`) | 80/443 소유, TLS 종료·자동 발급, 호스트명 분기 | 도입 — **이 저장소 밖**(`~/infra`, 타 프로젝트와 공유) |
 | 엣지 — 앱 라우팅 | Caddy 2 (`carix_caddy`) | 경로 분기(`/api/*` → 백엔드, 그 외 → 프런트), 압축, 캐시 헤더 | 도입 |
 | 빌드·배포 | GitHub Actions (ARM 러너), GHCR, Docker Compose, OCI | 이미지 빌드·레지스트리·컨테이너 운영 | 도입 |
+| 팀 DB 접근 | Headscale (자체 호스팅 Tailscale) | 팀원 노트북과 서버를 같은 사설망에 | 도입 |
 
 엣지는 2단입니다. 서버의 라우터 Caddy가 80/443과 TLS를 소유하고 호스트명으로 분기하면,
 프로젝트 전용 Caddy가 애플리케이션 라우팅을 맡습니다. 두 계층의 소유권이 다릅니다 — 라우터는
@@ -297,6 +298,7 @@ flowchart TD
 | GHCR | `GITHUB_TOKEN`이 자동 제공돼 시크릿이 늘지 않고, pull 시 바뀐 레이어만 전송됩니다 |
 | 서버는 pull만 | 서버가 메모리 압박이 있는 공유 호스트라 빌드를 올리지 않습니다 |
 | 이미지 태그 = 컴포넌트 변경 커밋 | `.env` 두 줄로 어떤 코드가 돌고 있는지 확정되고, 재기동해도 같은 이미지가 뜹니다 |
+| Headscale (Tailscale SaaS 대체) | 무료 플랜 6명 제한과 외부 계정 의존을 없앱니다. 클라이언트는 공식 Tailscale 그대로라 사용 경험이 같습니다 ([ADR 0008](docs/adr/0008-db-access-via-tailscale.md)) |
 
 인증 방식(서버 세션 + 매직링크)의 근거는 [ADR 0005](docs/adr/0005-server-session-auth.md),
 연봉 기준선 선택은 [ADR 0004](docs/adr/0004-salary-baseline-wage-stat.md)를 참조합니다.
@@ -350,7 +352,7 @@ PR 단계 CI는 두지 않습니다. `./gradlew build`가 자동으로 도는 �
 워크플로뿐이며, 프런트엔드 검증은 로컬에서 직접 돌립니다
 ([ADR 인덱스](docs/adr/README.md) 참조).
 
-OCI VM에서는 `carix-caddy`, `frontend-node`, `spring-api`, `postgres` 컨테이너를
+OCI VM에서는 `carix-caddy`, `headscale`, `frontend-node`, `spring-api`, `postgres` 컨테이너를
 Docker Compose로 운영합니다 (`spring-batch`는 배치 코드 도입 시 추가). 이미지는 GitHub Actions(ARM 러너)가 빌드해 GHCR에
 올리고 서버는 pull만 합니다. 엣지는 2단으로, 서버의 라우터 Caddy가 TLS를 종료하고 호스트명으로
 분기하면 프로젝트 전용 `carix-caddy`가 애플리케이션 라우팅을 맡습니다
@@ -380,7 +382,7 @@ Carix/
 ├── deploy/
 │   ├── caddy/Caddyfile        Carix 전용 Caddy의 애플리케이션 라우팅
 │   ├── caddy/router.caddy     라우터 Caddy가 import하는 호스트명 분기
-│   └── postgres/initdb/       dev DB 분리 초기화 스크립트
+│   ├── headscale/config.yaml  자체 호스팅 Tailscale 컨트롤 서버
 ├── config/                    CPI 분류 매핑, 기본 지출 가중치
 ├── verification/              데이터 원천 선행 검증 스크립트와 실측 노트
 ├── frontend/                  Node SSR (현재는 배포 검증용 스텁 — Vite·React 스캐폴드 예정)
@@ -404,13 +406,13 @@ Carix/
 
 - **docker-compose.yml은 OCI 배포 전용**입니다. 로컬에서 `docker compose up`으로 사용하지 않습니다.
 - **로컬 프런트엔드:** Vite dev server를 띄우고 `/api`를 백엔드로 프록시합니다. Docker 불필요.
-- **로컬 백엔드:** 로컬에 DB를 띄우지 않고 **OCI dev DB에 원격 연결**합니다 (`SPRING_DATASOURCE_URL` → SSH 터널 또는 방화벽 허용 주소). 운영 DB와 dev DB는 분리합니다.
+- **로컬 백엔드:** 로컬에 DB를 띄우지 않고 **OCI의 `carix` DB에 원격 연결**합니다. 접근은 Headscale tailnet 이며 노트북에는 Tailscale 앱만 설치합니다. 운영과 개발이 같은 DB입니다 ([ADR 0007](docs/adr/0007-single-database-for-prod-and-dev.md), [ADR 0008](docs/adr/0008-db-access-via-tailscale.md)).
 - **통합 테스트:** 설계는 Testcontainers를 쓰지만 로컬 Docker가 필요하므로, 통합 테스트는 배포 워크플로(Docker 제공 러너) 또는 OCI dev DB 대상으로 실행하고 로컬에서는 단위 테스트를 중심으로 돌립니다. PR 단계 CI가 없으므로 자동 실행 지점은 main 푸시뿐입니다.
 - 환경 변수는 [`.env.example`](.env.example)을 복사해 `.env`로 채웁니다. API 키·시크릿은 저장소에 커밋하지 않습니다.
 
 버전 기준: 컨테이너는 Java 21, Node.js 24 LTS로 고정합니다 (로컬 개발 머신의 상위 버전과 별개).
 
-구체적인 실행 절차(런타임 설치, SSH 터널, dev server, 테스트)는
+구체적인 실행 절차(런타임 설치, Headscale 온보딩, DB 접근, dev server, 테스트)는
 [`docs/DEVELOPMENT.md`](docs/DEVELOPMENT.md)를, 배포는
 [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml)를 참조합니다.
 
@@ -426,6 +428,8 @@ PR 단계 CI는 두지 않습니다. 자동 검증은 배포 워크플로가 mai
 ## 협업 방식
 
 - `main`에 직접 작업하지 않고 기능 브랜치를 사용합니다.
+- **`main` 머지는 곧 운영 배포입니다.** PR 단계 자동 검증이 없으므로, 머지 전 로컬에서
+  `./gradlew build`(백엔드)와 프런트엔드 검증을 직접 돌립니다.
 - 변경 사항은 Pull Request로 공유하고 리뷰 후 병합합니다.
 - 브랜치 이름은 `feature/`, `fix/`, `docs/`, `chore/` 접두사를 권장합니다.
 - 커밋은 변경 목적이 드러나는 작은 단위로 작성합니다.

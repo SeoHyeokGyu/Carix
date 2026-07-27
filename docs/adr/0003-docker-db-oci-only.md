@@ -1,6 +1,7 @@
 # 0003. Docker·PostgreSQL은 OCI 서버 전용
 
-- 상태: 채택
+- 상태: 채택 — 단 "운영 DB와 dev DB는 분리한다" 항목은
+  [ADR 0007](0007-single-database-for-prod-and-dev.md)로 대체됨 (2026-07-27)
 - 날짜: 2026-07-22
 
 ## 맥락
