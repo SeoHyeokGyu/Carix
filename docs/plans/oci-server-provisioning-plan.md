@@ -196,6 +196,9 @@ Phase 5·6보다 **먼저 main에 들어가야 한다.**
 
 태그는 변수화한다. 서버 `.env`의 `IMAGE_TAG`로 배포 커밋을 고정하고 롤백한다 (Phase 5 참조).
 
+> **당시 원문이다.** 이후 `IMAGE_TAG` 하나를 `BACKEND_TAG`/`FRONTEND_TAG`로 나눴고 자동 롤백도
+> 두지 않기로 했다. 현재 규칙은 아래 「배포 실패 시 복구와 이미지 보존」을 본다.
+
 ```yaml
   frontend-node:
     image: ghcr.io/seohyeokgyu/carix/frontend:${IMAGE_TAG:-latest}
@@ -737,7 +740,7 @@ gh secret set SSH_USERNAME -R SeoHyeokGyu/Carix --body "opc"
 gh secret set SSH_PRIVATE_KEY -R SeoHyeokGyu/Carix < ~/.ssh/carix-cd
 ```
 
-- [ ] **Step 3: compose 이미지 태그를 변수화** (Task 2.1과 함께)
+- [x] **Step 3: compose 이미지 태그를 변수화** (Task 2.1과 함께) — 아래는 당시 원문. 현재는 컴포넌트별 태그다
 
 ```yaml
   spring-api:
@@ -748,7 +751,9 @@ gh secret set SSH_PRIVATE_KEY -R SeoHyeokGyu/Carix < ~/.ssh/carix-cd
     image: ghcr.io/seohyeokgyu/carix/frontend:${IMAGE_TAG:-latest}
 ```
 
-- [ ] **Step 4: `.github/workflows/deploy.yml`**
+- [x] **Step 4: `.github/workflows/deploy.yml`** — 아래는 당시 원문이다. 실제 워크플로는
+      이후 여러 번 바뀌었다(컴포넌트별 태그, 빌드 생략, 이미지 보존, `.md` 제외).
+      **현재 동작은 저장소의 `.github/workflows/deploy.yml`과 위 「배포 실패 시 복구와 이미지 보존」이 정본이다.**
 
 ```yaml
 name: Deploy

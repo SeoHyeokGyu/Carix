@@ -346,7 +346,7 @@ Carix/
 - **docker-compose.yml은 OCI 배포 전용**입니다. 로컬에서 `docker compose up`으로 사용하지 않습니다.
 - **로컬 프런트엔드:** Vite dev server를 띄우고 `/api`를 백엔드로 프록시합니다. Docker 불필요.
 - **로컬 백엔드:** 로컬에 DB를 띄우지 않고 **OCI dev DB에 원격 연결**합니다 (`SPRING_DATASOURCE_URL` → SSH 터널 또는 방화벽 허용 주소). 운영 DB와 dev DB는 분리합니다.
-- **통합 테스트:** 설계는 Testcontainers를 쓰지만 로컬 Docker가 필요하므로, 통합 테스트는 CI(Docker 가능 러너) 또는 OCI dev DB 대상으로 실행하고 로컬에서는 단위 테스트를 중심으로 돌립니다.
+- **통합 테스트:** 설계는 Testcontainers를 쓰지만 로컬 Docker가 필요하므로, 통합 테스트는 배포 워크플로(Docker 제공 러너) 또는 OCI dev DB 대상으로 실행하고 로컬에서는 단위 테스트를 중심으로 돌립니다. PR 단계 CI가 없으므로 자동 실행 지점은 main 푸시뿐입니다.
 - 환경 변수는 [`.env.example`](.env.example)을 복사해 `.env`로 채웁니다. API 키·시크릿은 저장소에 커밋하지 않습니다.
 
 버전 기준: 컨테이너는 Java 21, Node.js 24 LTS로 고정합니다 (로컬 개발 머신의 상위 버전과 별개).
@@ -359,8 +359,12 @@ PR 단계 CI는 두지 않습니다. 자동 검증은 배포 워크플로가 mai
 `./gradlew build` 하나이며, 프런트엔드 lint·타입체크·테스트는 로컬에서 직접 돌립니다.
 
 현재 스캐폴드 상태는 배포 파이프라인 검증용 최소 구성입니다. 백엔드는 Spring Boot 4.1 +
-springdoc으로 `/api/health` 하나를 서빙하고(JPA·Flyway·Security·Batch 미도입), 프런트엔드는
+springdoc이며 도메인 API는 아직 없습니다(JPA·Flyway·Security·Batch 미도입). 프런트엔드는
 `:3000`을 채우는 스텁입니다. 실제 기능 구현은 이후 단계입니다.
+
+- API 문서: `https://carix.144.24.90.88.sslip.io/api/swagger-ui/index.html`
+- `GET /api/health` — 배포 헬스체크 대상
+- `POST /api/v1/demo/echo` — 임시. Swagger 확인용이며 도메인 API 도입 시 제거합니다
 
 ## 협업 방식
 
