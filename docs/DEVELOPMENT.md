@@ -69,12 +69,8 @@ cp .env.example .env
 
 ### 3.1 SSH 터널
 
-```bash
-# 로컬 5432 → OCI 서버의 Postgres 5432
-ssh -N -L 5432:localhost:5432 carix-oci
-```
-
-`~/.ssh/config`에 별칭을 둔다.
+`~/.ssh/config`에 별칭과 포워딩을 함께 둔다. 그러면 접속만으로 터널이 붙어 매번 옵션을
+칠 필요가 없다.
 
 ```
 Host carix-oci
@@ -82,14 +78,49 @@ Host carix-oci
   User opc
   IdentityFile ~/.ssh/carix-oci.key
   IdentitiesOnly yes
+  LocalForward 5432 localhost:5432
+```
+
+백그라운드로 띄운다.
+
+```bash
+ssh -fN carix-oci          # 셸 없이 포워딩만
+```
+
+끊김이 잦으면 자동 재연결을 쓴다.
+
+```bash
+autossh -M 0 -fN carix-oci
 ```
 
 터널이 열린 동안 `.env`의 `SPRING_DATASOURCE_URL`을
 `jdbc:postgresql://localhost:5432/carix_dev`로 둔다.
 
-터널이 유일한 접근 경로다. **5432를 외부에 직접 열지 않는다.** `docker-compose.yml`이
-`expose`만 쓰므로 포트가 호스트에 바인딩되지 않으며, 이를 `ports`로 바꾸면 DB가 인터넷에
-노출된다.
+### 3.2 왜 터널인가
+
+**5432를 인터넷에 직접 열지 않는다.** 현재 Postgres는 TLS가 꺼져 있어(SSLRequest에 `N` 응답)
+직접 노출하면 비밀번호와 모든 쿼리·결과가 평문으로 오간다. 같은 컨테이너에 운영 DB도 있다.
+
+`docker-compose.yml`의 postgres는 `127.0.0.1:5432:5432`로 **루프백에만** 바인딩한다.
+
+- `expose`만 두면 호스트에 포트가 없어 터널이 갈 곳이 없다.
+- `"5432:5432"`로 쓰면 `0.0.0.0`에 붙어 인터넷에 노출된다. Docker 발행 포트는 firewalld를
+  우회하므로 호스트 방화벽으로 막을 수 없고, OCI Security List에서 걸러야 한다.
+- `127.0.0.1:`을 명시하면 외부 경로가 없고 SSH 터널만 닿는다.
+
+### 3.3 IntelliJ 설정
+
+**애플리케이션 실행**(`bootRun`, 테스트)은 위 터널이 떠 있어야 한다. 실행 구성마다 붙이려면
+Run Configuration → *Before launch* → *Run External tool* 에 `ssh -fN carix-oci`를 등록한다.
+이미 떠 있으면 포트 충돌로 실패하지만 무해하다 — 기존 터널이 그대로 쓰인다.
+
+**Database 도구 창**은 자체 SSH 터널을 지원하므로 셸 터널 없이도 붙는다.
+
+1. Data Source → PostgreSQL
+2. *SSH/SSL* 탭 → *Use SSH tunnel* → `~/.ssh/config`의 `carix-oci` 선택
+3. Host `localhost`, Port `5432`, Database `carix_dev`, User `carix_dev`
+
+운영 DB(`carix`)에는 붙지 않는다. dev 스키마만 사용한다.
 
 ## 4. 프런트엔드 개발
 
