@@ -28,15 +28,19 @@ PostgreSQL, Spring Batch와 관련된 기존 백엔드·데이터 설계는 유�
 
 ```mermaid
 flowchart TD
-    Internet([Internet]) --> Nginx[Nginx]
-    Nginx -->|"/*"| NodeSSR[Node SSR :3000]
-    Nginx -->|"/api/*"| SpringBoot[Spring Boot :8080]
-    Nginx -->|"/assets"| Static[정적 파일]
-    NodeSSR -.-> SpringBoot
+    Internet([Internet]) -->|":443 TLS"| Router["infra_caddy (라우터)"]
+    Router -->|"호스트명 분기"| CarixCaddy["carix_caddy (:80)"]
+    CarixCaddy -->|"/api/*"| SpringBoot["spring-api :8080"]
+    CarixCaddy -->|"/assets/*"| NodeSSR
+    CarixCaddy -->|"그 외"| NodeSSR["frontend-node :3000"]
+    NodeSSR -.->|"SSR 중 API 호출"| SpringBoot
     SpringBoot --> DB[(PostgreSQL)]
 ```
 
-- Nginx는 TLS 종료, 압축, 정적 파일 제공, reverse proxy를 담당한다.
+- 엣지는 2단이다. 라우터 Caddy(`infra_caddy`)가 80/443과 TLS 종료·호스트명 분기를,
+  프로젝트 전용 `carix_caddy`가 애플리케이션 라우팅과 압축을 담당한다.
+- 별도 정적 파일 서버는 없다. `/assets/*`도 `frontend-node`가 서빙하고 Caddy는
+  장기 캐시 헤더만 붙인다.
 - Node 서버는 HTML SSR, SEO metadata, 공개 콘텐츠 렌더링을 담당한다.
 - Spring Boot는 인증, 도메인 로직, REST API, 데이터 접근을 담당한다.
 - Spring Batch는 외부 데이터 수집과 집계를 담당한다.
@@ -60,7 +64,7 @@ robots 정책과 필요한 구조화 데이터를 제공한다. 대시보드의 
 
 ## 데이터 흐름
 
-1. 문서 요청은 Nginx를 거쳐 Node SSR 서버로 전달된다.
+1. 문서 요청은 라우터 Caddy와 `carix_caddy`를 거쳐 Node SSR 서버로 전달된다.
 2. 공개 동적 페이지의 route loader는 내부 네트워크에서 Spring Boot API를
    호출한다.
 3. Node 서버는 응답 데이터와 SEO metadata를 포함한 HTML을 반환한다.
@@ -74,18 +78,22 @@ robots 정책과 필요한 구조화 데이터를 제공한다. 대시보드의 
   페이지를 반환한다.
 - 공개 콘텐츠의 404는 검색엔진이 오인하지 않도록 실제 HTTP 404로 응답한다.
 - 대시보드 API 오류는 오류 경계와 재시도 가능한 사용자 메시지로 표시한다.
-- Nginx, Node, Spring Boot는 동일 요청 식별자를 로그에 기록한다.
+- Caddy, Node, Spring Boot는 동일 요청 식별자를 로그에 기록한다.
 - 민감한 오류 상세와 내부 URL은 브라우저 응답에 포함하지 않는다.
 
 ## 배포
 
 OCI VM에서 다음 컨테이너를 Docker Compose로 운영한다.
 
-- `nginx`
+- `carix-caddy` — 애플리케이션 라우팅. `/api/*`는 `spring-api`, 나머지는 `frontend-node`
 - `frontend-node`
 - `spring-api`
 - `spring-batch`
 - `postgres`
+
+> 초안은 `nginx`였으나 서버의 라우터 Caddy(`infra_caddy`)가 80/443과 TLS를 소유하는 2단 엣지로
+> 바뀌면서 `carix-caddy`로 대체됐다. 배경은
+> [`../plans/oci-server-provisioning-plan.md`](../plans/oci-server-provisioning-plan.md) Phase 3.
 
 `frontend-node`는 Vite가 만든 client assets와 React Router server bundle을
 포함한다. 컨테이너는 non-root 사용자로 실행하고 health check를 제공한다.
@@ -94,7 +102,7 @@ OCI VM에서 다음 컨테이너를 Docker Compose로 운영한다.
 
 - 기존 제품 설명, 지수 정의, MVP 범위와 데이터 원칙은 유지한다.
 - 별도 `기술 구성` 섹션을 추가해 전체 스택과 각 계층의 책임을 요약한다.
-- Nginx, Node SSR, Spring Boot, PostgreSQL의 요청 흐름을 텍스트 다이어그램으로
+- Caddy, Node SSR, Spring Boot, PostgreSQL의 요청 흐름을 텍스트 다이어그램으로
   추가한다.
 - 공개 페이지와 인증 대시보드의 렌더링 전략을 간단히 설명한다.
 - OCI Docker Compose 배포 단위를 명시한다.

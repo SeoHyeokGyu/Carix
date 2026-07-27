@@ -260,19 +260,27 @@ flowchart TD
 | 데이터 | PostgreSQL, Spring Batch | 영속화, 외부 데이터 수집·집계 |
 | 엣지·배포 | Caddy, Docker Compose, GitHub Actions, OCI | TLS, reverse proxy, 컨테이너 운영 |
 
+엣지는 2단입니다. 서버의 라우터 Caddy가 80/443과 TLS를 소유하고 호스트명으로 분기하면,
+프로젝트 전용 Caddy가 애플리케이션 라우팅을 맡습니다.
+
 ```mermaid
 flowchart TD
-    Internet([Internet]) --> Caddy[Caddy]
-    Caddy -->|"/*"| NodeSSR[Node SSR :3000]
-    Caddy -->|"/api/*"| SpringBoot[Spring Boot :8080]
-    Caddy -->|"/assets"| Static[정적 파일]
-    NodeSSR -.-> SpringBoot
+    Internet([Internet]) -->|":443 TLS"| Router["infra_caddy (라우터)"]
+    Router -->|"carix.…sslip.io"| CarixCaddy["carix_caddy (:80)"]
+    CarixCaddy -->|"/api/*"| SpringBoot["spring-api :8080"]
+    CarixCaddy -->|"/assets/*"| NodeSSR
+    CarixCaddy -->|"그 외"| NodeSSR["frontend-node :3000"]
+    NodeSSR -.->|"SSR 중 API 호출"| SpringBoot
     SpringBoot --> DB[(PostgreSQL)]
+    Batch["spring-batch"] --> DB
 ```
 
-Caddy는 동일 출처에서 화면과 API를 제공해 CORS 구성을 최소화하고 TLS 인증서를 자동으로
-발급·갱신합니다. Node 서버는 HTML과 SEO를 담당하고 Spring Boot는 인증과 비즈니스 로직을
-담당합니다. Node 서버는 DB에 직접 접근하거나 Spring Boot 로직을 복제하지 않습니다.
+동일 출처에서 화면과 API를 제공해 CORS 구성을 최소화합니다. TLS 인증서 발급·갱신은
+**라우터 Caddy만** 담당하고, `carix_caddy`는 `auto_https off`로 평문 :80만 받습니다.
+Node 서버는 HTML과 SEO를 담당하고 Spring Boot는 인증과 비즈니스 로직을 담당합니다.
+Node 서버는 DB에 직접 접근하거나 Spring Boot 로직을 복제하지 않습니다.
+
+`/assets/*`는 장기 캐시 헤더를 붙여 `frontend-node`로 넘깁니다. 별도 정적 파일 서버는 없습니다.
 
 ### 렌더링 전략
 
