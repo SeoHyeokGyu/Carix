@@ -263,6 +263,12 @@ flowchart TD
 엣지는 2단입니다. 서버의 라우터 Caddy가 80/443과 TLS를 소유하고 호스트명으로 분기하면,
 프로젝트 전용 Caddy가 애플리케이션 라우팅을 맡습니다.
 
+> **왜 2단인가.** 이 호스트는 여러 프로젝트를 함께 돌립니다. 80/443은 한 컨테이너만 바인딩할 수
+> 있고 Let's Encrypt는 그 두 포트로만 검증하러 오므로, 포트를 나누면 한쪽이 정상 인증서를 받지
+> 못합니다. 라우터를 한 단 두면 모든 프로젝트가 정상 TLS를 쓰면서 각자 자기 저장소에서 라우팅을
+> 소유합니다. 초안의 단일 `nginx`를 이 구조로 대체했습니다
+> ([배포 계획](docs/plans/oci-server-provisioning-plan.md)).
+
 ```mermaid
 flowchart TD
     Internet([Internet]) -->|":443 TLS"| Router["infra_caddy (라우터)"]

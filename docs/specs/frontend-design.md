@@ -91,8 +91,10 @@ OCI VM에서 다음 컨테이너를 Docker Compose로 운영한다.
 - `spring-batch`
 - `postgres`
 
-> 초안은 `nginx`였으나 서버의 라우터 Caddy(`infra_caddy`)가 80/443과 TLS를 소유하는 2단 엣지로
-> 바뀌면서 `carix-caddy`로 대체됐다. 배경은
+> 초안은 `nginx`였으나 `carix-caddy`로 대체됐다. 이 호스트는 여러 프로젝트를 함께 돌리는데,
+> 80/443은 한 컨테이너만 바인딩할 수 있고 Let's Encrypt는 그 두 포트로만 검증하러 온다.
+> 포트를 나누면 한쪽이 정상 인증서를 못 받으므로, 라우터(`infra_caddy`)를 한 단 두고 각 프로젝트는
+> 자기 Caddy에서 애플리케이션 라우팅만 소유한다. 상세는
 > [`../plans/oci-server-provisioning-plan.md`](../plans/oci-server-provisioning-plan.md) Phase 3.
 
 `frontend-node`는 Vite가 만든 client assets와 React Router server bundle을
