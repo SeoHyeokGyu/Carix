@@ -8,7 +8,16 @@ Java 21 + Spring Boot. 인증, 도메인 로직, REST API, 데이터 접근, Spr
 - 도메인 계산: [`../docs/specs/domain-logic.md`](../docs/specs/domain-logic.md)
 
 현재는 배포 파이프라인 검증용 최소 스캐폴드다. Spring Boot 4.1 + springdoc(OpenAPI)만 있고
-`GET /api/health` 하나를 서빙한다. JPA·Flyway·Security·Batch는 다음 단계에서 추가한다.
+도메인 API는 아직 없다. JPA·Flyway·Security·Batch는 다음 단계에서 추가한다.
+
+| 경로 | 용도 |
+| --- | --- |
+| `GET /api/health` | 배포 워크플로 헬스체크 대상 |
+| `POST /api/v1/demo/echo` | **임시.** Swagger UI에서 요청 스키마·검증·에러 포맷을 눈으로 확인하는 용도. 도메인 API 도입 시 `com.carix.demo` 패키지째 삭제 |
+
+공통 에러 응답(`com.carix.common.ErrorResponse`)은
+[`../docs/specs/api-specification.md`](../docs/specs/api-specification.md) §1.1 형식을 따른다.
+Spring 기본값(ProblemDetail)과 형식이 달라 `GlobalExceptionHandler`에서 변환한다.
 
 컨텍스트 패스는 `/api`다. 엣지 Caddy가 `/api/*`를 경로 그대로 넘기므로, 헬스체크와
 Swagger UI(`/api/swagger-ui`), OpenAPI 문서(`/api/v3/api-docs`)가 모두 그 아래로 들어온다.
