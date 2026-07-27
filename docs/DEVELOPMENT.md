@@ -58,21 +58,24 @@ cp .env.example .env
 
 | 변수 | 용도 | 비고 |
 | --- | --- | --- |
-| `SPRING_DATASOURCE_URL` | 백엔드 DB 연결 | OCI dev DB (§3 터널 사용 시 `localhost:5432`) |
-| `SPRING_DATASOURCE_USERNAME` / `_PASSWORD` | dev DB 인증 | 운영 계정과 분리 |
+| `SPRING_DATASOURCE_URL` | 백엔드 DB 연결 | §3 터널 사용 시 `localhost:5432/carix` |
+| `SPRING_DATASOURCE_USERNAME` / `_PASSWORD` | 개인별 DB 롤 | §3.0 에서 발급받는다 |
 | `CARIX_ENCRYPTION_KEY` | 컬럼 암호화(AES-256-GCM) | `openssl rand -base64 32` |
 | `KOSIS_API_KEY` 외 3종 | 배치 원천 API | 선행 검증 후 발급 |
 
-## 3. OCI dev DB 원격 연결
+## 3. OCI DB 원격 연결
 
-로컬엔 Postgres를 띄우지 않는다. **팀 전원이 OCI의 같은 dev DB(`carix_dev`)를 공유**한다.
-같은 데이터를 보며 개발하기 위한 선택이다.
+로컬엔 Postgres를 띄우지 않는다. **운영과 개발이 같은 DB(`carix`)를 쓴다**
+([ADR 0007](adr/0007-single-database-for-prod-and-dev.md)). 팀원은 SSH 터널로 여기에 붙는다.
+
+> **여기서 실행하는 쿼리와 마이그레이션은 곧 운영에 적용된다.** 개발용 사본이 아니다.
+> 파괴적 변경 전에는 팀에 알리고, 마이그레이션은 §3.3 규약을 지킨다.
 
 ### 3.0 팀원 온보딩
 
 새 팀원은 이 순서로 접근 권한을 받는다. 개인키를 복사해 주지 않는다 — 각자 만든다.
 
-1. **본인 키 생성** (신규 팀원)
+1. **본인 SSH 키 생성** (신규 팀원)
 
    ```bash
    ssh-keygen -t ed25519 -f ~/.ssh/carix-oci.key -C "<이름>@carix"
@@ -84,13 +87,25 @@ cp .env.example .env
    ssh carix-oci 'cat >> ~/.ssh/authorized_keys' < carix-oci.key.pub
    ```
 
-3. **dev DB 비밀번호 전달** — 비밀번호 관리자 등 안전한 경로로. 채팅·이슈에 붙여넣지 않는다.
-   서버 값은 `ssh carix-oci 'grep ^CARIX_DEV_PASSWORD= /home/opc/carix/.env'`.
+3. **개인별 DB 롤 발급** — 공용 계정을 돌려쓰지 않는다. 이탈 시 회수가 안 되기 때문이다.
+
+   ```bash
+   ssh carix-oci 'docker exec -i carix-postgres-1 psql -U carix -d carix' <<SQL
+   CREATE ROLE "<이름>" LOGIN PASSWORD '<생성한-비밀번호>';
+   GRANT ALL ON DATABASE carix TO "<이름>";
+   GRANT ALL ON SCHEMA public TO "<이름>";
+   SQL
+   ```
+
+   비밀번호는 비밀번호 관리자 등 안전한 경로로 전달한다. 채팅·이슈에 붙여넣지 않는다.
 
 4. 아래 §3.1 터널 설정과 §2의 `.env` 작성
 
-**팀원이 빠지면 `authorized_keys`에서 해당 공개키를 지운다.** dev DB 비밀번호도 함께 교체하는
-편이 안전하다.
+**팀원이 빠지면** `authorized_keys`에서 공개키를 지우고 DB 롤도 함께 삭제한다.
+
+```bash
+ssh carix-oci 'docker exec -i carix-postgres-1 psql -U carix -d carix -c "DROP ROLE \"<이름>\""'
+```
 
 ### 3.1 SSH 터널
 
@@ -119,12 +134,12 @@ autossh -M 0 -fN carix-oci
 ```
 
 터널이 열린 동안 `.env`의 `SPRING_DATASOURCE_URL`을
-`jdbc:postgresql://localhost:5432/carix_dev`로 둔다.
+`jdbc:postgresql://localhost:5432/carix`로 둔다.
 
 ### 3.2 왜 터널인가
 
 **5432를 인터넷에 직접 열지 않는다.** 현재 Postgres는 TLS가 꺼져 있어(SSLRequest에 `N` 응답)
-직접 노출하면 비밀번호와 모든 쿼리·결과가 평문으로 오간다. 같은 컨테이너에 운영 DB도 있다.
+직접 노출하면 비밀번호와 모든 쿼리·결과가 평문으로 오간다. 운영 DB이므로 더 그렇다.
 
 `docker-compose.yml`의 postgres는 `127.0.0.1:5432:5432`로 **루프백에만** 바인딩한다.
 
@@ -133,9 +148,9 @@ autossh -M 0 -fN carix-oci
   우회하므로 호스트 방화벽으로 막을 수 없고, OCI Security List에서 걸러야 한다.
 - `127.0.0.1:`을 명시하면 외부 경로가 없고 SSH 터널만 닿는다.
 
-### 3.3 공유 DB에서의 Flyway 규약
+### 3.3 Flyway 규약
 
-DB를 공유하므로 마이그레이션 파일 이름이 충돌할 수 있다.
+DB가 하나뿐이므로 마이그레이션 파일 이름이 충돌하면 **운영 스키마에서** 막힌다.
 
 ```
 A 브랜치: V3__add_income.sql   → 공유 dev DB에 먼저 적용됨
@@ -158,8 +173,8 @@ spring:
     out-of-order: true
 ```
 
-그래도 막히면 본인 브랜치 작업분만 되돌린다. **공유 DB를 통째로 초기화하지 않는다** — 다른
-사람 작업이 날아간다. 초기화가 필요하면 팀에 먼저 알린다.
+그래도 막히면 본인 브랜치 작업분만 되돌린다. **DB를 통째로 초기화하지 않는다** — 운영
+데이터가 사라진다. `flyway clean`은 절대 실행하지 않는다.
 
 ### 3.4 IntelliJ 설정
 
@@ -171,9 +186,9 @@ Run Configuration → *Before launch* → *Run External tool* 에 `ssh -fN carix
 
 1. Data Source → PostgreSQL
 2. *SSH/SSL* 탭 → *Use SSH tunnel* → `~/.ssh/config`의 `carix-oci` 선택
-3. Host `localhost`, Port `5432`, Database `carix_dev`, User `carix_dev`
+3. Host `localhost`, Port `5432`, Database `carix`, User `<본인 롤>`
 
-운영 DB(`carix`)에는 붙지 않는다. dev 스키마만 사용한다.
+**이 연결은 운영 DB다.** 데이터 편집·삭제 전에 무엇을 지우는지 확인한다.
 
 ## 4. 프런트엔드 개발
 
