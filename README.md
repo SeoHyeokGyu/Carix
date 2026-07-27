@@ -250,18 +250,56 @@ flowchart TD
 
 ## 기술 구성
 
-| 계층 | 기술 | 책임 |
-| --- | --- | --- |
-| 프런트엔드 | Vite, React, TypeScript, React Router Framework Mode | UI, 라우팅, SSR·사전 렌더링 |
-| Node SSR | Node.js 24 LTS, Express, `@react-router/express` | HTML 렌더링, SEO metadata, 공개 콘텐츠 |
-| 클라이언트 데이터 | TanStack Query, React Hook Form, Zod | API 상태, 입력 폼, 검증 |
-| UI·시각화 | Tailwind CSS, shadcn/ui, Recharts | 컴포넌트, 스타일, 지수 차트 |
-| 백엔드 | Java 21, Spring Boot | 인증, 도메인 로직, REST API, 데이터 접근 |
-| 데이터 | PostgreSQL, Spring Batch | 영속화, 외부 데이터 수집·집계 |
-| 엣지·배포 | Caddy, Docker Compose, GitHub Actions, OCI | TLS, reverse proxy, 컨테이너 운영 |
+목표 스택과 현재 반영 여부를 함께 적습니다. 지금은 배포 파이프라인 검증용 최소 스캐폴드라
+프런트엔드 스택은 대부분 도입 전입니다.
+
+| 계층 | 기술 | 책임 | 현재 |
+| --- | --- | --- | --- |
+| 프런트엔드 | Vite, React, TypeScript, React Router Framework Mode | UI, 라우팅, SSR·사전 렌더링 | 미도입 |
+| Node SSR | Node.js 24 LTS, Express, `@react-router/express` | HTML 렌더링, SEO metadata, 공개 콘텐츠 | 미도입 — `node:http` 스텁 |
+| 클라이언트 데이터 | TanStack Query, React Hook Form, Zod | API 상태, 입력 폼, 검증 | 미도입 |
+| UI·시각화 | Tailwind CSS, shadcn/ui, Recharts | 컴포넌트, 스타일, 지수 차트 | 미도입 |
+| 백엔드 | Java 21, Spring Boot 4.1 | 인증, 도메인 로직, REST API, 데이터 접근 | 도입 (인증·도메인 로직 미구현) |
+| API 문서 | springdoc-openapi | OpenAPI 문서, Swagger UI | 도입 |
+| 데이터 접근 | Spring Data JPA, Flyway | 영속화, 스키마 마이그레이션 | 미도입 |
+| 데이터 수집 | Spring Batch | 외부 원천 수집·집계 | 미도입 |
+| 데이터베이스 | PostgreSQL 16 | 영속화 | 도입 (스키마 없음) |
+| 엣지 — 라우터 | Caddy 2 (`infra_caddy`) | 80/443 소유, TLS 종료·자동 발급, 호스트명 분기 | 도입 — **이 저장소 밖**(`~/infra`, 타 프로젝트와 공유) |
+| 엣지 — 앱 라우팅 | Caddy 2 (`carix_caddy`) | 경로 분기(`/api/*` → 백엔드, 그 외 → 프런트), 압축, 캐시 헤더 | 도입 |
+| 빌드·배포 | GitHub Actions (ARM 러너), GHCR, Docker Compose, OCI | 이미지 빌드·레지스트리·컨테이너 운영 | 도입 |
 
 엣지는 2단입니다. 서버의 라우터 Caddy가 80/443과 TLS를 소유하고 호스트명으로 분기하면,
-프로젝트 전용 Caddy가 애플리케이션 라우팅을 맡습니다.
+프로젝트 전용 Caddy가 애플리케이션 라우팅을 맡습니다. 두 계층의 소유권이 다릅니다 — 라우터는
+`~/infra` 스택이 소유해 다른 프로젝트와 공유하고, 앱 라우팅만 이 저장소가 소유합니다.
+
+프록시로 Caddy를 쓰는 이유는 계층별로 다릅니다. nginx와의 비교는
+[ADR 0006](docs/adr/0006-app-edge-stays-caddy.md)에 있습니다.
+
+### 채택 사유
+
+| 기술 | 사유 |
+| --- | --- |
+| Vite + React + React Router (Next.js 대체) | Next.js는 풀스택 프레임워크라 Node 계층이 API·데이터로 번지기 쉽고 Spring Boot와 역할 경계가 흐려집니다. Node는 HTML SSR·SEO만 맡깁니다 ([ADR 0002](docs/adr/0002-frontend-vite-react-node-ssr.md)) |
+| Node SSR (Express) | 공개 랜딩·콘텐츠의 SEO와 로그인 후 대시보드의 상호작용성을 한 앱에서 지원하기 위해 |
+| TanStack Query | 서버 상태를 클라이언트 스토어에 복제하지 않기 위해. 캐시·재검증을 직접 구현하지 않습니다 |
+| Zod + React Hook Form | 입력 검증을 프런트·백엔드 양쪽에서 하되, 프런트 스키마를 한 곳에 두기 위해 |
+| Recharts | 지수·트렌드 차트가 핵심 화면이며 React 컴포넌트 모델과 맞물립니다 |
+| Java 21 | LTS. Spring Boot 4.x의 하한(17)보다 높고 가상 스레드 등 최신 LTS 기능을 씁니다 |
+| Spring Boot 4.1 | 스캐폴드 시점의 최신 GA. Spring Initializr 기본값이며 3.x는 더 이상 제공되지 않습니다 |
+| springdoc-openapi 3.0.3 | Boot 4 대응 라인입니다. 2.x는 Boot 3용이라 호환되지 않습니다 |
+| Spring Data JPA + Flyway | 스키마를 코드로 관리하고 dev·운영 DB 간 드리프트를 막기 위해 |
+| Spring Batch | 외부 원천(KOSIS·고용24 등) 수집이 재시도·청크 처리·잡 이력을 요구합니다 |
+| PostgreSQL | 초기 설계에서 고정. 별도 근거는 기록돼 있지 않습니다 |
+| Docker·PostgreSQL 서버 전용 | 로컬 개발 머신에 Docker를 두지 않기로 했습니다 ([ADR 0003](docs/adr/0003-docker-db-oci-only.md)) |
+| Caddy (라우터) | 인증서 자동 발급·갱신이 기본 동작이라 ACME 파이프라인을 직접 구성하지 않습니다 ([ADR 0006](docs/adr/0006-app-edge-stays-caddy.md)) |
+| Caddy (앱 라우팅) | 업스트림을 요청마다 재해석해 배포 시 컨테이너 IP가 바뀌어도 영향이 없습니다. nginx는 별도 우회가 필요합니다 |
+| GitHub Actions ARM 러너 | 서버가 `aarch64`라 QEMU 에뮬레이션 없이 네이티브로 빌드합니다 |
+| GHCR | `GITHUB_TOKEN`이 자동 제공돼 시크릿이 늘지 않고, pull 시 바뀐 레이어만 전송됩니다 |
+| 서버는 pull만 | 서버가 메모리 압박이 있는 공유 호스트라 빌드를 올리지 않습니다 |
+| 이미지 태그 = 컴포넌트 변경 커밋 | `.env` 두 줄로 어떤 코드가 돌고 있는지 확정되고, 재기동해도 같은 이미지가 뜹니다 |
+
+인증 방식(서버 세션 + 매직링크)의 근거는 [ADR 0005](docs/adr/0005-server-session-auth.md),
+연봉 기준선 선택은 [ADR 0004](docs/adr/0004-salary-baseline-wage-stat.md)를 참조합니다.
 
 > **왜 2단인가.** 이 호스트는 여러 프로젝트를 함께 돌립니다. 80/443은 한 컨테이너만 바인딩할 수
 > 있고 Let's Encrypt는 그 두 포트로만 검증하러 오므로, 포트를 나누면 한쪽이 정상 인증서를 받지
@@ -278,7 +316,6 @@ flowchart TD
     CarixCaddy -->|"그 외"| NodeSSR["frontend-node :3000"]
     NodeSSR -.->|"SSR 중 API 호출"| SpringBoot
     SpringBoot --> DB[(PostgreSQL)]
-    Batch["spring-batch"] --> DB
 ```
 
 동일 출처에서 화면과 API를 제공해 CORS 구성을 최소화합니다. TLS 인증서 발급·갱신은
@@ -301,12 +338,20 @@ robots 정책과 필요한 구조화 데이터를 제공합니다.
 
 ### 테스트
 
-- 단위·컴포넌트: Vitest, Testing Library
-- API 모킹: MSW
-- 브라우저 E2E: Playwright
+| 대상 | 기술 | 현재 |
+| --- | --- | --- |
+| 백엔드 단위·슬라이스 | JUnit 5, Spring Boot Test, MockMvc | 도입 |
+| 백엔드 통합 | Testcontainers | 미도입 (DB 도입 후) |
+| 프런트 단위·컴포넌트 | Vitest, Testing Library | 미도입 |
+| API 모킹 | MSW | 미도입 |
+| 브라우저 E2E | Playwright | 미도입 |
 
-OCI VM에서는 `carix-caddy`, `frontend-node`, `spring-api`, `spring-batch`, `postgres`
-컨테이너를 Docker Compose로 운영합니다. 이미지는 GitHub Actions(ARM 러너)가 빌드해 GHCR에
+PR 단계 CI는 두지 않습니다. `./gradlew build`가 자동으로 도는 지점은 main 푸시의 배포
+워크플로뿐이며, 프런트엔드 검증은 로컬에서 직접 돌립니다
+([ADR 인덱스](docs/adr/README.md) 참조).
+
+OCI VM에서는 `carix-caddy`, `frontend-node`, `spring-api`, `postgres` 컨테이너를
+Docker Compose로 운영합니다 (`spring-batch`는 배치 코드 도입 시 추가). 이미지는 GitHub Actions(ARM 러너)가 빌드해 GHCR에
 올리고 서버는 pull만 합니다. 엣지는 2단으로, 서버의 라우터 Caddy가 TLS를 종료하고 호스트명으로
 분기하면 프로젝트 전용 `carix-caddy`가 애플리케이션 라우팅을 맡습니다
 ([배포 계획](docs/plans/oci-server-provisioning-plan.md)).
@@ -372,9 +417,7 @@ Carix/
 PR 단계 CI는 두지 않습니다. 자동 검증은 배포 워크플로가 main 푸시에서 수행하는
 `./gradlew build` 하나이며, 프런트엔드 lint·타입체크·테스트는 로컬에서 직접 돌립니다.
 
-현재 스캐폴드 상태는 배포 파이프라인 검증용 최소 구성입니다. 백엔드는 Spring Boot 4.1 +
-springdoc이며 도메인 API는 아직 없습니다(JPA·Flyway·Security·Batch 미도입). 프런트엔드는
-`:3000`을 채우는 스텁입니다. 실제 기능 구현은 이후 단계입니다.
+현재 제공하는 엔드포인트는 다음이 전부입니다 (계층별 도입 현황은 위 기술 구성 표 참조).
 
 - API 문서: `https://carix.144.24.90.88.sslip.io/api/swagger-ui/index.html`
 - `GET /api/health` — 배포 헬스체크 대상

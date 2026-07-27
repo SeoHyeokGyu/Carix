@@ -88,8 +88,8 @@ OCI VM에서 다음 컨테이너를 Docker Compose로 운영한다.
 - `carix-caddy` — 애플리케이션 라우팅. `/api/*`는 `spring-api`, 나머지는 `frontend-node`
 - `frontend-node`
 - `spring-api`
-- `spring-batch`
 - `postgres`
+- `spring-batch` — 배치 코드 도입 시 추가
 
 > 초안은 `nginx`였으나 `carix-caddy`로 대체됐다. 이 호스트는 여러 프로젝트를 함께 돌리는데,
 > 80/443은 한 컨테이너만 바인딩할 수 있고 Let's Encrypt는 그 두 포트로만 검증하러 온다.
