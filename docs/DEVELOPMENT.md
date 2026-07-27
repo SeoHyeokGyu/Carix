@@ -88,10 +88,18 @@ cp .env.example .env
 
 2. **클라이언트 설치·등록** (신규 팀원)
 
+   노트북에는 **Tailscale 앱 하나만** 설치한다. Docker 도 컨테이너도 필요 없다.
+
    ```bash
-   brew install --cask tailscale     # macOS
+   brew install --cask tailscale     # macOS — standalone 변형
    tailscale up --login-server https://headscale.144.24.90.88.sslip.io --authkey <preauth-key>
    ```
+
+   > **App Store 버전을 쓰지 않는다.** 샌드박스 제약이 있고 Tailscale 문서도 standalone 을
+   > 기본으로 권장한다. `brew install --cask tailscale` 이 standalone 이다.
+   >
+   > GUI 로 하려면 Option 키를 누른 채 메뉴 아이콘 클릭 → Debug → Custom Login Server →
+   > *Add Account...* 에 위 URL 을 넣는다.
 
 3. **개인별 DB 롤 발급** — 공용 계정을 돌려쓰지 않는다. 이탈 시 회수가 안 되기 때문이다.
 
