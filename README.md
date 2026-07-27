@@ -250,15 +250,22 @@ flowchart TD
 
 ## 기술 구성
 
-| 계층 | 기술 | 책임 |
-| --- | --- | --- |
-| 프런트엔드 | Vite, React, TypeScript, React Router Framework Mode | UI, 라우팅, SSR·사전 렌더링 |
-| Node SSR | Node.js 24 LTS, Express, `@react-router/express` | HTML 렌더링, SEO metadata, 공개 콘텐츠 |
-| 클라이언트 데이터 | TanStack Query, React Hook Form, Zod | API 상태, 입력 폼, 검증 |
-| UI·시각화 | Tailwind CSS, shadcn/ui, Recharts | 컴포넌트, 스타일, 지수 차트 |
-| 백엔드 | Java 21, Spring Boot | 인증, 도메인 로직, REST API, 데이터 접근 |
-| 데이터 | PostgreSQL, Spring Batch | 영속화, 외부 데이터 수집·집계 |
-| 엣지·배포 | Caddy, Docker Compose, GitHub Actions, OCI | TLS, reverse proxy, 컨테이너 운영 |
+목표 스택과 현재 반영 여부를 함께 적습니다. 지금은 배포 파이프라인 검증용 최소 스캐폴드라
+프런트엔드 스택은 대부분 도입 전입니다.
+
+| 계층 | 기술 | 책임 | 현재 |
+| --- | --- | --- | --- |
+| 프런트엔드 | Vite, React, TypeScript, React Router Framework Mode | UI, 라우팅, SSR·사전 렌더링 | 미도입 |
+| Node SSR | Node.js 24 LTS, Express, `@react-router/express` | HTML 렌더링, SEO metadata, 공개 콘텐츠 | 미도입 — `node:http` 스텁 |
+| 클라이언트 데이터 | TanStack Query, React Hook Form, Zod | API 상태, 입력 폼, 검증 | 미도입 |
+| UI·시각화 | Tailwind CSS, shadcn/ui, Recharts | 컴포넌트, 스타일, 지수 차트 | 미도입 |
+| 백엔드 | Java 21, Spring Boot 4.1 | 인증, 도메인 로직, REST API, 데이터 접근 | 도입 (인증·도메인 로직 미구현) |
+| API 문서 | springdoc-openapi | OpenAPI 문서, Swagger UI | 도입 |
+| 데이터 접근 | Spring Data JPA, Flyway | 영속화, 스키마 마이그레이션 | 미도입 |
+| 데이터 수집 | Spring Batch | 외부 원천 수집·집계 | 미도입 |
+| 데이터베이스 | PostgreSQL 16 | 영속화 | 도입 (스키마 없음) |
+| 엣지 | Caddy 2 (라우터 + 앱 라우팅 2단) | TLS, reverse proxy | 도입 |
+| 빌드·배포 | GitHub Actions (ARM 러너), GHCR, Docker Compose, OCI | 이미지 빌드·레지스트리·컨테이너 운영 | 도입 |
 
 엣지는 2단입니다. 서버의 라우터 Caddy가 80/443과 TLS를 소유하고 호스트명으로 분기하면,
 프로젝트 전용 Caddy가 애플리케이션 라우팅을 맡습니다.
@@ -300,9 +307,17 @@ robots 정책과 필요한 구조화 데이터를 제공합니다.
 
 ### 테스트
 
-- 단위·컴포넌트: Vitest, Testing Library
-- API 모킹: MSW
-- 브라우저 E2E: Playwright
+| 대상 | 기술 | 현재 |
+| --- | --- | --- |
+| 백엔드 단위·슬라이스 | JUnit 5, Spring Boot Test, MockMvc | 도입 |
+| 백엔드 통합 | Testcontainers | 미도입 (DB 도입 후) |
+| 프런트 단위·컴포넌트 | Vitest, Testing Library | 미도입 |
+| API 모킹 | MSW | 미도입 |
+| 브라우저 E2E | Playwright | 미도입 |
+
+PR 단계 CI는 두지 않습니다. `./gradlew build`가 자동으로 도는 지점은 main 푸시의 배포
+워크플로뿐이며, 프런트엔드 검증은 로컬에서 직접 돌립니다
+([ADR 인덱스](docs/adr/README.md) 참조).
 
 OCI VM에서는 `carix-caddy`, `frontend-node`, `spring-api`, `postgres` 컨테이너를
 Docker Compose로 운영합니다 (`spring-batch`는 배치 코드 도입 시 추가). 이미지는 GitHub Actions(ARM 러너)가 빌드해 GHCR에
@@ -371,9 +386,7 @@ Carix/
 PR 단계 CI는 두지 않습니다. 자동 검증은 배포 워크플로가 main 푸시에서 수행하는
 `./gradlew build` 하나이며, 프런트엔드 lint·타입체크·테스트는 로컬에서 직접 돌립니다.
 
-현재 스캐폴드 상태는 배포 파이프라인 검증용 최소 구성입니다. 백엔드는 Spring Boot 4.1 +
-springdoc이며 도메인 API는 아직 없습니다(JPA·Flyway·Security·Batch 미도입). 프런트엔드는
-`:3000`을 채우는 스텁입니다. 실제 기능 구현은 이후 단계입니다.
+현재 제공하는 엔드포인트는 다음이 전부입니다 (계층별 도입 현황은 위 기술 구성 표 참조).
 
 - API 문서: `https://carix.144.24.90.88.sslip.io/api/swagger-ui/index.html`
 - `GET /api/health` — 배포 헬스체크 대상
