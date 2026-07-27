@@ -68,7 +68,11 @@ jobs:
         run: |
           # 태그는 backend/ 를 마지막으로 바꾼 커밋이다. 워크플로가 바뀌면 빌드 방식이
           # 달라졌을 수 있으므로 함께 본다.
-          TAG=$(git log -1 --format=%H -- backend/ .github/workflows/deploy.yml)
+          #
+          # .md 는 뺀다. README 만 고쳐도 태그가 움직이면 내용이 같은 이미지를 새로
+          # 만들게 되고, 서버에서도 태그 문자열이 달라져 컨테이너가 불필요하게 재생성된다.
+          # paths 필터의 '!**/*.md' 와 같은 취지다.
+          TAG=$(git log -1 --format=%H -- backend/ ':!*.md' .github/workflows/deploy.yml)
           [ -n "$TAG" ] || TAG="$GITHUB_SHA"
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
 
@@ -155,7 +159,7 @@ jobs:
       - name: 태그 결정과 이미지 존재 확인
         id: tag
         run: |
-          TAG=$(git log -1 --format=%H -- frontend/ .github/workflows/deploy.yml)
+          TAG=$(git log -1 --format=%H -- frontend/ ':!*.md' .github/workflows/deploy.yml)
           [ -n "$TAG" ] || TAG="$GITHUB_SHA"
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
 

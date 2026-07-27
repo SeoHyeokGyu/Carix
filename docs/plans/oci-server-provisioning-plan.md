@@ -645,9 +645,13 @@ frontend-node:  image: ...frontend:${FRONTEND_TAG:-latest}
 **태그 값은 배포 커밋이 아니라 그 컴포넌트를 마지막으로 바꾼 커밋이다.**
 
 ```bash
-TAG=$(git log -1 --format=%H -- backend/ .github/workflows/deploy.yml)
+TAG=$(git log -1 --format=%H -- backend/ ':!*.md' .github/workflows/deploy.yml)
 docker buildx imagetools inspect "$REPO:$TAG" >/dev/null 2>&1 || build_and_push
 ```
+
+`.md` 를 빼는 이유: `backend/README.md` 만 고쳐도 태그가 움직이면 내용이 같은 이미지를 새로
+만들게 되고, 서버에서도 태그 문자열이 달라져 컨테이너가 불필요하게 재생성된다.
+실제로 PR #23(문서 동기화)이 backend 태그를 움직였다.
 
 이 정의 덕분에 "빌드가 필요한가"를 따로 판정할 필요가 없다. **그 코드로 만든 이미지가 레지스트리에
 이미 있으면 만들 것이 없다.** 백엔드만 바뀐 커밋에서는 `FRONTEND_TAG` 값이 그대로라 compose가
