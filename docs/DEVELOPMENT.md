@@ -109,9 +109,19 @@ pnpm dev              # Vite dev server (기본 5173)
 
 ```bash
 cd backend
-./gradlew bootRun     # http://localhost:8080
+./gradlew bootRun
 ```
 
+컨텍스트 패스가 `/api`다. 기동 후 확인 경로:
+
+| URL | 내용 |
+| --- | --- |
+| `http://localhost:8080/api/health` | 헬스체크 |
+| `http://localhost:8080/api/swagger-ui/index.html` | Swagger UI |
+| `http://localhost:8080/api/v3/api-docs` | OpenAPI JSON |
+
+- **DB 없이 뜬다.** 아직 DataSource 자동설정이 없으므로 §3 터널 없이도 기동된다.
+  아래 두 항목은 JPA·Batch 도입 이후 적용된다.
 - Flyway가 기동 시 마이그레이션을 적용한다. dev DB에만 적용되도록 프로파일을 확인한다.
 - 배치 워커는 별도 프로파일(`--spring.profiles.active=dev,batch`)로 실행한다.
 

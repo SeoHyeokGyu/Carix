@@ -26,7 +26,7 @@ Docker와 PostgreSQL은 **OCI 서버에서만 기동**한다. 로컬은 순수 �
 
 ## 결과
 
-- Testcontainers 통합 테스트는 로컬에서 못 돌린다 → CI(Docker 제공 러너) 또는 OCI
+- Testcontainers 통합 테스트는 로컬에서 못 돌린다 → 배포 워크플로(Docker 제공 러너) 또는 OCI
   dev DB 대상으로 실행한다. 로컬은 단위 테스트 중심.
   ([`.github/workflows/deploy.yml`](../../.github/workflows/deploy.yml) backend 잡이 이를 실현.
   PR 단계 CI는 두지 않으므로 main 푸시가 유일한 자동 실행 지점이다.)

@@ -260,19 +260,33 @@ flowchart TD
 | 데이터 | PostgreSQL, Spring Batch | 영속화, 외부 데이터 수집·집계 |
 | 엣지·배포 | Caddy, Docker Compose, GitHub Actions, OCI | TLS, reverse proxy, 컨테이너 운영 |
 
+엣지는 2단입니다. 서버의 라우터 Caddy가 80/443과 TLS를 소유하고 호스트명으로 분기하면,
+프로젝트 전용 Caddy가 애플리케이션 라우팅을 맡습니다.
+
+> **왜 2단인가.** 이 호스트는 여러 프로젝트를 함께 돌립니다. 80/443은 한 컨테이너만 바인딩할 수
+> 있고 Let's Encrypt는 그 두 포트로만 검증하러 오므로, 포트를 나누면 한쪽이 정상 인증서를 받지
+> 못합니다. 라우터를 한 단 두면 모든 프로젝트가 정상 TLS를 쓰면서 각자 자기 저장소에서 라우팅을
+> 소유합니다. 초안의 단일 `nginx`를 이 구조로 대체했습니다
+> ([배포 계획](docs/plans/oci-server-provisioning-plan.md)).
+
 ```mermaid
 flowchart TD
-    Internet([Internet]) --> Caddy[Caddy]
-    Caddy -->|"/*"| NodeSSR[Node SSR :3000]
-    Caddy -->|"/api/*"| SpringBoot[Spring Boot :8080]
-    Caddy -->|"/assets"| Static[정적 파일]
-    NodeSSR -.-> SpringBoot
+    Internet([Internet]) -->|":443 TLS"| Router["infra_caddy (라우터)"]
+    Router -->|"carix.…sslip.io"| CarixCaddy["carix_caddy (:80)"]
+    CarixCaddy -->|"/api/*"| SpringBoot["spring-api :8080"]
+    CarixCaddy -->|"/assets/*"| NodeSSR
+    CarixCaddy -->|"그 외"| NodeSSR["frontend-node :3000"]
+    NodeSSR -.->|"SSR 중 API 호출"| SpringBoot
     SpringBoot --> DB[(PostgreSQL)]
+    Batch["spring-batch"] --> DB
 ```
 
-Caddy는 동일 출처에서 화면과 API를 제공해 CORS 구성을 최소화하고 TLS 인증서를 자동으로
-발급·갱신합니다. Node 서버는 HTML과 SEO를 담당하고 Spring Boot는 인증과 비즈니스 로직을
-담당합니다. Node 서버는 DB에 직접 접근하거나 Spring Boot 로직을 복제하지 않습니다.
+동일 출처에서 화면과 API를 제공해 CORS 구성을 최소화합니다. TLS 인증서 발급·갱신은
+**라우터 Caddy만** 담당하고, `carix_caddy`는 `auto_https off`로 평문 :80만 받습니다.
+Node 서버는 HTML과 SEO를 담당하고 Spring Boot는 인증과 비즈니스 로직을 담당합니다.
+Node 서버는 DB에 직접 접근하거나 Spring Boot 로직을 복제하지 않습니다.
+
+`/assets/*`는 장기 캐시 헤더를 붙여 `frontend-node`로 넘깁니다. 별도 정적 파일 서버는 없습니다.
 
 ### 렌더링 전략
 
@@ -346,7 +360,7 @@ Carix/
 - **docker-compose.yml은 OCI 배포 전용**입니다. 로컬에서 `docker compose up`으로 사용하지 않습니다.
 - **로컬 프런트엔드:** Vite dev server를 띄우고 `/api`를 백엔드로 프록시합니다. Docker 불필요.
 - **로컬 백엔드:** 로컬에 DB를 띄우지 않고 **OCI dev DB에 원격 연결**합니다 (`SPRING_DATASOURCE_URL` → SSH 터널 또는 방화벽 허용 주소). 운영 DB와 dev DB는 분리합니다.
-- **통합 테스트:** 설계는 Testcontainers를 쓰지만 로컬 Docker가 필요하므로, 통합 테스트는 CI(Docker 가능 러너) 또는 OCI dev DB 대상으로 실행하고 로컬에서는 단위 테스트를 중심으로 돌립니다.
+- **통합 테스트:** 설계는 Testcontainers를 쓰지만 로컬 Docker가 필요하므로, 통합 테스트는 배포 워크플로(Docker 제공 러너) 또는 OCI dev DB 대상으로 실행하고 로컬에서는 단위 테스트를 중심으로 돌립니다. PR 단계 CI가 없으므로 자동 실행 지점은 main 푸시뿐입니다.
 - 환경 변수는 [`.env.example`](.env.example)을 복사해 `.env`로 채웁니다. API 키·시크릿은 저장소에 커밋하지 않습니다.
 
 버전 기준: 컨테이너는 Java 21, Node.js 24 LTS로 고정합니다 (로컬 개발 머신의 상위 버전과 별개).
@@ -359,8 +373,12 @@ PR 단계 CI는 두지 않습니다. 자동 검증은 배포 워크플로가 mai
 `./gradlew build` 하나이며, 프런트엔드 lint·타입체크·테스트는 로컬에서 직접 돌립니다.
 
 현재 스캐폴드 상태는 배포 파이프라인 검증용 최소 구성입니다. 백엔드는 Spring Boot 4.1 +
-springdoc으로 `/api/health` 하나를 서빙하고(JPA·Flyway·Security·Batch 미도입), 프런트엔드는
+springdoc이며 도메인 API는 아직 없습니다(JPA·Flyway·Security·Batch 미도입). 프런트엔드는
 `:3000`을 채우는 스텁입니다. 실제 기능 구현은 이후 단계입니다.
+
+- API 문서: `https://carix.144.24.90.88.sslip.io/api/swagger-ui/index.html`
+- `GET /api/health` — 배포 헬스체크 대상
+- `POST /api/v1/demo/echo` — 임시. Swagger 확인용이며 도메인 API 도입 시 제거합니다
 
 ## 협업 방식
 

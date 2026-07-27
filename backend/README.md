@@ -46,4 +46,5 @@ Dockerfile은 컴파일하지 않는다. CI 러너가 Gradle 캐시로 만든 JA
 ## 테스트 주의
 
 - 설계 테스트 전략은 Testcontainers를 쓰나, Testcontainers는 로컬 Docker를 요구한다.
-- Docker가 OCI 전용이므로, 통합 테스트는 **CI(Docker 가능 러너) 또는 OCI dev DB 대상**으로 실행한다. 로컬에서는 단위 테스트 중심으로 돌린다.
+- Docker가 OCI 전용이므로, 통합 테스트는 **배포 워크플로(Docker 제공 러너) 또는 OCI dev DB 대상**으로 실행한다. 로컬에서는 단위 테스트 중심으로 돌린다.
+- PR 단계 CI가 없다. `./gradlew build` 가 자동으로 도는 지점은 main 푸시뿐이므로, 머지 전 검증은 로컬에서 직접 한다.
