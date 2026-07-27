@@ -65,7 +65,32 @@ cp .env.example .env
 
 ## 3. OCI dev DB 원격 연결
 
-로컬엔 Postgres를 띄우지 않는다. OCI의 dev 스키마에 연결한다.
+로컬엔 Postgres를 띄우지 않는다. **팀 전원이 OCI의 같은 dev DB(`carix_dev`)를 공유**한다.
+같은 데이터를 보며 개발하기 위한 선택이다.
+
+### 3.0 팀원 온보딩
+
+새 팀원은 이 순서로 접근 권한을 받는다. 개인키를 복사해 주지 않는다 — 각자 만든다.
+
+1. **본인 키 생성** (신규 팀원)
+
+   ```bash
+   ssh-keygen -t ed25519 -f ~/.ssh/carix-oci.key -C "<이름>@carix"
+   ```
+
+2. **공개키 등록** (서버 접근 권한이 있는 사람)
+
+   ```bash
+   ssh carix-oci 'cat >> ~/.ssh/authorized_keys' < carix-oci.key.pub
+   ```
+
+3. **dev DB 비밀번호 전달** — 비밀번호 관리자 등 안전한 경로로. 채팅·이슈에 붙여넣지 않는다.
+   서버 값은 `ssh carix-oci 'grep ^CARIX_DEV_PASSWORD= /home/opc/carix/.env'`.
+
+4. 아래 §3.1 터널 설정과 §2의 `.env` 작성
+
+**팀원이 빠지면 `authorized_keys`에서 해당 공개키를 지운다.** dev DB 비밀번호도 함께 교체하는
+편이 안전하다.
 
 ### 3.1 SSH 터널
 
@@ -108,7 +133,35 @@ autossh -M 0 -fN carix-oci
   우회하므로 호스트 방화벽으로 막을 수 없고, OCI Security List에서 걸러야 한다.
 - `127.0.0.1:`을 명시하면 외부 경로가 없고 SSH 터널만 닿는다.
 
-### 3.3 IntelliJ 설정
+### 3.3 공유 DB에서의 Flyway 규약
+
+DB를 공유하므로 마이그레이션 파일 이름이 충돌할 수 있다.
+
+```
+A 브랜치: V3__add_income.sql   → 공유 dev DB에 먼저 적용됨
+B 브랜치: V3__add_skill.sql    → 같은 버전, 다른 체크섬 → checksum mismatch
+```
+
+**버전은 순번이 아니라 타임스탬프로 짓는다.** 같은 초에 두 명이 파일을 만들 일은 사실상 없다.
+
+```
+V20260727_143000__add_income_history.sql
+V20260727_151200__add_skill_catalog.sql
+```
+
+dev 프로파일에서만 순서 뒤바뀜을 허용한다. 운영은 엄격하게 둔다.
+
+```yaml
+# application-dev.yml
+spring:
+  flyway:
+    out-of-order: true
+```
+
+그래도 막히면 본인 브랜치 작업분만 되돌린다. **공유 DB를 통째로 초기화하지 않는다** — 다른
+사람 작업이 날아간다. 초기화가 필요하면 팀에 먼저 알린다.
+
+### 3.4 IntelliJ 설정
 
 **애플리케이션 실행**(`bootRun`, 테스트)은 위 터널이 떠 있어야 한다. 실행 구성마다 붙이려면
 Run Configuration → *Before launch* → *Run External tool* 에 `ssh -fN carix-oci`를 등록한다.
