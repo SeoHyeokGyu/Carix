@@ -11,6 +11,10 @@
 #   - 서버의 라우터 Caddy(~/infra): 80/443 소유, TLS 종료, 호스트명 분기
 #   - 이 compose의 carix-caddy: Carix 애플리케이션 라우팅 (deploy/caddy/Caddyfile)
 # 라우터가 참조하는 항목은 deploy/caddy/router.caddy 에 있다.
+#
+# spring-batch 는 없다. 배치 코드가 아직 없어서 spring-api 와 같은 이미지로 두 번째 웹 서버가
+# 아무 일도 하지 않으며 JVM 힙만 차지했다. 메모리가 빠듯한 공유 호스트다.
+# Spring Batch 도입 시 되살린다 — 그때 상주 스케줄러인지 원샷 잡인지도 함께 정한다.
 services:
   carix-caddy:
     image: caddy:2-alpine
@@ -62,31 +66,6 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
-    restart: unless-stopped
-
-  spring-batch:
-    image: ghcr.io/seohyeokgyu/carix/backend:${BACKEND_TAG:-latest}
-    command: ["--spring.batch.job.enabled=true", "--carix.role=batch"]
-    environment:
-      - SPRING_PROFILES_ACTIVE=prod,batch
-      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/${POSTGRES_DB}
-      - SPRING_DATASOURCE_USERNAME=${POSTGRES_USER}
-      - SPRING_DATASOURCE_PASSWORD=${POSTGRES_PASSWORD}
-      - CARIX_ENCRYPTION_KEY=${CARIX_ENCRYPTION_KEY}
-      - KOSIS_API_KEY=${KOSIS_API_KEY}
-      - WORK24_API_KEY=${WORK24_API_KEY}
-      - SARAMIN_API_KEY=${SARAMIN_API_KEY}
-      - JAVA_TOOL_OPTIONS=-XX:MaxRAMPercentage=50
-    depends_on:
-      - postgres
-    mem_limit: 1500m
-    logging:
-      driver: json-file
-      options:
-        max-size: "10m"
-        max-file: "3"
-    # TODO: (cjkang) 상주 스케줄러인지 원샷 잡인지 확정 후 재검토.
-    # 원샷이면 restart: "no" 로 바꾸고 크론이나 `docker compose run`으로 돌린다.
     restart: unless-stopped
 
   postgres:

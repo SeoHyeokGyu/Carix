@@ -278,7 +278,6 @@ flowchart TD
     CarixCaddy -->|"그 외"| NodeSSR["frontend-node :3000"]
     NodeSSR -.->|"SSR 중 API 호출"| SpringBoot
     SpringBoot --> DB[(PostgreSQL)]
-    Batch["spring-batch"] --> DB
 ```
 
 동일 출처에서 화면과 API를 제공해 CORS 구성을 최소화합니다. TLS 인증서 발급·갱신은
@@ -305,8 +304,8 @@ robots 정책과 필요한 구조화 데이터를 제공합니다.
 - API 모킹: MSW
 - 브라우저 E2E: Playwright
 
-OCI VM에서는 `carix-caddy`, `frontend-node`, `spring-api`, `spring-batch`, `postgres`
-컨테이너를 Docker Compose로 운영합니다. 이미지는 GitHub Actions(ARM 러너)가 빌드해 GHCR에
+OCI VM에서는 `carix-caddy`, `frontend-node`, `spring-api`, `postgres` 컨테이너를
+Docker Compose로 운영합니다 (`spring-batch`는 배치 코드 도입 시 추가). 이미지는 GitHub Actions(ARM 러너)가 빌드해 GHCR에
 올리고 서버는 pull만 합니다. 엣지는 2단으로, 서버의 라우터 Caddy가 TLS를 종료하고 호스트명으로
 분기하면 프로젝트 전용 `carix-caddy`가 애플리케이션 라우팅을 맡습니다
 ([배포 계획](docs/plans/oci-server-provisioning-plan.md)).
