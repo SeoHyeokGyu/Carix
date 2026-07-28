@@ -1,7 +1,0 @@
-# core-api 전용 설정.
-carix:
-  index:
-    # 지수 계산 임계값. 재배포 없이 /actuator/refresh 로 갱신할 수 있도록
-    # @RefreshScope 빈에서 읽는다.
-    purchasing-power-warning-threshold: 0.95
-    market-value-gap-warning-threshold: 0.90
