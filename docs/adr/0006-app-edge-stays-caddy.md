@@ -1,6 +1,7 @@
 # 0006. 엣지 프록시 선택: Caddy vs nginx
 
-- 상태: 채택
+- 상태: 채택 — 단 **앱 계층 라우팅은 Spring Cloud Gateway 로 전환 예정**
+  ([설계서](../specs/spring-cloud-architecture.md), 2026-07-28). 라우터 Caddy 유지 근거는 그대로 유효하다
 - 날짜: 2026-07-27
 
 ## 맥락

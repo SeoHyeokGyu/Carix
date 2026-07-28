@@ -8,6 +8,9 @@
 
 ### 1.1 기본 경로 및 인증
 *   **Base URL:** `/api/v1`
+*   **경유:** 전환 후 모든 요청은 Spring Cloud Gateway 를 거친다. Gateway 가 세션을 검증해
+    `X-User-Id` 헤더를 붙이므로 하류 서비스는 세션을 직접 다루지 않는다
+    ([Spring Cloud 아키텍처](spring-cloud-architecture.md))
 *   **인증 방식:** HTTP Only + Secure 쿠키에 담긴 불투명(opaque) 세션 토큰. 서버는 `session` 테이블에서 토큰을 검증한다 (서버 세션 단일 방식 — JWT·`Authorization` 헤더는 사용하지 않음)
 *   **에러 응답 포맷 (HTTP 4xx/5xx):**
     ```json

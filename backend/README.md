@@ -10,6 +10,10 @@ Java 21 + Spring Boot. 인증, 도메인 로직, REST API, 데이터 접근, Spr
 현재는 배포 파이프라인 검증용 최소 스캐폴드다. Spring Boot 4.1 + springdoc(OpenAPI)만 있고
 도메인 API는 아직 없다. JPA·Flyway·Security·Batch는 다음 단계에서 추가한다.
 
+**전환 예정:** 이 모듈은 `auth-service`·`core-api`·`batch-worker` 로 나뉘고 앞에
+Spring Cloud Gateway 가 놓인다
+([설계서](../docs/specs/spring-cloud-architecture.md)).
+
 | 경로 | 용도 |
 | --- | --- |
 | `GET /api/health` | 배포 워크플로 헬스체크 대상 |

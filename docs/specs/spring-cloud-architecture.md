@@ -47,24 +47,34 @@ Eureka는 등록된 포트를 그대로 알려주므로 고정이어도 정상 �
 
 ## 3. 데이터 소유
 
-DB는 하나(`carix`, ADR 0007), 스키마로 나눈다.
+DB는 하나(`carix`, ADR 0007), 스키마는 **둘**로 나눈다.
 
 | 스키마 | 소유 | 테이블 |
 | --- | --- | --- |
 | `auth` | auth-service | `users` `invitation` `magic_link_token` `session` |
-| `core` | core-api | `career_profile` `income_history` `expense_history` `expense_item` `skill` `skill_alias` `user_skill` `index_snapshot` `career_scenario` |
-| `market` | batch-worker | `raw_ingest` `cpi_observation` `wage_stat_observation` `job_posting` `job_posting_skill` `market_aggregate` |
+| `core` | core-api, batch-worker | 나머지 15개 — 사용자 도메인, 지수, 수집 원천, 집계 |
 
-### 의도적으로 남기는 결합
+### 왜 둘인가
 
-1. **`core-api`가 `market.market_aggregate`를 읽기 전용으로 직접 조회한다.** API를 거치지
-   않는다. 서비스 간 통신을 학습 대상으로 선택하지 않았고,
-   [아키텍처 로드맵](architecture-roadmap.md) §3이 "사용자 API 서버는 저장된 집계 데이터만
-   조회한다"를 전제한다. `GRANT SELECT ON market.market_aggregate TO core_api`로 권한을 좁힌다.
-2. **`core.*`가 `auth.users(id)`를 FK로 참조한다.** 단일 DB라 가능하다.
+스키마 분리는 소유 경계를 따라간다. 미리 깔아두지 않는다.
 
-둘 다 순수 MSA에서는 안티패턴이다. 단일 DB를 전제로 한 의도적 타협이며, 서비스별 DB로
-가려면 이 두 지점부터 끊어야 한다.
+`auth-service`만이 독립된 바운디드 컨텍스트다. 인증 데이터는 다른 서비스가 쓰기는커녕
+읽을 일도 없다(FK 참조 제외).
+
+`core-api`와 `batch-worker`는 **같은 데이터를 다른 시점에 다루는 두 프로세스**다. batch가
+`market_aggregate`·`index_snapshot`을 채우면 core-api가 조회한다. 별도 서비스로 분리하지
+않았으므로 스키마도 나누지 않는다. 나누면 경계를 긋자마자 교차 접근으로 넘어야 한다.
+
+### 남는 결합
+
+`core.*`가 `auth.users(id)`를 FK로 참조한다. 단일 DB라 가능하고, 사용자 식별자는 전역이다.
+서비스별 DB로 가려면 이 지점부터 끊어야 한다.
+
+### 향후 분리 시
+
+`raw_ingest`는 외부 API 원문을 담아 대량·고빈도다. 보존 정책이나 vacuum 부담이 사용자 도메인
+테이블과 달라지면 그때 `market` 스키마로 떼어낸다. **운영 특성이 갈릴 때가 분리 시점**이지,
+서비스가 나뉘어서가 아니다.
 
 ## 4. 요청 흐름
 
@@ -76,10 +86,9 @@ flowchart TD
     GW -->|"/api/v1/**"| Core["core-api :8082"]
     GW -->|"그 외"| Web["frontend-node :3000"]
     GW -.->|"세션 검증"| Auth
-    Auth --> DB[("carix — auth 스키마")]
-    Core --> DB2[("carix — core 스키마")]
-    Batch["batch-worker"] --> DB3[("carix — market 스키마")]
-    Core -.->|"읽기 전용"| DB3
+    Auth --> DBA[("carix — auth 스키마")]
+    Core --> DBC[("carix — core 스키마")]
+    Batch["batch-worker"] --> DBC
 ```
 
 ### Gateway 필터 체인
@@ -304,4 +313,4 @@ JVM 6개가 실사용 250~400MB씩이면 1.5~2.4GB 증가한다. 여유 범위 �
 | Spring Cloud Stream·브로커 | 같음. 지수 재계산은 배치가 담당한다 |
 | Spring Cloud Bus | 설정 갱신 브로드캐스트. 서비스 4개면 `/actuator/refresh` 직접 호출로 충분 |
 | Redis | 세션 캐시는 인메모리, rate limit은 도입하지 않음 |
-| 서비스별 DB 인스턴스 | ADR 0007이 단일 DB를 정했다. 스키마 분리로 대신한다 |
+| 서비스별 DB 인스턴스 | ADR 0007이 단일 DB를 정했다. `auth`만 스키마로 분리한다 |
