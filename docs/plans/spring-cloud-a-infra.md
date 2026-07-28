@@ -39,7 +39,10 @@ sudo tailscale serve --bg --tcp=8082 tcp://localhost:8082   # core-api
 - Spring Boot `4.1.0`, Spring Cloud BOM `2025.1.2`. 2025.1.2부터 Boot 4.1.x를 지원한다.
 - Java 툴체인 `21`. `settings.gradle`의 foojay resolver를 유지한다.
 - 모든 JVM 서비스에 `mem_limit`와 `JAVA_TOOL_OPTIONS=-XX:MaxRAMPercentage=50`을 건다. 없으면 힙을 호스트 전체 메모리 기준으로 잡는다.
-- 서비스 포트 고정: `config-server` 8888, `eureka` 8761, `core-api` 8082.
+- 포트는 **컨테이너 내부**와 **호스트 바인딩**을 구분한다.
+  - 내부: `config-server` 8888, `eureka` 8761, `core-api` 8080
+  - 호스트 바인딩(`127.0.0.1:`): `config-server` 8888, `eureka` 8761, `core-api` 8082
+  - Eureka 에 등록되는 것은 내부 포트다. Gateway 는 compose 네트워크 안에서 그 포트로 붙는다.
 - 도메인 서비스는 호스트 포트를 발행하지 않는다. 로컬 접근이 필요한 인프라 서비스만 `127.0.0.1:`에 바인딩한다.
 - 모든 모듈의 Dockerfile은 컴파일하지 않는다. 러너가 만든 JAR을 layered로 풀어 담기만 한다.
 - 각 모듈의 `jar` 태스크를 비활성화한다. plain jar가 남으면 `build/libs/*.jar` 글롭이 둘을 집어 `COPY`가 실패한다.
