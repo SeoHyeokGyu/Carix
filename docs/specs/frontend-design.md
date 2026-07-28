@@ -39,6 +39,8 @@ flowchart TD
 
 - 엣지는 2단이다. 라우터 Caddy(`infra_caddy`)가 80/443과 TLS 종료·호스트명 분기를,
   프로젝트 전용 `carix_caddy`가 애플리케이션 라우팅과 압축을 담당한다.
+  **앱 계층은 Spring Cloud Gateway 로 전환 예정이다**
+  ([Spring Cloud 아키텍처](spring-cloud-architecture.md)).
 - 별도 정적 파일 서버는 없다. `/assets/*`도 `frontend-node`가 서빙하고 Caddy는
   장기 캐시 헤더만 붙인다.
 - Node 서버는 HTML SSR, SEO metadata, 공개 콘텐츠 렌더링을 담당한다.

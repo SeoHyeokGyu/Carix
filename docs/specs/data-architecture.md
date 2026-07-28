@@ -191,6 +191,8 @@ Carix는 개인 커리어 지수 엔진이다. 복수 원천의 노동시장·�
 - API: Java 21, Spring Boot, Spring Security(세션 로그인)
 - 데이터베이스: PostgreSQL, Flyway
 - 영속성: Spring Data JPA, 복잡한 집계는 `JdbcClient`
+- 서비스 분리 예정: 인증은 `auth-service`(스키마 `auth`), 나머지는 `core-api`·`batch-worker`가
+  스키마 `core` 를 공유한다 ([Spring Cloud 아키텍처](spring-cloud-architecture.md))
 - 배치: Spring Batch 별도 워커 프로세스
 - 프런트엔드: Next.js App Router (최소: 로그인, 입력 폼, 대시보드 1페이지)
 - 테스트: JUnit 5, Testcontainers

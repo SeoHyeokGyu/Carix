@@ -216,6 +216,11 @@ pnpm dev              # Vite dev server (기본 5173)
   (프록시 설정은 `vite.config.ts`).
 - Docker 불필요.
 
+> **전환 예정.** 서비스가 나뉘면 로컬에서 작업 대상 하나만 띄우고 config·eureka 는 서버
+> 것을 쓴다. 이때 `register-with-eureka: false` 가 필수다 — 없으면 로컬 인스턴스가 서버
+> Gateway 로부터 운영 트래픽을 받는다
+> ([Spring Cloud 아키텍처 §6](specs/spring-cloud-architecture.md)).
+
 ## 5. 백엔드 개발
 
 Tailscale 클라이언트가 켜진 상태에서(§3):

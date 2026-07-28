@@ -268,6 +268,9 @@ flowchart TD
 | 엣지 — 앱 라우팅 | Caddy 2 (`carix_caddy`) | 경로 분기(`/api/*` → 백엔드, 그 외 → 프런트), 압축, 캐시 헤더 | 도입 |
 | 빌드·배포 | GitHub Actions (ARM 러너), GHCR, Docker Compose, OCI | 이미지 빌드·레지스트리·컨테이너 운영 | 도입 |
 | 팀 DB 접근 | Headscale (자체 호스팅 Tailscale) | 팀원 노트북과 서버를 같은 사설망에 | 도입 |
+| API 게이트웨이 | Spring Cloud Gateway | 라우팅, 세션 검증 필터, 상관관계 ID | **미도입 — 전환 예정** |
+| 설정 관리 | Spring Cloud Config | 설정 외부화, 런타임 갱신 | **미도입 — 전환 예정** |
+| 서비스 디스커버리 | Eureka | 서비스 등록·조회 | **미도입 — 전환 예정** |
 
 엣지는 2단입니다. 서버의 라우터 Caddy가 80/443과 TLS를 소유하고 호스트명으로 분기하면,
 프로젝트 전용 Caddy가 애플리케이션 라우팅을 맡습니다. 두 계층의 소유권이 다릅니다 — 라우터는
@@ -298,6 +301,7 @@ flowchart TD
 | GHCR | `GITHUB_TOKEN`이 자동 제공돼 시크릿이 늘지 않고, pull 시 바뀐 레이어만 전송됩니다 |
 | 서버는 pull만 | 서버가 메모리 압박이 있는 공유 호스트라 빌드를 올리지 않습니다 |
 | 이미지 태그 = 컴포넌트 변경 커밋 | `.env` 두 줄로 어떤 코드가 돌고 있는지 확정되고, 재기동해도 같은 이미지가 뜹니다 |
+| Spring Cloud Gateway·Config·Eureka | 학습·포트폴리오가 주목적인 프로젝트이며, 이 셋을 실제로 운영해 보는 것이 성과물입니다. 서비스 경계는 그 셋이 모두 동작하는 최소 구성(auth 분리)으로 잡았습니다 ([설계서](docs/specs/spring-cloud-architecture.md)) |
 | Headscale (Tailscale SaaS 대체) | 무료 플랜 6명 제한과 외부 계정 의존을 없앱니다. 클라이언트는 공식 Tailscale 그대로라 사용 경험이 같습니다 ([ADR 0008](docs/adr/0008-db-access-via-tailscale.md)) |
 
 인증 방식(서버 세션 + 매직링크)의 근거는 [ADR 0005](docs/adr/0005-server-session-auth.md),
@@ -326,6 +330,11 @@ Node 서버는 HTML과 SEO를 담당하고 Spring Boot는 인증과 비즈니스
 Node 서버는 DB에 직접 접근하거나 Spring Boot 로직을 복제하지 않습니다.
 
 `/assets/*`는 장기 캐시 헤더를 붙여 `frontend-node`로 넘깁니다. 별도 정적 파일 서버는 없습니다.
+
+> **전환 예정.** 애플리케이션 라우팅을 `carix_caddy`에서 Spring Cloud Gateway로 옮기고,
+> 백엔드를 `auth-service`·`core-api`·`batch-worker`로 나눕니다. 라우터 Caddy는 그대로
+> 유지합니다 — TLS 자동 발급 근거가 유효합니다.
+> 상세는 [Spring Cloud 아키텍처 설계서](docs/specs/spring-cloud-architecture.md).
 
 ### 렌더링 전략
 

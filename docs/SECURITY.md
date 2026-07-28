@@ -42,6 +42,10 @@ Carix는 연봉·실수령액·소비 금액 등 민감한 개인 재무 정보�
 - **미확정(구현 단계 처리):** 키 로테이션 절차와 로테이션 시 기존 암호문
   재암호화 전략. 배치 복호화 성능·키 접근 감사.
 
+> **전환 예정.** 세션 검증이 Spring Cloud Gateway 필터로 이동한다. 하류 서비스는 세션을
+> 모르고 `X-User-Id` 헤더만 신뢰하며, 그 전제는 Gateway 를 거치지 않으면 도달할 수 없는
+> 네트워크 구성이다 ([Spring Cloud 아키텍처](specs/spring-cloud-architecture.md)).
+
 ### 3.3 전송·인프라
 
 - 모든 통신은 HTTPS. 서버의 라우터 Caddy(`infra_caddy`)에서 TLS 종료하며 인증서는
