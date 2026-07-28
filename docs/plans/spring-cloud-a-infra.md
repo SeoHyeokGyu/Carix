@@ -1016,7 +1016,8 @@ git commit -m "feat: Spring Cloud Config Server 추가
 - 서버 체크아웃을 읽으므로 설정 변경이 배포를 거친다. 이미지 재빌드도 컨테이너 재생성도
   없는 40초짜리 배포다
 - 서버의 저장소 체크아웃을 읽기 전용으로 마운트한다. 자격증명이 필요 없다
-- private-key 프로퍼티는 키 내용을 받으므로, 기동 시 마운트된 파일을 읽어 넣는다
+- 그 대가로 설정 변경이 배포를 거친다. config/** 를 배포 paths 에 넣되 태그 계산
+  경로에는 없으므로 이미지는 다시 빌드되지 않는다
 - config/spring/ 에 공통 설정과 core-api 설정을 둔다. 지수 임계값처럼 재배포 없이
   바꾸고 싶은 값이 대상이다"
 git push -u origin feat/config-server
