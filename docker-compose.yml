@@ -68,6 +68,24 @@ services:
         max-file: "3"
     restart: unless-stopped
 
+  config-server:
+    image: ghcr.io/seohyeokgyu/carix/config-server:${CONFIG_SERVER_TAG:-latest}
+    environment:
+      - JAVA_TOOL_OPTIONS=-XX:MaxRAMPercentage=50
+    volumes:
+      # 서버의 저장소 체크아웃. 배포 스크립트의 git reset --hard 가 이 내용을 갱신한다.
+      # 라우터 Caddy 가 같은 경로를 마운트하는 것과 같은 방식이다.
+      - /home/opc/carix:/etc/carix-repo:ro
+    ports:
+      - "127.0.0.1:8888:8888"
+    mem_limit: 700m
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    restart: unless-stopped
+
   eureka:
     image: ghcr.io/seohyeokgyu/carix/eureka:${EUREKA_TAG:-latest}
     environment:
