@@ -68,6 +68,24 @@ services:
         max-file: "3"
     restart: unless-stopped
 
+  config-server:
+    image: ghcr.io/seohyeokgyu/carix/config-server:${CONFIG_SERVER_TAG:-latest}
+    environment:
+      - JAVA_TOOL_OPTIONS=-XX:MaxRAMPercentage=50
+      # 기존 GitHub deploy key 를 그대로 쓴다. 자격증명이 새로 생기지 않는다.
+      - CONFIG_GIT_PRIVATE_KEY_FILE=/run/secrets/carix-deploy
+    volumes:
+      - /home/opc/.ssh/carix-deploy:/run/secrets/carix-deploy:ro
+    ports:
+      - "127.0.0.1:8888:8888"
+    mem_limit: 700m
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    restart: unless-stopped
+
   eureka:
     image: ghcr.io/seohyeokgyu/carix/eureka:${EUREKA_TAG:-latest}
     environment:

@@ -1,0 +1,16 @@
+FROM eclipse-temurin:21-jre AS builder
+WORKDIR /builder
+ARG JAR_FILE=build/libs/*.jar
+COPY ${JAR_FILE} application.jar
+RUN java -Djarmode=tools -jar application.jar extract \
+      --layers \
+      --application-filename application.jar \
+      --destination extracted
+
+FROM eclipse-temurin:21-jre
+WORKDIR /application
+COPY --from=builder /builder/extracted/dependencies/ ./
+COPY --from=builder /builder/extracted/snapshot-dependencies/ ./
+COPY --from=builder /builder/extracted/application/ ./
+EXPOSE 8888
+ENTRYPOINT ["java", "-jar", "application.jar"]
