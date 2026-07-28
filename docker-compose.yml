@@ -68,6 +68,20 @@ services:
         max-file: "3"
     restart: unless-stopped
 
+  eureka:
+    image: ghcr.io/seohyeokgyu/carix/eureka:${EUREKA_TAG:-latest}
+    environment:
+      - JAVA_TOOL_OPTIONS=-XX:MaxRAMPercentage=50
+    ports:
+      - "127.0.0.1:8761:8761"
+    mem_limit: 700m
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    restart: unless-stopped
+
   core-api:
     image: ghcr.io/seohyeokgyu/carix/core-api:${CORE_API_TAG:-latest}
     environment:

@@ -1,0 +1,23 @@
+spring:
+  application:
+    name: eureka
+
+server:
+  port: 8761
+
+eureka:
+  client:
+    # 자기 자신은 등록하지도 조회하지도 않는다. 단일 인스턴스이므로 피어 복제가 없다.
+    register-with-eureka: false
+    fetch-registry: false
+  server:
+    # 기본 60초는 개발 중 죽은 인스턴스가 오래 남아 혼란을 준다.
+    eviction-interval-timer-in-ms: 15000
+    # 자기보호 모드. 인스턴스가 적을 때 오탐으로 만료를 막아 낡은 등록이 남는다.
+    enable-self-preservation: false
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
