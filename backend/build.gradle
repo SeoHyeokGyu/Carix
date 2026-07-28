@@ -1,36 +1,49 @@
 plugins {
 	id 'java'
-	id 'org.springframework.boot' version '4.1.0'
-	id 'io.spring.dependency-management' version '1.1.7'
+	id 'org.springframework.boot' version '4.1.0' apply false
+	id 'io.spring.dependency-management' version '1.1.7' apply false
 }
 
-group = 'com.carix'
-version = '0.0.1-SNAPSHOT'
+// Spring Cloud 2025.1.2(Oakwood)부터 Boot 4.1.x 를 지원한다.
+ext {
+	springCloudVersion = '2025.1.2'
+}
 
-java {
-	toolchain {
-		languageVersion = JavaLanguageVersion.of(21)
+subprojects {
+	apply plugin: 'java'
+	apply plugin: 'org.springframework.boot'
+	apply plugin: 'io.spring.dependency-management'
+
+	group = 'com.carix'
+	version = '0.0.1-SNAPSHOT'
+
+	java {
+		toolchain {
+			languageVersion = JavaLanguageVersion.of(21)
+		}
 	}
-}
 
-repositories {
-	mavenCentral()
-}
+	repositories {
+		mavenCentral()
+	}
 
-dependencies {
-	implementation 'org.springframework.boot:spring-boot-starter-webmvc'
-	implementation 'org.springframework.boot:spring-boot-starter-validation'
-	implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:3.0.3'
-	testImplementation 'org.springframework.boot:spring-boot-starter-webmvc-test'
-	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
-}
+	dependencyManagement {
+		imports {
+			mavenBom "org.springframework.cloud:spring-cloud-dependencies:${springCloudVersion}"
+		}
+	}
 
-// Dockerfile이 build/libs/*.jar 를 글롭으로 집는다.
-// plain jar까지 남으면 두 개가 잡혀 COPY가 실패한다.
-tasks.named('jar') {
-	enabled = false
-}
+	dependencies {
+		testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+	}
 
-tasks.named('test') {
-	useJUnitPlatform()
+	// Dockerfile이 build/libs/*.jar 를 글롭으로 집는다.
+	// plain jar까지 남으면 두 개가 잡혀 COPY가 실패한다.
+	tasks.named('jar') {
+		enabled = false
+	}
+
+	tasks.named('test') {
+		useJUnitPlatform()
+	}
 }

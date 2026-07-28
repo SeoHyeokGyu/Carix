@@ -1,6 +1,6 @@
 # Carix 배포 — GitHub Actions(ARM 러너)가 이미지를 빌드해 GHCR에 올리고, OCI 서버는 pull만 한다.
 #
-# 이미지 태그는 컴포넌트별로 나뉘고(BACKEND_TAG / FRONTEND_TAG), 값은 커밋 SHA가 아니라
+# 이미지 태그는 컴포넌트별로 나뉘고(CORE_API_TAG / FRONTEND_TAG), 값은 커밋 SHA가 아니라
 # **그 컴포넌트를 마지막으로 바꾼 커밋**이다. 그래서 빌드 여부 판정이 따로 필요 없다 —
 # 그 태그의 이미지가 레지스트리에 이미 있으면 만들 것이 없다.
 #
@@ -39,7 +39,7 @@ env:
 
 jobs:
   backend:
-    name: Test & Build backend
+    name: Test & Build core-api
     # private 저장소도 ARM 러너 free-tier 대상 (2 vCPU). 서버가 aarch64라 QEMU가 필요 없다.
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 25
@@ -72,18 +72,18 @@ jobs:
           # .md 는 뺀다. README 만 고쳐도 태그가 움직이면 내용이 같은 이미지를 새로
           # 만들게 되고, 서버에서도 태그 문자열이 달라져 컨테이너가 불필요하게 재생성된다.
           # paths 필터의 '!**/*.md' 와 같은 취지다.
-          TAG=$(git log -1 --format=%H -- backend/ ':!*.md' .github/workflows/deploy.yml)
+          TAG=$(git log -1 --format=%H -- backend/core-api/ backend/build.gradle backend/settings.gradle ':!*.md' .github/workflows/deploy.yml)
           [ -n "$TAG" ] || TAG="$GITHUB_SHA"
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
 
           # 그 코드로 만든 이미지가 이미 있으면 다시 만들 것이 없다.
           # 앞선 실행에서 빌드가 실패했다면 태그가 없으므로 자동으로 다시 시도된다.
-          if docker buildx imagetools inspect "${IMAGE_BASE}/backend:${TAG}" >/dev/null 2>&1; then
+          if docker buildx imagetools inspect "${IMAGE_BASE}/core-api:${TAG}" >/dev/null 2>&1; then
             echo "build=false" >> "$GITHUB_OUTPUT"
-            echo "backend:${TAG} 이미 있음 — 빌드 건너뜀"
+            echo "core-api:${TAG} 이미 있음 — 빌드 건너뜀"
           else
             echo "build=true" >> "$GITHUB_OUTPUT"
-            echo "backend:${TAG} 없음 — 빌드"
+            echo "core-api:${TAG} 없음 — 빌드"
           fi
 
       - uses: actions/setup-java@v4
@@ -102,20 +102,20 @@ jobs:
       - name: Build & test
         if: steps.tag.outputs.build == 'true'
         working-directory: backend
-        run: ./gradlew build
+        run: ./gradlew :core-api:build
 
       # Dockerfile은 컴파일하지 않는다. 위에서 만든 JAR을 layered로 풀어 담기만 한다.
       - name: Build & push image
         if: steps.tag.outputs.build == 'true'
         uses: docker/build-push-action@v6
         with:
-          context: ./backend
+          context: ./backend/core-api
           push: true
           provenance: false   # GHCR에 unknown/unknown 매니페스트가 생기는 것을 막는다
           sbom: false
           tags: |
-            ${{ env.IMAGE_BASE }}/backend:${{ steps.tag.outputs.tag }}
-            ${{ env.IMAGE_BASE }}/backend:latest
+            ${{ env.IMAGE_BASE }}/core-api:${{ steps.tag.outputs.tag }}
+            ${{ env.IMAGE_BASE }}/core-api:latest
 
       # GHCR 스토리지는 무한하지 않다 (Free 플랜 private 패키지 한도).
       # 최신 2개(현재 + 직전)만 남긴다. 태그가 컴포넌트별로 나뉜 뒤로 서버가 쓰는 태그는
@@ -126,7 +126,7 @@ jobs:
         if: steps.tag.outputs.build == 'true'
         uses: actions/delete-package-versions@e5bc658cc4c965c472efe991f8beea3981499c55   # v5.0.0
         with:
-          package-name: carix/backend
+          package-name: carix/core-api
           package-type: container
           min-versions-to-keep: 2
 
@@ -215,7 +215,7 @@ jobs:
         env:
           # IMAGE_BASE는 워크플로 수준 env라 모든 스텝 환경에 이미 있다. envs 목록에만 넣는다.
           DEPLOY_SHA: ${{ github.sha }}
-          BACKEND_TAG: ${{ needs.backend.outputs.tag }}
+          CORE_API_TAG: ${{ needs.backend.outputs.tag }}
           FRONTEND_TAG: ${{ needs.frontend.outputs.tag }}
           GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_ACTOR: ${{ github.actor }}
@@ -223,7 +223,7 @@ jobs:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USERNAME }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          envs: DEPLOY_SHA,BACKEND_TAG,FRONTEND_TAG,IMAGE_BASE,GHCR_TOKEN,GH_ACTOR
+          envs: DEPLOY_SHA,CORE_API_TAG,FRONTEND_TAG,IMAGE_BASE,GHCR_TOKEN,GH_ACTOR
           script: |
             set -eu   # -x 금지: docker login 라인이 트레이스에 남는다
             cd /home/opc/carix
@@ -250,7 +250,7 @@ jobs:
               echo "${key}=${val}"
             }
 
-            set_tag BACKEND_TAG "$BACKEND_TAG"
+            set_tag CORE_API_TAG "$CORE_API_TAG"
             set_tag FRONTEND_TAG "$FRONTEND_TAG"
 
             printf '%s' "$GHCR_TOKEN" | docker login ghcr.io -u "$GH_ACTOR" --password-stdin
@@ -288,7 +288,7 @@ jobs:
             # 값이 없으면 여기서 크게 터뜨린다.
             : "${IMAGE_BASE:?IMAGE_BASE 가 원격 스크립트에 전달되지 않았다}"
 
-            LIVE_BACKEND=$(grep '^BACKEND_TAG=' .env | head -1 | cut -d= -f2- || true)
+            LIVE_CORE_API=$(grep '^CORE_API_TAG=' .env | head -1 | cut -d= -f2- || true)
             LIVE_FRONTEND=$(grep '^FRONTEND_TAG=' .env | head -1 | cut -d= -f2- || true)
 
             prune_repo() {
@@ -305,7 +305,7 @@ jobs:
                   done
             }
 
-            prune_repo "${IMAGE_BASE}/backend" "$LIVE_BACKEND"
+            prune_repo "${IMAGE_BASE}/core-api" "$LIVE_CORE_API"
             prune_repo "${IMAGE_BASE}/frontend" "$LIVE_FRONTEND"
 
   healthcheck:
@@ -329,7 +329,7 @@ jobs:
           done
           echo "마지막 응답: api=$api web=$web"
           # 자동 롤백은 두지 않는다. 실패하면 서버는 이 배포 상태로 남으므로,
-          # .env의 BACKEND_TAG / FRONTEND_TAG 를 직전 SHA로 되돌리고
+          # .env의 CORE_API_TAG / FRONTEND_TAG 를 직전 SHA로 되돌리고
           # `docker compose up -d` 로 수동 복구한다.
           echo "헬스체크 실패 — 서버는 이 배포 상태로 남아 있다. 수동 복구 필요."
           exit 1
