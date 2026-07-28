@@ -733,7 +733,7 @@ Expected: 컨테이너 `Up`, UI `200`, 등록 앱 없음
 
 ## Task 3: Config Server 추가
 
-git 백엔드로 설정을 제공한다. 기존 GitHub deploy key 를 재사용해 자격증명을 늘리지 않는다.
+git 백엔드로 설정을 제공한다. **서버에 이미 있는 저장소 체크아웃을 읽는다** — 자격증명이 필요 없다.
 
 **Files:**
 - Create: `backend/config-server/build.gradle`
@@ -811,17 +811,15 @@ spring:
     config:
       server:
         git:
-          # 서버 체크아웃(/etc/carix-repo)이 아니라 GitHub 을 직접 읽는다.
-          # 그 체크아웃은 배포가 돌 때만 갱신되므로, 설정만 바꾼 커밋에
-          # 불필요한 배포가 필요해진다.
-          uri: git@github.com:SeoHyeokGyu/Carix.git
+          # 서버에 이미 있는 저장소 체크아웃을 읽는다. 같은 저장소를 네트워크로 다시
+          # 받을 이유가 없고 자격증명도 필요 없다. 배포 스크립트의 git reset --hard 가
+          # 이 내용을 갱신한다.
+          #
+          # GitHub 을 SSH 로 직접 읽지 않는 이유: JGit 은 RSA·PEM 형식 키만 받는데
+          # 서버의 기존 deploy key 는 ED25519·OpenSSH 형식이라 쓸 수 없다 (2026-07-28 실측).
+          uri: file:///etc/carix-repo
           search-paths: config/spring
           default-label: main
-          # 컨테이너에 마운트한 기존 GitHub deploy key 를 쓴다.
-          ignore-local-ssh-settings: true
-          private-key: ${CONFIG_GIT_PRIVATE_KEY}
-          # 클론 캐시를 유지하고 요청마다 최대 이 주기로만 갱신한다 (초).
-          refresh-rate: 60
 
 server:
   port: 8888
@@ -915,21 +913,21 @@ ls config-server/build/libs/
 
 Expected: `BUILD SUCCESSFUL`, `config-server-0.0.1-SNAPSHOT.jar` 하나
 
-로컬 실행은 GitHub deploy key 가 없어 기동에 실패한다. 배포에서 검증한다.
+로컬 실행은 `/etc/carix-repo` 마운트가 없어 기동에 실패한다. 배포에서 검증한다.
 
 - [ ] **Step 9: compose 에 서비스 추가**
 
-`docker-compose.yml` 의 `eureka` 앞에 넣는다. deploy key 를 읽기 전용으로 마운트한다.
+`docker-compose.yml` 의 `eureka` 앞에 넣는다. 서버의 저장소 체크아웃을 읽기 전용으로 마운트한다.
 
 ```yaml
   config-server:
     image: ghcr.io/seohyeokgyu/carix/config-server:${CONFIG_SERVER_TAG:-latest}
     environment:
       - JAVA_TOOL_OPTIONS=-XX:MaxRAMPercentage=50
-      # 기존 GitHub deploy key 를 그대로 쓴다. 자격증명이 새로 생기지 않는다.
-      - CONFIG_GIT_PRIVATE_KEY_FILE=/run/secrets/carix-deploy
     volumes:
-      - /home/opc/.ssh/carix-deploy:/run/secrets/carix-deploy:ro
+      # 서버의 저장소 체크아웃. 배포 스크립트의 git reset --hard 가 이 내용을 갱신한다.
+      # 라우터 Caddy 가 같은 경로를 마운트하는 것과 같은 방식이다.
+      - /home/opc/carix:/etc/carix-repo:ro
     ports:
       - "127.0.0.1:8888:8888"
     mem_limit: 700m
@@ -941,46 +939,22 @@ Expected: `BUILD SUCCESSFUL`, `config-server-0.0.1-SNAPSHOT.jar` 하나
     restart: unless-stopped
 ```
 
-- [ ] **Step 10: 키 파일을 환경변수로 읽도록 진입점 보완**
+- [ ] **Step 10: 배포 `paths` 에 `config/**` 추가**
 
-Spring Cloud Config 의 `private-key` 는 키 **내용**을 받는다. 파일 경로가 아니다. 컨테이너 기동 시 파일을 읽어 환경변수로 넣는다.
-
-`backend/config-server/src/main/resources/application.yml` 의 `private-key` 줄을 아래로 바꾼다.
+설정 변경이 서버 체크아웃까지 도달해야 한다. `.github/workflows/deploy.yml` 의 `paths` 에 넣는다. 부정 패턴(`'!**/*.md'`)보다 **앞**에 둔다 — 마지막에 매칭된 패턴이 이긴다.
 
 ```yaml
-          private-key: ${CONFIG_GIT_PRIVATE_KEY:}
+    paths:
+      - backend/**
+      - frontend/**
+      - config/**
+      - docker-compose.yml
+      - deploy/**
+      - .github/workflows/deploy.yml
+      - '!**/*.md'
 ```
 
-그리고 진입점에서 파일이 지정되면 읽어 시스템 프로퍼티로 설정한다.
-
-`ConfigServerApplication.java` 를 아래로 교체한다.
-
-```java
-package com.carix.configserver;
-
-import java.nio.file.Files;
-import java.nio.file.Path;
-import org.springframework.boot.SpringApplication;
-import org.springframework.boot.autoconfigure.SpringBootApplication;
-import org.springframework.cloud.config.server.EnableConfigServer;
-
-@SpringBootApplication
-@EnableConfigServer
-public class ConfigServerApplication {
-
-	/**
-	 * Spring Cloud Config 의 git private-key 는 키 내용을 받는다. 파일 경로가 아니다.
-	 * 컨테이너는 deploy key 를 파일로 마운트하므로 기동 시 읽어 프로퍼티로 옮긴다.
-	 */
-	public static void main(String[] args) throws Exception {
-		String keyFile = System.getenv("CONFIG_GIT_PRIVATE_KEY_FILE");
-		if (keyFile != null && !keyFile.isBlank()) {
-			System.setProperty("CONFIG_GIT_PRIVATE_KEY", Files.readString(Path.of(keyFile)));
-		}
-		SpringApplication.run(ConfigServerApplication.class, args);
-	}
-}
-```
+태그 계산 경로에는 `config/` 가 없으므로 설정만 바꾼 커밋은 이미지를 다시 빌드하지 않는다. `git reset --hard` 와 `compose up` 만 돈다.
 
 - [ ] **Step 11: `.env.example` 에 태그 변수 추가**
 
@@ -1039,9 +1013,9 @@ git commit -m "feat: Spring Cloud Config Server 추가
 
 설정을 git 으로 외부화한다. 시크릿은 담지 않는다.
 
-- GitHub 을 직접 읽는다. 서버 체크아웃은 배포 때만 갱신되므로 설정만 바꾼 커밋에
-  불필요한 배포가 필요해진다
-- 기존 GitHub deploy key 를 읽기 전용으로 마운트해 재사용한다. 자격증명이 새로 생기지 않는다
+- 서버 체크아웃을 읽으므로 설정 변경이 배포를 거친다. 이미지 재빌드도 컨테이너 재생성도
+  없는 40초짜리 배포다
+- 서버의 저장소 체크아웃을 읽기 전용으로 마운트한다. 자격증명이 필요 없다
 - private-key 프로퍼티는 키 내용을 받으므로, 기동 시 마운트된 파일을 읽어 넣는다
 - config/spring/ 에 공통 설정과 core-api 설정을 둔다. 지수 임계값처럼 재배포 없이
   바꾸고 싶은 값이 대상이다"
@@ -1050,7 +1024,7 @@ gh pr create --base main --head feat/config-server \
   --title "feat: Spring Cloud Config Server 추가" \
   --body "설정을 git 으로 외부화한다. 시크릿은 .env 가 계속 담당한다.
 
-로컬에 deploy key 가 없어 기동 검증을 하지 못했다. 배포에서 처음 확인된다.
+로컬에 /etc/carix-repo 마운트가 없어 기동 검증을 하지 못했다. 배포에서 처음 확인된다.
 실패해도 다른 서비스에는 영향이 없다."
 ```
 
