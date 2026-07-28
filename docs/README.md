@@ -71,6 +71,7 @@
 | --- | --- |
 | [데이터 선행 검증](plans/data-verification-plan.md) | 원천 4개 API 실측·약관·표본 기준 산출 (구현 착수 선결) |
 | [OCI 서버 구성·배포](plans/oci-server-provisioning-plan.md) | 정본. 디스크·엣지·서버 준비·CD 워크플로·첫 배포 실측과 장애 기록 |
+| [Spring Cloud 전환 A](plans/spring-cloud-a-infra.md) | 멀티모듈·Eureka·Config Server. Gateway(B)·auth 분리(C)는 이후 |
 | [OCI 배포 계획](plans/oci-deployment-plan.md) | 초기 문서화 작업 기록 (완료·대체됨). 배포 실무는 위 문서를 본다 |
 
 ---
