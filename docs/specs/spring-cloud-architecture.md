@@ -29,6 +29,12 @@
 | core-api | 8082 | 프로필·소득·지출·스킬·지수·시나리오 | 등록 |
 | batch-worker | — | 외부 원천 수집·정규화·집계 (Spring Batch) | 등록 |
 
+포트 열은 목표 상태의 **컨테이너 내부** 포트다. Eureka에 등록되고 Gateway가 붙는 것도 이
+포트다. Gateway 도입 전인 현재 `core-api`는 아직 8080을 쓴다 — Caddy가 직접 그리로 붙는다.
+
+호스트 바인딩(`127.0.0.1:`)은 대부분 같은 번호를 쓰지만 `config-server`만 **8890**이다.
+호스트 8888은 저장소 밖 `infra-dozzle-1`이 이미 잡고 있다.
+
 JVM 6개. 여기에 postgres·frontend-node·headscale·라우터 Caddy가 더해진다.
 
 ### 왜 이 개수인가
@@ -243,7 +249,7 @@ eureka.client:
 DB(5432)에 더해 셋을 노출한다. 모두 `127.0.0.1`에만 바인딩하고 `tailscale serve`가 중계한다.
 
 ```bash
-tailscale serve --bg --tcp=8888 tcp://localhost:8888   # config-server
+tailscale serve --bg --tcp=8890 tcp://localhost:8890   # config-server
 tailscale serve --bg --tcp=8761 tcp://localhost:8761   # eureka
 tailscale serve --bg --tcp=8081 tcp://localhost:8081   # auth-service
 tailscale serve --bg --tcp=8082 tcp://localhost:8082   # core-api

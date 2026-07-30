@@ -77,7 +77,9 @@ services:
       # 라우터 Caddy 가 같은 경로를 마운트하는 것과 같은 방식이다.
       - /home/opc/carix:/etc/carix-repo:ro
     ports:
-      - "127.0.0.1:8888:8888"
+      # 호스트 8888 은 infra-dozzle-1 이 0.0.0.0 에 이미 잡고 있다. 컨테이너 내부는
+      # 8888 그대로 — Eureka 에 등록되고 core-api 가 붙는 것은 내부 포트다.
+      - "127.0.0.1:8890:8888"
     mem_limit: 700m
     logging:
       driver: json-file
