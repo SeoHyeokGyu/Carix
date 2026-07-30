@@ -30,7 +30,7 @@
 | [도메인 계산 정의](specs/domain-logic.md) | 지수·시나리오 계산 공식, 가중치 전파, 완화 알고리즘 |
 | [프런트엔드 설계](specs/frontend-design.md) | Vite·React·Node SSR 구성, 렌더링 전략, 배포 단위 |
 | [아키텍처 고도화(로드맵)](specs/architecture-roadmap.md) | MVP 이후: 캐싱, NLP 추출, 서킷 브레이커, 비동기 이벤트 |
-| [Spring Cloud 아키텍처](specs/spring-cloud-architecture.md) | Gateway·Config·Eureka 기반 재설계. 서비스 경계, 설정 관리, 로컬 개발 (설계 확정·미구현) |
+| [Spring Cloud 아키텍처](specs/spring-cloud-architecture.md) | Gateway·Config·Eureka 기반 재설계. 서비스 경계, 설정 관리, 로컬 개발 (계획 A 구현·검증 완료, B·C 미구현) |
 
 ## API
 
@@ -71,7 +71,7 @@
 | --- | --- |
 | [데이터 선행 검증](plans/data-verification-plan.md) | 원천 4개 API 실측·약관·표본 기준 산출 (구현 착수 선결) |
 | [OCI 서버 구성·배포](plans/oci-server-provisioning-plan.md) | 정본. 디스크·엣지·서버 준비·CD 워크플로·첫 배포 실측과 장애 기록 |
-| [Spring Cloud 전환 A](plans/spring-cloud-a-infra.md) | 멀티모듈·Eureka·Config Server. Gateway(B)·auth 분리(C)는 이후 |
+| [Spring Cloud 전환 A](plans/spring-cloud-a-infra.md) | 멀티모듈·Eureka·Config Server. 구현·운영 검증 완료(2026-07-30). 실측으로 드러난 계획 결함 3건 포함. Gateway(B)·auth 분리(C)는 이후 |
 | [OCI 배포 계획](plans/oci-deployment-plan.md) | 초기 문서화 작업 기록 (완료·대체됨). 배포 실무는 위 문서를 본다 |
 
 ---

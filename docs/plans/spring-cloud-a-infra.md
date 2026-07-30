@@ -1125,11 +1125,35 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  *
  * <p>갱신하려면 설정 저장소에 커밋한 뒤 이 서비스의 {@code /actuator/refresh} 를 호출한다.
  * Spring Cloud Bus 를 쓰지 않으므로 자동 전파되지 않는다.
+ *
+ * <p>record 가 아니라 가변 JavaBean 이다. {@code ConfigurationPropertiesRebinder}가
+ * 무인자 생성자로 새 인스턴스를 만든 뒤 값을 다시 바인딩하는데, record 는 무인자 생성자가
+ * 없어 refresh 시점에 {@code BeanInstantiationException: wrong number of arguments: 0
+ * expected: 2} 로 깨진다 (spring-cloud-context 5.0.2, 2026-07-30 서버 실측). 리바인더가
+ * 같은 인스턴스에 값을 다시 넣으므로 이 빈을 주입받은 쪽은 참조를 그대로 두고도 새 값을 본다.
  */
 @ConfigurationProperties(prefix = "carix.index")
-public record IndexThresholdProperties(
-		double purchasingPowerWarningThreshold,
-		double marketValueGapWarningThreshold) {
+public class IndexThresholdProperties {
+
+	private double purchasingPowerWarningThreshold;
+
+	private double marketValueGapWarningThreshold;
+
+	public double getPurchasingPowerWarningThreshold() {
+		return this.purchasingPowerWarningThreshold;
+	}
+
+	public void setPurchasingPowerWarningThreshold(double purchasingPowerWarningThreshold) {
+		this.purchasingPowerWarningThreshold = purchasingPowerWarningThreshold;
+	}
+
+	public double getMarketValueGapWarningThreshold() {
+		return this.marketValueGapWarningThreshold;
+	}
+
+	public void setMarketValueGapWarningThreshold(double marketValueGapWarningThreshold) {
+		this.marketValueGapWarningThreshold = marketValueGapWarningThreshold;
+	}
 }
 ```
 
@@ -1185,7 +1209,6 @@ package com.carix.demo;
 import com.carix.config.IndexThresholdProperties;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import org.springframework.cloud.context.config.annotation.RefreshScope;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -1193,11 +1216,14 @@ import org.springframework.web.bind.annotation.RestController;
 /**
  * Config Server 연동 확인용 임시 엔드포인트.
  *
+ * <p>{@code @RefreshScope} 는 필요 없다. {@code ConfigurationPropertiesRebinder} 가 주입된
+ * 프로퍼티 빈에 같은 인스턴스로 새 값을 다시 바인딩하므로, 이 참조가 그대로여도 갱신된 값을
+ * 읽는다.
+ *
  * <p>TODO: (cjkang) 지수 계산이 구현되면 이 컨트롤러를 제거한다.
  */
 @RestController
 @RequestMapping("/v1/demo")
-@RefreshScope
 @Tag(name = "demo", description = "임시 확인용. 도메인 API 도입 시 제거한다")
 public class ThresholdController {
 
@@ -1243,9 +1269,13 @@ spring:
     # Config Server 가 이 이름으로 config/spring/core-api.yml 을 찾는다.
     name: core-api
   config:
-    # Config Server 를 쓰되, 로컬 프로파일에서는 끌 수 있게 import 를 optional 로 두지 않는다.
-    # 운영에서 설정 없이 기본값으로 뜨면 잘못된 임계값으로 계산해 조용히 틀린 결과를 낸다.
-    import: configserver:${CONFIG_SERVER_URL:http://config-server:8888}
+    # optional: 은 "위치를 해석할 수 없으면 건너뛴다" 는 뜻이다. 연결 실패와는 다르다 —
+    # 연결 실패는 아래 fail-fast 가 잡는다. 운영에서 설정 없이 기본값으로 뜨면
+    # 잘못된 임계값으로 계산해 조용히 틀린 결과를 낸다.
+    #
+    # 테스트는 spring.cloud.config.enabled=false 로 클라이언트를 꺼서 이 위치를
+    # 해석 불가로 만들고, optional: 이 그것을 건너뛰게 한다 (Step 12 참조).
+    import: optional:configserver:${CONFIG_SERVER_URL:http://config-server:8888}
   cloud:
     config:
       fail-fast: true
@@ -1261,6 +1291,17 @@ server:
 
 eureka:
   client:
+    # /actuator/refresh 때 Eureka 클라이언트를 다시 만들지 않는다.
+    #
+    # 기본값(true)이면 eurekaClient 가 @RefreshScope 라 refresh 마다 재생성되는데,
+    # 새 DiscoveryClient 가 자기 instanceId 를 null 로 들고 레지스트리를 조회해
+    # NullPointerException: Cannot invoke "Object.hashCode()" because "key" is null
+    # 로 죽는다 (spring-cloud-netflix-eureka-client 5.0.2, 2026-07-30 서버 실측).
+    #
+    # 애초에 갱신하려는 것은 지수 임계값 같은 도메인 설정이지 레지스트리 접속 정보가 아니다.
+    # 재생성되면 refresh 마다 등록이 한 번씩 끊겼다 붙는다.
+    refresh:
+      enable: false
     service-url:
       defaultZone: ${EUREKA_URL:http://eureka:8761/eureka/}
   instance:
@@ -1300,22 +1341,29 @@ Expected: `BUILD SUCCESSFUL`
 **테스트는 Config Server 에 닿을 수 없다.** `@SpringBootTest` 가
 `ConfigClientFailFastException` 으로 실패한다.
 
-`@TestPropertySource` 로는 못 고친다. `spring.config.import` 는 `SpringApplication`
-의 `prepareEnvironment()` 단계에서 해석되는데, `@TestPropertySource` 값은 그보다 뒤인
-컨텍스트 로딩 시점에 주입된다.
+**두 가지 방법을 먼저 시도했고 둘 다 실패했다.**
 
-**시스템 프로퍼티는 `prepareEnvironment()` 단계에서 읽힌다.** Gradle 테스트 태스크에서
-`optional:` 접두사로 바꾼다 — 운영 설정(`application.yml`)은 fail-fast 를 유지한다.
+`@TestPropertySource` 로 `spring.config.import` 를 덮는 것: 안 된다. `spring.config.import` 는
+`SpringApplication` 의 `prepareEnvironment()` 단계에서 해석되는데, `@TestPropertySource` 값은
+그보다 뒤인 컨텍스트 로딩 시점에 주입된다.
+
+시스템 프로퍼티로 `spring.config.import` 자체를 덮는 것: 안 된다. `application.yml` 안의
+`spring.config.import` 선언은 그 파일 자체의 import 처리로 별도로 해석돼, 나중에 주어진
+시스템 프로퍼티로 값을 바꿔치기할 수 없다.
+
+**동작하는 조합:** `application.yml` 의 `import` 는 `optional:` 접두사를 그대로 두고(Step 10),
+테스트에서는 `spring.cloud.config.enabled=false` 로 **클라이언트 자체**를 끈다. 그러면
+`optional:` 이 해석 불가 상태를 건너뛴다. 운영 설정은 그대로 fail-fast 를 유지한다.
 
 `backend/core-api/build.gradle` 에 더한다.
 
 ```gradle
 tasks.named('test') {
-	// spring.config.import 는 prepareEnvironment 단계에서 해석돼 @TestPropertySource 로
-	// 덮을 수 없다. 시스템 프로퍼티는 그 단계에서 읽히므로 여기서 optional 로 바꾼다.
-	// 운영 application.yml 은 fail-fast 를 유지한다 — 설정 없이 기본값으로 뜨면
-	// 잘못된 임계값으로 계산해 조용히 틀린 결과를 낸다.
-	systemProperty 'spring.config.import', 'optional:configserver:'
+	// spring.config.import 를 시스템 프로퍼티로 직접 덮는 것도, @TestPropertySource 로
+	// 덮는 것도 안 된다 — 위 설명 참조. 클라이언트 자체를 꺼서 application.yml 의
+	// optional: 이 해석 불가를 건너뛰게 한다. 운영 application.yml 은 fail-fast 를
+	// 유지한다 — 설정 없이 기본값으로 뜨면 잘못된 임계값으로 계산해 조용히 틀린 결과를 낸다.
+	systemProperty 'spring.cloud.config.enabled', 'false'
 	systemProperty 'eureka.client.enabled', 'false'
 }
 ```
@@ -1346,8 +1394,9 @@ git commit -m "feat: core-api 를 Config·Eureka 클라이언트로
   fail-fast 를 유지한다 — 설정 없이 기본값으로 뜨면 잘못된 임계값으로 계산해
   조용히 틀린 결과를 낸다
 - spring-cloud-starter-netflix-eureka-client 로 레지스트리에 등록한다
-- 연동 확인용 GET /api/v1/demo/thresholds 추가. @RefreshScope 라
-  /actuator/refresh 후 값이 바뀐다
+- 연동 확인용 GET /api/v1/demo/thresholds 추가. IndexThresholdProperties 를
+  가변 JavaBean 으로 두어 /actuator/refresh 후 값이 바뀐다 (record 는 리바인더가
+  재기동시킬 때 무인자 생성자가 없어 깨진다)
 - application-local.yml 에 register-with-eureka: false. 없으면 로컬 인스턴스가
   서버 Gateway 로부터 운영 트래픽을 받는다"
 git push -u origin feat/core-api-cloud-client

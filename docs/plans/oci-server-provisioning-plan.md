@@ -3,6 +3,11 @@
 > **For agentic workers:** REQUIRED SUB-SKILL: superpowers:executing-plans 로 단계별 실행한다.
 > Phase 1·3·4는 사람이 서버에서 1회 수행하는 준비 작업이고, Phase 5 이후는 CI/CD 경로다.
 
+> **역사 기록이다.** 이 문서는 단일 백엔드 컨테이너(`spring-api`) 기준으로 작성됐고 Phase는
+> 전부 완료됐다. 이후 [Spring Cloud 전환 계획 A](spring-cloud-a-infra.md)로 백엔드가
+> `config-server`·`eureka`·`core-api` 로 나뉘었다. 본문의 `spring-api` 는 그 시점의 원문
+> 그대로 두되, 지금 서버에서 실행할 명령은 바뀐 이름을 쓴다.
+
 **Goal:** 기존 OCI 인스턴스 `opc@144.24.90.88`에 Carix를 얹는다.
 **빌드는 GitHub Actions ARM 러너에서 하고 서버는 이미지를 pull만** 한다.
 엣지는 2단이다. 서버의 라우터 Caddy가 TLS를 종료하고 호스트명으로 분기하면,
@@ -984,7 +989,8 @@ rg -n "nginx" docker-compose.yml   # 결과 없어야 한다
 - [ ] **Step 2: 배포 후 상태**
 
 ```bash
-ssh carix-oci 'cd /home/opc/carix && docker compose ps && docker compose logs --tail=50 spring-api'
+ssh carix-oci 'cd /home/opc/carix && docker compose ps && docker compose logs --tail=50 core-api'
+# 서비스명은 spring-cloud-a-infra.md 이후 core-api 로 바뀌었다.
 curl -sS -o /dev/null -w "%{http_code}\n" https://carix.144.24.90.88.sslip.io/
 curl -sS -o /dev/null -w "%{http_code}\n" https://carix.144.24.90.88.sslip.io/api/health
 ```

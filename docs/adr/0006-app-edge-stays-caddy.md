@@ -9,7 +9,7 @@
 엣지는 2단이다.
 
 - **라우터**(`infra_caddy`, `~/infra` 스택 소유) — 80/443 소유, TLS 종료, 호스트명 분기
-- **앱 계층**(`carix_caddy`, 이 저장소 소유) — 경로 분기. `/api/*`는 `spring-api`, 나머지는 `frontend-node`
+- **앱 계층**(`carix_caddy`, 이 저장소 소유) — 경로 분기. `/api/*`는 `core-api`, 나머지는 `frontend-node`
 
 두 계층 모두 현재 Caddy다. nginx로 바꿀지 검토하면서 두 선택지를 비교했다.
 계층마다 요구가 달라 따로 본다.

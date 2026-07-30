@@ -259,7 +259,7 @@ flowchart TD
 | Node SSR | Node.js 24 LTS, Express, `@react-router/express` | HTML 렌더링, SEO metadata, 공개 콘텐츠 | 미도입 — `node:http` 스텁 |
 | 클라이언트 데이터 | TanStack Query, React Hook Form, Zod | API 상태, 입력 폼, 검증 | 미도입 |
 | UI·시각화 | Tailwind CSS, shadcn/ui, Recharts | 컴포넌트, 스타일, 지수 차트 | 미도입 |
-| 백엔드 | Java 21, Spring Boot 4.1 | 인증, 도메인 로직, REST API, 데이터 접근 | 도입 (인증·도메인 로직 미구현) |
+| 백엔드 | Java 21, Spring Boot 4.1, Gradle 멀티모듈 | 인증, 도메인 로직, REST API, 데이터 접근 | 도입 (인증·도메인 로직 미구현) |
 | API 문서 | springdoc-openapi | OpenAPI 문서, Swagger UI | 도입 |
 | 데이터 접근 | Spring Data JPA, Flyway | 영속화, 스키마 마이그레이션 | 미도입 |
 | 데이터 수집 | Spring Batch | 외부 원천 수집·집계 | 미도입 |
@@ -268,9 +268,9 @@ flowchart TD
 | 엣지 — 앱 라우팅 | Caddy 2 (`carix_caddy`) | 경로 분기(`/api/*` → 백엔드, 그 외 → 프런트), 압축, 캐시 헤더 | 도입 |
 | 빌드·배포 | GitHub Actions (ARM 러너), GHCR, Docker Compose, OCI | 이미지 빌드·레지스트리·컨테이너 운영 | 도입 |
 | 팀 DB 접근 | Headscale (자체 호스팅 Tailscale) | 팀원 노트북과 서버를 같은 사설망에 | 도입 |
-| API 게이트웨이 | Spring Cloud Gateway | 라우팅, 세션 검증 필터, 상관관계 ID | **미도입 — 전환 예정** |
-| 설정 관리 | Spring Cloud Config | 설정 외부화, 런타임 갱신 | **미도입 — 전환 예정** |
-| 서비스 디스커버리 | Eureka | 서비스 등록·조회 | **미도입 — 전환 예정** |
+| 설정 관리 | Spring Cloud Config | 설정 외부화, 런타임 갱신 | 도입 — native(파일시스템) 백엔드 |
+| 서비스 디스커버리 | Eureka | 서비스 등록·조회 | 도입 |
+| API 게이트웨이 | Spring Cloud Gateway | 라우팅, 세션 검증 필터, 상관관계 ID | **미도입 — 전환 예정 (계획 B)** |
 
 엣지는 2단입니다. 서버의 라우터 Caddy가 80/443과 TLS를 소유하고 호스트명으로 분기하면,
 프로젝트 전용 Caddy가 애플리케이션 라우팅을 맡습니다. 두 계층의 소유권이 다릅니다 — 라우터는
@@ -302,6 +302,7 @@ flowchart TD
 | 서버는 pull만 | 서버가 메모리 압박이 있는 공유 호스트라 빌드를 올리지 않습니다 |
 | 이미지 태그 = 컴포넌트 변경 커밋 | `.env` 두 줄로 어떤 코드가 돌고 있는지 확정되고, 재기동해도 같은 이미지가 뜹니다 |
 | Spring Cloud Gateway·Config·Eureka | 학습·포트폴리오가 주목적인 프로젝트이며, 이 셋을 실제로 운영해 보는 것이 성과물입니다. 서비스 경계는 그 셋이 모두 동작하는 최소 구성(auth 분리)으로 잡았습니다 ([설계서](docs/specs/spring-cloud-architecture.md)) |
+| Config Server native 백엔드 | git 백엔드로 서버 체크아웃을 가리켰더니 JGit 이 그 저장소의 origin(GitHub SSH)으로 fetch 를 시도해 ED25519 키로 인증이 안 됐습니다 (2026-07-30 실측). native 는 git 을 다루지 않고 파일만 읽습니다 |
 | Headscale (Tailscale SaaS 대체) | 무료 플랜 6명 제한과 외부 계정 의존을 없앱니다. 클라이언트는 공식 Tailscale 그대로라 사용 경험이 같습니다 ([ADR 0008](docs/adr/0008-db-access-via-tailscale.md)) |
 
 인증 방식(서버 세션 + 매직링크)의 근거는 [ADR 0005](docs/adr/0005-server-session-auth.md),
@@ -317,12 +318,17 @@ flowchart TD
 flowchart TD
     Internet([Internet]) -->|":443 TLS"| Router["infra_caddy (라우터)"]
     Router -->|"carix.…sslip.io"| CarixCaddy["carix_caddy (:80)"]
-    CarixCaddy -->|"/api/*"| SpringBoot["spring-api :8080"]
+    CarixCaddy -->|"/api/*"| CoreApi["core-api :8080"]
     CarixCaddy -->|"/assets/*"| NodeSSR
     CarixCaddy -->|"그 외"| NodeSSR["frontend-node :3000"]
-    NodeSSR -.->|"SSR 중 API 호출"| SpringBoot
-    SpringBoot --> DB[(PostgreSQL)]
+    NodeSSR -.->|"SSR 중 API 호출"| CoreApi
+    CoreApi --> DB[(PostgreSQL)]
+    CoreApi -.->|"설정 조회"| Config["config-server :8888"]
+    CoreApi -.->|"등록"| Eureka["eureka :8761"]
 ```
+
+`core-api` 가 아직 Gateway 없이 Caddy에서 직접 붙는 구성입니다. Gateway 도입 시
+`CarixCaddy -->|"/api/*"| Gateway["gateway :8080"]` 로 한 단 더 얹습니다.
 
 동일 출처에서 화면과 API를 제공해 CORS 구성을 최소화합니다. TLS 인증서 발급·갱신은
 **라우터 Caddy만** 담당하고, `carix_caddy`는 `auto_https off`로 평문 :80만 받습니다.
@@ -361,11 +367,13 @@ PR 단계 CI는 두지 않습니다. `./gradlew build`가 자동으로 도는 �
 워크플로뿐이며, 프런트엔드 검증은 로컬에서 직접 돌립니다
 ([ADR 인덱스](docs/adr/README.md) 참조).
 
-OCI VM에서는 `carix-caddy`, `headscale`, `frontend-node`, `spring-api`, `postgres` 컨테이너를
-Docker Compose로 운영합니다 (`spring-batch`는 배치 코드 도입 시 추가). 이미지는 GitHub Actions(ARM 러너)가 빌드해 GHCR에
-올리고 서버는 pull만 합니다. 엣지는 2단으로, 서버의 라우터 Caddy가 TLS를 종료하고 호스트명으로
-분기하면 프로젝트 전용 `carix-caddy`가 애플리케이션 라우팅을 맡습니다
-([배포 계획](docs/plans/oci-server-provisioning-plan.md)).
+OCI VM에서는 `carix-caddy`, `headscale`, `frontend-node`, `config-server`, `eureka`,
+`core-api`, `postgres` 컨테이너를 Docker Compose로 운영합니다 (`auth-service`·`batch-worker`는
+분리 시 추가). 이미지는 컴포넌트별로 GitHub Actions(ARM 러너)가 빌드해 GHCR에 올리고 서버는
+pull만 합니다. 엣지는 2단으로, 서버의 라우터 Caddy가 TLS를 종료하고 호스트명으로 분기하면
+프로젝트 전용 `carix-caddy`가 애플리케이션 라우팅을 맡습니다
+([배포 계획](docs/plans/oci-server-provisioning-plan.md),
+[Spring Cloud 설계서](docs/specs/spring-cloud-architecture.md)).
 
 ## 프로젝트 상태
 
@@ -380,6 +388,8 @@ Docker Compose로 운영합니다 (`spring-batch`는 배치 코드 도입 시 �
 - [ ] 애플리케이션 구현
 - [x] Oracle Cloud Infrastructure(OCI) 배포 환경 구성 — 2026-07-26 첫 배포 성공.
       최소 스캐폴드 기준 빌드 → GHCR → SSH → 헬스체크 전 구간 검증 ([배포 계획](docs/plans/oci-server-provisioning-plan.md))
+- [x] Spring Cloud 전환 계획 A(멀티모듈·Config Server·Eureka) 구현·운영 검증 — 2026-07-30
+      ([설계서](docs/specs/spring-cloud-architecture.md))
 
 ## 저장소 구성
 
@@ -395,7 +405,8 @@ Carix/
 ├── config/                    CPI 분류 매핑, 기본 지출 가중치
 ├── verification/              데이터 원천 선행 검증 스크립트와 실측 노트
 ├── frontend/                  Node SSR (현재는 배포 검증용 스텁 — Vite·React 스캐폴드 예정)
-├── backend/                   Spring Boot 4.1 + springdoc (최소 스캐폴드 — JPA·Batch 도입 예정)
+├── backend/                   Gradle 멀티모듈 — config-server, eureka, core-api
+│                               (core-api 는 최소 스캐폴드 — JPA·Batch·Gateway 도입 예정)
 ├── docs/
 │   ├── README.md             문서 맵 (주제별 인덱스 — 여기서 시작)
 │   ├── specs/                설계 문서 정본 (MVP, API, DB, UI/UX 등)

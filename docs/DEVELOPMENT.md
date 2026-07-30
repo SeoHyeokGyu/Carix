@@ -136,7 +136,14 @@ sudo tailscale up --login-server https://headscale.144.24.90.88.sslip.io --authk
 
 # DB 포트를 tailnet 안에만 중계 (재부팅 후에도 유지)
 sudo tailscale serve --bg --tcp=5432 tcp://localhost:5432
+
+# core-api 를 로컬에서 서버 Config·Eureka 에 붙이려면(§5) 이 둘도 중계한다
+sudo tailscale serve --bg --tcp=8890 tcp://localhost:8890   # config-server
+sudo tailscale serve --bg --tcp=8761 tcp://localhost:8761   # eureka
 ```
+
+> **미완료.** 위 `tailscale up`은 아직 서버에서 실행되지 않았다 — 브라우저 인증이 필요해
+> 관리자가 직접 해야 한다. 그 전까지 §5의 `CONFIG_SERVER_URL` 은 tailnet 으로 닿지 않는다.
 
 `serve`는 tailnet 내부에만 공개한다 — 인터넷에 여는 것은 `funnel`이며 쓰지 않는다.
 
@@ -204,6 +211,12 @@ Database 도구의 SSH 터널 설정도 필요 없다. 노트북에 컨테이너
 
 **이 연결은 운영 DB다.** 데이터 편집·삭제 전에 무엇을 지우는지 확인한다.
 
+**core-api 실행 구성**
+
+Run/Debug Configurations → `core-api` → Active profiles 에 `local` 을 고정한다(§5).
+매번 커맨드에 `--spring.profiles.active=local` 을 타이핑하지 않기 위해서다 — 빠뜨리면
+서버 Eureka 에 등록된다.
+
 ## 4. 프런트엔드 개발
 
 ```bash
@@ -216,19 +229,29 @@ pnpm dev              # Vite dev server (기본 5173)
   (프록시 설정은 `vite.config.ts`).
 - Docker 불필요.
 
-> **전환 예정.** 서비스가 나뉘면 로컬에서 작업 대상 하나만 띄우고 config·eureka 는 서버
-> 것을 쓴다. 이때 `register-with-eureka: false` 가 필수다 — 없으면 로컬 인스턴스가 서버
-> Gateway 로부터 운영 트래픽을 받는다
-> ([Spring Cloud 아키텍처 §6](specs/spring-cloud-architecture.md)).
-
 ## 5. 백엔드 개발
 
-Tailscale 클라이언트가 켜진 상태에서(§3):
+`config-server`·`eureka` 는 서버에서 이미 돈다 — 로컬에는 작업 대상(`core-api`) 하나만 띄운다.
+
+**가장 큰 위험 — 로컬 인스턴스가 운영 트래픽을 받는다.** 로컬 `core-api`가 서버 Eureka에
+등록되면 서버 쪽 라우팅이 그리로 실사용자 요청을 보낼 수 있다. 노트북을 닫으면 서비스가 죽는다.
+그래서 **`local` 프로파일을 반드시 켠다** — `application-local.yml`이 `register-with-eureka:
+false`를 강제한다.
+
+Tailscale 클라이언트가 켜진 상태에서(§3, §3.1의 8890·8761 중계 포함):
 
 ```bash
 cd backend
-./gradlew bootRun
+CONFIG_SERVER_URL=http://<서버-tailnet-주소>:8890 EUREKA_URL=http://<서버-tailnet-주소>:8761/eureka/ \
+  ./gradlew :core-api:bootRun --args='--spring.profiles.active=local'
 ```
+
+> §3.1의 8890·8761 중계가 아직 서버에 설정되지 않았다면(관리자의 `tailscale up` 미완료),
+> 이 명령은 config-server 에 닿지 못하고 fail-fast 로 죽는다. 그때까지 로컬 검증은
+> `backend/README.md`의 로컬 `config-server`·`eureka` 직접 기동 절차를 쓴다.
+
+`--spring.profiles.active=local` 을 빠뜨리면 서버 Eureka에 등록된다. 커맨드에서 매번
+타이핑하는 대신 IntelliJ 실행 구성의 Active profiles 에 `local`을 고정해 둔다(§3.4).
 
 컨텍스트 패스가 `/api`다. 기동 후 확인 경로:
 
@@ -237,11 +260,15 @@ cd backend
 | `http://localhost:8080/api/health` | 헬스체크 |
 | `http://localhost:8080/api/swagger-ui/index.html` | Swagger UI |
 | `http://localhost:8080/api/v3/api-docs` | OpenAPI JSON |
+| `http://localhost:8080/api/v1/demo/thresholds` | Config Server 연동 확인. 서버 `config/spring/core-api.yml` 값을 읽는다 |
 
 - **DB 없이 뜬다.** 아직 DataSource 자동설정이 없으므로 §3 설정 없이도 기동된다.
   아래 두 항목은 JPA·Batch 도입 이후 적용된다.
 - Flyway가 기동 시 마이그레이션을 적용한다. dev DB에만 적용되도록 프로파일을 확인한다.
-- 배치 워커는 별도 프로파일(`--spring.profiles.active=dev,batch`)로 실행한다.
+- 배치 워커는 별도 프로파일(`--spring.profiles.active=local,batch`)로 실행한다.
+
+전환 예정(Gateway 도입, `auth-service`·`batch-worker` 분리)은
+[Spring Cloud 아키텍처 §6](specs/spring-cloud-architecture.md) 참조.
 
 ## 6. 테스트
 

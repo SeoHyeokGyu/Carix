@@ -1,9 +1,11 @@
 # Spring Cloud 기반 백엔드 아키텍처 설계
 
-> 상태: 설계 확정, 미구현
+> 상태: 계획 A(멀티모듈·Config Server·Eureka) 구현·운영 검증 완료 — 2026-07-30.
+> 계획 B(Gateway 도입)·C(auth-service 분리)는 미구현.
 > 날짜: 2026-07-28
 > 관련 결정: [ADR 0007](../adr/0007-single-database-for-prod-and-dev.md) 단일 DB,
-> [ADR 0008](../adr/0008-db-access-via-tailscale.md) Headscale 접근
+> [ADR 0008](../adr/0008-db-access-via-tailscale.md) Headscale 접근,
+> [구현 계획](../plans/spring-cloud-a-infra.md)
 
 ## 1. 목적과 전제
 
@@ -336,7 +338,7 @@ spring.cloud.gateway.routes:
 JVM 6개가 실사용 250~400MB씩이면 1.5~2.4GB 증가한다. 여유 범위 안이다.
 
 **각 서비스에 `mem_limit`와 `-XX:MaxRAMPercentage`를 반드시 건다.** 없으면 JVM이 호스트
-전체 메모리를 기준으로 힙을 잡는다. 현재 `spring-api`가 쓰는 방식을 그대로 따른다.
+전체 메모리를 기준으로 힙을 잡는다. `core-api`·`config-server`·`eureka` 모두 이 방식이다.
 
 이미지는 베이스 JRE 레이어를 공유한다. 컴포넌트별 태그 방식(마지막 변경 커밋 기준)이
 이미 구현돼 있어, 서비스 하나만 바뀐 커밋은 나머지를 다시 빌드하지 않는다.
