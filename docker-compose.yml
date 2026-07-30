@@ -113,6 +113,8 @@ services:
       - "8080"
     depends_on:
       - postgres
+      - config-server
+      - eureka
     mem_limit: 1500m
     logging:
       driver: json-file
