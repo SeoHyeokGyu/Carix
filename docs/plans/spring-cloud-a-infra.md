@@ -808,19 +808,22 @@ public class ConfigServerApplication {
 spring:
   application:
     name: config-server
+  # git 백엔드가 아니라 native(파일시스템) 백엔드를 쓴다.
+  #
+  # git 백엔드로 file:///etc/carix-repo 를 가리켰더니 JGitEnvironmentRepository 가 그 경로를
+  # 제자리 작업복사본으로 삼고, 저장소에 설정된 origin(git@github-carix:...)으로 fetch 를
+  # 시도했다. JGit 은 RSA·PEM 키만 받는데 서버 deploy key 는 ED25519·OpenSSH 라 인증이
+  # 실패하고, 이어지는 checkout 도 :ro 마운트라 실패했다 (2026-07-30 실측).
+  #
+  # 저장소를 최신으로 유지하는 일은 배포 스크립트의 git reset --hard 가 이미 한다.
+  # Config Server 가 git 을 한 번 더 다룰 이유가 없다.
+  profiles:
+    active: native
   cloud:
     config:
       server:
-        git:
-          # 서버에 이미 있는 저장소 체크아웃을 읽는다. 같은 저장소를 네트워크로 다시
-          # 받을 이유가 없고 자격증명도 필요 없다. 배포 스크립트의 git reset --hard 가
-          # 이 내용을 갱신한다.
-          #
-          # GitHub 을 SSH 로 직접 읽지 않는 이유: JGit 은 RSA·PEM 형식 키만 받는데
-          # 서버의 기존 deploy key 는 ED25519·OpenSSH 형식이라 쓸 수 없다 (2026-07-28 실측).
-          uri: file:///etc/carix-repo
-          search-paths: config/spring
-          default-label: main
+        native:
+          search-locations: ${CONFIG_SEARCH_LOCATIONS:file:/etc/carix-repo/config/spring}
 
 server:
   port: 8888

@@ -166,27 +166,45 @@ config/
     └── batch-worker.yml
 ```
 
-### Config Server는 GitHub을 직접 읽는다
+### Config Server는 서버 체크아웃을 파일로 읽는다
 
 ```yaml
-spring.cloud.config.server.git:
-  uri: git@github.com:SeoHyeokGyu/Carix.git
-  search-paths: config/spring
-  ignore-local-ssh-settings: true
-  refresh-rate: 60
+spring:
+  profiles:
+    active: native
+  cloud:
+    config:
+      server:
+        native:
+          search-locations: file:/etc/carix-repo/config/spring
 ```
 
-서버의 기존 GitHub deploy key(`~/.ssh/carix-deploy`)를 컨테이너에 읽기 전용으로 마운트한다.
-**자격증명이 새로 생기지 않는다.**
+`/etc/carix-repo`는 서버의 저장소 체크아웃(`/home/opc/carix`)을 읽기 전용으로 마운트한 것이다.
+배포 스크립트의 `git reset --hard`가 그 내용을 갱신한다.
 
-서버 체크아웃(`/etc/carix-repo`)을 읽지 않는 이유: 그 체크아웃은 배포가 돌 때만 갱신되므로,
-설정만 바꾼 커밋이 반영되려면 불필요한 배포가 필요해진다.
+**git 백엔드를 쓰지 않는 이유** — 둘 다 실패했다.
+
+GitHub을 SSH로 직접 읽는 것: JGit은 RSA·PEM 형식 키만 받는데 서버의 기존 deploy key는
+ED25519·OpenSSH 형식이라 쓸 수 없다 (2026-07-28 실측). 새 자격증명을 만들어야 한다.
+
+git 백엔드로 `file:///etc/carix-repo`를 가리키는 것: `JGitEnvironmentRepository`가 그 경로를
+제자리 작업복사본으로 삼고, **저장소에 설정된 origin(`git@github-carix:...`)으로 fetch를
+시도한다.** 위와 같은 이유로 인증이 실패하고, 이어지는 checkout도 읽기 전용 마운트라
+`RefNotFoundException: Ref master cannot be resolved`로 끝난다 (2026-07-30 실측, run 30532697261).
+
+native 백엔드는 git을 아예 다루지 않고 파일만 읽는다. 저장소를 최신으로 유지하는 일은
+배포 스크립트가 이미 하므로 Config Server가 그것을 한 번 더 할 이유가 없다.
+
+**대가**: 설정만 바꾼 커밋도 배포 워크플로를 한 번 태워야 `/etc/carix-repo`가 갱신된다.
+다만 그 실행은 이미지를 만들지 않고 컨테이너도 재생성하지 않는다 — 태그가 그대로라
+`docker compose up -d`가 no-op이다. 체크아웃 동기화만 일어나고, 값 반영은 `/actuator/refresh`가
+한다. 재시작 없는 갱신이라는 성질은 그대로다.
 
 ### 시크릿은 Config Server가 담당하지 않는다
 
 | 위치 | 담는 것 |
 | --- | --- |
-| Config Server (git) | 라우트 정의, 타임아웃, 로그 레벨, 기능 플래그, 지수 계산 임계값·가중치, 배치 스케줄 |
+| Config Server (`config/spring/`) | 라우트 정의, 타임아웃, 로그 레벨, 기능 플래그, 지수 계산 임계값·가중치, 배치 스케줄 |
 | `.env` (compose) | DB 자격증명, `CARIX_ENCRYPTION_KEY`, 외부 API 키, 이미지 태그 |
 
 Config Server의 `{cipher}` 암호화는 쓰지 않는다. "설정 중앙화"를 위해 "복호화 키 관리"를
