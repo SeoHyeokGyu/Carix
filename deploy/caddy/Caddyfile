@@ -14,7 +14,7 @@
 	encode zstd gzip
 
 	handle /api/* {
-		reverse_proxy spring-api:8080
+		reverse_proxy core-api:8080
 	}
 
 	# 정적 assets. 별도 파일 서버는 없고 frontend-node 가 서빙한다.

@@ -5,3 +5,7 @@ plugins {
 }
 
 rootProject.name = 'carix'
+
+include 'core-api'
+include 'eureka'
+include 'config-server'

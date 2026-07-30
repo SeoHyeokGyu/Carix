@@ -1,0 +1,38 @@
+spring:
+  application:
+    # Config Server 가 이 이름으로 config/spring/core-api.yml 을 찾는다.
+    name: core-api
+  config:
+    # optional: 은 "위치를 해석할 수 없으면 건너뛴다" 는 뜻이다. 연결 실패와는 다르다 —
+    # 연결 실패는 아래 fail-fast 가 잡는다. 운영에서 설정 없이 기본값으로 뜨면
+    # 잘못된 임계값으로 계산해 조용히 틀린 결과를 낸다.
+    #
+    # 테스트는 spring.cloud.config.enabled=false 로 클라이언트를 꺼서 이 위치를
+    # 해석 불가로 만들고, optional: 이 그것을 건너뛰게 한다 (core-api/build.gradle 참조).
+    import: optional:configserver:${CONFIG_SERVER_URL:http://config-server:8888}
+  cloud:
+    config:
+      fail-fast: true
+      retry:
+        max-attempts: 6
+        initial-interval: 2000
+
+# 엣지 Caddy 가 /api/* 를 경로 그대로 넘긴다. 컨텍스트 패스를 /api 로 두면
+# 헬스체크·OpenAPI 문서·Swagger UI 정적 자원이 전부 /api 아래로 들어온다.
+server:
+  servlet:
+    context-path: /api
+
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_URL:http://eureka:8761/eureka/}
+  instance:
+    # 컨테이너 호스트명 대신 서비스명으로 등록해 Gateway 가 찾기 쉽게 한다.
+    prefer-ip-address: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,refresh

@@ -1,0 +1,18 @@
+dependencies {
+	implementation 'org.springframework.boot:spring-boot-starter-webmvc'
+	implementation 'org.springframework.boot:spring-boot-starter-validation'
+	implementation 'org.springframework.boot:spring-boot-starter-actuator'
+	implementation 'org.springframework.cloud:spring-cloud-starter-config'
+	implementation 'org.springframework.cloud:spring-cloud-starter-netflix-eureka-client'
+	implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:3.0.3'
+	testImplementation 'org.springframework.boot:spring-boot-starter-webmvc-test'
+}
+
+tasks.named('test') {
+	// spring.config.import 는 prepareEnvironment 단계에서 해석돼 @TestPropertySource 로
+	// 덮을 수 없다. 시스템 프로퍼티는 그 단계에서 읽히므로 여기서 optional 로 바꾼다.
+	// 운영 application.yml 은 fail-fast 를 유지한다 — 설정 없이 기본값으로 뜨면
+	// 잘못된 임계값으로 계산해 조용히 틀린 결과를 낸다.
+	systemProperty 'spring.cloud.config.enabled', 'false'
+	systemProperty 'eureka.client.enabled', 'false'
+}

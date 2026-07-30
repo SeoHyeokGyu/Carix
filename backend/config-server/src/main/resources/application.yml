@@ -1,0 +1,25 @@
+spring:
+  application:
+    name: config-server
+  cloud:
+    config:
+      server:
+        git:
+          # 서버에 이미 있는 저장소 체크아웃을 읽는다. 같은 저장소를 네트워크로 다시
+          # 받을 이유가 없고 자격증명도 필요 없다. 배포 스크립트의 git reset --hard 가
+          # 이 내용을 갱신한다.
+          #
+          # GitHub 을 SSH 로 직접 읽지 않는 이유: JGit 은 RSA·PEM 형식 키만 받는데
+          # 서버의 기존 deploy key 는 ED25519·OpenSSH 형식이라 쓸 수 없다 (2026-07-28 실측).
+          uri: file:///etc/carix-repo
+          search-paths: config/spring
+          default-label: main
+
+server:
+  port: 8888
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
