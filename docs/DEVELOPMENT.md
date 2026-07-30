@@ -74,8 +74,7 @@ cp .env.example .env
 
 ### 3.0 팀원 온보딩
 
-접근 경로는 **Headscale**(자체 호스팅 Tailscale)이다
-([ADR 0008](adr/0008-db-access-via-tailscale.md)). 클라이언트는 Tailscale 공식 클라이언트를
+접근 경로는 **Headscale**(자체 호스팅 Tailscale)이다(위 §3 ADR 0008 참조). 클라이언트는 Tailscale 공식 클라이언트를
 그대로 쓴다. SSH 키를 배포하지 않는다.
 
 1. **사용자·preauth key 발급** (관리자)

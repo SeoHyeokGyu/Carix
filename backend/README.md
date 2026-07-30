@@ -22,8 +22,7 @@ Config·Eureka 클라이언트만 있고 도메인 API는 아직 없다. JPA·Fl
 | `POST /api/v1/demo/echo` | **임시.** Swagger UI에서 요청 스키마·검증·에러 포맷을 눈으로 확인하는 용도. 도메인 API 도입 시 `com.carix.demo` 패키지째 삭제 |
 | `GET /api/v1/demo/thresholds` | **임시.** Config Server 연동 확인용. 값은 [`../config/spring/core-api.yml`](../config/spring/core-api.yml)에서 오며 `/actuator/refresh` 로 재배포 없이 갱신된다. 도메인 API 도입 시 삭제 |
 
-공통 에러 응답(`com.carix.common.ErrorResponse`)은
-[`../docs/specs/api-specification.md`](../docs/specs/api-specification.md) §1.1 형식을 따른다.
+공통 에러 응답(`com.carix.common.ErrorResponse`)은 위 API 규격 문서 §1.1 형식을 따른다.
 Spring 기본값(ProblemDetail)과 형식이 달라 `GlobalExceptionHandler`에서 변환한다.
 
 컨텍스트 패스는 `/api`다. 엣지 Caddy가 `/api/*`를 경로 그대로 넘기므로, 헬스체크와

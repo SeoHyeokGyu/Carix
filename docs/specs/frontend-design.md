@@ -89,7 +89,7 @@ OCI VM에서 다음 컨테이너를 Docker Compose로 운영한다.
 
 - `carix-caddy` — 애플리케이션 라우팅. `/api/*`는 `core-api`, 나머지는 `frontend-node`
 - `frontend-node`
-- `core-api` — Config Server·Eureka 클라이언트. 구성은 [Spring Cloud 아키텍처](spring-cloud-architecture.md) 참조
+- `core-api` — Config Server·Eureka 클라이언트. 구성은 위 Spring Cloud 아키텍처 참조
 - `config-server`, `eureka`
 - `postgres`
 - `auth-service`, `batch-worker` — 서비스 분리 시 추가
