@@ -27,7 +27,7 @@ Task 2·3 에서 인프라 서비스를 `127.0.0.1` 에 바인딩한 뒤, 로컬
 
 ```bash
 sudo tailscale serve --bg --tcp=8761 tcp://localhost:8761   # eureka
-sudo tailscale serve --bg --tcp=8888 tcp://localhost:8888   # config-server
+sudo tailscale serve --bg --tcp=8890 tcp://localhost:8890   # config-server
 sudo tailscale serve --bg --tcp=8082 tcp://localhost:8082   # core-api
 ```
 
@@ -41,7 +41,8 @@ sudo tailscale serve --bg --tcp=8082 tcp://localhost:8082   # core-api
 - 모든 JVM 서비스에 `mem_limit`와 `JAVA_TOOL_OPTIONS=-XX:MaxRAMPercentage=50`을 건다. 없으면 힙을 호스트 전체 메모리 기준으로 잡는다.
 - 포트는 **컨테이너 내부**와 **호스트 바인딩**을 구분한다.
   - 내부: `config-server` 8888, `eureka` 8761, `core-api` 8080
-  - 호스트 바인딩(`127.0.0.1:`): `config-server` 8888, `eureka` 8761, `core-api` 8082
+  - 호스트 바인딩(`127.0.0.1:`): `config-server` **8890**, `eureka` 8761, `core-api` 8082
+  - config-server 만 내부·호스트 포트가 다르다. 호스트 8888 은 `infra-dozzle-1` 이 이미 쓴다.
   - Eureka 에 등록되는 것은 내부 포트다. Gateway 는 compose 네트워크 안에서 그 포트로 붙는다.
 - 도메인 서비스는 호스트 포트를 발행하지 않는다. 로컬 접근이 필요한 인프라 서비스만 `127.0.0.1:`에 바인딩한다.
 - 모든 모듈의 Dockerfile은 컴파일하지 않는다. 러너가 만든 JAR을 layered로 풀어 담기만 한다.
@@ -929,7 +930,8 @@ Expected: `BUILD SUCCESSFUL`, `config-server-0.0.1-SNAPSHOT.jar` 하나
       # 라우터 Caddy 가 같은 경로를 마운트하는 것과 같은 방식이다.
       - /home/opc/carix:/etc/carix-repo:ro
     ports:
-      - "127.0.0.1:8888:8888"
+      # 호스트 8888 은 infra-dozzle-1 이 0.0.0.0 에 이미 잡고 있다.
+      - "127.0.0.1:8890:8888"
     mem_limit: 700m
     logging:
       driver: json-file
@@ -1034,7 +1036,7 @@ gh pr create --base main --head feat/config-server \
 ```bash
 ssh carix-oci 'docker ps --filter "name=config-server" --format "{{.Names}}\t{{.Status}}"'
 ssh carix-oci 'docker logs --tail 20 $(docker ps -qf name=config-server)'
-ssh carix-oci 'curl -sS http://127.0.0.1:8888/core-api/prod | head -c 400'
+ssh carix-oci 'curl -sS http://127.0.0.1:8890/core-api/prod | head -c 400'
 ```
 
 Expected: 컨테이너 `Up`, 로그에 git clone 성공, 설정 JSON 에 `purchasing-power-warning-threshold` 가 보인다
