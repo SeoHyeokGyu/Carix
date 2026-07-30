@@ -226,6 +226,18 @@ Config Server의 `{cipher}` 암호화는 쓰지 않는다. "설정 중앙화"를
 
 지수 가중치 튜닝이 잦을 프로젝트이므로 이 범위만으로도 실익이 있다.
 
+**설정 프로퍼티는 record 가 아니라 가변 JavaBean 으로 둔다.** Spring Cloud 의
+`ConfigurationPropertiesRebinder` 가 무인자 생성자로 기본값을 읽은 뒤 값을 다시 바인딩하는데,
+record 는 무인자 생성자가 없어 갱신 시점에 깨진다. 리바인더가 같은 인스턴스를 갱신하므로
+주입받은 쪽에 `@RefreshScope` 도 필요 없다.
+
+**Eureka 클라이언트는 refresh 대상에서 뺀다** (`eureka.client.refresh.enable: false`).
+기본값이면 refresh 마다 `eurekaClient` 가 재생성되는데, 새 `DiscoveryClient` 가 자기
+`instanceId` 를 null 로 들고 조회해 NPE 로 죽는다. 갱신하려는 것은 도메인 설정이지
+레지스트리 접속 정보가 아니다.
+
+둘 다 2026-07-30 서버 실측으로 드러났다.
+
 ### 부팅 의존성
 
 `fail-fast: true`를 유지한다. 설정 없이 기본값으로 기동하면 잘못된 임계값으로 지수를 계산해
