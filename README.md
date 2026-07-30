@@ -295,7 +295,7 @@ flowchart TD
 | Spring Batch | 외부 원천(KOSIS·고용24 등) 수집이 재시도·청크 처리·잡 이력을 요구합니다 |
 | PostgreSQL | 초기 설계에서 고정. 별도 근거는 기록돼 있지 않습니다 |
 | Docker·PostgreSQL 서버 전용 | 로컬 개발 머신에 Docker를 두지 않기로 했습니다 ([ADR 0003](docs/adr/0003-docker-db-oci-only.md)) |
-| Caddy (라우터) | 인증서 자동 발급·갱신이 기본 동작이라 ACME 파이프라인을 직접 구성하지 않습니다 ([ADR 0006](docs/adr/0006-app-edge-stays-caddy.md)) |
+| Caddy (라우터) | 인증서 자동 발급·갱신이 기본 동작이라 ACME 파이프라인을 직접 구성하지 않습니다 (위 ADR 0006 참조) |
 | Caddy (앱 라우팅) | 업스트림을 요청마다 재해석해 배포 시 컨테이너 IP가 바뀌어도 영향이 없습니다. nginx는 별도 우회가 필요합니다 |
 | GitHub Actions ARM 러너 | 서버가 `aarch64`라 QEMU 에뮬레이션 없이 네이티브로 빌드합니다 |
 | GHCR | `GITHUB_TOKEN`이 자동 제공돼 시크릿이 늘지 않고, pull 시 바뀐 레이어만 전송됩니다 |
@@ -303,7 +303,7 @@ flowchart TD
 | 이미지 태그 = 컴포넌트 변경 커밋 | `.env` 두 줄로 어떤 코드가 돌고 있는지 확정되고, 재기동해도 같은 이미지가 뜹니다 |
 | Spring Cloud Gateway·Config·Eureka | 학습·포트폴리오가 주목적인 프로젝트이며, 이 셋을 실제로 운영해 보는 것이 성과물입니다. 서비스 경계는 그 셋이 모두 동작하는 최소 구성(auth 분리)으로 잡았습니다 ([설계서](docs/specs/spring-cloud-architecture.md)) |
 | Config Server native 백엔드 | git 백엔드로 서버 체크아웃을 가리켰더니 JGit 이 그 저장소의 origin(GitHub SSH)으로 fetch 를 시도해 ED25519 키로 인증이 안 됐습니다 (2026-07-30 실측). native 는 git 을 다루지 않고 파일만 읽습니다 |
-| Headscale (Tailscale SaaS 대체) | 무료 플랜 6명 제한과 외부 계정 의존을 없앱니다. 클라이언트는 공식 Tailscale 그대로라 사용 경험이 같습니다 ([ADR 0008](docs/adr/0008-db-access-via-tailscale.md)) |
+| Headscale (Tailscale SaaS 대체) | 무료 플랜 6명 제한과 외부 계정 의존을 없앱니다. 클라이언트는 공식 Tailscale 그대로라 사용 경험이 같습니다 ([ADR 0008](docs/adr/0008-db-access-via-tailscale.md), 실사용 절차는 아래 개발 환경) |
 
 인증 방식(서버 세션 + 매직링크)의 근거는 [ADR 0005](docs/adr/0005-server-session-auth.md),
 연봉 기준선 선택은 [ADR 0004](docs/adr/0004-salary-baseline-wage-stat.md)를 참조합니다.
@@ -340,7 +340,7 @@ Node 서버는 DB에 직접 접근하거나 Spring Boot 로직을 복제하지 �
 > **전환 예정.** 애플리케이션 라우팅을 `carix_caddy`에서 Spring Cloud Gateway로 옮기고,
 > 백엔드를 `auth-service`·`core-api`·`batch-worker`로 나눕니다. 라우터 Caddy는 그대로
 > 유지합니다 — TLS 자동 발급 근거가 유효합니다.
-> 상세는 [Spring Cloud 아키텍처 설계서](docs/specs/spring-cloud-architecture.md).
+> 상세는 위 채택 사유의 설계서 참조.
 
 ### 렌더링 전략
 
@@ -371,9 +371,7 @@ OCI VM에서는 `carix-caddy`, `headscale`, `frontend-node`, `config-server`, `e
 `core-api`, `postgres` 컨테이너를 Docker Compose로 운영합니다 (`auth-service`·`batch-worker`는
 분리 시 추가). 이미지는 컴포넌트별로 GitHub Actions(ARM 러너)가 빌드해 GHCR에 올리고 서버는
 pull만 합니다. 엣지는 2단으로, 서버의 라우터 Caddy가 TLS를 종료하고 호스트명으로 분기하면
-프로젝트 전용 `carix-caddy`가 애플리케이션 라우팅을 맡습니다
-([배포 계획](docs/plans/oci-server-provisioning-plan.md),
-[Spring Cloud 설계서](docs/specs/spring-cloud-architecture.md)).
+프로젝트 전용 `carix-caddy`가 애플리케이션 라우팅을 맡습니다 (근거는 위 배포 계획·설계서 참조).
 
 ## 프로젝트 상태
 
@@ -387,9 +385,9 @@ pull만 합니다. 엣지는 2단으로, 서버의 라우터 Caddy가 TLS를 종
 - [ ] 데이터 수집 가능성 검증
 - [ ] 애플리케이션 구현
 - [x] Oracle Cloud Infrastructure(OCI) 배포 환경 구성 — 2026-07-26 첫 배포 성공.
-      최소 스캐폴드 기준 빌드 → GHCR → SSH → 헬스체크 전 구간 검증 ([배포 계획](docs/plans/oci-server-provisioning-plan.md))
+      최소 스캐폴드 기준 빌드 → GHCR → SSH → 헬스체크 전 구간 검증 (배포 계획은 위 §기술 구성)
 - [x] Spring Cloud 전환 계획 A(멀티모듈·Config Server·Eureka) 구현·운영 검증 — 2026-07-30
-      ([설계서](docs/specs/spring-cloud-architecture.md))
+      (설계서는 위 채택 사유)
 
 ## 저장소 구성
 
@@ -426,7 +424,7 @@ Carix/
 
 - **docker-compose.yml은 OCI 배포 전용**입니다. 로컬에서 `docker compose up`으로 사용하지 않습니다.
 - **로컬 프런트엔드:** Vite dev server를 띄우고 `/api`를 백엔드로 프록시합니다. Docker 불필요.
-- **로컬 백엔드:** 로컬에 DB를 띄우지 않고 **OCI의 `carix` DB에 원격 연결**합니다. 접근은 Headscale tailnet 이며 노트북에는 Tailscale 앱만 설치합니다. 운영과 개발이 같은 DB입니다 ([ADR 0007](docs/adr/0007-single-database-for-prod-and-dev.md), [ADR 0008](docs/adr/0008-db-access-via-tailscale.md)).
+- **로컬 백엔드:** 로컬에 DB를 띄우지 않고 **OCI의 `carix` DB에 원격 연결**합니다. 접근은 Headscale tailnet 이며 노트북에는 Tailscale 앱만 설치합니다. 운영과 개발이 같은 DB입니다 ([ADR 0007](docs/adr/0007-single-database-for-prod-and-dev.md), Headscale 근거는 위 채택 사유 ADR 0008).
 - **통합 테스트:** 설계는 Testcontainers를 쓰지만 로컬 Docker가 필요하므로, 통합 테스트는 배포 워크플로(Docker 제공 러너) 또는 OCI dev DB 대상으로 실행하고 로컬에서는 단위 테스트를 중심으로 돌립니다. PR 단계 CI가 없으므로 자동 실행 지점은 main 푸시뿐입니다.
 - 환경 변수는 [`.env.example`](.env.example)을 복사해 `.env`로 채웁니다. API 키·시크릿은 저장소에 커밋하지 않습니다.
 
@@ -457,5 +455,5 @@ PR 단계 CI는 두지 않습니다. 자동 검증은 배포 워크플로가 mai
 
 전체 문서는 **[문서 맵(`docs/README.md`)](docs/README.md)**에서 주제별로 탐색할 수 있습니다. 정본은 `docs/specs/`·`docs/plans/`이며, 최초 작성 원본은 `docs/superpowers/`에 동결 보존합니다.
 
-설계 기준: 제품 기능은 [MVP 설계](docs/specs/mvp-requirements.md)와 [기능 명세서](docs/specs/functional-specification.md), 데이터 아키텍처는 [파이프라인 재설계](docs/specs/data-architecture.md)를 따릅니다 (하이브리드 계보 결정은 [ADR 0001](docs/adr/0001-hybrid-design-lineage.md)).
+설계 기준(제품 기능·데이터 아키텍처)은 위 문서 맵의 해당 표를 따릅니다. 하이브리드 계보 결정은 [ADR 0001](docs/adr/0001-hybrid-design-lineage.md) 참고.
 
