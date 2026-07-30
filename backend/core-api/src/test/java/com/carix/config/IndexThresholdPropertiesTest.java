@@ -19,7 +19,7 @@ class IndexThresholdPropertiesTest {
 
 	@Test
 	void 설정값을_바인딩한다() {
-		assertThat(properties.purchasingPowerWarningThreshold()).isEqualTo(0.80);
-		assertThat(properties.marketValueGapWarningThreshold()).isEqualTo(0.70);
+		assertThat(properties.getPurchasingPowerWarningThreshold()).isEqualTo(0.80);
+		assertThat(properties.getMarketValueGapWarningThreshold()).isEqualTo(0.70);
 	}
 }
