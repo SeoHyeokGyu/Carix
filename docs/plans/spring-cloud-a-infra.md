@@ -1292,12 +1292,31 @@ cd backend && ./gradlew build --no-daemon
 
 Expected: `BUILD SUCCESSFUL`
 
-`@SpringBootTest` 가 Config Server 를 찾지 못해 실패하면, 테스트에서 Config import 를 끈다. `IndexThresholdPropertiesTest` 의 `@TestPropertySource` 에 아래를 더한다.
+**테스트는 Config Server 에 닿을 수 없다.** `@SpringBootTest` 가
+`ConfigClientFailFastException` 으로 실패한다.
 
-```java
-		"spring.config.import=",
-		"eureka.client.enabled=false"
+`@TestPropertySource` 로는 못 고친다. `spring.config.import` 는 `SpringApplication`
+의 `prepareEnvironment()` 단계에서 해석되는데, `@TestPropertySource` 값은 그보다 뒤인
+컨텍스트 로딩 시점에 주입된다.
+
+**시스템 프로퍼티는 `prepareEnvironment()` 단계에서 읽힌다.** Gradle 테스트 태스크에서
+`optional:` 접두사로 바꾼다 — 운영 설정(`application.yml`)은 fail-fast 를 유지한다.
+
+`backend/core-api/build.gradle` 에 더한다.
+
+```gradle
+tasks.named('test') {
+	// spring.config.import 는 prepareEnvironment 단계에서 해석돼 @TestPropertySource 로
+	// 덮을 수 없다. 시스템 프로퍼티는 그 단계에서 읽히므로 여기서 optional 로 바꾼다.
+	// 운영 application.yml 은 fail-fast 를 유지한다 — 설정 없이 기본값으로 뜨면
+	// 잘못된 임계값으로 계산해 조용히 틀린 결과를 낸다.
+	systemProperty 'spring.config.import', 'optional:configserver:'
+	systemProperty 'eureka.client.enabled', 'false'
+}
 ```
+
+루트 `build.gradle` 의 `subprojects { tasks.named('test') { useJUnitPlatform() } }` 와
+설정이 병합되므로 `useJUnitPlatform()` 을 다시 쓰지 않는다.
 
 - [ ] **Step 13: compose 에 의존성과 환경변수 추가**
 
