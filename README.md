@@ -277,7 +277,7 @@ flowchart TD
 `~/infra` 스택이 소유해 다른 프로젝트와 공유하고, 앱 라우팅만 이 저장소가 소유합니다.
 
 프록시로 Caddy를 쓰는 이유는 계층별로 다릅니다. nginx와의 비교는
-[ADR 0006](docs/adr/0006-app-edge-stays-caddy.md)에 있습니다.
+[OCI 서버 구성·배포 계획 §Phase 3](docs/plans/oci-server-provisioning-plan.md)에 있습니다.
 
 ### 채택 사유
 
@@ -295,7 +295,7 @@ flowchart TD
 | Spring Batch | 외부 원천(KOSIS·고용24 등) 수집이 재시도·청크 처리·잡 이력을 요구합니다 |
 | PostgreSQL | 초기 설계에서 고정. 별도 근거는 기록돼 있지 않습니다 |
 | Docker·PostgreSQL 서버 전용 | 로컬 개발 머신에 Docker를 두지 않기로 했습니다 ([ADR 0003](docs/adr/0003-docker-db-oci-only.md)) |
-| Caddy (라우터) | 인증서 자동 발급·갱신이 기본 동작이라 ACME 파이프라인을 직접 구성하지 않습니다 (위 ADR 0006 참조) |
+| Caddy (라우터) | 인증서 자동 발급·갱신이 기본 동작이라 ACME 파이프라인을 직접 구성하지 않습니다 (위 nginx 비교 참조) |
 | Caddy (앱 라우팅) | 업스트림을 요청마다 재해석해 배포 시 컨테이너 IP가 바뀌어도 영향이 없습니다. nginx는 별도 우회가 필요합니다 |
 | GitHub Actions ARM 러너 | 서버가 `aarch64`라 QEMU 에뮬레이션 없이 네이티브로 빌드합니다 |
 | GHCR | `GITHUB_TOKEN`이 자동 제공돼 시크릿이 늘지 않고, pull 시 바뀐 레이어만 전송됩니다 |

@@ -313,11 +313,11 @@ spring.cloud.gateway.routes:
 
 ## 7. 기존 결정과의 충돌
 
-### ADR 0006 (엣지 프록시) 일부 대체
+### 엣지 프록시 선택(oci-server-provisioning-plan.md §Phase 3) 일부 대체
 
 `carix_caddy`가 담당하던 애플리케이션 라우팅을 Gateway가 가져간다. 해당 컨테이너는 제거된다.
 
-**라우터 Caddy(`infra_caddy`)는 유지한다.** ADR 0006의 근거 — ACME 자동화, 80/443 단일
+**라우터 Caddy(`infra_caddy`)는 유지한다.** 그 근거 — ACME 자동화, 80/443 단일
 바인딩 제약, 타 프로젝트와 공유 — 가 그대로 유효하다. Gateway는 TLS를 다루지 않는다.
 
 Gateway 도입 커밋에 이 변경 사유를 기록한다.
