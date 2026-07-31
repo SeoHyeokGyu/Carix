@@ -303,7 +303,7 @@ flowchart TD
 | 이미지 태그 = 컴포넌트 변경 커밋 | `.env` 두 줄로 어떤 코드가 돌고 있는지 확정되고, 재기동해도 같은 이미지가 뜹니다 |
 | Spring Cloud Gateway·Config·Eureka | 학습·포트폴리오가 주목적인 프로젝트이며, 이 셋을 실제로 운영해 보는 것이 성과물입니다. 서비스 경계는 그 셋이 모두 동작하는 최소 구성(auth 분리)으로 잡았습니다 ([설계서](docs/specs/spring-cloud-architecture.md)) |
 | Config Server native 백엔드 | git 백엔드로 서버 체크아웃을 가리켰더니 JGit 이 그 저장소의 origin(GitHub SSH)으로 fetch 를 시도해 ED25519 키로 인증이 안 됐습니다 (2026-07-30 실측). native 는 git 을 다루지 않고 파일만 읽습니다 |
-| Headscale (Tailscale SaaS 대체) | 무료 플랜 6명 제한과 외부 계정 의존을 없앱니다. 클라이언트는 공식 Tailscale 그대로라 사용 경험이 같습니다 ([ADR 0008](docs/adr/0008-db-access-via-tailscale.md), 실사용 절차는 아래 개발 환경) |
+| Headscale (Tailscale SaaS 대체) | 무료 플랜 6명 제한과 외부 계정 의존을 없앱니다. 클라이언트는 공식 Tailscale 그대로라 사용 경험이 같습니다 (자세한 대안 비교는 [DEVELOPMENT.md §3.2](docs/DEVELOPMENT.md), 실사용 절차는 아래 개발 환경) |
 
 인증 방식(서버 세션 + 매직링크)의 근거는 [ADR 0005](docs/adr/0005-server-session-auth.md),
 연봉 기준선 선택은 [ADR 0004](docs/adr/0004-salary-baseline-wage-stat.md)를 참조합니다.
@@ -422,8 +422,8 @@ Carix/
 
 - **docker-compose.yml은 OCI 배포 전용**입니다. 로컬에서 `docker compose up`으로 사용하지 않습니다.
 - **로컬 프런트엔드:** Vite dev server를 띄우고 `/api`를 백엔드로 프록시합니다. Docker 불필요.
-- **로컬 백엔드:** 로컬에 DB를 띄우지 않고 **OCI의 `carix` DB에 원격 연결**합니다. 접근은 Headscale tailnet 이며 노트북에는 Tailscale 앱만 설치합니다. 운영과 개발이 같은 DB입니다 ([ADR 0007](docs/adr/0007-single-database-for-prod-and-dev.md), Headscale 근거는 위 채택 사유 ADR 0008).
-- **통합 테스트:** 설계는 Testcontainers를 쓰지만 로컬 Docker가 필요하므로, 통합 테스트는 배포 워크플로(Docker 제공 러너) 또는 OCI dev DB 대상으로 실행하고 로컬에서는 단위 테스트를 중심으로 돌립니다. PR 단계 CI가 없으므로 자동 실행 지점은 main 푸시뿐입니다.
+- **로컬 백엔드:** 로컬에 DB를 띄우지 않고 **OCI의 `carix` DB에 원격 연결**합니다. 접근은 Headscale tailnet 이며 노트북에는 Tailscale 앱만 설치합니다. 운영과 개발이 같은 DB입니다(대안 비교·감수한 위험은 [DEVELOPMENT.md §3](docs/DEVELOPMENT.md)).
+- **통합 테스트:** 설계는 Testcontainers를 쓰지만 로컬 Docker가 필요하므로, 통합 테스트는 배포 워크플로(Docker 제공 러너) 또는 OCI DB 대상으로 실행하고 로컬에서는 단위 테스트를 중심으로 돌립니다. PR 단계 CI가 없으므로 자동 실행 지점은 main 푸시뿐입니다.
 - 환경 변수는 [`.env.example`](.env.example)을 복사해 `.env`로 채웁니다. API 키·시크릿은 저장소에 커밋하지 않습니다.
 
 버전 기준: 컨테이너는 Java 21, Node.js 24 LTS로 고정합니다 (로컬 개발 머신의 상위 버전과 별개).

@@ -124,7 +124,7 @@
 - **빌드는 GitHub Actions `ubuntu-24.04-arm`.** 서버는 `docker compose pull`만. `build:` 지시자를 저장소에서 없앤다.
 - **Carix compose에서 `nginx` 서비스를 제거**하고 `carix-caddy`를 둔다. TLS 종료와 호스트명 분기는 서버 라우터 Caddy가 맡는다.
 - TLS는 sslip.io + Caddy ACME로 즉시 확보. certbot·도메인 구매 불필요.
-- Postgres 5432는 외부 미개방. 로컬 개발은 Headscale tailnet 으로 접근한다 (당초 SSH 터널에서 변경, ADR 0008).
+- Postgres 5432는 외부 미개방. 로컬 개발은 Headscale tailnet 으로 접근한다 (당초 SSH 터널에서 변경, 근거는 DEVELOPMENT.md §3.2).
 - 서버 직접 배포 금지 (`~/.claude/rules/common/cmux-workflow.md` §9). Phase 1·3·4의 준비 작업만이 정당한 수동 개입이다.
 
 ## 범위 밖 관찰 (조치하지 않음)
@@ -272,7 +272,7 @@ networks:
 ### Task 2.2: dev DB 분리 (문서↔compose 불일치 해소)
 
 > **폐기됨 (2026-07-27).** 팀 전환 후 운영과 개발이 같은 DB 를 쓰기로 결정했다
-> ([ADR 0007](../adr/0007-single-database-for-prod-and-dev.md)). 아래 initdb 스크립트와
+> (근거는 DEVELOPMENT.md §3). 아래 initdb 스크립트와
 > `carix_dev` 롤·DB 는 저장소에서 제거했다. 서버에 남은 것은 수동 정리 대상이다.
 
 **발견된 불일치:** `docs/DEVELOPMENT.md`와 `.env.example`은 별도 `carix_dev` DB/롤을 전제하지만

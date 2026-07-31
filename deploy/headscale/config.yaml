@@ -1,7 +1,7 @@
 # Headscale — 자체 호스팅 Tailscale 컨트롤 서버.
 #
 # 팀원 노트북과 이 서버를 같은 사설망에 넣어 운영 DB(`carix`)에 접근시킨다.
-# 클라이언트는 Tailscale 공식 클라이언트를 그대로 쓴다 (ADR 0008).
+# 클라이언트는 Tailscale 공식 클라이언트를 그대로 쓴다 (근거는 docs/DEVELOPMENT.md §3.2).
 #
 # TLS는 여기서 처리하지 않는다. 라우터 Caddy(`infra_caddy`)가 종료하고
 # `deploy/caddy/router.caddy`의 항목이 이 컨테이너로 넘긴다.

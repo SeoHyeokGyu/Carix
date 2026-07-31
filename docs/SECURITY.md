@@ -54,10 +54,9 @@ Carix는 연봉·실수령액·소비 금액 등 민감한 개인 재무 정보�
   공유 호스트에서 80/443을 한 컨테이너만 바인딩할 수 있다는 제약에서 나왔다.
 - 운영 DB는 OCI VM PostgreSQL 컨테이너로 운영하며 볼륨 암호화, 일일 자동 백업과
   복구 절차 검증, 이미지 버전 고정을 함께 한다 ([ADR 0003](adr/0003-docker-db-oci-only.md)).
-- **운영과 개발이 같은 DB를 쓴다** ([ADR 0007](adr/0007-single-database-for-prod-and-dev.md)).
-  따라서 팀원은 실사용자 데이터에 직접 접근한다. 감수한 위험과 재검토 시점은 해당 ADR 참조.
-- 접근 경로는 **Headscale**(자체 호스팅 Tailscale)이다
-  ([ADR 0008](adr/0008-db-access-via-tailscale.md)). DB 포트는 `127.0.0.1`에만 바인딩하고
+- **운영과 개발이 같은 DB를 쓴다.** 따라서 팀원은 실사용자 데이터에 직접 접근한다.
+  감수한 위험과 재검토 시점은 [`DEVELOPMENT.md`](DEVELOPMENT.md) §3 참조.
+- 접근 경로는 **Headscale**(자체 호스팅 Tailscale)이다. DB 포트는 `127.0.0.1`에만 바인딩하고
   호스트의 `tailscale serve`가 tailnet 내부로만 중계한다. 인터넷 노출은 없고 구간은
   WireGuard로 암호화된다.
 - 신원은 Headscale preauth key로 등록하고, DB 인증은 **개인별 롤**을 쓴다. 공용 계정을
