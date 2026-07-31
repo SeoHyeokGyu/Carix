@@ -1,8 +1,7 @@
 # Carix 문서 맵
 
 프로젝트 문서를 실제 개발 관점의 분류로 정리한 인덱스다. 정본(canonical)은
-[`specs/`](specs/)와 [`plans/`](plans/)에 있다. 최초 작성 원본은
-[`superpowers/`](superpowers/README.md)에 동결 보존하며 더 이상 갱신하지 않는다.
+[`specs/`](specs/)와 [`plans/`](plans/)에 있다.
 
 새 독자는 **제품 → 기능 → 아키텍처 → API → 결정(ADR)** 순으로 읽기를 권장한다.
 

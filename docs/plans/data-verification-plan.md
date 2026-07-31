@@ -8,7 +8,7 @@
 
 **Tech Stack:** Python 3 (표준 라이브러리만), Git
 
-**참조 스펙:** `docs/superpowers/specs/data-architecture.md` 7장
+**참조 스펙:** [`../specs/data-architecture.md`](../specs/data-architecture.md) 7장
 
 ## Global Constraints
 
@@ -94,7 +94,7 @@ verification/config.json
 - `out/<source>_raw_<n>.json`: 원문 응답 (커밋 금지)
 - `out/<source>_fields.json`: 필드 경로 목록
 - 측정 요약은 검증 결과 문서에 기록:
-  `docs/superpowers/specs/2026-07-XX-carix-data-verification-result.md`
+  `docs/plans/2026-07-XX-carix-data-verification-result.md`
 ```
 
 - [ ] **Step 5: 사용자 행동 — API 키 발급 요청**
@@ -585,7 +585,7 @@ git commit -m "feat: 스킬 사전 시드와 매칭 재현율 측정"
 
 **Files:**
 - Create: `verification/notes/wage-stat.md`
-- Create: `docs/superpowers/specs/2026-07-XX-carix-data-verification-result.md` (XX = 실제 완료일)
+- Create: `docs/plans/2026-07-XX-carix-data-verification-result.md` (XX = 실제 완료일)
 
 **Interfaces:**
 - Consumes: Task 1~6의 모든 `notes/*.md`
@@ -612,7 +612,7 @@ Task 1 Step 5의 4번 결과에 따라:
 
 - [ ] **Step 2: 검증 결과 문서 작성**
 
-`docs/superpowers/specs/2026-07-XX-carix-data-verification-result.md`:
+`docs/plans/2026-07-XX-carix-data-verification-result.md`:
 
 ```markdown
 # Carix 데이터 선행 검증 결과
@@ -649,7 +649,7 @@ Task 1 Step 5의 4번 결과에 따라:
 - [ ] **Step 3: 커밋과 PR**
 
 ```bash
-git add verification/notes/wage-stat.md docs/superpowers/specs/2026-07-*-carix-data-verification-result.md
+git add verification/notes/wage-stat.md docs/plans/2026-07-*-carix-data-verification-result.md
 git commit -m "docs: 데이터 선행 검증 결과 종합"
 git push -u origin feature/data-verification
 ```

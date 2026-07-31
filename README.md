@@ -411,11 +411,9 @@ Carix/
 │   ├── plans/                계획 문서 정본 (데이터 검증, OCI 배포)
 │   ├── adr/                  아키텍처 결정 기록 (ADR)
 │   ├── SECURITY.md           보안·개인정보 처리
-│   ├── DEVELOPMENT.md        로컬 개발 가이드
-│   └── superpowers/          최초 작성 원본 (동결, 갱신 안 함)
+│   └── DEVELOPMENT.md        로컬 개발 가이드
 ├── .github/workflows/         Deploy (main 푸시). PR 단계 CI는 없음
-├── .claude/                   Claude Code 로컬 설정
-└── .superpowers/              설계 워크플로우 작업 기록
+└── .claude/                   Claude Code 로컬 설정
 ```
 
 ## 개발 환경
@@ -453,7 +451,7 @@ PR 단계 CI는 두지 않습니다. 자동 검증은 배포 워크플로가 mai
 - 커밋은 변경 목적이 드러나는 작은 단위로 작성합니다.
 - API 키와 개인정보는 저장소에 커밋하지 않습니다.
 
-전체 문서는 **[문서 맵(`docs/README.md`)](docs/README.md)**에서 주제별로 탐색할 수 있습니다. 정본은 `docs/specs/`·`docs/plans/`이며, 최초 작성 원본은 `docs/superpowers/`에 동결 보존합니다.
+전체 문서는 **[문서 맵(`docs/README.md`)](docs/README.md)**에서 주제별로 탐색할 수 있습니다. 정본은 `docs/specs/`·`docs/plans/`입니다.
 
 설계 기준(제품 기능·데이터 아키텍처)은 위 문서 맵의 해당 표를 따릅니다. 하이브리드 계보 결정은 [ADR 0001](docs/adr/0001-hybrid-design-lineage.md) 참고.
 
