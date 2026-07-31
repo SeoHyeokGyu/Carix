@@ -321,7 +321,7 @@ spring.cloud.gateway.routes:
 **라우터 Caddy(`infra_caddy`)는 유지한다.** ADR 0006의 근거 — ACME 자동화, 80/443 단일
 바인딩 제약, 타 프로젝트와 공유 — 가 그대로 유효하다. Gateway는 TLS를 다루지 않는다.
 
-구현 시 ADR 0006의 상태를 갱신하고 이 변경을 기록하는 새 ADR을 작성한다.
+Gateway 도입 커밋에 이 변경 사유를 기록한다.
 
 ### 잃는 것
 
