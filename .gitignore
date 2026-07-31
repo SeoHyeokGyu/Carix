@@ -18,6 +18,8 @@ coverage/
 
 # Local AI tool state
 .codex/
+.superpowers/
+docs/superpowers/
 
 # Logs
 *.log
