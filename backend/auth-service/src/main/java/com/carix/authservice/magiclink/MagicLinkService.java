@@ -10,6 +10,7 @@ import java.time.ZoneOffset;
 import java.util.HexFormat;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 /**
  * 매직링크 만료(15분)는 SECURITY.md §1 정책값이다. 튜닝 요구가 없어 상수로 둔다(YAGNI).
@@ -41,8 +42,9 @@ public class MagicLinkService {
 		return rawToken;
 	}
 
+	@Transactional
 	public UUID verifyToken(String rawToken) {
-		MagicLinkToken token = tokenRepository.findByTokenHash(hash(rawToken))
+		MagicLinkToken token = tokenRepository.findWithLockByTokenHash(hash(rawToken))
 				.orElseThrow(MagicLinkInvalidException::new);
 
 		OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
