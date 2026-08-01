@@ -1,0 +1,21 @@
+# 로컬 개발용. 서버의 config·eureka 를 tailnet 으로 사용한다.
+#
+# register-with-eureka 를 반드시 false 로 둔다. 등록하면 서버 Gateway 가
+# 이 노트북으로 운영 트래픽을 보낸다 (core-api/auth-service 의 동일 안전장치).
+eureka:
+  client:
+    register-with-eureka: false
+    fetch-registry: true
+
+# Eureka 가 알려주는 주소는 컨테이너 내부 IP(172.x)라 노트북에서 닿지 않는다.
+# Gateway 자체를 작업할 때만 서버 tailnet 이름으로 라우트를 정적으로 덮어써야 한다
+# (spring-cloud-architecture.md §6). 실제 작업 시 주석을 풀고 값을 채운다.
+#
+# spring:
+#   cloud:
+#     gateway:
+#       routes:
+#         - id: auth
+#           uri: http://<서버-tailnet-이름>:8081
+#         - id: core
+#           uri: http://<서버-tailnet-이름>:8082

@@ -1,0 +1,31 @@
+spring:
+  application:
+    name: gateway
+  config:
+    import: optional:configserver:${CONFIG_SERVER_URL:http://config-server:8888}
+  cloud:
+    config:
+      fail-fast: true
+      retry:
+        max-attempts: 6
+        initial-interval: 2000
+
+server:
+  port: 8080
+
+eureka:
+  client:
+    # /actuator/refresh 때 Eureka 클라이언트를 다시 만들지 않는다. core-api/application.yml 과
+    # 같은 이유 — 재생성된 DiscoveryClient 가 instanceId 를 null 로 들고 조회해 NPE 로 죽는다.
+    refresh:
+      enable: false
+    service-url:
+      defaultZone: ${EUREKA_URL:http://eureka:8761/eureka/}
+  instance:
+    prefer-ip-address: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,refresh
