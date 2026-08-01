@@ -53,6 +53,23 @@ Spring 기본값(ProblemDetail)과 형식이 달라 `GlobalExceptionHandler`에�
 컨텍스트 패스는 `/api`다. 엣지 Caddy가 `/api/*`를 경로 그대로 넘기므로, 헬스체크와
 Swagger UI(`/api/swagger-ui`), OpenAPI 문서(`/api/v3/api-docs`)가 모두 그 아래로 들어온다.
 
+### gateway
+
+Spring Cloud Gateway(WebFlux/reactive). 요청 경로의 단일 진입점 — `carix_caddy` 가 `core-api`
+직접 대신 이제 `gateway:8080` 으로 붙는다(`core-api` 는 `8082` 로 이동).
+
+| 경로 | 대상 |
+| --- | --- |
+| `/api/v1/auth/**` | `auth-service` (Eureka `lb://`) |
+| `/api/v1/**`, `/api/health`, `/api/swagger-ui/**`, `/api/v3/api-docs/**` | `core-api` (Eureka `lb://`) |
+| 그 외 | `frontend-node` (정적 URI, Eureka 미등록) |
+
+세션 검증 필터는 `core` 라우트에만 적용되고 `carix.gateway.session-validation.enabled`
+(`config/spring/gateway.yml`) 로 켜고 끈다. **기본값 false** — auth-service 배포 배선이
+아직 없어서다. 켜기 전 auth-service 가 Eureka 에 `UP` 으로 등록돼 있는지 확인한다.
+
+설계 상세: [`../docs/superpowers/plans/2026-08-01-gateway-introduction.md`](../docs/superpowers/plans/2026-08-01-gateway-introduction.md).
+
 ## 빌드
 
 ```bash

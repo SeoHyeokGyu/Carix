@@ -270,7 +270,7 @@ flowchart TD
 | 팀 DB 접근 | Headscale (자체 호스팅 Tailscale) | 팀원 노트북과 서버를 같은 사설망에 | 도입 |
 | 설정 관리 | Spring Cloud Config | 설정 외부화, 런타임 갱신 | 도입 — native(파일시스템) 백엔드 |
 | 서비스 디스커버리 | Eureka | 서비스 등록·조회 | 도입 |
-| API 게이트웨이 | Spring Cloud Gateway | 라우팅, 세션 검증 필터, 상관관계 ID | **미도입 — 전환 예정 (계획 B)** |
+| API 게이트웨이 | Spring Cloud Gateway | 라우팅, 세션 검증 필터, 상관관계 ID | 도입 — 세션 검증 필터는 기본 비활성(auth-service 배포 배선 대기, 계획 C) |
 
 엣지는 2단입니다. 서버의 라우터 Caddy가 80/443과 TLS를 소유하고 호스트명으로 분기하면,
 프로젝트 전용 Caddy가 애플리케이션 라우팅을 맡습니다. 두 계층의 소유권이 다릅니다 — 라우터는
@@ -318,17 +318,19 @@ flowchart TD
 flowchart TD
     Internet([Internet]) -->|":443 TLS"| Router["infra_caddy (라우터)"]
     Router -->|"carix.…sslip.io"| CarixCaddy["carix_caddy (:80)"]
-    CarixCaddy -->|"/api/*"| CoreApi["core-api :8080"]
-    CarixCaddy -->|"/assets/*"| NodeSSR
-    CarixCaddy -->|"그 외"| NodeSSR["frontend-node :3000"]
+    CarixCaddy --> GW["gateway :8080"]
+    GW -->|"/api/v1/**"| CoreApi["core-api :8082"]
+    GW -->|"그 외"| NodeSSR["frontend-node :3000"]
     NodeSSR -.->|"SSR 중 API 호출"| CoreApi
     CoreApi --> DB[(PostgreSQL)]
     CoreApi -.->|"설정 조회"| Config["config-server :8888"]
     CoreApi -.->|"등록"| Eureka["eureka :8761"]
 ```
 
-`core-api` 가 아직 Gateway 없이 Caddy에서 직접 붙는 구성입니다. Gateway 도입 시
-`CarixCaddy -->|"/api/*"| Gateway["gateway :8080"]` 로 한 단 더 얹습니다.
+`carix_caddy`는 이제 `core-api`에 직접 붙지 않고 `gateway:8080`으로 붙습니다. Gateway가
+경로별로 `core-api`(`/api/v1/**`)와 `frontend-node`(그 외)로 나눠 보냅니다. `auth-service`로의
+라우트도 Gateway에 있지만 아직 배포되지 않아 세션 검증 필터는 기본 꺼져 있습니다
+(상세는 [Spring Cloud 아키텍처](docs/specs/spring-cloud-architecture.md)).
 
 동일 출처에서 화면과 API를 제공해 CORS 구성을 최소화합니다. TLS 인증서 발급·갱신은
 **라우터 Caddy만** 담당하고, `carix_caddy`는 `auto_https off`로 평문 :80만 받습니다.
@@ -337,9 +339,9 @@ Node 서버는 DB에 직접 접근하거나 Spring Boot 로직을 복제하지 �
 
 `/assets/*`는 장기 캐시 헤더를 붙여 `frontend-node`로 넘깁니다. 별도 정적 파일 서버는 없습니다.
 
-> **전환 예정.** 애플리케이션 라우팅을 `carix_caddy`에서 Spring Cloud Gateway로 옮기고,
-> 백엔드를 `auth-service`·`core-api`·`batch-worker`로 나눕니다. 라우터 Caddy는 그대로
-> 유지합니다 — TLS 자동 발급 근거가 유효합니다.
+> **전환 완료(2026-08-01).** 애플리케이션 라우팅을 `carix_caddy`에서 Spring Cloud Gateway로
+> 옮겼습니다. 백엔드는 `auth-service`·`core-api`·`batch-worker`로 나뉘어 있으나 `auth-service`
+> 배포 배선은 아직 없습니다. 라우터 Caddy는 그대로 유지합니다 — TLS 자동 발급 근거가 유효합니다.
 > 상세는 위 채택 사유의 설계서 참조.
 
 ### 렌더링 전략

@@ -1,10 +1,16 @@
 # Spring Cloud 기반 백엔드 아키텍처 설계
 
-> 상태: 계획 A(멀티모듈·Config Server·Eureka) 구현·운영 검증 완료 — 2026-07-30.
-> 계획 B(Gateway 도입)·C(auth-service 분리)는 미구현.
-> 날짜: 2026-07-28
+> 상태: 계획 A(멀티모듈·Config Server·Eureka)와 계획 B(Gateway 도입, 요청경로 편입 완료)
+> 구현·운영 검증 완료 — 2026-08-01. 계획 C(auth-service 배포 배선)는 미구현.
+>
+> Gateway 의 세션 검증 필터는 코드·단위테스트 완료 상태로 존재하지만
+> `carix.gateway.session-validation.enabled`(config/spring/gateway.yml) 가 기본 false다 —
+> auth-service 가 아직 배포되지 않아 켜면 core-api 로 가는 모든 요청이 401/503이 된다.
+> auth-service 배포 완료 후 그 값을 true 로 바꾸고 /actuator/refresh 를 호출한다.
+>
+> 날짜: 2026-07-28 (원 설계), 2026-08-01 (Gateway 구현)
 > 관련 결정: 단일 DB·Headscale 접근 근거는 [DEVELOPMENT.md §3](../DEVELOPMENT.md),
-> [구현 계획](../plans/spring-cloud-a-infra.md)
+> [구현 계획](../plans/spring-cloud-a-infra.md), [Gateway 구현 계획](../superpowers/plans/2026-08-01-gateway-introduction.md)
 
 ## 1. 목적과 전제
 
@@ -30,8 +36,8 @@
 | core-api | 8082 | 프로필·소득·지출·스킬·지수·시나리오 | 등록 |
 | batch-worker | — | 외부 원천 수집·정규화·집계 (Spring Batch) | 등록 |
 
-포트 열은 목표 상태의 **컨테이너 내부** 포트다. Eureka에 등록되고 Gateway가 붙는 것도 이
-포트다. Gateway 도입 전인 현재 `core-api`는 아직 8080을 쓴다 — Caddy가 직접 그리로 붙는다.
+포트 열은 **컨테이너 내부** 포트이자 현재 상태다. Eureka에 등록되고 Gateway가 붙는 것도 이
+포트다.
 
 호스트 바인딩(`127.0.0.1:`)은 대부분 같은 번호를 쓰지만 `config-server`만 **8890**이다.
 호스트 8888은 저장소 밖 `infra-dozzle-1`이 이미 잡고 있다.
