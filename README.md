@@ -283,7 +283,7 @@ flowchart TD
 
 | 기술 | 사유 |
 | --- | --- |
-| Vite + React + React Router (Next.js 대체) | Next.js는 풀스택 프레임워크라 Node 계층이 API·데이터로 번지기 쉽고 Spring Boot와 역할 경계가 흐려집니다. Node는 HTML SSR·SEO만 맡깁니다 ([ADR 0002](docs/adr/0002-frontend-vite-react-node-ssr.md)) |
+| Vite + React + React Router (Next.js 대체) | Next.js는 풀스택 프레임워크라 Node 계층이 API·데이터로 번지기 쉽고 Spring Boot와 역할 경계가 흐려집니다. Node는 HTML SSR·SEO만 맡깁니다 (자세한 배경은 [프런트엔드 설계](docs/specs/frontend-design.md)) |
 | Node SSR (Express) | 공개 랜딩·콘텐츠의 SEO와 로그인 후 대시보드의 상호작용성을 한 앱에서 지원하기 위해 |
 | TanStack Query | 서버 상태를 클라이언트 스토어에 복제하지 않기 위해. 캐시·재검증을 직접 구현하지 않습니다 |
 | Zod + React Hook Form | 입력 검증을 프런트·백엔드 양쪽에서 하되, 프런트 스키마를 한 곳에 두기 위해 |

@@ -9,6 +9,11 @@ Carix의 프런트엔드를 Vite 기반 React 애플리케이션과 Node.js SSR 
 이 문서는 기존 설계 문서의 Next.js 관련 프런트엔드 선택을 대체한다. Spring Boot,
 PostgreSQL, Spring Batch와 관련된 기존 백엔드·데이터 설계는 유지한다.
 
+**Next.js App Router를 접은 이유:** 풀스택 프레임워크라 Node 계층이 API·데이터 접근으로
+번지기 쉽고, Spring Boot와의 역할 경계가 흐려진다. Node는 HTML SSR·SEO만 맡고 인증·도메인·
+API·데이터 접근은 전부 Spring Boot가 담당하는 경계를 유지하기 위해 Vite + Node SSR로
+바꿨다.
+
 ## 기술 구성
 
 - 런타임: Node.js 24 LTS
