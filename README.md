@@ -291,10 +291,10 @@ flowchart TD
 | Java 21 | LTS. Spring Boot 4.x의 하한(17)보다 높고 가상 스레드 등 최신 LTS 기능을 씁니다 |
 | Spring Boot 4.1 | 스캐폴드 시점의 최신 GA. Spring Initializr 기본값이며 3.x는 더 이상 제공되지 않습니다 |
 | springdoc-openapi 3.0.3 | Boot 4 대응 라인입니다. 2.x는 Boot 3용이라 호환되지 않습니다 |
-| Spring Data JPA + Flyway | 스키마를 코드로 관리하고 dev·운영 DB 간 드리프트를 막기 위해 |
+| Spring Data JPA + Flyway | 스키마를 코드로 관리하고 마이그레이션 이력을 추적하기 위해 |
 | Spring Batch | 외부 원천(KOSIS·고용24 등) 수집이 재시도·청크 처리·잡 이력을 요구합니다 |
 | PostgreSQL | 초기 설계에서 고정. 별도 근거는 기록돼 있지 않습니다 |
-| Docker·PostgreSQL 서버 전용 | 로컬 개발 머신에 Docker를 두지 않기로 했습니다 ([ADR 0003](docs/adr/0003-docker-db-oci-only.md)) |
+| Docker·PostgreSQL 서버 전용 | 로컬 개발 머신에 Docker를 두지 않기로 했습니다. 로컬 Docker 허용은 Testcontainers 실행이 쉬워지지만 요구사항이 늘고, 임베디드 DB(H2)는 실 Postgres와 스키마·기능 드리프트 위험이 있어 접었습니다 |
 | Caddy (라우터) | 인증서 자동 발급·갱신이 기본 동작이라 ACME 파이프라인을 직접 구성하지 않습니다 (위 nginx 비교 참조) |
 | Caddy (앱 라우팅) | 업스트림을 요청마다 재해석해 배포 시 컨테이너 IP가 바뀌어도 영향이 없습니다. nginx는 별도 우회가 필요합니다 |
 | GitHub Actions ARM 러너 | 서버가 `aarch64`라 QEMU 에뮬레이션 없이 네이티브로 빌드합니다 |
@@ -305,7 +305,7 @@ flowchart TD
 | Config Server native 백엔드 | git 백엔드로 서버 체크아웃을 가리켰더니 JGit 이 그 저장소의 origin(GitHub SSH)으로 fetch 를 시도해 ED25519 키로 인증이 안 됐습니다 (2026-07-30 실측). native 는 git 을 다루지 않고 파일만 읽습니다 |
 | Headscale (Tailscale SaaS 대체) | 무료 플랜 6명 제한과 외부 계정 의존을 없앱니다. 클라이언트는 공식 Tailscale 그대로라 사용 경험이 같습니다 (자세한 대안 비교는 [DEVELOPMENT.md §3.2](docs/DEVELOPMENT.md), 실사용 절차는 아래 개발 환경) |
 
-인증 방식(서버 세션 + 매직링크)의 근거는 [ADR 0005](docs/adr/0005-server-session-auth.md),
+인증 방식(서버 세션 + 매직링크)의 근거는 [SECURITY.md §1](docs/SECURITY.md),
 연봉 기준선 선택은 [ADR 0004](docs/adr/0004-salary-baseline-wage-stat.md)를 참조합니다.
 
 > **왜 2단인가.** 이 호스트는 여러 프로젝트를 함께 돌립니다. 80/443은 한 컨테이너만 바인딩할 수
