@@ -166,8 +166,7 @@
         "ruleVersion": "1.2.0",
         "updateDelayed": false,
         "sources": [
-          { "source": "WORK24", "sampleSize": 84 },
-          { "source": "SARAMIN", "sampleSize": 40 }
+          { "source": "SARAMIN", "sampleSize": 124 }
         ],
         "sampleSize": 124,
         "salaryMissingRate": 42.5,
@@ -203,13 +202,20 @@
         "min": 45000000, "p25": 58000000, "median": 65000000, "p75": 74000000, "max": 95000000,
         "sampleSize": 71, "missingRate": 42.5
       },
-      "userPosition": { "grossSalary": 60000000, "percentile": 35 }
+      "userPosition": { "grossSalary": 60000000, "percentile": 35 },
+      "peerGroup": {
+        "fallbackLevel": 3,
+        "appliedConditions": "서울 전체 / 경력 MID / 회사규모 무관"
+      }
     }
     ```
     *(공고 분포는 참고 표시 전용, 판정 기준선은 `baseline` — 상세 기술 명세 §2.1 규약)*
 
 ### 5.3 지수 트렌드 차트 데이터
 *   **Endpoint:** `GET /api/v1/dashboard/trends`
+*   **Query Parameters:**
+    *   `baseYearMonth` (String, optional): 인덱스 기준 월 (YYYY-MM). 지정하지 않으면 사용자의 첫 소득 이력 발생 월을 기준으로 자동 지정됨.
+    *   `durationMonths` (Integer, optional): 조회할 개원 수 (기본값: 12).
 *   **Response (200 OK):**
     ```json
     {
@@ -291,6 +297,7 @@
 *   **Request Body:**
     ```json
     {
+      "currentGrossSalary": 60000000,
       "stayExpectedRaiseRate": 3.5,
       "moveTargetGrossSalary": 72000000,
       "moveOneTimeCost": 3000000,
@@ -298,6 +305,7 @@
       "isEligibleForUnemploymentBenefit": true
     }
     ```
+    *(`currentGrossSalary`: 선택 입력. 생략 시 사용자의 최신 소득 이력 값을 사용하며, 가상 시뮬레이션을 위해 임의의 세전 연봉을 지정하여 테스트할 수 있습니다)*
     *(`expectedUnemploymentMonths`: 0~6. `isEligibleForUnemploymentBenefit` 기본값 true, false면 실업급여 0으로 계산하고 `실업급여 미반영` 안내 표시. 공식은 [도메인 정의서 §4](domain-logic.md)를 따릅니다)*
 *   **Response (200 OK):**
     ```json
@@ -371,4 +379,21 @@
 ### 7.5 세션·사용자
 *   `POST /api/v1/auth/logout` — 현재 세션 폐기
 *   `POST /api/v1/auth/logout-all` — 전체 세션 폐기
-*   `DELETE /api/v1/users` — 사용자·개인 데이터 삭제. Request Body에 확인용 `{"email": "..."}` 필수, 불일치 시 `400`
+*   `DELETE /api/v1/users` — 사용자·개인 데이터 삭제. 쿼리 스트링으로 확인용 `?email=...` 필수 (일부 네트워크 환경에서 HTTP DELETE Body 유실 문제 방지), 이메일 불일치 시 `400`
+
+### 7.6 공통 기준 데이터 조회 (Reference Data)
+*   `GET /api/v1/reference/default-expenses` — 통계청 기준 지출 가중치 및 금액 기본값 조회 (사용자가 지출을 입력하지 않은 카테고리의 대체 기본 정보를 화면에 보여주기 위해 프론트엔드가 호출).
+    *   **Response (200 OK):**
+        ```json
+        {
+          "version": "2025-v1",
+          "categories": [
+            { "category": "HOUSING", "weight": 0.174, "averageAmount": 511000 },
+            { "category": "FOOD", "weight": 0.142, "averageAmount": 417000 },
+            { "category": "TRANSPORTATION", "weight": 0.123, "averageAmount": 361000 },
+            { "category": "HEALTH", "weight": 0.081, "averageAmount": 238000 },
+            { "category": "EDUCATION", "weight": 0.075, "averageAmount": 220000 },
+            { "category": "OTHER", "weight": 0.405, "averageAmount": 1192000 }
+          ]
+        }
+        ```
