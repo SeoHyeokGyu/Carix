@@ -18,7 +18,7 @@
 
 ## 전제 (2026-07-26 서버 직접 실측)
 
-접속: `ssh carix-oci` (키는 `~/.ssh/carix-oci.key`, 권한 600. `~/.ssh/config`에 별칭 등록 완료)
+접속: `ssh <oci-server-alias>` (키는 `~/.ssh/<oci-server-alias>.key`, 권한 600. `~/.ssh/config`에 별칭 등록 완료)
 
 | 항목 | 실측값 |
 | --- | --- |
@@ -140,7 +140,7 @@
 - [ ] **Step 1: 회수 대상 확인**
 
 ```bash
-ssh carix-oci 'docker system df'
+ssh <oci-server-alias> 'docker system df'
 ```
 
 Expected: Images RECLAIMABLE ≈ 18.84GB, Build Cache ≈ 5.02GB.
@@ -153,7 +153,7 @@ Expected: Images RECLAIMABLE ≈ 18.84GB, Build Cache ≈ 5.02GB.
 > 삭제되고 소스 재빌드로만 복구된다.**
 
 ```bash
-ssh carix-oci 'docker ps -a --filter status=exited --filter status=created --format "{{.Names}}\t{{.Image}}"'
+ssh <oci-server-alias> 'docker ps -a --filter status=exited --filter status=created --format "{{.Names}}\t{{.Image}}"'
 ```
 
 Expected: 출력 없음. 있으면 해당 이미지를 먼저 확인하고 정리 범위를 좁힌다.
@@ -161,7 +161,7 @@ Expected: 출력 없음. 있으면 해당 이미지를 먼저 확인하고 정�
 볼륨은 건드리지 않는다 (`--volumes` 금지).
 
 ```bash
-ssh carix-oci 'docker image prune -a -f && docker builder prune -a -f && df -h /'
+ssh <oci-server-alias> 'docker image prune -a -f && docker builder prune -a -f && df -h /'
 ```
 
 **실행 결과 (2026-07-26):** 113G → 107G, 85% → **81%**, 6GB 회수. 빌드 캐시 7.4GB 전량 삭제.
@@ -178,7 +178,7 @@ ssh carix-oci 'docker image prune -a -f && docker builder prune -a -f && df -h /
 - [ ] **Step 3: 메모리 여유 재확인**
 
 ```bash
-ssh carix-oci 'free -m; ps -eo rss,comm --sort=-rss | head -10'
+ssh <oci-server-alias> 'free -m; ps -eo rss,comm --sort=-rss | head -10'
 ```
 
 Carix는 JVM 2개 + Node + Postgres ≈ 3–4GB를 추가로 쓴다. available 11.7GB면 들어가지만 스왑이
@@ -310,7 +310,7 @@ EOSQL
 `expose`→`ports`로 바꿔야 하고 DB를 인터넷에 노출한다.
 
 ```bash
-ssh -N -L 5432:localhost:5432 carix-oci
+ssh -N -L 5432:localhost:5432 <oci-server-alias>
 ```
 
 ### Task 2.3: 스캐폴드 담당자에게 전달할 계약
@@ -474,7 +474,7 @@ TLS 자동화가 필요한 계층에서는 Caddy가 명확히 적은 구성으�
 - [ ] **Step 1: 공유 네트워크**
 
 ```bash
-ssh carix-oci 'docker network inspect edge >/dev/null 2>&1 || docker network create edge'
+ssh <oci-server-alias> 'docker network inspect edge >/dev/null 2>&1 || docker network create edge'
 ```
 
 - [ ] **Step 2: 라우터 `~/infra/caddy/Caddyfile`**
@@ -549,16 +549,16 @@ volumes:
 애플리케이션 이미지가 없어도 단독 기동된다.
 
 ```bash
-ssh carix-oci 'cd /home/opc/carix && docker compose up -d carix-caddy'
+ssh <oci-server-alias> 'cd /home/opc/carix && docker compose up -d carix-caddy'
 ```
 
 - [ ] **Step 6: 검증**
 
 ```bash
-ssh carix-oci 'docker exec infra_caddy caddy validate --config /etc/caddy/Caddyfile'
+ssh <oci-server-alias> 'docker exec infra_caddy caddy validate --config /etc/caddy/Caddyfile'
 curl -sS -o /dev/null -w "pulse=%{http_code} tls=%{ssl_verify_result}\n" https://pulse.144.24.90.88.sslip.io/
 curl -sS -o /dev/null -w "carix=%{http_code} tls=%{ssl_verify_result}\n" https://carix.144.24.90.88.sslip.io/
-ssh carix-oci 'docker exec infra_caddy ls /data/caddy/certificates/acme-v02.api.letsencrypt.org-directory/'
+ssh <oci-server-alias> 'docker exec infra_caddy ls /data/caddy/certificates/acme-v02.api.letsencrypt.org-directory/'
 ```
 
 Expected: pulse 200, carix는 백엔드 전이라 502, 둘 다 `tls=0`(검증 통과),
@@ -571,17 +571,17 @@ Expected: pulse 200, carix는 백엔드 전이라 502, 둘 다 `tls=0`(검증 �
 
 - [x] **Step 1**
 
-키를 `~/Downloads/keys/`에서 `~/.ssh/carix-oci.key`(권한 600)로 옮기고 `~/.ssh/config`에 등록했다.
+키를 `~/Downloads/keys/`에서 `~/.ssh/<oci-server-alias>.key`(권한 600)로 옮기고 `~/.ssh/config`에 등록했다.
 
 ```
-Host carix-oci
+Host <oci-server-alias>
   HostName 144.24.90.88
   User opc
-  IdentityFile ~/.ssh/carix-oci.key
+  IdentityFile ~/.ssh/<oci-server-alias>.key
   IdentitiesOnly yes
 ```
 
-Verified: `ssh carix-oci 'echo CONNECTED'` → `CONNECTED`
+Verified: `ssh <oci-server-alias> 'echo CONNECTED'` → `CONNECTED`
 
 ### Task 4.2: 저장소 체크아웃
 
@@ -595,8 +595,8 @@ Verified: `ssh carix-oci 'echo CONNECTED'` → `CONNECTED`
 - [ ] **Step 1: deploy key 생성·회수**
 
 ```bash
-ssh carix-oci 'ssh-keygen -t ed25519 -f ~/.ssh/carix-deploy -N "" -C carix-deploy@oci'
-ssh carix-oci 'cat ~/.ssh/carix-deploy.pub' > /tmp/carix-deploy.pub
+ssh <oci-server-alias> 'ssh-keygen -t ed25519 -f ~/.ssh/carix-deploy -N "" -C carix-deploy@oci'
+ssh <oci-server-alias> 'cat ~/.ssh/carix-deploy.pub' > /tmp/carix-deploy.pub
 ```
 
 - [ ] **Step 2: GitHub 등록** (`--allow-write` 주지 않는다)
@@ -611,21 +611,21 @@ gh repo deploy-key add /tmp/carix-deploy.pub -R SeoHyeokGyu/Carix -t carix-oci
 - [ ] **Step 3: 클론**
 
 ```bash
-ssh carix-oci '
+ssh <oci-server-alias> '
   printf "\nHost github-carix\n  HostName github.com\n  User git\n  IdentityFile ~/.ssh/carix-deploy\n  IdentitiesOnly yes\n" >> ~/.ssh/config
   mkdir -p /home/opc/carix
   git clone git@github-carix:SeoHyeokGyu/Carix.git /home/opc/carix
 '
 ```
 
-Verify: `ssh carix-oci 'git -C /home/opc/carix log --oneline -1'`
+Verify: `ssh <oci-server-alias> 'git -C /home/opc/carix log --oneline -1'`
 
 ### Task 4.3: 시크릿과 `.env`
 
 - [ ] **Step 1: 암호화 키 생성 (서버에서)**
 
 ```bash
-ssh carix-oci 'openssl rand -base64 32'
+ssh <oci-server-alias> 'openssl rand -base64 32'
 ```
 
 > **키 보관 경고:** `CARIX_ENCRYPTION_KEY`를 분실하면 AES-256-GCM 암호화 컬럼은 **복구 불가**다.
@@ -635,13 +635,13 @@ ssh carix-oci 'openssl rand -base64 32'
 - [ ] **Step 2: `/home/opc/carix/.env`** — 값 입력은 사용자가 한다
 
 ```bash
-ssh carix-oci 'cp /home/opc/carix/.env.example /home/opc/carix/.env && chmod 600 /home/opc/carix/.env'
+ssh <oci-server-alias> 'cp /home/opc/carix/.env.example /home/opc/carix/.env && chmod 600 /home/opc/carix/.env'
 ```
 
 채울 항목: `POSTGRES_PASSWORD`, `CARIX_DEV_PASSWORD`, `CARIX_ENCRYPTION_KEY`,
 `KOSIS_API_KEY`, `WORK24_API_KEY`, `SARAMIN_API_KEY`, `WAGE_STAT_API_KEY`.
 
-Verify: `ssh carix-oci 'ls -l /home/opc/carix/.env; git -C /home/opc/carix status --porcelain'`
+Verify: `ssh <oci-server-alias> 'ls -l /home/opc/carix/.env; git -C /home/opc/carix status --porcelain'`
 Expected: `-rw-------`, git status에 `.env` 미표시.
 
 ### Task 4.4: 방화벽 확인 (변경 최소)
@@ -685,7 +685,7 @@ Mukzzi 워크플로는 **Go** 프로젝트다. Carix는 Gradle/JVM + Node SSR이
 서버는 그 배포 상태로 남는다. 복구는 수동이다.
 
 ```bash
-ssh carix-oci
+ssh <oci-server-alias>
 cd /home/opc/carix
 # 되돌릴 커밋은 Actions 배포 실행 목록이나 `git log` 에서 찾는다
 sed -i "s|^BACKEND_TAG=.*|BACKEND_TAG=<직전 SHA>|" .env
@@ -805,7 +805,7 @@ private 패키지 스토리지 한도가 있어 방치하면 언젠가 push가 �
 
 ```bash
 ssh-keygen -t ed25519 -f ~/.ssh/carix-cd -N "" -C carix-cd@actions
-ssh-copy-id -i ~/.ssh/carix-cd.pub carix-oci
+ssh-copy-id -i ~/.ssh/carix-cd.pub <oci-server-alias>
 ```
 
 - [ ] **Step 2: Secrets 등록**
@@ -1037,7 +1037,7 @@ rg -n "nginx" docker-compose.yml   # 결과 없어야 한다
 - [ ] **Step 2: 배포 후 상태**
 
 ```bash
-ssh carix-oci 'cd /home/opc/carix && docker compose ps && docker compose logs --tail=50 core-api'
+ssh <oci-server-alias> 'cd /home/opc/carix && docker compose ps && docker compose logs --tail=50 core-api'
 # 서비스명은 spring-cloud-a-infra.md 이후 core-api 로 바뀌었다.
 curl -sS -o /dev/null -w "%{http_code}\n" https://carix.144.24.90.88.sslip.io/
 curl -sS -o /dev/null -w "%{http_code}\n" https://carix.144.24.90.88.sslip.io/api/health
@@ -1049,8 +1049,8 @@ Expected: 전 서비스 `running`, 둘 다 200.
 
 ```bash
 curl -sS -o /dev/null -w "pulse=%{http_code}\n" https://pulse.144.24.90.88.sslip.io/
-ssh carix-oci 'docker ps --format "{{.Names}}\t{{.Status}}" | grep -vc Up'
-ssh carix-oci 'free -m; df -h /'
+ssh <oci-server-alias> 'docker ps --format "{{.Names}}\t{{.Status}}" | grep -vc Up'
+ssh <oci-server-alias> 'free -m; df -h /'
 ```
 
 Expected: pulse 200, 비정상 컨테이너 0, 스왑·디스크가 Phase 1 대비 악화되지 않음.
@@ -1058,7 +1058,7 @@ Expected: pulse 200, 비정상 컨테이너 0, 스왑·디스크가 Phase 1 대�
 - [ ] **Step 4: 재부팅 내성**
 
 ```bash
-ssh carix-oci 'sudo systemctl is-enabled docker'
+ssh <oci-server-alias> 'sudo systemctl is-enabled docker'
 ```
 
 Expected: `enabled` (+ compose의 `restart: unless-stopped`).
@@ -1078,7 +1078,7 @@ Expected: `enabled` (+ compose의 `restart: unless-stopped`).
   비밀번호 관리자나 OCI Vault에 보관한다. 그 시점 이후 분실은 복구 불가다.
 
   ```bash
-  ssh carix-oci 'grep ^CARIX_ENCRYPTION_KEY= /home/opc/carix/.env'
+  ssh <oci-server-alias> 'grep ^CARIX_ENCRYPTION_KEY= /home/opc/carix/.env'
   ```
 
 ---

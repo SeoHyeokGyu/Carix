@@ -15,7 +15,7 @@
 이 계획을 시작하기 전에 서버에서 1회 수행한다. 브라우저 인증이 필요해 사람이 해야 한다.
 
 ```bash
-ssh carix-oci
+ssh <oci-server-alias>
 curl -fsSL https://tailscale.com/install.sh | sh
 docker exec carix_headscale headscale users create server
 docker exec carix_headscale headscale preauthkeys create --user server --expiration 1h
@@ -395,7 +395,7 @@ B=https://carix.144.24.90.88.sslip.io
 for p in /api/health /api/swagger-ui/index.html /; do
   printf '%-32s %s\n' "$p" "$(curl -sS -o /dev/null -w '%{http_code}' $B$p)"
 done
-ssh carix-oci 'docker ps --filter "name=carix" --format "{{.Names}}\t{{.Status}}"'
+ssh <oci-server-alias> 'docker ps --filter "name=carix" --format "{{.Names}}\t{{.Status}}"'
 ```
 
 Expected: 세 경로 모두 `200`. 컨테이너 목록에 `carix-core-api-1` 이 있고 `carix-spring-api-1` 은 없다.
@@ -723,9 +723,9 @@ gh pr create --base main --head feat/eureka-server \
 - [ ] **Step 15: 머지 후 배포 검증**
 
 ```bash
-ssh carix-oci 'docker ps --filter "name=eureka" --format "{{.Names}}\t{{.Status}}"'
-ssh carix-oci 'curl -sS -o /dev/null -w "eureka UI %{http_code}\n" http://127.0.0.1:8761/'
-ssh carix-oci 'curl -sS -H "Accept: application/json" http://127.0.0.1:8761/eureka/apps'
+ssh <oci-server-alias> 'docker ps --filter "name=eureka" --format "{{.Names}}\t{{.Status}}"'
+ssh <oci-server-alias> 'curl -sS -o /dev/null -w "eureka UI %{http_code}\n" http://127.0.0.1:8761/'
+ssh <oci-server-alias> 'curl -sS -H "Accept: application/json" http://127.0.0.1:8761/eureka/apps'
 ```
 
 Expected: 컨테이너 `Up`, UI `200`, 등록 앱 없음
@@ -1037,9 +1037,9 @@ gh pr create --base main --head feat/config-server \
 - [ ] **Step 14: 머지 후 배포 검증**
 
 ```bash
-ssh carix-oci 'docker ps --filter "name=config-server" --format "{{.Names}}\t{{.Status}}"'
-ssh carix-oci 'docker logs --tail 20 $(docker ps -qf name=config-server)'
-ssh carix-oci 'curl -sS http://127.0.0.1:8890/core-api/prod | head -c 400'
+ssh <oci-server-alias> 'docker ps --filter "name=config-server" --format "{{.Names}}\t{{.Status}}"'
+ssh <oci-server-alias> 'docker logs --tail 20 $(docker ps -qf name=config-server)'
+ssh <oci-server-alias> 'curl -sS http://127.0.0.1:8890/core-api/prod | head -c 400'
 ```
 
 Expected: 컨테이너 `Up`, 로그에 git clone 성공, 설정 JSON 에 `purchasing-power-warning-threshold` 가 보인다
@@ -1415,7 +1415,7 @@ gh pr create --base main --head feat/core-api-cloud-client \
 ```bash
 B=https://carix.144.24.90.88.sslip.io
 curl -sS $B/api/v1/demo/thresholds
-ssh carix-oci 'curl -sS -H "Accept: application/json" http://127.0.0.1:8761/eureka/apps | head -c 300'
+ssh <oci-server-alias> 'curl -sS -H "Accept: application/json" http://127.0.0.1:8761/eureka/apps | head -c 300'
 ```
 
 Expected: 임계값 JSON(`0.95`, `0.90`), Eureka 응답에 `CORE-API` 등록
@@ -1436,7 +1436,7 @@ git push
 
 ```bash
 sleep 70
-ssh carix-oci 'curl -sS -XPOST http://127.0.0.1:8082/api/actuator/refresh'
+ssh <oci-server-alias> 'curl -sS -XPOST http://127.0.0.1:8082/api/actuator/refresh'
 curl -sS https://carix.144.24.90.88.sslip.io/api/v1/demo/thresholds
 ```
 

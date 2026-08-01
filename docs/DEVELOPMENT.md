@@ -114,8 +114,8 @@ DB를 하나로 합쳤다 — `carix_dev` DB·롤과 initdb 스크립트를 제�
 1. **사용자·preauth key 발급** (관리자)
 
    ```bash
-   ssh carix-oci 'docker exec carix_headscale headscale users create <이름>'
-   ssh carix-oci 'docker exec carix_headscale headscale preauthkeys create --user <이름> --expiration 24h'
+   ssh <oci-server-alias> 'docker exec carix_headscale headscale users create <이름>'
+   ssh <oci-server-alias> 'docker exec carix_headscale headscale preauthkeys create --user <이름> --expiration 24h'
    ```
 
    출력된 키를 비밀번호 관리자 등 안전한 경로로 전달한다. 24시간 뒤 만료된다.
@@ -150,7 +150,7 @@ DB를 하나로 합쳤다 — `carix_dev` DB·롤과 initdb 스크립트를 제�
 **팀원이 빠지면** Headscale 사용자와 DB 롤을 함께 제거한다.
 
 ```bash
-ssh carix-oci 'docker exec carix_headscale headscale users destroy <이름>'
+ssh <oci-server-alias> 'docker exec carix_headscale headscale users destroy <이름>'
 docker exec -i carix-postgres-1 psql -U carix -d carix -c 'DROP ROLE "<이름>"'
 ```
 
