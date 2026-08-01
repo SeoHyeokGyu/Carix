@@ -12,13 +12,14 @@ import org.springframework.context.annotation.Configuration;
  */
 @Configuration
 @OpenAPIDefinition(
-		info = @Info(
-				title = "Carix API",
-				version = "v1",
-				description = """
-						커리어 구매력 지수 서비스의 내부 REST API.
-
-						규격 정본은 저장소의 docs/specs/api-specification.md 다.
-						현재는 배포 파이프라인 검증용 최소 스캐폴드이며 도메인 API는 아직 없다."""))
+    info = @Info(
+        title = "Carix API",
+        version = "v1",
+        description = """
+            커리어 구매력 지수 서비스의 내부 REST API.
+            
+            규격 정본은 저장소의 docs/specs/api-specification.md 다.
+            현재는 배포 파이프라인 검증용 최소 스캐폴드이며 도메인 API는 아직 없다."""))
 public class OpenApiConfig {
+
 }
