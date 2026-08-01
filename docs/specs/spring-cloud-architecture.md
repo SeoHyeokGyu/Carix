@@ -3,8 +3,7 @@
 > 상태: 계획 A(멀티모듈·Config Server·Eureka) 구현·운영 검증 완료 — 2026-07-30.
 > 계획 B(Gateway 도입)·C(auth-service 분리)는 미구현.
 > 날짜: 2026-07-28
-> 관련 결정: [ADR 0007](../adr/0007-single-database-for-prod-and-dev.md) 단일 DB,
-> [ADR 0008](../adr/0008-db-access-via-tailscale.md) Headscale 접근,
+> 관련 결정: 단일 DB·Headscale 접근 근거는 [DEVELOPMENT.md §3](../DEVELOPMENT.md),
 > [구현 계획](../plans/spring-cloud-a-infra.md)
 
 ## 1. 목적과 전제
@@ -55,7 +54,7 @@ Eureka는 등록된 포트를 그대로 알려주므로 고정이어도 정상 �
 
 ## 3. 데이터 소유
 
-DB는 하나(`carix`, ADR 0007), 스키마는 **둘**로 나눈다.
+DB는 하나(`carix`, 근거는 DEVELOPMENT.md §3), 스키마는 **둘**로 나눈다.
 
 | 스키마 | 소유 | 테이블 |
 | --- | --- | --- |
@@ -259,7 +258,7 @@ Gateway가 마지막이다. 하류가 준비되기 전에 트래픽을 받으면
 
 ## 6. 로컬 개발
 
-로컬에 Docker를 두지 않는다([ADR 0003](../adr/0003-docker-db-oci-only.md) 유지).
+로컬에 Docker를 두지 않는다(README.md 채택 사유 유지).
 서버 인프라를 공유하고 **작업 대상 서비스 하나만** 노트북에서 띄운다.
 
 ### 가장 큰 위험 — 로컬 인스턴스가 운영 트래픽을 받는다
@@ -308,20 +307,20 @@ spring.cloud.gateway.routes:
 
 ### 남는 제약
 
-- **운영 DB를 공유한다**(ADR 0007). 로컬에서 돌린 마이그레이션과 쿼리가 운영에 반영된다.
+- **운영 DB를 공유한다**(근거는 DEVELOPMENT.md §3). 로컬에서 돌린 마이그레이션과 쿼리가 운영에 반영된다.
 - 서버 인프라가 죽으면 로컬 개발이 막힌다. `fail-fast`라 기동조차 되지 않는다.
 - 오프라인 개발이 불가능하다.
 
 ## 7. 기존 결정과의 충돌
 
-### ADR 0006 (엣지 프록시) 일부 대체
+### 엣지 프록시 선택(oci-server-provisioning-plan.md §Phase 3) 일부 대체
 
 `carix_caddy`가 담당하던 애플리케이션 라우팅을 Gateway가 가져간다. 해당 컨테이너는 제거된다.
 
-**라우터 Caddy(`infra_caddy`)는 유지한다.** ADR 0006의 근거 — ACME 자동화, 80/443 단일
+**라우터 Caddy(`infra_caddy`)는 유지한다.** 그 근거 — ACME 자동화, 80/443 단일
 바인딩 제약, 타 프로젝트와 공유 — 가 그대로 유효하다. Gateway는 TLS를 다루지 않는다.
 
-구현 시 ADR 0006의 상태를 갱신하고 이 변경을 기록하는 새 ADR을 작성한다.
+Gateway 도입 커밋에 이 변경 사유를 기록한다.
 
 ### 잃는 것
 
@@ -351,4 +350,4 @@ JVM 6개가 실사용 250~400MB씩이면 1.5~2.4GB 증가한다. 여유 범위 �
 | Spring Cloud Stream·브로커 | 같음. 지수 재계산은 배치가 담당한다 |
 | Spring Cloud Bus | 설정 갱신 브로드캐스트. 서비스 4개면 `/actuator/refresh` 직접 호출로 충분 |
 | Redis | 세션 캐시는 인메모리, rate limit은 도입하지 않음 |
-| 서비스별 DB 인스턴스 | ADR 0007이 단일 DB를 정했다. `auth`만 스키마로 분리한다 |
+| 서비스별 DB 인스턴스 | 단일 DB(DEVELOPMENT.md §3)이므로 `auth`만 스키마로 분리한다 |

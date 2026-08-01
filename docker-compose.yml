@@ -1,6 +1,7 @@
 # Carix — OCI 배포 전용 오케스트레이션.
 # 로컬에서 `docker compose up`으로 쓰지 않는다. Docker와 PostgreSQL은 OCI 서버에서만 기동한다.
-# 로컬 개발은 순수 코드로 하고, 백엔드는 OCI dev DB에 원격 연결한다 (README 개발 환경 참조).
+# 로컬 개발은 순수 코드로 하고, 백엔드는 OCI의 carix DB(운영과 같은 DB)에 원격 연결한다
+# (README 개발 환경 참조).
 #
 # 이미지는 GitHub Actions(ubuntu-24.04-arm)가 빌드해 GHCR에 올린다. 서버는 pull만 한다.
 # CORE_API_TAG / FRONTEND_TAG 는 배포 워크플로가 커밋 SHA로 서버 .env에 기록한다.
@@ -34,7 +35,8 @@ services:
     restart: unless-stopped
 
   # 자체 호스팅 Tailscale 컨트롤 서버. 팀원 노트북과 이 서버를 같은 사설망에 넣어
-  # 운영 DB 에 접근시킨다 (ADR 0008). 호스트 포트를 발행하지 않고 라우터 Caddy 만 닿는다.
+  # 운영 DB 에 접근시킨다 (근거는 docs/DEVELOPMENT.md §3.2). 호스트 포트를 발행하지 않고
+  # 라우터 Caddy 만 닿는다.
   headscale:
     image: headscale/headscale:0.29.2
     container_name: carix_headscale

@@ -67,8 +67,8 @@ Dockerfile은 컴파일하지 않는다. CI 러너가 Gradle 캐시로 만든 JA
 
 - 로컬엔 PostgreSQL·Docker를 띄우지 않는다. **OCI의 `carix` DB에 원격 연결**한다.
   접근은 Headscale tailnet 이며 노트북에는 Tailscale 앱만 설치한다
-  ([ADR 0008](../docs/adr/0008-db-access-via-tailscale.md)).
-- 운영과 개발이 **같은 DB**다. 별도 dev DB는 두지 않는다 ([ADR 0007](../docs/adr/0007-single-database-for-prod-and-dev.md)).
+  (대안 비교는 [`../docs/DEVELOPMENT.md`](../docs/DEVELOPMENT.md) §3.2).
+- 운영과 개발이 **같은 DB**다. 별도 dev DB는 두지 않는다(감수한 위험은 같은 문서 §3).
 - `application-local.yml` 로 `eureka.client.register-with-eureka: false` 를 반드시 켠다.
   안 켜면 서버 Eureka 에 등록돼 서버 Gateway 가 이 노트북으로 운영 트래픽을 보낸다.
   절차는 [`../docs/DEVELOPMENT.md`](../docs/DEVELOPMENT.md) §3·§5.
@@ -76,5 +76,5 @@ Dockerfile은 컴파일하지 않는다. CI 러너가 Gradle 캐시로 만든 JA
 ## 테스트 주의
 
 - 설계 테스트 전략은 Testcontainers를 쓰나, Testcontainers는 로컬 Docker를 요구한다.
-- Docker가 OCI 전용이므로, 통합 테스트는 **배포 워크플로(Docker 제공 러너) 또는 OCI dev DB 대상**으로 실행한다. 로컬에서는 단위 테스트 중심으로 돌린다.
+- Docker가 OCI 전용이므로, 통합 테스트는 **배포 워크플로(Docker 제공 러너) 또는 OCI DB 대상**으로 실행한다. 로컬에서는 단위 테스트 중심으로 돌린다.
 - PR 단계 CI가 없다. `./gradlew build` 가 자동으로 도는 지점은 main 푸시뿐이므로, 머지 전 검증은 로컬에서 직접 한다.
