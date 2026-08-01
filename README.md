@@ -364,8 +364,7 @@ robots 정책과 필요한 구조화 데이터를 제공합니다.
 | 브라우저 E2E | Playwright | 미도입 |
 
 PR 단계 CI는 두지 않습니다. `./gradlew build`가 자동으로 도는 지점은 main 푸시의 배포
-워크플로뿐이며, 프런트엔드 검증은 로컬에서 직접 돌립니다
-([ADR 인덱스](docs/adr/README.md) 참조).
+워크플로뿐이며, 프런트엔드 검증은 로컬에서 직접 돌립니다.
 
 OCI VM에서는 `carix-caddy`, `headscale`, `frontend-node`, `config-server`, `eureka`,
 `core-api`, `postgres` 컨테이너를 Docker Compose로 운영합니다 (`auth-service`·`batch-worker`는
@@ -409,7 +408,6 @@ Carix/
 │   ├── README.md             문서 맵 (주제별 인덱스 — 여기서 시작)
 │   ├── specs/                설계 문서 정본 (MVP, API, DB, UI/UX 등)
 │   ├── plans/                계획 문서 정본 (데이터 검증, OCI 배포)
-│   ├── adr/                  아키텍처 결정 기록 (ADR)
 │   ├── SECURITY.md           보안·개인정보 처리
 │   └── DEVELOPMENT.md        로컬 개발 가이드
 ├── .github/workflows/         Deploy (main 푸시). PR 단계 CI는 없음
