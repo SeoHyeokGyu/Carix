@@ -12,6 +12,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import java.time.Duration;
+import java.util.Locale;
 import java.util.UUID;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -57,7 +58,9 @@ public class MagicLinkController {
 			description = "초대되지 않은 이메일에도 동일한 응답을 반환한다 (계정 열거 방지).")
 	@PostMapping("/v1/auth/magic-link")
 	public MagicLinkResponse requestMagicLink(@Valid @RequestBody MagicLinkRequest request, HttpServletRequest httpRequest) {
-		String email = request.email();
+		// InvitationService/UserService 도 동일하게 정규화한다 — 여기서 맞추면 그쪽 정규화는
+		// 방어적 이중 처리가 되고, 안 맞추면 케이스만 다른 이메일이 별도 rate limit 버킷을 갖는다.
+		String email = request.email().trim().toLowerCase(Locale.ROOT);
 		String ip = httpRequest.getRemoteAddr();
 
 		boolean exceeded = rateLimitService.isExceeded("email", email, EMAIL_LIMIT_PER_HOUR)
