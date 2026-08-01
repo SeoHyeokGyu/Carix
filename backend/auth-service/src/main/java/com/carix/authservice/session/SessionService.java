@@ -8,6 +8,7 @@ import java.util.HexFormat;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 /**
  * 세션 만료(30일)는 SECURITY.md §1 정책값이다. 튜닝 요구가 없어 상수로 둔다(YAGNI).
@@ -42,10 +43,12 @@ public class SessionService {
 				.map(Session::getUserId);
 	}
 
+	@Transactional
 	public void revoke(String sessionToken) {
 		sessionRepository.deleteBySessionToken(sessionToken);
 	}
 
+	@Transactional
 	public void revokeAll(UUID userId) {
 		sessionRepository.deleteByUserId(userId);
 	}
