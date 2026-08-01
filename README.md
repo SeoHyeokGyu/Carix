@@ -306,7 +306,7 @@ flowchart TD
 | Headscale (Tailscale SaaS 대체) | 무료 플랜 6명 제한과 외부 계정 의존을 없앱니다. 클라이언트는 공식 Tailscale 그대로라 사용 경험이 같습니다 (자세한 대안 비교는 [DEVELOPMENT.md §3.2](docs/DEVELOPMENT.md), 실사용 절차는 아래 개발 환경) |
 
 인증 방식(서버 세션 + 매직링크)의 근거는 [SECURITY.md §1](docs/SECURITY.md),
-연봉 기준선 선택은 [ADR 0004](docs/adr/0004-salary-baseline-wage-stat.md)를 참조합니다.
+연봉 기준선 선택은 [외부 API 연동 명세](docs/specs/external-api-integration.md)를 참조합니다(재검토 진행 중).
 
 > **왜 2단인가.** 이 호스트는 여러 프로젝트를 함께 돌립니다. 80/443은 한 컨테이너만 바인딩할 수
 > 있고 Let's Encrypt는 그 두 포트로만 검증하러 오므로, 포트를 나누면 한쪽이 정상 인증서를 받지
