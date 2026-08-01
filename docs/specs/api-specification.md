@@ -28,6 +28,10 @@
 
 ## 2. 인증 API (Authentication)
 
+> **소유 서비스: `auth-service`.** core-api가 아니다 — [spring-cloud-architecture.md](spring-cloud-architecture.md) §1의
+> 서비스 분리 결정에 따라 인증은 auth-service가 전담한다. core-api에 이 절의 엔드포인트를
+> 재구현하지 않는다.
+
 ### 2.1 매직링크 발송 요청
 *   **Endpoint:** `POST /api/v1/auth/magic-link`
 *   **Request Body:**
