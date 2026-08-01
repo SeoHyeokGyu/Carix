@@ -54,11 +54,14 @@ public class SessionValidationGatewayFilterFactory
 			}
 
 			return validator.validate(sessionToken)
-					.flatMap(userId -> {
-						cache.put(sessionToken, userId);
-						return chain.filter(withUserId(exchange, userId));
-					})
-					.switchIfEmpty(Mono.defer(() -> unauthorized(exchange)));
+					.map(Optional::of)
+					.defaultIfEmpty(Optional.empty())
+					.flatMap(maybeUserId -> maybeUserId
+							.map(userId -> {
+								cache.put(sessionToken, userId);
+								return chain.filter(withUserId(exchange, userId));
+							})
+							.orElseGet(() -> unauthorized(exchange)));
 		};
 	}
 
