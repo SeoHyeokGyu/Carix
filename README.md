@@ -453,5 +453,5 @@ PR 단계 CI는 두지 않습니다. 자동 검증은 배포 워크플로가 mai
 
 전체 문서는 **[문서 맵(`docs/README.md`)](docs/README.md)**에서 주제별로 탐색할 수 있습니다. 정본은 `docs/specs/`·`docs/plans/`입니다.
 
-설계 기준(제품 기능·데이터 아키텍처)은 위 문서 맵의 해당 표를 따릅니다. 하이브리드 계보 결정은 [ADR 0001](docs/adr/0001-hybrid-design-lineage.md) 참고.
+설계 기준(제품 기능·데이터 아키텍처)은 위 문서 맵의 해당 표를 따릅니다. 두 계보가 하이브리드로 정리된 배경은 [기능 명세서 §6.1](docs/specs/functional-specification.md) 참고.
 
