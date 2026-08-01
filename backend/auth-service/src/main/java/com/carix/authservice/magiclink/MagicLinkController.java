@@ -2,15 +2,24 @@ package com.carix.authservice.magiclink;
 
 import com.carix.authservice.invitation.InvitationService;
 import com.carix.authservice.ratelimit.RateLimitService;
+import com.carix.authservice.session.SessionService;
 import com.carix.authservice.user.User;
+import com.carix.authservice.user.UserRepository;
 import com.carix.authservice.user.UserService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
+import java.time.Duration;
+import java.util.UUID;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseCookie;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.server.ResponseStatusException;
 
 @RestController
 @Tag(name = "auth", description = "초대·매직링크 로그인")
@@ -24,18 +33,24 @@ public class MagicLinkController {
 	private final UserService userService;
 	private final MagicLinkService magicLinkService;
 	private final MagicLinkNotifier notifier;
+	private final SessionService sessionService;
+	private final UserRepository userRepository;
 
 	public MagicLinkController(
 			RateLimitService rateLimitService,
 			InvitationService invitationService,
 			UserService userService,
 			MagicLinkService magicLinkService,
-			MagicLinkNotifier notifier) {
+			MagicLinkNotifier notifier,
+			SessionService sessionService,
+			UserRepository userRepository) {
 		this.rateLimitService = rateLimitService;
 		this.invitationService = invitationService;
 		this.userService = userService;
 		this.magicLinkService = magicLinkService;
 		this.notifier = notifier;
+		this.sessionService = sessionService;
+		this.userRepository = userRepository;
 	}
 
 	@Operation(summary = "매직링크 발송 요청",
@@ -58,5 +73,25 @@ public class MagicLinkController {
 		}
 
 		return MagicLinkResponse.sent();
+	}
+
+	@Operation(summary = "매직링크 검증", description = "유효한 토큰이면 세션을 발급하고 쿠키에 담는다.")
+	@PostMapping("/v1/auth/verify")
+	public VerifyResponse verify(@Valid @RequestBody VerifyRequest request, HttpServletResponse httpResponse) {
+		UUID userId = magicLinkService.verifyToken(request.token());
+		User user = userRepository.findById(userId)
+				.orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST));
+
+		String sessionToken = sessionService.createSession(userId);
+		ResponseCookie cookie = ResponseCookie.from("session_token", sessionToken)
+				.httpOnly(true)
+				.secure(true)
+				.sameSite("Lax")
+				.path("/api")
+				.maxAge(Duration.ofDays(30))
+				.build();
+		httpResponse.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
+
+		return new VerifyResponse(user.getId(), user.getEmail(), user.isOnboardingComplete());
 	}
 }
