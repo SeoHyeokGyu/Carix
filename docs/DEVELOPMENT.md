@@ -10,7 +10,7 @@
 > | 항목 | 지금 (2026-08-01) |
 > | --- | --- |
 > | 백엔드 core-api | Spring Boot 4.1 + springdoc. `./gradlew build`·`bootRun` 동작. **JPA·Flyway·Security·Batch 없음** |
-> | 백엔드 auth-service | JPA·Flyway·초대·매직링크·세션·rate limit 구현 완료. 이메일 발송은 로깅 스텁 |
+> | 백엔드 auth-service | JPA·Flyway·초대·매직링크·세션·rate limit 구현 완료. 이메일 발송은 로깅 스텁. 배포 배선(Dockerfile·compose·CI) 미연결 |
 > | 프런트엔드 | 배포 검증용 스텁(`server.js`)만. **Vite·React 없음.** `pnpm dev`·`test:e2e` 스크립트 없음 |
 > | DB | `auth` 스키마는 auth-service가 쓴다. `core` 스키마는 core-api가 아직 안 씀 — §3 접근 설정은 JPA 도입 후부터 필요 |
 >

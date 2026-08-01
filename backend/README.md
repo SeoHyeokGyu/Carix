@@ -15,9 +15,11 @@ REST API, 데이터 접근, Spring Batch 수집·집계를 맡는다(스키마 `
 Config·Eureka 클라이언트만 있고 도메인 API는 아직 없다. JPA·Flyway·Security·Batch는 다음
 단계에서 추가한다.
 
-**구현 상태 (2026-08-01):** `auth-service` 구현 완료(초대 확인, 매직링크 발급·검증, 세션
-생성·조회·폐기, rate limit). `core-api` 도메인 인프라(JPA·Flyway·Security·Batch)와
-Spring Cloud Gateway 는 다음 단계.
+**구현 상태 (2026-08-01):** `auth-service` 코드 구현 완료(초대 확인, 매직링크 발급·검증, 세션
+생성·조회·폐기, rate limit). **배포 배선은 아직 없다** — `Dockerfile`, `docker-compose.yml`
+서비스 항목, Caddy 라우트, CI 빌드/테스트 잡, DB 접속 정보(`config/spring/auth-service.yml`은
+현재 빈 주석뿐)가 모두 미연결이라 이 상태로는 기동할 수 없다. 배포 배선은 별도 후속 작업이다.
+`core-api` 도메인 인프라(JPA·Flyway·Security·Batch)와 Spring Cloud Gateway 는 다음 단계.
 
 | 경로 | 용도 |
 | --- | --- |
@@ -102,3 +104,4 @@ Dockerfile은 컴파일하지 않는다. CI 러너가 Gradle 캐시로 만든 JA
 - 설계 테스트 전략은 Testcontainers를 쓰나, Testcontainers는 로컬 Docker를 요구한다.
 - Docker가 OCI 전용이므로, 통합 테스트는 **배포 워크플로(Docker 제공 러너) 또는 OCI DB 대상**으로 실행한다. 로컬에서는 단위 테스트 중심으로 돌린다.
 - PR 단계 CI가 없다. `./gradlew build` 가 자동으로 도는 지점은 main 푸시뿐이므로, 머지 전 검증은 로컬에서 직접 한다.
+- `auth-service`는 이 배포 워크플로에도 아직 안 걸린다 — `.github/workflows/deploy.yml`은 `core-api`·`eureka`·`config-server`만 빌드·테스트하므로, 위 CI 폴백조차 이 모듈엔 해당하지 않는다.
