@@ -86,7 +86,8 @@ Dockerfile은 컴파일하지 않는다. CI 러너가 Gradle 캐시로 만든 JA
 
 ## 로컬 개발과 DB
 
-> 아직 DB를 쓰지 않는다. 아래는 JPA 도입 이후 적용된다.
+> `core-api`는 아직 DB를 쓰지 않는다 — JPA 도입 이후 적용된다. `auth-service`는 이미 JPA·Flyway로
+> `auth` 스키마를 쓰므로, 아래 원격 DB 연결 설정이 지금 바로 필요하다.
 
 - 로컬엔 PostgreSQL·Docker를 띄우지 않는다. **OCI의 `carix` DB에 원격 연결**한다.
   접근은 Headscale tailnet 이며 노트북에는 Tailscale 앱만 설치한다
