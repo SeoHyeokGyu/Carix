@@ -1,0 +1,8 @@
+# gateway 전용 설정. 시크릿은 여기 두지 않는다.
+carix:
+  gateway:
+    session-validation:
+      # auth-service 배포 배선이 아직 없다(backend/README.md). 배포되기 전 이 필터를 켜면
+      # 세션 검증 백엔드가 없어 core-api 로 가는 모든 요청이 401 또는 503 이 된다.
+      # auth-service 배포 완료 후 이 값을 true 로 바꾸고 /actuator/refresh 를 호출한다.
+      enabled: false
