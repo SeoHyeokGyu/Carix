@@ -1,7 +1,9 @@
 package com.carix.authservice.session;
 
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.cookie;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.carix.authservice.AbstractIntegrationTest;
@@ -55,6 +57,28 @@ class SessionControllerTest extends AbstractIntegrationTest {
 	void 쿠키_없이_로그아웃해도_200을_반환한다() throws Exception {
 		mockMvc.perform(post("/v1/auth/logout"))
 				.andExpect(status().isOk());
+	}
+
+	@Test
+	void 유효한_세션이면_200과_사용자ID를_반환한다() throws Exception {
+		UUID userId = createTestUser();
+		String token = sessionService.createSession(userId);
+
+		mockMvc.perform(get("/v1/auth/session").cookie(new Cookie("session_token", token)))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.userId").value(userId.toString()));
+	}
+
+	@Test
+	void 쿠키가_없으면_401을_반환한다() throws Exception {
+		mockMvc.perform(get("/v1/auth/session"))
+				.andExpect(status().isUnauthorized());
+	}
+
+	@Test
+	void 존재하지_않는_토큰이면_401을_반환한다() throws Exception {
+		mockMvc.perform(get("/v1/auth/session").cookie(new Cookie("session_token", "no-such-token")))
+				.andExpect(status().isUnauthorized());
 	}
 
 	private UUID createTestUser() {
