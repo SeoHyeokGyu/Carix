@@ -1,7 +1,9 @@
 # Carix Backend
 
-Java 21 + Spring Boot. Gradle 멀티모듈 — `config-server`, `eureka`, `core-api`.
-`core-api` 가 인증, 도메인 로직, REST API, 데이터 접근, Spring Batch 수집·집계를 맡는다.
+Java 21 + Spring Boot. Gradle 멀티모듈 — `config-server`, `eureka`, `core-api`, `auth-service`.
+`auth-service` 가 초대·매직링크 로그인·세션을 맡는다(스키마 `auth`). `core-api` 가 도메인 로직,
+REST API, 데이터 접근, Spring Batch 수집·집계를 맡는다(스키마 `core`, JPA·Flyway·Security·Batch는
+아직 없음 — 다음 단계).
 
 상세 설계:
 - DB 스키마·규칙: [`../docs/specs/technical-specification.md`](../docs/specs/technical-specification.md)
@@ -13,14 +15,35 @@ Java 21 + Spring Boot. Gradle 멀티모듈 — `config-server`, `eureka`, `core-
 Config·Eureka 클라이언트만 있고 도메인 API는 아직 없다. JPA·Flyway·Security·Batch는 다음
 단계에서 추가한다.
 
-**전환 예정:** 앞에 Spring Cloud Gateway 가 놓이고(계획 B), `core-api` 에서
-`auth-service`·`batch-worker` 가 더 갈라진다(계획 C).
+**구현 상태 (2026-08-01):** `auth-service` 구현 완료(초대 확인, 매직링크 발급·검증, 세션
+생성·조회·폐기, rate limit). `core-api` 도메인 인프라(JPA·Flyway·Security·Batch)와
+Spring Cloud Gateway 는 다음 단계.
 
 | 경로 | 용도 |
 | --- | --- |
 | `GET /api/health` | 배포 워크플로 헬스체크 대상 |
 | `POST /api/v1/demo/echo` | **임시.** Swagger UI에서 요청 스키마·검증·에러 포맷을 눈으로 확인하는 용도. 도메인 API 도입 시 `com.carix.demo` 패키지째 삭제 |
 | `GET /api/v1/demo/thresholds` | **임시.** Config Server 연동 확인용. 값은 [`../config/spring/core-api.yml`](../config/spring/core-api.yml)에서 오며 `/actuator/refresh` 로 재배포 없이 갱신된다. 도메인 API 도입 시 삭제 |
+
+### auth-service
+
+| 경로 | 용도 |
+| --- | --- |
+| `GET /api/health` | 헬스체크 |
+| `POST /api/v1/auth/magic-link` | 매직링크 발송 요청. 초대 여부와 무관하게 동일 응답(계정 열거 방지) |
+| `POST /api/v1/auth/verify` | 매직링크 검증, 세션 쿠키 발급 |
+| `POST /api/v1/auth/logout` | 현재 세션 폐기 |
+| `POST /api/v1/auth/logout-all` | 사용자의 전체 세션 폐기 |
+
+설계 상세: [`../docs/superpowers/specs/2026-08-01-auth-service-phase1-design.md`](../docs/superpowers/specs/2026-08-01-auth-service-phase1-design.md).
+
+이메일 실제 발송은 아직 연동되지 않았다 — `LoggingMagicLinkNotifier`가 로그로만 남긴다.
+운영 전환 전 실제 provider(SES 등)를 정하고 `MagicLinkNotifier` 구현을 교체해야 한다.
+
+로컬 기동은 `core-api`와 동일한 순서다(config-server 먼저, 그다음 `EUREKA_CLIENT_ENABLED=false`
+로 단독 기동 가능). `auth-service`는 Testcontainers 없이는 로컬에서 DB 없이 뜨지 않는다 —
+core-api와 달리 이미 JPA·Flyway를 쓰기 때문이다. 로컬 검증은 tailnet 연결(DEVELOPMENT.md §3)
+또는 `./gradlew :auth-service:test`(Docker 필요)로 한다.
 
 공통 에러 응답(`com.carix.common.ErrorResponse`)은 위 API 규격 문서 §1.1 형식을 따른다.
 Spring 기본값(ProblemDetail)과 형식이 달라 `GlobalExceptionHandler`에서 변환한다.
