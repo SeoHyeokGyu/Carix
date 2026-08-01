@@ -29,29 +29,31 @@ import org.springframework.web.bind.annotation.RestController;
 @Tag(name = "demo", description = "임시 확인용. 도메인 API 도입 시 제거한다")
 public class EchoController {
 
-	@Operation(
-			summary = "입력을 그대로 돌려준다",
-			description = "Swagger UI의 Try it out으로 요청 본문·검증·에러 포맷을 확인하는 용도다.")
-	@ApiResponses({
-			@ApiResponse(responseCode = "200", description = "정상"),
-			@ApiResponse(
-					responseCode = "400",
-					description = "검증 실패",
-					content = @Content(schema = @Schema(implementation = ErrorResponse.class)))})
-	@PostMapping("/echo")
-	public EchoResponse echo(@Valid @RequestBody EchoRequest request) {
-		return new EchoResponse(request.message(), Instant.now());
-	}
+  @Operation(
+      summary = "입력을 그대로 돌려준다",
+      description = "Swagger UI의 Try it out으로 요청 본문·검증·에러 포맷을 확인하는 용도다.")
+  @ApiResponses({
+      @ApiResponse(responseCode = "200", description = "정상"),
+      @ApiResponse(
+          responseCode = "400",
+          description = "검증 실패",
+          content = @Content(schema = @Schema(implementation = ErrorResponse.class)))})
+  @PostMapping("/echo")
+  public EchoResponse echo(@Valid @RequestBody EchoRequest request) {
+    return new EchoResponse(request.message(), Instant.now());
+  }
 
-	@Schema(description = "에코 요청")
-	public record EchoRequest(
-			@NotBlank
-			@Size(max = 200)
-			@Schema(description = "돌려받을 문자열", example = "안녕 Carix")
-			String message) {
-	}
+  @Schema(description = "에코 요청")
+  public record EchoRequest(
+      @NotBlank
+      @Size(max = 200)
+      @Schema(description = "돌려받을 문자열", example = "안녕 Carix")
+      String message) {
 
-	@Schema(description = "에코 응답")
-	public record EchoResponse(String message, Instant receivedAt) {
-	}
+  }
+
+  @Schema(description = "에코 응답")
+  public record EchoResponse(String message, Instant receivedAt) {
+
+  }
 }

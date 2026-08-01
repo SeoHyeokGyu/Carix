@@ -166,8 +166,7 @@
         "ruleVersion": "1.2.0",
         "updateDelayed": false,
         "sources": [
-          { "source": "WORK24", "sampleSize": 84 },
-          { "source": "SARAMIN", "sampleSize": 40 }
+          { "source": "SARAMIN", "sampleSize": 124 }
         ],
         "sampleSize": 124,
         "salaryMissingRate": 42.5,
@@ -203,13 +202,20 @@
         "min": 45000000, "p25": 58000000, "median": 65000000, "p75": 74000000, "max": 95000000,
         "sampleSize": 71, "missingRate": 42.5
       },
-      "userPosition": { "grossSalary": 60000000, "percentile": 35 }
+      "userPosition": { "grossSalary": 60000000, "percentile": 35 },
+      "peerGroup": {
+        "fallbackLevel": 3,
+        "appliedConditions": "서울 전체 / 경력 MID / 회사규모 무관"
+      }
     }
     ```
     *(공고 분포는 참고 표시 전용, 판정 기준선은 `baseline` — 상세 기술 명세 §2.1 규약)*
 
 ### 5.3 지수 트렌드 차트 데이터
 *   **Endpoint:** `GET /api/v1/dashboard/trends`
+*   **Query Parameters:**
+    *   `baseYearMonth` (String, optional): 인덱스 기준 월 (YYYY-MM). 지정하지 않으면 사용자의 첫 소득 이력 발생 월을 기준으로 자동 지정됨.
+    *   `durationMonths` (Integer, optional): 조회할 개원 수 (기본값: 12).
 *   **Response (200 OK):**
     ```json
     {
@@ -245,20 +251,48 @@
     {
       "skills": [
         {
-          "skillId": "…", "standardName": "Spring Boot",
+          "skillId": "3fa85f64-5717-4562-b3fc-2c963f66afa7",
+          "standardName": "Spring Boot",
           "demandIndex": 123.4,
-          "recentDemandRate": 0.0812, "baselineDemandRate": 0.0658,
+          "recentDemandRate": 0.0812,
+          "baselineDemandRate": 0.0658,
           "sources": [
-            { "source": "WORK24", "demandIndex": 120.1, "sampleSize": 84 },
-            { "source": "SARAMIN", "demandIndex": 130.2, "sampleSize": 40 }
+            { "source": "SARAMIN", "demandIndex": 123.4, "sampleSize": 124 }
           ],
           "weight": 0.715,
           "status": "OK"
         },
-        { "skillId": "…", "standardName": "CustomSkillX", "status": "CUSTOM_SKILL_NO_STATS" },
-        { "skillId": "…", "standardName": "Airflow", "status": "INSUFFICIENT_SAMPLE", "sampleSize": 3 }
+        { "skillId": "3fa85f64-5717-4562-b3fc-2c963f66afa8", "standardName": "CustomSkillX", "status": "CUSTOM_SKILL_NO_STATS" },
+        { "skillId": "3fa85f64-5717-4562-b3fc-2c963f66afa9", "standardName": "Airflow", "status": "INSUFFICIENT_SAMPLE", "sampleSize": 3 }
       ],
       "coverage": "보유 스킬 3개 중 1개 반영 (가중치 100% 재정규화)"
+    }
+    ```
+
+### 5.6 동료집단 기반 스킬 보강 추천
+*   **Endpoint:** `GET /api/v1/skills/recommendations`
+*   **Response (200 OK):**
+    ```json
+    {
+      "peerGroup": {
+        "appliedConditions": "서울 전체 / 경력 MID / 회사규모 무관"
+      },
+      "recommendations": [
+        {
+          "standardName": "Kubernetes",
+          "category": "DEVOPS",
+          "demandRate": 0.245,
+          "growthTrend": "UP",
+          "reason": "동료집단 내 공고의 24.5%에서 요구하고 있으며, 최근 수요가 급증세입니다."
+        },
+        {
+          "standardName": "TypeScript",
+          "category": "FRONTEND",
+          "demandRate": 0.182,
+          "growthTrend": "STABLE",
+          "reason": "동료집단 내 공고의 18.2%에서 요구되는 핵심 스택입니다."
+        }
+      ]
     }
     ```
 
@@ -291,6 +325,8 @@
 *   **Request Body:**
     ```json
     {
+      "scenarioName": "A사 오퍼 제안",
+      "currentGrossSalary": 60000000,
       "stayExpectedRaiseRate": 3.5,
       "moveTargetGrossSalary": 72000000,
       "moveOneTimeCost": 3000000,
@@ -298,10 +334,14 @@
       "isEligibleForUnemploymentBenefit": true
     }
     ```
+    *(`scenarioName`: 선택 입력. 저장할 가상 시나리오의 별칭. 생략 시 기본명 부여됨)*
+    *(`currentGrossSalary`: 선택 입력. 생략 시 사용자의 최신 소득 이력 값을 사용하며, 가상 시뮬레이션을 위해 임의의 세전 연봉을 지정하여 테스트할 수 있습니다)*
     *(`expectedUnemploymentMonths`: 0~6. `isEligibleForUnemploymentBenefit` 기본값 true, false면 실업급여 0으로 계산하고 `실업급여 미반영` 안내 표시. 공식은 [도메인 정의서 §4](domain-logic.md)를 따릅니다)*
 *   **Response (200 OK):**
     ```json
     {
+      "id": "e812d8a4-0cfb-4a5f-9dfb-12d88c91350c",
+      "scenarioName": "A사 오퍼 제안",
       "stayCompensation12m": 62100000,
       "moveCompensation12m": 60960000,
       "estimatedUnemploymentBenefit": 3960000,
@@ -319,14 +359,17 @@
 | `difference >= 0` | `ESTIMATED_GAIN` | 추정 추가보상 |
 | `difference < 0` | `ESTIMATED_OPPORTUNITY_COST` | 추정 기회비용 |
 
-*   계산 성공 시 입력 가정과 결과를 사용자별 최근 시나리오(`CareerScenario`)로 저장합니다.
+*   계산 성공 시 입력 가정과 결과를 사용자별 시나리오(`CareerScenario`) 목록에 저장합니다.
 
 ### 6.2 최근 시나리오 조회
 *   **Endpoint:** `GET /api/v1/scenarios/latest`
 *   **Response (200 OK):** 6.1의 요청 필드와 응답 필드를 합친 단건. 저장된 시나리오가 없으면 `204 No Content`. `calculated_at DESC, id DESC` 순 첫 행 반환.
     ```json
     {
+      "id": "e812d8a4-0cfb-4a5f-9dfb-12d88c91350c",
+      "scenarioName": "A사 오퍼 제안",
       "inputs": {
+        "currentGrossSalary": 60000000,
         "stayExpectedRaiseRate": 3.5,
         "moveTargetGrossSalary": 72000000,
         "moveOneTimeCost": 3000000,
@@ -346,6 +389,61 @@
     }
     ```
 
+### 6.3 가상 시나리오 전체 목록 조회 (비교용)
+*   **Endpoint:** `GET /api/v1/scenarios`
+*   **Response (200 OK):** 저장된 모든 시나리오 리스트를 반환합니다.
+    ```json
+    [
+      {
+        "id": "e812d8a4-0cfb-4a5f-9dfb-12d88c91350c",
+        "scenarioName": "A사 오퍼 제안",
+        "inputs": {
+          "currentGrossSalary": 60000000,
+          "stayExpectedRaiseRate": 3.5,
+          "moveTargetGrossSalary": 72000000,
+          "moveOneTimeCost": 3000000,
+          "expectedUnemploymentMonths": 2,
+          "isEligibleForUnemploymentBenefit": true
+        },
+        "result": {
+          "stayCompensation12m": 62100000,
+          "moveCompensation12m": 60960000,
+          "estimatedUnemploymentBenefit": 3960000,
+          "difference": -1140000,
+          "type": "ESTIMATED_OPPORTUNITY_COST",
+          "typeLabel": "추정 기회비용",
+          "warningNote": "이 계산에는 세금, 성과급, 퇴직금 등이 포함되지 않은 단순 세전 기준 시뮬레이션입니다."
+        },
+        "calculatedAt": "2026-07-18T17:00:00Z"
+      }
+    ]
+    ```
+
+### 6.4 가상 시나리오 이력 삭제
+*   **Endpoint:** `DELETE /api/v1/scenarios/{id}`
+*   **Response (200 OK):** 삭제 완료.
+
+### 6.5 가상 소득/소비 변화에 따른 지수 변화 예측 (Index Predictor)
+*   **Endpoint:** `POST /api/v1/dashboard/predict`
+*   **Request Body:**
+    ```json
+    {
+      "futureExpectedRaiseRate": 5.0,
+      "futureMonthlyExpenseChange": -500000
+    }
+    ```
+    *(`futureExpectedRaiseRate`: 세전 연봉 인상 예상 비율 (%), `futureMonthlyExpenseChange`: 월평균 소비액 증감액 (원, 마이너스는 절감))*
+*   **Response (200 OK):**
+    ```json
+    {
+      "currentPurchasingPowerIndex": 94.2,
+      "predictedPurchasingPowerIndex": 102.8,
+      "indexDifference": 8.6,
+      "changeStatus": "INCREASED",
+      "rationale": "연봉이 5.0% 인상되고 월 지출을 500,000원 절감하면 실질 가처분 소득이 증가하여, 구매력 지수가 현재 94.2에서 102.8로 약 8.6p 상승할 것으로 추정됩니다."
+    }
+    ```
+
 ---
 
 ## 7. 지출·스킬·온보딩·계정 API
@@ -357,7 +455,7 @@
 
 ### 7.2 스킬
 *   `GET /api/v1/skills/search?q={query}` — 표준 스킬 사전 검색 (별칭 포함 자동완성)
-*   `GET /api/v1/user-skills` — 보유 스킬 목록 (`skillId`, `standardName`, `isCustom`, `monthsOfExperience`, `lastUsedDate`)
+*   `GET /api/v1/user-skills` — 보유 스킬 목록 (`id` (등록 매핑 ID), `skillId` (표준 스킬 ID), `standardName`, `isCustom`, `monthsOfExperience`, `lastUsedDate`)
 *   `POST /api/v1/user-skills` — 스킬 추가. `monthsOfExperience`는 1~600 범위만 허용. 사전에 없으면 `isCustom: true`로 생성하며 이때 `category` 입력 필수 (`BACKEND`/`FRONTEND`/`DEVOPS`/`DATA`/`AI_ML`/`ETC`). 커스텀 스킬은 생성자 전용으로 검색·자동완성에 노출하지 않고, 마지막 사용자가 삭제하면 함께 삭제한다. 동일 정규화 스킬 중복 시 `409 Conflict`
 *   `PUT /api/v1/user-skills/{id}` / `DELETE /api/v1/user-skills/{id}` — 수정·삭제
 
@@ -371,4 +469,43 @@
 ### 7.5 세션·사용자
 *   `POST /api/v1/auth/logout` — 현재 세션 폐기
 *   `POST /api/v1/auth/logout-all` — 전체 세션 폐기
-*   `DELETE /api/v1/users` — 사용자·개인 데이터 삭제. Request Body에 확인용 `{"email": "..."}` 필수, 불일치 시 `400`
+*   `DELETE /api/v1/users` — 사용자·개인 데이터 삭제. 쿼리 스트링으로 확인용 `?email=...` 필수 (일부 네트워크 환경에서 HTTP DELETE Body 유실 문제 방지), 이메일 불일치 시 `400`
+
+### 7.6 공통 기준 데이터 조회 (Reference Data)
+*   `GET /api/v1/reference/default-expenses` — 통계청 기준 지출 가중치 및 금액 기본값 조회 (사용자가 지출을 입력하지 않은 카테고리의 대체 기본 정보를 화면에 보여주기 위해 프론트엔드가 호출).
+    *   **Response (200 OK):**
+        ```json
+        {
+          "version": "2025-v1",
+          "categories": [
+            { "category": "HOUSING", "weight": 0.174, "averageAmount": 511000 },
+            { "category": "FOOD", "weight": 0.142, "averageAmount": 417000 },
+            { "category": "TRANSPORTATION", "weight": 0.123, "averageAmount": 361000 },
+            { "category": "HEALTH", "weight": 0.081, "averageAmount": 238000 },
+            { "category": "EDUCATION", "weight": 0.075, "averageAmount": 220000 },
+            { "category": "OTHER", "weight": 0.405, "averageAmount": 1192000 }
+          ]
+        }
+        ```
+
+### 7.7 소비자물가지수(CPI) 기준 데이터 조회
+*   `GET /api/v1/reference/cpi` — 월별 카테고리별 통계청 소비자물가지수(CPI) 변동 추이 목록 조회 (개인물가지수 추세의 기준 자료 시각화용).
+    *   **Response (200 OK):**
+        ```json
+        {
+          "baseYear": "2020",
+          "data": [
+            {
+              "yearMonth": "202606",
+              "categories": [
+                { "category": "HOUSING", "cpiValue": 108.5 },
+                { "category": "FOOD", "cpiValue": 115.2 },
+                { "category": "TRANSPORTATION", "cpiValue": 105.1 },
+                { "category": "HEALTH", "cpiValue": 102.3 },
+                { "category": "EDUCATION", "cpiValue": 103.8 },
+                { "category": "OTHER", "cpiValue": 109.4 }
+              ]
+            }
+          ]
+        }
+        ```
