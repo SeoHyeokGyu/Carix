@@ -19,6 +19,7 @@ spring:
     default-schema: auth
 
 server:
+  forward-headers-strategy: framework
   servlet:
     context-path: /api
 

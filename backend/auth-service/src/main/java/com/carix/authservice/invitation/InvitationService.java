@@ -1,5 +1,6 @@
 package com.carix.authservice.invitation;
 
+import java.util.Locale;
 import org.springframework.stereotype.Service;
 
 /**
@@ -18,6 +19,6 @@ public class InvitationService {
 	}
 
 	public boolean isInvited(String email) {
-		return invitationRepository.findByEmail(email).isPresent();
+		return invitationRepository.findByEmail(email.trim().toLowerCase(Locale.ROOT)).isPresent();
 	}
 }
