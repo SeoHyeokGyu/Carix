@@ -265,7 +265,7 @@ flowchart TD
 | 데이터 수집 | Spring Batch | 외부 원천 수집·집계 | 미도입 |
 | 데이터베이스 | PostgreSQL 16 | 영속화 | 도입 (스키마 없음) |
 | 엣지 — 라우터 | Caddy 2 (`infra_caddy`) | 80/443 소유, TLS 종료·자동 발급, 호스트명 분기 | 도입 — **이 저장소 밖**(`~/infra`, 타 프로젝트와 공유) |
-| 엣지 — 앱 라우팅 | Caddy 2 (`carix_caddy`) | 경로 분기(`/api/*` → 백엔드, 그 외 → 프런트), 압축, 캐시 헤더 | 도입 |
+| 엣지 — 앱 라우팅 | Caddy 2 (`carix_caddy`) | `gateway:8080`으로 균일 전달(경로 분기는 Gateway가 수행), 압축, 캐시 헤더 | 도입 |
 | 빌드·배포 | GitHub Actions (ARM 러너), GHCR, Docker Compose, OCI | 이미지 빌드·레지스트리·컨테이너 운영 | 도입 |
 | 팀 DB 접근 | Headscale (자체 호스팅 Tailscale) | 팀원 노트북과 서버를 같은 사설망에 | 도입 |
 | 설정 관리 | Spring Cloud Config | 설정 외부화, 런타임 갱신 | 도입 — native(파일시스템) 백엔드 |
@@ -340,9 +340,10 @@ Node 서버는 DB에 직접 접근하거나 Spring Boot 로직을 복제하지 �
 `/assets/*`는 장기 캐시 헤더를 붙여 `frontend-node`로 넘깁니다. 별도 정적 파일 서버는 없습니다.
 
 > **전환 완료(2026-08-01).** 애플리케이션 라우팅을 `carix_caddy`에서 Spring Cloud Gateway로
-> 옮겼습니다. 백엔드는 `auth-service`·`core-api`·`batch-worker`로 나뉘어 있으나 `auth-service`
-> 배포 배선은 아직 없습니다. 라우터 Caddy는 그대로 유지합니다 — TLS 자동 발급 근거가 유효합니다.
-> 상세는 위 채택 사유의 설계서 참조.
+> 옮겼습니다. 백엔드는 `core-api`·`auth-service`로 나뉘어 있으며, `core-api`는 배포돼 있고
+> `auth-service`는 배포 배선이 아직 없습니다. `batch-worker`는 미도입 상태입니다. 라우터
+> Caddy는 그대로 유지합니다 — TLS 자동 발급 근거가 유효합니다. 상세는 위 채택 사유의 설계서
+> 참조.
 
 ### 렌더링 전략
 
