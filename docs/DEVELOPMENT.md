@@ -1,8 +1,8 @@
 # Carix 로컬 개발 가이드
 
 로컬은 순수 코드 개발이다. **Docker와 PostgreSQL은 OCI 서버에서만 기동**하고, 로컬
-백엔드는 OCI의 `carix` DB(운영과 같은 DB)에 원격 연결한다. **접근 경로는 재구축 중이다**
-(Headscale tailnet 제거, 2026-08-02 — §3 참조). 배경과 결정은
+백엔드는 OCI의 `carix` DB(운영과 같은 DB)에 원격 연결한다. 접근은 TLS + OCI Security
+List IP 허용목록이다(2026-08-02 완료, Headscale tailnet 대체 — §3 참조). 배경과 결정은
 [루트 README 개발 환경](../README.md#개발-환경)을 참조한다.
 
 > **현재 스캐폴드 상태 (2026-08-01).** 이 문서는 목표 상태를 기술한다. 지금 실제로 되는 것과
@@ -61,7 +61,7 @@ cp .env.example .env
 
 | 변수 | 용도 | 비고 |
 | --- | --- | --- |
-| `SPRING_DATASOURCE_URL` | 백엔드 DB 연결 | `<서버-주소>:5432/carix` (§3) |
+| `SPRING_DATASOURCE_URL` | 백엔드 DB 연결 | `jdbc:postgresql://144.24.90.88:5432/carix?sslmode=require` (§3) |
 | `SPRING_DATASOURCE_USERNAME` / `_PASSWORD` | 개인별 DB 롤 | §3.0 에서 발급받는다 |
 | `CARIX_ENCRYPTION_KEY` | 컬럼 암호화(AES-256-GCM) | `openssl rand -base64 32` |
 | `KOSIS_API_KEY` 외 3종 | 배치 원천 API | 선행 검증 후 발급 |
@@ -70,11 +70,13 @@ cp .env.example .env
 
 로컬엔 Postgres를 띄우지 않는다. **운영과 개발이 같은 DB(`carix`)를 쓴다.**
 
-> **접근 경로 재구축 중 (2026-08-02).** Headscale(자체 호스팅 Tailscale) tailnet 을
-> 제거했다 — 로컬 클라이언트의 DNS 해석 실패(사설망에 IPv6 라우팅 부재)로 팀원 온보딩이
-> 반복 실패해, 팀 판단으로 tailnet 자체를 접었다(폐기 경위·이전 근거는 §3.2). 대체 경로는
-> **Postgres TLS 활성화 + OCI Security List IP 허용목록** 이며 아직 진행 중이다 — 그 전까지
-> 로컬에서 서버 DB에 원격 연결할 방법이 없다. 완료되면 이 절과 §3.0·§3.4 를 갱신한다.
+> **접근 경로 완료 (2026-08-02).** Headscale(자체 호스팅 Tailscale) tailnet 을 제거했다 —
+> 로컬 클라이언트의 DNS 해석 실패(사설망에 IPv6 라우팅 부재)로 팀원 온보딩이 반복 실패해,
+> 팀 판단으로 tailnet 자체를 접었다(폐기 경위·이전 근거는 §3.2). 대체 경로는 **Postgres
+> TLS 활성화 + OCI Security List IP 허용목록**이며, 서버에서 검증 완료됐다: TLS `on`
+> 확인, 평문 외부 접속 시도는 `no pg_hba.conf entry ... no encryption`로 명시 거부,
+> 허용 IP에서 정상 접속. Security List는 화이트리스트 방식(등록된 IP `/32`만 통과, 나머지
+> 전부 default-deny)이라 팀원마다 IP를 등록해야 한다(§3.0).
 
 > **여기서 실행하는 쿼리와 마이그레이션은 곧 운영에 적용된다.** 개발용 사본이 아니다.
 > 파괴적 변경 전에는 팀에 알리고, 마이그레이션은 §3.3 규약을 지킨다.
@@ -115,30 +117,71 @@ DB를 하나로 합쳤다 — `carix_dev` DB·롤과 initdb 스크립트를 제�
 
 ### 3.0 팀원 온보딩
 
-> **접근 경로 재구축 중 (2026-08-02).** 아래는 Headscale 제거로 더 이상 쓸 수 없다.
-> 새 절차(IP 허용목록 등록 + TLS 접속)는 §3의 배너 참조, 완료되면 이 절을 다시 쓴다.
-> **개인별 DB 롤 발급**만은 접근 경로와 무관하게 그대로 유효하다 — 공용 계정을 돌려쓰지
-> 않는다. 이탈 시 회수가 안 되기 때문이다.
+1. **IP 확인** (신규 팀원) — 고정 IP인지 먼저 확인한다. 유동 IP(카페·모바일 핫스팟 등)면
+   접속이 끊길 때마다 관리자가 규칙을 다시 등록해야 한다.
 
-```bash
-docker exec -i carix-postgres-1 psql -U carix -d carix <<SQL
-CREATE ROLE "<이름>" LOGIN PASSWORD '<생성한-비밀번호>';
-GRANT ALL ON DATABASE carix TO "<이름>";
-GRANT ALL ON SCHEMA public TO "<이름>";
-SQL
-```
+   ```bash
+   curl -s https://ifconfig.me
+   ```
 
-**팀원이 빠지면** DB 롤을 제거한다.
+2. **Security List에 IP 등록** (관리자, OCI CLI)
+
+   ```bash
+   # 현재 규칙 조회
+   oci network security-list get --security-list-id <SL_OCID> \
+     --query 'data."ingress-security-rules"' > /tmp/current_ingress.json
+
+   # <새-IP>/32, TCP 5432 규칙을 추가해 /tmp/new_ingress.json 으로 저장한 뒤
+   oci network security-list update --security-list-id <SL_OCID> \
+     --ingress-security-rules file:///tmp/new_ingress.json --force
+   ```
+
+   `<SL_OCID>`는 인스턴스 서브넷에 붙은 Security List OCID다
+   (`oci compute instance list-vnics` → `oci network subnet get` 으로 확인).
+   기존 규칙(다른 포트·다른 IP)은 절대 지우지 않는다 — 조회한 배열에 새 규칙만 추가한다.
+
+3. **개인별 DB 롤 발급** (관리자) — 공용 계정을 돌려쓰지 않는다. 이탈 시 회수가 안 되기
+   때문이다.
+
+   ```bash
+   docker exec -i carix-postgres-1 psql -U carix -d carix <<SQL
+   CREATE ROLE "<이름>" LOGIN PASSWORD '<생성한-비밀번호>';
+   GRANT ALL ON DATABASE carix TO "<이름>";
+   GRANT ALL ON SCHEMA public TO "<이름>";
+   SQL
+   ```
+
+4. §2의 `.env` 작성 (`sslmode=require` 필수 — §3.4)
+
+**팀원이 빠지면** Security List 규칙과 DB 롤을 함께 제거한다.
 
 ```bash
 docker exec -i carix-postgres-1 psql -U carix -d carix -c 'DROP ROLE "<이름>"'
 ```
 
-### 3.1 서버 설정 (관리자)
+(Security List에서 해당 IP 규칙 제거는 2번과 같은 방식 — 배열에서 그 항목만 빼고 update)
 
-> **접근 경로 재구축 중 (2026-08-02).** Headscale 컨테이너·호스트 tailscale 클라이언트·
-> `tailscale serve` 중계를 모두 제거했다. 새 절차는 §3의 배너 참조, 완료되면 이 절을
-> 다시 쓴다.
+### 3.1 서버 설정 (완료, 관리자 참고용)
+
+TLS 인증서·pg_hba 설정은 `deploy/postgres/`(git 관리) + 서버 전용 비밀 경로
+(`/home/opc/carix-secrets/postgres/`, git 밖)로 이미 구성 완료됐다. 재설치가 필요하면:
+
+```bash
+# 자체 서명 인증서 생성 (10년 유효)
+sudo mkdir -p /home/opc/carix-secrets/postgres
+sudo openssl req -x509 -newkey rsa:2048 -nodes -days 3650 \
+  -keyout /home/opc/carix-secrets/postgres/server.key \
+  -out /home/opc/carix-secrets/postgres/server.crt \
+  -subj "/CN=144.24.90.88"
+sudo chown 70:70 /home/opc/carix-secrets/postgres/server.key /home/opc/carix-secrets/postgres/server.crt
+sudo chmod 600 /home/opc/carix-secrets/postgres/server.key
+sudo chmod 644 /home/opc/carix-secrets/postgres/server.crt
+sudo chmod 700 /home/opc/carix-secrets/postgres
+```
+
+uid:gid `70:70`는 `postgres:16-alpine` 이미지의 postgres 프로세스 실행 사용자다.
+소유자가 다르거나 개인키 권한이 600보다 넓으면 컨테이너가 기동 시 거부한다.
+나머지(hba_file, ssl 플래그)는 `docker-compose.yml`의 postgres `command`를 참조한다.
 
 ### 3.2 왜 이 구성이었는가 (폐기, 2026-08-02)
 
@@ -235,14 +278,16 @@ spring:
 
 ### 3.4 IntelliJ 설정
 
-> **접근 경로 재구축 중 (2026-08-02).** 아래 Database 도구 접속 호스트는 tailnet 제거로
-> 무효다. 새 접속 정보는 §3 배너 참조, 완료되면 이 절을 다시 쓴다. 노트북에 컨테이너를
-> 띄우지 않는 원칙은 그대로다.
+노트북에 컨테이너를 띄우지 않는다 — 원격 DB에 바로 붙는다. 접속 전에 IP가
+Security List에 등록돼 있어야 한다(§3.0).
 
 **Database 도구 창**
 
 1. Data Source → PostgreSQL
-2. Host `<서버-주소>`, Port `5432`, Database `carix`, User `<본인 롤>`
+2. Host `144.24.90.88`, Port `5432`, Database `carix`, User `<본인 롤>`
+3. **SSL 탭 → Use SSL 체크**, Mode `require` (자체 서명 인증서라 `verify-full`은 실패한다 —
+   `require`면 충분하다. 인증서 체인 검증 없이 암호화만 강제)
+4. Test Connection으로 확인
 
 **이 연결은 운영 DB다.** 데이터 편집·삭제 전에 무엇을 지우는지 확인한다.
 
@@ -266,9 +311,10 @@ pnpm dev              # Vite dev server (기본 5173)
 
 ## 5. 백엔드 개발
 
-> **접근 경로 재구축 중 (2026-08-02).** tailnet 제거로 서버 `config-server`·`eureka` 를
-> 로컬에서 직접 쓸 방법이 없다. 지금은 **`config-server`·`eureka` 도 로컬에서 직접
-> 기동**한다 — 절차는 `backend/README.md`. 서버 인프라 공유가 복구되면 이 절을 다시 쓴다.
+> **`config-server`·`eureka` 도 로컬에서 직접 기동한다** (2026-08-02 이후 기본값) — 절차는
+> `backend/README.md`. tailnet 제거로 서버 것을 원격으로 못 쓰게 됐고, 이 둘은 DB와 달리
+> 로컬 기동 폴백이 이미 있어 굳이 인터넷에 새로 열지 않기로 했다(DB 5432만 연다 — 대안이
+> 없는 것만 노출 범위를 넓힌다).
 
 **가장 큰 위험 — 로컬 인스턴스가 운영 트래픽을 받는다.** 로컬 `core-api`가 서버 Eureka에
 등록되면 서버 쪽 라우팅이 그리로 실사용자 요청을 보낼 수 있다. 노트북을 닫으면 서비스가 죽는다.

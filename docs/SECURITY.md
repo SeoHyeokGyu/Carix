@@ -62,21 +62,22 @@ Carix는 연봉·실수령액·소비 금액 등 민감한 개인 재무 정보�
   복구 절차 검증, 이미지 버전 고정을 함께 한다(서버 전용 근거는 README.md 채택 사유).
 - **운영과 개발이 같은 DB를 쓴다.** 따라서 팀원은 실사용자 데이터에 직접 접근한다.
   감수한 위험과 재검토 시점은 [`DEVELOPMENT.md`](DEVELOPMENT.md) §3 참조.
-- **접근 경로 재구축 중 (2026-08-02).** Headscale(자체 호스팅 Tailscale) tailnet 을
-  제거했다 — 로컬 클라이언트의 DNS 해석이 반복 실패해(사설망에 IPv6 라우팅 부재) 팀
-  판단으로 접었다. 대체 경로는 **Postgres TLS 활성화 + OCI Security List IP 허용목록**이며
-  진행 중이다 — 완료 전까지 로컬에서 DB 원격 연결 수단이 없다.
+- **접근 경로: TLS + OCI Security List IP 허용목록 (2026-08-02 완료).**
+  Headscale(자체 호스팅 Tailscale) tailnet 을 제거했다 — 로컬 클라이언트의 DNS 해석이
+  반복 실패해(사설망에 IPv6 라우팅 부재) 팀 판단으로 접었다. Postgres 컨테이너 포트는
+  `0.0.0.0:5432`로 발행하되, Docker 발행 포트는 호스트 firewalld를 우회하므로(DOCKER
+  체인) 호스트 방화벽으로는 못 막는다 — 실제 접근 제어는 호스트 밖 **OCI VCN Security
+  List**에서 한다(TCP 5432, 팀원 IP `/32`만 개별 허용, default-deny). Security List 는
+  Docker 의 iptables 조작보다 앞단이라 우회되지 않는다.
+- **PostgreSQL TLS를 강제한다.** 컨테이너 내부망(Docker 브리지, 172.16.0.0/12)은 평문
+  허용하고 그 외(=인터넷 경유 외부 접속)는 `hostssl`로 TLS를 강제한다
+  (`deploy/postgres/pg_hba.conf`). Security List 규칙이 실수로 넓어지더라도 TLS 없이는
+  붙을 수 없는 이중 방어다. 자체 서명 인증서라 클라이언트는 `sslmode=require`를 쓴다
+  (`verify-full`은 인증서 체인 검증에 실패한다).
 - DB 인증은 **개인별 롤**을 쓴다. 공용 계정을 돌려쓰지 않는다 — 이탈 시 회수가 불가능하다
   ([DEVELOPMENT.md §3.0](DEVELOPMENT.md)).
 - **DB 백업이 아직 구현돼 있지 않다.** 운영 DB를 개발에 함께 쓰는 구성에서는 마이그레이션
   사고가 곧 운영 데이터 손실이므로, 실데이터 유입 전 최우선으로 갖춘다.
-- **PostgreSQL을 인터넷에 직접 열지 않는다(원칙).** 컨테이너 포트는 `127.0.0.1`에만
-  바인딩한다. 현재 Postgres는 TLS가 꺼져 있어 이 상태로 직접 노출하면 자격증명과
-  쿼리·결과가 평문으로 오간다. Docker가 발행한 포트는 호스트 방화벽(firewalld)을 우회하므로,
-  실수로 `0.0.0.0`에 바인딩하면 OCI Security List 외에는 막을 수단이 없다. 진행 중인
-  대체 경로는 이 원칙을 지키며 여는 것이다 — TLS를 먼저 켜고, Security List에서 허용
-  IP만 통과시킨다(호스트 firewalld는 Docker 발행 포트를 못 막으므로 Security List가
-  유일한 강제 지점이다).
 
 ## 4. 로그·관측성에서의 민감정보 배제
 

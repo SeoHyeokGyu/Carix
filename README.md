@@ -267,7 +267,7 @@ flowchart TD
 | 엣지 — 라우터 | Caddy 2 (`infra_caddy`) | 80/443 소유, TLS 종료·자동 발급, 호스트명 분기 | 도입 — **이 저장소 밖**(`~/infra`, 타 프로젝트와 공유) |
 | 엣지 — 앱 라우팅 | Caddy 2 (`carix_caddy`) | `gateway:8080`으로 균일 전달(경로 분기는 Gateway가 수행), 압축, 캐시 헤더 | 도입 |
 | 빌드·배포 | GitHub Actions (ARM 러너), GHCR, Docker Compose, OCI | 이미지 빌드·레지스트리·컨테이너 운영 | 도입 |
-| 팀 DB 접근 | OCI Security List IP 허용목록 + Postgres TLS | 팀원 로컬에서 운영 DB에 직접 연결 | 재구축 중(Headscale tailnet 제거, 2026-08-02) — [DEVELOPMENT.md §3](docs/DEVELOPMENT.md) |
+| 팀 DB 접근 | OCI Security List IP 허용목록 + Postgres TLS | 팀원 로컬에서 운영 DB에 직접 연결 | 도입 — 2026-08-02 완료(Headscale tailnet 대체) — [DEVELOPMENT.md §3](docs/DEVELOPMENT.md) |
 | 설정 관리 | Spring Cloud Config | 설정 외부화, 런타임 갱신 | 도입 — native(파일시스템) 백엔드 |
 | 서비스 디스커버리 | Eureka | 서비스 등록·조회 | 도입 |
 | API 게이트웨이 | Spring Cloud Gateway | 라우팅, 세션 검증 필터, 상관관계 ID | 도입 — 세션 검증 필터는 기본 비활성(auth-service 배포 배선 대기, 계획 C) |
@@ -421,7 +421,7 @@ Carix/
 
 - **docker-compose.yml은 OCI 배포 전용**입니다. 로컬에서 `docker compose up`으로 사용하지 않습니다.
 - **로컬 프런트엔드:** Vite dev server를 띄우고 `/api`를 백엔드로 프록시합니다. Docker 불필요.
-- **로컬 백엔드:** 로컬에 DB를 띄우지 않고 **OCI의 `carix` DB에 원격 연결**합니다. 접근 경로는 재구축 중입니다(Headscale tailnet 제거, 2026-08-02). 운영과 개발이 같은 DB입니다(대안 비교·감수한 위험은 [DEVELOPMENT.md §3](docs/DEVELOPMENT.md)).
+- **로컬 백엔드:** 로컬에 DB를 띄우지 않고 **OCI의 `carix` DB에 원격 연결**합니다. 접근은 TLS + OCI Security List IP 허용목록입니다(2026-08-02 완료, Headscale tailnet 대체). 운영과 개발이 같은 DB입니다(대안 비교·감수한 위험은 [DEVELOPMENT.md §3](docs/DEVELOPMENT.md)).
 - **통합 테스트:** 설계는 Testcontainers를 쓰지만 로컬 Docker가 필요하므로, 통합 테스트는 배포 워크플로(Docker 제공 러너) 또는 OCI DB 대상으로 실행하고 로컬에서는 단위 테스트를 중심으로 돌립니다. PR 단계 CI가 없으므로 자동 실행 지점은 main 푸시뿐입니다.
 - 환경 변수는 [`.env.example`](.env.example)을 복사해 `.env`로 채웁니다. API 키·시크릿은 저장소에 커밋하지 않습니다.
 
