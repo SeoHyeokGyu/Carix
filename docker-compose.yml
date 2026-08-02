@@ -183,14 +183,17 @@ services:
       - ssl_key_file=/etc/postgresql-certs/server.key
       - -c
       - hba_file=/etc/postgresql-hba/pg_hba.conf
-    # 루프백 전용 바인딩. 로컬 개발이 SSH 터널로 붙으려면 호스트에 포트가 있어야 하는데,
-    # expose 만으로는 컨테이너 밖에 아무것도 없어 터널이 갈 곳이 없다.
+    # 의도적으로 0.0.0.0 바인딩 (2026-08-02, Headscale tailnet 제거 후 대체 경로).
     #
-    # 127.0.0.1 을 반드시 명시한다. "5432:5432" 로 쓰면 0.0.0.0 에 붙어 인터넷에 노출된다.
-    # Docker 가 발행한 포트는 firewalld 를 우회하므로(DOCKER 체인) 호스트 방화벽으로는 못 막는다.
-    # TLS 검증 전까지는 루프백을 유지한다 — 검증 후 별도 커밋으로 0.0.0.0 전환.
+    # Docker 가 발행한 포트는 호스트 firewalld/iptables 를 우회한다(DOCKER 체인) — 그래서
+    # 호스트 방화벽으로는 이 포트를 못 막는다. 실제 접근 제어는 이 host 밖, OCI VCN
+    # Security List 에서 한다(TCP 5432, 특정 IP CIDR만 허용 — OCI 콘솔/CLI로 관리, 이
+    # 저장소 밖). Security List 는 Docker 의 iptables 조작보다 앞단이라 우회되지 않는다.
+    #
+    # 이중 방어: TLS 도 강제한다(deploy/postgres/pg_hba.conf) — Security List 규칙이
+    # 실수로 넓어지더라도 외부 연결은 hostssl 로 여전히 암호화 없이는 안 붙는다.
     ports:
-      - "127.0.0.1:5432:5432"
+      - "5432:5432"
     logging:
       driver: json-file
       options:
