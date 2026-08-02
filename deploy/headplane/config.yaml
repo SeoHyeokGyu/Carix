@@ -19,6 +19,10 @@ headscale:
   # 읽기 전용 마운트. Headplane이 Headscale 설정을 UI에 보여주지만 바꾸지는 못한다.
   config_path: "/etc/headscale/config.yaml"
 
+  # 0.6.x 필수 필드(누락 시 부팅 실패: "config_strict must be a morph"). 마운트가 이미
+  # 읽기 전용이라 실제 쓰기는 애초에 불가능하지만, 필드 자체는 있어야 한다.
+  config_strict: true
+
 integration:
   # docker.sock 마운트가 필요해 공격 표면이 늘어난다. 이 프로젝트는 추가 DNS 레코드를
   # 안 쓰므로(Headscale DNS 변경 시 자동 재시작 기능) 끈다 — 필요해지면 그때 켠다.
