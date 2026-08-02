@@ -154,11 +154,41 @@ services:
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
     volumes:
       - carix-pgdata:/var/lib/postgresql/data
+      - ./deploy/postgres/pg_hba.conf:/etc/postgresql-hba/pg_hba.conf:ro
+      # 인증서·개인키는 git 밖, 서버 전용 경로(/home/opc/carix-secrets/postgres/)에 둔다.
+      # .env 와 같은 취급 — 저장소에 커밋하지 않는다.
+      # long-form + create_host_path: false — 파일이 없으면 Docker가 빈 디렉터리를 대신
+      # 만들어 버리는 대신 기동을 바로 실패시킨다(짧은 형식은 조용히 빈 디렉터리를 만든다).
+      - type: bind
+        source: /home/opc/carix-secrets/postgres/server.crt
+        target: /etc/postgresql-certs/server.crt
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
+        source: /home/opc/carix-secrets/postgres/server.key
+        target: /etc/postgresql-certs/server.key
+        read_only: true
+        bind:
+          create_host_path: false
+    # command 의 -c 플래그가 데이터 볼륨 안 postgresql.conf 보다 우선한다 — hba_file 을
+    # 이 파일로 못박아, 볼륨 안 기본 pg_hba.conf(더 이상 안 쓰임)와 드리프트가 안 생긴다.
+    command:
+      - postgres
+      - -c
+      - ssl=on
+      - -c
+      - ssl_cert_file=/etc/postgresql-certs/server.crt
+      - -c
+      - ssl_key_file=/etc/postgresql-certs/server.key
+      - -c
+      - hba_file=/etc/postgresql-hba/pg_hba.conf
     # 루프백 전용 바인딩. 로컬 개발이 SSH 터널로 붙으려면 호스트에 포트가 있어야 하는데,
     # expose 만으로는 컨테이너 밖에 아무것도 없어 터널이 갈 곳이 없다.
     #
     # 127.0.0.1 을 반드시 명시한다. "5432:5432" 로 쓰면 0.0.0.0 에 붙어 인터넷에 노출된다.
     # Docker 가 발행한 포트는 firewalld 를 우회하므로(DOCKER 체인) 호스트 방화벽으로는 못 막는다.
+    # TLS 검증 전까지는 루프백을 유지한다 — 검증 후 별도 커밋으로 0.0.0.0 전환.
     ports:
       - "127.0.0.1:5432:5432"
     logging:
