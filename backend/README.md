@@ -44,8 +44,8 @@ Config·Eureka 클라이언트만 있고 도메인 API는 아직 없다. JPA·Fl
 
 로컬 기동은 `core-api`와 동일한 순서다(config-server 먼저, 그다음 `EUREKA_CLIENT_ENABLED=false`
 로 단독 기동 가능). `auth-service`는 Testcontainers 없이는 로컬에서 DB 없이 뜨지 않는다 —
-core-api와 달리 이미 JPA·Flyway를 쓰기 때문이다. 로컬 검증은 tailnet 연결(DEVELOPMENT.md §3)
-또는 `./gradlew :auth-service:test`(Docker 필요)로 한다.
+core-api와 달리 이미 JPA·Flyway를 쓰기 때문이다. 로컬 검증은 OCI DB 원격 연결
+(DEVELOPMENT.md §3 — 접근 경로 재구축 중) 또는 `./gradlew :auth-service:test`(Docker 필요)로 한다.
 
 공통 에러 응답(`com.carix.common.ErrorResponse`)은 위 API 규격 문서 §1.1 형식을 따른다.
 Spring 기본값(ProblemDetail)과 형식이 달라 `GlobalExceptionHandler`에서 변환한다.
@@ -106,11 +106,12 @@ Dockerfile은 컴파일하지 않는다. CI 러너가 Gradle 캐시로 만든 JA
 ## 로컬 개발과 DB
 
 > `core-api`는 아직 DB를 쓰지 않는다 — JPA 도입 이후 적용된다. `auth-service`는 이미 JPA·Flyway로
-> `auth` 스키마를 쓰므로, 아래 원격 DB 연결 설정이 지금 바로 필요하다.
+> `auth` 스키마를 쓴다 — 원래는 아래 원격 DB 연결이 바로 필요하지만, 접근 경로가 재구축
+> 중이라(다음 항목) 지금은 `./gradlew :auth-service:test`(Docker 필요)로만 로컬 검증한다.
 
 - 로컬엔 PostgreSQL·Docker를 띄우지 않는다. **OCI의 `carix` DB에 원격 연결**한다.
-  접근은 Headscale tailnet 이며 노트북에는 Tailscale 앱만 설치한다
-  (대안 비교는 [`../docs/DEVELOPMENT.md`](../docs/DEVELOPMENT.md) §3.2).
+  접근 경로는 재구축 중이다(Headscale tailnet 제거, 2026-08-02 —
+  [`../docs/DEVELOPMENT.md`](../docs/DEVELOPMENT.md) §3 참조).
 - 운영과 개발이 **같은 DB**다. 별도 dev DB는 두지 않는다(감수한 위험은 같은 문서 §3).
 - `application-local.yml` 로 `eureka.client.register-with-eureka: false` 를 반드시 켠다.
   안 켜면 서버 Eureka 에 등록돼 서버 Gateway 가 이 노트북으로 운영 트래픽을 보낸다.
