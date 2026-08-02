@@ -59,7 +59,13 @@ services:
     ports:
       # 호스트 8888 은 infra-dozzle-1 이 0.0.0.0 에 이미 잡고 있다. 컨테이너 내부는
       # 8888 그대로 — Eureka 에 등록되고 core-api 가 붙는 것은 내부 포트다.
-      - "127.0.0.1:8890:8888"
+      #
+      # 의도적으로 0.0.0.0 바인딩 (2026-08-02, 로컬 개발이 서버 config-server 를 원격으로
+      # 다시 쓰기로 함). 접근 제어는 Postgres 와 같은 방식 — Docker 발행 포트는 호스트
+      # firewalld 를 우회하므로, OCI VCN Security List (TCP 8890, 허용 IP만) 에서 막는다.
+      # config-server 자체엔 인증이 없다 — 시크릿은 애초에 여기 안 둔다(라우트·임계값·
+      # 기능 플래그뿐, DB 자격증명·API 키는 .env). Security List 가 유일한 접근 제어다.
+      - "8890:8888"
     mem_limit: 700m
     logging:
       driver: json-file
@@ -72,8 +78,11 @@ services:
     image: ghcr.io/seohyeokgyu/carix/eureka:${EUREKA_TAG:-latest}
     environment:
       - JAVA_TOOL_OPTIONS=-XX:MaxRAMPercentage=50
+    # 의도적으로 0.0.0.0 바인딩 (2026-08-02) — config-server 와 같은 이유·같은 방식.
+    # eureka 도 인증이 없다 — 노출되는 것은 서비스 레지스트리(컨테이너 내부 IP·인스턴스
+    # 메타데이터)뿐이고 시크릿은 없다. Security List(TCP 8761, 허용 IP만)가 접근 제어다.
     ports:
-      - "127.0.0.1:8761:8761"
+      - "8761:8761"
     mem_limit: 700m
     logging:
       driver: json-file
