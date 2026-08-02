@@ -60,7 +60,7 @@ services:
     image: ghcr.io/seohyeokgyu/carix/frontend:${FRONTEND_TAG:-latest}
     environment:
       - NODE_ENV=production
-      - API_ORIGIN=http://core-api:8080
+      - API_ORIGIN=http://gateway:8080
     expose:
       - "3000"
     logging:
@@ -104,6 +104,24 @@ services:
         max-file: "3"
     restart: unless-stopped
 
+  gateway:
+    image: ghcr.io/seohyeokgyu/carix/gateway:${GATEWAY_TAG:-latest}
+    environment:
+      - JAVA_TOOL_OPTIONS=-XX:MaxRAMPercentage=50
+    expose:
+      - "8080"
+    depends_on:
+      - config-server
+      - eureka
+      - core-api
+    mem_limit: 700m
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    restart: unless-stopped
+
   core-api:
     image: ghcr.io/seohyeokgyu/carix/core-api:${CORE_API_TAG:-latest}
     environment:
@@ -114,7 +132,7 @@ services:
       - CARIX_ENCRYPTION_KEY=${CARIX_ENCRYPTION_KEY}
       - JAVA_TOOL_OPTIONS=-XX:MaxRAMPercentage=50
     expose:
-      - "8080"
+      - "8082"
     depends_on:
       - postgres
       - config-server

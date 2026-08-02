@@ -35,16 +35,16 @@ API·데이터 접근은 전부 Spring Boot가 담당하는 경계를 유지하�
 flowchart TD
     Internet([Internet]) -->|":443 TLS"| Router["infra_caddy (라우터)"]
     Router -->|"호스트명 분기"| CarixCaddy["carix_caddy (:80)"]
-    CarixCaddy -->|"/api/*"| SpringBoot["core-api :8080"]
-    CarixCaddy -->|"/assets/*"| NodeSSR
-    CarixCaddy -->|"그 외"| NodeSSR["frontend-node :3000"]
+    CarixCaddy --> GW["gateway :8080"]
+    GW -->|"/api/v1/**"| SpringBoot["core-api :8082"]
+    GW -->|"그 외"| NodeSSR["frontend-node :3000"]
     NodeSSR -.->|"SSR 중 API 호출"| SpringBoot
     SpringBoot --> DB[(PostgreSQL)]
 ```
 
 - 엣지는 2단이다. 라우터 Caddy(`infra_caddy`)가 80/443과 TLS 종료·호스트명 분기를,
-  프로젝트 전용 `carix_caddy`가 애플리케이션 라우팅과 압축을 담당한다.
-  **앱 계층은 Spring Cloud Gateway 로 전환 예정이다**
+  프로젝트 전용 `carix_caddy`가 압축을 담당한다. **앱 계층 라우팅은 Spring Cloud Gateway 로
+  전환 완료했다** — `carix_caddy`는 이제 `gateway:8080`으로만 붙고, 경로별 분기는 Gateway가 한다
   ([Spring Cloud 아키텍처](spring-cloud-architecture.md)).
 - 별도 정적 파일 서버는 없다. `/assets/*`도 `frontend-node`가 서빙하고 Caddy는
   장기 캐시 헤더만 붙인다.

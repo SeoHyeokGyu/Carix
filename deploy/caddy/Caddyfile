@@ -14,7 +14,7 @@
 	encode zstd gzip
 
 	handle /api/* {
-		reverse_proxy core-api:8080
+		reverse_proxy gateway:8080
 	}
 
 	# 정적 assets. 별도 파일 서버는 없고 frontend-node 가 서빙한다.
@@ -24,10 +24,10 @@
 	# 실제 스캐폴드 시 번들러 출력 경로(Vite 기본값은 /assets/)와 일치하는지 확인한다.
 	handle /assets/* {
 		header Cache-Control "public, max-age=31536000, immutable"
-		reverse_proxy frontend-node:3000
+		reverse_proxy gateway:8080
 	}
 
 	handle {
-		reverse_proxy frontend-node:3000
+		reverse_proxy gateway:8080
 	}
 }
