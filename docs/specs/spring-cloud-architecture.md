@@ -266,15 +266,17 @@ Gateway가 마지막이다. 하류가 준비되기 전에 트래픽을 받으면
 ## 6. 로컬 개발
 
 로컬에 Docker를 두지 않는다(README.md 채택 사유 유지).
-**config-server·eureka·필요한 하류 서비스는 로컬에서 직접 기동**하고, DB만 OCI 서버에
-원격 연결한다(DEVELOPMENT.md §3). Headscale tailnet 은 2026-08-02 제거됐다 —
-config-server(8890)·eureka(8761)를 서버와 공유하던 이전 구성은 더 이상 쓰지 않는다.
+**서버 인프라를 공유**하고 작업 대상 서비스만 노트북에서 띄운다. `config-server`(8890)·
+`eureka`(8761)는 서버 것을 원격으로 쓴다 — OCI Security List IP 허용목록으로 열었다
+(2026-08-02, Postgres 5432와 같은 바인딩 방식이나 TLS는 없다 — 시크릿을 다루지 않는
+두 서비스는 Security List 단독 방어로 충분하다고 판단했다). Headscale tailnet 제거
+직후 한때 로컬 직접 기동으로 바꿨었으나, 서버 것을 다시 열기로 하며 이 절도 그 시점
+구성으로 되돌렸다.
 
 ### 가장 큰 위험 — 로컬 인스턴스가 운영 트래픽을 받는다
 
 로컬 `core-api`가 서버 Eureka에 등록되면 서버 Gateway가 그쪽으로 실사용자 요청을 보낸다.
-노트북을 닫으면 서비스가 죽는다. 로컬 Eureka를 별도로 띄우는 지금 구성에서는 발생하지
-않지만, 안전장치는 그대로 유지한다.
+노트북을 닫으면 서비스가 죽는다.
 
 ```yaml
 # application-local.yml
@@ -287,14 +289,15 @@ eureka.client:
 
 | 작업 대상 | 로컬에서 띄우는 것 | 서버에서 쓰는 것 |
 | --- | --- | --- |
-| core-api | config-server, eureka, core-api | DB |
-| auth-service | config-server, eureka, auth-service | DB |
-| batch-worker | config-server, batch-worker | DB, 외부 API |
-| gateway | config-server, eureka, auth-service, core-api, gateway | DB(하류 서비스 경유) |
+| core-api | core-api | config-server, eureka, DB |
+| auth-service | auth-service | config-server, eureka, DB |
+| batch-worker | batch-worker | config-server, DB, 외부 API |
+| gateway | auth-service, core-api, gateway | config-server, eureka, DB(하류 서비스 경유) |
 
-Gateway 작업은 하류 서비스(auth-service, core-api)까지 전부 로컬에서 띄운다. 로컬
-Eureka가 알려주는 주소는 그대로 `localhost`라 정적 오버라이드 없이도 닿지만, 기동 순서
-문제(§5 "기동 순서")로 처음엔 라우트를 정적 URI로 덮어 두는 편이 디버깅에 낫다.
+Gateway 작업만 하류 서비스(auth-service, core-api)까지 로컬에서 띄운다. 서버 Eureka가
+알려주는 주소는 서버 컨테이너 내부 IP(`172.x`)라 노트북에서 닿지 않으므로, 로컬
+프로파일에서 라우트를 정적 URI(`localhost`)로 덮는다 — 8081·8082는 인터넷에 열지
+않았고 로컬에서 직접 기동한 인스턴스를 가리켜야 한다.
 
 ```yaml
 # gateway/application-local.yml
@@ -303,7 +306,7 @@ spring.cloud.gateway.routes:
     uri: http://localhost:8081
 ```
 
-각 서비스 기동 절차(config-server 우선 기동 등)는 [backend/README.md](../../backend/README.md)를 따른다.
+각 서비스 로컬 기동 절차(오프라인 폴백 포함)는 [backend/README.md](../../backend/README.md)를 따른다.
 
 ### 남는 제약
 

@@ -311,30 +311,26 @@ pnpm dev              # Vite dev server (기본 5173)
 
 ## 5. 백엔드 개발
 
-> **`config-server`·`eureka` 도 로컬에서 직접 기동한다** (2026-08-02 이후 기본값) — 절차는
-> `backend/README.md`. tailnet 제거로 서버 것을 원격으로 못 쓰게 됐고, 이 둘은 DB와 달리
-> 로컬 기동 폴백이 이미 있어 굳이 인터넷에 새로 열지 않기로 했다(DB 5432만 연다 — 대안이
-> 없는 것만 노출 범위를 넓힌다).
+`config-server`(8890)·`eureka`(8761) 는 서버에서 이미 돈다 — 로컬에는 작업 대상 하나만
+띄운다(Gateway 작업은 예외 — 아래 spring-cloud-architecture.md §6 참조). 서버 것을
+원격으로 쓴다 — OCI Security List IP 허용목록으로 열었다(2026-08-02, Postgres 5432와
+같은 바인딩 방식). **TLS는 없다** — 두 서비스 다 시크릿을 다루지 않아(라우트·임계값·
+기능 플래그, 서비스 레지스트리뿐) Security List 단독 방어로 충분하다고 판단했다
+(Postgres는 실제 자격증명이 오가서 TLS를 추가했다). 서버 쪽 포트·볼륨 설정은
+`docker-compose.yml`의 config-server·eureka 서비스 주석을 참조한다.
 
 **가장 큰 위험 — 로컬 인스턴스가 운영 트래픽을 받는다.** 로컬 `core-api`가 서버 Eureka에
 등록되면 서버 쪽 라우팅이 그리로 실사용자 요청을 보낼 수 있다. 노트북을 닫으면 서비스가 죽는다.
 그래서 **`local` 프로파일을 반드시 켠다** — `application-local.yml`이 `register-with-eureka:
-false`를 강제한다. 지금처럼 로컬 Eureka 를 별도로 띄우는 구성에서는 애초에 서버 Eureka 에
-닿지 않지만, 안전장치는 그대로 유지한다.
-
-`backend/README.md` 절차대로 `config-server`(8888)를 먼저 띄운 뒤:
+false`를 강제한다.
 
 ```bash
 cd backend
-CONFIG_SERVER_URL=http://localhost:8888 EUREKA_CLIENT_ENABLED=false \
+CONFIG_SERVER_URL=http://144.24.90.88:8890 EUREKA_URL=http://144.24.90.88:8761/eureka/ \
   ./gradlew :core-api:bootRun --args='--server.port=8080 --spring.profiles.active=local'
 ```
 
-`EUREKA_CLIENT_ENABLED=false` 로 Eureka 클라이언트 자체를 꺼도 되고, `eureka` 를 로컬에서
-함께 띄워 Gateway 작업(spring-cloud-architecture.md §6)까지 검증해도 된다.
-
-`--spring.profiles.active=local` 을 빠뜨리면 서버 Eureka에 등록된다(Eureka 클라이언트가
-켜진 경우). 커맨드에서 매번
+`--spring.profiles.active=local` 을 빠뜨리면 서버 Eureka에 등록된다. 커맨드에서 매번
 타이핑하는 대신 IntelliJ 실행 구성의 Active profiles 에 `local`을 고정해 둔다(§3.4).
 
 컨텍스트 패스가 `/api`다. 기동 후 확인 경로:
