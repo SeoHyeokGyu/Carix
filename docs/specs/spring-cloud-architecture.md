@@ -308,7 +308,7 @@ spring.cloud.gateway.routes:
 ### 남는 제약
 
 - **운영 DB를 공유한다**(근거는 DEVELOPMENT.md §3). 로컬에서 돌린 마이그레이션과 쿼리가 운영에 반영된다.
-- DB 접근 경로가 재구축 중이다(Headscale 제거, 2026-08-02) — 상세는 DEVELOPMENT.md §3.
+- DB 접근은 TLS + OCI Security List IP 허용목록이다(Headscale 대체, 2026-08-02 완료) — 상세는 DEVELOPMENT.md §3.
 - 오프라인 개발이 불가능하다(DB 원격 연결 필요).
 
 ## 7. 기존 결정과의 충돌
