@@ -21,7 +21,7 @@
 
 ### 1.1 런타임 버전
 
-컨테이너는 Java 21, Node.js 24 LTS로 고정한다. 로컬도 동일 버전으로 맞춘다
+컨테이너는 Java 25, Node.js 24 LTS로 고정한다. 로컬도 동일 버전으로 맞춘다
 (개발 머신의 상위 버전과 별개).
 
 ```bash
@@ -29,15 +29,15 @@
 nvm install 24 && nvm use 24
 corepack enable            # pnpm 활성화
 
-# Java 21 (sdkman)
-sdk install java 21-tem && sdk use java 21-tem
+# Java 25 (sdkman)
+sdk install java 25-tem && sdk use java 25-tem
 ```
 
 버전 확인:
 
 ```bash
 node --version   # v24.x
-java --version   # 21.x
+java --version   # 25.x
 pnpm --version
 ```
 
