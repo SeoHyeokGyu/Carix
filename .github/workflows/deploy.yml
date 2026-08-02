@@ -40,7 +40,7 @@ env:
 
 jobs:
   backend:
-    name: Test & Build core-api
+    name: Build core-api
     # private 저장소도 ARM 러너 free-tier 대상 (2 vCPU). 서버가 aarch64라 QEMU가 필요 없다.
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 25
@@ -98,12 +98,12 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         if: steps.tag.outputs.build == 'true'
 
-      # Testcontainers 통합 테스트가 여기서 돈다. 러너에 Docker가 있고 aarch64라
-      # 운영 아키텍처와 일치한다.
-      - name: Build & test
+      # -x test: 테스트는 CI에서 안 돈다. 머지 전 로컬 검증이 유일한 게이트다
+      # (backend/README.md "테스트 주의" 참조).
+      - name: Build
         if: steps.tag.outputs.build == 'true'
         working-directory: backend
-        run: ./gradlew :core-api:build
+        run: ./gradlew :core-api:build -x test
 
       # Dockerfile은 컴파일하지 않는다. 위에서 만든 JAR을 layered로 풀어 담기만 한다.
       - name: Build & push image
@@ -178,10 +178,10 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         if: steps.tag.outputs.build == 'true'
 
-      - name: Build & test
+      - name: Build
         if: steps.tag.outputs.build == 'true'
         working-directory: backend
-        run: ./gradlew :eureka:build
+        run: ./gradlew :eureka:build -x test
 
       - name: Build & push image
         if: steps.tag.outputs.build == 'true'
@@ -250,10 +250,10 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         if: steps.tag.outputs.build == 'true'
 
-      - name: Build & test
+      - name: Build
         if: steps.tag.outputs.build == 'true'
         working-directory: backend
-        run: ./gradlew :config-server:build
+        run: ./gradlew :config-server:build -x test
 
       - name: Build & push image
         if: steps.tag.outputs.build == 'true'
@@ -322,10 +322,10 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         if: steps.tag.outputs.build == 'true'
 
-      - name: Build & test
+      - name: Build
         if: steps.tag.outputs.build == 'true'
         working-directory: backend
-        run: ./gradlew :gateway:build
+        run: ./gradlew :gateway:build -x test
 
       - name: Build & push image
         if: steps.tag.outputs.build == 'true'
@@ -348,7 +348,7 @@ jobs:
           min-versions-to-keep: 2
 
   authservice:
-    name: Test & Build auth-service
+    name: Build auth-service
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 25
     permissions:
@@ -394,12 +394,12 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         if: steps.tag.outputs.build == 'true'
 
-      # Testcontainers 통합 테스트가 여기서 돈다. 러너에 Docker가 있고 aarch64라
-      # 운영 아키텍처와 일치한다.
-      - name: Build & test
+      # -x test: 테스트는 CI에서 안 돈다. 머지 전 로컬 검증이 유일한 게이트다
+      # (backend/README.md "테스트 주의" 참조).
+      - name: Build
         if: steps.tag.outputs.build == 'true'
         working-directory: backend
-        run: ./gradlew :auth-service:build
+        run: ./gradlew :auth-service:build -x test
 
       - name: Build & push image
         if: steps.tag.outputs.build == 'true'

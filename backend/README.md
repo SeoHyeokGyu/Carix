@@ -118,7 +118,11 @@ Dockerfile은 컴파일하지 않는다. CI 러너가 Gradle 캐시로 만든 JA
 
 ## 테스트 주의
 
+- **CI가 테스트를 안 돌린다 (2026-08-02부터).** `.github/workflows/deploy.yml`의 5개 빌드 잡
+  전부 `./gradlew :모듈:build -x test`다. 빌드·이미지 푸시·배포는 테스트 결과와 무관하게
+  진행된다. 머지 전 검증은 **전적으로 로컬 책임**이다.
 - 설계 테스트 전략은 Testcontainers를 쓰나, Testcontainers는 로컬 Docker를 요구한다.
-- Docker가 OCI 전용이므로, 통합 테스트는 **배포 워크플로(Docker 제공 러너) 또는 OCI DB 대상**으로 실행한다. 로컬에서는 단위 테스트 중심으로 돌린다.
-- PR 단계 CI가 없다. `./gradlew build` 가 자동으로 도는 지점은 main 푸시뿐이므로, 머지 전 검증은 로컬에서 직접 한다.
-- `auth-service`는 이 배포 워크플로에도 아직 안 걸린다 — `.github/workflows/deploy.yml`은 `core-api`·`eureka`·`config-server`만 빌드·테스트하므로, 위 CI 폴백조차 이 모듈엔 해당하지 않는다.
+  Docker가 OCI 전용이라 통합 테스트(`auth-service`)는 로컬에서 못 돌린다 — OCI DB 대상으로
+  수동 실행하거나, CI에 다시 테스트를 걸 때까지는 검증 공백으로 남는다.
+- PR 단계 CI도 없다. `./gradlew build`가 자동으로 도는 지점 자체가 없다(main 푸시도 이제
+  `-x test`). 사실상 이 저장소엔 자동 테스트 게이트가 없다.
