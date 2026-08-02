@@ -1,6 +1,5 @@
-# Headplane(headscale 웹 관리 UI) 설정. 시크릿은 여기 두지 않는다 —
-# cookie_secret·api_key는 서버 .env → HEADPLANE_LOAD_ENV_OVERRIDES 환경변수로 주입한다
-# (docker-compose.yml 참조).
+# Headplane(headscale 웹 관리 UI) 설정. cookie_secret은 여기 두지 않는다 —
+# 서버 .env → HEADPLANE_LOAD_ENV_OVERRIDES 환경변수로 주입한다(docker-compose.yml 참조).
 server:
   host: "0.0.0.0"
   port: 3000
@@ -26,5 +25,7 @@ integration:
   docker:
     enabled: false
 
-# OIDC는 이 프로젝트에 아직 없다(DEVELOPMENT.md 기준). API key 로그인만 쓴다 —
-# `headscale apikeys create`로 발급한 키를 HEADPLANE_HEADSCALE__API_KEY로 주입한다.
+# OIDC는 이 프로젝트에 아직 없다(DEVELOPMENT.md 기준). API key 로그인만 쓴다 — 로그인 폼에
+# `headscale apikeys create`로 발급한 키를 그때그때 붙여넣는다. headscale.api_key 설정값은
+# OIDC·proxy_auth·docker/agent 통합에서만 쓰이는데 전부 꺼져 있어 여기선 안 둔다(죽은 설정
+# 방지 — 헷갈리게 두는 대신 실제로 안 쓰는 건 아예 안 씀).

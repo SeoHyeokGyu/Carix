@@ -66,7 +66,6 @@ services:
     environment:
       - HEADPLANE_LOAD_ENV_OVERRIDES=true
       - HEADPLANE_SERVER__COOKIE_SECRET=${HEADPLANE_COOKIE_SECRET}
-      - HEADPLANE_HEADSCALE__API_KEY=${HEADPLANE_API_KEY}
     volumes:
       - ./deploy/headplane/config.yaml:/etc/headplane/config.yaml:ro
       - headplane-data:/var/lib/headplane
