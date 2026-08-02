@@ -40,8 +40,9 @@
 포트 열은 **컨테이너 내부** 포트이자 현재 상태다. Eureka에 등록되고 Gateway가 붙는 것도 이
 포트다.
 
-호스트 바인딩(`127.0.0.1:`)은 대부분 같은 번호를 쓰지만 `config-server`만 **8890**이다.
-호스트 8888은 저장소 밖 `infra-dozzle-1`이 이미 잡고 있다.
+호스트 바인딩은 대부분 같은 번호를 쓰지만 `config-server`만 **8890**이다. 호스트 8888은
+저장소 밖 `infra-dozzle-1`이 이미 잡고 있다. `config-server`·`eureka`(8761)·`postgres`(5432)는
+`0.0.0.0`에 바인딩하고 OCI Security List로 접근을 제한한다(§6, DEVELOPMENT.md §3).
 
 JVM 6개. 여기에 postgres·frontend-node·라우터 Caddy가 더해진다.
 

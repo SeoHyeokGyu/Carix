@@ -131,11 +131,13 @@ DB를 하나로 합쳤다 — `carix_dev` DB·롤과 initdb 스크립트를 제�
    oci network security-list get --security-list-id <SL_OCID> \
      --query 'data."ingress-security-rules"' > /tmp/current_ingress.json
 
-   # <새-IP>/32, TCP 5432 규칙을 추가해 /tmp/new_ingress.json 으로 저장한 뒤
+   # <새-IP>/32 로 TCP 5432(DB) · 8890(config-server) · 8761(eureka) 세 규칙을 추가해
+   # /tmp/new_ingress.json 으로 저장한 뒤
    oci network security-list update --security-list-id <SL_OCID> \
      --ingress-security-rules file:///tmp/new_ingress.json --force
    ```
 
+   세 포트 모두 등록해야 한다 — 하나만 등록하면 그 포트만 열리고 나머지는 계속 막힌다.
    `<SL_OCID>`는 인스턴스 서브넷에 붙은 Security List OCID다
    (`oci compute instance list-vnics` → `oci network subnet get` 으로 확인).
    기존 규칙(다른 포트·다른 IP)은 절대 지우지 않는다 — 조회한 배열에 새 규칙만 추가한다.
@@ -347,8 +349,8 @@ CONFIG_SERVER_URL=http://144.24.90.88:8890 EUREKA_URL=http://144.24.90.88:8761/e
 - Flyway가 기동 시 마이그레이션을 적용한다. dev DB에만 적용되도록 프로파일을 확인한다.
 - 배치 워커는 별도 프로파일(`--spring.profiles.active=local,batch`)로 실행한다.
 
-전환 예정(Gateway 도입, `auth-service`·`batch-worker` 분리)은
-[Spring Cloud 아키텍처 §6](specs/spring-cloud-architecture.md) 참조.
+Gateway 도입·`auth-service` 배포 배선은 완료됐다. `batch-worker` 분리는 아직 남은 전환이다
+— 상세는 [Spring Cloud 아키텍처](specs/spring-cloud-architecture.md) 참조.
 
 ## 6. 테스트
 
