@@ -61,7 +61,10 @@ services:
   # docker.sock 마운트가 필요해서 공격 표면이 늘어나고, 이 프로젝트는 그 기능(DNS 변경 시
   # Headscale 자동 재시작)을 쓰지 않는다.
   headplane:
-    image: ghcr.io/tale/headplane:0.6.0
+    # 0.6.0은 HEADPLANE_LOAD_ENV_OVERRIDES 환경변수 오버라이드를 지원하지 않는다(서버 실측,
+    # 2026-08-02 — cookie_secret must be a string (was missing) 로 크래시루프).
+    # 0.6.3에서 지원 확인(app/server/config/load.ts, deprecated 표시지만 동작함).
+    image: ghcr.io/tale/headplane:0.6.3
     container_name: carix_headplane
     environment:
       - HEADPLANE_LOAD_ENV_OVERRIDES=true
