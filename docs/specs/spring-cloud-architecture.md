@@ -1,14 +1,15 @@
 # Spring Cloud 기반 백엔드 아키텍처 설계
 
-> 상태: 계획 A(멀티모듈·Config Server·Eureka)와 계획 B(Gateway 도입, 요청경로 편입 완료)
-> 구현·운영 검증 완료 — 2026-08-01. 계획 C(auth-service 배포 배선)는 미구현.
+> 상태: 계획 A(멀티모듈·Config Server·Eureka), 계획 B(Gateway 도입, 요청경로 편입 완료),
+> 계획 C(auth-service 배포 배선) 구현 완료 — 2026-08-02.
 >
 > Gateway 의 세션 검증 필터는 코드·단위테스트 완료 상태로 존재하지만
 > `carix.gateway.session-validation.enabled`(config/spring/gateway.yml) 가 기본 false다 —
-> auth-service 가 아직 배포되지 않아 켜면 core-api 로 가는 모든 요청이 401/503이 된다.
-> auth-service 배포 완료 후 그 값을 true 로 바꾸고 /actuator/refresh 를 호출한다.
+> auth-service 배포 배선은 이 커밋으로 갖춰졌으나, 실제 서버 배포·Eureka 등록 확인 전에
+> 켜면 core-api 로 가는 모든 요청이 401/503이 된다.
+> 서버 배포·등록 확인 후 그 값을 true 로 바꾸고 /actuator/refresh 를 호출한다.
 >
-> 날짜: 2026-07-28 (원 설계), 2026-08-01 (Gateway 구현)
+> 날짜: 2026-07-28 (원 설계), 2026-08-01 (Gateway 구현), 2026-08-02 (auth-service 배포 배선)
 > 관련 결정: 단일 DB·Headscale 접근 근거는 [DEVELOPMENT.md §3](../DEVELOPMENT.md),
 > [구현 계획](../plans/spring-cloud-a-infra.md), [Gateway 구현 계획](../superpowers/plans/2026-08-01-gateway-introduction.md)
 
