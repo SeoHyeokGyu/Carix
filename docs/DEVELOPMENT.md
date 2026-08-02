@@ -161,11 +161,12 @@ Headscale 컨테이너는 배포로 뜬다. 서버 **호스트**가 그 tailnet�
 
 ```bash
 # 호스트에 Tailscale 클라이언트 설치
-curl -fsSL https://tailscale.com/install.sh | sh
+curl -fsSL https://tailscale.com/install.sh | sudo sh
 
 # 자기 자신의 headscale 에 등록
-docker exec carix_headscale headscale users create server
-docker exec carix_headscale headscale preauthkeys create --user server --expiration 1h
+sudo docker exec carix_headscale headscale users create server
+sudo docker exec carix_headscale headscale users list   # 방금 만든 user 의 숫자 ID 확인
+sudo docker exec carix_headscale headscale preauthkeys create --user <ID> --expiration 1h
 sudo tailscale up --login-server https://headscale.144.24.90.88.sslip.io --authkey <키>
 
 # DB 포트를 tailnet 안에만 중계 (재부팅 후에도 유지)
@@ -176,15 +177,18 @@ sudo tailscale serve --bg --tcp=8890 tcp://localhost:8890   # config-server
 sudo tailscale serve --bg --tcp=8761 tcp://localhost:8761   # eureka
 ```
 
-> **미완료.** 위 `tailscale up`은 아직 서버에서 실행되지 않았다 — 브라우저 인증이 필요해
-> 관리자가 직접 해야 한다. 그 전까지 §5의 `CONFIG_SERVER_URL` 은 tailnet 으로 닿지 않는다.
+> **완료 (2026-08-02).** `preauthkeys create` 는 `--user` 에 유저명이 아니라 숫자 ID를 받는다
+> (headscale 0.29.2 실측 — 유저명을 그대로 넣으면 `strconv.ParseUint` 파싱 에러). 위 명령은
+> 그 순서(먼저 `users list` 로 ID 확인)로 고쳤다. 서버 호스트는 tailnet에 `server` 유저로
+> 등록됐고(노드명 `instance-20251124-2242`, tailnet IP `100.64.0.1`), 5432·8890·8761 세
+> 포트 모두 `tailscale serve status`로 tailnet-only 릴레이 확인됨(funnel 아님).
 
 `serve`는 tailnet 내부에만 공개한다 — 인터넷에 여는 것은 `funnel`이며 쓰지 않는다.
 
 팀원은 클라이언트가 켜져 있으면 그냥 붙는다. 터널 명령이 없다.
 
 ```
-SPRING_DATASOURCE_URL=jdbc:postgresql://<서버-tailnet-이름>:5432/carix
+SPRING_DATASOURCE_URL=jdbc:postgresql://instance-20251124-2242.carix.internal:5432/carix
 ```
 
 tailnet 이름은 `tailscale status` 또는
@@ -321,9 +325,10 @@ CONFIG_SERVER_URL=http://<서버-tailnet-주소>:8890 EUREKA_URL=http://<서버-
   ./gradlew :core-api:bootRun --args='--spring.profiles.active=local'
 ```
 
-> §3.1의 8890·8761 중계가 아직 서버에 설정되지 않았다면(관리자의 `tailscale up` 미완료),
-> 이 명령은 config-server 에 닿지 못하고 fail-fast 로 죽는다. 그때까지 로컬 검증은
-> `backend/README.md`의 로컬 `config-server`·`eureka` 직접 기동 절차를 쓴다.
+> 서버 쪽 8890·8761 중계는 설정 완료(§3.1, 2026-08-02). 본인 노트북이 아직 headscale에
+> 등록 전이면(§3.0 온보딩 미완료) 이 명령은 config-server 에 닿지 못하고 fail-fast 로
+> 죽는다. 그때까지 로컬 검증은 `backend/README.md`의 로컬 `config-server`·`eureka` 직접
+> 기동 절차를 쓴다.
 
 `--spring.profiles.active=local` 을 빠뜨리면 서버 Eureka에 등록된다. 커맨드에서 매번
 타이핑하는 대신 IntelliJ 실행 구성의 Active profiles 에 `local`을 고정해 둔다(§3.4).
