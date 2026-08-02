@@ -62,9 +62,7 @@ Carix는 연봉·실수령액·소비 금액 등 민감한 개인 재무 정보�
   복구 절차 검증, 이미지 버전 고정을 함께 한다(서버 전용 근거는 README.md 채택 사유).
 - **운영과 개발이 같은 DB를 쓴다.** 따라서 팀원은 실사용자 데이터에 직접 접근한다.
   감수한 위험과 재검토 시점은 [`DEVELOPMENT.md`](DEVELOPMENT.md) §3 참조.
-- **접근 경로: TLS + OCI Security List IP 허용목록 (2026-08-02 완료).**
-  Headscale(자체 호스팅 Tailscale) tailnet 을 제거했다 — 로컬 클라이언트의 DNS 해석이
-  반복 실패해(사설망에 IPv6 라우팅 부재) 팀 판단으로 접었다. Postgres 컨테이너 포트는
+- **접근 경로: TLS + OCI Security List IP 허용목록.** Postgres 컨테이너 포트는
   `0.0.0.0:5432`로 발행하되, Docker 발행 포트는 호스트 firewalld를 우회하므로(DOCKER
   체인) 호스트 방화벽으로는 못 막는다 — 실제 접근 제어는 호스트 밖 **OCI VCN Security
   List**에서 한다(TCP 5432, 팀원 IP `/32`만 개별 허용, default-deny). Security List 는

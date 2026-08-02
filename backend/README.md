@@ -111,8 +111,8 @@ Dockerfile은 컴파일하지 않는다. CI 러너가 Gradle 캐시로 만든 JA
 > `auth` 스키마를 쓰므로, 아래 원격 DB 연결 설정이 지금 바로 필요하다.
 
 - 로컬엔 PostgreSQL·Docker를 띄우지 않는다. **OCI의 `carix` DB에 원격 연결**한다.
-  접근은 TLS + OCI Security List IP 허용목록이다(2026-08-02 완료, Headscale tailnet
-  대체 — [`../docs/DEVELOPMENT.md`](../docs/DEVELOPMENT.md) §3 참조).
+  접근은 TLS + OCI Security List IP 허용목록이다
+  ([`../docs/DEVELOPMENT.md`](../docs/DEVELOPMENT.md) §3 참조).
 - 운영과 개발이 **같은 DB**다. 별도 dev DB는 두지 않는다(감수한 위험은 같은 문서 §3).
 - `application-local.yml` 로 `eureka.client.register-with-eureka: false` 를 반드시 켠다.
   안 켜면 서버 Eureka 에 등록돼 서버 Gateway 가 이 노트북으로 운영 트래픽을 보낸다.
