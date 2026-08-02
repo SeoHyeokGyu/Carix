@@ -56,6 +56,34 @@ services:
         max-file: "3"
     restart: unless-stopped
 
+  # Headscale 웹 관리 UI. 공개 노출(라우터 Caddy 경유) — API key 인증이 유일한 게이트다.
+  # Docker 통합은 끈다(integration.docker.enabled: false, deploy/headplane/config.yaml) —
+  # docker.sock 마운트가 필요해서 공격 표면이 늘어나고, 이 프로젝트는 그 기능(DNS 변경 시
+  # Headscale 자동 재시작)을 쓰지 않는다.
+  headplane:
+    image: ghcr.io/tale/headplane:v0.7.0
+    container_name: carix_headplane
+    environment:
+      - HEADPLANE_LOAD_ENV_OVERRIDES=true
+      - HEADPLANE_SERVER__COOKIE_SECRET=${HEADPLANE_COOKIE_SECRET}
+    volumes:
+      - ./deploy/headplane/config.yaml:/etc/headplane/config.yaml:ro
+      - headplane-data:/var/lib/headplane
+      - ./deploy/headscale/config.yaml:/etc/headscale/config.yaml:ro
+    expose:
+      - "3000"
+    depends_on:
+      - headscale
+    networks:
+      - default
+      - edge
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    restart: unless-stopped
+
   frontend-node:
     image: ghcr.io/seohyeokgyu/carix/frontend:${FRONTEND_TAG:-latest}
     environment:
@@ -198,3 +226,4 @@ volumes:
   carix-pgdata:
   # 노드 키와 ACL. 잃으면 팀원 전원이 재인증해야 한다. 백업 대상이다.
   headscale-data:
+  headplane-data:

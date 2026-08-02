@@ -268,6 +268,7 @@ flowchart TD
 | 엣지 — 앱 라우팅 | Caddy 2 (`carix_caddy`) | `gateway:8080`으로 균일 전달(경로 분기는 Gateway가 수행), 압축, 캐시 헤더 | 도입 |
 | 빌드·배포 | GitHub Actions (ARM 러너), GHCR, Docker Compose, OCI | 이미지 빌드·레지스트리·컨테이너 운영 | 도입 |
 | 팀 DB 접근 | Headscale (자체 호스팅 Tailscale) | 팀원 노트북과 서버를 같은 사설망에 | 도입 |
+| Headscale 관리 UI | Headplane | 유저·노드·ACL 관리 웹 콘솔 | 도입 — 공개 노출, API key 인증(OIDC 미도입) |
 | 설정 관리 | Spring Cloud Config | 설정 외부화, 런타임 갱신 | 도입 — native(파일시스템) 백엔드 |
 | 서비스 디스커버리 | Eureka | 서비스 등록·조회 | 도입 |
 | API 게이트웨이 | Spring Cloud Gateway | 라우팅, 세션 검증 필터, 상관관계 ID | 도입 — 세션 검증 필터는 기본 비활성(auth-service 배포 배선 대기, 계획 C) |
