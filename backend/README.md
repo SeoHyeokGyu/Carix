@@ -15,11 +15,10 @@ REST API, 데이터 접근, Spring Batch 수집·집계를 맡는다(스키마 `
 Config·Eureka 클라이언트만 있고 도메인 API는 아직 없다. JPA·Flyway·Security·Batch는 다음
 단계에서 추가한다.
 
-**구현 상태 (2026-08-01):** `auth-service` 코드 구현 완료(초대 확인, 매직링크 발급·검증, 세션
-생성·조회·폐기, rate limit). **배포 배선은 아직 없다** — `Dockerfile`, `docker-compose.yml`
-서비스 항목, Caddy 라우트, CI 빌드/테스트 잡, DB 접속 정보(`config/spring/auth-service.yml`은
-현재 빈 주석뿐)가 모두 미연결이라 이 상태로는 기동할 수 없다. 배포 배선은 별도 후속 작업이다.
-`core-api` 도메인 인프라(JPA·Flyway·Security·Batch)와 Spring Cloud Gateway 는 다음 단계.
+**구현 상태:** `auth-service` 코드 구현(초대 확인, 매직링크 발급·검증, 세션 생성·조회·폐기,
+rate limit)과 배포 배선(`Dockerfile`, `docker-compose.yml` 서비스 항목, Caddy 라우트, CI 빌드
+잡) 모두 완료됐다. Spring Cloud Gateway도 도입돼 요청 경로에 편입됐다(설계는 위
+spring-cloud-architecture.md). `core-api` 도메인 인프라(JPA·Flyway·Security·Batch)는 다음 단계.
 
 | 경로 | 용도 |
 | --- | --- |
@@ -112,8 +111,8 @@ Dockerfile은 컴파일하지 않는다. CI 러너가 Gradle 캐시로 만든 JA
 > `auth` 스키마를 쓰므로, 아래 원격 DB 연결 설정이 지금 바로 필요하다.
 
 - 로컬엔 PostgreSQL·Docker를 띄우지 않는다. **OCI의 `carix` DB에 원격 연결**한다.
-  접근은 TLS + OCI Security List IP 허용목록이다(2026-08-02 완료, Headscale tailnet
-  대체 — [`../docs/DEVELOPMENT.md`](../docs/DEVELOPMENT.md) §3 참조).
+  접근은 TLS + OCI Security List IP 허용목록이다
+  ([`../docs/DEVELOPMENT.md`](../docs/DEVELOPMENT.md) §3 참조).
 - 운영과 개발이 **같은 DB**다. 별도 dev DB는 두지 않는다(감수한 위험은 같은 문서 §3).
 - `application-local.yml` 로 `eureka.client.register-with-eureka: false` 를 반드시 켠다.
   안 켜면 서버 Eureka 에 등록돼 서버 Gateway 가 이 노트북으로 운영 트래픽을 보낸다.

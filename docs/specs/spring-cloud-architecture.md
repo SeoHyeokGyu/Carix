@@ -269,10 +269,8 @@ Gateway가 마지막이다. 하류가 준비되기 전에 트래픽을 받으면
 로컬에 Docker를 두지 않는다(README.md 채택 사유 유지).
 **서버 인프라를 공유**하고 작업 대상 서비스만 노트북에서 띄운다. `config-server`(8890)·
 `eureka`(8761)는 서버 것을 원격으로 쓴다 — OCI Security List IP 허용목록으로 열었다
-(2026-08-02, Postgres 5432와 같은 바인딩 방식이나 TLS는 없다 — 시크릿을 다루지 않는
-두 서비스는 Security List 단독 방어로 충분하다고 판단했다). Headscale tailnet 제거
-직후 한때 로컬 직접 기동으로 바꿨었으나, 서버 것을 다시 열기로 하며 이 절도 그 시점
-구성으로 되돌렸다.
+(Postgres 5432와 같은 바인딩 방식이나 TLS는 없다 — 시크릿을 다루지 않는 두 서비스는
+Security List 단독 방어로 충분하다고 판단했다).
 
 ### 가장 큰 위험 — 로컬 인스턴스가 운영 트래픽을 받는다
 
@@ -312,7 +310,7 @@ spring.cloud.gateway.routes:
 ### 남는 제약
 
 - **운영 DB를 공유한다**(근거는 DEVELOPMENT.md §3). 로컬에서 돌린 마이그레이션과 쿼리가 운영에 반영된다.
-- DB 접근은 TLS + OCI Security List IP 허용목록이다(Headscale 대체, 2026-08-02 완료) — 상세는 DEVELOPMENT.md §3.
+- DB 접근은 TLS + OCI Security List IP 허용목록이다 — 상세는 DEVELOPMENT.md §3.
 - 오프라인 개발이 불가능하다(DB 원격 연결 필요).
 
 ## 7. 기존 결정과의 충돌

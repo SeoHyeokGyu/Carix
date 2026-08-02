@@ -192,7 +192,7 @@ services:
       - ssl_key_file=/etc/postgresql-certs/server.key
       - -c
       - hba_file=/etc/postgresql-hba/pg_hba.conf
-    # 의도적으로 0.0.0.0 바인딩 (2026-08-02, Headscale tailnet 제거 후 대체 경로).
+    # 의도적으로 0.0.0.0 바인딩.
     #
     # Docker 가 발행한 포트는 호스트 firewalld/iptables 를 우회한다(DOCKER 체인) — 그래서
     # 호스트 방화벽으로는 이 포트를 못 막는다. 실제 접근 제어는 이 host 밖, OCI VCN
