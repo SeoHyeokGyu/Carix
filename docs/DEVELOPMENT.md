@@ -77,7 +77,7 @@ cp .env.example .env
 > 이라 팀원마다 IP를 등록해야 한다(§3.0).
 
 > **여기서 실행하는 쿼리와 마이그레이션은 곧 운영에 적용된다.** 개발용 사본이 아니다.
-> 파괴적 변경 전에는 팀에 알리고, 마이그레이션은 §3.3 규약을 지킨다.
+> 파괴적 변경 전에는 팀에 알리고, 마이그레이션은 §3.2 규약을 지킨다.
 
 ### 왜 같은 DB를 쓰는가
 
@@ -151,7 +151,7 @@ DB를 하나로 합쳤다 — `carix_dev` DB·롤과 initdb 스크립트를 제�
    SQL
    ```
 
-4. §2의 `.env` 작성 (`sslmode=require` 필수 — §3.4)
+4. §2의 `.env` 작성 (`sslmode=require` 필수 — §3.3)
 
 **팀원이 빠지면** Security List 규칙과 DB 롤을 함께 제거한다.
 
@@ -183,7 +183,7 @@ uid:gid `70:70`는 `postgres:16-alpine` 이미지의 postgres 프로세스 실�
 소유자가 다르거나 개인키 권한이 600보다 넓으면 컨테이너가 기동 시 거부한다.
 나머지(hba_file, ssl 플래그)는 `docker-compose.yml`의 postgres `command`를 참조한다.
 
-### 3.3 Flyway 규약
+### 3.2 Flyway 규약
 
 DB가 하나뿐이므로 마이그레이션 파일 이름이 충돌하면 **운영 스키마에서** 막힌다.
 
@@ -211,7 +211,7 @@ spring:
 그래도 막히면 본인 브랜치 작업분만 되돌린다. **DB를 통째로 초기화하지 않는다** — 운영
 데이터가 사라진다. `flyway clean`은 절대 실행하지 않는다.
 
-### 3.4 IntelliJ 설정
+### 3.3 IntelliJ 설정
 
 노트북에 컨테이너를 띄우지 않는다 — 원격 DB에 바로 붙는다. 접속 전에 IP가
 Security List에 등록돼 있어야 한다(§3.0).
@@ -266,7 +266,7 @@ CONFIG_SERVER_URL=http://144.24.90.88:8890 EUREKA_URL=http://144.24.90.88:8761/e
 ```
 
 `--spring.profiles.active=local` 을 빠뜨리면 서버 Eureka에 등록된다. 커맨드에서 매번
-타이핑하는 대신 IntelliJ 실행 구성의 Active profiles 에 `local`을 고정해 둔다(§3.4).
+타이핑하는 대신 IntelliJ 실행 구성의 Active profiles 에 `local`을 고정해 둔다(§3.3).
 
 컨텍스트 패스가 `/api`다. 기동 후 확인 경로:
 
