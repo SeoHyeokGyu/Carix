@@ -37,7 +37,7 @@ sdk install java 25-tem && sdk use java 25-tem
 
 ```bash
 node --version   # v24.x
-java --version   # 21.x
+java --version   # 25.x
 pnpm --version
 ```
 
