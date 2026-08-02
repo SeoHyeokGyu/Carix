@@ -1,0 +1,16 @@
+# 빌드 컨텍스트는 build/libs/*.jar 하나면 된다.
+# `*` + 부정(!) 형태는 buildkit 구현에 따라 부모 경로 재포함이 필요하므로 쓰지 않는다.
+.gradle/
+.git/
+src/
+gradle/
+gradlew
+gradlew.bat
+build.gradle
+settings.gradle
+build/classes/
+build/resources/
+build/tmp/
+build/reports/
+build/test-results/
+build/generated/

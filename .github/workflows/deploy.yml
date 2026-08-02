@@ -347,6 +347,80 @@ jobs:
           package-type: container
           min-versions-to-keep: 2
 
+  authservice:
+    name: Test & Build auth-service
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 25
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      tag: ${{ steps.tag.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: 태그 결정과 이미지 존재 확인
+        id: tag
+        run: |
+          TAG=$(git log -1 --format=%H -- backend/auth-service/ backend/build.gradle backend/settings.gradle ':!*.md' .github/workflows/deploy.yml)
+          [ -n "$TAG" ] || TAG="$GITHUB_SHA"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+
+          if docker buildx imagetools inspect "${IMAGE_BASE}/auth-service:${TAG}" >/dev/null 2>&1; then
+            echo "build=false" >> "$GITHUB_OUTPUT"
+            echo "auth-service:${TAG} 이미 있음 — 빌드 건너뜀"
+          else
+            echo "build=true" >> "$GITHUB_OUTPUT"
+            echo "auth-service:${TAG} 없음 — 빌드"
+          fi
+
+      - uses: actions/setup-java@v4
+        if: steps.tag.outputs.build == 'true'
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - uses: gradle/actions/setup-gradle@v4
+        if: steps.tag.outputs.build == 'true'
+
+      # Testcontainers 통합 테스트가 여기서 돈다. 러너에 Docker가 있고 aarch64라
+      # 운영 아키텍처와 일치한다.
+      - name: Build & test
+        if: steps.tag.outputs.build == 'true'
+        working-directory: backend
+        run: ./gradlew :auth-service:build
+
+      - name: Build & push image
+        if: steps.tag.outputs.build == 'true'
+        uses: docker/build-push-action@v6
+        with:
+          context: ./backend/auth-service
+          push: true
+          provenance: false
+          sbom: false
+          tags: |
+            ${{ env.IMAGE_BASE }}/auth-service:${{ steps.tag.outputs.tag }}
+            ${{ env.IMAGE_BASE }}/auth-service:latest
+
+      - name: 오래된 GHCR 버전 정리
+        if: steps.tag.outputs.build == 'true'
+        uses: actions/delete-package-versions@e5bc658cc4c965c472efe991f8beea3981499c55   # v5.0.0
+        with:
+          package-name: carix/auth-service
+          package-type: container
+          min-versions-to-keep: 2
+
   frontend:
     name: Build frontend
     runs-on: ubuntu-24.04-arm
@@ -420,7 +494,7 @@ jobs:
   deploy:
     name: Deploy to Oracle Cloud
     runs-on: ubuntu-latest
-    needs: [backend, frontend, eureka, configserver, gateway]
+    needs: [backend, frontend, eureka, configserver, gateway, authservice]
     timeout-minutes: 15
     permissions:
       contents: read
@@ -437,13 +511,14 @@ jobs:
           EUREKA_TAG: ${{ needs.eureka.outputs.tag }}
           CONFIG_SERVER_TAG: ${{ needs.configserver.outputs.tag }}
           GATEWAY_TAG: ${{ needs.gateway.outputs.tag }}
+          AUTH_SERVICE_TAG: ${{ needs.authservice.outputs.tag }}
           GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_ACTOR: ${{ github.actor }}
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USERNAME }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          envs: DEPLOY_SHA,CORE_API_TAG,FRONTEND_TAG,EUREKA_TAG,CONFIG_SERVER_TAG,GATEWAY_TAG,IMAGE_BASE,GHCR_TOKEN,GH_ACTOR
+          envs: DEPLOY_SHA,CORE_API_TAG,FRONTEND_TAG,EUREKA_TAG,CONFIG_SERVER_TAG,GATEWAY_TAG,AUTH_SERVICE_TAG,IMAGE_BASE,GHCR_TOKEN,GH_ACTOR
           script: |
             set -eu   # -x 금지: docker login 라인이 트레이스에 남는다
             cd /home/opc/carix
@@ -475,6 +550,7 @@ jobs:
             set_tag EUREKA_TAG "$EUREKA_TAG"
             set_tag CONFIG_SERVER_TAG "$CONFIG_SERVER_TAG"
             set_tag GATEWAY_TAG "$GATEWAY_TAG"
+            set_tag AUTH_SERVICE_TAG "$AUTH_SERVICE_TAG"
 
             printf '%s' "$GHCR_TOKEN" | docker login ghcr.io -u "$GH_ACTOR" --password-stdin
             docker compose pull
@@ -516,6 +592,7 @@ jobs:
             LIVE_EUREKA=$(grep '^EUREKA_TAG=' .env | head -1 | cut -d= -f2- || true)
             LIVE_CONFIG_SERVER=$(grep '^CONFIG_SERVER_TAG=' .env | head -1 | cut -d= -f2- || true)
             LIVE_GATEWAY=$(grep '^GATEWAY_TAG=' .env | head -1 | cut -d= -f2- || true)
+            LIVE_AUTH_SERVICE=$(grep '^AUTH_SERVICE_TAG=' .env | head -1 | cut -d= -f2- || true)
 
             prune_repo() {
               repo=$1
@@ -536,6 +613,7 @@ jobs:
             prune_repo "${IMAGE_BASE}/eureka" "$LIVE_EUREKA"
             prune_repo "${IMAGE_BASE}/config-server" "$LIVE_CONFIG_SERVER"
             prune_repo "${IMAGE_BASE}/gateway" "$LIVE_GATEWAY"
+            prune_repo "${IMAGE_BASE}/auth-service" "$LIVE_AUTH_SERVICE"
 
   healthcheck:
     name: Health check
