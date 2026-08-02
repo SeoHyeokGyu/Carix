@@ -1,7 +1,8 @@
 # Carix 로컬 개발 가이드
 
 로컬은 순수 코드 개발이다. **Docker와 PostgreSQL은 OCI 서버에서만 기동**하고, 로컬
-백엔드는 OCI의 `carix` DB(운영과 같은 DB)에 원격 연결한다. 배경과 결정은
+백엔드는 OCI의 `carix` DB(운영과 같은 DB)에 원격 연결한다. **접근 경로는 재구축 중이다**
+(Headscale tailnet 제거, 2026-08-02 — §3 참조). 배경과 결정은
 [루트 README 개발 환경](../README.md#개발-환경)을 참조한다.
 
 > **현재 스캐폴드 상태 (2026-08-01).** 이 문서는 목표 상태를 기술한다. 지금 실제로 되는 것과
@@ -60,15 +61,20 @@ cp .env.example .env
 
 | 변수 | 용도 | 비고 |
 | --- | --- | --- |
-| `SPRING_DATASOURCE_URL` | 백엔드 DB 연결 | `<서버-tailnet-이름>:5432/carix` (§3) |
+| `SPRING_DATASOURCE_URL` | 백엔드 DB 연결 | `<서버-주소>:5432/carix` (§3) |
 | `SPRING_DATASOURCE_USERNAME` / `_PASSWORD` | 개인별 DB 롤 | §3.0 에서 발급받는다 |
 | `CARIX_ENCRYPTION_KEY` | 컬럼 암호화(AES-256-GCM) | `openssl rand -base64 32` |
 | `KOSIS_API_KEY` 외 3종 | 배치 원천 API | 선행 검증 후 발급 |
 
 ## 3. OCI DB 원격 연결
 
-로컬엔 Postgres를 띄우지 않는다. **운영과 개발이 같은 DB(`carix`)를 쓴다.** 팀원은 Headscale
-tailnet 을 통해 여기에 붙는다(§3.2).
+로컬엔 Postgres를 띄우지 않는다. **운영과 개발이 같은 DB(`carix`)를 쓴다.**
+
+> **접근 경로 재구축 중 (2026-08-02).** Headscale(자체 호스팅 Tailscale) tailnet 을
+> 제거했다 — 로컬 클라이언트의 DNS 해석 실패(사설망에 IPv6 라우팅 부재)로 팀원 온보딩이
+> 반복 실패해, 팀 판단으로 tailnet 자체를 접었다(폐기 경위·이전 근거는 §3.2). 대체 경로는
+> **Postgres TLS 활성화 + OCI Security List IP 허용목록** 이며 아직 진행 중이다 — 그 전까지
+> 로컬에서 서버 DB에 원격 연결할 방법이 없다. 완료되면 이 절과 §3.0·§3.4 를 갱신한다.
 
 > **여기서 실행하는 쿼리와 마이그레이션은 곧 운영에 적용된다.** 개발용 사본이 아니다.
 > 파괴적 변경 전에는 팀에 알리고, 마이그레이션은 §3.3 규약을 지킨다.
@@ -109,96 +115,44 @@ DB를 하나로 합쳤다 — `carix_dev` DB·롤과 initdb 스크립트를 제�
 
 ### 3.0 팀원 온보딩
 
-접근 경로는 **Headscale**(자체 호스팅 Tailscale, §3.2에 근거)이다. 클라이언트는 Tailscale 공식 클라이언트를
-그대로 쓴다. SSH 키를 배포하지 않는다.
-
-1. **사용자·preauth key 발급** (관리자)
-
-   ```bash
-   ssh <oci-server-alias> 'docker exec carix_headscale headscale users create <이름>'
-   ssh <oci-server-alias> 'docker exec carix_headscale headscale preauthkeys create --user <이름> --expiration 24h'
-   ```
-
-   출력된 키를 비밀번호 관리자 등 안전한 경로로 전달한다. 24시간 뒤 만료된다.
-
-2. **클라이언트 설치·등록** (신규 팀원)
-
-   노트북에는 **Tailscale 앱 하나만** 설치한다. Docker 도 컨테이너도 필요 없다.
-
-   ```bash
-   brew install --cask tailscale     # macOS — standalone 변형
-   tailscale up --login-server https://headscale.144.24.90.88.sslip.io --authkey <preauth-key>
-   ```
-
-   > **App Store 버전을 쓰지 않는다.** 샌드박스 제약이 있고 Tailscale 문서도 standalone 을
-   > 기본으로 권장한다. `brew install --cask tailscale` 이 standalone 이다.
-   >
-   > GUI 로 하려면 Option 키를 누른 채 메뉴 아이콘 클릭 → Debug → Custom Login Server →
-   > *Add Account...* 에 위 URL 을 넣는다.
-
-3. **개인별 DB 롤 발급** — 공용 계정을 돌려쓰지 않는다. 이탈 시 회수가 안 되기 때문이다.
-
-   ```bash
-   docker exec -i carix-postgres-1 psql -U carix -d carix <<SQL
-   CREATE ROLE "<이름>" LOGIN PASSWORD '<생성한-비밀번호>';
-   GRANT ALL ON DATABASE carix TO "<이름>";
-   GRANT ALL ON SCHEMA public TO "<이름>";
-   SQL
-   ```
-
-4. §2의 `.env` 작성
-
-**팀원이 빠지면** Headscale 사용자와 DB 롤을 함께 제거한다.
+> **접근 경로 재구축 중 (2026-08-02).** 아래는 Headscale 제거로 더 이상 쓸 수 없다.
+> 새 절차(IP 허용목록 등록 + TLS 접속)는 §3의 배너 참조, 완료되면 이 절을 다시 쓴다.
+> **개인별 DB 롤 발급**만은 접근 경로와 무관하게 그대로 유효하다 — 공용 계정을 돌려쓰지
+> 않는다. 이탈 시 회수가 안 되기 때문이다.
 
 ```bash
-ssh <oci-server-alias> 'docker exec carix_headscale headscale users destroy <이름>'
+docker exec -i carix-postgres-1 psql -U carix -d carix <<SQL
+CREATE ROLE "<이름>" LOGIN PASSWORD '<생성한-비밀번호>';
+GRANT ALL ON DATABASE carix TO "<이름>";
+GRANT ALL ON SCHEMA public TO "<이름>";
+SQL
+```
+
+**팀원이 빠지면** DB 롤을 제거한다.
+
+```bash
 docker exec -i carix-postgres-1 psql -U carix -d carix -c 'DROP ROLE "<이름>"'
 ```
 
-### 3.1 서버 1회 설정 (관리자)
+### 3.1 서버 설정 (관리자)
 
-Headscale 컨테이너는 배포로 뜬다. 서버 **호스트**가 그 tailnet에 참여해야 DB 포트를 중계할 수 있다.
+> **접근 경로 재구축 중 (2026-08-02).** Headscale 컨테이너·호스트 tailscale 클라이언트·
+> `tailscale serve` 중계를 모두 제거했다. 새 절차는 §3의 배너 참조, 완료되면 이 절을
+> 다시 쓴다.
 
-```bash
-# 호스트에 Tailscale 클라이언트 설치
-curl -fsSL https://tailscale.com/install.sh | sudo sh
+### 3.2 왜 이 구성이었는가 (폐기, 2026-08-02)
 
-# 자기 자신의 headscale 에 등록
-sudo docker exec carix_headscale headscale users create server
-sudo docker exec carix_headscale headscale users list   # 방금 만든 user 의 숫자 ID 확인
-sudo docker exec carix_headscale headscale preauthkeys create --user <ID> --expiration 1h
-sudo tailscale up --login-server https://headscale.144.24.90.88.sslip.io --authkey <키>
+> **이 절은 역사적 기록이다.** 아래는 Headscale 채택 당시(2026-08-01~02) 근거다. 실제
+> 운영 중 로컬 tailscale 클라이언트의 DNS 해석이 반복 실패했다(사설망에 IPv6 라우팅이
+> 없어 Tailscale bootstrap DNS 폴백까지 막힘 — 서버·Caddy·방화벽 문제가 아니라 팀원
+> 로컬 네트워크 환경 문제로 확인됨). 대안 비교 자체가 잘못됐던 것은 아니고, 이 비교에서
+> 이겼던 선택지가 실제 팀원 환경에서 반복적으로 온보딩에 실패해 운용 가치가 없어졌다.
+> 대체 경로는 §3 배너 참조.
 
-# DB 포트를 tailnet 안에만 중계 (재부팅 후에도 유지)
-sudo tailscale serve --bg --tcp=5432 tcp://localhost:5432
-
-# core-api 를 로컬에서 서버 Config·Eureka 에 붙이려면(§5) 이 둘도 중계한다
-sudo tailscale serve --bg --tcp=8890 tcp://localhost:8890   # config-server
-sudo tailscale serve --bg --tcp=8761 tcp://localhost:8761   # eureka
-```
-
-> **완료 (2026-08-02).** `preauthkeys create` 는 `--user` 에 유저명이 아니라 숫자 ID를 받는다
-> (headscale 0.29.2 실측 — 유저명을 그대로 넣으면 `strconv.ParseUint` 파싱 에러). 위 명령은
-> 그 순서(먼저 `users list` 로 ID 확인)로 고쳤다. 서버 호스트는 tailnet에 `server` 유저로
-> 등록됐고(노드명 `instance-20251124-2242`, tailnet IP `100.64.0.1`), 5432·8890·8761 세
-> 포트 모두 `tailscale serve status`로 tailnet-only 릴레이 확인됨(funnel 아님).
-
-`serve`는 tailnet 내부에만 공개한다 — 인터넷에 여는 것은 `funnel`이며 쓰지 않는다.
-
-팀원은 클라이언트가 켜져 있으면 그냥 붙는다. 터널 명령이 없다.
-
-```
-SPRING_DATASOURCE_URL=jdbc:postgresql://instance-20251124-2242.carix.internal:5432/carix
-```
-
-tailnet 이름은 `tailscale status` 또는
-`docker exec carix_headscale headscale nodes list`로 확인한다.
-
-### 3.2 왜 이 구성인가
-
-**5432를 인터넷에 직접 열지 않는다.** 현재 Postgres는 TLS가 꺼져 있어(SSLRequest에 `N` 응답)
-직접 노출하면 비밀번호와 모든 쿼리·결과가 평문으로 오간다. 운영 DB이므로 더 그렇다.
-tailnet 구간은 WireGuard로 암호화된다.
+**5432를 인터넷에 직접 열지 않는다** *(당시 결정 — 이후 IP 허용목록 + TLS로 대체 진행 중,
+§3 참조)*. 당시 Postgres는 TLS가 꺼져 있어(SSLRequest에 `N` 응답)
+직접 노출하면 비밀번호와 모든 쿼리·결과가 평문으로 오간다는 점이 직접 노출을 접은 이유였다.
+운영 DB이므로 더 그렇다. tailnet 구간은 WireGuard로 암호화된다.
 
 `docker-compose.yml`의 postgres는 `127.0.0.1:5432:5432`로 **루프백에만** 바인딩하고,
 호스트의 `tailscale serve`가 그 루프백 포트를 tailnet에 중계한다. Headscale 컨테이너 자체도
@@ -247,8 +201,9 @@ tailnet 구간은 WireGuard로 암호화된다.
 - DERP는 Tailscale 공개 릴레이를 쓴다. 계정은 필요 없지만 NAT 통과 경로가 외부 인프라에
   의존한다. 내장 DERP로 바꾸면 STUN 포트를 추가로 열어야 한다.
 
-**되돌릴 조건:** 팀이 6명 이하로 유지되고 자체 운영 부담이 문제가 되면 Tailscale SaaS로
-되돌릴 수 있다. 클라이언트가 같아 전환 비용은 `--login-server` 변경뿐이다.
+**"되돌릴 조건"(당시 기록):** 팀이 6명 이하로 유지되고 자체 운영 부담이 문제가 되면
+Tailscale SaaS로 되돌릴 수 있다고 봤다. 실제로는 SaaS로 전환하지 않고 Headscale 자체를
+접었다 — 위 배너 참조.
 
 ### 3.3 Flyway 규약
 
@@ -280,13 +235,14 @@ spring:
 
 ### 3.4 IntelliJ 설정
 
-Tailscale 클라이언트가 켜져 있으면 별도 설정이 없다. 실행 구성의 before-launch 훅도,
-Database 도구의 SSH 터널 설정도 필요 없다. 노트북에 컨테이너를 띄우지 않는다.
+> **접근 경로 재구축 중 (2026-08-02).** 아래 Database 도구 접속 호스트는 tailnet 제거로
+> 무효다. 새 접속 정보는 §3 배너 참조, 완료되면 이 절을 다시 쓴다. 노트북에 컨테이너를
+> 띄우지 않는 원칙은 그대로다.
 
 **Database 도구 창**
 
 1. Data Source → PostgreSQL
-2. Host `<서버-tailnet-이름>`, Port `5432`, Database `carix`, User `<본인 롤>`
+2. Host `<서버-주소>`, Port `5432`, Database `carix`, User `<본인 롤>`
 
 **이 연결은 운영 DB다.** 데이터 편집·삭제 전에 무엇을 지우는지 확인한다.
 
@@ -310,27 +266,29 @@ pnpm dev              # Vite dev server (기본 5173)
 
 ## 5. 백엔드 개발
 
-`config-server`·`eureka` 는 서버에서 이미 돈다 — 로컬에는 작업 대상(`core-api`) 하나만 띄운다.
+> **접근 경로 재구축 중 (2026-08-02).** tailnet 제거로 서버 `config-server`·`eureka` 를
+> 로컬에서 직접 쓸 방법이 없다. 지금은 **`config-server`·`eureka` 도 로컬에서 직접
+> 기동**한다 — 절차는 `backend/README.md`. 서버 인프라 공유가 복구되면 이 절을 다시 쓴다.
 
 **가장 큰 위험 — 로컬 인스턴스가 운영 트래픽을 받는다.** 로컬 `core-api`가 서버 Eureka에
 등록되면 서버 쪽 라우팅이 그리로 실사용자 요청을 보낼 수 있다. 노트북을 닫으면 서비스가 죽는다.
 그래서 **`local` 프로파일을 반드시 켠다** — `application-local.yml`이 `register-with-eureka:
-false`를 강제한다.
+false`를 강제한다. 지금처럼 로컬 Eureka 를 별도로 띄우는 구성에서는 애초에 서버 Eureka 에
+닿지 않지만, 안전장치는 그대로 유지한다.
 
-Tailscale 클라이언트가 켜진 상태에서(§3, §3.1의 8890·8761 중계 포함):
+`backend/README.md` 절차대로 `config-server`(8888)를 먼저 띄운 뒤:
 
 ```bash
 cd backend
-CONFIG_SERVER_URL=http://<서버-tailnet-주소>:8890 EUREKA_URL=http://<서버-tailnet-주소>:8761/eureka/ \
-  ./gradlew :core-api:bootRun --args='--spring.profiles.active=local'
+CONFIG_SERVER_URL=http://localhost:8888 EUREKA_CLIENT_ENABLED=false \
+  ./gradlew :core-api:bootRun --args='--server.port=8080 --spring.profiles.active=local'
 ```
 
-> 서버 쪽 8890·8761 중계는 설정 완료(§3.1, 2026-08-02). 본인 노트북이 아직 headscale에
-> 등록 전이면(§3.0 온보딩 미완료) 이 명령은 config-server 에 닿지 못하고 fail-fast 로
-> 죽는다. 그때까지 로컬 검증은 `backend/README.md`의 로컬 `config-server`·`eureka` 직접
-> 기동 절차를 쓴다.
+`EUREKA_CLIENT_ENABLED=false` 로 Eureka 클라이언트 자체를 꺼도 되고, `eureka` 를 로컬에서
+함께 띄워 Gateway 작업(spring-cloud-architecture.md §6)까지 검증해도 된다.
 
-`--spring.profiles.active=local` 을 빠뜨리면 서버 Eureka에 등록된다. 커맨드에서 매번
+`--spring.profiles.active=local` 을 빠뜨리면 서버 Eureka에 등록된다(Eureka 클라이언트가
+켜진 경우). 커맨드에서 매번
 타이핑하는 대신 IntelliJ 실행 구성의 Active profiles 에 `local`을 고정해 둔다(§3.4).
 
 컨텍스트 패스가 `/api`다. 기동 후 확인 경로:

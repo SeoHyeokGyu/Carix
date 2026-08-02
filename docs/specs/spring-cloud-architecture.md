@@ -10,7 +10,7 @@
 > 서버 배포·등록 확인 후 그 값을 true 로 바꾸고 /actuator/refresh 를 호출한다.
 >
 > 날짜: 2026-07-28 (원 설계), 2026-08-01 (Gateway 구현), 2026-08-02 (auth-service 배포 배선)
-> 관련 결정: 단일 DB·Headscale 접근 근거는 [DEVELOPMENT.md §3](../DEVELOPMENT.md),
+> 관련 결정: 단일 DB·원격 접근 근거는 [DEVELOPMENT.md §3](../DEVELOPMENT.md),
 > [구현 계획](../plans/spring-cloud-a-infra.md), [Gateway 구현 계획](../superpowers/plans/2026-08-01-gateway-introduction.md)
 
 ## 1. 목적과 전제
@@ -43,7 +43,7 @@
 호스트 바인딩(`127.0.0.1:`)은 대부분 같은 번호를 쓰지만 `config-server`만 **8890**이다.
 호스트 8888은 저장소 밖 `infra-dozzle-1`이 이미 잡고 있다.
 
-JVM 6개. 여기에 postgres·frontend-node·headscale·라우터 Caddy가 더해진다.
+JVM 6개. 여기에 postgres·frontend-node·라우터 Caddy가 더해진다.
 
 ### 왜 이 개수인가
 
@@ -55,9 +55,9 @@ Feign·Resilience4j가 필요한데, 학습 대상으로 선택하지 않았다.
 
 ### 포트를 고정하는 이유
 
-Eureka를 쓰면 포트를 랜덤으로 둘 수 있으나 고정한다. 로컬 개발에서 서버의 서비스를
-tailnet 너머로 호출해야 하는데(§6), `tailscale serve`는 고정 포트를 전제한다.
-Eureka는 등록된 포트를 그대로 알려주므로 고정이어도 정상 동작한다.
+Eureka를 쓰면 포트를 랜덤으로 둘 수 있으나 고정한다. Gateway 작업 시 로컬에서 하류 서비스
+라우트를 정적 URI로 덮어써야 하는데(§6), 포트가 매번 바뀌면 그 오버라이드를 유지보수할 수
+없다. Eureka는 등록된 포트를 그대로 알려주므로 고정이어도 정상 동작한다.
 
 ## 3. 데이터 소유
 
@@ -141,7 +141,7 @@ Gateway 에서 Swagger UI 하나로 두 서비스 문서를 전환해 본다. `b
 
 **하류 서비스는 세션을 모른다.** `X-User-Id`만 신뢰한다. 그 전제는 **Gateway를 거치지 않으면
 도달할 수 없는 네트워크 구성**이다 — 도메인 서비스는 호스트 포트를 발행하지 않고 compose
-내부 네트워크와 tailnet에만 노출한다.
+내부 네트워크에만 노출한다.
 
 ### 세션 검증 캐시
 
@@ -266,12 +266,15 @@ Gateway가 마지막이다. 하류가 준비되기 전에 트래픽을 받으면
 ## 6. 로컬 개발
 
 로컬에 Docker를 두지 않는다(README.md 채택 사유 유지).
-서버 인프라를 공유하고 **작업 대상 서비스 하나만** 노트북에서 띄운다.
+**config-server·eureka·필요한 하류 서비스는 로컬에서 직접 기동**하고, DB만 OCI 서버에
+원격 연결한다(DEVELOPMENT.md §3). Headscale tailnet 은 2026-08-02 제거됐다 —
+config-server(8890)·eureka(8761)를 서버와 공유하던 이전 구성은 더 이상 쓰지 않는다.
 
 ### 가장 큰 위험 — 로컬 인스턴스가 운영 트래픽을 받는다
 
 로컬 `core-api`가 서버 Eureka에 등록되면 서버 Gateway가 그쪽으로 실사용자 요청을 보낸다.
-노트북을 닫으면 서비스가 죽는다.
+노트북을 닫으면 서비스가 죽는다. 로컬 Eureka를 별도로 띄우는 지금 구성에서는 발생하지
+않지만, 안전장치는 그대로 유지한다.
 
 ```yaml
 # application-local.yml
@@ -280,43 +283,33 @@ eureka.client:
   fetch-registry: true           # 조회는 한다
 ```
 
-로컬은 읽기 전용 참여자다. **이 설정이 없으면 이 구성은 성립하지 않는다.**
-
-### tailnet 노출
-
-DB(5432)에 더해 셋을 노출한다. 모두 `127.0.0.1`에만 바인딩하고 `tailscale serve`가 중계한다.
-
-```bash
-tailscale serve --bg --tcp=8890 tcp://localhost:8890   # config-server
-tailscale serve --bg --tcp=8761 tcp://localhost:8761   # eureka
-tailscale serve --bg --tcp=8081 tcp://localhost:8081   # auth-service
-tailscale serve --bg --tcp=8082 tcp://localhost:8082   # core-api
-```
-
 ### 작업 대상별 구성
 
 | 작업 대상 | 로컬에서 띄우는 것 | 서버에서 쓰는 것 |
 | --- | --- | --- |
-| core-api | core-api | config, eureka, DB |
-| auth-service | auth-service | config, eureka, DB |
-| batch-worker | batch-worker | config, DB, 외부 API |
-| gateway | gateway | config, eureka, auth·core (tailnet) |
+| core-api | config-server, eureka, core-api | DB |
+| auth-service | config-server, eureka, auth-service | DB |
+| batch-worker | config-server, batch-worker | DB, 외부 API |
+| gateway | config-server, eureka, auth-service, core-api, gateway | DB(하류 서비스 경유) |
 
-Gateway 작업만 하류 서비스를 tailnet 너머로 호출한다. Eureka가 알려주는 주소는 컨테이너
-내부 IP(`172.x`)라 노트북에서 닿지 않으므로, 로컬 프로파일에서 라우트를 정적 URI로 덮는다.
+Gateway 작업은 하류 서비스(auth-service, core-api)까지 전부 로컬에서 띄운다. 로컬
+Eureka가 알려주는 주소는 그대로 `localhost`라 정적 오버라이드 없이도 닿지만, 기동 순서
+문제(§5 "기동 순서")로 처음엔 라우트를 정적 URI로 덮어 두는 편이 디버깅에 낫다.
 
 ```yaml
 # gateway/application-local.yml
 spring.cloud.gateway.routes:
   - id: auth
-    uri: http://<서버-tailnet-이름>:8081
+    uri: http://localhost:8081
 ```
+
+각 서비스 기동 절차(config-server 우선 기동 등)는 [backend/README.md](../../backend/README.md)를 따른다.
 
 ### 남는 제약
 
 - **운영 DB를 공유한다**(근거는 DEVELOPMENT.md §3). 로컬에서 돌린 마이그레이션과 쿼리가 운영에 반영된다.
-- 서버 인프라가 죽으면 로컬 개발이 막힌다. `fail-fast`라 기동조차 되지 않는다.
-- 오프라인 개발이 불가능하다.
+- DB 접근 경로가 재구축 중이다(Headscale 제거, 2026-08-02) — 상세는 DEVELOPMENT.md §3.
+- 오프라인 개발이 불가능하다(DB 원격 연결 필요).
 
 ## 7. 기존 결정과의 충돌
 

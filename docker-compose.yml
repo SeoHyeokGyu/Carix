@@ -34,59 +34,6 @@ services:
         max-file: "3"
     restart: unless-stopped
 
-  # 자체 호스팅 Tailscale 컨트롤 서버. 팀원 노트북과 이 서버를 같은 사설망에 넣어
-  # 운영 DB 에 접근시킨다 (근거는 docs/DEVELOPMENT.md §3.2). 호스트 포트를 발행하지 않고
-  # 라우터 Caddy 만 닿는다.
-  headscale:
-    image: headscale/headscale:0.29.2
-    container_name: carix_headscale
-    command: serve
-    volumes:
-      - ./deploy/headscale:/etc/headscale:ro
-      - headscale-data:/var/lib/headscale
-    expose:
-      - "8080"
-    networks:
-      - default
-      - edge
-    logging:
-      driver: json-file
-      options:
-        max-size: "10m"
-        max-file: "3"
-    restart: unless-stopped
-
-  # Headscale 웹 관리 UI. 공개 노출(라우터 Caddy 경유) — API key 인증이 유일한 게이트다.
-  # Docker 통합은 끈다(integration.docker.enabled: false, deploy/headplane/config.yaml) —
-  # docker.sock 마운트가 필요해서 공격 표면이 늘어나고, 이 프로젝트는 그 기능(DNS 변경 시
-  # Headscale 자동 재시작)을 쓰지 않는다.
-  headplane:
-    # 0.6.0은 HEADPLANE_LOAD_ENV_OVERRIDES 환경변수 오버라이드를 지원하지 않는다(서버 실측,
-    # 2026-08-02 — cookie_secret must be a string (was missing) 로 크래시루프).
-    # 0.6.3에서 지원 확인(app/server/config/load.ts, deprecated 표시지만 동작함).
-    image: ghcr.io/tale/headplane:0.6.3
-    container_name: carix_headplane
-    environment:
-      - HEADPLANE_LOAD_ENV_OVERRIDES=true
-      - HEADPLANE_SERVER__COOKIE_SECRET=${HEADPLANE_COOKIE_SECRET}
-    volumes:
-      - ./deploy/headplane/config.yaml:/etc/headplane/config.yaml:ro
-      - headplane-data:/var/lib/headplane
-      - ./deploy/headscale/config.yaml:/etc/headscale/config.yaml:ro
-    expose:
-      - "3000"
-    depends_on:
-      - headscale
-    networks:
-      - default
-      - edge
-    logging:
-      driver: json-file
-      options:
-        max-size: "10m"
-        max-file: "3"
-    restart: unless-stopped
-
   frontend-node:
     image: ghcr.io/seohyeokgyu/carix/frontend:${FRONTEND_TAG:-latest}
     environment:
@@ -227,6 +174,3 @@ networks:
 
 volumes:
   carix-pgdata:
-  # 노드 키와 ACL. 잃으면 팀원 전원이 재인증해야 한다. 백업 대상이다.
-  headscale-data:
-  headplane-data:

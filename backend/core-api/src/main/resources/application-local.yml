@@ -1,4 +1,4 @@
-# 로컬 개발용. 서버의 config·eureka 를 tailnet 으로 사용한다.
+# 로컬 개발용. config·eureka 는 로컬에서 직접 기동한다(backend/README.md).
 #
 # register-with-eureka 를 반드시 false 로 둔다. 등록하면 서버 Gateway 가
 # 이 노트북으로 운영 트래픽을 보낸다.
