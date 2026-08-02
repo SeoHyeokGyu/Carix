@@ -1,6 +1,6 @@
 # Carix Backend
 
-Java 21 + Spring Boot. Gradle 멀티모듈 — `config-server`, `eureka`, `core-api`, `auth-service`.
+Java 25 + Spring Boot. Gradle 멀티모듈 — `config-server`, `eureka`, `core-api`, `auth-service`.
 `auth-service` 가 초대·매직링크 로그인·세션을 맡는다(스키마 `auth`). `core-api` 가 도메인 로직,
 REST API, 데이터 접근, Spring Batch 수집·집계를 맡는다(스키마 `core`, JPA·Flyway·Security·Batch는
 아직 없음 — 다음 단계).
@@ -96,8 +96,8 @@ CONFIG_SERVER_URL=http://localhost:8888 EUREKA_CLIENT_ENABLED=false \
 `EUREKA_CLIENT_ENABLED=false` 는 클라이언트를 아예 끈다 — `eureka` 를 안 띄워도 등록 시도나
 에러 로그 없이 뜬다 (2026-07-30 로컬 실증).
 
-Java 툴체인은 21로 고정돼 있다. 로컬에 JDK 21이 없으면 `settings.gradle`의 foojay resolver가
-직접 내려받는다 (첫 빌드 한정). CI는 `setup-java`가 21을 제공하므로 다운로드가 없다.
+Java 툴체인은 25로 고정돼 있다. 로컬에 JDK 25가 없으면 `settings.gradle`의 foojay resolver가
+직접 내려받는다 (첫 빌드 한정). CI는 `setup-java`가 25를 제공하므로 다운로드가 없다.
 
 Dockerfile은 컴파일하지 않는다. CI 러너가 Gradle 캐시로 만든 JAR을 layered로 풀어 담기만 한다.
 그래서 `tasks.named('jar') { enabled = false }`로 plain jar를 끈다 — `build/libs/*.jar` 글롭이

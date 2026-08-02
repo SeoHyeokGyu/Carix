@@ -259,7 +259,7 @@ flowchart TD
 | Node SSR | Node.js 24 LTS, Express, `@react-router/express` | HTML 렌더링, SEO metadata, 공개 콘텐츠 | 미도입 — `node:http` 스텁 |
 | 클라이언트 데이터 | TanStack Query, React Hook Form, Zod | API 상태, 입력 폼, 검증 | 미도입 |
 | UI·시각화 | Tailwind CSS, shadcn/ui, Recharts | 컴포넌트, 스타일, 지수 차트 | 미도입 |
-| 백엔드 | Java 21, Spring Boot 4.1, Gradle 멀티모듈 | 인증, 도메인 로직, REST API, 데이터 접근 | 도입 (인증·도메인 로직 미구현) |
+| 백엔드 | Java 25, Spring Boot 4.1, Gradle 멀티모듈 | 인증, 도메인 로직, REST API, 데이터 접근 | 도입 (인증·도메인 로직 미구현) |
 | API 문서 | springdoc-openapi | OpenAPI 문서, Swagger UI | 도입 |
 | 데이터 접근 | Spring Data JPA, Flyway | 영속화, 스키마 마이그레이션 | 미도입 |
 | 데이터 수집 | Spring Batch | 외부 원천 수집·집계 | 미도입 |
@@ -288,7 +288,7 @@ flowchart TD
 | TanStack Query | 서버 상태를 클라이언트 스토어에 복제하지 않기 위해. 캐시·재검증을 직접 구현하지 않습니다 |
 | Zod + React Hook Form | 입력 검증을 프런트·백엔드 양쪽에서 하되, 프런트 스키마를 한 곳에 두기 위해 |
 | Recharts | 지수·트렌드 차트가 핵심 화면이며 React 컴포넌트 모델과 맞물립니다 |
-| Java 21 | LTS. Spring Boot 4.x의 하한(17)보다 높고 가상 스레드 등 최신 LTS 기능을 씁니다 |
+| Java 25 | 최신 LTS. Spring Boot 4.x의 하한(17)보다 높고 가상 스레드·AOT 캐시(Java 25+ 전용) 등 최신 LTS 기능을 씁니다 |
 | Spring Boot 4.1 | 스캐폴드 시점의 최신 GA. Spring Initializr 기본값이며 3.x는 더 이상 제공되지 않습니다 |
 | springdoc-openapi 3.0.3 | Boot 4 대응 라인입니다. 2.x는 Boot 3용이라 호환되지 않습니다 |
 | Spring Data JPA + Flyway | 스키마를 코드로 관리하고 마이그레이션 이력을 추적하기 위해 |
@@ -427,7 +427,7 @@ Carix/
 - **통합 테스트:** 설계는 Testcontainers를 쓰지만 로컬 Docker가 필요하므로, 통합 테스트는 배포 워크플로(Docker 제공 러너) 또는 OCI DB 대상으로 실행하고 로컬에서는 단위 테스트를 중심으로 돌립니다. PR 단계 CI가 없으므로 자동 실행 지점은 main 푸시뿐입니다.
 - 환경 변수는 [`.env.example`](.env.example)을 복사해 `.env`로 채웁니다. API 키·시크릿은 저장소에 커밋하지 않습니다.
 
-버전 기준: 컨테이너는 Java 21, Node.js 24 LTS로 고정합니다 (로컬 개발 머신의 상위 버전과 별개).
+버전 기준: 컨테이너는 Java 25, Node.js 24 LTS로 고정합니다 (로컬 개발 머신의 상위 버전과 별개).
 
 구체적인 실행 절차(런타임 설치, Headscale 온보딩, DB 접근, dev server, 테스트)는
 [`docs/DEVELOPMENT.md`](docs/DEVELOPMENT.md)를, 배포는
