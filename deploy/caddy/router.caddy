@@ -12,3 +12,9 @@ carix.144.24.90.88.sslip.io {
 headscale.144.24.90.88.sslip.io {
 	reverse_proxy carix_headscale:8080
 }
+
+# Headscale 웹 관리 UI. API key 인증이 유일한 게이트다(OIDC 미도입).
+headplane.144.24.90.88.sslip.io {
+	encode zstd gzip
+	reverse_proxy carix_headplane:3000
+}

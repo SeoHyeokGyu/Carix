@@ -1,0 +1,30 @@
+# Headplane(headscale 웹 관리 UI) 설정. 시크릿은 여기 두지 않는다 —
+# cookie_secret·api_key는 서버 .env → HEADPLANE_LOAD_ENV_OVERRIDES 환경변수로 주입한다
+# (docker-compose.yml 참조).
+server:
+  host: "0.0.0.0"
+  port: 3000
+
+  # 라우터 Caddy가 TLS를 종료하고 평문으로 넘긴다 — carix-caddy와 같은 구성.
+  base_url: "https://headplane.144.24.90.88.sslip.io"
+
+  # 클라이언트는 HTTPS로만 접근한다(라우터가 TLS 종료). Secure 쿠키 그대로 둔다.
+  cookie_secure: true
+
+  data_path: "/var/lib/headplane"
+
+headscale:
+  # 같은 compose 프로젝트 내부 — 서비스명으로 접근한다(core-api가 eureka에 붙는 것과 같은 방식).
+  url: "http://headscale:8080"
+
+  # 읽기 전용 마운트. Headplane이 Headscale 설정을 UI에 보여주지만 바꾸지는 못한다.
+  config_path: "/etc/headscale/config.yaml"
+
+integration:
+  # docker.sock 마운트가 필요해 공격 표면이 늘어난다. 이 프로젝트는 추가 DNS 레코드를
+  # 안 쓰므로(Headscale DNS 변경 시 자동 재시작 기능) 끈다 — 필요해지면 그때 켠다.
+  docker:
+    enabled: false
+
+# OIDC는 이 프로젝트에 아직 없다(DEVELOPMENT.md 기준). API key 로그인만 쓴다 —
+# `headscale apikeys create`로 발급한 키를 HEADPLANE_HEADSCALE__API_KEY로 주입한다.
