@@ -77,8 +77,11 @@ Spring Cloud Gateway(WebFlux/reactive). 요청 경로의 단일 진입점 — `c
 ./gradlew :core-api:bootRun  # config-server 없이 단독 기동은 안 된다 — 아래 참조
 ```
 
-`core-api` 를 단독 기동하려면 `config-server`(포트 8888)가 먼저 떠 있어야 한다.
+`core-api` 를 단독 기동하려면 `config-server`가 먼저 떠 있어야 한다.
 `spring.cloud.config.fail-fast=true` 라 Config Server 없이는 시작하지 않는다.
+
+**일반적인 로컬 개발은 서버 config-server(8890)를 원격으로 쓴다**(DEVELOPMENT.md §5) —
+아래는 서버 접근이 아예 안 될 때 쓰는 완전 오프라인 폴백이다.
 
 ```bash
 # config-server 의 기본 검색 경로는 서버 마운트(/etc/carix-repo/config/spring)다.
