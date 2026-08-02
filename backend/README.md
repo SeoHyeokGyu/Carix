@@ -15,11 +15,10 @@ REST API, 데이터 접근, Spring Batch 수집·집계를 맡는다(스키마 `
 Config·Eureka 클라이언트만 있고 도메인 API는 아직 없다. JPA·Flyway·Security·Batch는 다음
 단계에서 추가한다.
 
-**구현 상태 (2026-08-01):** `auth-service` 코드 구현 완료(초대 확인, 매직링크 발급·검증, 세션
-생성·조회·폐기, rate limit). **배포 배선은 아직 없다** — `Dockerfile`, `docker-compose.yml`
-서비스 항목, Caddy 라우트, CI 빌드/테스트 잡, DB 접속 정보(`config/spring/auth-service.yml`은
-현재 빈 주석뿐)가 모두 미연결이라 이 상태로는 기동할 수 없다. 배포 배선은 별도 후속 작업이다.
-`core-api` 도메인 인프라(JPA·Flyway·Security·Batch)와 Spring Cloud Gateway 는 다음 단계.
+**구현 상태:** `auth-service` 코드 구현(초대 확인, 매직링크 발급·검증, 세션 생성·조회·폐기,
+rate limit)과 배포 배선(`Dockerfile`, `docker-compose.yml` 서비스 항목, Caddy 라우트, CI 빌드
+잡) 모두 완료됐다. Spring Cloud Gateway도 도입돼 요청 경로에 편입됐다(설계는 위
+spring-cloud-architecture.md). `core-api` 도메인 인프라(JPA·Flyway·Security·Batch)는 다음 단계.
 
 | 경로 | 용도 |
 | --- | --- |
