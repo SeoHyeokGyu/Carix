@@ -10,18 +10,27 @@ public class CarixCrawlerApp {
     System.out.println("            Carix Job Portal Crawler              ");
     System.out.println("==================================================");
 
-    // 1. 잡코리아 크롤링 진행
-    JobKoreaCrawler jobKoreaCrawler = new JobKoreaCrawler();
-    String jobKoreaKeyword = "IT개발"; // 명목상 키워드
-    int jobKoreaPageLimit = 3; // 수집 범위 확장 (3페이지 = 최대 120개)
+    String outputDir = resolveOutputDir();
 
+    // 1. 잡코리아 크롤링 진행
+    crawlJobKorea("IT개발", 10, outputDir);
+
+    System.out.println("--------------------------------------------------");
+
+    // 2. 사람인 크롤링 진행
+    crawlSaramin(10, outputDir);
+
+    System.out.println("==================================================");
+    System.out.println("         Crawler Execution Completed              ");
+    System.out.println("==================================================");
+  }
+
+  public static void crawlJobKorea(String keyword, int pageLimit, String outputDir) {
+    JobKoreaCrawler jobKoreaCrawler = new JobKoreaCrawler();
     System.out.println("[Step 1] JobKorea Crawling Start...");
-    List<JobPosting> jkPostings = jobKoreaCrawler.crawl(jobKoreaKeyword, jobKoreaPageLimit);
+    List<JobPosting> jkPostings = jobKoreaCrawler.crawl(keyword, pageLimit);
     System.out.println(
         "[Step 1] JobKorea Crawling Finished. Extracted: " + jkPostings.size() + " items");
-
-    // CSV 저장 경로 상대 탐색
-    String outputDir = resolveOutputDir();
 
     if (!jkPostings.isEmpty()) {
       String jkCsvPath = outputDir + "/jobkorea_jobs.csv";
@@ -29,15 +38,12 @@ public class CarixCrawlerApp {
     } else {
       System.out.println("[JobKorea] No postings crawled, skipping CSV export.");
     }
+  }
 
-    System.out.println("--------------------------------------------------");
-
-    // 2. 사람인 크롤링 진행
+  public static void crawlSaramin(int pageLimit, String outputDir) {
     SaraminCrawler saraminCrawler = new SaraminCrawler();
-    int saraminPageLimit = 15; // 수집 범위 확장 (15페이지 수집)
-
     System.out.println("[Step 2] Saramin Crawling Start...");
-    List<JobPosting> saraminPostings = saraminCrawler.crawl(saraminPageLimit);
+    List<JobPosting> saraminPostings = saraminCrawler.crawl(pageLimit);
     System.out.println(
         "[Step 2] Saramin Crawling Finished. Extracted: " + saraminPostings.size() + " items");
 
@@ -47,10 +53,6 @@ public class CarixCrawlerApp {
     } else {
       System.out.println("[Saramin] No postings crawled, skipping CSV export.");
     }
-
-    System.out.println("==================================================");
-    System.out.println("         Crawler Execution Completed              ");
-    System.out.println("==================================================");
   }
 
   private static String resolveOutputDir() {
