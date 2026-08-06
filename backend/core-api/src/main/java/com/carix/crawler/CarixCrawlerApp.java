@@ -12,11 +12,11 @@ public class CarixCrawlerApp {
 
     // 1. 잡코리아 크롤링 진행
     JobKoreaCrawler jobKoreaCrawler = new JobKoreaCrawler();
-    String jobKoreaKeyword = "IT개발"; // 기본 수집용 검색 키워드
-    int jobKoreaPage = 1;
+    String jobKoreaKeyword = "IT개발"; // 명목상 키워드
+    int jobKoreaPageLimit = 3; // 수집 범위 확장 (3페이지 = 최대 120개)
 
     System.out.println("[Step 1] JobKorea Crawling Start...");
-    List<JobPosting> jkPostings = jobKoreaCrawler.crawl(jobKoreaKeyword, jobKoreaPage);
+    List<JobPosting> jkPostings = jobKoreaCrawler.crawl(jobKoreaKeyword, jobKoreaPageLimit);
     System.out.println(
         "[Step 1] JobKorea Crawling Finished. Extracted: " + jkPostings.size() + " items");
 
@@ -34,11 +34,10 @@ public class CarixCrawlerApp {
 
     // 2. 사람인 크롤링 진행
     SaraminCrawler saraminCrawler = new SaraminCrawler();
-    String saraminKeyword = "IT개발";
-    int saraminPageLimit = 10;
+    int saraminPageLimit = 15; // 수집 범위 확장 (15페이지 수집)
 
     System.out.println("[Step 2] Saramin Crawling Start...");
-    List<JobPosting> saraminPostings = saraminCrawler.crawl(saraminKeyword, saraminPageLimit);
+    List<JobPosting> saraminPostings = saraminCrawler.crawl(saraminPageLimit);
     System.out.println(
         "[Step 2] Saramin Crawling Finished. Extracted: " + saraminPostings.size() + " items");
 
