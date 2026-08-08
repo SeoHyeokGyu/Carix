@@ -1,5 +1,7 @@
 package com.carix.crawler;
 
+import java.util.List;
+
 /**
  * 채용 정보를 나타내는 Immutable Java Record입니다.
  */
@@ -13,7 +15,9 @@ public record JobPosting(
     String education,   // 학력
     String location,    // 근무지
     String link,        // 공고 상세 링크
-    String createdAt    // 등록일
+    String createdAt,   // 등록일
+    List<String> skills, // 스킬 태그 (없으면 빈 리스트)
+    String salaryRaw     // 급여 원문 JSON/텍스트 (없으면 빈 문자열)
 ) {
 
 }

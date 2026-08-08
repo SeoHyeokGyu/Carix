@@ -148,7 +148,9 @@ public class SaraminCrawler {
               education,
               location,
               link,
-              createdAt
+              createdAt,
+              List.of(),
+              ""
           ));
         }
 

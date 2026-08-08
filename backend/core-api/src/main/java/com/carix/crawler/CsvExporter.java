@@ -30,7 +30,7 @@ public class CsvExporter {
 
       CSVFormat format = CSVFormat.DEFAULT.builder()
           .setHeader("Portal", "ID", "Company", "Title", "CareerType", "CareerRange", "Education",
-              "Location", "Link", "CreatedAt")
+              "Location", "Link", "CreatedAt", "Skills", "SalaryRaw")
           .build();
 
       try (CSVPrinter csvPrinter = new CSVPrinter(writer, format)) {
@@ -45,7 +45,9 @@ public class CsvExporter {
               posting.education(),
               posting.location(),
               posting.link(),
-              posting.createdAt()
+              posting.createdAt(),
+              String.join(";", posting.skills()),
+              posting.salaryRaw()
           );
         }
         csvPrinter.flush();

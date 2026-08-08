@@ -110,7 +110,9 @@ public class JobKoreaCrawler {
               education,
               location,
               link,
-              createdAt
+              createdAt,
+              List.of(),
+              ""
           ));
         }
 
