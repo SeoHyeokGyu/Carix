@@ -1,5 +1,6 @@
 package com.carix.crawler;
 
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -13,7 +14,14 @@ import org.jsoup.select.Elements;
 
 public class JobKoreaCrawler {
 
-  public List<JobPosting> crawl(String keyword, int pageLimit) {
+  // 목록 페이징은 화면상의 joblist 주소가 아니라 이 XHR 엔드포인트가 담당한다.
+  private static final String LIST_ENDPOINT =
+      "https://www.jobkorea.co.kr/Recruit/Home/_GI_List/";
+
+  private static final String LIST_REFERER =
+      "https://www.jobkorea.co.kr/recruit/joblist?menucode=local&jobtype=9";
+
+  public List<JobPosting> crawl(String keyword, int pageLimit, String outputDir) {
     List<JobPosting> postings = new ArrayList<>();
     Set<String> collectedIds = new HashSet<>();
 
@@ -25,18 +33,29 @@ public class JobKoreaCrawler {
     for (int page = 1; page <= pageLimit; page++) {
       System.out.println("[JobKoreaCrawler] Crawling page " + page + "...");
       try {
-        // 잡코리아 직종별 채용 리스트 주소 (직무분류 코드: jobtype=9, 페이징 파라미터: Page_No)
-        String url = String.format(
-            "https://www.jobkorea.co.kr/recruit/joblist?menucode=local&jobtype=9&Page_No=%d", page);
-
-        Document doc = Jsoup.connect(url)
+        // 목록 조회는 폼 인코딩 POST로만 페이지가 넘어간다. GET 주소의 Page_No 파라미터는 무시된다.
+        Document doc = Jsoup.connect(LIST_ENDPOINT)
             .userAgent(
                 "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
-            .header("Accept",
-                "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8")
             .header("Accept-Language", "ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7")
+            .header("X-Requested-With", "XMLHttpRequest")
+            .referrer(LIST_REFERER)
+            .data("page", String.valueOf(page))
+            .data("condition[jobtype]", "9")
+            .data("condition[menucode]", "")
+            .data("direct", "0")
+            .data("order", "20")
+            .data("pagesize", "40")
+            .data("tabindex", "0")
+            .data("onePick", "0")
+            .data("confirm", "0")
+            .data("profile", "0")
             .timeout(10000)
-            .get();
+            .post();
+
+        RawIngestWriter.write(
+            new RawIngest("JOBKOREA", "listpage-" + page, doc.outerHtml(), Instant.now()),
+            outputDir);
 
         // 직무 목록 행 선택자
         Elements rows = doc.select("tr.devloopArea");
@@ -45,6 +64,9 @@ public class JobKoreaCrawler {
               "[JobKoreaCrawler] No more job listings found on page " + page + ". Stopping.");
           break;
         }
+
+        // 페이징이 다시 고장나면 중복 제거에 가려지지 않도록 페이지별 신규 건수를 남긴다.
+        int collectedBeforePage = postings.size();
 
         for (Element row : rows) {
           // 공고 ID 추출 (data-gno 속성)
@@ -115,6 +137,9 @@ public class JobKoreaCrawler {
               ""
           ));
         }
+
+        System.out.println("[JobKoreaCrawler] Page " + page + ": rows=" + rows.size()
+            + ", newly collected=" + (postings.size() - collectedBeforePage));
 
         // 서버 트래픽 방지 딜레이
         Thread.sleep(1000);
