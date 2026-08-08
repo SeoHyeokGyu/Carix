@@ -18,17 +18,20 @@ public class JobKoreaCrawler {
   private static final String LIST_ENDPOINT =
       "https://www.jobkorea.co.kr/Recruit/Home/_GI_List/";
 
+  // 직무 분류(dutyCtgr) "AI·개발·데이터" 대분류 코드. 하위 세부 직무(백엔드개발자 1000229 등)는
+  // condition[duty]로 따로 보내야 하며, condition[duty]에 대분류 코드를 넣으면 무시된다.
+  private static final String DUTY_CATEGORY_IT = "10031";
+
   private static final String LIST_REFERER =
-      "https://www.jobkorea.co.kr/recruit/joblist?menucode=local&jobtype=9";
+      "https://www.jobkorea.co.kr/recruit/joblist?menucode=duty&dutyCtgr=" + DUTY_CATEGORY_IT;
 
   public List<JobPosting> crawl(String keyword, int pageLimit, String outputDir) {
     List<JobPosting> postings = new ArrayList<>();
     Set<String> collectedIds = new HashSet<>();
 
-    // 잡코리아 IT/개발 분야 직무 분류 고유 코드: jobtype=9
     System.out.println(
-        "[JobKoreaCrawler] Starting crawling JobKorea category (IT/개발 - jobtype=9) up to page "
-            + pageLimit);
+        "[JobKoreaCrawler] Starting crawling JobKorea category (AI·개발·데이터 - dutyCtgr="
+            + DUTY_CATEGORY_IT + ") up to page " + pageLimit);
 
     for (int page = 1; page <= pageLimit; page++) {
       System.out.println("[JobKoreaCrawler] Crawling page " + page + "...");
@@ -41,7 +44,7 @@ public class JobKoreaCrawler {
             .header("X-Requested-With", "XMLHttpRequest")
             .referrer(LIST_REFERER)
             .data("page", String.valueOf(page))
-            .data("condition[jobtype]", "9")
+            .data("condition[dutyCtgr]", DUTY_CATEGORY_IT)
             .data("condition[menucode]", "")
             .data("direct", "0")
             .data("order", "20")
