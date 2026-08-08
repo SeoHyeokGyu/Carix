@@ -43,7 +43,7 @@ public class CarixCrawlerApp {
   public static void crawlSaramin(int pageLimit, String outputDir) {
     SaraminCrawler saraminCrawler = new SaraminCrawler();
     System.out.println("[Step 2] Saramin Crawling Start...");
-    List<JobPosting> saraminPostings = saraminCrawler.crawl(pageLimit);
+    List<JobPosting> saraminPostings = saraminCrawler.crawl(pageLimit, outputDir);
     System.out.println(
         "[Step 2] Saramin Crawling Finished. Extracted: " + saraminPostings.size() + " items");
 

@@ -1,6 +1,7 @@
 package com.carix.crawler;
 
 import java.io.IOException;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -9,6 +10,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import org.jsoup.Connection;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
@@ -43,7 +45,7 @@ public class SaraminCrawler {
     }
   }
 
-  public List<JobPosting> crawl(int pageLimit) {
+  public List<JobPosting> crawl(int pageLimit, String outputDir) {
     List<JobPosting> postings = new ArrayList<>();
     Set<String> collectedIds = new HashSet<>();
 
@@ -60,16 +62,11 @@ public class SaraminCrawler {
             "https://www.saramin.co.kr/zf_user/search/recruit?searchword=%%EA%%B0%%9C%%EB%%B0%%9C%%EC%%9E%%90&job_cd=84&job_cd=86&job_cd=87&job_cd=92&recruitPage=%d&recruitSort=relation&recruitPageCount=40",
             page);
 
-        Document doc = Jsoup.connect(url)
-            .userAgent(
-                "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
-            .header("Accept",
-                "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8")
-            .header("Accept-Language", "ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7")
-            .header("Referer", "https://www.saramin.co.kr/")
-            .cookies(sessionCookies)
-            .timeout(10000)
-            .get();
+        Document doc = buildConnection(url, sessionCookies).get();
+
+        RawIngestWriter.write(
+            new RawIngest("SARAMIN", "listpage-" + page, doc.outerHtml(), Instant.now()),
+            outputDir);
 
         Elements items = doc.select("div.item_recruit");
         if (items.isEmpty()) {
@@ -183,5 +180,18 @@ public class SaraminCrawler {
       }
     }
     return 0;
+  }
+
+  static Connection buildConnection(String url, Map<String, String> cookies) {
+    return Jsoup.connect(url)
+        .userAgent(
+            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+        .header("Accept",
+            "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8")
+        .header("Accept-Language", "ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7")
+        .header("Referer", "https://www.saramin.co.kr/")
+        .cookies(cookies)
+        .maxBodySize(0)
+        .timeout(10000);
   }
 }
