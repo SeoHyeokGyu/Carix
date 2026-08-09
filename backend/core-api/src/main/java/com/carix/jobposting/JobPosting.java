@@ -142,4 +142,12 @@ public class JobPosting {
   public List<Skill> getSkills() {
     return jobPostingSkills.stream().map(JobPostingSkill::getSkill).collect(Collectors.toList());
   }
+
+  public String getSource() {
+    return source;
+  }
+
+  public String getExternalId() {
+    return externalId;
+  }
 }
