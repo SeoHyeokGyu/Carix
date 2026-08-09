@@ -5,6 +5,16 @@
 > **2026-08-09 확장:** `job_posting`에 `company_badge`, `position_level` 컬럼 추가. 근거는
 > [2026-08-09 채용공고 크롤링 데이터 영속화 설계](../superpowers/specs/2026-08-09-job-posting-persistence-design.md) —
 > 실측 크롤링 데이터를 원래 스키마에 넣어보다가 ERD에 자리가 없어 버려지던 필드를 확인하고 확장했다.
+>
+> **2026-08-09 운영 현황:** `job_posting`/`job_posting_skill`/`skill`/`skill_alias`/`raw_ingest`
+> 5개 테이블 전부 원격 공유 Postgres(`carix` DB, `core` 스키마)에 실제로 만들어져 있고,
+> 잡코리아·사람인 크롤링 결과 800건 + 스킬 699개 + raw_ingest 410건이 영구 적재돼 있다.
+> **단, 이 스키마를 만든 Flyway 마이그레이션 SQL은 저장소에서 제거됐다**(PR #58, 커밋
+> `dc19800` — 사용자 지시, Docker 없어 로컬 재현 불가능한 테스트 코드와 함께 정리).
+> 다른 환경에 재현하려면 커밋 `8a0675e`의 `V20260809_000000__create_job_posting_schema.sql`을
+> 복원해야 한다. 이 스키마에 다시 연결하는 core-api 인스턴스가 있다면 Flyway가
+> "적용 기록은 있는데 로컬 마이그레이션 파일이 없다"고 검증에 실패할 수 있다 — 그때는
+> 마이그레이션 파일을 복원하거나 `flyway.validate-on-migrate: false`를 검토한다.
 
 ```mermaid
 erDiagram
