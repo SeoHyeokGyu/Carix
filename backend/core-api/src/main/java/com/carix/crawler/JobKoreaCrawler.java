@@ -25,6 +25,8 @@ public class JobKoreaCrawler {
   private static final String LIST_REFERER =
       "https://www.jobkorea.co.kr/recruit/joblist?menucode=duty&dutyCtgr=" + DUTY_CATEGORY_IT;
 
+  private final JobKoreaDetailParser detailParser = new JobKoreaDetailParser();
+
   public List<JobPosting> crawl(String keyword, int pageLimit, String outputDir) {
     List<JobPosting> postings = new ArrayList<>();
     Set<String> collectedIds = new HashSet<>();
@@ -152,8 +154,48 @@ public class JobKoreaCrawler {
       }
     }
 
+    List<JobPosting> enriched = new ArrayList<>();
+    for (JobPosting posting : postings) {
+      enriched.add(enrichWithDetail(posting, outputDir));
+      try {
+        Thread.sleep(1000);
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+        break;
+      }
+    }
+    postings = enriched;
+
     System.out.println("[JobKoreaCrawler] Crawling finished. Total collected: " + postings.size());
     return postings;
+  }
+
+  private JobPosting enrichWithDetail(JobPosting posting, String outputDir) {
+    try {
+      Document detailDoc = Jsoup.connect(posting.link())
+          .userAgent(
+              "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+          .timeout(10000)
+          .get();
+      String detailHtml = detailDoc.outerHtml();
+
+      RawIngestWriter.write(
+          new RawIngest("JOBKOREA", "detail-" + posting.id(), detailHtml, Instant.now()),
+          outputDir);
+
+      List<String> skills = detailParser.extractSkills(detailHtml);
+      String salaryRaw = detailParser.extractSalaryRaw(detailHtml);
+
+      return new JobPosting(
+          posting.portal(), posting.id(), posting.companyName(), posting.title(),
+          posting.careerType(), posting.careerRange(), posting.education(), posting.location(),
+          posting.link(), posting.createdAt(), skills, salaryRaw
+      );
+    } catch (Exception e) {
+      System.err.println("[JobKoreaCrawler] Failed to fetch detail for " + posting.id() + ": "
+          + e.getMessage());
+      return posting;
+    }
   }
 
   private int extractCareerYears(String careerText) {
