@@ -2,6 +2,10 @@
 
 이 문서는 Carix 데이터베이스의 테이블 간 관계 및 각 테이블의 엔티티 구조를 시각화한 ERD입니다.
 
+> **2026-08-09 확장:** `job_posting`에 `company_badge`, `position_level` 컬럼 추가. 근거는
+> [2026-08-09 채용공고 크롤링 데이터 영속화 설계](../superpowers/specs/2026-08-09-job-posting-persistence-design.md) —
+> 실측 크롤링 데이터를 원래 스키마에 넣어보다가 ERD에 자리가 없어 버려지던 필드를 확인하고 확장했다.
+
 ```mermaid
 erDiagram
     users ||--o| career_profile : has
@@ -155,6 +159,8 @@ erDiagram
         int experience_max
         varchar employment_type
         varchar company_size
+        varchar company_badge
+        varchar position_level
         varchar job_family
         text content
         date posted_start_date
