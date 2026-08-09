@@ -28,7 +28,7 @@ public class CarixCrawlerApp {
   public static void crawlJobKorea(String keyword, int pageLimit, String outputDir) {
     JobKoreaCrawler jobKoreaCrawler = new JobKoreaCrawler();
     System.out.println("[Step 1] JobKorea Crawling Start...");
-    List<JobPosting> jkPostings = jobKoreaCrawler.crawl(keyword, pageLimit);
+    List<JobPosting> jkPostings = jobKoreaCrawler.crawl(keyword, pageLimit, outputDir);
     System.out.println(
         "[Step 1] JobKorea Crawling Finished. Extracted: " + jkPostings.size() + " items");
 
@@ -43,7 +43,7 @@ public class CarixCrawlerApp {
   public static void crawlSaramin(int pageLimit, String outputDir) {
     SaraminCrawler saraminCrawler = new SaraminCrawler();
     System.out.println("[Step 2] Saramin Crawling Start...");
-    List<JobPosting> saraminPostings = saraminCrawler.crawl(pageLimit);
+    List<JobPosting> saraminPostings = saraminCrawler.crawl(pageLimit, outputDir);
     System.out.println(
         "[Step 2] Saramin Crawling Finished. Extracted: " + saraminPostings.size() + " items");
 
