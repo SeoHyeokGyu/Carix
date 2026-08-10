@@ -92,12 +92,15 @@ robots 정책과 필요한 구조화 데이터를 제공한다. 대시보드의 
 
 OCI VM에서 다음 컨테이너를 Docker Compose로 운영한다.
 
-- `carix-caddy` — 애플리케이션 라우팅. `/api/*`는 `core-api`, 나머지는 `frontend-node`
+- `carix-caddy` — 애플리케이션 라우팅 진입점. 위 시스템 경계에서 설명한 대로 `gateway`로만
+  전달하고, 경로별 분기는 Gateway가 담당한다
+- `gateway` — 경로별 분기(`core-api`/`auth-service`/`frontend-node`) 담당
 - `frontend-node`
 - `core-api` — Config Server·Eureka 클라이언트. 구성은 위 Spring Cloud 아키텍처 참조
+- `auth-service` — Config Server·Eureka 클라이언트. 인증·매직링크·세션 발급 담당
 - `config-server`, `eureka`
 - `postgres`
-- `auth-service`, `batch-worker` — 서비스 분리 시 추가
+- `batch-worker` — 서비스 분리 시 추가
 
 > 초안은 `nginx`였으나 `carix-caddy`로 대체됐다. 이 호스트는 여러 프로젝트를 함께 돌리는데,
 > 80/443은 한 컨테이너만 바인딩할 수 있고 Let's Encrypt는 그 두 포트로만 검증하러 온다.

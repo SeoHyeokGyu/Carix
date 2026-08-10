@@ -42,7 +42,8 @@
 
 | 문서:라인 | 문제 | 근거 | 분류 | 상태 |
 | --- | --- | --- | --- | --- |
-| _(조사 결과 없음)_ | | | | |
+| `docs/specs/frontend-design.md:95` | `## 배포` 컨테이너 목록에서 `carix-caddy`를 "`/api/*`는 `core-api`, 나머지는 `frontend-node`로 직접 분기"하는 것으로 서술하나, 실제로는 Gateway 도입 이후 모든 요청이 `gateway`를 거친다 — 이는 같은 문서 47행("앱 계층 라우팅은 Spring Cloud Gateway로 전환 완료했다 — `carix_caddy`는 이제 `gateway:8080`으로만 붙고, 경로별 분기는 Gateway가 한다")과 정면으로 모순된다. 또한 목록에 실재하는 `gateway` 컨테이너 자체가 빠져 있다. | `deploy/caddy/Caddyfile`을 읽어 확인 — `/api/*`·`/assets/*`·catch-all 3개 handle 블록이 전부 `reverse_proxy gateway:8080`이고 `core-api`/`frontend-node`로 직접 프록시하는 블록은 없다. `backend/gateway/src/main/resources/application.yml`의 `spring.cloud.gateway.server.webflux.routes`가 `auth`(`/api/v1/auth/**`→`auth-service`)·`core`(`/api/v1/**` 등→`core-api`)·`web`(`/**`→`frontend-node:3000`) 3개 라우트로 실제 경로별 분기를 수행한다. `docker-compose.yml`에 `gateway:` 서비스 블록(94행)이 별도로 존재한다. → 95행 불릿을 "carix-caddy는 gateway로만 전달하고 경로별 분기는 Gateway가 담당"으로 정정하고, `gateway` 컨테이너를 목록에 추가. | 단순 | 수정됨 |
+| `docs/specs/frontend-design.md:100` | 컨테이너 목록이 `auth-service`를 `batch-worker`와 함께 "서비스 분리 시 추가"(아직 추가되지 않음)로 서술하나, `auth-service`는 이미 배포 배선이 완료돼 운영 중인 컨테이너다. | `docker-compose.yml`의 `auth-service` 서비스 블록(113행)이 `SPRING_DATASOURCE_URL/USERNAME/PASSWORD` 환경변수, `expose: 8081`, `depends_on: [postgres, config-server, eureka]`를 갖춘 완전히 배선된 정의다. `backend/gateway/.../application.yml`의 `auth` 라우트가 `lb://auth-service`로 이미 실사용 중이다. 클러스터 3(Task 4) 보고서의 `docs/DEVELOPMENT.md:8-18` 행도 "auth-service 배포 배선(Dockerfile·compose·CI) 미연결"이 더 이상 사실이 아님을 커밋 `6c49aa8`(2026-08-02)로 이미 확인했다 — 같은 사실이 이 문서에도 반영되지 않은 상태였다. `batch-worker`는 여전히 `backend/settings.gradle`에 모듈이 없고 `docker-compose.yml`에도 서비스 블록이 없어(Task 4 확인) "서비스 분리 시 추가" 표현이 그대로 유효하다. → `auth-service`를 목록에서 분리해 `core-api`와 동일한 형식의 배포 완료 항목으로 서술하고, `batch-worker`만 "서비스 분리 시 추가"로 남김. | 단순 | 수정됨 |
 
 ## 5. 메타/최상위 (교차 검증)
 
