@@ -5,17 +5,17 @@
 List IP 허용목록이다(§3 참조). 배경과 결정은
 [루트 README 개발 환경](../README.md#개발-환경)을 참조한다.
 
-> **현재 스캐폴드 상태 (2026-08-01).** 이 문서는 목표 상태를 기술한다. 지금 실제로 되는 것과
-> 다음 스캐폴드를 기다리는 것을 구분한다.
+> **현재 스캐폴드 상태 (2026-08-09 갱신, 최초 작성 2026-08-01).** 이 문서는 목표 상태를 기술한다.
+> 지금 실제로 되는 것과 다음 스캐폴드를 기다리는 것을 구분한다.
 >
-> | 항목 | 지금 (2026-08-01) |
+> | 항목 | 지금 (2026-08-09) |
 > | --- | --- |
-> | 백엔드 core-api | Spring Boot 4.1 + springdoc. `./gradlew build`·`bootRun` 동작. **JPA·Flyway·Security·Batch 없음** |
-> | 백엔드 auth-service | JPA·Flyway·초대·매직링크·세션·rate limit 구현 완료. 이메일 발송은 로깅 스텁. 배포 배선(Dockerfile·compose·CI) 미연결 |
+> | 백엔드 core-api | Spring Boot 4.1 + springdoc. `./gradlew build`·`bootRun` 동작. **JPA·Flyway는 채용공고 도메인에 한해 이미 적용됨**(`core` 스키마, 마이그레이션 SQL은 저장소에 없음) — **Security·Batch는 아직 없음** |
+> | 백엔드 auth-service | JPA·Flyway·초대·매직링크·세션·rate limit 구현 완료. 이메일 발송은 로깅 스텁. 배포 배선(Dockerfile·compose·CI)은 2026-08-02 커밋으로 연결 완료 |
 > | 프런트엔드 | 배포 검증용 스텁(`server.js`)만. **Vite·React 없음.** `pnpm dev`·`test:e2e` 스크립트 없음 |
-> | DB | `auth` 스키마는 auth-service가 쓴다. `core` 스키마는 core-api가 아직 안 씀 — §3 접근 설정은 JPA 도입 후부터 필요 |
+> | DB | `auth` 스키마는 auth-service가 쓴다. `core` 스키마는 core-api가 채용공고 도메인에 한해 쓴다(JPA `default_schema=core`) |
 >
-> 따라서 §4(프런트엔드)와 §5의 Flyway·배치 항목, §6의 Playwright는 각 프로젝트 초기화 이후
+> 따라서 §4(프런트엔드)와 §5의 배치 항목, §6의 Playwright는 각 프로젝트 초기화 이후
 > 활성화된다.
 
 ## 1. 사전 준비
@@ -277,10 +277,17 @@ CONFIG_SERVER_URL=http://144.24.90.88:8890 EUREKA_URL=http://144.24.90.88:8761/e
 | `http://localhost:8080/api/v3/api-docs` | OpenAPI JSON |
 | `http://localhost:8080/api/v1/demo/thresholds` | Config Server 연동 확인. 서버 `config/spring/core-api.yml` 값을 읽는다 |
 
-- **DB 없이 뜬다.** 아직 DataSource 자동설정이 없으므로 §3 설정 없이도 기동된다.
-  아래 두 항목은 JPA·Batch 도입 이후 적용된다.
-- Flyway가 기동 시 마이그레이션을 적용한다. dev DB에만 적용되도록 프로파일을 확인한다.
-- 배치 워커는 별도 프로파일(`--spring.profiles.active=local,batch`)로 실행한다.
+- **DB 설정이 필요하다 (2026-08-09부터).** core-api가 채용공고 도메인에서 JPA·Flyway·Postgres
+  드라이버를 실제로 쓰기 시작했다(`backend/core-api/build.gradle`). `application.yml`·
+  `application-local.yml`·Config Server 페이로드(`config/spring/core-api.yml`) 어디에도
+  `spring.datasource.*` 기본값이나 `spring.autoconfigure.exclude`가 없고 `CarixApplication`도
+  평범한 `@SpringBootApplication`이라, "DataSource 자동설정이 없으므로 §3 설정 없이도
+  기동된다"는 더 이상 성립하지 않는다 — §2·§3에서 `.env`를 채운 뒤 실행한다.
+- Flyway는 core-api 저장소에 마이그레이션 파일이 없다(`db/migration` 디렉터리 없음, §3.2와 달리
+  auth-service만 실제 마이그레이션을 갖는다) — 기동 시 적용할 마이그레이션이 없어 스키마 변경은
+  일어나지 않는다.
+- 배치 워커는 아직 별도 모듈이 아니다([Spring Cloud 아키텍처](specs/spring-cloud-architecture.md)
+  §2 참조) — 별도 프로파일(`--spring.profiles.active=local,batch`) 실행은 배치 도입 후 적용된다.
 
 Gateway 도입·`auth-service` 배포 배선은 완료됐다. `batch-worker` 분리는 아직 남은 전환이다
 — 상세는 [Spring Cloud 아키텍처](specs/spring-cloud-architecture.md) 참조.

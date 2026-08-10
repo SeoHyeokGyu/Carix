@@ -40,6 +40,13 @@
 포트 열은 **컨테이너 내부** 포트이자 현재 상태다. Eureka에 등록되고 Gateway가 붙는 것도 이
 포트다.
 
+> `batch-worker`는 위 표·이 문서 전반(§5·§6·§8의 "JVM 6개")에서 이미 구성된 서비스처럼
+> 서술되지만, 실제로는 아직 없다 — `backend/settings.gradle`에 모듈이 없고, `docker-compose.yml`·
+> `.github/workflows/deploy.yml`에도 빌드·배포 대상이 없으며, §5의 `config/spring/batch-worker.yml`도
+> 저장소에 없다(`docker-compose.yml`의 주석: "spring-batch 는 없다"). [DEVELOPMENT.md
+> §5](../DEVELOPMENT.md)도 "batch-worker 분리는 아직 남은 전환이다"라고 명시한다. 아래 표·수치는
+> 목표 상태다.
+
 호스트 바인딩은 대부분 같은 번호를 쓰지만 `config-server`만 **8890**이다. 호스트 8888은
 저장소 밖 `infra-dozzle-1`이 이미 잡고 있다. `config-server`·`eureka`(8761)·`postgres`(5432)는
 `0.0.0.0`에 바인딩하고 OCI Security List로 접근을 제한한다(§6, DEVELOPMENT.md §3).
@@ -139,6 +146,12 @@ springdoc.swagger-ui.urls:
 
 Gateway 에서 Swagger UI 하나로 두 서비스 문서를 전환해 본다. `batch-worker` 는 외부에
 노출하지 않으므로 취합 대상이 아니다.
+
+> **구현 상태 (2026-08-10 확인):** 위 취합 설정은 아직 적용되지 않았다 — `gateway/build.gradle`에
+> springdoc 의존성이 없고, `gateway/application.yml`·`config/spring/gateway.yml`에도
+> `springdoc.swagger-ui.urls`가 없다. 실제 라우팅은 `core` 라우트의 경로 조건이
+> `/api/swagger-ui/**`·`/api/v3/api-docs/**`를 core-api로만 그대로 넘기는 형태이고, `auth`
+> 라우트는 `/api/v1/auth/**`만 매칭해 auth-service 자체 문서는 Gateway를 통해 노출되지 않는다.
 
 **하류 서비스는 세션을 모른다.** `X-User-Id`만 신뢰한다. 그 전제는 **Gateway를 거치지 않으면
 도달할 수 없는 네트워크 구성**이다 — 도메인 서비스는 호스트 포트를 발행하지 않고 compose

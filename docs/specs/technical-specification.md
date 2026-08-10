@@ -59,6 +59,15 @@ CREATE TABLE session (
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE rate_limit_bucket (
+    id UUID PRIMARY KEY,
+    bucket_key VARCHAR(255) NOT NULL, -- '{scope}:{key}' 형식, 예: 'email:user@x.com', 'ip:1.2.3.4'
+    window_start TIMESTAMP WITH TIME ZONE NOT NULL, -- 시 단위로 truncate된 고정 윈도 시작 시각
+    request_count INT NOT NULL DEFAULT 1,
+    UNIQUE (bucket_key, window_start)
+);
+-- 매직링크 요청 속도 제한(SECURITY.md §2: 이메일당 5회/시간, IP당 20회/시간)에 사용하는 고정 윈도 카운터.
+
 -- 2. 사용자 프로필 및 이력 데이터 영역
 CREATE TABLE career_profile (
     id UUID PRIMARY KEY,
