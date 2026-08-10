@@ -5,7 +5,17 @@
 
 ## 요약
 
-(마지막 태스크에서 채움)
+- 총 발견: 25건
+- 즉시 수정: 20건
+- 보류(사용자 확인 필요): 5건
+
+### 보류 항목 목록
+
+- `docs/specs/erd.md:110` — `skill` 테이블 `created_by FK` 컬럼이 문서엔 있으나 실제 엔티티엔 없음. erd.md의 서술 오류인지, 물리 테이블엔 있는데 엔티티가 아직 못 따라간 것인지 원격 DB 접속 없이는 판정 불가.
+- `docs/specs/erd.md:132` — `raw_ingest` 테이블 `purged_at` 컬럼이 문서엔 있으나 실제 엔티티엔 없음. 위와 동일한 이유(원격 DB 접속·마이그레이션 SQL 부재)로 erd.md 오류인지 미구현 설계인지 판정 불가.
+- `docs/specs/application-workflow.md:§1(다이어그램),§3(시퀀스)` — 다이어그램·시퀀스가 Gateway/auth-service 분리를 반영하지 않음. 이 문서가 전환 전 현재 상태를 그린 것인지 전환 후 목표 아키텍처를 그려야 하는데 갱신이 안 된 것인지는 문서 소유자 판단 필요.
+- `docs/specs/api-specification.md:398,511,519` — 저장된 시나리오 없음(204)·스킬 중복(409)·유효 시작일 중복(409) 분기를 현재형으로 서술하나, 해당 컨트롤러 3개 모두 리포지토리 미연결로 코드상 도달 불가능한 분기다. 이 문서가 목표 계약(리포지토리 연결 후 최종 동작)을 서술한 것으로 두고 그대로 둘지, "미구현" 주석을 붙여 현재 상태를 반영할지 API 계약 문서 성격에 대한 오너 판단 필요.
+- `docs/specs/spring-cloud-architecture.md:§2,§6` vs `docs/DEVELOPMENT.md:289-290` — batch-worker를 별도 Gradle 모듈·독립 JVM으로 볼지(spring-cloud-architecture.md), core-api 내 프로파일 모드로 볼지(DEVELOPMENT.md) 두 문서의 전제가 서로 다름. Spring Batch 의존성·프로파일 분기·별도 모듈 스캐폴드가 전부 없어 저장소 코드로는 판정 불가 — 배치 도입 시점의 아키텍처 결정 필요.
 
 ## 1. 데이터/백엔드
 
