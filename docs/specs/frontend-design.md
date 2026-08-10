@@ -109,7 +109,9 @@ OCI VM에서 다음 컨테이너를 Docker Compose로 운영한다.
 > [`../plans/oci-server-provisioning-plan.md`](../plans/oci-server-provisioning-plan.md) Phase 3.
 
 `frontend-node`는 Vite가 만든 client assets와 React Router server bundle을
-포함한다. 컨테이너는 non-root 사용자로 실행하고 health check를 제공한다.
+포함한다. 컨테이너는 non-root 사용자로 실행하고 health check를 제공해야 한다 —
+현재 스텁 `Dockerfile`에는 `USER`·`HEALTHCHECK` 지시어가 없어 아직 반영되지
+않았다.
 
 ## README 반영 범위
 
