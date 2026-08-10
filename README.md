@@ -261,7 +261,7 @@ flowchart TD
 | Node SSR | Node.js 24 LTS, Express, `@react-router/express` | HTML 렌더링, SEO metadata, 공개 콘텐츠 | 미도입 — `node:http` 스텁 |
 | 클라이언트 데이터 | TanStack Query, React Hook Form, Zod | API 상태, 입력 폼, 검증 | 미도입 |
 | UI·시각화 | Tailwind CSS, shadcn/ui, Recharts | 컴포넌트, 스타일, 지수 차트 | 미도입 |
-| 백엔드 | Java 25, Spring Boot 4.1, Gradle 멀티모듈 | 인증, 도메인 로직, REST API, 데이터 접근 | 도입 (인증은 auth-service에 구현·배포 완료, core-api 도메인 로직은 채용공고 영속화만 구현되고 REST 미노출, 그 외는 스캐폴드 단계) |
+| 백엔드 | Java 25, Spring Boot 4.1, Gradle 멀티모듈 | 인증, 도메인 로직, REST API, 데이터 접근 | 도입 (인증은 auth-service에 구현·배포 배선 완료, core-api 도메인 로직은 채용공고 영속화만 구현되고 REST 미노출, 그 외는 스캐폴드 단계) |
 | API 문서 | springdoc-openapi | OpenAPI 문서, Swagger UI | 도입 |
 | 데이터 접근 | Spring Data JPA, Flyway | 영속화, 스키마 마이그레이션 | 부분 도입 — auth-service(auth 스키마)는 Flyway 마이그레이션으로 완전 도입, core-api는 채용공고 도메인에 한해 JPA로 원격 DB 연결(Flyway 마이그레이션은 저장소에 없음), 그 외 도메인은 미도입 |
 | 데이터 수집 | Spring Batch | 외부 원천 수집·집계 | 미도입 |

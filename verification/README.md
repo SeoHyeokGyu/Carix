@@ -21,7 +21,7 @@
 python3 probe.py kosis_meta --key-param apiKey \
   --params '{"method":"getMeta","type":"ITM","orgId":"101","tblId":"DT_1J22001","format":"json","jsonVD":"Y"}'
 
-# 사람인 IT개발·데이터 직군, 기간 지정
+# 사람인 IT개발·데이터 직군, 기간 지정 (참고용 — 사람인 API 경로는 폐기됨, 아래 원천 상태 표 참고)
 python3 probe.py saramin --key-param access-key \
   --params '{"job_mid_cd":"22","count":"10","published_min":"2025-01-01","published_max":"2025-12-31"}'
 ```
