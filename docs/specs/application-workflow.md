@@ -40,9 +40,12 @@ flowchart TD
         UsersDB[(사용자 정보/이력 테이블)]
     end
 
-    %% 4. API 서버 (Down 3)
-    subgraph API [Spring Boot API 서버]
+    %% 4. API 서버 (Down 3) — Gateway가 경로별로 auth-service/core-api에 라우팅한다
+    GW{{Gateway}}
+    subgraph Auth [auth-service]
         AC[AuthController: 매직링크 로그인]
+    end
+    subgraph Core [core-api]
         PC[ProfileController: 소득/소비/스킬]
         DC[DashboardController: 지표 조회]
         SC[ScenarioController: 시나리오 계산]
@@ -75,9 +78,11 @@ flowchart TD
     AggDB & UsersDB -->|지수 계산| Job4
     Job4 -->|snap 저장| UsersDB
 
-    %% 사용자 입력 -> API -> DB 연동
-    UI -->|1. 이메일 로그인| AC
-    UI -->|2. 소득/소비/스킬 입력| PC
+    %% 사용자 입력 -> Gateway -> API -> DB 연동
+    UI -->|1. 이메일 로그인| GW
+    GW -->|"/api/v1/auth/** 라우팅"| AC
+    UI -->|2. 소득/소비/스킬 입력| GW
+    GW -->|"/api/v1/** 라우팅"| PC
     PC -->|3. 민감 데이터 암호화| Encrypt
     Encrypt -->|4. 데이터 저장| UsersDB
 
@@ -178,31 +183,38 @@ sequenceDiagram
     autonumber
     actor User as 사용자
     participant Web as React 웹 (Node SSR)
-    participant API as Spring API
+    participant GW as Gateway
+    participant Auth as auth-service
+    participant Core as core-api
     participant DB as PostgreSQL DB
 
     User->>Web: 이메일 로그인 요청
-    Web->>API: POST /api/v1/auth/magic-link (이메일 전송 요청)
-    API->>DB: 토큰 해시 저장
-    Note over User, API: (이메일 수신 및 매직링크 클릭)
+    Web->>GW: POST /api/v1/auth/magic-link (이메일 전송 요청)
+    GW->>Auth: 라우팅 (/api/v1/auth/**)
+    Auth->>DB: 토큰 해시 저장
+    Note over User, Auth: (이메일 수신 및 매직링크 클릭)
     User->>Web: 매직링크 토큰 제출
-    Web->>API: POST /api/v1/auth/verify (토큰 검증)
-    API-->>Web: 세션 쿠키 발급
+    Web->>GW: POST /api/v1/auth/verify (토큰 검증)
+    GW->>Auth: 라우팅 (/api/v1/auth/**)
+    Auth-->>Web: 세션 쿠키 발급
     User->>Web: 프로필/소득/소비 입력
-    Web->>API: PATCH /api/v1/profile (프로필 저장, 부분 필드 허용)
-    Web->>API: POST /api/v1/income (소득 저장)
-    Web->>API: PUT /api/v1/expenses/{yyyymm} (소비 저장)
-    API->>DB: 연봉/소비 데이터 암호화 저장 (JPA Converter)
+    Web->>GW: PATCH /api/v1/profile (프로필 저장, 부분 필드 허용)
+    Web->>GW: POST /api/v1/income (소득 저장)
+    Web->>GW: PUT /api/v1/expenses/{yyyymm} (소비 저장)
+    GW->>Core: 라우팅 (/api/v1/**)
+    Core->>DB: 연봉/소비 데이터 암호화 저장 (JPA Converter)
     User->>Web: 대시보드 진입
-    Web->>API: GET /api/v1/dashboard/summary (지표 조회)
-    API->>DB: 통계 데이터 조회 (CPI, MVI, 연봉 등)
-    DB-->>API: 통계 데이터 반환
-    Note over API: 결정 신호 룰 엔진 기동
-    API-->>Web: 구매력/시장가치/결정신호 반환
+    Web->>GW: GET /api/v1/dashboard/summary (지표 조회)
+    GW->>Core: 라우팅 (/api/v1/**)
+    Core->>DB: 통계 데이터 조회 (CPI, MVI, 연봉 등)
+    DB-->>Core: 통계 데이터 반환
+    Note over Core: 결정 신호 룰 엔진 기동
+    Core-->>Web: 구매력/시장가치/결정신호 반환
     Web-->>User: 화면에 차트 및 지표 렌더링
     User->>Web: 이직 시뮬레이션 시도 (목표액, 비용 조정)
-    Web->>API: POST /api/v1/scenarios/simulate (시뮬레이션 요청)
-    Note over API: 공백 기간·실업급여 반영 세전 비교 연산
-    API-->>Web: 추정 추가보상/기회비용 결과 반환
+    Web->>GW: POST /api/v1/scenarios/simulate (시뮬레이션 요청)
+    GW->>Core: 라우팅 (/api/v1/**)
+    Note over Core: 공백 기간·실업급여 반영 세전 비교 연산
+    Core-->>Web: 추정 추가보상/기회비용 결과 반환
     Web-->>User: 시뮬레이션 비교 차트 표시
 ```
