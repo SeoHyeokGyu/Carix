@@ -31,7 +31,7 @@ python3 probe.py saramin --key-param access-key \
 | 원천 | 상태 |
 | --- | --- |
 | `kosis`, `kosis_meta` | 측정 완료 |
-| `saramin` | 키 발급 대기 |
+| `saramin` | **폐기(2026-08-08)** — 키 발급 심사 지연으로 API 경로 폐기, 채용공고는 스크래핑으로 전환. 상세는 [외부 원천 API 연동 명세](../docs/specs/external-api-integration.md) |
 | `work24` | **측정 불가** — 채용정보 API는 기업회원 전용 |
 | `wagestat` | 통계표 미확정 |
 
@@ -40,3 +40,9 @@ python3 probe.py saramin --key-param access-key \
 - `out/<source>_raw_<n>.json`: 원문 응답 (커밋 금지 — `.gitignore` 처리됨)
 - `out/<source>_fields.json`: 필드 경로 목록
 - 측정 요약은 [외부 원천 API 연동 명세](../docs/specs/external-api-integration.md)에 반영한다.
+
+`out/jobkorea_jobs.csv`·`out/saramin_jobs.csv`·`out/raw/{JOBKOREA,SARAMIN}/`는 이 probe.py
+워크플로의 산출물이 아니다. 채용공고 원천이 API에서 스크래핑으로 전환되며(위 원천 상태 표
+`saramin` 행 참고) `backend/core-api`의 크롤러(`com.carix.crawler.CarixCrawlerApp`)가 대신
+만들고, `SeedLoader`가 이를 읽어 `job_posting` 테이블을 채운다(운영 현황은
+[ERD](../docs/specs/erd.md) 참고).

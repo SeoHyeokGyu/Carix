@@ -261,18 +261,18 @@ flowchart TD
 | Node SSR | Node.js 24 LTS, Express, `@react-router/express` | HTML 렌더링, SEO metadata, 공개 콘텐츠 | 미도입 — `node:http` 스텁 |
 | 클라이언트 데이터 | TanStack Query, React Hook Form, Zod | API 상태, 입력 폼, 검증 | 미도입 |
 | UI·시각화 | Tailwind CSS, shadcn/ui, Recharts | 컴포넌트, 스타일, 지수 차트 | 미도입 |
-| 백엔드 | Java 25, Spring Boot 4.1, Gradle 멀티모듈 | 인증, 도메인 로직, REST API, 데이터 접근 | 도입 (인증·도메인 로직 미구현) |
+| 백엔드 | Java 25, Spring Boot 4.1, Gradle 멀티모듈 | 인증, 도메인 로직, REST API, 데이터 접근 | 도입 (인증은 auth-service에 구현·배포 완료, core-api 도메인 로직은 채용공고 영속화만 구현되고 REST 미노출, 그 외는 스캐폴드 단계) |
 | API 문서 | springdoc-openapi | OpenAPI 문서, Swagger UI | 도입 |
-| 데이터 접근 | Spring Data JPA, Flyway | 영속화, 스키마 마이그레이션 | 미도입 |
+| 데이터 접근 | Spring Data JPA, Flyway | 영속화, 스키마 마이그레이션 | 부분 도입 — auth-service(auth 스키마)는 Flyway 마이그레이션으로 완전 도입, core-api는 채용공고 도메인에 한해 JPA로 원격 DB 연결(Flyway 마이그레이션은 저장소에 없음), 그 외 도메인은 미도입 |
 | 데이터 수집 | Spring Batch | 외부 원천 수집·집계 | 미도입 |
-| 데이터베이스 | PostgreSQL 16 | 영속화 | 도입 (스키마 없음) |
+| 데이터베이스 | PostgreSQL 16 | 영속화 | 도입 (auth·채용공고 스키마·데이터 존재, 그 외 도메인 스키마 없음) |
 | 엣지 — 라우터 | Caddy 2 (`infra_caddy`) | 80/443 소유, TLS 종료·자동 발급, 호스트명 분기 | 도입 — **이 저장소 밖**(`~/infra`, 타 프로젝트와 공유) |
 | 엣지 — 앱 라우팅 | Caddy 2 (`carix_caddy`) | `gateway:8080`으로 균일 전달(경로 분기는 Gateway가 수행), 압축, 캐시 헤더 | 도입 |
 | 빌드·배포 | GitHub Actions (ARM 러너), GHCR, Docker Compose, OCI | 이미지 빌드·레지스트리·컨테이너 운영 | 도입 |
 | 팀 DB 접근 | OCI Security List IP 허용목록 + Postgres TLS | 팀원 로컬에서 운영 DB에 직접 연결 | 도입 — [DEVELOPMENT.md §3](docs/DEVELOPMENT.md) |
 | 설정 관리 | Spring Cloud Config | 설정 외부화, 런타임 갱신 | 도입 — native(파일시스템) 백엔드 |
 | 서비스 디스커버리 | Eureka | 서비스 등록·조회 | 도입 |
-| API 게이트웨이 | Spring Cloud Gateway | 라우팅, 세션 검증 필터, 상관관계 ID | 도입 — 세션 검증 필터는 기본 비활성(auth-service 배포 배선 대기, 계획 C) |
+| API 게이트웨이 | Spring Cloud Gateway | 라우팅, 세션 검증 필터, 상관관계 ID | 도입 — 세션 검증 필터는 기본 비활성(auth-service 배포 배선은 완료·2026-08-02, 실제 서버 배포·Eureka 등록 확인 전이라 비활성, 계획 C) |
 
 엣지는 2단입니다. 서버의 라우터 Caddy가 80/443과 TLS를 소유하고 호스트명으로 분기하면,
 프로젝트 전용 Caddy가 애플리케이션 라우팅을 맡습니다. 두 계층의 소유권이 다릅니다 — 라우터는
@@ -330,7 +330,8 @@ flowchart TD
 
 `carix_caddy`는 이제 `core-api`에 직접 붙지 않고 `gateway:8080`으로 붙습니다. Gateway가
 경로별로 `core-api`(`/api/v1/**`)와 `frontend-node`(그 외)로 나눠 보냅니다. `auth-service`로의
-라우트도 Gateway에 있지만 아직 배포되지 않아 세션 검증 필터는 기본 꺼져 있습니다
+라우트도 Gateway에 있고 배포 배선도 완료(2026-08-02)됐지만, 실제 서버 배포·Eureka 등록 확인
+전이라 세션 검증 필터는 기본 꺼져 있습니다
 (상세는 [Spring Cloud 아키텍처](docs/specs/spring-cloud-architecture.md)).
 
 동일 출처에서 화면과 API를 제공해 CORS 구성을 최소화합니다. TLS 인증서 발급·갱신은
@@ -340,11 +341,11 @@ Node 서버는 DB에 직접 접근하거나 Spring Boot 로직을 복제하지 �
 
 `/assets/*`는 장기 캐시 헤더를 붙여 `frontend-node`로 넘깁니다. 별도 정적 파일 서버는 없습니다.
 
-> **전환 완료(2026-08-01).** 애플리케이션 라우팅을 `carix_caddy`에서 Spring Cloud Gateway로
-> 옮겼습니다. 백엔드는 `core-api`·`auth-service`로 나뉘어 있으며, `core-api`는 배포돼 있고
-> `auth-service`는 배포 배선이 아직 없습니다. `batch-worker`는 미도입 상태입니다. 라우터
-> Caddy는 그대로 유지합니다 — TLS 자동 발급 근거가 유효합니다. 상세는 위 채택 사유의 설계서
-> 참조.
+> **전환 완료(2026-08-01, auth-service 배포 배선은 2026-08-02).** 애플리케이션 라우팅을
+> `carix_caddy`에서 Spring Cloud Gateway로 옮겼습니다. 백엔드는 `core-api`·`auth-service`로
+> 나뉘어 있으며 둘 다 배포 배선이 완료돼 있습니다(실제 서버 배포·Eureka 등록 확인은 별도
+> 진행 — 위 §기술 구성 참고). `batch-worker`는 미도입 상태입니다. 라우터 Caddy는 그대로
+> 유지합니다 — TLS 자동 발급 근거가 유효합니다. 상세는 위 채택 사유의 설계서 참조.
 
 ### 렌더링 전략
 
@@ -389,8 +390,9 @@ pull만 합니다. 엣지는 2단으로, 서버의 라우터 Caddy가 TLS를 종
 - [ ] 애플리케이션 구현
 - [x] Oracle Cloud Infrastructure(OCI) 배포 환경 구성 — 2026-07-26 첫 배포 성공.
       최소 스캐폴드 기준 빌드 → GHCR → SSH → 헬스체크 전 구간 검증 (배포 계획은 위 §기술 구성)
-- [x] Spring Cloud 전환 계획 A(멀티모듈·Config Server·Eureka) 구현·운영 검증 — 2026-07-30
-      (설계서는 위 채택 사유)
+- [x] Spring Cloud 전환 계획 A(멀티모듈·Config Server·Eureka) 구현·운영 검증 — 2026-07-30,
+      계획 B(Gateway 도입, 요청경로 편입) 구현 완료 — 2026-08-01, 계획 C(auth-service 배포
+      배선) 구현 완료 — 2026-08-02 (설계서는 위 채택 사유)
 
 ## 저장소 구성
 
