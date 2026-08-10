@@ -5,8 +5,8 @@
 
 ## 요약
 
-- 총 발견: 25건
-- 즉시 수정: 20건
+- 총 발견: 26건
+- 즉시 수정: 21건
 - 보류(사용자 확인 필요): 5건
 
 ### 보류 항목 목록
@@ -25,6 +25,7 @@
 | `docs/specs/domain-logic.md:24`, `docs/specs/external-api-integration.md:167` | 기본 소비 가중치 시드(`config/default-expense-weights.yml`)를 "Flyway 마이그레이션으로 적재"/"Flyway로 재적재"한다고 서술하나, core-api 저장소에는 Flyway 마이그레이션 디렉터리가 없고 이 파일을 읽는 코드도 없다. | `backend/core-api/src/main/resources` 아래 `db/migration` 디렉터리가 존재하지 않음(find로 확인). `grep -rn "default-expense-weights" backend/`가 아무 코드 결과도 반환하지 않아, 현재 이 yml을 로드하는 구현이 전혀 없음. → 두 문서 모두 "Flyway 마이그레이션으로/Flyway로" 문구를 "적재/재적재 방식은 구현 시 정한다 — core-api 저장소에는 Flyway 마이그레이션 디렉터리가 없다"로 수정. | 단순 | 수정됨 |
 | `docs/specs/erd.md:110` | `skill` 테이블에 `created_by FK` 컬럼이 문서화돼 있으나, 실제 엔티티 `com.carix.jobposting.Skill`에는 이 필드가 없다(`id`/`standard_name`/`category`/`is_custom` 4개 컬럼만 매핑). | `Skill.java` 전체를 읽어 확인 — `@Column` 매핑이 4개뿐이고 `created_by`/`createdBy` 문자열이 클래스에 전혀 없음. 이 사실 자체(엔티티 파일에 필드가 없다는 것)는 원격 DB 없이 저장소 코드만으로 확정됨. 다만 분류는 원격 DB 접속 없이 확정 불가 — (a) erd.md가 실제 없는 컬럼을 있다고 잘못 서술한 것(단순 사실 오류, erd.md 수정 대상)인지, (b) 물리 테이블엔 이 컬럼이 존재하고(과거 마이그레이션에서 생성) 엔티티 클래스가 아직 이 컬럼을 매핑하지 않은 것(구현이 설계를 못 따라간 것, erd.md는 그대로 두고 엔티티를 확장해야 할 사안)인지 저장소 안에서는 구분할 근거가 없다. `SeedLoader`가 이 4필드 엔티티로 699건의 skill 행을 성공적으로 저장했다는 사실(erd.md "2026-08-09 운영 현황" 기록)은 물리 테이블에서 `created_by`가 nullable이거나 컬럼 자체가 없어도 성립하므로 어느 쪽인지 가려주지 못한다. 마이그레이션 SQL이 저장소에서 제거된 상태(PR #58)라 원본 스키마 정의를 재확인할 수도 없다. → 제품/구현 방향 결정이 필요한 사안으로 판단해 erd.md는 수정하지 않음. | 구조적 | 보류 |
 | `docs/specs/erd.md:132` | `raw_ingest` 테이블에 `purged_at` 컬럼이 문서화돼 있으나, 실제 엔티티 `com.carix.jobposting.RawIngest`에는 이 필드가 없다(`id`/`source`/`source_item_id`/`payload`/`schema_version`/`first_seen_month`/`last_seen_month`/`collected_at` 8개 컬럼만 매핑). | `RawIngest.java` 전체를 읽어 확인 — `@Column` 매핑이 8개뿐이고 `purged_at`/`purgedAt` 문자열이 클래스에 전혀 없음. 필드 부재 자체는 저장소 코드만으로 확정되나, 분류 근거는 위 `erd.md:110` 행과 동일하다 — `data-architecture.md` §3.5가 "보존 기간 24개월, 초과분은 원문만 삭제"라는 정책을 명시하고 있어 `purged_at`이 그 정책의 착지점(아직 구현 안 된 설계)일 가능성이 있고, 반대로 erd.md가 애초에 만들어진 적 없는 컬럼을 서술했을 가능성도 배제할 수 없다. 원격 DB 접속 없이는 물리 컬럼 존재 여부를 확인할 수 없고, 마이그레이션 SQL도 저장소에 없어 원본 스키마 정의를 재확인할 수 없다. → erd.md 수정 없이 보류. | 구조적 | 보류 |
+| `backend/README.md:16-17,25,52-53`(구 15-18,23,47-48) | `backend/README.md`가 이 문서 자신의 초반 수정(위 `backend/README.md:5,15,110` 행) 이후 클러스터 2(Task 3, `docs/specs/api-specification.md`)·클러스터 3(Task 4, `docs/DEVELOPMENT.md:280`)가 확정한 사실과 재동기화되지 않아 모순 3곳이 남아 있었다 — (1) 구 16-17행 "도메인 API는 아직 없다"고 서술했으나 실제로는 dashboard·expense·income·profile·reference·scenario·skill 7개 도메인 컨트롤러가 이미 REST로 노출돼 있음, (2) 구 23행 "`core-api` 도메인 인프라(JPA·Flyway·Security·Batch)는 다음 단계"가 같은 파일 5-7행(같은 커밋 `a685bb9`)이 이미 확정한 "JPA·Flyway는 채용공고 도메인에 한해 이미 원격 DB에 연결됨"과 정면 모순, (3) 구 47-48행 "auth-service는 core-api와 달리 이미 JPA·Flyway를 쓴다"가 core-api는 JPA·Flyway를 안 쓴다고 암시하나 `docs/DEVELOPMENT.md:280`(Task 4, 2026-08-09)은 core-api도 이제 DB 설정이 필요하다고 명시. | `backend/core-api/src/main/java/com/carix/{dashboard,expense,income,profile,reference,scenario,skill}/*Controller.java` 7개 파일을 직접 읽어 `@RequestMapping`·`@GetMapping` 등 실제 엔드포인트 존재 확인(예: `DashboardController`가 `/v1/dashboard` 아래 6개 매핑). `com.carix.jobposting` 패키지엔 컨트롤러가 없음(find 결과 0건) — 채용공고 도메인 엔티티·리포지토리·시드로더·크롤러는 있으나 이 7개와 별개로 REST 미노출이라는 원래 서술 자체는 정확했음. `docs/specs/api-specification.md` §3-§7이 이 7개 컨트롤러의 요청·응답 규격을 이미 문서화(Task 3). `docs/DEVELOPMENT.md:280-285`가 "DB 설정이 필요하다 (2026-08-09부터) ... `spring.datasource.*` 기본값이나 `spring.autoconfigure.exclude`가 없다"고 명시(Task 4). → 3곳을 각각 "7개 도메인 컨트롤러가 REST로 노출돼 있으나 리포지토리·서비스 계층 미연결", "도메인 인프라 중 Security·Batch만 다음 단계(JPA·Flyway는 채용공고 도메인에 한해 이미 도입)", "core-api와 마찬가지로 이미 JPA·Flyway를 쓴다"로 수정하고, 배포·데모 경로 표 앞에 "7개 도메인 컨트롤러 경로는 API 규격 문서 참조" 안내문을 추가. | 단순 | 수정됨 |
 
 ## 2. API/워크플로우
 

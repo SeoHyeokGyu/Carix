@@ -13,14 +13,19 @@ REST API, 데이터 접근, Spring Batch 수집·집계를 맡는다(스키마 `
 - Spring Cloud 구성: [`../docs/specs/spring-cloud-architecture.md`](../docs/specs/spring-cloud-architecture.md)
 
 `core-api` 는 아직 배포 파이프라인 검증용 최소 스캐폴드다. Spring Boot 4.1 + springdoc(OpenAPI) +
-Config·Eureka 클라이언트만 있고 도메인 API는 아직 없다(채용공고 도메인의 JPA 엔티티·리포지토리·
-시드 로더·크롤러는 이미 추가됐으나 REST로는 노출되지 않는다). Security·Batch는 다음
-단계에서 추가한다.
+Config·Eureka 클라이언트에 더해 dashboard·expense·income·profile·reference·scenario·skill
+7개 도메인 컨트롤러가 REST로 노출돼 있다(경로·요청·응답 규격은 위 API 규격 문서 참조) — 다만
+리포지토리·서비스 계층은 아직 연결되지 않은 스텁이다. 채용공고 도메인의 JPA 엔티티·리포지토리·
+시드 로더·크롤러는 이 7개 컨트롤러와 별개로 이미 추가됐으나, 여기엔 포함되지 않으며 REST로는
+노출되지 않는다. Security·Batch는 다음 단계에서 추가한다.
 
 **구현 상태:** `auth-service` 코드 구현(초대 확인, 매직링크 발급·검증, 세션 생성·조회·폐기,
 rate limit)과 배포 배선(`Dockerfile`, `docker-compose.yml` 서비스 항목, Caddy 라우트, CI 빌드
 잡) 모두 완료됐다. Spring Cloud Gateway도 도입돼 요청 경로에 편입됐다(설계는 위
-spring-cloud-architecture.md). `core-api` 도메인 인프라(JPA·Flyway·Security·Batch)는 다음 단계.
+spring-cloud-architecture.md). `core-api` 도메인 인프라 중 Security·Batch는 다음 단계(JPA·Flyway는
+채용공고 도메인에 한해 이미 도입됨 — 위 참조).
+
+아래는 배포 검증·데모용 경로다. 7개 도메인 컨트롤러의 경로는 위 API 규격 문서를 참조.
 
 | 경로 | 용도 |
 | --- | --- |
@@ -45,7 +50,7 @@ spring-cloud-architecture.md). `core-api` 도메인 인프라(JPA·Flyway·Secur
 
 로컬 기동은 `core-api`와 동일한 순서다(config-server 먼저, 그다음 `EUREKA_CLIENT_ENABLED=false`
 로 단독 기동 가능). `auth-service`는 Testcontainers 없이는 로컬에서 DB 없이 뜨지 않는다 —
-core-api와 달리 이미 JPA·Flyway를 쓰기 때문이다. 로컬 검증은 OCI DB 원격 연결
+core-api와 마찬가지로 이미 JPA·Flyway를 쓰기 때문이다. 로컬 검증은 OCI DB 원격 연결
 (DEVELOPMENT.md §3) 또는 `./gradlew :auth-service:test`(Docker 필요)로 한다.
 
 공통 에러 응답(`com.carix.common.ErrorResponse`)은 위 API 규격 문서 §1.1 형식을 따른다.
