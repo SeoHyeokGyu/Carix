@@ -23,6 +23,19 @@
       }
     }
     ```
+*   **성공 응답 포맷 (HTTP 2xx):** core-api의 모든 성공 응답은 아래 공통 포맷으로 한 번 감싸 반환한다.
+    **이 문서의 각 API 절 "Response" JSON 예시는 이 중 `data` 필드의 값만 보여준다** — 실제 응답
+    본문은 그 값을 아래 포맷으로 한 번 더 감싼 형태다.
+    ```json
+    {
+      "success": true,
+      "data": { "...": "각 API 절의 Response 예시가 여기 들어간다" },
+      "message": "요청이 성공적으로 처리되었습니다.",
+      "timestamp": "2026-07-18T17:00:00Z"
+    }
+    ```
+    *(`data`는 반환할 데이터가 없는 응답(예: 삭제 API)에서는 필드 자체가 생략된다. `message`는 API별로
+    다른 안내 문구를 담을 수 있다)*
 
 ---
 
@@ -141,6 +154,12 @@
 
 ### 5.1 대시보드 지표 요약 (Summary)
 *   **Endpoint:** `GET /api/v1/dashboard/summary`
+*   **Query Parameters (모두 선택, 가상 프로필 탐색용):**
+    *   `jobFamily` (String, optional): 가상 탐색용 주 직무
+    *   `yearsOfExperience` (Integer, optional): 가상 탐색용 경력 년수
+    *   `region` (String, optional): 가상 탐색용 지역구
+    *   `companySize` (String, optional): 가상 탐색용 회사 규모
+    *   (하나라도 지정하면 로그인 사용자의 실제 데이터 대신 해당 가상 프로필 조건 기준 응답을 반환한다)
 *   **Response (200 OK):**
     ```json
     {
@@ -193,6 +212,7 @@
 
 ### 5.2 동료집단 연봉 분포
 *   **Endpoint:** `GET /api/v1/dashboard/salary-distribution`
+*   **Query Parameters (모두 선택, 가상 프로필 탐색용):** `jobFamily`, `yearsOfExperience`, `region`, `companySize` — 의미와 동작은 §5.1과 동일.
 *   결합 분포와 percentile은 원천별 5수치 요약으로 재구성할 수 없으므로, **동료집단 조건의 원 공고(`job_posting`)를 직접 집계**해 계산한다: `dedup_group_id` 단위로 원천 간 중복을 제거하고 유효 공개연봉 행만 사용. `market_aggregate`의 원천별 5수치는 배치 검증·참고용이며 이 응답의 산출원이 아니다.
 *   표본 부족 시에도 `200 OK`로 상태와 표본 수를 반환한다 (204 금지 — 화면은 `표본 부족`과 표본 수를 표시해야 함):
     ```json
@@ -250,6 +270,7 @@
 ### 5.5 스킬별 수요 상세
 *   **Endpoint:** `GET /api/v1/dashboard/skills`
 *   대시보드 스킬수요 탭용. 보유 스킬별 수요 지수와 산출 근거를 반환.
+*   **Query Parameters (모두 선택, 가상 프로필 탐색용):** `jobFamily`, `yearsOfExperience`, `region`, `companySize` — 의미와 동작은 §5.1과 동일.
 *   **Response (200 OK):**
     ```json
     {
@@ -352,10 +373,17 @@
       "difference": -1140000,
       "type": "ESTIMATED_OPPORTUNITY_COST",
       "typeLabel": "추정 기회비용",
-      "warningNote": "이 계산에는 세금, 성과급, 퇴직금 등이 포함되지 않은 단순 세전 기준 시뮬레이션입니다."
+      "warningNote": "이 계산에는 세금, 성과급, 퇴직금 등이 포함되지 않은 단순 세전 기준 시뮬레이션입니다.",
+      "feasibility": {
+        "feasibilityScore": 31,
+        "targetPercentile": 69,
+        "difficultyGrade": "CHALLENGING",
+        "feedbackMessage": "목표 연봉은 동료집단 내 상위 31% 수준의 도전적인 목표입니다. 시장 평균 범위 내에 위치하여 원만히 조율 가능한 수준입니다."
+      }
     }
     ```
     *(예시 산출: 잔류 = 60,000,000 × 1.035 = 62,100,000. 이직 = 72,000,000 × 10/12 + 실업급여 3,960,000 − 3,000,000 = 60,960,000. 차이 = −1,140,000)*
+    *(`feasibility`: 이직 목표 연봉이 §5.2 동료집단 공고 분포에서 몇 번째 백분위(`targetPercentile`)에 해당하는지로 실현 난이도를 계산해 함께 반환한다. `difficultyGrade`는 `EASY`/`REALISTIC`/`CHALLENGING`/`VERY_HIGH_CHALLENGE` 중 하나)*
 *   **결과 타입 매핑 (고정):**
 
 | 조건 | `type` | `typeLabel` |
@@ -373,6 +401,7 @@
       "id": "e812d8a4-0cfb-4a5f-9dfb-12d88c91350c",
       "scenarioName": "A사 오퍼 제안",
       "inputs": {
+        "scenarioName": "A사 오퍼 제안",
         "currentGrossSalary": 60000000,
         "stayExpectedRaiseRate": 3.5,
         "moveTargetGrossSalary": 72000000,
@@ -381,17 +410,26 @@
         "isEligibleForUnemploymentBenefit": true
       },
       "result": {
+        "id": "e812d8a4-0cfb-4a5f-9dfb-12d88c91350c",
+        "scenarioName": "A사 오퍼 제안",
         "stayCompensation12m": 62100000,
         "moveCompensation12m": 60960000,
         "estimatedUnemploymentBenefit": 3960000,
         "difference": -1140000,
         "type": "ESTIMATED_OPPORTUNITY_COST",
         "typeLabel": "추정 기회비용",
-        "warningNote": "이 계산에는 세금, 성과급, 퇴직금 등이 포함되지 않은 단순 세전 기준 시뮬레이션입니다."
+        "warningNote": "이 계산에는 세금, 성과급, 퇴직금 등이 포함되지 않은 단순 세전 기준 시뮬레이션입니다.",
+        "feasibility": {
+          "feasibilityScore": 31,
+          "targetPercentile": 69,
+          "difficultyGrade": "CHALLENGING",
+          "feedbackMessage": "목표 연봉은 동료집단 내 상위 31% 수준의 도전적인 목표입니다. 시장 평균 범위 내에 위치하여 원만히 조율 가능한 수준입니다."
+        }
       },
       "calculatedAt": "2026-07-18T17:00:00Z"
     }
     ```
+    *(`inputs`·`result`가 각각 §6.1 요청·응답 레코드 전체를 그대로 담으므로 `scenarioName`은 최상위·`inputs` 양쪽에, `id`·`scenarioName`은 최상위·`result` 양쪽에 중복 노출된다)*
 
 ### 6.3 가상 시나리오 전체 목록 조회 (비교용)
 *   **Endpoint:** `GET /api/v1/scenarios`
@@ -402,6 +440,7 @@
         "id": "e812d8a4-0cfb-4a5f-9dfb-12d88c91350c",
         "scenarioName": "A사 오퍼 제안",
         "inputs": {
+          "scenarioName": "A사 오퍼 제안",
           "currentGrossSalary": 60000000,
           "stayExpectedRaiseRate": 3.5,
           "moveTargetGrossSalary": 72000000,
@@ -410,18 +449,27 @@
           "isEligibleForUnemploymentBenefit": true
         },
         "result": {
+          "id": "e812d8a4-0cfb-4a5f-9dfb-12d88c91350c",
+          "scenarioName": "A사 오퍼 제안",
           "stayCompensation12m": 62100000,
           "moveCompensation12m": 60960000,
           "estimatedUnemploymentBenefit": 3960000,
           "difference": -1140000,
           "type": "ESTIMATED_OPPORTUNITY_COST",
           "typeLabel": "추정 기회비용",
-          "warningNote": "이 계산에는 세금, 성과급, 퇴직금 등이 포함되지 않은 단순 세전 기준 시뮬레이션입니다."
+          "warningNote": "이 계산에는 세금, 성과급, 퇴직금 등이 포함되지 않은 단순 세전 기준 시뮬레이션입니다.",
+          "feasibility": {
+            "feasibilityScore": 31,
+            "targetPercentile": 69,
+            "difficultyGrade": "CHALLENGING",
+            "feedbackMessage": "목표 연봉은 동료집단 내 상위 31% 수준의 도전적인 목표입니다. 시장 평균 범위 내에 위치하여 원만히 조율 가능한 수준입니다."
+          }
         },
         "calculatedAt": "2026-07-18T17:00:00Z"
       }
     ]
     ```
+    *(구조는 §6.2와 동일 — `inputs`·`result` 내부 필드 중복은 §6.2 설명 참조)*
 
 ### 6.4 가상 시나리오 이력 삭제
 *   **Endpoint:** `DELETE /api/v1/scenarios/{id}`
