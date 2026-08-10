@@ -2,8 +2,9 @@
 
 Java 25 + Spring Boot. Gradle 멀티모듈 — `config-server`, `eureka`, `core-api`, `auth-service`.
 `auth-service` 가 초대·매직링크 로그인·세션을 맡는다(스키마 `auth`). `core-api` 가 도메인 로직,
-REST API, 데이터 접근, Spring Batch 수집·집계를 맡는다(스키마 `core`, JPA·Flyway·Security·Batch는
-아직 없음 — 다음 단계).
+REST API, 데이터 접근, Spring Batch 수집·집계를 맡는다(스키마 `core`). JPA·Flyway는 채용공고
+도메인(`com.carix.jobposting`)에 한해 이미 원격 DB에 연결돼 있다(마이그레이션 SQL은 저장소에
+없음). Security·Batch는 아직 없음 — 다음 단계.
 
 상세 설계:
 - DB 스키마·규칙: [`../docs/specs/technical-specification.md`](../docs/specs/technical-specification.md)
@@ -12,7 +13,8 @@ REST API, 데이터 접근, Spring Batch 수집·집계를 맡는다(스키마 `
 - Spring Cloud 구성: [`../docs/specs/spring-cloud-architecture.md`](../docs/specs/spring-cloud-architecture.md)
 
 `core-api` 는 아직 배포 파이프라인 검증용 최소 스캐폴드다. Spring Boot 4.1 + springdoc(OpenAPI) +
-Config·Eureka 클라이언트만 있고 도메인 API는 아직 없다. JPA·Flyway·Security·Batch는 다음
+Config·Eureka 클라이언트만 있고 도메인 API는 아직 없다(채용공고 도메인의 JPA 엔티티·리포지토리·
+시드 로더·크롤러는 이미 추가됐으나 REST로는 노출되지 않는다). Security·Batch는 다음
 단계에서 추가한다.
 
 **구현 상태:** `auth-service` 코드 구현(초대 확인, 매직링크 발급·검증, 세션 생성·조회·폐기,
@@ -107,8 +109,9 @@ Dockerfile은 컴파일하지 않는다. CI 러너가 Gradle 캐시로 만든 JA
 
 ## 로컬 개발과 DB
 
-> `core-api`는 아직 DB를 쓰지 않는다 — JPA 도입 이후 적용된다. `auth-service`는 이미 JPA·Flyway로
-> `auth` 스키마를 쓰므로, 아래 원격 DB 연결 설정이 지금 바로 필요하다.
+> `core-api`는 채용공고 도메인(`core` 스키마)에서 이미 원격 DB를 쓴다 — REST로 노출된 도메인
+> API는 JPA 도입 이후 적용된다. `auth-service`도 이미 JPA·Flyway로 `auth` 스키마를 쓰므로,
+> 아래 원격 DB 연결 설정이 두 서비스 모두에 지금 바로 필요하다.
 
 - 로컬엔 PostgreSQL·Docker를 띄우지 않는다. **OCI의 `carix` DB에 원격 연결**한다.
   접근은 TLS + OCI Security List IP 허용목록이다

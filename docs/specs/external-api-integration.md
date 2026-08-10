@@ -164,7 +164,8 @@ https://kosis.kr/openapi/Param/statisticsParameterData.do
 > 끊긴다** (가계동향조사 개편). 현행 시리즈는 `DT_1L9U101`이다.
 
 연 1회 공표이므로 배치 대상이 아니다. 값이 갱신되면
-`config/default-expense-weights.yml`의 `version`을 올리고 Flyway로 재적재한다.
+`config/default-expense-weights.yml`의 `version`을 올린다. 재적재 방식은 구현 시 정한다 —
+core-api 저장소에는 Flyway 마이그레이션 디렉터리가 없다.
 
 ### 2.6 코드 충돌 — 어댑터 최대 위험
 
