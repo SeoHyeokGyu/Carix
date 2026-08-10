@@ -17,6 +17,7 @@ coverage/
 *.swp
 
 # Local AI tool state
+.claude/
 .codex/
 .superpowers/
 docs/superpowers/
