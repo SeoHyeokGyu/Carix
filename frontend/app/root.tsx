@@ -22,6 +22,12 @@ export function Layout({ children }: { children: React.ReactNode }) {
           name="description"
           content="Carix는 소득 변화와 소비 구조, 노동시장의 스킬 수요와 공개연봉을 연결해 실질 구매력과 시장가치를 함께 추적하는 개인 커리어 지수 플랫폼입니다."
         />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link
+          href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;600;700&display=swap"
+          rel="stylesheet"
+        />
         <Meta />
         <Links />
       </head>
