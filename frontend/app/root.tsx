@@ -5,6 +5,8 @@ import {
   Scripts,
   ScrollRestoration,
 } from "react-router";
+import "pretendard/dist/web/variable/pretendardvariable.css";
+import "./styles/tokens.css";
 
 export function Layout({ children }: { children: React.ReactNode }) {
   return (
