@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
+import { fileURLToPath, URL as NodeURL } from "node:url";
 
 const css = readFileSync(
-  resolve(process.cwd(), "app/styles/tokens.css"),
+  fileURLToPath(new NodeURL("./tokens.css", import.meta.url)),
   "utf-8",
 );
 
