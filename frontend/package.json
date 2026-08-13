@@ -10,7 +10,7 @@
     "start": "node server.js",
     "lint": "echo 'TODO: (cjkang) 프런트엔드 스캐폴드 시 실제 linter로 교체'",
     "typecheck": "tsc --noEmit",
-    "test": "node --test",
+    "test": "node --test server.test.js",
     "test:unit": "vitest run",
     "test:unit:watch": "vitest",
     "test:e2e": "playwright test"
