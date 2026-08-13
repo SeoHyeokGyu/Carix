@@ -1,0 +1,33 @@
+import { describe, expect, it, vi, afterEach } from "vitest";
+import { renderHook } from "@testing-library/react";
+import { usePrefersReducedMotion } from "./usePrefersReducedMotion";
+
+function mockMatchMedia(matches: boolean) {
+  vi.stubGlobal(
+    "matchMedia",
+    vi.fn().mockImplementation((query: string) => ({
+      matches,
+      media: query,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+    })),
+  );
+}
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
+
+describe("usePrefersReducedMotion", () => {
+  it("prefers-reduced-motion이 true면 true를 반환한다", () => {
+    mockMatchMedia(true);
+    const { result } = renderHook(() => usePrefersReducedMotion());
+    expect(result.current).toBe(true);
+  });
+
+  it("prefers-reduced-motion이 false면 false를 반환한다", () => {
+    mockMatchMedia(false);
+    const { result } = renderHook(() => usePrefersReducedMotion());
+    expect(result.current).toBe(false);
+  });
+});

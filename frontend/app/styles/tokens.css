@@ -1,0 +1,40 @@
+@import "tailwindcss";
+
+@theme {
+  --color-carix-bg: #020617;
+  --color-carix-surface: #0f172a;
+  --color-carix-border: #1e293b;
+  --color-carix-text: #f8fafc;
+  --color-carix-positive: #34d399;
+  --color-carix-warning: #fbbf24;
+  --color-carix-danger: #fb7185;
+  --color-carix-info: #818cf8;
+
+  --font-display: "Outfit", "Pretendard", sans-serif;
+  --font-body: "Pretendard", "Outfit", sans-serif;
+}
+
+@layer base {
+  body {
+    letter-spacing: -0.02em;
+  }
+}
+
+@layer components {
+  .crossover-line {
+    stroke-dasharray: 400;
+    stroke-dashoffset: 400;
+    animation: crossover-draw 1.2s ease-out forwards;
+  }
+
+  [data-reduced-motion="true"] .crossover-line {
+    animation: none;
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes crossover-draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
