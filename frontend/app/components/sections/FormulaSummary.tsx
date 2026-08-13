@@ -14,7 +14,7 @@ export function FormulaSummary() {
           {FORMULAS.map((formula) => (
             <div
               key={formula.title}
-              className="rounded-xl border border-carix-border bg-carix-surface/80 p-6"
+              className="min-w-0 rounded-xl border border-carix-border bg-carix-surface/80 p-6"
             >
               <h3 className="font-display text-lg font-semibold text-carix-text">
                 {formula.title}
