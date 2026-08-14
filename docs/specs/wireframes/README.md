@@ -20,19 +20,27 @@ GitHub는 `.html`을 인라인 렌더하지 않으므로, `screenshots/`에 각 
 
 [요청](auth/01-request.html) `/login` → [발송 확인](auth/02-check-email.html) `/login/sent` → [검증](auth/03-verifying.html) `/auth/verify`
 
-<img src="screenshots/auth-01-request.png" width="320" alt="auth-01-request" />
-<img src="screenshots/auth-02-check-email.png" width="320" alt="auth-02-check-email" />
-<img src="screenshots/auth-03-verifying.png" width="320" alt="auth-03-verifying" />
+<table>
+<tr>
+<td align="center"><strong>1. 요청</strong><br/><img src="screenshots/auth-01-request.png" width="260" alt="auth-01-request" /></td>
+<td align="center"><strong>2. 발송 확인</strong><br/><img src="screenshots/auth-02-check-email.png" width="260" alt="auth-02-check-email" /></td>
+<td align="center"><strong>3. 검증</strong><br/><img src="screenshots/auth-03-verifying.png" width="260" alt="auth-03-verifying" /></td>
+</tr>
+</table>
 
 ### 온보딩 — S-05~S-09
 
 [프로필](onboarding/01-profile.html) → [소득](onboarding/02-income.html) → [소비](onboarding/03-expenses.html) → [스킬](onboarding/04-skills.html) → [검토](onboarding/05-review.html)
 
-<img src="screenshots/onboarding-01-profile.png" width="420" alt="onboarding-01-profile" />
-<img src="screenshots/onboarding-02-income.png" width="420" alt="onboarding-02-income" />
-<img src="screenshots/onboarding-03-expenses.png" width="420" alt="onboarding-03-expenses" />
-<img src="screenshots/onboarding-04-skills.png" width="420" alt="onboarding-04-skills" />
-<img src="screenshots/onboarding-05-review.png" width="420" alt="onboarding-05-review" />
+<table>
+<tr>
+<td align="center"><strong>1. 프로필</strong><br/><img src="screenshots/onboarding-01-profile.png" width="190" alt="onboarding-01-profile" /></td>
+<td align="center"><strong>2. 소득</strong><br/><img src="screenshots/onboarding-02-income.png" width="190" alt="onboarding-02-income" /></td>
+<td align="center"><strong>3. 소비</strong><br/><img src="screenshots/onboarding-03-expenses.png" width="190" alt="onboarding-03-expenses" /></td>
+<td align="center"><strong>4. 스킬</strong><br/><img src="screenshots/onboarding-04-skills.png" width="190" alt="onboarding-04-skills" /></td>
+<td align="center"><strong>5. 검토</strong><br/><img src="screenshots/onboarding-05-review.png" width="190" alt="onboarding-05-review" /></td>
+</tr>
+</table>
 
 ### [대시보드](dashboard.html) — S-10 `/dashboard`
 
