@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<title>Carix - 로그인 확인 중</title>
+<link rel="stylesheet" href="../_shared.css" />
+</head>
+<body>
+  <div class="hero">
+    <h1>로그인 확인 중...</h1>
+    <p class="note" style="color:#fff;opacity:0.85;">
+      로딩 상태: 스피너 + "링크를 확인하고 있습니다" 텍스트
+    </p>
+    <p style="font-size:13px;">성공 시 이동 예시 (실제로는 자동 리다이렉트, 클릭 아님):</p>
+    <a href="../onboarding/01-profile.html" class="btn btn-ghost">온보딩 미완료 → 온보딩 1단계</a>
+    <a href="../dashboard.html" class="btn btn-ghost" style="margin-top:8px;">온보딩 완료 → 대시보드</a>
+  </div>
+  <div class="card" style="max-width:420px;margin:20px auto;border:1px solid #fbcfd8;">
+    <div class="alert alert-error">
+      <strong>만료되거나 이미 사용된 링크입니다.</strong> 다시 로그인을 시도해 주세요.
+    </div>
+    <a href="./01-request.html" class="btn btn-primary">다시 로그인</a>
+  </div>
+  <p class="note" style="max-width:420px;margin:0 auto;">
+    오류 상태 예시. 실제로는 검증 성공/실패에 따라 위 두 상태 중 하나만 화면에 표시된다.
+  </p>
+</body>
+</html>

@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<title>Carix - 홈</title>
+<link rel="stylesheet" href="./_shared.css" />
+</head>
+<body>
+<div class="page">
+  <div class="grid-2" style="align-items:center;margin-bottom:8px;">
+    <div>
+      <h1>Carix</h1>
+      <p>연봉이 올라도 물가가 더 빠르게 오르면 생활 수준은 낮아질 수 있습니다. 같은 스킬을 오래 사용해도
+      시장 수요가 줄면 커리어의 선택지는 좁아질 수 있습니다.</p>
+      <p>Carix는 명목연봉이나 채용공고 수처럼 분리된 숫자를 보여주는 데서 그치지 않습니다. 개인의 소득 변화와
+      소비 구조, 노동시장의 스킬 수요와 공개연봉을 연결해 다음 세 가지 질문에 답하는 것을 목표로 합니다.</p>
+      <ul>
+        <li>내 실질 구매력은 좋아지고 있는가?</li>
+        <li>시장에서 내 스킬의 가치는 오르고 있는가?</li>
+        <li>지금 남고, 옮기고, 배우는 선택 중 무엇이 유리한가?</li>
+      </ul>
+    </div>
+    <div class="card" style="text-align:center;color:#9aa0ac;">IndexCrossoverLine<br />(지수 교차 그래프)</div>
+  </div>
+
+  <h2>핵심 지수</h2>
+  <div class="grid-3">
+    <div class="card">
+      <h3>구매력 지수</h3>
+      연봉 상승률에서 개인 소비구조를 반영한 물가 상승 영향을 제거
+      <p class="note">연봉 이력, 소비 비중, 품목별 CPI</p>
+    </div>
+    <div class="card">
+      <h3>시장가치 지수</h3>
+      동일 직군 안에서 보유 스킬의 채용 수요 변화를 추적
+      <p class="note">경력, 지역, 보유 스킬, 채용공고 데이터</p>
+    </div>
+    <div class="card">
+      <h3>결정 신호</h3>
+      지표와 데이터 신뢰도를 규칙으로 조합해 다음 검토 행동을 제시
+      <p class="note">현재 보상, 시장 격차, 스킬 추세</p>
+    </div>
+  </div>
+
+  <h2>데이터 연결 구조</h2>
+  <div class="card" style="font-size:13px;line-height:2;">
+    개인 입력 → KOSIS CPI → 채용공고 데이터 → 임금통계 → 구매력 지수 + 시장가치 지수 + 결정 신호 → 잔류·이직 시나리오와 행동 제안
+  </div>
+
+  <h2>계산 방식</h2>
+  <div class="grid-2">
+    <div class="card">
+      <h3>구매력 계산</h3>
+      <pre style="white-space:pre-wrap;font-size:12px;background:#f5f6f8;padding:12px;border-radius:8px;">개인물가 변화율 = Σ(품목별 CPI 변화율 × 개인 소비 비중)
+개인물가 지수 = 기준월부터 개인물가 변화율을 누적한 지수
+실질 구매력 지수 = 명목소득 지수 ÷ 개인물가 지수 × 100</pre>
+      <p class="note">전체 소비자물가지수를 그대로 적용하지 않고 주거, 식비, 교통, 교육 등 사용자의 소비 비중을 반영합니다.</p>
+    </div>
+    <div class="card">
+      <h3>스킬 시장가치 계산</h3>
+      <pre style="white-space:pre-wrap;font-size:12px;background:#f5f6f8;padding:12px;border-radius:8px;">스킬 수요율 = 해당 스킬 언급 공고 수 ÷ 동일 조건의 전체 공고 수
+연봉 격차 = (공식 임금통계 중앙값 - 사용자 세전연봉) ÷ 사용자 세전연봉</pre>
+      <p class="note">연봉 격차는 사용자 연봉이 시장 중앙값보다 낮을 때 양수입니다. 비교 기준선은 공식 임금통계를 사용합니다.</p>
+    </div>
+  </div>
+
+  <h2>주요 기능</h2>
+  <div class="grid-2">
+    <div class="card">연도별 명목연봉과 실질 구매력 비교</div>
+    <div class="card">개인 소비구조를 반영한 개인물가 추적</div>
+    <div class="card">보유 스킬의 수요 변화 추적 (최근 3개월 vs 이전 12개월, 비중첩)</div>
+    <div class="card">동일 직군·경력·지역의 공개연봉 범위 비교</div>
+    <div class="card">현 직장에 머물 때 발생하는 추정 기회비용 계산</div>
+    <div class="card">잔류와 이직 시나리오 비교</div>
+  </div>
+
+  <h2>결과 예시</h2>
+  <div class="card">
+    <pre style="white-space:pre-wrap;font-size:12px;">구매력 지수    94  하락
+시장가치 지수 117  상승
+결정 신호      이직 탐색
+
+연봉은 3년간 6.0% 올랐지만 개인물가는 12.4% 상승해
+실질 구매력은 감소했습니다. (106.0 ÷ 112.4 × 100 ≈ 94)
+
+보유 스킬의 채용 수요는 같은 기간 증가했고, 현재 연봉은
+동일 조건의 공식 임금통계 중앙값보다 낮습니다. 소비 절감보다
+연봉협상 또는 이직 준비의 기대효과가 더 큰 상태입니다.</pre>
+    <p class="note">수치는 진단 근거와 표본 수를 함께 제공하며, 확정적인 연봉 예측이나 재무 조언으로 표현하지 않습니다.</p>
+  </div>
+
+  <div class="card" style="text-align:center;">
+    <h3>비공개 베타 안내</h3>
+    첫 번째 버전은 개발·데이터·AI 직군에 집중하며, 초대받은 10~30명의 비공개 베타 사용자를 대상으로 합니다.
+  </div>
+</div>
+</body>
+</html>

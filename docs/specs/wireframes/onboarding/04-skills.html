@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<title>Carix - 온보딩: 스킬</title>
+<link rel="stylesheet" href="../_shared.css" />
+</head>
+<body>
+<div class="page" style="max-width:640px;">
+  <div style="text-align:right;margin-bottom:12px;"><span class="badge badge-success">자동 저장됨</span></div>
+  <div class="steps">
+    <span class="badge">1 프로필</span>
+    <span class="badge">2 소득</span>
+    <span class="badge">3 소비</span>
+    <span class="badge active">4 스킬</span>
+    <span class="badge">5 검토</span>
+  </div>
+
+  <h1>보유 스킬</h1>
+
+  <label>스킬 검색</label>
+  <input type="search" placeholder="스킬 이름 검색..." />
+  <p class="note">표준화된 스킬 사전을 검색해 선택한다. 사전에 없는 스킬은 사용자 정의 항목으로 추가할 수 있다.</p>
+
+  <h2>등록된 스킬</h2>
+  <table>
+    <thead><tr><th>스킬</th><th>실무 사용 기간</th><th>마지막 사용일</th><th>작업</th></tr></thead>
+    <tbody>
+      <tr><td>Spring Boot</td><td>36개월</td><td>2026-08-01</td><td><button class="btn">수정</button> <button class="btn">삭제</button></td></tr>
+      <tr><td>TypeScript</td><td>18개월</td><td>2026-07-15</td><td><button class="btn">수정</button> <button class="btn">삭제</button></td></tr>
+    </tbody>
+  </table>
+  <div style="margin-top:12px;"><button class="btn">+ 스킬 추가</button></div>
+
+  <p class="note">스킬 추가 시 하단에 실무 사용 기간(개월)과 마지막 사용일 입력란이 활성화된다. 자기평가 숙련도는 받지 않는다.</p>
+
+  <div class="btn-row">
+    <a href="./03-expenses.html" class="btn">이전</a>
+    <a href="./05-review.html" class="btn btn-primary">다음</a>
+  </div>
+</div>
+</body>
+</html>

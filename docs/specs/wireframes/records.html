@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<title>Carix - 기록 관리</title>
+<link rel="stylesheet" href="./_shared.css" />
+</head>
+<body>
+<div class="page">
+  <div class="nav">
+    <span class="logo">◈ Carix</span>
+    <div style="display:flex;gap:16px;align-items:center;">
+      <a href="./dashboard.html">대시보드</a>
+      <a href="./records.html" style="font-weight:600;">기록 관리</a>
+      <a href="./settings.html">설정</a>
+      <span class="user">user@example.com</span>
+    </div>
+  </div>
+
+  <h1>기록 관리</h1>
+
+  <div class="tabs">
+    <span class="tab active">연봉 이력</span>
+    <span class="tab">소비 이력</span>
+    <span class="tab">스킬 이력</span>
+  </div>
+
+  <div class="card">
+    <h3>연봉 이력</h3>
+    <table>
+      <thead><tr><th>유효 시작일</th><th>세전 연봉</th><th>월 실수령액</th><th>작업</th></tr></thead>
+      <tbody>
+        <tr><td>2024-01-01</td><td>65,000,000</td><td>4,200,000</td><td><button class="btn">수정</button> <button class="btn">삭제</button></td></tr>
+        <tr><td>2023-01-01</td><td>58,000,000</td><td>-</td><td><button class="btn">수정</button> <button class="btn">삭제</button></td></tr>
+      </tbody>
+    </table>
+    <div style="margin-top:12px;"><button class="btn btn-primary">+ 이력 추가</button></div>
+    <p class="note">같은 유효 시작일 중복 저장 불가. 미래 시점 입력 거부.</p>
+  </div>
+
+  <div class="card">
+    <h3>소비 이력</h3>
+    <table>
+      <thead><tr><th>기준월</th><th>카테고리</th><th>월 금액</th><th>작업</th></tr></thead>
+      <tbody>
+        <tr><td>2026-07</td><td>주거·공공요금</td><td>900,000</td><td><button class="btn">수정</button> <button class="btn">삭제</button></td></tr>
+        <tr><td>2026-07</td><td>식비</td><td>600,000</td><td><button class="btn">수정</button> <button class="btn">삭제</button></td></tr>
+        <tr><td>2026-07</td><td>교통</td><td><span class="badge badge-warning">통계청 평균 기준</span></td><td><button class="btn">수정</button> <button class="btn">삭제</button></td></tr>
+      </tbody>
+    </table>
+    <div style="margin-top:12px;"><button class="btn btn-primary">+ 이력 추가</button></div>
+    <p class="note">지출 합계가 월 실수령액을 초과하면 경고하되 저장은 허용한다.</p>
+  </div>
+
+  <div class="card">
+    <h3>스킬 이력</h3>
+    <table>
+      <thead><tr><th>스킬</th><th>실무 사용 기간</th><th>마지막 사용일</th><th>작업</th></tr></thead>
+      <tbody>
+        <tr><td>Spring Boot</td><td>36개월</td><td>2026-08-01</td><td><button class="btn">수정</button> <button class="btn">삭제</button></td></tr>
+        <tr><td>TypeScript</td><td>18개월</td><td>2026-07-15</td><td><button class="btn">수정</button> <button class="btn">삭제</button></td></tr>
+      </tbody>
+    </table>
+    <div style="margin-top:12px;"><button class="btn btn-primary">+ 스킬 추가</button></div>
+    <p class="note">동일한 정규화 스킬은 중복 등록할 수 없다. 자기평가 숙련도는 받지 않는다.</p>
+  </div>
+
+  <p class="note">탭 예시: 실제로는 클릭한 탭 하나의 콘텐츠만 화면에 표시된다. 위 3개는 참고용으로 모두 펼쳐 보여준 것. 월별 지수 스냅샷은 별도 화면(<a href="./dashboard-history.html">대시보드 &gt; 이력</a>)에서 조회한다.</p>
+</div>
+</body>
+</html>

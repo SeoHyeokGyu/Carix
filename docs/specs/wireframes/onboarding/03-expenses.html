@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<title>Carix - 온보딩: 소비</title>
+<link rel="stylesheet" href="../_shared.css" />
+</head>
+<body>
+<div class="page" style="max-width:640px;">
+  <div style="text-align:right;margin-bottom:12px;"><span class="badge badge-success">자동 저장됨</span></div>
+  <div class="steps">
+    <span class="badge">1 프로필</span>
+    <span class="badge">2 소득</span>
+    <span class="badge active">3 소비</span>
+    <span class="badge">4 스킬</span>
+    <span class="badge">5 검토</span>
+  </div>
+
+  <h1>월 소비 비중</h1>
+  <p class="note">미니 비주얼: 입력 금액을 자동으로 비중(%) 계산해 도넛 차트로 시각화. % 직접 입력은 받지 않는다.</p>
+
+  <label>주거·공공요금 (원/월)</label>
+  <input type="number" />
+
+  <label>식비 (원/월)</label>
+  <input type="number" />
+
+  <label>교통 (원/월) <span class="badge badge-warning">통계청 평균 기준</span></label>
+  <input type="number" />
+
+  <label>의료 (원/월) <span class="badge badge-warning">통계청 평균 기준</span></label>
+  <input type="number" />
+
+  <label>교육·자기계발 (원/월)</label>
+  <input type="number" />
+
+  <label>여가·기타 (원/월)</label>
+  <input type="number" />
+
+  <p class="note">
+    미입력 카테고리는 통계청 전체 가구 평균 소비지출 비중으로 보완하고 즉시 뱃지로 표시한다.
+    지출 합계가 월 실수령액을 초과하면 경고하되 저장은 허용한다.
+  </p>
+
+  <div class="btn-row">
+    <a href="./02-income.html" class="btn">이전</a>
+    <a href="./04-skills.html" class="btn btn-primary">다음</a>
+  </div>
+</div>
+</body>
+</html>

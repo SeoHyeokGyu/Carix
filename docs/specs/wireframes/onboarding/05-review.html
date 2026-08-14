@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<title>Carix - 온보딩: 검토</title>
+<link rel="stylesheet" href="../_shared.css" />
+</head>
+<body>
+<div class="page" style="max-width:640px;">
+  <div class="steps">
+    <span class="badge">1 프로필</span>
+    <span class="badge">2 소득</span>
+    <span class="badge">3 소비</span>
+    <span class="badge">4 스킬</span>
+    <span class="badge active">5 검토</span>
+  </div>
+
+  <h1>검토</h1>
+
+  <div class="card" style="display:flex;justify-content:space-between;align-items:center;">
+    <div><h3>프로필</h3>백엔드 개발자 · 경력 5년 · 서울 강남 · 정규직</div>
+    <a href="./01-profile.html" class="btn">수정</a>
+  </div>
+  <div class="card" style="display:flex;justify-content:space-between;align-items:center;">
+    <div><h3>소득</h3>세전 연봉 65,000,000원 · 월 실수령액 4,200,000원</div>
+    <a href="./02-income.html" class="btn">수정</a>
+  </div>
+  <div class="card" style="display:flex;justify-content:space-between;align-items:center;">
+    <div><h3>소비</h3>6개 카테고리 입력 완료 · 교통·의료는 <span class="badge badge-warning">통계청 평균 기준</span> 적용</div>
+    <a href="./03-expenses.html" class="btn">수정</a>
+  </div>
+  <div class="card" style="display:flex;justify-content:space-between;align-items:center;">
+    <div><h3>스킬</h3>2개 등록 (Spring Boot, TypeScript)</div>
+    <a href="./04-skills.html" class="btn">수정</a>
+  </div>
+
+  <div class="alert alert-warning">
+    <strong>기본값으로 대체된 항목:</strong> 교통, 의료 소비 비중 (통계청 평균 소비지출 비중 사용)<br /><br />
+    <strong>계산 제한 사항:</strong> 세금, 성과급, 주식보상, 퇴직금은 자동으로 추정하지 않으며 결과에 포함되지 않는다.
+  </div>
+
+  <div class="btn-row">
+    <a href="./04-skills.html" class="btn">이전</a>
+    <a href="../dashboard.html" class="btn btn-primary">제출하고 대시보드로</a>
+  </div>
+</div>
+</body>
+</html>

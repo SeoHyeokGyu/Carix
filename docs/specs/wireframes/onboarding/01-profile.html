@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<title>Carix - 온보딩: 프로필</title>
+<link rel="stylesheet" href="../_shared.css" />
+</head>
+<body>
+<div class="page" style="max-width:640px;">
+  <div style="text-align:right;margin-bottom:12px;"><span class="badge badge-success">자동 저장됨</span></div>
+  <div class="steps">
+    <span class="badge active">1 프로필</span>
+    <span class="badge">2 소득</span>
+    <span class="badge">3 소비</span>
+    <span class="badge">4 스킬</span>
+    <span class="badge">5 검토</span>
+  </div>
+
+  <h1>기본 프로필</h1>
+
+  <label>주 직무</label>
+  <select>
+    <option>백엔드 개발자</option>
+    <option>프론트엔드 개발자</option>
+    <option>데이터 엔지니어</option>
+    <option>AI/ML 엔지니어</option>
+  </select>
+
+  <label>총 경력 (년)</label>
+  <input type="number" />
+
+  <label>희망 근무 지역</label>
+  <input type="text" />
+
+  <label>고용 형태</label>
+  <select>
+    <option>정규직</option>
+    <option>계약직</option>
+    <option>프리랜서</option>
+  </select>
+
+  <label>회사 규모 (선택)</label>
+  <input type="text" />
+
+  <p class="note">
+    조건 완화 안내: 동료집단 표본이 부족하면 회사 규모 → 지역 → 인접 경력 구간 순으로 조건을 완화한다.
+    화면에는 실제 적용된 조건과 완화 내역을 표시한다.
+  </p>
+
+  <div class="btn-row">
+    <a href="./02-income.html" class="btn btn-primary">다음</a>
+    <button class="btn">저장 후 나가기</button>
+  </div>
+</div>
+</body>
+</html>

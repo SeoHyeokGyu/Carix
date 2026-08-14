@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<title>Carix - 온보딩: 소득</title>
+<link rel="stylesheet" href="../_shared.css" />
+</head>
+<body>
+<div class="page" style="max-width:640px;">
+  <div style="text-align:right;margin-bottom:12px;"><span class="badge badge-success">자동 저장됨</span></div>
+  <div class="steps">
+    <span class="badge">1 프로필</span>
+    <span class="badge active">2 소득</span>
+    <span class="badge">3 소비</span>
+    <span class="badge">4 스킬</span>
+    <span class="badge">5 검토</span>
+  </div>
+
+  <h1>소득 관리</h1>
+
+  <label>현재 세전 연봉 (원)</label>
+  <input type="number" />
+
+  <label>월 실수령액 (선택)</label>
+  <input type="number" />
+
+  <p class="note">
+    시장 공개연봉 비교에는 세전 연봉을 필수로 사용한다. 구매력 계산에는 월 실수령액이 있으면 우선 사용하고,
+    없으면 세전소득 기반으로 계산해 <span class="badge badge-warning">세전소득 기반 추정</span>으로 표시한다.
+  </p>
+
+  <h2>과거 연봉 이력</h2>
+  <table>
+    <thead><tr><th>유효 시작일</th><th>세전 연봉</th><th>월 실수령액</th><th>작업</th></tr></thead>
+    <tbody>
+      <tr><td>2024-01-01</td><td>65,000,000</td><td>4,200,000</td><td><button class="btn">수정</button> <button class="btn">삭제</button></td></tr>
+      <tr><td>2023-01-01</td><td>58,000,000</td><td>-</td><td><button class="btn">수정</button> <button class="btn">삭제</button></td></tr>
+    </tbody>
+  </table>
+  <div style="margin-top:12px;"><button class="btn">+ 이력 추가</button></div>
+
+  <p class="note">같은 유효 시작일의 소득 이력은 중복 저장할 수 없다. 미래 시점의 소득 이력은 허용하지 않는다.</p>
+
+  <div class="btn-row">
+    <a href="./01-profile.html" class="btn">이전</a>
+    <a href="./03-expenses.html" class="btn btn-primary">다음</a>
+  </div>
+</div>
+</body>
+</html>

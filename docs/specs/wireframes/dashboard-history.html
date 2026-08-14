@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<title>Carix - 월별 스냅샷 이력</title>
+<link rel="stylesheet" href="./_shared.css" />
+</head>
+<body>
+<div class="page">
+  <div class="nav">
+    <span class="logo">◈ Carix</span>
+    <div style="display:flex;gap:16px;align-items:center;">
+      <a href="./dashboard.html">대시보드</a>
+      <a href="./records.html">기록 관리</a>
+      <a href="./settings.html">설정</a>
+      <span class="user">user@example.com</span>
+    </div>
+  </div>
+
+  <h1>월별 스냅샷 이력</h1>
+  <p class="note" style="margin-top:0;">S-11 — 대시보드에서 이어지는 별도 화면. 이력 관리(S-12)와는 다른 화면.</p>
+
+  <div class="card">
+    <table>
+      <thead><tr><th>기준월</th><th>구매력 지수</th><th>시장가치 지수</th><th>결정 신호</th><th>데이터 기준일</th></tr></thead>
+      <tbody>
+        <tr><td>2026-07</td><td>94.2</td><td>117.5</td><td><span class="badge badge-warning">이직 탐색</span></td><td>2026-07-01</td></tr>
+        <tr><td>2026-06</td><td>95.4</td><td>113.7</td><td><span class="badge">현 상태 유지</span></td><td>2026-06-01</td></tr>
+        <tr><td>2026-05</td><td>96.1</td><td>110.2</td><td><span class="badge">현 상태 유지</span></td><td>2026-05-01</td></tr>
+      </tbody>
+    </table>
+    <p class="note">각 스냅샷은 계산 당시의 데이터·규칙 버전을 함께 보존한다 (조회 전용, 수정 불가).</p>
+  </div>
+
+  <div class="card" style="border:1px dashed #d8dbe2;">
+    <h3>비어있음 상태 (스냅샷 1개 이하)</h3>
+    <p class="note" style="margin:0;">다음 달부터 변화를 볼 수 있습니다.</p>
+  </div>
+
+  <div class="card" style="border:1px dashed #d8dbe2;">
+    <h3>열화 상태 (일부 월 데이터 누락)</h3>
+    <table>
+      <thead><tr><th>기준월</th><th>구매력 지수</th><th>시장가치 지수</th><th>결정 신호</th></tr></thead>
+      <tbody>
+        <tr><td>2026-07</td><td>94.2</td><td>117.5</td><td><span class="badge badge-warning">이직 탐색</span></td></tr>
+        <tr><td>2026-06</td><td colspan="3"><span class="badge badge-error">데이터 없음</span></td></tr>
+        <tr><td>2026-05</td><td>96.1</td><td>110.2</td><td><span class="badge">현 상태 유지</span></td></tr>
+      </tbody>
+    </table>
+    <p class="note">누락된 월은 갭으로 표시하고, 추세 차트에서 선으로 연결하지 않는다.</p>
+  </div>
+
+  <p class="note">위 3개 카드(정상/비어있음/열화)는 참고용으로 모두 펼쳐 보여준 것 — 실제로는 데이터 상태에 따라 하나만 표시된다.</p>
+</div>
+</body>
+</html>

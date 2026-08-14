@@ -21,8 +21,6 @@ coverage/
 .codex/
 .superpowers/
 docs/superpowers/
-.agents/
-skills-lock.json
 
 # Logs
 *.log
@@ -33,6 +31,3 @@ pnpm-debug.log*
 verification/out/
 verification/config.json
 verification/tmp/
-
-# wiremd render output (source .md is tracked, rendered .html is not)
-docs/specs/wireframes/**/*.html
