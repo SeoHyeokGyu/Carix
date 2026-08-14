@@ -21,6 +21,8 @@ coverage/
 .codex/
 .superpowers/
 docs/superpowers/
+.agents/
+skills-lock.json
 
 # Logs
 *.log
