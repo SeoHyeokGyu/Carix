@@ -35,4 +35,4 @@ verification/config.json
 verification/tmp/
 
 # wiremd render output (source .md is tracked, rendered .html is not)
-docs/specs/wireframes/*.html
+docs/specs/wireframes/**/*.html
