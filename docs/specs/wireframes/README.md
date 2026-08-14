@@ -14,42 +14,42 @@ GitHub는 `.html`을 인라인 렌더하지 않으므로, `screenshots/`에 각 
 
 ### [홈](home.html) — S-01 `/`
 
-![home](screenshots/home.png)
+<img src="screenshots/home.png" width="560" alt="home" />
 
 ### 인증 — S-02~S-04
 
 [요청](auth/01-request.html) `/login` → [발송 확인](auth/02-check-email.html) `/login/sent` → [검증](auth/03-verifying.html) `/auth/verify`
 
-![auth-01-request](screenshots/auth-01-request.png)
-![auth-02-check-email](screenshots/auth-02-check-email.png)
-![auth-03-verifying](screenshots/auth-03-verifying.png)
+<img src="screenshots/auth-01-request.png" width="320" alt="auth-01-request" />
+<img src="screenshots/auth-02-check-email.png" width="320" alt="auth-02-check-email" />
+<img src="screenshots/auth-03-verifying.png" width="320" alt="auth-03-verifying" />
 
 ### 온보딩 — S-05~S-09
 
 [프로필](onboarding/01-profile.html) → [소득](onboarding/02-income.html) → [소비](onboarding/03-expenses.html) → [스킬](onboarding/04-skills.html) → [검토](onboarding/05-review.html)
 
-![onboarding-01-profile](screenshots/onboarding-01-profile.png)
-![onboarding-02-income](screenshots/onboarding-02-income.png)
-![onboarding-03-expenses](screenshots/onboarding-03-expenses.png)
-![onboarding-04-skills](screenshots/onboarding-04-skills.png)
-![onboarding-05-review](screenshots/onboarding-05-review.png)
+<img src="screenshots/onboarding-01-profile.png" width="420" alt="onboarding-01-profile" />
+<img src="screenshots/onboarding-02-income.png" width="420" alt="onboarding-02-income" />
+<img src="screenshots/onboarding-03-expenses.png" width="420" alt="onboarding-03-expenses" />
+<img src="screenshots/onboarding-04-skills.png" width="420" alt="onboarding-04-skills" />
+<img src="screenshots/onboarding-05-review.png" width="420" alt="onboarding-05-review" />
 
 ### [대시보드](dashboard.html) — S-10 `/dashboard`
 
-![dashboard](screenshots/dashboard.png)
+<img src="screenshots/dashboard.png" width="560" alt="dashboard" />
 
 ### [월별 스냅샷 이력](dashboard-history.html) — S-11 `/dashboard/history`
 
 대시보드와 별도 화면. 이력 관리(S-12)와 혼동 주의 — 여긴 지수 스냅샷 조회 전용.
 
-![dashboard-history](screenshots/dashboard-history.png)
+<img src="screenshots/dashboard-history.png" width="560" alt="dashboard-history" />
 
 ### [기록 관리](records.html) — S-12 `/settings/records`
 
 연봉·소비·스킬 이력 추가/수정. 지수 스냅샷은 여기 없음(위 S-11 참고).
 
-![records](screenshots/records.png)
+<img src="screenshots/records.png" width="560" alt="records" />
 
 ### [계정 설정](settings.html) — S-13 `/settings/profile`
 
-![settings](screenshots/settings.png)
+<img src="screenshots/settings.png" width="420" alt="settings" />
