@@ -44,7 +44,7 @@ export function CoreIndexCards() {
                 {card.description}
               </p>
               <div className="mt-5 pt-4 border-t border-carix-border flex items-center justify-between text-xs">
-                <span className="text-carix-text/60 font-medium">
+                <span className="text-carix-text/80 font-medium">
                   분석 기준
                 </span>
                 <span className="text-carix-info font-semibold">

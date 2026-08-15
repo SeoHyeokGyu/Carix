@@ -20,8 +20,8 @@
     --carix-surface: #ffffff; /* 순백색 카드 */
     --carix-border: #e5e7eb; /* 보더 그레이 */
     --carix-text: #1f2937; /* 텍스트 다크 그레이 */
-    --carix-positive: #10b981; /* 네온 그린 */
-    --carix-warning: #f97316; /* 오렌지 */
+    --carix-positive: #047857; /* 에메랄드 그린 (접근성 대비 충족) */
+    --carix-warning: #c2410c; /* 오렌지 다크 (접근성 대비 충족) */
     --carix-danger: #ef4444; /* 빨간색 */
     --carix-info: #4f46e5; /* 인디고 브랜드 컬러 */
   }
@@ -55,8 +55,8 @@
     --carix-surface: #ffffff;
     --carix-border: #e5e7eb;
     --carix-text: #1f2937;
-    --carix-positive: #10b981;
-    --carix-warning: #f97316;
+    --carix-positive: #047857;
+    --carix-warning: #c2410c;
     --carix-danger: #ef4444;
     --carix-info: #4f46e5;
   }

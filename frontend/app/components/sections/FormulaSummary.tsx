@@ -46,7 +46,6 @@ export function FormulaSummary() {
                     onClick={() => toggleFormula(formula.title)}
                     className="flex h-8 w-8 items-center justify-center rounded-full bg-carix-info/10 hover:bg-carix-info/20 text-carix-info font-bold transition-all cursor-pointer text-sm select-none"
                     title="상세 공식 보기"
-                    aria-expanded={isOpen}
                     tabIndex={0}
                     onKeyDown={(e) => {
                       if (e.key === "Enter" || e.key === " ") {

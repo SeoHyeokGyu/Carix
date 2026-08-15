@@ -28,7 +28,7 @@ export function ResultExample() {
             <span className="text-xs font-semibold text-carix-info uppercase tracking-wider">
               커리어 금융 리포트 샘플
             </span>
-            <span className="text-xs text-carix-text/50">방금 업데이트됨</span>
+            <span className="text-xs text-carix-text/75">방금 업데이트됨</span>
           </div>
 
           <div className="mt-8 flex flex-col gap-8">
@@ -47,7 +47,7 @@ export function ResultExample() {
                   <span className="text-2xl font-extrabold text-carix-warning">
                     94
                   </span>
-                  <span className="rounded-full bg-carix-warning/10 px-2.5 py-0.5 text-xs font-bold text-carix-warning">
+                  <span className="rounded-full bg-carix-warning/5 px-2.5 py-0.5 text-xs font-bold text-carix-warning">
                     하락
                   </span>
                 </div>
@@ -132,7 +132,7 @@ export function ResultExample() {
                     추천 결정 신호
                   </h4>
                 </div>
-                <span className="rounded-full bg-carix-info/20 px-3.5 py-1 text-sm font-bold text-carix-info">
+                <span className="rounded-full bg-carix-info/10 px-3.5 py-1 text-sm font-bold text-carix-info">
                   이직 탐색
                 </span>
               </div>
@@ -144,7 +144,7 @@ export function ResultExample() {
           </div>
         </div>
 
-        <p className="mt-4 text-xs leading-relaxed text-carix-text/60 text-center">
+        <p className="mt-4 text-xs leading-relaxed text-carix-text/80 text-center">
           {DISCLAIMER}
         </p>
       </div>
