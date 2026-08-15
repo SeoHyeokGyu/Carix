@@ -1,22 +1,72 @@
 @import "tailwindcss";
 
 @theme {
-  --color-carix-bg: #020617;
-  --color-carix-surface: #0f172a;
-  --color-carix-border: #1e293b;
-  --color-carix-text: #f8fafc;
-  --color-carix-positive: #34d399;
-  --color-carix-warning: #fbbf24;
-  --color-carix-danger: #fb7185;
-  --color-carix-info: #818cf8;
+  --color-carix-bg: var(--carix-bg);
+  --color-carix-surface: var(--carix-surface);
+  --color-carix-border: var(--carix-border);
+  --color-carix-text: var(--carix-text);
+  --color-carix-positive: var(--carix-positive);
+  --color-carix-warning: var(--carix-warning);
+  --color-carix-danger: var(--carix-danger);
+  --color-carix-info: var(--carix-info);
 
   --font-display: "Outfit", "Pretendard", sans-serif;
   --font-body: "Pretendard", "Outfit", sans-serif;
 }
 
 @layer base {
+  :root {
+    --carix-bg: #f3f4f6; /* 연한 블루그레이 배경 */
+    --carix-surface: #ffffff; /* 순백색 카드 */
+    --carix-border: #e5e7eb; /* 보더 그레이 */
+    --carix-text: #1f2937; /* 텍스트 다크 그레이 */
+    --carix-positive: #10b981; /* 네온 그린 */
+    --carix-warning: #f97316; /* 오렌지 */
+    --carix-danger: #ef4444; /* 빨간색 */
+    --carix-info: #4f46e5; /* 인디고 브랜드 컬러 */
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --carix-bg: #111827; /* 부드러운 다크 그레이 배경 */
+      --carix-surface: #1f2937; /* 매끄러운 다크 카드 */
+      --carix-border: #374151; /* 다크 보더 */
+      --carix-text: #f9fafb; /* 다크 텍스트 */
+      --carix-positive: #10b981; /* 네온 그린 */
+      --carix-warning: #f97316; /* 오렌지 */
+      --carix-danger: #f87171;
+      --carix-info: #818cf8; /* 연한 인디고 */
+    }
+  }
+
+  .dark {
+    --carix-bg: #111827;
+    --carix-surface: #1f2937;
+    --carix-border: #374151;
+    --carix-text: #f9fafb;
+    --carix-positive: #10b981;
+    --carix-warning: #f97316;
+    --carix-danger: #f87171;
+    --carix-info: #818cf8;
+  }
+
+  .light {
+    --carix-bg: #f3f4f6;
+    --carix-surface: #ffffff;
+    --carix-border: #e5e7eb;
+    --carix-text: #1f2937;
+    --carix-positive: #10b981;
+    --carix-warning: #f97316;
+    --carix-danger: #ef4444;
+    --carix-info: #4f46e5;
+  }
+
   body {
     letter-spacing: -0.02em;
+    transition:
+      background-color 0.3s ease,
+      color 0.3s ease,
+      border-color 0.3s ease;
   }
 }
 

@@ -32,12 +32,18 @@ export default tseslint.config(
     },
   },
   {
-    files: ["server.js", "server.test.js", "vite.config.ts", "react-router.config.ts", "playwright.config.ts"],
+    files: [
+      "server.js",
+      "server.test.js",
+      "vite.config.ts",
+      "react-router.config.ts",
+      "playwright.config.ts",
+    ],
     languageOptions: {
       globals: {
         ...globals.node,
       },
     },
   },
-  prettier
+  prettier,
 );

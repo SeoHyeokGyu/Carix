@@ -9,17 +9,19 @@ const css = readFileSync(
 
 describe("design tokens", () => {
   it("배경/표면/보더/텍스트 hex를 spec 값 그대로 포함한다", () => {
-    expect(css).toContain("#020617");
-    expect(css).toContain("#0f172a");
-    expect(css).toContain("#1e293b");
-    expect(css).toContain("#f8fafc");
+    expect(css).toContain("#111827");
+    expect(css).toContain("#1f2937");
+    expect(css).toContain("#374151");
+    expect(css).toContain("#f3f4f6");
+    expect(css).toContain("#ffffff");
+    expect(css).toContain("#e5e7eb");
   });
 
   it("강조 색상 4종 hex를 spec 값 그대로 포함한다", () => {
-    expect(css).toContain("#34d399");
-    expect(css).toContain("#fbbf24");
-    expect(css).toContain("#fb7185");
-    expect(css).toContain("#818cf8");
+    expect(css).toContain("#10b981");
+    expect(css).toContain("#f97316");
+    expect(css).toContain("#ef4444");
+    expect(css).toContain("#4f46e5");
   });
 
   it("Outfit과 Pretendard 서체 토큰을 정의한다", () => {
