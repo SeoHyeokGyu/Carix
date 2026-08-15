@@ -8,7 +8,9 @@ describe("FormulaSummary", () => {
     expect(screen.getByText("구매력 계산")).toBeInTheDocument();
     expect(screen.getByText("스킬 시장가치 계산")).toBeInTheDocument();
     expect(
-      screen.getByText(/연봉 격차는 사용자 연봉이 시장 중앙값보다 낮을 때 양수/),
+      screen.getByText(
+        /연봉 격차는 사용자 연봉이 시장 중앙값보다 낮을 때 양수/,
+      ),
     ).toBeInTheDocument();
   });
 

@@ -39,7 +39,9 @@ describe("landing content", () => {
 
   it("구매력 계산식에 정확한 부호·비율 표현을 포함한다", () => {
     const purchasingPower = FORMULAS[0];
-    expect(purchasingPower.formula).toContain("실질 구매력 지수 = 명목소득 지수 ÷ 개인물가 지수 × 100");
+    expect(purchasingPower.formula).toContain(
+      "실질 구매력 지수 = 명목소득 지수 ÷ 개인물가 지수 × 100",
+    );
   });
 
   it("스킬 시장가치 계산식 note에 연봉 격차 부호 규약을 정확히 포함한다", () => {
@@ -51,7 +53,9 @@ describe("landing content", () => {
 
   it("주요 기능 항목에 비중첩 비교 문구를 정확히 포함한다", () => {
     const skillFeature = FEATURES.find((f) => f.includes("스킬"));
-    expect(skillFeature).toContain("최근 3개월을 그 이전 12개월과 비교, 비중첩");
+    expect(skillFeature).toContain(
+      "최근 3개월을 그 이전 12개월과 비교, 비중첩",
+    );
   });
 
   it("결과 예시 지수 값을 README와 동일하게 포함한다", () => {

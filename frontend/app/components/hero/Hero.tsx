@@ -13,7 +13,10 @@ export function Hero() {
             Carix
           </h1>
           {HERO_INTRO.paragraphs.map((paragraph) => (
-            <p key={paragraph} className="mt-6 text-lg leading-relaxed text-carix-text/80">
+            <p
+              key={paragraph}
+              className="mt-6 text-lg leading-relaxed text-carix-text/80"
+            >
               {paragraph}
             </p>
           ))}

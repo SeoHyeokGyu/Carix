@@ -2,10 +2,7 @@ import { RESULT_EXAMPLE, DISCLAIMER } from "../../content/landing";
 
 export function ResultExample() {
   return (
-    <section
-      aria-labelledby="result-example-heading"
-      className="px-6 py-16"
-    >
+    <section aria-labelledby="result-example-heading" className="px-6 py-16">
       <div className="mx-auto max-w-3xl">
         <h2
           id="result-example-heading"

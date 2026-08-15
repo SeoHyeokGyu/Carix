@@ -28,6 +28,8 @@ describe("design tokens", () => {
   });
 
   it("reduced-motion 상태에서 crossover-line 애니메이션을 비활성화한다", () => {
-    expect(css).toMatch(/\[data-reduced-motion="true"\][^}]*\.crossover-line[^{]*\{[^}]*animation:\s*none/);
+    expect(css).toMatch(
+      /\[data-reduced-motion="true"\][^}]*\.crossover-line[^{]*\{[^}]*animation:\s*none/,
+    );
   });
 });
