@@ -1,5 +1,7 @@
 /build
+/.react-router
 /e2e/screenshots
 /test-results
 /playwright-report
 node_modules
+
