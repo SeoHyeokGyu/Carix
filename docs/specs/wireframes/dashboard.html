@@ -9,14 +9,19 @@
 <div class="page">
   <div class="nav">
     <span class="logo">◈ Carix</span>
-    <div style="display:flex;gap:16px;align-items:center;">
-      <a href="./dashboard.html" style="font-weight:600;">대시보드</a>
-      <a href="./trends.html">추이분석</a>
-      <a href="./simulator.html">시뮬레이터</a>
-      <a href="./mypage.html">마이페이지</a>
-      <span class="user">user@example.com</span>
+    <div style="display:flex;gap:4px;">
+      <a class="tab active" href="./dashboard.html">대시보드</a>
+      <a class="tab" href="./trends.html">추이분석</a>
+      <a class="tab" href="./simulator.html">시뮬레이터</a>
+    </div>
+    <div style="position:relative;">
+      <span class="avatar">U</span>
+      <div class="dropdown-menu">
+        <a href="./mypage.html">마이페이지</a>
+      </div>
     </div>
   </div>
+  <p class="note">아바타 클릭 시에만 드롭다운이 열린다 — 와이어프레임에서는 항상 펼친 상태로 표시.</p>
   <div class="grid-2" style="margin-bottom:8px;">
     <div>5년차 백엔드 개발자 · 서울 강남 · 정규직</div>
     <div style="text-align:right;">
