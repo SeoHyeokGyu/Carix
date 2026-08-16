@@ -269,7 +269,7 @@
 
 ### 5.5 스킬별 수요 상세
 *   **Endpoint:** `GET /api/v1/dashboard/skills`
-*   대시보드 스킬수요 탭용. 보유 스킬별 수요 지수와 산출 근거를 반환.
+*   추이분석 스킬수요 탭용. 보유 스킬별 수요 지수와 산출 근거를 반환.
 *   **Query Parameters (모두 선택, 가상 프로필 탐색용):** `jobFamily`, `yearsOfExperience`, `region`, `companySize` — 의미와 동작은 §5.1과 동일.
 *   **Response (200 OK):**
     ```json

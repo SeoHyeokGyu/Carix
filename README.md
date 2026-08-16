@@ -162,10 +162,12 @@ flowchart TD
 | `/login`, `/login/sent` | 매직링크 요청·발송 안내 | 공개 |
 | `/auth/verify` | 토큰 검증 | 링크 토큰 |
 | `/onboarding/{profile,income,expense,skills,review}` | 온보딩 5단계 | 세션 |
-| `/dashboard` | 지수·신호·차트·시뮬레이터 | 세션 + 온보딩 완료 |
+| `/dashboard` | 핵심 지표 3카드 | 세션 + 온보딩 완료 |
 | `/dashboard/history` | 월별 스냅샷 이력 | 세션 + 온보딩 완료 |
-| `/settings/records` | 소득·소비·스킬 이력 관리 | 세션 |
-| `/settings/account` | 세션 관리·계정 삭제 | 세션 |
+| `/dashboard/trends` | 추이분석 (소득vs물가·스킬수요·연봉분포) | 세션 + 온보딩 완료 |
+| `/dashboard/simulator` | 12개월 시뮬레이터 | 세션 + 온보딩 완료 |
+| `/mypage/records` | 소득·소비·스킬 이력 관리 | 세션 |
+| `/mypage/profile` | 세션 관리·계정 삭제 | 세션 |
 
 라우팅 가드: 세션 없으면 `/login`으로, 온보딩 미완료면 마지막 미완료 단계로,
 온보딩 완료 후 `/onboarding/*` 접근은 `/dashboard`로 이동합니다
@@ -351,7 +353,7 @@ Node 서버는 DB에 직접 접근하거나 Spring Boot 로직을 복제하지 �
 
 - `/`: 빌드 시 사전 렌더링
 - `/login`, `/login/sent`, `/auth/verify`: Node SSR
-- `/onboarding/*`, `/dashboard/*`, `/settings/*`: SSR shell 후 hydration
+- `/onboarding/*`, `/dashboard/*`, `/mypage/*`: SSR shell 후 hydration
 - 차트·필터·사용자 데이터: hydration 이후 TanStack Query로 갱신
 - `/about`, `/content/:slug` 등 공개 콘텐츠 페이지는 도입 시 사전 렌더링·SSR 적용 예정
 

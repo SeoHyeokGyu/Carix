@@ -63,7 +63,7 @@ flowchart TD
 | `/content/:slug` | Node SSR | 동적 공개 콘텐츠와 SEO |
 | `/login` | Node SSR | 빠른 초기 표시 |
 | `/dashboard/*` | SSR shell 후 hydration | 개인화 대시보드 상호작용 |
-| `/settings/*` | SSR shell 후 hydration | 인증 사용자 설정 |
+| `/mypage/*` | SSR shell 후 hydration | 인증 사용자 설정 |
 
 공개 페이지는 title, description, canonical URL, Open Graph metadata, sitemap,
 robots 정책과 필요한 구조화 데이터를 제공한다. 대시보드의 차트·필터·사용자
