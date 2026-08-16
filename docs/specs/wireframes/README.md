@@ -14,7 +14,7 @@ GitHub는 `.html`을 인라인 렌더하지 않으므로, `screenshots/`에 각 
 python3 autocrop.py screenshots/<name>.png
 ```
 
-라우트 ID(S-01~S-13)는 [functional-specification.md §1 화면 맵과 라우트](../functional-specification.md)를 따름. 화면별 빈/열화 상태는 같은 문서 §5 기준.
+라우트 ID(S-01~S-15)는 [functional-specification.md §1 화면 맵과 라우트](../functional-specification.md)를 따름. 화면별 빈/열화 상태는 같은 문서 §5 기준.
 
 ### [홈](home.html) — S-01 `/`
 
@@ -48,7 +48,17 @@ python3 autocrop.py screenshots/<name>.png
 
 ### [대시보드](dashboard.html) — S-10 `/dashboard`
 
+핵심 지표 3카드만 표시. 추이 차트와 시뮬레이터는 아래 별도 화면 참고.
+
 <img src="screenshots/dashboard.png" width="560" alt="dashboard" />
+
+### [추이분석](trends.html) — S-14 `/dashboard/trends`
+
+<img src="screenshots/trends.png" width="560" alt="trends" />
+
+### [시뮬레이터](simulator.html) — S-15 `/dashboard/simulator`
+
+<img src="screenshots/simulator.png" width="560" alt="simulator" />
 
 ### [월별 스냅샷 이력](dashboard-history.html) — S-11 `/dashboard/history`
 
@@ -56,12 +66,8 @@ python3 autocrop.py screenshots/<name>.png
 
 <img src="screenshots/dashboard-history.png" width="560" alt="dashboard-history" />
 
-### [기록 관리](records.html) — S-12 `/settings/records`
+### [마이페이지](mypage.html) — S-12·S-13 `/mypage/records`, `/mypage/profile`
 
-연봉·소비·스킬 이력 추가/수정. 지수 스냅샷은 여기 없음(위 S-11 참고).
+내부 탭 2개: 기록 관리(연봉·소비·스킬 이력 추가/수정, 지수 스냅샷은 여기 없음 — 위 S-11 참고) / 계정 설정(세션·데이터 삭제).
 
-<img src="screenshots/records.png" width="560" alt="records" />
-
-### [계정 설정](settings.html) — S-13 `/settings/profile`
-
-<img src="screenshots/settings.png" width="420" alt="settings" />
+<img src="screenshots/mypage.png" width="560" alt="mypage" />
