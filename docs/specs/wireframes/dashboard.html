@@ -11,8 +11,9 @@
     <span class="logo">◈ Carix</span>
     <div style="display:flex;gap:16px;align-items:center;">
       <a href="./dashboard.html" style="font-weight:600;">대시보드</a>
-      <a href="./records.html">기록 관리</a>
-      <a href="./settings.html">설정</a>
+      <a href="./trends.html">추이분석</a>
+      <a href="./simulator.html">시뮬레이터</a>
+      <a href="./mypage.html">마이페이지</a>
       <span class="user">user@example.com</span>
     </div>
   </div>
@@ -51,65 +52,6 @@
   <p class="note">
     데이터 신뢰도 표시: 사용자 입력값 / <span class="badge badge-warning">추정</span> / <span class="badge badge-error">표본 부족</span> 세 상태를 각 수치 옆에 구분해 표시한다.
   </p>
-
-  <div class="grid-2">
-    <div>
-      <div class="tabs">
-        <span class="tab active">소득 vs 물가</span>
-        <span class="tab">스킬 수요</span>
-        <span class="tab">연봉 분포</span>
-      </div>
-
-      <div class="card">
-        <h3>소득 vs 물가</h3>
-        <p class="note" style="margin:0;">
-          라인 차트: X축 최근 12개월, Y축 지수(기준월=100). 실선(Indigo)=소득 지수, 점선(Amber)=개인물가 지수.
-          소득 지수가 물가 지수 아래로 내려가는 구간(구매력 손실 구간)은 옅은 붉은 음영으로 표시.
-        </p>
-      </div>
-
-      <div class="card">
-        <h3>스킬 수요</h3>
-        <table>
-          <thead><tr><th>스킬</th><th>실무 기간</th><th>최근 3개월 수요 추세</th></tr></thead>
-          <tbody>
-            <tr><td>Spring Boot</td><td>36개월</td><td><span class="badge badge-success">상승</span></td></tr>
-            <tr><td>TypeScript</td><td>18개월</td><td><span class="badge badge-success">상승</span></td></tr>
-            <tr><td>Kubernetes</td><td>6개월</td><td><span class="badge badge-error">표본 부족</span></td></tr>
-          </tbody>
-        </table>
-      </div>
-
-      <div class="card">
-        <h3>연봉 분포</h3>
-        내 연봉 위치 <strong>상위 35%</strong>
-        <p class="note" style="margin:8px 0 0;">
-          최소 4,200만 · 25% 5,500만 · 중앙값 6,800만 · 75% 8,200만 · 최대 11,000만<br /><br />
-          공식 임금통계 중앙값 기준. 공고 공개연봉은 표본 충분할 때만 참고 범위로 병기. 표본 수·결측률 하단 각주에 표기.
-        </p>
-      </div>
-
-      <p class="note">탭 예시: 실제로는 클릭한 탭 하나의 콘텐츠만 화면에 표시된다. 위 3개는 참고용으로 모두 펼쳐 보여준 것.</p>
-    </div>
-    <div class="card">
-      <h3>12개월 시뮬레이터</h3>
-      <label>예상 인상률 (%)</label>
-      <input type="number" />
-      <label>이직 시 목표 세전 연봉 (원)</label>
-      <input type="number" />
-      <label>이직에 드는 일회성 비용 (원)</label>
-      <input type="number" />
-      <label>예상 구직 공백 (개월, 0~6)</label>
-      <input type="number" min="0" max="6" />
-      <div style="margin-top:14px;"><button class="btn btn-primary">계산</button></div>
-      <div class="alert alert-warning" style="margin-top:14px;">
-        <strong>추정 기회비용</strong> 약 640만원<br />
-        잔류 보상과 이직 보상의 차이입니다. 세금·성과급·주식보상·퇴직금은 포함하지 않습니다.
-      </div>
-    </div>
-  </div>
-
-  <p class="note">하단 각주: 표본 수, 공개연봉 결측률, 데이터 기준일. 외부 데이터 장애 시 업데이트 지연 배지와 마지막 갱신일 표시.</p>
 </div>
 </body>
 </html>
