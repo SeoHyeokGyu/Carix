@@ -38,15 +38,17 @@
 | S-07 | `/onboarding/expense` | 온보딩 3: 소비 | SSR shell + hydration | 세션 |
 | S-08 | `/onboarding/skills` | 온보딩 4: 스킬 | SSR shell + hydration | 세션 |
 | S-09 | `/onboarding/review` | 온보딩 5: 검토 | SSR shell + hydration | 세션 |
-| S-10 | `/dashboard` | 대시보드 메인 | SSR shell + hydration | 세션 + 온보딩 완료 |
+| S-10 | `/dashboard` | 대시보드 메인 (핵심 지표 3카드) | SSR shell + hydration | 세션 + 온보딩 완료 |
 | S-11 | `/dashboard/history` | 월별 스냅샷 이력 | SSR shell + hydration | 세션 + 온보딩 완료 |
-| S-12 | `/settings/records` | 소득·소비·스킬 이력 관리 | SSR shell + hydration | 세션 |
-| S-13 | `/settings/profile` | 세션·사용자 정보 관리, 삭제 | SSR shell + hydration | 세션 |
+| S-12 | `/mypage/records` | 소득·소비·스킬 이력 관리 | SSR shell + hydration | 세션 |
+| S-13 | `/mypage/profile` | 세션·사용자 정보 관리, 삭제 | SSR shell + hydration | 세션 |
+| S-14 | `/dashboard/trends` | 추이분석 (소득vs물가·스킬수요·연봉분포) | SSR shell + hydration | 세션 + 온보딩 완료 |
+| S-15 | `/dashboard/simulator` | 12개월 시뮬레이터 | SSR shell + hydration | 세션 + 온보딩 완료 |
 
 라우팅 가드 규칙:
 
 - 세션 없이 S-05 이후 접근 → `/login` 리다이렉트
-- 온보딩 미완료 세션이 `/dashboard` 접근 → 마지막 미완료 온보딩 단계로 리다이렉트
+- 온보딩 미완료 세션이 `/dashboard`, `/dashboard/trends`, `/dashboard/simulator` 접근 → 마지막 미완료 온보딩 단계로 리다이렉트
 - 온보딩 완료 세션이 `/onboarding/*` 접근 → `/dashboard` 리다이렉트 (검토 화면 S-09는 재진입 허용)
 
 ---
@@ -123,7 +125,7 @@
 - Given 표본 수 미달(N < 10) / When 지수 요청 / Then 수치 대신 `표본 부족` 상태와 현재 표본 수를 표시한다. 임의 수치를 만들지 않는다.
 - Given 외부 데이터 수집 실패 / When 대시보드 조회 / Then 마지막 성공 데이터 기준으로 표시하고 `업데이트 지연`과 기준일을 노출한다.
 
-**US-D3. 차트**
+**US-D3. 차트 (S-14)**
 
 - Given 12개월 이상 데이터 / When 소득 vs 물가 탭 / Then 소득 지수선(`incomeIndex`)과 개인물가 지수선(`personalPriceIndex`)을 기준월 100 지수 2계열로 표시하고, 소득선이 물가선 아래인 구간에 구매력 손실 음영을 칠한다. 원화 금액은 툴팁 보조 정보로만 노출한다 (원화·지수 축 혼용 금지 — UI §4.1과 동일).
 - Given 공개연봉 표본 존재 / When 연봉 분포 탭 / Then 판정 기준선은 공식 임금통계 중앙값이며, 공고 공개연봉 분포(최소·25%·중앙값·75%·최대)는 참고로 병기하고 사용자 위치 핀, 표본 수, 결측률을 함께 표시한다.
@@ -135,7 +137,7 @@
 
 ### 2.4 12개월 시나리오 (SCEN)
 
-**US-S1. 잔류 vs 이직 비교**
+**US-S1. 잔류 vs 이직 비교 (S-15)**
 
 - Given 대시보드 시뮬레이터 / When 예상 인상률, 이직 목표 연봉, 이직 일회성 비용, 예상 공백 기간, 실업급여 수급 요건 충족 여부(`isEligibleForUnemploymentBenefit`) 입력 / Then 잔류 보상, 이직 보상(요건 충족 시 실업급여 반영, 미충족 시 급여 0), 차이를 계산해 표시한다.
 - Given 계산 결과 / When 표시 / Then 차이를 `추정 추가보상` 또는 `추정 기회비용`으로 라벨링하고, 세금·성과급·주식보상·퇴직금이 미반영임을 문구로 명시한다.
@@ -235,7 +237,8 @@
 | S-10 대시보드 | 첫 계산 전: `첫 지수를 계산하고 있습니다` + 예상 소요 안내 | `표본 부족`, `업데이트 지연`, `추정` 뱃지 카드별 표시 | 재시도 버튼 + 마지막 성공 데이터 유지 |
 | S-11 이력 | 스냅샷 1개 이하: `다음 달부터 변화를 볼 수 있습니다` | 일부 월 누락 시 갭 표시 (선 연결 금지) | 재시도 |
 | S-12 이력 관리 | 항목 없음: 추가 유도 | — | 저장 실패 시 입력 보존 |
-| 시뮬레이터 | 미입력: 기본값 채움 없이 입력 유도 | 실업급여 조건 미충족 가정 시 안내 | 계산 실패 시 이전 결과 유지 + 오류 표시 |
+| S-14 추이분석 | 12개월 미만 데이터: 차트 대신 안내 문구 | `표본 부족`(N<10), 업데이트 지연 시 마지막 성공 데이터 + 지연 배지 (US-D2 기준 동일 적용) | 재시도 버튼 + 마지막 성공 데이터 유지 |
+| S-15 시뮬레이터 | 미입력: 기본값 채움 없이 입력 유도 | 실업급여 조건 미충족 가정 시 안내 | 계산 실패 시 이전 결과 유지 + 오류 표시 |
 
 공통 원칙:
 
@@ -321,9 +324,10 @@ MVP 완료 기준 10개 항목(MVP 스펙 §11)과 본 문서 스토리의 매�
 | S-07 소비 | US-O4 | `PUT /expenses/{ym}` | `expense_history`, `expense_item` |
 | S-08 스킬 | US-O5 | `GET /skills/search`, `POST /user-skills` | `skill`, `skill_alias`, `user_skill` |
 | S-09 검토·완료 | US-O6 | `PATCH /onboarding` | `users`(onboarding_step) |
-| S-10 대시보드 | US-D1~D3 | `GET /dashboard/summary`, `/trends`, `/salary-distribution`, `/skills` | `index_snapshot`, `market_aggregate`, `wage_stat_observation` |
+| S-10 대시보드 | US-D1~D2 | `GET /dashboard/summary` | `index_snapshot`, `market_aggregate` |
 | S-11 이력 | US-D4 | `GET /dashboard/history` | `index_snapshot` |
-| 시뮬레이터 | US-S1 | `POST /scenarios/simulate`, `GET /scenarios/latest` | `career_scenario` |
+| S-14 추이분석 | US-D3 | `GET /trends`, `/salary-distribution`, `/skills` | `market_aggregate`, `wage_stat_observation` |
+| S-15 시뮬레이터 | US-S1 | `POST /scenarios/simulate`, `GET /scenarios/latest` | `career_scenario` |
 | S-12 이력 관리 | US-R1 | `PUT`·`DELETE /income`·`/user-skills`, `PUT /expenses/{ym}` | `income_history`, `expense_*`, `user_skill` |
 | S-13 설정/탈퇴 | US-C1, US-C2 | `POST /auth/logout`·`/logout-all`, `DELETE /users` | `session`, 전 개인 테이블 |
 
