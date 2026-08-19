@@ -165,7 +165,7 @@ https://kosis.kr/openapi/Param/statisticsParameterData.do
 
 연 1회 공표이므로 배치 대상이 아니다. 값이 갱신되면
 `config/default-expense-weights.yml`의 `version`을 올린다. 재적재 방식은 구현 시 정한다 —
-core-api 저장소에는 Flyway 마이그레이션 디렉터리가 없다.
+core-api 는 Flyway 를 쓰지 않는다 — `core` 스키마는 DDL 을 직접 적용한다.
 
 ### 2.6 코드 충돌 — 어댑터 최대 위험
 

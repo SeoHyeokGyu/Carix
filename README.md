@@ -266,7 +266,7 @@ flowchart TD
 | UI·시각화 | Tailwind CSS, shadcn/ui, Recharts | 컴포넌트, 스타일, 지수 차트 | 부분 도입 — Tailwind CSS 4(`@tailwindcss/vite`)만 도입. shadcn/ui·Recharts는 미도입 |
 | 백엔드 | Java 25, Spring Boot 4.1, Gradle 멀티모듈 | 인증, 도메인 로직, REST API, 데이터 접근 | 도입 (인증은 auth-service에 구현·배포 배선 완료. core-api는 채용공고 영속화만 DB에 연결돼 있고, 대시보드·소득·소비·스킬·시나리오·프로필·참조 도메인은 REST 컨트롤러와 DTO만 있는 고정 응답 스텁 — 서비스·리포지터리 미연결) |
 | API 문서 | springdoc-openapi | OpenAPI 문서, Swagger UI | 도입 |
-| 데이터 접근 | Spring Data JPA, Flyway | 영속화, 스키마 마이그레이션 | 부분 도입 — auth-service(auth 스키마)는 Flyway 마이그레이션으로 완전 도입, core-api는 채용공고 도메인에 한해 JPA로 원격 DB 연결(Flyway 마이그레이션은 저장소에 없음), 그 외 도메인은 미도입 |
+| 데이터 접근 | Spring Data JPA, Flyway | 영속화, 스키마 마이그레이션 | 모듈별로 다름 — auth-service(`auth` 스키마)는 Flyway로 관리. core-api(`core` 스키마)는 **Flyway를 쓰지 않고 DDL을 직접 적용**한다(정본은 [상세 기술 명세](docs/specs/technical-specification.md), 절차는 [DEVELOPMENT.md §3.2](docs/DEVELOPMENT.md)). 채용공고 도메인만 JPA로 매핑돼 있고 나머지는 미도입 |
 | 데이터 수집 | Spring Batch | 외부 원천 수집·집계 | 미도입 |
 | 데이터베이스 | PostgreSQL 16 | 영속화 | 도입 (auth·채용공고 스키마·데이터 존재, 그 외 도메인 스키마 없음) |
 | 엣지 — 라우터 | Caddy 2 (`infra_caddy`) | 80/443 소유, TLS 종료·자동 발급, 호스트명 분기 | 도입 — **이 저장소 밖**(`~/infra`, 타 프로젝트와 공유) |
@@ -296,7 +296,7 @@ flowchart TD
 | Java 25 | 최신 LTS. Spring Boot 4.x의 하한(17)보다 높고 가상 스레드·AOT 캐시(Java 25+ 전용) 등 최신 LTS 기능을 씁니다 |
 | Spring Boot 4.1 | 스캐폴드 시점의 최신 GA. Spring Initializr 기본값이며 3.x는 더 이상 제공되지 않습니다 |
 | springdoc-openapi 3.0.3 | Boot 4 대응 라인입니다. 2.x는 Boot 3용이라 호환되지 않습니다 |
-| Spring Data JPA + Flyway | 스키마를 코드로 관리하고 마이그레이션 이력을 추적하기 위해 |
+| Spring Data JPA | 영속화 매핑. 스키마는 `auth`만 Flyway로 코드 관리하고, `core`는 마이그레이션 파일 관리 부담이 이득보다 크다고 보고 DDL 직접 적용으로 두었습니다(2026-08-19 결정) |
 | Spring Batch | 외부 원천(KOSIS·잡코리아·사람인 등) 수집이 재시도·청크 처리·잡 이력을 요구합니다 |
 | PostgreSQL | 초기 설계에서 고정. 별도 근거는 기록돼 있지 않습니다 |
 | Docker·PostgreSQL 서버 전용 | 로컬 개발 머신에 Docker를 두지 않기로 했습니다. 로컬 Docker 허용은 Testcontainers 실행이 쉬워지지만 요구사항이 늘고, 임베디드 DB(H2)는 실 Postgres와 스키마·기능 드리프트 위험이 있어 접었습니다 |

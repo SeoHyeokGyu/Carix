@@ -10,7 +10,7 @@ List IP 허용목록이다(§3 참조). 배경과 결정은
 >
 > | 항목 | 지금 (2026-08-09) |
 > | --- | --- |
-> | 백엔드 core-api | Spring Boot 4.1 + springdoc. `./gradlew build`·`bootRun` 동작. **JPA·Flyway는 채용공고 도메인에 한해 이미 적용됨**(`core` 스키마, 마이그레이션 SQL은 저장소에 없음) — **Security·Batch는 아직 없음** |
+> | 백엔드 core-api | Spring Boot 4.1 + springdoc. `./gradlew build`·`bootRun` 동작. **JPA는 채용공고 도메인에 한해 적용됨**(`core` 스키마). **Flyway는 쓰지 않는다** — `core` 스키마는 DDL 직접 적용이다(§3.2). **Security·Batch는 아직 없음** |
 > | 백엔드 auth-service | JPA·Flyway·초대·매직링크·세션·rate limit 구현 완료. 이메일 발송은 로깅 스텁. 배포 배선(Dockerfile·compose·CI)은 2026-08-02 커밋으로 연결 완료 |
 > | 프런트엔드 | 배포 검증용 스텁(`server.js`)만. **Vite·React 없음.** `pnpm dev`·`test:e2e` 스크립트 없음 |
 > | DB | `auth` 스키마는 auth-service가 쓴다. `core` 스키마는 core-api가 채용공고 도메인에 한해 쓴다(JPA `default_schema=core`) |
@@ -103,7 +103,7 @@ DB를 하나로 합쳤다 — `carix_dev` DB·롤과 initdb 스크립트를 제�
 | 위험 | 내용 |
 | --- | --- |
 | 개인정보 접근 | 팀원 전원이 실사용자의 연봉·지출·경력 데이터에 직접 접근한다. `SECURITY.md`가 컬럼 암호화를 요구하는 그 데이터다 |
-| 마이그레이션 사고 | 브랜치에서 잘못 실행한 Flyway 마이그레이션이 곧바로 운영 스키마에 적용된다 |
+| 스키마 사고 | `auth`는 브랜치에서 잘못 실행한 Flyway 마이그레이션이, `core`는 손으로 친 DDL이 곧바로 운영 스키마에 적용된다 |
 | 백업 부재 | 현재 DB 백업이 구현돼 있지 않다. 위 사고가 나면 복구 수단이 없다 |
 | 테스트 데이터 혼입 | 로컬에서 만든 데이터가 운영 DB에 남는다 |
 | 자격증명 확산 | 운영 DB 접근 정보가 팀원 노트북마다 존재한다 |
@@ -183,7 +183,39 @@ uid:gid `70:70`는 `postgres:16-alpine` 이미지의 postgres 프로세스 실�
 소유자가 다르거나 개인키 권한이 600보다 넓으면 컨테이너가 기동 시 거부한다.
 나머지(hba_file, ssl 플래그)는 `docker-compose.yml`의 postgres `command`를 참조한다.
 
-### 3.2 Flyway 규약
+### 3.2 스키마 관리 규약
+
+스키마마다 관리 방식이 다르다. 붙어 있는 모듈을 먼저 확인한다.
+
+| 스키마 | 모듈 | 관리 방식 |
+| --- | --- | --- |
+| `auth` | auth-service | Flyway 마이그레이션 (`src/main/resources/db/migration`) |
+| `core` | core-api | **DDL 직접 적용** (Flyway 미사용) |
+
+#### core 스키마 — 직접 적용
+
+`core-api`는 Flyway를 쓰지 않는다. DDL 정본은
+[`specs/technical-specification.md` §1](specs/technical-specification.md)이고, 실제 적용은
+사람이 `psql`로 한다.
+
+```bash
+psql "postgresql://<user>@144.24.90.88:5432/carix?sslmode=require"
+```
+
+지켜야 할 것:
+
+- **배포보다 DDL이 먼저다.** 새 컬럼·테이블을 쓰는 코드가 먼저 뜨면 런타임에
+  `relation ... does not exist`로 죽는다. 스키마를 적용하고 나서 머지한다.
+- **적용 이력이 자동으로 남지 않는다.** 무엇을 언제 적용했는지 PR 본문이나
+  `docs/specs/erd.md` 운영 현황 절에 직접 남긴다.
+- **`DROP`은 데이터가 사라진다.** 운영과 개발이 같은 DB다(§3 왜 같은 DB를 쓰는가).
+  컬럼 삭제·타입 변경은 되돌릴 수 없다고 보고 진행한다.
+- 스키마가 스펙과 어긋났는지는 `\d core.<table>`로 직접 대조한다. 자동 검증 수단은 없다.
+
+새 환경(빈 DB)에 `core`를 재현하려면 정본 DDL을 순서대로 실행한다 — 앱을 띄운다고
+테이블이 생기지 않는다.
+
+#### auth 스키마 — Flyway
 
 DB가 하나뿐이므로 마이그레이션 파일 이름이 충돌하면 **운영 스키마에서** 막힌다.
 
@@ -277,15 +309,15 @@ CONFIG_SERVER_URL=http://144.24.90.88:8890 EUREKA_URL=http://144.24.90.88:8761/e
 | `http://localhost:8080/api/v3/api-docs` | OpenAPI JSON |
 | `http://localhost:8080/api/v1/demo/thresholds` | Config Server 연동 확인. 서버 `config/spring/core-api.yml` 값을 읽는다 |
 
-- **DB 설정이 필요하다 (2026-08-09부터).** core-api가 채용공고 도메인에서 JPA·Flyway·Postgres
+- **DB 설정이 필요하다 (2026-08-09부터).** core-api가 채용공고 도메인에서 JPA·Postgres
   드라이버를 실제로 쓰기 시작했다(`backend/core-api/build.gradle`). `application.yml`·
   `application-local.yml`·Config Server 페이로드(`config/spring/core-api.yml`) 어디에도
   `spring.datasource.*` 기본값이나 `spring.autoconfigure.exclude`가 없고 `CarixApplication`도
   평범한 `@SpringBootApplication`이라, "DataSource 자동설정이 없으므로 §3 설정 없이도
   기동된다"는 더 이상 성립하지 않는다 — §2·§3에서 `.env`를 채운 뒤 실행한다.
-- Flyway는 core-api 저장소에 마이그레이션 파일이 없다(`db/migration` 디렉터리 없음, §3.2와 달리
-  auth-service만 실제 마이그레이션을 갖는다) — 기동 시 적용할 마이그레이션이 없어 스키마 변경은
-  일어나지 않는다.
+- core-api에는 Flyway 의존성 자체가 없다(2026-08-19 제거). 기동해도 스키마는 만들어지지 않으니
+  `core` 테이블이 없는 DB에 붙이면 `relation ... does not exist`로 죽는다 — DDL을 먼저
+  적용한다(§3.2).
 - 배치 워커는 아직 별도 모듈이 아니다([Spring Cloud 아키텍처](specs/spring-cloud-architecture.md)
   §2 참조) — 별도 프로파일(`--spring.profiles.active=local,batch`) 실행은 배치 도입 후 적용된다.
 
