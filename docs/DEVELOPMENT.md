@@ -335,16 +335,29 @@ pnpm test:e2e                     # Playwright
 cd backend && ./gradlew test
 ```
 
-### 통합 테스트 주의
+### DB를 쓰는 테스트는 두지 않는다 (2026-08-19)
 
-설계는 Testcontainers를 쓰나 로컬 Docker가 필요하다. Docker가 OCI 전용이므로:
+테스트용 DB를 쓰지 않기로 했다. 로컬에 Docker가 없고 운영 DB를 테스트 대상으로 삼을 수도
+없으므로, DB 연결이 필요한 테스트는 실행할 곳이 없다.
 
-- **로컬**: 단위 테스트 중심으로 돌린다.
-- **통합 테스트(Testcontainers)**: main 푸시 시 배포 워크플로의 backend 잡(Docker 가능 러너)에서
-  실행된다. [`.github/workflows/deploy.yml`](../.github/workflows/deploy.yml) 참조.
-  **PR 단계에서는 아무것도 돌지 않는다** — 머지 전에 확인하려면 로컬에서 직접 돌린다.
-- 급히 로컬에서 통합 테스트가 필요하면 OCI dev DB를 대상으로 실행하되, 스키마
-  드리프트에 주의한다.
+원래는 Testcontainers 설계였고 auth-service에 그 테스트 10개가 있었으나, 로컬에서는 Docker가
+없어 죽고 CI는 전 모듈을 `-x test`로 빌드해 **어디서도 실행된 적이 없었다.** 검증 지점이 0인
+테스트여서 의존성과 함께 제거했다.
+
+대신 컨텍스트를 띄우는 테스트는 **연결하지 않는 DataSource**로 돌린다
+(`backend/core-api/build.gradle`의 `test` 블록):
+
+```gradle
+systemProperty 'spring.datasource.url', 'jdbc:postgresql://127.0.0.1:1/unused'
+systemProperty 'spring.datasource.hikari.initialization-fail-timeout', '-1'
+systemProperty 'spring.jpa.database-platform', 'org.hibernate.dialect.PostgreSQLDialect'
+```
+
+커넥션은 잡지 않고 방언만 고정해 `EntityManagerFactory`를 만든다. 그래서 **엔티티 매핑과
+`@Query` JPQL은 컨텍스트 로드 시점에 검증된다** — 잘못된 필드명을 쓰면 `contextLoads`가 깨진다.
+DB를 실제로 읽고 쓰는 테스트를 새로 쓰면 연결 거부로 실패한다. 조용히 통과하지 않는다.
+
+DB 동작 확인이 필요하면 테스트가 아니라 앱을 OCI DB에 붙여 직접 확인한다(§3).
 
 ## 7. 커밋·브랜치
 

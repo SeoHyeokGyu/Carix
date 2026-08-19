@@ -202,7 +202,7 @@ Carix는 개인 커리어 지수 엔진이다. 복수 원천의 노동시장·�
   스키마 `core` 를 공유한다 ([Spring Cloud 아키텍처](spring-cloud-architecture.md))
 - 배치: Spring Batch 별도 워커 프로세스
 - 프런트엔드: Next.js App Router (최소: 로그인, 입력 폼, 대시보드 1페이지)
-- 테스트: JUnit 5, Testcontainers
+- 테스트: JUnit 5 (DB 를 쓰는 테스트는 두지 않는다 — 2026-08-19 결정)
 - 배포: Oracle Cloud Infrastructure (기존 계획 유지)
 
 ### 5.2 모듈 구성
@@ -256,7 +256,7 @@ Spring Batch Worker
   - 구매력 지수 계산
   - 스킬 수요 지수 계산 (원천별 모멘텀 결합, 가중치 재정규화 포함)
   - 결정표 규칙
-- 통합 (Testcontainers) 2개
+- 통합 2개 — DB 없이 검증 가능한 범위로 재설계 필요(테스트용 DB 미사용 결정에 따름)
   - 어댑터 정규화: 원천별 픽스처 응답 → 도메인 모델
   - 배치 멱등성: 동일 배치 2회 실행 = 동일 결과
 - E2E: 없음

@@ -252,7 +252,7 @@
 - 영속성: Spring Data JPA, 복잡한 집계 쿼리는 Spring `JdbcClient`
 - 마이그레이션: `auth` 스키마만 Flyway. `core` 스키마는 DDL 직접 적용(2026-08-19 결정, [DEVELOPMENT.md §3.2](../DEVELOPMENT.md))
 - 배치: Spring Batch와 별도 워커 프로세스
-- 테스트: JUnit 5, Testcontainers, 프런트엔드 단위 테스트, Playwright
+- 테스트: JUnit 5, 프런트엔드 단위 테스트, Playwright (DB 를 쓰는 테스트는 두지 않는다 — 2026-08-19 결정)
 
 Spring Boot와 React Router, Vite의 세부 버전은 구현 시작 시 지원 중인 안정 버전으로
 잠그고 저장소에 명시한다. 프런트엔드 상세 설계는
@@ -368,7 +368,7 @@ Spring Batch 실행 이력으로 처리하며, 실제 처리량과 재시도 요
 - 데이터·규칙 버전에 따른 결과 재현
 - 사용자 및 개인 데이터 삭제 후 제거
 
-PostgreSQL 동작에 의존하는 테스트는 Testcontainers를 사용한다.
+PostgreSQL 동작에 의존하는 테스트는 두지 않는다(2026-08-19 결정, [DEVELOPMENT.md §6](../DEVELOPMENT.md)). DB 동작은 앱을 OCI DB 에 붙여 직접 확인한다.
 
 ### 10.3 E2E 테스트
 
