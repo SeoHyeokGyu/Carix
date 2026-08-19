@@ -21,7 +21,7 @@
     *(상태 라벨: `PROPAGATED`)*
 
 3.  **기본 통계 가중치 대체 (Default Fallback):**
-    과거 기록이 전무한 가입 초기 온보딩 단계 등에서는 통계청(KOSIS) 전체 가구 월평균 소비지출 비중 데이터를 기본값으로 주입합니다. MVP는 가구원수를 수집하지 않으므로 전체 가구 평균을 사용합니다. 기본 가중치 시드는 저장소 내 `config/default-expense-weights.yml`(스키마: `version`, `sourceStatTable`, `basePeriod`, 카테고리별 비중 6개 — 합 1.0)로 관리합니다. 적재 방식은 구현 시 정합니다 — core-api 저장소에는 Flyway 마이그레이션 디렉터리가 없습니다. 6개 비중 값은 선행 검증에서 KOSIS 최신 가계동향조사 수치로 채웁니다.
+    과거 기록이 전무한 가입 초기 온보딩 단계 등에서는 통계청(KOSIS) 전체 가구 월평균 소비지출 비중 데이터를 기본값으로 주입합니다. MVP는 가구원수를 수집하지 않으므로 전체 가구 평균을 사용합니다. 기본 가중치 시드는 저장소 내 `config/default-expense-weights.yml`(스키마: `version`, `sourceStatTable`, `basePeriod`, 카테고리별 비중 6개 — 합 1.0)로 관리합니다. 적재 방식은 구현 시 정합니다 — core-api 는 Flyway 를 쓰지 않으므로 마이그레이션 시드로 넣을 수 없습니다. 6개 비중 값은 선행 검증에서 KOSIS 최신 가계동향조사 수치로 채웁니다.
     *(상태 라벨: `DEFAULT_CPI`)*
 
 4.  **부분 입력 혼합 (Partial Input Blending):**

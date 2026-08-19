@@ -10,7 +10,14 @@ import org.jsoup.select.Elements;
 public class SaraminListingEnricher {
 
   public SaraminListingFields extract(String listingPageHtml, String externalId) {
-    Document doc = Jsoup.parse(listingPageHtml);
+    return extract(Jsoup.parse(listingPageHtml), externalId);
+  }
+
+  /**
+   * 목록페이지 하나에 공고 40건이 실려 있다. 같은 페이지를 공고마다 다시 파싱하지 않도록
+   * 이미 파싱된 문서를 받는 경로를 따로 둔다.
+   */
+  public SaraminListingFields extract(Document doc, String externalId) {
     Element item = doc.selectFirst("div.item_recruit[value=" + externalId + "]");
     if (item == null) {
       return new SaraminListingFields(null, null, List.of(), List.of());

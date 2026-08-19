@@ -250,7 +250,7 @@
 - API: Java 21, Spring Boot, Spring Security
 - 데이터베이스: PostgreSQL
 - 영속성: Spring Data JPA, 복잡한 집계 쿼리는 Spring `JdbcClient`
-- 마이그레이션: Flyway
+- 마이그레이션: `auth` 스키마만 Flyway. `core` 스키마는 DDL 직접 적용(2026-08-19 결정, [DEVELOPMENT.md §3.2](../DEVELOPMENT.md))
 - 배치: Spring Batch와 별도 워커 프로세스
 - 테스트: JUnit 5, Testcontainers, 프런트엔드 단위 테스트, Playwright
 

@@ -196,7 +196,7 @@ Carix는 개인 커리어 지수 엔진이다. 복수 원천의 노동시장·�
 ### 5.1 기술 스택
 
 - API: Java 21, Spring Boot, Spring Security(세션 로그인)
-- 데이터베이스: PostgreSQL, Flyway
+- 데이터베이스: PostgreSQL. 스키마 관리는 `auth`만 Flyway이고 `core`는 DDL 직접 적용이다(2026-08-19 결정)
 - 영속성: Spring Data JPA, 복잡한 집계는 `JdbcClient`
 - 서비스 분리 예정: 인증은 `auth-service`(스키마 `auth`), 나머지는 `core-api`·`batch-worker`가
   스키마 `core` 를 공유한다 ([Spring Cloud 아키텍처](spring-cloud-architecture.md))
@@ -245,7 +245,7 @@ Spring Batch Worker
 - WageStatObservation은 `(직종, 경력구간, 지역, 기준기간)` 유니크로 upsert하고
   통계 개정 시 `stat_vintage`로 발표 시점을 구분한다.
 - 계정 비밀번호는 argon2 또는 bcrypt로 해시한다. 시드 값은 환경변수나 CLI로
-  주입하며 저장소에 커밋하지 않는다. Flyway 시드에 평문을 넣지 않는다.
+  주입하며 저장소에 커밋하지 않는다. 스키마 시드(auth 는 Flyway, core 는 DDL)에 평문을 넣지 않는다.
 
 ## 6. 테스트 전략
 

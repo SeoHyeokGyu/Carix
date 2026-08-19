@@ -254,18 +254,19 @@ flowchart TD
 
 ## 기술 구성
 
-목표 스택과 현재 반영 여부를 함께 적습니다. 지금은 배포 파이프라인 검증용 최소 스캐폴드라
-프런트엔드 스택은 대부분 도입 전입니다.
+목표 스택과 현재 반영 여부를 함께 적습니다. 프런트엔드는 랜딩 화면까지, 백엔드는
+인증(auth-service)과 채용공고 수집·영속화까지 실제 구현이 있고, 나머지 도메인은
+스텁 또는 미착수 단계입니다.
 
 | 계층 | 기술 | 책임 | 현재 |
 | --- | --- | --- | --- |
-| 프런트엔드 | Vite, React, TypeScript, React Router Framework Mode | UI, 라우팅, SSR·사전 렌더링 | 미도입 |
-| Node SSR | Node.js 24 LTS, Express, `@react-router/express` | HTML 렌더링, SEO metadata, 공개 콘텐츠 | 미도입 — `node:http` 스텁 |
+| 프런트엔드 | Vite, React, TypeScript, React Router Framework Mode | UI, 라우팅, SSR·사전 렌더링 | 도입 — 랜딩(`/`)만 구현. `ssr: false` + `/` 사전 렌더링 구성이라 SSR은 아직 꺼져 있습니다 |
+| Node SSR | Node.js 24 LTS, Express, `@react-router/express` | HTML 렌더링, SEO metadata, 공개 콘텐츠 | 미도입 — `frontend/server.js`는 `node:http` 정적 파일 서버로, 빌드된 사전 렌더링 산출물만 서빙합니다 (아래 §렌더링 전략 주석 참조) |
 | 클라이언트 데이터 | TanStack Query, React Hook Form, Zod | API 상태, 입력 폼, 검증 | 미도입 |
-| UI·시각화 | Tailwind CSS, shadcn/ui, Recharts | 컴포넌트, 스타일, 지수 차트 | 미도입 |
-| 백엔드 | Java 25, Spring Boot 4.1, Gradle 멀티모듈 | 인증, 도메인 로직, REST API, 데이터 접근 | 도입 (인증은 auth-service에 구현·배포 배선 완료, core-api 도메인 로직은 채용공고 영속화만 구현되고 REST 미노출, 그 외는 스캐폴드 단계) |
+| UI·시각화 | Tailwind CSS, shadcn/ui, Recharts | 컴포넌트, 스타일, 지수 차트 | 부분 도입 — Tailwind CSS 4(`@tailwindcss/vite`)만 도입. shadcn/ui·Recharts는 미도입 |
+| 백엔드 | Java 25, Spring Boot 4.1, Gradle 멀티모듈 | 인증, 도메인 로직, REST API, 데이터 접근 | 도입 (인증은 auth-service에 구현·배포 배선 완료. core-api는 채용공고 영속화만 DB에 연결돼 있고, 대시보드·소득·소비·스킬·시나리오·프로필·참조 도메인은 REST 컨트롤러와 DTO만 있는 고정 응답 스텁 — 서비스·리포지터리 미연결) |
 | API 문서 | springdoc-openapi | OpenAPI 문서, Swagger UI | 도입 |
-| 데이터 접근 | Spring Data JPA, Flyway | 영속화, 스키마 마이그레이션 | 부분 도입 — auth-service(auth 스키마)는 Flyway 마이그레이션으로 완전 도입, core-api는 채용공고 도메인에 한해 JPA로 원격 DB 연결(Flyway 마이그레이션은 저장소에 없음), 그 외 도메인은 미도입 |
+| 데이터 접근 | Spring Data JPA, Flyway | 영속화, 스키마 마이그레이션 | 모듈별로 다름 — auth-service(`auth` 스키마)는 Flyway로 관리. core-api(`core` 스키마)는 **Flyway를 쓰지 않고 DDL을 직접 적용**한다(정본은 [상세 기술 명세](docs/specs/technical-specification.md), 절차는 [DEVELOPMENT.md §3.2](docs/DEVELOPMENT.md)). 채용공고 도메인만 JPA로 매핑돼 있고 나머지는 미도입 |
 | 데이터 수집 | Spring Batch | 외부 원천 수집·집계 | 미도입 |
 | 데이터베이스 | PostgreSQL 16 | 영속화 | 도입 (auth·채용공고 스키마·데이터 존재, 그 외 도메인 스키마 없음) |
 | 엣지 — 라우터 | Caddy 2 (`infra_caddy`) | 80/443 소유, TLS 종료·자동 발급, 호스트명 분기 | 도입 — **이 저장소 밖**(`~/infra`, 타 프로젝트와 공유) |
@@ -295,7 +296,7 @@ flowchart TD
 | Java 25 | 최신 LTS. Spring Boot 4.x의 하한(17)보다 높고 가상 스레드·AOT 캐시(Java 25+ 전용) 등 최신 LTS 기능을 씁니다 |
 | Spring Boot 4.1 | 스캐폴드 시점의 최신 GA. Spring Initializr 기본값이며 3.x는 더 이상 제공되지 않습니다 |
 | springdoc-openapi 3.0.3 | Boot 4 대응 라인입니다. 2.x는 Boot 3용이라 호환되지 않습니다 |
-| Spring Data JPA + Flyway | 스키마를 코드로 관리하고 마이그레이션 이력을 추적하기 위해 |
+| Spring Data JPA | 영속화 매핑. 스키마는 `auth`만 Flyway로 코드 관리하고, `core`는 마이그레이션 파일 관리 부담이 이득보다 크다고 보고 DDL 직접 적용으로 두었습니다(2026-08-19 결정) |
 | Spring Batch | 외부 원천(KOSIS·잡코리아·사람인 등) 수집이 재시도·청크 처리·잡 이력을 요구합니다 |
 | PostgreSQL | 초기 설계에서 고정. 별도 근거는 기록돼 있지 않습니다 |
 | Docker·PostgreSQL 서버 전용 | 로컬 개발 머신에 Docker를 두지 않기로 했습니다. 로컬 Docker 허용은 Testcontainers 실행이 쉬워지지만 요구사항이 늘고, 임베디드 DB(H2)는 실 Postgres와 스키마·기능 드리프트 위험이 있어 접었습니다 |
@@ -324,7 +325,7 @@ flowchart TD
     CarixCaddy --> GW["gateway :8080"]
     GW -->|"/api/v1/**"| CoreApi["core-api :8082"]
     GW -->|"그 외"| NodeSSR["frontend-node :3000"]
-    NodeSSR -.->|"SSR 중 API 호출"| CoreApi
+    NodeSSR -.->|"SSR 도입 시 API 호출"| CoreApi
     CoreApi --> DB[(PostgreSQL)]
     CoreApi -.->|"설정 조회"| Config["config-server :8888"]
     CoreApi -.->|"등록"| Eureka["eureka :8761"]
@@ -360,35 +361,42 @@ Node 서버는 DB에 직접 접근하거나 Spring Boot 로직을 복제하지 �
 공개 페이지는 title, description, canonical URL, Open Graph metadata, sitemap,
 robots 정책과 필요한 구조화 데이터를 제공합니다.
 
+> **현재 구현은 위 전략과 다릅니다.** `frontend/react-router.config.ts`가 `ssr: false`,
+> `prerender: ["/"]`이고 `server.js`는 정적 파일만 서빙합니다. 즉 랜딩 한 장을 사전 렌더링한
+> 정적 SPA입니다. `/login`·`/dashboard/*`를 착수하려면 Express + `@react-router/express`로
+> SSR을 켜거나, 라우팅 가드를 클라이언트 전용으로 재설계할지 먼저 정해야 합니다.
+
 ### 테스트
 
 | 대상 | 기술 | 현재 |
 | --- | --- | --- |
 | 백엔드 단위·슬라이스 | JUnit 5, Spring Boot Test, MockMvc | 도입 |
-| 백엔드 통합 | Testcontainers | 미도입 (DB 도입 후) |
-| 프런트 단위·컴포넌트 | Vitest, Testing Library | 미도입 |
+| 백엔드 통합 | Testcontainers | 도입 — auth-service만. 로컬 Docker가 없으면 실행되지 않습니다 |
+| 프런트 단위·컴포넌트 | Vitest, Testing Library | 도입 — `pnpm test:unit` |
 | API 모킹 | MSW | 미도입 |
-| 브라우저 E2E | Playwright | 미도입 |
+| 브라우저 E2E | Playwright | 도입 — 랜딩 E2E와 `@axe-core/playwright` 접근성 검사 (`pnpm test:e2e`) |
 
 PR 단계 CI는 두지 않습니다. `./gradlew build`가 자동으로 도는 지점은 main 푸시의 배포
 워크플로뿐이며, 프런트엔드 검증은 로컬에서 직접 돌립니다.
 
-OCI VM에서는 `carix-caddy`, `frontend-node`, `config-server`, `eureka`,
-`core-api`, `postgres` 컨테이너를 Docker Compose로 운영합니다 (`auth-service`·`batch-worker`는
-분리 시 추가). 이미지는 컴포넌트별로 GitHub Actions(ARM 러너)가 빌드해 GHCR에 올리고 서버는
-pull만 합니다. 엣지는 2단으로, 서버의 라우터 Caddy가 TLS를 종료하고 호스트명으로 분기하면
+OCI VM에서는 `carix-caddy`, `frontend-node`, `config-server`, `eureka`, `gateway`,
+`auth-service`, `core-api`, `postgres` 컨테이너를 Docker Compose로 운영합니다
+(`batch-worker`는 분리 시 추가). 이미지는 컴포넌트별로 GitHub Actions(ARM 러너)가 빌드해
+GHCR에 올리고 서버는 pull만 합니다. 엣지는 2단으로, 서버의 라우터 Caddy가 TLS를 종료하고 호스트명으로 분기하면
 프로젝트 전용 `carix-caddy`가 애플리케이션 라우팅을 맡습니다 (근거는 위 배포 계획·설계서 참조).
 
 ## 프로젝트 상태
 
-현재 단계는 **제품 발견 및 MVP 설계**입니다.
+현재 단계는 **MVP 구현 착수**입니다. 설계 문서와 와이어프레임은 정리돼 있고, 인증·채용공고
+수집은 동작하며, 나머지 도메인은 API 규격만 스텁으로 노출된 상태입니다.
 
 - [x] 프로젝트 이름과 핵심 문제 정의
 - [x] 핵심 지수와 데이터 연결 구조 정의
 - [x] GitHub 저장소 및 협업자 구성
 - [x] MVP 상세 요구사항 정의 (임계값·표본 기준 등 세부 수치는 데이터 검증 후 확정)
 - [x] 기술 스택 결정
-- [ ] 데이터 수집 가능성 검증
+- [ ] 데이터 수집 가능성 검증 — 잡코리아·사람인은 스크래핑으로 실측 완료(공고 800건·스킬 699개
+      원격 DB 적재, 산출물은 `verification/out/`). KOSIS CPI와 임금통계 기준선 통계표 실측은 남음
 - [ ] 애플리케이션 구현
 - [x] Oracle Cloud Infrastructure(OCI) 배포 환경 구성 — 2026-07-26 첫 배포 성공.
       최소 스캐폴드 기준 빌드 → GHCR → SSH → 헬스체크 전 구간 검증 (배포 계획은 위 §기술 구성)
@@ -408,9 +416,9 @@ Carix/
 │   ├── caddy/router.caddy     라우터 Caddy가 import하는 호스트명 분기
 ├── config/                    CPI 분류 매핑, 기본 지출 가중치
 ├── verification/              데이터 원천 선행 검증 스크립트와 실측 노트
-├── frontend/                  Node SSR (현재는 배포 검증용 스텁 — Vite·React 스캐폴드 예정)
-├── backend/                   Gradle 멀티모듈 — config-server, eureka, core-api
-│                               (core-api 는 최소 스캐폴드 — JPA·Batch·Gateway 도입 예정)
+├── frontend/                  React Router 7 + Vite + Tailwind (랜딩만 구현, 정적 서빙 — SSR 미도입)
+├── backend/                   Gradle 멀티모듈 — config-server, eureka, gateway, auth-service, core-api
+│                               (core-api 도메인 API 는 고정 응답 스텁 — Batch 미도입)
 ├── docs/
 │   ├── README.md             문서 맵 (주제별 인덱스 — 여기서 시작)
 │   ├── specs/                설계 문서 정본 (MVP, API, DB, UI/UX 등)
@@ -426,7 +434,8 @@ Carix/
 로컬 개발은 순수 코드 중심이며, **Docker와 PostgreSQL은 OCI 서버에서만 기동**합니다.
 
 - **docker-compose.yml은 OCI 배포 전용**입니다. 로컬에서 `docker compose up`으로 사용하지 않습니다.
-- **로컬 프런트엔드:** Vite dev server를 띄우고 `/api`를 백엔드로 프록시합니다. Docker 불필요.
+- **로컬 프런트엔드:** Vite dev server(`pnpm dev`)를 띄웁니다. Docker 불필요. `/api` 프록시는
+  아직 구성돼 있지 않습니다 — 프런트가 백엔드를 호출하는 시점에 `vite.config.ts`에 추가합니다.
 - **로컬 백엔드:** 로컬에 DB를 띄우지 않고 **OCI의 `carix` DB에 원격 연결**합니다. 접근은 TLS + OCI Security List IP 허용목록입니다. 운영과 개발이 같은 DB입니다(대안 비교·감수한 위험은 [DEVELOPMENT.md §3](docs/DEVELOPMENT.md)).
 - **통합 테스트:** 설계는 Testcontainers를 쓰지만 로컬 Docker가 필요하므로, 통합 테스트는 배포 워크플로(Docker 제공 러너) 또는 OCI DB 대상으로 실행하고 로컬에서는 단위 테스트를 중심으로 돌립니다. PR 단계 CI가 없으므로 자동 실행 지점은 main 푸시뿐입니다.
 - 환경 변수는 [`.env.example`](.env.example)을 복사해 `.env`로 채웁니다. API 키·시크릿은 저장소에 커밋하지 않습니다.
@@ -440,11 +449,15 @@ Carix/
 PR 단계 CI는 두지 않습니다. 자동 검증은 배포 워크플로가 main 푸시에서 수행하는
 `./gradlew build` 하나이며, 프런트엔드 lint·타입체크·테스트는 로컬에서 직접 돌립니다.
 
-현재 제공하는 엔드포인트는 다음이 전부입니다 (계층별 도입 현황은 위 기술 구성 표 참조).
+현재 제공하는 엔드포인트는 다음과 같습니다 (계층별 도입 현황은 위 기술 구성 표 참조).
 
 - API 문서: `https://carix.144.24.90.88.sslip.io/api/swagger-ui/index.html`
 - `GET /api/health` — 배포 헬스체크 대상
 - `POST /api/v1/demo/echo` — 임시. Swagger 확인용이며 도메인 API 도입 시 제거합니다
+- `/api/v1/dashboard/**`, `/api/v1/income/**`, `/api/v1/expenses/**`, `/api/v1/scenarios/**`,
+  `/api/v1/reference/**`, `/api/v1/skills/**`, `/api/v1/user-skills/**`, `/api/v1/profile`,
+  `/api/v1/onboarding`, `DELETE /api/v1/users` — **모두 고정 응답 스텁입니다.** API 규격과 Swagger 문서를 먼저 확정하려고
+  만든 것이며, DB나 도메인 계산에 연결돼 있지 않습니다
 
 ## 협업 방식
 
