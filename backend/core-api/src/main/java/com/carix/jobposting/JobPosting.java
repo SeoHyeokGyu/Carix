@@ -10,6 +10,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -125,6 +126,34 @@ public class JobPosting {
 
   public void addSkill(Skill skill) {
     jobPostingSkills.add(new JobPostingSkill(this, skill));
+  }
+
+  /** 원천이 공개한 세전 연봉 범위(만원). 비공개 공고는 호출하지 않는다. */
+  public void applyDisclosedSalary(Long min, Long max) {
+    this.salaryMin = min;
+    this.salaryMax = max;
+  }
+
+  /** 원천 직무명에서 판정한 MVP 직군 코드를 붙인다. */
+  public void classifyAs(String jobFamily) {
+    this.jobFamily = jobFamily;
+  }
+
+  /**
+   * 스킬 연결을 원천 재파싱 결과에 맞춘다. 전부 지우고 다시 넣지 않는 이유는
+   * `(job_posting_id, skill_id)` 유니크 제약 때문이다 — 같은 플러시 안에서 삭제보다
+   * 삽입이 먼저 나가면 그대로 남을 연결이 중복으로 걸린다. 빠질 것만 빼고 새것만 넣는다.
+   */
+  public void replaceSkills(List<Skill> skills) {
+    Set<UUID> targetIds = skills.stream().map(Skill::getId).collect(Collectors.toSet());
+    jobPostingSkills.removeIf(link -> !targetIds.contains(link.getSkill().getId()));
+
+    Set<UUID> linkedIds = jobPostingSkills.stream()
+        .map(link -> link.getSkill().getId())
+        .collect(Collectors.toSet());
+    skills.stream()
+        .filter(skill -> !linkedIds.contains(skill.getId()))
+        .forEach(this::addSkill);
   }
 
   public UUID getId() {

@@ -1,11 +1,16 @@
 package com.carix.jobposting.seed;
 
+import com.carix.crawler.JobKoreaDetailParser;
 import com.carix.jobposting.JobPosting;
 import com.carix.jobposting.JobPostingRepository;
 import com.carix.jobposting.RawIngest;
 import com.carix.jobposting.RawIngestRepository;
 import com.carix.jobposting.Skill;
 import com.carix.jobposting.SkillRepository;
+import com.carix.jobposting.normalize.JobFamilyClassifier;
+import com.carix.jobposting.normalize.JobKoreaPayParser;
+import com.carix.jobposting.normalize.SalaryRange;
+import com.carix.jobposting.normalize.SkillTaxonomy;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
@@ -14,8 +19,10 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Instant;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVParser;
 import org.apache.commons.csv.CSVRecord;
@@ -31,6 +38,10 @@ public class SeedLoader {
   private final RawIngestRepository rawIngestRepository;
   private final JobKoreaListingEnricher jobKoreaListingEnricher = new JobKoreaListingEnricher();
   private final SaraminListingEnricher saraminListingEnricher = new SaraminListingEnricher();
+  private final JobKoreaDetailParser jobKoreaDetailParser = new JobKoreaDetailParser();
+  private final JobKoreaPayParser jobKoreaPayParser = new JobKoreaPayParser();
+  private final JobFamilyClassifier jobFamilyClassifier = new JobFamilyClassifier();
+  private final SkillTaxonomy skillTaxonomy = new SkillTaxonomy();
 
   public SeedLoader(JobPostingRepository jobPostingRepository, SkillRepository skillRepository,
       RawIngestRepository rawIngestRepository) {
@@ -86,27 +97,45 @@ public class SeedLoader {
   private boolean loadJobKoreaRow(CSVRecord record, String externalId,
       ListingPageIndex listingIndex, Path detailRawDir) throws IOException {
     Path detailFile = detailRawDir.resolve("detail-" + externalId + ".json");
-    Instant collectedAt = Files.exists(detailFile)
-        ? persistRawIngestFromDetailFile("JOBKOREA", "detail-" + externalId, detailFile)
-        : Instant.parse("2026-08-09T00:00:00Z");
+    String detailHtml = null;
+    Instant collectedAt = Instant.parse("2026-08-09T00:00:00Z");
+    if (Files.exists(detailFile)) {
+      JsonNode detail = OBJECT_MAPPER.readTree(detailFile.toFile());
+      detailHtml = detail.path("rawContent").asText(null);
+      collectedAt = Instant.parse(detail.path("collectedAt").asText());
+      persistRawIngestIfAbsent("JOBKOREA", "detail-" + externalId, detailHtml, collectedAt);
+    }
 
     String listingHtml = listingIndex.htmlForJobKorea(externalId);
     JobKoreaListingFields fields = listingHtml != null
         ? jobKoreaListingEnricher.extract(listingHtml, externalId)
         : new JobKoreaListingFields(null, null, null, null, null, null);
 
+    // 상세페이지 급여 블록이 목록페이지 셀보다 커버리지가 훨씬 넓다(실측 400건 중 317 대 36).
+    SalaryRange salary = detailHtml == null ? null
+        : jobKoreaPayParser.parse(jobKoreaDetailParser.extractSalaryRaw(detailHtml));
+    // 상세페이지가 있으면 그 급여 블록이 판정 권위다. 목록페이지 셀은 상세가 없을 때만 쓴다.
+    Long salaryMin = detailHtml != null ? valueOf(salary, SalaryRange::min) : fields.salaryMin();
+    Long salaryMax = detailHtml != null ? valueOf(salary, SalaryRange::max) : fields.salaryMax();
+    String jobFamily = detailHtml == null ? JobFamilyClassifier.OTHER
+        : jobFamilyClassifier.classify(jobKoreaDetailParser.extractJobTypeName(detailHtml));
+
     JobPosting posting = new JobPosting(
         "JOBKOREA", externalId, record.get("Title"), record.get("Company"),
-        fields.salaryMin(), fields.salaryMax(), record.get("Location"),
+        salaryMin, salaryMax, record.get("Location"),
         parseIntOrNull(record.get("CareerRange")), null,
-        fields.employmentType(), null, fields.companyBadge(), fields.positionLevel(), null, null,
+        fields.employmentType(), null, fields.companyBadge(), fields.positionLevel(), jobFamily,
+        null,
         JobPostingDateParser.parseCreatedAt("JOBKOREA", record.get("CreatedAt"), collectedAt),
         JobPostingDateParser.parseDeadline("JOBKOREA", fields.postedEndDateRaw(), collectedAt),
         SEED_MONTH, SEED_MONTH, collectedAt);
 
-    for (String skillName : distinct(splitSkills(record.get("Skills")))) {
-      posting.addSkill(upsertSkill(skillName, "SKILL"));
-    }
+    // CSV 의 Skills 열에는 스킬 유형이 없어 인성 역량을 걸러낼 수 없다. 상세페이지가 있으면
+    // 거기서 직무 역량만 뽑고, 없을 때만 CSV 로 물러선다.
+    List<String> skillNames = detailHtml != null
+        ? jobKoreaDetailParser.extractSkills(detailHtml)
+        : splitSkills(record.get("Skills"));
+    addSkills(posting, skillNames);
 
     jobPostingRepository.save(posting);
     return true;
@@ -127,25 +156,43 @@ public class SeedLoader {
         "SARAMIN", externalId, record.get("Title"), record.get("Company"),
         null, null, record.get("Location"),
         parseIntOrNull(record.get("CareerRange")), null,
-        fields.employmentType(), null, null, null, null, null,
+        fields.employmentType(), null, null, null,
+        jobFamilyClassifier.classifyTags(fields.skillTags()), null,
         JobPostingDateParser.parseCreatedAt("SARAMIN", record.get("CreatedAt"), collectedAt),
         JobPostingDateParser.parseDeadline("SARAMIN", fields.postedEndDateRaw(), collectedAt),
         SEED_MONTH, SEED_MONTH, collectedAt);
 
-    for (String skillName : distinct(fields.skillTags())) {
-      posting.addSkill(upsertSkill(skillName, "SKILL"));
-    }
+    addSkills(posting, fields.skillTags());
     for (String industryName : distinct(fields.industryTags())) {
-      posting.addSkill(upsertSkill(industryName, "INDUSTRY"));
+      posting.addSkill(upsertSkill(skillTaxonomy.canonicalName(industryName), "INDUSTRY"));
     }
 
     jobPostingRepository.save(posting);
     return true;
   }
 
+  /**
+   * 원천 표기를 표준 표기로 합치고 분류를 매겨 공고에 붙인다. 직무 카테고리 태그는 버리지
+   * 않고 `JOB_CATEGORY` 로 분리해 스킬 수요 집계에서만 빠지게 한다.
+   */
+  private void addSkills(JobPosting posting, List<String> rawNames) {
+    Set<String> applied = new LinkedHashSet<>();
+    for (String rawName : rawNames) {
+      String canonicalName = skillTaxonomy.canonicalName(rawName);
+      if (canonicalName == null || canonicalName.isBlank()) {
+        continue;
+      }
+      String category = skillTaxonomy.category(canonicalName);
+      if (applied.add(canonicalName + " " + category)) {
+        posting.addSkill(upsertSkill(canonicalName, category));
+      }
+    }
+  }
+
+  /** 수집으로 관측된 스킬이므로 `is_custom` 은 false 다 — 사용자 직접 입력분이 아니다. */
   private Skill upsertSkill(String standardName, String category) {
     return skillRepository.findByStandardNameAndCategory(standardName, category)
-        .orElseGet(() -> skillRepository.save(new Skill(standardName, category, true)));
+        .orElseGet(() -> skillRepository.save(new Skill(standardName, category, false)));
   }
 
   private List<String> splitSkills(String csvSkillsCell) {
@@ -162,6 +209,10 @@ public class SeedLoader {
     return values.stream().distinct().toList();
   }
 
+  private Long valueOf(SalaryRange salary, java.util.function.Function<SalaryRange, Long> field) {
+    return salary == null ? null : field.apply(salary);
+  }
+
   private Integer parseIntOrNull(String value) {
     if (value == null || value.isBlank()) {
       return null;
@@ -171,15 +222,6 @@ public class SeedLoader {
     } catch (NumberFormatException e) {
       return null;
     }
-  }
-
-  /** 잡코리아 상세페이지 1건 = raw_ingest 1행(1:1). */
-  private Instant persistRawIngestFromDetailFile(String source, String sourceItemId, Path detailFile)
-      throws IOException {
-    JsonNode node = OBJECT_MAPPER.readTree(detailFile.toFile());
-    Instant collectedAt = Instant.parse(node.path("collectedAt").asText());
-    persistRawIngestIfAbsent(source, sourceItemId, node.path("rawContent").asText(), collectedAt);
-    return collectedAt;
   }
 
   /**

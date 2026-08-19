@@ -1,5 +1,7 @@
 package com.carix.crawler;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
@@ -24,6 +26,26 @@ class JobKoreaDetailParserTest {
     assertTrue(skills.contains("AWS"));
     assertTrue(skills.contains("Docker"));
     assertTrue(skills.contains("Python"));
+  }
+
+  @Test
+  void excludesSoftSkillsFromTheSkillList() throws IOException {
+    String html = loadFixture();
+
+    List<String> skills = new JobKoreaDetailParser().extractSkills(html);
+
+    // 잡코리아는 인성 역량도 같은 배열에 담아 준다. 스킬 수요 집계에 섞이면 안 된다.
+    assertFalse(skills.contains("성실성"));
+    assertFalse(skills.contains("협동심"));
+    assertFalse(skills.contains("성취지향성"));
+  }
+
+  @Test
+  void extractsJobTypeName() throws IOException {
+    String html = loadFixture();
+
+    assertEquals("백엔드개발자,프론트엔드개발자",
+        new JobKoreaDetailParser().extractJobTypeName(html));
   }
 
   @Test
