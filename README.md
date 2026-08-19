@@ -371,7 +371,7 @@ robots 정책과 필요한 구조화 데이터를 제공합니다.
 | 대상 | 기술 | 현재 |
 | --- | --- | --- |
 | 백엔드 단위·슬라이스 | JUnit 5, Spring Boot Test, MockMvc | 도입 |
-| 백엔드 통합 | Testcontainers | 도입 — auth-service만. 로컬 Docker가 없으면 실행되지 않습니다 |
+| 백엔드 통합 | — | **두지 않습니다.** 테스트용 DB를 쓰지 않기로 했습니다(2026-08-19 결정). 로컬에 Docker가 없어 Testcontainers 테스트가 어디서도 실행되지 않던 상태라, auth-service의 해당 테스트 10개와 의존성을 제거했습니다 |
 | 프런트 단위·컴포넌트 | Vitest, Testing Library | 도입 — `pnpm test:unit` |
 | API 모킹 | MSW | 미도입 |
 | 브라우저 E2E | Playwright | 도입 — 랜딩 E2E와 `@axe-core/playwright` 접근성 검사 (`pnpm test:e2e`) |
@@ -437,7 +437,7 @@ Carix/
 - **로컬 프런트엔드:** Vite dev server(`pnpm dev`)를 띄웁니다. Docker 불필요. `/api` 프록시는
   아직 구성돼 있지 않습니다 — 프런트가 백엔드를 호출하는 시점에 `vite.config.ts`에 추가합니다.
 - **로컬 백엔드:** 로컬에 DB를 띄우지 않고 **OCI의 `carix` DB에 원격 연결**합니다. 접근은 TLS + OCI Security List IP 허용목록입니다. 운영과 개발이 같은 DB입니다(대안 비교·감수한 위험은 [DEVELOPMENT.md §3](docs/DEVELOPMENT.md)).
-- **통합 테스트:** 설계는 Testcontainers를 쓰지만 로컬 Docker가 필요하므로, 통합 테스트는 배포 워크플로(Docker 제공 러너) 또는 OCI DB 대상으로 실행하고 로컬에서는 단위 테스트를 중심으로 돌립니다. PR 단계 CI가 없으므로 자동 실행 지점은 main 푸시뿐입니다.
+- **통합 테스트:** 두지 않습니다. 테스트용 DB를 쓰지 않기로 했고(2026-08-19), 컨텍스트를 띄우는 테스트는 연결하지 않는 DataSource로 돌립니다 ([DEVELOPMENT.md §6](docs/DEVELOPMENT.md)). CI는 전 모듈을 `-x test`로 빌드하므로 테스트 자동 실행 지점은 없습니다 — 머지 전 로컬에서 직접 돌립니다.
 - 환경 변수는 [`.env.example`](.env.example)을 복사해 `.env`로 채웁니다. API 키·시크릿은 저장소에 커밋하지 않습니다.
 
 버전 기준: 컨테이너는 Java 25, Node.js 24 LTS로 고정합니다 (로컬 개발 머신의 상위 버전과 별개).
