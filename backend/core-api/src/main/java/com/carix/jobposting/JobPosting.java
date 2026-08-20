@@ -139,6 +139,11 @@ public class JobPosting {
     this.jobFamily = jobFamily;
   }
 
+  /** 원천 표기에서 판정한 고용형태 코드를 붙인다. 판정 불가는 `UNKNOWN` 이다. */
+  public void classifyEmploymentTypeAs(String employmentType) {
+    this.employmentType = employmentType;
+  }
+
   /**
    * 회사 규모 차원을 붙인다. 판정 근거가 없으면 null 이 아니라 `UNKNOWN` 이다 —
    * 집계에서 NULL 은 전체 롤업을 뜻해 의미가 다르다.
@@ -170,6 +175,10 @@ public class JobPosting {
 
   public Long getSalaryMin() {
     return salaryMin;
+  }
+
+  public String getEmploymentType() {
+    return employmentType;
   }
 
   public String getPositionLevel() {

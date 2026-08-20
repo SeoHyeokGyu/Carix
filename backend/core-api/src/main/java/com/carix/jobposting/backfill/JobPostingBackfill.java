@@ -8,6 +8,7 @@ import com.carix.jobposting.RawIngestRepository;
 import com.carix.jobposting.Skill;
 import com.carix.jobposting.SkillRepository;
 import com.carix.jobposting.normalize.CompanySizeClassifier;
+import com.carix.jobposting.normalize.EmploymentTypeClassifier;
 import com.carix.jobposting.normalize.JobFamilyClassifier;
 import com.carix.jobposting.normalize.JobKoreaPayParser;
 import com.carix.jobposting.normalize.SalaryRange;
@@ -52,6 +53,7 @@ public class JobPostingBackfill {
   private final JobKoreaPayParser payParser = new JobKoreaPayParser();
   private final JobFamilyClassifier jobFamilyClassifier = new JobFamilyClassifier();
   private final CompanySizeClassifier companySizeClassifier = new CompanySizeClassifier();
+  private final EmploymentTypeClassifier employmentTypeClassifier = new EmploymentTypeClassifier();
   private final SkillTaxonomy skillTaxonomy = new SkillTaxonomy();
 
   public JobPostingBackfill(JobPostingRepository jobPostingRepository,
@@ -110,6 +112,8 @@ public class JobPostingBackfill {
         posting.classifyCompanySizeAs(companySize);
       }
 
+      applyEmploymentType(posting, counters, dryRun);
+
       applySkills(posting, detailParser.extractSkills(html), List.of(), counters, touchedSkills,
           dryRun);
     }
@@ -140,8 +144,21 @@ public class JobPostingBackfill {
         posting.classifyCompanySizeAs(CompanySizeClassifier.UNKNOWN);
       }
 
+      applyEmploymentType(posting, counters, dryRun);
+
       applySkills(posting, fields.skillTags(), fields.industryTags(), counters, touchedSkills,
           dryRun);
+    }
+  }
+
+  /** 원천 표기를 코드로 바꾼다. 원천 값 자체는 raw_ingest 에 남아 있으므로 덮어써도 된다. */
+  private void applyEmploymentType(JobPosting posting, Counters counters, boolean dryRun) {
+    String employmentType = employmentTypeClassifier.classify(posting.getEmploymentType());
+    if (!EmploymentTypeClassifier.UNKNOWN.equals(employmentType)) {
+      counters.employmentTypeFilled++;
+    }
+    if (!dryRun) {
+      posting.classifyEmploymentTypeAs(employmentType);
     }
   }
 
@@ -240,6 +257,7 @@ public class JobPostingBackfill {
     private int salaryCleared;
     private int jobFamilyFilled;
     private int companySizeFilled;
+    private int employmentTypeFilled;
     private int skillLinksRewritten;
     private int skillsRecategorized;
     private int orphanSkillsRemoved;
@@ -247,8 +265,8 @@ public class JobPostingBackfill {
 
     private BackfillReport toReport(boolean dryRun) {
       return new BackfillReport(dryRun, postingsScanned, salaryFilled, salaryCleared,
-          jobFamilyFilled, companySizeFilled, skillLinksRewritten, skillsRecategorized,
-          orphanSkillsRemoved, rawIngestMissing);
+          jobFamilyFilled, companySizeFilled, employmentTypeFilled, skillLinksRewritten,
+          skillsRecategorized, orphanSkillsRemoved, rawIngestMissing);
     }
   }
 }

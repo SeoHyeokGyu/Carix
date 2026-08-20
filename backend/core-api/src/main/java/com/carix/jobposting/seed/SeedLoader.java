@@ -8,6 +8,7 @@ import com.carix.jobposting.RawIngestRepository;
 import com.carix.jobposting.Skill;
 import com.carix.jobposting.SkillRepository;
 import com.carix.jobposting.normalize.CompanySizeClassifier;
+import com.carix.jobposting.normalize.EmploymentTypeClassifier;
 import com.carix.jobposting.normalize.JobFamilyClassifier;
 import com.carix.jobposting.normalize.JobKoreaPayParser;
 import com.carix.jobposting.normalize.SalaryRange;
@@ -43,6 +44,7 @@ public class SeedLoader {
   private final JobKoreaPayParser jobKoreaPayParser = new JobKoreaPayParser();
   private final JobFamilyClassifier jobFamilyClassifier = new JobFamilyClassifier();
   private final CompanySizeClassifier companySizeClassifier = new CompanySizeClassifier();
+  private final EmploymentTypeClassifier employmentTypeClassifier = new EmploymentTypeClassifier();
   private final SkillTaxonomy skillTaxonomy = new SkillTaxonomy();
 
   public SeedLoader(JobPostingRepository jobPostingRepository, SkillRepository skillRepository,
@@ -129,8 +131,8 @@ public class SeedLoader {
         "JOBKOREA", externalId, record.get("Title"), record.get("Company"),
         salaryMin, salaryMax, record.get("Location"),
         parseIntOrNull(record.get("CareerRange")), null,
-        fields.employmentType(), companySize, fields.companyBadge(), fields.positionLevel(),
-        jobFamily, null,
+        employmentTypeClassifier.classify(fields.employmentType()), companySize,
+        fields.companyBadge(), fields.positionLevel(), jobFamily, null,
         JobPostingDateParser.parseCreatedAt("JOBKOREA", record.get("CreatedAt"), collectedAt),
         JobPostingDateParser.parseDeadline("JOBKOREA", fields.postedEndDateRaw(), collectedAt),
         SEED_MONTH, SEED_MONTH, collectedAt);
@@ -161,7 +163,8 @@ public class SeedLoader {
         "SARAMIN", externalId, record.get("Title"), record.get("Company"),
         null, null, record.get("Location"),
         parseIntOrNull(record.get("CareerRange")), null,
-        fields.employmentType(), CompanySizeClassifier.UNKNOWN, null, null,
+        employmentTypeClassifier.classify(fields.employmentType()),
+        CompanySizeClassifier.UNKNOWN, null, null,
         jobFamilyClassifier.classifyTags(fields.skillTags()), null,
         JobPostingDateParser.parseCreatedAt("SARAMIN", record.get("CreatedAt"), collectedAt),
         JobPostingDateParser.parseDeadline("SARAMIN", fields.postedEndDateRaw(), collectedAt),

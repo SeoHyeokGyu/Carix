@@ -231,7 +231,7 @@ CREATE TABLE job_posting_skill (
 
 CREATE TABLE market_aggregate (
     id UUID PRIMARY KEY,
-    source VARCHAR(50) NOT NULL, -- 'WORK24', 'SARAMIN' (원천별 행만 저장, 통합 지수는 계산 시점 도출)
+    source VARCHAR(50) NOT NULL, -- 'JOBKOREA', 'SARAMIN' (실적재), 'WORK24' (고용24, 미구현) — 원천별 행만 저장, 통합 지수는 계산 시점 도출
     base_year_month VARCHAR(6) NOT NULL,
     job_family VARCHAR(100) NOT NULL,
     region VARCHAR(100) NOT NULL,
