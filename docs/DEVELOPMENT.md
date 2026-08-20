@@ -5,15 +5,16 @@
 List IP 허용목록이다(§3 참조). 배경과 결정은
 [루트 README 개발 환경](../README.md#개발-환경)을 참조한다.
 
-> **현재 스캐폴드 상태 (2026-08-09 갱신, 최초 작성 2026-08-01).** 이 문서는 목표 상태를 기술한다.
+> **현재 스캐폴드 상태 (2026-08-20 갱신, 최초 작성 2026-08-01).** 이 문서는 목표 상태를 기술한다.
 > 지금 실제로 되는 것과 다음 스캐폴드를 기다리는 것을 구분한다.
 >
-> | 항목 | 지금 (2026-08-09) |
+> | 항목 | 지금 (2026-08-20) |
 > | --- | --- |
-> | 백엔드 core-api | Spring Boot 4.1 + springdoc. `./gradlew build`·`bootRun` 동작. **JPA는 채용공고 도메인에 한해 적용됨**(`core` 스키마). **Flyway는 쓰지 않는다** — `core` 스키마는 DDL 직접 적용이다(§3.2). **Security·Batch는 아직 없음** |
+> | 백엔드 core-api | Spring Boot 4.1 + springdoc. `./gradlew build`·`bootRun` 동작. **DB를 쓰지 않는다** — 채용공고 도메인이 `collector` 로 이동해 JPA·Postgres 의존성이 없다(2026-08-20). **Security는 아직 없음** |
 > | 백엔드 auth-service | JPA·Flyway·초대·매직링크·세션·rate limit 구현 완료. 이메일 발송은 로깅 스텁. 배포 배선(Dockerfile·compose·CI)은 2026-08-02 커밋으로 연결 완료 |
+> | 백엔드 collector | 2026-08-20 모듈 추출 완료. `com.carix.crawler`·`com.carix.jobposting` 소유, `core` 스키마에 JPA 로 쓴다. **Flyway는 쓰지 않는다** — `core` 스키마는 DDL 직접 적용이다(§3.2). **Batch·내부 API·배포 배선은 아직 없음** |
 > | 프런트엔드 | 배포 검증용 스텁(`server.js`)만. **Vite·React 없음.** `pnpm dev`·`test:e2e` 스크립트 없음 |
-> | DB | `auth` 스키마는 auth-service가 쓴다. `core` 스키마는 core-api가 채용공고 도메인에 한해 쓴다(JPA `default_schema=core`) |
+> | DB | `auth` 스키마는 auth-service가 쓴다. `core` 스키마는 collector가 채용공고 도메인에 한해 쓴다(JPA `default_schema=core`) |
 >
 > 따라서 §4(프런트엔드)와 §5의 배치 항목, §6의 Playwright는 각 프로젝트 초기화 이후
 > 활성화된다.
@@ -190,11 +191,11 @@ uid:gid `70:70`는 `postgres:16-alpine` 이미지의 postgres 프로세스 실�
 | 스키마 | 모듈 | 관리 방식 |
 | --- | --- | --- |
 | `auth` | auth-service | Flyway 마이그레이션 (`src/main/resources/db/migration`) |
-| `core` | core-api | **DDL 직접 적용** (Flyway 미사용) |
+| `core` | core-api, collector | **DDL 직접 적용** (Flyway 미사용) |
 
 #### core 스키마 — 직접 적용
 
-`core-api`는 Flyway를 쓰지 않는다. **실행 정본은
+`core-api`와 `collector` 모두 Flyway를 쓰지 않는다. **실행 정본은
 [`deploy/postgres/schema/`](../deploy/postgres/schema/)의 `.sql` 파일들**이고, 설계 배경은
 [`specs/technical-specification.md` §1](specs/technical-specification.md)에 있다.
 
