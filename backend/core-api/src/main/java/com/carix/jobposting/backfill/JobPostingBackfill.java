@@ -7,6 +7,7 @@ import com.carix.jobposting.RawIngest;
 import com.carix.jobposting.RawIngestRepository;
 import com.carix.jobposting.Skill;
 import com.carix.jobposting.SkillRepository;
+import com.carix.jobposting.normalize.CompanySizeClassifier;
 import com.carix.jobposting.normalize.JobFamilyClassifier;
 import com.carix.jobposting.normalize.JobKoreaPayParser;
 import com.carix.jobposting.normalize.SalaryRange;
@@ -50,6 +51,7 @@ public class JobPostingBackfill {
   private final SaraminListingEnricher listingEnricher = new SaraminListingEnricher();
   private final JobKoreaPayParser payParser = new JobKoreaPayParser();
   private final JobFamilyClassifier jobFamilyClassifier = new JobFamilyClassifier();
+  private final CompanySizeClassifier companySizeClassifier = new CompanySizeClassifier();
   private final SkillTaxonomy skillTaxonomy = new SkillTaxonomy();
 
   public JobPostingBackfill(JobPostingRepository jobPostingRepository,
@@ -99,6 +101,15 @@ public class JobPostingBackfill {
         posting.classifyAs(jobFamily);
       }
 
+      String companySize = companySizeClassifier.classify(
+          detailParser.extractEmployeeCount(html), detailParser.extractCompanyTypeName(html));
+      if (!CompanySizeClassifier.UNKNOWN.equals(companySize)) {
+        counters.companySizeFilled++;
+      }
+      if (!dryRun) {
+        posting.classifyCompanySizeAs(companySize);
+      }
+
       applySkills(posting, detailParser.extractSkills(html), List.of(), counters, touchedSkills,
           dryRun);
     }
@@ -125,6 +136,8 @@ public class JobPostingBackfill {
       counters.jobFamilyFilled++;
       if (!dryRun) {
         posting.classifyAs(jobFamily);
+        // 사람인 목록페이지에는 기업 규모가 없다. NULL(전체 롤업)과 구분되게 UNKNOWN 을 넣는다.
+        posting.classifyCompanySizeAs(CompanySizeClassifier.UNKNOWN);
       }
 
       applySkills(posting, fields.skillTags(), fields.industryTags(), counters, touchedSkills,
@@ -226,6 +239,7 @@ public class JobPostingBackfill {
     private int salaryFilled;
     private int salaryCleared;
     private int jobFamilyFilled;
+    private int companySizeFilled;
     private int skillLinksRewritten;
     private int skillsRecategorized;
     private int orphanSkillsRemoved;
@@ -233,8 +247,8 @@ public class JobPostingBackfill {
 
     private BackfillReport toReport(boolean dryRun) {
       return new BackfillReport(dryRun, postingsScanned, salaryFilled, salaryCleared,
-          jobFamilyFilled, skillLinksRewritten, skillsRecategorized, orphanSkillsRemoved,
-          rawIngestMissing);
+          jobFamilyFilled, companySizeFilled, skillLinksRewritten, skillsRecategorized,
+          orphanSkillsRemoved, rawIngestMissing);
     }
   }
 }

@@ -2,6 +2,7 @@ package com.carix.crawler;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
@@ -46,6 +47,23 @@ class JobKoreaDetailParserTest {
 
     assertEquals("백엔드개발자,프론트엔드개발자",
         new JobKoreaDetailParser().extractJobTypeName(html));
+  }
+
+  @Test
+  void extractsCompanyScaleFields() throws IOException {
+    String html = loadFixture();
+    JobKoreaDetailParser parser = new JobKoreaDetailParser();
+
+    assertEquals(29, parser.extractEmployeeCount(html));
+    assertEquals("벤처기업", parser.extractCompanyTypeName(html));
+  }
+
+  @Test
+  void returnsNullCompanyScaleWhenPayloadHasNoSuchFields() {
+    JobKoreaDetailParser parser = new JobKoreaDetailParser();
+
+    assertNull(parser.extractEmployeeCount("<html></html>"));
+    assertNull(parser.extractCompanyTypeName("<html></html>"));
   }
 
   @Test

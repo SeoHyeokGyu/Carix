@@ -18,6 +18,8 @@ public class JobKoreaDetailParser {
   private static final String JOB_TYPE_NAME_MARKER = "\\\"jobTypeName\\\":\\\"";
   private static final String VALUE_END_MARKER = "\\\"";
   private static final String HARD_SKILL_TYPE = "HARD_SKILL";
+  private static final String EMPLOYEE_COUNT_MARKER = "\\\"employeeCount\\\":";
+  private static final String COMPANY_TYPE_MARKER = "\\\"companyTypeName\\\":\\\"";
 
   public List<String> extractSkills(String detailHtml) {
     int searchFrom = 0;
@@ -50,15 +52,49 @@ public class JobKoreaDetailParser {
   }
 
   /**
+   * 회사 사원수를 준다. 원천이 값을 모르면 {@code null} 을 담아 주므로 그대로 null 을 돌려준다.
+   * 회사 규모 판정의 1차 근거다 (실측 400건 중 386건에 값이 있다).
+   */
+  public Integer extractEmployeeCount(String detailHtml) {
+    int markerIdx = detailHtml.indexOf(EMPLOYEE_COUNT_MARKER);
+    if (markerIdx == -1) {
+      return null;
+    }
+    int valueStart = markerIdx + EMPLOYEE_COUNT_MARKER.length();
+    int valueEnd = valueStart;
+    while (valueEnd < detailHtml.length() && Character.isDigit(detailHtml.charAt(valueEnd))) {
+      valueEnd++;
+    }
+    if (valueEnd == valueStart) {
+      return null;
+    }
+    try {
+      return Integer.valueOf(detailHtml.substring(valueStart, valueEnd));
+    } catch (NumberFormatException e) {
+      return null;
+    }
+  }
+
+  /** 기업 구분 표기(`중소기업`·`벤처기업` 등). 사원수가 없을 때의 보조 근거다. */
+  public String extractCompanyTypeName(String detailHtml) {
+    return extractQuotedValue(detailHtml, COMPANY_TYPE_MARKER);
+  }
+
+  /**
    * 공고에 붙은 직무명을 준다. 직무가 여러 개면 원천이 콤마로 이어 주고, 개수가 많으면
    * `외 12건` 꼬리표를 붙인다 — 판정은 호출부에 맡기고 여기서는 원문 그대로 반환한다.
    */
   public String extractJobTypeName(String detailHtml) {
-    int markerIdx = detailHtml.indexOf(JOB_TYPE_NAME_MARKER);
+    return extractQuotedValue(detailHtml, JOB_TYPE_NAME_MARKER);
+  }
+
+  /** 이스케이프된 페이로드에서 {@code marker} 바로 뒤의 문자열 값을 꺼낸다. */
+  private String extractQuotedValue(String detailHtml, String marker) {
+    int markerIdx = detailHtml.indexOf(marker);
     if (markerIdx == -1) {
       return null;
     }
-    int valueStart = markerIdx + JOB_TYPE_NAME_MARKER.length();
+    int valueStart = markerIdx + marker.length();
     int valueEnd = detailHtml.indexOf(VALUE_END_MARKER, valueStart);
     if (valueEnd == -1) {
       return null;
