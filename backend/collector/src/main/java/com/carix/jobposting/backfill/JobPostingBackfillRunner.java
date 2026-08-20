@@ -13,7 +13,7 @@ import org.springframework.stereotype.Component;
  * 속성으로 명시해야만 빈이 만들어지고, 기본 동작은 쓰지 않는 dry-run 이다.
  *
  * <pre>
- * ./gradlew :core-api:bootRun --args='\
+ * ./gradlew :collector:bootRun --args='\
  *   --spring.profiles.active=local \
  *   --carix.backfill.job-posting.enabled=true \
  *   --carix.backfill.job-posting.dry-run=false'

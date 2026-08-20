@@ -16,11 +16,6 @@ spring:
       retry:
         max-attempts: 6
         initial-interval: 2000
-  jpa:
-    open-in-view: false
-    properties:
-      hibernate:
-        default_schema: core
 
 # 엣지 Caddy 가 /api/* 를 경로 그대로 넘긴다. 컨텍스트 패스를 /api 로 두면
 # 헬스체크·OpenAPI 문서·Swagger UI 정적 자원이 전부 /api 아래로 들어온다.

@@ -35,17 +35,20 @@
 | eureka | 8761 | 서비스 레지스트리 | — |
 | auth-service | 8081 | 매직링크 발급·검증, 세션 수명주기, 초대 | 등록 |
 | core-api | 8082 | 프로필·소득·지출·스킬·지수·시나리오 | 등록 |
-| batch-worker | — | 외부 원천 수집·정규화·집계 (Spring Batch) | 등록 |
+| collector | 8083 | 채용공고 수집·정규화·집계 (Spring Batch) | 등록 |
 
 포트 열은 **컨테이너 내부** 포트이자 현재 상태다. Eureka에 등록되고 Gateway가 붙는 것도 이
 포트다.
 
-> `batch-worker`는 위 표·이 문서 전반(§5·§6·§8의 "JVM 6개")에서 이미 구성된 서비스처럼
-> 서술되지만, 실제로는 아직 없다 — `backend/settings.gradle`에 모듈이 없고, `docker-compose.yml`·
-> `.github/workflows/deploy.yml`에도 빌드·배포 대상이 없으며, §5의 `config/spring/batch-worker.yml`도
-> 저장소에 없다(`docker-compose.yml`의 주석: "spring-batch 는 없다"). [DEVELOPMENT.md
-> §5](../DEVELOPMENT.md)도 "batch-worker 분리는 아직 남은 전환이다"라고 명시한다. 아래 표·수치는
-> 목표 상태다.
+> `collector`(옛 `batch-worker`)는 2026-08-20 에 모듈로 추출됐다. 코드 이동과 빌드까지
+> 끝났고, Spring Batch 잡·내부 API·`docker-compose.yml`·`.github/workflows/deploy.yml`
+> 배선은 아직 없다. 설계는
+> [수집 서비스 분리 설계](../superpowers/specs/2026-08-20-collector-service-separation-design.md)다.
+>
+> **Gateway 는 `collector` 를 라우팅하지 않는다.** 크롤링 트리거가 외부에 노출되면
+> 대상 사이트 요청을 유발하는 남용 경로가 되기 때문이다. 접근은 Docker 내부
+> 네트워크로 한정하고 호스트 포트를 바인딩하지 않는다. 표의 "등록" 은 레지스트리
+> 대시보드 관측용이며 라우팅에 쓰이지 않는다.
 
 호스트 바인딩은 대부분 같은 번호를 쓰지만 `config-server`만 **8890**이다. 호스트 8888은
 저장소 밖 `infra-dozzle-1`이 이미 잡고 있다. `config-server`·`eureka`(8761)·`postgres`(5432)는
@@ -74,7 +77,7 @@ DB는 하나(`carix`, 근거는 DEVELOPMENT.md §3), 스키마는 **둘**로 나
 | 스키마 | 소유 | 테이블 |
 | --- | --- | --- |
 | `auth` | auth-service | `users` `invitation` `magic_link_token` `session` |
-| `core` | core-api, batch-worker | 나머지 15개 — 사용자 도메인, 지수, 수집 원천, 집계 |
+| `core` | core-api, collector | 나머지 15개 — 사용자 도메인, 지수, 수집 원천, 집계 |
 
 ### 왜 둘인가
 
@@ -83,9 +86,11 @@ DB는 하나(`carix`, 근거는 DEVELOPMENT.md §3), 스키마는 **둘**로 나
 `auth-service`만이 독립된 바운디드 컨텍스트다. 인증 데이터는 다른 서비스가 쓰기는커녕
 읽을 일도 없다(FK 참조 제외).
 
-`core-api`와 `batch-worker`는 **같은 데이터를 다른 시점에 다루는 두 프로세스**다. batch가
-`market_aggregate`·`index_snapshot`을 채우면 core-api가 조회한다. 별도 서비스로 분리하지
-않았으므로 스키마도 나누지 않는다. 나누면 경계를 긋자마자 교차 접근으로 넘어야 한다.
+`core-api`와 `collector`는 **같은 스키마를 쓰기·읽기로 나눠 쓰는 두 프로세스**다. 쓰기는
+전부 `collector` 가 한다 — `raw_ingest`, `job_posting`, `job_posting_skill`, `skill`,
+`skill_alias`, `market_aggregate`. `core-api` 는 그중 `market_aggregate` 만 읽고, 나머지
+`core` 테이블(사용자 도메인·지수)을 소유한다. 읽기 접점이 테이블 하나뿐이라 스키마를
+나누지 않는다. 나누면 경계를 긋자마자 교차 접근으로 넘어야 한다.
 
 ### 남는 결합
 
@@ -110,7 +115,7 @@ flowchart TD
     GW -.->|"세션 검증"| Auth
     Auth --> DBA[("carix — auth 스키마")]
     Core --> DBC[("carix — core 스키마")]
-    Batch["batch-worker"] --> DBC
+    Collector["collector — Gateway 라우팅 대상 아님"] --> DBC
 ```
 
 ### Gateway 필터 체인
@@ -144,7 +149,7 @@ springdoc.swagger-ui.urls:
   - { name: core, url: /api/v1/v3/api-docs }
 ```
 
-Gateway 에서 Swagger UI 하나로 두 서비스 문서를 전환해 본다. `batch-worker` 는 외부에
+Gateway 에서 Swagger UI 하나로 두 서비스 문서를 전환해 본다. `collector` 는 외부에
 노출하지 않으므로 취합 대상이 아니다.
 
 > **구현 상태 (2026-08-10 확인):** 위 취합 설정은 아직 적용되지 않았다 — `gateway/build.gradle`에
@@ -185,7 +190,7 @@ config/
     ├── gateway.yml
     ├── auth-service.yml
     ├── core-api.yml
-    └── batch-worker.yml
+    └── collector.yml
 ```
 
 ### Config Server는 서버 체크아웃을 파일로 읽는다
@@ -274,7 +279,7 @@ spring.cloud.config:
 compose `depends_on`은 컨테이너 시작 순서만 보장하고 준비 완료를 보장하지 않는다.
 재시도가 실질 방어선이다.
 
-**기동 순서:** config-server → eureka → auth-service·core-api·batch-worker → gateway.
+**기동 순서:** config-server → eureka → auth-service·core-api·collector → gateway.
 Gateway가 마지막이다. 하류가 준비되기 전에 트래픽을 받으면 안 된다.
 
 ## 6. 로컬 개발
@@ -303,7 +308,7 @@ eureka.client:
 | --- | --- | --- |
 | core-api | core-api | config-server, eureka, DB |
 | auth-service | auth-service | config-server, eureka, DB |
-| batch-worker | batch-worker | config-server, DB, 외부 API |
+| collector | collector | config-server, DB, 외부 API |
 | gateway | auth-service, core-api, gateway | config-server, eureka, DB(하류 서비스 경유) |
 
 Gateway 작업만 하류 서비스(auth-service, core-api)까지 로컬에서 띄운다. 서버 Eureka가

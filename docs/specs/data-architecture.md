@@ -198,8 +198,10 @@ Carix는 개인 커리어 지수 엔진이다. 복수 원천의 노동시장·�
 - API: Java 21, Spring Boot, Spring Security(세션 로그인)
 - 데이터베이스: PostgreSQL. 스키마 관리는 `auth`만 Flyway이고 `core`는 DDL 직접 적용이다(2026-08-19 결정)
 - 영속성: Spring Data JPA, 복잡한 집계는 `JdbcClient`
-- 서비스 분리 예정: 인증은 `auth-service`(스키마 `auth`), 나머지는 `core-api`·`batch-worker`가
-  스키마 `core` 를 공유한다 ([Spring Cloud 아키텍처](spring-cloud-architecture.md))
+- 서비스 분리: 인증은 `auth-service`(스키마 `auth`), 수집·정규화·집계는 `collector`,
+  서빙은 `core-api`. 뒤 둘은 스키마 `core` 를 공유한다 — 채용공고 5개 테이블과
+  `market_aggregate` 는 `collector` 가 쓰고, 사용자 도메인·지수 테이블은 `core-api` 가 쓴다
+  ([Spring Cloud 아키텍처](spring-cloud-architecture.md))
 - 배치: Spring Batch 별도 워커 프로세스
 - 프런트엔드: Next.js App Router (최소: 로그인, 입력 폼, 대시보드 1페이지)
 - 테스트: JUnit 5 (DB 를 쓰는 테스트는 두지 않는다 — 2026-08-19 결정)
@@ -208,7 +210,7 @@ Carix는 개인 커리어 지수 엔진이다. 복수 원천의 노동시장·�
 ### 5.2 모듈 구성
 
 ```text
-Spring Boot API
+core-api
  |- Auth (세션 로그인, 계정 2개)
  |- Profile / Income / Expense / Skill
  |- Market Data (원천 4개)
@@ -216,7 +218,7 @@ Spring Boot API
  |- Decision Engine
  `- Scenario
 
-Spring Batch Worker
+collector (Spring Batch)
  |- KOSIS CPI 수집
  |- 고용24 공고 수집
  |- 사람인 공고 수집

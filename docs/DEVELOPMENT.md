@@ -5,15 +5,16 @@
 List IP 허용목록이다(§3 참조). 배경과 결정은
 [루트 README 개발 환경](../README.md#개발-환경)을 참조한다.
 
-> **현재 스캐폴드 상태 (2026-08-09 갱신, 최초 작성 2026-08-01).** 이 문서는 목표 상태를 기술한다.
+> **현재 스캐폴드 상태 (2026-08-20 갱신, 최초 작성 2026-08-01).** 이 문서는 목표 상태를 기술한다.
 > 지금 실제로 되는 것과 다음 스캐폴드를 기다리는 것을 구분한다.
 >
-> | 항목 | 지금 (2026-08-09) |
+> | 항목 | 지금 (2026-08-20) |
 > | --- | --- |
-> | 백엔드 core-api | Spring Boot 4.1 + springdoc. `./gradlew build`·`bootRun` 동작. **JPA는 채용공고 도메인에 한해 적용됨**(`core` 스키마). **Flyway는 쓰지 않는다** — `core` 스키마는 DDL 직접 적용이다(§3.2). **Security·Batch는 아직 없음** |
+> | 백엔드 core-api | Spring Boot 4.1 + springdoc. `./gradlew build`·`bootRun` 동작. **DB를 쓰지 않는다** — 채용공고 도메인이 `collector` 로 이동해 JPA·Postgres 의존성이 없다(2026-08-20). **Security는 아직 없음** |
 > | 백엔드 auth-service | JPA·Flyway·초대·매직링크·세션·rate limit 구현 완료. 이메일 발송은 로깅 스텁. 배포 배선(Dockerfile·compose·CI)은 2026-08-02 커밋으로 연결 완료 |
+> | 백엔드 collector | 2026-08-20 모듈 추출 완료. `com.carix.crawler`·`com.carix.jobposting` 소유, `core` 스키마에 JPA 로 쓴다. **Flyway는 쓰지 않는다** — `core` 스키마는 DDL 직접 적용이다(§3.2). **Batch·내부 API·배포 배선은 아직 없음** |
 > | 프런트엔드 | 배포 검증용 스텁(`server.js`)만. **Vite·React 없음.** `pnpm dev`·`test:e2e` 스크립트 없음 |
-> | DB | `auth` 스키마는 auth-service가 쓴다. `core` 스키마는 core-api가 채용공고 도메인에 한해 쓴다(JPA `default_schema=core`) |
+> | DB | `auth` 스키마는 auth-service가 쓴다. `core` 스키마는 collector가 채용공고 도메인에 한해 쓴다(JPA `default_schema=core`) |
 >
 > 따라서 §4(프런트엔드)와 §5의 배치 항목, §6의 Playwright는 각 프로젝트 초기화 이후
 > 활성화된다.
@@ -190,11 +191,11 @@ uid:gid `70:70`는 `postgres:16-alpine` 이미지의 postgres 프로세스 실�
 | 스키마 | 모듈 | 관리 방식 |
 | --- | --- | --- |
 | `auth` | auth-service | Flyway 마이그레이션 (`src/main/resources/db/migration`) |
-| `core` | core-api | **DDL 직접 적용** (Flyway 미사용) |
+| `core` | core-api, collector | **DDL 직접 적용** (Flyway 미사용) |
 
 #### core 스키마 — 직접 적용
 
-`core-api`는 Flyway를 쓰지 않는다. **실행 정본은
+`core-api`와 `collector` 모두 Flyway를 쓰지 않는다. **실행 정본은
 [`deploy/postgres/schema/`](../deploy/postgres/schema/)의 `.sql` 파일들**이고, 설계 배경은
 [`specs/technical-specification.md` §1](specs/technical-specification.md)에 있다.
 
@@ -327,20 +328,19 @@ CONFIG_SERVER_URL=http://144.24.90.88:8890 EUREKA_URL=http://144.24.90.88:8761/e
 | `http://localhost:8080/api/v3/api-docs` | OpenAPI JSON |
 | `http://localhost:8080/api/v1/demo/thresholds` | Config Server 연동 확인. 서버 `config/spring/core-api.yml` 값을 읽는다 |
 
-- **DB 설정이 필요하다 (2026-08-09부터).** core-api가 채용공고 도메인에서 JPA·Postgres
-  드라이버를 실제로 쓰기 시작했다(`backend/core-api/build.gradle`). `application.yml`·
-  `application-local.yml`·Config Server 페이로드(`config/spring/core-api.yml`) 어디에도
-  `spring.datasource.*` 기본값이나 `spring.autoconfigure.exclude`가 없고 `CarixApplication`도
-  평범한 `@SpringBootApplication`이라, "DataSource 자동설정이 없으므로 §3 설정 없이도
-  기동된다"는 더 이상 성립하지 않는다 — §2·§3에서 `.env`를 채운 뒤 실행한다.
-- core-api에는 Flyway 의존성 자체가 없다(2026-08-19 제거). 기동해도 스키마는 만들어지지 않으니
-  `core` 테이블이 없는 DB에 붙이면 `relation ... does not exist`로 죽는다 — DDL을 먼저
-  적용한다(§3.2).
-- 배치 워커는 아직 별도 모듈이 아니다([Spring Cloud 아키텍처](specs/spring-cloud-architecture.md)
-  §2 참조) — 별도 프로파일(`--spring.profiles.active=local,batch`) 실행은 배치 도입 후 적용된다.
+- **DB 설정이 필요하지 않다 (2026-08-20부터).** 2026-08-09~08-20 사이에는 core-api 가
+  채용공고 도메인에서 JPA·Postgres 드라이버를 실제로 썼으나, 그 도메인이 `collector`
+  모듈로 이동하면서(설계: `docs/superpowers/specs/2026-08-20-collector-service-separation-design.md`)
+  core-api 의 JPA 사용처가 전부 사라졌다. `spring.datasource.*` 없이 기동한다.
+  `market_aggregate` 를 읽기 시작하면 다시 필요해지지만, 그때는 JPA 가 아니라
+  `JdbcClient` 읽기 전용으로 들인다(`specs/data-architecture.md` §5.1).
+- core-api 에는 Flyway 의존성이 없고(2026-08-19 제거) JPA 도 없다(2026-08-20 이동).
+  `core` 스키마 DDL 은 `collector` 가 쓰는 대상이다 — 적용 절차는 §3.2 를 따른다.
+- 수집·정규화는 `collector` 모듈이다. 로컬 실행은 `./gradlew :collector:bootRun` 이다.
 
-Gateway 도입·`auth-service` 배포 배선은 완료됐다. `batch-worker` 분리는 아직 남은 전환이다
-— 상세는 [Spring Cloud 아키텍처](specs/spring-cloud-architecture.md) 참조.
+Gateway 도입·`auth-service` 배포 배선은 완료됐다. `collector` 는 모듈 추출까지 끝났고
+배치 잡·내부 API·배포 배선이 남았다 — 상세는
+[Spring Cloud 아키텍처](specs/spring-cloud-architecture.md) 참조.
 
 ## 6. 테스트
 
@@ -363,7 +363,7 @@ cd backend && ./gradlew test
 테스트여서 의존성과 함께 제거했다.
 
 대신 컨텍스트를 띄우는 테스트는 **연결하지 않는 DataSource**로 돌린다
-(`backend/core-api/build.gradle`의 `test` 블록):
+(`backend/collector/build.gradle`의 `test` 블록):
 
 ```gradle
 systemProperty 'spring.datasource.url', 'jdbc:postgresql://127.0.0.1:1/unused'
