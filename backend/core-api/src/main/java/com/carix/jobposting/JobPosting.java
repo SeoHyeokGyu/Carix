@@ -140,6 +140,14 @@ public class JobPosting {
   }
 
   /**
+   * 회사 규모 차원을 붙인다. 판정 근거가 없으면 null 이 아니라 `UNKNOWN` 이다 —
+   * 집계에서 NULL 은 전체 롤업을 뜻해 의미가 다르다.
+   */
+  public void classifyCompanySizeAs(String companySize) {
+    this.companySize = companySize;
+  }
+
+  /**
    * 스킬 연결을 원천 재파싱 결과에 맞춘다. 전부 지우고 다시 넣지 않는 이유는
    * `(job_posting_id, skill_id)` 유니크 제약 때문이다 — 같은 플러시 안에서 삭제보다
    * 삽입이 먼저 나가면 그대로 남을 연결이 중복으로 걸린다. 빠질 것만 빼고 새것만 넣는다.

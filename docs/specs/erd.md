@@ -15,6 +15,21 @@
 > 부담이 이득보다 크다는 판단이며, `auth` 스키마는 Flyway를 그대로 쓴다. 스키마를 바꾸면
 > 적용 이력이 자동으로 남지 않으므로 아래 운영 현황 절에 직접 기록한다.
 >
+> **2026-08-20 스키마 확장:** `core` 스키마에 나머지 10개 테이블을 적용했다 —
+> `career_profile`, `income_history`, `expense_history`, `expense_item`, `user_skill`,
+> `cpi_observation`, `wage_stat_observation`, `market_aggregate`, `index_snapshot`,
+> `career_scenario`. 이로써 스펙의 `core` 소관 15개 테이블이 모두 존재한다.
+> DDL 은 `deploy/postgres/schema/02~04_*.sql` 이다. `user_id` 에는 외래키를 걸지 않았다 —
+> `users` 는 auth-service 가 `auth` 스키마에 소유하므로 교차 스키마 참조는 두 서비스의
+> 배포를 묶는다.
+>
+> **2026-08-20 `company_size` 채움:** 잡코리아 상세페이지의 사원수(`employeeCount`,
+> 400건 중 386건)와 기업 구분(`companyTypeName`)으로 판정했다. 300명 이상 LARGE,
+> 50~299 MEDIUM, 50 미만 STARTUP(중소기업기본법 상시근로자 기준). 결과는
+> LARGE 75 / MEDIUM 193 / STARTUP 129 / UNKNOWN 3. 사람인은 목록페이지에 기업 규모가
+> 없어 400건 전부 UNKNOWN 이다 — 집계에서 NULL(전체 롤업)과 구분해야 하므로 NULL 로
+> 두지 않았다.
+>
 > **2026-08-19 데이터 정정:** 첫 적재가 원천 정보를 다 쓰지 못해 `raw_ingest` 원문으로
 > 재파싱했다. 공개연봉 36 -> 317건, `job_family` 0 -> 800건(DEVELOPER 567 / OTHER 125 /
 > AI 70 / DATA 38), 스킬에서 인성 역량과 직무 카테고리를 분리(스킬 699 -> 683, 연결

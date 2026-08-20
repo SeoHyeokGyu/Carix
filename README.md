@@ -414,6 +414,8 @@ Carix/
 ├── deploy/
 │   ├── caddy/Caddyfile        Carix 전용 Caddy의 애플리케이션 라우팅
 │   ├── caddy/router.caddy     라우터 Caddy가 import하는 호스트명 분기
+│   ├── postgres/pg_hba.conf   Postgres 접속 인증 정본
+│   ├── postgres/schema/       core 스키마 DDL 실행 정본 (Flyway 미사용)
 ├── config/                    CPI 분류 매핑, 기본 지출 가중치
 ├── verification/              데이터 원천 선행 검증 스크립트와 실측 노트
 ├── frontend/                  React Router 7 + Vite + Tailwind (랜딩만 구현, 정적 서빙 — SSR 미도입)
