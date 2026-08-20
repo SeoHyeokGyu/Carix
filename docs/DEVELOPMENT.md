@@ -194,13 +194,31 @@ uid:gid `70:70`는 `postgres:16-alpine` 이미지의 postgres 프로세스 실�
 
 #### core 스키마 — 직접 적용
 
-`core-api`는 Flyway를 쓰지 않는다. DDL 정본은
-[`specs/technical-specification.md` §1](specs/technical-specification.md)이고, 실제 적용은
-사람이 `psql`로 한다.
+`core-api`는 Flyway를 쓰지 않는다. **실행 정본은
+[`deploy/postgres/schema/`](../deploy/postgres/schema/)의 `.sql` 파일들**이고, 설계 배경은
+[`specs/technical-specification.md` §1](specs/technical-specification.md)에 있다.
+
+```
+deploy/postgres/schema/
+├── 01_job_posting.sql             채용공고 수집 5개 테이블 (2026-08-09 적용분)
+├── 02_user_domain.sql             프로필·소득·소비·보유스킬 5개
+├── 03_reference_and_aggregate.sql CPI·임금통계·시장집계 3개
+└── 04_snapshot_and_scenario.sql   지수 스냅샷·시나리오 2개
+```
+
+파일은 번호 순서대로 적용한다 — 뒤 파일이 앞 파일의 테이블을 참조한다.
 
 ```bash
-psql "postgresql://<user>@144.24.90.88:5432/carix?sslmode=require"
+psql "postgresql://<user>@144.24.90.88:5432/carix?sslmode=require" \
+  -v ON_ERROR_STOP=1 -f deploy/postgres/schema/02_user_domain.sql
 ```
+
+`ON_ERROR_STOP=1`을 붙인다. 없으면 중간 문장이 실패해도 나머지가 계속 실행돼 절반만 적용된
+스키마가 남는다.
+
+스키마를 바꿀 때는 해당 `.sql` 파일을 고치고, 그 변경분만 운영에 적용한다. 파일 전체를 다시
+돌리면 이미 있는 테이블에서 막힌다 — 파일은 빈 DB 재현용이고, 변경 적용은 `ALTER` 문을 직접
+친다.
 
 지켜야 할 것:
 

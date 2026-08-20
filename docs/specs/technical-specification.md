@@ -22,6 +22,28 @@
 
 ### 1.2 DDL 스펙
 
+> **실행 정본은 [`deploy/postgres/schema/`](../../deploy/postgres/schema/)의 `.sql` 파일이다.**
+> 아래 DDL은 설계 의도를 서술한 것이고, 실제 적용은 그 파일들로 한다
+> (절차는 [DEVELOPMENT.md §3.2](../DEVELOPMENT.md)). 아래와 실물이 다른 지점이 있으니
+> 새 테이블을 설계할 때 참고한다.
+>
+> **`users` 외래키는 걸지 않는다.** `users`는 auth-service가 `auth` 스키마에 소유하고,
+> `core` 테이블은 core-api가 소유한다. 스키마를 가로지르는 외래키는 두 서비스의 배포를
+> 묶어 버리므로 `user_id UUID NOT NULL`만 두고 참조 무결성은 애플리케이션이 지킨다.
+> 아래 `REFERENCES users(id)`는 서비스 분리 이전에 쓰인 표기다.
+>
+> **채용공고 수집 5개 테이블은 아래 서술과 다르다.** 크롤링 실측에 맞춰 완화된 상태로
+> 운영 중이며, 정확한 정의는 [`01_job_posting.sql`](../../deploy/postgres/schema/01_job_posting.sql)에 있다.
+>
+> | 테이블 | 아래 서술 | 실제 |
+> | --- | --- | --- |
+> | `job_posting` | `title VARCHAR(255)`, `company_name`·`region`·`experience_min`·`employment_type`·`company_size`·`job_family` 전부 NOT NULL | `title VARCHAR(500)`, 해당 컬럼 전부 NULL 허용. `company_badge`·`position_level` 컬럼 추가 |
+> | `job_posting.salary_*` | 원 단위 | **만원 단위** (원천 표기 그대로) |
+> | `skill` | `standard_name VARCHAR(100)` 단독 UNIQUE, `category NOT NULL` | `VARCHAR(255)`, `UNIQUE (standard_name, category)`, `category` NULL 허용 |
+> | `skill.category` | `'BACKEND'`·`'FRONTEND'` 등 기술 분야 | `'SKILL'`·`'JOB_CATEGORY'`·`'INDUSTRY'` — 수집 태그의 성격 구분 |
+> | `skill_alias` | `alias_name VARCHAR(100) UNIQUE` | `VARCHAR(255)`, UNIQUE 없음 (미사용, 0행) |
+> | `raw_ingest` | `payload` NULL 허용(원문 purge), `schema_version NOT NULL` | `payload NOT NULL`, `schema_version` NULL 허용 |
+
 ```sql
 -- 1. 인증 및 사용자 영역
 CREATE TABLE users (
