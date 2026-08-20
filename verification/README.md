@@ -43,6 +43,6 @@ python3 probe.py saramin --key-param access-key \
 
 `out/jobkorea_jobs.csv`·`out/saramin_jobs.csv`·`out/raw/{JOBKOREA,SARAMIN}/`는 이 probe.py
 워크플로의 산출물이 아니다. 채용공고 원천이 API에서 스크래핑으로 전환되며(위 원천 상태 표
-`saramin` 행 참고) `backend/core-api`의 크롤러(`com.carix.crawler.CarixCrawlerApp`)가 대신
+`saramin` 행 참고) `backend/collector`의 크롤러(`com.carix.crawler.CarixCrawlerApp`)가 대신
 만들고, `SeedLoader`가 이를 읽어 `job_posting` 테이블을 채운다(운영 현황은
 [ERD](../docs/specs/erd.md) 참고).

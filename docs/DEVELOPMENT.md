@@ -327,20 +327,19 @@ CONFIG_SERVER_URL=http://144.24.90.88:8890 EUREKA_URL=http://144.24.90.88:8761/e
 | `http://localhost:8080/api/v3/api-docs` | OpenAPI JSON |
 | `http://localhost:8080/api/v1/demo/thresholds` | Config Server 연동 확인. 서버 `config/spring/core-api.yml` 값을 읽는다 |
 
-- **DB 설정이 필요하다 (2026-08-09부터).** core-api가 채용공고 도메인에서 JPA·Postgres
-  드라이버를 실제로 쓰기 시작했다(`backend/core-api/build.gradle`). `application.yml`·
-  `application-local.yml`·Config Server 페이로드(`config/spring/core-api.yml`) 어디에도
-  `spring.datasource.*` 기본값이나 `spring.autoconfigure.exclude`가 없고 `CarixApplication`도
-  평범한 `@SpringBootApplication`이라, "DataSource 자동설정이 없으므로 §3 설정 없이도
-  기동된다"는 더 이상 성립하지 않는다 — §2·§3에서 `.env`를 채운 뒤 실행한다.
-- core-api에는 Flyway 의존성 자체가 없다(2026-08-19 제거). 기동해도 스키마는 만들어지지 않으니
-  `core` 테이블이 없는 DB에 붙이면 `relation ... does not exist`로 죽는다 — DDL을 먼저
-  적용한다(§3.2).
-- 배치 워커는 아직 별도 모듈이 아니다([Spring Cloud 아키텍처](specs/spring-cloud-architecture.md)
-  §2 참조) — 별도 프로파일(`--spring.profiles.active=local,batch`) 실행은 배치 도입 후 적용된다.
+- **DB 설정이 필요하지 않다 (2026-08-20부터).** 2026-08-09~08-20 사이에는 core-api 가
+  채용공고 도메인에서 JPA·Postgres 드라이버를 실제로 썼으나, 그 도메인이 `collector`
+  모듈로 이동하면서(설계: `docs/superpowers/specs/2026-08-20-collector-service-separation-design.md`)
+  core-api 의 JPA 사용처가 전부 사라졌다. `spring.datasource.*` 없이 기동한다.
+  `market_aggregate` 를 읽기 시작하면 다시 필요해지지만, 그때는 JPA 가 아니라
+  `JdbcClient` 읽기 전용으로 들인다(`specs/data-architecture.md` §5.1).
+- core-api 에는 Flyway 의존성이 없고(2026-08-19 제거) JPA 도 없다(2026-08-20 이동).
+  `core` 스키마 DDL 은 `collector` 가 쓰는 대상이다 — 적용 절차는 §3.2 를 따른다.
+- 수집·정규화는 `collector` 모듈이다. 로컬 실행은 `./gradlew :collector:bootRun` 이다.
 
-Gateway 도입·`auth-service` 배포 배선은 완료됐다. `batch-worker` 분리는 아직 남은 전환이다
-— 상세는 [Spring Cloud 아키텍처](specs/spring-cloud-architecture.md) 참조.
+Gateway 도입·`auth-service` 배포 배선은 완료됐다. `collector` 는 모듈 추출까지 끝났고
+배치 잡·내부 API·배포 배선이 남았다 — 상세는
+[Spring Cloud 아키텍처](specs/spring-cloud-architecture.md) 참조.
 
 ## 6. 테스트
 
@@ -363,7 +362,7 @@ cd backend && ./gradlew test
 테스트여서 의존성과 함께 제거했다.
 
 대신 컨텍스트를 띄우는 테스트는 **연결하지 않는 DataSource**로 돌린다
-(`backend/core-api/build.gradle`의 `test` 블록):
+(`backend/collector/build.gradle`의 `test` 블록):
 
 ```gradle
 systemProperty 'spring.datasource.url', 'jdbc:postgresql://127.0.0.1:1/unused'
