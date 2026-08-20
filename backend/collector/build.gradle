@@ -1,0 +1,16 @@
+dependencies {
+	implementation 'org.springframework.boot:spring-boot-starter-webmvc'
+	implementation 'org.springframework.boot:spring-boot-starter-actuator'
+	implementation 'org.springframework.cloud:spring-cloud-starter-config'
+	implementation 'org.springframework.cloud:spring-cloud-starter-netflix-eureka-client'
+
+	testImplementation 'org.springframework.boot:spring-boot-starter-webmvc-test'
+}
+
+tasks.named('test') {
+	// core-api/build.gradle 와 같은 이유: spring.config.import 는 prepareEnvironment
+	// 단계에서 해석돼 @TestPropertySource 로 덮을 수 없다. 시스템 프로퍼티는 그 단계에서
+	// 읽히므로 여기서 끈다. 운영 application.yml 은 fail-fast 를 유지한다.
+	systemProperty 'spring.cloud.config.enabled', 'false'
+	systemProperty 'eureka.client.enabled', 'false'
+}

@@ -1,0 +1,8 @@
+# 로컬 개발용. config·eureka 는 서버 것을 원격으로 쓴다(backend/README.md).
+#
+# register-with-eureka 를 반드시 false 로 둔다. 등록하면 서버 Gateway 가
+# 이 노트북으로 트래픽을 보낸다.
+eureka:
+  client:
+    register-with-eureka: false
+    fetch-registry: true
