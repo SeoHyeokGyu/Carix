@@ -12,6 +12,11 @@ spring:
       retry:
         max-attempts: 6
         initial-interval: 2000
+  jpa:
+    open-in-view: false
+    properties:
+      hibernate:
+        default_schema: core
 
 server:
   # Gateway 라우트를 만들지 않는다(설계 §4). 컨텍스트 패스를 /api 로 두지 않는 것도
