@@ -347,7 +347,8 @@ Node 서버는 DB에 직접 접근하거나 Spring Boot 로직을 복제하지 �
 > **전환 완료(2026-08-01, auth-service 배포 배선은 2026-08-02).** 애플리케이션 라우팅을
 > `carix_caddy`에서 Spring Cloud Gateway로 옮겼습니다. 백엔드는 `core-api`·`auth-service`로
 > 나뉘어 있으며 둘 다 배포 배선이 완료돼 있습니다(실제 서버 배포·Eureka 등록 확인은 별도
-> 진행 — 위 §기술 구성 참고). `batch-worker`는 미도입 상태입니다. 라우터 Caddy는 그대로
+> 진행 — 위 §기술 구성 참고). `collector`는 모듈 추출까지 완료됐고(2026-08-20),
+> compose·배포 배선은 아직 없는 상태입니다. 라우터 Caddy는 그대로
 > 유지합니다 — TLS 자동 발급 근거가 유효합니다. 상세는 위 채택 사유의 설계서 참조.
 
 ### 렌더링 전략
@@ -381,7 +382,8 @@ PR 단계 CI는 두지 않습니다. `./gradlew build`가 자동으로 도는 �
 
 OCI VM에서는 `carix-caddy`, `frontend-node`, `config-server`, `eureka`, `gateway`,
 `auth-service`, `core-api`, `postgres` 컨테이너를 Docker Compose로 운영합니다
-(`batch-worker`는 분리 시 추가). 이미지는 컴포넌트별로 GitHub Actions(ARM 러너)가 빌드해
+(`collector`는 모듈 추출까지만 끝났고 compose 서비스·배포 배선은 아직 없어 이 목록에
+없습니다). 이미지는 컴포넌트별로 GitHub Actions(ARM 러너)가 빌드해
 GHCR에 올리고 서버는 pull만 합니다. 엣지는 2단으로, 서버의 라우터 Caddy가 TLS를 종료하고 호스트명으로 분기하면
 프로젝트 전용 `carix-caddy`가 애플리케이션 라우팅을 맡습니다 (근거는 위 배포 계획·설계서 참조).
 

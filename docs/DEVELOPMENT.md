@@ -336,7 +336,16 @@ CONFIG_SERVER_URL=http://144.24.90.88:8890 EUREKA_URL=http://144.24.90.88:8761/e
   `JdbcClient` 읽기 전용으로 들인다(`specs/data-architecture.md` §5.1).
 - core-api 에는 Flyway 의존성이 없고(2026-08-19 제거) JPA 도 없다(2026-08-20 이동).
   `core` 스키마 DDL 은 `collector` 가 쓰는 대상이다 — 적용 절차는 §3.2 를 따른다.
-- 수집·정규화는 `collector` 모듈이다. 로컬 실행은 `./gradlew :collector:bootRun` 이다.
+- 수집·정규화는 `collector` 모듈이다. `application.yml`이 `spring.cloud.config.fail-fast:
+  true`를 켜 두므로 위 core-api 예시와 같은 방식으로 환경 변수와 `local` 프로파일을 줘야
+  기동한다. 포트는 `application.yml` 기본값(8083)을 그대로 쓰므로 `--server.port`는
+  붙이지 않는다.
+
+```bash
+cd backend
+CONFIG_SERVER_URL=http://144.24.90.88:8890 EUREKA_URL=http://144.24.90.88:8761/eureka/ \
+  ./gradlew :collector:bootRun --args='--spring.profiles.active=local'
+```
 
 Gateway 도입·`auth-service` 배포 배선은 완료됐다. `collector` 는 모듈 추출까지 끝났고
 배치 잡·내부 API·배포 배선이 남았다 — 상세는
