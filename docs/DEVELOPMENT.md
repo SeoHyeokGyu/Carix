@@ -277,8 +277,8 @@ pnpm install
 pnpm dev              # Vite dev server (기본 5173)
 ```
 
-- `/api` 요청은 Vite 프록시로 백엔드(`http://localhost:8080`)에 전달한다
-  (프록시 설정은 `vite.config.ts`).
+- `/api` 프록시는 아직 구성돼 있지 않다 — 프런트가 백엔드를 호출하는 시점에
+  `vite.config.ts`에 추가한다.
 - Docker 불필요.
 
 ## 5. 백엔드 개발
