@@ -381,15 +381,13 @@ PR 단계 CI는 두지 않습니다. `./gradlew build`가 자동으로 도는 �
 
 OCI VM에서는 `carix-caddy`, `frontend-node`, `config-server`, `eureka`, `gateway`,
 `auth-service`, `core-api`, `postgres` 컨테이너를 Docker Compose로 운영합니다
-(`collector`는 모듈 추출까지만 끝났고 compose 서비스·배포 배선은 아직 없어 이 목록에
-없습니다). 이미지는 컴포넌트별로 GitHub Actions(ARM 러너)가 빌드해
+(`collector`는 아직 이 목록에 없습니다 — 상태는
+[`docs/README.md`의 "진행 상태" 절](docs/README.md#진행-상태) 참고). 이미지는 컴포넌트별로
+GitHub Actions(ARM 러너)가 빌드해
 GHCR에 올리고 서버는 pull만 합니다. 엣지는 2단으로, 서버의 라우터 Caddy가 TLS를 종료하고 호스트명으로 분기하면
 프로젝트 전용 `carix-caddy`가 애플리케이션 라우팅을 맡습니다 (근거는 위 배포 계획·설계서 참조).
 
 ## 프로젝트 상태
-
-현재 단계는 **MVP 구현 착수**입니다. 설계 문서와 와이어프레임은 정리돼 있고, 인증·채용공고
-수집은 동작하며, 나머지 도메인은 API 규격만 스텁으로 노출된 상태입니다.
 
 진행 상태는 [`docs/README.md`의 "진행 상태" 절](docs/README.md#진행-상태)에서 확인하세요.
 
