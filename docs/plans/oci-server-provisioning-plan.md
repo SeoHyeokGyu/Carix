@@ -16,7 +16,7 @@
 
 ---
 
-## 전제 (2026-07-26 서버 직접 실측)
+## 전제 (서버 직접 실측)
 
 접속: `ssh <oci-server-alias>` (키는 `~/.ssh/<oci-server-alias>.key`, 권한 600. `~/.ssh/config`에 별칭 등록 완료)
 
@@ -33,11 +33,11 @@
 | TLS | `pulse.144.24.90.88.sslip.io`에 Let's Encrypt 인증서 발급 완료. 외부 `curl` 200, 검증 통과 |
 | DNS | `carix.144.24.90.88.sslip.io` → `144.24.90.88` (sslip.io 와일드카드, 확인함) |
 | Mukzzi | **이 호스트에서 돌던 것.** `~/mukzzi` 삭제됨, 컨테이너·볼륨 없음. 별도 인스턴스는 존재하지 않는다 |
-| 저장소 | `SeoHyeokGyu/Carix` private. ARM 러너는 2026-01-29부터 private도 free-tier 대상 (2 vCPU) |
+| 저장소 | `SeoHyeokGyu/Carix` private. ARM 러너는 private도 free-tier 대상 (2 vCPU) |
 | 참조 구현 | `Mukzzi/.github/workflows/backend-deploy.yml` — `ubuntu-24.04-arm` → buildx → GHCR → SSH `compose pull`. 최근 5회 전부 성공 (1m45s–1m56s) |
 | `backend/`, `frontend/` | ~~`README.md`만~~ → PR #15에서 최소 스캐폴드 완료. Phase 6 게이트 해제 |
 
-## 실행 현황 (2026-07-26)
+## 실행 현황
 
 | Phase | 상태 |
 | --- | --- |
@@ -45,8 +45,8 @@
 | 2. 저장소 변경 | **완료** — PR #11 머지됨 (`cec2ab3`) |
 | 3. 엣지 구성 | **완료** — 라우터(`infra_caddy`) + 프로젝트별 Caddy(`carix_caddy`, `asset_pulse_caddy`). 양 도메인 정상 TLS |
 | 4. 서버 준비 | **완료** — `/home/opc/carix`가 main(`cec2ab3`) 체크아웃, `.env` 생성(600), deploy key 등록 |
-| 5. CD 워크플로 | **완료** — 워크플로·Secrets 등록. 2026-07-26 실행 성공 |
-| 6. 첫 배포 검증 | **완료** — 2026-07-26, [run 30193778838](https://github.com/SeoHyeokGyu/Carix/actions/runs/30193778838) |
+| 5. CD 워크플로 | **완료** — 워크플로·Secrets 등록. 실행 성공 |
+| 6. 첫 배포 검증 | **완료** — [run 30193778838](https://github.com/SeoHyeokGyu/Carix/actions/runs/30193778838) |
 | 7. 운영 | 미착수 |
 
 검증된 상태 (2단 엣지 전환 후):
@@ -56,7 +56,7 @@
 - 컨테이너 비정상 0
 - 5432·8080·3000·8000 외부 차단 확인
 
-### 첫 배포 실측 (2026-07-26, run 30193778838)
+### 첫 배포 실측 (run 30193778838)
 
 전 구간 통과. 총 2분 37초.
 
@@ -164,7 +164,7 @@ Expected: 출력 없음. 있으면 해당 이미지를 먼저 확인하고 정�
 ssh <oci-server-alias> 'docker image prune -a -f && docker builder prune -a -f && df -h /'
 ```
 
-**실행 결과 (2026-07-26):** 113G → 107G, 85% → **81%**, 6GB 회수. 빌드 캐시 7.4GB 전량 삭제.
+**실행 결과:** 113G → 107G, 85% → **81%**, 6GB 회수. 빌드 캐시 7.4GB 전량 삭제.
 
 > `docker system df`의 `RECLAIMABLE 18.85GB`는 과대계상이다. 실행 중 컨테이너가 안 쓰는 이미지를
 > 모두 회수 가능으로 세지만, 실제 미사용 named 이미지는 684MB뿐이었다
@@ -260,7 +260,7 @@ networks:
         max-file: "3"
 ```
 
-- [x] **Step 6: 배치 재시작 정책 재검토** — **서비스를 제거했다 (2026-07-27)**
+- [x] **Step 6: 배치 재시작 정책 재검토** — **서비스를 제거했다**
 
 `spring-batch`가 `restart: unless-stopped`인데 원샷 잡이면 재시작 루프에 빠진다.
 상주 스케줄러면 유지, 원샷이면 `restart: "no"` + 크론/`docker compose run`으로 바꾼다.
@@ -271,7 +271,7 @@ networks:
 
 ### Task 2.2: dev DB 분리 (문서↔compose 불일치 해소)
 
-> **폐기됨 (2026-07-27).** 팀 전환 후 운영과 개발이 같은 DB 를 쓰기로 결정했다
+> **폐기됨.** 팀 전환 후 운영과 개발이 같은 DB 를 쓰기로 결정했다
 > (근거는 DEVELOPMENT.md §3). 아래 initdb 스크립트와
 > `carix_dev` 롤·DB 는 저장소에서 제거했다. 서버에 남은 것은 수동 정리 대상이다.
 
@@ -405,7 +405,7 @@ sslip.io는 소유 도메인이 아니라 DNS-01 우회도 불가능하다. 따�
 전용 Caddy는 `auto_https off` + `:80` 으로 뜨므로 인증서를 발급하지 않는다. 인증서 관리 지점은
 라우터 하나뿐이다.
 
-### 왜 Caddy인가 (nginx와 비교, 2026-07-27)
+### 왜 Caddy인가 (nginx와 비교)
 
 두 계층 모두 현재 Caddy다. nginx로 바꿀지 검토하면서 두 선택지를 비교했다. 계층마다 요구가
 달라 따로 본다.
@@ -452,7 +452,7 @@ TLS 자동화가 필요한 계층에서는 Caddy가 명확히 적은 구성으�
 
 **검토한 대안:**
 
-- **IP를 추가해 프로젝트별 독립 엣지** — 공인 IP가 하나뿐이라(2026-07-27 실측) 성립하지 않는다.
+- **IP를 추가해 프로젝트별 독립 엣지** — 공인 IP가 하나뿐이라 성립하지 않는다.
   80/443은 한 컨테이너만 바인딩할 수 있고 Let's Encrypt는 그 두 포트로만 검증하러 온다.
   IP를 늘리면 물리적으로는 가능하나 인증서 관리 지점이 둘로 늘어난다.
 - **한 프로젝트가 라우터를 겸함** — 공유 컴포넌트는 사라지지만 결합이 악화된다.

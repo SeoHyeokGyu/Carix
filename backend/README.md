@@ -43,8 +43,6 @@ spring-cloud-architecture.md). `core-api` 도메인 인프라 중 Security·Batc
 | `POST /api/v1/auth/logout` | 현재 세션 폐기 |
 | `POST /api/v1/auth/logout-all` | 사용자의 전체 세션 폐기 |
 
-설계 상세: [`../docs/superpowers/specs/2026-08-01-auth-service-phase1-design.md`](../docs/superpowers/specs/2026-08-01-auth-service-phase1-design.md).
-
 이메일 실제 발송은 아직 연동되지 않았다 — `LoggingMagicLinkNotifier`가 로그로만 남긴다.
 운영 전환 전 실제 provider(SES 등)를 정하고 `MagicLinkNotifier` 구현을 교체해야 한다.
 
@@ -74,8 +72,6 @@ Spring Cloud Gateway(WebFlux/reactive). 요청 경로의 단일 진입점 — `c
 (`config/spring/gateway.yml`) 로 켜고 끈다. **기본값 false** — auth-service 배포 배선이
 아직 없어서다. 켜기 전 auth-service 가 Eureka 에 `UP` 으로 등록돼 있는지 확인한다.
 
-설계 상세: [`../docs/superpowers/plans/2026-08-01-gateway-introduction.md`](../docs/superpowers/plans/2026-08-01-gateway-introduction.md).
-
 ## 빌드
 
 ```bash
@@ -103,7 +99,7 @@ CONFIG_SERVER_URL=http://localhost:8888 EUREKA_CLIENT_ENABLED=false \
 ```
 
 `EUREKA_CLIENT_ENABLED=false` 는 클라이언트를 아예 끈다 — `eureka` 를 안 띄워도 등록 시도나
-에러 로그 없이 뜬다 (2026-07-30 로컬 실증).
+에러 로그 없이 뜬다.
 
 Java 툴체인은 25로 고정돼 있다. 로컬에 JDK 25가 없으면 `settings.gradle`의 foojay resolver가
 직접 내려받는다 (첫 빌드 한정). CI는 `setup-java`가 25를 제공하므로 다운로드가 없다.
@@ -128,7 +124,7 @@ Dockerfile은 컴파일하지 않는다. CI 러너가 Gradle 캐시로 만든 JA
 
 ## 테스트 주의
 
-- **CI가 테스트를 안 돌린다 (2026-08-02부터).** `.github/workflows/deploy.yml`의 5개 빌드 잡
+- **CI가 테스트를 안 돌린다.** `.github/workflows/deploy.yml`의 5개 빌드 잡
   전부 `./gradlew :모듈:build -x test`다. 빌드·이미지 푸시·배포는 테스트 결과와 무관하게
   진행된다. 머지 전 검증은 **전적으로 로컬 책임**이다.
 - 설계 테스트 전략은 Testcontainers를 쓰나, Testcontainers는 로컬 Docker를 요구한다.

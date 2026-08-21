@@ -5,20 +5,6 @@
 List IP 허용목록이다(§3 참조). 배경과 결정은
 [루트 README 개발 환경](../README.md#개발-환경)을 참조한다.
 
-> **현재 스캐폴드 상태 (2026-08-20 갱신, 최초 작성 2026-08-01).** 이 문서는 목표 상태를 기술한다.
-> 지금 실제로 되는 것과 다음 스캐폴드를 기다리는 것을 구분한다.
->
-> | 항목 | 지금 (2026-08-20) |
-> | --- | --- |
-> | 백엔드 core-api | Spring Boot 4.1 + springdoc. `./gradlew build`·`bootRun` 동작. **DB를 쓰지 않는다** — 채용공고 도메인이 `collector` 로 이동해 JPA·Postgres 의존성이 없다(2026-08-20). **Security는 아직 없음** |
-> | 백엔드 auth-service | JPA·Flyway·초대·매직링크·세션·rate limit 구현 완료. 이메일 발송은 로깅 스텁. 배포 배선(Dockerfile·compose·CI)은 2026-08-02 커밋으로 연결 완료 |
-> | 백엔드 collector | 2026-08-20 모듈 추출 완료. `com.carix.crawler`·`com.carix.jobposting` 소유, `core` 스키마에 JPA 로 쓴다. **Flyway는 쓰지 않는다** — `core` 스키마는 DDL 직접 적용이다(§3.2). **Batch·내부 API·배포 배선은 아직 없음** |
-> | 프런트엔드 | 배포 검증용 스텁(`server.js`)만. **Vite·React 없음.** `pnpm dev`·`test:e2e` 스크립트 없음 |
-> | DB | `auth` 스키마는 auth-service가 쓴다. `core` 스키마는 collector가 채용공고 도메인에 한해 쓴다(JPA `default_schema=core`) |
->
-> 따라서 §4(프런트엔드)와 §5의 배치 항목, §6의 Playwright는 각 프로젝트 초기화 이후
-> 활성화된다.
-
 ## 1. 사전 준비
 
 ### 1.1 런타임 버전
@@ -201,7 +187,7 @@ uid:gid `70:70`는 `postgres:16-alpine` 이미지의 postgres 프로세스 실�
 
 ```
 deploy/postgres/schema/
-├── 01_job_posting.sql             채용공고 수집 5개 테이블 (2026-08-09 적용분)
+├── 01_job_posting.sql             채용공고 수집 5개 테이블
 ├── 02_user_domain.sql             프로필·소득·소비·보유스킬 5개
 ├── 03_reference_and_aggregate.sql CPI·임금통계·시장집계 3개
 └── 04_snapshot_and_scenario.sql   지수 스냅샷·시나리오 2개
@@ -299,7 +285,7 @@ pnpm dev              # Vite dev server (기본 5173)
 
 `config-server`(8890)·`eureka`(8761) 는 서버에서 이미 돈다 — 로컬에는 작업 대상 하나만
 띄운다(Gateway 작업은 예외 — 아래 spring-cloud-architecture.md §6 참조). 서버 것을
-원격으로 쓴다 — OCI Security List IP 허용목록으로 열었다(2026-08-02, Postgres 5432와
+원격으로 쓴다 — OCI Security List IP 허용목록으로 열었다(Postgres 5432와
 같은 바인딩 방식). **TLS는 없다** — 두 서비스 다 시크릿을 다루지 않아(라우트·임계값·
 기능 플래그, 서비스 레지스트리뿐) Security List 단독 방어로 충분하다고 판단했다
 (Postgres는 실제 자격증명이 오가서 TLS를 추가했다). 서버 쪽 포트·볼륨 설정은
@@ -328,13 +314,11 @@ CONFIG_SERVER_URL=http://144.24.90.88:8890 EUREKA_URL=http://144.24.90.88:8761/e
 | `http://localhost:8080/api/v3/api-docs` | OpenAPI JSON |
 | `http://localhost:8080/api/v1/demo/thresholds` | Config Server 연동 확인. 서버 `config/spring/core-api.yml` 값을 읽는다 |
 
-- **DB 설정이 필요하지 않다 (2026-08-20부터).** 2026-08-09~08-20 사이에는 core-api 가
-  채용공고 도메인에서 JPA·Postgres 드라이버를 실제로 썼으나, 그 도메인이 `collector`
-  모듈로 이동하면서(설계: `docs/superpowers/specs/2026-08-20-collector-service-separation-design.md`)
-  core-api 의 JPA 사용처가 전부 사라졌다. `spring.datasource.*` 없이 기동한다.
+- **core-api 는 DB 를 쓰지 않는다** — 채용공고 도메인이 `collector` 로 이동해
+  JPA·Postgres 의존성이 없다. `spring.datasource.*` 없이 기동한다.
   `market_aggregate` 를 읽기 시작하면 다시 필요해지지만, 그때는 JPA 가 아니라
-  `JdbcClient` 읽기 전용으로 들인다(`specs/data-architecture.md` §5.1).
-- core-api 에는 Flyway 의존성이 없고(2026-08-19 제거) JPA 도 없다(2026-08-20 이동).
+  `JdbcClient` 읽기 전용으로 들인다(`specs/data-architecture.md` §3.1).
+- core-api 에는 Flyway 의존성이 없고 JPA 도 없다.
   `core` 스키마 DDL 은 `collector` 가 쓰는 대상이다 — 적용 절차는 §3.2 를 따른다.
 - 수집·정규화는 `collector` 모듈이다. `application.yml`이 `spring.cloud.config.fail-fast:
   true`를 켜 두므로 위 core-api 예시와 같은 방식으로 환경 변수와 `local` 프로파일을 줘야
@@ -362,7 +346,7 @@ pnpm test:e2e                     # Playwright
 cd backend && ./gradlew test
 ```
 
-### DB를 쓰는 테스트는 두지 않는다 (2026-08-19)
+### DB를 쓰는 테스트는 두지 않는다
 
 테스트용 DB를 쓰지 않기로 했다. 로컬에 Docker가 없고 운영 DB를 테스트 대상으로 삼을 수도
 없으므로, DB 연결이 필요한 테스트는 실행할 곳이 없다.

@@ -275,7 +275,7 @@ flowchart TD
 | 팀 DB 접근 | OCI Security List IP 허용목록 + Postgres TLS | 팀원 로컬에서 운영 DB에 직접 연결 | 도입 — [DEVELOPMENT.md §3](docs/DEVELOPMENT.md) |
 | 설정 관리 | Spring Cloud Config | 설정 외부화, 런타임 갱신 | 도입 — native(파일시스템) 백엔드 |
 | 서비스 디스커버리 | Eureka | 서비스 등록·조회 | 도입 |
-| API 게이트웨이 | Spring Cloud Gateway | 라우팅, 세션 검증 필터, 상관관계 ID | 도입 — 세션 검증 필터는 기본 비활성(auth-service 배포 배선은 완료·2026-08-02, 실제 서버 배포·Eureka 등록 확인 전이라 비활성, 계획 C) |
+| API 게이트웨이 | Spring Cloud Gateway | 라우팅, 세션 검증 필터, 상관관계 ID | 도입 — 세션 검증 필터는 기본 비활성(auth-service 배포 배선은 완료, 실제 서버 배포·Eureka 등록 확인 전이라 비활성, 계획 C) |
 
 엣지는 2단입니다. 서버의 라우터 Caddy가 80/443과 TLS를 소유하고 호스트명으로 분기하면,
 프로젝트 전용 Caddy가 애플리케이션 라우팅을 맡습니다. 두 계층의 소유권이 다릅니다 — 라우터는
@@ -296,7 +296,7 @@ flowchart TD
 | Java 25 | 최신 LTS. Spring Boot 4.x의 하한(17)보다 높고 가상 스레드·AOT 캐시(Java 25+ 전용) 등 최신 LTS 기능을 씁니다 |
 | Spring Boot 4.1 | 스캐폴드 시점의 최신 GA. Spring Initializr 기본값이며 3.x는 더 이상 제공되지 않습니다 |
 | springdoc-openapi 3.0.3 | Boot 4 대응 라인입니다. 2.x는 Boot 3용이라 호환되지 않습니다 |
-| Spring Data JPA | 영속화 매핑. 스키마는 `auth`만 Flyway로 코드 관리하고, `core`는 마이그레이션 파일 관리 부담이 이득보다 크다고 보고 DDL 직접 적용으로 두었습니다(2026-08-19 결정) |
+| Spring Data JPA | 영속화 매핑. 스키마는 `auth`만 Flyway로 코드 관리하고, `core`는 마이그레이션 파일 관리 부담이 이득보다 크다고 보고 DDL 직접 적용으로 두었습니다 |
 | Spring Batch | 외부 원천(KOSIS·잡코리아·사람인 등) 수집이 재시도·청크 처리·잡 이력을 요구합니다 |
 | PostgreSQL | 초기 설계에서 고정. 별도 근거는 기록돼 있지 않습니다 |
 | Docker·PostgreSQL 서버 전용 | 로컬 개발 머신에 Docker를 두지 않기로 했습니다. 로컬 Docker 허용은 Testcontainers 실행이 쉬워지지만 요구사항이 늘고, 임베디드 DB(H2)는 실 Postgres와 스키마·기능 드리프트 위험이 있어 접었습니다 |
@@ -307,7 +307,7 @@ flowchart TD
 | 서버는 pull만 | 서버가 메모리 압박이 있는 공유 호스트라 빌드를 올리지 않습니다 |
 | 이미지 태그 = 컴포넌트 변경 커밋 | `.env` 두 줄로 어떤 코드가 돌고 있는지 확정되고, 재기동해도 같은 이미지가 뜹니다 |
 | Spring Cloud Gateway·Config·Eureka | 학습·포트폴리오가 주목적인 프로젝트이며, 이 셋을 실제로 운영해 보는 것이 성과물입니다. 서비스 경계는 그 셋이 모두 동작하는 최소 구성(auth 분리)으로 잡았습니다 ([설계서](docs/specs/spring-cloud-architecture.md)) |
-| Config Server native 백엔드 | git 백엔드로 서버 체크아웃을 가리켰더니 JGit 이 그 저장소의 origin(GitHub SSH)으로 fetch 를 시도해 ED25519 키로 인증이 안 됐습니다 (2026-07-30 실측). native 는 git 을 다루지 않고 파일만 읽습니다 |
+| Config Server native 백엔드 | git 백엔드로 서버 체크아웃을 가리켰더니 JGit 이 그 저장소의 origin(GitHub SSH)으로 fetch 를 시도해 ED25519 키로 인증이 안 됐습니다. native 는 git 을 다루지 않고 파일만 읽습니다 |
 
 인증 방식(서버 세션 + 매직링크)의 근거는 [SECURITY.md §1](docs/SECURITY.md),
 연봉 기준선 선택은 [외부 API 연동 명세](docs/specs/external-api-integration.md)를 참조합니다(재검토 진행 중).
@@ -333,7 +333,7 @@ flowchart TD
 
 `carix_caddy`는 이제 `core-api`에 직접 붙지 않고 `gateway:8080`으로 붙습니다. Gateway가
 경로별로 `core-api`(`/api/v1/**`)와 `frontend-node`(그 외)로 나눠 보냅니다. `auth-service`로의
-라우트도 Gateway에 있고 배포 배선도 완료(2026-08-02)됐지만, 실제 서버 배포·Eureka 등록 확인
+라우트도 Gateway에 있고 배포 배선도 완료됐지만, 실제 서버 배포·Eureka 등록 확인
 전이라 세션 검증 필터는 기본 꺼져 있습니다
 (상세는 [Spring Cloud 아키텍처](docs/specs/spring-cloud-architecture.md)).
 
@@ -344,7 +344,7 @@ Node 서버는 DB에 직접 접근하거나 Spring Boot 로직을 복제하지 �
 
 `/assets/*`는 장기 캐시 헤더를 붙여 `frontend-node`로 넘깁니다. 별도 정적 파일 서버는 없습니다.
 
-> **전환 완료(2026-08-01, auth-service 배포 배선은 2026-08-02).** 애플리케이션 라우팅을
+> **전환 완료.** 애플리케이션 라우팅을
 > `carix_caddy`에서 Spring Cloud Gateway로 옮겼습니다. 백엔드는 `core-api`·`auth-service`로
 > 나뉘어 있으며 둘 다 배포 배선이 완료돼 있습니다(실제 서버 배포·Eureka 등록 확인은 별도
 > 진행 — 위 §기술 구성 참고). `collector`는 모듈 추출까지 완료됐고(2026-08-20),
@@ -372,7 +372,7 @@ robots 정책과 필요한 구조화 데이터를 제공합니다.
 | 대상 | 기술 | 현재 |
 | --- | --- | --- |
 | 백엔드 단위·슬라이스 | JUnit 5, Spring Boot Test, MockMvc | 도입 |
-| 백엔드 통합 | — | **두지 않습니다.** 테스트용 DB를 쓰지 않기로 했습니다(2026-08-19 결정). 로컬에 Docker가 없어 Testcontainers 테스트가 어디서도 실행되지 않던 상태라, auth-service의 해당 테스트 10개와 의존성을 제거했습니다 |
+| 백엔드 통합 | — | **두지 않습니다.** 테스트용 DB를 쓰지 않기로 했습니다. 로컬에 Docker가 없어 Testcontainers 테스트가 어디서도 실행되지 않던 상태라, auth-service의 해당 테스트 10개와 의존성을 제거했습니다 |
 | 프런트 단위·컴포넌트 | Vitest, Testing Library | 도입 — `pnpm test:unit` |
 | API 모킹 | MSW | 미도입 |
 | 브라우저 E2E | Playwright | 도입 — 랜딩 E2E와 `@axe-core/playwright` 접근성 검사 (`pnpm test:e2e`) |
@@ -441,7 +441,7 @@ Carix/
 - **로컬 프런트엔드:** Vite dev server(`pnpm dev`)를 띄웁니다. Docker 불필요. `/api` 프록시는
   아직 구성돼 있지 않습니다 — 프런트가 백엔드를 호출하는 시점에 `vite.config.ts`에 추가합니다.
 - **로컬 백엔드:** 로컬에 DB를 띄우지 않고 **OCI의 `carix` DB에 원격 연결**합니다. 접근은 TLS + OCI Security List IP 허용목록입니다. 운영과 개발이 같은 DB입니다(대안 비교·감수한 위험은 [DEVELOPMENT.md §3](docs/DEVELOPMENT.md)).
-- **통합 테스트:** 두지 않습니다. 테스트용 DB를 쓰지 않기로 했고(2026-08-19), 컨텍스트를 띄우는 테스트는 연결하지 않는 DataSource로 돌립니다 ([DEVELOPMENT.md §6](docs/DEVELOPMENT.md)). CI는 전 모듈을 `-x test`로 빌드하므로 테스트 자동 실행 지점은 없습니다 — 머지 전 로컬에서 직접 돌립니다.
+- **통합 테스트:** 두지 않습니다. 테스트용 DB를 쓰지 않기로 했고, 컨텍스트를 띄우는 테스트는 연결하지 않는 DataSource로 돌립니다 ([DEVELOPMENT.md §6](docs/DEVELOPMENT.md)). CI는 전 모듈을 `-x test`로 빌드하므로 테스트 자동 실행 지점은 없습니다 — 머지 전 로컬에서 직접 돌립니다.
 - 환경 변수는 [`.env.example`](.env.example)을 복사해 `.env`로 채웁니다. API 키·시크릿은 저장소에 커밋하지 않습니다.
 
 버전 기준: 컨테이너는 Java 25, Node.js 24 LTS로 고정합니다 (로컬 개발 머신의 상위 버전과 별개).
