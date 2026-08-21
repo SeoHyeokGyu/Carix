@@ -101,7 +101,7 @@ OCI VM에서 다음 컨테이너를 Docker Compose로 운영한다.
 - `config-server`, `eureka`
 - `postgres`
 - `collector` — 수집·정규화·집계. Gateway 라우팅 대상이 아니다. compose·배포 배선은
-  아직 없다 (2026-08-20 모듈 추출까지 완료)
+  아직 없다
 
 > 초안은 `nginx`였으나 `carix-caddy`로 대체됐다. 이 호스트는 여러 프로젝트를 함께 돌리는데,
 > 80/443은 한 컨테이너만 바인딩할 수 있고 Let's Encrypt는 그 두 포트로만 검증하러 온다.
