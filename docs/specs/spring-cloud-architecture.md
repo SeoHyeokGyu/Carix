@@ -27,6 +27,9 @@
 포트 열은 **컨테이너 내부** 포트이자 현재 상태다. Eureka 등록과, 해당하는 경우 Gateway
 연결도 같은 포트 번호를 쓴다.
 
+Eureka 열은 해당 서비스가 Eureka 레지스트리에 등록되는지만 나타낸다. Gateway가 실제로
+그 서비스로 라우팅하는지 여부의 신호가 아니다.
+
 호스트 바인딩은 대부분 같은 번호를 쓰지만 `config-server`만 **8890**이다. 호스트 8888은
 저장소 밖 `infra-dozzle-1`이 이미 잡고 있다. `config-server`·`eureka`(8761)·`postgres`(5432)는
 `0.0.0.0`에 바인딩하고 OCI Security List로 접근을 제한한다(§6, DEVELOPMENT.md §3).
