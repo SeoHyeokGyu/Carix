@@ -338,8 +338,9 @@ Gateway 도입·`auth-service` 배포 배선은 완료됐다. `collector` 는 �
 ## 6. 테스트
 
 ```bash
-# 프런트엔드 단위·컴포넌트
-cd frontend && pnpm test          # Vitest
+# 프런트엔드
+cd frontend && pnpm test          # 서버 스모크 테스트 — pretest 가 먼저 pnpm build 를 돈다
+pnpm test:unit                    # Vitest (컴포넌트 단위)
 pnpm test:e2e                     # Playwright
 
 # 백엔드 단위
