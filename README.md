@@ -264,9 +264,9 @@ flowchart TD
 | Node SSR | Node.js 24 LTS, Express, `@react-router/express` | HTML 렌더링, SEO metadata, 공개 콘텐츠 | 미도입 — `frontend/server.js`는 `node:http` 정적 파일 서버로, 빌드된 사전 렌더링 산출물만 서빙합니다 (아래 §렌더링 전략 주석 참조) |
 | 클라이언트 데이터 | TanStack Query, React Hook Form, Zod | API 상태, 입력 폼, 검증 | 미도입 |
 | UI·시각화 | Tailwind CSS, shadcn/ui, Recharts | 컴포넌트, 스타일, 지수 차트 | 부분 도입 — Tailwind CSS 4(`@tailwindcss/vite`)만 도입. shadcn/ui·Recharts는 미도입 |
-| 백엔드 | Java 25, Spring Boot 4.1, Gradle 멀티모듈 | 인증, 도메인 로직, REST API, 데이터 접근 | 도입 (인증은 auth-service에 구현·배포 배선 완료. core-api는 채용공고 영속화만 DB에 연결돼 있고, 대시보드·소득·소비·스킬·시나리오·프로필·참조 도메인은 REST 컨트롤러와 DTO만 있는 고정 응답 스텁 — 서비스·리포지터리 미연결) |
+| 백엔드 | Java 25, Spring Boot 4.1, Gradle 멀티모듈 | 인증, 도메인 로직, REST API, 데이터 접근 | 도입 (인증은 auth-service에 구현·배포 배선 완료. core-api는 DB를 쓰지 않는다 — 채용공고 도메인은 `collector`로 이동했고, 대시보드·소득·소비·스킬·시나리오·프로필·참조 도메인은 REST 컨트롤러와 DTO만 있는 고정 응답 스텁 — 서비스·리포지터리 미연결) |
 | API 문서 | springdoc-openapi | OpenAPI 문서, Swagger UI | 도입 |
-| 데이터 접근 | Spring Data JPA, Flyway | 영속화, 스키마 마이그레이션 | 모듈별로 다름 — auth-service(`auth` 스키마)는 Flyway로 관리. core-api(`core` 스키마)는 **Flyway를 쓰지 않고 DDL을 직접 적용**한다(정본은 [상세 기술 명세](docs/specs/technical-specification.md), 절차는 [DEVELOPMENT.md §3.2](docs/DEVELOPMENT.md)). 채용공고 도메인만 JPA로 매핑돼 있고 나머지는 미도입 |
+| 데이터 접근 | Spring Data JPA, Flyway | 영속화, 스키마 마이그레이션 | 모듈별로 다름 — auth-service(`auth` 스키마)는 Flyway로 관리. collector(`core` 스키마)는 **Flyway를 쓰지 않고 DDL을 직접 적용**한다(정본은 [상세 기술 명세](docs/specs/technical-specification.md), 절차는 [DEVELOPMENT.md §3.2](docs/DEVELOPMENT.md)). 채용공고 도메인이 JPA로 매핑돼 있다. core-api는 DB를 쓰지 않아 JPA·Flyway 둘 다 미도입 |
 | 데이터 수집 | Spring Batch | 외부 원천 수집·집계 | 미도입 |
 | 데이터베이스 | PostgreSQL 16 | 영속화 | 도입 (auth·채용공고 스키마·데이터 존재, 그 외 도메인 스키마 없음) |
 | 엣지 — 라우터 | Caddy 2 (`infra_caddy`) | 80/443 소유, TLS 종료·자동 발급, 호스트명 분기 | 도입 — **이 저장소 밖**(`~/infra`, 타 프로젝트와 공유) |
