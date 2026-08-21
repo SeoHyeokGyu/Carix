@@ -1,6 +1,6 @@
 # Carix 상세 기술 명세서 (Detailed Technical Specifications)
 
-이 문서는 Carix 1차 MVP 구현에 필요한 데이터베이스 스키마(DDL), 보안 암호화 정책, 결정 신호 룰 엔진 매트릭스, 표준 스킬 사전 시드(Seed) 데이터 및 외부 OpenAPI 연동 스펙을 정의합니다.
+이 문서는 Carix 1차 MVP 구현에 필요한 데이터베이스 스키마(DDL), 보안 암호화 정책, 결정 신호 룰 엔진 매트릭스, 표준 스킬 사전 시드(Seed) 데이터를 정의합니다.
 
 ---
 
@@ -156,7 +156,7 @@ CREATE TABLE user_skill (
 -- 4. 외부 수집 및 집계 영역
 CREATE TABLE raw_ingest (
     id UUID PRIMARY KEY,
-    source VARCHAR(50) NOT NULL, -- 'KOSIS_CPI', 'WORK24', 'SARAMIN', 'WAGE_STAT'
+    source VARCHAR(50) NOT NULL, -- 'KOSIS_CPI', 'JOBKOREA', 'SARAMIN', 'WAGE_STAT'
     source_item_id VARCHAR(100) NOT NULL, -- 원천 내 원문 식별자
     payload JSONB, -- 원문 응답. 보존 24개월 초과 시 NULL 처리(원문만 삭제), 행·메타데이터는 유지
     purged_at TIMESTAMP WITH TIME ZONE, -- 원문 삭제 시각 (NULL = 원문 보존 중)
@@ -190,8 +190,8 @@ CREATE TABLE wage_stat_observation (
 
 CREATE TABLE job_posting (
     id UUID PRIMARY KEY,
-    source VARCHAR(50) NOT NULL, -- 'WORK24', 'SARAMIN'
-    external_id VARCHAR(100) NOT NULL, -- 원천 공고 ID (고용24 wantedAuthNo 등)
+    source VARCHAR(50) NOT NULL, -- 'JOBKOREA', 'SARAMIN'
+    external_id VARCHAR(100) NOT NULL, -- 원천 공고 ID
     dedup_group_id UUID, -- 원천 간 중복 공고 그룹 (회사명+제목+게시기간 휴리스틱)
     dedup_rule_version VARCHAR(20), -- 중복 매칭 규칙 버전
     title VARCHAR(255) NOT NULL,
@@ -224,7 +224,7 @@ CREATE TABLE job_posting_skill (
 
 CREATE TABLE market_aggregate (
     id UUID PRIMARY KEY,
-    source VARCHAR(50) NOT NULL, -- 'JOBKOREA', 'SARAMIN' (실적재), 'WORK24' (고용24, 미구현) — 원천별 행만 저장, 통합 지수는 계산 시점 도출
+    source VARCHAR(50) NOT NULL, -- 'JOBKOREA', 'SARAMIN' — 원천별 행만 저장, 통합 지수는 계산 시점 도출
     base_year_month VARCHAR(6) NOT NULL,
     job_family VARCHAR(100) NOT NULL,
     region VARCHAR(100) NOT NULL,

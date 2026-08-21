@@ -1,6 +1,6 @@
 # Carix 전체 애플리케이션 작업 흐름 명세 (Application Workflow Specification)
 
-이 문서는 Carix 플랫폼의 사용자 라이프사이클, 외부 OpenAPI 데이터 수집 배치의 파이프라인, 그리고 사용자 커리어 지표 및 시뮬레이션 산출에 이르는 **전체적인 데이터 흐름(E2E Data Flow)**을 명세화합니다.
+이 문서는 Carix 플랫폼의 사용자 라이프사이클, 외부 원천 데이터 수집 배치의 파이프라인, 그리고 사용자 커리어 지표 및 시뮬레이션 산출에 이르는 **전체적인 데이터 흐름(E2E Data Flow)**을 명세화합니다.
 
 ---
 
@@ -11,10 +11,10 @@
 ```mermaid
 flowchart TD
     %% 1. 외부 데이터 및 수집 (Top)
-    subgraph External [외부 OpenAPI]
+    subgraph External [외부 원천]
         Kosis[KOSIS 물가통계 API]
         JobKorea[잡코리아 채용정보 스크래핑]
-        Saramin[사람인 오픈 API]
+        Saramin[사람인 채용정보 스크래핑]
         WageStat[임금통계 API]
     end
 
@@ -59,8 +59,8 @@ flowchart TD
     Saramin -->|공고 응답| Job2
     WageStat -->|임금통계 응답| Job2b
     Job1 -->|API 호출| Kosis
-    Job2 -->|API 호출| JobKorea
-    Job2 -->|API 호출| Saramin
+    Job2 -->|스크래핑| JobKorea
+    Job2 -->|스크래핑| Saramin
     Job2b -->|API 호출| WageStat
     Job2b -->|정규화 적재| RawDB
 
