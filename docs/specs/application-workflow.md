@@ -2,12 +2,6 @@
 
 이 문서는 Carix 플랫폼의 사용자 라이프사이클, 외부 OpenAPI 데이터 수집 배치의 파이프라인, 그리고 사용자 커리어 지표 및 시뮬레이션 산출에 이르는 **전체적인 데이터 흐름(E2E Data Flow)**을 명세화합니다.
 
-> **계보 주의 (2026-07-25 / 2026-08-08):** 아래 다이어그램·Job 2 설명의 "고용24 API"는
-> 실측으로 폐기가 확정됐다(개인회원 API 호출 차단). 사람인도 공식 오픈 API가 아니라
-> 스크래핑으로 전환됐다. 배치 구조(중복제거·dedup_group·스킬 정규화)는 여전히
-> 유효하나, 실제 원천은 잡코리아·사람인 스크래핑 어댑터다. 최신 원천 구성은
-> [외부 원천 API 연동 명세](external-api-integration.md) 참조.
-
 ---
 
 ## 1. Carix 전체 서비스 아키텍처 및 흐름도
@@ -19,7 +13,7 @@ flowchart TD
     %% 1. 외부 데이터 및 수집 (Top)
     subgraph External [외부 OpenAPI]
         Kosis[KOSIS 물가통계 API]
-        Work24[고용24 채용정보 API]
+        JobKorea[잡코리아 채용정보 스크래핑]
         Saramin[사람인 오픈 API]
         WageStat[임금통계 API]
     end
@@ -27,7 +21,7 @@ flowchart TD
     %% 2. 배치 프로세서 (Down 1)
     subgraph Batch [Spring Batch Worker 프로세스]
         Job1[CPI 수집 Job]
-        Job2[구인공고 수집 & 스킬 파싱 Job - 고용24/사람인]
+        Job2[구인공고 수집 & 스킬 파싱 Job - 잡코리아/사람인]
         Job2b[임금통계 수집 Job]
         Job3[시장 데이터 통계 집계 Job - 원천별 + dedup]
         Job4[사용자 지수 스냅샷 갱신 Job]
@@ -61,11 +55,11 @@ flowchart TD
 
     %% 외부 -> 배치 연동
     Kosis -->|데이터 응답| Job1
-    Work24 -->|본문 텍스트 응답| Job2
+    JobKorea -->|본문 텍스트 응답| Job2
     Saramin -->|공고 응답| Job2
     WageStat -->|임금통계 응답| Job2b
     Job1 -->|API 호출| Kosis
-    Job2 -->|API 호출| Work24
+    Job2 -->|API 호출| JobKorea
     Job2 -->|API 호출| Saramin
     Job2b -->|API 호출| WageStat
     Job2b -->|정규화 적재| RawDB
@@ -114,11 +108,11 @@ stateDiagram-v2
 ```
 
 ### 2.2 Job 2: 구인공고 수집 및 스킬 정규화 (일/주 1회 실행)
-가장 많은 연산과 파싱이 필요한 핵심 배치 파이프라인입니다. 고용24와 사람인 어댑터가 동일 구조로 실행되며, 수집 후 원천 간 중복 공고를 `dedup_group_id`로 매칭합니다. 파싱된 스킬은 `job_posting_skill`에 공고별로 저장합니다.
+가장 많은 연산과 파싱이 필요한 핵심 배치 파이프라인입니다. 잡코리아와 사람인 어댑터가 동일 구조로 실행되며, 수집 후 원천 간 중복 공고를 `dedup_group_id`로 매칭합니다. 파싱된 스킬은 `job_posting_skill`에 공고별로 저장합니다.
 
 ```mermaid
 flowchart TD
-    Start([Job 시작]) --> Reader[원천별 API Reader - 고용24/사람인: <br>IT/개발 직군 목록 조회]
+    Start([Job 시작]) --> Reader[원천별 API Reader - 잡코리아/사람인: <br>IT/개발 직군 목록 조회]
     Reader --> Filter[Duplicate Filter: <br>원천 공고ID 중복 및 만료공고 제외 <br>+ 원천 간 dedup_group 매칭]
     Filter --> DetailReader[Detail Reader: <br>공고별 상세 본문 및 연봉 수집]
     

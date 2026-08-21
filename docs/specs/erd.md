@@ -2,55 +2,6 @@
 
 이 문서는 Carix 데이터베이스의 테이블 간 관계 및 각 테이블의 엔티티 구조를 시각화한 ERD입니다.
 
-> **2026-08-09 확장:** `job_posting`에 `company_badge`, `position_level` 컬럼 추가. 근거는
-> [2026-08-09 채용공고 크롤링 데이터 영속화 설계](../superpowers/specs/2026-08-09-job-posting-persistence-design.md) —
-> 실측 크롤링 데이터를 원래 스키마에 넣어보다가 ERD에 자리가 없어 버려지던 필드를 확인하고 확장했다.
->
-> **2026-08-09 운영 현황:** `job_posting`/`job_posting_skill`/`skill`/`skill_alias`/`raw_ingest`
-> 5개 테이블 전부 원격 공유 Postgres(`carix` DB, `core` 스키마)에 실제로 만들어져 있고,
-> 잡코리아·사람인 크롤링 결과 800건 + 스킬 699개 + raw_ingest 410건이 영구 적재돼 있다.
-> **2026-08-19 스키마 관리 방식:** core-api에서 Flyway를 제거했다. `core` 스키마는
-> 이 문서와 [상세 기술 명세 §1](technical-specification.md)의 DDL을 정본으로 삼아 `psql`로
-> 직접 적용한다(절차는 [DEVELOPMENT.md §3.2](../DEVELOPMENT.md)). 마이그레이션 파일 관리
-> 부담이 이득보다 크다는 판단이며, `auth` 스키마는 Flyway를 그대로 쓴다. 스키마를 바꾸면
-> 적용 이력이 자동으로 남지 않으므로 아래 운영 현황 절에 직접 기록한다.
->
-> **2026-08-20 스키마 확장:** `core` 스키마에 나머지 10개 테이블을 적용했다 —
-> `career_profile`, `income_history`, `expense_history`, `expense_item`, `user_skill`,
-> `cpi_observation`, `wage_stat_observation`, `market_aggregate`, `index_snapshot`,
-> `career_scenario`. 이로써 스펙의 `core` 소관 15개 테이블이 모두 존재한다.
-> DDL 은 `deploy/postgres/schema/02~04_*.sql` 이다. `user_id` 에는 외래키를 걸지 않았다 —
-> `users` 는 auth-service 가 `auth` 스키마에 소유하므로 교차 스키마 참조는 두 서비스의
-> 배포를 묶는다.
->
-> **2026-08-20 `company_size` 채움:** 잡코리아 상세페이지의 사원수(`employeeCount`,
-> 400건 중 386건)와 기업 구분(`companyTypeName`)으로 판정했다. 300명 이상 LARGE,
-> 50~299 MEDIUM, 50 미만 STARTUP(중소기업기본법 상시근로자 기준). 결과는
-> LARGE 75 / MEDIUM 193 / STARTUP 129 / UNKNOWN 3. 사람인은 목록페이지에 기업 규모가
-> 없어 400건 전부 UNKNOWN 이다 — 집계에서 NULL(전체 롤업)과 구분해야 하므로 NULL 로
-> 두지 않았다.
->
-> **2026-08-20 `employment_type` 정규화:** 원천 표기 18종을 코드 5종으로 바꿨다 —
-> FULL_TIME 744 / CONTRACT 44 / FREELANCE 7 / INTERN 4 / UNKNOWN 1. `정규직 외` 같은
-> 꼬리표를 떼고 `정규직·계약직` 같은 복합 표기는 첫 항목으로 판정한다(원천이 대표 형태를
-> 앞에 둔다). 스펙 §1.2 는 FULL_TIME/CONTRACT 둘만 정의하지만 프리랜서·인턴이 실재해
-> 별도 코드를 뒀다. 이로써 동료집단 5차원이 모두 채워졌다.
->
-> **2026-08-20 집계 표본 실측:** 800건으로 `market_aggregate` 의 완화 계층을 실측했다.
-> N>=10 을 넘는 셀이 Level 1(구+고용형태+회사규모) 9개, Level 2(회사규모 롤업) 12개,
-> Level 3(시도 확장) 17개, Level 5(고용형태 롤업) 17개다 — 지역 확장이 완화의 주력이고,
-> 고용형태 해제는 FULL_TIME 이 744/800 이라 아무것도 얻지 못한다. 반면 가장 큰 Level 5 셀
-> (`JOBKOREA/DEVELOPER/서울/JUNIOR`, N=117)에 붙은 스킬 239종 중 공고 10건 이상은 9종뿐이다
-> — 병목은 동료집단 셀이 아니라 스킬 행이다. SARAMIN 400건은 `company_size` 가 전건 UNKNOWN
-> 이라 Level 1 을 통과하지 못한다. 공개연봉은 317/800(DATA 6/38, AI 22/70). 판정 규칙과
-> 미결 사항은 [도메인 로직 §2.3](domain-logic.md) 에 적었다. `market_aggregate` 는 아직 비어 있다.
->
-> **2026-08-19 데이터 정정:** 첫 적재가 원천 정보를 다 쓰지 못해 `raw_ingest` 원문으로
-> 재파싱했다. 공개연봉 36 -> 317건, `job_family` 0 -> 800건(DEVELOPER 567 / OTHER 125 /
-> AI 70 / DATA 38), 스킬에서 인성 역량과 직무 카테고리를 분리(스킬 699 -> 683, 연결
-> 4300 -> 3860, `is_custom` 전건 false). 재실행 수단은
-> `com.carix.jobposting.backfill.JobPostingBackfill`이다.
-
 ```mermaid
 erDiagram
     users ||--o| career_profile : has
