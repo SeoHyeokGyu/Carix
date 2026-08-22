@@ -192,18 +192,8 @@ spring:
 `/etc/carix-repo`는 서버의 저장소 체크아웃(`/home/opc/carix`)을 읽기 전용으로 마운트한 것이다.
 배포 스크립트의 `git reset --hard`가 그 내용을 갱신한다.
 
-**git 백엔드를 쓰지 않는 이유** — 둘 다 실패했다.
-
-GitHub을 SSH로 직접 읽는 것: JGit은 RSA·PEM 형식 키만 받는데 서버의 기존 deploy key는
-ED25519·OpenSSH 형식이라 쓸 수 없다. 새 자격증명을 만들어야 한다.
-
-git 백엔드로 `file:///etc/carix-repo`를 가리키는 것: `JGitEnvironmentRepository`가 그 경로를
-제자리 작업복사본으로 삼고, **저장소에 설정된 origin(`git@github-carix:...`)으로 fetch를
-시도한다.** 위와 같은 이유로 인증이 실패하고, 이어지는 checkout도 읽기 전용 마운트라
-`RefNotFoundException: Ref master cannot be resolved`로 끝난다.
-
-native 백엔드는 git을 아예 다루지 않고 파일만 읽는다. 저장소를 최신으로 유지하는 일은
-배포 스크립트가 이미 하므로 Config Server가 그것을 한 번 더 할 이유가 없다.
+**native(파일시스템) 백엔드를 채택한 사유**:
+JGit 기반 git 백엔드는 ED25519 deploy key 형식 제약 및 로컬 마운트 참조 시 불필요한 원격 fetch 시도 등의 오버헤드가 있습니다. 반면 native 백엔드는 파일시스템의 설정 디렉터리를 직접 읽으므로 자격증명 종속성이 없고, 배포 파이프라인(`git reset --hard`)과 결합하여 안전하고 단순하게 동작합니다.
 
 **대가**: 설정만 바꾼 커밋도 배포 워크플로를 한 번 태워야 `/etc/carix-repo`가 갱신된다.
 다만 그 실행은 이미지를 만들지 않고 컨테이너도 재생성하지 않는다 — 태그가 그대로라
@@ -243,10 +233,8 @@ record 는 무인자 생성자가 없어 갱신 시점에 깨진다. 리바인�
 
 **Eureka 클라이언트는 refresh 대상에서 뺀다** (`eureka.client.refresh.enable: false`).
 기본값이면 refresh 마다 `eurekaClient` 가 재생성되는데, 새 `DiscoveryClient` 가 자기
-`instanceId` 를 null 로 들고 조회해 NPE 로 죽는다. 갱신하려는 것은 도메인 설정이지
+`instanceId`를 null로 들고 조회하여 NullPointerException이 발생합니다. 갱신하려는 것은 도메인 설정이지
 레지스트리 접속 정보가 아니다.
-
-둘 다 서버 실측으로 드러났다.
 
 ### 부팅 의존성
 
@@ -275,8 +263,9 @@ Security List 단독 방어로 충분하다고 판단했다).
 
 ### 가장 큰 위험 — 로컬 인스턴스가 운영 트래픽을 받는다
 
-로컬 `core-api`가 서버 Eureka에 등록되면 서버 Gateway가 그쪽으로 실사용자 요청을 보낸다.
-노트북을 닫으면 서비스가 죽는다.
+로컬 `core-api`가 서버 Eureka에 등록되면 서버 Gateway가 그쪽으로 실사용자 요청을 보낼 수 있습니다.
+노트북 환경 종료 시 서비스 요청이 실패할 수 있으므로,
+`local` 프로파일을 반드시 활성화합니다 (`application-local.yml`의 `register-with-eureka: false`).
 
 ```yaml
 # application-local.yml
@@ -314,24 +303,16 @@ spring.cloud.gateway.routes:
 - DB 접근은 TLS + OCI Security List IP 허용목록이다 — 상세는 DEVELOPMENT.md §3.
 - 오프라인 개발이 불가능하다(DB 원격 연결 필요).
 
-## 7. 기존 결정과의 충돌
+## 7. 엣지 프록시 및 게이트웨이 역할 정립
 
-### 엣지 프록시 선택(oci-server-provisioning-plan.md §Phase 3) 일부 대체
+프로젝트 전용 Caddy(`carix_caddy :80`)는 외부 트래픽을 단일 진입점으로 받아 `gateway:8080`으로 단순 중계하며, 애플리케이션 계층의 경로별 라우팅과 세션 검증 필터링은 Spring Cloud Gateway가 전담합니다.
 
-`carix_caddy`가 담당하던 애플리케이션 라우팅을 Gateway가 가져간다. 해당 컨테이너는 제거된다.
+**라우터 Caddy(`infra_caddy`)는 유지한다.** 그 근거 — ACME 자동화, 80/443 단일 바인딩 제약, 타 프로젝트와의 포트 공유 — 가 그대로 유효하며, Gateway는 평문 HTTP 내부 통신에 집중합니다.
 
-**라우터 Caddy(`infra_caddy`)는 유지한다.** 그 근거 — ACME 자동화, 80/443 단일
-바인딩 제약, 타 프로젝트와 공유 — 가 그대로 유효하다. Gateway는 TLS를 다루지 않는다.
+### 트레이드오프 및 고려사항
 
-Gateway 도입 커밋에 이 변경 사유를 기록한다.
-
-### 잃는 것
-
-- **엣지 기동 시간**: Caddy는 즉시, Gateway는 5~10초. 배포 시 그만큼 엣지가 비는 구간이 생긴다.
-- **엣지 장애 반경**: 10MB Caddy → 300MB JVM. 죽으면 사이트 전체가 막히는 것은 같으나
-  실패 확률과 원인이 달라진다.
-- **런타임 모델 혼재**: 애플리케이션은 MVC, 엣지는 WebFlux.
-- Caddy가 하던 압축과 `/assets/*` 캐시 헤더를 Gateway 필터로 옮겨야 한다.
+- **기동 시간**: Caddy 대비 Gateway(JVM)의 기동 시간이 수 초 소요되므로 배포 헬스체크 및 의존성 순서 관리가 필요하다.
+- **런타임 모델**: 애플리케이션 서비스는 Spring MVC, Gateway는 비동기 논블로킹 WebFlux 모델로 운영된다.
 
 ## 8. 자원 영향
 

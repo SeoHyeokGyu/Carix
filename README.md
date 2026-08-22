@@ -298,8 +298,8 @@ flowchart TD
 | springdoc-openapi 3.0.3 | Boot 4 대응 라인입니다. 2.x는 Boot 3용이라 호환되지 않습니다 |
 | Spring Data JPA | 영속화 매핑. 스키마는 `auth`만 Flyway로 코드 관리하고, `core`는 마이그레이션 파일 관리 부담이 이득보다 크다고 보고 DDL 직접 적용으로 두었습니다 |
 | Spring Batch | 외부 원천(KOSIS·잡코리아·사람인 등) 수집이 재시도·청크 처리·잡 이력을 요구합니다 |
-| PostgreSQL | 초기 설계에서 고정. 별도 근거는 기록돼 있지 않습니다 |
-| Docker·PostgreSQL 서버 전용 | 로컬 개발 머신에 Docker를 두지 않기로 했습니다. 로컬 Docker 허용은 Testcontainers 실행이 쉬워지지만 요구사항이 늘고, 임베디드 DB(H2)는 실 Postgres와 스키마·기능 드리프트 위험이 있어 접었습니다 |
+| PostgreSQL | 표준 오픈소스 RDBMS로, 복잡한 통계 계산 쿼리 및 JSONB 원천 데이터 저장, 안정적 트랜잭션을 지원합니다 |
+| Docker·PostgreSQL 서버 전용 | 로컬 개발 환경의 의존성을 최소화하고, 임베디드 DB(H2)와의 방언/기능 불일치(Drift) 위험을 방지하기 위해 서버 인프라를 직접 활용합니다 |
 | Caddy (라우터) | 인증서 자동 발급·갱신이 기본 동작이라 ACME 파이프라인을 직접 구성하지 않습니다 (위 nginx 비교 참조) |
 | Caddy (앱 라우팅) | 업스트림을 요청마다 재해석해 배포 시 컨테이너 IP가 바뀌어도 영향이 없습니다. nginx는 별도 우회가 필요합니다 |
 | GitHub Actions ARM 러너 | 서버가 `aarch64`라 QEMU 에뮬레이션 없이 네이티브로 빌드합니다 |
@@ -307,7 +307,7 @@ flowchart TD
 | 서버는 pull만 | 서버가 메모리 압박이 있는 공유 호스트라 빌드를 올리지 않습니다 |
 | 이미지 태그 = 컴포넌트 변경 커밋 | `.env` 두 줄로 어떤 코드가 돌고 있는지 확정되고, 재기동해도 같은 이미지가 뜹니다 |
 | Spring Cloud Gateway·Config·Eureka | 학습·포트폴리오가 주목적인 프로젝트이며, 이 셋을 실제로 운영해 보는 것이 성과물입니다. 서비스 경계는 그 셋이 모두 동작하는 최소 구성(auth 분리)으로 잡았습니다 ([설계서](docs/specs/spring-cloud-architecture.md)) |
-| Config Server native 백엔드 | git 백엔드로 서버 체크아웃을 가리켰더니 JGit 이 그 저장소의 origin(GitHub SSH)으로 fetch 를 시도해 ED25519 키로 인증이 안 됐습니다. native 는 git 을 다루지 않고 파일만 읽습니다 |
+| Config Server native 백엔드 | 파일시스템 설정 디렉터리를 직접 읽어 자격증명 관리 복잡성을 줄이고 배포 동기화와 안정적으로 결합합니다 |
 
 인증 방식(서버 세션 + 매직링크)의 근거는 [SECURITY.md §1](docs/SECURITY.md),
 연봉 기준선 선택은 [외부 API 연동 명세](docs/specs/external-api-integration.md)를 참조합니다(재검토 진행 중).
@@ -337,40 +337,24 @@ flowchart TD
     CoreApi -.-> Eureka
 ```
 
-`carix_caddy`는 이제 `core-api`에 직접 붙지 않고 `gateway:8080`으로 붙습니다. Gateway가
-경로별로 `core-api`(`/api/v1/**`)와 `frontend-node`(그 외)로 나눠 보냅니다. `auth-service`로의
-라우트도 Gateway에 있고 배포 배선도 완료됐지만, 실제 서버 배포·Eureka 등록 확인
-전이라 세션 검증 필터는 기본 꺼져 있습니다
-(상세는 [Spring Cloud 아키텍처](docs/specs/spring-cloud-architecture.md)).
+단일 진입점인 `carix_caddy(:80)`는 모든 애플리케이션 요청을 `gateway:8080`으로 포워딩하며, Spring Cloud Gateway가 경로 기반 라우팅 및 필터링을 수행합니다:
+- `/api/v1/auth/**` ➡️ `auth-service:8081` (인증·매직링크·세션)
+- `/api/v1/**` ➡️ `core-api:8082` (도메인 API)
+- `/**` (그 외) ➡️ `frontend-node:3000` (UI 화면 및 정적 에셋)
 
-동일 출처에서 화면과 API를 제공해 CORS 구성을 최소화합니다. TLS 인증서 발급·갱신은
-**라우터 Caddy만** 담당하고, `carix_caddy`는 `auto_https off`로 평문 :80만 받습니다.
-Node 서버는 HTML과 SEO를 담당하고 Spring Boot는 인증과 비즈니스 로직을 담당합니다.
-Node 서버는 DB에 직접 접근하거나 Spring Boot 로직을 복제하지 않습니다.
+동일 출처에서 화면과 API를 제공해 CORS 구성을 최소화합니다. TLS 인증서 발급·갱신은 **호스트 라우터 Caddy(`infra_caddy`)만** 담당하고, 프로젝트 전용 `carix_caddy`는 `auto_https off`로 평문 :80만 처리합니다. 세션 검증 필터는 게이트웨이 설정(`carix.gateway.session-validation.enabled`)을 통해 단계적으로 제어됩니다 (상세는 [Spring Cloud 아키텍처](docs/specs/spring-cloud-architecture.md) 참조).
 
-`/assets/*`는 장기 캐시 헤더를 붙여 `frontend-node`로 넘깁니다. 별도 정적 파일 서버는 없습니다.
-
-> **전환 완료.** 애플리케이션 라우팅을
-> `carix_caddy`에서 Spring Cloud Gateway로 옮겼습니다. 백엔드는 `core-api`·`auth-service`로
-> 나뉘어 있으며 둘 다 배포 배선이 완료돼 있습니다(실제 서버 배포·Eureka 등록 확인은 별도
-> 진행 — 위 §기술 구성 참고). 라우터 Caddy는 그대로
-> 유지합니다 — TLS 자동 발급 근거가 유효합니다. 상세는 위 채택 사유의 설계서 참조.
+Node 서버는 HTML과 SEO를 담당하고 Spring Boot는 인증과 비즈니스 로직을 담당합니다. Node 서버는 DB에 직접 접근하거나 Spring Boot 로직을 복제하지 않습니다. `/assets/*`는 장기 캐시 헤더를 붙여 `frontend-node`로 넘깁니다.
 
 ### 렌더링 전략
 
-- `/`: 빌드 시 사전 렌더링
-- `/login`, `/login/sent`, `/auth/verify`: Node SSR
-- `/onboarding/*`, `/dashboard/*`, `/mypage/*`: SSR shell 후 hydration
-- 차트·필터·사용자 데이터: hydration 이후 TanStack Query로 갱신
-- `/about`, `/content/:slug` 등 공개 콘텐츠 페이지는 도입 시 사전 렌더링·SSR 적용 예정
+화면 특성에 따라 사전 렌더링(Prerender)과 SSR(Server-Side Rendering)을 단계적으로 적용합니다:
 
-공개 페이지는 title, description, canonical URL, Open Graph metadata, sitemap,
-robots 정책과 필요한 구조화 데이터를 제공합니다.
-
-> **현재 구현은 위 전략과 다릅니다.** `frontend/react-router.config.ts`가 `ssr: false`,
-> `prerender: ["/"]`이고 `server.js`는 정적 파일만 서빙합니다. 즉 랜딩 한 장을 사전 렌더링한
-> 정적 SPA입니다. `/login`·`/dashboard/*`를 착수하려면 Express + `@react-router/express`로
-> SSR을 켜거나, 라우팅 가드를 클라이언트 전용으로 재설계할지 먼저 정해야 합니다.
+- **Phase 1 (현재)**: 빌드 시점 사전 렌더링(`prerender: ["/"]`, `ssr: false`) 기반 정적 SPA로 랜딩 페이지를 빠르고 안정적으로 서빙합니다.
+- **Phase 2 (인증·대시보드 도입 시)**: Node.js Express 및 `@react-router/express` 기반 SSR을 활성화하여 보호 경로의 서버 세션 검증 및 SSR Shell + 클라이언트 Hydration을 적용합니다.
+  - `/login`, `/login/sent`, `/auth/verify`: 빠른 초기 로드와 보안 검증을 위한 Node SSR
+  - `/onboarding/*`, `/dashboard/*`, `/mypage/*`: SSR Shell 렌더링 후 TanStack Query 기반 데이터 Hydration
+  - 공개 콘텐츠 페이지: SEO 메타데이터(title, Open Graph, canonical URL, sitemap)를 포함한 SSR / 사전 렌더링
 
 ### 테스트
 
@@ -446,11 +430,10 @@ PR 단계에서 `pr-check.yml` 워크플로가 백엔드 테스트와 프런트�
 
 - API 문서: `https://carix.144.24.90.88.sslip.io/api/swagger-ui/index.html`
 - `GET /api/health` — 배포 헬스체크 대상
-- `POST /api/v1/demo/echo` — 임시. Swagger 확인용이며 도메인 API 도입 시 제거합니다
+- `POST /api/v1/demo/echo` — 데모/검증용. Swagger 및 API 통신 확인 엔드포인트
 - `/api/v1/dashboard/**`, `/api/v1/income/**`, `/api/v1/expenses/**`, `/api/v1/scenarios/**`,
   `/api/v1/reference/**`, `/api/v1/skills/**`, `/api/v1/user-skills/**`, `/api/v1/profile`,
-  `/api/v1/onboarding`, `DELETE /api/v1/users` — **모두 고정 응답 스텁입니다.** API 규격과 Swagger 문서를 먼저 확정하려고
-  만든 것이며, DB나 도메인 계산에 연결돼 있지 않습니다
+  `/api/v1/onboarding`, `DELETE /api/v1/users` — 고정 응답 스텁 (API 규격 및 명세 우선 확정 단계)
 
 ## 협업 방식
 
