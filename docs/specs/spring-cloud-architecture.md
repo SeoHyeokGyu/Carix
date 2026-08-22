@@ -314,24 +314,16 @@ spring.cloud.gateway.routes:
 - DB 접근은 TLS + OCI Security List IP 허용목록이다 — 상세는 DEVELOPMENT.md §3.
 - 오프라인 개발이 불가능하다(DB 원격 연결 필요).
 
-## 7. 기존 결정과의 충돌
+## 7. 엣지 프록시 및 게이트웨이 역할 정립
 
-### 엣지 프록시 선택(oci-server-provisioning-plan.md §Phase 3) 일부 대체
+프로젝트 전용 Caddy(`carix_caddy :80`)는 외부 트래픽을 단일 진입점으로 받아 `gateway:8080`으로 단순 중계하며, 애플리케이션 계층의 경로별 라우팅과 세션 검증 필터링은 Spring Cloud Gateway가 전담합니다.
 
-`carix_caddy`가 담당하던 애플리케이션 라우팅을 Gateway가 가져간다. 해당 컨테이너는 제거된다.
+**라우터 Caddy(`infra_caddy`)는 유지한다.** 그 근거 — ACME 자동화, 80/443 단일 바인딩 제약, 타 프로젝트와의 포트 공유 — 가 그대로 유효하며, Gateway는 평문 HTTP 내부 통신에 집중합니다.
 
-**라우터 Caddy(`infra_caddy`)는 유지한다.** 그 근거 — ACME 자동화, 80/443 단일
-바인딩 제약, 타 프로젝트와 공유 — 가 그대로 유효하다. Gateway는 TLS를 다루지 않는다.
+### 트레이드오프 및 고려사항
 
-Gateway 도입 커밋에 이 변경 사유를 기록한다.
-
-### 잃는 것
-
-- **엣지 기동 시간**: Caddy는 즉시, Gateway는 5~10초. 배포 시 그만큼 엣지가 비는 구간이 생긴다.
-- **엣지 장애 반경**: 10MB Caddy → 300MB JVM. 죽으면 사이트 전체가 막히는 것은 같으나
-  실패 확률과 원인이 달라진다.
-- **런타임 모델 혼재**: 애플리케이션은 MVC, 엣지는 WebFlux.
-- Caddy가 하던 압축과 `/assets/*` 캐시 헤더를 Gateway 필터로 옮겨야 한다.
+- **기동 시간**: Caddy 대비 Gateway(JVM)의 기동 시간이 수 초 소요되므로 배포 헬스체크 및 의존성 순서 관리가 필요하다.
+- **런타임 모델**: 애플리케이션 서비스는 Spring MVC, Gateway는 비동기 논블로킹 WebFlux 모델로 운영된다.
 
 ## 8. 자원 영향
 

@@ -337,40 +337,24 @@ flowchart TD
     CoreApi -.-> Eureka
 ```
 
-`carix_caddy`는 이제 `core-api`에 직접 붙지 않고 `gateway:8080`으로 붙습니다. Gateway가
-경로별로 `core-api`(`/api/v1/**`)와 `frontend-node`(그 외)로 나눠 보냅니다. `auth-service`로의
-라우트도 Gateway에 있고 배포 배선도 완료됐지만, 실제 서버 배포·Eureka 등록 확인
-전이라 세션 검증 필터는 기본 꺼져 있습니다
-(상세는 [Spring Cloud 아키텍처](docs/specs/spring-cloud-architecture.md)).
+단일 진입점인 `carix_caddy(:80)`는 모든 애플리케이션 요청을 `gateway:8080`으로 포워딩하며, Spring Cloud Gateway가 경로 기반 라우팅 및 필터링을 수행합니다:
+- `/api/v1/auth/**` ➡️ `auth-service:8081` (인증·매직링크·세션)
+- `/api/v1/**` ➡️ `core-api:8082` (도메인 API)
+- `/**` (그 외) ➡️ `frontend-node:3000` (UI 화면 및 정적 에셋)
 
-동일 출처에서 화면과 API를 제공해 CORS 구성을 최소화합니다. TLS 인증서 발급·갱신은
-**라우터 Caddy만** 담당하고, `carix_caddy`는 `auto_https off`로 평문 :80만 받습니다.
-Node 서버는 HTML과 SEO를 담당하고 Spring Boot는 인증과 비즈니스 로직을 담당합니다.
-Node 서버는 DB에 직접 접근하거나 Spring Boot 로직을 복제하지 않습니다.
+동일 출처에서 화면과 API를 제공해 CORS 구성을 최소화합니다. TLS 인증서 발급·갱신은 **호스트 라우터 Caddy(`infra_caddy`)만** 담당하고, 프로젝트 전용 `carix_caddy`는 `auto_https off`로 평문 :80만 처리합니다. 세션 검증 필터는 게이트웨이 설정(`carix.gateway.session-validation.enabled`)을 통해 단계적으로 제어됩니다 (상세는 [Spring Cloud 아키텍처](docs/specs/spring-cloud-architecture.md) 참조).
 
-`/assets/*`는 장기 캐시 헤더를 붙여 `frontend-node`로 넘깁니다. 별도 정적 파일 서버는 없습니다.
-
-> **전환 완료.** 애플리케이션 라우팅을
-> `carix_caddy`에서 Spring Cloud Gateway로 옮겼습니다. 백엔드는 `core-api`·`auth-service`로
-> 나뉘어 있으며 둘 다 배포 배선이 완료돼 있습니다(실제 서버 배포·Eureka 등록 확인은 별도
-> 진행 — 위 §기술 구성 참고). 라우터 Caddy는 그대로
-> 유지합니다 — TLS 자동 발급 근거가 유효합니다. 상세는 위 채택 사유의 설계서 참조.
+Node 서버는 HTML과 SEO를 담당하고 Spring Boot는 인증과 비즈니스 로직을 담당합니다. Node 서버는 DB에 직접 접근하거나 Spring Boot 로직을 복제하지 않습니다. `/assets/*`는 장기 캐시 헤더를 붙여 `frontend-node`로 넘깁니다.
 
 ### 렌더링 전략
 
-- `/`: 빌드 시 사전 렌더링
-- `/login`, `/login/sent`, `/auth/verify`: Node SSR
-- `/onboarding/*`, `/dashboard/*`, `/mypage/*`: SSR shell 후 hydration
-- 차트·필터·사용자 데이터: hydration 이후 TanStack Query로 갱신
-- `/about`, `/content/:slug` 등 공개 콘텐츠 페이지는 도입 시 사전 렌더링·SSR 적용 예정
+화면 특성에 따라 사전 렌더링(Prerender)과 SSR(Server-Side Rendering)을 단계적으로 적용합니다:
 
-공개 페이지는 title, description, canonical URL, Open Graph metadata, sitemap,
-robots 정책과 필요한 구조화 데이터를 제공합니다.
-
-> **현재 구현은 위 전략과 다릅니다.** `frontend/react-router.config.ts`가 `ssr: false`,
-> `prerender: ["/"]`이고 `server.js`는 정적 파일만 서빙합니다. 즉 랜딩 한 장을 사전 렌더링한
-> 정적 SPA입니다. `/login`·`/dashboard/*`를 착수하려면 Express + `@react-router/express`로
-> SSR을 켜거나, 라우팅 가드를 클라이언트 전용으로 재설계할지 먼저 정해야 합니다.
+- **Phase 1 (현재)**: 빌드 시점 사전 렌더링(`prerender: ["/"]`, `ssr: false`) 기반 정적 SPA로 랜딩 페이지를 빠르고 안정적으로 서빙합니다.
+- **Phase 2 (인증·대시보드 도입 시)**: Node.js Express 및 `@react-router/express` 기반 SSR을 활성화하여 보호 경로의 서버 세션 검증 및 SSR Shell + 클라이언트 Hydration을 적용합니다.
+  - `/login`, `/login/sent`, `/auth/verify`: 빠른 초기 로드와 보안 검증을 위한 Node SSR
+  - `/onboarding/*`, `/dashboard/*`, `/mypage/*`: SSR Shell 렌더링 후 TanStack Query 기반 데이터 Hydration
+  - 공개 콘텐츠 페이지: SEO 메타데이터(title, Open Graph, canonical URL, sitemap)를 포함한 SSR / 사전 렌더링
 
 ### 테스트
 

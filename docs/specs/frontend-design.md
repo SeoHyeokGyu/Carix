@@ -45,10 +45,7 @@ flowchart TD
     Core --> DB
 ```
 
-- 엣지는 2단이다. 라우터 Caddy(`infra_caddy`)가 80/443과 TLS 종료·호스트명 분기를,
-  프로젝트 전용 `carix_caddy`가 압축을 담당한다. **앱 계층 라우팅은 Spring Cloud Gateway 로
-  전환 완료했다** — `carix_caddy`는 이제 `gateway:8080`으로만 붙고, 경로별 분기는 Gateway가 한다
-  ([Spring Cloud 아키텍처](spring-cloud-architecture.md)).
+- 엣지는 2단이다. 호스트 레벨의 라우터 Caddy(`infra_caddy`)가 80/443과 TLS 종료·호스트명 분기를 담당하고, 프로젝트 전용 `carix_caddy`가 `gateway:8080`으로 트래픽을 전달한다. 애플리케이션 계층의 경로별 라우팅과 세션 검증은 Spring Cloud Gateway가 전담한다 ([Spring Cloud 아키텍처](spring-cloud-architecture.md)).
 - 별도 정적 파일 서버는 없다. `/assets/*`도 `frontend-node`가 서빙하고 Caddy는
   장기 캐시 헤더만 붙인다.
 - Node 서버는 HTML SSR, SEO metadata, 공개 콘텐츠 렌더링을 담당한다.
