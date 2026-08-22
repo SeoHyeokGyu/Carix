@@ -372,7 +372,30 @@ DB를 실제로 읽고 쓰는 테스트를 새로 쓰면 연결 거부로 실패
 
 DB 동작 확인이 필요하면 테스트가 아니라 앱을 OCI DB에 붙여 직접 확인한다(§3).
 
-## 7. 커밋·브랜치
+## 7. 코드 스타일 및 포맷팅 (Code Formatting)
+
+### 백엔드 (Google Java Format)
+백엔드는 **Google Java Format (1.27.0)** 표준 스타일을 사용하며, **Spotless** 플러그인으로 관리합니다.
+
+* **수동 포맷팅 적용**:
+  ```bash
+  cd backend && ./gradlew spotlessApply
+  ```
+* **포맷 준수 검사**:
+  ```bash
+  cd backend && ./gradlew spotlessCheck
+  ```
+* **커밋 전 자동 포맷팅 (Git Hook)**:
+  저장소 루트에서 다음 명령어로 공유 pre-commit 훅을 1회 활성화하면, `git commit` 시 변경된 `.java` 파일에 Google Java Format이 자동으로 적용되어 스테이징됩니다.
+  ```bash
+  git config core.hooksPath .githooks
+  ```
+
+### 프런트엔드 (ESLint & Prettier)
+* `cd frontend && pnpm lint` (ESLint 정적 검사)
+* `cd frontend && pnpm format` (Prettier 포맷팅)
+
+## 8. 커밋·브랜치
 
 - `main` 직접 커밋 금지. 기능 브랜치(`feature/`·`fix/`·`docs/`·`chore/`) + PR.
 - API 키·개인정보·`.env`는 커밋하지 않는다.
