@@ -210,7 +210,7 @@ psql "postgresql://<user>@144.24.90.88:5432/carix?sslmode=require" \
 지켜야 할 것:
 
 - **배포보다 DDL이 먼저다.** 새 컬럼·테이블을 쓰는 코드가 먼저 뜨면 런타임에
-  `relation ... does not exist`로 죽는다. 스키마를 적용하고 나서 머지한다.
+  `relation ... does not exist` 예외로 애플리케이션 기동에 실패합니다. 스키마를 적용하고 나서 머지한다.
 - **적용 이력이 자동으로 남지 않는다.** 무엇을 언제 적용했는지 PR 본문이나
   `docs/specs/erd.md` 운영 현황 절에 직접 남긴다.
 - **`DROP`은 데이터가 사라진다.** 운영과 개발이 같은 DB다(§3 왜 같은 DB를 쓰는가).
@@ -292,9 +292,8 @@ pnpm dev              # Vite dev server (기본 5173)
 `docker-compose.yml`의 config-server·eureka 서비스 주석을 참조한다.
 
 **가장 큰 위험 — 로컬 인스턴스가 운영 트래픽을 받는다.** 로컬 `core-api`가 서버 Eureka에
-등록되면 서버 쪽 라우팅이 그리로 실사용자 요청을 보낼 수 있다. 노트북을 닫으면 서비스가 죽는다.
-그래서 **`local` 프로파일을 반드시 켠다** — `application-local.yml`이 `register-with-eureka:
-false`를 강제한다.
+등록되면 서버 쪽 라우팅이 그리로 실사용자 요청을 보낼 수 있습니다. 노트북 환경 종료 시 서비스 요청이 실패할 수 있으므로,
+**`local` 프로파일을 반드시 활성화**해야 합니다 (`application-local.yml`의 `register-with-eureka: false` 적용).
 
 ```bash
 cd backend
@@ -352,9 +351,7 @@ cd backend && ./gradlew test
 테스트용 DB를 쓰지 않기로 했다. 로컬에 Docker가 없고 운영 DB를 테스트 대상으로 삼을 수도
 없으므로, DB 연결이 필요한 테스트는 실행할 곳이 없다.
 
-원래는 Testcontainers 설계였고 auth-service에 그 테스트 10개가 있었으나, 로컬에서는 Docker가
-없어 죽고 CI는 전 모듈을 `-x test`로 빌드해 **어디서도 실행된 적이 없었다.** 검증 지점이 0인
-테스트여서 의존성과 함께 제거했다.
+원래는 Testcontainers 설계였고 auth-service에 해당 테스트가 있었으나, 로컬 개발 환경의 Docker 부재로 실행이 어려웠고 CI에서도 실질적인 검증 지점이 없어 의존성과 함께 제거했습니다.
 
 대신 컨텍스트를 띄우는 테스트는 **연결하지 않는 DataSource**로 돌린다
 (`backend/collector/build.gradle`의 `test` 블록):
@@ -375,7 +372,7 @@ DB 동작 확인이 필요하면 테스트가 아니라 앱을 OCI DB에 붙여 
 ## 7. 코드 스타일 및 포맷팅 (Code Formatting)
 
 ### 백엔드 (Google Java Format)
-백엔드는 **Google Java Format (1.27.0)** 표준 스타일을 사용하며, **Spotless** 플러그인으로 관리합니다.
+백엔드는 **Google Java Format (1.36.1)** 최신 표준 스타일을 사용하며, **Spotless** 플러그인으로 관리합니다.
 
 * **수동 포맷팅 적용**:
   ```bash

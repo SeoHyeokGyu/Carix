@@ -32,8 +32,8 @@ Security는 다음 단계다. `collector`는 채용공고 도메인의 JPA와 `c
 | 경로 | 용도 |
 | --- | --- |
 | `GET /api/health` | 배포 워크플로 헬스체크 대상 |
-| `POST /api/v1/demo/echo` | **임시.** Swagger UI에서 요청 스키마·검증·에러 포맷을 눈으로 확인하는 용도. 도메인 API 도입 시 `com.carix.demo` 패키지째 삭제 |
-| `GET /api/v1/demo/thresholds` | **임시.** Config Server 연동 확인용. 값은 [`../config/spring/core-api.yml`](../config/spring/core-api.yml)에서 오며 `/actuator/refresh` 로 재배포 없이 갱신된다. 도메인 API 도입 시 삭제 |
+| `POST /api/v1/demo/echo` | **데모/검증용.** Swagger UI에서 요청 스키마·검증·에러 포맷을 확인하는 엔드포인트 |
+| `GET /api/v1/demo/thresholds` | **데모/검증용.** Config Server 연동 확인용. 값은 [`../config/spring/core-api.yml`](../config/spring/core-api.yml)에서 오며 `/actuator/refresh` 로 재배포 없이 동적 갱신 확인 |
 
 ### auth-service
 
@@ -45,8 +45,8 @@ Security는 다음 단계다. `collector`는 채용공고 도메인의 JPA와 `c
 | `POST /api/v1/auth/logout` | 현재 세션 폐기 |
 | `POST /api/v1/auth/logout-all` | 사용자의 전체 세션 폐기 |
 
-이메일 실제 발송은 아직 연동되지 않았다 — `LoggingMagicLinkNotifier`가 로그로만 남긴다.
-운영 전환 전 실제 provider(SES 등)를 정하고 `MagicLinkNotifier` 구현을 교체해야 한다.
+이메일 실제 발송은 현재 `LoggingMagicLinkNotifier`가 로그로 기록합니다.
+운영 전환 시 실제 메일 발송 제공자(AWS SES 등) 구현체로 교체합니다.
 
 로컬 기동은 `core-api`와 동일한 순서다(config-server 먼저, 그다음 `EUREKA_CLIENT_ENABLED=false`
 로 단독 기동 가능). `auth-service`는 JPA·Flyway를 쓰므로 로컬 검증은 OCI DB 원격 연결
@@ -60,8 +60,7 @@ Swagger UI(`/api/swagger-ui`), OpenAPI 문서(`/api/v3/api-docs`)가 모두 그 
 
 ### gateway
 
-Spring Cloud Gateway(WebFlux/reactive). 요청 경로의 단일 진입점 — `carix_caddy` 가 `core-api`
-직접 대신 이제 `gateway:8080` 으로 붙는다(`core-api` 는 `8082` 로 이동).
+Spring Cloud Gateway(WebFlux/reactive). `carix_caddy(:80)`의 업스트림으로, 모든 애플리케이션 트래픽의 라우팅과 필터링을 총괄합니다.
 
 | 경로 | 대상 |
 | --- | --- |
@@ -69,10 +68,8 @@ Spring Cloud Gateway(WebFlux/reactive). 요청 경로의 단일 진입점 — `c
 | `/api/v1/**`, `/api/health`, `/api/swagger-ui/**`, `/api/v3/api-docs/**` | `core-api` (Eureka `lb://`) |
 | 그 외 | `frontend-node` (정적 URI, Eureka 미등록) |
 
-세션 검증 필터는 `core` 라우트에만 적용되고 `carix.gateway.session-validation.enabled`
-(`config/spring/gateway.yml`) 로 켜고 끈다. **기본값 false** — auth-service 배포 배선은
-완료됐으나 실제 서버 배포·Eureka 등록 확인 전이라서다. 켜기 전 auth-service 가 Eureka 에
-`UP` 으로 등록돼 있는지 확인한다.
+세션 검증 필터는 `core` 라우트에 적용되며 `carix.gateway.session-validation.enabled`
+(`config/spring/gateway.yml`) 설정 플래그로 켜고 끌 수 있습니다.
 
 ## 빌드
 
@@ -94,7 +91,7 @@ Spring Cloud Gateway(WebFlux/reactive). 요청 경로의 단일 진입점 — `c
 CONFIG_SEARCH_LOCATIONS=file:$(pwd)/../config/spring ./gradlew :config-server:bootRun &
 
 # config-server 가 완전히 뜬 뒤 core-api 를 띄운다 (순서가 바뀌면 core-api 가
-# fail-fast 로 죽는다). curl -sf http://localhost:8888/actuator/health 로 확인 가능.
+# fail-fast 설정으로 부팅에 실패합니다). curl -sf http://localhost:8888/actuator/health 로 확인 가능.
 CONFIG_SERVER_URL=http://localhost:8888 EUREKA_CLIENT_ENABLED=false \
   ./gradlew :core-api:bootRun --args='--server.port=8080'
 # http://localhost:8080/api/health

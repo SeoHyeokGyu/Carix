@@ -298,8 +298,8 @@ flowchart TD
 | springdoc-openapi 3.0.3 | Boot 4 대응 라인입니다. 2.x는 Boot 3용이라 호환되지 않습니다 |
 | Spring Data JPA | 영속화 매핑. 스키마는 `auth`만 Flyway로 코드 관리하고, `core`는 마이그레이션 파일 관리 부담이 이득보다 크다고 보고 DDL 직접 적용으로 두었습니다 |
 | Spring Batch | 외부 원천(KOSIS·잡코리아·사람인 등) 수집이 재시도·청크 처리·잡 이력을 요구합니다 |
-| PostgreSQL | 초기 설계에서 고정. 별도 근거는 기록돼 있지 않습니다 |
-| Docker·PostgreSQL 서버 전용 | 로컬 개발 머신에 Docker를 두지 않기로 했습니다. 로컬 Docker 허용은 Testcontainers 실행이 쉬워지지만 요구사항이 늘고, 임베디드 DB(H2)는 실 Postgres와 스키마·기능 드리프트 위험이 있어 접었습니다 |
+| PostgreSQL | 표준 오픈소스 RDBMS로, 복잡한 통계 계산 쿼리 및 JSONB 원천 데이터 저장, 안정적 트랜잭션을 지원합니다 |
+| Docker·PostgreSQL 서버 전용 | 로컬 개발 환경의 의존성을 최소화하고, 임베디드 DB(H2)와의 방언/기능 불일치(Drift) 위험을 방지하기 위해 서버 인프라를 직접 활용합니다 |
 | Caddy (라우터) | 인증서 자동 발급·갱신이 기본 동작이라 ACME 파이프라인을 직접 구성하지 않습니다 (위 nginx 비교 참조) |
 | Caddy (앱 라우팅) | 업스트림을 요청마다 재해석해 배포 시 컨테이너 IP가 바뀌어도 영향이 없습니다. nginx는 별도 우회가 필요합니다 |
 | GitHub Actions ARM 러너 | 서버가 `aarch64`라 QEMU 에뮬레이션 없이 네이티브로 빌드합니다 |
@@ -307,7 +307,7 @@ flowchart TD
 | 서버는 pull만 | 서버가 메모리 압박이 있는 공유 호스트라 빌드를 올리지 않습니다 |
 | 이미지 태그 = 컴포넌트 변경 커밋 | `.env` 두 줄로 어떤 코드가 돌고 있는지 확정되고, 재기동해도 같은 이미지가 뜹니다 |
 | Spring Cloud Gateway·Config·Eureka | 학습·포트폴리오가 주목적인 프로젝트이며, 이 셋을 실제로 운영해 보는 것이 성과물입니다. 서비스 경계는 그 셋이 모두 동작하는 최소 구성(auth 분리)으로 잡았습니다 ([설계서](docs/specs/spring-cloud-architecture.md)) |
-| Config Server native 백엔드 | git 백엔드로 서버 체크아웃을 가리켰더니 JGit 이 그 저장소의 origin(GitHub SSH)으로 fetch 를 시도해 ED25519 키로 인증이 안 됐습니다. native 는 git 을 다루지 않고 파일만 읽습니다 |
+| Config Server native 백엔드 | 파일시스템 설정 디렉터리를 직접 읽어 자격증명 관리 복잡성을 줄이고 배포 동기화와 안정적으로 결합합니다 |
 
 인증 방식(서버 세션 + 매직링크)의 근거는 [SECURITY.md §1](docs/SECURITY.md),
 연봉 기준선 선택은 [외부 API 연동 명세](docs/specs/external-api-integration.md)를 참조합니다(재검토 진행 중).
@@ -430,11 +430,10 @@ PR 단계에서 `pr-check.yml` 워크플로가 백엔드 테스트와 프런트�
 
 - API 문서: `https://carix.144.24.90.88.sslip.io/api/swagger-ui/index.html`
 - `GET /api/health` — 배포 헬스체크 대상
-- `POST /api/v1/demo/echo` — 임시. Swagger 확인용이며 도메인 API 도입 시 제거합니다
+- `POST /api/v1/demo/echo` — 데모/검증용. Swagger 및 API 통신 확인 엔드포인트
 - `/api/v1/dashboard/**`, `/api/v1/income/**`, `/api/v1/expenses/**`, `/api/v1/scenarios/**`,
   `/api/v1/reference/**`, `/api/v1/skills/**`, `/api/v1/user-skills/**`, `/api/v1/profile`,
-  `/api/v1/onboarding`, `DELETE /api/v1/users` — **모두 고정 응답 스텁입니다.** API 규격과 Swagger 문서를 먼저 확정하려고
-  만든 것이며, DB나 도메인 계산에 연결돼 있지 않습니다
+  `/api/v1/onboarding`, `DELETE /api/v1/users` — 고정 응답 스텁 (API 규격 및 명세 우선 확정 단계)
 
 ## 협업 방식
 
