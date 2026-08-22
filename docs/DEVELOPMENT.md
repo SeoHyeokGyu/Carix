@@ -345,7 +345,12 @@ pnpm test:e2e                     # Playwright
 cd backend && ./gradlew test
 ```
 
-> **PR 자동 검증:** `.github/workflows/pr-check.yml` 워크플로가 PR 단계에서 백엔드 전체 테스트(`./gradlew check`)와 프런트엔드 정적 분석 및 테스트(`typecheck`, `lint`, `test:unit`, `build`)를 자동으로 검증합니다.
+> **PR 자동 검증 & 스마트 Skip CI:** `.github/workflows/pr-check.yml` 워크플로가 PR 단계에서 변경 사항을 자동으로 검증합니다:
+> - **스마트 영역 분기 (`dorny/paths-filter`)**: 백엔드만 수정 시 Frontend Job 자동 스킵, 프런트엔드만 수정 시 Backend Job 자동 스킵.
+> - **문서 자동 스킵**: `docs/**`, `*.md`, `.githooks/**` 수정 시 CI 워크플로가 트리거되지 않습니다.
+> - **작업 중 스킵 (Draft PR)**: PR이 Draft 상태일 때는 CI가 돌지 않으며, "Ready for review" 전환 시 검증이 실행됩니다.
+> - **수동 스킵 (`[skip ci]` / 라벨)**: 커밋 메시지에 `[skip ci]`를 포함하거나 PR에 `skip-ci` 라벨 부착 시 검증을 건너뜁니다.
+> - **빌드 캐시 가속**: `ubuntu-latest` 러너와 Gradle 빌드 캐시, pnpm 캐시를 통해 수십 초 내로 빠르게 완료됩니다.
 
 ### DB를 쓰는 테스트는 두지 않는다
 

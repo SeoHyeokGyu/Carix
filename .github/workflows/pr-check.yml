@@ -2,25 +2,47 @@ name: PR Check
 
 on:
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
     branches: [main]
-    paths:
-      - 'backend/**'
-      - 'frontend/**'
-      - 'config/**'
-      - 'deploy/**'
-      - '.github/workflows/pr-check.yml'
-      - '!**.md'
-      - '!docs/**'
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - '.githooks/**'
+  workflow_dispatch:
 
 concurrency:
   group: pr-check-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
+  filter:
+    name: Detect Changed Paths
+    runs-on: ubuntu-latest
+    if: |
+      github.event.pull_request.draft == false &&
+      !contains(github.event.pull_request.labels.*.name, 'skip-ci')
+    outputs:
+      backend: ${{ steps.filter.outputs.backend }}
+      frontend: ${{ steps.filter.outputs.frontend }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@de90cc6fb38fc0963ad72b210f1f284cd68cea36 # v3.0.2
+        id: filter
+        with:
+          filters: |
+            backend:
+              - 'backend/**'
+              - '.github/workflows/pr-check.yml'
+            frontend:
+              - 'frontend/**'
+              - '.github/workflows/pr-check.yml'
+
   backend:
     name: Backend Test & Lint
-    runs-on: ubuntu-24.04-arm
-    timeout-minutes: 15
+    needs: filter
+    if: needs.filter.outputs.backend == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
 
@@ -32,22 +54,21 @@ jobs:
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
+        with:
+          cache-read-only: ${{ github.ref != 'refs/heads/main' }}
 
       - name: Run Backend Tests
         working-directory: backend
-        run: ./gradlew check
+        run: ./gradlew check --build-cache --parallel
 
   frontend:
     name: Frontend Typecheck, Lint & Test
-    runs-on: ubuntu-24.04-arm
-    timeout-minutes: 15
+    needs: filter
+    if: needs.filter.outputs.frontend == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
-
-      - name: Setup Node.js 24
-        uses: actions/setup-node@v4
-        with:
-          node-version: 24
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
@@ -55,18 +76,12 @@ jobs:
           version: 11.0.7
           run_install: false
 
-      - name: Get pnpm store directory
-        shell: bash
-        run: |
-          echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
-
-      - name: Setup pnpm cache
-        uses: actions/cache@v4
+      - name: Setup Node.js 24 with pnpm cache
+        uses: actions/setup-node@v4
         with:
-          path: ${{ env.STORE_PATH }}
-          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
-          restore-keys: |
-            ${{ runner.os }}-pnpm-store-
+          node-version: 24
+          cache: 'pnpm'
+          cache-dependency-path: 'frontend/pnpm-lock.yaml'
 
       - name: Install dependencies
         working-directory: frontend
