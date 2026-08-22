@@ -331,9 +331,7 @@ CONFIG_SERVER_URL=http://144.24.90.88:8890 EUREKA_URL=http://144.24.90.88:8761/e
   ./gradlew :collector:bootRun --args='--spring.profiles.active=local'
 ```
 
-Gateway 도입·`auth-service` 배포 배선은 완료됐다. `collector` 는 모듈 추출까지 끝났고
-배치 잡·내부 API·배포 배선이 남았다 — 상세는
-[Spring Cloud 아키텍처](specs/spring-cloud-architecture.md) 참조.
+프로젝트 진행 상태는 [`README.md` 진행 상태](README.md#진행-상태)를 참조.
 
 ## 6. 테스트
 

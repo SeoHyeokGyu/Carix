@@ -26,7 +26,7 @@
 | [파이프라인 재설계](specs/data-architecture.md) | 데이터 아키텍처: 원천 4개, RawIngest, dedup, 임금통계 기준선 |
 | [데이터베이스 ERD](specs/erd.md) | 데이터베이스 엔티티 관계도 (Mermaid) |
 | [애플리케이션 워크플로우](specs/application-workflow.md) | E2E 데이터 흐름, Spring Batch Job 파이프라인, 시퀀스 |
-| [상세 기술 명세](specs/technical-specification.md) | DB 스키마(DDL), 결정 규칙표, 스킬 사전, 외부 API 연동 |
+| [상세 기술 명세](specs/technical-specification.md) | DB 스키마(DDL), 결정 규칙표, 스킬 사전 |
 | [도메인 계산 정의](specs/domain-logic.md) | 지수·시나리오 계산 공식, 가중치 전파, 완화 알고리즘 |
 | [프런트엔드 설계](specs/frontend-design.md) | Vite·React·Node SSR 구성, 렌더링 전략, 배포 단위 |
 | [아키텍처 고도화(로드맵)](specs/architecture-roadmap.md) | MVP 이후: 캐싱, NLP 추출, 서킷 브레이커, 비동기 이벤트 |
@@ -37,7 +37,7 @@
 | 문서 | 내용 |
 | --- | --- |
 | [REST API 규격](specs/api-specification.md) | 내부 API: 엔드포인트, 요청·응답, 인증, 에러 포맷 |
-| [외부 원천 API 연동 명세](specs/external-api-integration.md) | 배치 어댑터 경계: KOSIS 실측 명세, 미검증 원천 확인 항목 |
+| [외부 원천 API 연동 명세](specs/external-api-integration.md) | 배치 어댑터 경계: KOSIS 실측 명세, KOSIS 외 원천 결론·미결 |
 
 > 실무 관점 개선 여지: 산문 규격 → OpenAPI(`docs/api/openapi.yaml`) 기계 판독본으로 승격 가능(선택).
 
@@ -67,9 +67,11 @@
 
 ## 진행 상태
 
-이 절이 프로젝트 진행 상태(무엇이 끝났고 무엇이 남았나)를 갖는 유일한 곳이다.
-기술별 도입 여부는 [`README.md`의 "기술 구성" 표](../README.md#기술-구성)가 별도로
-다룬다. 주제 문서는 현재 사실만 서술하고 상태를 적지 않는다.
+이 절이 프로젝트 마일스톤 진행 상태(무엇이 끝났고 무엇이 남았나)를 다룬다. 기술별
+도입 여부는 [`README.md`의 "기술 구성" 표](../README.md#기술-구성)가, 모듈별 구현
+상태는 [`backend/README.md`](../backend/README.md)가, 배포 실행 현황은
+[OCI 서버 구성·배포 "실행 현황"](plans/oci-server-provisioning-plan.md#실행-현황)이
+각각 다룬다. 주제 문서는 현재 사실만 서술하고 상태를 적지 않는다.
 
 ### 되어 있는 것
 
