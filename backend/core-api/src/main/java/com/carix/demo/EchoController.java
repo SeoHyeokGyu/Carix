@@ -21,7 +21,7 @@ import org.springframework.web.bind.annotation.RestController;
  *
  * <p>요청 스키마·검증·공통 에러 포맷이 실제로 문서에 드러나는지 보려는 것이 전부다. 도메인 의미는 없다.
  *
- * <p>TODO: (cjkang) 실제 도메인 API가 들어오면 이 패키지째 삭제한다.
+ * <p>TODO: 실제 도메인 API 구현 완료 시 이 데모 패키지를 제거한다.
  */
 @RestController
 @RequestMapping("/v1/demo")
