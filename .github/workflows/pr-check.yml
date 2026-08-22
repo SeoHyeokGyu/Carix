@@ -10,6 +10,10 @@ on:
       - '.githooks/**'
   workflow_dispatch:
 
+permissions:
+  contents: read
+  pull-requests: read
+
 concurrency:
   group: pr-check-${{ github.ref }}
   cancel-in-progress: true
@@ -18,6 +22,9 @@ jobs:
   filter:
     name: Detect Changed Paths
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
     if: |
       github.event.pull_request.draft == false &&
       !contains(github.event.pull_request.labels.*.name, 'skip-ci')
@@ -29,6 +36,7 @@ jobs:
       - uses: dorny/paths-filter@de90cc6fb38fc0963ad72b210f1f284cd68cea36 # v3.0.2
         id: filter
         with:
+          token: ${{ secrets.GITHUB_TOKEN }}
           filters: |
             backend:
               - 'backend/**'
