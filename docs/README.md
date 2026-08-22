@@ -54,11 +54,8 @@
 | --- | --- |
 | [보안·개인정보 처리](SECURITY.md) | 인증, 컬럼 암호화, 개인정보 수명주기, 로그 배제 |
 | [로컬 개발 가이드](DEVELOPMENT.md) | 런타임 설치, DB 접근, dev server, 테스트 |
-| [배포 워크플로우](../.github/workflows/deploy.yml) | main 푸시 — ARM 러너 테스트·빌드 → GHCR → SSH → 헬스체크 |
-
-> **PR 단계 CI는 없다.** 자동 검증은 `deploy.yml`의 backend 잡(`./gradlew build`)이 main 푸시에서
-> 수행하는 것이 전부다. 프런트엔드는 `docker build`만 거치므로 lint·typecheck·test가 자동으로는
-> 돌지 않는다 — 로컬에서 직접 돌린다.
+| [PR 자동 검증](../.github/workflows/pr-check.yml) | PR 단계 — 백엔드 전체 테스트(`./gradlew check`) 및 프런트엔드 정적 분석·단위테스트 자동 검증 |
+| [배포 워크플로우](../.github/workflows/deploy.yml) | main 푸시 — ARM 러너 빌드 → GHCR → SSH → 헬스체크 |
 
 ## 계획 (Plans)
 

@@ -376,8 +376,7 @@ robots 정책과 필요한 구조화 데이터를 제공합니다.
 | API 모킹 | MSW | 미도입 |
 | 브라우저 E2E | Playwright | 도입 — 랜딩 E2E와 `@axe-core/playwright` 접근성 검사 (`pnpm test:e2e`) |
 
-PR 단계 CI는 두지 않습니다. `./gradlew build`가 자동으로 도는 지점은 main 푸시의 배포
-워크플로뿐이며, 프런트엔드 검증은 로컬에서 직접 돌립니다.
+PR 단계 CI(`pr-check.yml`)를 통해 백엔드 전체 테스트(`./gradlew check`) 및 프런트엔드 타입체크·린트·단위테스트(`pnpm`)를 자동 검증합니다. `main` 푸시 시 배포 워크플로(`deploy.yml`)가 동작합니다.
 
 OCI VM에서는 `carix-caddy`, `frontend-node`, `config-server`, `eureka`, `gateway`,
 `auth-service`, `core-api`, `postgres` 컨테이너를 Docker Compose로 운영합니다
@@ -414,7 +413,7 @@ Carix/
 │   ├── plans/                계획 문서 정본 (데이터 검증, OCI 배포)
 │   ├── SECURITY.md           보안·개인정보 처리
 │   └── DEVELOPMENT.md        로컬 개발 가이드
-├── .github/workflows/         Deploy (main 푸시). PR 단계 CI는 없음
+├── .github/workflows/         Deploy (main 푸시), PR Check (PR 검증 CI)
 └── .claude/                   Claude Code 로컬 설정
 ```
 
@@ -435,8 +434,7 @@ Carix/
 [`docs/DEVELOPMENT.md`](docs/DEVELOPMENT.md)를, 배포는
 [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml)를 참조합니다.
 
-PR 단계 CI는 두지 않습니다. 자동 검증은 배포 워크플로가 main 푸시에서 수행하는
-`./gradlew build` 하나이며, 프런트엔드 lint·타입체크·테스트는 로컬에서 직접 돌립니다.
+PR 단계에서 `pr-check.yml` 워크플로가 백엔드 테스트와 프런트엔드 lint·타입체크·단위테스트를 자동 검증합니다.
 
 현재 제공하는 엔드포인트는 다음과 같습니다 (계층별 도입 현황은 위 기술 구성 표 참조).
 
@@ -451,8 +449,7 @@ PR 단계 CI는 두지 않습니다. 자동 검증은 배포 워크플로가 mai
 ## 협업 방식
 
 - `main`에 직접 작업하지 않고 기능 브랜치를 사용합니다.
-- **`main` 머지는 곧 운영 배포입니다.** PR 단계 자동 검증이 없으므로, 머지 전 로컬에서
-  `./gradlew build`(백엔드)와 프런트엔드 검증을 직접 돌립니다.
+- **`main` 머지는 곧 운영 배포입니다.** PR 단계 CI(`pr-check.yml`) 통과 및 리뷰 후 병합합니다.
 - 변경 사항은 Pull Request로 공유하고 리뷰 후 병합합니다.
 - 브랜치 이름은 `feature/`, `fix/`, `docs/`, `chore/` 접두사를 권장합니다.
 - 커밋은 변경 목적이 드러나는 작은 단위로 작성합니다.
