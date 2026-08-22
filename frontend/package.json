@@ -10,6 +10,7 @@
     "start": "node server.js",
     "lint": "eslint .",
     "format": "prettier --write .",
+    "format:check": "prettier --check .",
     "typecheck": "tsc --noEmit",
     "pretest": "pnpm build",
     "test": "node --test server.test.js",
