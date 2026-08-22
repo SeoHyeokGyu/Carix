@@ -12,57 +12,58 @@ import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-/**
- * 매직링크 만료(15분)는 SECURITY.md §1 정책값이다. 튜닝 요구가 없어 상수로 둔다(YAGNI).
- */
+/** 매직링크 만료(15분)는 SECURITY.md §1 정책값이다. 튜닝 요구가 없어 상수로 둔다(YAGNI). */
 @Service
 public class MagicLinkService {
 
-	private static final Duration TOKEN_TTL = Duration.ofMinutes(15);
+  private static final Duration TOKEN_TTL = Duration.ofMinutes(15);
 
-	private final MagicLinkTokenRepository tokenRepository;
-	private final SecureRandom secureRandom = new SecureRandom();
+  private final MagicLinkTokenRepository tokenRepository;
+  private final SecureRandom secureRandom = new SecureRandom();
 
-	public MagicLinkService(MagicLinkTokenRepository tokenRepository) {
-		this.tokenRepository = tokenRepository;
-	}
+  public MagicLinkService(MagicLinkTokenRepository tokenRepository) {
+    this.tokenRepository = tokenRepository;
+  }
 
-	public String issueToken(UUID userId) {
-		byte[] randomBytes = new byte[32];
-		secureRandom.nextBytes(randomBytes);
-		String rawToken = HexFormat.of().formatHex(randomBytes);
+  public String issueToken(UUID userId) {
+    byte[] randomBytes = new byte[32];
+    secureRandom.nextBytes(randomBytes);
+    String rawToken = HexFormat.of().formatHex(randomBytes);
 
-		MagicLinkToken token = new MagicLinkToken(
-				UUID.randomUUID(),
-				userId,
-				hash(rawToken),
-				OffsetDateTime.now(ZoneOffset.UTC).plus(TOKEN_TTL));
-		tokenRepository.save(token);
+    MagicLinkToken token =
+        new MagicLinkToken(
+            UUID.randomUUID(),
+            userId,
+            hash(rawToken),
+            OffsetDateTime.now(ZoneOffset.UTC).plus(TOKEN_TTL));
+    tokenRepository.save(token);
 
-		return rawToken;
-	}
+    return rawToken;
+  }
 
-	@Transactional
-	public UUID verifyToken(String rawToken) {
-		MagicLinkToken token = tokenRepository.findWithLockByTokenHash(hash(rawToken))
-				.orElseThrow(MagicLinkInvalidException::new);
+  @Transactional
+  public UUID verifyToken(String rawToken) {
+    MagicLinkToken token =
+        tokenRepository
+            .findWithLockByTokenHash(hash(rawToken))
+            .orElseThrow(MagicLinkInvalidException::new);
 
-		OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
-		if (token.getUsedAt() != null || token.getExpiresAt().isBefore(now)) {
-			throw new MagicLinkInvalidException();
-		}
+    OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
+    if (token.getUsedAt() != null || token.getExpiresAt().isBefore(now)) {
+      throw new MagicLinkInvalidException();
+    }
 
-		token.markUsed(now);
-		tokenRepository.save(token);
-		return token.getUserId();
-	}
+    token.markUsed(now);
+    tokenRepository.save(token);
+    return token.getUserId();
+  }
 
-	private String hash(String rawToken) {
-		try {
-			MessageDigest digest = MessageDigest.getInstance("SHA-256");
-			return HexFormat.of().formatHex(digest.digest(rawToken.getBytes(StandardCharsets.UTF_8)));
-		} catch (NoSuchAlgorithmException e) {
-			throw new IllegalStateException("SHA-256 not available", e);
-		}
-	}
+  private String hash(String rawToken) {
+    try {
+      MessageDigest digest = MessageDigest.getInstance("SHA-256");
+      return HexFormat.of().formatHex(digest.digest(rawToken.getBytes(StandardCharsets.UTF_8)));
+    } catch (NoSuchAlgorithmException e) {
+      throw new IllegalStateException("SHA-256 not available", e);
+    }
+  }
 }

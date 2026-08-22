@@ -7,7 +7,4 @@ import java.util.UUID;
 public record SkillSearchResponse(
     UUID id,
     @Schema(example = "Spring Boot") String standardName,
-    @Schema(description = "사용자 정의 여부") boolean isCustom
-) {
-
-}
+    @Schema(description = "사용자 정의 여부") boolean isCustom) {}

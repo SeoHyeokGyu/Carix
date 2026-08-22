@@ -28,14 +28,16 @@ public class SaraminCrawler {
     try {
       System.out.println(
           "[SaraminCrawler] Accessing Saramin main page to fetch session cookies...");
-      org.jsoup.Connection.Response res = Jsoup.connect("https://www.saramin.co.kr/")
-          .userAgent(
-              "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
-          .header("Accept",
-              "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8")
-          .header("Accept-Language", "ko-KR,ko;q=0.8,en-US;q=0.5,en;q=0.3")
-          .timeout(10000)
-          .execute();
+      org.jsoup.Connection.Response res =
+          Jsoup.connect("https://www.saramin.co.kr/")
+              .userAgent(
+                  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+              .header(
+                  "Accept",
+                  "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8")
+              .header("Accept-Language", "ko-KR,ko;q=0.8,en-US;q=0.5,en;q=0.3")
+              .timeout(10000)
+              .execute();
       this.sessionCookies = res.cookies();
       System.out.println(
           "[SaraminCrawler] Successfully fetched " + sessionCookies.size() + " session cookies.");
@@ -58,9 +60,10 @@ public class SaraminCrawler {
       System.out.println("[SaraminCrawler] Crawling page " + page + "...");
       try {
         // 직무코드(job_cd=84,86,87,92) 조건과 검색 조건을 적용한 사람인 검색 리스트 주소
-        String url = String.format(
-            "https://www.saramin.co.kr/zf_user/search/recruit?searchword=%%EA%%B0%%9C%%EB%%B0%%9C%%EC%%9E%%90&job_cd=84&job_cd=86&job_cd=87&job_cd=92&recruitPage=%d&recruitSort=relation&recruitPageCount=40",
-            page);
+        String url =
+            String.format(
+                "https://www.saramin.co.kr/zf_user/search/recruit?searchword=%%EA%%B0%%9C%%EB%%B0%%9C%%EC%%9E%%90&job_cd=84&job_cd=86&job_cd=87&job_cd=92&recruitPage=%d&recruitSort=relation&recruitPageCount=40",
+                page);
 
         Document doc = buildConnection(url, sessionCookies).get();
 
@@ -135,20 +138,20 @@ public class SaraminCrawler {
             createdAt = dayText.replace("등록일 ", "").trim();
           }
 
-          postings.add(new JobPosting(
-              "SARAMIN",
-              id,
-              companyName,
-              title,
-              careerType,
-              careerRange,
-              education,
-              location,
-              link,
-              createdAt,
-              List.of(),
-              ""
-          ));
+          postings.add(
+              new JobPosting(
+                  "SARAMIN",
+                  id,
+                  companyName,
+                  title,
+                  careerType,
+                  careerRange,
+                  education,
+                  location,
+                  link,
+                  createdAt,
+                  List.of(),
+                  ""));
         }
 
         // 서버 트래픽 방지 딜레이
@@ -186,7 +189,8 @@ public class SaraminCrawler {
     return Jsoup.connect(url)
         .userAgent(
             "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
-        .header("Accept",
+        .header(
+            "Accept",
             "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8")
         .header("Accept-Language", "ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7")
         .header("Referer", "https://www.saramin.co.kr/")

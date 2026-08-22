@@ -10,14 +10,12 @@ import java.util.UUID;
 @Table(name = "skill")
 public class Skill {
 
-  @Id
-  private UUID id;
+  @Id private UUID id;
 
   @Column(name = "standard_name", nullable = false)
   private String standardName;
 
-  @Column
-  private String category;
+  @Column private String category;
 
   @Column(name = "is_custom", nullable = false)
   private boolean isCustom;
@@ -26,8 +24,7 @@ public class Skill {
   @Column(name = "created_by")
   private UUID createdBy;
 
-  protected Skill() {
-  }
+  protected Skill() {}
 
   public Skill(String standardName, String category, boolean isCustom) {
     this.id = UUID.randomUUID();
@@ -57,8 +54,8 @@ public class Skill {
   }
 
   /**
-   * 채용공고 수집으로 관측된 스킬임을 표시한다. `is_custom` 은 사용자가 사전에 없는 스킬을
-   * 직접 입력한 경우를 뜻하므로, 시장 집계 대상인 수집 스킬에는 붙으면 안 된다.
+   * 채용공고 수집으로 관측된 스킬임을 표시한다. `is_custom` 은 사용자가 사전에 없는 스킬을 직접 입력한 경우를 뜻하므로, 시장 집계 대상인 수집 스킬에는 붙으면 안
+   * 된다.
    */
   public void markAsMarketObserved() {
     this.isCustom = false;

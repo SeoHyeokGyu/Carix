@@ -10,8 +10,9 @@ class SaraminCrawlerTest {
 
   @Test
   void connectionHasUnlimitedMaxBodySize() {
-    Connection connection = SaraminCrawler.buildConnection(
-        "https://www.saramin.co.kr/zf_user/search/recruit", Map.of());
+    Connection connection =
+        SaraminCrawler.buildConnection(
+            "https://www.saramin.co.kr/zf_user/search/recruit", Map.of());
 
     assertEquals(0, connection.request().maxBodySize());
   }

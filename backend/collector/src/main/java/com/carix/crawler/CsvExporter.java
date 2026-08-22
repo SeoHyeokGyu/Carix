@@ -28,10 +28,23 @@ public class CsvExporter {
       // BOM 문자 쓰기
       writer.write('\uFEFF');
 
-      CSVFormat format = CSVFormat.DEFAULT.builder()
-          .setHeader("Portal", "ID", "Company", "Title", "CareerType", "CareerRange", "Education",
-              "Location", "Link", "CreatedAt", "Skills", "SalaryRaw")
-          .build();
+      CSVFormat format =
+          CSVFormat.DEFAULT
+              .builder()
+              .setHeader(
+                  "Portal",
+                  "ID",
+                  "Company",
+                  "Title",
+                  "CareerType",
+                  "CareerRange",
+                  "Education",
+                  "Location",
+                  "Link",
+                  "CreatedAt",
+                  "Skills",
+                  "SalaryRaw")
+              .build();
 
       try (CSVPrinter csvPrinter = new CSVPrinter(writer, format)) {
         for (JobPosting posting : postings) {
@@ -47,8 +60,7 @@ public class CsvExporter {
               posting.link(),
               posting.createdAt(),
               String.join(";", posting.skills()),
-              posting.salaryRaw()
-          );
+              posting.salaryRaw());
         }
         csvPrinter.flush();
         System.out.println("[CsvExporter] Successfully exported to CSV: " + file.getAbsolutePath());

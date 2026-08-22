@@ -9,8 +9,7 @@ import org.springframework.web.bind.annotation.RestController;
 /**
  * 배포 파이프라인의 헬스체크 대상.
  *
- * <p>컨텍스트 패스가 /api 이므로 실제 경로는 /api/health 다.
- * deploy 워크플로의 healthcheck 잡이 이 경로에 의존한다.
+ * <p>컨텍스트 패스가 /api 이므로 실제 경로는 /api/health 다. deploy 워크플로의 healthcheck 잡이 이 경로에 의존한다.
  */
 @RestController
 @Tag(name = "health", description = "배포 상태 확인")

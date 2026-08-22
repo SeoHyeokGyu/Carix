@@ -11,5 +11,4 @@ public class CarixApplication {
   public static void main(String[] args) {
     SpringApplication.run(CarixApplication.class, args);
   }
-
 }

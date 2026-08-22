@@ -11,8 +11,8 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 /**
  * 요청 검증 실패를 규격의 공통 에러 포맷으로 변환한다.
  *
- * <p>기본 동작(Spring의 ProblemDetail)은 {@code docs/specs/api-specification.md} §1.1 과
- * 형식이 다르다. 프런트엔드가 한 가지 형태만 다루도록 여기서 맞춘다.
+ * <p>기본 동작(Spring의 ProblemDetail)은 {@code docs/specs/api-specification.md} §1.1 과 형식이 다르다. 프런트엔드가 한
+ * 가지 형태만 다루도록 여기서 맞춘다.
  */
 @RestControllerAdvice
 public class GlobalExceptionHandler {

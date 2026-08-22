@@ -15,8 +15,7 @@ import org.jsoup.select.Elements;
 public class JobKoreaCrawler {
 
   // 목록 페이징은 화면상의 joblist 주소가 아니라 이 XHR 엔드포인트가 담당한다.
-  private static final String LIST_ENDPOINT =
-      "https://www.jobkorea.co.kr/Recruit/Home/_GI_List/";
+  private static final String LIST_ENDPOINT = "https://www.jobkorea.co.kr/Recruit/Home/_GI_List/";
 
   // 직무 분류(dutyCtgr) "AI·개발·데이터" 대분류 코드. 하위 세부 직무(백엔드개발자 1000229 등)는
   // condition[duty]로 따로 보내야 하며, condition[duty]에 대분류 코드를 넣으면 무시된다.
@@ -33,30 +32,33 @@ public class JobKoreaCrawler {
 
     System.out.println(
         "[JobKoreaCrawler] Starting crawling JobKorea category (AI·개발·데이터 - dutyCtgr="
-            + DUTY_CATEGORY_IT + ") up to page " + pageLimit);
+            + DUTY_CATEGORY_IT
+            + ") up to page "
+            + pageLimit);
 
     for (int page = 1; page <= pageLimit; page++) {
       System.out.println("[JobKoreaCrawler] Crawling page " + page + "...");
       try {
         // 목록 조회는 폼 인코딩 POST로만 페이지가 넘어간다. GET 주소의 Page_No 파라미터는 무시된다.
-        Document doc = Jsoup.connect(LIST_ENDPOINT)
-            .userAgent(
-                "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
-            .header("Accept-Language", "ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7")
-            .header("X-Requested-With", "XMLHttpRequest")
-            .referrer(LIST_REFERER)
-            .data("page", String.valueOf(page))
-            .data("condition[dutyCtgr]", DUTY_CATEGORY_IT)
-            .data("condition[menucode]", "")
-            .data("direct", "0")
-            .data("order", "20")
-            .data("pagesize", "40")
-            .data("tabindex", "0")
-            .data("onePick", "0")
-            .data("confirm", "0")
-            .data("profile", "0")
-            .timeout(10000)
-            .post();
+        Document doc =
+            Jsoup.connect(LIST_ENDPOINT)
+                .userAgent(
+                    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+                .header("Accept-Language", "ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7")
+                .header("X-Requested-With", "XMLHttpRequest")
+                .referrer(LIST_REFERER)
+                .data("page", String.valueOf(page))
+                .data("condition[dutyCtgr]", DUTY_CATEGORY_IT)
+                .data("condition[menucode]", "")
+                .data("direct", "0")
+                .data("order", "20")
+                .data("pagesize", "40")
+                .data("tabindex", "0")
+                .data("onePick", "0")
+                .data("confirm", "0")
+                .data("profile", "0")
+                .timeout(10000)
+                .post();
 
         RawIngestWriter.write(
             new RawIngest("JOBKOREA", "listpage-" + page, doc.outerHtml(), Instant.now()),
@@ -127,24 +129,29 @@ public class JobKoreaCrawler {
             createdAt = timeSpan.text().strip();
           }
 
-          postings.add(new JobPosting(
-              "JOBKOREA",
-              id,
-              companyName,
-              title,
-              careerType,
-              careerRange,
-              education,
-              location,
-              link,
-              createdAt,
-              List.of(),
-              ""
-          ));
+          postings.add(
+              new JobPosting(
+                  "JOBKOREA",
+                  id,
+                  companyName,
+                  title,
+                  careerType,
+                  careerRange,
+                  education,
+                  location,
+                  link,
+                  createdAt,
+                  List.of(),
+                  ""));
         }
 
-        System.out.println("[JobKoreaCrawler] Page " + page + ": rows=" + rows.size()
-            + ", newly collected=" + (postings.size() - collectedBeforePage));
+        System.out.println(
+            "[JobKoreaCrawler] Page "
+                + page
+                + ": rows="
+                + rows.size()
+                + ", newly collected="
+                + (postings.size() - collectedBeforePage));
 
         // 서버 트래픽 방지 딜레이
         Thread.sleep(1000);
@@ -172,11 +179,12 @@ public class JobKoreaCrawler {
 
   private JobPosting enrichWithDetail(JobPosting posting, String outputDir) {
     try {
-      Document detailDoc = Jsoup.connect(posting.link())
-          .userAgent(
-              "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
-          .timeout(10000)
-          .get();
+      Document detailDoc =
+          Jsoup.connect(posting.link())
+              .userAgent(
+                  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+              .timeout(10000)
+              .get();
       String detailHtml = detailDoc.outerHtml();
 
       RawIngestWriter.write(
@@ -187,13 +195,21 @@ public class JobKoreaCrawler {
       String salaryRaw = detailParser.extractSalaryRaw(detailHtml);
 
       return new JobPosting(
-          posting.portal(), posting.id(), posting.companyName(), posting.title(),
-          posting.careerType(), posting.careerRange(), posting.education(), posting.location(),
-          posting.link(), posting.createdAt(), skills, salaryRaw
-      );
+          posting.portal(),
+          posting.id(),
+          posting.companyName(),
+          posting.title(),
+          posting.careerType(),
+          posting.careerRange(),
+          posting.education(),
+          posting.location(),
+          posting.link(),
+          posting.createdAt(),
+          skills,
+          salaryRaw);
     } catch (Exception e) {
-      System.err.println("[JobKoreaCrawler] Failed to fetch detail for " + posting.id() + ": "
-          + e.getMessage());
+      System.err.println(
+          "[JobKoreaCrawler] Failed to fetch detail for " + posting.id() + ": " + e.getMessage());
       return posting;
     }
   }

@@ -6,7 +6,4 @@ public record JobKoreaListingFields(
     Long salaryMax,
     String positionLevel,
     String companyBadge,
-    String postedEndDateRaw
-) {
-
-}
+    String postedEndDateRaw) {}

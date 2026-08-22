@@ -9,8 +9,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
 /**
- * 백필을 애플리케이션 기동 시 1회 실행한다. 운영 기동에서 우발적으로 돌지 않도록
- * 속성으로 명시해야만 빈이 만들어지고, 기본 동작은 쓰지 않는 dry-run 이다.
+ * 백필을 애플리케이션 기동 시 1회 실행한다. 운영 기동에서 우발적으로 돌지 않도록 속성으로 명시해야만 빈이 만들어지고, 기본 동작은 쓰지 않는 dry-run 이다.
  *
  * <pre>
  * ./gradlew :collector:bootRun --args='\
@@ -28,7 +27,8 @@ public class JobPostingBackfillRunner implements ApplicationRunner {
   private final JobPostingBackfill backfill;
   private final boolean dryRun;
 
-  public JobPostingBackfillRunner(JobPostingBackfill backfill,
+  public JobPostingBackfillRunner(
+      JobPostingBackfill backfill,
       @Value("${carix.backfill.job-posting.dry-run:true}") boolean dryRun) {
     this.backfill = backfill;
     this.dryRun = dryRun;

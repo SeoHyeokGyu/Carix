@@ -9,10 +9,10 @@ import java.util.Map;
  *
  * <p>형식은 {@code docs/specs/api-specification.md} §1.1 을 따른다.
  *
- * @param code      기계 판독용 오류 코드
- * @param message   사용자에게 보여줄 메시지
+ * @param code 기계 판독용 오류 코드
+ * @param message 사용자에게 보여줄 메시지
  * @param timestamp 발생 시각 (UTC)
- * @param details   필드별 상세. 없으면 null
+ * @param details 필드별 상세. 없으면 null
  */
 @Schema(description = "공통 에러 응답")
 public record ErrorResponse(

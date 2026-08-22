@@ -30,10 +30,15 @@ import org.springframework.web.bind.annotation.RestController;
 @Tag(name = "Scenario Simulator", description = "잔류 vs 이직 보상 및 기회비용 모의계산 API")
 public class ScenarioController {
 
-  @Operation(summary = "잔류 vs 이직 보상 시뮬레이션 계산", description = "입력한 인상률 및 이직 목표 연봉, 공백 기간 등의 변수를 대입해 시나리오 시뮬레이션을 수행하고 결과를 저장합니다.")
+  @Operation(
+      summary = "잔류 vs 이직 보상 시뮬레이션 계산",
+      description = "입력한 인상률 및 이직 목표 연봉, 공백 기간 등의 변수를 대입해 시나리오 시뮬레이션을 수행하고 결과를 저장합니다.")
   @ApiResponses({
-      @ApiResponse(responseCode = "200", description = "계산 성공"),
-      @ApiResponse(responseCode = "400", description = "잘못된 범위값 입력", content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+    @ApiResponse(responseCode = "200", description = "계산 성공"),
+    @ApiResponse(
+        responseCode = "400",
+        description = "잘못된 범위값 입력",
+        content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
   })
   @PostMapping("/simulate")
   public ResponseEntity<ApiResult<SimulationResponse>> simulateScenarios(
@@ -42,8 +47,10 @@ public class ScenarioController {
         request.currentGrossSalary() != null ? request.currentGrossSalary() : 60000000L;
     long stay12m = (long) (currentSalary * (1 + (request.stayExpectedRaiseRate() / 100)));
     long move12m =
-        (long) (request.moveTargetGrossSalary() * (12 - request.expectedUnemploymentMonths())
-            / 12.0)
+        (long)
+                (request.moveTargetGrossSalary()
+                    * (12 - request.expectedUnemploymentMonths())
+                    / 12.0)
             + (request.isEligibleForUnemploymentBenefit() ? 3960000L : 0L)
             - request.moveOneTimeCost();
     long diff = move12m - stay12m;
@@ -54,83 +61,90 @@ public class ScenarioController {
     UUID id = UUID.randomUUID();
 
     // 실현 가능성 분석 로직 적용
-    SimulationResponse.FeasibilityDetail feasibility = calculateFeasibility(
-        request.moveTargetGrossSalary());
+    SimulationResponse.FeasibilityDetail feasibility =
+        calculateFeasibility(request.moveTargetGrossSalary());
 
-    return ResponseEntity.ok(ApiResult.success(
-        new SimulationResponse(
-            id,
-            name,
-            stay12m,
-            move12m,
-            request.isEligibleForUnemploymentBenefit() ? 3960000L : 0L,
-            diff,
-            type,
-            typeLabel,
-            "이 계산에는 세금, 성과급, 퇴직금 등이 포함되지 않은 단순 세전 기준 시뮬레이션입니다.",
-            feasibility
-        ),
-        "시뮬레이션 모의계산이 완료되었습니다."
-    ));
+    return ResponseEntity.ok(
+        ApiResult.success(
+            new SimulationResponse(
+                id,
+                name,
+                stay12m,
+                move12m,
+                request.isEligibleForUnemploymentBenefit() ? 3960000L : 0L,
+                diff,
+                type,
+                typeLabel,
+                "이 계산에는 세금, 성과급, 퇴직금 등이 포함되지 않은 단순 세전 기준 시뮬레이션입니다.",
+                feasibility),
+            "시뮬레이션 모의계산이 완료되었습니다."));
   }
 
-  @Operation(summary = "최근 시뮬레이션 시나리오 조회", description = "가장 마지막으로 시뮬레이션하여 저장한 시나리오의 입력 파라미터 및 계산 결과를 반환합니다.")
+  @Operation(
+      summary = "최근 시뮬레이션 시나리오 조회",
+      description = "가장 마지막으로 시뮬레이션하여 저장한 시나리오의 입력 파라미터 및 계산 결과를 반환합니다.")
   @ApiResponses({
-      @ApiResponse(responseCode = "200", description = "성공"),
-      @ApiResponse(responseCode = "204", description = "저장된 시나리오가 없는 경우 (No Content)")
+    @ApiResponse(responseCode = "200", description = "성공"),
+    @ApiResponse(responseCode = "204", description = "저장된 시나리오가 없는 경우 (No Content)")
   })
   @GetMapping("/latest")
   public ResponseEntity<ApiResult<LatestScenarioResponse>> getLatestScenario() {
     UUID id = UUID.fromString("e812d8a4-0cfb-4a5f-9dfb-12d88c91350c");
     long targetSalary = 72000000L;
-    return ResponseEntity.ok(ApiResult.success(
-        new LatestScenarioResponse(
-            id,
-            "A사 오퍼 제안",
-            new SimulationRequest("A사 오퍼 제안", 60000000L, 3.5, targetSalary, 3000000L, 2, true),
-            new SimulationResponse(
+    return ResponseEntity.ok(
+        ApiResult.success(
+            new LatestScenarioResponse(
                 id,
                 "A사 오퍼 제안",
-                62100000L,
-                60960000L,
-                3960000L,
-                -1140000L,
-                "ESTIMATED_OPPORTUNITY_COST",
-                "추정 기회비용",
-                "이 계산에는 세금, 성과급, 퇴직금 등이 포함되지 않은 단순 세전 기준 시뮬레이션입니다.",
-                calculateFeasibility(targetSalary)
-            ),
-            Instant.now()
-        )
-    ));
+                new SimulationRequest("A사 오퍼 제안", 60000000L, 3.5, targetSalary, 3000000L, 2, true),
+                new SimulationResponse(
+                    id,
+                    "A사 오퍼 제안",
+                    62100000L,
+                    60960000L,
+                    3960000L,
+                    -1140000L,
+                    "ESTIMATED_OPPORTUNITY_COST",
+                    "추정 기회비용",
+                    "이 계산에는 세금, 성과급, 퇴직금 등이 포함되지 않은 단순 세전 기준 시뮬레이션입니다.",
+                    calculateFeasibility(targetSalary)),
+                Instant.now())));
   }
 
-  @Operation(summary = "저장된 시뮬레이션 시나리오 전체 목록 조회", description = "사용자가 여태까지 계산하고 저장한 모든 시나리오 목록을 조회하여 서로 비교할 수 있도록 제공합니다.")
-  @ApiResponse(responseCode = "200", description = "조회 성공", content = @Content(array = @ArraySchema(schema = @Schema(implementation = LatestScenarioResponse.class))))
+  @Operation(
+      summary = "저장된 시뮬레이션 시나리오 전체 목록 조회",
+      description = "사용자가 여태까지 계산하고 저장한 모든 시나리오 목록을 조회하여 서로 비교할 수 있도록 제공합니다.")
+  @ApiResponse(
+      responseCode = "200",
+      description = "조회 성공",
+      content =
+          @Content(
+              array =
+                  @ArraySchema(schema = @Schema(implementation = LatestScenarioResponse.class))))
   @GetMapping
   public ResponseEntity<ApiResult<List<LatestScenarioResponse>>> getScenarios() {
     UUID id = UUID.fromString("e812d8a4-0cfb-4a5f-9dfb-12d88c91350c");
     long targetSalary = 72000000L;
-    return ResponseEntity.ok(ApiResult.success(List.of(
-        new LatestScenarioResponse(
-            id,
-            "A사 오퍼 제안",
-            new SimulationRequest("A사 오퍼 제안", 60000000L, 3.5, targetSalary, 3000000L, 2, true),
-            new SimulationResponse(
-                id,
-                "A사 오퍼 제안",
-                62100000L,
-                60960000L,
-                3960000L,
-                -1140000L,
-                "ESTIMATED_OPPORTUNITY_COST",
-                "추정 기회비용",
-                "이 계산에는 세금, 성과급, 퇴직금 등이 포함되지 않은 단순 세전 기준 시뮬레이션입니다.",
-                calculateFeasibility(targetSalary)
-            ),
-            Instant.now()
-        )
-    )));
+    return ResponseEntity.ok(
+        ApiResult.success(
+            List.of(
+                new LatestScenarioResponse(
+                    id,
+                    "A사 오퍼 제안",
+                    new SimulationRequest(
+                        "A사 오퍼 제안", 60000000L, 3.5, targetSalary, 3000000L, 2, true),
+                    new SimulationResponse(
+                        id,
+                        "A사 오퍼 제안",
+                        62100000L,
+                        60960000L,
+                        3960000L,
+                        -1140000L,
+                        "ESTIMATED_OPPORTUNITY_COST",
+                        "추정 기회비용",
+                        "이 계산에는 세금, 성과급, 퇴직금 등이 포함되지 않은 단순 세전 기준 시뮬레이션입니다.",
+                        calculateFeasibility(targetSalary)),
+                    Instant.now()))));
   }
 
   @Operation(summary = "저장된 시뮬레이션 시나리오 삭제", description = "특정 고유 ID를 기반으로 저장된 가상 시나리오 이력을 삭제합니다.")
@@ -175,11 +189,14 @@ public class ScenarioController {
       gradeLabel = "매우 공격적인 최상위권";
     }
 
-    String feedback = String.format("목표 연봉은 동료집단 내 상위 %d%% 수준의 %s 목표입니다. %s",
-        100 - percentile,
-        gradeLabel,
-        percentile >= 75 ? "동료집단 내에서 상위권 연봉에 속하며 충분한 스킬 요건을 증명해야 할 수 있습니다."
-            : "시장 평균 범위 내에 위치하여 원만히 조율 가능한 수준입니다.");
+    String feedback =
+        String.format(
+            "목표 연봉은 동료집단 내 상위 %d%% 수준의 %s 목표입니다. %s",
+            100 - percentile,
+            gradeLabel,
+            percentile >= 75
+                ? "동료집단 내에서 상위권 연봉에 속하며 충분한 스킬 요건을 증명해야 할 수 있습니다."
+                : "시장 평균 범위 내에 위치하여 원만히 조율 가능한 수준입니다.");
 
     return new SimulationResponse.FeasibilityDetail(score, percentile, grade, feedback);
   }

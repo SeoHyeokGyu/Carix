@@ -6,9 +6,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * 잡코리아 상세페이지 static HTML에 포함된 Next.js RSC 스트리밍 페이로드
- * (self.__next_f.push)에서 스킬·급여 JSON 블록을 문자열 마커 + 괄호매칭으로
- * 추출한다. 헤드리스 브라우저 없이 정적 HTML만으로 동작한다.
+ * 잡코리아 상세페이지 static HTML에 포함된 Next.js RSC 스트리밍 페이로드 (self.__next_f.push)에서 스킬·급여 JSON 블록을 문자열 마커 +
+ * 괄호매칭으로 추출한다. 헤드리스 브라우저 없이 정적 HTML만으로 동작한다.
  */
 public class JobKoreaDetailParser {
 
@@ -52,8 +51,8 @@ public class JobKoreaDetailParser {
   }
 
   /**
-   * 회사 사원수를 준다. 원천이 값을 모르면 {@code null} 을 담아 주므로 그대로 null 을 돌려준다.
-   * 회사 규모 판정의 1차 근거다 (실측 400건 중 386건에 값이 있다).
+   * 회사 사원수를 준다. 원천이 값을 모르면 {@code null} 을 담아 주므로 그대로 null 을 돌려준다. 회사 규모 판정의 1차 근거다 (실측 400건 중 386건에
+   * 값이 있다).
    */
   public Integer extractEmployeeCount(String detailHtml) {
     int markerIdx = detailHtml.indexOf(EMPLOYEE_COUNT_MARKER);
@@ -81,8 +80,8 @@ public class JobKoreaDetailParser {
   }
 
   /**
-   * 공고에 붙은 직무명을 준다. 직무가 여러 개면 원천이 콤마로 이어 주고, 개수가 많으면
-   * `외 12건` 꼬리표를 붙인다 — 판정은 호출부에 맡기고 여기서는 원문 그대로 반환한다.
+   * 공고에 붙은 직무명을 준다. 직무가 여러 개면 원천이 콤마로 이어 주고, 개수가 많으면 `외 12건` 꼬리표를 붙인다 — 판정은 호출부에 맡기고 여기서는 원문 그대로
+   * 반환한다.
    */
   public String extractJobTypeName(String detailHtml) {
     return extractQuotedValue(detailHtml, JOB_TYPE_NAME_MARKER);
@@ -104,8 +103,8 @@ public class JobKoreaDetailParser {
   }
 
   /**
-   * 원천은 직무 역량(HARD_SKILL)과 인성 역량(SOFT_SKILL)을 한 배열에 담아 준다.
-   * 인성 역량이 섞이면 스킬 수요 상위가 `성실성`·`꼼꼼함`으로 채워지므로 직무 역량만 남긴다.
+   * 원천은 직무 역량(HARD_SKILL)과 인성 역량(SOFT_SKILL)을 한 배열에 담아 준다. 인성 역량이 섞이면 스킬 수요 상위가 `성실성`·`꼼꼼함`으로 채워지므로
+   * 직무 역량만 남긴다.
    */
   private List<String> parseSkillNames(String json) {
     List<String> skills = new ArrayList<>();
@@ -139,9 +138,6 @@ public class JobKoreaDetailParser {
   }
 
   private String unescape(String s) {
-    return s
-        .replace("\\\\\\\"", "\"")
-        .replace("\\\"", "\"")
-        .replace("\\\\", "\\");
+    return s.replace("\\\\\\\"", "\"").replace("\\\"", "\"").replace("\\\\", "\\");
   }
 }

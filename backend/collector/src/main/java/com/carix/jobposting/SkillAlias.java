@@ -12,8 +12,7 @@ import java.util.UUID;
 @Table(name = "skill_alias")
 public class SkillAlias {
 
-  @Id
-  private UUID id;
+  @Id private UUID id;
 
   @ManyToOne
   @JoinColumn(name = "skill_id", nullable = false)
@@ -22,8 +21,7 @@ public class SkillAlias {
   @Column(name = "alias_name", nullable = false)
   private String aliasName;
 
-  protected SkillAlias() {
-  }
+  protected SkillAlias() {}
 
   public SkillAlias(Skill skill, String aliasName) {
     this.id = UUID.randomUUID();

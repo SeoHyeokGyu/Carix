@@ -6,7 +6,4 @@ import java.util.List;
 
 @Schema(description = "지출 수정 요청")
 public record ExpenseUpdateRequest(
-    @NotNull @Schema(description = "수정할 지출 항목 리스트") List<ExpenseItemInput> items
-) {
-
-}
+    @NotNull @Schema(description = "수정할 지출 항목 리스트") List<ExpenseItemInput> items) {}

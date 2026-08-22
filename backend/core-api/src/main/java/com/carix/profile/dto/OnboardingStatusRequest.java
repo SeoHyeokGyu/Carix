@@ -5,7 +5,4 @@ import jakarta.validation.constraints.NotBlank;
 
 @Schema(description = "온보딩 상태 갱신 요청")
 public record OnboardingStatusRequest(
-    @NotBlank @Schema(example = "COMPLETED") String currentStep
-) {
-
-}
+    @NotBlank @Schema(example = "COMPLETED") String currentStep) {}

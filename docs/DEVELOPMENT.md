@@ -375,7 +375,7 @@ DB 동작 확인이 필요하면 테스트가 아니라 앱을 OCI DB에 붙여 
 ## 7. 코드 스타일 및 포맷팅 (Code Formatting)
 
 ### 백엔드 (Google Java Format)
-백엔드는 **Google Java Format (1.27.0)** 표준 스타일을 사용하며, **Spotless** 플러그인으로 관리합니다.
+백엔드는 **Google Java Format (1.36.1)** 최신 표준 스타일을 사용하며, **Spotless** 플러그인으로 관리합니다.
 
 * **수동 포맷팅 적용**:
   ```bash

@@ -6,7 +6,4 @@ public record SaraminListingFields(
     String employmentType,
     String postedEndDateRaw,
     List<String> skillTags,
-    List<String> industryTags
-) {
-
-}
+    List<String> industryTags) {}

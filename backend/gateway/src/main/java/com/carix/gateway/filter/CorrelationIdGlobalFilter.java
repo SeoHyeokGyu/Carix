@@ -12,25 +12,24 @@ import reactor.core.publisher.Mono;
 @Component
 public class CorrelationIdGlobalFilter implements GlobalFilter, Ordered {
 
-	public static final String HEADER = "X-Request-Id";
+  public static final String HEADER = "X-Request-Id";
 
-	@Override
-	public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
-		String requestId = exchange.getRequest().getHeaders().getFirst(HEADER);
-		if (requestId == null || requestId.isBlank()) {
-			requestId = UUID.randomUUID().toString();
-		}
+  @Override
+  public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
+    String requestId = exchange.getRequest().getHeaders().getFirst(HEADER);
+    if (requestId == null || requestId.isBlank()) {
+      requestId = UUID.randomUUID().toString();
+    }
 
-		ServerHttpRequest mutatedRequest = exchange.getRequest().mutate()
-				.header(HEADER, requestId)
-				.build();
-		exchange.getResponse().getHeaders().set(HEADER, requestId);
+    ServerHttpRequest mutatedRequest =
+        exchange.getRequest().mutate().header(HEADER, requestId).build();
+    exchange.getResponse().getHeaders().set(HEADER, requestId);
 
-		return chain.filter(exchange.mutate().request(mutatedRequest).build());
-	}
+    return chain.filter(exchange.mutate().request(mutatedRequest).build());
+  }
 
-	@Override
-	public int getOrder() {
-		return Ordered.HIGHEST_PRECEDENCE;
-	}
+  @Override
+  public int getOrder() {
+    return Ordered.HIGHEST_PRECEDENCE;
+  }
 }

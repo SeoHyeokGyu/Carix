@@ -13,11 +13,20 @@ class CsvExporterTest {
 
   @Test
   void exportsSkillsAndSalaryColumns(@TempDir Path tempDir) throws IOException {
-    JobPosting posting = new JobPosting(
-        "JOBKOREA", "123", "Acme", "Backend Engineer", "신입", 0, "대졸↑", "서울",
-        "https://example.com/123", "2026-08-08",
-        List.of("Java", "Spring"), "{\"payType\":\"COMPANY_POLICY\"}"
-    );
+    JobPosting posting =
+        new JobPosting(
+            "JOBKOREA",
+            "123",
+            "Acme",
+            "Backend Engineer",
+            "신입",
+            0,
+            "대졸↑",
+            "서울",
+            "https://example.com/123",
+            "2026-08-08",
+            List.of("Java", "Spring"),
+            "{\"payType\":\"COMPANY_POLICY\"}");
 
     Path csvPath = tempDir.resolve("out.csv");
     CsvExporter.exportToCsv(List.of(posting), csvPath.toString());

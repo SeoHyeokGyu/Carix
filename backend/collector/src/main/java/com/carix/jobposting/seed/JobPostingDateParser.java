@@ -25,14 +25,16 @@ public class JobPostingDateParser {
 
     Matcher yyMmDd = YY_MM_DD.matcher(rawText);
     if (yyMmDd.find()) {
-      return LocalDate.of(2000 + Integer.parseInt(yyMmDd.group(1)),
-          Integer.parseInt(yyMmDd.group(2)), Integer.parseInt(yyMmDd.group(3)));
+      return LocalDate.of(
+          2000 + Integer.parseInt(yyMmDd.group(1)),
+          Integer.parseInt(yyMmDd.group(2)),
+          Integer.parseInt(yyMmDd.group(3)));
     }
 
     Matcher monthDay = MONTH_DAY_NO_YEAR.matcher(rawText);
     if (monthDay.find()) {
-      return resolveYearlessDateForCreation(Integer.parseInt(monthDay.group(1)),
-          Integer.parseInt(monthDay.group(2)), collectedDate);
+      return resolveYearlessDateForCreation(
+          Integer.parseInt(monthDay.group(1)), Integer.parseInt(monthDay.group(2)), collectedDate);
     }
 
     return null;
@@ -59,14 +61,15 @@ public class JobPostingDateParser {
 
     Matcher monthDay = MONTH_DAY_NO_YEAR.matcher(rawText);
     if (monthDay.find()) {
-      return resolveYearlessDateForDeadline(Integer.parseInt(monthDay.group(1)),
-          Integer.parseInt(monthDay.group(2)), collectedDate);
+      return resolveYearlessDateForDeadline(
+          Integer.parseInt(monthDay.group(1)), Integer.parseInt(monthDay.group(2)), collectedDate);
     }
 
     return null;
   }
 
-  private static LocalDate resolveYearlessDateForCreation(int month, int day, LocalDate collectedDate) {
+  private static LocalDate resolveYearlessDateForCreation(
+      int month, int day, LocalDate collectedDate) {
     LocalDate candidate = LocalDate.of(collectedDate.getYear(), month, day);
     if (candidate.isAfter(collectedDate)) {
       return candidate.minusYears(1);
@@ -74,7 +77,8 @@ public class JobPostingDateParser {
     return candidate;
   }
 
-  private static LocalDate resolveYearlessDateForDeadline(int month, int day, LocalDate collectedDate) {
+  private static LocalDate resolveYearlessDateForDeadline(
+      int month, int day, LocalDate collectedDate) {
     LocalDate candidate = LocalDate.of(collectedDate.getYear(), month, day);
     if (candidate.isBefore(collectedDate)) {
       return candidate.plusYears(1);

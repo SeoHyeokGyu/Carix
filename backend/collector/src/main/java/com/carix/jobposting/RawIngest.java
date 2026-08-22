@@ -13,8 +13,7 @@ import org.hibernate.type.SqlTypes;
 @Table(name = "raw_ingest")
 public class RawIngest {
 
-  @Id
-  private UUID id;
+  @Id private UUID id;
 
   @Column(nullable = false, length = 20)
   private String source;
@@ -38,11 +37,16 @@ public class RawIngest {
   @Column(name = "collected_at", nullable = false)
   private Instant collectedAt;
 
-  protected RawIngest() {
-  }
+  protected RawIngest() {}
 
-  public RawIngest(String source, String sourceItemId, String payload, String schemaVersion,
-      String firstSeenMonth, String lastSeenMonth, Instant collectedAt) {
+  public RawIngest(
+      String source,
+      String sourceItemId,
+      String payload,
+      String schemaVersion,
+      String firstSeenMonth,
+      String lastSeenMonth,
+      Instant collectedAt) {
     this.id = UUID.randomUUID();
     this.source = source;
     this.sourceItemId = sourceItemId;
