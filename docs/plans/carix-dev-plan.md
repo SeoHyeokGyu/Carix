@@ -1,55 +1,138 @@
-# Carix MVP 개발 계획 (페이즈별)
+# Carix MVP 개발 계획서 (3인 도메인 수직 분업)
 
-3명이 각 페이즈(영역)를 함께 진행하고, 페이즈 내에서 주차별로 스토리를 나눠 담당합니다.
-
----
-
-## Phase 1: 인증·온보딩·이력·설정 (1~3주차)
-
-| 주차 | 담당 1 | 담당 2 | 담당 3 |
-| --- | --- | --- | --- |
-| 1주차 | US-A1, US-A2 (S-02~04) 매직링크 요청/검증, 세션 생성 | US-O1(자동저장 프레임워크) + US-O2 (S-05) 프로필 입력 | US-O3 (S-06) 소득 입력, 유효일 유니크 제약 |
-| 2주차 | US-O4 (S-07) 소비 입력, `DEFAULT_CPI`/`PARTIALLY_ESTIMATED` 처리 | US-O5 (S-08) 스킬 입력, 자동완성·중복 방지 | US-O6 (S-09) 검토·완료, 수정 이동/복귀 |
-| 3주차 | US-R1 (S-12) 소득·스킬 이력 CRUD | US-R1 (S-12) 소비 이력 CRUD, `PROPAGATED` 재계산 트리거 | US-C1, US-C2 (S-13) 세션관리, 계정·데이터 삭제 |
+본 계획서는 3명의 풀스택 개발자가 각자의 핵심 가치 사슬(Value Stream)을 전담하여 **프론트엔드(UI)부터 백엔드(API/알고리즘), 데이터 수집/DB까지 End-to-End로 병렬 개발**할 수 있도록 구성된 실행 계획입니다.
 
 ---
 
-## Phase 2: 계산엔진·대시보드 (4~5주차)
+## 1. 3인 역할 분담 요약
 
-| 주차 | 담당 1 | 담당 2 | 담당 3 |
-| --- | --- | --- | --- |
-| 4주차 | §4.1 스킬수요지수 + §4.2 MVI (market_aggregate는 mock 사용) | §4.3 PPI + §4.4 스냅샷 멱등성/데이터버전 발급 | US-D1, US-D2 (S-10) 대시보드 API, 표본부족/업데이트지연 배지 |
-| 5주차 | US-D1 통합 (본인 스킬·MVI 결과 연동) | US-D4 (S-11) 스냅샷 이력, 특정월 상세 | US-D3 (S-14) 추이분석 — 소득vs물가/연봉분포 (mock 데이터, 실연동은 Phase 3 이후) |
-
-> ⚠️ MVI(§4.2)와 추이분석(US-D3)은 실제 `market_aggregate`가 Phase 3에서 나오기 전까지는 mock 데이터로만 검증 가능합니다.
-
----
-
-## Phase 3: 파이프라인·시뮬레이터 (6~7주차)
-
-| 주차 | 담당 1 | 담당 2 | 담당 3 |
-| --- | --- | --- | --- |
-| 6주차 | §6.2 미결항목 확정(임금통계 원천, N≥10, 클램프[25,400]) + 원천 수집 착수 | 원천별 집계·dedup → `market_aggregate`, `wage_stat_observation` | US-S1 (S-15) 시뮬레이터 입력/계산 로직 |
-| 7주차 | 파이프라인 완성 + Phase2의 MVI 실데이터 통합 | 파이프라인 검증 + Phase2의 추이분석(S-14) 실데이터 통합 | US-S1 완성 — `CareerScenario` 저장/복원, 라벨링 |
+| 담당자 | 담당 도메인 | 프론트엔드 (UI) | 백엔드 & 핵심 알고리즘 | 데이터 수집 & DB |
+| :--- | :--- | :--- | :--- | :--- |
+| **Member A** | **소득 & 구매력 분석<br>(PPI & Cost of Living)** | • `S-06` 소득 입력<br>• `S-07` 소비 6대 카테고리 입력<br>• `S-12` 소득·소비 이력 관리<br>• `S-14` **소득 vs 개인물가 추이 차트** | • **구매력 지수(PPI) 계산 엔진** (§4.3)<br>• 소비 가중치 전파 로직 (`PROPAGATED`)<br>• 소득/소비 이력 CRUD API<br>• 기본 소비 가중치 관리 (`DEFAULT_CPI`) | • 통계청 CPI(소비자물가) 수집 파이프라인<br>• `income_history`<br>• `expense_history`, `expense_item`<br>• `cpi_monthly_index` |
+| **Member B** | **스킬 & 시장가치 분석<br>(MVI & Market Worth)** | • `S-08` 스킬 입력 & 자동완성<br>• `S-12` 스킬 이력 관리<br>• `S-14` **연봉 분포 5수치 핀 차트**<br>• `S-14` **스킬 수요 추이 차트** | • **시장가치 지수(MVI) 계산 엔진** (§4.2)<br>• **스킬 수요 지수** 계산 엔진 (§4.1)<br>• 동료집단 완화 알고리즘 (N<10)<br>• 스킬 검색/자동완성 API | • 채용공고 & KOSIS 임금 수집 파이프라인<br>• 표준 스킬 사전 정제<br>• `skill`, `skill_alias`, `user_skill`<br>• `wage_stat_observation`<br>• `market_aggregate` |
+| **Member C** | **인증, 의사결정 & 시뮬레이터<br>(Auth, Decision & Action)** | • `S-01~04` 랜딩 & 매직링크 로그인<br>• `S-05, 09` 프로필 & 온보딩 검토<br>• `S-10` **대시보드 메인 (3대 카드 종합)**<br>• `S-11` 월별 스냅샷 이력<br>• `S-13` 계정 설정/탈퇴<br>• `S-15` **12개월 커리어 시뮬레이터** | • **결정 신호(Rule Matrix) 판정 엔진**<br>• **12개월 잔류 vs 이직 시뮬레이터** (US-S1)<br>• **월별 스냅샷 멱등성 저장/재계산** (§4.4)<br>• 매직링크 인증 & 세션 관리 (US-A1~2)<br>• 계정/데이터 완전 삭제 (US-C2) | • `auth-service`<br>• `users`, `invitation`, `session`<br>• `career_profile`<br>• `index_snapshot`, `index_calc_log`<br>• `career_scenario` |
 
 ---
 
-## 8주차: 전원 통합 테스트
+## 2. 담당자별 상세 개발 범위
 
-| 항목 | 내용 |
-| --- | --- |
-| 완료기준 10개 크로스체크 | MVP 스펙 §11 전체 항목 |
-| 화면별 상태 명세(섹션 5) 점검 | 로딩/오류/열화 상태 전 화면 확인 |
-| Mock → 실데이터 전환 검증 | MVI, 추이분석(S-14)이 Phase3 데이터로 정상 동작하는지 |
-| 민감 금액 로그 미기록 확인 | 완료기준 10번, 전 스토리 공통 |
+### 🧑‍💻 Member A : 소득 & 구매력 분석 (PPI 도메인)
+- **사용자 스토리**: `US-O3`(소득 입력), `US-O4`(소비 입력), `US-R1`(소득/소비 이력 관리), `US-D3`(소득 vs 물가 차트)
+- **Frontend**:
+  - `S-06` 소득 입력 화면 (세전 연봉, 유효 시작일, 월 실수령액)
+  - `S-07` 소비 입력 화면 (6대 카테고리 금액 입력, 실지출/추정 뱃지 처리)
+  - `S-12` 이력 관리 내 소득/소비 탭
+  - `S-14` 추이분석 내 소득 지수선(`incomeIndex`) vs 개인물가 지수선(`personalPriceIndex`) 2계열 차트 및 **구매력 손실 음영** 렌더링
+- **Backend & Data**:
+  - `collector`: 통계청 CPI 지수 수집 배치 및 카테고리 매핑 파이프라인
+  - `core-api`: 
+    - `POST /income`, `PUT /income/{id}`, `PUT /expenses/{ym}` API
+    - **개인소비자물가지수 & 구매력 지수(PPI) 산출 엔진** 구현
+    - 소비 가중치 상태 관리 (`USER_DEFINED`, `PARTIALLY_ESTIMATED`, `PROPAGATED`, `DEFAULT_CPI`)
+    - 과거 소비 수정에 따른 미래 가중치 전파 로직
 
 ---
 
-## 0주차: 공통 선행 작업 (3인 합동)
+### 🧑‍💻 Member B : 스킬 & 시장가치 분석 (MVI 도메인)
+- **사용자 스토리**: `US-O5`(스킬 입력), `US-R1`(스킬 이력 관리), `US-D2`(데이터 상태 구분), `US-D3`(연봉 분포 & 스킬 수요 차트)
+- **Frontend**:
+  - `S-08` 스킬 입력 화면 (표준 사전 자동완성, 실무 사용 기간/최종 사용일, 중복 방지)
+  - `S-12` 이력 관리 내 스킬 탭
+  - `S-14` 추이분석 내 **연봉 분포 5수치(최소/25%/중앙/75%/최대) 핀 차트** 및 **스킬 수요 추이 차트**
+  - 표본 부족(`N < 10`), 업데이트 지연 배지 UI 처리
+- **Backend & Data**:
+  - `collector`: 원천 채용공고 크롤링/수집, KOSIS 임금통계 수집 및 deduplication 파이프라인
+  - 표준 스킬 사전 시드 데이터 구축 및 검색 API (`GET /skills/search`)
+  - `core-api`:
+    - `POST /user-skills`, `DELETE /user-skills/{id}` API
+    - **스킬 수요 지수 산출 엔진** (최근 3개월 vs 이전 12개월, 클램프 [25, 400] 처리)
+    - **시장가치 지수(MVI) 산출 엔진** 및 동료집단 완화 알고리즘 (직무/경력/지역/규모 단계별 완화)
 
-| 항목 | 내용 |
-| --- | --- |
-| DB 스키마 확정 | users, session, income_history 등 공통 테이블 |
-| API 계약 합의 | `/api/v1` 라우팅 규칙, 인증 미들웨어 |
-| 화면 맵·라우팅 가드 세팅 | 섹션 1 라우팅 규칙 (담당자 지정) |
-| "민감 금액 로그 미기록" 원칙 합의 | 완료기준 10번, 전원 코드리뷰 시 체크 |
+---
+
+### 🧑‍💻 Member C : 인증, 의사결정 & 시뮬레이터 (Auth & Decision 도메인)
+- **사용자 스토리**: `US-A1~2`(인증), `US-O1~2, 6`(온보딩 오케스트레이션), `US-D1, D4`(대시보드 종합/이력), `US-S1`(시뮬레이터), `US-C1~2`(설정/탈퇴)
+- **Frontend**:
+  - `S-01` 랜딩, `S-02~04` 로그인/매직링크 발송/검증 화면
+  - `S-05` 프로필 입력, `S-09` 온보딩 검토·완료 화면 (2초 디바운스 자동 저장 오케스트레이션)
+  - `S-10` **대시보드 메인** (구매력 카드 + 시장가치 카드 + **결정 신호 카드** + 근거 아코디언)
+  - `S-11` 월별 스냅샷 이력 타임라인
+  - `S-13` 설정 및 계정/데이터 완전 삭제 화면
+  - `S-15` **12개월 잔류 vs 이직 시뮬레이터** (실업급여 요건, 공백기, 인상률 기반 실시간 비교)
+- **Backend & Data**:
+  - `auth-service`: 매직링크 토큰 발송/검증, 세션 관리, Rate Limit
+  - `core-api`:
+    - `PATCH /onboarding`, `PATCH /profile`, `DELETE /users` API
+    - **결정 신호(Decision Signal) 판정 엔진** (Rule Matrix: 잔류 권고/이직 준비/소득 방어 등)
+    - **월별 스냅샷 멱등성 저장/재계산 엔진** (`index_snapshot` 버전 관리, `(userId, ym, dataVer, ruleVer)`)
+    - 12개월 시뮬레이터 계산 API (`POST /scenarios/simulate`)
+
+---
+
+## 3. 주차별 병렬 개발 로드맵 (7주 스프린트)
+
+```mermaid
+gantt
+    title Carix 3인 병렬 개발 로드맵
+    dateFormat  YYYY-MM-DD
+    section 공통 (0주차)
+    DB DDL 확정 & API 계약 & 공통 UI 프레임워크 :done, c0, 2026-08-25, 3d
+    section Member A (소득/PPI)
+    CPI 수집 배치 & 소득/소비 DDL/API :a1, after c0, 7d
+    PPI 계산 엔진 & 가중치 전파 로직 :a2, after a1, 7d
+    소득/소비 온보딩(S-06,07) & 이력(S-12) UI :a3, after a2, 7d
+    소득 vs 물가 추이 차트(S-14) 완성 :a4, after a3, 7d
+    section Member B (스킬/MVI)
+    공고/임금 수집 파이프라인 & 스킬사전 API :b1, after c0, 7d
+    MVI & 스킬수요 지수 계산 엔진 :b2, after b1, 7d
+    스킬 온보딩(S-08) & 이력(S-12) UI :b3, after b2, 7d
+    연봉분포 & 스킬수요 차트(S-14) 완성 :b4, after b3, 7d
+    section Member C (인증/결정/시뮬레이터)
+    auth-service 매직링크 & 세션/프로필 API :c1, after c0, 7d
+    스냅샷 멱등성 엔진 & 결정신호 판정 로직 :c2, after c1, 7d
+    랜딩/인증/온보딩(S-01~05,09) & 설정(S-13) UI :c3, after c2, 7d
+    대시보드 메인(S-10,11) & 시뮬레이터(S-15) 완성 :c4, after c3, 7d
+    section 전원 통합 (7주차)
+    E2E 연동 테스트 & 비기능/완료기준 점검 :crit, e2e, after a4, 5d
+```
+
+| 주차 | Member A (소득 & PPI) | Member B (스킬 & MVI) | Member C (인증 & 결정 & 시뮬레이터) |
+| :--- | :--- | :--- | :--- |
+| **0주차<br>(사전정렬)** | • CPI 수집 스키마 확정<br>• 소득/소비 DDL 확정 | • 공고/임금 통계 스키마 확정<br>• 표준 스킬 사전 포맷 정의 | • 공통 DB 초기 마이그레이션 세팅<br>• 프론트엔드 라우팅/레이아웃/Theme 세팅 |
+| **1~2주차<br>(인프라 & 파이프라인)** | • 통계청 CPI 수집 배치 개발<br>• `income_history`, `expense_*` CRUD API | • 채용공고/임금 데이터 수집 파이프라인<br>• 표준 스킬 사전 정제 & 검색 API | • `auth-service` 매직링크 발송/검증 API<br>• `S-01~04` 랜딩 & 매직링크 로그인 UI |
+| **3~4주차<br>(핵심 계산 엔진)** | • **개인물가 & 구매력 지수(PPI) 계산 엔진**<br>• 소비 가중치 전파(`PROPAGATED`) 로직 | • **스킬 수요 지수 & MVI 계산 엔진**<br>• 동료집단 완화 알고리즘 (N<10 클램프) | • **월별 스냅샷 멱등성 저장/재계산 엔진**<br>• **결정 신호(Decision Signal) 판정 엔진** |
+| **5~6주차<br>(UI & 시각화 완성)** | • `S-06, S-07` 소득/소비 온보딩 UI<br>• `S-12` 소득/소비 이력 관리 UI<br>• `S-14` **소득 vs 물가 추이 차트** | • `S-08` 스킬 입력 & 자동완성 UI<br>• `S-12` 스킬 이력 관리 UI<br>• `S-14` **연봉 분포 & 스킬 수요 차트** | • `S-05, S-09` 프로필/검토 온보딩 UI<br>• `S-10, S-11` **대시보드 메인 & 이력 UI**<br>• `S-13` 계정 삭제 & `S-15` **시뮬레이터 UI** |
+| **7주차<br>(E2E 통합 검증)** | • PPI 엣지케이스(지연/결측) 검증<br>• 민감 소득 금액 로깅 마스킹 점검 | • MVI 표본부족(N<10) 엣지케이스 검증<br>• 실데이터 파이프라인 통합 점검 | • 온보딩 $\rightarrow$ 대시보드 $\rightarrow$ 시뮬레이터 E2E 점검<br>• 계정 삭제 시 개인 데이터 완전 삭제 검증 |
+
+---
+
+## 4. 도메인 간 연동 인터페이스 (계약)
+
+```mermaid
+graph LR
+    subgraph MemberA ["Member A (소득/PPI)"]
+        PPI_OUT["Calculate PPI Result<br>(ppi, weightStatus, baseYearMonth)"]
+    end
+
+    subgraph MemberB ["Member B (스킬/MVI)"]
+        MVI_OUT["Calculate MVI Result<br>(mvi, skillDemandIndex, sampleCount, bracket)"]
+    end
+
+    subgraph MemberC ["Member C (스냅샷 & 대시보드)"]
+        SNAP_ENG["Snapshot Recalculation Service<br>recalculateSnapshot(userId, fromYm)"]
+        DEC_ENG["Decision Signal Engine<br>evaluateSignal(ppi, mvi, careerProfile)"]
+    end
+
+    PPI_OUT --> SNAP_ENG
+    MVI_OUT --> SNAP_ENG
+    SNAP_ENG --> DEC_ENG
+```
+
+1. **지수 산출 결과 계약 (A, B $\rightarrow$ C)**:
+   - Member A는 특정 사용자의 월별 PPI 지수 및 가중치 상태 객체를 반환하는 서비스 인터페이스 제공
+   - Member B는 특정 사용자의 월별 MVI 지수, 동료집단 완화 브래킷, 표본 수 객체를 반환하는 서비스 인터페이스 제공
+2. **스냅샷 재계산 트리거 (A, B $\rightarrow$ C)**:
+   - 사용자가 소득/소비(Member A) 또는 스킬(Member B)을 추가/수정/삭제했을 때, Member C의 `recalculateSnapshot(userId, fromYm)`을 호출하여 해당 시점 이후의 스냅샷을 멱등하게 갱신
+3. **완료 기준 10개 항목 점검**:
+   - 구현 완료 시 `functional-specification.md` §7의 MVP 완료 기준 10개 항목을 전원이 크로스 체크
+
