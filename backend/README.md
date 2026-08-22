@@ -5,7 +5,7 @@ Java 25 + Spring Boot. Gradle 멀티모듈 — `config-server`, `eureka`, `core-
 `auth-service` 가 초대·매직링크 로그인·세션을 맡는다(스키마 `auth`). `core-api` 가 도메인 로직과
 REST API를 맡는다 — DB는 쓰지 않는다(JPA·Postgres 의존성 없음). 채용공고 도메인
 (`com.carix.jobposting`)과 `core` 스키마는 `collector` 소관이며, 이미 JPA로 원격 DB에 연결돼
-있다(마이그레이션 SQL은 저장소에 없음). `core-api`의 Security는 아직 없음 — 다음 단계.
+있다(`core` 스키마 DDL은 [`../deploy/postgres/schema/`](../deploy/postgres/schema/)에 있음). `core-api`의 Security는 아직 없음 — 다음 단계.
 
 상세 설계:
 - DB 스키마·규칙: [`../docs/specs/technical-specification.md`](../docs/specs/technical-specification.md)
@@ -49,9 +49,8 @@ Security는 다음 단계다. `collector`는 채용공고 도메인의 JPA와 `c
 운영 전환 전 실제 provider(SES 등)를 정하고 `MagicLinkNotifier` 구현을 교체해야 한다.
 
 로컬 기동은 `core-api`와 동일한 순서다(config-server 먼저, 그다음 `EUREKA_CLIENT_ENABLED=false`
-로 단독 기동 가능). `auth-service`는 Testcontainers 없이는 로컬에서 DB 없이 뜨지 않는다 —
-이미 JPA·Flyway를 쓰기 때문이다. 로컬 검증은 OCI DB 원격 연결
-(DEVELOPMENT.md §3) 또는 `./gradlew :auth-service:test`(Docker 필요)로 한다.
+로 단독 기동 가능). `auth-service`는 JPA·Flyway를 쓰므로 로컬 검증은 OCI DB 원격 연결
+([DEVELOPMENT.md §3](../docs/DEVELOPMENT.md))으로 진행한다. 단위 테스트는 `./gradlew :auth-service:test` 로 실행 가능하다.
 
 공통 에러 응답(`com.carix.common.ErrorResponse`)은 위 API 규격 문서 §1.1 형식을 따른다.
 Spring 기본값(ProblemDetail)과 형식이 달라 `GlobalExceptionHandler`에서 변환한다.
@@ -131,8 +130,6 @@ Dockerfile은 컴파일하지 않는다. CI 러너가 Gradle 캐시로 만든 JA
   전부 `./gradlew :모듈:build -x test`, `frontend`는 `docker build`(테스트 스텝 없음)다.
   빌드·이미지 푸시·배포는 테스트 결과와 무관하게 진행된다. 머지 전 검증은
   **전적으로 로컬 책임**이다.
-- 설계 테스트 전략은 Testcontainers를 쓰나, Testcontainers는 로컬 Docker를 요구한다.
-  Docker가 OCI 전용이라 통합 테스트(`auth-service`)는 로컬에서 못 돌린다 — OCI DB 대상으로
-  수동 실행하거나, CI에 다시 테스트를 걸 때까지는 검증 공백으로 남는다.
+- 테스트용 DB를 별도로 두지 않기로 결정하여([DEVELOPMENT.md §6](../docs/DEVELOPMENT.md#db를-쓰는-테스트는-두지-않는다) 참조), Testcontainers 의존성을 제거하고 DB 연결 없이도 컨텍스트 로드가 검증되도록 모킹/단위 테스트 방식으로 전환했다.
 - PR 단계 CI도 없다. `./gradlew build`가 자동으로 도는 지점 자체가 없다(main 푸시도 이제
   `-x test`). 사실상 이 저장소엔 자동 테스트 게이트가 없다.

@@ -214,5 +214,10 @@ erDiagram
         bigint move_one_time_cost
         int expected_unemployment_months
         boolean is_eligible_for_unemployment_benefit
+        bigint stay_compensation_12m
+        bigint move_compensation_12m
+        bigint estimated_unemployment_benefit
+        bigint difference
+        timestamp calculated_at
     }
 ```

@@ -406,7 +406,7 @@ Carix/
 ├── config/                    CPI 분류 매핑, 기본 지출 가중치
 ├── verification/              데이터 원천 선행 검증 스크립트와 실측 노트
 ├── frontend/                  React Router 7 + Vite + Tailwind (랜딩만 구현, 정적 서빙 — SSR 미도입)
-├── backend/                   Gradle 멀티모듈 — config-server, eureka, gateway, auth-service, core-api
+├── backend/                   Gradle 멀티모듈 — config-server, eureka, gateway, auth-service, core-api, collector
 │                               (core-api 도메인 API 는 고정 응답 스텁 — Batch 미도입)
 ├── docs/
 │   ├── README.md             문서 맵 (주제별 인덱스 — 여기서 시작)

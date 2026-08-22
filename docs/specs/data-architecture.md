@@ -135,7 +135,7 @@
 
 ### 3.1 기술 스택
 
-- API: Java 21, Spring Boot, Spring Security(세션 로그인)
+- API: Java 25, Spring Boot, Spring Security(세션 로그인)
 - 데이터베이스: PostgreSQL. 스키마 관리는 `auth`만 Flyway이고 `core`는 DDL 직접 적용이다
 - 영속성: Spring Data JPA, 복잡한 집계는 `JdbcClient`
 - 서비스 분리: 인증은 `auth-service`(스키마 `auth`), 수집·정규화·집계는 `collector`,
@@ -149,37 +149,40 @@
 ### 3.2 모듈 구성
 
 ```text
-core-api
- |- Auth (세션 로그인, 계정 2개)
+auth-service (Spring Boot)
+ `- Auth (초대·매직링크 로그인, 세션 발급·검증·폐기)
+
+core-api (Spring Boot)
  |- Profile / Income / Expense / Skill
- |- Market Data (원천 4개)
+ |- Market Data 조회 (market_aggregate)
  |- Index Engine (구매력, 스킬 수요, 연봉 격차)
  |- Decision Engine
  `- Scenario
 
-collector (Spring Batch)
+collector (Spring Boot / Batch)
  |- KOSIS CPI 수집
  |- 잡코리아 공고 수집
  |- 사람인 공고 수집
  |- 임금통계 수집
  |- 스킬 정규화 + 원천 간 중복 매칭
- |- 월별 시장 집계 (원천별)
+ |- 월별 시장 집계 (원천별 market_aggregate 적재)
  `- 사용자 지수 스냅샷
 ```
 
-단일 저장소의 모듈형 모놀리스로 시작하며 메시지 큐는 도입하지 않는다.
+Spring Cloud (Gateway, Config Server, Eureka) 기반의 서비스 분리 구조를 취하며 메시지 큐는 도입하지 않는다.
 
 ### 3.3 데이터 모델
 
-| 변경 | 엔터티 |
-| --- | --- |
-| 제거 | Invitation, MagicLinkToken |
-| 축소 | Account(로그인ID, 비밀번호 해시), Session(단순 세션) |
-| 신규 | RawIngest(source, source_item_id, 원문 JSONB, schema_version, first_seen_month, last_seen_month) |
-| 신규 | WageStatObservation(직종, 경력구간, 지역, 임금 정의, 관측값, 기준기간, stat_vintage) |
-| 확장 | JobPosting(source, dedup_group_id, 매칭 규칙 버전) |
-| 확장 | MarketAggregate(source 차원, 원천별 행만 저장) |
-| 유지 | CareerProfile, IncomeHistory, ExpenseHistory, Skill, SkillAlias, UserSkill, CpiObservation, IndexSnapshot, DecisionResult, CareerScenario |
+| 엔터티 | 역할 | 소유 스키마 |
+| --- | --- | --- |
+| Users, Invitation, MagicLinkToken, Session | 사용자 인증, 초대, 세션 관리 | `auth` (auth-service, Flyway) |
+| RawIngest | 원천별 원문 보존 (JSONB, first/last_seen_month) | `core` (collector, DDL) |
+| JobPosting, JobPostingSkill | 채용공고 및 스킬 정규화 | `core` (collector, DDL) |
+| Skill, SkillAlias | 스킬 사전 및 별칭 관리 | `core` (collector/core-api 공유) |
+| MarketAggregate | 원천별/동료집단별 시장 통계 사전 집계 | `core` (collector 쓰기, core-api 읽기) |
+| CareerProfile, IncomeHistory, ExpenseHistory, UserSkill | 사용자 프로필·소득·소비·스킬 이력 | `core` (core-api 쓰기) |
+| CpiObservation, WageStatObservation | CPI 및 임금통계 공식 관측치 | `core` (collector 쓰기) |
+| IndexSnapshot, CareerScenario | 지수 스냅샷 및 시뮬레이션 결과 | `core` (core-api 쓰기) |
 
 - 통합 지수는 저장하지 않고 Index Engine이 원천별 집계에서 계산 시점에
   도출한다. 이중 진실을 만들지 않는다.
