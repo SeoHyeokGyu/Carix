@@ -6,6 +6,7 @@ import java.util.Map;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+/** auth-service 애플리케이션의 헬스체크 엔드포인트를 제공하는 컨트롤러. */
 @RestController
 @Tag(name = "health", description = "배포 상태 확인")
 public class HealthController {
