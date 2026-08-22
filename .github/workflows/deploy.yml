@@ -523,6 +523,9 @@ jobs:
             set -eu   # -x 금지: docker login 라인이 트레이스에 남는다
             cd /home/opc/carix
 
+            # 배포 전 직전 정상 .env 백업 (헬스체크 실패 시 자동 롤백용)
+            cp .env .env.bak
+
             # SHA를 명시적으로 fetch한다. main 팁이 이미 움직였거나 workflow_dispatch를
             # 다른 ref로 돌리면 `fetch origin main`만으로는 그 객체가 안 올 수 있다.
             git fetch --prune origin main
@@ -600,9 +603,9 @@ jobs:
                 | tail -n +4 \
                 | cut -f2 \
                 | while read -r old; do
-                    [ "$old" = "$keep" ] && continue
-                    docker rmi "${repo}:${old}" >/dev/null 2>&1 || true
-                  done
+                     [ "$old" = "$keep" ] && continue
+                     docker rmi "${repo}:${old}" >/dev/null 2>&1 || true
+                   done
             }
 
             prune_repo "${IMAGE_BASE}/core-api" "$LIVE_CORE_API"
@@ -632,8 +635,26 @@ jobs:
             sleep 5
           done
           echo "마지막 응답: api=$api web=$web"
-          # 자동 롤백은 두지 않는다. 실패하면 서버는 이 배포 상태로 남으므로,
-          # .env의 CORE_API_TAG / FRONTEND_TAG 를 직전 SHA로 되돌리고
-          # `docker compose up -d` 로 수동 복구한다.
-          echo "헬스체크 실패 — 서버는 이 배포 상태로 남아 있다. 수동 복구 필요."
+          echo "헬스체크 실패 — 자동 롤백을 수행합니다."
           exit 1
+
+      - name: 배포 실패 시 자동 롤백 (Auto-Rollback on Failure)
+        if: failure()
+        uses: appleboy/ssh-action@0ff4204d59e8e51228ff73bce53f80d53301dee2
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USERNAME }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            set -eu
+            cd /home/opc/carix
+            if [ -f .env.bak ]; then
+              echo "배포 실패 감지 — 직전 정상 설정(.env.bak)으로 자동 롤백합니다."
+              cp .env.bak .env
+              docker compose up -d --remove-orphans
+              docker compose up -d --force-recreate carix-caddy
+              docker exec infra_caddy caddy reload --config /etc/caddy/Caddyfile
+              echo "자동 롤백 완료. 서비스를 직전 정상 상태로 복구했습니다."
+            else
+              echo ".env.bak 백업 파일이 없습니다. 수동 롤백 워크플로(rollback.yml)를 확인하세요."
+            fi

@@ -413,7 +413,7 @@ Carix/
 │   ├── plans/                계획 문서 정본 (데이터 검증, OCI 배포)
 │   ├── SECURITY.md           보안·개인정보 처리
 │   └── DEVELOPMENT.md        로컬 개발 가이드
-├── .github/workflows/         Deploy (main 푸시), PR Check (PR 검증 CI)
+├── .github/workflows/         Deploy (main 푸시), PR Check (PR 검증 CI), Rollback (수동 1-클릭 롤백)
 └── .claude/                   Claude Code 로컬 설정
 ```
 

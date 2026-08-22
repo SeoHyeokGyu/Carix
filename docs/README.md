@@ -55,7 +55,8 @@
 | [보안·개인정보 처리](SECURITY.md) | 인증, 컬럼 암호화, 개인정보 수명주기, 로그 배제 |
 | [로컬 개발 가이드](DEVELOPMENT.md) | 런타임 설치, DB 접근, dev server, 테스트 |
 | [PR 자동 검증](../.github/workflows/pr-check.yml) | PR 단계 — 백엔드 전체 테스트(`./gradlew check`) 및 프런트엔드 정적 분석·단위테스트 자동 검증 |
-| [배포 워크플로우](../.github/workflows/deploy.yml) | main 푸시 — ARM 러너 빌드 → GHCR → SSH → 헬스체크 |
+| [배포 워크플로우](../.github/workflows/deploy.yml) | main 푸시 — ARM 러너 빌드 → GHCR → SSH → 헬스체크 및 실패 시 자동 롤백 |
+| [롤백 워크플로우](../.github/workflows/rollback.yml) | 수동 롤백 — GitHub Actions UI에서 특정 SHA 또는 직전 배포본으로 1-클릭 복구 |
 
 ## 계획 (Plans)
 
