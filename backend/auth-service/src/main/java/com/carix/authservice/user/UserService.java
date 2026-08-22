@@ -10,20 +10,22 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class UserService {
 
-	private final UserRepository userRepository;
+  private final UserRepository userRepository;
 
-	public UserService(UserRepository userRepository) {
-		this.userRepository = userRepository;
-	}
+  public UserService(UserRepository userRepository) {
+    this.userRepository = userRepository;
+  }
 
-	@Transactional
-	public User findOrCreate(String email) {
-		String normalizedEmail = email.trim().toLowerCase(Locale.ROOT);
-		return userRepository.findByEmail(normalizedEmail)
-				.orElseGet(() -> {
-					OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
-					User user = new User(UUID.randomUUID(), normalizedEmail, "PROFILE", now, now);
-					return userRepository.save(user);
-				});
-	}
+  @Transactional
+  public User findOrCreate(String email) {
+    String normalizedEmail = email.trim().toLowerCase(Locale.ROOT);
+    return userRepository
+        .findByEmail(normalizedEmail)
+        .orElseGet(
+            () -> {
+              OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
+              User user = new User(UUID.randomUUID(), normalizedEmail, "PROFILE", now, now);
+              return userRepository.save(user);
+            });
+  }
 }

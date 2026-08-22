@@ -10,45 +10,44 @@ import java.util.UUID;
 @Table(name = "invitation")
 public class Invitation {
 
-	@Id
-	private UUID id;
+  @Id private UUID id;
 
-	private String email;
+  private String email;
 
-	private String status;
+  private String status;
 
-	private OffsetDateTime expiresAt;
+  private OffsetDateTime expiresAt;
 
-	private OffsetDateTime createdAt;
+  private OffsetDateTime createdAt;
 
-	protected Invitation() {
-	}
+  protected Invitation() {}
 
-	public Invitation(UUID id, String email, String status, OffsetDateTime expiresAt, OffsetDateTime createdAt) {
-		this.id = id;
-		this.email = email;
-		this.status = status;
-		this.expiresAt = expiresAt;
-		this.createdAt = createdAt;
-	}
+  public Invitation(
+      UUID id, String email, String status, OffsetDateTime expiresAt, OffsetDateTime createdAt) {
+    this.id = id;
+    this.email = email;
+    this.status = status;
+    this.expiresAt = expiresAt;
+    this.createdAt = createdAt;
+  }
 
-	public UUID getId() {
-		return id;
-	}
+  public UUID getId() {
+    return id;
+  }
 
-	public String getEmail() {
-		return email;
-	}
+  public String getEmail() {
+    return email;
+  }
 
-	public String getStatus() {
-		return status;
-	}
+  public String getStatus() {
+    return status;
+  }
 
-	public OffsetDateTime getExpiresAt() {
-		return expiresAt;
-	}
+  public OffsetDateTime getExpiresAt() {
+    return expiresAt;
+  }
 
-	public OffsetDateTime getCreatedAt() {
-		return createdAt;
-	}
+  public OffsetDateTime getCreatedAt() {
+    return createdAt;
+  }
 }

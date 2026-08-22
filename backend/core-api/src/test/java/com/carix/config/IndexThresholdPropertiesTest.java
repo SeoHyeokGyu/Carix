@@ -8,18 +8,18 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.TestPropertySource;
 
 @SpringBootTest
-@TestPropertySource(properties = {
-		"carix.index.purchasing-power-warning-threshold=0.80",
-		"carix.index.market-value-gap-warning-threshold=0.70"
-})
+@TestPropertySource(
+    properties = {
+      "carix.index.purchasing-power-warning-threshold=0.80",
+      "carix.index.market-value-gap-warning-threshold=0.70"
+    })
 class IndexThresholdPropertiesTest {
 
-	@Autowired
-	private IndexThresholdProperties properties;
+  @Autowired private IndexThresholdProperties properties;
 
-	@Test
-	void 설정값을_바인딩한다() {
-		assertThat(properties.getPurchasingPowerWarningThreshold()).isEqualTo(0.80);
-		assertThat(properties.getMarketValueGapWarningThreshold()).isEqualTo(0.70);
-	}
+  @Test
+  void 설정값을_바인딩한다() {
+    assertThat(properties.getPurchasingPowerWarningThreshold()).isEqualTo(0.80);
+    assertThat(properties.getMarketValueGapWarningThreshold()).isEqualTo(0.70);
+  }
 }

@@ -13,8 +13,5 @@ public record TrendListResponse(List<TrendPoint> trends) {
       double incomeIndex,
       double personalPriceIndex,
       long nominalIncome,
-      long realIncome
-  ) {
-
-  }
+      long realIncome) {}
 }

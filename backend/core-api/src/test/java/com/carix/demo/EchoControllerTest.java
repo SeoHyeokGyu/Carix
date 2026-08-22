@@ -16,27 +16,30 @@ import org.springframework.test.web.servlet.MockMvc;
 @AutoConfigureMockMvc
 class EchoControllerTest {
 
-	@Autowired
-	private MockMvc mockMvc;
+  @Autowired private MockMvc mockMvc;
 
-	@Test
-	void 입력한_문자열을_그대로_돌려준다() throws Exception {
-		mockMvc.perform(post("/v1/demo/echo")
-						.contentType(MediaType.APPLICATION_JSON)
-						.content("{\"message\":\"안녕 Carix\"}"))
-				.andExpect(status().isOk())
-				.andExpect(jsonPath("$.message").value("안녕 Carix"))
-				.andExpect(jsonPath("$.receivedAt").exists());
-	}
+  @Test
+  void 입력한_문자열을_그대로_돌려준다() throws Exception {
+    mockMvc
+        .perform(
+            post("/v1/demo/echo")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"message\":\"안녕 Carix\"}"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.message").value("안녕 Carix"))
+        .andExpect(jsonPath("$.receivedAt").exists());
+  }
 
-	@Test
-	void 빈_문자열이면_공통_에러_포맷으로_400을_반환한다() throws Exception {
-		mockMvc.perform(post("/v1/demo/echo")
-						.contentType(MediaType.APPLICATION_JSON)
-						.content("{\"message\":\"  \"}"))
-				.andExpect(status().isBadRequest())
-				.andExpect(jsonPath("$.code").value("INVALID_INPUT"))
-				.andExpect(jsonPath("$.timestamp").exists())
-				.andExpect(jsonPath("$.details.message").exists());
-	}
+  @Test
+  void 빈_문자열이면_공통_에러_포맷으로_400을_반환한다() throws Exception {
+    mockMvc
+        .perform(
+            post("/v1/demo/echo")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"message\":\"  \"}"))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.code").value("INVALID_INPUT"))
+        .andExpect(jsonPath("$.timestamp").exists())
+        .andExpect(jsonPath("$.details.message").exists());
+  }
 }

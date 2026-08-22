@@ -19,8 +19,7 @@ import org.springframework.web.bind.annotation.RestController;
 /**
  * Swagger UI와 배포 경로를 눈으로 확인하기 위한 임시 엔드포인트.
  *
- * <p>요청 스키마·검증·공통 에러 포맷이 실제로 문서에 드러나는지 보려는 것이 전부다.
- * 도메인 의미는 없다.
+ * <p>요청 스키마·검증·공통 에러 포맷이 실제로 문서에 드러나는지 보려는 것이 전부다. 도메인 의미는 없다.
  *
  * <p>TODO: (cjkang) 실제 도메인 API가 들어오면 이 패키지째 삭제한다.
  */
@@ -33,11 +32,12 @@ public class EchoController {
       summary = "입력을 그대로 돌려준다",
       description = "Swagger UI의 Try it out으로 요청 본문·검증·에러 포맷을 확인하는 용도다.")
   @ApiResponses({
-      @ApiResponse(responseCode = "200", description = "정상"),
-      @ApiResponse(
-          responseCode = "400",
-          description = "검증 실패",
-          content = @Content(schema = @Schema(implementation = ErrorResponse.class)))})
+    @ApiResponse(responseCode = "200", description = "정상"),
+    @ApiResponse(
+        responseCode = "400",
+        description = "검증 실패",
+        content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+  })
   @PostMapping("/echo")
   public EchoResponse echo(@Valid @RequestBody EchoRequest request) {
     return new EchoResponse(request.message(), Instant.now());
@@ -45,15 +45,9 @@ public class EchoController {
 
   @Schema(description = "에코 요청")
   public record EchoRequest(
-      @NotBlank
-      @Size(max = 200)
-      @Schema(description = "돌려받을 문자열", example = "안녕 Carix")
-      String message) {
-
-  }
+      @NotBlank @Size(max = 200) @Schema(description = "돌려받을 문자열", example = "안녕 Carix")
+          String message) {}
 
   @Schema(description = "에코 응답")
-  public record EchoResponse(String message, Instant receivedAt) {
-
-  }
+  public record EchoResponse(String message, Instant receivedAt) {}
 }

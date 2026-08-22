@@ -14,16 +14,13 @@ import org.jsoup.nodes.Document;
 import org.jsoup.select.Elements;
 
 /**
- * verification/out/raw/{JOBKOREA,SARAMIN}/listpage-*.json 전체를 한 번 읽어 인덱싱한다.
- * 사람인은 상세페이지 raw가 없으므로(design 문서 §4) collected_at·raw_ingest 연결이
- * 전부 이 listpage 인덱스에서 나온다 — 그래서 사람인 쪽은 html뿐 아니라 어느 파일
- * (sourceItemId)에서 왔는지, 그 파일의 collectedAt까지 같이 들고 있는다.
+ * verification/out/raw/{JOBKOREA,SARAMIN}/listpage-*.json 전체를 한 번 읽어 인덱싱한다. 사람인은 상세페이지 raw가
+ * 없으므로(design 문서 §4) collected_at·raw_ingest 연결이 전부 이 listpage 인덱스에서 나온다 — 그래서 사람인 쪽은 html뿐 아니라 어느
+ * 파일 (sourceItemId)에서 왔는지, 그 파일의 collectedAt까지 같이 들고 있는다.
  */
 public class ListingPageIndex {
 
-  public record ListpageEntry(String sourceItemId, String html, Instant collectedAt) {
-
-  }
+  public record ListpageEntry(String sourceItemId, String html, Instant collectedAt) {}
 
   private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 

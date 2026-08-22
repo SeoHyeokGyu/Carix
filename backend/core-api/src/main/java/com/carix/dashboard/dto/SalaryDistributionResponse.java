@@ -7,23 +7,14 @@ public record SalaryDistributionResponse(
     WageBaseline baseline,
     PostingReference postingReference,
     UserPosition userPosition,
-    DistributionPeerGroup peerGroup
-) {
+    DistributionPeerGroup peerGroup) {
 
-  public record WageBaseline(String source, long median, String wageDefinition) {
+  public record WageBaseline(String source, long median, String wageDefinition) {}
 
-  }
+  public record PostingReference(
+      long min, long p25, long median, long p75, long max, int sampleSize, double missingRate) {}
 
-  public record PostingReference(long min, long p25, long median, long p75, long max,
-                                 int sampleSize, double missingRate) {
+  public record UserPosition(long grossSalary, int percentile) {}
 
-  }
-
-  public record UserPosition(long grossSalary, int percentile) {
-
-  }
-
-  public record DistributionPeerGroup(int fallbackLevel, String appliedConditions) {
-
-  }
+  public record DistributionPeerGroup(int fallbackLevel, String appliedConditions) {}
 }

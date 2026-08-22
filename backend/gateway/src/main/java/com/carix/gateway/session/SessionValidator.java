@@ -5,5 +5,5 @@ import reactor.core.publisher.Mono;
 
 public interface SessionValidator {
 
-	Mono<UUID> validate(String sessionToken);
+  Mono<UUID> validate(String sessionToken);
 }

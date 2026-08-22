@@ -45,8 +45,7 @@ class JobKoreaDetailParserTest {
   void extractsJobTypeName() throws IOException {
     String html = loadFixture();
 
-    assertEquals("백엔드개발자,프론트엔드개발자",
-        new JobKoreaDetailParser().extractJobTypeName(html));
+    assertEquals("백엔드개발자,프론트엔드개발자", new JobKoreaDetailParser().extractJobTypeName(html));
   }
 
   @Test

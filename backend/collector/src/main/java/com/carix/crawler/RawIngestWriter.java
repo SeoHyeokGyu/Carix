@@ -9,9 +9,10 @@ import java.nio.file.Path;
 
 public class RawIngestWriter {
 
-  private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper()
-      .registerModule(new JavaTimeModule())
-      .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+  private static final ObjectMapper OBJECT_MAPPER =
+      new ObjectMapper()
+          .registerModule(new JavaTimeModule())
+          .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
 
   public static void write(RawIngest rawIngest, String outputDir) {
     Path dir = Path.of(outputDir, "raw", rawIngest.source());
@@ -20,8 +21,13 @@ public class RawIngestWriter {
       Path file = dir.resolve(rawIngest.rawId() + ".json");
       Files.writeString(file, OBJECT_MAPPER.writeValueAsString(rawIngest));
     } catch (IOException e) {
-      System.err.println("[RawIngestWriter] Failed to write raw ingest for "
-          + rawIngest.source() + "/" + rawIngest.rawId() + ": " + e.getMessage());
+      System.err.println(
+          "[RawIngestWriter] Failed to write raw ingest for "
+              + rawIngest.source()
+              + "/"
+              + rawIngest.rawId()
+              + ": "
+              + e.getMessage());
     }
   }
 }

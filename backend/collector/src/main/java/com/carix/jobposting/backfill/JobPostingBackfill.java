@@ -31,10 +31,9 @@ import org.springframework.transaction.annotation.Transactional;
 /**
  * 이미 적재된 `job_posting` 을 보존된 원문(`raw_ingest`)으로 다시 채운다.
  *
- * <p>첫 적재가 원천이 주는 정보를 다 쓰지 못해 세 가지가 비어 있거나 오염됐다.
- * 연봉은 목록페이지 셀에서만 읽어 400건 중 36건만 찼고, `job_family` 는 아예 null 이며,
- * 스킬에는 인성 역량과 직무 카테고리가 섞여 수요 상위를 차지했다. 크롤을 다시 돌리지
- * 않는 이유는 관측 시점이 바뀌기 때문이다 — 원문이 남아 있으니 재파싱으로 족하다.
+ * <p>첫 적재가 원천이 주는 정보를 다 쓰지 못해 세 가지가 비어 있거나 오염됐다. 연봉은 목록페이지 셀에서만 읽어 400건 중 36건만 찼고, `job_family` 는
+ * 아예 null 이며, 스킬에는 인성 역량과 직무 카테고리가 섞여 수요 상위를 차지했다. 크롤을 다시 돌리지 않는 이유는 관측 시점이 바뀌기 때문이다 — 원문이 남아 있으니
+ * 재파싱으로 족하다.
  */
 @Component
 public class JobPostingBackfill {
@@ -56,8 +55,10 @@ public class JobPostingBackfill {
   private final EmploymentTypeClassifier employmentTypeClassifier = new EmploymentTypeClassifier();
   private final SkillTaxonomy skillTaxonomy = new SkillTaxonomy();
 
-  public JobPostingBackfill(JobPostingRepository jobPostingRepository,
-      RawIngestRepository rawIngestRepository, SkillRepository skillRepository) {
+  public JobPostingBackfill(
+      JobPostingRepository jobPostingRepository,
+      RawIngestRepository rawIngestRepository,
+      SkillRepository skillRepository) {
     this.jobPostingRepository = jobPostingRepository;
     this.rawIngestRepository = rawIngestRepository;
     this.skillRepository = skillRepository;
@@ -93,8 +94,8 @@ public class JobPostingBackfill {
         counters.salaryCleared++;
       }
       if (!dryRun) {
-        posting.applyDisclosedSalary(salary == null ? null : salary.min(),
-            salary == null ? null : salary.max());
+        posting.applyDisclosedSalary(
+            salary == null ? null : salary.min(), salary == null ? null : salary.max());
       }
 
       String jobFamily = jobFamilyClassifier.classify(detailParser.extractJobTypeName(html));
@@ -103,8 +104,9 @@ public class JobPostingBackfill {
         posting.classifyAs(jobFamily);
       }
 
-      String companySize = companySizeClassifier.classify(
-          detailParser.extractEmployeeCount(html), detailParser.extractCompanyTypeName(html));
+      String companySize =
+          companySizeClassifier.classify(
+              detailParser.extractEmployeeCount(html), detailParser.extractCompanyTypeName(html));
       if (!CompanySizeClassifier.UNKNOWN.equals(companySize)) {
         counters.companySizeFilled++;
       }
@@ -114,8 +116,8 @@ public class JobPostingBackfill {
 
       applyEmploymentType(posting, counters, dryRun);
 
-      applySkills(posting, detailParser.extractSkills(html), List.of(), counters, touchedSkills,
-          dryRun);
+      applySkills(
+          posting, detailParser.extractSkills(html), List.of(), counters, touchedSkills, dryRun);
     }
   }
 
@@ -146,8 +148,8 @@ public class JobPostingBackfill {
 
       applyEmploymentType(posting, counters, dryRun);
 
-      applySkills(posting, fields.skillTags(), fields.industryTags(), counters, touchedSkills,
-          dryRun);
+      applySkills(
+          posting, fields.skillTags(), fields.industryTags(), counters, touchedSkills, dryRun);
     }
   }
 
@@ -163,12 +165,16 @@ public class JobPostingBackfill {
   }
 
   /**
-   * 원천 태그를 표준 표기로 합치고 분류를 다시 매긴 뒤 공고의 스킬 연결을 통째로 교체한다.
-   * 직무 카테고리 태그는 지우지 않고 `JOB_CATEGORY` 로 분리해 둔다 — 관측 사실은 남기되
-   * 스킬 수요 집계에서만 빠지게 하기 위해서다.
+   * 원천 태그를 표준 표기로 합치고 분류를 다시 매긴 뒤 공고의 스킬 연결을 통째로 교체한다. 직무 카테고리 태그는 지우지 않고 `JOB_CATEGORY` 로 분리해 둔다 —
+   * 관측 사실은 남기되 스킬 수요 집계에서만 빠지게 하기 위해서다.
    */
-  private void applySkills(JobPosting posting, List<String> skillTags, List<String> industryTags,
-      Counters counters, Set<Skill> touchedSkills, boolean dryRun) {
+  private void applySkills(
+      JobPosting posting,
+      List<String> skillTags,
+      List<String> industryTags,
+      Counters counters,
+      Set<Skill> touchedSkills,
+      boolean dryRun) {
     Map<String, Skill> resolved = new LinkedHashMap<>();
     for (String rawName : skillTags) {
       String canonicalName = skillTaxonomy.canonicalName(rawName);
@@ -176,7 +182,8 @@ public class JobPostingBackfill {
         continue;
       }
       String category = skillTaxonomy.category(canonicalName);
-      resolved.computeIfAbsent(canonicalName + " " + category,
+      resolved.computeIfAbsent(
+          canonicalName + " " + category,
           key -> resolveSkill(canonicalName, category, counters, touchedSkills, dryRun));
     }
     for (String rawName : industryTags) {
@@ -184,7 +191,8 @@ public class JobPostingBackfill {
       if (canonicalName == null || canonicalName.isBlank()) {
         continue;
       }
-      resolved.computeIfAbsent(canonicalName + " " + INDUSTRY_CATEGORY,
+      resolved.computeIfAbsent(
+          canonicalName + " " + INDUSTRY_CATEGORY,
           key -> resolveSkill(canonicalName, INDUSTRY_CATEGORY, counters, touchedSkills, dryRun));
     }
 
@@ -195,10 +203,14 @@ public class JobPostingBackfill {
     }
   }
 
-  private Skill resolveSkill(String canonicalName, String category, Counters counters,
-      Set<Skill> touchedSkills, boolean dryRun) {
-    Skill existing = skillRepository.findByStandardNameAndCategory(canonicalName, category)
-        .orElse(null);
+  private Skill resolveSkill(
+      String canonicalName,
+      String category,
+      Counters counters,
+      Set<Skill> touchedSkills,
+      boolean dryRun) {
+    Skill existing =
+        skillRepository.findByStandardNameAndCategory(canonicalName, category).orElse(null);
     if (existing == null && dryRun) {
       return null;
     }
@@ -214,10 +226,7 @@ public class JobPostingBackfill {
     return existing;
   }
 
-  /**
-   * 표기 통합·분류 변경으로 아무 공고도 참조하지 않게 된 스킬 행을 지운다.
-   * 사용자가 만든 스킬(`created_by` 가 채워진 행)은 제외한다.
-   */
+  /** 표기 통합·분류 변경으로 아무 공고도 참조하지 않게 된 스킬 행을 지운다. 사용자가 만든 스킬(`created_by` 가 채워진 행)은 제외한다. */
   private int removeOrphanSkills(boolean dryRun) {
     List<Skill> orphans = skillRepository.findUnreferencedCrawledSkills();
     if (!dryRun) {
@@ -237,7 +246,8 @@ public class JobPostingBackfill {
   }
 
   private String rawHtml(String source, String sourceItemId) {
-    return rawIngestRepository.findBySourceAndSourceItemId(source, sourceItemId)
+    return rawIngestRepository
+        .findBySourceAndSourceItemId(source, sourceItemId)
         .map(this::html)
         .orElse(null);
   }
@@ -264,9 +274,18 @@ public class JobPostingBackfill {
     private int rawIngestMissing;
 
     private BackfillReport toReport(boolean dryRun) {
-      return new BackfillReport(dryRun, postingsScanned, salaryFilled, salaryCleared,
-          jobFamilyFilled, companySizeFilled, employmentTypeFilled, skillLinksRewritten,
-          skillsRecategorized, orphanSkillsRemoved, rawIngestMissing);
+      return new BackfillReport(
+          dryRun,
+          postingsScanned,
+          salaryFilled,
+          salaryCleared,
+          jobFamilyFilled,
+          companySizeFilled,
+          employmentTypeFilled,
+          skillLinksRewritten,
+          skillsRecategorized,
+          orphanSkillsRemoved,
+          rawIngestMissing);
     }
   }
 }

@@ -47,7 +47,9 @@ public class SeedLoader {
   private final EmploymentTypeClassifier employmentTypeClassifier = new EmploymentTypeClassifier();
   private final SkillTaxonomy skillTaxonomy = new SkillTaxonomy();
 
-  public SeedLoader(JobPostingRepository jobPostingRepository, SkillRepository skillRepository,
+  public SeedLoader(
+      JobPostingRepository jobPostingRepository,
+      SkillRepository skillRepository,
       RawIngestRepository rawIngestRepository) {
     this.jobPostingRepository = jobPostingRepository;
     this.skillRepository = skillRepository;
@@ -59,10 +61,18 @@ public class SeedLoader {
     listingIndex.build(verificationOutDir.resolve("raw"));
 
     int loaded = 0;
-    loaded += loadCsv(verificationOutDir.resolve("jobkorea_jobs.csv"), "JOBKOREA", listingIndex,
-        verificationOutDir.resolve("raw/JOBKOREA"));
-    loaded += loadCsv(verificationOutDir.resolve("saramin_jobs.csv"), "SARAMIN", listingIndex,
-        verificationOutDir.resolve("raw/SARAMIN"));
+    loaded +=
+        loadCsv(
+            verificationOutDir.resolve("jobkorea_jobs.csv"),
+            "JOBKOREA",
+            listingIndex,
+            verificationOutDir.resolve("raw/JOBKOREA"));
+    loaded +=
+        loadCsv(
+            verificationOutDir.resolve("saramin_jobs.csv"),
+            "SARAMIN",
+            listingIndex,
+            verificationOutDir.resolve("raw/SARAMIN"));
     return loaded;
   }
 
@@ -85,8 +95,9 @@ public class SeedLoader {
     return count;
   }
 
-  private boolean loadRow(CSVRecord record, String source, ListingPageIndex listingIndex,
-      Path detailRawDir) throws IOException {
+  private boolean loadRow(
+      CSVRecord record, String source, ListingPageIndex listingIndex, Path detailRawDir)
+      throws IOException {
     String externalId = record.get("ID");
     if (jobPostingRepository.findBySourceAndExternalId(source, externalId).isPresent()) {
       return false;
@@ -98,8 +109,9 @@ public class SeedLoader {
     return loadSaraminRow(record, externalId, listingIndex);
   }
 
-  private boolean loadJobKoreaRow(CSVRecord record, String externalId,
-      ListingPageIndex listingIndex, Path detailRawDir) throws IOException {
+  private boolean loadJobKoreaRow(
+      CSVRecord record, String externalId, ListingPageIndex listingIndex, Path detailRawDir)
+      throws IOException {
     Path detailFile = detailRawDir.resolve("detail-" + externalId + ".json");
     String detailHtml = null;
     Instant collectedAt = Instant.parse("2026-08-09T00:00:00Z");
@@ -111,64 +123,100 @@ public class SeedLoader {
     }
 
     String listingHtml = listingIndex.htmlForJobKorea(externalId);
-    JobKoreaListingFields fields = listingHtml != null
-        ? jobKoreaListingEnricher.extract(listingHtml, externalId)
-        : new JobKoreaListingFields(null, null, null, null, null, null);
+    JobKoreaListingFields fields =
+        listingHtml != null
+            ? jobKoreaListingEnricher.extract(listingHtml, externalId)
+            : new JobKoreaListingFields(null, null, null, null, null, null);
 
     // 상세페이지 급여 블록이 목록페이지 셀보다 커버리지가 훨씬 넓다(실측 400건 중 317 대 36).
-    SalaryRange salary = detailHtml == null ? null
-        : jobKoreaPayParser.parse(jobKoreaDetailParser.extractSalaryRaw(detailHtml));
+    SalaryRange salary =
+        detailHtml == null
+            ? null
+            : jobKoreaPayParser.parse(jobKoreaDetailParser.extractSalaryRaw(detailHtml));
     // 상세페이지가 있으면 그 급여 블록이 판정 권위다. 목록페이지 셀은 상세가 없을 때만 쓴다.
     Long salaryMin = detailHtml != null ? valueOf(salary, SalaryRange::min) : fields.salaryMin();
     Long salaryMax = detailHtml != null ? valueOf(salary, SalaryRange::max) : fields.salaryMax();
-    String jobFamily = detailHtml == null ? JobFamilyClassifier.OTHER
-        : jobFamilyClassifier.classify(jobKoreaDetailParser.extractJobTypeName(detailHtml));
-    String companySize = detailHtml == null ? CompanySizeClassifier.UNKNOWN
-        : companySizeClassifier.classify(jobKoreaDetailParser.extractEmployeeCount(detailHtml),
-            jobKoreaDetailParser.extractCompanyTypeName(detailHtml));
+    String jobFamily =
+        detailHtml == null
+            ? JobFamilyClassifier.OTHER
+            : jobFamilyClassifier.classify(jobKoreaDetailParser.extractJobTypeName(detailHtml));
+    String companySize =
+        detailHtml == null
+            ? CompanySizeClassifier.UNKNOWN
+            : companySizeClassifier.classify(
+                jobKoreaDetailParser.extractEmployeeCount(detailHtml),
+                jobKoreaDetailParser.extractCompanyTypeName(detailHtml));
 
-    JobPosting posting = new JobPosting(
-        "JOBKOREA", externalId, record.get("Title"), record.get("Company"),
-        salaryMin, salaryMax, record.get("Location"),
-        parseIntOrNull(record.get("CareerRange")), null,
-        employmentTypeClassifier.classify(fields.employmentType()), companySize,
-        fields.companyBadge(), fields.positionLevel(), jobFamily, null,
-        JobPostingDateParser.parseCreatedAt("JOBKOREA", record.get("CreatedAt"), collectedAt),
-        JobPostingDateParser.parseDeadline("JOBKOREA", fields.postedEndDateRaw(), collectedAt),
-        SEED_MONTH, SEED_MONTH, collectedAt);
+    JobPosting posting =
+        new JobPosting(
+            "JOBKOREA",
+            externalId,
+            record.get("Title"),
+            record.get("Company"),
+            salaryMin,
+            salaryMax,
+            record.get("Location"),
+            parseIntOrNull(record.get("CareerRange")),
+            null,
+            employmentTypeClassifier.classify(fields.employmentType()),
+            companySize,
+            fields.companyBadge(),
+            fields.positionLevel(),
+            jobFamily,
+            null,
+            JobPostingDateParser.parseCreatedAt("JOBKOREA", record.get("CreatedAt"), collectedAt),
+            JobPostingDateParser.parseDeadline("JOBKOREA", fields.postedEndDateRaw(), collectedAt),
+            SEED_MONTH,
+            SEED_MONTH,
+            collectedAt);
 
     // CSV 의 Skills 열에는 스킬 유형이 없어 인성 역량을 걸러낼 수 없다. 상세페이지가 있으면
     // 거기서 직무 역량만 뽑고, 없을 때만 CSV 로 물러선다.
-    List<String> skillNames = detailHtml != null
-        ? jobKoreaDetailParser.extractSkills(detailHtml)
-        : splitSkills(record.get("Skills"));
+    List<String> skillNames =
+        detailHtml != null
+            ? jobKoreaDetailParser.extractSkills(detailHtml)
+            : splitSkills(record.get("Skills"));
     addSkills(posting, skillNames);
 
     jobPostingRepository.save(posting);
     return true;
   }
 
-  private boolean loadSaraminRow(CSVRecord record, String externalId,
-      ListingPageIndex listingIndex) throws IOException {
+  private boolean loadSaraminRow(CSVRecord record, String externalId, ListingPageIndex listingIndex)
+      throws IOException {
     ListingPageIndex.ListpageEntry listpage = listingIndex.listpageForSaramin(externalId);
-    Instant collectedAt = listpage != null
-        ? persistRawIngestFromListpage("SARAMIN", listpage)
-        : Instant.parse("2026-08-09T00:00:00Z");
+    Instant collectedAt =
+        listpage != null
+            ? persistRawIngestFromListpage("SARAMIN", listpage)
+            : Instant.parse("2026-08-09T00:00:00Z");
 
-    SaraminListingFields fields = listpage != null
-        ? saraminListingEnricher.extract(listpage.html(), externalId)
-        : new SaraminListingFields(null, null, List.of(), List.of());
+    SaraminListingFields fields =
+        listpage != null
+            ? saraminListingEnricher.extract(listpage.html(), externalId)
+            : new SaraminListingFields(null, null, List.of(), List.of());
 
-    JobPosting posting = new JobPosting(
-        "SARAMIN", externalId, record.get("Title"), record.get("Company"),
-        null, null, record.get("Location"),
-        parseIntOrNull(record.get("CareerRange")), null,
-        employmentTypeClassifier.classify(fields.employmentType()),
-        CompanySizeClassifier.UNKNOWN, null, null,
-        jobFamilyClassifier.classifyTags(fields.skillTags()), null,
-        JobPostingDateParser.parseCreatedAt("SARAMIN", record.get("CreatedAt"), collectedAt),
-        JobPostingDateParser.parseDeadline("SARAMIN", fields.postedEndDateRaw(), collectedAt),
-        SEED_MONTH, SEED_MONTH, collectedAt);
+    JobPosting posting =
+        new JobPosting(
+            "SARAMIN",
+            externalId,
+            record.get("Title"),
+            record.get("Company"),
+            null,
+            null,
+            record.get("Location"),
+            parseIntOrNull(record.get("CareerRange")),
+            null,
+            employmentTypeClassifier.classify(fields.employmentType()),
+            CompanySizeClassifier.UNKNOWN,
+            null,
+            null,
+            jobFamilyClassifier.classifyTags(fields.skillTags()),
+            null,
+            JobPostingDateParser.parseCreatedAt("SARAMIN", record.get("CreatedAt"), collectedAt),
+            JobPostingDateParser.parseDeadline("SARAMIN", fields.postedEndDateRaw(), collectedAt),
+            SEED_MONTH,
+            SEED_MONTH,
+            collectedAt);
 
     addSkills(posting, fields.skillTags());
     for (String industryName : distinct(fields.industryTags())) {
@@ -180,8 +228,7 @@ public class SeedLoader {
   }
 
   /**
-   * 원천 표기를 표준 표기로 합치고 분류를 매겨 공고에 붙인다. 직무 카테고리 태그는 버리지
-   * 않고 `JOB_CATEGORY` 로 분리해 스킬 수요 집계에서만 빠지게 한다.
+   * 원천 표기를 표준 표기로 합치고 분류를 매겨 공고에 붙인다. 직무 카테고리 태그는 버리지 않고 `JOB_CATEGORY` 로 분리해 스킬 수요 집계에서만 빠지게 한다.
    */
   private void addSkills(JobPosting posting, List<String> rawNames) {
     Set<String> applied = new LinkedHashSet<>();
@@ -199,7 +246,8 @@ public class SeedLoader {
 
   /** 수집으로 관측된 스킬이므로 `is_custom` 은 false 다 — 사용자 직접 입력분이 아니다. */
   private Skill upsertSkill(String standardName, String category) {
-    return skillRepository.findByStandardNameAndCategory(standardName, category)
+    return skillRepository
+        .findByStandardNameAndCategory(standardName, category)
         .orElseGet(() -> skillRepository.save(new Skill(standardName, category, false)));
   }
 
@@ -210,9 +258,10 @@ public class SeedLoader {
     return List.of(csvSkillsCell.split(";"));
   }
 
-  /** 원본 목록페이지 HTML에 동일 태그가 두 번 실려 있는 경우가 있어(예: 사람인),
-   *  같은 posting에 같은 skill을 두 번 addSkill하면 (job_posting_id, skill_id) 유니크
-   *  제약을 위반한다. */
+  /**
+   * 원본 목록페이지 HTML에 동일 태그가 두 번 실려 있는 경우가 있어(예: 사람인), 같은 posting에 같은 skill을 두 번 addSkill하면
+   * (job_posting_id, skill_id) 유니크 제약을 위반한다.
+   */
   private List<String> distinct(List<String> values) {
     return values.stream().distinct().toList();
   }
@@ -233,16 +282,18 @@ public class SeedLoader {
   }
 
   /**
-   * 사람인 목록페이지 1개 = raw_ingest 1행을 여러 공고가 공유(N:1). 같은 listpage를
-   * 참조하는 두 번째 이후 공고는 findBySourceAndSourceItemId에서 이미 있으니 skip된다.
+   * 사람인 목록페이지 1개 = raw_ingest 1행을 여러 공고가 공유(N:1). 같은 listpage를 참조하는 두 번째 이후 공고는
+   * findBySourceAndSourceItemId에서 이미 있으니 skip된다.
    */
-  private Instant persistRawIngestFromListpage(String source, ListingPageIndex.ListpageEntry listpage) {
-    persistRawIngestIfAbsent(source, listpage.sourceItemId(), listpage.html(), listpage.collectedAt());
+  private Instant persistRawIngestFromListpage(
+      String source, ListingPageIndex.ListpageEntry listpage) {
+    persistRawIngestIfAbsent(
+        source, listpage.sourceItemId(), listpage.html(), listpage.collectedAt());
     return listpage.collectedAt();
   }
 
-  private void persistRawIngestIfAbsent(String source, String sourceItemId, String html,
-      Instant collectedAt) {
+  private void persistRawIngestIfAbsent(
+      String source, String sourceItemId, String html, Instant collectedAt) {
     if (rawIngestRepository.findBySourceAndSourceItemId(source, sourceItemId).isPresent()) {
       return;
     }
@@ -250,10 +301,11 @@ public class SeedLoader {
     try {
       payload = OBJECT_MAPPER.writeValueAsString(Map.of("html", html));
     } catch (IOException e) {
-      throw new IllegalStateException("Failed to serialize raw_ingest payload for "
-          + source + "/" + sourceItemId, e);
+      throw new IllegalStateException(
+          "Failed to serialize raw_ingest payload for " + source + "/" + sourceItemId, e);
     }
-    rawIngestRepository.save(new RawIngest(
-        source, sourceItemId, payload, SCHEMA_VERSION, SEED_MONTH, SEED_MONTH, collectedAt));
+    rawIngestRepository.save(
+        new RawIngest(
+            source, sourceItemId, payload, SCHEMA_VERSION, SEED_MONTH, SEED_MONTH, collectedAt));
   }
 }

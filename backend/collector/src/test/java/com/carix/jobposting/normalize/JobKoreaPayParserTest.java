@@ -11,7 +11,8 @@ class JobKoreaPayParserTest {
 
   @Test
   void parsesAnnualSalaryRange() {
-    String payJson = """
+    String payJson =
+        """
         {"payType":"ANNUALLY_SALARY","payRange":{"from":3300,"to":3801,\
         "fromInclusive":true,"toInclusive":false},"payOptionTypes":[]}""";
 
@@ -23,7 +24,8 @@ class JobKoreaPayParserTest {
 
   @Test
   void keepsUpperBoundWhenInclusive() {
-    String payJson = """
+    String payJson =
+        """
         {"payType":"ANNUALLY_SALARY","payRange":{"from":4000,"to":6000,\
         "fromInclusive":true,"toInclusive":true}}""";
 
@@ -35,7 +37,8 @@ class JobKoreaPayParserTest {
 
   @Test
   void returnsNullWhenSalaryIsNotDisclosed() {
-    String payJson = """
+    String payJson =
+        """
         {"payType":"COMPANY_POLICY","payRange":null,"payOptionTypes":[]}""";
 
     assertNull(parser.parse(payJson));
@@ -43,7 +46,8 @@ class JobKoreaPayParserTest {
 
   @Test
   void returnsNullForNonAnnualPayTypes() {
-    String payJson = """
+    String payJson =
+        """
         {"payType":"MONTHLY_SALARY","payRange":{"from":300,"to":401,\
         "fromInclusive":true,"toInclusive":false}}""";
 

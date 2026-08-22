@@ -11,9 +11,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 
 /**
- * 옮겨 온 코드가 com.carix.jobposting 패키지명을 유지하므로 CollectorApplication 의
- * 기본 스캔 범위(com.carix.collector) 밖에 있다. 스캔 대상을 명시하지 않으면 엔티티와
- * 리포지터리가 조용히 빠진 채 컨텍스트가 뜬다 — 이 테스트가 그것을 잡는다.
+ * 옮겨 온 코드가 com.carix.jobposting 패키지명을 유지하므로 CollectorApplication 의 기본 스캔 범위(com.carix.collector) 밖에
+ * 있다. 스캔 대상을 명시하지 않으면 엔티티와 리포지터리가 조용히 빠진 채 컨텍스트가 뜬다 — 이 테스트가 그것을 잡는다.
  */
 @SpringBootTest
 class CollectorPersistenceWiringTest {

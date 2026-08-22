@@ -11,8 +11,7 @@ import java.util.UUID;
 @Table(name = "job_posting_skill")
 public class JobPostingSkill {
 
-  @Id
-  private UUID id;
+  @Id private UUID id;
 
   @ManyToOne
   @JoinColumn(name = "job_posting_id", nullable = false)
@@ -22,8 +21,7 @@ public class JobPostingSkill {
   @JoinColumn(name = "skill_id", nullable = false)
   private Skill skill;
 
-  protected JobPostingSkill() {
-  }
+  protected JobPostingSkill() {}
 
   JobPostingSkill(JobPosting jobPosting, Skill skill) {
     this.id = UUID.randomUUID();

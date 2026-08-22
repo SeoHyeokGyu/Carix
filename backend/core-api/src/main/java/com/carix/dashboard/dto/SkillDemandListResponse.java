@@ -15,12 +15,7 @@ public record SkillDemandListResponse(List<SkillDemandDetail> skills, String cov
       double baselineDemandRate,
       List<SkillSourceStats> sources,
       double weight,
-      String status
-  ) {
+      String status) {}
 
-  }
-
-  public record SkillSourceStats(String source, double demandIndex, int sampleSize) {
-
-  }
+  public record SkillSourceStats(String source, double demandIndex, int sampleSize) {}
 }

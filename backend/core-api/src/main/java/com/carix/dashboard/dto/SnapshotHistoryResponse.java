@@ -14,13 +14,8 @@ public record SnapshotHistoryResponse(List<SnapshotPoint> snapshots) {
       String decisionSignal,
       String dataVersion,
       String ruleVersion,
-      SnapshotRationale rationale
-  ) {
+      SnapshotRationale rationale) {}
 
-  }
-
-  public record SnapshotRationale(List<String> rulesApplied, List<String> excluded,
-                                  LocalDate baseDate) {
-
-  }
+  public record SnapshotRationale(
+      List<String> rulesApplied, List<String> excluded, LocalDate baseDate) {}
 }

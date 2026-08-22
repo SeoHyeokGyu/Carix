@@ -9,7 +9,4 @@ public record ProfileRequest(
     @Min(0) @Schema(example = "5", nullable = true) Integer yearsOfExperience,
     @Schema(example = "SEOUL_GANGNAM", nullable = true) String region,
     @Schema(example = "FULL_TIME", nullable = true) String employmentType,
-    @Schema(example = "MEDIUM", nullable = true) String companySize
-) {
-
-}
+    @Schema(example = "MEDIUM", nullable = true) String companySize) {}

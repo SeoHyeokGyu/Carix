@@ -8,7 +8,4 @@ public record ProfileResponse(
     @Schema(example = "5") int yearsOfExperience,
     @Schema(example = "SEOUL_GANGNAM") String region,
     @Schema(example = "FULL_TIME") String employmentType,
-    @Schema(example = "MEDIUM") String companySize
-) {
-
-}
+    @Schema(example = "MEDIUM") String companySize) {}

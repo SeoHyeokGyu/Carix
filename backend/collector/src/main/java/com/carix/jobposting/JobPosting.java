@@ -18,8 +18,7 @@ import java.util.stream.Collectors;
 @Table(name = "job_posting")
 public class JobPosting {
 
-  @Id
-  private UUID id;
+  @Id private UUID id;
 
   @Column(nullable = false, length = 20)
   private String source;
@@ -39,8 +38,7 @@ public class JobPosting {
   @Column(name = "salary_max")
   private Long salaryMax;
 
-  @Column
-  private String region;
+  @Column private String region;
 
   @Column(name = "experience_min")
   private Integer experienceMin;
@@ -63,8 +61,7 @@ public class JobPosting {
   @Column(name = "job_family")
   private String jobFamily;
 
-  @Column
-  private String content;
+  @Column private String content;
 
   @Column(name = "posted_start_date")
   private LocalDate postedStartDate;
@@ -90,14 +87,28 @@ public class JobPosting {
   @OneToMany(mappedBy = "jobPosting", cascade = CascadeType.ALL, orphanRemoval = true)
   private List<JobPostingSkill> jobPostingSkills = new ArrayList<>();
 
-  protected JobPosting() {
-  }
+  protected JobPosting() {}
 
-  public JobPosting(String source, String externalId, String title, String companyName,
-      Long salaryMin, Long salaryMax, String region, Integer experienceMin,
-      Integer experienceMax, String employmentType, String companySize, String companyBadge,
-      String positionLevel, String jobFamily, String content, LocalDate postedStartDate,
-      LocalDate postedEndDate, String firstSeenMonth, String lastSeenMonth,
+  public JobPosting(
+      String source,
+      String externalId,
+      String title,
+      String companyName,
+      Long salaryMin,
+      Long salaryMax,
+      String region,
+      Integer experienceMin,
+      Integer experienceMax,
+      String employmentType,
+      String companySize,
+      String companyBadge,
+      String positionLevel,
+      String jobFamily,
+      String content,
+      LocalDate postedStartDate,
+      LocalDate postedEndDate,
+      String firstSeenMonth,
+      String lastSeenMonth,
       Instant collectedAt) {
     this.id = UUID.randomUUID();
     this.source = source;
@@ -144,29 +155,22 @@ public class JobPosting {
     this.employmentType = employmentType;
   }
 
-  /**
-   * 회사 규모 차원을 붙인다. 판정 근거가 없으면 null 이 아니라 `UNKNOWN` 이다 —
-   * 집계에서 NULL 은 전체 롤업을 뜻해 의미가 다르다.
-   */
+  /** 회사 규모 차원을 붙인다. 판정 근거가 없으면 null 이 아니라 `UNKNOWN` 이다 — 집계에서 NULL 은 전체 롤업을 뜻해 의미가 다르다. */
   public void classifyCompanySizeAs(String companySize) {
     this.companySize = companySize;
   }
 
   /**
-   * 스킬 연결을 원천 재파싱 결과에 맞춘다. 전부 지우고 다시 넣지 않는 이유는
-   * `(job_posting_id, skill_id)` 유니크 제약 때문이다 — 같은 플러시 안에서 삭제보다
-   * 삽입이 먼저 나가면 그대로 남을 연결이 중복으로 걸린다. 빠질 것만 빼고 새것만 넣는다.
+   * 스킬 연결을 원천 재파싱 결과에 맞춘다. 전부 지우고 다시 넣지 않는 이유는 `(job_posting_id, skill_id)` 유니크 제약 때문이다 — 같은 플러시
+   * 안에서 삭제보다 삽입이 먼저 나가면 그대로 남을 연결이 중복으로 걸린다. 빠질 것만 빼고 새것만 넣는다.
    */
   public void replaceSkills(List<Skill> skills) {
     Set<UUID> targetIds = skills.stream().map(Skill::getId).collect(Collectors.toSet());
     jobPostingSkills.removeIf(link -> !targetIds.contains(link.getSkill().getId()));
 
-    Set<UUID> linkedIds = jobPostingSkills.stream()
-        .map(link -> link.getSkill().getId())
-        .collect(Collectors.toSet());
-    skills.stream()
-        .filter(skill -> !linkedIds.contains(skill.getId()))
-        .forEach(this::addSkill);
+    Set<UUID> linkedIds =
+        jobPostingSkills.stream().map(link -> link.getSkill().getId()).collect(Collectors.toSet());
+    skills.stream().filter(skill -> !linkedIds.contains(skill.getId())).forEach(this::addSkill);
   }
 
   public UUID getId() {
