@@ -1,0 +1,122 @@
+name: Rollback Deployment
+
+on:
+  workflow_dispatch:
+    inputs:
+      target_sha:
+        description: '롤백할 타깃 커밋 SHA (비워둘 경우 바로 직전 main 커밋 HEAD~1 로 롤백)'
+        required: false
+        default: ''
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+env:
+  IMAGE_BASE: ghcr.io/seohyeokgyu/carix
+
+jobs:
+  rollback:
+    name: Rollback to target version
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      packages: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: 롤백 대상 커밋 SHA 결정
+        id: target
+        run: |
+          TARGET="${{ github.event.inputs.target_sha }}"
+          if [ -z "$TARGET" ]; then
+            TARGET=$(git rev-parse HEAD~1)
+            echo "타깃 SHA 미지정 — HEAD~1 ($TARGET) 로 롤백합니다."
+          else
+            echo "지정된 타깃 SHA ($TARGET) 로 롤백합니다."
+          fi
+          echo "sha=$TARGET" >> "$GITHUB_OUTPUT"
+
+          # 각 컴포넌트별 태그 계산
+          CORE_API_TAG=$(git log -1 --format=%H $TARGET -- backend/core-api/ backend/build.gradle backend/settings.gradle ':!*.md' .github/workflows/deploy.yml)
+          FRONTEND_TAG=$(git log -1 --format=%H $TARGET -- frontend/ ':!*.md' .github/workflows/deploy.yml)
+          EUREKA_TAG=$(git log -1 --format=%H $TARGET -- backend/eureka/ backend/build.gradle backend/settings.gradle ':!*.md' .github/workflows/deploy.yml)
+          CONFIG_SERVER_TAG=$(git log -1 --format=%H $TARGET -- backend/config-server/ backend/build.gradle backend/settings.gradle ':!*.md' .github/workflows/deploy.yml)
+          GATEWAY_TAG=$(git log -1 --format=%H $TARGET -- backend/gateway/ backend/build.gradle backend/settings.gradle ':!*.md' .github/workflows/deploy.yml)
+          AUTH_SERVICE_TAG=$(git log -1 --format=%H $TARGET -- backend/auth-service/ backend/build.gradle backend/settings.gradle ':!*.md' .github/workflows/deploy.yml)
+
+          echo "core_api_tag=${CORE_API_TAG:-$TARGET}" >> "$GITHUB_OUTPUT"
+          echo "frontend_tag=${FRONTEND_TAG:-$TARGET}" >> "$GITHUB_OUTPUT"
+          echo "eureka_tag=${EUREKA_TAG:-$TARGET}" >> "$GITHUB_OUTPUT"
+          echo "config_server_tag=${CONFIG_SERVER_TAG:-$TARGET}" >> "$GITHUB_OUTPUT"
+          echo "gateway_tag=${GATEWAY_TAG:-$TARGET}" >> "$GITHUB_OUTPUT"
+          echo "auth_service_tag=${AUTH_SERVICE_TAG:-$TARGET}" >> "$GITHUB_OUTPUT"
+
+      - name: SSH를 통한 OCI 서버 롤백 실행
+        uses: appleboy/ssh-action@0ff4204d59e8e51228ff73bce53f80d53301dee2
+        env:
+          DEPLOY_SHA: ${{ steps.target.outputs.sha }}
+          CORE_API_TAG: ${{ steps.target.outputs.core_api_tag }}
+          FRONTEND_TAG: ${{ steps.target.outputs.frontend_tag }}
+          EUREKA_TAG: ${{ steps.target.outputs.eureka_tag }}
+          CONFIG_SERVER_TAG: ${{ steps.target.outputs.config_server_tag }}
+          GATEWAY_TAG: ${{ steps.target.outputs.gateway_tag }}
+          AUTH_SERVICE_TAG: ${{ steps.target.outputs.auth_service_tag }}
+          IMAGE_BASE: ${{ env.IMAGE_BASE }}
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_ACTOR: ${{ github.actor }}
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USERNAME }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          envs: DEPLOY_SHA,CORE_API_TAG,FRONTEND_TAG,EUREKA_TAG,CONFIG_SERVER_TAG,GATEWAY_TAG,AUTH_SERVICE_TAG,IMAGE_BASE,GHCR_TOKEN,GH_ACTOR
+          script: |
+            set -eu
+            cd /home/opc/carix
+
+            # 롤백 전 안전을 위해 현재 .env 백업
+            cp .env .env.rollback_from
+
+            git fetch origin "$DEPLOY_SHA"
+            git reset --hard "$DEPLOY_SHA"
+
+            set_tag() {
+              key=$1
+              val=$2
+              if grep -q "^${key}=" .env; then
+                sed -i "s|^${key}=.*|${key}=${val}|" .env
+              else
+                echo "${key}=${val}" >> .env
+              fi
+            }
+
+            set_tag CORE_API_TAG "$CORE_API_TAG"
+            set_tag FRONTEND_TAG "$FRONTEND_TAG"
+            set_tag EUREKA_TAG "$EUREKA_TAG"
+            set_tag CONFIG_SERVER_TAG "$CONFIG_SERVER_TAG"
+            set_tag GATEWAY_TAG "$GATEWAY_TAG"
+            set_tag AUTH_SERVICE_TAG "$AUTH_SERVICE_TAG"
+
+            printf '%s' "$GHCR_TOKEN" | docker login ghcr.io -u "$GH_ACTOR" --password-stdin
+            docker compose pull
+            docker compose up -d --remove-orphans
+            docker compose up -d --force-recreate carix-caddy
+            docker exec infra_caddy caddy reload --config /etc/caddy/Caddyfile
+            docker logout ghcr.io
+
+      - name: 롤백 후 헬스체크
+        run: |
+          for i in $(seq 1 30); do
+            api=$(curl -sS -o /dev/null -w '%{http_code}' https://carix.144.24.90.88.sslip.io/api/health || true)
+            web=$(curl -sS -o /dev/null -w '%{http_code}' https://carix.144.24.90.88.sslip.io/ || true)
+            if [ "$api" = "200" ] && [ "$web" = "200" ]; then
+              echo "롤백 완료 및 정상 복구 확인 (api=$api web=$web)"
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "롤백 후 헬스체크 실패 (api=$api web=$web)"
+          exit 1
