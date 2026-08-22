@@ -4,7 +4,7 @@
 > Phase 1·3·4는 사람이 서버에서 1회 수행하는 준비 작업이고, Phase 5 이후는 CI/CD 경로다.
 
 > **역사 기록이다.** 이 문서는 단일 백엔드 컨테이너(`spring-api`) 기준으로 작성됐고 Phase는
-> 전부 완료됐다. 이후 [Spring Cloud 전환 계획 A](spring-cloud-a-infra.md)로 백엔드가
+> 전부 완료됐다. 이후 Spring Cloud 전환 계획 A로 백엔드가
 > `config-server`·`eureka`·`core-api` 로 나뉘었다. 본문의 `spring-api` 는 그 시점의 원문
 > 그대로 두되, 지금 서버에서 실행할 명령은 바뀐 이름을 쓴다.
 
@@ -1038,7 +1038,7 @@ rg -n "nginx" docker-compose.yml   # 결과 없어야 한다
 
 ```bash
 ssh <oci-server-alias> 'cd /home/opc/carix && docker compose ps && docker compose logs --tail=50 core-api'
-# 서비스명은 spring-cloud-a-infra.md 이후 core-api 로 바뀌었다.
+# 서비스명은 Spring Cloud 전환 이후 core-api 로 바뀌었다.
 curl -sS -o /dev/null -w "%{http_code}\n" https://carix.144.24.90.88.sslip.io/
 curl -sS -o /dev/null -w "%{http_code}\n" https://carix.144.24.90.88.sslip.io/api/health
 ```
@@ -1104,4 +1104,3 @@ Expected: `enabled` (+ compose의 `restart: unless-stopped`).
 | `spring-batch` 실행 형태 | 상주형/원샷 미확정 → Task 2.1 Step 6 |
 | 메모리 여유 | 스왑 4GB가 이미 소진됨. Carix 기동 후 재평가. 부족 시 flaresolverr×4 / warp×3 정리 논의 |
 | 커스텀 도메인 | sslip.io로 충분. 정식 도메인이 생기면 Caddyfile에 호스트만 추가하면 된다 |
-| 문서명 혼동 | `docs/plans/oci-deployment-plan.md`는 README 체크박스 한 줄 추가 계획(이미 반영됨). 실제 배포 구성은 본 문서다 |
