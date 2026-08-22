@@ -1,10 +1,11 @@
 # Carix Backend
 
-Java 25 + Spring Boot. Gradle 멀티모듈 — `config-server`, `eureka`, `core-api`, `auth-service`.
-`auth-service` 가 초대·매직링크 로그인·세션을 맡는다(스키마 `auth`). `core-api` 가 도메인 로직,
-REST API, 데이터 접근, Spring Batch 수집·집계를 맡는다(스키마 `core`). JPA·Flyway는 채용공고
-도메인(`com.carix.jobposting`)에 한해 이미 원격 DB에 연결돼 있다(마이그레이션 SQL은 저장소에
-없음). Security·Batch는 아직 없음 — 다음 단계.
+Java 25 + Spring Boot. Gradle 멀티모듈 — `config-server`, `eureka`, `core-api`, `auth-service`,
+`gateway`, `collector`.
+`auth-service` 가 초대·매직링크 로그인·세션을 맡는다(스키마 `auth`). `core-api` 가 도메인 로직과
+REST API를 맡는다 — DB는 쓰지 않는다(JPA·Postgres 의존성 없음). 채용공고 도메인
+(`com.carix.jobposting`)과 `core` 스키마는 `collector` 소관이며, 이미 JPA로 원격 DB에 연결돼
+있다(마이그레이션 SQL은 저장소에 없음). `core-api`의 Security는 아직 없음 — 다음 단계.
 
 상세 설계:
 - DB 스키마·규칙: [`../docs/specs/technical-specification.md`](../docs/specs/technical-specification.md)
@@ -16,14 +17,15 @@ REST API, 데이터 접근, Spring Batch 수집·집계를 맡는다(스키마 `
 Config·Eureka 클라이언트에 더해 dashboard·expense·income·profile·reference·scenario·skill
 7개 도메인 컨트롤러가 REST로 노출돼 있다(경로·요청·응답 규격은 위 API 규격 문서 참조) — 다만
 리포지토리·서비스 계층은 아직 연결되지 않은 스텁이다. 채용공고 도메인의 JPA 엔티티·리포지토리·
-시드 로더·크롤러는 이 7개 컨트롤러와 별개로 이미 추가됐으나, 여기엔 포함되지 않으며 REST로는
-노출되지 않는다. Security·Batch는 다음 단계에서 추가한다.
+시드 로더·크롤러는 `collector` 모듈에 별도로 이미 추가됐으며, `core-api`의 REST로는 노출되지
+않는다. `core-api`의 Security는 다음 단계에서 추가한다.
 
 **구현 상태:** `auth-service` 코드 구현(초대 확인, 매직링크 발급·검증, 세션 생성·조회·폐기,
 rate limit)과 배포 배선(`Dockerfile`, `docker-compose.yml` 서비스 항목, Caddy 라우트, CI 빌드
 잡) 모두 완료됐다. Spring Cloud Gateway도 도입돼 요청 경로에 편입됐다(설계는 위
-spring-cloud-architecture.md). `core-api` 도메인 인프라 중 Security·Batch는 다음 단계(JPA·Flyway는
-채용공고 도메인에 한해 이미 도입됨 — 위 참조).
+spring-cloud-architecture.md). `core-api`는 DB를 쓰지 않으며(JPA·Postgres 의존성 없음),
+Security는 다음 단계다. `collector`는 채용공고 도메인의 JPA와 `core` 스키마를 이미 쓰고
+있다(위 참조).
 
 아래는 배포 검증·데모용 경로다. 7개 도메인 컨트롤러의 경로는 위 API 규격 문서를 참조.
 
@@ -48,7 +50,7 @@ spring-cloud-architecture.md). `core-api` 도메인 인프라 중 Security·Batc
 
 로컬 기동은 `core-api`와 동일한 순서다(config-server 먼저, 그다음 `EUREKA_CLIENT_ENABLED=false`
 로 단독 기동 가능). `auth-service`는 Testcontainers 없이는 로컬에서 DB 없이 뜨지 않는다 —
-core-api와 마찬가지로 이미 JPA·Flyway를 쓰기 때문이다. 로컬 검증은 OCI DB 원격 연결
+이미 JPA·Flyway를 쓰기 때문이다. 로컬 검증은 OCI DB 원격 연결
 (DEVELOPMENT.md §3) 또는 `./gradlew :auth-service:test`(Docker 필요)로 한다.
 
 공통 에러 응답(`com.carix.common.ErrorResponse`)은 위 API 규격 문서 §1.1 형식을 따른다.
@@ -69,8 +71,9 @@ Spring Cloud Gateway(WebFlux/reactive). 요청 경로의 단일 진입점 — `c
 | 그 외 | `frontend-node` (정적 URI, Eureka 미등록) |
 
 세션 검증 필터는 `core` 라우트에만 적용되고 `carix.gateway.session-validation.enabled`
-(`config/spring/gateway.yml`) 로 켜고 끈다. **기본값 false** — auth-service 배포 배선이
-아직 없어서다. 켜기 전 auth-service 가 Eureka 에 `UP` 으로 등록돼 있는지 확인한다.
+(`config/spring/gateway.yml`) 로 켜고 끈다. **기본값 false** — auth-service 배포 배선은
+완료됐으나 실제 서버 배포·Eureka 등록 확인 전이라서다. 켜기 전 auth-service 가 Eureka 에
+`UP` 으로 등록돼 있는지 확인한다.
 
 ## 빌드
 
@@ -110,9 +113,8 @@ Dockerfile은 컴파일하지 않는다. CI 러너가 Gradle 캐시로 만든 JA
 
 ## 로컬 개발과 DB
 
-> `core-api`는 채용공고 도메인(`core` 스키마)에서 이미 원격 DB를 쓴다 — REST로 노출된 도메인
-> API는 JPA 도입 이후 적용된다. `auth-service`도 이미 JPA·Flyway로 `auth` 스키마를 쓰므로,
-> 아래 원격 DB 연결 설정이 두 서비스 모두에 지금 바로 필요하다.
+> `auth-service`는 이미 JPA·Flyway로 `auth` 스키마를 쓰므로, 아래 원격 DB 연결 설정이
+> 지금 바로 필요하다.
 
 - 로컬엔 PostgreSQL·Docker를 띄우지 않는다. **OCI의 `carix` DB에 원격 연결**한다.
   접근은 TLS + OCI Security List IP 허용목록이다

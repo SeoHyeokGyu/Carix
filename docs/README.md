@@ -81,6 +81,7 @@
 | MVP 요구사항 | MVP 상세 요구사항 정의 완료 (임계값·표본 기준 등 세부 수치는 데이터 검증 후 확정) |
 | 기술 스택 | 결정 완료 |
 | 데이터 수집 실측(잡코리아·사람인) | 스크래핑으로 실측 완료 — 공고 800건·스킬 699개 원격 DB 적재, 산출물은 `verification/out/` |
+| KOSIS CPI·가계동향 API 검증 | 검증 완료 — CPI(`DT_1J22001`)·가계동향(`DT_1L9U101`), 498개월 실측 명세는 [외부 원천 API 연동 명세 §2](specs/external-api-integration.md) |
 | OCI 배포 환경 | 구성 완료 — 최소 스캐폴드 기준 빌드 → GHCR → SSH → 헬스체크 전 구간 검증 |
 | Spring Cloud 전환 | 계획 A(멀티모듈·Config Server·Eureka) 구현·운영 검증 완료, 계획 B(Gateway 도입, 요청경로 편입) 구현 완료, 계획 C(auth-service 배포 배선) 구현 완료 |
 | core-api | DB 미사용(JPA·Postgres 의존성 없음), Security 없음 |
@@ -93,7 +94,7 @@
 
 | 영역 | 남은 작업 |
 | --- | --- |
-| 데이터 수집 가능성 검증 | KOSIS CPI·임금통계 기준선 통계표 실측 |
+| 임금통계 기준선 원천 재선정 | KOSIS 근로실태조사는 직무 세분·경력·지역 차원 부족 확인 — [외부 원천 API 연동 명세 §3.3](specs/external-api-integration.md) |
 | 애플리케이션 구현 | MVP 기능 구현 |
 | collector | Spring Batch 잡·내부 API·`docker-compose.yml`·`deploy.yml` 배선 |
 | 프런트엔드 | `/api` 프록시 미구성 — 백엔드 호출 시점에 `vite.config.ts`에 추가 |
