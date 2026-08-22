@@ -8,7 +8,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  * <p>갱신하려면 설정 저장소에 커밋한 뒤 이 서비스의 {@code /actuator/refresh} 를 호출한다. Spring Cloud Bus 를 쓰지 않으므로 자동
  * 전파되지 않는다.
  *
- * <p>NOTE: (cjkang) record 가 아니라 가변 JavaBean 인 이유. Spring Cloud 의 {@code
+ * <p>NOTE: record가 아니라 가변 JavaBean을 사용하는 이유. Spring Cloud의 {@code
  * ConfigurationPropertiesRebinder.resetBeanToDefaults()} 가 무인자 생성자로 새 인스턴스를 만든 뒤 값을 다시 바인딩한다.
  * record 는 무인자 생성자가 없어 갱신 때 {@code BeanInstantiationException: wrong number of arguments: 0
  * expected: 2} 로 깨진다 (spring-cloud-context 5.0.2, 2026-07-30 실측). 리바인더는 같은 인스턴스에 값을 다시 넣으므로 이 빈을

@@ -59,7 +59,7 @@ weights:
       - { hhCode: Q, cpi: I, weight: 0.2422, name: "09 오락·문화" }
       - { hhCode: U, cpi: L, weight: 0.3454, name: "12 기타상품·서비스" }
 
-# NOTE: (cjkang) 08 정보통신은 HOUSING(주거·공공요금)에 포함한다. 2026-07-25 결정.
+# NOTE: 08 정보통신은 HOUSING(주거·공공요금)에 포함한다. (2026-07-25 결정)
 #       CPI 원 분류상 04와 08은 별개 대분류이나, Carix 카테고리명이 '공공요금'을
 #       포함하므로 사용자 직관에 맞춘다. 되돌릴 경우 LEISURE 로 이동하고
 #       HOUSING 0.1227 / LEISURE 0.3032 가 된다.
