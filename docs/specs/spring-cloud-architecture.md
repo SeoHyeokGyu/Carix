@@ -1,18 +1,5 @@
 # Spring Cloud 기반 백엔드 아키텍처 설계
 
-> 상태: 계획 A(멀티모듈·Config Server·Eureka), 계획 B(Gateway 도입, 요청경로 편입 완료),
-> 계획 C(auth-service 배포 배선) 구현 완료 — 2026-08-02.
->
-> Gateway 의 세션 검증 필터는 코드·단위테스트 완료 상태로 존재하지만
-> `carix.gateway.session-validation.enabled`(config/spring/gateway.yml) 가 기본 false다 —
-> auth-service 배포 배선은 이 커밋으로 갖춰졌으나, 실제 서버 배포·Eureka 등록 확인 전에
-> 켜면 core-api 로 가는 모든 요청이 401/503이 된다.
-> 서버 배포·등록 확인 후 그 값을 true 로 바꾸고 /actuator/refresh 를 호출한다.
->
-> 날짜: 2026-07-28 (원 설계), 2026-08-01 (Gateway 구현), 2026-08-02 (auth-service 배포 배선)
-> 관련 결정: 단일 DB·원격 접근 근거는 [DEVELOPMENT.md §3](../DEVELOPMENT.md),
-> [구현 계획](../plans/spring-cloud-a-infra.md), [Gateway 구현 계획](../superpowers/plans/2026-08-01-gateway-introduction.md)
-
 ## 1. 목적과 전제
 
 이 프로젝트는 **학습·포트폴리오가 주목적**이다. 따라서 "이 도메인에 MSA가 과하다"는 지적은
@@ -37,18 +24,11 @@
 | core-api | 8082 | 프로필·소득·지출·스킬·지수·시나리오 | 등록 |
 | collector | 8083 | 채용공고 수집·정규화·집계 (Spring Batch) | 등록 |
 
-포트 열은 **컨테이너 내부** 포트이자 현재 상태다. Eureka에 등록되고 Gateway가 붙는 것도 이
-포트다.
+포트 열은 **컨테이너 내부** 포트이자 현재 상태다. Eureka 등록과, 해당하는 경우 Gateway
+연결도 같은 포트 번호를 쓴다.
 
-> `collector`(옛 `batch-worker`)는 2026-08-20 에 모듈로 추출됐다. 코드 이동과 빌드까지
-> 끝났고, Spring Batch 잡·내부 API·`docker-compose.yml`·`.github/workflows/deploy.yml`
-> 배선은 아직 없다. 설계는
-> [수집 서비스 분리 설계](../superpowers/specs/2026-08-20-collector-service-separation-design.md)다.
->
-> **Gateway 는 `collector` 를 라우팅하지 않는다.** 크롤링 트리거가 외부에 노출되면
-> 대상 사이트 요청을 유발하는 남용 경로가 되기 때문이다. 접근은 Docker 내부
-> 네트워크로 한정하고 호스트 포트를 바인딩하지 않는다. 표의 "등록" 은 레지스트리
-> 대시보드 관측용이며 라우팅에 쓰이지 않는다.
+Eureka 열은 해당 서비스가 Eureka 레지스트리에 등록되는지만 나타낸다. Gateway가 실제로
+그 서비스로 라우팅하는지 여부의 신호가 아니다.
 
 호스트 바인딩은 대부분 같은 번호를 쓰지만 `config-server`만 **8890**이다. 호스트 8888은
 저장소 밖 `infra-dozzle-1`이 이미 잡고 있다. `config-server`·`eureka`(8761)·`postgres`(5432)는
@@ -118,6 +98,8 @@ flowchart TD
     Collector["collector — Gateway 라우팅 대상 아님"] --> DBC
 ```
 
+**Gateway 는 `collector` 를 라우팅하지 않는다.**
+
 ### Gateway 필터 체인
 
 1. **상관관계 ID** — `X-Request-Id`를 생성해 하류와 로그에 전파한다.
@@ -152,7 +134,7 @@ springdoc.swagger-ui.urls:
 Gateway 에서 Swagger UI 하나로 두 서비스 문서를 전환해 본다. `collector` 는 외부에
 노출하지 않으므로 취합 대상이 아니다.
 
-> **구현 상태 (2026-08-10 확인):** 위 취합 설정은 아직 적용되지 않았다 — `gateway/build.gradle`에
+> OpenAPI 취합은 아직 적용돼 있지 않다 — `gateway/build.gradle`에
 > springdoc 의존성이 없고, `gateway/application.yml`·`config/spring/gateway.yml`에도
 > `springdoc.swagger-ui.urls`가 없다. 실제 라우팅은 `core` 라우트의 경로 조건이
 > `/api/swagger-ui/**`·`/api/v3/api-docs/**`를 core-api로만 그대로 넘기는 형태이고, `auth`
@@ -212,12 +194,12 @@ spring:
 **git 백엔드를 쓰지 않는 이유** — 둘 다 실패했다.
 
 GitHub을 SSH로 직접 읽는 것: JGit은 RSA·PEM 형식 키만 받는데 서버의 기존 deploy key는
-ED25519·OpenSSH 형식이라 쓸 수 없다 (2026-07-28 실측). 새 자격증명을 만들어야 한다.
+ED25519·OpenSSH 형식이라 쓸 수 없다. 새 자격증명을 만들어야 한다.
 
 git 백엔드로 `file:///etc/carix-repo`를 가리키는 것: `JGitEnvironmentRepository`가 그 경로를
 제자리 작업복사본으로 삼고, **저장소에 설정된 origin(`git@github-carix:...`)으로 fetch를
 시도한다.** 위와 같은 이유로 인증이 실패하고, 이어지는 checkout도 읽기 전용 마운트라
-`RefNotFoundException: Ref master cannot be resolved`로 끝난다 (2026-07-30 실측, run 30532697261).
+`RefNotFoundException: Ref master cannot be resolved`로 끝난다.
 
 native 백엔드는 git을 아예 다루지 않고 파일만 읽는다. 저장소를 최신으로 유지하는 일은
 배포 스크립트가 이미 하므로 Config Server가 그것을 한 번 더 할 이유가 없다.
@@ -263,7 +245,7 @@ record 는 무인자 생성자가 없어 갱신 시점에 깨진다. 리바인�
 `instanceId` 를 null 로 들고 조회해 NPE 로 죽는다. 갱신하려는 것은 도메인 설정이지
 레지스트리 접속 정보가 아니다.
 
-둘 다 2026-07-30 서버 실측으로 드러났다.
+둘 다 서버 실측으로 드러났다.
 
 ### 부팅 의존성
 
@@ -352,7 +334,7 @@ Gateway 도입 커밋에 이 변경 사유를 기록한다.
 
 ## 8. 자원 영향
 
-측정값(2026-07-28): 총 22.9GB 중 available 10.9GB, 디스크 25GB 여유.
+측정값: 총 22.9GB 중 available 10.9GB, 디스크 25GB 여유.
 
 JVM 6개가 실사용 250~400MB씩이면 1.5~2.4GB 증가한다. 여유 범위 안이다.
 
