@@ -361,6 +361,7 @@ cd backend && ./gradlew test
 systemProperty 'spring.datasource.url', 'jdbc:postgresql://127.0.0.1:1/unused'
 systemProperty 'spring.datasource.hikari.initialization-fail-timeout', '-1'
 systemProperty 'spring.jpa.database-platform', 'org.hibernate.dialect.PostgreSQLDialect'
+systemProperty 'spring.jpa.hibernate.ddl-auto', 'none'
 ```
 
 커넥션은 잡지 않고 방언만 고정해 `EntityManagerFactory`를 만든다. 그래서 **엔티티 매핑과

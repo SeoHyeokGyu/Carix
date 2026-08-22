@@ -126,9 +126,11 @@ Dockerfile은 컴파일하지 않는다. CI 러너가 Gradle 캐시로 만든 JA
 
 ## 테스트 주의
 
-- **CI가 테스트를 안 돌린다.** `.github/workflows/deploy.yml`의 5개 빌드 잡
-  전부 `./gradlew :모듈:build -x test`다. 빌드·이미지 푸시·배포는 테스트 결과와 무관하게
-  진행된다. 머지 전 검증은 **전적으로 로컬 책임**이다.
+- **CI가 테스트를 안 돌린다.** `.github/workflows/deploy.yml`의 6개 빌드 잡 중
+  backend 5개(`core-api`·`eureka`·`config-server`·`gateway`·`auth-service`)는
+  전부 `./gradlew :모듈:build -x test`, `frontend`는 `docker build`(테스트 스텝 없음)다.
+  빌드·이미지 푸시·배포는 테스트 결과와 무관하게 진행된다. 머지 전 검증은
+  **전적으로 로컬 책임**이다.
 - 설계 테스트 전략은 Testcontainers를 쓰나, Testcontainers는 로컬 Docker를 요구한다.
   Docker가 OCI 전용이라 통합 테스트(`auth-service`)는 로컬에서 못 돌린다 — OCI DB 대상으로
   수동 실행하거나, CI에 다시 테스트를 걸 때까지는 검증 공백으로 남는다.
