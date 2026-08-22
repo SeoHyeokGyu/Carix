@@ -323,12 +323,18 @@ flowchart TD
     Internet([Internet]) -->|":443 TLS"| Router["infra_caddy (라우터)"]
     Router -->|"carix.…sslip.io"| CarixCaddy["carix_caddy (:80)"]
     CarixCaddy --> GW["gateway :8080"]
+    GW -->|"/api/v1/auth/**"| Auth["auth-service :8081"]
     GW -->|"/api/v1/**"| CoreApi["core-api :8082"]
     GW -->|"그 외"| NodeSSR["frontend-node :3000"]
-    NodeSSR -.->|"SSR 도입 시 API 호출"| CoreApi
-    CoreApi --> DB[(PostgreSQL)]
-    CoreApi -.->|"설정 조회"| Config["config-server :8888"]
-    CoreApi -.->|"등록"| Eureka["eureka :8761"]
+    GW -.->|"세션 검증"| Auth
+    NodeSSR -.->|"SSR 도입 시 API 호출"| GW
+    Auth --> DBA[("PostgreSQL (auth 스키마)")]
+    CoreApi --> DBC[("PostgreSQL (core 스키마)")]
+    Collector["collector (수집/배치)"] --> DBC
+    Auth -.-> Config["config-server :8890"]
+    CoreApi -.-> Config
+    Auth -.-> Eureka["eureka :8761"]
+    CoreApi -.-> Eureka
 ```
 
 `carix_caddy`는 이제 `core-api`에 직접 붙지 않고 `gateway:8080`으로 붙습니다. Gateway가

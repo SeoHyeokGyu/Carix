@@ -4,6 +4,7 @@
 
 ```mermaid
 erDiagram
+    invitation ||--o| users : registers
     users ||--o| career_profile : has
     users ||--o{ magic_link_token : uses
     users ||--o{ session : establishes

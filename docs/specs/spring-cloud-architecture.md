@@ -88,7 +88,8 @@ DB는 하나(`carix`, 근거는 DEVELOPMENT.md §3), 스키마는 **둘**로 나
 ```mermaid
 flowchart TD
     Browser([브라우저 :443]) --> Router["infra_caddy — TLS 종료·호스트명 분기"]
-    Router --> GW["gateway :8080"]
+    Router --> CarixCaddy["carix_caddy (:80) — 앱 라우팅 진입"]
+    CarixCaddy --> GW["gateway :8080"]
     GW -->|"/api/v1/auth/**"| Auth["auth-service :8081"]
     GW -->|"/api/v1/**"| Core["core-api :8082"]
     GW -->|"그 외"| Web["frontend-node :3000"]
