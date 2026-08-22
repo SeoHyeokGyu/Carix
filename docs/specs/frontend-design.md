@@ -36,10 +36,13 @@ flowchart TD
     Internet([Internet]) -->|":443 TLS"| Router["infra_caddy (라우터)"]
     Router -->|"호스트명 분기"| CarixCaddy["carix_caddy (:80)"]
     CarixCaddy --> GW["gateway :8080"]
-    GW -->|"/api/v1/**"| SpringBoot["core-api :8082"]
+    GW -->|"/api/v1/auth/**"| Auth["auth-service :8081"]
+    GW -->|"/api/v1/**"| Core["core-api :8082"]
     GW -->|"그 외"| NodeSSR["frontend-node :3000"]
-    NodeSSR -.->|"SSR 중 API 호출"| SpringBoot
-    SpringBoot --> DB[(PostgreSQL)]
+    GW -.->|"세션 검증"| Auth
+    NodeSSR -.->|"SSR 중 API 호출"| GW
+    Auth --> DB[("PostgreSQL (auth / core)")]
+    Core --> DB
 ```
 
 - 엣지는 2단이다. 라우터 Caddy(`infra_caddy`)가 80/443과 TLS 종료·호스트명 분기를,
