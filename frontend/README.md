@@ -9,6 +9,7 @@
 Vite + React Router + Tailwind CSS 기반 랜딩 화면이 구현되어 있으며, ESLint, Prettier, 듀얼 테마(Light/Dark), WCAG AA 접근성이 적용되어 있습니다.
 
 `package.json` 스크립트:
+
 - `pnpm dev`: Vite 개발 서버
 - `pnpm build`: React Router 빌드
 - `pnpm typecheck`: TypeScript 정적 타입 검사
