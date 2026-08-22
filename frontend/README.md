@@ -4,28 +4,27 @@
 
 상세 설계: [`../docs/specs/frontend-design.md`](../docs/specs/frontend-design.md)
 
-## 현재 상태 — 배포 검증용 스텁
+## 현재 상태
 
-Vite·React는 아직 없다. 지금 있는 것은 `server.js` 하나로, `:3000`에서 평문 200을 돌려준다.
-`carix-caddy`의 catch-all 라우팅이 `frontend-node:3000`을 향하므로 그 자리를 채우는 것이 목적이다.
+Vite + React Router + Tailwind CSS 기반 랜딩 화면이 구현되어 있으며, ESLint, Prettier, 듀얼 테마(Light/Dark), WCAG AA 접근성이 적용되어 있습니다.
 
-`package.json` 스크립트 중 `typecheck`(`tsc --noEmit`)만 실제로 동작한다.
-`lint`·`build`는 도구 선택 전이라 `TODO: (cjkang)` 표시한 no-op이며, CI가 요구하는 스크립트 이름을
-미리 잡아둔 것이다. `dev`·`test:e2e`는 아직 없다.
+`package.json` 스크립트:
+- `pnpm dev`: Vite 개발 서버
+- `pnpm build`: React Router 빌드
+- `pnpm typecheck`: TypeScript 정적 타입 검사
+- `pnpm lint`: ESLint 검사
+- `pnpm test`: 서버 스모크 테스트 (pretest 빌드 포함)
+- `pnpm test:unit`: Vitest 컴포넌트 단위 테스트
+- `pnpm test:e2e`: Playwright E2E 및 접근성 테스트
 
-실제 스캐폴드 시 교체 대상: `server.js`, 네 개 스크립트 전부, `Dockerfile`(단일 스테이지 →
-멀티스테이지 pnpm install → build → 런타임 prod deps만).
-
-> **자동 검증이 없다.** PR 단계 CI를 두지 않고, 배포 워크플로의 frontend 잡은 `docker build`만 한다.
-> `lint`·`typecheck`·`test`는 커밋 전 로컬에서 직접 돌린다. 실제 스캐폴드 시 Dockerfile 빌드 단계에
-> 넣을지 CI를 되살릴지 정한다.
+> **PR 자동 검증.** PR 단계에서 `.github/workflows/pr-check.yml`이 `typecheck`, `lint`, `test:unit`, `build`를 자동 검증합니다. 배포 워크플로(`deploy.yml`)는 main 머지 시 Docker 이미지를 빌드합니다.
 
 ```bash
 pnpm install --frozen-lockfile
-pnpm lint && pnpm typecheck && pnpm test && pnpm build
+pnpm lint && pnpm typecheck && pnpm test:unit && pnpm build
 ```
 
-## 로컬 개발 (스캐폴드 이후)
+## 로컬 개발
 
-- Docker 불필요. Vite dev server를 띄우고 `/api`를 백엔드로 프록시한다.
-- 백엔드는 OCI dev DB에 원격 연결하며, 로컬엔 DB를 띄우지 않는다 (루트 README 개발 환경 참조).
+- Docker 불필요. Vite dev server(`pnpm dev`)를 띄웁니다.
+- `/api` 프록시는 백엔드 호출 시점에 `vite.config.ts`에 추가합니다.

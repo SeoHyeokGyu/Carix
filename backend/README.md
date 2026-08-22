@@ -125,11 +125,9 @@ Dockerfile은 컴파일하지 않는다. CI 러너가 Gradle 캐시로 만든 JA
 
 ## 테스트 주의
 
-- **CI가 테스트를 안 돌린다.** `.github/workflows/deploy.yml`의 6개 빌드 잡 중
+- **배포 CI는 테스트를 안 돌린다.** `.github/workflows/deploy.yml`의 6개 빌드 잡 중
   backend 5개(`core-api`·`eureka`·`config-server`·`gateway`·`auth-service`)는
   전부 `./gradlew :모듈:build -x test`, `frontend`는 `docker build`(테스트 스텝 없음)다.
-  빌드·이미지 푸시·배포는 테스트 결과와 무관하게 진행된다. 머지 전 검증은
-  **전적으로 로컬 책임**이다.
+  빌드·이미지 푸시·배포는 빠른 빌드를 위해 테스트를 건너뛴다.
 - 테스트용 DB를 별도로 두지 않기로 결정하여([DEVELOPMENT.md §6](../docs/DEVELOPMENT.md#db를-쓰는-테스트는-두지-않는다) 참조), Testcontainers 의존성을 제거하고 DB 연결 없이도 컨텍스트 로드가 검증되도록 모킹/단위 테스트 방식으로 전환했다.
-- PR 단계 CI도 없다. `./gradlew build`가 자동으로 도는 지점 자체가 없다(main 푸시도 이제
-  `-x test`). 사실상 이 저장소엔 자동 테스트 게이트가 없다.
+- **PR 단계에서 자동 검증한다.** `.github/workflows/pr-check.yml`이 PR 단계에서 전체 모듈의 테스트(`./gradlew check`)를 자동 검증하므로, 테스트가 통과된 코드만 main에 머지된다.
