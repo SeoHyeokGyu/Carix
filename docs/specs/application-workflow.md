@@ -11,51 +11,51 @@
 ```mermaid
 flowchart TD
     %% 1. 외부 데이터 및 수집 (Top)
-    subgraph External [외부 원천]
-        Kosis[KOSIS 물가통계 API]
-        JobKorea[잡코리아 채용정보 스크래핑]
-        Saramin[사람인 채용정보 스크래핑]
-        WageStat[임금통계 API]
+    subgraph External ["외부 원천"]
+        Kosis["KOSIS 물가통계 API"]
+        JobKorea["잡코리아 채용정보 스크래핑"]
+        Saramin["사람인 채용정보 스크래핑"]
+        WageStat["임금통계 API"]
     end
 
     %% 2. 배치 프로세서 (Down 1)
-    subgraph Collector [collector 모듈 (수집 & 집계 파이프라인)]
-        Job1[CPI 수집 Job]
-        Job2[구인공고 수집 & 스킬 파싱 Job - 잡코리아/사람인]
-        Job2b[임금통계 수집 Job]
-        Job3[시장 데이터 통계 집계 Job - 원천별 + dedup]
-        Job4[사용자 지수 스냅샷 갱신 Job]
+    subgraph Collector ["collector 모듈 (수집 & 집계 파이프라인)"]
+        Job1["CPI 수집 Job"]
+        Job2["구인공고 수집 & 스킬 파싱 Job - 잡코리아/사람인"]
+        Job2b["임금통계 수집 Job"]
+        Job3["시장 데이터 통계 집계 Job - 원천별 + dedup"]
+        Job4["사용자 지수 스냅샷 갱신 Job"]
     end
 
     %% 3. 데이터베이스 (Down 2)
-    subgraph DB [PostgreSQL 데이터베이스: carix]
-        subgraph AuthSchema [auth 스키마]
-            AuthDB[(인증/세션: users, session, token)]
+    subgraph DB ["PostgreSQL 데이터베이스: carix"]
+        subgraph AuthSchema ["auth 스키마"]
+            AuthDB[("인증/세션: users, session, token")]
         end
-        subgraph CoreSchema [core 스키마]
-            RawDB[(수집 원천: raw_ingest, cpi, job_posting)]
-            AggDB[(시장 집계: market_aggregate)]
-            UsersDB[(사용자 도메인: profile, income, expense, scenario)]
+        subgraph CoreSchema ["core 스키마"]
+            RawDB[("수집 원천: raw_ingest, cpi, job_posting")]
+            AggDB[("시장 집계: market_aggregate")]
+            UsersDB[("사용자 도메인: profile, income, expense, scenario")]
         end
     end
 
     %% 4. API 서버 (Down 3) — Gateway가 경로별로 auth-service/core-api에 라우팅한다
-    GW{{Gateway :8080}}
-    subgraph Auth [auth-service :8081]
-        AC[AuthController: 매직링크 로그인 / 세션 검증]
+    GW{{"Gateway :8080"}}
+    subgraph Auth ["auth-service :8081"]
+        AC["AuthController: 매직링크 로그인 / 세션 검증"]
     end
-    subgraph Core [core-api :8082]
-        PC[ProfileController: 소득/소비/스킬]
-        DC[DashboardController: 지표 조회]
-        SC[ScenarioController: 시나리오 계산]
-        Encrypt[민감 데이터 암호화 계층]
-        DecEng[결정 신호 룰 엔진]
+    subgraph Core ["core-api :8082"]
+        PC["ProfileController: 소득/소비/스킬"]
+        DC["DashboardController: 지표 조회"]
+        SC["ScenarioController: 시나리오 계산"]
+        Encrypt["민감 데이터 암호화 계층"]
+        DecEng["결정 신호 룰 엔진"]
     end
 
     %% 5. 프런트엔드 (Bottom)
-    subgraph Frontend [React 웹 프런트엔드 - Vite + Node SSR]
-        UI[대시보드 / 온보딩 화면]
-        Sim[12개월 시뮬레이터 UI]
+    subgraph Frontend ["React 웹 프런트엔드 - Vite + Node SSR"]
+        UI["대시보드 / 온보딩 화면"]
+        Sim["12개월 시뮬레이터 UI"]
     end
 
     %% 외부 -> 배치 연동
@@ -79,11 +79,11 @@ flowchart TD
 
     %% 사용자 입력 -> Gateway -> API -> DB 연동
     UI -->|1. 이메일 로그인| GW
-    GW -->|"/api/v1/auth/** 라우팅"| AC
+    GW -->|/api/v1/auth/** 라우팅| AC
     AC -->|인증/토큰 저장| AuthDB
-    GW -.->|"세션 검증"| AC
+    GW -.->|세션 검증| AC
     UI -->|2. 소득/소비/스킬 입력| GW
-    GW -->|"/api/v1/** 라우팅"| PC
+    GW -->|/api/v1/** 라우팅| PC
     PC -->|3. 민감 데이터 암호화| Encrypt
     Encrypt -->|4. 데이터 저장| UsersDB
 
