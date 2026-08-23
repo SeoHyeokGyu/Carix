@@ -269,7 +269,7 @@ Run/Debug Configurations → `core-api` → Active profiles 에 `local` 을 고�
 매번 커맨드에 `--spring.profiles.active=local` 을 타이핑하지 않기 위해서다 — 빠뜨리면
 서버 Eureka 에 등록된다.
 
-## 4. 프런트엔드 개발
+## 4. 프론트엔드 개발
 
 ```bash
 cd frontend
@@ -277,7 +277,7 @@ pnpm install
 pnpm dev              # Vite dev server (기본 5173)
 ```
 
-- `/api` 프록시는 아직 구성돼 있지 않다 — 프런트가 백엔드를 호출하는 시점에
+- `/api` 프록시는 아직 구성돼 있지 않다 — 프론트가 백엔드를 호출하는 시점에
   `vite.config.ts`에 추가한다.
 - Docker 불필요.
 
@@ -330,12 +330,25 @@ CONFIG_SERVER_URL=http://144.24.90.88:8890 EUREKA_URL=http://144.24.90.88:8761/e
   ./gradlew :collector:bootRun --args='--spring.profiles.active=local'
 ```
 
+#### Collector 내부 파이프라인 API (`/internal/pipeline/*`)
+
+`collector`는 Gateway에 노출되지 않는 관리 전용 내부 API(`http://localhost:8083/internal/pipeline/**`)를 제공합니다:
+
+| 메서드 & 경로 | 설명 | 호출 예시 |
+| --- | --- | --- |
+| `POST /internal/pipeline/crawl` | 잡코리아/사람인 웹 스크래핑 & DB 실시간 직접 적재 | `curl -X POST http://localhost:8083/internal/pipeline/crawl -H "Content-Type: application/json" -d '{"source": "ALL", "pageLimit": 5}'` |
+| `POST /internal/pipeline/seed` | `verification/out` 디렉토리 시드 파일 적재 | `curl -X POST http://localhost:8083/internal/pipeline/seed -H "Content-Type: application/json" -d '{}'` |
+| `POST /internal/pipeline/reprocess` | DB `raw_ingest` 원본 데이터 기반 재파싱·재가공 | `curl -X POST http://localhost:8083/internal/pipeline/reprocess -H "Content-Type: application/json" -d '{"dryRun": false}'` |
+| `GET /internal/pipeline/jobs/{jobId}` | 특정 비동기 파이프라인 작업 상태 조회 | `curl http://localhost:8083/internal/pipeline/jobs/{jobId}` |
+| `GET /internal/pipeline/jobs` | 최근 실행된 파이프라인 작업 히스토리 목록 조회 | `curl http://localhost:8083/internal/pipeline/jobs` |
+| `GET /internal/pipeline/stats` | 수집 DB(`raw_ingest`, `job_posting`, `skill`) 테이블 건수 현황 통계 | `curl http://localhost:8083/internal/pipeline/stats` |
+
 프로젝트 진행 상태는 [`README.md` 진행 상태](README.md#진행-상태)를 참조.
 
 ## 6. 테스트
 
 ```bash
-# 프런트엔드
+# 프론트엔드
 cd frontend && pnpm test          # 서버 스모크 테스트 — pretest 가 먼저 pnpm build 를 돈다
 pnpm test:unit                    # Vitest (컴포넌트 단위)
 pnpm test:e2e                     # Playwright
@@ -345,7 +358,7 @@ cd backend && ./gradlew test
 ```
 
 > **PR 자동 검증 & 스마트 Skip CI:** `.github/workflows/pr-check.yml` 워크플로가 PR 단계에서 변경 사항을 자동으로 검증합니다:
-> - **스마트 영역 분기 (`dorny/paths-filter`)**: 백엔드만 수정 시 Frontend Job 자동 스킵, 프런트엔드만 수정 시 Backend Job 자동 스킵.
+> - **스마트 영역 분기 (`dorny/paths-filter`)**: 백엔드만 수정 시 Frontend Job 자동 스킵, 프론트엔드만 수정 시 Backend Job 자동 스킵.
 > - **문서 자동 스킵**: `docs/**`, `*.md`, `.githooks/**` 수정 시 CI 워크플로가 트리거되지 않습니다.
 > - **작업 중 스킵 (Draft PR)**: PR이 Draft 상태일 때는 CI가 돌지 않으며, "Ready for review" 전환 시 검증이 실행됩니다.
 > - **수동 스킵 (`[skip ci]` / 라벨)**: 커밋 메시지에 `[skip ci]`를 포함하거나 PR에 `skip-ci` 라벨 부착 시 검증을 건너뜁니다.
@@ -393,7 +406,7 @@ DB 동작 확인이 필요하면 테스트가 아니라 앱을 OCI DB에 붙여 
   git config core.hooksPath .githooks
   ```
 
-### 프런트엔드 (ESLint & Prettier)
+### 프론트엔드 (ESLint & Prettier)
 * `cd frontend && pnpm lint` (ESLint 정적 검사)
 * `cd frontend && pnpm format` (Prettier 포맷팅)
 
