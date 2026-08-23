@@ -1,10 +1,10 @@
 package com.carix.collector.service;
 
-import com.carix.collector.dto.BackfillRequest;
 import com.carix.collector.dto.CrawlRequest;
 import com.carix.collector.dto.JobExecutionResponse;
 import com.carix.collector.dto.JobStatusResponse;
 import com.carix.collector.dto.PipelineStatsResponse;
+import com.carix.collector.dto.ReprocessRequest;
 import com.carix.collector.dto.SeedLoadRequest;
 import com.carix.jobposting.JobPostingRepository;
 import com.carix.jobposting.RawIngestRepository;
@@ -144,11 +144,11 @@ public class CollectorPipelineService {
         jobId, "SEED_LOAD", "ACCEPTED", "Seed load job accepted and started in background", now);
   }
 
-  public JobExecutionResponse triggerBackfill(BackfillRequest request) {
+  public JobExecutionResponse triggerReprocess(ReprocessRequest request) {
     ensureNoJobRunning();
     String jobId = UUID.randomUUID().toString();
     Instant now = Instant.now();
-    JobState state = new JobState(jobId, "BACKFILL", "RUNNING", now);
+    JobState state = new JobState(jobId, "REPROCESS", "RUNNING", now);
     jobHistory.put(jobId, state);
 
     boolean dryRun = request != null && Boolean.TRUE.equals(request.dryRun());
@@ -156,12 +156,13 @@ public class CollectorPipelineService {
     CompletableFuture.runAsync(
         () -> {
           try {
-            log.info("[Job:{}] Starting job_posting backfill (dryRun={})...", jobId, dryRun);
+            log.info(
+                "[Job:{}] Starting raw_ingest data reprocessing (dryRun={})...", jobId, dryRun);
             BackfillReport report = jobPostingBackfill.run(dryRun);
             state.complete(report);
-            log.info("[Job:{}] Backfill completed: {}", jobId, report);
+            log.info("[Job:{}] Raw data reprocessing completed: {}", jobId, report);
           } catch (Exception e) {
-            log.error("[Job:{}] Backfill failed: {}", jobId, e.getMessage(), e);
+            log.error("[Job:{}] Reprocessing failed: {}", jobId, e.getMessage(), e);
             state.fail(e.getMessage());
           } finally {
             isJobRunning.set(false);
@@ -171,9 +172,9 @@ public class CollectorPipelineService {
 
     return new JobExecutionResponse(
         jobId,
-        "BACKFILL",
+        "REPROCESS",
         "ACCEPTED",
-        "Backfill job accepted (dryRun=" + dryRun + ") and started in background",
+        "Raw data reprocessing job accepted (dryRun=" + dryRun + ") and started in background",
         now);
   }
 

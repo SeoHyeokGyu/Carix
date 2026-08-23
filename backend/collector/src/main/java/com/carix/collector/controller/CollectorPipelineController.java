@@ -1,10 +1,10 @@
 package com.carix.collector.controller;
 
-import com.carix.collector.dto.BackfillRequest;
 import com.carix.collector.dto.CrawlRequest;
 import com.carix.collector.dto.JobExecutionResponse;
 import com.carix.collector.dto.JobStatusResponse;
 import com.carix.collector.dto.PipelineStatsResponse;
+import com.carix.collector.dto.ReprocessRequest;
 import com.carix.collector.dto.SeedLoadRequest;
 import com.carix.collector.service.CollectorPipelineService;
 import java.util.List;
@@ -20,8 +20,8 @@ import org.springframework.web.bind.annotation.RestController;
 /**
  * 수집기(Collector) 내부 파이프라인 제어 컨트롤러.
  *
- * <p>API Gateway에 노출되지 않는 내부 전용(/internal/**) 엔드포인트입니다. 웹 스크래핑, 시드 적재, 백필 작업을 비동기로 트리거하고 진행 상태 및
- * 통계를 조회합니다.
+ * <p>API Gateway에 노출되지 않는 내부 전용(/internal/**) 엔드포인트입니다. 웹 스크래핑, 시드 적재, 원본 데이터 재가공 작업을 비동기로 트리거하고 진행
+ * 상태 및 통계를 조회합니다.
  */
 @RestController
 @RequestMapping("/internal/pipeline")
@@ -100,7 +100,7 @@ public class CollectorPipelineController {
   }
 
   /**
-   * DB raw_ingest 원본 테이블 기반 job_posting 정규화 백필 비동기 트리거
+   * DB raw_ingest 원본 테이블 기반 job_posting 재파싱·재가공(Reprocess) 비동기 트리거
    *
    * <p>[Input JSON Body 필드 명세]:
    *
@@ -115,17 +115,17 @@ public class CollectorPipelineController {
    *   "dryRun": true
    * }
    *
-   * [Input Body 예시 2 - 실제 DB 반영 실행]:
+   * [Input Body 예시 2 - 실제 DB 반영 재가공 실행]:
    * {
    *   "dryRun": false
    * }
    * </pre>
    */
-  @PostMapping("/backfill")
-  public ResponseEntity<JobExecutionResponse> triggerBackfill(
-      @RequestBody(required = false) BackfillRequest request) {
-    BackfillRequest req = request != null ? request : new BackfillRequest(true);
-    JobExecutionResponse response = pipelineService.triggerBackfill(req);
+  @PostMapping("/reprocess")
+  public ResponseEntity<JobExecutionResponse> triggerReprocess(
+      @RequestBody(required = false) ReprocessRequest request) {
+    ReprocessRequest req = request != null ? request : new ReprocessRequest(true);
+    JobExecutionResponse response = pipelineService.triggerReprocess(req);
     return ResponseEntity.status(HttpStatus.ACCEPTED).body(response);
   }
 

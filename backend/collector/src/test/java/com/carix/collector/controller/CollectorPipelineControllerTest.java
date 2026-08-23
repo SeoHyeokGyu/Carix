@@ -12,6 +12,7 @@ import com.carix.collector.dto.CrawlRequest;
 import com.carix.collector.dto.JobExecutionResponse;
 import com.carix.collector.dto.JobStatusResponse;
 import com.carix.collector.dto.PipelineStatsResponse;
+import com.carix.collector.dto.ReprocessRequest;
 import com.carix.collector.service.CollectorPipelineService;
 import java.time.Instant;
 import java.util.List;
@@ -52,15 +53,15 @@ class CollectorPipelineControllerTest {
   }
 
   @Test
-  @DisplayName("POST /internal/pipeline/backfill - 백필 비동기 요청 시 202 Accepted 반환")
-  void triggerBackfillReturnsAccepted() throws Exception {
+  @DisplayName("POST /internal/pipeline/reprocess - 원본 재가공 비동기 요청 시 202 Accepted 반환")
+  void triggerReprocessReturnsAccepted() throws Exception {
     JobExecutionResponse response =
-        new JobExecutionResponse("job-456", "BACKFILL", "ACCEPTED", "Started", Instant.now());
-    when(pipelineService.triggerBackfill(any())).thenReturn(response);
+        new JobExecutionResponse("job-456", "REPROCESS", "ACCEPTED", "Started", Instant.now());
+    when(pipelineService.triggerReprocess(any(ReprocessRequest.class))).thenReturn(response);
 
     mockMvc
         .perform(
-            post("/internal/pipeline/backfill")
+            post("/internal/pipeline/reprocess")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"dryRun\":true}"))
         .andExpect(status().isAccepted())
