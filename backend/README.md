@@ -22,7 +22,8 @@ Config·Eureka 클라이언트에 더해 dashboard·expense·income·profile·re
 
 **구현 상태:** `auth-service` 코드 구현(초대 확인, 매직링크 발급·검증, 세션 생성·조회·폐기,
 rate limit)과 배포 배선(`Dockerfile`, `docker-compose.yml` 서비스 항목, Caddy 라우트, CI 빌드
-잡) 모두 완료됐다. Spring Cloud Gateway도 도입돼 요청 경로에 편입됐다(설계는 위
+잡) 모두 완료됐다 — 다만 로그인이 실제로 동작하려면 아래 `auth-service` 절의 잔여 항목이
+남아 있다. Spring Cloud Gateway도 도입돼 요청 경로에 편입됐다(설계는 위
 spring-cloud-architecture.md). `core-api`는 DB를 쓰지 않으며(JPA·Postgres 의존성 없음),
 Security는 다음 단계다. `collector`는 채용공고 도메인의 JPA와 `core` 스키마를 이미 쓰고
 있다(위 참조).
@@ -45,12 +46,19 @@ Security는 다음 단계다. `collector`는 채용공고 도메인의 JPA와 `c
 | `POST /api/v1/auth/logout` | 현재 세션 폐기 |
 | `POST /api/v1/auth/logout-all` | 사용자의 전체 세션 폐기 |
 
-이메일 실제 발송은 현재 `LoggingMagicLinkNotifier`가 로그로 기록합니다.
-운영 전환 시 실제 메일 발송 제공자(AWS SES 등) 구현체로 교체합니다.
+**잔여 항목** — 셋 다 없으면 매직링크 로그인을 끝까지 밟을 수 없다.
+
+- 이메일 실제 발송이 없다. `LoggingMagicLinkNotifier`가 로그로만 기록하며 원본 토큰이
+  로그에 남으므로 운영 발송 경로로 쓰지 않는다. 메일 발송 제공자(AWS SES 등) 구현체로
+  교체한다.
+- 초대 등록 경로가 없다. `invitation` 행이 있어야 발송이 일어나는데(계정 열거 방지상
+  응답은 동일하다), 행을 넣을 API도 시드도 없어 현재는 수동 INSERT 뿐이다.
+- 테스트 코드가 없다. `src/test` 자체가 없어 `./gradlew :auth-service:test` 는 통과하되
+  아무것도 검증하지 않는다.
 
 로컬 기동은 `core-api`와 동일한 순서다(config-server 먼저, 그다음 `EUREKA_CLIENT_ENABLED=false`
 로 단독 기동 가능). `auth-service`는 JPA·Flyway를 쓰므로 로컬 검증은 OCI DB 원격 연결
-([DEVELOPMENT.md §3](../docs/DEVELOPMENT.md))으로 진행한다. 단위 테스트는 `./gradlew :auth-service:test` 로 실행 가능하다.
+([DEVELOPMENT.md §3](../docs/DEVELOPMENT.md))으로 진행한다.
 
 공통 에러 응답(`com.carix.common.ErrorResponse`)은 위 API 규격 문서 §1.1 형식을 따른다.
 Spring 기본값(ProblemDetail)과 형식이 달라 `GlobalExceptionHandler`에서 변환한다.
