@@ -61,8 +61,6 @@ public class JobPosting {
   @Column(name = "job_family")
   private String jobFamily;
 
-  @Column private String content;
-
   @Column(name = "posted_start_date")
   private LocalDate postedStartDate;
 
@@ -104,7 +102,6 @@ public class JobPosting {
       String companyBadge,
       String positionLevel,
       String jobFamily,
-      String content,
       LocalDate postedStartDate,
       LocalDate postedEndDate,
       String firstSeenMonth,
@@ -125,7 +122,6 @@ public class JobPosting {
     this.companyBadge = companyBadge;
     this.positionLevel = positionLevel;
     this.jobFamily = jobFamily;
-    this.content = content;
     this.postedStartDate = postedStartDate;
     this.postedEndDate = postedEndDate;
     this.firstSeenMonth = firstSeenMonth;

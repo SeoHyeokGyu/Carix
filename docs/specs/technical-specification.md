@@ -34,8 +34,9 @@
 > | `job_posting.salary_*` | 원 단위 | **만원 단위** (원천 표기 그대로) |
 > | `skill` | `standard_name VARCHAR(100)` 단독 UNIQUE, `category NOT NULL` | `VARCHAR(255)`, `UNIQUE (standard_name, category)`, `category` NULL 허용 |
 > | `skill.category` | `'BACKEND'`·`'FRONTEND'` 등 기술 분야 | `'SKILL'`·`'JOB_CATEGORY'`·`'INDUSTRY'` — 수집 태그의 성격 구분 |
-> | `skill_alias` | `alias_name VARCHAR(100) UNIQUE` | `VARCHAR(255)`, UNIQUE 없음 (미사용, 0행) |
+> | `skill_alias` | `alias_name VARCHAR(100) UNIQUE` | `VARCHAR(255)`, UNIQUE 없음. 별칭 78개가 스킬 24개에 붙어 있으나 읽는 코드가 아직 없다 |
 > | `raw_ingest` | `payload` NULL 허용(원문 purge), `schema_version NOT NULL` | `payload NOT NULL`, `schema_version` NULL 허용 |
+> | `job_posting.content` | 공고 상세 본문 텍스트 | **컬럼 없음.** 스킬 파싱은 `raw_ingest` 원문에서 직접 한다 |
 
 ```sql
 -- 1. 인증 및 사용자 영역
@@ -204,7 +205,6 @@ CREATE TABLE job_posting (
     employment_type VARCHAR(50) NOT NULL DEFAULT 'UNKNOWN', -- 'FULL_TIME', 'CONTRACT', 원천 미상은 'UNKNOWN'
     company_size VARCHAR(50) NOT NULL DEFAULT 'UNKNOWN', -- 'LARGE', 'MEDIUM', 'STARTUP', 원천 미상은 'UNKNOWN'
     job_family VARCHAR(100) NOT NULL,
-    content TEXT, -- 공고 상세 본문 텍스트 (스킬 파싱용)
     posted_start_date DATE, -- 게시 시작일 (dedup 휴리스틱·월 귀속용)
     posted_end_date DATE, -- 게시 종료일 (결측 시 last_seen 기반 추정)
     first_seen_month VARCHAR(6) NOT NULL, -- 수집에서 처음 관측된 월
