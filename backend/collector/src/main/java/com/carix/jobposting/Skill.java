@@ -5,12 +5,21 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import java.util.UUID;
+import lombok.AccessLevel;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
 
 @Entity
 @Table(name = "skill")
+@Getter
+@Builder
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
+@AllArgsConstructor(access = AccessLevel.PRIVATE)
 public class Skill {
 
-  @Id private UUID id;
+  @Id @Builder.Default private UUID id = UUID.randomUUID();
 
   @Column(name = "standard_name", nullable = false)
   private String standardName;
@@ -24,29 +33,8 @@ public class Skill {
   @Column(name = "created_by")
   private UUID createdBy;
 
-  protected Skill() {}
-
   public Skill(String standardName, String category, boolean isCustom) {
-    this.id = UUID.randomUUID();
-    this.standardName = standardName;
-    this.category = category;
-    this.isCustom = isCustom;
-  }
-
-  public UUID getId() {
-    return id;
-  }
-
-  public String getStandardName() {
-    return standardName;
-  }
-
-  public String getCategory() {
-    return category;
-  }
-
-  public boolean isCustom() {
-    return isCustom;
+    this(UUID.randomUUID(), standardName, category, isCustom, null);
   }
 
   public void recategorize(String category) {
