@@ -5,8 +5,11 @@ dependencies {
 	implementation 'org.springframework.cloud:spring-cloud-starter-config'
 	implementation 'org.springframework.cloud:spring-cloud-starter-netflix-eureka-client'
 	implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:3.0.3'
+	implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+	runtimeOnly 'org.postgresql:postgresql'
 
 	testImplementation 'org.springframework.boot:spring-boot-starter-webmvc-test'
+	testRuntimeOnly 'com.h2database:h2'
 }
 
 tasks.named('test') {
@@ -16,4 +19,9 @@ tasks.named('test') {
 	// 잘못된 임계값으로 계산해 조용히 틀린 결과를 낸다.
 	systemProperty 'spring.cloud.config.enabled', 'false'
 	systemProperty 'eureka.client.enabled', 'false'
+
+	systemProperty 'spring.datasource.url', 'jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;INIT=CREATE SCHEMA IF NOT EXISTS core'
+	systemProperty 'spring.datasource.driver-class-name', 'org.h2.Driver'
+	systemProperty 'spring.jpa.database-platform', 'org.hibernate.dialect.H2Dialect'
+	systemProperty 'spring.jpa.hibernate.ddl-auto', 'create-drop'
 }
