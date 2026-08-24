@@ -188,23 +188,27 @@ public class JobPostingBackfill {
       boolean dryRun) {
     Map<String, Skill> resolved = new LinkedHashMap<>();
     for (String rawName : skillTags) {
-      String canonicalName = skillTaxonomy.canonicalName(rawName);
-      if (canonicalName == null || canonicalName.isBlank()) {
-        continue;
+      List<String> canonicalNames = skillTaxonomy.extractCanonicalSkills(rawName);
+      for (String canonicalName : canonicalNames) {
+        if (canonicalName == null || canonicalName.isBlank()) {
+          continue;
+        }
+        String category = skillTaxonomy.category(canonicalName);
+        resolved.computeIfAbsent(
+            canonicalName + " " + category,
+            key -> resolveSkill(canonicalName, category, counters, touchedSkills, dryRun));
       }
-      String category = skillTaxonomy.category(canonicalName);
-      resolved.computeIfAbsent(
-          canonicalName + " " + category,
-          key -> resolveSkill(canonicalName, category, counters, touchedSkills, dryRun));
     }
     for (String rawName : industryTags) {
-      String canonicalName = skillTaxonomy.canonicalName(rawName);
-      if (canonicalName == null || canonicalName.isBlank()) {
-        continue;
+      List<String> canonicalNames = skillTaxonomy.extractCanonicalSkills(rawName);
+      for (String canonicalName : canonicalNames) {
+        if (canonicalName == null || canonicalName.isBlank()) {
+          continue;
+        }
+        resolved.computeIfAbsent(
+            canonicalName + " " + INDUSTRY_CATEGORY,
+            key -> resolveSkill(canonicalName, INDUSTRY_CATEGORY, counters, touchedSkills, dryRun));
       }
-      resolved.computeIfAbsent(
-          canonicalName + " " + INDUSTRY_CATEGORY,
-          key -> resolveSkill(canonicalName, INDUSTRY_CATEGORY, counters, touchedSkills, dryRun));
     }
 
     List<Skill> skills = resolved.values().stream().filter(Objects::nonNull).toList();

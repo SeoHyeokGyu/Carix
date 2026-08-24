@@ -410,13 +410,15 @@ public class JobPostingIngestService {
   private void applySkillsToPosting(JobPosting posting, List<String> rawSkills) {
     Set<String> applied = new LinkedHashSet<>();
     for (String rawName : rawSkills) {
-      String canonicalName = skillTaxonomy.canonicalName(rawName);
-      if (canonicalName == null || canonicalName.isBlank()) {
-        continue;
-      }
-      String category = skillTaxonomy.category(canonicalName);
-      if (applied.add(canonicalName + " " + category)) {
-        posting.addSkill(upsertSkill(canonicalName, category));
+      List<String> canonicalNames = skillTaxonomy.extractCanonicalSkills(rawName);
+      for (String canonicalName : canonicalNames) {
+        if (canonicalName == null || canonicalName.isBlank()) {
+          continue;
+        }
+        String category = skillTaxonomy.category(canonicalName);
+        if (applied.add(canonicalName + " " + category)) {
+          posting.addSkill(upsertSkill(canonicalName, category));
+        }
       }
     }
   }
