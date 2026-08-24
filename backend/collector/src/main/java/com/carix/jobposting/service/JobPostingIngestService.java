@@ -5,7 +5,6 @@ import com.carix.jobposting.JobPosting;
 import com.carix.jobposting.JobPostingRepository;
 import com.carix.jobposting.RawIngest;
 import com.carix.jobposting.RawIngestIds;
-import com.carix.jobposting.RawIngestPayloads;
 import com.carix.jobposting.RawIngestRepository;
 import com.carix.jobposting.Skill;
 import com.carix.jobposting.SkillRepository;
@@ -22,7 +21,6 @@ import com.carix.jobposting.seed.JobPostingDateParser;
 import com.carix.jobposting.seed.SaraminListingEnricher;
 import com.carix.jobposting.seed.SaraminListingFields;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import java.io.IOException;
 import java.time.Instant;
 import java.time.YearMonth;
 import java.time.format.DateTimeFormatter;
@@ -48,7 +46,6 @@ import org.springframework.transaction.annotation.Transactional;
 public class JobPostingIngestService {
 
   private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
-  private static final String SCHEMA_VERSION = "v1-live";
   private static final DateTimeFormatter YM_FORMATTER = DateTimeFormatter.ofPattern("yyyyMM");
 
   private static final String JOBKOREA_LIST_ENDPOINT =
@@ -103,11 +100,7 @@ public class JobPostingIngestService {
 
         Instant now = Instant.now();
         persistRawIngestIfAbsent(
-            "JOBKOREA",
-            RawIngestIds.datedListpage("listpage-" + page, now),
-            RawIngestPayloads.listpage(listDoc.outerHtml()),
-            now,
-            currentMonth);
+            "JOBKOREA", RawIngestIds.datedListpage("listpage-" + page, now), now, currentMonth);
 
         Elements rows = listDoc.select("tr.devloopArea");
         if (rows.isEmpty()) {
@@ -146,8 +139,7 @@ public class JobPostingIngestService {
           // 상세 페이지 수집 및 DB 저장
           String detailHtml = fetchDetailHtml(link);
           if (detailHtml != null) {
-            persistRawIngestIfAbsent(
-                "JOBKOREA", "detail-" + externalId, detailHtml, now, currentMonth);
+            persistRawIngestIfAbsent("JOBKOREA", "detail-" + externalId, now, currentMonth);
           }
 
           JobKoreaListingFields fields =
@@ -208,11 +200,7 @@ public class JobPostingIngestService {
 
         Instant now = Instant.now();
         persistRawIngestIfAbsent(
-            "SARAMIN",
-            RawIngestIds.datedListpage("listpage-" + page, now),
-            RawIngestPayloads.listpage(doc.outerHtml()),
-            now,
-            currentMonth);
+            "SARAMIN", RawIngestIds.datedListpage("listpage-" + page, now), now, currentMonth);
 
         Elements items = doc.select("div.item_recruit");
         if (items.isEmpty()) {
@@ -422,18 +410,11 @@ public class JobPostingIngestService {
   }
 
   private void persistRawIngestIfAbsent(
-      String source, String sourceItemId, String html, Instant collectedAt, String month) {
+      String source, String sourceItemId, Instant collectedAt, String month) {
     if (rawIngestRepository.findBySourceAndSourceItemId(source, sourceItemId).isPresent()) {
       return;
     }
-    try {
-      String payload = OBJECT_MAPPER.writeValueAsString(Map.of("html", html));
-      rawIngestRepository.save(
-          new RawIngest(source, sourceItemId, payload, SCHEMA_VERSION, month, month, collectedAt));
-    } catch (IOException e) {
-      log.error(
-          "Failed to serialize raw_ingest for {}/{}: {}", source, sourceItemId, e.getMessage());
-    }
+    rawIngestRepository.save(new RawIngest(source, sourceItemId, month, month, collectedAt));
   }
 
   private String fetchDetailHtml(String link) {
