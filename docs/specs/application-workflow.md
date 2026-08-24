@@ -129,7 +129,7 @@ flowchart TD
         AliasMatch -->|실패| Drop[통계 수집 제외]
     end
     
-    DetailReader --> RawStore[raw_ingest 원문 보존]
+    DetailReader --> RawStore[raw_ingest 수집 이력 기록]
     RawStore --> SkillParser
     SkillParser --> Writer[Writer: job_posting + job_posting_skill 적재]
     Writer --> End([Job 완료])
