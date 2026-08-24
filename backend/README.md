@@ -53,8 +53,8 @@ Security는 다음 단계다. `collector`는 채용공고 도메인의 JPA와 `c
   교체한다.
 - 초대 등록 경로가 없다. `invitation` 행이 있어야 발송이 일어나는데(계정 열거 방지상
   응답은 동일하다), 행을 넣을 API도 시드도 없어 현재는 수동 INSERT 뿐이다.
-- 테스트 코드가 없다. `src/test` 자체가 없어 `./gradlew :auth-service:test` 는 통과하되
-  아무것도 검증하지 않는다.
+- 인증 흐름 테스트가 없다. `src/test` 에는 Flyway 자동설정이 클래스패스에 있는지 보는
+  회귀 테스트 하나뿐이라 발송·검증·세션·Rate Limit 은 아무것도 검증되지 않는다.
 
 로컬 기동은 `core-api`와 동일한 순서다(config-server 먼저, 그다음 `EUREKA_CLIENT_ENABLED=false`
 로 단독 기동 가능). `auth-service`는 JPA·Flyway를 쓰므로 로컬 검증은 OCI DB 원격 연결

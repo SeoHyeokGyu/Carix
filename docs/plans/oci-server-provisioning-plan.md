@@ -273,7 +273,7 @@ networks:
 
 > **폐기됨.** 팀 전환 후 운영과 개발이 같은 DB 를 쓰기로 결정했다
 > (근거는 DEVELOPMENT.md §3). 아래 initdb 스크립트와
-> `carix_dev` 롤·DB 는 저장소에서 제거했다. 서버에 남은 것은 수동 정리 대상이다.
+> `carix_dev` 롤·DB 는 저장소에서 제거했고, 서버에 남아 있던 DB·롤과 `.env` 항목도 제거했다.
 
 **발견된 불일치:** `docs/DEVELOPMENT.md`와 `.env.example`은 별도 `carix_dev` DB/롤을 전제하지만
 compose의 postgres는 `${POSTGRES_DB}` 하나만 만든다. 그대로 두면 로컬 개발이 운영 DB에 붙는다.
