@@ -263,4 +263,45 @@ class SkillServiceTest {
     verify(userSkillRepository).delete(userSkill);
     verify(skillRepository, never()).delete(any(Skill.class));
   }
+
+  @Test
+  @DisplayName("사용자 스킬 등록 - 지원하지 않는 카테고리명인 경우 InvalidSkillCategoryException 발생")
+  void createUserSkill_customSkill_unsupportedCategory_throwsException() {
+    UUID userId = UUID.randomUUID();
+    UserSkillCreateRequest request =
+        new UserSkillCreateRequest("NewTool", 6, LocalDate.of(2026, 5, 1), "UNSUPPORTED_CATEGORY");
+
+    given(skillRepository.findByStandardNameIgnoreCaseAndIsCustomFalse("NewTool"))
+        .willReturn(Optional.empty());
+    given(skillAliasRepository.findByAliasNameIgnoreCase("NewTool")).willReturn(Optional.empty());
+
+    assertThatThrownBy(() -> skillService.createUserSkill(userId, request))
+        .isInstanceOf(InvalidSkillCategoryException.class)
+        .hasMessageContaining("지원하지 않는 카테고리입니다");
+  }
+
+  @Test
+  @DisplayName("사용자 스킬 삭제 - 커스텀 스킬이라도 다른 사용자의 참조가 남아있으면 Skill 엔티티를 삭제하지 않는다")
+  void deleteUserSkill_customSkill_hasRemainingReferences_doesNotDeleteSkill() {
+    UUID userId = UUID.randomUUID();
+    UUID userSkillId = UUID.randomUUID();
+    Skill customSkill = Skill.createCustom("CustomTool", "DEVOPS", userId);
+    UserSkill userSkill =
+        UserSkill.builder()
+            .id(userSkillId)
+            .userId(userId)
+            .skill(customSkill)
+            .monthsOfExperience(6)
+            .lastUsedDate(LocalDate.of(2026, 1, 1))
+            .build();
+
+    given(userSkillRepository.findByIdAndUserId(userSkillId, userId))
+        .willReturn(Optional.of(userSkill));
+    given(userSkillRepository.countBySkillId(customSkill.getId())).willReturn(1L);
+
+    skillService.deleteUserSkill(userId, userSkillId);
+
+    verify(userSkillRepository).delete(userSkill);
+    verify(skillRepository, never()).delete(any(Skill.class));
+  }
 }

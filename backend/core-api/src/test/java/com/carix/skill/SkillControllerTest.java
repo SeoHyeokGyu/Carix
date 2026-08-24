@@ -184,4 +184,68 @@ class SkillControllerTest {
         .andExpect(status().isNotFound())
         .andExpect(jsonPath("$.code").value("NOT_FOUND"));
   }
+
+  @Test
+  @DisplayName("POST /v1/user-skills - 스킬명이 비어있으면 400 Bad Request를 반환한다")
+  void createUserSkill_blankName_returns400() throws Exception {
+    mockMvc
+        .perform(
+            post("/v1/user-skills")
+                .header("X-User-Id", UUID.randomUUID().toString())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    """
+                    {
+                      "standardName": "",
+                      "monthsOfExperience": 24,
+                      "lastUsedDate": "2026-07-01"
+                    }
+                    """))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.code").value("INVALID_INPUT"));
+  }
+
+  @Test
+  @DisplayName("POST /v1/user-skills - 경험 개월수가 1~600 범위를 벗어나면 400 Bad Request를 반환한다")
+  void createUserSkill_invalidMonths_returns400() throws Exception {
+    mockMvc
+        .perform(
+            post("/v1/user-skills")
+                .header("X-User-Id", UUID.randomUUID().toString())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    """
+                    {
+                      "standardName": "Java",
+                      "monthsOfExperience": 0,
+                      "lastUsedDate": "2026-07-01"
+                    }
+                    """))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.code").value("INVALID_INPUT"));
+  }
+
+  @Test
+  @DisplayName("GET /v1/skills/recommendations - 동료집단 기반 추천 스킬 목록을 반환한다")
+  void getSkillRecommendations_returnsRecommendations() throws Exception {
+    given(skillService.getSkillRecommendations(any(UUID.class)))
+        .willReturn(
+            new com.carix.skill.dto.SkillRecommendationsResponse(
+                new com.carix.skill.dto.SkillRecommendationsResponse.PeerGroupDetail(
+                    "서울 전체 / 경력 MID / 회사규모 무관"),
+                List.of(
+                    new com.carix.skill.dto.SkillRecommendationsResponse.RecommendedSkillDetail(
+                        "Kubernetes",
+                        "DEVOPS",
+                        0.245,
+                        "UP",
+                        "동료집단 내 공고의 24.5%에서 요구하고 있으며, 최근 수요가 급증세입니다."))));
+
+    mockMvc
+        .perform(
+            get("/v1/skills/recommendations").header("X-User-Id", UUID.randomUUID().toString()))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.success").value(true))
+        .andExpect(jsonPath("$.data.recommendations[0].standardName").value("Kubernetes"));
+  }
 }
