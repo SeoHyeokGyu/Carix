@@ -42,6 +42,8 @@ public class SkillController {
   @GetMapping("/skills/search")
   public ResponseEntity<ApiResult<List<SkillSearchResponse>>> searchSkills(
       @RequestParam("q") @NotBlank String query) {
+    // TODO: [검색 트래픽 최적화]
+    // 실시간 자동완성 검색 트래픽 증가 시 Redis 캐싱(@Cacheable) 또는 인메모리 Trie/캐시 계층 도입 고려
     List<SkillSearchResponse> results = skillService.searchSkills(query);
     return ResponseEntity.ok(ApiResult.success(results));
   }

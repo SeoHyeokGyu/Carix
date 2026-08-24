@@ -27,6 +27,9 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional(readOnly = true)
 public class SkillService {
 
+  // TODO: [직군 카테고리 체계 확장]
+  // 현재는 IT 개발 직군 위주 카테고리만 허용되어 있습니다.
+  // 추후 DESIGN, MARKETING, FINANCE, SALES 등 전사 직군 코드체계(JobFamily) 연동 시 동적 검증 또는 공통 Enum으로 통합 필요
   private static final Set<String> ALLOWED_CATEGORIES =
       Set.of("BACKEND", "FRONTEND", "DEVOPS", "DATA", "AI_ML", "ETC");
 
@@ -66,6 +69,8 @@ public class SkillService {
     }
 
     // 3. UserSkill 생성 및 저장
+    // TODO: [스킬 숙련도 평가 연동]
+    // 추후 온보딩/프로필 고도화 시 숙련도(proficiency_level: BEGINNER, INTERMEDIATE, ADVANCED) 입력값 DTO 및 엔티티 매핑 추가
     UserSkill userSkill =
         UserSkill.builder()
             .userId(userId)
@@ -130,6 +135,12 @@ public class SkillService {
                 "TypeScript", "FRONTEND", 0.182, "STABLE", "동료집단 내 공고의 18.2%에서 요구되는 핵심 스택입니다.")));
   }
 
+  /**
+   * 스킬 식별 또는 생성
+   *
+   * <p>TODO: [커스텀 스킬 승격(Promotion) 거버넌스] 특정 커스텀 스킬이 여러 사용자에게 등록되거나 채용공고 수집기에 빈번하게 등장할 경우, 관리자 검토를
+   * 거쳐 표준 스킬(is_custom = false)로 승격하고 동의어/별칭(Alias)을 매핑하는 배치 파이프라인 연동 고려
+   */
   private Skill resolveOrCreateSkill(UUID userId, String name, String category) {
     // 1. 표준 스킬명 일치 확인
     Optional<Skill> standardSkillOpt =
