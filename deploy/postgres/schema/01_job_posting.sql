@@ -44,9 +44,6 @@ CREATE TABLE core.raw_ingest (
     id uuid NOT NULL,
     source character varying(20) NOT NULL,
     source_item_id character varying(100) NOT NULL,
-    payload jsonb NOT NULL,
-    purged_at timestamp with time zone,
-    schema_version character varying(20),
     first_seen_month character varying(6),
     last_seen_month character varying(6),
     collected_at timestamp with time zone NOT NULL

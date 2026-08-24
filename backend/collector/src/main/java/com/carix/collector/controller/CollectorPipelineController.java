@@ -4,7 +4,6 @@ import com.carix.collector.dto.CrawlRequest;
 import com.carix.collector.dto.JobExecutionResponse;
 import com.carix.collector.dto.JobStatusResponse;
 import com.carix.collector.dto.PipelineStatsResponse;
-import com.carix.collector.dto.ReprocessRequest;
 import com.carix.collector.dto.SeedLoadRequest;
 import com.carix.collector.service.CollectorPipelineService;
 import java.util.List;
@@ -96,36 +95,6 @@ public class CollectorPipelineController {
   public ResponseEntity<JobExecutionResponse> triggerSeedLoad(
       @RequestBody(required = false) SeedLoadRequest request) {
     JobExecutionResponse response = pipelineService.triggerSeedLoad(request);
-    return ResponseEntity.status(HttpStatus.ACCEPTED).body(response);
-  }
-
-  /**
-   * DB raw_ingest 원본 테이블 기반 job_posting 재파싱·재가공(Reprocess) 비동기 트리거
-   *
-   * <p>[Input JSON Body 필드 명세]:
-   *
-   * <ul>
-   *   <li><b>dryRun</b> (Boolean, optional): 실제 DB 반영 여부. {@code true}(시뮬레이션만 수행, 기본값), {@code
-   *       false}(실제 DB에 수정/저장 반영)
-   * </ul>
-   *
-   * <pre>
-   * [Input Body 예시 1 - 시뮬레이션(Dry-Run, DB 수정 없음)]:
-   * {
-   *   "dryRun": true
-   * }
-   *
-   * [Input Body 예시 2 - 실제 DB 반영 재가공 실행]:
-   * {
-   *   "dryRun": false
-   * }
-   * </pre>
-   */
-  @PostMapping("/reprocess")
-  public ResponseEntity<JobExecutionResponse> triggerReprocess(
-      @RequestBody(required = false) ReprocessRequest request) {
-    ReprocessRequest req = request != null ? request : new ReprocessRequest(true);
-    JobExecutionResponse response = pipelineService.triggerReprocess(req);
     return ResponseEntity.status(HttpStatus.ACCEPTED).body(response);
   }
 
