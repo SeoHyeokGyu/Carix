@@ -6,12 +6,21 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import java.util.UUID;
+import lombok.AccessLevel;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
 
 @Entity
 @Table(name = "job_posting_skill")
+@Getter
+@Builder
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
+@AllArgsConstructor(access = AccessLevel.PRIVATE)
 public class JobPostingSkill {
 
-  @Id private UUID id;
+  @Id @Builder.Default private UUID id = UUID.randomUUID();
 
   @ManyToOne
   @JoinColumn(name = "job_posting_id", nullable = false)
@@ -21,15 +30,7 @@ public class JobPostingSkill {
   @JoinColumn(name = "skill_id", nullable = false)
   private Skill skill;
 
-  protected JobPostingSkill() {}
-
   JobPostingSkill(JobPosting jobPosting, Skill skill) {
-    this.id = UUID.randomUUID();
-    this.jobPosting = jobPosting;
-    this.skill = skill;
-  }
-
-  public Skill getSkill() {
-    return skill;
+    this(UUID.randomUUID(), jobPosting, skill);
   }
 }

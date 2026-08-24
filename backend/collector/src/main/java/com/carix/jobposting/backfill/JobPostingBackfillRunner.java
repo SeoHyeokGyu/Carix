@@ -1,7 +1,6 @@
 package com.carix.jobposting.backfill;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
@@ -18,11 +17,10 @@ import org.springframework.stereotype.Component;
  *   --carix.backfill.job-posting.dry-run=false'
  * </pre>
  */
+@Slf4j
 @Component
 @ConditionalOnProperty(name = "carix.backfill.job-posting.enabled", havingValue = "true")
 public class JobPostingBackfillRunner implements ApplicationRunner {
-
-  private static final Logger log = LoggerFactory.getLogger(JobPostingBackfillRunner.class);
 
   private final JobPostingBackfill backfill;
   private final boolean dryRun;

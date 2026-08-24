@@ -6,14 +6,23 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import java.time.Instant;
 import java.util.UUID;
+import lombok.AccessLevel;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
 @Entity
 @Table(name = "raw_ingest")
+@Getter
+@Builder
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
+@AllArgsConstructor(access = AccessLevel.PRIVATE)
 public class RawIngest {
 
-  @Id private UUID id;
+  @Id @Builder.Default private UUID id = UUID.randomUUID();
 
   @Column(nullable = false, length = 20)
   private String source;
@@ -37,8 +46,6 @@ public class RawIngest {
   @Column(name = "collected_at", nullable = false)
   private Instant collectedAt;
 
-  protected RawIngest() {}
-
   public RawIngest(
       String source,
       String sourceItemId,
@@ -47,33 +54,14 @@ public class RawIngest {
       String firstSeenMonth,
       String lastSeenMonth,
       Instant collectedAt) {
-    this.id = UUID.randomUUID();
-    this.source = source;
-    this.sourceItemId = sourceItemId;
-    this.payload = payload;
-    this.schemaVersion = schemaVersion;
-    this.firstSeenMonth = firstSeenMonth;
-    this.lastSeenMonth = lastSeenMonth;
-    this.collectedAt = collectedAt;
-  }
-
-  public UUID getId() {
-    return id;
-  }
-
-  public String getSource() {
-    return source;
-  }
-
-  public String getSourceItemId() {
-    return sourceItemId;
-  }
-
-  public String getPayload() {
-    return payload;
-  }
-
-  public Instant getCollectedAt() {
-    return collectedAt;
+    this(
+        UUID.randomUUID(),
+        source,
+        sourceItemId,
+        payload,
+        schemaVersion,
+        firstSeenMonth,
+        lastSeenMonth,
+        collectedAt);
   }
 }

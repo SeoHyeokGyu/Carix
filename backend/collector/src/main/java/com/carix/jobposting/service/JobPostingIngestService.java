@@ -33,19 +33,20 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+@Slf4j
 @Service
+@RequiredArgsConstructor
 public class JobPostingIngestService {
 
-  private static final Logger log = LoggerFactory.getLogger(JobPostingIngestService.class);
   private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
   private static final String SCHEMA_VERSION = "v1-live";
   private static final DateTimeFormatter YM_FORMATTER = DateTimeFormatter.ofPattern("yyyyMM");
@@ -68,15 +69,6 @@ public class JobPostingIngestService {
   private final CompanySizeClassifier companySizeClassifier = new CompanySizeClassifier();
   private final EmploymentTypeClassifier employmentTypeClassifier = new EmploymentTypeClassifier();
   private final SkillTaxonomy skillTaxonomy = new SkillTaxonomy();
-
-  public JobPostingIngestService(
-      JobPostingRepository jobPostingRepository,
-      SkillRepository skillRepository,
-      RawIngestRepository rawIngestRepository) {
-    this.jobPostingRepository = jobPostingRepository;
-    this.skillRepository = skillRepository;
-    this.rawIngestRepository = rawIngestRepository;
-  }
 
   /** 잡코리아 크롤링 & DB 실시간 직접 적재 */
   @Transactional
@@ -410,13 +402,15 @@ public class JobPostingIngestService {
   private void applySkillsToPosting(JobPosting posting, List<String> rawSkills) {
     Set<String> applied = new LinkedHashSet<>();
     for (String rawName : rawSkills) {
-      String canonicalName = skillTaxonomy.canonicalName(rawName);
-      if (canonicalName == null || canonicalName.isBlank()) {
-        continue;
-      }
-      String category = skillTaxonomy.category(canonicalName);
-      if (applied.add(canonicalName + " " + category)) {
-        posting.addSkill(upsertSkill(canonicalName, category));
+      List<String> canonicalNames = skillTaxonomy.extractCanonicalSkills(rawName);
+      for (String canonicalName : canonicalNames) {
+        if (canonicalName == null || canonicalName.isBlank()) {
+          continue;
+        }
+        String category = skillTaxonomy.category(canonicalName);
+        if (applied.add(canonicalName + " " + category)) {
+          posting.addSkill(upsertSkill(canonicalName, category));
+        }
       }
     }
   }

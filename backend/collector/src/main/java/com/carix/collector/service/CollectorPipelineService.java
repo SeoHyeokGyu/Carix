@@ -26,16 +26,16 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
+@Slf4j
 @Service
+@RequiredArgsConstructor
 public class CollectorPipelineService {
-
-  private static final Logger log = LoggerFactory.getLogger(CollectorPipelineService.class);
 
   private final JobPostingRepository jobPostingRepository;
   private final RawIngestRepository rawIngestRepository;
@@ -54,19 +54,6 @@ public class CollectorPipelineService {
           });
 
   private final ExecutorService executor = Executors.newSingleThreadExecutor();
-
-  public CollectorPipelineService(
-      JobPostingRepository jobPostingRepository,
-      RawIngestRepository rawIngestRepository,
-      SkillRepository skillRepository,
-      JobPostingBackfill jobPostingBackfill,
-      JobPostingIngestService jobPostingIngestService) {
-    this.jobPostingRepository = jobPostingRepository;
-    this.rawIngestRepository = rawIngestRepository;
-    this.skillRepository = skillRepository;
-    this.jobPostingBackfill = jobPostingBackfill;
-    this.jobPostingIngestService = jobPostingIngestService;
-  }
 
   public JobExecutionResponse triggerCrawl(CrawlRequest request) {
     ensureNoJobRunning();

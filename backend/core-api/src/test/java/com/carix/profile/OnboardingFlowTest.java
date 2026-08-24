@@ -7,6 +7,9 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.carix.skill.domain.Skill;
+import com.carix.skill.repository.SkillRepository;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -19,6 +22,14 @@ import org.springframework.test.web.servlet.MockMvc;
 class OnboardingFlowTest {
 
   @Autowired private MockMvc mockMvc;
+  @Autowired private SkillRepository skillRepository;
+
+  @BeforeEach
+  void setUp() {
+    if (skillRepository.findByStandardNameIgnoreCaseAndIsCustomFalse("Spring Boot").isEmpty()) {
+      skillRepository.save(Skill.createStandard("Spring Boot", "BACKEND"));
+    }
+  }
 
   @Test
   void 신규_사용자의_전체_온보딩_시나리오_동작을_검증한다() throws Exception {

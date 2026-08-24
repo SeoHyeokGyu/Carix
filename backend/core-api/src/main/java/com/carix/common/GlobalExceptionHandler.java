@@ -32,4 +32,27 @@ public class GlobalExceptionHandler {
     return ResponseEntity.status(HttpStatus.BAD_REQUEST)
         .body(ErrorResponse.of("INVALID_INPUT", e.getMessage(), null));
   }
+
+  @ExceptionHandler(com.carix.skill.exception.InvalidSkillCategoryException.class)
+  public ResponseEntity<ErrorResponse> handleInvalidSkillCategory(
+      com.carix.skill.exception.InvalidSkillCategoryException e) {
+    return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+        .body(ErrorResponse.of("INVALID_SKILL_CATEGORY", e.getMessage(), null));
+  }
+
+  @ExceptionHandler(com.carix.skill.exception.DuplicateSkillException.class)
+  public ResponseEntity<ErrorResponse> handleDuplicateSkill(
+      com.carix.skill.exception.DuplicateSkillException e) {
+    return ResponseEntity.status(HttpStatus.CONFLICT)
+        .body(ErrorResponse.of("DUPLICATE_SKILL", e.getMessage(), null));
+  }
+
+  @ExceptionHandler({
+    com.carix.skill.exception.SkillNotFoundException.class,
+    com.carix.skill.exception.UserSkillNotFoundException.class
+  })
+  public ResponseEntity<ErrorResponse> handleNotFound(RuntimeException e) {
+    return ResponseEntity.status(HttpStatus.NOT_FOUND)
+        .body(ErrorResponse.of("NOT_FOUND", e.getMessage(), null));
+  }
 }

@@ -13,12 +13,21 @@ import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
+import lombok.AccessLevel;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
 
 @Entity
 @Table(name = "job_posting")
+@Getter
+@Builder
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
+@AllArgsConstructor(access = AccessLevel.PRIVATE)
 public class JobPosting {
 
-  @Id private UUID id;
+  @Id @Builder.Default private UUID id = UUID.randomUUID();
 
   @Column(nullable = false, length = 20)
   private String source;
@@ -77,15 +86,16 @@ public class JobPosting {
   private Instant collectedAt;
 
   @Column(name = "dedup_group_id")
-  private UUID dedupGroupId;
+  @Builder.Default
+  private UUID dedupGroupId = UUID.randomUUID();
 
   @Column(name = "dedup_rule_version", length = 20)
-  private String dedupRuleVersion;
+  @Builder.Default
+  private String dedupRuleVersion = "v0-none";
 
   @OneToMany(mappedBy = "jobPosting", cascade = CascadeType.ALL, orphanRemoval = true)
+  @Builder.Default
   private List<JobPostingSkill> jobPostingSkills = new ArrayList<>();
-
-  protected JobPosting() {}
 
   public JobPosting(
       String source,
@@ -129,6 +139,7 @@ public class JobPosting {
     this.collectedAt = collectedAt;
     this.dedupGroupId = UUID.randomUUID();
     this.dedupRuleVersion = "v0-none";
+    this.jobPostingSkills = new ArrayList<>();
   }
 
   public void addSkill(Skill skill) {
@@ -175,39 +186,7 @@ public class JobPosting {
     skills.stream().filter(skill -> !linkedIds.contains(skill.getId())).forEach(this::addSkill);
   }
 
-  public UUID getId() {
-    return id;
-  }
-
-  public Long getSalaryMin() {
-    return salaryMin;
-  }
-
-  public Integer getExperienceMin() {
-    return experienceMin;
-  }
-
-  public Integer getExperienceMax() {
-    return experienceMax;
-  }
-
-  public String getEmploymentType() {
-    return employmentType;
-  }
-
-  public String getPositionLevel() {
-    return positionLevel;
-  }
-
   public List<Skill> getSkills() {
     return jobPostingSkills.stream().map(JobPostingSkill::getSkill).collect(Collectors.toList());
-  }
-
-  public String getSource() {
-    return source;
-  }
-
-  public String getExternalId() {
-    return externalId;
   }
 }

@@ -8,6 +8,7 @@ import com.carix.collector.dto.ReprocessRequest;
 import com.carix.collector.dto.SeedLoadRequest;
 import com.carix.collector.service.CollectorPipelineService;
 import java.util.List;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -25,13 +26,10 @@ import org.springframework.web.bind.annotation.RestController;
  */
 @RestController
 @RequestMapping("/internal/pipeline")
+@RequiredArgsConstructor
 public class CollectorPipelineController {
 
   private final CollectorPipelineService pipelineService;
-
-  public CollectorPipelineController(CollectorPipelineService pipelineService) {
-    this.pipelineService = pipelineService;
-  }
 
   /**
    * 잡코리아 / 사람인 웹 스크래핑 크롤링 및 DB 직접 적재 비동기 트리거
