@@ -269,49 +269,10 @@ networks:
 > 웹 서버가 아무 일도 하지 않으며 JVM 힙만 차지하고 있었다. 스왑이 빠듯한 공유 호스트에서
 > 실질 낭비다. Spring Batch 도입 시 되살리며, 그때 상주/원샷도 함께 정한다.
 
-### Task 2.2: dev DB 분리 (문서↔compose 불일치 해소)
+### Task 2.2: dev DB 분리 — 폐기
 
-> **폐기됨.** 팀 전환 후 운영과 개발이 같은 DB 를 쓰기로 결정했다
-> (근거는 DEVELOPMENT.md §3). 아래 initdb 스크립트와
-> `carix_dev` 롤·DB 는 저장소에서 제거했다. 서버에 남은 것은 수동 정리 대상이다.
-
-**발견된 불일치:** `docs/DEVELOPMENT.md`와 `.env.example`은 별도 `carix_dev` DB/롤을 전제하지만
-compose의 postgres는 `${POSTGRES_DB}` 하나만 만든다. 그대로 두면 로컬 개발이 운영 DB에 붙는다.
-
-- [ ] **Step 1: `deploy/postgres/initdb/01-dev-database.sh`**
-
-```bash
-#!/bin/bash
-set -euo pipefail
-psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-EOSQL
-    CREATE ROLE carix_dev LOGIN PASSWORD '${CARIX_DEV_PASSWORD}';
-    CREATE DATABASE carix_dev OWNER carix_dev;
-EOSQL
-```
-
-- [ ] **Step 2: postgres 서비스에 마운트·변수 추가**
-
-```yaml
-    environment:
-      - CARIX_DEV_PASSWORD=${CARIX_DEV_PASSWORD}
-    volumes:
-      - carix-pgdata:/var/lib/postgresql/data
-      - ./deploy/postgres/initdb:/docker-entrypoint-initdb.d:ro
-```
-
-`.env.example`에 `CARIX_DEV_PASSWORD=` 추가.
-
-> initdb 스크립트는 **볼륨이 비어 있을 때만** 실행된다. 기회는 사실상 한 번이다.
-> 이미 Postgres를 띄운 뒤라면 `docker compose exec postgres psql`로 직접 롤·DB를 만든다.
-
-- [ ] **Step 3: `docs/DEVELOPMENT.md` 수정**
-
-"방화벽 허용 직접 주소" 대안을 삭제하고 **SSH 터널 단일 경로**로 좁힌다. 그 대안은 compose를
-`expose`→`ports`로 바꿔야 하고 DB를 인터넷에 노출한다.
-
-```bash
-ssh -N -L 5432:localhost:5432 <oci-server-alias>
-```
+> 운영과 개발이 같은 DB 를 쓰기로 결정해 폐기했다 (근거는 DEVELOPMENT.md §3).
+> 저장소·서버 양쪽에서 관련 롤·DB·설정 항목을 제거했다.
 
 ### Task 2.3: 스캐폴드 담당자에게 전달할 계약
 
@@ -638,7 +599,7 @@ ssh <oci-server-alias> 'openssl rand -base64 32'
 ssh <oci-server-alias> 'cp /home/opc/carix/.env.example /home/opc/carix/.env && chmod 600 /home/opc/carix/.env'
 ```
 
-채울 항목: `POSTGRES_PASSWORD`, `CARIX_DEV_PASSWORD`, `CARIX_ENCRYPTION_KEY`,
+채울 항목: `POSTGRES_PASSWORD`, `CARIX_ENCRYPTION_KEY`,
 `KOSIS_API_KEY`, `WORK24_API_KEY`, `SARAMIN_API_KEY`, `WAGE_STAT_API_KEY`.
 
 Verify: `ssh <oci-server-alias> 'ls -l /home/opc/carix/.env; git -C /home/opc/carix status --porcelain'`
