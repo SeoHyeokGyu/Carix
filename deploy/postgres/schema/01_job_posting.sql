@@ -27,7 +27,6 @@ CREATE TABLE core.job_posting (
     company_badge character varying(255),
     position_level character varying(100),
     job_family character varying(100),
-    content text,
     posted_start_date date,
     posted_end_date date,
     first_seen_month character varying(6),

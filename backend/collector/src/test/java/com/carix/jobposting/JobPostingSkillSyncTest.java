@@ -32,7 +32,6 @@ class JobPostingSkillSyncTest {
         null,
         null,
         null,
-        null,
         "202608",
         "202608",
         Instant.EPOCH);
