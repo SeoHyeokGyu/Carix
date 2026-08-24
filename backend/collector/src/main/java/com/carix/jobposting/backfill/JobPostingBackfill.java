@@ -24,6 +24,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import lombok.RequiredArgsConstructor;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.springframework.stereotype.Component;
@@ -37,6 +38,7 @@ import org.springframework.transaction.annotation.Transactional;
  * 재파싱으로 족하다.
  */
 @Component
+@RequiredArgsConstructor
 public class JobPostingBackfill {
 
   private static final String JOBKOREA = "JOBKOREA";
@@ -55,15 +57,6 @@ public class JobPostingBackfill {
   private final CompanySizeClassifier companySizeClassifier = new CompanySizeClassifier();
   private final EmploymentTypeClassifier employmentTypeClassifier = new EmploymentTypeClassifier();
   private final SkillTaxonomy skillTaxonomy = new SkillTaxonomy();
-
-  public JobPostingBackfill(
-      JobPostingRepository jobPostingRepository,
-      RawIngestRepository rawIngestRepository,
-      SkillRepository skillRepository) {
-    this.jobPostingRepository = jobPostingRepository;
-    this.rawIngestRepository = rawIngestRepository;
-    this.skillRepository = skillRepository;
-  }
 
   @Transactional
   public BackfillReport run(boolean dryRun) {

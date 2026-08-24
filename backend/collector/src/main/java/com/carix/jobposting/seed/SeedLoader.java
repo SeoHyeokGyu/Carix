@@ -28,10 +28,12 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import lombok.RequiredArgsConstructor;
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVParser;
 import org.apache.commons.csv.CSVRecord;
 
+@RequiredArgsConstructor
 public class SeedLoader {
 
   private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
@@ -49,15 +51,6 @@ public class SeedLoader {
   private final CompanySizeClassifier companySizeClassifier = new CompanySizeClassifier();
   private final EmploymentTypeClassifier employmentTypeClassifier = new EmploymentTypeClassifier();
   private final SkillTaxonomy skillTaxonomy = new SkillTaxonomy();
-
-  public SeedLoader(
-      JobPostingRepository jobPostingRepository,
-      SkillRepository skillRepository,
-      RawIngestRepository rawIngestRepository) {
-    this.jobPostingRepository = jobPostingRepository;
-    this.skillRepository = skillRepository;
-    this.rawIngestRepository = rawIngestRepository;
-  }
 
   public int load(Path verificationOutDir) throws IOException {
     ListingPageIndex listingIndex = new ListingPageIndex();
