@@ -17,10 +17,12 @@ public class SaraminListingEnricher {
   public SaraminListingFields extract(Document doc, String externalId) {
     Element item = doc.selectFirst("div.item_recruit[value=" + externalId + "]");
     if (item == null) {
-      return new SaraminListingFields(null, null, List.of(), List.of());
+      return new SaraminListingFields(null, null, null, List.of(), List.of());
     }
 
+    // 조건 칸은 지역·경력·학력·고용형태 순이다. 칸이 모자란 공고가 있어 개수를 확인하고 읽는다.
     Elements conditionSpans = item.select(".job_condition > span");
+    String careerRaw = conditionSpans.size() > 1 ? conditionSpans.get(1).text().strip() : null;
     String employmentType = conditionSpans.size() > 3 ? conditionSpans.get(3).text().strip() : null;
 
     String postedEndDateRaw = null;
@@ -39,6 +41,7 @@ public class SaraminListingEnricher {
       industryTags.add(a.text().strip());
     }
 
-    return new SaraminListingFields(employmentType, postedEndDateRaw, skillTags, industryTags);
+    return new SaraminListingFields(
+        careerRaw, employmentType, postedEndDateRaw, skillTags, industryTags);
   }
 }

@@ -9,6 +9,7 @@ public record BackfillReport(
     int jobFamilyFilled,
     int companySizeFilled,
     int employmentTypeFilled,
+    int experienceCorrected,
     int skillLinksRewritten,
     int skillsRecategorized,
     int orphanSkillsRemoved,
@@ -17,7 +18,8 @@ public record BackfillReport(
   @Override
   public String toString() {
     return ("[backfill] dryRun=%s scanned=%d salary=%d salaryCleared=%d jobFamily=%d "
-            + "companySize=%d employmentType=%d skillLinks=%d recategorized=%d orphansRemoved=%d "
+            + "companySize=%d employmentType=%d experienceCorrected=%d skillLinks=%d "
+            + "recategorized=%d orphansRemoved=%d "
             + "rawMissing=%d")
         .formatted(
             dryRun,
@@ -27,6 +29,7 @@ public record BackfillReport(
             jobFamilyFilled,
             companySizeFilled,
             employmentTypeFilled,
+            experienceCorrected,
             skillLinksRewritten,
             skillsRecategorized,
             orphanSkillsRemoved,

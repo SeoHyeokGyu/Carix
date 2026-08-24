@@ -11,6 +11,7 @@ import com.carix.jobposting.Skill;
 import com.carix.jobposting.SkillRepository;
 import com.carix.jobposting.normalize.CompanySizeClassifier;
 import com.carix.jobposting.normalize.EmploymentTypeClassifier;
+import com.carix.jobposting.normalize.ExperienceRange;
 import com.carix.jobposting.normalize.JobFamilyClassifier;
 import com.carix.jobposting.normalize.JobKoreaPayParser;
 import com.carix.jobposting.normalize.SalaryRange;
@@ -32,8 +33,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
@@ -144,7 +143,7 @@ public class JobPostingIngestService {
           Elements cellSpans = row.select(".tplTit p.etc span.cell");
           String careerType = cellSpans.size() > 0 ? cellSpans.get(0).text().strip() : "무관";
           String location = cellSpans.size() > 2 ? cellSpans.get(2).text().strip() : "전국";
-          Integer careerRange = extractCareerYears(careerType);
+          ExperienceRange experience = ExperienceRange.parse(careerType);
 
           String createdAtRaw = "";
           Element timeSpan = row.selectFirst("td.odd span.time");
@@ -167,7 +166,7 @@ public class JobPostingIngestService {
               title,
               companyName,
               location,
-              careerRange,
+              experience,
               createdAtRaw,
               fields,
               detailHtml,
@@ -250,7 +249,7 @@ public class JobPostingIngestService {
           Elements jobConditions = item.select("div.area_job div.job_condition span");
           String location = jobConditions.size() > 0 ? jobConditions.get(0).text().strip() : "전국";
           String career = jobConditions.size() > 1 ? jobConditions.get(1).text().strip() : "무관";
-          Integer careerRange = extractCareerYears(career);
+          ExperienceRange experience = ExperienceRange.parse(career);
 
           Element dateSpan = item.selectFirst("div.area_job div.job_date span.date");
           String createdAtRaw = dateSpan != null ? dateSpan.text().strip() : "";
@@ -262,7 +261,7 @@ public class JobPostingIngestService {
               title,
               companyName,
               location,
-              careerRange,
+              experience,
               createdAtRaw,
               fields,
               now,
@@ -286,7 +285,7 @@ public class JobPostingIngestService {
       String title,
       String companyName,
       String location,
-      Integer careerRange,
+      ExperienceRange experience,
       String createdAtRaw,
       JobKoreaListingFields fields,
       String detailHtml,
@@ -321,6 +320,7 @@ public class JobPostingIngestService {
       posting.applyDisclosedSalary(salaryMin, salaryMax);
       posting.classifyAs(jobFamily);
       posting.classifyCompanySizeAs(companySize);
+      posting.applyExperienceRange(experience.min(), experience.max());
       posting.classifyEmploymentTypeAs(employmentTypeClassifier.classify(fields.employmentType()));
     } else {
       posting =
@@ -332,8 +332,8 @@ public class JobPostingIngestService {
               salaryMin,
               salaryMax,
               location,
-              careerRange,
-              null,
+              experience.min(),
+              experience.max(),
               employmentTypeClassifier.classify(fields.employmentType()),
               companySize,
               fields.companyBadge(),
@@ -359,7 +359,7 @@ public class JobPostingIngestService {
       String title,
       String companyName,
       String location,
-      Integer careerRange,
+      ExperienceRange experience,
       String createdAtRaw,
       SaraminListingFields fields,
       Instant now,
@@ -374,6 +374,7 @@ public class JobPostingIngestService {
       posting = existingOpt.get();
       posting.classifyAs(jobFamily);
       posting.classifyCompanySizeAs(CompanySizeClassifier.UNKNOWN);
+      posting.applyExperienceRange(experience.min(), experience.max());
       posting.classifyEmploymentTypeAs(employmentTypeClassifier.classify(fields.employmentType()));
     } else {
       posting =
@@ -385,8 +386,8 @@ public class JobPostingIngestService {
               null,
               null,
               location,
-              careerRange,
-              null,
+              experience.min(),
+              experience.max(),
               employmentTypeClassifier.classify(fields.employmentType()),
               CompanySizeClassifier.UNKNOWN,
               null,
@@ -471,20 +472,6 @@ public class JobPostingIngestService {
       log.warn("Failed to fetch Saramin session cookies: {}", e.getMessage());
       return new HashMap<>();
     }
-  }
-
-  private int extractCareerYears(String careerText) {
-    if (careerText == null
-        || careerText.isBlank()
-        || careerText.contains("신입")
-        || careerText.contains("무관")) {
-      return 0;
-    }
-    Matcher matcher = Pattern.compile("(\\d+)년").matcher(careerText);
-    if (matcher.find()) {
-      return Integer.parseInt(matcher.group(1));
-    }
-    return 0;
   }
 
   private List<String> distinct(List<String> list) {

@@ -87,6 +87,26 @@ class SeedLoaderRawIngestIdTest {
     assertTrue(payload.contains("item_recruit"), "목록 항목이 사라졌다");
   }
 
+  /**
+   * 사람인은 `경력 3~10년` 처럼 범위를 준다. CSV `CareerRange` 열에는 크롤러가 뭉갠 상한(10)이 들어 있어 그대로 쓰면 하한 자리에 상한이 저장된다 —
+   * 3년차도 지원 가능한 공고가 시니어로 분류된다. 원천 표기(`CareerType`)에서 다시 가른다.
+   */
+  @Test
+  void storesBothEndsOfTheExperienceRange() throws IOException {
+    new SeedLoader(jobPostingRepository, skillRepository, rawIngestRepository).load(outDir);
+
+    JobPosting saved = savedPostings().get(0);
+    assertEquals(3, saved.getExperienceMin(), "하한 자리에 상한이 들어갔다");
+    assertEquals(10, saved.getExperienceMax());
+  }
+
+  private List<JobPosting> savedPostings() {
+    ArgumentCaptor<JobPosting> captor = ArgumentCaptor.forClass(JobPosting.class);
+    org.mockito.Mockito.verify(jobPostingRepository, org.mockito.Mockito.atLeastOnce())
+        .save(captor.capture());
+    return captor.getAllValues();
+  }
+
   private List<String> savedPayloads() {
     ArgumentCaptor<RawIngest> captor = ArgumentCaptor.forClass(RawIngest.class);
     org.mockito.Mockito.verify(rawIngestRepository, org.mockito.Mockito.atLeastOnce())

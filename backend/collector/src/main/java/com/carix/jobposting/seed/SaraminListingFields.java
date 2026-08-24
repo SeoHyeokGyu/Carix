@@ -3,6 +3,7 @@ package com.carix.jobposting.seed;
 import java.util.List;
 
 public record SaraminListingFields(
+    String careerRaw,
     String employmentType,
     String postedEndDateRaw,
     List<String> skillTags,

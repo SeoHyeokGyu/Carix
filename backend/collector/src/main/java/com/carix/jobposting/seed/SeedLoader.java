@@ -11,6 +11,7 @@ import com.carix.jobposting.Skill;
 import com.carix.jobposting.SkillRepository;
 import com.carix.jobposting.normalize.CompanySizeClassifier;
 import com.carix.jobposting.normalize.EmploymentTypeClassifier;
+import com.carix.jobposting.normalize.ExperienceRange;
 import com.carix.jobposting.normalize.JobFamilyClassifier;
 import com.carix.jobposting.normalize.JobKoreaPayParser;
 import com.carix.jobposting.normalize.SalaryRange;
@@ -149,6 +150,9 @@ public class SeedLoader {
                 jobKoreaDetailParser.extractEmployeeCount(detailHtml),
                 jobKoreaDetailParser.extractCompanyTypeName(detailHtml));
 
+    // CSV `CareerRange` 는 크롤러가 범위를 한 값으로 뭉갠 결과다. 원천 표기에서 다시 가른다.
+    ExperienceRange experience = ExperienceRange.parse(record.get("CareerType"));
+
     JobPosting posting =
         new JobPosting(
             "JOBKOREA",
@@ -158,8 +162,8 @@ public class SeedLoader {
             salaryMin,
             salaryMax,
             record.get("Location"),
-            parseIntOrNull(record.get("CareerRange")),
-            null,
+            experience.min(),
+            experience.max(),
             employmentTypeClassifier.classify(fields.employmentType()),
             companySize,
             fields.companyBadge(),
@@ -195,7 +199,9 @@ public class SeedLoader {
     SaraminListingFields fields =
         listpage != null
             ? saraminListingEnricher.extract(listpage.html(), externalId)
-            : new SaraminListingFields(null, null, List.of(), List.of());
+            : new SaraminListingFields(null, null, null, List.of(), List.of());
+
+    ExperienceRange experience = ExperienceRange.parse(record.get("CareerType"));
 
     JobPosting posting =
         new JobPosting(
@@ -206,8 +212,8 @@ public class SeedLoader {
             null,
             null,
             record.get("Location"),
-            parseIntOrNull(record.get("CareerRange")),
-            null,
+            experience.min(),
+            experience.max(),
             employmentTypeClassifier.classify(fields.employmentType()),
             CompanySizeClassifier.UNKNOWN,
             null,
