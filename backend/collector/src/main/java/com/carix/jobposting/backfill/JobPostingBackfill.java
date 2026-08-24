@@ -9,6 +9,7 @@ import com.carix.jobposting.Skill;
 import com.carix.jobposting.SkillRepository;
 import com.carix.jobposting.normalize.CompanySizeClassifier;
 import com.carix.jobposting.normalize.EmploymentTypeClassifier;
+import com.carix.jobposting.normalize.ExperienceRange;
 import com.carix.jobposting.normalize.JobFamilyClassifier;
 import com.carix.jobposting.normalize.JobKoreaPayParser;
 import com.carix.jobposting.normalize.SalaryRange;
@@ -136,6 +137,16 @@ public class JobPostingBackfill {
       if (fields == null) {
         counters.rawIngestMissing++;
         continue;
+      }
+
+      // 종전 파서가 `경력 3~10년` 에서 상한을 하한 자리에 넣었다. 목록 원문에서 다시 가른다.
+      ExperienceRange experience = ExperienceRange.parse(fields.careerRaw());
+      if (!java.util.Objects.equals(experience.min(), posting.getExperienceMin())
+          || !java.util.Objects.equals(experience.max(), posting.getExperienceMax())) {
+        counters.experienceCorrected++;
+      }
+      if (!dryRun) {
+        posting.applyExperienceRange(experience.min(), experience.max());
       }
 
       String jobFamily = jobFamilyClassifier.classifyTags(fields.skillTags());
@@ -268,6 +279,7 @@ public class JobPostingBackfill {
     private int jobFamilyFilled;
     private int companySizeFilled;
     private int employmentTypeFilled;
+    private int experienceCorrected;
     private int skillLinksRewritten;
     private int skillsRecategorized;
     private int orphanSkillsRemoved;
@@ -282,6 +294,7 @@ public class JobPostingBackfill {
           jobFamilyFilled,
           companySizeFilled,
           employmentTypeFilled,
+          experienceCorrected,
           skillLinksRewritten,
           skillsRecategorized,
           orphanSkillsRemoved,

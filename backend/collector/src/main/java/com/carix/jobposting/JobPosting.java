@@ -145,6 +145,12 @@ public class JobPosting {
     this.salaryMax = max;
   }
 
+  /** 공고가 요구하는 경력 연차 범위. 하한이 동료집단 브래킷의 기준이다 — 공고가 받아 주는 가장 낮은 연차로 비교한다. */
+  public void applyExperienceRange(Integer min, Integer max) {
+    this.experienceMin = min;
+    this.experienceMax = max;
+  }
+
   /** 원천 직무명에서 판정한 MVP 직군 코드를 붙인다. */
   public void classifyAs(String jobFamily) {
     this.jobFamily = jobFamily;
@@ -179,6 +185,14 @@ public class JobPosting {
 
   public Long getSalaryMin() {
     return salaryMin;
+  }
+
+  public Integer getExperienceMin() {
+    return experienceMin;
+  }
+
+  public Integer getExperienceMax() {
+    return experienceMax;
   }
 
   public String getEmploymentType() {
