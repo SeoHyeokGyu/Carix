@@ -4,6 +4,8 @@ import com.carix.crawler.JobKoreaDetailParser;
 import com.carix.jobposting.JobPosting;
 import com.carix.jobposting.JobPostingRepository;
 import com.carix.jobposting.RawIngest;
+import com.carix.jobposting.RawIngestIds;
+import com.carix.jobposting.RawIngestPayloads;
 import com.carix.jobposting.RawIngestRepository;
 import com.carix.jobposting.Skill;
 import com.carix.jobposting.SkillRepository;
@@ -288,7 +290,10 @@ public class SeedLoader {
   private Instant persistRawIngestFromListpage(
       String source, ListingPageIndex.ListpageEntry listpage) {
     persistRawIngestIfAbsent(
-        source, listpage.sourceItemId(), listpage.html(), listpage.collectedAt());
+        source,
+        RawIngestIds.datedListpage(listpage.sourceItemId(), listpage.collectedAt()),
+        RawIngestPayloads.listpage(listpage.html()),
+        listpage.collectedAt());
     return listpage.collectedAt();
   }
 

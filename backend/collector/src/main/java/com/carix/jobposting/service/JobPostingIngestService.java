@@ -4,6 +4,8 @@ import com.carix.crawler.JobKoreaDetailParser;
 import com.carix.jobposting.JobPosting;
 import com.carix.jobposting.JobPostingRepository;
 import com.carix.jobposting.RawIngest;
+import com.carix.jobposting.RawIngestIds;
+import com.carix.jobposting.RawIngestPayloads;
 import com.carix.jobposting.RawIngestRepository;
 import com.carix.jobposting.Skill;
 import com.carix.jobposting.SkillRepository;
@@ -110,7 +112,11 @@ public class JobPostingIngestService {
 
         Instant now = Instant.now();
         persistRawIngestIfAbsent(
-            "JOBKOREA", "listpage-" + page, listDoc.outerHtml(), now, currentMonth);
+            "JOBKOREA",
+            RawIngestIds.datedListpage("listpage-" + page, now),
+            RawIngestPayloads.listpage(listDoc.outerHtml()),
+            now,
+            currentMonth);
 
         Elements rows = listDoc.select("tr.devloopArea");
         if (rows.isEmpty()) {
@@ -210,7 +216,12 @@ public class JobPostingIngestService {
                 .get();
 
         Instant now = Instant.now();
-        persistRawIngestIfAbsent("SARAMIN", "listpage-" + page, doc.outerHtml(), now, currentMonth);
+        persistRawIngestIfAbsent(
+            "SARAMIN",
+            RawIngestIds.datedListpage("listpage-" + page, now),
+            RawIngestPayloads.listpage(doc.outerHtml()),
+            now,
+            currentMonth);
 
         Elements items = doc.select("div.item_recruit");
         if (items.isEmpty()) {
