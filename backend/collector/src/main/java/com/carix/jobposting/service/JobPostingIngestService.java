@@ -1,6 +1,5 @@
 package com.carix.jobposting.service;
 
-import com.carix.crawler.JobKoreaDetailParser;
 import com.carix.jobposting.JobPosting;
 import com.carix.jobposting.JobPostingRepository;
 import com.carix.jobposting.RawIngest;
@@ -9,6 +8,7 @@ import com.carix.jobposting.RawIngestPayloads;
 import com.carix.jobposting.RawIngestRepository;
 import com.carix.jobposting.Skill;
 import com.carix.jobposting.SkillRepository;
+import com.carix.jobposting.crawler.JobKoreaDetailParser;
 import com.carix.jobposting.normalize.CompanySizeClassifier;
 import com.carix.jobposting.normalize.EmploymentTypeClassifier;
 import com.carix.jobposting.normalize.ExperienceRange;
@@ -21,6 +21,7 @@ import com.carix.jobposting.seed.JobKoreaListingFields;
 import com.carix.jobposting.seed.JobPostingDateParser;
 import com.carix.jobposting.seed.SaraminListingEnricher;
 import com.carix.jobposting.seed.SaraminListingFields;
+import com.carix.pipeline.dto.CrawlRequest;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
 import java.time.Instant;
@@ -69,6 +70,22 @@ public class JobPostingIngestService {
   private final CompanySizeClassifier companySizeClassifier = new CompanySizeClassifier();
   private final EmploymentTypeClassifier employmentTypeClassifier = new EmploymentTypeClassifier();
   private final SkillTaxonomy skillTaxonomy = new SkillTaxonomy();
+
+  /** 크롤링 요청 DTO 기반 전체 크롤링 & DB 실시간 적재 */
+  public int crawlAndIngest(CrawlRequest request) {
+    String portal =
+        request != null && request.portal() != null ? request.portal().toUpperCase() : "ALL";
+    int maxPages = request != null && request.maxPages() != null ? request.maxPages() : 5;
+    int count = 0;
+
+    if ("JOBKOREA".equals(portal) || "ALL".equals(portal)) {
+      count += crawlAndIngestJobKorea("IT개발", maxPages);
+    }
+    if ("SARAMIN".equals(portal) || "ALL".equals(portal)) {
+      count += crawlAndIngestSaramin(maxPages);
+    }
+    return count;
+  }
 
   /** 잡코리아 크롤링 & DB 실시간 직접 적재 */
   @Transactional
