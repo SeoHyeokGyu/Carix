@@ -37,16 +37,13 @@ public class JobPostingDeduplicator {
    */
   @Transactional
   public int deduplicateAll() {
-    log.info("Starting global job posting deduplication (rule: {})...", DEDUP_RULE_VERSION);
+    log.info("[공고중복제거] 전체 채용공고 원천 간 중복제거를 시작합니다 (규칙 버전: {})...", DEDUP_RULE_VERSION);
     List<JobPosting> allPostings = jobPostingRepository.findAll();
 
     int matchedGroups = deduplicate(allPostings);
     jobPostingRepository.saveAll(allPostings);
 
-    log.info(
-        "Completed deduplication: {} total postings processed, {} multi-posting groups formed",
-        allPostings.size(),
-        matchedGroups);
+    log.info("[공고중복제거] 중복제거 완료. 총 {}건 처리됨, {}개의 다중 공고 그룹 형성", allPostings.size(), matchedGroups);
     return matchedGroups;
   }
 

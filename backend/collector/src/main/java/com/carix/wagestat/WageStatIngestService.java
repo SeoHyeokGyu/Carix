@@ -50,13 +50,13 @@ public class WageStatIngestService {
   private final WageStatObservationRepository repository;
 
   /**
-   * KOSIS 임금 통계를 실시간 조회하여 보간 후 DB에 Upsert 합니다.
+   * KOSIS 국가 공식 임금 통계를 실시간 조회하여 보간 후 DB에 Upsert 합니다.
    *
    * @return 수집 및 적재된 관측치 행 수
    */
   @Transactional
   public int ingestWageStats() {
-    log.info("Starting KOSIS wage stat ingestion...");
+    log.info("[임금통계수집] KOSIS 임금 통계 수집 및 보간 작업을 시작합니다...");
     String currentVintage = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMM"));
     int ingestedCount = 0;
 
@@ -70,7 +70,9 @@ public class WageStatIngestService {
       if (medianWage <= 0L) {
         medianWage = FALLBACK_MEDIAN_BY_BRACKET.getOrDefault(experienceBracket, 45_000_000L);
         log.info(
-            "Using fallback median wage for bracket={}: {} KRW", experienceBracket, medianWage);
+            "[임금통계수집] KOSIS 응답 부재로 기본 보간값을 사용합니다 (경력: {}, 중위연봉: {}원)",
+            experienceBracket,
+            medianWage);
       }
 
       for (String jobFamily : JOB_FAMILIES) {
@@ -85,7 +87,7 @@ public class WageStatIngestService {
       }
     }
 
-    log.info("Completed KOSIS wage stat ingestion: {} rows inserted/updated", ingestedCount);
+    log.info("[임금통계수집] KOSIS 임금 통계 수집 완료: 총 {}건의 관측치가 저장/갱신되었습니다.", ingestedCount);
     return ingestedCount;
   }
 

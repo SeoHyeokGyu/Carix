@@ -35,6 +35,12 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
+/**
+ * 수집기 파이프라인 총괄 오케스트레이션 및 비동기 작업 생명주기 관리 서비스.
+ *
+ * <p>크롤링, KOSIS 임금 수집, 중복제거, 시장 사전집계, 원문 백필 등 단일 스레드 기반 순차 실행을 보장하며 인메모리 작업 상태 큐(최근 100건)를 통해 진행
+ * 상황을 추적합니다.
+ */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -63,6 +69,12 @@ public class CollectorPipelineService {
 
   private final ExecutorService executor = Executors.newSingleThreadExecutor();
 
+  /**
+   * 외부 채용 포털(잡코리아, 사람인) 크롤링 및 DB 적재 작업을 비동기로 실행합니다.
+   *
+   * @param request 크롤링 대상 포털 및 페이지 옵션
+   * @return 비동기 작업 수락 응답(JobExecutionResponse)
+   */
   public JobExecutionResponse triggerCrawl(CrawlRequest request) {
     ensureNoJobRunning();
     String jobId = UUID.randomUUID().toString();
@@ -73,12 +85,12 @@ public class CollectorPipelineService {
     CompletableFuture.runAsync(
         () -> {
           try {
-            log.info("[Job:{}] Starting crawl and ingest into DB...", jobId);
+            log.info("[작업:{}] 채용공고 크롤링 및 DB 적재 작업을 시작합니다...", jobId);
             int ingested = jobPostingIngestService.crawlAndIngest(request);
             state.complete(Map.of("ingestedJobPostings", ingested));
-            log.info("[Job:{}] Crawl completed. Total ingested to DB: {}", jobId, ingested);
+            log.info("[작업:{}] 채용공고 크롤링 완료. 총 {}건의 공고가 DB에 적재되었습니다.", jobId, ingested);
           } catch (Exception e) {
-            log.error("[Job:{}] Crawl failed: {}", jobId, e.getMessage(), e);
+            log.error("[작업:{}] 채용공고 크롤링 실패: {}", jobId, e.getMessage(), e);
             state.fail(e.getMessage());
           } finally {
             isJobRunning.set(false);
@@ -87,9 +99,15 @@ public class CollectorPipelineService {
         executor);
 
     return new JobExecutionResponse(
-        jobId, "CRAWL", "ACCEPTED", "Crawl job accepted and started in background", now);
+        jobId, "CRAWL", "ACCEPTED", "크롤링 작업이 수락되어 백그라운드에서 시작되었습니다.", now);
   }
 
+  /**
+   * 로컬/서버 파일시스템의 스냅샷 시드 데이터를 DB로 적재합니다.
+   *
+   * @param request 시드 디렉토리 경로
+   * @return 비동기 작업 수락 응답
+   */
   public JobExecutionResponse triggerSeedLoad(SeedLoadRequest request) {
     ensureNoJobRunning();
     String jobId = UUID.randomUUID().toString();
@@ -104,14 +122,14 @@ public class CollectorPipelineService {
                 request != null && request.dataDir() != null
                     ? request.dataDir()
                     : resolveDefaultOutputDir();
-            log.info("[Job:{}] Loading seed data from: {}", jobId, outDir);
+            log.info("[작업:{}] 파일 시드 데이터 적재를 시작합니다. 경로: {}", jobId, outDir);
             SeedLoader loader =
                 new SeedLoader(jobPostingRepository, skillRepository, rawIngestRepository);
             int loaded = loader.load(Path.of(outDir));
             state.complete(Map.of("loadedJobPostings", loaded));
-            log.info("[Job:{}] Seed data loading completed. Total loaded: {}", jobId, loaded);
+            log.info("[작업:{}] 시드 데이터 적재 완료. 총 {}건 적재됨.", jobId, loaded);
           } catch (Exception e) {
-            log.error("[Job:{}] Seed data loading failed: {}", jobId, e.getMessage(), e);
+            log.error("[작업:{}] 시드 데이터 적재 실패: {}", jobId, e.getMessage(), e);
             state.fail(e.getMessage());
           } finally {
             isJobRunning.set(false);
@@ -120,9 +138,14 @@ public class CollectorPipelineService {
         executor);
 
     return new JobExecutionResponse(
-        jobId, "SEED_LOAD", "ACCEPTED", "Seed load job accepted and started in background", now);
+        jobId, "SEED_LOAD", "ACCEPTED", "시드 적재 작업이 수락되어 백그라운드에서 시작되었습니다.", now);
   }
 
+  /**
+   * KOSIS 국가 공식 임금 통계를 실시간 수신하여 24구간 보간 후 DB에 적재합니다.
+   *
+   * @return 비동기 작업 수락 응답
+   */
   public JobExecutionResponse triggerWageStatIngest() {
     ensureNoJobRunning();
     String jobId = UUID.randomUUID().toString();
@@ -133,12 +156,12 @@ public class CollectorPipelineService {
     CompletableFuture.runAsync(
         () -> {
           try {
-            log.info("[Job:{}] Triggering KOSIS wage stat ingestion...", jobId);
+            log.info("[작업:{}] KOSIS 임금 통계 수집 및 보간 적재 작업을 시작합니다...", jobId);
             int count = wageStatIngestService.ingestWageStats();
             state.complete(Map.of("ingestedWageStats", count));
-            log.info("[Job:{}] KOSIS wage stat ingestion completed: {} rows", jobId, count);
+            log.info("[작업:{}] KOSIS 임금 통계 수집 완료. 총 {}개 연령/경력 관측치가 저장되었습니다.", jobId, count);
           } catch (Exception e) {
-            log.error("[Job:{}] KOSIS wage stat ingestion failed: {}", jobId, e.getMessage(), e);
+            log.error("[작업:{}] KOSIS 임금 통계 수집 실패: {}", jobId, e.getMessage(), e);
             state.fail(e.getMessage());
           } finally {
             isJobRunning.set(false);
@@ -147,13 +170,14 @@ public class CollectorPipelineService {
         executor);
 
     return new JobExecutionResponse(
-        jobId,
-        "WAGE_STAT_INGEST",
-        "ACCEPTED",
-        "Wage stat ingest job accepted and started in background",
-        now);
+        jobId, "WAGE_STAT_INGEST", "ACCEPTED", "KOSIS 임금 통계 수집 작업이 수락되어 백그라운드에서 시작되었습니다.", now);
   }
 
+  /**
+   * 원천 간(잡코리아-사람인) 채용공고 중복제거(Deduplication)를 실행합니다.
+   *
+   * @return 비동기 작업 수락 응답
+   */
   public JobExecutionResponse triggerDeduplication() {
     ensureNoJobRunning();
     String jobId = UUID.randomUUID().toString();
@@ -164,12 +188,12 @@ public class CollectorPipelineService {
     CompletableFuture.runAsync(
         () -> {
           try {
-            log.info("[Job:{}] Starting job posting deduplication...", jobId);
+            log.info("[작업:{}] 원천 간 채용공고 중복제거 배치를 시작합니다...", jobId);
             int groups = jobPostingDeduplicator.deduplicateAll();
             state.complete(Map.of("dedupMatchedGroups", groups));
-            log.info("[Job:{}] Deduplication completed: {} groups formed", jobId, groups);
+            log.info("[작업:{}] 공고 중복제거 완료. 총 {}개의 다중 공고 그룹이 형성되었습니다.", jobId, groups);
           } catch (Exception e) {
-            log.error("[Job:{}] Deduplication failed: {}", jobId, e.getMessage(), e);
+            log.error("[작업:{}] 공고 중복제거 실패: {}", jobId, e.getMessage(), e);
             state.fail(e.getMessage());
           } finally {
             isJobRunning.set(false);
@@ -178,13 +202,15 @@ public class CollectorPipelineService {
         executor);
 
     return new JobExecutionResponse(
-        jobId,
-        "DEDUPLICATION",
-        "ACCEPTED",
-        "Deduplication job accepted and started in background",
-        now);
+        jobId, "DEDUPLICATION", "ACCEPTED", "공고 중복제거 작업이 수락되어 백그라운드에서 시작되었습니다.", now);
   }
 
+  /**
+   * 특정 월 기준 채용 시장 다차원 사전 집계(Pre-aggregation)를 실행합니다.
+   *
+   * @param baseYearMonth 기준 년월 (형식: "YYYY-MM")
+   * @return 비동기 작업 수락 응답
+   */
   public JobExecutionResponse triggerMarketAggregation(String baseYearMonth) {
     ensureNoJobRunning();
     String jobId = UUID.randomUUID().toString();
@@ -195,16 +221,15 @@ public class CollectorPipelineService {
     CompletableFuture.runAsync(
         () -> {
           try {
-            log.info(
-                "[Job:{}] Starting market pre-aggregation (month={})...", jobId, baseYearMonth);
+            log.info("[작업:{}] 채용 시장 다차원 사전 집계 작업을 시작합니다 (기준월: {})...", jobId, baseYearMonth);
             int rows =
                 baseYearMonth != null && !baseYearMonth.isBlank()
                     ? marketAggregateService.aggregateMarketDataForMonth(baseYearMonth)
                     : marketAggregateService.aggregateMarketData();
             state.complete(Map.of("aggregatedRows", rows));
-            log.info("[Job:{}] Market pre-aggregation completed: {} rows generated", jobId, rows);
+            log.info("[작업:{}] 채용 시장 사전 집계 완료. 총 {}개의 집계 레코드가 생성되었습니다.", jobId, rows);
           } catch (Exception e) {
-            log.error("[Job:{}] Market pre-aggregation failed: {}", jobId, e.getMessage(), e);
+            log.error("[작업:{}] 채용 시장 사전 집계 실패: {}", jobId, e.getMessage(), e);
             state.fail(e.getMessage());
           } finally {
             isJobRunning.set(false);
@@ -213,13 +238,15 @@ public class CollectorPipelineService {
         executor);
 
     return new JobExecutionResponse(
-        jobId,
-        "MARKET_AGGREGATION",
-        "ACCEPTED",
-        "Market pre-aggregation job accepted and started in background",
-        now);
+        jobId, "MARKET_AGGREGATION", "ACCEPTED", "시장 사전 집계 작업이 수락되어 백그라운드에서 시작되었습니다.", now);
   }
 
+  /**
+   * 보존된 HTML 원문을 기반으로 공고 데이터 재가공(Backfill)을 실행합니다.
+   *
+   * @param request dryRun 여부
+   * @return 비동기 작업 수락 응답
+   */
   public JobExecutionResponse triggerReprocess(ReprocessRequest request) {
     ensureNoJobRunning();
     String jobId = UUID.randomUUID().toString();
@@ -231,7 +258,7 @@ public class CollectorPipelineService {
         () -> {
           try {
             boolean dryRun = request != null && Boolean.TRUE.equals(request.dryRun());
-            log.info("[Job:{}] Starting reprocess (dryRun={})...", jobId, dryRun);
+            log.info("[작업:{}] 원문 기반 백필 재가공 작업을 시작합니다 (dryRun={})...", jobId, dryRun);
             BackfillReport report = jobPostingBackfill.run(dryRun);
             Map<String, Object> details = new HashMap<>();
             details.put("dryRun", dryRun);
@@ -246,9 +273,9 @@ public class CollectorPipelineService {
             details.put("orphanSkillsRemoved", report.orphanSkillsRemoved());
             details.put("rawIngestMissing", report.rawIngestMissing());
             state.complete(details);
-            log.info("[Job:{}] Reprocess completed successfully: {}", jobId, report);
+            log.info("[작업:{}] 원문 기반 백필 재가공 완료: {}", jobId, report);
           } catch (Exception e) {
-            log.error("[Job:{}] Reprocess failed: {}", jobId, e.getMessage(), e);
+            log.error("[작업:{}] 원문 기반 백필 재가공 실패: {}", jobId, e.getMessage(), e);
             state.fail(e.getMessage());
           } finally {
             isJobRunning.set(false);
@@ -257,23 +284,39 @@ public class CollectorPipelineService {
         executor);
 
     return new JobExecutionResponse(
-        jobId, "REPROCESS", "ACCEPTED", "Reprocess job accepted and started in background", now);
+        jobId, "REPROCESS", "ACCEPTED", "원문 재가공 작업이 수락되어 백그라운드에서 시작되었습니다.", now);
   }
 
+  /**
+   * 비동기 작업 상태를 단건 조회합니다.
+   *
+   * @param jobId 작업 ID
+   * @return 작업 상태 응답 DTO
+   */
   public JobStatusResponse getJobStatus(String jobId) {
     JobState state = jobHistory.get(jobId);
     if (state == null) {
-      throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Job not found: " + jobId);
+      throw new ResponseStatusException(HttpStatus.NOT_FOUND, "작업을 찾을 수 없습니다: " + jobId);
     }
     return state.toResponse();
   }
 
+  /**
+   * 최근 작업 실행 이력 목록을 최신순으로 조회합니다.
+   *
+   * @return 최근 최대 100건의 작업 이력 목록
+   */
   public List<JobStatusResponse> getRecentJobs() {
     List<JobState> states = new ArrayList<>(jobHistory.values());
     Collections.reverse(states);
     return states.stream().map(JobState::toResponse).toList();
   }
 
+  /**
+   * 수집기 DB 전체 데이터 건수 및 통계를 조회합니다.
+   *
+   * @return raw_ingest, job_posting, skill, wage_stat 건수 및 포털별 분포
+   */
   public PipelineStatsResponse getStats() {
     long rawCount = rawIngestRepository.count();
     long postingCount = jobPostingRepository.count();
@@ -292,8 +335,7 @@ public class CollectorPipelineService {
 
   private void ensureNoJobRunning() {
     if (!isJobRunning.compareAndSet(false, true)) {
-      throw new ResponseStatusException(
-          HttpStatus.CONFLICT, "Another pipeline job is already in progress.");
+      throw new ResponseStatusException(HttpStatus.CONFLICT, "다른 파이프라인 작업이 이미 진행 중입니다.");
     }
   }
 

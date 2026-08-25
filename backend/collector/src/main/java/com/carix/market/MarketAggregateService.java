@@ -54,11 +54,11 @@ public class MarketAggregateService {
    */
   @Transactional
   public int aggregateMarketDataForMonth(String baseYearMonth) {
-    log.info("[MarketAggregate] Starting pre-aggregation for cohort month: {}", baseYearMonth);
+    log.info("[시장사전집계] 기준년월({})에 대한 다차원 사전 집계를 시작합니다...", baseYearMonth);
     List<JobPosting> allPostings = jobPostingRepository.findAll();
 
     if (allPostings.isEmpty()) {
-      log.warn("[MarketAggregate] No job postings found. Skipping aggregation.");
+      log.warn("[시장사전집계] 적재된 채용공고가 없어 집계를 건너뜁니다.");
       return 0;
     }
 
@@ -80,9 +80,7 @@ public class MarketAggregateService {
 
     marketAggregateRepository.saveAll(aggregates);
     log.info(
-        "[MarketAggregate] Pre-aggregation completed. Total {} aggregate rows saved for month {}",
-        aggregates.size(),
-        baseYearMonth);
+        "[시장사전집계] 사전 집계 완료. 기준년월 {}에 대해 총 {}건의 집계 레코드가 저장되었습니다.", baseYearMonth, aggregates.size());
 
     return aggregates.size();
   }

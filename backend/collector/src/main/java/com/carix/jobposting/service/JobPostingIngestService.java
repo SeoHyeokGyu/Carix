@@ -438,6 +438,7 @@ public class JobPostingIngestService {
         .orElseGet(() -> skillRepository.save(new Skill(standardName, category, false)));
   }
 
+  /** 원문 HTML을 raw_ingest 테이블에 중복 없이 영구 보존합니다. */
   private void persistRawIngestIfAbsent(
       String source, String sourceItemId, String html, Instant collectedAt, String month) {
     if (rawIngestRepository.findBySourceAndSourceItemId(source, sourceItemId).isPresent()) {
@@ -448,11 +449,11 @@ public class JobPostingIngestService {
       rawIngestRepository.save(
           new RawIngest(source, sourceItemId, payload, SCHEMA_VERSION, month, month, collectedAt));
     } catch (IOException e) {
-      log.error(
-          "Failed to serialize raw_ingest for {}/{}: {}", source, sourceItemId, e.getMessage());
+      log.error("[원문보존] raw_ingest JSON 직렬화 실패 ({}/{}): {}", source, sourceItemId, e.getMessage());
     }
   }
 
+  /** 공고 상세페이지 URL에 접근하여 원문 HTML을 가져옵니다. */
   private String fetchDetailHtml(String link) {
     try {
       Document detailDoc =
@@ -463,11 +464,12 @@ public class JobPostingIngestService {
               .get();
       return detailDoc.outerHtml();
     } catch (Exception e) {
-      log.warn("Failed to fetch detail html for link {}: {}", link, e.getMessage());
+      log.warn("[잡코리아] 상세페이지 HTML 수집 실패 (링크: {}): {}", link, e.getMessage());
       return null;
     }
   }
 
+  /** 사람인 크롤링 방어 우회를 위한 세션 쿠키를 초기화합니다. */
   private Map<String, String> initSaraminSessionCookies() {
     try {
       org.jsoup.Connection.Response res =
@@ -478,7 +480,7 @@ public class JobPostingIngestService {
               .execute();
       return res.cookies();
     } catch (Exception e) {
-      log.warn("Failed to fetch Saramin session cookies: {}", e.getMessage());
+      log.warn("[사람인] 세션 쿠키 발급 실패 (헤더 없이 진행): {}", e.getMessage());
       return new HashMap<>();
     }
   }
