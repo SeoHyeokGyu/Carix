@@ -51,7 +51,7 @@ cp .env.example .env
 | `SPRING_DATASOURCE_URL` | 백엔드 DB 연결 | `jdbc:postgresql://144.24.90.88:5432/carix?sslmode=require` (§3) |
 | `SPRING_DATASOURCE_USERNAME` / `_PASSWORD` | 개인별 DB 롤 | §3.0 에서 발급받는다 |
 | `CARIX_ENCRYPTION_KEY` | 컬럼 암호화(AES-256-GCM) | `openssl rand -base64 32` |
-| `KOSIS_API_KEY` 외 3종 | 배치 원천 API | 선행 검증 후 발급 |
+| `KOSIS_API_KEY` | KOSIS 통계청 OpenAPI 연동 | KOSIS Open API 발급 키 (임금통계/CPI 수집용) |
 
 ## 3. OCI DB 원격 연결
 
