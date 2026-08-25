@@ -35,7 +35,7 @@
 > | `skill` | `standard_name VARCHAR(100)` 단독 UNIQUE, `category NOT NULL` | `VARCHAR(255)`, `UNIQUE (standard_name, category)`, `category` NULL 허용 |
 > | `skill.category` | `'BACKEND'`·`'FRONTEND'` 등 기술 분야 | `'SKILL'`·`'JOB_CATEGORY'`·`'INDUSTRY'` — 수집 태그의 성격 구분 |
 > | `skill_alias` | `alias_name VARCHAR(100) UNIQUE` | `VARCHAR(255)`, UNIQUE 없음. 별칭 78개가 스킬 24개에 붙어 있으나 읽는 코드가 아직 없다 |
-> | `raw_ingest` | `payload` NULL 허용(원문 purge), `schema_version NOT NULL` | `payload NOT NULL`, `schema_version` NULL 허용 |
+> | `raw_ingest` | 원문 보관 + 24개월 purge | **원문을 보관하지 않는다.** `payload`·`purged_at`·`schema_version` 컬럼 없음. 수집 이력만 남는다 |
 > | `job_posting.content` | 공고 상세 본문 텍스트 | **컬럼 없음.** 스킬 파싱은 `raw_ingest` 원문에서 직접 한다 |
 
 ```sql
@@ -159,9 +159,6 @@ CREATE TABLE raw_ingest (
     id UUID PRIMARY KEY,
     source VARCHAR(50) NOT NULL, -- 'KOSIS_CPI', 'JOBKOREA', 'SARAMIN', 'WAGE_STAT'
     source_item_id VARCHAR(100) NOT NULL, -- 원천 내 원문 식별자
-    payload JSONB, -- 원문 응답. 보존 24개월 초과 시 NULL 처리(원문만 삭제), 행·메타데이터는 유지
-    purged_at TIMESTAMP WITH TIME ZONE, -- 원문 삭제 시각 (NULL = 원문 보존 중)
-    schema_version VARCHAR(20) NOT NULL,
     first_seen_month VARCHAR(6) NOT NULL,
     last_seen_month VARCHAR(6) NOT NULL,
     collected_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,

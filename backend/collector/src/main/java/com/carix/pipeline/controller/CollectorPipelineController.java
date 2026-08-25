@@ -4,7 +4,6 @@ import com.carix.pipeline.dto.CrawlRequest;
 import com.carix.pipeline.dto.JobExecutionResponse;
 import com.carix.pipeline.dto.JobStatusResponse;
 import com.carix.pipeline.dto.PipelineStatsResponse;
-import com.carix.pipeline.dto.ReprocessRequest;
 import com.carix.pipeline.dto.SeedLoadRequest;
 import com.carix.pipeline.service.CollectorPipelineService;
 import java.util.List;
@@ -61,23 +60,6 @@ public class CollectorPipelineController {
   public ResponseEntity<JobExecutionResponse> triggerSeedLoad(
       @RequestBody(required = false) SeedLoadRequest request) {
     JobExecutionResponse response = pipelineService.triggerSeedLoad(request);
-    return ResponseEntity.status(HttpStatus.ACCEPTED).body(response);
-  }
-
-  /**
-   * [POST /internal/pipeline/reprocess] 보존된 원문(raw_ingest) 기반 공고 데이터 재가공(Backfill).
-   *
-   * <p>외부 사이트를 다시 긁지 않고, 이미 DB에 보존된 원문 HTML을 새로운 파싱/정규화 규칙(급여 범위, 직군 분류, 기업규모, Aho-Corasick 스킬 분류,
-   * 중복제거 등)으로 재해석하여 {@code core.job_posting}을 최신화합니다.
-   *
-   * @param request dryRun 여부 (true일 경우 DB를 수정하지 않고 영향도만 시뮬레이션)
-   * @return 202 Accepted 및 비동기 작업 추적용 jobId
-   */
-  @PostMapping("/reprocess")
-  public ResponseEntity<JobExecutionResponse> triggerReprocess(
-      @RequestBody(required = false) ReprocessRequest request) {
-    ReprocessRequest req = request != null ? request : new ReprocessRequest(true);
-    JobExecutionResponse response = pipelineService.triggerReprocess(req);
     return ResponseEntity.status(HttpStatus.ACCEPTED).body(response);
   }
 

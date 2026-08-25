@@ -115,8 +115,6 @@ erDiagram
         uuid id PK
         varchar source
         varchar source_item_id
-        jsonb payload
-        timestamp purged_at
         varchar schema_version
         varchar first_seen_month
         varchar last_seen_month

@@ -11,9 +11,12 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-import org.hibernate.annotations.JdbcTypeCode;
-import org.hibernate.type.SqlTypes;
 
+/**
+ * 수집 이력. 어떤 원천의 어떤 항목을 언제 봤는지만 남긴다.
+ *
+ * <p>원문은 보관하지 않는다. 저장된 값에서 공고를 다시 파싱할 수 없으므로 파싱 결과를 고치려면 다시 수집해야 하고, 만료된 공고는 그것도 되지 않는다.
+ */
 @Entity
 @Table(name = "raw_ingest")
 @Getter
@@ -30,13 +33,6 @@ public class RawIngest {
   @Column(name = "source_item_id", nullable = false, length = 100)
   private String sourceItemId;
 
-  @JdbcTypeCode(SqlTypes.JSON)
-  @Column(nullable = false, columnDefinition = "jsonb")
-  private String payload;
-
-  @Column(name = "schema_version", length = 20)
-  private String schemaVersion;
-
   @Column(name = "first_seen_month", length = 6)
   private String firstSeenMonth;
 
@@ -49,19 +45,9 @@ public class RawIngest {
   public RawIngest(
       String source,
       String sourceItemId,
-      String payload,
-      String schemaVersion,
       String firstSeenMonth,
       String lastSeenMonth,
       Instant collectedAt) {
-    this(
-        UUID.randomUUID(),
-        source,
-        sourceItemId,
-        payload,
-        schemaVersion,
-        firstSeenMonth,
-        lastSeenMonth,
-        collectedAt);
+    this(UUID.randomUUID(), source, sourceItemId, firstSeenMonth, lastSeenMonth, collectedAt);
   }
 }

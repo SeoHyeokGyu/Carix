@@ -4,7 +4,6 @@ import com.carix.jobposting.JobPosting;
 import com.carix.jobposting.JobPostingRepository;
 import com.carix.jobposting.RawIngest;
 import com.carix.jobposting.RawIngestIds;
-import com.carix.jobposting.RawIngestPayloads;
 import com.carix.jobposting.RawIngestRepository;
 import com.carix.jobposting.Skill;
 import com.carix.jobposting.SkillRepository;
@@ -26,7 +25,6 @@ import java.nio.file.Path;
 import java.time.Instant;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.csv.CSVFormat;
@@ -38,7 +36,6 @@ public class SeedLoader {
 
   private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
   private static final String SEED_MONTH = "202608";
-  private static final String SCHEMA_VERSION = "v1-seed";
 
   private final JobPostingRepository jobPostingRepository;
   private final SkillRepository skillRepository;
@@ -115,7 +112,7 @@ public class SeedLoader {
       JsonNode detail = OBJECT_MAPPER.readTree(detailFile.toFile());
       detailHtml = detail.path("rawContent").asText(null);
       collectedAt = Instant.parse(detail.path("collectedAt").asText());
-      persistRawIngestIfAbsent("JOBKOREA", "detail-" + externalId, detailHtml, collectedAt);
+      persistRawIngestIfAbsent("JOBKOREA", "detail-" + externalId, collectedAt);
     }
 
     String listingHtml = listingIndex.htmlForJobKorea(externalId);
@@ -291,25 +288,15 @@ public class SeedLoader {
     persistRawIngestIfAbsent(
         source,
         RawIngestIds.datedListpage(listpage.sourceItemId(), listpage.collectedAt()),
-        RawIngestPayloads.listpage(listpage.html()),
         listpage.collectedAt());
     return listpage.collectedAt();
   }
 
-  private void persistRawIngestIfAbsent(
-      String source, String sourceItemId, String html, Instant collectedAt) {
+  private void persistRawIngestIfAbsent(String source, String sourceItemId, Instant collectedAt) {
     if (rawIngestRepository.findBySourceAndSourceItemId(source, sourceItemId).isPresent()) {
       return;
     }
-    String payload;
-    try {
-      payload = OBJECT_MAPPER.writeValueAsString(Map.of("html", html));
-    } catch (IOException e) {
-      throw new IllegalStateException(
-          "Failed to serialize raw_ingest payload for " + source + "/" + sourceItemId, e);
-    }
     rawIngestRepository.save(
-        new RawIngest(
-            source, sourceItemId, payload, SCHEMA_VERSION, SEED_MONTH, SEED_MONTH, collectedAt));
+        new RawIngest(source, sourceItemId, SEED_MONTH, SEED_MONTH, collectedAt));
   }
 }

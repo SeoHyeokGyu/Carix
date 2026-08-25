@@ -12,7 +12,6 @@ import com.carix.pipeline.dto.CrawlRequest;
 import com.carix.pipeline.dto.JobExecutionResponse;
 import com.carix.pipeline.dto.JobStatusResponse;
 import com.carix.pipeline.dto.PipelineStatsResponse;
-import com.carix.pipeline.dto.ReprocessRequest;
 import com.carix.pipeline.service.CollectorPipelineService;
 import java.time.Instant;
 import java.util.List;
@@ -50,23 +49,6 @@ class CollectorPipelineControllerTest {
                 .content("{\"portal\":\"JOBKOREA\",\"maxPages\":5}"))
         .andExpect(status().isAccepted())
         .andExpect(jsonPath("$.jobId").value("job-123"))
-        .andExpect(jsonPath("$.status").value("ACCEPTED"));
-  }
-
-  @Test
-  @DisplayName("POST /internal/pipeline/reprocess - 원본 재가공 비동기 요청 시 202 Accepted 반환")
-  void triggerReprocessReturnsAccepted() throws Exception {
-    JobExecutionResponse response =
-        new JobExecutionResponse("job-456", "REPROCESS", "ACCEPTED", "Started", Instant.now());
-    when(pipelineService.triggerReprocess(any(ReprocessRequest.class))).thenReturn(response);
-
-    mockMvc
-        .perform(
-            post("/internal/pipeline/reprocess")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"dryRun\":true}"))
-        .andExpect(status().isAccepted())
-        .andExpect(jsonPath("$.jobId").value("job-456"))
         .andExpect(jsonPath("$.status").value("ACCEPTED"));
   }
 

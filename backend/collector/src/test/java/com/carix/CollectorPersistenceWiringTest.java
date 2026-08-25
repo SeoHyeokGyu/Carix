@@ -5,7 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import com.carix.jobposting.JobPostingRepository;
 import com.carix.jobposting.RawIngestRepository;
 import com.carix.jobposting.SkillRepository;
-import com.carix.jobposting.backfill.JobPostingBackfill;
+import com.carix.market.MarketAggregateRepository;
 import com.carix.wagestat.WageStatObservationRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -24,20 +24,16 @@ class CollectorPersistenceWiringTest {
   private SkillRepository skillRepository;
 
   @Autowired(required = false)
-  private JobPostingBackfill jobPostingBackfill;
-
-  @Autowired(required = false)
   private WageStatObservationRepository wageStatObservationRepository;
 
   @Autowired(required = false)
-  private com.carix.market.MarketAggregateRepository marketAggregateRepository;
+  private MarketAggregateRepository marketAggregateRepository;
 
   @Test
   void registersJobPostingRepositories() {
     assertNotNull(jobPostingRepository);
     assertNotNull(rawIngestRepository);
     assertNotNull(skillRepository);
-    assertNotNull(jobPostingBackfill);
     assertNotNull(wageStatObservationRepository);
     assertNotNull(marketAggregateRepository);
   }

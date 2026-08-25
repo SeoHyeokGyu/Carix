@@ -3,15 +3,12 @@ package com.carix.pipeline.service;
 import com.carix.jobposting.JobPostingRepository;
 import com.carix.jobposting.RawIngestRepository;
 import com.carix.jobposting.SkillRepository;
-import com.carix.jobposting.backfill.BackfillReport;
-import com.carix.jobposting.backfill.JobPostingBackfill;
 import com.carix.jobposting.seed.SeedLoader;
 import com.carix.jobposting.service.JobPostingIngestService;
 import com.carix.pipeline.dto.CrawlRequest;
 import com.carix.pipeline.dto.JobExecutionResponse;
 import com.carix.pipeline.dto.JobStatusResponse;
 import com.carix.pipeline.dto.PipelineStatsResponse;
-import com.carix.pipeline.dto.ReprocessRequest;
 import com.carix.pipeline.dto.SeedLoadRequest;
 import com.carix.wagestat.WageStatIngestService;
 import com.carix.wagestat.WageStatObservationRepository;
@@ -51,7 +48,6 @@ public class CollectorPipelineService {
   private final SkillRepository skillRepository;
   private final WageStatObservationRepository wageStatObservationRepository;
   private final com.carix.market.MarketAggregateRepository marketAggregateRepository;
-  private final JobPostingBackfill jobPostingBackfill;
   private final JobPostingIngestService jobPostingIngestService;
   private final WageStatIngestService wageStatIngestService;
   private final com.carix.jobposting.dedup.JobPostingDeduplicator jobPostingDeduplicator;
@@ -239,52 +235,6 @@ public class CollectorPipelineService {
 
     return new JobExecutionResponse(
         jobId, "MARKET_AGGREGATION", "ACCEPTED", "시장 사전 집계 작업이 수락되어 백그라운드에서 시작되었습니다.", now);
-  }
-
-  /**
-   * 보존된 HTML 원문을 기반으로 공고 데이터 재가공(Backfill)을 실행합니다.
-   *
-   * @param request dryRun 여부
-   * @return 비동기 작업 수락 응답
-   */
-  public JobExecutionResponse triggerReprocess(ReprocessRequest request) {
-    ensureNoJobRunning();
-    String jobId = UUID.randomUUID().toString();
-    Instant now = Instant.now();
-    JobState state = new JobState(jobId, "REPROCESS", "RUNNING", now);
-    jobHistory.put(jobId, state);
-
-    CompletableFuture.runAsync(
-        () -> {
-          try {
-            boolean dryRun = request != null && Boolean.TRUE.equals(request.dryRun());
-            log.info("[작업:{}] 원문 기반 백필 재가공 작업을 시작합니다 (dryRun={})...", jobId, dryRun);
-            BackfillReport report = jobPostingBackfill.run(dryRun);
-            Map<String, Object> details = new HashMap<>();
-            details.put("dryRun", dryRun);
-            details.put("postingsScanned", report.postingsScanned());
-            details.put("salaryFilled", report.salaryFilled());
-            details.put("jobFamilyFilled", report.jobFamilyFilled());
-            details.put("companySizeFilled", report.companySizeFilled());
-            details.put("employmentTypeFilled", report.employmentTypeFilled());
-            details.put("experienceCorrected", report.experienceCorrected());
-            details.put("skillLinksRewritten", report.skillLinksRewritten());
-            details.put("skillsRecategorized", report.skillsRecategorized());
-            details.put("orphanSkillsRemoved", report.orphanSkillsRemoved());
-            details.put("rawIngestMissing", report.rawIngestMissing());
-            state.complete(details);
-            log.info("[작업:{}] 원문 기반 백필 재가공 완료: {}", jobId, report);
-          } catch (Exception e) {
-            log.error("[작업:{}] 원문 기반 백필 재가공 실패: {}", jobId, e.getMessage(), e);
-            state.fail(e.getMessage());
-          } finally {
-            isJobRunning.set(false);
-          }
-        },
-        executor);
-
-    return new JobExecutionResponse(
-        jobId, "REPROCESS", "ACCEPTED", "원문 재가공 작업이 수락되어 백그라운드에서 시작되었습니다.", now);
   }
 
   /**

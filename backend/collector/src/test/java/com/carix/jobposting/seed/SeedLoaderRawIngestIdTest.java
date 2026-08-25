@@ -1,8 +1,6 @@
 package com.carix.jobposting.seed;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
@@ -76,17 +74,6 @@ class SeedLoaderRawIngestIdTest {
     assertEquals(List.of("listpage-1-20260809"), savedSourceItemIds());
   }
 
-  /** 목록페이지 원문의 대부분은 파서가 안 읽는 script·style 이다. 저장 전에 떼어낸다. */
-  @Test
-  void storesTheListpageWithoutScriptOrStyle() throws IOException {
-    new SeedLoader(jobPostingRepository, skillRepository, rawIngestRepository).load(outDir);
-
-    String payload = savedPayloads().get(0);
-    assertFalse(payload.contains("__INITIAL__"), "script 본문이 저장됐다");
-    assertFalse(payload.contains("color:#333"), "style 본문이 저장됐다");
-    assertTrue(payload.contains("item_recruit"), "목록 항목이 사라졌다");
-  }
-
   /**
    * 사람인은 `경력 3~10년` 처럼 범위를 준다. CSV `CareerRange` 열에는 크롤러가 뭉갠 상한(10)이 들어 있어 그대로 쓰면 하한 자리에 상한이 저장된다 —
    * 3년차도 지원 가능한 공고가 시니어로 분류된다. 원천 표기(`CareerType`)에서 다시 가른다.
@@ -105,17 +92,6 @@ class SeedLoaderRawIngestIdTest {
     org.mockito.Mockito.verify(jobPostingRepository, org.mockito.Mockito.atLeastOnce())
         .save(captor.capture());
     return captor.getAllValues();
-  }
-
-  private List<String> savedPayloads() {
-    ArgumentCaptor<RawIngest> captor = ArgumentCaptor.forClass(RawIngest.class);
-    org.mockito.Mockito.verify(rawIngestRepository, org.mockito.Mockito.atLeastOnce())
-        .save(captor.capture());
-    List<String> payloads = new ArrayList<>();
-    for (RawIngest saved : captor.getAllValues()) {
-      payloads.add(saved.getPayload());
-    }
-    return payloads;
   }
 
   private List<String> savedSourceItemIds() {
