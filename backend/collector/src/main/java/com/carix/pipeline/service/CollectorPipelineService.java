@@ -44,10 +44,12 @@ public class CollectorPipelineService {
   private final RawIngestRepository rawIngestRepository;
   private final SkillRepository skillRepository;
   private final WageStatObservationRepository wageStatObservationRepository;
+  private final com.carix.market.MarketAggregateRepository marketAggregateRepository;
   private final JobPostingBackfill jobPostingBackfill;
   private final JobPostingIngestService jobPostingIngestService;
   private final WageStatIngestService wageStatIngestService;
   private final com.carix.jobposting.dedup.JobPostingDeduplicator jobPostingDeduplicator;
+  private final com.carix.market.MarketAggregateService marketAggregateService;
 
   private final AtomicBoolean isJobRunning = new AtomicBoolean(false);
   private final Map<String, JobState> jobHistory =
@@ -180,6 +182,41 @@ public class CollectorPipelineService {
         "DEDUPLICATION",
         "ACCEPTED",
         "Deduplication job accepted and started in background",
+        now);
+  }
+
+  public JobExecutionResponse triggerMarketAggregation(String baseYearMonth) {
+    ensureNoJobRunning();
+    String jobId = UUID.randomUUID().toString();
+    Instant now = Instant.now();
+    JobState state = new JobState(jobId, "MARKET_AGGREGATION", "RUNNING", now);
+    jobHistory.put(jobId, state);
+
+    CompletableFuture.runAsync(
+        () -> {
+          try {
+            log.info(
+                "[Job:{}] Starting market pre-aggregation (month={})...", jobId, baseYearMonth);
+            int rows =
+                baseYearMonth != null && !baseYearMonth.isBlank()
+                    ? marketAggregateService.aggregateMarketDataForMonth(baseYearMonth)
+                    : marketAggregateService.aggregateMarketData();
+            state.complete(Map.of("aggregatedRows", rows));
+            log.info("[Job:{}] Market pre-aggregation completed: {} rows generated", jobId, rows);
+          } catch (Exception e) {
+            log.error("[Job:{}] Market pre-aggregation failed: {}", jobId, e.getMessage(), e);
+            state.fail(e.getMessage());
+          } finally {
+            isJobRunning.set(false);
+          }
+        },
+        executor);
+
+    return new JobExecutionResponse(
+        jobId,
+        "MARKET_AGGREGATION",
+        "ACCEPTED",
+        "Market pre-aggregation job accepted and started in background",
         now);
   }
 

@@ -100,6 +100,21 @@ class CollectorPipelineControllerTest {
   }
 
   @Test
+  @DisplayName("POST /internal/pipeline/aggregate - 시장 사전집계 비동기 요청 시 202 Accepted 반환")
+  void triggerAggregateReturnsAccepted() throws Exception {
+    JobExecutionResponse response =
+        new JobExecutionResponse(
+            "job-888", "MARKET_AGGREGATION", "ACCEPTED", "Started", Instant.now());
+    when(pipelineService.triggerMarketAggregation("2026-08")).thenReturn(response);
+
+    mockMvc
+        .perform(post("/internal/pipeline/aggregate?month=2026-08"))
+        .andExpect(status().isAccepted())
+        .andExpect(jsonPath("$.jobId").value("job-888"))
+        .andExpect(jsonPath("$.jobType").value("MARKET_AGGREGATION"));
+  }
+
+  @Test
   @DisplayName("GET /internal/pipeline/jobs/{jobId} - 작업 상태 조회 시 200 OK 반환")
   void getJobStatusReturnsOk() throws Exception {
     JobStatusResponse response =

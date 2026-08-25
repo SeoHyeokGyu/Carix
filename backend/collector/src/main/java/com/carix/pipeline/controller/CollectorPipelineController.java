@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /** 수집기 파이프라인 관리 및 비동기 작업 제어 REST API 컨트롤러. */
@@ -57,6 +58,13 @@ public class CollectorPipelineController {
   @PostMapping("/dedup")
   public ResponseEntity<JobExecutionResponse> triggerDeduplication() {
     JobExecutionResponse response = pipelineService.triggerDeduplication();
+    return ResponseEntity.status(HttpStatus.ACCEPTED).body(response);
+  }
+
+  @PostMapping("/aggregate")
+  public ResponseEntity<JobExecutionResponse> triggerMarketAggregation(
+      @RequestParam(value = "month", required = false) String month) {
+    JobExecutionResponse response = pipelineService.triggerMarketAggregation(month);
     return ResponseEntity.status(HttpStatus.ACCEPTED).body(response);
   }
 

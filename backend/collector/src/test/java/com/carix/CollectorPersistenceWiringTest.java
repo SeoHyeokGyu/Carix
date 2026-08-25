@@ -29,6 +29,9 @@ class CollectorPersistenceWiringTest {
   @Autowired(required = false)
   private WageStatObservationRepository wageStatObservationRepository;
 
+  @Autowired(required = false)
+  private com.carix.market.MarketAggregateRepository marketAggregateRepository;
+
   @Test
   void registersJobPostingRepositories() {
     assertNotNull(jobPostingRepository);
@@ -36,5 +39,6 @@ class CollectorPersistenceWiringTest {
     assertNotNull(skillRepository);
     assertNotNull(jobPostingBackfill);
     assertNotNull(wageStatObservationRepository);
+    assertNotNull(marketAggregateRepository);
   }
 }
