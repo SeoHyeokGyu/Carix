@@ -186,6 +186,11 @@ public class JobPosting {
     skills.stream().filter(skill -> !linkedIds.contains(skill.getId())).forEach(this::addSkill);
   }
 
+  public void assignDedupGroup(UUID groupId, String ruleVersion) {
+    this.dedupGroupId = groupId;
+    this.dedupRuleVersion = ruleVersion;
+  }
+
   public List<Skill> getSkills() {
     return jobPostingSkills.stream().map(JobPostingSkill::getSkill).collect(Collectors.toList());
   }

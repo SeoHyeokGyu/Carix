@@ -49,6 +49,7 @@ public class JobPostingBackfill {
   private final JobPostingRepository jobPostingRepository;
   private final RawIngestRepository rawIngestRepository;
   private final SkillRepository skillRepository;
+  private final com.carix.jobposting.dedup.JobPostingDeduplicator deduplicator;
 
   private final JobKoreaDetailParser detailParser = new JobKoreaDetailParser();
   private final SaraminListingEnricher listingEnricher = new SaraminListingEnricher();
@@ -66,6 +67,10 @@ public class JobPostingBackfill {
     backfillJobKorea(counters, touchedSkills, dryRun);
     backfillSaramin(counters, touchedSkills, dryRun);
     counters.orphanSkillsRemoved = removeOrphanSkills(dryRun);
+
+    if (!dryRun) {
+      deduplicator.deduplicate(jobPostingRepository.findAll());
+    }
 
     return counters.toReport(dryRun);
   }

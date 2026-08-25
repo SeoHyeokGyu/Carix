@@ -47,6 +47,7 @@ public class CollectorPipelineService {
   private final JobPostingBackfill jobPostingBackfill;
   private final JobPostingIngestService jobPostingIngestService;
   private final WageStatIngestService wageStatIngestService;
+  private final com.carix.jobposting.dedup.JobPostingDeduplicator jobPostingDeduplicator;
 
   private final AtomicBoolean isJobRunning = new AtomicBoolean(false);
   private final Map<String, JobState> jobHistory =
@@ -148,6 +149,37 @@ public class CollectorPipelineService {
         "WAGE_STAT_INGEST",
         "ACCEPTED",
         "Wage stat ingest job accepted and started in background",
+        now);
+  }
+
+  public JobExecutionResponse triggerDeduplication() {
+    ensureNoJobRunning();
+    String jobId = UUID.randomUUID().toString();
+    Instant now = Instant.now();
+    JobState state = new JobState(jobId, "DEDUPLICATION", "RUNNING", now);
+    jobHistory.put(jobId, state);
+
+    CompletableFuture.runAsync(
+        () -> {
+          try {
+            log.info("[Job:{}] Starting job posting deduplication...", jobId);
+            int groups = jobPostingDeduplicator.deduplicateAll();
+            state.complete(Map.of("dedupMatchedGroups", groups));
+            log.info("[Job:{}] Deduplication completed: {} groups formed", jobId, groups);
+          } catch (Exception e) {
+            log.error("[Job:{}] Deduplication failed: {}", jobId, e.getMessage(), e);
+            state.fail(e.getMessage());
+          } finally {
+            isJobRunning.set(false);
+          }
+        },
+        executor);
+
+    return new JobExecutionResponse(
+        jobId,
+        "DEDUPLICATION",
+        "ACCEPTED",
+        "Deduplication job accepted and started in background",
         now);
   }
 

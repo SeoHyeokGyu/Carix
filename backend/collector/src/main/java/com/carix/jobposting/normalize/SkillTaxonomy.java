@@ -6,6 +6,7 @@ import com.carix.jobposting.SkillAliasRepository;
 import com.carix.jobposting.SkillRepository;
 import jakarta.annotation.PostConstruct;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
@@ -16,12 +17,14 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Pattern;
 import lombok.extern.slf4j.Slf4j;
+import org.ahocorasick.trie.Emit;
+import org.ahocorasick.trie.Trie;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 /**
  * DB (core.skill 및 core.skill_alias) 기반으로 스킬 별칭 사전을 동적으로 로딩하여 복합 토큰 분리, 표준 표기 통일, 잡음 필터링을 수행하는 스킬
- * 정규화 엔진.
+ * 정규화 엔진. (Aho-Corasick 고속 오토마타 및 Google RE2J 적용)
  */
 @Slf4j
 @Component
@@ -30,7 +33,7 @@ public class SkillTaxonomy {
   public static final String SKILL = "SKILL";
   public static final String JOB_CATEGORY = "JOB_CATEGORY";
 
-  /** 복합 문자열 분리용 정규식 (쉼표, 슬래시, 역슬래시, 세미콜론, 줄바꿈, 파이프, 앰퍼샌드, 괄호, 가운뎃점, 마침표 등) */
+  /** 복합 문자열 분리용 RE2J 정규식 */
   private static final Pattern DELIMITER_PATTERN =
       Pattern.compile("[,/\\\\;\n|\t&()·\\[\\]{}]|\\.(?=\\s|$)|(?<=\\w)\\+(?=\\w)");
 
@@ -67,6 +70,9 @@ public class SkillTaxonomy {
 
   /** DB 기반 동적 인메모리 캐시 맵 */
   private final Map<String, String> aliasMap = new ConcurrentHashMap<>();
+
+  /** Aho-Corasick 고속 다중 키워드 매칭 Trie */
+  private volatile Trie trie;
 
   public SkillTaxonomy() {
     this(null, null);
@@ -121,6 +127,15 @@ public class SkillTaxonomy {
 
     this.aliasMap.clear();
     this.aliasMap.putAll(loaded);
+
+    // Aho-Corasick Trie 오토마타 빌드 (2글자 이상 키워드 등록)
+    Trie.TrieBuilder builder = Trie.builder().ignoreOverlaps();
+    for (String aliasKey : loaded.keySet()) {
+      if (aliasKey.length() >= 2) {
+        builder.addKeyword(aliasKey);
+      }
+    }
+    this.trie = builder.build();
   }
 
   public List<String> extractCanonicalSkills(String rawText) {
@@ -151,31 +166,18 @@ public class SkillTaxonomy {
         continue;
       }
 
-      // 3. 공백이나 점 등으로 여러 스킬이 붙어있는 경우 (예: "Kotlin Spring Boot", "Java Python")
-      // 텍스트 내 등장 위치(start index) 순으로 정렬하여 추출
-      record MatchSpan(int startIdx, int length, String skillName) {}
-      List<MatchSpan> spans = new ArrayList<>();
+      // 3. Aho-Corasick Trie를 사용한 1-Pass 고속 다중 키워드 추출 (예: "Kotlin Spring Boot", "Java Python")
+      Trie currentTrie = this.trie;
+      Collection<Emit> emits =
+          currentTrie != null ? currentTrie.parseText(normalizedKey) : Collections.emptyList();
 
-      for (Map.Entry<String, String> entry : aliasMap.entrySet()) {
-        String aliasKey = entry.getKey();
-        if (aliasKey.length() >= 2) {
-          int matchIdx = findWholeWordIndex(normalizedKey, aliasKey);
-          if (matchIdx != -1) {
-            spans.add(new MatchSpan(matchIdx, aliasKey.length(), entry.getValue()));
+      if (!emits.isEmpty()) {
+        for (Emit emit : emits) {
+          String matchedKeyword = emit.getKeyword();
+          String canonicalSkill = aliasMap.get(matchedKeyword);
+          if (canonicalSkill != null) {
+            results.add(canonicalSkill);
           }
-        }
-      }
-
-      if (!spans.isEmpty()) {
-        // 더 긴 단어 우선 + 등장 위치 순 정렬
-        spans.sort(
-            (a, b) -> {
-              int cmp = Integer.compare(a.startIdx, b.startIdx);
-              return cmp != 0 ? cmp : Integer.compare(b.length, a.length);
-            });
-
-        for (MatchSpan span : spans) {
-          results.add(span.skillName());
         }
       } else if (!JOB_TITLES.contains(normalizedKey) && trimmed.length() <= 20) {
         results.add(trimmed);

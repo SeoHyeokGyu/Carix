@@ -1,10 +1,10 @@
 package com.carix.jobposting.seed;
 
+import com.google.re2j.Matcher;
+import com.google.re2j.Pattern;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 public class JobPostingDateParser {
 

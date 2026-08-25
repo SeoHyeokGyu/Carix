@@ -86,6 +86,20 @@ class CollectorPipelineControllerTest {
   }
 
   @Test
+  @DisplayName("POST /internal/pipeline/dedup - 공고 중복제거 비동기 요청 시 202 Accepted 반환")
+  void triggerDedupReturnsAccepted() throws Exception {
+    JobExecutionResponse response =
+        new JobExecutionResponse("job-999", "DEDUPLICATION", "ACCEPTED", "Started", Instant.now());
+    when(pipelineService.triggerDeduplication()).thenReturn(response);
+
+    mockMvc
+        .perform(post("/internal/pipeline/dedup"))
+        .andExpect(status().isAccepted())
+        .andExpect(jsonPath("$.jobId").value("job-999"))
+        .andExpect(jsonPath("$.jobType").value("DEDUPLICATION"));
+  }
+
+  @Test
   @DisplayName("GET /internal/pipeline/jobs/{jobId} - 작업 상태 조회 시 200 OK 반환")
   void getJobStatusReturnsOk() throws Exception {
     JobStatusResponse response =

@@ -54,6 +54,12 @@ public class CollectorPipelineController {
     return ResponseEntity.status(HttpStatus.ACCEPTED).body(response);
   }
 
+  @PostMapping("/dedup")
+  public ResponseEntity<JobExecutionResponse> triggerDeduplication() {
+    JobExecutionResponse response = pipelineService.triggerDeduplication();
+    return ResponseEntity.status(HttpStatus.ACCEPTED).body(response);
+  }
+
   @GetMapping("/jobs/{jobId}")
   public ResponseEntity<JobStatusResponse> getJobStatus(@PathVariable String jobId) {
     return ResponseEntity.ok(pipelineService.getJobStatus(jobId));
