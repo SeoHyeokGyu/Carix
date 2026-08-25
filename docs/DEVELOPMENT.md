@@ -51,7 +51,7 @@ cp .env.example .env
 | `SPRING_DATASOURCE_URL` | 백엔드 DB 연결 | `jdbc:postgresql://144.24.90.88:5432/carix?sslmode=require` (§3) |
 | `SPRING_DATASOURCE_USERNAME` / `_PASSWORD` | 개인별 DB 롤 | §3.0 에서 발급받는다 |
 | `CARIX_ENCRYPTION_KEY` | 컬럼 암호화(AES-256-GCM) | `openssl rand -base64 32` |
-| `KOSIS_API_KEY` 외 3종 | 배치 원천 API | 선행 검증 후 발급 |
+| `KOSIS_API_KEY` | KOSIS 통계청 OpenAPI 연동 | KOSIS Open API 발급 키 (임금통계/CPI 수집용) |
 
 ## 3. OCI DB 원격 연결
 
@@ -332,11 +332,14 @@ CONFIG_SERVER_URL=http://144.24.90.88:8890 EUREKA_URL=http://144.24.90.88:8761/e
 
 | 메서드 & 경로 | 설명 | 호출 예시 |
 | --- | --- | --- |
-| `POST /internal/pipeline/crawl` | 잡코리아/사람인 웹 스크래핑 & DB 실시간 직접 적재 | `curl -X POST http://localhost:8083/internal/pipeline/crawl -H "Content-Type: application/json" -d '{"source": "ALL", "pageLimit": 5}'` |
-| `POST /internal/pipeline/seed` | `verification/out` 디렉토리 시드 파일 적재 | `curl -X POST http://localhost:8083/internal/pipeline/seed -H "Content-Type: application/json" -d '{}'` |
+| `POST /internal/pipeline/crawl` | 잡코리아/사람인 웹 스크래핑 & DB 실시간 직접 적재 | `curl -X POST http://localhost:8083/internal/pipeline/crawl -H "Content-Type: application/json" -d '{"portal": "ALL", "maxPages": 5}'` |
+| `POST /internal/pipeline/wage-stat` | KOSIS 임금 통계 수집 & 24구간 누적분포 보간 적재 | `curl -X POST http://localhost:8083/internal/pipeline/wage-stat` |
+| `POST /internal/pipeline/dedup` | 원천 간(잡코리아-사람인) 채용공고 중복제거(dedup_group_id) | `curl -X POST http://localhost:8083/internal/pipeline/dedup` |
+| `POST /internal/pipeline/aggregate` | 월별 채용 시장 데이터 다차원 사전 집계 (P50 연봉, 스킬수요율) | `curl -X POST "http://localhost:8083/internal/pipeline/aggregate?month=2026-08"` |
+| `POST /internal/pipeline/seed-load` | 파일시스템 스냅샷 시드 파일 DB 적재 | `curl -X POST http://localhost:8083/internal/pipeline/seed-load` |
 | `GET /internal/pipeline/jobs/{jobId}` | 특정 비동기 파이프라인 작업 상태 조회 | `curl http://localhost:8083/internal/pipeline/jobs/{jobId}` |
 | `GET /internal/pipeline/jobs` | 최근 실행된 파이프라인 작업 히스토리 목록 조회 | `curl http://localhost:8083/internal/pipeline/jobs` |
-| `GET /internal/pipeline/stats` | 수집 DB(`raw_ingest`, `job_posting`, `skill`) 테이블 건수 현황 통계 | `curl http://localhost:8083/internal/pipeline/stats` |
+| `GET /internal/pipeline/stats` | 수집 DB(`raw_ingest`, `job_posting`, `skill`, `wage_stat`) 건수 통계 | `curl http://localhost:8083/internal/pipeline/stats` |
 
 프로젝트 진행 상태는 [`README.md` 진행 상태](README.md#진행-상태)를 참조.
 

@@ -50,14 +50,25 @@
   이중 집계되지 않고, 장기 게시 공고도 각 월에 정확히 반영된다.
 - 집계·스냅샷은 재실행 시 upsert로 동일 결과를 만든다.
 
-### 1.4 원천 간 중복 제거
+### 1.4 원천 간 중복 제거 (Deduplication v1)
 
-- JobPosting에 `dedup_group_id`를 둔다. 회사명+제목+게시기간 휴리스틱으로
-  매칭하며, 매칭 규칙 버전을 함께 기록한다.
-- 원천별 집계는 원본 행 기준, 통합 관점의 표시(전체 공고 수 등)는
-  dedup group 기준을 사용한다.
+- **식별자**: `JobPosting`에 `dedup_group_id (UUID)` 및 `dedup_rule_version (varchar)`을 기록한다.
+- **매칭 알고리즘 (`JobPostingDeduplicator`)**:
+  1. **회사명 정규화 (`CompanyNormalizer`)**: 법인 표기(`(주)`, `주식회사`, `Inc.`, `Corp.` 등) 및 특수문자 제거, 소문자화
+  2. **제목 정규화 (`TitleNormalizer`)**: 불용어(채용, 모집, 신입, 경력 등)를 제외한 핵심 키워드 토큰화
+  3. **유사도 및 클러스터링**: 동일 정규화 회사명 내에서 Jaccard 유사도 $\ge 0.4$ 또는 부분집합 포함 관계 시 Union-Find 알고리즘으로 단일 `dedup_group_id` 클러스터링 (단독 공고는 자체 UUID 부여)
+- **원천별 vs 통합 집계 원칙**:
+  - 원천별 집계(`JOBKOREA`, `SARAMIN`): 원본 행 기준
+  - 통합 관점 집계(`ALL`): `dedup_group_id` 기준 고유 공고 수 산출
 
-### 1.5 원문 보존 정책
+### 1.5 문자열 매칭 & 정규식 고속화 엔진
+
+1. **Aho-Corasick Trie (`org.ahocorasick:ahocorasick`)**:
+   - `SkillTaxonomy`: 104개 표준 스킬 및 177개 별칭 사전을 Trie 오토마타로 메모리에 빌드하여 공고 본문을 단 1-Pass($O(N)$)로 순회하며 모든 스킬을 동시 검출.
+2. **Google RE2J (`com.google.re2j:re2j`)**:
+   - `CompanyNormalizer`, `TitleNormalizer`, `JobPostingDateParser`: 선형 시간 $O(N)$을 보장하는 DFA 정규식 엔진으로 ReDoS 백트래킹 지수 시간 위험 원천 차단.
+
+### 1.6 원문 보존 정책
 
 - RawIngest 원문은 JSONB로 저장하고 `schema_version`을 기록한다.
 - 보존 기간은 24개월로 하며, 초과분은 원문만 삭제하고 메타데이터를 유지한다.

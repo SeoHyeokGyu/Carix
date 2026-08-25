@@ -8,6 +8,10 @@ dependencies {
 	implementation 'org.jsoup:jsoup:1.18.1'
 	implementation 'org.apache.commons:commons-csv:1.11.0'
 
+	// High-performance string matching & linear regex engines
+	implementation 'org.ahocorasick:ahocorasick:0.6.3'
+	implementation 'com.google.re2j:re2j:1.8'
+
 	// Flyway 는 쓰지 않는다. core 스키마는 DDL 을 직접 적용해 관리한다
 	// (근거와 절차는 docs/DEVELOPMENT.md).
 	implementation 'org.springframework.boot:spring-boot-starter-data-jpa'

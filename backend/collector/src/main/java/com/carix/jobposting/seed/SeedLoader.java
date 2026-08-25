@@ -1,6 +1,5 @@
 package com.carix.jobposting.seed;
 
-import com.carix.crawler.JobKoreaDetailParser;
 import com.carix.jobposting.JobPosting;
 import com.carix.jobposting.JobPostingRepository;
 import com.carix.jobposting.RawIngest;
@@ -8,6 +7,7 @@ import com.carix.jobposting.RawIngestIds;
 import com.carix.jobposting.RawIngestRepository;
 import com.carix.jobposting.Skill;
 import com.carix.jobposting.SkillRepository;
+import com.carix.jobposting.crawler.JobKoreaDetailParser;
 import com.carix.jobposting.normalize.CompanySizeClassifier;
 import com.carix.jobposting.normalize.EmploymentTypeClassifier;
 import com.carix.jobposting.normalize.ExperienceRange;

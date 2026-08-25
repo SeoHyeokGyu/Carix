@@ -1,6 +1,5 @@
 package com.carix.jobposting.service;
 
-import com.carix.crawler.JobKoreaDetailParser;
 import com.carix.jobposting.JobPosting;
 import com.carix.jobposting.JobPostingRepository;
 import com.carix.jobposting.RawIngest;
@@ -8,6 +7,7 @@ import com.carix.jobposting.RawIngestIds;
 import com.carix.jobposting.RawIngestRepository;
 import com.carix.jobposting.Skill;
 import com.carix.jobposting.SkillRepository;
+import com.carix.jobposting.crawler.JobKoreaDetailParser;
 import com.carix.jobposting.normalize.CompanySizeClassifier;
 import com.carix.jobposting.normalize.EmploymentTypeClassifier;
 import com.carix.jobposting.normalize.ExperienceRange;
@@ -20,7 +20,7 @@ import com.carix.jobposting.seed.JobKoreaListingFields;
 import com.carix.jobposting.seed.JobPostingDateParser;
 import com.carix.jobposting.seed.SaraminListingEnricher;
 import com.carix.jobposting.seed.SaraminListingFields;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.carix.pipeline.dto.CrawlRequest;
 import java.time.Instant;
 import java.time.YearMonth;
 import java.time.format.DateTimeFormatter;
@@ -45,7 +45,6 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class JobPostingIngestService {
 
-  private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
   private static final DateTimeFormatter YM_FORMATTER = DateTimeFormatter.ofPattern("yyyyMM");
 
   private static final String JOBKOREA_LIST_ENDPOINT =
@@ -66,6 +65,22 @@ public class JobPostingIngestService {
   private final CompanySizeClassifier companySizeClassifier = new CompanySizeClassifier();
   private final EmploymentTypeClassifier employmentTypeClassifier = new EmploymentTypeClassifier();
   private final SkillTaxonomy skillTaxonomy = new SkillTaxonomy();
+
+  /** 크롤링 요청 DTO 기반 전체 크롤링 & DB 실시간 적재 */
+  public int crawlAndIngest(CrawlRequest request) {
+    String portal =
+        request != null && request.portal() != null ? request.portal().toUpperCase() : "ALL";
+    int maxPages = request != null && request.maxPages() != null ? request.maxPages() : 5;
+    int count = 0;
+
+    if ("JOBKOREA".equals(portal) || "ALL".equals(portal)) {
+      count += crawlAndIngestJobKorea("IT개발", maxPages);
+    }
+    if ("SARAMIN".equals(portal) || "ALL".equals(portal)) {
+      count += crawlAndIngestSaramin(maxPages);
+    }
+    return count;
+  }
 
   /** 잡코리아 크롤링 & DB 실시간 직접 적재 */
   @Transactional
@@ -409,6 +424,8 @@ public class JobPostingIngestService {
         .orElseGet(() -> skillRepository.save(new Skill(standardName, category, false)));
   }
 
+  /** 원문 HTML을 raw_ingest 테이블에 중복 없이 영구 보존합니다. */
+  /** 수집 이력을 raw_ingest 테이블에 중복 없이 기록합니다. */
   private void persistRawIngestIfAbsent(
       String source, String sourceItemId, Instant collectedAt, String month) {
     if (rawIngestRepository.findBySourceAndSourceItemId(source, sourceItemId).isPresent()) {
@@ -417,6 +434,7 @@ public class JobPostingIngestService {
     rawIngestRepository.save(new RawIngest(source, sourceItemId, month, month, collectedAt));
   }
 
+  /** 공고 상세페이지 URL에 접근하여 원문 HTML을 가져옵니다. */
   private String fetchDetailHtml(String link) {
     try {
       Document detailDoc =
@@ -427,11 +445,12 @@ public class JobPostingIngestService {
               .get();
       return detailDoc.outerHtml();
     } catch (Exception e) {
-      log.warn("Failed to fetch detail html for link {}: {}", link, e.getMessage());
+      log.warn("[잡코리아] 상세페이지 HTML 수집 실패 (링크: {}): {}", link, e.getMessage());
       return null;
     }
   }
 
+  /** 사람인 크롤링 방어 우회를 위한 세션 쿠키를 초기화합니다. */
   private Map<String, String> initSaraminSessionCookies() {
     try {
       org.jsoup.Connection.Response res =
@@ -442,7 +461,7 @@ public class JobPostingIngestService {
               .execute();
       return res.cookies();
     } catch (Exception e) {
-      log.warn("Failed to fetch Saramin session cookies: {}", e.getMessage());
+      log.warn("[사람인] 세션 쿠키 발급 실패 (헤더 없이 진행): {}", e.getMessage());
       return new HashMap<>();
     }
   }

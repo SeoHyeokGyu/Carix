@@ -10,6 +10,9 @@ spring:
     # 테스트는 spring.cloud.config.enabled=false 로 클라이언트를 꺼서 이 위치를
     # 해석 불가로 만들고, optional: 이 그것을 건너뛰게 한다 (core-api/build.gradle 참조).
     import: optional:configserver:${CONFIG_SERVER_URL:http://config-server:8888}
+  threads:
+    virtual:
+      enabled: true
   cloud:
     config:
       fail-fast: true
