@@ -67,7 +67,7 @@ public class CollectorPipelineService {
             }
           });
 
-  private final ExecutorService executor = Executors.newSingleThreadExecutor();
+  private final ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor();
 
   /**
    * 외부 채용 포털(잡코리아, 사람인) 크롤링 및 DB 적재 작업을 비동기로 실행합니다.
