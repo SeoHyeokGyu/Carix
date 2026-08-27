@@ -260,8 +260,8 @@ flowchart TD
 
 | 계층 | 기술 | 책임 | 현재 |
 | --- | --- | --- | --- |
-| 프런트엔드 | Vite, React, TypeScript, React Router Framework Mode | UI, 라우팅, SSR·사전 렌더링 | 도입 — 랜딩(`/`)만 구현. `ssr: false` + `/` 사전 렌더링 구성이라 SSR은 아직 꺼져 있습니다 |
-| Node SSR | Node.js 24 LTS, Express, `@react-router/express` | HTML 렌더링, SEO metadata, 공개 콘텐츠 | 미도입 — `frontend/server.js`는 `node:http` 정적 파일 서버로, 빌드된 사전 렌더링 산출물만 서빙합니다 (아래 §렌더링 전략 주석 참조) |
+| 프런트엔드 | Vite, React, TypeScript, React Router Framework Mode | UI, 라우팅, SSR·사전 렌더링 | 도입 — 전 화면 라우트와 레이아웃·가드 골격까지. 랜딩(`/`) 외 화면은 플레이스홀더입니다. `ssr: false` + `/` 사전 렌더링 구성이라 SSR은 아직 꺼져 있고, 가드는 클라이언트에서 돕니다 |
+| Node SSR | Node.js 24 LTS, Express, `@react-router/express` | HTML 렌더링, SEO metadata, 공개 콘텐츠 | 미도입 — `frontend/server.js`는 `node:http` 정적 파일 서버입니다. 사전 렌더링된 `/` 는 그대로 주고, 나머지 앱 경로는 SPA 셸(`__spa-fallback.html`)로 넘겨 클라이언트가 라우팅합니다 (아래 §렌더링 전략 주석 참조) |
 | 클라이언트 데이터 | TanStack Query, React Hook Form, Zod | API 상태, 입력 폼, 검증 | 미도입 |
 | UI·시각화 | Tailwind CSS, shadcn/ui, Recharts | 컴포넌트, 스타일, 지수 차트 | 부분 도입 — Tailwind CSS 4(`@tailwindcss/vite`)만 도입. shadcn/ui·Recharts는 미도입 |
 | 백엔드 | Java 25, Spring Boot 4.1, Gradle 멀티모듈 | 인증, 도메인 로직, REST API, 데이터 접근 | 도입 (인증은 auth-service에 구현·배포 배선 완료. core-api는 DB를 쓰지 않는다 — 채용공고 도메인은 `collector`로 이동했고, 대시보드·소득·소비·스킬·시나리오·프로필·참조 도메인은 REST 컨트롤러와 DTO만 있는 고정 응답 스텁 — 서비스·리포지터리 미연결) |
@@ -394,7 +394,7 @@ Carix/
 │   ├── postgres/schema/       core 스키마 DDL 실행 정본 (Flyway 미사용)
 ├── config/                    CPI 분류 매핑, 기본 지출 가중치
 ├── verification/              데이터 원천 선행 검증 스크립트와 실측 노트
-├── frontend/                  React Router 7 + Vite + Tailwind (랜딩만 구현, 정적 서빙 — SSR 미도입)
+├── frontend/                  React Router 7 + Vite + Tailwind (전 화면 라우트 골격, 랜딩 외 플레이스홀더 — SSR 미도입)
 ├── backend/                   Gradle 멀티모듈 — config-server, eureka, gateway, auth-service, core-api, collector
 │                               (core-api 도메인 API 는 고정 응답 스텁 — Batch 미도입)
 ├── docs/

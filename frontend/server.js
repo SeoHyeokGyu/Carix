@@ -6,6 +6,10 @@ import { fileURLToPath } from "node:url";
 const PORT = Number(process.env.PORT ?? 3000);
 const CLIENT_DIR = fileURLToPath(new URL("./build/client/", import.meta.url));
 
+// 빌드가 내보내는 SPA 셸. index.html 은 사전 렌더링된 랜딩이라 셸로 쓰면
+// 다른 경로에서 랜딩 내용이 먼저 그려진다.
+const SPA_FALLBACK = "/__spa-fallback.html";
+
 /** @type {Record<string, string>} */
 const CONTENT_TYPES = {
   ".html": "text/html; charset=utf-8",
@@ -35,9 +39,25 @@ async function resolveFile(pathname) {
   }
 }
 
+/**
+ * 애플리케이션 라우트는 클라이언트에서만 해석된다 (`ssr: false`, `prerender: ["/"]`).
+ * 사전 렌더링된 파일이 없는 경로는 SPA 셸을 돌려줘야 브라우저가 라우팅을 이어받는다.
+ * 확장자가 붙은 요청은 에셋이므로 그대로 404 로 둔다 — 셸을 돌려주면 깨진 스크립트를
+ * text/html 로 받아 원인을 찾기 어려워진다.
+ *
+ * @param {string} pathname
+ */
+function isAssetRequest(pathname) {
+  return extname(pathname) !== "";
+}
+
 createServer(async (req, res) => {
   const url = new URL(req.url ?? "/", `http://${req.headers.host}`);
-  const filePath = await resolveFile(url.pathname);
+  let filePath = await resolveFile(url.pathname);
+
+  if (!filePath && !isAssetRequest(url.pathname)) {
+    filePath = await resolveFile(SPA_FALLBACK);
+  }
 
   if (!filePath) {
     res.writeHead(404, { "Content-Type": "text/plain; charset=utf-8" });
