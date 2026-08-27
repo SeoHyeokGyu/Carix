@@ -59,13 +59,22 @@ Security는 다음 단계다. `collector`는 채용공고 도메인의 JPA와 `c
 `carix.auth.internal-api-key` 와 대조한다. 키가 비어 있으면 전부 403 이다(fail closed).
 값은 `AUTH_INTERNAL_API_KEY` 환경변수로만 넣는다.
 
-**잔여 항목** — 이메일 실발송이 없어 매직링크 로그인을 끝까지 밟을 수 없다.
+**매직링크 메일 발송** — SMTP 로 보낸다. Gmail SMTP 를 전제로 설정했지만 provider 에 묶인 코드는
+없다(`spring.mail.*` 만 바꾸면 옮겨간다). 도메인이 없어도 되고, 발신 도메인이 `gmail.com` 이라
+SPF·DKIM 을 직접 세울 필요가 없다.
 
-- 이메일 실제 발송이 없다. `LoggingMagicLinkNotifier`가 로그로만 기록하며 원본 토큰이
-  로그에 남으므로 운영 발송 경로로 쓰지 않는다. 메일 발송 제공자(AWS SES 등) 구현체로
-  교체한다.
-- 발송·검증·세션·Rate Limit 테스트가 없다. `src/test` 에는 Flyway 자동설정 회귀 테스트와
-  초대 등록 경로 테스트만 있다.
+발송이 켜지는 조건은 `spring.mail.host` 와 `carix.auth.mail.base-url`·`from` 이 모두 있는 것이다.
+하나라도 비면 `LoggingMagicLinkNotifier` 로 떨어지고 **실제 메일은 나가지 않는다**(기동 로그에 이유가
+남는다). Gmail 은 계정 비밀번호가 아니라 앱 비밀번호를 받으며 2단계 인증을 켠 계정에서만 발급된다.
+무료 계정 한도는 하루 500통이다. 필요한 환경변수는 [`../.env.example`](../.env.example) 참조.
+
+발송 실패는 호출부로 던지지 않는다. 던지면 초대된 이메일만 5xx 가 나서 초대 여부가 응답으로
+드러난다 — 계정 열거 방지가 깨진다. 실패는 ERROR 로그로만 남는다.
+
+**잔여 항목**
+
+- 발송·검증·세션·Rate Limit 흐름 테스트가 없다. `src/test` 에는 자동설정 회귀 테스트(Flyway·Mail),
+  초대 등록 경로 테스트, 메일 발송기 단위 테스트만 있다.
 
 로컬 기동은 `core-api`와 동일한 순서다(config-server 먼저, 그다음 `EUREKA_CLIENT_ENABLED=false`
 로 단독 기동 가능). `auth-service`는 JPA·Flyway를 쓰므로 로컬 검증은 OCI DB 원격 연결
