@@ -431,9 +431,16 @@ PR 단계에서 `pr-check.yml` 워크플로가 백엔드 테스트와 프런트�
 - API 문서: `https://carix.144.24.90.88.sslip.io/api/swagger-ui/index.html`
 - `GET /api/health` — 배포 헬스체크 대상
 - `POST /api/v1/demo/echo` — 데모/검증용. Swagger 및 API 통신 확인 엔드포인트
+- `POST /api/v1/auth/magic-link`, `/verify`, `/logout`, `/logout-all` — auth-service. 매직링크
+  발송은 SMTP 설정이 있을 때만 실제로 나간다 ([backend/README.md](backend/README.md#auth-service))
+- `GET /api/v1/skills/search`, `POST /api/v1/user-skills`, `DELETE /api/v1/user-skills/{id}` —
+  구현 완료 (JPA로 `core` 스키마 사용)
 - `/api/v1/dashboard/**`, `/api/v1/income/**`, `/api/v1/expenses/**`, `/api/v1/scenarios/**`,
-  `/api/v1/reference/**`, `/api/v1/skills/**`, `/api/v1/user-skills/**`, `/api/v1/profile`,
-  `/api/v1/onboarding`, `DELETE /api/v1/users` — 고정 응답 스텁 (API 규격 및 명세 우선 확정 단계)
+  `/api/v1/reference/**`, `/api/v1/profile`, `/api/v1/onboarding`, `DELETE /api/v1/users` —
+  고정 응답 스텁 (API 규격 및 명세 우선 확정 단계)
+
+운영자 전용 내부 경로(`/internal/**`)는 게이트웨이가 라우팅하지 않아 위 공개 URL 로 도달하지
+않습니다. 호출 방법은 [backend/README.md](backend/README.md#auth-service)를 참조하세요.
 
 ## 협업 방식
 

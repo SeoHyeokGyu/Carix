@@ -56,6 +56,15 @@ class SmtpMagicLinkNotifierTest {
   }
 
   @Test
+  void 로그용_이메일은_마스킹된다() {
+    assertThat(SmtpMagicLinkNotifier.mask("beta@example.com")).isEqualTo("b***@example.com");
+    assertThat(SmtpMagicLinkNotifier.mask("a@b.kr")).isEqualTo("a***@b.kr");
+    assertThat(SmtpMagicLinkNotifier.mask("@no-local.com")).isEqualTo("***");
+    assertThat(SmtpMagicLinkNotifier.mask("")).isEqualTo("(없음)");
+    assertThat(SmtpMagicLinkNotifier.mask(null)).isEqualTo("(없음)");
+  }
+
+  @Test
   void 발신자_이름이_비면_Carix_로_채운다() {
     MagicLinkMailProperties blankName =
         new MagicLinkMailProperties("https://carix.example.com", "beta@example.com", "  ");

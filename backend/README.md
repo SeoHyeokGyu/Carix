@@ -59,6 +59,25 @@ Security는 다음 단계다. `collector`는 채용공고 도메인의 JPA와 `c
 `carix.auth.internal-api-key` 와 대조한다. 키가 비어 있으면 전부 403 이다(fail closed).
 값은 `AUTH_INTERNAL_API_KEY` 환경변수로만 넣는다.
 
+**공개 URL 로는 부를 수 없다.** `https://<host>/api/internal/...` 은 게이트웨이의 "그 외" 규칙에
+걸려 `frontend-node` 로 가고, SPA 폴백이 200 과 HTML 을 돌려준다 — auth-service 응답이 아니다.
+`auth-service` 는 포트를 공개하지 않고(`expose` 만) 이미지에 `curl` 도 없으므로, compose 네트워크에
+클라이언트 컨테이너를 붙여 부른다. 네트워크 이름은 `docker network ls | grep carix` 로 확인한다.
+
+```bash
+# 초대 등록
+docker run --rm --network carix_default curlimages/curl:latest \
+  -X POST http://auth-service:8081/api/internal/invitations \
+  -H "X-Internal-Api-Key: $AUTH_INTERNAL_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"emails":["someone@example.com"]}'
+
+# 초대 목록 확인
+docker run --rm --network carix_default curlimages/curl:latest \
+  http://auth-service:8081/api/internal/invitations \
+  -H "X-Internal-Api-Key: $AUTH_INTERNAL_API_KEY"
+```
+
 **매직링크 메일 발송** — SMTP 로 보낸다. Gmail SMTP 를 전제로 설정했지만 provider 에 묶인 코드는
 없다(`spring.mail.*` 만 바꾸면 옮겨간다). 도메인이 없어도 되고, 발신 도메인이 `gmail.com` 이라
 SPF·DKIM 을 직접 세울 필요가 없다.
@@ -69,7 +88,12 @@ SPF·DKIM 을 직접 세울 필요가 없다.
 무료 계정 한도는 하루 500통이다. 필요한 환경변수는 [`../.env.example`](../.env.example) 참조.
 
 발송 실패는 호출부로 던지지 않는다. 던지면 초대된 이메일만 5xx 가 나서 초대 여부가 응답으로
-드러난다 — 계정 열거 방지가 깨진다. 실패는 ERROR 로그로만 남는다.
+드러난다 — 계정 열거 방지가 깨진다. 실패는 ERROR 로그로만 남는다. 로그의 수신자 주소는
+마스킹하고(`b***@example.com`) 토큰은 남기지 않는다 — 링크 전체가 곧 자격증명이다
+([SECURITY.md §4](../docs/SECURITY.md)).
+
+`LoggingMagicLinkNotifier` 로 떨어진 상태는 원본 토큰이 로그에 남으므로 운영 발송 경로가 아니다.
+기동 로그의 WARN 이 그 상태를 알린다.
 
 **잔여 항목**
 
