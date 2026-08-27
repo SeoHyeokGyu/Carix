@@ -32,6 +32,9 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class MarketAggregateService {
 
+  /** 연봉 공개 공고가 하나도 없을 때의 결측률. DDL 기본값과 같은 퍼센트 단위다. */
+  private static final BigDecimal HUNDRED_PERCENT = new BigDecimal("100.00");
+
   private final JobPostingRepository jobPostingRepository;
   private final MarketAggregateRepository marketAggregateRepository;
 
@@ -42,18 +45,22 @@ public class MarketAggregateService {
    */
   @Transactional
   public int aggregateMarketData() {
-    String currentMonth = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy-MM"));
+    String currentMonth = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMM"));
     return aggregateMarketDataForMonth(currentMonth);
   }
 
   /**
    * 특정 기준년월에 대해 시장 통계를 사전 집계하여 DB에 적재합니다.
    *
-   * @param baseYearMonth 기준년월 (형식: "yyyy-MM", 예: "2026-08")
+   * @param baseYearMonth 기준년월 (형식: "yyyyMM", 예: "202608")
    * @return 생성된 집계 레코드 수
    */
   @Transactional
   public int aggregateMarketDataForMonth(String baseYearMonth) {
+    if (baseYearMonth == null || !baseYearMonth.matches("\\d{6}")) {
+      throw new IllegalArgumentException(
+          "기준년월은 YYYYMM 6자리여야 합니다 (입력값: " + baseYearMonth + ")");
+    }
     log.info("[시장사전집계] 기준년월({})에 대한 다차원 사전 집계를 시작합니다...", baseYearMonth);
     List<JobPosting> allPostings = jobPostingRepository.findAll();
 
@@ -143,7 +150,7 @@ public class MarketAggregateService {
                 .salaryMedian(salaryStats.median())
                 .salaryP75(salaryStats.p75())
                 .salaryMax(salaryStats.max())
-                .salaryMissingRate(salaryStats.missingRate())
+                .salaryMissingRatePercent(salaryStats.missingRatePercent())
                 .build());
 
         // 2) 슬라이스 내 개별 스킬별 수요 지수 계산
@@ -197,7 +204,7 @@ public class MarketAggregateService {
                   .salaryMedian(skillSalaryStats.median())
                   .salaryP75(skillSalaryStats.p75())
                   .salaryMax(skillSalaryStats.max())
-                  .salaryMissingRate(skillSalaryStats.missingRate())
+                  .salaryMissingRatePercent(skillSalaryStats.missingRatePercent())
                   .build());
         }
       }
@@ -238,8 +245,7 @@ public class MarketAggregateService {
 
   private SalaryStats calculateSalaryStatsFromValues(List<Long> values, int totalPostings) {
     if (values == null || values.isEmpty() || totalPostings == 0) {
-      return new SalaryStats(
-          null, null, null, null, null, BigDecimal.ONE.setScale(4, RoundingMode.HALF_UP));
+      return new SalaryStats(null, null, null, null, null, HUNDRED_PERCENT);
     }
 
     Collections.sort(values);
@@ -251,11 +257,12 @@ public class MarketAggregateService {
     Long max = values.get(n - 1);
 
     double missingRatio = (double) (totalPostings - n) / totalPostings;
-    BigDecimal missingRate = BigDecimal.valueOf(missingRatio).setScale(4, RoundingMode.HALF_UP);
+    BigDecimal missingRatePercent =
+        BigDecimal.valueOf(missingRatio * 100).setScale(2, RoundingMode.HALF_UP);
 
-    return new SalaryStats(min, p25, median, p75, max, missingRate);
+    return new SalaryStats(min, p25, median, p75, max, missingRatePercent);
   }
 
   private record SalaryStats(
-      Long min, Long p25, Long median, Long p75, Long max, BigDecimal missingRate) {}
+      Long min, Long p25, Long median, Long p75, Long max, BigDecimal missingRatePercent) {}
 }
