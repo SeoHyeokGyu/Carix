@@ -97,7 +97,7 @@
 | --- | --- |
 | 임금통계 기준선 원천 재선정 | KOSIS 근로실태조사는 직무 세분·경력·지역 차원 부족 확인 — [외부 원천 API 연동 명세 §3.3](specs/external-api-integration.md) |
 | 애플리케이션 구현 | core-api 사용자 도메인 및 지수/시나리오 계산 로직 구현, 프런트엔드 화면 UI (라우트 골격은 완료, 랜딩 외 전 화면이 플레이스홀더) |
-| 인증 로그인 경로 | 매직링크 로그인을 끝까지 밟기 위한 잔여 항목 — [`backend/README.md`의 auth-service 절](../backend/README.md#auth-service) |
+| 인증 로그인 경로 | 발송·검증·세션·Rate Limit 흐름 테스트 — [`backend/README.md`의 auth-service 절](../backend/README.md#auth-service) |
 | DB 백업 체계 | 운영 DB 일일 정기 백업 및 복구 절차 구축 ([DEVELOPMENT.md §3](DEVELOPMENT.md#왜-같은-db를-쓰는가) 최우선 후속 과제) |
 | collector | Spring Batch 잡·내부 API·`docker-compose.yml`·`deploy.yml` 배선 |
 | 프런트엔드 | `/api` 프록시 미구성 — 백엔드 호출 시점에 `vite.config.ts`에 추가. 진입 가드의 세션 소스(`app/hooks/useSession.ts`)도 그때 실제 API로 교체 |

@@ -1,7 +1,33 @@
 # auth-service 전용 설정. 시크릿은 여기 두지 않는다.
 
+spring:
+  mail:
+    # 비어 있으면 JavaMailSender 가 만들어지지 않고 매직링크는 로그로만 남는다.
+    host: ${MAIL_HOST:}
+    port: ${MAIL_PORT:587}
+    username: ${MAIL_USERNAME:}
+    # Gmail 은 계정 비밀번호가 아니라 앱 비밀번호(16자)를 받는다. 2단계 인증을 켠 계정에서만 발급된다.
+    password: ${MAIL_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+            required: true
+          # 응답 없는 SMTP 서버에 요청 스레드가 붙잡히지 않게 한다.
+          connectiontimeout: 5000
+          timeout: 5000
+          writetimeout: 5000
+
 carix:
   auth:
+    mail:
+      # 매직링크의 앞부분. 프런트엔드 진입점이다.
+      base-url: ${MAIL_BASE_URL:}
+      # Gmail SMTP 는 발신 주소가 인증 계정과 달라도 조용히 계정 주소로 바꿔 보낸다. 같은 값을 쓴다.
+      from: ${MAIL_FROM:${MAIL_USERNAME:}}
+      from-name: ${MAIL_FROM_NAME:Carix}
     # 운영자 전용 /internal/** 경로의 공유 시크릿. 값은 환경변수로만 주입한다.
     # 비어 있으면 InternalApiKeyFilter 가 해당 경로를 전부 거부한다 (fail closed).
     internal-api-key: ${AUTH_INTERNAL_API_KEY:}
