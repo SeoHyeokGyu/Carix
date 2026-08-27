@@ -64,11 +64,11 @@ class MarketAggregateServiceTest {
     when(jobPostingRepository.findAll()).thenReturn(List.of(p1, p2));
 
     // When
-    int count = marketAggregateService.aggregateMarketDataForMonth("2026-08");
+    int count = marketAggregateService.aggregateMarketDataForMonth("202608");
 
     // Then
     assertThat(count).isGreaterThan(0);
-    verify(marketAggregateRepository).deleteByBaseYearMonth("2026-08");
+    verify(marketAggregateRepository).deleteByBaseYearMonth("202608");
 
     @SuppressWarnings("unchecked")
     ArgumentCaptor<List<MarketAggregate>> captor = ArgumentCaptor.forClass(List.class);
