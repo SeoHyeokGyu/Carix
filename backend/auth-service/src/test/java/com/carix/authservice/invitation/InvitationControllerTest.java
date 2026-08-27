@@ -34,7 +34,8 @@ class InvitationControllerTest {
   void 유효한_키로_초대를_등록하면_201과_등록_결과를_돌려준다() throws Exception {
     given(invitationService.register(anyList()))
         .willReturn(
-            new InvitationRegistrationResponse(List.of("new@example.com"), List.of("old@example.com")));
+            new InvitationRegistrationResponse(
+                List.of("new@example.com"), List.of("old@example.com")));
 
     mockMvc
         .perform(

@@ -23,8 +23,8 @@ public class Invitation {
   protected Invitation() {}
 
   /**
-   * 초대를 PENDING 으로 새로 만든다. 이메일은 호출부에서 정규화한 값을 받는다 —
-   * {@code invitation.email} 이 UNIQUE 라 케이스가 다르면 같은 사람이 두 행이 된다.
+   * 초대를 PENDING 으로 새로 만든다. 이메일은 호출부에서 정규화한 값을 받는다 — {@code invitation.email} 이 UNIQUE 라 케이스가 다르면 같은
+   * 사람이 두 행이 된다.
    */
   static Invitation pending(String normalizedEmail, OffsetDateTime expiresAt) {
     OffsetDateTime now = OffsetDateTime.now();

@@ -12,8 +12,8 @@ import org.springframework.transaction.annotation.Transactional;
 /**
  * "초대됨"의 정의: {@code invitation} 행이 존재하는지만 본다 (status 무관).
  *
- * <p>status 별 세분화가 필요해지면 (예: EXPIRED 초대는 재로그인도 막을지) {@link #isInvited(String)} 만 바꾸면 된다 — 호출부는 영향받지 않는다.
- * 같은 이유로 {@code expires_at} 도 지금은 판정에 쓰지 않는다. 값은 남기되 만료 정책이 정해질 때 이 클래스에서만 반영한다.
+ * <p>status 별 세분화가 필요해지면 (예: EXPIRED 초대는 재로그인도 막을지) {@link #isInvited(String)} 만 바꾸면 된다 — 호출부는 영향받지
+ * 않는다. 같은 이유로 {@code expires_at} 도 지금은 판정에 쓰지 않는다. 값은 남기되 만료 정책이 정해질 때 이 클래스에서만 반영한다.
  */
 @Service
 public class InvitationService {

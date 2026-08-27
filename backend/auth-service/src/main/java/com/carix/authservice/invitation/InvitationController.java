@@ -15,8 +15,8 @@ import org.springframework.web.bind.annotation.RestController;
 /**
  * 베타 초대 등록. 관리자 화면은 MVP 범위 밖이라 운영자가 직접 호출하는 내부 경로로 둔다.
  *
- * <p>경로가 {@code /internal/**} 인 이유는 게이트웨이가 {@code /api/v1/auth/**} 와 {@code /api/v1/**} 만 백엔드로 라우팅하기 때문이다. 그
- * 밖의 경로는 프런트엔드로 가므로 이 엔드포인트는 외부에서 도달하지 않는다. 그래도 클러스터 안에서는 열려 있으므로 {@code
+ * <p>경로가 {@code /internal/**} 인 이유는 게이트웨이가 {@code /api/v1/auth/**} 와 {@code /api/v1/**} 만 백엔드로
+ * 라우팅하기 때문이다. 그 밖의 경로는 프런트엔드로 가므로 이 엔드포인트는 외부에서 도달하지 않는다. 그래도 클러스터 안에서는 열려 있으므로 {@code
  * InternalApiKeyFilter} 가 공유 시크릿을 검사한다.
  */
 @RestController
