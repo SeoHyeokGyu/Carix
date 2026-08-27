@@ -48,7 +48,7 @@ Security는 다음 단계다. `collector`는 채용공고 도메인의 JPA와 `c
 | --- | --- |
 | `GET /api/health` | 헬스체크 |
 | `POST /api/v1/auth/magic-link` | 매직링크 발송 요청. 초대 여부와 무관하게 동일 응답(계정 열거 방지) |
-| `POST /api/v1/auth/verify` | 매직링크 검증, 세션 쿠키 발급 |
+| `POST /api/v1/auth/verify` | 매직링크 검증, 세션 쿠키 발급. 본문은 `token` 만 받는다 |
 | `POST /api/v1/auth/logout` | 현재 세션 폐기 |
 | `POST /api/v1/auth/logout-all` | 사용자의 전체 세션 폐기 |
 | `POST /internal/invitations` | 베타 초대 등록. 이미 초대된 이메일은 건너뛴다 |
@@ -97,8 +97,8 @@ SPF·DKIM 을 직접 세울 필요가 없다.
 
 **잔여 항목**
 
-- 발송·검증·세션·Rate Limit 흐름 테스트가 없다. `src/test` 에는 자동설정 회귀 테스트(Flyway·Mail),
-  초대 등록 경로 테스트, 메일 발송기 단위 테스트만 있다.
+- 발송·세션·Rate Limit 흐름 테스트가 없다. 검증(`/v1/auth/verify`)만 컨트롤러 테스트가 있고,
+  나머지는 자동설정 회귀 테스트(Flyway·Mail), 초대 등록 경로 테스트, 메일 발송기 단위 테스트뿐이다.
 
 로컬 기동은 `core-api`와 동일한 순서다(config-server 먼저, 그다음 `EUREKA_CLIENT_ENABLED=false`
 로 단독 기동 가능). `auth-service`는 JPA·Flyway를 쓰므로 로컬 검증은 OCI DB 원격 연결
