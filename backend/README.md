@@ -45,16 +45,21 @@ Security는 다음 단계다. `collector`는 채용공고 도메인의 JPA와 `c
 | `POST /api/v1/auth/verify` | 매직링크 검증, 세션 쿠키 발급 |
 | `POST /api/v1/auth/logout` | 현재 세션 폐기 |
 | `POST /api/v1/auth/logout-all` | 사용자의 전체 세션 폐기 |
+| `POST /internal/invitations` | 베타 초대 등록. 이미 초대된 이메일은 건너뛴다 |
+| `GET /internal/invitations` | 초대 목록 조회 |
 
-**잔여 항목** — 셋 다 없으면 매직링크 로그인을 끝까지 밟을 수 없다.
+`/internal/**` 은 게이트웨이가 라우팅하지 않는다(`/api/v1/auth/**` 와 `/api/v1/**` 만 백엔드로
+간다). 외부에서 도달하지 않으며, 클러스터 안에서는 `X-Internal-Api-Key` 헤더를
+`carix.auth.internal-api-key` 와 대조한다. 키가 비어 있으면 전부 403 이다(fail closed).
+값은 `AUTH_INTERNAL_API_KEY` 환경변수로만 넣는다.
+
+**잔여 항목** — 이메일 실발송이 없어 매직링크 로그인을 끝까지 밟을 수 없다.
 
 - 이메일 실제 발송이 없다. `LoggingMagicLinkNotifier`가 로그로만 기록하며 원본 토큰이
   로그에 남으므로 운영 발송 경로로 쓰지 않는다. 메일 발송 제공자(AWS SES 등) 구현체로
   교체한다.
-- 초대 등록 경로가 없다. `invitation` 행이 있어야 발송이 일어나는데(계정 열거 방지상
-  응답은 동일하다), 행을 넣을 API도 시드도 없어 현재는 수동 INSERT 뿐이다.
-- 인증 흐름 테스트가 없다. `src/test` 에는 Flyway 자동설정이 클래스패스에 있는지 보는
-  회귀 테스트 하나뿐이라 발송·검증·세션·Rate Limit 은 아무것도 검증되지 않는다.
+- 발송·검증·세션·Rate Limit 테스트가 없다. `src/test` 에는 Flyway 자동설정 회귀 테스트와
+  초대 등록 경로 테스트만 있다.
 
 로컬 기동은 `core-api`와 동일한 순서다(config-server 먼저, 그다음 `EUREKA_CLIENT_ENABLED=false`
 로 단독 기동 가능). `auth-service`는 JPA·Flyway를 쓰므로 로컬 검증은 OCI DB 원격 연결
