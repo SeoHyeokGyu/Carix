@@ -58,8 +58,7 @@ public class MarketAggregateService {
   @Transactional
   public int aggregateMarketDataForMonth(String baseYearMonth) {
     if (baseYearMonth == null || !baseYearMonth.matches("\\d{6}")) {
-      throw new IllegalArgumentException(
-          "기준년월은 YYYYMM 6자리여야 합니다 (입력값: " + baseYearMonth + ")");
+      throw new IllegalArgumentException("기준년월은 YYYYMM 6자리여야 합니다 (입력값: " + baseYearMonth + ")");
     }
     log.info("[시장사전집계] 기준년월({})에 대한 다차원 사전 집계를 시작합니다...", baseYearMonth);
     List<JobPosting> allPostings = jobPostingRepository.findAll();
