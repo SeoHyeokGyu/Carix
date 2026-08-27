@@ -119,7 +119,7 @@ gantt
 
 | 주차 | Member A (소득 & PPI) | Member B (스킬 & MVI) | Member C (인증 & 결정 & 시뮬레이터) |
 | :--- | :--- | :--- | :--- |
-| **0주차<br>(사전정렬)** | • CPI 수집 스키마 확정<br>• 소득/소비 DDL 확정 | ~~• 공고/임금 통계 스키마 확정~~ (완료)<br>~~• 표준 스킬 사전 포맷 정의~~ (완료) | • 이메일 provider 선정 & 도메인 인증(SPF/DKIM) 착수 — 외부 리드타임이 있어 최우선<br>~~• DB 마이그레이션 방식 통일~~ (완료 — auth=Flyway, core=직접 DDL)<br>• **PPI/MVI 결과 계약 DTO + 스텁 확정** (§4-1, C의 3~4주차 선행조건)<br>• 프론트엔드 라우팅/레이아웃/Theme 세팅 |
+| **0주차<br>(사전정렬)** | • CPI 수집 스키마 확정<br>• 소득/소비 DDL 확정 | ~~• 공고/임금 통계 스키마 확정~~ (완료)<br>~~• 표준 스킬 사전 포맷 정의~~ (완료) | • 이메일 provider 선정 & 도메인 인증(SPF/DKIM) 착수 — 외부 리드타임이 있어 최우선<br>~~• DB 마이그레이션 방식 통일~~ (완료 — auth=Flyway, core=직접 DDL)<br>~~• PPI/MVI 결과 계약 DTO + 스텁 확정~~ (완료 — `com.carix.index`, §4-1)<br>• 프론트엔드 라우팅/레이아웃/Theme 세팅 |
 | **1~2주차<br>(인프라 & 파이프라인)** | • 통계청 CPI 수집 배치 개발<br>• `income_history`, `expense_*` CRUD API | ~~• 채용공고/임금 데이터 수집 파이프라인~~ (08-25 완료)<br>~~• 표준 스킬 사전 정제 & 검색 API~~ (08-24 완료)<br>• collector Spring Batch 잡·내부 API·배포 배선 (§5) | • 이메일 provider 실발송 연동 (`MagicLinkNotifier` 스텁 교체 — 스텁은 원본 토큰을 로그에 남긴다)<br>• 초대 이메일 등록 경로 — 없으면 Member A·B 도 로그인 검증을 못 한다<br>• `auth-service` 테스트 코드 (발송/검증·세션·Rate Limit)<br>• 프런트엔드 `/api` 프록시 & `S-02~04` 서빙 방식 결정 (현재 `ssr: false` + `/` 프리렌더)<br>• `S-02~04` 로그인·발송 안내·검증 UI<br>• Gateway 세션 검증 필터 활성화 ([선행 조건](../README.md#진행-상태)) |
 | **3~4주차<br>(핵심 계산 엔진)** | • **개인물가 & 구매력 지수(PPI) 계산 엔진**<br>• 소비 가중치 전파(`PROPAGATED`) 로직 | • **스킬 수요 지수 & MVI 계산 엔진**<br>• 동료집단 완화 알고리즘 (N<10 클램프)<br>~~• `market_aggregate` 사전집계 배치~~ (08-25 완료) | • **월별 스냅샷 멱등성 저장/재계산 엔진**<br>• **결정 신호(Decision Signal) 판정 엔진** |
 | **5~6주차<br>(UI & 시각화 완성)** | • `S-06, S-07` 소득/소비 온보딩 UI<br>• `S-12` 소득/소비 이력 관리 UI<br>• `S-14` **소득 vs 물가 추이 차트** | • `S-08` 스킬 입력 & 자동완성 UI<br>• `S-12` 스킬 이력 관리 UI<br>• `S-14` **연봉 분포 & 스킬 수요 차트** | • `S-05, S-09` 프로필/검토 온보딩 UI<br>• `S-10, S-11` **대시보드 메인 & 이력 UI**<br>• `S-13` 계정 삭제 & `S-15` **시뮬레이터 UI** |
@@ -149,9 +149,11 @@ graph LR
     SNAP_ENG --> DEC_ENG
 ```
 
-1. **지수 산출 결과 계약 (A, B $\rightarrow$ C)**:
-   - Member A는 특정 사용자의 월별 PPI 지수 및 가중치 상태 객체를 반환하는 서비스 인터페이스 제공
-   - Member B는 특정 사용자의 월별 MVI 지수, 동료집단 완화 브래킷, 표본 수 객체를 반환하는 서비스 인터페이스 제공
+1. **지수 산출 결과 계약 (A, B $\rightarrow$ C)** — `core-api` 의 `com.carix.index` 에 확정돼 있다:
+   - Member A는 `PurchasingPowerIndexProvider.calculate(userId, baseYearMonth)` 를 구현해 `PpiResult`(지수값, 상태, 소비 가중치 출처, 지수 기준월, CPI 원천 기준일)를 반환
+   - Member B는 `MarketValueIndexProvider.calculate(userId, baseYearMonth)` 를 구현해 `MviResult`(지수값, 상태, **원천별** 완화 단계·표본 수, 제외 스킬과 사유, 임금통계 기준선, 집계 기준일)를 반환
+   - 계산 불가는 예외가 아니라 `IndexStatus` 로 돌려준다. 값은 `null` 이고 0 이나 100 으로 채우지 않는다
+   - 구현 빈이 없는 동안 `com.carix.index.stub` 이 `NOT_AVAILABLE` 을 돌려주므로 C 는 A·B 를 기다리지 않고 3~4주차를 시작할 수 있다
 2. **스냅샷 재계산 트리거 (A, B $\rightarrow$ C)**:
    - 사용자가 소득/소비(Member A) 또는 스킬(Member B)을 추가/수정/삭제했을 때, Member C의 `recalculateSnapshot(userId, fromYm)`을 호출하여 해당 시점 이후의 스냅샷을 멱등하게 갱신
 3. **완료 기준 10개 항목 점검**:

@@ -3,7 +3,7 @@
 Java 25 + Spring Boot. Gradle 멀티모듈 — `config-server`, `eureka`, `core-api`, `auth-service`,
 `gateway`, `collector`.
 `auth-service` 가 초대·매직링크 로그인·세션을 맡는다(스키마 `auth`). `core-api` 가 도메인 로직과
-REST API를 맡는다 — DB는 쓰지 않는다(JPA·Postgres 의존성 없음). 채용공고 도메인
+REST API를 맡는다 — 스킬 도메인부터 JPA로 `core` 스키마에 붙어 있다. 채용공고 도메인
 (`com.carix.jobposting`)과 `core` 스키마는 `collector` 소관이며, 이미 JPA로 원격 DB에 연결돼
 있다(`core` 스키마 DDL은 [`../deploy/postgres/schema/`](../deploy/postgres/schema/)에 있음). `core-api`의 Security는 아직 없음 — 다음 단계.
 
@@ -20,11 +20,17 @@ Config·Eureka 클라이언트에 더해 dashboard·expense·income·profile·re
 시드 로더·크롤러는 `collector` 모듈에 별도로 이미 추가됐으며, `core-api`의 REST로는 노출되지
 않는다. `core-api`의 Security는 다음 단계에서 추가한다.
 
+지수 산출 계약(`com.carix.index`)은 소득/구매력 도메인과 스킬/시장가치 도메인이 각각 구현하고
+스냅샷·결정신호 엔진이 호출한다. `PurchasingPowerIndexProvider`·`MarketValueIndexProvider` 와
+결과 타입(`PpiResult`, `MviResult`)만 정의돼 있고 구현은 아직 없다 — 구현 빈이 없는 동안
+`com.carix.index.stub` 의 스텁이 `NOT_AVAILABLE` 을 돌려준다(기동 로그에 어느 산출기가 스텁인지
+남는다). 실제 구현을 빈으로 등록하면 스텁은 물러난다.
+
 **구현 상태:** `auth-service` 코드 구현(초대 확인, 매직링크 발급·검증, 세션 생성·조회·폐기,
 rate limit)과 배포 배선(`Dockerfile`, `docker-compose.yml` 서비스 항목, Caddy 라우트, CI 빌드
 잡) 모두 완료됐다 — 다만 로그인이 실제로 동작하려면 아래 `auth-service` 절의 잔여 항목이
 남아 있다. Spring Cloud Gateway도 도입돼 요청 경로에 편입됐다(설계는 위
-spring-cloud-architecture.md). `core-api`는 DB를 쓰지 않으며(JPA·Postgres 의존성 없음),
+spring-cloud-architecture.md). `core-api`는 스킬 도메인이 JPA로 `core` 스키마를 쓰고 있고,
 Security는 다음 단계다. `collector`는 채용공고 도메인의 JPA와 `core` 스키마를 이미 쓰고
 있다(위 참조).
 
