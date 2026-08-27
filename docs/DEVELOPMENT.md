@@ -309,12 +309,12 @@ CONFIG_SERVER_URL=http://144.24.90.88:8890 EUREKA_URL=http://144.24.90.88:8761/e
 | `http://localhost:8080/api/v3/api-docs` | OpenAPI JSON |
 | `http://localhost:8080/api/v1/demo/thresholds` | Config Server 연동 확인. 서버 `config/spring/core-api.yml` 값을 읽는다 |
 
-- **core-api 는 DB 를 쓰지 않는다** — 채용공고 도메인이 `collector` 로 이동해
-  JPA·Postgres 의존성이 없다. `spring.datasource.*` 없이 기동한다.
-  `market_aggregate` 를 읽기 시작하면 다시 필요해지지만, 그때는 JPA 가 아니라
-  `JdbcClient` 읽기 전용으로 들인다(`specs/data-architecture.md` §3.1).
-- core-api 에는 Flyway 의존성이 없고 JPA 도 없다.
-  `core` 스키마 DDL 은 `collector` 가 쓰는 대상이다 — 적용 절차는 §3.2 를 따른다.
+- **core-api 는 `core` 스키마에 붙는다** — 스킬 도메인(`skill`, `skill_alias`, `user_skill`)이
+  JPA 로 매핑돼 있어 `spring.datasource.*` 가 필요하다. 나머지 사용자 도메인은 아직 스텁이다.
+  `market_aggregate` 읽기는 JPA 가 아니라 `JdbcClient` 읽기 전용으로 들이기로 했다
+  (`specs/data-architecture.md` §3.1).
+- core-api 에는 Flyway 의존성이 없다. `core` 스키마 DDL 은 `collector` 와 `core-api` 가
+  공유하며 파일로 직접 적용한다 — 절차는 §3.2 를 따른다.
 - 수집·정규화는 `collector` 모듈이다. `application.yml`이 `spring.cloud.config.fail-fast:
   true`를 켜 두므로 위 core-api 예시와 같은 방식으로 환경 변수와 `local` 프로파일을 줘야
   기동한다. 포트는 `application.yml` 기본값(8083)을 그대로 쓰므로 `--server.port`는

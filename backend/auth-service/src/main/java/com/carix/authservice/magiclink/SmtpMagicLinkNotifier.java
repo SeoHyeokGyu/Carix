@@ -35,11 +35,26 @@ public class SmtpMagicLinkNotifier implements MagicLinkNotifier {
     String link = buildLink(rawToken);
     try {
       mailSender.send(compose(email, link));
-      log.info("매직링크 메일을 발송했습니다. 수신자={}", email);
+      log.info("매직링크 메일을 발송했습니다. 수신자={}", mask(email));
     } catch (Exception e) {
       // 토큰은 로그에 남기지 않는다. 링크 전체가 곧 자격증명이다.
-      log.error("매직링크 메일 발송에 실패했습니다. 수신자={} 원인={}", email, e.getMessage(), e);
+      log.error("매직링크 메일 발송에 실패했습니다. 수신자={} 원인={}", mask(email), e.getMessage(), e);
     }
+  }
+
+  /**
+   * 로그용 이메일 마스킹. SECURITY.md §4 가 로그에 이메일을 남기지 말라고 한다. 발송 실패를 추적하려면 어느 수신자인지 구분은 돼야 하므로 전부 지우지 않고
+   * 로컬 파트 첫 글자만 남긴다.
+   */
+  static String mask(String email) {
+    if (email == null || email.isBlank()) {
+      return "(없음)";
+    }
+    int at = email.indexOf('@');
+    if (at <= 0) {
+      return "***";
+    }
+    return email.charAt(0) + "***" + email.substring(at);
   }
 
   String buildLink(String rawToken) {
