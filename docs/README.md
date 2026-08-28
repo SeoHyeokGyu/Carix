@@ -86,7 +86,7 @@
 | OCI 배포 환경 | 구성 완료 — 최소 스캐폴드 기준 빌드 → GHCR → SSH → 헬스체크 전 구간 검증 |
 | Spring Cloud 전환 | 계획 A(멀티모듈·Config Server·Eureka) 구현·운영 검증 완료, 계획 B(Gateway 도입, 요청경로 편입) 구현 완료, 계획 C(auth-service 배포 배선) 구현 완료 |
 | core-api | DB 미사용(JPA·Postgres 의존성 없음), Security 없음 |
-| auth-service | 배포 배선 완료. 이메일·비밀번호 가입·로그인과 세션 토큰 해시 저장 반영. 매직링크·초대·메일 코드가 아직 남아 있다 |
+| auth-service | 이메일·비밀번호 가입·로그인·세션 조회·로그아웃 구현 완료, 세션 토큰 해시 저장. 매직링크·초대·메일 코드가 아직 남아 있다 |
 | collector | 모듈 추출 완료 |
 | DB 스키마 소유권 | auth 스키마는 auth-service, core 스키마는 collector(채용공고 5개 테이블·market_aggregate)와 core-api(사용자 도메인 5개 테이블·지수/시나리오)가 공유 (DDL 직접 적용) |
 | 프런트엔드 | React Router + Vite 기반. ESLint/Prettier 코드 스타일 표준화, 라이트/다크 듀얼 테마, WCAG AA 접근성 준수. 테스트 스크립트(`pnpm dev`·`test`·`test:unit`·`test:e2e`) 모두 구비. MVP 전 화면 라우트와 레이아웃·진입 가드 골격 완료 |
@@ -97,7 +97,7 @@
 | --- | --- |
 | 임금통계 기준선 원천 재선정 | KOSIS 근로실태조사는 직무 세분·경력·지역 차원 부족 확인 — [외부 원천 API 연동 명세 §3.3](specs/external-api-integration.md) |
 | 애플리케이션 구현 | core-api 사용자 도메인 및 지수/시나리오 계산 로직 구현, 프런트엔드 화면 UI (라우트 골격은 완료, 랜딩 외 전 화면이 플레이스홀더) |
-| 인증 재설계 잔여 | 세션 조회 응답 확장, 프런트 화면(S-01~03)·가드, 매직링크·초대·메일 코드와 설정 폐기 — 설계는 [`backend/README.md`의 auth-service 절](../backend/README.md#auth-service) |
+| 인증 재설계 잔여 | 프런트 화면(S-01~03)·가드, 매직링크·초대·메일 코드와 설정 폐기 — 설계는 [`backend/README.md`의 auth-service 절](../backend/README.md#auth-service) |
 | DB 백업 체계 | 운영 DB 일일 정기 백업 및 복구 절차 구축 ([DEVELOPMENT.md §3](DEVELOPMENT.md#왜-같은-db를-쓰는가) 최우선 후속 과제) |
 | collector | Spring Batch 잡·내부 API·`docker-compose.yml`·`deploy.yml` 배선 |
 | 프런트엔드 | `/api` 프록시 미구성 — 백엔드 호출 시점에 `vite.config.ts`에 추가. 진입 가드의 세션 소스(`app/hooks/useSession.ts`)도 그때 실제 API로 교체 |
