@@ -107,7 +107,7 @@ flowchart TD
 
 ### 계정과 온보딩
 
-- 가입 없이 시작하는 익명 세션. 원할 때 이메일·비밀번호로 계정 승격 (입력한 데이터가 그대로 이어짐)
+- 이메일·비밀번호 회원가입과 로그인 (이메일 인증·비밀번호 재설정 없음)
 - 프로필 → 소득 → 소비 → 스킬 → 검토 순서의 온보딩, 단계별 자동 저장과 중단 지점 재개
 - 계정과 개인 데이터 전체 삭제
 
@@ -160,7 +160,7 @@ flowchart TD
 | --- | --- | --- |
 | `/` | 랜딩 | 공개 |
 | `/login` | 로그인 (이메일·비밀번호) | 공개 |
-| `/register` | 계정 등록 (익명 → 등록 승격) | 세션 |
+| `/register` | 회원가입 (이메일·비밀번호) | 공개 |
 | `/onboarding/{profile,income,expense,skills,review}` | 온보딩 5단계 | 세션 |
 | `/dashboard` | 핵심 지표 3카드 | 세션 + 온보딩 완료 |
 | `/dashboard/history` | 월별 스냅샷 이력 | 세션 + 온보딩 완료 |
@@ -176,11 +176,12 @@ flowchart TD
 ### 핵심 동작 규칙
 
 **인증**
-- 랜딩에서 시작하면 익명 세션(30일)을 발급하고 온보딩으로 보냄. 입력 단계 없음
-- 계정 승격은 같은 사용자 행을 갱신하므로 익명일 때 넣은 데이터와 세션이 그대로 유지됨
+- 가입 즉시 세션(30일)을 발급하고 온보딩 첫 단계로 보냄
+- 이메일 소유를 증명하지 않고 비밀번호 재설정도 두지 않음 — 메일 발송 경로가 없음
 - 로그인 실패는 없는 이메일과 비밀번호 불일치를 구분하지 않음 (계정 열거 방지)
-- 비밀번호는 최소 8자, 문자 구성은 강제하지 않음. 재설정은 MVP 범위 밖
-- 속도 제한: 익명 발급 IP당 20회/시간, 로그인 이메일당 10회·IP당 30회/시간, 등록 IP당 20회/시간
+- 가입의 이메일 중복은 알려줌 — 숨기면 사용자가 실패 원인을 알 수 없음
+- 비밀번호는 최소 8자, 문자 구성은 강제하지 않음
+- 속도 제한: 가입 IP당 20회/시간, 로그인 이메일당 10회·IP당 30회/시간
 
 **온보딩**
 - 필드 변경 2초 후 또는 단계 이동 시 자동 저장, 재로그인 시 마지막 단계에서 재개
@@ -311,7 +312,7 @@ flowchart TD
 | Spring Cloud Gateway·Config·Eureka | 학습·포트폴리오가 주목적인 프로젝트이며, 이 셋을 실제로 운영해 보는 것이 성과물입니다. 서비스 경계는 그 셋이 모두 동작하는 최소 구성(auth 분리)으로 잡았습니다 ([설계서](docs/specs/spring-cloud-architecture.md)) |
 | Config Server native 백엔드 | 파일시스템 설정 디렉터리를 직접 읽어 자격증명 관리 복잡성을 줄이고 배포 동기화와 안정적으로 결합합니다 |
 
-인증 방식(익명 세션 우선 + 서버 세션)의 근거는 [SECURITY.md §1](docs/SECURITY.md),
+인증 방식(이메일·비밀번호 + 서버 세션)의 근거는 [SECURITY.md §1](docs/SECURITY.md),
 연봉 기준선 선택은 [외부 API 연동 명세](docs/specs/external-api-integration.md)를 참조합니다(재검토 진행 중).
 
 > **왜 2단인가.** 이 호스트는 여러 프로젝트를 함께 돌립니다. 80/443은 한 컨테이너만 바인딩할 수
@@ -340,7 +341,7 @@ flowchart TD
 ```
 
 단일 진입점인 `carix_caddy(:80)`는 모든 애플리케이션 요청을 `gateway:8080`으로 포워딩하며, Spring Cloud Gateway가 경로 기반 라우팅 및 필터링을 수행합니다:
-- `/api/v1/auth/**` ➡️ `auth-service:8081` (익명 세션·계정 등록·로그인·세션)
+- `/api/v1/auth/**` ➡️ `auth-service:8081` (가입·로그인·세션)
 - `/api/v1/**` ➡️ `core-api:8082` (도메인 API)
 - `/**` (그 외) ➡️ `frontend-node:3000` (UI 화면 및 정적 에셋)
 
@@ -433,7 +434,7 @@ PR 단계에서 `pr-check.yml` 워크플로가 백엔드 테스트와 프런트�
 - API 문서: `https://carix.144.24.90.88.sslip.io/api/swagger-ui/index.html`
 - `GET /api/health` — 배포 헬스체크 대상
 - `POST /api/v1/demo/echo` — 데모/검증용. Swagger 및 API 통신 확인 엔드포인트
-- `POST /api/v1/auth/anonymous`, `/register`, `/login`, `/logout`, `/logout-all`,
+- `POST /api/v1/auth/register`, `/login`, `/logout`, `/logout-all`,
   `GET /api/v1/auth/session` — auth-service
 - `GET /api/v1/skills/search`, `POST /api/v1/user-skills`, `DELETE /api/v1/user-skills/{id}` —
   구현 완료 (JPA로 `core` 스키마 사용)

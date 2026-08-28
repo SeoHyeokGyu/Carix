@@ -216,43 +216,11 @@ psql "postgresql://<user>@144.24.90.88:5432/carix?sslmode=require" \
 새 환경(빈 DB)에 `core`를 재현하려면 정본 DDL을 순서대로 실행한다 — 앱을 띄운다고
 테이블이 생기지 않는다.
 
-#### auth 스키마 — 익명 계정 정리
-
-30일 이상 접속이 없는 익명 계정(`email IS NULL`)은 정리 대상이다. **자동 잡을 두지
-않는다** — `core` 스키마의 소득·소비·스킬을 함께 지워야 하는데 auth-service 는 거길
-건드리지 않기 때문이다. 계정 삭제 API(US-C2)가 구현되면 그 위에 얹는다.
-
-그때까지는 수동으로 지운다. `core` 를 먼저 지우고 `auth` 를 지운다 — 순서가 바뀌면
-주인 없는 `core` 행이 남는다(크로스 스키마 FK 가 없어 DB 가 막아주지 않는다).
-
-```sql
--- 1) 대상 확인
-CREATE TEMP TABLE stale_users AS
-SELECT u.id FROM auth.users u
-WHERE u.email IS NULL
-  AND NOT EXISTS (
-    SELECT 1 FROM auth.session s
-    WHERE s.user_id = u.id AND s.expires_at > now()
-  )
-  AND u.updated_at < now() - INTERVAL '30 days';
-SELECT count(*) FROM stale_users;
-
--- 2) core 먼저
-DELETE FROM core.expense_item WHERE expense_history_id IN
-  (SELECT id FROM core.expense_history WHERE user_id IN (SELECT id FROM stale_users));
-DELETE FROM core.expense_history WHERE user_id IN (SELECT id FROM stale_users);
-DELETE FROM core.income_history  WHERE user_id IN (SELECT id FROM stale_users);
-DELETE FROM core.user_skill      WHERE user_id IN (SELECT id FROM stale_users);
-DELETE FROM core.career_profile  WHERE user_id IN (SELECT id FROM stale_users);
-DELETE FROM core.index_snapshot  WHERE user_id IN (SELECT id FROM stale_users);
-DELETE FROM core.career_scenario WHERE user_id IN (SELECT id FROM stale_users);
-
--- 3) auth (session 은 ON DELETE CASCADE)
-DELETE FROM auth.users WHERE id IN (SELECT id FROM stale_users);
-```
+#### auth 스키마 — 정리
 
 만료 세션과 윈도가 지난 `rate_limit_bucket` 행은 auth-service 스케줄러가 일 1회
-지우므로 손댈 필요 없다.
+지운다. 손으로 지울 일은 없다. 계정 없이 만들어지는 사용자 행이 없으므로 사용자
+정리 대상도 없다 — 계정 삭제는 사용자가 직접 하는 기능(US-C2)이다.
 
 #### auth 스키마 — Flyway
 
