@@ -1,18 +1,32 @@
 import { describe, expect, it } from "vitest";
 import { render, screen } from "@testing-library/react";
+import { MemoryRouter } from "react-router";
 import { BetaNotice } from "./BetaNotice";
 
+function renderNotice() {
+  render(
+    <MemoryRouter>
+      <BetaNotice />
+    </MemoryRouter>,
+  );
+}
+
 describe("BetaNotice", () => {
-  it("베타 안내 문구를 렌더링한다", () => {
-    render(<BetaNotice />);
+  it("안내 문구를 렌더링한다", () => {
+    renderNotice();
     expect(
-      screen.getByText(/초대받은 10~30명의 비공개 베타 사용자/),
+      screen.getByText(/이메일과 비밀번호만으로 가입해 바로 써 볼 수 있습니다/),
     ).toBeInTheDocument();
   });
 
-  it("버튼이나 링크(CTA)를 렌더링하지 않는다", () => {
-    render(<BetaNotice />);
-    expect(screen.queryByRole("button")).not.toBeInTheDocument();
-    expect(screen.queryByRole("link")).not.toBeInTheDocument();
+  it("가입과 로그인 진입점을 제공한다", () => {
+    renderNotice();
+    expect(
+      screen.getByRole("link", { name: "가입하고 시작하기" }),
+    ).toHaveAttribute("href", "/register");
+    expect(screen.getByRole("link", { name: "로그인" })).toHaveAttribute(
+      "href",
+      "/login",
+    );
   });
 });

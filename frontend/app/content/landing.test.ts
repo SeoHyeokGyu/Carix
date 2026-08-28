@@ -69,9 +69,8 @@ describe("landing content", () => {
     );
   });
 
-  it("베타 안내에 비공개·초대·인원·직군 범위를 모두 포함한다", () => {
-    expect(BETA_NOTICE).toContain("비공개 베타");
-    expect(BETA_NOTICE).toContain("10~30명");
+  it("시작 안내에 직군 범위와 가입 방식을 담는다", () => {
     expect(BETA_NOTICE).toContain("개발·데이터·AI 직군");
+    expect(BETA_NOTICE).toContain("이메일과 비밀번호");
   });
 });

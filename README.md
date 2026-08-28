@@ -169,7 +169,7 @@ flowchart TD
 | `/mypage/records` | 소득·소비·스킬 이력 관리 | 세션 |
 | `/mypage/profile` | 세션 관리·계정 삭제 | 세션 |
 
-라우팅 가드: 세션 없으면 `/login`으로, 온보딩 미완료면 마지막 미완료 단계로,
+라우팅 가드: 세션 없으면 랜딩(`/`)으로, 온보딩 미완료면 마지막 미완료 단계로,
 온보딩 완료 후 `/onboarding/*` 접근은 `/dashboard`로 이동합니다
 (검토 화면 `/onboarding/review`는 재진입 허용).
 
@@ -263,7 +263,7 @@ flowchart TD
 
 | 계층 | 기술 | 책임 | 현재 |
 | --- | --- | --- | --- |
-| 프런트엔드 | Vite, React, TypeScript, React Router Framework Mode | UI, 라우팅, SSR·사전 렌더링 | 도입 — 전 화면 라우트와 레이아웃·가드 골격까지. 랜딩(`/`) 외 화면은 플레이스홀더입니다. `ssr: false` + `/` 사전 렌더링 구성이라 SSR은 아직 꺼져 있고, 가드는 클라이언트에서 돕니다 |
+| 프런트엔드 | Vite, React, TypeScript, React Router Framework Mode | UI, 라우팅, SSR·사전 렌더링 | 도입 — 랜딩·로그인·회원가입이 실제로 동작합니다. 온보딩·대시보드·마이페이지는 라우트와 가드만 있고 화면은 플레이스홀더입니다. `ssr: false` + `/` 사전 렌더링 구성이라 SSR은 아직 꺼져 있고, 가드는 클라이언트에서 돕니다 |
 | Node SSR | Node.js 24 LTS, Express, `@react-router/express` | HTML 렌더링, SEO metadata, 공개 콘텐츠 | 미도입 — `frontend/server.js`는 `node:http` 정적 파일 서버입니다. 사전 렌더링된 `/` 는 그대로 주고, 나머지 앱 경로는 SPA 셸(`__spa-fallback.html`)로 넘겨 클라이언트가 라우팅합니다 (아래 §렌더링 전략 주석 참조) |
 | 클라이언트 데이터 | TanStack Query, React Hook Form, Zod | API 상태, 입력 폼, 검증 | 미도입 |
 | UI·시각화 | Tailwind CSS, shadcn/ui, Recharts | 컴포넌트, 스타일, 지수 차트 | 부분 도입 — Tailwind CSS 4(`@tailwindcss/vite`)만 도입. shadcn/ui·Recharts는 미도입 |
@@ -397,7 +397,7 @@ Carix/
 │   ├── postgres/schema/       core 스키마 DDL 실행 정본 (Flyway 미사용)
 ├── config/                    CPI 분류 매핑, 기본 지출 가중치
 ├── verification/              데이터 원천 선행 검증 스크립트와 실측 노트
-├── frontend/                  React Router 7 + Vite + Tailwind (전 화면 라우트 골격, 랜딩 외 플레이스홀더 — SSR 미도입)
+├── frontend/                  React Router 7 + Vite + Tailwind (랜딩·인증 동작, 그 외 플레이스홀더 — SSR 미도입)
 ├── backend/                   Gradle 멀티모듈 — config-server, eureka, gateway, auth-service, core-api, collector
 │                               (core-api 도메인 API 는 고정 응답 스텁 — Batch 미도입)
 ├── docs/
@@ -415,8 +415,9 @@ Carix/
 로컬 개발은 순수 코드 중심이며, **Docker와 PostgreSQL은 OCI 서버에서만 기동**합니다.
 
 - **docker-compose.yml은 OCI 배포 전용**입니다. 로컬에서 `docker compose up`으로 사용하지 않습니다.
-- **로컬 프런트엔드:** Vite dev server(`pnpm dev`)를 띄웁니다. Docker 불필요. `/api` 프록시는
-  아직 구성돼 있지 않습니다 — 프런트가 백엔드를 호출하는 시점에 `vite.config.ts`에 추가합니다.
+- **로컬 프런트엔드:** Vite dev server(`pnpm dev`)를 띄웁니다. Docker 불필요. `/api` 요청은
+  `vite.config.ts`의 프록시가 배포된 게이트웨이로 넘깁니다 — 로컬에 백엔드를 띄우지 않아도
+  로그인이 됩니다. 다른 대상으로 보내려면 `CARIX_API_TARGET` 환경변수를 씁니다.
 - **로컬 백엔드:** 로컬에 DB를 띄우지 않고 **OCI의 `carix` DB에 원격 연결**합니다. 접근은 TLS + OCI Security List IP 허용목록입니다. 운영과 개발이 같은 DB입니다(대안 비교·감수한 위험은 [DEVELOPMENT.md §3](docs/DEVELOPMENT.md)).
 - **통합 테스트:** 두지 않습니다. 테스트용 DB를 쓰지 않기로 했고, 컨텍스트를 띄우는 테스트는 연결하지 않는 DataSource로 돌립니다 ([DEVELOPMENT.md §6](docs/DEVELOPMENT.md)). CI는 전 모듈을 `-x test`로 빌드하므로 테스트 자동 실행 지점은 없습니다 — 머지 전 로컬에서 직접 돌립니다.
 - 환경 변수는 [`.env.example`](.env.example)을 복사해 `.env`로 채웁니다. API 키·시크릿은 저장소에 커밋하지 않습니다.
