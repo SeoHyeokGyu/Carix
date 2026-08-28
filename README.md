@@ -442,8 +442,9 @@ PR 단계에서 `pr-check.yml` 워크플로가 백엔드 테스트와 프런트�
   `/api/v1/reference/**`, `/api/v1/profile`, `/api/v1/onboarding`, `DELETE /api/v1/users` —
   고정 응답 스텁 (API 규격 및 명세 우선 확정 단계)
 
-운영자 전용 내부 경로(`/internal/**`)는 게이트웨이가 라우팅하지 않아 위 공개 URL 로 도달하지
-않습니다. 호출 방법은 [backend/README.md](backend/README.md#auth-service)를 참조하세요.
+`collector`의 파이프라인 관리 API(`/internal/pipeline/**`)는 게이트웨이가 라우팅하지 않아
+위 공개 URL 로 도달하지 않습니다. 호출 방법은
+[DEVELOPMENT.md §5](docs/DEVELOPMENT.md)를 참조하세요.
 
 ## 협업 방식
 

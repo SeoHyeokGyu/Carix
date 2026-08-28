@@ -40,11 +40,4 @@ public class GlobalExceptionHandler {
     return ResponseEntity.badRequest()
         .body(ErrorResponse.of("INVALID_INPUT", e.getMessage(), null));
   }
-
-  @ExceptionHandler(com.carix.authservice.magiclink.MagicLinkInvalidException.class)
-  public ResponseEntity<ErrorResponse> handleMagicLinkInvalid(
-      com.carix.authservice.magiclink.MagicLinkInvalidException e) {
-    return ResponseEntity.badRequest()
-        .body(ErrorResponse.of("MAGIC_LINK_EXPIRED", e.getMessage(), null));
-  }
 }
