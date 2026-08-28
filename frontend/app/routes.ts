@@ -9,10 +9,9 @@ import {
 export default [
   index("routes/home.tsx"),
 
-  // 공개 — 세션 없이 접근한다. /auth/verify 는 링크 토큰으로 들어온다.
+  // 공개 — 세션 없이 접근한다. 계정 없이 열 수 있는 화면은 이 둘과 랜딩뿐이다.
   route("login", "routes/login/login.tsx"),
-  route("login/sent", "routes/login/sent.tsx"),
-  route("auth/verify", "routes/auth/verify.tsx"),
+  route("register", "routes/register/register.tsx"),
 
   layout(
     "routes/onboarding/layout.tsx",

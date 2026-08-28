@@ -2,7 +2,7 @@ import { describe, expect, test } from "vitest";
 import type { OnboardingStep, Session } from "./session";
 import {
   DASHBOARD_PATH,
-  LOGIN_PATH,
+  LANDING_PATH,
   REVIEW_PATH,
   guardOnboarded,
   guardOnboarding,
@@ -11,17 +11,24 @@ import {
 
 const anonymous: Session = { status: "anonymous" };
 
+const loading: Session = { status: "loading" };
+
 const signedIn = (onboardingStep: OnboardingStep): Session => ({
   status: "authenticated",
+  userId: "3fa85f64-5717-4562-b3fc-2c963f66afa6",
   email: "beta@example.com",
   onboardingStep,
 });
 
 describe("guardSession — 마이페이지", () => {
-  test("세션이 없으면 로그인으로 보낸다", () => {
+  test("세션 조회 중에는 판정하지 않는다", () => {
+    expect(guardSession(loading)).toEqual({ allow: "pending" });
+  });
+
+  test("세션이 없으면 랜딩으로 보낸다", () => {
     expect(guardSession(anonymous)).toEqual({
       allow: false,
-      redirectTo: LOGIN_PATH,
+      redirectTo: LANDING_PATH,
     });
   });
 
@@ -31,10 +38,14 @@ describe("guardSession — 마이페이지", () => {
 });
 
 describe("guardOnboarded — 대시보드", () => {
-  test("세션이 없으면 로그인으로 보낸다", () => {
+  test("세션 조회 중에는 판정하지 않는다", () => {
+    expect(guardOnboarded(loading)).toEqual({ allow: "pending" });
+  });
+
+  test("세션이 없으면 랜딩으로 보낸다", () => {
     expect(guardOnboarded(anonymous)).toEqual({
       allow: false,
-      redirectTo: LOGIN_PATH,
+      redirectTo: LANDING_PATH,
     });
   });
 
@@ -51,10 +62,16 @@ describe("guardOnboarded — 대시보드", () => {
 });
 
 describe("guardOnboarding — 온보딩", () => {
-  test("세션이 없으면 로그인으로 보낸다", () => {
+  test("세션 조회 중에는 판정하지 않는다", () => {
+    expect(guardOnboarding(loading, "/onboarding/profile")).toEqual({
+      allow: "pending",
+    });
+  });
+
+  test("세션이 없으면 랜딩으로 보낸다", () => {
     expect(guardOnboarding(anonymous, "/onboarding/profile")).toEqual({
       allow: false,
-      redirectTo: LOGIN_PATH,
+      redirectTo: LANDING_PATH,
     });
   });
 

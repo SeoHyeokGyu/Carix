@@ -1,6 +1,7 @@
 import { Navigate } from "react-router";
 import { AppShell, type NavItem } from "../../components/layout/AppShell";
-import { useSession } from "../../hooks/useSession";
+import { SessionPending } from "../../components/layout/SessionPending";
+import { useSession } from "../../lib/SessionProvider";
 import { guardSession } from "../../lib/routeGuards";
 
 const TABS: NavItem[] = [
@@ -13,6 +14,9 @@ export default function MypageLayout() {
   const session = useSession();
   const guard = guardSession(session);
 
+  if (guard.allow === "pending") {
+    return <SessionPending />;
+  }
   if (!guard.allow) {
     return <Navigate to={guard.redirectTo} replace />;
   }

@@ -1,6 +1,7 @@
 import { Navigate, useLocation } from "react-router";
 import { AppShell, type NavItem } from "../../components/layout/AppShell";
-import { useSession } from "../../hooks/useSession";
+import { SessionPending } from "../../components/layout/SessionPending";
+import { useSession } from "../../lib/SessionProvider";
 import { guardOnboarding } from "../../lib/routeGuards";
 
 const STEPS: NavItem[] = [
@@ -16,6 +17,9 @@ export default function OnboardingLayout() {
   const { pathname } = useLocation();
   const guard = guardOnboarding(session, pathname);
 
+  if (guard.allow === "pending") {
+    return <SessionPending />;
+  }
   if (!guard.allow) {
     return <Navigate to={guard.redirectTo} replace />;
   }

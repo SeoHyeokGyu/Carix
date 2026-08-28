@@ -85,23 +85,22 @@
 | KOSIS CPI·가계동향 API 검증 | 검증 완료 — CPI(`DT_1J22001`)·가계동향(`DT_1L9U101`), 498개월 실측 명세는 [외부 원천 API 연동 명세 §2](specs/external-api-integration.md) |
 | OCI 배포 환경 | 구성 완료 — 최소 스캐폴드 기준 빌드 → GHCR → SSH → 헬스체크 전 구간 검증 |
 | Spring Cloud 전환 | 계획 A(멀티모듈·Config Server·Eureka) 구현·운영 검증 완료, 계획 B(Gateway 도입, 요청경로 편입) 구현 완료, 계획 C(auth-service 배포 배선) 구현 완료 |
-| core-api | DB 미사용(JPA·Postgres 의존성 없음), Security 없음 |
+| core-api | 스킬 도메인이 JPA로 `core` 스키마 사용. 나머지 도메인은 고정 응답 스텁, Security 없음 |
 | auth-service | 이메일·비밀번호 가입·로그인·세션 조회·로그아웃 구현 완료. 세션 토큰 해시 저장. 매직링크·초대·메일 코드와 설정 폐기 완료 |
 | collector | 모듈 추출 완료 |
 | DB 스키마 소유권 | auth 스키마는 auth-service, core 스키마는 collector(채용공고 5개 테이블·market_aggregate)와 core-api(사용자 도메인 5개 테이블·지수/시나리오)가 공유 (DDL 직접 적용) |
-| 프런트엔드 | React Router + Vite 기반. ESLint/Prettier 코드 스타일 표준화, 라이트/다크 듀얼 테마, WCAG AA 접근성 준수. 테스트 스크립트(`pnpm dev`·`test`·`test:unit`·`test:e2e`) 모두 구비. MVP 전 화면 라우트와 레이아웃·진입 가드 골격 완료 |
+| 프런트엔드 | React Router + Vite 기반. ESLint/Prettier 코드 스타일 표준화, 라이트/다크 듀얼 테마, WCAG AA 접근성 준수. 테스트 스크립트(`pnpm dev`·`test`·`test:unit`·`test:e2e`) 모두 구비. MVP 전 화면 라우트·레이아웃·진입 가드 완료. 랜딩·로그인·회원가입은 실제 API에 연결돼 동작 |
 
 ### 남은 것
 
 | 영역 | 남은 작업 |
 | --- | --- |
 | 임금통계 기준선 원천 재선정 | KOSIS 근로실태조사는 직무 세분·경력·지역 차원 부족 확인 — [외부 원천 API 연동 명세 §3.3](specs/external-api-integration.md) |
-| 애플리케이션 구현 | core-api 사용자 도메인 및 지수/시나리오 계산 로직 구현, 프런트엔드 화면 UI (라우트 골격은 완료, 랜딩 외 전 화면이 플레이스홀더) |
-| 인증 화면 | `/api` 프록시 구성, `useSession` 실연결, S-01 랜딩 진입·S-02 로그인·S-03 회원가입 UI, 가드 목적지 수정 — 설계는 [`backend/README.md`의 auth-service 절](../backend/README.md#auth-service) |
+| 애플리케이션 구현 | core-api 사용자 도메인 및 지수/시나리오 계산 로직 구현, 온보딩·대시보드·마이페이지 화면 UI (라우트와 가드는 완료, 화면은 플레이스홀더) |
 | DB 백업 체계 | 운영 DB 일일 정기 백업 및 복구 절차 구축 ([DEVELOPMENT.md §3](DEVELOPMENT.md#왜-같은-db를-쓰는가) 최우선 후속 과제) |
 | collector | Spring Batch 잡·내부 API·`docker-compose.yml`·`deploy.yml` 배선 |
-| 프런트엔드 | `/api` 프록시 미구성 — 백엔드 호출 시점에 `vite.config.ts`에 추가. 진입 가드의 세션 소스(`app/hooks/useSession.ts`)도 그때 실제 API로 교체 |
-| Gateway 세션 검증 필터 | `carix.gateway.session-validation.enabled` 활성화 — 기본값 `false`. 서버 배포·Eureka 등록 확인 전에 켜면 `core-api`로 가는 모든 요청이 401 또는 503이 된다 |
+| 프런트엔드 | 온보딩 5단계·대시보드·추이분석·시뮬레이터·마이페이지 화면 구현. 라우트·가드·세션 연결은 완료 |
+| Gateway 세션 검증 필터 | `carix.gateway.session-validation.enabled` 활성화 — 기본값 `false`. auth-service 배포·등록은 확인됐으므로 이제 켤 수 있다. 켜는 순간 세션 없는 `core-api` 호출이 전부 401 이 되므로 팀 조율 후 켠다 |
 
 ---
 
