@@ -169,6 +169,6 @@ graph LR
 | 작업 | 현재 상태 | 무엇을 막는가 | 제안 담당 |
 | :--- | :--- | :--- | :--- |
 | `collector` Spring Batch 잡 · 내부 API · `docker-compose.yml`/`deploy.yml` 배선 | 모듈 추출만 완료. 운영 배포 목록에 `collector` 없음 | Member B의 수집 파이프라인이 운영에서 실행되지 않는다 → A·B·C 전원이 실데이터 없이 개발 | Member B |
-| 프런트엔드 SSR Phase 2 전환 (Express + `@react-router/express`) | `ssr: false` + `/` 사전 렌더링만. `frontend/server.js`는 정적 서버 | `/login`, `/auth/verify`, `/onboarding/*`, `/dashboard/*`, `/mypage/*` 전 화면. C 화면 10개 전부의 선행조건 | Member C (0~2주차) |
+| 프런트엔드 SSR Phase 2 전환 (Express + `@react-router/express`) | `ssr: false` + `/` 사전 렌더링만. `frontend/server.js`는 정적 서버 | `/login`, `/register`, `/onboarding/*`, `/dashboard/*`, `/mypage/*` 전 화면. C 화면 전부의 선행조건 | Member C (0~2주차) |
 | `core-api` Security (세션 컨텍스트 주입) | 없음. 세션 검증은 게이트웨이 필터 전제이나 기본 비활성 | 모든 도메인 API의 `userId` 확보 경로. A·B·C 공통 | Member C (인증 소관) |
 | 운영 DB 일일 백업 · 복구 절차 | 미구축. `DEVELOPMENT.md §3` 최우선 후속 과제 | 개발 DB = 운영 DB 구조라 실수 시 복구 수단이 없다 | 미정 |

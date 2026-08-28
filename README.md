@@ -354,7 +354,7 @@ Node 서버는 HTML과 SEO를 담당하고 Spring Boot는 인증과 비즈니스
 
 - **Phase 1 (현재)**: 빌드 시점 사전 렌더링(`prerender: ["/"]`, `ssr: false`) 기반 정적 SPA로 랜딩 페이지를 빠르고 안정적으로 서빙합니다.
 - **Phase 2 (인증·대시보드 도입 시)**: Node.js Express 및 `@react-router/express` 기반 SSR을 활성화하여 보호 경로의 서버 세션 검증 및 SSR Shell + 클라이언트 Hydration을 적용합니다.
-  - `/login`, `/login/sent`, `/auth/verify`: 빠른 초기 로드와 보안 검증을 위한 Node SSR
+  - `/login`, `/register`: 빠른 초기 로드와 보안 검증을 위한 Node SSR
   - `/onboarding/*`, `/dashboard/*`, `/mypage/*`: SSR Shell 렌더링 후 TanStack Query 기반 데이터 Hydration
   - 공개 콘텐츠 페이지: SEO 메타데이터(title, Open Graph, canonical URL, sitemap)를 포함한 SSR / 사전 렌더링
 
