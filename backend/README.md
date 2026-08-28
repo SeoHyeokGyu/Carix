@@ -48,7 +48,7 @@ Security는 다음 단계다. `collector`는 채용공고 도메인의 JPA와 `c
 | `GET /api/health` | 헬스체크 |
 | `POST /api/v1/auth/register` | 회원가입. 가입 즉시 세션 쿠키 발급 |
 | `POST /api/v1/auth/login` | 이메일·비밀번호 로그인 |
-| `GET /api/v1/auth/session` | 세션 조회. 게이트웨이 필터와 프런트엔드가 함께 쓴다 |
+| `GET /api/v1/auth/session` | 세션 조회. `{userId, email, onboardingStep}`. 게이트웨이 필터는 `userId` 만 읽는다 |
 | `POST /api/v1/auth/logout` | 현재 세션 폐기 |
 | `POST /api/v1/auth/logout-all` | 사용자의 전체 세션 폐기 |
 
@@ -75,9 +75,9 @@ Security는 다음 단계다. `collector`는 채용공고 도메인의 JPA와 `c
 auth-service 단일 인스턴스를 전제한다 — 여러 개 띄우면 중복 실행된다. 사용자 행은 정리
 대상이 아니다. 계정 없이 만들어지는 행이 없고, 삭제는 사용자가 직접 하는 기능(US-C2)이다.
 
-**구현 상태 — 가입·로그인은 동작하고 매직링크가 아직 남아 있다.** `/v1/auth/register`,
-`/v1/auth/login` 과 세션 토큰 해시 저장은 반영됐다. 세션 조회 응답 확장과 매직링크·초대·
-메일 코드 폐기가 남았다. 진행 상태는
+**구현 상태 — 백엔드는 끝났고 매직링크가 아직 남아 있다.** 가입·로그인·세션 조회·로그아웃과
+세션 토큰 해시 저장이 모두 반영됐다. 프런트 화면(S-01~03)과 매직링크·초대·메일 코드
+폐기가 남았다. 진행 상태는
 [`docs/README.md` 진행 상태](../docs/README.md#진행-상태) 절을 따른다.
 
 로컬 기동은 `core-api`와 동일한 순서다(config-server 먼저, 그다음 `EUREKA_CLIENT_ENABLED=false`
