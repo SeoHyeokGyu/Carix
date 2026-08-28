@@ -2,7 +2,7 @@
 
 Java 25 + Spring Boot. Gradle 멀티모듈 — `config-server`, `eureka`, `core-api`, `auth-service`,
 `gateway`, `collector`.
-`auth-service` 가 초대·매직링크 로그인·세션을 맡는다(스키마 `auth`). `core-api` 가 도메인 로직과
+`auth-service` 가 익명 세션·계정 등록·로그인·세션을 맡는다(스키마 `auth`). `core-api` 가 도메인 로직과
 REST API를 맡는다 — 스킬 도메인부터 JPA로 `core` 스키마에 붙어 있다. 채용공고 도메인
 (`com.carix.jobposting`)과 `core` 스키마는 `collector` 소관이며, 이미 JPA로 원격 DB에 연결돼
 있다(`core` 스키마 DDL은 [`../deploy/postgres/schema/`](../deploy/postgres/schema/)에 있음). `core-api`의 Security는 아직 없음 — 다음 단계.
@@ -26,10 +26,9 @@ Config·Eureka 클라이언트에 더해 dashboard·expense·income·profile·re
 `com.carix.index.stub` 의 스텁이 `NOT_AVAILABLE` 을 돌려준다(기동 로그에 어느 산출기가 스텁인지
 남는다). 실제 구현을 빈으로 등록하면 스텁은 물러난다.
 
-**구현 상태:** `auth-service` 코드 구현(초대 확인, 매직링크 발급·검증, 세션 생성·조회·폐기,
-rate limit)과 배포 배선(`Dockerfile`, `docker-compose.yml` 서비스 항목, Caddy 라우트, CI 빌드
-잡) 모두 완료됐다 — 다만 로그인이 실제로 동작하려면 아래 `auth-service` 절의 잔여 항목이
-남아 있다. Spring Cloud Gateway도 도입돼 요청 경로에 편입됐다(설계는 위
+**구현 상태:** `auth-service` 의 배포 배선(`Dockerfile`, `docker-compose.yml` 서비스 항목,
+Caddy 라우트, CI 빌드 잡)은 완료됐다. 인증 로직은 재설계 반영 전이라 아래 `auth-service`
+절의 설계와 현재 코드가 다르다. Spring Cloud Gateway도 도입돼 요청 경로에 편입됐다(설계는 위
 spring-cloud-architecture.md). `core-api`는 스킬 도메인이 JPA로 `core` 스키마를 쓰고 있고,
 Security는 다음 단계다. `collector`는 채용공고 도메인의 JPA와 `core` 스키마를 이미 쓰고
 있다(위 참조).
@@ -47,58 +46,44 @@ Security는 다음 단계다. `collector`는 채용공고 도메인의 JPA와 `c
 | 경로 | 용도 |
 | --- | --- |
 | `GET /api/health` | 헬스체크 |
-| `POST /api/v1/auth/magic-link` | 매직링크 발송 요청. 초대 여부와 무관하게 동일 응답(계정 열거 방지) |
-| `POST /api/v1/auth/verify` | 매직링크 검증, 세션 쿠키 발급. 본문은 `token` 만 받는다 |
+| `POST /api/v1/auth/anonymous` | 익명 세션 발급. 유효 세션이 있으면 새로 만들지 않고 그대로 반환 |
+| `POST /api/v1/auth/register` | 계정 등록(익명 → 등록 승격). 세션 필요 |
+| `POST /api/v1/auth/login` | 이메일·비밀번호 로그인 |
+| `GET /api/v1/auth/session` | 세션 조회. 게이트웨이 필터와 프런트엔드가 함께 쓴다 |
 | `POST /api/v1/auth/logout` | 현재 세션 폐기 |
 | `POST /api/v1/auth/logout-all` | 사용자의 전체 세션 폐기 |
-| `POST /internal/invitations` | 베타 초대 등록. 이미 초대된 이메일은 건너뛴다 |
-| `GET /internal/invitations` | 초대 목록 조회 |
 
-`/internal/**` 은 게이트웨이가 라우팅하지 않는다(`/api/v1/auth/**` 와 `/api/v1/**` 만 백엔드로
-간다). 외부에서 도달하지 않으며, 클러스터 안에서는 `X-Internal-Api-Key` 헤더를
-`carix.auth.internal-api-key` 와 대조한다. 키가 비어 있으면 전부 403 이다(fail closed).
-값은 `AUTH_INTERNAL_API_KEY` 환경변수로만 넣는다.
+**익명 우선 구조.** 방문자는 가입 절차 없이 세션을 받고 바로 쓴다. 익명 사용자는
+`users` 행에 이메일과 비밀번호 해시가 없는 상태이며, 별도 상태 컬럼을 두지 않고
+`email IS NULL` 로 판정한다. 계정 승격은 그 행을 `UPDATE` 하므로 **익명일 때 입력한
+데이터와 세션이 그대로 이어진다** — 데이터를 옮기는 코드가 없다.
 
-**공개 URL 로는 부를 수 없다.** `https://<host>/api/internal/...` 은 게이트웨이의 "그 외" 규칙에
-걸려 `frontend-node` 로 가고, SPA 폴백이 200 과 HTML 을 돌려준다 — auth-service 응답이 아니다.
-`auth-service` 는 포트를 공개하지 않고(`expose` 만) 이미지에 `curl` 도 없으므로, compose 네트워크에
-클라이언트 컨테이너를 붙여 부른다. 네트워크 이름은 `docker network ls | grep carix` 로 확인한다.
+**세션 토큰은 해시로 저장한다.** `session.token_hash` 에 SHA-256 hex 만 남기고 원본은
+쿠키에만 있다. 세션은 30일짜리 자격증명이라 DB 유출 시 피해가 가장 크다.
 
-```bash
-# 초대 등록
-docker run --rm --network carix_default curlimages/curl:latest \
-  -X POST http://auth-service:8081/api/internal/invitations \
-  -H "X-Internal-Api-Key: $AUTH_INTERNAL_API_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{"emails":["someone@example.com"]}'
+**비밀번호는 BCrypt.** 최소 8자를 요구하고 문자 구성은 강제하지 않는다.
+`spring-security-crypto` 의 `BCryptPasswordEncoder` 만 쓰고 Spring Security 필터 체인이나
+`UserDetailsService` 는 두지 않는다 — 인증은 세션이 이미 하고 있다.
 
-# 초대 목록 확인
-docker run --rm --network carix_default curlimages/curl:latest \
-  http://auth-service:8081/api/internal/invitations \
-  -H "X-Internal-Api-Key: $AUTH_INTERNAL_API_KEY"
-```
+**계정 열거 방지 범위.** 로그인 실패는 없는 이메일과 비밀번호 불일치를 구분하지 않는다.
+반대로 계정 등록의 이메일 중복은 알려준다 — 숨기면 사용자가 가입 실패 원인을 알 수
+없다. 대신 등록에 IP 속도 제한을 걸어 이메일 목록 수집을 막는다. 제한값은
+[SECURITY.md §2](../docs/SECURITY.md) 를 정본으로 한다.
 
-**매직링크 메일 발송** — SMTP 로 보낸다. Gmail SMTP 를 전제로 설정했지만 provider 에 묶인 코드는
-없다(`spring.mail.*` 만 바꾸면 옮겨간다). 도메인이 없어도 되고, 발신 도메인이 `gmail.com` 이라
-SPF·DKIM 을 직접 세울 필요가 없다.
+**비밀번호 재설정과 이메일 소유 증명은 없다.** 이메일 발송 경로를 두지 않기 때문이다.
+비밀번호를 잊으면 익명으로 다시 시작한다. 사용자 실체가 본인과 방문자뿐이라 사칭
+동기가 없고, 증명을 하려면 메일 발송이 다시 필요해진다.
 
-발송이 켜지는 조건은 `spring.mail.host` 와 `carix.auth.mail.base-url`·`from` 이 모두 있는 것이다.
-하나라도 비면 `LoggingMagicLinkNotifier` 로 떨어지고 **실제 메일은 나가지 않는다**(기동 로그에 이유가
-남는다). Gmail 은 계정 비밀번호가 아니라 앱 비밀번호를 받으며 2단계 인증을 켠 계정에서만 발급된다.
-무료 계정 한도는 하루 500통이다. 필요한 환경변수는 [`../.env.example`](../.env.example) 참조.
+**정리 잡.** 만료 세션과 윈도가 지난 `rate_limit_bucket` 행을 일 1회 스케줄러가 지운다.
+auth-service 단일 인스턴스를 전제한다 — 여러 개 띄우면 중복 실행된다. 30일 이상 접속이
+없는 익명 계정 정리는 자동화하지 않는다. `core` 스키마의 소득·소비·스킬을 함께 지워야
+하는데 auth-service 는 거길 건드리지 않기 때문이다. 계정 삭제 API(US-C2)가 구현되면 그
+위에 얹는다. 그때까지는 [DEVELOPMENT.md](../docs/DEVELOPMENT.md) 의 정리 쿼리를 쓴다.
 
-발송 실패는 호출부로 던지지 않는다. 던지면 초대된 이메일만 5xx 가 나서 초대 여부가 응답으로
-드러난다 — 계정 열거 방지가 깨진다. 실패는 ERROR 로그로만 남는다. 로그의 수신자 주소는
-마스킹하고(`b***@example.com`) 토큰은 남기지 않는다 — 링크 전체가 곧 자격증명이다
-([SECURITY.md §4](../docs/SECURITY.md)).
-
-`LoggingMagicLinkNotifier` 로 떨어진 상태는 원본 토큰이 로그에 남으므로 운영 발송 경로가 아니다.
-기동 로그의 WARN 이 그 상태를 알린다.
-
-**잔여 항목**
-
-- 발송·세션·Rate Limit 흐름 테스트가 없다. 검증(`/v1/auth/verify`)만 컨트롤러 테스트가 있고,
-  나머지는 자동설정 회귀 테스트(Flyway·Mail), 초대 등록 경로 테스트, 메일 발송기 단위 테스트뿐이다.
+**구현 상태 — 코드는 아직 매직링크다.** 위 표는 설계 정본이고, 인증 재설계의 코드
+반영은 아직이다. 현재 코드는 초대 기반 매직링크(`/auth/magic-link`, `/auth/verify`,
+`/internal/invitations`)로 동작한다. 진행 상태는
+[`docs/README.md` 진행 상태](../docs/README.md#진행-상태) 절을 따른다.
 
 로컬 기동은 `core-api`와 동일한 순서다(config-server 먼저, 그다음 `EUREKA_CLIENT_ENABLED=false`
 로 단독 기동 가능). `auth-service`는 JPA·Flyway를 쓰므로 로컬 검증은 OCI DB 원격 연결

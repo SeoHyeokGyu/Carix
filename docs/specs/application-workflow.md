@@ -42,7 +42,7 @@ flowchart TD
     %% 4. API 서버 (Down 3) — Gateway가 경로별로 auth-service/core-api에 라우팅한다
     GW{{"Gateway :8080"}}
     subgraph Auth ["auth-service :8081"]
-        AC["AuthController: 매직링크 로그인 / 세션 검증"]
+        AC["AuthController: 익명 세션·등록·로그인 / 세션 검증"]
     end
     subgraph Core ["core-api :8082"]
         PC["ProfileController: 소득/소비/스킬"]
@@ -177,7 +177,7 @@ flowchart TD
 
 ## 3. 사용자 경험 시나리오 흐름 (User Experience Flow)
 
-실제 사용자가 매직링크로 유입되어 의사결정 시뮬레이션을 받기까지의 API 통신 순서입니다.
+방문자가 가입 없이 유입되어 의사결정 시뮬레이션을 받기까지의 API 통신 순서입니다.
 
 ```mermaid
 sequenceDiagram
@@ -189,15 +189,17 @@ sequenceDiagram
     participant Core as core-api
     participant DB as PostgreSQL DB
 
-    User->>Web: 이메일 로그인 요청
-    Web->>GW: POST /api/v1/auth/magic-link (이메일 전송 요청)
+    User->>Web: 랜딩에서 시작 (입력 없음)
+    Web->>GW: POST /api/v1/auth/anonymous
     GW->>Auth: 라우팅 (/api/v1/auth/**)
-    Auth->>DB: 토큰 해시 저장
-    Note over User, Auth: (이메일 수신 및 매직링크 클릭)
-    User->>Web: 매직링크 토큰 제출
-    Web->>GW: POST /api/v1/auth/verify (토큰 검증)
-    GW->>Auth: 라우팅 (/api/v1/auth/**)
+    Auth->>DB: users(익명) + session 저장 (세션 토큰 해시)
     Auth-->>Web: 세션 쿠키 발급
+    Note over User, Auth: (선택) 결과를 이어 보려면 계정 승격
+    User->>Web: 이메일·비밀번호 등록
+    Web->>GW: POST /api/v1/auth/register
+    GW->>Auth: 라우팅 (/api/v1/auth/**)
+    Auth->>DB: 같은 users 행에 이메일·비밀번호 해시 UPDATE
+    Auth-->>Web: 200 (세션 유지, 데이터 그대로)
     User->>Web: 프로필/소득/소비 입력
     Web->>GW: PATCH /api/v1/profile (프로필 저장, 부분 필드 허용)
     Web->>GW: POST /api/v1/income (소득 저장)

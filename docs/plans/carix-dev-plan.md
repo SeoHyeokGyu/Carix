@@ -10,7 +10,7 @@
 | :--- | :--- | :--- | :--- | :--- |
 | **Member A** | **소득 & 구매력 분석<br>(PPI & Cost of Living)** | • `S-06` 소득 입력<br>• `S-07` 소비 6대 카테고리 입력<br>• `S-12` 소득·소비 이력 관리<br>• `S-14` **소득 vs 개인물가 추이 차트** | • **구매력 지수(PPI) 계산 엔진** (§4.3)<br>• 소비 가중치 전파 로직 (`PROPAGATED`)<br>• 소득/소비 이력 CRUD API<br>• 기본 소비 가중치 관리 (`DEFAULT_CPI`) | • 통계청 CPI(소비자물가) 수집 파이프라인<br>• `income_history`<br>• `expense_history`, `expense_item`<br>• `cpi_observation` |
 | **Member B** | **스킬 & 시장가치 분석<br>(MVI & Market Worth)** | • `S-08` 스킬 입력 & 자동완성<br>• `S-12` 스킬 이력 관리<br>• `S-14` **연봉 분포 5수치 핀 차트**<br>• `S-14` **스킬 수요 추이 차트** | • **시장가치 지수(MVI) 계산 엔진** (§4.2)<br>• **스킬 수요 지수** 계산 엔진 (§4.1)<br>• 동료집단 완화 알고리즘 (N<10)<br>• 스킬 검색/자동완성 API | • 채용공고 & KOSIS 임금 수집 파이프라인<br>• 표준 스킬 사전 정제<br>• `skill`, `skill_alias`, `user_skill`<br>• `wage_stat_observation`<br>• `market_aggregate` |
-| **Member C** | **인증, 의사결정 & 시뮬레이터<br>(Auth, Decision & Action)** | • `S-01~04` 랜딩 & 매직링크 로그인<br>• `S-05, 09` 프로필 & 온보딩 검토<br>• `S-10` **대시보드 메인 (3대 카드 종합)**<br>• `S-11` 월별 스냅샷 이력<br>• `S-13` 계정 설정/탈퇴<br>• `S-15` **12개월 커리어 시뮬레이터** | • **결정 신호(Rule Matrix) 판정 엔진**<br>• **12개월 잔류 vs 이직 시뮬레이터** (US-S1)<br>• **월별 스냅샷 멱등성 저장/재계산** (§4.4)<br>• 매직링크 인증 & 세션 관리 (US-A1~2)<br>• 계정/데이터 완전 삭제 (US-C2) | • `auth-service` 모듈<br>• **auth 스키마**(auth-service 소유·Flyway): `users`, `invitation`, `session`, `magic_link_token`<br>• **core 스키마**(직접 DDL): `career_profile`, `index_snapshot`, `career_scenario` |
+| **Member C** | **인증, 의사결정 & 시뮬레이터<br>(Auth, Decision & Action)** | • `S-01~03` 랜딩 & 로그인·계정 등록<br>• `S-05, 09` 프로필 & 온보딩 검토<br>• `S-10` **대시보드 메인 (3대 카드 종합)**<br>• `S-11` 월별 스냅샷 이력<br>• `S-13` 계정 설정/탈퇴<br>• `S-15` **12개월 커리어 시뮬레이터** | • **결정 신호(Rule Matrix) 판정 엔진**<br>• **12개월 잔류 vs 이직 시뮬레이터** (US-S1)<br>• **월별 스냅샷 멱등성 저장/재계산** (§4.4)<br>• 익명 세션·계정 승격·로그인 (US-A1~3)<br>• 계정/데이터 완전 삭제 (US-C2) | • `auth-service` 모듈<br>• **auth 스키마**(auth-service 소유·Flyway): `users`, `session`, `rate_limit_bucket`<br>• **core 스키마**(직접 DDL): `career_profile`, `index_snapshot`, `career_scenario` |
 
 > 표기 정정 — 초안의 `cpi_monthly_index`는 실제 테이블명 `core.cpi_observation`으로 바로잡았다
 > ([상세 기술 명세](../specs/technical-specification.md), `deploy/postgres/schema/03_reference_and_aggregate.sql`).
@@ -58,15 +58,15 @@
 ### 🧑‍💻 Member C : 인증, 의사결정 & 시뮬레이터 (Auth & Decision 도메인)
 - **사용자 스토리**: `US-A1~2`(인증), `US-O1~2, 6`(온보딩 오케스트레이션), `US-D1, D4`(대시보드 종합/이력), `US-S1`(시뮬레이터), `US-C1~2`(설정/탈퇴)
 - **Frontend**:
-  - `S-01` 랜딩, `S-02~04` 로그인/매직링크 발송/검증 화면
+  - `S-01` 랜딩(가입 없이 시작), `S-02` 로그인, `S-03` 계정 등록
   - `S-05` 프로필 입력, `S-09` 온보딩 검토·완료 화면 (2초 디바운스 자동 저장 오케스트레이션)
   - `S-10` **대시보드 메인** (구매력 카드 + 시장가치 카드 + **결정 신호 카드** + 근거 아코디언)
   - `S-11` 월별 스냅샷 이력 타임라인
   - `S-13` 설정 및 계정/데이터 완전 삭제 화면
   - `S-15` **12개월 잔류 vs 이직 시뮬레이터** (실업급여 요건, 공백기, 인상률 기반 실시간 비교)
 - **Backend & Data**:
-  - `auth-service`: 이메일 provider 실발송 연동(`MagicLinkNotifier` 스텁 교체), 초대 이메일 등록 경로,
-    발송/검증·세션·Rate Limit 테스트 코드
+  - `auth-service`: 익명 세션 발급, 계정 등록·로그인, 세션 토큰 해시 저장 전환,
+    매직링크·초대·메일 코드 폐기, 인증 흐름 테스트 코드
   - `core-api`:
     - `PATCH /onboarding`, `PATCH /profile`, `DELETE /users` API
     - **결정 신호(Decision Signal) 판정 엔진** (Rule Matrix: 잔류 권고/이직 준비/소득 방어 등)
@@ -110,7 +110,7 @@ gantt
     스킬수요 지수 & MVI 계산 엔진 :b2, after c0, 14d
     스킬 UI(S-08,12) & 연봉분포·수요 차트(S-14) :b3, after b2, 14d
     section Member C (인증/결정/시뮬레이터)
-    이메일 발송·초대 경로·auth 테스트 & 로그인 UI(S-02~04) :c1, after c0, 14d
+    인증 재설계 구현·auth 테스트 & 로그인 UI(S-01~03) :c1, after c0, 14d
     스냅샷 멱등성 엔진 & 결정신호 판정 엔진 :c2, after c1, 14d
     온보딩(S-05,09) & 대시보드(S-10,11) & 설정(S-13) & 시뮬레이터(S-15) :c3, after c2, 14d
     section 전원 통합 (7주차)
@@ -120,7 +120,7 @@ gantt
 | 주차 | Member A (소득 & PPI) | Member B (스킬 & MVI) | Member C (인증 & 결정 & 시뮬레이터) |
 | :--- | :--- | :--- | :--- |
 | **0주차<br>(사전정렬)** | • CPI 수집 스키마 확정<br>• 소득/소비 DDL 확정 | ~~• 공고/임금 통계 스키마 확정~~ (완료)<br>~~• 표준 스킬 사전 포맷 정의~~ (완료) | ~~• 이메일 provider 선정 & 도메인 인증(SPF/DKIM) 착수~~ (완료 — Gmail SMTP. 발신 도메인이 `gmail.com` 이라 SPF/DKIM 은 해당 없음)<br>~~• DB 마이그레이션 방식 통일~~ (완료 — auth=Flyway, core=직접 DDL)<br>~~• PPI/MVI 결과 계약 DTO + 스텁 확정~~ (완료 — `com.carix.index`, §4-1)<br>• 프론트엔드 라우팅/레이아웃/Theme 세팅 |
-| **1~2주차<br>(인프라 & 파이프라인)** | • 통계청 CPI 수집 배치 개발<br>• `income_history`, `expense_*` CRUD API | ~~• 채용공고/임금 데이터 수집 파이프라인~~ (08-25 완료)<br>~~• 표준 스킬 사전 정제 & 검색 API~~ (08-24 완료)<br>• collector Spring Batch 잡·내부 API·배포 배선 (§5) | ~~• 이메일 provider 실발송 연동~~ (완료 — SMTP)<br>~~• 초대 이메일 등록 경로~~ (완료 — `POST /internal/invitations`)<br>• `auth-service` 테스트 코드 (발송/검증·세션·Rate Limit)<br>• 프런트엔드 `/api` 프록시 & `S-02~04` 서빙 방식 결정 (현재 `ssr: false` + `/` 프리렌더)<br>• `S-02~04` 로그인·발송 안내·검증 UI<br>• Gateway 세션 검증 필터 활성화 ([선행 조건](../README.md#진행-상태)) |
+| **1~2주차<br>(인프라 & 파이프라인)** | • 통계청 CPI 수집 배치 개발<br>• `income_history`, `expense_*` CRUD API | ~~• 채용공고/임금 데이터 수집 파이프라인~~ (08-25 완료)<br>~~• 표준 스킬 사전 정제 & 검색 API~~ (08-24 완료)<br>• collector Spring Batch 잡·내부 API·배포 배선 (§5) | • **인증 재설계 코드 반영** — 익명 세션·계정 등록·로그인, 세션 토큰 해시 저장, 매직링크·초대·메일 폐기<br>• `auth-service` 테스트 코드 (익명 발급·등록·로그인·세션·Rate Limit)<br>• 프런트엔드 `/api` 프록시 & `S-01~03` 서빙 방식 결정 (현재 `ssr: false` + `/` 프리렌더)<br>• `S-01` 시작 진입 · `S-02` 로그인 · `S-03` 계정 등록 UI<br>• Gateway 세션 검증 필터 활성화 ([선행 조건](../README.md#진행-상태)) |
 | **3~4주차<br>(핵심 계산 엔진)** | • **개인물가 & 구매력 지수(PPI) 계산 엔진**<br>• 소비 가중치 전파(`PROPAGATED`) 로직 | • **스킬 수요 지수 & MVI 계산 엔진**<br>• 동료집단 완화 알고리즘 (N<10 클램프)<br>~~• `market_aggregate` 사전집계 배치~~ (08-25 완료) | • **월별 스냅샷 멱등성 저장/재계산 엔진**<br>• **결정 신호(Decision Signal) 판정 엔진** |
 | **5~6주차<br>(UI & 시각화 완성)** | • `S-06, S-07` 소득/소비 온보딩 UI<br>• `S-12` 소득/소비 이력 관리 UI<br>• `S-14` **소득 vs 물가 추이 차트** | • `S-08` 스킬 입력 & 자동완성 UI<br>• `S-12` 스킬 이력 관리 UI<br>• `S-14` **연봉 분포 & 스킬 수요 차트** | • `S-05, S-09` 프로필/검토 온보딩 UI<br>• `S-10, S-11` **대시보드 메인 & 이력 UI**<br>• `S-13` 계정 삭제 & `S-15` **시뮬레이터 UI** |
 | **7주차<br>(E2E 통합 검증)** | • PPI 엣지케이스(지연/결측) 검증<br>• 민감 소득 금액 로깅 마스킹 점검 | • MVI 표본부족(N<10) 엣지케이스 검증<br>• 실데이터 파이프라인 통합 점검 | • 온보딩 $\rightarrow$ 대시보드 $\rightarrow$ 시뮬레이터 E2E 점검<br>• 계정 삭제 시 개인 데이터 완전 삭제 검증 |
@@ -169,6 +169,6 @@ graph LR
 | 작업 | 현재 상태 | 무엇을 막는가 | 제안 담당 |
 | :--- | :--- | :--- | :--- |
 | `collector` Spring Batch 잡 · 내부 API · `docker-compose.yml`/`deploy.yml` 배선 | 모듈 추출만 완료. 운영 배포 목록에 `collector` 없음 | Member B의 수집 파이프라인이 운영에서 실행되지 않는다 → A·B·C 전원이 실데이터 없이 개발 | Member B |
-| 프런트엔드 SSR Phase 2 전환 (Express + `@react-router/express`) | `ssr: false` + `/` 사전 렌더링만. `frontend/server.js`는 정적 서버 | `/login`, `/auth/verify`, `/onboarding/*`, `/dashboard/*`, `/mypage/*` 전 화면. C 화면 10개 전부의 선행조건 | Member C (0~2주차) |
+| 프런트엔드 SSR Phase 2 전환 (Express + `@react-router/express`) | `ssr: false` + `/` 사전 렌더링만. `frontend/server.js`는 정적 서버 | `/login`, `/register`, `/onboarding/*`, `/dashboard/*`, `/mypage/*` 전 화면. C 화면 전부의 선행조건 | Member C (0~2주차) |
 | `core-api` Security (세션 컨텍스트 주입) | 없음. 세션 검증은 게이트웨이 필터 전제이나 기본 비활성 | 모든 도메인 API의 `userId` 확보 경로. A·B·C 공통 | Member C (인증 소관) |
 | 운영 DB 일일 백업 · 복구 절차 | 미구축. `DEVELOPMENT.md §3` 최우선 후속 과제 | 개발 DB = 운영 DB 구조라 실수 시 복구 수단이 없다 | 미정 |
