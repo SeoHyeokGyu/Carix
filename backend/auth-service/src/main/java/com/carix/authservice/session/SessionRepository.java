@@ -6,9 +6,9 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface SessionRepository extends JpaRepository<Session, UUID> {
 
-  Optional<Session> findBySessionToken(String sessionToken);
+  Optional<Session> findByTokenHash(String tokenHash);
 
-  void deleteBySessionToken(String sessionToken);
+  void deleteByTokenHash(String tokenHash);
 
   void deleteByUserId(UUID userId);
 }

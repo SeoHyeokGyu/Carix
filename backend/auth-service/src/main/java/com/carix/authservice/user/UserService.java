@@ -24,7 +24,7 @@ public class UserService {
         .orElseGet(
             () -> {
               OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
-              User user = new User(UUID.randomUUID(), normalizedEmail, "PROFILE", now, now);
+              User user = new User(UUID.randomUUID(), normalizedEmail, null, "PROFILE", now, now);
               return userRepository.save(user);
             });
   }
