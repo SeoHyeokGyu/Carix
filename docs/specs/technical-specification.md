@@ -42,8 +42,8 @@
 -- 1. 인증 및 사용자 영역
 CREATE TABLE users (
     id UUID PRIMARY KEY,
-    email VARCHAR(255) UNIQUE,          -- 익명 사용자는 NULL. UNIQUE 는 NULL 을 여럿 허용한다
-    password_hash VARCHAR(100),         -- BCrypt 60자. 알고리즘 교체 여지를 두고 100
+    email VARCHAR(255) NOT NULL UNIQUE,
+    password_hash VARCHAR(100) NOT NULL,  -- BCrypt 60자. 알고리즘 교체 여지를 두고 100
     onboarding_step VARCHAR(20) NOT NULL DEFAULT 'PROFILE', -- 'PROFILE', 'INCOME', 'EXPENSE', 'SKILLS', 'REVIEW', 'COMPLETED'
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -51,11 +51,8 @@ CREATE TABLE users (
         CHECK ((email IS NULL AND password_hash IS NULL)
             OR (email IS NOT NULL AND password_hash IS NOT NULL))
 );
--- 사용자 생성 시점: 방문자가 익명 세션을 발급받는 순간 email·password_hash 가 없는 행으로 만든다.
--- 익명/등록 상태를 별도 컬럼으로 저장하지 않는다. email IS NULL 이면 익명이다 —
--- 상태 컬럼과 실제 값이 어긋날 여지를 만들지 않는다 (expense_item 과 같은 원칙).
--- 계정 승격은 이 행을 UPDATE 한다. 행을 새로 만들지 않으므로 익명일 때 넣은 데이터가 그대로 이어진다.
--- CHECK 제약이 반쯤 승격된 행(둘 중 하나만 있는 행)을 막는다.
+-- 사용자 생성 시점: 회원가입 시 한 번. 계정 없이 만들어지는 사용자 행은 없다.
+-- 이메일 소유를 증명하지 않으므로 확인 상태 컬럼도 두지 않는다 (확인 메일을 보낼 경로가 없다).
 
 CREATE TABLE session (
     id UUID PRIMARY KEY,
@@ -75,7 +72,7 @@ CREATE TABLE rate_limit_bucket (
     request_count INT NOT NULL DEFAULT 1,
     UNIQUE (bucket_key, window_start)
 );
--- 익명 세션 발급·로그인·계정 등록 속도 제한(SECURITY.md §2)에 사용하는 고정 윈도 카운터.
+-- 가입·로그인 속도 제한(SECURITY.md §2)에 사용하는 고정 윈도 카운터.
 -- 윈도가 지난 행은 세션 정리와 같은 스케줄러가 함께 지운다.
 
 -- 2. 사용자 프로필 및 이력 데이터 영역

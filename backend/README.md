@@ -2,7 +2,7 @@
 
 Java 25 + Spring Boot. Gradle 멀티모듈 — `config-server`, `eureka`, `core-api`, `auth-service`,
 `gateway`, `collector`.
-`auth-service` 가 익명 세션·계정 등록·로그인·세션을 맡는다(스키마 `auth`). `core-api` 가 도메인 로직과
+`auth-service` 가 회원가입·로그인·세션을 맡는다(스키마 `auth`). `core-api` 가 도메인 로직과
 REST API를 맡는다 — 스킬 도메인부터 JPA로 `core` 스키마에 붙어 있다. 채용공고 도메인
 (`com.carix.jobposting`)과 `core` 스키마는 `collector` 소관이며, 이미 JPA로 원격 DB에 연결돼
 있다(`core` 스키마 DDL은 [`../deploy/postgres/schema/`](../deploy/postgres/schema/)에 있음). `core-api`의 Security는 아직 없음 — 다음 단계.
@@ -46,17 +46,14 @@ Security는 다음 단계다. `collector`는 채용공고 도메인의 JPA와 `c
 | 경로 | 용도 |
 | --- | --- |
 | `GET /api/health` | 헬스체크 |
-| `POST /api/v1/auth/anonymous` | 익명 세션 발급. 유효 세션이 있으면 새로 만들지 않고 그대로 반환 |
-| `POST /api/v1/auth/register` | 계정 등록(익명 → 등록 승격). 세션 필요 |
+| `POST /api/v1/auth/register` | 회원가입. 가입 즉시 세션 쿠키 발급 |
 | `POST /api/v1/auth/login` | 이메일·비밀번호 로그인 |
 | `GET /api/v1/auth/session` | 세션 조회. 게이트웨이 필터와 프런트엔드가 함께 쓴다 |
 | `POST /api/v1/auth/logout` | 현재 세션 폐기 |
 | `POST /api/v1/auth/logout-all` | 사용자의 전체 세션 폐기 |
 
-**익명 우선 구조.** 방문자는 가입 절차 없이 세션을 받고 바로 쓴다. 익명 사용자는
-`users` 행에 이메일과 비밀번호 해시가 없는 상태이며, 별도 상태 컬럼을 두지 않고
-`email IS NULL` 로 판정한다. 계정 승격은 그 행을 `UPDATE` 하므로 **익명일 때 입력한
-데이터와 세션이 그대로 이어진다** — 데이터를 옮기는 코드가 없다.
+**계정이 있어야 쓴다.** 계정 없이 접근할 수 있는 경로를 두지 않는다. 가입하면 곧바로
+세션을 발급해 온보딩으로 보낸다.
 
 **세션 토큰은 해시로 저장한다.** `session.token_hash` 에 SHA-256 hex 만 남기고 원본은
 쿠키에만 있다. 세션은 30일짜리 자격증명이라 DB 유출 시 피해가 가장 크다.
@@ -71,14 +68,12 @@ Security는 다음 단계다. `collector`는 채용공고 도메인의 JPA와 `c
 [SECURITY.md §2](../docs/SECURITY.md) 를 정본으로 한다.
 
 **비밀번호 재설정과 이메일 소유 증명은 없다.** 이메일 발송 경로를 두지 않기 때문이다.
-비밀번호를 잊으면 익명으로 다시 시작한다. 사용자 실체가 본인과 방문자뿐이라 사칭
-동기가 없고, 증명을 하려면 메일 발송이 다시 필요해진다.
+비밀번호를 잊으면 다른 이메일로 새 계정을 만든다. 사용자 실체가 본인과 방문자뿐이라
+사칭 동기가 없고, 증명을 하려면 메일 발송이 다시 필요해진다.
 
 **정리 잡.** 만료 세션과 윈도가 지난 `rate_limit_bucket` 행을 일 1회 스케줄러가 지운다.
-auth-service 단일 인스턴스를 전제한다 — 여러 개 띄우면 중복 실행된다. 30일 이상 접속이
-없는 익명 계정 정리는 자동화하지 않는다. `core` 스키마의 소득·소비·스킬을 함께 지워야
-하는데 auth-service 는 거길 건드리지 않기 때문이다. 계정 삭제 API(US-C2)가 구현되면 그
-위에 얹는다. 그때까지는 [DEVELOPMENT.md](../docs/DEVELOPMENT.md) 의 정리 쿼리를 쓴다.
+auth-service 단일 인스턴스를 전제한다 — 여러 개 띄우면 중복 실행된다. 사용자 행은 정리
+대상이 아니다. 계정 없이 만들어지는 행이 없고, 삭제는 사용자가 직접 하는 기능(US-C2)이다.
 
 **구현 상태 — 코드는 아직 매직링크다.** 위 표는 설계 정본이고, 인증 재설계의 코드
 반영은 아직이다. 현재 코드는 초대 기반 매직링크(`/auth/magic-link`, `/auth/verify`,

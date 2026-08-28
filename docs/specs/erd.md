@@ -24,8 +24,8 @@ erDiagram
 
     users {
         uuid id PK
-        varchar email "익명이면 NULL"
-        varchar password_hash "익명이면 NULL"
+        varchar email
+        varchar password_hash "BCrypt"
         varchar onboarding_step
         timestamp created_at
         timestamp updated_at

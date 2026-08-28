@@ -97,7 +97,7 @@ OCI VM에서 다음 컨테이너를 Docker Compose로 운영한다.
 - `gateway` — 경로별 분기(`core-api`/`auth-service`/`frontend-node`) 담당
 - `frontend-node`
 - `core-api` — Config Server·Eureka 클라이언트. 구성은 위 Spring Cloud 아키텍처 참조
-- `auth-service` — Config Server·Eureka 클라이언트. 익명 세션·계정 등록·로그인·세션 발급 담당
+- `auth-service` — Config Server·Eureka 클라이언트. 계정 가입·로그인·세션 발급 담당
 - `config-server`, `eureka`
 - `postgres`
 - `collector` — 수집·정규화·집계. Gateway 라우팅 대상이 아니다. compose·배포 배선은

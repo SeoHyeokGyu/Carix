@@ -161,7 +161,7 @@
 
 ```text
 auth-service (Spring Boot)
- `- Auth (익명 세션 발급, 계정 등록·로그인, 세션 검증·폐기)
+ `- Auth (계정 가입·로그인, 세션 검증·폐기)
 
 core-api (Spring Boot)
  |- Profile / Income / Expense / Skill
@@ -186,7 +186,7 @@ Spring Cloud (Gateway, Config Server, Eureka) 기반의 서비스 분리 구조�
 
 | 엔터티 | 역할 | 소유 스키마 |
 | --- | --- | --- |
-| Users, Session | 사용자 인증(익명·등록), 세션 관리 | `auth` (auth-service, Flyway) |
+| Users, Session | 사용자 인증, 세션 관리 | `auth` (auth-service, Flyway) |
 | RawIngest | 원천별 원문 보존 (JSONB, first/last_seen_month) | `core` (collector, DDL) |
 | JobPosting, JobPostingSkill | 채용공고 및 스킬 정규화 | `core` (collector, DDL) |
 | Skill, SkillAlias | 스킬 사전 및 별칭 관리 | `core` (collector/core-api 공유) |
