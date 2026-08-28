@@ -45,43 +45,60 @@
 > 서비스 분리 결정에 따라 인증은 auth-service가 전담한다. core-api에 이 절의 엔드포인트를
 > 재구현하지 않는다.
 
-### 2.1 매직링크 발송 요청
-*   **Endpoint:** `POST /api/v1/auth/magic-link`
-*   **Request Body:**
-    ```json
-    {
-      "email": "user@example.com"
-    }
-    ```
-*   **Response (200 OK):**
-    ```json
-    {
-      "message": "인증 링크가 발송되었습니다.",
-      "sentAt": "2026-07-18T17:00:00Z"
-    }
-    ```
-    *(계정 열거 방지를 위해 초대되지 않은 메일이라도 동일한 200 OK 응답을 반환합니다)*
+### 2.1 익명 세션 발급
+*   **Endpoint:** `POST /api/v1/auth/anonymous`
+*   **Request Body:** 없음
+*   유효한 세션 쿠키가 이미 있으면 **새로 만들지 않고** 현재 세션 정보를 그대로 반환한다. 새로 발급하면 방금 입력한 데이터를 잃는다.
+*   **Response (200 OK):** §2.4 와 같은 형식
+*   **속도 제한:** IP당 20회/시간. 초과 시 `429`.
 
-### 2.2 매직링크 검증 및 로그인
-*   **Endpoint:** `POST /api/v1/auth/verify`
+### 2.2 계정 등록 (익명 → 등록 승격)
+*   **Endpoint:** `POST /api/v1/auth/register`
+*   **인증:** 세션 필요
+*   현재 세션의 사용자 행에 이메일·비밀번호를 채운다. **행을 새로 만들지 않으므로 익명일 때 입력한 데이터가 그대로 이어지고 세션도 유지된다.**
 *   **Request Body:**
     ```json
     {
-      "token": "a1b2c3d4e5f6g7h8..."
+      "email": "user@example.com",
+      "password": "최소 8자"
     }
     ```
-    *(토큰만 받는다. 링크를 요청한 기기와 여는 기기가 다를 수 있어 — 데스크톱에서 요청하고
-    휴대폰에서 여는 것이 매직링크의 표준 사용 패턴이다 — 검증 화면이 이메일을 알 방법이 없다.
-    링크에 이메일을 실으면 URL·리퍼러·서버 로그에 개인정보가 남고, 토큰이 256비트 난수 1회
-    사용이라 보안상 더해 주는 것도 없다. 기능 명세 US-A2 의 인수 조건도 토큰만 요구한다)*
+*   **Response (200 OK):** §2.4 와 같은 형식
+*   **오류:** 세션 없음 `401` / 이미 등록된 계정 `409 ALREADY_REGISTERED` / 이메일 중복 `409 EMAIL_TAKEN`
+*   이메일 중복은 숨기지 않는다 — 숨기면 사용자가 가입 실패 원인을 알 수 없다. 대신 IP당 20회/시간 제한으로 이메일 목록 수집을 막는다.
+
+### 2.3 로그인
+*   **Endpoint:** `POST /api/v1/auth/login`
+*   **Request Body:**
+    ```json
+    {
+      "email": "user@example.com",
+      "password": "..."
+    }
+    ```
+*   **Response (200 OK):** §2.4 와 같은 형식. 세션 쿠키를 새로 발급한다.
+*   **오류:** 없는 이메일과 비밀번호 불일치를 **구분하지 않고** 같은 `401`을 반환한다 (계정 열거 방지).
+*   **속도 제한:** 이메일당 10회/시간, IP당 30회/시간. IP만 걸면 분산 대입에 뚫린다.
+*   익명 상태에서 로그인하면 익명 데이터는 이어지지 않는다. 화면에서 미리 고지한다.
+
+### 2.4 세션 조회
+*   **Endpoint:** `GET /api/v1/auth/session`
+*   게이트웨이 세션 검증 필터와 프런트엔드가 함께 쓴다. 필터는 `userId`만 읽는다.
 *   **Response (200 OK):**
     ```json
     {
       "userId": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
-      "email": "user@example.com",
-      "isOnboardingComplete": false
+      "email": null,
+      "isAnonymous": true,
+      "onboardingStep": "PROFILE"
     }
     ```
+*   **오류:** 세션 없음 또는 만료 `401`
+
+### 2.5 로그아웃
+*   **Endpoint:** `POST /api/v1/auth/logout` — 현재 세션만 폐기
+*   **Endpoint:** `POST /api/v1/auth/logout-all` — 해당 사용자의 전 세션 폐기
+*   둘 다 세션 쿠키를 만료시킨다. 익명 세션에 대해서도 동작하며, 이 경우 익명 데이터는 되찾을 수 없다.
 
 ---
 

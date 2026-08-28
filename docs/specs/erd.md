@@ -4,9 +4,7 @@
 
 ```mermaid
 erDiagram
-    invitation ||--o| users : registers
     users ||--o| career_profile : has
-    users ||--o{ magic_link_token : uses
     users ||--o{ session : establishes
     users ||--o{ income_history : records
     users ||--o{ expense_history : logs
@@ -26,32 +24,17 @@ erDiagram
 
     users {
         uuid id PK
-        varchar email
+        varchar email "익명이면 NULL"
+        varchar password_hash "익명이면 NULL"
         varchar onboarding_step
         timestamp created_at
         timestamp updated_at
     }
 
-    invitation {
-        uuid id PK
-        varchar email
-        varchar status
-        timestamp expires_at
-        timestamp created_at
-    }
-
-    magic_link_token {
-        uuid id PK
-        uuid user_id FK
-        varchar token_hash
-        timestamp expires_at
-        timestamp used_at
-    }
-
     session {
         uuid id PK
         uuid user_id FK
-        varchar session_token
+        varchar token_hash "SHA-256, 원본 미저장"
         timestamp expires_at
         timestamp created_at
     }

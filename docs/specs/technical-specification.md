@@ -42,38 +42,31 @@
 -- 1. 인증 및 사용자 영역
 CREATE TABLE users (
     id UUID PRIMARY KEY,
-    email VARCHAR(255) NOT NULL UNIQUE,
+    email VARCHAR(255) UNIQUE,          -- 익명 사용자는 NULL. UNIQUE 는 NULL 을 여럿 허용한다
+    password_hash VARCHAR(100),         -- BCrypt 60자. 알고리즘 교체 여지를 두고 100
     onboarding_step VARCHAR(20) NOT NULL DEFAULT 'PROFILE', -- 'PROFILE', 'INCOME', 'EXPENSE', 'SKILLS', 'REVIEW', 'COMPLETED'
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT users_credentials_pair_chk
+        CHECK ((email IS NULL AND password_hash IS NULL)
+            OR (email IS NOT NULL AND password_hash IS NOT NULL))
 );
-
-CREATE TABLE invitation (
-    id UUID PRIMARY KEY,
-    email VARCHAR(255) NOT NULL UNIQUE,
-    status VARCHAR(50) NOT NULL, -- 'PENDING', 'ACCEPTED', 'EXPIRED'
-    expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
-    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
-);
--- 사용자 삭제 시 동일 이메일의 invitation 행도 애플리케이션 레벨에서 함께 삭제한다 (개인 데이터 잔존 방지).
-
-CREATE TABLE magic_link_token (
-    id UUID PRIMARY KEY,
-    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    token_hash VARCHAR(255) NOT NULL UNIQUE,
-    expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
-    used_at TIMESTAMP WITH TIME ZONE
-);
--- 사용자 생성 시점: 초대된 이메일이 매직링크를 처음 요청하는 시점에 users가 없으면 생성한다.
--- 토큰은 항상 user_id에 바인딩되며, 초대되지 않은 이메일은 사용자·토큰을 만들지 않고 동일 응답만 반환한다.
+-- 사용자 생성 시점: 방문자가 익명 세션을 발급받는 순간 email·password_hash 가 없는 행으로 만든다.
+-- 익명/등록 상태를 별도 컬럼으로 저장하지 않는다. email IS NULL 이면 익명이다 —
+-- 상태 컬럼과 실제 값이 어긋날 여지를 만들지 않는다 (expense_item 과 같은 원칙).
+-- 계정 승격은 이 행을 UPDATE 한다. 행을 새로 만들지 않으므로 익명일 때 넣은 데이터가 그대로 이어진다.
+-- CHECK 제약이 반쯤 승격된 행(둘 중 하나만 있는 행)을 막는다.
 
 CREATE TABLE session (
     id UUID PRIMARY KEY,
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    session_token VARCHAR(255) NOT NULL UNIQUE,
+    token_hash VARCHAR(255) NOT NULL UNIQUE,  -- SHA-256 hex. 원본 토큰은 저장하지 않는다
     expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
+-- 세션은 30일짜리 자격증명이라 DB 유출 시 피해가 가장 크다. 해시만 저장하고,
+-- 조회는 제시된 토큰을 해싱해 대조한다.
+-- 만료 행은 일 1회 스케줄러가 정리한다 (auth-service 단일 인스턴스 전제).
 
 CREATE TABLE rate_limit_bucket (
     id UUID PRIMARY KEY,
@@ -82,7 +75,8 @@ CREATE TABLE rate_limit_bucket (
     request_count INT NOT NULL DEFAULT 1,
     UNIQUE (bucket_key, window_start)
 );
--- 매직링크 요청 속도 제한(SECURITY.md §2: 이메일당 5회/시간, IP당 20회/시간)에 사용하는 고정 윈도 카운터.
+-- 익명 세션 발급·로그인·계정 등록 속도 제한(SECURITY.md §2)에 사용하는 고정 윈도 카운터.
+-- 윈도가 지난 행은 세션 정리와 같은 스케줄러가 함께 지운다.
 
 -- 2. 사용자 프로필 및 이력 데이터 영역
 CREATE TABLE career_profile (
