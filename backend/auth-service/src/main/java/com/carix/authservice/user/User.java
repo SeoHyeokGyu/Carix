@@ -14,6 +14,9 @@ public class User {
 
   private String email;
 
+  /** BCrypt 해시. 매직링크 코드가 남아 있는 동안만 {@code null} 일 수 있다. */
+  private String passwordHash;
+
   private String onboardingStep;
 
   private OffsetDateTime createdAt;
@@ -25,11 +28,13 @@ public class User {
   public User(
       UUID id,
       String email,
+      String passwordHash,
       String onboardingStep,
       OffsetDateTime createdAt,
       OffsetDateTime updatedAt) {
     this.id = id;
     this.email = email;
+    this.passwordHash = passwordHash;
     this.onboardingStep = onboardingStep;
     this.createdAt = createdAt;
     this.updatedAt = updatedAt;
@@ -41,6 +46,10 @@ public class User {
 
   public String getEmail() {
     return email;
+  }
+
+  public String getPasswordHash() {
+    return passwordHash;
   }
 
   public String getOnboardingStep() {

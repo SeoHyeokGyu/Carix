@@ -46,7 +46,8 @@ class MagicLinkControllerVerifyTest {
   void 토큰만으로_검증하고_세션_쿠키를_내린다() throws Exception {
     given(magicLinkService.verifyToken(TOKEN)).willReturn(USER_ID);
     given(userRepository.findById(USER_ID))
-        .willReturn(Optional.of(new User(USER_ID, "beta@example.com", "PROFILE", NOW, NOW)));
+        .willReturn(
+            Optional.of(new User(USER_ID, "beta@example.com", "hash", "PROFILE", NOW, NOW)));
     given(sessionService.createSession(USER_ID)).willReturn("session-token-value");
 
     mockMvc
@@ -67,7 +68,8 @@ class MagicLinkControllerVerifyTest {
   void 이메일을_요구하지_않는다_기기가_다를_수_있기_때문이다() throws Exception {
     given(magicLinkService.verifyToken(TOKEN)).willReturn(USER_ID);
     given(userRepository.findById(USER_ID))
-        .willReturn(Optional.of(new User(USER_ID, "beta@example.com", "COMPLETED", NOW, NOW)));
+        .willReturn(
+            Optional.of(new User(USER_ID, "beta@example.com", "hash", "COMPLETED", NOW, NOW)));
     given(sessionService.createSession(USER_ID)).willReturn("session-token-value");
 
     // 이메일 필드가 아예 없는 본문이 200 이어야 한다.
