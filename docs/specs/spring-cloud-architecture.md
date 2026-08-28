@@ -20,7 +20,7 @@
 | gateway | 8080 | 라우팅, 세션 검증 필터, 상관관계 ID 주입 | 클라이언트 |
 | config-server | 8888 | 설정 제공 | 등록 |
 | eureka | 8761 | 서비스 레지스트리 | — |
-| auth-service | 8081 | 매직링크 발급·검증, 세션 수명주기, 초대 | 등록 |
+| auth-service | 8081 | 익명 세션 발급, 계정 등록·로그인, 세션 수명주기 | 등록 |
 | core-api | 8082 | 프로필·소득·지출·스킬·지수·시나리오 | 등록 |
 | collector | 8083 | 채용공고 수집·정규화·집계, 내부 파이프라인 관리 API(`/internal/pipeline/**`) | 등록 |
 
@@ -56,7 +56,7 @@ DB는 하나(`carix`, 근거는 DEVELOPMENT.md §3), 스키마는 **둘**로 나
 
 | 스키마 | 소유 | 테이블 |
 | --- | --- | --- |
-| `auth` | auth-service | `users` `invitation` `magic_link_token` `session` |
+| `auth` | auth-service | `users` `session` `rate_limit_bucket` |
 | `core` | core-api, collector | 나머지 15개 — 사용자 도메인, 지수, 수집 원천, 집계 |
 
 ### 왜 둘인가
