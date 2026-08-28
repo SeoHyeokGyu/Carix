@@ -3,10 +3,7 @@ package com.carix.authservice.session;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletResponse;
-import java.time.Duration;
-import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.CookieValue;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -59,14 +56,6 @@ public class SessionController {
   }
 
   private void clearCookie(HttpServletResponse httpResponse) {
-    ResponseCookie cookie =
-        ResponseCookie.from("session_token", "")
-            .httpOnly(true)
-            .secure(true)
-            .sameSite("Lax")
-            .path("/api")
-            .maxAge(Duration.ZERO)
-            .build();
-    httpResponse.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
+    SessionCookies.clear(httpResponse);
   }
 }

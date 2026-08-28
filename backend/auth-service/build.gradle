@@ -1,6 +1,9 @@
 dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-webmvc'
 	implementation 'org.springframework.boot:spring-boot-starter-validation'
+	// BCryptPasswordEncoder 만 쓴다. 필터 체인·UserDetailsService 는 두지 않는다 —
+	// 인증은 세션이 이미 하고 있다.
+	implementation 'org.springframework.security:spring-security-crypto'
 	implementation 'org.springframework.boot:spring-boot-starter-actuator'
 	implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
 	implementation 'org.springframework.boot:spring-boot-starter-jdbc'
