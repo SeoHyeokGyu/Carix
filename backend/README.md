@@ -75,9 +75,9 @@ Security는 다음 단계다. `collector`는 채용공고 도메인의 JPA와 `c
 auth-service 단일 인스턴스를 전제한다 — 여러 개 띄우면 중복 실행된다. 사용자 행은 정리
 대상이 아니다. 계정 없이 만들어지는 행이 없고, 삭제는 사용자가 직접 하는 기능(US-C2)이다.
 
-**구현 상태 — 코드는 아직 매직링크다.** 위 표는 설계 정본이고, 인증 재설계의 코드
-반영은 아직이다. 현재 코드는 초대 기반 매직링크(`/auth/magic-link`, `/auth/verify`,
-`/internal/invitations`)로 동작한다. 진행 상태는
+**구현 상태 — 가입·로그인은 동작하고 매직링크가 아직 남아 있다.** `/v1/auth/register`,
+`/v1/auth/login` 과 세션 토큰 해시 저장은 반영됐다. 세션 조회 응답 확장과 매직링크·초대·
+메일 코드 폐기가 남았다. 진행 상태는
 [`docs/README.md` 진행 상태](../docs/README.md#진행-상태) 절을 따른다.
 
 로컬 기동은 `core-api`와 동일한 순서다(config-server 먼저, 그다음 `EUREKA_CLIENT_ENABLED=false`

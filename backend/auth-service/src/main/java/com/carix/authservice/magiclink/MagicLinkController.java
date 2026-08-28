@@ -2,6 +2,7 @@ package com.carix.authservice.magiclink;
 
 import com.carix.authservice.invitation.InvitationService;
 import com.carix.authservice.ratelimit.RateLimitService;
+import com.carix.authservice.session.SessionCookies;
 import com.carix.authservice.session.SessionService;
 import com.carix.authservice.user.User;
 import com.carix.authservice.user.UserRepository;
@@ -11,12 +12,9 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
-import java.time.Duration;
 import java.util.Locale;
 import java.util.UUID;
-import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseCookie;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
@@ -89,16 +87,7 @@ public class MagicLinkController {
             .findById(userId)
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST));
 
-    String sessionToken = sessionService.createSession(userId);
-    ResponseCookie cookie =
-        ResponseCookie.from("session_token", sessionToken)
-            .httpOnly(true)
-            .secure(true)
-            .sameSite("Lax")
-            .path("/api")
-            .maxAge(Duration.ofDays(30))
-            .build();
-    httpResponse.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
+    SessionCookies.issue(httpResponse, sessionService.createSession(userId));
 
     return new VerifyResponse(user.getId(), user.getEmail(), user.isOnboardingComplete());
   }

@@ -20,6 +20,27 @@ public class GlobalExceptionHandler {
         .body(ErrorResponse.of("INVALID_INPUT", "입력값 형식이 올바르지 않습니다.", details));
   }
 
+  @ExceptionHandler(com.carix.authservice.account.EmailTakenException.class)
+  public ResponseEntity<ErrorResponse> handleEmailTaken(
+      com.carix.authservice.account.EmailTakenException e) {
+    return ResponseEntity.status(org.springframework.http.HttpStatus.CONFLICT)
+        .body(ErrorResponse.of("EMAIL_TAKEN", e.getMessage(), null));
+  }
+
+  @ExceptionHandler(com.carix.authservice.account.InvalidCredentialsException.class)
+  public ResponseEntity<ErrorResponse> handleInvalidCredentials(
+      com.carix.authservice.account.InvalidCredentialsException e) {
+    return ResponseEntity.status(org.springframework.http.HttpStatus.UNAUTHORIZED)
+        .body(ErrorResponse.of("INVALID_CREDENTIALS", e.getMessage(), null));
+  }
+
+  @ExceptionHandler(com.carix.authservice.account.PasswordTooLongException.class)
+  public ResponseEntity<ErrorResponse> handlePasswordTooLong(
+      com.carix.authservice.account.PasswordTooLongException e) {
+    return ResponseEntity.badRequest()
+        .body(ErrorResponse.of("INVALID_INPUT", e.getMessage(), null));
+  }
+
   @ExceptionHandler(com.carix.authservice.magiclink.MagicLinkInvalidException.class)
   public ResponseEntity<ErrorResponse> handleMagicLinkInvalid(
       com.carix.authservice.magiclink.MagicLinkInvalidException e) {
