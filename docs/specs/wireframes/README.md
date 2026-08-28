@@ -20,17 +20,14 @@ python3 autocrop.py screenshots/<name>.png
 
 <img src="screenshots/home.png" width="560" alt="home" />
 
-### 인증 — S-02~S-04
+### 인증 — S-02~S-03
 
-[요청](auth/01-request.html) `/login` → [발송 확인](auth/02-check-email.html) `/login/sent` → [검증](auth/03-verifying.html) `/auth/verify`
+[로그인](auth/01-login.html) `/login` → [계정 등록](auth/02-register.html) `/register`
 
-<table>
-<tr>
-<td align="center"><strong>1. 요청</strong><br/><img src="screenshots/auth-01-request.png" width="260" alt="auth-01-request" /></td>
-<td align="center"><strong>2. 발송 확인</strong><br/><img src="screenshots/auth-02-check-email.png" width="260" alt="auth-02-check-email" /></td>
-<td align="center"><strong>3. 검증</strong><br/><img src="screenshots/auth-03-verifying.png" width="260" alt="auth-03-verifying" /></td>
-</tr>
-</table>
+방문자는 S-01 랜딩에서 가입 없이 바로 시작한다. 이 두 화면은 이미 계정이 있는
+사용자의 재로그인과, 익명으로 쓰던 사용자의 계정 승격을 위한 것이다.
+
+> 스크린샷 없음 — 인증 방식 변경으로 옛 이미지를 걷었다. 화면 구현 시 다시 만든다.
 
 ### 온보딩 — S-05~S-09
 
