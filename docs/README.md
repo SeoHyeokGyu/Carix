@@ -87,7 +87,7 @@
 | Spring Cloud 전환 | 계획 A(멀티모듈·Config Server·Eureka) 구현·운영 검증 완료, 계획 B(Gateway 도입, 요청경로 편입) 구현 완료, 계획 C(auth-service 배포 배선) 구현 완료 |
 | core-api | 스킬 도메인이 JPA로 `core` 스키마 사용. 나머지 도메인은 고정 응답 스텁, Security 없음 |
 | auth-service | 이메일·비밀번호 가입·로그인·세션 조회·로그아웃 구현 완료. 세션 토큰 해시 저장. 매직링크·초대·메일 코드와 설정 폐기 완료 |
-| collector | 모듈 추출 완료 |
+| collector | 모듈 추출 완료. 크롤러·중복제거·정규화·`market_aggregate` 집계·임금통계 수집과 파이프라인 내부 API(`/internal/pipeline/**`)까지 구현돼 있다 |
 | DB 스키마 소유권 | auth 스키마는 auth-service, core 스키마는 collector(채용공고 5개 테이블·market_aggregate)와 core-api(사용자 도메인 5개 테이블·지수/시나리오)가 공유 (DDL 직접 적용) |
 | 프런트엔드 | React Router + Vite 기반. ESLint/Prettier 코드 스타일 표준화, 라이트/다크 듀얼 테마, WCAG AA 접근성 준수. 테스트 스크립트(`pnpm dev`·`test`·`test:unit`·`test:e2e`) 모두 구비. MVP 전 화면 라우트·레이아웃·진입 가드 완료. 랜딩·로그인·회원가입은 실제 API에 연결돼 동작 |
 
@@ -98,9 +98,9 @@
 | 임금통계 기준선 원천 재선정 | KOSIS 근로실태조사는 직무 세분·경력·지역 차원 부족 확인 — [외부 원천 API 연동 명세 §3.3](specs/external-api-integration.md) |
 | 애플리케이션 구현 | core-api 사용자 도메인 및 지수/시나리오 계산 로직 구현, 온보딩·대시보드·마이페이지 화면 UI (라우트와 가드는 완료, 화면은 플레이스홀더) |
 | DB 백업 체계 | 운영 DB 일일 정기 백업 및 복구 절차 구축 ([DEVELOPMENT.md §3](DEVELOPMENT.md#왜-같은-db를-쓰는가) 최우선 후속 과제) |
-| collector | Spring Batch 잡·내부 API·`docker-compose.yml`·`deploy.yml` 배선 |
+| collector | 잡 실행 방식 도입(현재 `@Scheduled`·Runner·Spring Batch 어느 것도 없어 자동 실행 매개체가 없다)과 `docker-compose.yml`·`deploy.yml` 배선. 내부 API 는 이미 있다 — `/internal/pipeline/{crawl,seed-load,wage-stat,dedup,aggregate}` 와 `/jobs/{jobId}` |
 | 프런트엔드 | 온보딩 5단계·대시보드·추이분석·시뮬레이터·마이페이지 화면 구현. 라우트·가드·세션 연결은 완료 |
-| Gateway 세션 검증 필터 | `carix.gateway.session-validation.enabled` 활성화 — 기본값 `false`. auth-service 배포·등록은 확인됐으므로 이제 켤 수 있다. 켜는 순간 세션 없는 `core-api` 호출이 전부 401 이 되므로 팀 조율 후 켠다 |
+| Gateway 세션 검증 필터 | `carix.gateway.session-validation.enabled` 활성화 — 기본값 `false`. **그냥 켜면 안 된다.** core 라우트 술어에 `/api/health` 가 들어 있고 필터에 경로 예외가 없어, 켜는 순간 배포 워크플로의 헬스체크가 401 을 받고 자동 롤백이 돈다. 그 롤백은 `.env` 만 되돌리므로 플래그는 남고 다음 배포도 같은 자리에서 실패한다. 선행 조건과 롤백 절차는 [개발 계획 §5-B](plans/carix-dev-plan.md) |
 
 ---
 
