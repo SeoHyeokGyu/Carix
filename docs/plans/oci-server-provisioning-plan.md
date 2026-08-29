@@ -267,7 +267,7 @@ networks:
 
 > **결론: 지금은 아예 뺀다.** 배치 코드가 없어서 `spring-api`와 같은 이미지로 뜬 두 번째
 > 웹 서버가 아무 일도 하지 않으며 JVM 힙만 차지하고 있었다. 스왑이 빠듯한 공유 호스트에서
-> 실질 낭비다. Spring Batch 도입 시 되살리며, 그때 상주/원샷도 함께 정한다.
+> 실질 낭비다. 수집기(`collector`) 배포 시 관리자 API 구동 형태로 되살린다.
 
 ### Task 2.2: dev DB 분리 — 폐기
 
@@ -1028,7 +1028,6 @@ Expected: `enabled` (+ compose의 `restart: unless-stopped`).
 
 ## Phase 7 — 운영
 
-- [ ] **DB 백업:** `pg_dump` 일일 크론 → `/home/opc/carix/backups`, 7일 보관. **복원 1회 실검증.** (`~/backups`가 이미 있으니 규칙을 맞춘다.)
 - [ ] **모니터링:** 이 호스트에 Dozzle(8888)·Dockge(3001)가 이미 돈다. Carix 컨테이너가 거기 보이는지 확인하고, 헬스체크 감시를 붙인다.
 - [ ] **디스크 감시:** 85%에서 출발했다. 주간 `docker system prune` 또는 사용률 알림을 건다.
 - [ ] **엣지 설정 형상관리:** `~/infra/`는 git 추적 대상이 아닌데 이제 **두 서비스의 엣지를 소유**한다.
@@ -1062,6 +1061,6 @@ Expected: `enabled` (+ compose의 `restart: unless-stopped`).
 | Spring Boot 버전 | layered jar 문법이 3.3 기준으로 갈린다 → Task 2.3 |
 | Phase 3 실행 시 다운타임 | Caddy 교체 중 `pulse.144.24.90.88.sslip.io` 수 초 중단. asset-pulse compose(코덱스 워크트리)도 함께 수정해야 한다 |
 | `/api/health` 구현 | 백엔드 스캐폴드 시 필수. CD 헬스체크 전제 |
-| `spring-batch` 실행 형태 | 상주형/원샷 미확정 → Task 2.1 Step 6 |
+| `collector` 실행 형태 | 관리자 화면/API 직접 트리거 방식 |
 | 메모리 여유 | 스왑 4GB가 이미 소진됨. Carix 기동 후 재평가. 부족 시 flaresolverr×4 / warp×3 정리 논의 |
 | 커스텀 도메인 | sslip.io로 충분. 정식 도메인이 생기면 Caddyfile에 호스트만 추가하면 된다 |

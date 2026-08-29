@@ -89,12 +89,9 @@ cp .env.example .env
 | --- | --- |
 | 개인정보 접근 | 팀원 전원이 실사용자의 연봉·지출·경력 데이터에 직접 접근한다. `SECURITY.md`가 컬럼 암호화를 요구하는 그 데이터다 |
 | 스키마 사고 | `auth`는 브랜치에서 잘못 실행한 Flyway 마이그레이션이, `core`는 손으로 친 DDL이 곧바로 운영 스키마에 적용된다 |
-| 백업 부재 | 현재 DB 백업이 구현돼 있지 않다. 위 사고가 나면 복구 수단이 없다 |
 | 테스트 데이터 혼입 | 로컬에서 만든 데이터가 운영 DB에 남는다 |
 | 자격증명 확산 | 운영 DB 접근 정보가 팀원 노트북마다 존재한다 |
 | 게이트 부재 | PR 단계 CI(pr-check.yml)와 배포 실패 시 자동 롤백 및 수동 롤백 워크플로(rollback.yml)를 구축하여 운영 안정성을 확보 |
-
-**DB 백업이 최우선 후속 과제다** — 위 위험표에서 유일하게 즉시 완화 가능한 항목이다.
 
 ### 3.0 팀원 온보딩
 
@@ -332,9 +329,9 @@ CONFIG_SERVER_URL=http://144.24.90.88:8890 EUREKA_URL=http://144.24.90.88:8761/e
   ./gradlew :collector:bootRun --args='--spring.profiles.active=local'
 ```
 
-#### Collector 내부 파이프라인 API (`/internal/pipeline/*`)
+#### Collector 파이프라인 관리 (관리자 직접 구동 & Spring Scheduler 고려)
 
-`collector`는 Gateway에 노출되지 않는 관리 전용 내부 API(`http://localhost:8083/internal/pipeline/**`)를 제공합니다:
+`collector`는 관리자가 관리자 화면(Admin UI) 또는 관리 전용 내부 API(`http://localhost:8083/internal/pipeline/**`)를 통해 직접 수동으로 파이프라인을 구동하고 모니터링하며, 필요 시 Spring Scheduler(`@Scheduled`)를 통한 정기 자동 실행 도입도 함께 고려합니다:
 
 | 메서드 & 경로 | 설명 | 호출 예시 |
 | --- | --- | --- |
