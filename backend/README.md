@@ -96,12 +96,20 @@ Spring Cloud Gateway(WebFlux/reactive). `carix_caddy(:80)`의 업스트림으로
 
 | 경로 | 대상 |
 | --- | --- |
-| `/api/v1/auth/**` | `auth-service` (Eureka `lb://`) |
-| `/api/v1/**`, `/api/health`, `/api/swagger-ui/**`, `/api/v3/api-docs/**` | `core-api` (Eureka `lb://`) |
-| 그 외 | `frontend-node` (정적 URI, Eureka 미등록) |
+| 라우트 | 경로 | 대상 | 세션 검증 |
+| --- | --- | --- | --- |
+| `auth` | `/api/v1/auth/**` | `auth-service` (Eureka `lb://`) | 없음 |
+| `core-health` | `/api/health` | `core-api` (Eureka `lb://`) | 없음 |
+| `core` | `/api/v1/**`, `/api/swagger-ui/**`, `/api/v3/api-docs/**` | `core-api` (Eureka `lb://`) | 적용 |
+| `web` | 그 외 | `frontend-node` (정적 URI, Eureka 미등록) | 없음 |
 
-세션 검증 필터는 `core` 라우트에 적용되며 `carix.gateway.session-validation.enabled`
-(`config/spring/gateway.yml`) 설정 플래그로 켜고 끌 수 있습니다.
+세션 검증 필터는 `core` 라우트에만 붙고 `carix.gateway.session-validation.enabled`
+(`config/spring/gateway.yml`) 플래그로 켜고 끕니다. 헬스체크를 별도 라우트로 뺀 이유는
+배포 워크플로가 쿠키 없이 `/api/health` 를 호출하기 때문입니다 — 같은 라우트에 두면 플래그를
+켜는 순간 배포가 401 로 죽습니다.
+
+인바운드 `X-User-Id` 는 `UserIdHeaderStripGlobalFilter` 가 플래그와 무관하게 전 라우트에서
+벗깁니다. 하류는 이 헤더를 인증된 사용자로 신뢰하므로 출처가 게이트웨이여야 합니다.
 
 ## 빌드
 

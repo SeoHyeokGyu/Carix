@@ -351,13 +351,15 @@ Node 서버는 HTML과 SEO를 담당하고 Spring Boot는 인증과 비즈니스
 
 ### 렌더링 전략
 
-화면 특성에 따라 사전 렌더링(Prerender)과 SSR(Server-Side Rendering)을 단계적으로 적용합니다:
+MVP는 빌드 시점 사전 렌더링만 씁니다(`prerender: ["/"]`, `ssr: false`). 사전 렌더링된 `/` 는
+그대로 주고 나머지 앱 경로는 SPA 셸로 넘겨 클라이언트가 라우팅하며, 진입 가드도 클라이언트에서
+돕니다.
 
-- **Phase 1 (현재)**: 빌드 시점 사전 렌더링(`prerender: ["/"]`, `ssr: false`) 기반 정적 SPA로 랜딩 페이지를 빠르고 안정적으로 서빙합니다.
-- **Phase 2 (인증·대시보드 도입 시)**: Node.js Express 및 `@react-router/express` 기반 SSR을 활성화하여 보호 경로의 서버 세션 검증 및 SSR Shell + 클라이언트 Hydration을 적용합니다.
-  - `/login`, `/register`: 빠른 초기 로드와 보안 검증을 위한 Node SSR
-  - `/onboarding/*`, `/dashboard/*`, `/mypage/*`: SSR Shell 렌더링 후 TanStack Query 기반 데이터 Hydration
-  - 공개 콘텐츠 페이지: SEO 메타데이터(title, Open Graph, canonical URL, sitemap)를 포함한 SSR / 사전 렌더링
+Node SSR 전환(Express + `@react-router/express`)은 **MVP 범위 밖으로 미뤘습니다.** `S-05`~`S-15`는
+전부 세션을 요구해 SEO 대상이 아니고 진입 가드가 이미 클라이언트에서 동작하므로, 남는 실익이 초기
+로드뿐인데 최장 경로에 2주를 더합니다. 결정과 근거는
+[개발 계획 §5-F](docs/plans/carix-dev-plan.md), 전환 시 적용할 화면별 구성은
+[프런트엔드 설계 §렌더링 전략](docs/specs/frontend-design.md)에 있습니다.
 
 ### 테스트
 

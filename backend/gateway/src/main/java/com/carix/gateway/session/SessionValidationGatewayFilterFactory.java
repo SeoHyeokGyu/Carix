@@ -20,7 +20,8 @@ public class SessionValidationGatewayFilterFactory
     extends AbstractGatewayFilterFactory<SessionValidationGatewayFilterFactory.Config> {
 
   private static final String COOKIE_NAME = "session_token";
-  private static final String USER_ID_HEADER = "X-User-Id";
+  // 인바운드 값은 UserIdHeaderStripGlobalFilter 가 이미 벗겼다. 여기서 넣는 값만 하류에 도달한다.
+  private static final String USER_ID_HEADER = UserIdHeaderStripGlobalFilter.HEADER;
 
   private final SessionValidationProperties properties;
   private final SessionValidationCache cache;

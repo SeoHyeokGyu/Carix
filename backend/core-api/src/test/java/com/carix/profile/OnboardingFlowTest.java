@@ -21,6 +21,8 @@ import org.springframework.test.web.servlet.MockMvc;
 @AutoConfigureMockMvc
 class OnboardingFlowTest {
 
+  private static final String USER_ID = "00000000-0000-0000-0000-000000000001";
+
   @Autowired private MockMvc mockMvc;
   @Autowired private SkillRepository skillRepository;
 
@@ -104,6 +106,8 @@ class OnboardingFlowTest {
     mockMvc
         .perform(
             post("/v1/user-skills")
+                // 게이트웨이가 세션 검증 후 넣는 헤더. 없으면 401 이다.
+                .header("X-User-Id", USER_ID)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(
                     """

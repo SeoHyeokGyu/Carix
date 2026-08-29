@@ -24,12 +24,27 @@ spring:
               predicates:
                 - Path=/api/v1/auth/**
               order: -20
+            # 헬스체크는 세션 검증을 받지 않는다. 배포 워크플로(.github/workflows/deploy.yml)가
+            # 쿠키 없이 /api/health 를 호출해 200 을 요구하므로, SessionValidation 이 붙으면
+            # 플래그를 켜는 순간 배포가 401 로 죽고 롤백 루프에 빠진다.
+            #
+            # order 를 명시하는 이유: 이 라우트가 없거나 order 가 web(Path=/**, order 0)과
+            # 같으면 /api/health 가 frontend-node 로 흘러 SPA 셸을 200 으로 돌려준다.
+            # 그러면 core-api 가 죽어 있어도 헬스체크가 통과한다.
+            - id: core-health
+              uri: lb://core-api
+              predicates:
+                - Path=/api/health
+              order: -15
             - id: core
               uri: lb://core-api
               predicates:
-                # core-api 실제 노출 경로 기준(HealthController, springdoc 기본값) — 도메인 API는
-                # /v1/**, 헬스체크·문서는 /v1 없이 /api 바로 아래다.
-                - Path=/api/v1/**,/api/health,/api/swagger-ui/**,/api/v3/api-docs/**
+                # core-api 실제 노출 경로 기준(springdoc 기본값) — 도메인 API는 /v1/**,
+                # 문서는 /v1 없이 /api 바로 아래다.
+                #
+                # swagger-ui·api-docs 는 여기 남긴다. 플래그를 켜면 문서도 세션을 요구하게 되는데,
+                # 같은 출처 요청이라 로그인한 개발자의 브라우저는 쿠키를 실어 보내므로 그대로 열린다.
+                - Path=/api/v1/**,/api/swagger-ui/**,/api/v3/api-docs/**
               filters:
                 - SessionValidation
               order: -10
