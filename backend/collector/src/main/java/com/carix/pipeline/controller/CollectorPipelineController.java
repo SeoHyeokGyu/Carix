@@ -5,6 +5,7 @@ import com.carix.pipeline.dto.JobExecutionResponse;
 import com.carix.pipeline.dto.JobStatusResponse;
 import com.carix.pipeline.dto.PipelineStatsResponse;
 import com.carix.pipeline.dto.SeedLoadRequest;
+import com.carix.pipeline.dto.WageStatRequest;
 import com.carix.pipeline.service.CollectorPipelineService;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -67,14 +68,16 @@ public class CollectorPipelineController {
    * [POST /internal/pipeline/wage-stat] KOSIS 국가 공식 임금 통계 수집 및 보간 적재.
    *
    * <p>통계청 OpenAPI(고용형태별근로실태조사 {@code DT_118N_PAYM39})를 호출하여 24개 임금 계층 분포를 수집하고, 누적분포 선형 보간을 통해
-   * 연령/경력별 P50 중위연봉을 산출하여 {@code core.wage_stat_observation}에 Upsert 적재합니다. (KOSIS 통계는 연간 발표되므로 연
-   * 1회 또는 초기 구축 시 1회 실행 권장)
+   * 연령/경력별 P50 중위연봉을 산출하여 {@code core.wage_stat_observation}에 Upsert 적재합니다. startYear/endYear를 지정하여
+   * 과거 연도를 백필할 수 있습니다.
    *
+   * @param request 수집 대상 연도 범위 (null 또는 미지정 시 최신 1개 연도)
    * @return 202 Accepted 및 비동기 작업 추적용 jobId
    */
   @PostMapping("/wage-stat")
-  public ResponseEntity<JobExecutionResponse> triggerWageStatIngest() {
-    JobExecutionResponse response = pipelineService.triggerWageStatIngest();
+  public ResponseEntity<JobExecutionResponse> triggerWageStatIngest(
+      @RequestBody(required = false) WageStatRequest request) {
+    JobExecutionResponse response = pipelineService.triggerWageStatIngest(request);
     return ResponseEntity.status(HttpStatus.ACCEPTED).body(response);
   }
 

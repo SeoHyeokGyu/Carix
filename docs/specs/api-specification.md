@@ -601,13 +601,21 @@
 
 ### 8.2 KOSIS 임금통계 수집 및 보간 적재
 *   `POST /internal/pipeline/wage-stat` — KOSIS 임금 통계 조회 및 24계층 누적분포 보간 적재 트리거.
+    *   **Request Body (Optional, 기간 지정 백필 시):**
+        ```json
+        {
+          "startYear": "2020",
+          "endYear": "2024"
+        }
+        ```
+        *(생략 또는 빈 본문 전송 시 최신 1개 연도만 수집)*
     *   **Response (202 Accepted):**
         ```json
         {
           "jobId": "w1a12345-6789-4abc-def0-1234567890cd",
           "jobType": "WAGE_STAT_INGEST",
-          "status": "RUNNING",
-          "message": "KOSIS 임금통계 수집 작업이 시작되었습니다."
+          "status": "ACCEPTED",
+          "message": "KOSIS 임금 통계 수집 작업이 수락되어 백그라운드에서 시작되었습니다."
         }
         ```
 

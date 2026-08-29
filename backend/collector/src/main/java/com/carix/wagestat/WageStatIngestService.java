@@ -50,13 +50,29 @@ public class WageStatIngestService {
   private final WageStatObservationRepository repository;
 
   /**
-   * KOSIS 국가 공식 임금 통계를 실시간 조회하여 보간 후 DB에 Upsert 합니다.
+   * KOSIS 국가 공식 임금 통계를 최신 시점 기준으로 실시간 조회하여 보간 후 DB에 Upsert 합니다.
    *
    * @return 수집 및 적재된 관측치 행 수
    */
   @Transactional
   public int ingestWageStats() {
-    log.info("[임금통계수집] KOSIS 임금 통계 수집 및 보간 작업을 시작합니다...");
+    return ingestWageStats(null, null);
+  }
+
+  /**
+   * KOSIS 국가 공식 임금 통계를 지정한 연도 구간으로 조회하여 보간 후 DB에 Upsert 합니다.
+   *
+   * @param startYear 수집 시작 연도 (예: "2020", null 시 최신 연도만)
+   * @param endYear 수집 종료 연도 (예: "2024", null 시 startYear와 동일)
+   * @return 수집 및 적재된 관측치 행 수
+   */
+  @Transactional
+  public int ingestWageStats(String startYear, String endYear) {
+    log.info(
+        "[임금통계수집] KOSIS 임금 통계 수집 및 보간 작업을 시작합니다... (기간: {} ~ {})",
+        startYear != null ? startYear : "최신",
+        endYear != null ? endYear : (startYear != null ? startYear : "최신"));
+
     String currentVintage = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMM"));
     int ingestedCount = 0;
 
@@ -64,26 +80,50 @@ public class WageStatIngestService {
       String ageCode = entry.getKey();
       String experienceBracket = entry.getValue();
 
-      Map<String, Long> counts = kosisClient.fetchWageDistributionForAge(ageCode);
-      long medianWage = interpolator.calculateAnnualMedianWage(counts);
+      Map<String, Map<String, Long>> yearlyDistribution =
+          kosisClient.fetchWageDistributionByPeriod(ageCode, startYear, endYear);
 
-      if (medianWage <= 0L) {
-        medianWage = FALLBACK_MEDIAN_BY_BRACKET.getOrDefault(experienceBracket, 45_000_000L);
+      if (!yearlyDistribution.isEmpty()) {
+        for (Map.Entry<String, Map<String, Long>> yearEntry : yearlyDistribution.entrySet()) {
+          String basePeriod = yearEntry.getKey();
+          Map<String, Long> counts = yearEntry.getValue();
+          long medianWage = interpolator.calculateAnnualMedianWage(counts);
+
+          if (medianWage <= 0L) {
+            medianWage = FALLBACK_MEDIAN_BY_BRACKET.getOrDefault(experienceBracket, 45_000_000L);
+          }
+
+          String statVintage = basePeriod + "08";
+
+          for (String jobFamily : JOB_FAMILIES) {
+            saveOrUpdateObservation(
+                jobFamily, experienceBracket, REGION_ALL, medianWage, basePeriod, statVintage);
+            ingestedCount++;
+          }
+        }
+      } else {
+        // KOSIS API 응답 부재 시 Fallback 기준선 저장
+        long medianWage = FALLBACK_MEDIAN_BY_BRACKET.getOrDefault(experienceBracket, 45_000_000L);
         log.info(
             "[임금통계수집] KOSIS 응답 부재로 기본 보간값을 사용합니다 (경력: {}, 중위연봉: {}원)",
             experienceBracket,
             medianWage);
-      }
 
-      for (String jobFamily : JOB_FAMILIES) {
-        saveOrUpdateObservation(
-            jobFamily,
-            experienceBracket,
-            REGION_ALL,
-            medianWage,
-            BASE_PERIOD_DEFAULT,
-            currentVintage);
-        ingestedCount++;
+        int start =
+            (startYear != null && !startYear.isBlank()) ? Integer.parseInt(startYear.trim()) : 2025;
+        int end =
+            (endYear != null && !endYear.isBlank()) ? Integer.parseInt(endYear.trim()) : start;
+
+        for (int yr = start; yr <= end; yr++) {
+          String basePeriod = String.valueOf(yr);
+          String statVintage = basePeriod.equals("2025") ? currentVintage : basePeriod + "08";
+
+          for (String jobFamily : JOB_FAMILIES) {
+            saveOrUpdateObservation(
+                jobFamily, experienceBracket, REGION_ALL, medianWage, basePeriod, statVintage);
+            ingestedCount++;
+          }
+        }
       }
     }
 

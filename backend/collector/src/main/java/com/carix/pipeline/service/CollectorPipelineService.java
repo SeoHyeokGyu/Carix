@@ -10,6 +10,7 @@ import com.carix.pipeline.dto.JobExecutionResponse;
 import com.carix.pipeline.dto.JobStatusResponse;
 import com.carix.pipeline.dto.PipelineStatsResponse;
 import com.carix.pipeline.dto.SeedLoadRequest;
+import com.carix.pipeline.dto.WageStatRequest;
 import com.carix.wagestat.WageStatIngestService;
 import com.carix.wagestat.WageStatObservationRepository;
 import java.nio.file.Files;
@@ -138,11 +139,21 @@ public class CollectorPipelineService {
   }
 
   /**
-   * KOSIS 국가 공식 임금 통계를 실시간 수신하여 24구간 보간 후 DB에 적재합니다.
+   * KOSIS 국가 공식 임금 통계를 실시간 수신하여 24구간 보간 후 DB에 적재합니다. (최신 1개 연도)
    *
    * @return 비동기 작업 수락 응답
    */
   public JobExecutionResponse triggerWageStatIngest() {
+    return triggerWageStatIngest(null);
+  }
+
+  /**
+   * KOSIS 국가 공식 임금 통계를 지정한 연도 구간으로 수신하여 24구간 보간 후 DB에 적재합니다.
+   *
+   * @param request 연도 범위 요청 DTO (null 시 최신 1개 연도)
+   * @return 비동기 작업 수락 응답
+   */
+  public JobExecutionResponse triggerWageStatIngest(WageStatRequest request) {
     ensureNoJobRunning();
     String jobId = UUID.randomUUID().toString();
     Instant now = Instant.now();
@@ -152,10 +163,22 @@ public class CollectorPipelineService {
     CompletableFuture.runAsync(
         () -> {
           try {
-            log.info("[작업:{}] KOSIS 임금 통계 수집 및 보간 적재 작업을 시작합니다...", jobId);
-            int count = wageStatIngestService.ingestWageStats();
-            state.complete(Map.of("ingestedWageStats", count));
-            log.info("[작업:{}] KOSIS 임금 통계 수집 완료. 총 {}개 연령/경력 관측치가 저장되었습니다.", jobId, count);
+            String startYear = request != null ? request.startYear() : null;
+            String endYear = request != null ? request.endYear() : null;
+            log.info(
+                "[작업:{}] KOSIS 임금 통계 수집 및 보간 적재 작업을 시작합니다... (기간: {} ~ {})",
+                jobId,
+                startYear != null ? startYear : "최신",
+                endYear != null ? endYear : (startYear != null ? startYear : "최신"));
+
+            int count = wageStatIngestService.ingestWageStats(startYear, endYear);
+            state.complete(
+                Map.of(
+                    "ingestedWageStats", count,
+                    "startYear", startYear != null ? startYear : "LATEST",
+                    "endYear",
+                        endYear != null ? endYear : (startYear != null ? startYear : "LATEST")));
+            log.info("[작업:{}] KOSIS 임금 통계 수집 완료. 총 {}개 관측치가 저장되었습니다.", jobId, count);
           } catch (Exception e) {
             log.error("[작업:{}] KOSIS 임금 통계 수집 실패: {}", jobId, e.getMessage(), e);
             state.fail(e.getMessage());

@@ -58,12 +58,30 @@ class CollectorPipelineControllerTest {
     JobExecutionResponse response =
         new JobExecutionResponse(
             "job-789", "WAGE_STAT_INGEST", "ACCEPTED", "Started", Instant.now());
-    when(pipelineService.triggerWageStatIngest()).thenReturn(response);
+    when(pipelineService.triggerWageStatIngest(any())).thenReturn(response);
 
     mockMvc
         .perform(post("/internal/pipeline/wage-stat"))
         .andExpect(status().isAccepted())
         .andExpect(jsonPath("$.jobId").value("job-789"))
+        .andExpect(jsonPath("$.jobType").value("WAGE_STAT_INGEST"));
+  }
+
+  @Test
+  @DisplayName("POST /internal/pipeline/wage-stat with body - 기간 지정 비동기 요청 시 202 Accepted 반환")
+  void triggerWageStatWithPeriodReturnsAccepted() throws Exception {
+    JobExecutionResponse response =
+        new JobExecutionResponse(
+            "job-790", "WAGE_STAT_INGEST", "ACCEPTED", "Started", Instant.now());
+    when(pipelineService.triggerWageStatIngest(any())).thenReturn(response);
+
+    mockMvc
+        .perform(
+            post("/internal/pipeline/wage-stat")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"startYear\":\"2020\",\"endYear\":\"2024\"}"))
+        .andExpect(status().isAccepted())
+        .andExpect(jsonPath("$.jobId").value("job-790"))
         .andExpect(jsonPath("$.jobType").value("WAGE_STAT_INGEST"));
   }
 

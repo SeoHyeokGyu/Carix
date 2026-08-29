@@ -45,15 +45,45 @@ public class KosisWageStatClient {
   }
 
   /**
-   * 지정한 연령대 코드의 전문가 직종 24개 임금계층별 근로자 수 분포를 조회합니다.
+   * 지정한 연령대 코드의 전문가 직종 24개 임금계층별 근로자 수 분포를 최신 1개 시점 기준으로 조회합니다.
    *
    * @param ageCode 연령대 접미 코드 (예: "00"=전체, "04"=25~29세, "05"=30~34세)
    * @return 임금계층 코드(A01~A24)별 근로자 수 맵
    */
   public Map<String, Long> fetchWageDistributionForAge(String ageCode) {
+    Map<String, Map<String, Long>> periodMap = fetchWageDistributionByPeriod(ageCode, null, null);
+    if (periodMap.isEmpty()) {
+      return Map.of();
+    }
+    // 가장 최신 연도의 맵 반환
+    return periodMap.entrySet().stream()
+        .max(Map.Entry.comparingByKey())
+        .map(Map.Entry::getValue)
+        .orElse(Map.of());
+  }
+
+  /**
+   * 지정한 연령대 코드 및 연도 구간의 전문가 직종 24개 임금계층별 근로자 수 분포를 조회합니다.
+   *
+   * @param ageCode 연령대 접미 코드 (예: "00"=전체, "04"=25~29세, "05"=30~34세)
+   * @param startYear 수집 시작 연도 (예: "2020", null 또는 공백 시 최신 1개 연도)
+   * @param endYear 수집 종료 연도 (예: "2024", null 또는 공백 시 startYear와 동일)
+   * @return 연도(PRD_DE)별 -> (임금계층 코드별 근로자 수) 맵
+   */
+  public Map<String, Map<String, Long>> fetchWageDistributionByPeriod(
+      String ageCode, String startYear, String endYear) {
     if (apiKey.isBlank()) {
       log.warn("KOSIS_API_KEY is not configured. Returning empty wage distribution.");
       return Map.of();
+    }
+
+    String periodParam;
+    if (startYear != null && !startYear.isBlank()) {
+      String start = startYear.trim();
+      String end = (endYear != null && !endYear.isBlank()) ? endYear.trim() : start;
+      periodParam = "&prdSe=Y&startPrdDe=" + start + "&endPrdDe=" + end;
+    } else {
+      periodParam = "&prdSe=Y&newEstPrdCnt=1";
     }
 
     String ageParam = "13102205073AGEGRADE." + ageCode;
@@ -75,7 +105,7 @@ public class KosisWageStatClient {
             + PAYGRADE_ALL_QUERY
             + "&objL4="
             + ageParam
-            + "&prdSe=Y&newEstPrdCnt=1"
+            + periodParam
             + "&format=json&jsonVD=Y";
 
     try {
@@ -108,8 +138,9 @@ public class KosisWageStatClient {
         return Map.of();
       }
 
-      Map<String, Long> counts = new HashMap<>();
+      Map<String, Map<String, Long>> yearlyDistribution = new HashMap<>();
       for (JsonNode row : root) {
+        String prdDe = row.path("PRD_DE").asText("").trim();
         String c3 = row.path("C3").asText("");
         String dt = row.path("DT").asText("0");
 
@@ -117,16 +148,19 @@ public class KosisWageStatClient {
           String gradeCode = c3.substring(c3.indexOf("PAYGRADE.") + 9);
           if (gradeCode.startsWith("A")) {
             long workerCount = Long.parseLong(dt.trim().replace(",", ""));
-            counts.put(gradeCode, workerCount);
+            yearlyDistribution
+                .computeIfAbsent(prdDe, k -> new HashMap<>())
+                .put(gradeCode, workerCount);
           }
         }
       }
 
       log.info(
-          "Successfully fetched KOSIS wage distribution for ageCode={} ({} bracket records)",
+          "Successfully fetched KOSIS wage distribution for ageCode={} ({} years, {} total records)",
           ageCode,
-          counts.size());
-      return counts;
+          yearlyDistribution.size(),
+          root.size());
+      return yearlyDistribution;
 
     } catch (IOException | InterruptedException e) {
       log.error("Failed to query KOSIS wage stat API for ageCode={}", ageCode, e);
