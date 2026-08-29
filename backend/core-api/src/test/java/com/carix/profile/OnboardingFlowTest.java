@@ -68,6 +68,7 @@ class OnboardingFlowTest {
     mockMvc
         .perform(
             post("/v1/income")
+                .header("X-User-Id", USER_ID)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(
                     """
@@ -87,6 +88,7 @@ class OnboardingFlowTest {
     mockMvc
         .perform(
             put("/v1/expenses/202607")
+                .header("X-User-Id", USER_ID)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(
                     """
@@ -100,7 +102,7 @@ class OnboardingFlowTest {
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.success").value(true))
         .andExpect(jsonPath("$.data.baseYearMonth").value("202607"))
-        .andExpect(jsonPath("$.data.weightStatus").value("USER_DEFINED"));
+        .andExpect(jsonPath("$.data.weightStatus").value("PARTIALLY_ESTIMATED"));
 
     // 5. 보유 스킬 등록
     mockMvc

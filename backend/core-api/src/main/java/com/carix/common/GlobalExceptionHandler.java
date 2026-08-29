@@ -61,6 +61,13 @@ public class GlobalExceptionHandler {
         .body(ErrorResponse.of("DUPLICATE_EFFECTIVE_DATE", e.getMessage(), null));
   }
 
+  @ExceptionHandler(com.carix.common.usercontext.MissingUserContextException.class)
+  public ResponseEntity<ErrorResponse> handleMissingUserContext(
+      com.carix.common.usercontext.MissingUserContextException e) {
+    return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+        .body(ErrorResponse.of("UNAUTHORIZED", e.getMessage(), null));
+  }
+
   @ExceptionHandler({
     com.carix.skill.exception.SkillNotFoundException.class,
     com.carix.skill.exception.UserSkillNotFoundException.class,
