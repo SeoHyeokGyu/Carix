@@ -29,19 +29,25 @@
 | # | 라우트 | 화면 | 렌더링 | 접근 조건 |
 | --- | --- | --- | --- | --- |
 | S-01 | `/` | 랜딩 | 사전 렌더링 | 공개 |
-| S-02 | `/login` | 로그인 (이메일·비밀번호) | Node SSR | 공개 |
-| S-03 | `/register` | 회원가입 (이메일·비밀번호) | Node SSR | 공개 |
-| S-05 | `/onboarding/profile` | 온보딩 1: 프로필 | SSR shell + hydration | 세션 |
-| S-06 | `/onboarding/income` | 온보딩 2: 소득 | SSR shell + hydration | 세션 |
-| S-07 | `/onboarding/expense` | 온보딩 3: 소비 | SSR shell + hydration | 세션 |
-| S-08 | `/onboarding/skills` | 온보딩 4: 스킬 | SSR shell + hydration | 세션 |
-| S-09 | `/onboarding/review` | 온보딩 5: 검토 | SSR shell + hydration | 세션 |
-| S-10 | `/dashboard` | 대시보드 메인 (핵심 지표 3카드) | SSR shell + hydration | 세션 + 온보딩 완료 |
-| S-11 | `/dashboard/history` | 월별 스냅샷 이력 | SSR shell + hydration | 세션 + 온보딩 완료 |
-| S-12 | `/mypage/records` | 소득·소비·스킬 이력 관리 | SSR shell + hydration | 세션 |
-| S-13 | `/mypage/profile` | 세션·사용자 정보 관리, 삭제 | SSR shell + hydration | 세션 |
-| S-14 | `/dashboard/trends` | 추이분석 (소득vs물가·스킬수요·연봉분포) | SSR shell + hydration | 세션 + 온보딩 완료 |
-| S-15 | `/dashboard/simulator` | 12개월 시뮬레이터 | SSR shell + hydration | 세션 + 온보딩 완료 |
+| S-02 | `/login` | 로그인 (이메일·비밀번호) | SPA | 공개 |
+| S-03 | `/register` | 회원가입 (이메일·비밀번호) | SPA | 공개 |
+| S-05 | `/onboarding/profile` | 온보딩 1: 프로필 | SPA | 세션 |
+| S-06 | `/onboarding/income` | 온보딩 2: 소득 | SPA | 세션 |
+| S-07 | `/onboarding/expense` | 온보딩 3: 소비 | SPA | 세션 |
+| S-08 | `/onboarding/skills` | 온보딩 4: 스킬 | SPA | 세션 |
+| S-09 | `/onboarding/review` | 온보딩 5: 검토 | SPA | 세션 |
+| S-10 | `/dashboard` | 대시보드 메인 (핵심 지표 3카드) | SPA | 세션 + 온보딩 완료 |
+| S-11 | `/dashboard/history` | 월별 스냅샷 이력 | SPA | 세션 + 온보딩 완료 |
+| S-12 | `/mypage/records` | 소득·소비·스킬 이력 관리 | SPA | 세션 |
+| S-13 | `/mypage/profile` | 세션·사용자 정보 관리, 삭제 | SPA | 세션 |
+| S-14 | `/dashboard/trends` | 추이분석 (소득vs물가·스킬수요·연봉분포) | SPA | 세션 + 온보딩 완료 |
+| S-15 | `/dashboard/simulator` | 12개월 시뮬레이터 | SPA | 세션 + 온보딩 완료 |
+
+렌더링 열은 MVP 현행 구성이다 — `/` 만 빌드 시 사전 렌더링하고 나머지는 SPA 셸에서
+클라이언트가 렌더링한다(`ssr: false`). 화면별 Node SSR·SSR shell 적용은 MVP 이후로
+미뤘다: 보호 화면은 전부 세션을 요구해 SEO 대상이 아니고 진입 가드가 이미 클라이언트에서
+동작한다. 결정과 근거는 [개발 계획 §5-F](../plans/carix-dev-plan.md), 목표 구성은
+[프런트엔드 설계 §렌더링 전략](frontend-design.md)에 있다.
 
 `S-04`는 매직링크 토큰 검증 화면이었고 인증 방식 변경으로 폐기했다. 번호는 재사용하지
 않는다 — 다른 문서가 옛 번호를 가리킬 때 결번임이 드러나야 한다.
@@ -292,7 +298,7 @@
 | --- | --- | --- |
 | 임금통계 기준선 원천 재선정 | **미결** | KOSIS 근로실태조사가 직무 세분·경력·지역 차원 부족 — [외부 API 연동 명세 §3.3](external-api-integration.md) 참조 |
 | 최소 표본 기준 N≥10, 이상치 클램프 [25,400] | 후보값 | 데이터 검증 후 설정값 확정 |
-| 기본 소비 가중치 6개 값 | 스키마만 정의 | 선행 검증에서 KOSIS 가계동향조사 수치로 채움 |
+| 기본 소비 가중치 6개 값 | **확정** | `config/default-expense-weights.yml` — KOSIS 가계동향조사 `DT_1L9U101`, 2025년 기준, 2026-07-25 검증 |
 | 암호화 연봉의 배치 복호화 키 관리·로테이션 | 미설계 | 구현 단계. [보안 문서 §3.2](../SECURITY.md) 참조 |
 | percentile 근사 표시 캐비앗 | 5수치 요약 보간 | 표시 시 `근사` 라벨 |
 | § 링크 앵커(한글 헤더) | 마크다운 미지원 | 파일 단위 링크 유지 |
