@@ -97,7 +97,7 @@
 | 영역 | 남은 작업 |
 | --- | --- |
 | 애플리케이션 구현 | core-api 사용자 도메인 및 지수/시나리오 계산 로직 구현, 스냅샷 갱신 엔진(`recalculateSnapshot`), 온보딩·대시보드·마이페이지 화면 UI (라우트와 가드는 완료, 화면은 플레이스홀더) |
-| collector | 관리자 직접 구동(내부 파이프라인 API 연동) 및 Spring Scheduler(`@Scheduled`) 도입 고려에 따른 실행 체계 확정, 관리자 UI 연동, `docker-compose.yml`·`deploy.yml` 배선. 내부 API 는 이미 있다 — `/internal/pipeline/{crawl,seed-load,wage-stat,dedup,aggregate}` 와 `/jobs/{jobId}` |
+| collector | 관리자 직접 구동(내부 파이프라인 API 연동) 및 Spring Scheduler(`@Scheduled`) 도입 고려에 따른 관리자 UI 연동. 배포 배선(`docker-compose.yml`·`deploy.yml`) 및 내부 API(`/internal/pipeline/**`)는 완료 |
 | 프런트엔드 | 온보딩 5단계·대시보드·추이분석·시뮬레이터·마이페이지 화면 구현. 라우트·가드·세션 연결은 완료 |
 | Gateway 세션 검증 필터 | `carix.gateway.session-validation.enabled` 활성화 — 기본값 `false`. **그냥 켜면 안 된다.** core 라우트 술어에 `/api/health` 가 들어 있고 필터에 경로 예외가 없어, 켜는 순간 배포 워크플로의 헬스체크가 401 을 받고 자동 롤백이 돈다. 그 롤백은 `.env` 만 되돌리므로 플래그는 남고 다음 배포도 같은 자리에서 실패한다. 선행 조건과 롤백 절차는 [개발 계획 §5-B](plans/carix-dev-plan.md) |
 
