@@ -24,50 +24,50 @@ public class GlobalExceptionHandler {
       details.putIfAbsent(error.getField(), error.getDefaultMessage());
     }
     return ResponseEntity.badRequest()
-            .body(ErrorResponse.of("INVALID_INPUT", "입력값 형식이 올바르지 않습니다.", details));
+        .body(ErrorResponse.of("INVALID_INPUT", "입력값 형식이 올바르지 않습니다.", details));
   }
 
   @ExceptionHandler(IllegalArgumentException.class)
   public ResponseEntity<ErrorResponse> handleIllegalArgument(IllegalArgumentException e) {
     return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-            .body(ErrorResponse.of("INVALID_INPUT", e.getMessage(), null));
+        .body(ErrorResponse.of("INVALID_INPUT", e.getMessage(), null));
   }
 
   @ExceptionHandler(com.carix.skill.exception.InvalidSkillCategoryException.class)
   public ResponseEntity<ErrorResponse> handleInvalidSkillCategory(
-          com.carix.skill.exception.InvalidSkillCategoryException e) {
+      com.carix.skill.exception.InvalidSkillCategoryException e) {
     return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-            .body(ErrorResponse.of("INVALID_SKILL_CATEGORY", e.getMessage(), null));
+        .body(ErrorResponse.of("INVALID_SKILL_CATEGORY", e.getMessage(), null));
   }
 
   @ExceptionHandler(com.carix.expense.exception.InvalidExpenseCategoryException.class)
   public ResponseEntity<ErrorResponse> handleInvalidExpenseCategory(
-          com.carix.expense.exception.InvalidExpenseCategoryException e) {
+      com.carix.expense.exception.InvalidExpenseCategoryException e) {
     return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-            .body(ErrorResponse.of("INVALID_EXPENSE_CATEGORY", e.getMessage(), null));
+        .body(ErrorResponse.of("INVALID_EXPENSE_CATEGORY", e.getMessage(), null));
   }
 
   @ExceptionHandler(com.carix.skill.exception.DuplicateSkillException.class)
   public ResponseEntity<ErrorResponse> handleDuplicateSkill(
-          com.carix.skill.exception.DuplicateSkillException e) {
+      com.carix.skill.exception.DuplicateSkillException e) {
     return ResponseEntity.status(HttpStatus.CONFLICT)
-            .body(ErrorResponse.of("DUPLICATE_SKILL", e.getMessage(), null));
+        .body(ErrorResponse.of("DUPLICATE_SKILL", e.getMessage(), null));
   }
 
   @ExceptionHandler(com.carix.income.exception.DuplicateEffectiveDateException.class)
   public ResponseEntity<ErrorResponse> handleDuplicateEffectiveDate(
-          com.carix.income.exception.DuplicateEffectiveDateException e) {
+      com.carix.income.exception.DuplicateEffectiveDateException e) {
     return ResponseEntity.status(HttpStatus.CONFLICT)
-            .body(ErrorResponse.of("DUPLICATE_EFFECTIVE_DATE", e.getMessage(), null));
+        .body(ErrorResponse.of("DUPLICATE_EFFECTIVE_DATE", e.getMessage(), null));
   }
 
   @ExceptionHandler({
-          com.carix.skill.exception.SkillNotFoundException.class,
-          com.carix.skill.exception.UserSkillNotFoundException.class,
-          com.carix.income.exception.IncomeNotFoundException.class
+    com.carix.skill.exception.SkillNotFoundException.class,
+    com.carix.skill.exception.UserSkillNotFoundException.class,
+    com.carix.income.exception.IncomeNotFoundException.class
   })
   public ResponseEntity<ErrorResponse> handleNotFound(RuntimeException e) {
     return ResponseEntity.status(HttpStatus.NOT_FOUND)
-            .body(ErrorResponse.of("NOT_FOUND", e.getMessage(), null));
+        .body(ErrorResponse.of("NOT_FOUND", e.getMessage(), null));
   }
 }

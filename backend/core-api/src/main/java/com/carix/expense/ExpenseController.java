@@ -24,46 +24,46 @@ import org.springframework.web.bind.annotation.*;
 @Tag(name = "Expense Management", description = "소비 카테고리 지출 금액 및 가중치 관리 API")
 public class ExpenseController {
 
-    private final ExpenseService expenseService;
+  private final ExpenseService expenseService;
 
-    public ExpenseController(ExpenseService expenseService) {
-        this.expenseService = expenseService;
-    }
+  public ExpenseController(ExpenseService expenseService) {
+    this.expenseService = expenseService;
+  }
 
-    @Operation(summary = "지출 이력 전체 조회", description = "사용자가 등록한 기준 월별 지출 기록 목록과 카테고리 가중치 상태를 반환합니다.")
+  @Operation(summary = "지출 이력 전체 조회", description = "사용자가 등록한 기준 월별 지출 기록 목록과 카테고리 가중치 상태를 반환합니다.")
+  @ApiResponse(
+      responseCode = "200",
+      description = "조회 성공",
+      content =
+          @Content(
+              array =
+                  @ArraySchema(schema = @Schema(implementation = ExpenseHistoryResponse.class))))
+  @GetMapping
+  public ResponseEntity<ApiResult<List<ExpenseHistoryResponse>>> getExpenseHistory(
+      @RequestHeader("X-User-Id") UUID userId) {
+    return ResponseEntity.ok(ApiResult.success(expenseService.getHistory(userId)));
+  }
+
+  @Operation(
+      summary = "특정월 지출 등록 및 수정",
+      description = "지정된 기준 월에 소비 카테고리별 지출 금액을 등록하거나 수정합니다. 미입력 카테고리는 통계청 가계동향조사 기준값으로 자동 보간됩니다.")
+  @ApiResponses({
+    @ApiResponse(responseCode = "200", description = "등록/수정 성공"),
     @ApiResponse(
-            responseCode = "200",
-            description = "조회 성공",
-            content =
-            @Content(
-                    array =
-                    @ArraySchema(schema = @Schema(implementation = ExpenseHistoryResponse.class))))
-    @GetMapping
-    public ResponseEntity<ApiResult<List<ExpenseHistoryResponse>>> getExpenseHistory(
-            @RequestHeader("X-User-Id") UUID userId) {
-        return ResponseEntity.ok(ApiResult.success(expenseService.getHistory(userId)));
-    }
-
-    @Operation(
-            summary = "특정월 지출 등록 및 수정",
-            description = "지정된 기준 월에 소비 카테고리별 지출 금액을 등록하거나 수정합니다. 미입력 카테고리는 통계청 가계동향조사 기준값으로 자동 보간됩니다.")
-    @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "등록/수정 성공"),
-            @ApiResponse(
-                    responseCode = "400",
-                    description = "잘못된 입력 양식",
-                    content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
-    })
-    @PutMapping("/{baseYearMonth}")
-    public ResponseEntity<ApiResult<ExpenseHistoryResponse>> updateExpense(
-            @RequestHeader("X-User-Id") UUID userId,
-            @PathVariable
-            @Pattern(regexp = "^\\d{6}$")
-            @Schema(description = "기준 년월 (YYYYMM)", example = "202607")
-            String baseYearMonth,
-            @Valid @RequestBody ExpenseUpdateRequest request) {
-        return ResponseEntity.ok(
-                ApiResult.success(
-                        expenseService.upsert(userId, baseYearMonth, request), "지출 정보가 업데이트되었습니다."));
-    }
+        responseCode = "400",
+        description = "잘못된 입력 양식",
+        content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+  })
+  @PutMapping("/{baseYearMonth}")
+  public ResponseEntity<ApiResult<ExpenseHistoryResponse>> updateExpense(
+      @RequestHeader("X-User-Id") UUID userId,
+      @PathVariable
+          @Pattern(regexp = "^\\d{6}$")
+          @Schema(description = "기준 년월 (YYYYMM)", example = "202607")
+          String baseYearMonth,
+      @Valid @RequestBody ExpenseUpdateRequest request) {
+    return ResponseEntity.ok(
+        ApiResult.success(
+            expenseService.upsert(userId, baseYearMonth, request), "지출 정보가 업데이트되었습니다."));
+  }
 }

@@ -32,67 +32,67 @@ public class IncomeController {
 
   @Operation(summary = "소득 이력 전체 조회", description = "사용자가 등록한 연봉 및 실수령액의 모든 역사적 변경 이력을 반환합니다.")
   @ApiResponse(
-          responseCode = "200",
-          description = "조회 성공",
-          content =
+      responseCode = "200",
+      description = "조회 성공",
+      content =
           @Content(array = @ArraySchema(schema = @Schema(implementation = IncomeResponse.class))))
   @GetMapping
   public ResponseEntity<ApiResult<List<IncomeResponse>>> getIncomeHistory(
-          @RequestHeader("X-User-Id") UUID userId) {
+      @RequestHeader("X-User-Id") UUID userId) {
     return ResponseEntity.ok(ApiResult.success(incomeService.getHistory(userId)));
   }
 
   @Operation(summary = "소득 정보 등록", description = "새로운 연봉 정보를 등록합니다. 동일한 유효 시작일에는 중복으로 등록할 수 없습니다.")
   @ApiResponses({
-          @ApiResponse(responseCode = "201", description = "등록 성공"),
-          @ApiResponse(
-                  responseCode = "400",
-                  description = "잘못된 입력값",
-                  content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
-          @ApiResponse(
-                  responseCode = "409",
-                  description = "유효 시작일 중복 발생",
-                  content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+    @ApiResponse(responseCode = "201", description = "등록 성공"),
+    @ApiResponse(
+        responseCode = "400",
+        description = "잘못된 입력값",
+        content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+    @ApiResponse(
+        responseCode = "409",
+        description = "유효 시작일 중복 발생",
+        content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
   })
   @PostMapping
   public ResponseEntity<ApiResult<IncomeResponse>> createIncome(
-          @RequestHeader("X-User-Id") UUID userId, @Valid @RequestBody IncomeRequest request) {
+      @RequestHeader("X-User-Id") UUID userId, @Valid @RequestBody IncomeRequest request) {
     ApiResult<IncomeResponse> response =
-            ApiResult.success(incomeService.create(userId, request), "소득 정보가 정상적으로 등록되었습니다.");
+        ApiResult.success(incomeService.create(userId, request), "소득 정보가 정상적으로 등록되었습니다.");
     return ResponseEntity.status(HttpStatus.CREATED).body(response);
   }
 
   @Operation(
-          summary = "소득 정보 수정",
-          description =
-                  "특정 ID의 소득 정보를 수정합니다. 변경 결과 유효 시작일이 중복되면 충돌 오류를 반환하며, 성공 시 영향도 월에 대해 재계산이 트리거됩니다.")
+      summary = "소득 정보 수정",
+      description =
+          "특정 ID의 소득 정보를 수정합니다. 변경 결과 유효 시작일이 중복되면 충돌 오류를 반환하며, 성공 시 영향도 월에 대해 재계산이 트리거됩니다.")
   @ApiResponses({
-          @ApiResponse(responseCode = "200", description = "수정 성공"),
-          @ApiResponse(
-                  responseCode = "400",
-                  description = "잘못된 입력값",
-                  content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
-          @ApiResponse(
-                  responseCode = "409",
-                  description = "수정하려는 시작일이 다른 이력과 중복됨",
-                  content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+    @ApiResponse(responseCode = "200", description = "수정 성공"),
+    @ApiResponse(
+        responseCode = "400",
+        description = "잘못된 입력값",
+        content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+    @ApiResponse(
+        responseCode = "409",
+        description = "수정하려는 시작일이 다른 이력과 중복됨",
+        content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
   })
   @PutMapping("/{id}")
   public ResponseEntity<ApiResult<IncomeResponse>> updateIncome(
-          @RequestHeader("X-User-Id") UUID userId,
-          @PathVariable UUID id,
-          @Valid @RequestBody IncomeRequest request) {
+      @RequestHeader("X-User-Id") UUID userId,
+      @PathVariable UUID id,
+      @Valid @RequestBody IncomeRequest request) {
     return ResponseEntity.ok(
-            ApiResult.success(incomeService.update(userId, id, request), "소득 정보가 정상적으로 수정되었습니다."));
+        ApiResult.success(incomeService.update(userId, id, request), "소득 정보가 정상적으로 수정되었습니다."));
   }
 
   @Operation(
-          summary = "소득 정보 삭제",
-          description = "특정 ID의 소득 정보를 이력에서 제거합니다. 성공 시 관련된 구간의 데이터 재계산이 트리거됩니다.")
+      summary = "소득 정보 삭제",
+      description = "특정 ID의 소득 정보를 이력에서 제거합니다. 성공 시 관련된 구간의 데이터 재계산이 트리거됩니다.")
   @ApiResponse(responseCode = "200", description = "삭제 성공")
   @DeleteMapping("/{id}")
   public ResponseEntity<ApiResult<Void>> deleteIncome(
-          @RequestHeader("X-User-Id") UUID userId, @PathVariable UUID id) {
+      @RequestHeader("X-User-Id") UUID userId, @PathVariable UUID id) {
     incomeService.delete(userId, id);
     return ResponseEntity.ok(ApiResult.success(null, "소득 정보가 성공적으로 삭제되었습니다."));
   }

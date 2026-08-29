@@ -7,7 +7,10 @@ import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface IncomeHistoryRepository extends JpaRepository<IncomeHistory, UUID> {
-    List<IncomeHistory> findByUserIdOrderByEffectiveDateDesc(UUID userId);
-    boolean existsByUserIdAndEffectiveDate(UUID userId, LocalDate effectiveDate);
-    boolean existsByUserIdAndEffectiveDateAndIdNot(UUID userId, LocalDate effectiveDate, UUID excludeId);
+  List<IncomeHistory> findByUserIdOrderByEffectiveDateDesc(UUID userId);
+
+  boolean existsByUserIdAndEffectiveDate(UUID userId, LocalDate effectiveDate);
+
+  boolean existsByUserIdAndEffectiveDateAndIdNot(
+      UUID userId, LocalDate effectiveDate, UUID excludeId);
 }

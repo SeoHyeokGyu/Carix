@@ -7,6 +7,7 @@ import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface ExpenseHistoryRepository extends JpaRepository<ExpenseHistory, UUID> {
-    List<ExpenseHistory> findByUserIdOrderByBaseYearMonthDesc(UUID userId);
-    Optional<ExpenseHistory> findByUserIdAndBaseYearMonth(UUID userId, String baseYearMonth);
+  List<ExpenseHistory> findByUserIdOrderByBaseYearMonthDesc(UUID userId);
+
+  Optional<ExpenseHistory> findByUserIdAndBaseYearMonth(UUID userId, String baseYearMonth);
 }
