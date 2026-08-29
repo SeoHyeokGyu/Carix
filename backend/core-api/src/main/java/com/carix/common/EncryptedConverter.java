@@ -8,6 +8,9 @@ import javax.crypto.spec.SecretKeySpec;
 import java.nio.charset.StandardCharsets;
 import java.security.SecureRandom;
 import java.util.Base64;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Component;
+
 
 /**
  * 민감 컬럼을 AES-GCM으로 암호화해 저장한다.
@@ -17,6 +20,7 @@ import java.util.Base64;
  * 암호화가 필요해지면 그때 확장한다.
  */
 @Converter
+@Component
 public class EncryptedConverter implements AttributeConverter<Long, String> {
 
     private static final String ALGO = "AES/GCM/NoPadding";
@@ -25,12 +29,12 @@ public class EncryptedConverter implements AttributeConverter<Long, String> {
 
     private final SecretKeySpec key;
 
-    public EncryptedConverter() {
-        String secret = System.getenv("CARIX_INCOME_ENC_KEY");
+    public EncryptedConverter(@Value("${carix.income-enc-key:${CARIX_INCOME_ENC_KEY:}}") String secret) {
         if (secret == null || secret.isBlank()) {
-            throw new IllegalStateException("CARIX_INCOME_ENC_KEY 환경변수가 없습니다.");
+            throw new IllegalStateException(
+                    "carix.income-enc-key (또는 CARIX_INCOME_ENC_KEY) 값이 없습니다.");
         }
-        this.key = new SecretKeySpec(Base64.getDecoder().decode(secret), "AES");
+        this.key = new SecretKeySpec(Base64.getDecoder().decode(secret.trim()), "AES");
     }
 
     @Override
