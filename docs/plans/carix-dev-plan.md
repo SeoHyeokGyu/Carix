@@ -8,9 +8,9 @@
 
 | 담당자 | 담당 도메인 | 프론트엔드 (UI) | 백엔드 & 핵심 알고리즘 | 데이터 수집 & DB |
 | :--- | :--- | :--- | :--- | :--- |
-| **Member A** | **소득 & 구매력 분석<br>(PPI & Cost of Living)** | • `S-06` 소득 입력<br>• `S-07` 소비 6대 카테고리 입력<br>• `S-14` **소득 vs 개인물가 차트 컴포넌트** | • **구매력 지수(PPI) 계산 엔진** (§4.3)<br>• 소비 가중치 전파 로직 (`PROPAGATED`)<br>• 소득/소비 이력 CRUD API<br>• 기본 소비 가중치 관리 (`DEFAULT_CPI`)<br>• 연봉 컬럼 암호화 키 주입·배치 복호화 경계 (§5-E) | • **임금통계 기준선 원천 재선정** (§5-A — 결과는 B·C 가 소비)<br>• 통계청 CPI(소비자물가) 수집 파이프라인<br>• `income_history`<br>• `expense_history`, `expense_item`<br>• `cpi_observation` |
+| **Member A** | **소득 & 구매력 분석<br>(PPI & Cost of Living)** | • `S-06` 소득 입력<br>• `S-07` 소비 6대 카테고리 입력<br>• `S-14` **소득 vs 개인물가 차트 컴포넌트** | • **구매력 지수(PPI) 계산 엔진** (§4.3)<br>• 소비 가중치 전파 로직 (`PROPAGATED`)<br>• 소득/소비 이력 CRUD API<br>• 기본 소비 가중치 관리 (`DEFAULT_CPI`)<br>• 연봉 컬럼 암호화 키 주입·스냅샷 복호화 경계 (§5-E) | • **임금통계 기준선 데이터 확보 완료** (`core.wage_stat_observation`)<br>• 통계청 CPI(소비자물가) 수집 파이프라인<br>• `income_history`<br>• `expense_history`, `expense_item`<br>• `cpi_observation` |
 | **Member B** | **스킬 & 시장가치 분석<br>(MVI & Market Worth)** | • `S-08` 스킬 입력 & 자동완성<br>• `S-11` 월별 스냅샷 이력<br>• `S-13` 설정·계정 삭제<br>• `S-14` **연봉 분포·스킬 수요 차트 컴포넌트** | • **시장가치 지수(MVI) 계산 엔진** (§4.2)<br>• **스킬 수요 지수** 계산 엔진 (§4.1)<br>• 동료집단 완화 알고리즘 (N<10)<br>• 스킬 검색/자동완성 API | • 채용공고 & KOSIS 임금 수집 파이프라인<br>• 표준 스킬 사전 정제<br>• `skill`, `skill_alias`, `user_skill`<br>• `wage_stat_observation`<br>• `market_aggregate` |
-| **Member C** | **인증, 의사결정 & 시뮬레이터<br>(Auth, Decision & Action)** | • `S-01~03` 랜딩 & 로그인·계정 등록<br>• `S-05, 09` 프로필 & 온보딩 검토<br>• `S-10` **대시보드 메인 (3대 카드 종합)**<br>• `S-12` **이력 관리 화면 전체**<br>• `S-14` **추이분석 화면 셸** (A·B 차트 조립)<br>• `S-15` **12개월 커리어 시뮬레이터** | • **결정 신호(Rule Matrix) 판정 엔진**<br>• **12개월 잔류 vs 이직 시뮬레이터** (US-S1)<br>• **월별 스냅샷 멱등성 저장/재계산** (§4.4)<br>• 회원가입·로그인 (US-A1~2)<br>• 계정/데이터 완전 삭제 (US-C2) | • `auth-service` 모듈<br>• **세션 게이트** — Gateway 필터 + core-api `X-User-Id` 주입 (§5-B, 3레인 공통 선행)<br>• **auth 스키마**(auth-service 소유·Flyway): `users`, `session`, `rate_limit_bucket`<br>• **core 스키마**(직접 DDL): `career_profile`, `index_snapshot`, `career_scenario` |
+| **Member C** | **인증, 의사결정 & 시뮬레이터<br>(Auth, Decision & Action)** | • `S-01~03` 랜딩 & 로그인·계정 등록<br>• `S-05, 09` 프로필 & 온보딩 검토<br>• `S-10` **대시보드 메인 (3대 카드 종합)**<br>• `S-12` **이력 관리 화면 전체**<br>• `S-14` **추이분석 화면 셸** (A·B 차트 조립)<br>• `S-15` **12개월 커리어 시뮬레이터** | • **결정 신호(Rule Matrix) 판정 엔진**<br>• **12개월 잔류 vs 이직 시뮬레이터** (US-S1)<br>• **월별 스냅샷 멱등성 저장/재계산** (Job 4 전담 소유, §4.4)<br>• 회원가입·로그인 (US-A1~2)<br>• 계정/데이터 완전 삭제 (US-C2) | • `auth-service` 모듈<br>• **세션 게이트** — Gateway 필터 + core-api `X-User-Id` 주입 (§5-B, 3레인 공통 선행)<br>• **auth 스키마**(auth-service 소유·Flyway): `users`, `session`, `rate_limit_bucket`<br>• **core 스키마**(직접 DDL): `career_profile`, `index_snapshot`, `career_scenario` |
 
 > **화면 셸 소유는 하나다.** `S-12`(`routes/mypage/records.tsx`)와
 > `S-14`(`routes/dashboard/trends.tsx`)는 라우트 파일이 각각 하나이고
@@ -37,7 +37,7 @@
     **구매력 손실 음영** — **차트 컴포넌트만**. 화면 셸과 `GET /dashboard/trends` 는 C 소유
   - `S-12` 소득·소비 탭에 쓰이는 조회·수정 API 제공 (화면은 C)
 - **Backend & Data**:
-  - `collector`: 통계청 CPI 지수 수집 배치 및 카테고리 매핑 파이프라인
+  - `collector`: 통계청 CPI 지수 수집 파이프라인 (관리자 직접 구동 및 카테고리 매핑)
   - `core-api`: 
     - `POST /income`, `PUT /income/{id}`, `PUT /expenses/{ym}` API
     - **개인소비자물가지수 & 구매력 지수(PPI) 산출 엔진** 구현
@@ -83,7 +83,7 @@
   - `core-api`:
     - `PATCH /onboarding`, `PATCH /profile`, `DELETE /users` API
     - **결정 신호(Decision Signal) 판정 엔진** (Rule Matrix: 잔류 권고/이직 준비/소득 방어 등)
-    - **월별 스냅샷 멱등성 저장/재계산 엔진** (`index_snapshot` 버전 관리, `(userId, ym, dataVer, ruleVer)`)
+    - **월별 스냅샷 멱등성 저장/재계산 엔진** (Job 4 전담 소유, `index_snapshot` 버전 관리, `(userId, ym, dataVer, ruleVer)`)
     - 12개월 시뮬레이터 계산 API (`POST /scenarios/simulate`)
     - `GET /dashboard/trends` — A·B 지수 계열을 하나의 `trends[]` 로 합성 (§5-J 의
       `salary-distribution` 은 B 소유)
@@ -92,45 +92,24 @@
 
 ## 3. 주차별 병렬 개발 로드맵 (7주 스프린트)
 
-> **기준일 2026-08-29 (재기준).** 08-27 판은 B 레인 선행 완료만 반영했고 레인 길이는
-> 그대로 뒀다. 이번 재기준에서 적대 검토 결과 13건을 반영해 간트를 다시 짰다. 바뀐 것:
+> **기준일 2026-08-29 (재기준).** 임금통계 기준선 데이터 확보(`core.wage_stat_observation` 24구간 보간 완료)와 스냅샷 갱신(Job 4) `core-api` 전담 실행 결정이 완료되어 불필요한 분기(`h1`)를 제거하고 간트를 최적화했습니다:
 >
-> - `c1`(인증 구현·auth 테스트·`S-01~03` UI)은 **잔여가 없어 제거**했다. 남아 있던
->   Gateway 세션 검증 필터는 `c0b`(§5-B)로 옮겼다
-> - `a1`·`c0b`·`b0` 의 `after c0` 를 걷었다. `c0` 는 임금통계 기준선 결정(§5-A)이고
->   셋 다 그 산출물을 쓰지 않는다. **실제로 `c0` 를 기다리는 것은 `b2`·`c2` 뿐이다**
-> - `a1`(CPI 수집 잡)은 `b0` **뒤로** 걸었다. 둘 다 `collector` 모듈이고, `b0` 가 잡 실행
->   방식(Spring Batch 도입 vs 기존 `/internal/pipeline/*` 내부 API 패턴)을 정하기 전에는
->   A 가 무엇으로 짜야 할지 알 수 없다
-> - **§5-A(임금통계 기준선 결정)를 B 에서 A 로 옮겼다.** B 는 0주차에 이미 §5-C·§5-D·§5-I
->   를 5일 안에 해야 하고, `b2` 가 그 뒤에 직렬로 붙어 있어 여유가 없다. 반면 A 는
->   `a1` 이 `b0` 게이트에 막혀 0주차가 통째로 비어 있다. §5-A 는 MVI 구현이 아니라
->   **원천 실측·결정**이고 A 는 같은 시기에 KOSIS 어댑터를 다루므로 A 가 맡는다.
->   결과는 B(MVI)·C(규칙표)가 소비한다
-> - §5-H(안 C 귀결 시 규칙표 재작성)에 `h1` 바를 만들고 `c2` 를 그 뒤로 걸었다.
->   이전 판은 "`c2` 착수 전"이라고만 적어 실제로 하루도 배정돼 있지 않았다
-> - `S-12`·`S-14` 는 라우트 파일과 응답 DTO 가 각각 하나인데 소유자가 둘이었다.
->   **화면 셸을 C 로 단일화**하고 A·B 는 탭·차트 컴포넌트만 낸다 (§1 표 참조)
-> - C 에 몰려 있던 `S-11`·`S-13` 을 B 로 넘겨(`b4`) B 의 유휴 9일을 채웠다
-> - `e2e` 선행조건을 `a3 b4 c4` 세 개로 바꿨다. 이전 판은 `c3` 하나만 걸어, C 가 먼저
->   끝나는 순간 A 산출물 없이 E2E 가 시작되는 구조였다
->
-> **최장 경로는 §5-A 의 결론에 따라 갈린다.** 간트는 보수적으로 **안 C 귀결**을 그렸고,
-> 그 경우 `h1` 이 `c2` 를 3일 밀어 최장 경로가 `c4`(10-12 종료)다. **안 B 가 채택되면
-> `h1` 이 빠져** C 레인이 3일 당겨지고 `a3`(10-11)가 최장이 된다.
-> 작업일 총량은 C 가 42일로 가장 많고 A 는 38일이다 — `a3` 가 뒤로 밀리는 이유는 분량이
-> 아니라 A 가 `b0` 게이트 때문에 5일 늦게 출발하기 때문이다.
-> 전체 종료 10-17(안 C) 또는 10-16(안 B), 기준일부터 7주.
+> - `c1`(인증 구현·auth 테스트·`S-01~03` UI)은 **잔여가 없어 제거**했다.
+> - **임금통계 기준선 데이터가 충분히 확보(완료)**됨에 따라 §5-A/§5-H(규칙표 재작성) 이슈가 해소되어 기존 3변수 결정신호 규칙표를 유지한다.
+> - **스냅샷 갱신(Job 4)은 `core-api`가 전담(완료)**하여 `recalculateSnapshot` 엔진에서 소유한다.
+> - `S-12`·`S-14` 는 **화면 셸을 C 로 단일화**하고 A·B 는 탭·차트 컴포넌트만 낸다.
+> - `e2e` 선행조건은 `a3 b4 c4` 세 개다.
 
 ### 선행 완료 (로드맵 제외)
 
 | 원래 위치 | 항목 | 완료 |
 | :--- | :--- | :--- |
 | C 0주차 | DB 마이그레이션 방식 통일 (auth=Flyway, core=직접 DDL) | 결정·문서화 완료 |
+| A/B 0주차 | KOSIS 임금통계 기준선 데이터 수집 및 24구간 보간 적재 완료 (`core.wage_stat_observation`) | 완료 |
+| B/C 0주차 | 스냅샷 갱신(Job 4) `core-api` 전담 실행 주체 확정 (§5-I) | 결정 완료 |
 | B 1~2주차 | 채용공고/임금 수집 파이프라인 (`wage_stat_observation`, 원천 간 중복제거) | 2026-08-25 |
 | B 1~2주차 | 표준 스킬 사전 정제 & 검색 API (`GET /skills/search`, user-skills CRUD) | 2026-08-24 |
-| B 1~2주차 | KOSIS 임금통계 수집 (`collector/wagestat`, 임금계층 보간) | 구현 완료 — **원천 재선정(§5-A) 결과에 따라 재작업 가능** |
-| B 3~4주차 | 월별 시장 데이터 사전 집계 (`market_aggregate`) 배치 엔진 | 2026-08-25 |
+| B 3~4주차 | 월별 시장 데이터 사전 집계 (`market_aggregate`) 파이프라인 | 2026-08-25 |
 | C 1~2주차 | 인증 재설계 구현, `auth-service` 테스트, `/api` 프록시, `S-01~03` UI | 2026-08-28 (`c1` 제거 근거) |
 
 ```mermaid
@@ -139,23 +118,23 @@ gantt
     dateFormat  YYYY-MM-DD
     section 공통 (0주차)
     DB 마이그레이션 방식 확정 :done, c0a, 2026-08-22, 1d
+    임금통계 기준선 데이터 확보(5-A) :done, a0, 2026-08-25, 3d
+    스냅샷 Job4 core-api 전담 결정(5-I) :done, i0, 2026-08-29, 1d
     미배정 API 범위 결정(5-G) :c0, 2026-08-29, 2d
     section Member A (소득/PPI)
-    임금통계 기준선 원천 결정(5-A) :crit, a0, 2026-08-29, 3d
-    CPI 수집 잡 & 소득/소비 CRUD API :a1, after b0, 14d
+    CPI 수집 파이프라인 & 소득/소비 CRUD API :a1, after b0, 14d
     PPI 계산 엔진 & 가중치 전파 & 암호화 키(5-E) :a2, after a1, 14d
     소득/소비 온보딩 UI(S-06,07) & 소득vs물가 차트 컴포넌트 :a3, after a2, 10d
     section Member B (스킬/MVI)
     공고/임금 수집 파이프라인 & 스킬사전 검색 API :done, b1, 2026-08-24, 2d
-    market_aggregate 사전집계 배치 :done, b2a, 2026-08-25, 1d
-    collector 잡 실행방식·배포 배선(5-C) & DB 백업·복구(5-D) :b0, 2026-08-29, 5d
-    스킬수요 지수 & MVI 계산 엔진 :b2, after b0 a0, 14d
+    market_aggregate 사전집계 파이프라인 :done, b2a, 2026-08-25, 1d
+    collector 관리자 구동 연동·배포 배선(5-C) :b0, 2026-08-29, 5d
+    스킬수요 지수 & MVI 계산 엔진 :b2, after b0, 14d
     스킬 UI(S-08) & 연봉분포·수요 차트 컴포넌트 & salary-distribution API :b3, after b2, 12d
     스냅샷 이력(S-11) & 설정·탈퇴(S-13) UI :b4, after b3, 7d
     section Member C (인증/결정/시뮬레이터)
     세션 게이트 — Gateway 필터 + core-api X-User-Id 주입(5-B) :crit, c0b, 2026-08-29, 4d
-    결정신호 규칙표 재작성(5-H, 안 C 귀결 시에만) :h1, after a0, 3d
-    스냅샷 멱등성 엔진 & 결정신호 판정 엔진 :c2, after c0b h1, 14d
+    스냅샷 멱등성 엔진(Job 4) & 결정신호 판정 엔진 :c2, after c0b, 14d
     온보딩(S-05,09) & 대시보드(S-10) & 시뮬레이터(S-15) :c3, after c2, 14d
     이력관리(S-12) & 추이분석(S-14) 화면 셸 & trends API :c4, after c3, 10d
     section 전원 통합 (7주차)
@@ -164,11 +143,11 @@ gantt
 
 | 주차 | Member A (소득 & PPI) | Member B (스킬 & MVI) | Member C (인증 & 결정 & 시뮬레이터) |
 | :--- | :--- | :--- | :--- |
-| **0주차<br>(사전정렬)**<br>08-29~09-03 | • **임금통계 기준선 원천 재선정 (§5-A)**<br>• CPI 수집 스키마 확정<br>• 소득/소비 DDL 확정<br>• `b0` 의 잡 실행방식 결정 대기 | ~~• 공고/임금 통계 스키마 확정~~ (완료)<br>~~• 표준 스킬 사전 포맷 정의~~ (완료)<br>• **collector 잡 실행방식·배포 배선 (§5-C)**<br>• **운영 DB 백업·복구 (§5-D)**<br>• **Job 4 실행 주체 결정 (§5-I)** | ~~• 이메일 provider 선정~~ (불필요 — 메일 발송 경로 없음)<br>~~• DB 마이그레이션 방식 통일~~ (완료)<br>~~• PPI/MVI 계약 DTO + 스텁~~ (완료 — `com.carix.index`)<br>~~• 프론트엔드 라우팅/레이아웃/Theme~~ (완료)<br>• **세션 게이트 (§5-B)** — `/api/health` 예외 처리가 선행<br>~~• SSR Phase 2 범위 결정 (§5-F) 및 명세 3건 갱신~~ (완료)<br>• **결정신호 규칙표 재작성 (§5-H)** — §5-A 가 안 C 로 귀결될 때만 (`h1`, 09-01~09-04 — 0주차를 하루 넘어간다) |
-| **1~2주차<br>(인프라 & 파이프라인)**<br>09-03~09-17 | • 통계청 CPI 수집 잡 (`b0` 가 정한 실행방식)<br>• `income_history`, `expense_*` CRUD API | ~~• 채용공고/임금 수집 파이프라인~~ (08-25 완료)<br>~~• 표준 스킬 사전 정제 & 검색 API~~ (08-24 완료)<br>• **스킬 수요 지수 & MVI 계산 엔진** 착수 | ~~• 인증 재설계·테스트·프록시·`S-01~03` UI~~ (완료)<br>• **월별 스냅샷 멱등성 저장/재계산 엔진**<br>• **결정 신호 판정 엔진** (§5-H 규칙표 확정본 기준) |
-| **3~4주차<br>(핵심 계산 엔진)**<br>09-17~10-01 | • **개인물가 & 구매력 지수(PPI) 계산 엔진**<br>• 소비 가중치 전파(`PROPAGATED`) 로직<br>• **연봉 암호화 키 로테이션·배치 복호화 경계 (§5-E)** | • 동료집단 완화 알고리즘 (N<10 클램프)<br>• `S-08` 스킬 입력 & 자동완성 UI<br>• `S-14` 연봉분포·수요 **차트 컴포넌트**<br>• `GET /dashboard/salary-distribution` (§5-J) | • `S-05, S-09` 프로필/검토 온보딩 UI<br>• `S-10` **대시보드 메인**<br>• `S-15` **시뮬레이터 UI** |
+| **0주차<br>(사전정렬)**<br>08-29~09-03 | ~~• **임금통계 기준선 데이터 확보 (§5-A)**~~ (완료)<br>• CPI 수집 스키마 확정<br>• 소득/소비 DDL 확정<br>• `b0` 의 관리자 구동 연동 대기 | ~~• 공고/임금 통계 스키마 확정~~ (완료)<br>~~• 표준 스킬 사전 포맷 정의~~ (완료)<br>• **collector 관리자 직접 구동 연동·배포 배선 (§5-C)**<br>~~• **Job 4 core-api 전담 소유 결정 (§5-I)**~~ (완료) | ~~• 이메일 provider 선정~~ (불필요 — 메일 발송 경로 없음)<br>~~• DB 마이그레이션 방식 통일~~ (완료)<br>~~• PPI/MVI 계약 DTO + 스텁~~ (완료 — `com.carix.index`)<br>~~• 프론트엔드 라우팅/레이아웃/Theme~~ (완료)<br>• **세션 게이트 (§5-B)** — `/api/health` 예외 처리가 선행<br>~~• SSR Phase 2 범위 결정 (§5-F) 및 명세 3건 갱신~~ (완료) |
+| **1~2주차<br>(인프라 & 파이프라인)**<br>09-03~09-17 | • 통계청 CPI 수집 파이프라인 (`b0` 기반)<br>• `income_history`, `expense_*` CRUD API | ~~• 채용공고/임금 수집 파이프라인~~ (08-25 완료)<br>~~• 표준 스킬 사전 정제 & 검색 API~~ (08-24 완료)<br>• **스킬 수요 지수 & MVI 계산 엔진** 착수 | ~~• 인증 재설계·테스트·프록시·`S-01~03` UI~~ (완료)<br>• **월별 스냅샷 멱등성 저장/재계산 엔진 (Job 4)**<br>• **결정 신호 판정 엔진** (기존 3변수 규칙표 기준) |
+| **3~4주차<br>(핵심 계산 엔진)**<br>09-17~10-01 | • **개인물가 & 구매력 지수(PPI) 계산 엔진**<br>• 소비 가중치 전파(`PROPAGATED`) 로직<br>• **연봉 암호화 키 로테이션·스냅샷 복호화 경계 (§5-E)** | • 동료집단 완화 알고리즘 (N<10 클램프)<br>• `S-08` 스킬 입력 & 자동완성 UI<br>• `S-14` 연봉분포·수요 **차트 컴포넌트**<br>• `GET /dashboard/salary-distribution` (§5-J) | • `S-05, S-09` 프로필/검토 온보딩 UI<br>• `S-10` **대시보드 메인**<br>• `S-15` **시뮬레이터 UI** |
 | **5~6주차<br>(UI & 시각화 완성)**<br>10-01~10-11 | • `S-06, S-07` 소득/소비 온보딩 UI<br>• `S-14` 소득vs물가 **차트 컴포넌트** | • `S-11` 월별 스냅샷 이력 UI<br>• `S-13` 설정·계정 삭제 UI | • `S-12` **이력 관리 화면 전체** (소득·소비·스킬 탭)<br>• `S-14` **추이분석 화면 셸** + A·B 차트 조립<br>• `GET /dashboard/trends` API |
-| **7주차<br>(E2E 통합 검증)**<br>10-12~10-17 | • PPI 엣지케이스(지연/결측) 검증<br>• **민감 금액 로깅 마스킹 점검** (소득·소비 경로) | • MVI 표본부족(N<10) 엣지케이스 검증<br>• 실데이터 파이프라인 통합 점검<br>• **민감 금액 로깅 마스킹 점검** (집계·배치 경로) | • 온보딩 $\rightarrow$ 대시보드 $\rightarrow$ 시뮬레이터 E2E 점검<br>• 계정 삭제 시 개인 데이터 완전 삭제 검증<br>• **민감 금액 로깅 마스킹 점검** (시나리오 요청·스냅샷 복호화 경로) |
+| **7주차<br>(E2E 통합 검증)**<br>10-12~10-17 | • PPI 엣지케이스(지연/결측) 검증<br>• **민감 금액 로깅 마스킹 점검** (소득·소비 경로) | • MVI 표본부족(N<10) 엣지케이스 검증<br>• 실데이터 파이프라인 통합 점검<br>• **민감 금액 로깅 마스킹 점검** (집계·파이프라인 경로) | • 온보딩 $\rightarrow$ 대시보드 $\rightarrow$ 시뮬레이터 E2E 점검<br>• 계정 삭제 시 개인 데이터 완전 삭제 검증<br>• **민감 금액 로깅 마스킹 점검** (시나리오 요청·스냅샷 복호화 경로) |
 
 > **주차 표의 날짜 구간은 최장 경로인 A 레인 기준이다.** B 는 `b0` 가 5일이라 이후 블록이
 > 며칠씩 앞서고(`b3` 09-17~09-29, `b4` 09-29~10-06), C 는 `c0b` 가 4일이라 하루 앞선다
@@ -177,25 +156,21 @@ gantt
 
 > **완료 기준 10번(민감 금액 로그 미기록)은 전 레인 공통이다**
 > ([기능 명세 §7](../specs/functional-specification.md)). `POST /scenarios/simulate` 요청 본문의
-> `currentGrossSalary`·`moveTargetGrossSalary` 와 스냅샷 배치의 복호화 경로
-> ([SECURITY §3.2](../SECURITY.md))가 A 레인 점검만으로는 덮이지 않아 세 칸 모두에 넣었다.
-
-> **7주차 버퍼는 여전히 5일뿐이다.** 3레인 통합, 완료 기준 10개 항목, 비기능 점검을
-> 그 안에 넣었다. 통합에서 결함이 나오면 종료일이 밀린다 — 이 위험을 감수하고 진행하거나,
-> 완료 기준 점검을 각 레인의 마지막 주로 앞당긴다.
+> `currentGrossSalary`·`moveTargetGrossSalary` 와 스냅샷 재계산의 복호화 경로
+> 등에서 금액이 평문으로 로그에 찍히면 안 된다.
 
 ---
 
-## 4. 도메인 간 연동 인터페이스 (계약)
+## 4. 레인 간 인터페이스 계약 (확정 & 스텁)
 
 ```mermaid
-graph LR
-    subgraph MemberA ["Member A (소득/PPI)"]
-        PPI_OUT["Calculate PPI Result<br>(ppi, weightStatus, baseYearMonth)"]
+flowchart TD
+    subgraph MemberA ["Member A (소득 & PPI)"]
+        PPI_OUT["PurchasingPowerIndexProvider<br>calculate(userId, ym)"]
     end
 
-    subgraph MemberB ["Member B (스킬/MVI)"]
-        MVI_OUT["Calculate MVI Result<br>(mvi, skillDemandIndex, sampleCount, bracket)"]
+    subgraph MemberB ["Member B (스킬 & MVI)"]
+        MVI_OUT["MarketValueIndexProvider<br>calculate(userId, ym)"]
     end
 
     subgraph MemberC ["Member C (스냅샷 & 대시보드)"]
@@ -215,18 +190,14 @@ graph LR
    - 구현 빈이 없는 동안 `com.carix.index.stub` 이 `NOT_AVAILABLE` 을 돌려주므로 C 는 A·B 를 기다리지 않고 3~4주차를 시작할 수 있다
 2. **스냅샷 재계산 트리거 (A, B $\rightarrow$ C)**:
    - 사용자가 소득/소비(Member A) 또는 스킬(Member B)을 추가/수정/삭제했을 때, Member C의 `recalculateSnapshot(userId, fromYm)`을 호출하여 해당 시점 이후의 스냅샷을 멱등하게 갱신
-3. **스냅샷 배치(Job 4) 실행 주체 — 미정**:
-   - [애플리케이션 워크플로우 §2.3](../specs/application-workflow.md)은 Job 3(원천별 집계) 성공 직후
-     Job 4(사용자 스냅샷)가 연쇄 실행되는 Spring Batch 파이프라인으로 그렸다. 그런데 §1·§2 는
-     스냅샷 엔진을 C 의 `core-api` 에 두었다
-   - collector 가 `core.index_snapshot` 을 직접 쓸지, core-api 내부 API 를 호출할지 정해야 한다.
-     **B·C 경계다. 담당·시점은 §5-I 에 있다 — `b0`(0주차) 안에서 결정한다**
+3. **스냅샷 갱신(Job 4) 실행 주체 — core-api 전담 확정**:
+   - 스냅샷 계산/갱신 엔진은 `core-api`가 전담 소유한다. `collector`는 `market_aggregate` 집계까지 완료하며, `index_snapshot` 생성/갱신은 `core-api` 내부 API 호출 또는 사용자 프로필/소득/소비/스킬 변경 시 `core-api` 내에서 직접 `recalculateSnapshot(userId, fromYm)`을 수행한다.
+   - `core.index_snapshot`에 대한 쓰기 권한과 연봉 복호화 키 접근(§5-E)도 `core-api`(Member C/A) 내에서 안전하게 격리된다.
 4. **계약에 없던 크로스레인 의존 2건**:
    - 시뮬레이터 `feasibility`(`targetPercentile`, `difficultyGrade` — 정본은
      [API 규격 §6.1](../specs/api-specification.md))는 **B 의 동료집단 공고 분포**를 입력으로
      요구하나 화면은 C(`S-15`)다. 산출원은 §5.2 가 규정한 `job_posting` 직접 집계이며
-     임금통계 기준선(`wage_stat_observation`)과는 별개 원천이다 — **§5-A 에서 안 C 를 택해도
-     이 필드는 살아남는다**
+     임금통계 기준선(`wage_stat_observation`)과는 별개 원천이다.
    - `GET /dashboard/salary-distribution`([API 규격 §5.2](../specs/api-specification.md))은 §1 에서 B 의
      `S-14` 차트로 배정됐으나 API 는 대시보드 도메인이다. 구현 소유를 명시한다
 5. **완료 기준 10개 항목 점검**:
@@ -237,19 +208,15 @@ graph LR
 ## 5. 교차 선행 작업 (담당 확정)
 
 어느 담당자 칸에도 없으면서 다른 레인의 산출물을 막고 있던 항목들이다. 2026-08-29
-검토에서 아래 9건 전부에 담당과 시점을 붙였다 — §4 의 미해결 항목도 §5-I·§5-J 로
-끌어올렸으므로 이 문서에 담당 없는 작업은 §5-G(범위 결정 선행) 하나만 남는다.
-배정 기준은 **B 레인이 선행 완료로 여유가 있고 A 는 선행 완료분이 없는 유일한 레인**이라는 것이다.
+검토에서 아래 작업 전부에 담당과 시점을 붙였으며, 5-A(임금통계 기준선 확보)와 5-I(스냅샷 실행 주체 확정)가 완료되어 5-H는 자연 해소되었다.
 
 | # | 작업 | 담당 | 시점 | 잔여 범위 | 무엇을 막는가 |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| 5-A | 임금통계 기준선 원천 재선정 | A | 0주차 (`a0`) | 안 B(`한국고용정보원_직업별_임금정보`)는 [외부 API 연동 명세 §3.3](../specs/external-api-integration.md) 표 기준 **경력·지역 차원이 이미 없다** — 실측 대상은 직업 분류 세분 수준뿐이다. 채택 시 `wage_stat_observation` 의 `experience_bracket`·`region` `NOT NULL` 과 UNIQUE 키를 어떻게 바꿀지 함께 정한다. 실패 시 안 C(연봉 격차 MVP 제외) | MVI 연봉 격차, 결정 신호 규칙표(§5-H), API 규격 §5.2 의 `baseline`, §5.1 의 `decisionSignal.rationale`·`metadata.wageStat`. **§5 나머지보다 앞선다** |
+| 5-A | ~~임금통계 기준선 데이터 확보~~ | A/B | 0주차 (`a0`, **완료**) | KOSIS 24구간 누적분포 보간 완료로 `core.wage_stat_observation`에 충분한 데이터 적재 완료됨 | MVI 연봉 격차, 결정 신호 3변수 규칙표 유지 |
 | 5-B | 세션 게이트 — Gateway 세션 검증 필터 + core-api `X-User-Id` 주입 | C | 0주차 | **선행: `/api/health` 를 필터 적용 대상에서 뺀다** (아래 경고 참조). 그 다음 두 작업을 하나로 묶는다. `carix.gateway.session-validation.enabled=true` + `/actuator/refresh`, core-api 는 인터셉터·ArgumentResolver 로 `X-User-Id` 를 주입한다 — 하류가 헤더를 신뢰하는 구조라 Spring Security 스타터는 필요 없다 | 모든 도메인 API 의 `userId` 확보 경로. **A·B·C 전원** |
-| 5-C | collector Spring Batch 잡 · 배포 배선 | B | 0주차 (`b0`) | 내부 API 는 이미 있다 (`pipeline/CollectorPipelineController`·`CollectorPipelineService`). 잔여는 **Spring Batch 도입**(`spring-boot-starter-batch` 의존성 없음)과 **배포 배선**(`docker-compose.yml`·`deploy.yml` 에 `collector` 부재) | 수집 파이프라인이 운영에서 실행되지 않는다 → A·B·C 전원이 실데이터 없이 개발 |
-| 5-D | 운영 DB 일일 백업 · 복구 절차 | B | 0주차 (`b0`, 5-C 와 한 묶음) | 둘 다 서버·compose 작업이라 컨텍스트가 같다. 운영 DB = 개발 DB 라 상시 위험이며, B 레인 끝단 여유까지 미루지 않는다 | 실수 시 복구 수단이 없다 ([DEVELOPMENT.md §3](../DEVELOPMENT.md)) |
-| 5-E | 연봉 컬럼 암호화 키 로테이션 · 배치 복호화 | A (배치 접근 경계는 §5-I 결정에 따라 B 또는 C 와 합의) | 3~4주차 | [SECURITY §3.2](../SECURITY.md)가 "구현 단계 처리"로 남긴 항목. 키 로테이션 절차, 로테이션 시 기존 암호문 재암호화 전략, 배치 복호화 성능·키 접근 감사 | 소득 저장(A)과 스냅샷 배치의 연봉 복호화(§5-I) |
-| 5-H | 5-A 가 안 C 로 귀결될 경우 결정 신호 규칙표 재작성 | C | `h1` (09-01~09-04, `c2` 선행) | [상세 기술 명세 §2.2](../specs/technical-specification.md) 판정 5개 중 **우선순위 2·3·5 가 전부 `SalaryGapRatio` 조건**이고 `데이터 부족` 발동 조건에도 기준선 미확보가 들어 있다. 안 C 면 §2.1 변수 정의와 §2.2 규칙표를 구매력·시장가치 2입력으로 다시 쓴다 | C 의 결정 신호 판정 엔진(`c2`). 규칙표가 안 정해지면 무엇을 구현할지 모르는 채 착수한다 |
-| 5-I | 스냅샷 배치(Job 4) 실행 주체 결정 | B·C 공동 | 0주차 (`b0` 안에서) | collector 가 `core.index_snapshot` 을 직접 쓸지, core-api 내부 API 를 호출할지. 배경과 충돌 지점은 §4 항목 3 | C 의 스냅샷 엔진 배치 실행 경로, A 의 §5-E 배치 복호화 경계 |
+| 5-C | collector 관리자 직접 구동 및 Spring Scheduler 연동 · 배포 배선 | B | 0주차 (`b0`) | 내부 API 는 이미 있다 (`pipeline/CollectorPipelineController`·`CollectorPipelineService`). 잔여는 **관리자 화면(Admin UI/API) 연동 및 Spring Scheduler(`@Scheduled`) 도입 검토**, **배포 배선**(`docker-compose.yml`·`deploy.yml` 에 `collector` 부재) | 수집 파이프라인이 운영에서 실행되지 않는다 → A·B·C 전원이 실데이터 없이 개발 |
+| 5-E | 연봉 컬럼 암호화 키 로테이션 · 스냅샷 복호화 경계 | A (스냅샷 접근 경계는 core-api 내부 C 와 합의) | 3~4주차 | [SECURITY §3.2](../SECURITY.md)가 "구현 단계 처리"로 남긴 항목. 키 로테이션 절차, 로테이션 시 기존 암호문 재암호화 전략, 스냅샷 복호화 성능·키 접근 감사 | 소득 저장(A)과 스냅샷 재계산의 연봉 복호화(C) |
+| 5-I | ~~스냅샷 갱신(Job 4) 실행 주체 결정~~ | B·C | 0주차 (**완료**) | `core-api`가 전담하여 스냅샷 갱신(`recalculateSnapshot`) 수행 확정 | C 의 스냅샷 엔진 실행 경로 확정 |
 | 5-J | `GET /dashboard/salary-distribution` 구현 소유 | B | `b3` (3~4주차) | [API 규격 §5.2](../specs/api-specification.md)가 `market_aggregate` 가 아니라 **원 공고(`job_posting`) 직접 집계**를 규정한다 — `dedup_group_id` 중복 제거와 유효 공개연봉 필터가 필요해 수집 데이터를 아는 B 가 맡는다. 화면 셸은 C(`S-14`) | `S-14` 연봉 분포 차트, 시뮬레이터 `feasibility` |
 
 세션 검증은 게이트웨이가 수행하고 하류 서비스는 `X-User-Id` 헤더를 신뢰한다
