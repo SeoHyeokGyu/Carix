@@ -1,16 +1,19 @@
 # Carix 전체 애플리케이션 작업 흐름 명세 (Application Workflow Specification)
 
-이 문서는 Carix 플랫폼의 사용자 라이프사이클, 외부 원천 데이터 수집 배치의 파이프라인, 그리고 사용자 커리어 지표 및 시뮬레이션 산출에 이르는 **전체적인 데이터 흐름(E2E Data Flow)**을 명세화합니다.
+이 문서는 Carix 플랫폼의 사용자 라이프사이클, 외부 원천 데이터 수집/집계 파이프라인(관리자 직접 구동 및 Spring Scheduler 고려), 그리고 사용자 커리어 지표 및 시뮬레이션 산출에 이르는 **전체적인 데이터 흐름(E2E Data Flow)**을 명세화합니다.
 
 ---
 
 ## 1. Carix 전체 서비스 아키텍처 및 흐름도
 
-사용자의 실시간 요청을 처리하는 **API 영역**과 주기적으로 대량의 외부 데이터를 수집·가공하는 **배치 워커 영역**이 유기적으로 연결된 데이터 파이프라인 구조입니다. 가로 너비를 최소화하고 세로 흐름을 따라 배치되었습니다.
+사용자의 실시간 요청을 처리하는 **API 영역**과 관리자가 관리자 화면(Admin UI/API)에서 직접 구동하거나 필요 시 Spring Scheduler(`@Scheduled`)를 통해 대량의 외부 데이터를 수집·가공하는 **수집/집계 파이프라인(collector) 영역**이 유기적으로 연결된 데이터 파이프라인 구조입니다. 가로 너비를 최소화하고 세로 흐름을 따라 배치되었습니다.
 
 ```mermaid
 flowchart TD
-    %% 1. 외부 데이터 및 수집 (Top)
+    %% 관리자 트리거 및 스케줄러 (Top Left)
+    Admin[("관리자 (Admin) / Spring Scheduler")] -->|관리자 화면/내부 API/스케줄 호출| Collector
+
+    %% 1. 외부 데이터 및 수집 (Top Right)
     subgraph External ["외부 원천"]
         Kosis["KOSIS 물가통계 API"]
         JobKorea["잡코리아 채용정보 스크래핑"]
@@ -18,13 +21,12 @@ flowchart TD
         WageStat["임금통계 API"]
     end
 
-    %% 2. 배치 프로세서 (Down 1)
-    subgraph Collector ["collector 모듈 (수집 & 집계 파이프라인)"]
-        Job1["CPI 수집 Job"]
+    %% 2. 수집 및 집계 파이프라인 프로세서 (Down 1)
+    subgraph Collector ["collector 모듈 (수집 & 집계 파이프라인 - 관리자 직접 구동 / Spring Scheduler 고려)"]
+        Job1["CPI 수집 Job (/internal/pipeline/crawl)"]
         Job2["구인공고 수집 & 스킬 파싱 Job - 잡코리아/사람인"]
-        Job2b["임금통계 수집 Job"]
-        Job3["시장 데이터 통계 집계 Job - 원천별 + dedup"]
-        Job4["사용자 지수 스냅샷 갱신 Job"]
+        Job2b["임금통계 수집 Job (/internal/pipeline/wage-stat)"]
+        Job3["시장 데이터 통계 집계 Job (/internal/pipeline/aggregate)"]
     end
 
     %% 3. 데이터베이스 (Down 2)
@@ -33,9 +35,9 @@ flowchart TD
             AuthDB[("인증/세션: users, session, token")]
         end
         subgraph CoreSchema ["core 스키마"]
-            RawDB[("수집 원천: raw_ingest, cpi, job_posting")]
+            RawDB[("수집 원천: raw_ingest, cpi, job_posting, wage_stat_observation")]
             AggDB[("시장 집계: market_aggregate")]
-            UsersDB[("사용자 도메인: profile, income, expense, scenario")]
+            UsersDB[("사용자 도메인: profile, income, expense, scenario, index_snapshot")]
         end
     end
 
@@ -48,6 +50,7 @@ flowchart TD
         PC["ProfileController: 소득/소비/스킬"]
         DC["DashboardController: 지표 조회"]
         SC["ScenarioController: 시나리오 계산"]
+        Job4["사용자 지수 스냅샷 갱신 엔진 (Job 4)"]
         Encrypt["민감 데이터 암호화 계층"]
         DecEng["결정 신호 룰 엔진"]
     end
@@ -58,7 +61,7 @@ flowchart TD
         Sim["12개월 시뮬레이터 UI"]
     end
 
-    %% 외부 -> 배치 연동
+    %% 외부 -> 수집 연동
     Kosis -->|데이터 응답| Job1
     JobKorea -->|본문 텍스트 응답| Job2
     Saramin -->|공고 응답| Job2
@@ -69,12 +72,13 @@ flowchart TD
     Job2b -->|API 호출| WageStat
     Job2b -->|정규화 적재| RawDB
 
-    %% 배치 -> DB 연동
+    %% 수집/집계 -> DB 및 core-api 연동
     Job1 -->|raw CPI 저장| RawDB
     Job2 -->|정규화 스킬 저장| RawDB
     RawDB -->|데이터 조회| Job3
     Job3 -->|통계 적재| AggDB
-    AggDB & UsersDB -->|지수 계산| Job4
+    Job3 -.->|집계 완료 후 스냅샷 갱신 호출| Job4
+    AggDB & UsersDB -->|지수 계산 & snap 저장| Job4
     Job4 -->|snap 저장| UsersDB
 
     %% 사용자 입력 -> Gateway -> API -> DB 연동
@@ -97,16 +101,16 @@ flowchart TD
 
 ---
 
-## 2. Spring Batch 수집 및 집계 파이프라인 (2번 상세 흐름)
+## 2. 수집 및 집계 파이프라인 (2번 상세 흐름 — 관리자 직접 구동 & Spring Scheduler 고려)
 
-외부 수집 데이터는 대량 데이터의 무결성 보장과 유휴 트래픽 분산을 위해 **Spring Batch Job 파이프라인**(CPI 수집, 공고 수집·파싱, 임금통계 수집, 집계·스냅샷)으로 나누어 실행됩니다. 모든 원천 응답은 정규화 전에 `raw_ingest`에 원문 보존됩니다.
+외부 수집 데이터는 데이터 무결성 보장과 자원 관리의 유연성을 위해 **관리자 화면에서 직접 구동하는 방식(Admin UI/API)**을 기본으로 하며, **Spring Scheduler(`@Scheduled`) 기반의 정기 자동 실행 도입도 고려**할 수 있는 파이프라인 Job(CPI 수집, 공고 수집·파싱, 임금통계 수집, 집계·스냅샷)으로 나누어 실행됩니다. 내부 API(`/internal/pipeline/**`)를 통해 관리자가 수동으로 트리거하거나 스케줄러를 통해 실행하며, 모든 원천 응답은 정규화 전에 `raw_ingest`에 원문 보존됩니다.
 
-### 2.1 Job 1: CPI 소비자물가지수 수집 (월 1회 실행)
-통계청 공표 일정에 맞춰 기동합니다. 구체적 스케줄은 선행 검증에서 KOSIS 공표 일정을 확인한 뒤 확정합니다.
+### 2.1 Job 1: CPI 소비자물가지수 수집 (관리자 직접 구동 / Spring Scheduler 월 1회 고려)
+통계청 공표 일정에 맞춰 관리자가 관리자 화면에서 직접 기동하거나 스케줄러로 자동 실행합니다.
 
 ```mermaid
 stateDiagram-v2
-    [*] --> KosisReader : Job 기동 (통계청 공표 일정 기준)
+    [*] --> KosisReader : 관리자 수동 기동 (통계청 공표 일정 기준)
     KosisReader --> RawIngest : 원문 응답 raw_ingest 보존
     RawIngest --> KosisProcessor : KOSIS API 연월별 데이터 (JSON)
     KosisProcessor --> KosisWriter : Carix 6대 소비 카테고리 매핑 & 기본 가중치 보정
@@ -114,12 +118,12 @@ stateDiagram-v2
     cpi_observation --> [*]
 ```
 
-### 2.2 Job 2: 구인공고 수집 및 스킬 정규화 (일/주 1회 실행)
-가장 많은 연산과 파싱이 필요한 핵심 배치 파이프라인입니다. 잡코리아와 사람인 어댑터가 동일 구조로 실행되며, 수집 후 원천 간 중복 공고를 `dedup_group_id`로 매칭합니다. 파싱된 스킬은 `job_posting_skill`에 공고별로 저장합니다.
+### 2.2 Job 2: 구인공고 수집 및 스킬 정규화 (관리자 직접 구동 / 일·주 1회 권장)
+가장 많은 연산과 파싱이 필요한 핵심 수집 파이프라인입니다. 잡코리아와 사람인 어댑터가 동일 구조로 실행되며, 관리자가 트리거 시 수집 후 원천 간 중복 공고를 `dedup_group_id`로 매칭합니다. 파싱된 스킬은 `job_posting_skill`에 공고별로 저장합니다.
 
 ```mermaid
 flowchart TD
-    Start([Job 시작]) --> Reader[원천별 API Reader - 잡코리아/사람인: <br>IT/개발 직군 목록 조회]
+    Start([관리자 트리거로 Job 시작]) --> Reader[원천별 API Reader - 잡코리아/사람인: <br>IT/개발 직군 목록 조회]
     Reader --> Filter[Duplicate Filter: <br>원천 공고ID 중복 및 만료공고 제외 <br>+ 원천 간 dedup_group 매칭]
     Filter --> DetailReader[Detail Reader: <br>공고별 상세 본문 및 연봉 수집]
     
@@ -135,8 +139,8 @@ flowchart TD
     Writer --> End([Job 완료])
 ```
 
-### 2.3 Job 3·Job 4: 시장 데이터 통계 집계와 사용자 스냅샷 (수집 Job 완료 직후 연쇄 실행)
-Job 3(원천별 집계)과 Job 4(사용자 스냅샷)는 별도 Job이며 Job 3 성공 시 Job 4가 이어서 실행됩니다. 아래 흐름도는 두 Job의 연쇄를 하나로 표현한 것입니다. 수집된 원천 공고 및 CPI 데이터를 사용자의 동료집단(Peer Group) 단위로 그룹핑하고 통계를 집계합니다.
+### 2.3 Job 3(시장 데이터 집계) 및 Job 4(사용자 스냅샷 갱신 — core-api 전담)
+Job 3(원천별 집계)은 `collector`가 실행하며, 집계 완료 후 `core-api`의 스냅샷 갱신 내부 API를 호출하거나 `core-api` 자체 스케줄러/이벤트에 의해 Job 4(사용자 스냅샷 갱신)가 실행됩니다. 사용자 스냅샷 계산 및 저장은 `core-api`가 전담 소유합니다. 아래 흐름도는 두 Job의 연쇄 데이터 흐름을 표현한 것입니다. 수집된 원천 공고 및 CPI 데이터를 사용자의 동료집단(Peer Group) 단위로 그룹핑하고 통계를 집계한 뒤 사용자 스냅샷을 갱신합니다.
 
 롤업 집합(GROUPING SETS) 열거 — 롤업 차원은 `employment_type`, `company_size`, `skill_id` 3개이며, 원천×월×직무×지역×경력구간마다 다음 6개 집합을 생성합니다 (`NULL` = 전체 롤업, 원천 미상 `'UNKNOWN'`은 세분 값의 하나로 취급):
 

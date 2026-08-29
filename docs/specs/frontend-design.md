@@ -7,7 +7,7 @@ Carix의 프런트엔드를 Vite 기반 React 애플리케이션과 Node.js SSR 
 상호작용성을 한 애플리케이션에서 지원한다.
 
 이 문서는 기존 설계 문서의 Next.js 관련 프런트엔드 선택을 대체한다. Spring Boot,
-PostgreSQL, Spring Batch와 관련된 기존 백엔드·데이터 설계는 유지한다.
+PostgreSQL, Collector 모듈과 관련된 기존 백엔드·데이터 설계는 유지한다.
 
 **Next.js App Router를 접은 이유:** 풀스택 프레임워크라 Node 계층이 API·데이터 접근으로
 번지기 쉽고, Spring Boot와의 역할 경계가 흐려진다. Node는 HTML SSR·SEO만 맡고 인증·도메인·
@@ -50,7 +50,7 @@ flowchart TD
   장기 캐시 헤더만 붙인다.
 - Node 서버는 HTML SSR, SEO metadata, 공개 콘텐츠 렌더링을 담당한다.
 - Spring Boot는 인증, 도메인 로직, REST API, 데이터 접근을 담당한다.
-- Spring Batch는 외부 데이터 수집과 집계를 담당한다.
+- Collector는 외부 데이터 수집과 집계를 담당하며 관리자 화면(Admin UI/API) 직접 구동 및 Spring Scheduler 연계를 고려한다.
 - 브라우저는 동일 출처의 `/api/*`를 호출해 CORS 구성을 최소화한다.
 - Node 서버는 DB에 직접 접근하거나 Spring Boot의 비즈니스 로직을 복제하지
   않는다.

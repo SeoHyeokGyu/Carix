@@ -26,7 +26,7 @@
 | --- | --- |
 | [파이프라인 재설계](specs/data-architecture.md) | 데이터 아키텍처: 원천 4개, RawIngest, dedup, 임금통계 기준선 |
 | [데이터베이스 ERD](specs/erd.md) | 데이터베이스 엔티티 관계도 (Mermaid) |
-| [애플리케이션 워크플로우](specs/application-workflow.md) | E2E 데이터 흐름, Spring Batch Job 파이프라인, 시퀀스 |
+| [애플리케이션 워크플로우](specs/application-workflow.md) | E2E 데이터 흐름, 관리자 직접 구동 및 Spring Scheduler 수집/집계 파이프라인, 시퀀스 |
 | [상세 기술 명세](specs/technical-specification.md) | DB 스키마(DDL), 결정 규칙표, 스킬 사전 |
 | [도메인 계산 정의](specs/domain-logic.md) | 지수·시나리오 계산 공식, 가중치 전파, 완화 알고리즘 |
 | [프런트엔드 설계](specs/frontend-design.md) | Vite·React·Node SSR 구성, 렌더링 전략, 배포 단위 |
@@ -38,7 +38,7 @@
 | 문서 | 내용 |
 | --- | --- |
 | [REST API 규격](specs/api-specification.md) | 내부 API: 엔드포인트, 요청·응답, 인증, 에러 포맷 |
-| [외부 원천 API 연동 명세](specs/external-api-integration.md) | 배치 어댑터 경계: KOSIS 실측 명세, KOSIS 외 원천 결론·미결 |
+| [외부 원천 API 연동 명세](specs/external-api-integration.md) | 수집기(collector) 어댑터 경계: KOSIS 실측 명세, KOSIS 외 원천 결론·미결 |
 
 > 실무 관점 개선 여지: 산문 규격 → OpenAPI(`docs/api/openapi.yaml`) 기계 판독본으로 승격 가능(선택).
 
@@ -46,7 +46,7 @@
 
 | 문서 | 내용 |
 | --- | --- |
-| [데이터 수집 타당성 분석](research/data-collection-feasibility.md) | 원천별 수집 용이성, 결측·편향, 대응 전략 (분석 노트) |
+| [데이터 수집 용이성 분석](research/data-collection-feasibility.md) | CPI·채용공고 수집 난이도, 제약 요인 및 Fallback 전략 |
 
 ## 보안·운영·개발 (Ops / Dev)
 
@@ -83,9 +83,10 @@
 | 기술 스택 | 결정 완료 |
 | 데이터 수집 실측(잡코리아·사람인) | 스크래핑으로 실측 완료 — 공고 800건·스킬 699개 원격 DB 적재, 산출물은 `verification/out/` |
 | KOSIS CPI·가계동향 API 검증 | 검증 완료 — CPI(`DT_1J22001`)·가계동향(`DT_1L9U101`), 498개월 실측 명세는 [외부 원천 API 연동 명세 §2](specs/external-api-integration.md) |
+| KOSIS 임금통계 기준선 데이터 | 수집 및 보간 완료 — 24계층 누적분포 보간으로 `core.wage_stat_observation`에 충분한 데이터 적재 완료 |
 | OCI 배포 환경 | 구성 완료 — 최소 스캐폴드 기준 빌드 → GHCR → SSH → 헬스체크 전 구간 검증 |
 | Spring Cloud 전환 | 계획 A(멀티모듈·Config Server·Eureka) 구현·운영 검증 완료, 계획 B(Gateway 도입, 요청경로 편입) 구현 완료, 계획 C(auth-service 배포 배선) 구현 완료 |
-| core-api | 스킬 도메인이 JPA로 `core` 스키마 사용. 나머지 도메인은 고정 응답 스텁, Security 없음 |
+| core-api | 스킬 도메인이 JPA로 `core` 스키마 사용. 나머지 도메인은 고정 응답 스텁, Security 없음. 지수 스냅샷 갱신(Job 4)은 core-api 가 전담 소유 |
 | auth-service | 이메일·비밀번호 가입·로그인·세션 조회·로그아웃 구현 완료. 세션 토큰 해시 저장. 매직링크·초대·메일 코드와 설정 폐기 완료 |
 | collector | 모듈 추출 완료. 크롤러·중복제거·정규화·`market_aggregate` 집계·임금통계 수집과 파이프라인 내부 API(`/internal/pipeline/**`)까지 구현돼 있다 |
 | DB 스키마 소유권 | auth 스키마는 auth-service, core 스키마는 collector(채용공고 5개 테이블·market_aggregate)와 core-api(사용자 도메인 5개 테이블·지수/시나리오)가 공유 (DDL 직접 적용) |
@@ -95,10 +96,8 @@
 
 | 영역 | 남은 작업 |
 | --- | --- |
-| 임금통계 기준선 원천 재선정 | KOSIS 근로실태조사는 직무 세분·경력·지역 차원 부족 확인 — [외부 원천 API 연동 명세 §3.3](specs/external-api-integration.md) |
-| 애플리케이션 구현 | core-api 사용자 도메인 및 지수/시나리오 계산 로직 구현, 온보딩·대시보드·마이페이지 화면 UI (라우트와 가드는 완료, 화면은 플레이스홀더) |
-| DB 백업 체계 | 운영 DB 일일 정기 백업 및 복구 절차 구축 ([DEVELOPMENT.md §3](DEVELOPMENT.md#왜-같은-db를-쓰는가) 최우선 후속 과제) |
-| collector | 잡 실행 방식 도입(현재 `@Scheduled`·Runner·Spring Batch 어느 것도 없어 자동 실행 매개체가 없다)과 `docker-compose.yml`·`deploy.yml` 배선. 내부 API 는 이미 있다 — `/internal/pipeline/{crawl,seed-load,wage-stat,dedup,aggregate}` 와 `/jobs/{jobId}` |
+| 애플리케이션 구현 | core-api 사용자 도메인 및 지수/시나리오 계산 로직 구현, 스냅샷 갱신 엔진(`recalculateSnapshot`), 온보딩·대시보드·마이페이지 화면 UI (라우트와 가드는 완료, 화면은 플레이스홀더) |
+| collector | 관리자 직접 구동(내부 파이프라인 API 연동) 및 Spring Scheduler(`@Scheduled`) 도입 고려에 따른 실행 체계 확정, 관리자 UI 연동, `docker-compose.yml`·`deploy.yml` 배선. 내부 API 는 이미 있다 — `/internal/pipeline/{crawl,seed-load,wage-stat,dedup,aggregate}` 와 `/jobs/{jobId}` |
 | 프런트엔드 | 온보딩 5단계·대시보드·추이분석·시뮬레이터·마이페이지 화면 구현. 라우트·가드·세션 연결은 완료 |
 | Gateway 세션 검증 필터 | `carix.gateway.session-validation.enabled` 활성화 — 기본값 `false`. **그냥 켜면 안 된다.** core 라우트 술어에 `/api/health` 가 들어 있고 필터에 경로 예외가 없어, 켜는 순간 배포 워크플로의 헬스체크가 401 을 받고 자동 롤백이 돈다. 그 롤백은 `.env` 만 되돌리므로 플래그는 남고 다음 배포도 같은 자리에서 실패한다. 선행 조건과 롤백 절차는 [개발 계획 §5-B](plans/carix-dev-plan.md) |
 

@@ -38,8 +38,10 @@
 - 스킬 사전과 별칭은 저장소 내 버전 관리되는 시드 파일로 관리한다.
 - 원천 장애 시 마지막 성공 집계를 사용하고 대시보드에 `업데이트 지연`과
   기준일을 표시한다.
-- 배치 주기는 원천별로 다르다: CPI 월 1회, 공고 수집 일/주 1회, 임금통계는
-  발표 주기 추종. 상세 스케줄은 워크플로우 명세를 따른다. 사용자 입력 변경
+- 수집/집계 권장 주기는 원천별로 다르다: CPI 월 1회, 공고 수집 일/주 1회, 임금통계는
+  발표 주기 추종. 관리자가 관리자 화면(Admin UI/API)에서 직접 수동 구동하며,
+  필요 시 Spring Scheduler(`@Scheduled`)를 통한 정기 실행 도입도 함께 고려한다.
+  상세 흐름은 워크플로우 명세를 따른다. 사용자 입력 변경
   시에는 최신 성공 집계를 사용해 해당 사용자의 지수 스냅샷만 즉시 재계산한다.
 
 ### 1.3 공고 생명주기와 멱등성
@@ -153,7 +155,7 @@
   서빙은 `core-api`. 뒤 둘은 스키마 `core` 를 공유한다 — 채용공고 5개 테이블과
   `market_aggregate` 는 `collector` 가 쓰고, 사용자 도메인·지수 테이블은 `core-api` 가 쓴다
   ([Spring Cloud 아키텍처](spring-cloud-architecture.md))
-- 배치: Spring Batch 별도 워커 프로세스
+- 파이프라인/수집: collector 서비스 (관리자 화면 직접 API 구동 및 Spring Scheduler 고려)
 - 테스트: JUnit 5 (DB 를 쓰는 테스트는 두지 않는다)
 - 배포: Oracle Cloud Infrastructure (기존 계획 유지)
 
@@ -168,16 +170,16 @@ core-api (Spring Boot)
  |- Market Data 조회 (market_aggregate)
  |- Index Engine (구매력, 스킬 수요, 연봉 격차)
  |- Decision Engine
- `- Scenario
+ |- Scenario
+ `- Index Snapshot Engine (Job 4 사용자 지수 스냅샷 갱신/재계산)
 
-collector (Spring Boot / Batch)
+collector (Spring Boot - 관리자 직접 구동 및 Spring Scheduler 고려)
  |- KOSIS CPI 수집
  |- 잡코리아 공고 수집
  |- 사람인 공고 수집
- |- 임금통계 수집
+ |- 임금통계 수집 (wage_stat_observation)
  |- 스킬 정규화 + 원천 간 중복 매칭
- |- 월별 시장 집계 (원천별 market_aggregate 적재)
- `- 사용자 지수 스냅샷
+ `- 월별 시장 집계 (원천별 market_aggregate 적재)
 ```
 
 Spring Cloud (Gateway, Config Server, Eureka) 기반의 서비스 분리 구조를 취하며 메시지 큐는 도입하지 않는다.
