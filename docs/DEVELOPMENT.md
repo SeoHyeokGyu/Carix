@@ -329,9 +329,9 @@ CONFIG_SERVER_URL=http://144.24.90.88:8890 EUREKA_URL=http://144.24.90.88:8761/e
   ./gradlew :collector:bootRun --args='--spring.profiles.active=local'
 ```
 
-#### Collector 파이프라인 관리 (관리자 직접 구동 & Spring Scheduler 고려)
+#### Collector 파이프라인 관리 (관리자 콘솔 S-16 & API)
 
-`collector`는 관리자가 관리자 화면(Admin UI) 또는 관리 전용 내부 API(`http://localhost:8083/internal/pipeline/**`)를 통해 직접 수동으로 파이프라인을 구동하고 모니터링하며, 필요 시 Spring Scheduler(`@Scheduled`)를 통한 정기 자동 실행 도입도 함께 고려합니다:
+`collector`는 관리자가 관리자 콘솔 화면(`S-16`, `/admin/pipeline`) 또는 관리 전용 내부 API(`http://localhost:8083/internal/pipeline/**`)를 통해 직접 수동으로 파이프라인을 구동하고 모니터링하며, 필요 시 Spring Scheduler(`@Scheduled`)를 통한 정기 자동 실행 도입도 함께 고려합니다:
 
 | 메서드 & 경로 | 설명 | 호출 예시 |
 | --- | --- | --- |

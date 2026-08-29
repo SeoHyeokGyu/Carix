@@ -572,3 +572,97 @@
           ]
         }
         ```
+
+---
+
+## 8. 관리자 파이프라인 제어 API (Admin / Internal)
+
+수집기(Collector)의 공고 수집, KOSIS 임금통계 보간, 공고 중복제거, 다차원 시장 집계 등 백그라운드 파이프라인을 수동 트리거하고 상태를 모니터링하는 API다 (관리자 콘솔 S-16 연동).
+
+### 8.1 채용공고 크롤링 비동기 실행
+*   `POST /internal/pipeline/crawl` — 잡코리아·사람인 IT/개발 채용공고 실시간 스크래핑 트리거.
+    *   **Request Body (선택):**
+        ```json
+        {
+          "portal": "ALL",
+          "maxPages": 10,
+          "delayMs": 500
+        }
+        ```
+    *   **Response (202 Accepted):**
+        ```json
+        {
+          "jobId": "c4b12345-6789-4abc-def0-1234567890ab",
+          "jobType": "CRAWL",
+          "status": "RUNNING",
+          "message": "크롤링 작업이 백그라운드에서 시작되었습니다."
+        }
+        ```
+
+### 8.2 KOSIS 임금통계 수집 및 보간 적재
+*   `POST /internal/pipeline/wage-stat` — KOSIS 임금 통계 조회 및 24계층 누적분포 보간 적재 트리거.
+    *   **Response (202 Accepted):**
+        ```json
+        {
+          "jobId": "w1a12345-6789-4abc-def0-1234567890cd",
+          "jobType": "WAGE_STAT_INGEST",
+          "status": "RUNNING",
+          "message": "KOSIS 임금통계 수집 작업이 시작되었습니다."
+        }
+        ```
+
+### 8.3 채용공고 중복제거 배치 실행
+*   `POST /internal/pipeline/dedup` — 채용공고 Jaccard 유사도 + Union-Find 클러스터링 기반 중복제거 배치 트리거.
+    *   **Response (202 Accepted):**
+        ```json
+        {
+          "jobId": "d2e12345-6789-4abc-def0-1234567890ef",
+          "jobType": "DEDUPLICATION",
+          "status": "RUNNING",
+          "message": "중복제거 배치가 시작되었습니다."
+        }
+        ```
+
+### 8.4 월별 시장 데이터 다차원 사전집계 실행
+*   `POST /internal/pipeline/aggregate?month=YYYY-MM` — 직군×경력×지역×스킬별 공고 수, 중위연봉, 수요율 사전집계(`market_aggregate`) 트리거.
+    *   **Response (202 Accepted):**
+        ```json
+        {
+          "jobId": "a3f12345-6789-4abc-def0-123456789012",
+          "jobType": "MARKET_AGGREGATION",
+          "status": "RUNNING",
+          "message": "2026-08 시장 데이터 사전집계가 시작되었습니다."
+        }
+        ```
+
+### 8.5 파이프라인 작업 상태 조회
+*   `GET /internal/pipeline/jobs/{jobId}` — 작업 단건 진행 상태 및 완료 결과 조회.
+    *   **Response (200 OK):**
+        ```json
+        {
+          "jobId": "c4b12345-6789-4abc-def0-1234567890ab",
+          "jobType": "CRAWL",
+          "status": "COMPLETED",
+          "startTime": "2026-08-29T13:00:00Z",
+          "endTime": "2026-08-29T13:05:12Z",
+          "durationMs": 312000,
+          "result": {
+            "ingestedCount": 150,
+            "failedCount": 0
+          }
+        }
+        ```
+
+### 8.6 최근 작업 실행 이력 및 현황 통계 조회
+*   `GET /internal/pipeline/jobs` — 최근 100건의 파이프라인 실행 이력 목록 조회.
+*   `GET /internal/pipeline/stats` — 전체 DB 적재 건수 요약 통계 조회 (원천별 공고 수, 정제 공고 수, 임금통계 관측치 수).
+    *   **Response (200 OK):**
+        ```json
+        {
+          "rawCount": 12500,
+          "cleanedCount": 11800,
+          "dedupedCount": 8400,
+          "totalWageStats": 24,
+          "lastUpdated": "2026-08-29T13:05:12Z"
+        }
+        ```

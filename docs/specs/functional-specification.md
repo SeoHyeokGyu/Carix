@@ -42,6 +42,7 @@
 | S-13 | `/mypage/profile` | 세션·사용자 정보 관리, 삭제 | SPA | 세션 |
 | S-14 | `/dashboard/trends` | 추이분석 (소득vs물가·스킬수요·연봉분포) | SPA | 세션 + 온보딩 완료 |
 | S-15 | `/dashboard/simulator` | 12개월 시뮬레이터 | SPA | 세션 + 온보딩 완료 |
+| S-16 | `/admin/pipeline` | 관리자 파이프라인 콘솔 (수집·집계 구동/모니터링) | SPA | 관리자 / 내부망 |
 
 렌더링 열은 MVP 현행 구성이다 — `/` 만 빌드 시 사전 렌더링하고 나머지는 SPA 셸에서
 클라이언트가 렌더링한다(`ssr: false`). 화면별 Node SSR·SSR shell 적용은 MVP 이후로
@@ -175,6 +176,15 @@
 - Given 설정 화면 / When 삭제 요청 / Then 삭제 범위(프로필, 입력 이력, 스냅샷, 시나리오, 세션, 사용자 행)를 고지하고 확인받는다. 이메일 재입력으로 확인받는다.
 - Given 삭제 확인 / When 실행 / Then 개인 데이터를 삭제하고 완료 화면을 표시한다. 공용 시장 집계 데이터는 영향받지 않는다.
 
+### 2.7 관리자 파이프라인 (ADMIN)
+
+**US-M1. 수집/집계 파이프라인 수동 구동 및 상태 모니터링**
+> 운영 관리자로서, 원천별 데이터 수집 및 월별 시장 집계 파이프라인을 직접 구동하고 진행 상황을 실시간으로 확인하고 싶다.
+
+- Given 관리자 권한 / When S-16에서 원천별 수집(잡코리아/사람인 크롤링, 시드 로드, KOSIS 임금통계, 중복제거, 시장 집계)을 실행 / Then 비동기 작업(`JobExecution`)을 트리거하고 즉시 작업 ID(`jobId`)와 상태(`RUNNING`)를 반환받아 화면에 표시한다.
+- Given 진행 중인 작업 / When 상태 폴링 또는 목록 새로고침 / Then 현재 처리 단계, 처리 건수(수집 공고 수, 보간 임금통계 수 등), 소요 시간 및 최종 완료(`COMPLETED`)·실패(`FAILED`) 상태를 조회한다.
+- Given 파이프라인 콘솔 진입 / When 통계 요약 조회 / Then 원천별 총 공고 수(`rawCount`), 정제 공고 수(`cleanedCount`), 중복 제거 공고 수(`dedupedCount`), 임금통계 관측치 수(`totalWageStats`)를 요약 카드로 확인한다.
+
 ---
 
 ## 3. 입력 검증 규칙
@@ -296,7 +306,7 @@
 
 | 항목 | 상태 | 처리 시점 |
 | --- | --- | --- |
-| 임금통계 기준선 원천 재선정 | **미결** | KOSIS 근로실태조사가 직무 세분·경력·지역 차원 부족 — [외부 API 연동 명세 §3.3](external-api-integration.md) 참조 |
+| 임금통계 기준선 데이터 확보 | **확정** | KOSIS 24구간 누적분포 보간 모델 채택 완료 — [외부 API 연동 명세 §3.3](external-api-integration.md) 참조 |
 | 최소 표본 기준 N≥10, 이상치 클램프 [25,400] | 후보값 | 데이터 검증 후 설정값 확정 |
 | 기본 소비 가중치 6개 값 | **확정** | `config/default-expense-weights.yml` — KOSIS 가계동향조사 `DT_1L9U101`, 2025년 기준, 2026-07-25 검증 |
 | 암호화 연봉의 배치 복호화 키 관리·로테이션 | 미설계 | 구현 단계. [보안 문서 §3.2](../SECURITY.md) 참조 |
@@ -343,6 +353,7 @@ MVP 완료 기준 10개 항목(MVP 스펙 §11)과 본 문서 스토리의 매�
 | S-15 시뮬레이터 | US-S1 | `POST /scenarios/simulate`, `GET /scenarios/latest` | `career_scenario` |
 | S-12 이력 관리 | US-R1 | `PUT`·`DELETE /income`·`/user-skills`, `PUT /expenses/{ym}` | `income_history`, `expense_*`, `user_skill` |
 | S-13 설정/탈퇴 | US-C1, US-C2 | `POST /auth/logout`·`/logout-all`, `DELETE /users` | `session`, 전 개인 테이블 |
+| S-16 파이프라인 콘솔 | US-M1 | `POST /internal/pipeline/*`, `GET /internal/pipeline/jobs`, `/stats` | `raw_ingest`, `job_posting`, `wage_stat_observation`, `market_aggregate` |
 
 API 경로는 `/api/v1` 접두사를 생략했다. 상세는
 [API 규격](api-specification.md), 테이블은
