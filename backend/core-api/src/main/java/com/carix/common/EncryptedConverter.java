@@ -11,13 +11,13 @@ import java.util.Base64;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
-
 /**
  * 민감 컬럼을 AES-GCM으로 암호화해 저장한다.
  *
  * <p>현재는 금액(Long) 전용이다 — {@code income_history.gross_salary_encrypted},
  * {@code net_salary_encrypted}, {@code expense_item.amount_encrypted}. 다른 타입
  * 암호화가 필요해지면 그때 확장한다.
+ *
  */
 @Converter
 @Component
@@ -29,10 +29,11 @@ public class EncryptedConverter implements AttributeConverter<Long, String> {
 
     private final SecretKeySpec key;
 
-    public EncryptedConverter(@Value("${carix.income-enc-key:${CARIX_INCOME_ENC_KEY:}}") String secret) {
+    public EncryptedConverter(
+            @Value("${carix.encryption-key:${CARIX_ENCRYPTION_KEY:}}") String secret) {
         if (secret == null || secret.isBlank()) {
             throw new IllegalStateException(
-                    "carix.income-enc-key (또는 CARIX_INCOME_ENC_KEY) 값이 없습니다.");
+                    "carix.encryption-key (또는 CARIX_ENCRYPTION_KEY) 값이 없습니다.");
         }
         this.key = new SecretKeySpec(Base64.getDecoder().decode(secret.trim()), "AES");
     }
