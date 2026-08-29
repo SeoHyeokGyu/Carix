@@ -30,6 +30,7 @@ jobs:
       !contains(github.event.pull_request.labels.*.name, 'skip-ci')
     outputs:
       backend: ${{ steps.filter.outputs.backend }}
+      backend_modules: ${{ steps.set-modules.outputs.modules }}
       frontend: ${{ steps.filter.outputs.frontend }}
     steps:
       - uses: actions/checkout@v4
@@ -40,17 +41,57 @@ jobs:
           filters: |
             backend:
               - 'backend/**'
+              - 'config/**'
               - '.github/workflows/pr-check.yml'
+            common:
+              - 'backend/build.gradle'
+              - 'backend/settings.gradle'
+              - 'backend/gradle.properties'
+              - 'config/**'
+              - '.github/workflows/pr-check.yml'
+            core_api:
+              - 'backend/core-api/**'
+            collector:
+              - 'backend/collector/**'
+            auth_service:
+              - 'backend/auth-service/**'
+            gateway:
+              - 'backend/gateway/**'
+            eureka:
+              - 'backend/eureka/**'
+            config_server:
+              - 'backend/config-server/**'
             frontend:
               - 'frontend/**'
               - '.github/workflows/pr-check.yml'
 
+      - name: Compute Changed Backend Modules
+        id: set-modules
+        if: steps.filter.outputs.backend == 'true'
+        run: |
+          if [ "${{ steps.filter.outputs.common }}" = "true" ]; then
+            MODULES='["core-api", "collector", "auth-service", "gateway", "eureka", "config-server"]'
+          else
+            MODULES="[]"
+            [ "${{ steps.filter.outputs.core_api }}" = "true" ] && MODULES=$(echo $MODULES | jq '. + ["core-api"]')
+            [ "${{ steps.filter.outputs.collector }}" = "true" ] && MODULES=$(echo $MODULES | jq '. + ["collector"]')
+            [ "${{ steps.filter.outputs.auth_service }}" = "true" ] && MODULES=$(echo $MODULES | jq '. + ["auth-service"]')
+            [ "${{ steps.filter.outputs.gateway }}" = "true" ] && MODULES=$(echo $MODULES | jq '. + ["gateway"]')
+            [ "${{ steps.filter.outputs.eureka }}" = "true" ] && MODULES=$(echo $MODULES | jq '. + ["eureka"]')
+            [ "${{ steps.filter.outputs.config_server }}" = "true" ] && MODULES=$(echo $MODULES | jq '. + ["config-server"]')
+          fi
+          echo "modules=$MODULES" >> "$GITHUB_OUTPUT"
+
   backend:
-    name: Backend Test & Lint
+    name: Backend Test & Lint (${{ matrix.module }})
     needs: filter
-    if: needs.filter.outputs.backend == 'true'
+    if: needs.filter.outputs.backend == 'true' && needs.filter.outputs.backend_modules != '[]'
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    strategy:
+      matrix:
+        module: ${{ fromJson(needs.filter.outputs.backend_modules) }}
+      fail-fast: false
     steps:
       - uses: actions/checkout@v4
 
@@ -65,9 +106,9 @@ jobs:
         with:
           cache-read-only: ${{ github.ref != 'refs/heads/main' }}
 
-      - name: Run Backend Tests
+      - name: Run Module Tests & Checks
         working-directory: backend
-        run: ./gradlew check --build-cache --parallel
+        run: ./gradlew :${{ matrix.module }}:check --build-cache
 
   frontend:
     name: Frontend Typecheck, Lint & Test
