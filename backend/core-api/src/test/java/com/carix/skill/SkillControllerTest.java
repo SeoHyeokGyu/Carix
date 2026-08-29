@@ -4,6 +4,8 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -12,6 +14,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.carix.common.GlobalExceptionHandler;
+import com.carix.config.WebMvcConfig;
 import com.carix.skill.dto.SkillSearchResponse;
 import com.carix.skill.dto.UserSkillCreateRequest;
 import com.carix.skill.dto.UserSkillResponse;
@@ -32,7 +35,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 @WebMvcTest(SkillController.class)
-@Import(GlobalExceptionHandler.class)
+@Import({GlobalExceptionHandler.class, WebMvcConfig.class})
 class SkillControllerTest {
 
   @Autowired private MockMvc mockMvc;
@@ -247,5 +250,40 @@ class SkillControllerTest {
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.success").value(true))
         .andExpect(jsonPath("$.data.recommendations[0].standardName").value("Kubernetes"));
+  }
+
+  @Test
+  @DisplayName("GET /v1/user-skills - X-User-Id 가 없으면 401 을 반환한다")
+  void getUserSkills_withoutUserHeader_returnsUnauthorized() throws Exception {
+    mockMvc
+        .perform(get("/v1/user-skills"))
+        .andExpect(status().isUnauthorized())
+        .andExpect(jsonPath("$.code").value("UNAUTHORIZED"));
+
+    verifyNoInteractions(skillService);
+  }
+
+  @Test
+  @DisplayName("GET /v1/user-skills - X-User-Id 가 UUID 형식이 아니면 401 을 반환한다")
+  void getUserSkills_withMalformedUserHeader_returnsUnauthorized() throws Exception {
+    mockMvc
+        .perform(get("/v1/user-skills").header("X-User-Id", "not-a-uuid"))
+        .andExpect(status().isUnauthorized())
+        .andExpect(jsonPath("$.code").value("UNAUTHORIZED"));
+
+    verifyNoInteractions(skillService);
+  }
+
+  @Test
+  @DisplayName("GET /v1/user-skills - 헤더의 사용자 ID를 그대로 서비스에 넘긴다")
+  void getUserSkills_passesHeaderUserIdToService() throws Exception {
+    UUID userId = UUID.randomUUID();
+    given(skillService.getUserSkills(userId)).willReturn(List.of());
+
+    mockMvc
+        .perform(get("/v1/user-skills").header("X-User-Id", userId.toString()))
+        .andExpect(status().isOk());
+
+    verify(skillService).getUserSkills(userId);
   }
 }

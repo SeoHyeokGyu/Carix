@@ -2,10 +2,10 @@ package com.carix.skill;
 
 import com.carix.common.ApiResult;
 import com.carix.common.ErrorResponse;
+import com.carix.common.usercontext.CurrentUserId;
 import com.carix.skill.dto.*;
 import com.carix.skill.service.SkillService;
 import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -26,9 +26,6 @@ import org.springframework.web.bind.annotation.*;
 @RequiredArgsConstructor
 @Tag(name = "Skill Management", description = "표준 스킬 사전 검색 및 사용자의 보유 스킬 CRUD API")
 public class SkillController {
-
-  private static final UUID DEFAULT_FALLBACK_USER_ID =
-      UUID.fromString("00000000-0000-0000-0000-000000000001");
 
   private final SkillService skillService;
 
@@ -57,9 +54,7 @@ public class SkillController {
               array = @ArraySchema(schema = @Schema(implementation = UserSkillResponse.class))))
   @GetMapping("/user-skills")
   public ResponseEntity<ApiResult<List<UserSkillResponse>>> getUserSkills(
-      @Parameter(hidden = true) @RequestHeader(value = "X-User-Id", required = false)
-          UUID headerUserId) {
-    UUID userId = resolveUserId(headerUserId);
+      @CurrentUserId UUID userId) {
     List<UserSkillResponse> userSkills = skillService.getUserSkills(userId);
     return ResponseEntity.ok(ApiResult.success(userSkills));
   }
@@ -81,10 +76,7 @@ public class SkillController {
   })
   @PostMapping("/user-skills")
   public ResponseEntity<ApiResult<UserSkillResponse>> createUserSkill(
-      @Parameter(hidden = true) @RequestHeader(value = "X-User-Id", required = false)
-          UUID headerUserId,
-      @Valid @RequestBody UserSkillCreateRequest request) {
-    UUID userId = resolveUserId(headerUserId);
+      @CurrentUserId UUID userId, @Valid @RequestBody UserSkillCreateRequest request) {
     UserSkillResponse created = skillService.createUserSkill(userId, request);
     return ResponseEntity.status(HttpStatus.CREATED)
         .body(ApiResult.success(created, "스킬이 등록되었습니다."));
@@ -104,11 +96,9 @@ public class SkillController {
   })
   @PutMapping("/user-skills/{id}")
   public ResponseEntity<ApiResult<UserSkillResponse>> updateUserSkill(
-      @Parameter(hidden = true) @RequestHeader(value = "X-User-Id", required = false)
-          UUID headerUserId,
+      @CurrentUserId UUID userId,
       @PathVariable UUID id,
       @Valid @RequestBody UserSkillUpdateRequest request) {
-    UUID userId = resolveUserId(headerUserId);
     UserSkillResponse updated = skillService.updateUserSkill(userId, id, request);
     return ResponseEntity.ok(ApiResult.success(updated, "스킬 정보가 수정되었습니다."));
   }
@@ -123,10 +113,7 @@ public class SkillController {
   })
   @DeleteMapping("/user-skills/{id}")
   public ResponseEntity<ApiResult<Void>> deleteUserSkill(
-      @Parameter(hidden = true) @RequestHeader(value = "X-User-Id", required = false)
-          UUID headerUserId,
-      @PathVariable UUID id) {
-    UUID userId = resolveUserId(headerUserId);
+      @CurrentUserId UUID userId, @PathVariable UUID id) {
     skillService.deleteUserSkill(userId, id);
     return ResponseEntity.ok(ApiResult.success(null, "스킬이 삭제되었습니다."));
   }
@@ -137,25 +124,12 @@ public class SkillController {
   @ApiResponse(responseCode = "200", description = "조회 성공")
   @GetMapping("/skills/recommendations")
   public ResponseEntity<ApiResult<SkillRecommendationsResponse>> getSkillRecommendations(
-      @Parameter(hidden = true) @RequestHeader(value = "X-User-Id", required = false)
-          UUID headerUserId) {
-    UUID userId = resolveUserId(headerUserId);
+      @CurrentUserId UUID userId) {
     // TODO: [동료집단 추천 엔진 연동]
     // 1. career_profile 도메인 완성 후 사용자의 직무(job_family), 연차(experience), 지역(region) 정보 조회
     // 2. 해당 동료집단(Peer Group) 공고들의 스킬 요구 빈도 및 트렌드(UP/DOWN/STABLE) 통계 집계
     // 3. 사용자가 이미 보유한 스킬을 제외한 상위 추천 스킬 목록 계산하여 반환하도록 연동 필요
     SkillRecommendationsResponse response = skillService.getSkillRecommendations(userId);
     return ResponseEntity.ok(ApiResult.success(response));
-  }
-
-  /**
-   * 요청자 User ID 해석.
-   *
-   * <p>TODO: [인증 시스템 연동] 현재 core-api에 Spring Security / 세션 인증 필터가 연결되기 전이므로 게이트웨이 헤더(X-User-Id) 또는
-   * 테스트용 Fallback ID를 사용 중입니다. 추후 auth-service 및 Gateway 세션 연동 완료 시 @AuthenticationPrincipal 또는 공통
-   * UserContextResolver로 교체해야 합니다.
-   */
-  private UUID resolveUserId(UUID headerUserId) {
-    return headerUserId != null ? headerUserId : DEFAULT_FALLBACK_USER_ID;
   }
 }

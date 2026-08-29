@@ -1,7 +1,9 @@
 package com.carix.config;
 
+import com.carix.common.usercontext.CurrentUserId;
 import io.swagger.v3.oas.annotations.OpenAPIDefinition;
 import io.swagger.v3.oas.annotations.info.Info;
+import org.springdoc.core.utils.SpringDocUtils;
 import org.springframework.context.annotation.Configuration;
 
 /**
@@ -22,4 +24,11 @@ import org.springframework.context.annotation.Configuration;
 
             규격 정본은 저장소의 docs/specs/api-specification.md 다.
             현재는 배포 파이프라인 검증용 최소 스캐폴드이며 도메인 API는 아직 없다."""))
-public class OpenApiConfig {}
+public class OpenApiConfig {
+
+  static {
+    // @CurrentUserId 는 게이트웨이 헤더에서 주입되는 값이라 호출자가 채울 파라미터가 아니다.
+    // 등록하지 않으면 문서와 Swagger UI 에 존재하지 않는 입력란으로 나타난다.
+    SpringDocUtils.getConfig().addAnnotationsToIgnore(CurrentUserId.class);
+  }
+}

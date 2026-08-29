@@ -1,5 +1,6 @@
 package com.carix.common;
 
+import com.carix.common.usercontext.MissingUserContextException;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import org.springframework.http.HttpStatus;
@@ -54,5 +55,11 @@ public class GlobalExceptionHandler {
   public ResponseEntity<ErrorResponse> handleNotFound(RuntimeException e) {
     return ResponseEntity.status(HttpStatus.NOT_FOUND)
         .body(ErrorResponse.of("NOT_FOUND", e.getMessage(), null));
+  }
+
+  @ExceptionHandler(MissingUserContextException.class)
+  public ResponseEntity<ErrorResponse> handleMissingUserContext(MissingUserContextException e) {
+    return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+        .body(ErrorResponse.of("UNAUTHORIZED", e.getMessage(), null));
   }
 }
