@@ -103,12 +103,23 @@ flowchart TD
 
 ### Gateway 필터 체인
 
-1. **상관관계 ID** — `X-Request-Id`를 생성해 하류와 로그에 전파한다.
+전역 필터 둘이 먼저 돌고(둘 다 `HIGHEST_PRECEDENCE`, 상호 순서는 무관) 그 뒤에 라우트 필터가 돈다.
+
+1. **상관관계 ID** (`CorrelationIdGlobalFilter`) — `X-Request-Id`를 생성해 하류와 로그에 전파한다.
    [프론트엔드 설계](frontend-design.md)의 "동일 요청 식별자를 로그에 기록한다" 요구사항을 구현한다.
-2. **세션 검증** — 쿠키의 불투명 세션 토큰을 `auth-service`에 확인한다.
+2. **인바운드 `X-User-Id` 제거** (`UserIdHeaderStripGlobalFilter`) — 전 라우트에서 무조건 벗긴다.
+   하류가 이 헤더를 인증된 사용자로 신뢰하므로 출처는 게이트웨이여야 한다. 벗기지 않으면 외부에서
+   임의 UUID 를 실어 그 사용자로 행세할 수 있다. **세션 검증 플래그와 무관하게 항상 동작한다** —
+   플래그가 꺼진 기간에 스푸핑이 열리면 안 되므로 벗기는 일을 세션 검증 필터에 맡기지 않는다.
+3. **세션 검증** (`SessionValidationGatewayFilterFactory`, 라우트 필터) — 쿠키의 불투명 세션 토큰을
+   `auth-service`에 확인한다.
    - 유효 → `X-User-Id` 헤더를 붙여 하류로
-   - 무효 → 401 반환, 하류 호출 없음
-   - `/api/v1/auth/**`와 공개 페이지는 이 필터를 우회한다
+   - 무효·쿠키 없음 → 401 반환, 하류 호출 없음
+   - **`core` 라우트에만 붙는다.** `auth`(`/api/v1/auth/**`), `core-health`(`/api/health`),
+     `web`(`/**`)에는 필터가 없어 우회한다. `/api/health` 를 뺀 이유는 배포 워크플로가 쿠키 없이
+     200 을 요구하기 때문이다
+   - `carix.gateway.session-validation.enabled` 로 켜고 끈다. **꺼져 있으면 요청을 그대로 통과시킨다.**
+     현재 운영 값은 `false` 이고, 전환·롤백 절차는 [개발 계획 §5-B](../plans/carix-dev-plan.md)가 규정한다
 
 ### 경로 규약
 
@@ -140,6 +151,10 @@ Gateway 에서 Swagger UI 하나로 두 서비스 문서를 전환해 본다. `c
 > `springdoc.swagger-ui.urls`가 없다. 실제 라우팅은 `core` 라우트의 경로 조건이
 > `/api/swagger-ui/**`·`/api/v3/api-docs/**`를 core-api로만 그대로 넘기는 형태이고, `auth`
 > 라우트는 `/api/v1/auth/**`만 매칭해 auth-service 자체 문서는 Gateway를 통해 노출되지 않는다.
+>
+> `/api/swagger-ui/**`·`/api/v3/api-docs/**`가 `core` 라우트에 있으므로 세션 검증 플래그를 켜면
+> 문서도 세션을 요구한다. 같은 출처 요청이라 로그인한 브라우저는 쿠키를 실어 보내 그대로 열리고,
+> 쿠키 없는 접근에는 닫힌다. 별도 라우트로 빼지 않기로 한 판단은 [개발 계획 §5-B](../plans/carix-dev-plan.md)에 있다.
 
 **하류 서비스는 세션을 모른다.** `X-User-Id`만 신뢰한다. 그 전제는 **Gateway를 거치지 않으면
 도달할 수 없는 네트워크 구성**이다 — 도메인 서비스는 호스트 포트를 발행하지 않고 compose
