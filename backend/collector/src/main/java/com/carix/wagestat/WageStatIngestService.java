@@ -10,7 +10,18 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-/** KOSIS 임금 통계를 수집·보간하여 core.wage_stat_observation 에 적재하는 서비스. */
+/**
+ * KOSIS 국가 공식 임금 통계를 수집·보간하여 {@code core.wage_stat_observation} 테이블에 적재하는 서비스.
+ *
+ * <p>본 서비스는 통계청 고용형태별근로실태조사(DT_118N_PAYM39) 24개 임금계층 누적분포를 바탕으로, 동일 연도/직군/경력구간에 대해 2가지 기준선 데이터를
+ * 쌍(Pair)으로 생성 및 관리합니다:
+ *
+ * <ul>
+ *   <li><b>{@link WageDefinition#ANNUAL_GROSS_MEDIAN}:</b> 연간 세전 총액 중위임금 (기본급 + 상여금 포함)
+ *   <li><b>{@link WageDefinition#ANNUAL_BASE_MEDIAN}:</b> 연간 정액급여 중위임금 (기본급만 포함, 상여금/초과급여 제외 -
+ *       83.5% 계수 적용)
+ * </ul>
+ */
 @Slf4j
 @Service
 @RequiredArgsConstructor
