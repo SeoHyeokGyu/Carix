@@ -3,25 +3,20 @@ package com.carix.index;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.carix.index.stub.IndexProviderStubConfiguration;
+import com.carix.index.stub.StubCurrentSalaryProvider;
 import com.carix.index.stub.StubMarketValueIndexProvider;
 import com.carix.index.stub.StubPurchasingPowerIndexProvider;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
-import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
-import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
-@SpringBootTest(classes = IndexProviderStubConfiguration.class)
 class IndexProviderStubConfigurationTest {
-
-  @Autowired private CurrentSalaryProvider currentSalaryProvider;
 
   private final ApplicationContextRunner runner =
       new ApplicationContextRunner()
@@ -97,8 +92,15 @@ class IndexProviderStubConfigurationTest {
   }
 
   @Test
-  @DisplayName("구현 빈이 없으면 연봉 스텁이 등록되고 빈 결과를 돌려준다")
-  void stubCurrentSalaryProvider_registeredWhenNoImplementation() {
-    assertThat(currentSalaryProvider.currentGrossSalary(UUID.randomUUID(), "202607")).isEmpty();
+  void 스텁은_연봉을_지어내지_않는다() {
+    runner.run(
+        context -> {
+          assertThat(context.getBean(CurrentSalaryProvider.class))
+              .isInstanceOf(StubCurrentSalaryProvider.class);
+          UUID userId = UUID.randomUUID();
+          assertThat(
+                  context.getBean(CurrentSalaryProvider.class).currentGrossSalary(userId, "202607"))
+              .isEmpty();
+        });
   }
 }

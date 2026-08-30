@@ -14,5 +14,14 @@ import java.util.UUID;
  */
 public interface CurrentSalaryProvider {
 
+  /**
+   * 기준월 시점의 세전 연봉을 조회한다.
+   *
+   * <p>연봉 이력이 없으면 {@link Optional#empty()} 다. 0 을 돌려주지 않는다 — 격차 비율의 분모라 0 은 계산을 깨뜨린다.
+   *
+   * @param userId 대상 사용자
+   * @param baseYearMonth 기준년월. {@code YYYYMM} 6자
+   * @return 현재 연봉. 이력이 없으면 empty
+   */
   Optional<CurrentSalary> currentGrossSalary(UUID userId, String baseYearMonth);
 }
