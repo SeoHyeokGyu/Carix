@@ -3,6 +3,7 @@ package com.carix.pipeline.controller;
 import com.carix.pipeline.dto.CrawlRequest;
 import com.carix.pipeline.dto.JobExecutionResponse;
 import com.carix.pipeline.dto.JobStatusResponse;
+import com.carix.pipeline.dto.MarketAggregateRequest;
 import com.carix.pipeline.dto.PipelineStatsResponse;
 import com.carix.pipeline.dto.SeedLoadRequest;
 import com.carix.pipeline.dto.WageStatRequest;
@@ -96,19 +97,25 @@ public class CollectorPipelineController {
   }
 
   /**
-   * [POST /internal/pipeline/aggregate] 월별 채용 시장 데이터 다차원 사전 집계(Pre-aggregation) 실행.
+   * [POST /internal/pipeline/aggregate] 채용 시장 데이터 다차원 사전 집계(Pre-aggregation) 실행.
    *
-   * <p>적재된 공고군(dedup_group_id 기준 통합 및 원천별)을 기반으로 직군 × 경력구간 × 지역 × 기업규모 × 스킬별 고유 공고 수, P25/P50/P75
-   * 분위수 연봉, 결측률, 스킬 수요율을 일괄 계산하여 {@code core.market_aggregate}에 멱등하게 저장합니다. (매월 초 또는 신규 크롤링/백필 완료 후
-   * 실행)
+   * <p>단일 월, 연도 전체(1~12월), 연도 구간(startYear~endYear), 또는 전체 공고 기준월 일괄 집계를 지원합니다.
    *
-   * @param month 집계 대상 년월 (형식: "YYYY-MM", 미입력 시 현재 월)
+   * @param request 집계 요청 옵션 (Body: month, year, startYear, endYear, all)
+   * @param month 쿼리 파라미터 대상 년월 (하위 호환성 지원)
    * @return 202 Accepted 및 비동기 작업 추적용 jobId
    */
   @PostMapping("/aggregate")
   public ResponseEntity<JobExecutionResponse> triggerMarketAggregation(
+      @RequestBody(required = false) MarketAggregateRequest request,
       @RequestParam(value = "month", required = false) String month) {
-    JobExecutionResponse response = pipelineService.triggerMarketAggregation(month);
+    MarketAggregateRequest effectiveRequest =
+        request != null
+            ? request
+            : (month != null
+                ? new MarketAggregateRequest(month, null, null, null, null)
+                : new MarketAggregateRequest(null, null, null, null, true));
+    JobExecutionResponse response = pipelineService.triggerMarketAggregation(effectiveRequest);
     return ResponseEntity.status(HttpStatus.ACCEPTED).body(response);
   }
 

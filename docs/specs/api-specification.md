@@ -631,15 +631,34 @@
         }
         ```
 
-### 8.4 월별 시장 데이터 다차원 사전집계 실행
-*   `POST /internal/pipeline/aggregate?month=YYYY-MM` — 직군×경력×지역×스킬별 공고 수, 중위연봉, 수요율 사전집계(`market_aggregate`) 트리거.
+### 8.4 채용 시장 데이터 다차원 사전집계 실행
+*   `POST /internal/pipeline/aggregate` — 직군×경력×지역×기업규모×스킬별 공고 수, 분위수 연봉, 수요율 다차원 사전집계(`market_aggregate`) 트리거.
+    *   **Request Body (Optional, 단일월/연도/구간/전체 집계 시):**
+        *   **1) 전체 일괄 집계 (기본값 또는 `all=true`):**
+            ```json
+            { "all": true }
+            ```
+            *(본문 생략 시에도 DB에 적재된 모든 공고 데이터의 활동 기준월을 자동 추출하여 전체 일괄 집계)*
+        *   **2) 특정 단일 연도 전체(1~12월) 집계:**
+            ```json
+            { "year": "2025" }
+            ```
+        *   **3) 연도 구간(startYear ~ endYear) 집계:**
+            ```json
+            { "startYear": "2020", "endYear": "2025" }
+            ```
+        *   **4) 특정 단일 월 집계 (Query Param 또는 Body):**
+            ```json
+            { "month": "202608" }
+            ```
+            *(하위 호환 쿼리 파라미터 `POST /internal/pipeline/aggregate?month=2026-08` 지원)*
     *   **Response (202 Accepted):**
         ```json
         {
           "jobId": "a3f12345-6789-4abc-def0-123456789012",
           "jobType": "MARKET_AGGREGATION",
-          "status": "RUNNING",
-          "message": "2026-08 시장 데이터 사전집계가 시작되었습니다."
+          "status": "ACCEPTED",
+          "message": "시장 사전 집계 작업이 수락되어 백그라운드에서 시작되었습니다."
         }
         ```
 

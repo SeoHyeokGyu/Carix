@@ -8,6 +8,7 @@ import com.carix.jobposting.service.JobPostingIngestService;
 import com.carix.pipeline.dto.CrawlRequest;
 import com.carix.pipeline.dto.JobExecutionResponse;
 import com.carix.pipeline.dto.JobStatusResponse;
+import com.carix.pipeline.dto.MarketAggregateRequest;
 import com.carix.pipeline.dto.PipelineStatsResponse;
 import com.carix.pipeline.dto.SeedLoadRequest;
 import com.carix.pipeline.dto.WageStatRequest;
@@ -227,10 +228,21 @@ public class CollectorPipelineService {
   /**
    * 특정 월 기준 채용 시장 다차원 사전 집계(Pre-aggregation)를 실행합니다.
    *
-   * @param baseYearMonth 기준 년월 (형식: "YYYY-MM")
+   * @param baseYearMonth 기준 년월 (형식: "YYYY-MM" 또는 "YYYYMM")
    * @return 비동기 작업 수락 응답
    */
   public JobExecutionResponse triggerMarketAggregation(String baseYearMonth) {
+    return triggerMarketAggregation(
+        new MarketAggregateRequest(baseYearMonth, null, null, null, null));
+  }
+
+  /**
+   * 채용 시장 다차원 사전 집계(Pre-aggregation)를 요청 옵션(단일월/연도/연도구간/전체)에 따라 실행합니다.
+   *
+   * @param request 집계 요청 옵션
+   * @return 비동기 작업 수락 응답
+   */
+  public JobExecutionResponse triggerMarketAggregation(MarketAggregateRequest request) {
     ensureNoJobRunning();
     String jobId = UUID.randomUUID().toString();
     Instant now = Instant.now();
@@ -240,11 +252,8 @@ public class CollectorPipelineService {
     CompletableFuture.runAsync(
         () -> {
           try {
-            log.info("[작업:{}] 채용 시장 다차원 사전 집계 작업을 시작합니다 (기준월: {})...", jobId, baseYearMonth);
-            int rows =
-                baseYearMonth != null && !baseYearMonth.isBlank()
-                    ? marketAggregateService.aggregateMarketDataForMonth(baseYearMonth)
-                    : marketAggregateService.aggregateMarketData();
+            log.info("[작업:{}] 채용 시장 다차원 사전 집계 작업을 시작합니다 (옵션: {})...", jobId, request);
+            int rows = marketAggregateService.aggregateMarketData(request);
             state.complete(Map.of("aggregatedRows", rows));
             log.info("[작업:{}] 채용 시장 사전 집계 완료. 총 {}개의 집계 레코드가 생성되었습니다.", jobId, rows);
           } catch (Exception e) {
