@@ -8,8 +8,8 @@ import jakarta.persistence.Table;
 import java.util.UUID;
 
 /**
- * 커리어 프로필. 온보딩 자동 저장을 허용하려고 전 컬럼이 NULL 허용이다 — 필수 필드 완비 검증은 온보딩 완료 제출 시 애플리케이션에서 한다
- * (DDL 주석, {@code deploy/postgres/schema/02_user_domain.sql}).
+ * 커리어 프로필. 온보딩 자동 저장을 허용하려고 전 컬럼이 NULL 허용이다 — 필수 필드 완비 검증은 온보딩 완료 제출 시 애플리케이션에서 한다 (DDL 주석, {@code
+ * deploy/postgres/schema/02_user_domain.sql}).
  */
 @Entity
 @Table(name = "career_profile", schema = "core")

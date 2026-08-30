@@ -37,7 +37,10 @@ class OnboardingFlowTest {
   void 신규_사용자의_전체_온보딩_시나리오_동작을_검증한다() throws Exception {
     // 1. 현재 온보딩 단계 조회 (초기 상태: 미완료, EXPENSE 단계)
     mockMvc
-        .perform(get("/v1/onboarding").contentType(MediaType.APPLICATION_JSON))
+        .perform(
+            get("/v1/onboarding")
+                .header("X-User-Id", USER_ID)
+                .contentType(MediaType.APPLICATION_JSON))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.success").value(true))
         .andExpect(jsonPath("$.data.currentStep").value("EXPENSE"))
@@ -47,6 +50,7 @@ class OnboardingFlowTest {
     mockMvc
         .perform(
             patch("/v1/profile")
+                .header("X-User-Id", USER_ID)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(
                     """
@@ -129,6 +133,7 @@ class OnboardingFlowTest {
     mockMvc
         .perform(
             patch("/v1/onboarding")
+                .header("X-User-Id", USER_ID)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(
                     """
@@ -140,5 +145,37 @@ class OnboardingFlowTest {
         .andExpect(jsonPath("$.success").value(true))
         .andExpect(jsonPath("$.data.currentStep").value("COMPLETED"))
         .andExpect(jsonPath("$.data.completed").value(true));
+  }
+
+  @Test
+  void 프로필_부분_저장_후_조회하면_저장된_값이_돌아온다() throws Exception {
+    String userId = "00000000-0000-0000-0000-000000000002";
+
+    mockMvc
+        .perform(
+            patch("/v1/profile")
+                .header("X-User-Id", userId)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"jobFamily\":\"DEVELOPER\"}"))
+        .andExpect(status().isOk());
+
+    mockMvc
+        .perform(
+            patch("/v1/profile")
+                .header("X-User-Id", userId)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"yearsOfExperience\":7}"))
+        .andExpect(status().isOk());
+
+    mockMvc
+        .perform(get("/v1/profile").header("X-User-Id", userId))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.data.jobFamily").value("DEVELOPER"))
+        .andExpect(jsonPath("$.data.yearsOfExperience").value(7));
+  }
+
+  @Test
+  void 헤더가_없으면_프로필_조회는_401_이다() throws Exception {
+    mockMvc.perform(get("/v1/profile")).andExpect(status().isUnauthorized());
   }
 }

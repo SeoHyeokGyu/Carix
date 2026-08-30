@@ -5,7 +5,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 @Schema(description = "커리어 프로필 응답")
 public record ProfileResponse(
     @Schema(example = "DEVELOPER") String jobFamily,
-    @Schema(example = "5") int yearsOfExperience,
+    @Schema(example = "5", nullable = true) Integer yearsOfExperience,
     @Schema(example = "SEOUL_GANGNAM") String region,
     @Schema(example = "FULL_TIME") String employmentType,
     @Schema(example = "MEDIUM") String companySize) {}

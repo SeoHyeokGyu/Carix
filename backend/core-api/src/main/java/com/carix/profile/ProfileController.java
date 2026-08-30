@@ -2,10 +2,12 @@ package com.carix.profile;
 
 import com.carix.common.ApiResult;
 import com.carix.common.ErrorResponse;
+import com.carix.common.usercontext.CurrentUserId;
 import com.carix.profile.dto.OnboardingStatusRequest;
 import com.carix.profile.dto.OnboardingStatusResponse;
 import com.carix.profile.dto.ProfileRequest;
 import com.carix.profile.dto.ProfileResponse;
+import com.carix.profile.service.ProfileService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -16,6 +18,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
+import java.util.UUID;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -30,6 +33,12 @@ import org.springframework.web.bind.annotation.RestController;
 @Tag(name = "Profile & Onboarding", description = "프로필, 온보딩 단계 및 회원 데이터 관리 API")
 public class ProfileController {
 
+  private final ProfileService profileService;
+
+  public ProfileController(ProfileService profileService) {
+    this.profileService = profileService;
+  }
+
   @Operation(summary = "커리어 프로필 조회", description = "현재 로그인된 사용자의 주 직무, 경력, 지역 등 커리어 프로필 정보를 가져옵니다.")
   @ApiResponses({
     @ApiResponse(responseCode = "200", description = "조회 성공"),
@@ -39,10 +48,8 @@ public class ProfileController {
         content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
   })
   @GetMapping("/profile")
-  public ResponseEntity<ApiResult<ProfileResponse>> getProfile() {
-    return ResponseEntity.ok(
-        ApiResult.success(
-            new ProfileResponse("DEVELOPER", 5, "SEOUL_GANGNAM", "FULL_TIME", "MEDIUM")));
+  public ResponseEntity<ApiResult<ProfileResponse>> getProfile(@CurrentUserId UUID userId) {
+    return ResponseEntity.ok(ApiResult.success(profileService.get(userId)));
   }
 
   @Operation(
@@ -57,16 +64,8 @@ public class ProfileController {
   })
   @PatchMapping("/profile")
   public ResponseEntity<ApiResult<ProfileResponse>> updateProfile(
-      @Valid @RequestBody ProfileRequest request) {
-    return ResponseEntity.ok(
-        ApiResult.success(
-            new ProfileResponse(
-                request.jobFamily() != null ? request.jobFamily() : "DEVELOPER",
-                request.yearsOfExperience() != null ? request.yearsOfExperience() : 5,
-                request.region() != null ? request.region() : "SEOUL_GANGNAM",
-                request.employmentType() != null ? request.employmentType() : "FULL_TIME",
-                request.companySize() != null ? request.companySize() : "MEDIUM"),
-            "프로필이 수정되었습니다."));
+      @CurrentUserId UUID userId, @Valid @RequestBody ProfileRequest request) {
+    return ResponseEntity.ok(ApiResult.success(profileService.patch(userId, request)));
   }
 
   @Operation(summary = "온보딩 단계 상태 조회", description = "현재 진행 중인 온보딩 단계 및 완료 여부를 확인합니다.")
