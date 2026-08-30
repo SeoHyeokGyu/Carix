@@ -47,6 +47,7 @@ jobs:
           CONFIG_SERVER_TAG=$(git log -1 --format=%H $TARGET -- backend/config-server/ backend/build.gradle backend/settings.gradle ':!*.md' .github/workflows/deploy.yml)
           GATEWAY_TAG=$(git log -1 --format=%H $TARGET -- backend/gateway/ backend/build.gradle backend/settings.gradle ':!*.md' .github/workflows/deploy.yml)
           AUTH_SERVICE_TAG=$(git log -1 --format=%H $TARGET -- backend/auth-service/ backend/build.gradle backend/settings.gradle ':!*.md' .github/workflows/deploy.yml)
+          COLLECTOR_TAG=$(git log -1 --format=%H $TARGET -- backend/collector/ backend/build.gradle backend/settings.gradle ':!*.md' .github/workflows/deploy.yml)
 
           echo "core_api_tag=${CORE_API_TAG:-$TARGET}" >> "$GITHUB_OUTPUT"
           echo "frontend_tag=${FRONTEND_TAG:-$TARGET}" >> "$GITHUB_OUTPUT"
@@ -54,6 +55,7 @@ jobs:
           echo "config_server_tag=${CONFIG_SERVER_TAG:-$TARGET}" >> "$GITHUB_OUTPUT"
           echo "gateway_tag=${GATEWAY_TAG:-$TARGET}" >> "$GITHUB_OUTPUT"
           echo "auth_service_tag=${AUTH_SERVICE_TAG:-$TARGET}" >> "$GITHUB_OUTPUT"
+          echo "collector_tag=${COLLECTOR_TAG:-$TARGET}" >> "$GITHUB_OUTPUT"
 
       - name: SSH를 통한 OCI 서버 롤백 실행
         uses: appleboy/ssh-action@0ff4204d59e8e51228ff73bce53f80d53301dee2
@@ -65,6 +67,7 @@ jobs:
           CONFIG_SERVER_TAG: ${{ steps.target.outputs.config_server_tag }}
           GATEWAY_TAG: ${{ steps.target.outputs.gateway_tag }}
           AUTH_SERVICE_TAG: ${{ steps.target.outputs.auth_service_tag }}
+          COLLECTOR_TAG: ${{ steps.target.outputs.collector_tag }}
           IMAGE_BASE: ${{ env.IMAGE_BASE }}
           GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_ACTOR: ${{ github.actor }}
@@ -72,7 +75,7 @@ jobs:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USERNAME }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          envs: DEPLOY_SHA,CORE_API_TAG,FRONTEND_TAG,EUREKA_TAG,CONFIG_SERVER_TAG,GATEWAY_TAG,AUTH_SERVICE_TAG,IMAGE_BASE,GHCR_TOKEN,GH_ACTOR
+          envs: DEPLOY_SHA,CORE_API_TAG,FRONTEND_TAG,EUREKA_TAG,CONFIG_SERVER_TAG,GATEWAY_TAG,AUTH_SERVICE_TAG,COLLECTOR_TAG,IMAGE_BASE,GHCR_TOKEN,GH_ACTOR
           script: |
             set -eu
             cd /home/opc/carix
@@ -99,6 +102,7 @@ jobs:
             set_tag CONFIG_SERVER_TAG "$CONFIG_SERVER_TAG"
             set_tag GATEWAY_TAG "$GATEWAY_TAG"
             set_tag AUTH_SERVICE_TAG "$AUTH_SERVICE_TAG"
+            set_tag COLLECTOR_TAG "$COLLECTOR_TAG"
 
             printf '%s' "$GHCR_TOKEN" | docker login ghcr.io -u "$GH_ACTOR" --password-stdin
             docker compose pull

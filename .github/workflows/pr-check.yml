@@ -73,12 +73,12 @@ jobs:
             MODULES='["core-api", "collector", "auth-service", "gateway", "eureka", "config-server"]'
           else
             MODULES="[]"
-            [ "${{ steps.filter.outputs.core_api }}" = "true" ] && MODULES=$(echo $MODULES | jq '. + ["core-api"]')
-            [ "${{ steps.filter.outputs.collector }}" = "true" ] && MODULES=$(echo $MODULES | jq '. + ["collector"]')
-            [ "${{ steps.filter.outputs.auth_service }}" = "true" ] && MODULES=$(echo $MODULES | jq '. + ["auth-service"]')
-            [ "${{ steps.filter.outputs.gateway }}" = "true" ] && MODULES=$(echo $MODULES | jq '. + ["gateway"]')
-            [ "${{ steps.filter.outputs.eureka }}" = "true" ] && MODULES=$(echo $MODULES | jq '. + ["eureka"]')
-            [ "${{ steps.filter.outputs.config_server }}" = "true" ] && MODULES=$(echo $MODULES | jq '. + ["config-server"]')
+            [ "${{ steps.filter.outputs.core_api }}" = "true" ] && MODULES=$(echo $MODULES | jq -c '. + ["core-api"]')
+            [ "${{ steps.filter.outputs.collector }}" = "true" ] && MODULES=$(echo $MODULES | jq -c '. + ["collector"]')
+            [ "${{ steps.filter.outputs.auth_service }}" = "true" ] && MODULES=$(echo $MODULES | jq -c '. + ["auth-service"]')
+            [ "${{ steps.filter.outputs.gateway }}" = "true" ] && MODULES=$(echo $MODULES | jq -c '. + ["gateway"]')
+            [ "${{ steps.filter.outputs.eureka }}" = "true" ] && MODULES=$(echo $MODULES | jq -c '. + ["eureka"]')
+            [ "${{ steps.filter.outputs.config_server }}" = "true" ] && MODULES=$(echo $MODULES | jq -c '. + ["config-server"]')
           fi
           echo "modules=$MODULES" >> "$GITHUB_OUTPUT"
 
