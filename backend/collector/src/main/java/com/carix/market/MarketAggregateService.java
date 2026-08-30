@@ -45,28 +45,140 @@ public class MarketAggregateService {
    */
   @Transactional
   public int aggregateMarketData() {
-    String currentMonth = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMM"));
-    return aggregateMarketDataForMonth(currentMonth);
+    return aggregateAllMarketData();
+  }
+
+  /**
+   * {@link com.carix.pipeline.dto.MarketAggregateRequest} 옵션에 따라 단일월/단일연도/연도구간/전체 집계를 유연하게 실행합니다.
+   *
+   * @param request 집계 요청 옵션
+   * @return 생성된 집계 레코드 수
+   */
+  @Transactional
+  public int aggregateMarketData(com.carix.pipeline.dto.MarketAggregateRequest request) {
+    if (request == null) {
+      return aggregateAllMarketData();
+    }
+
+    if (request.month() != null && !request.month().isBlank()) {
+      return aggregateMarketDataForMonth(request.month());
+    }
+
+    if (request.year() != null && !request.year().isBlank()) {
+      return aggregateMarketDataForYear(request.year());
+    }
+
+    if (request.startYear() != null && !request.startYear().isBlank()) {
+      return aggregateMarketDataForYearRange(request.startYear(), request.endYear());
+    }
+
+    if (Boolean.TRUE.equals(request.all())) {
+      return aggregateAllMarketData();
+    }
+
+    return aggregateAllMarketData();
+  }
+
+  /**
+   * DB에 적재된 채용공고의 모든 활동 기준월(firstSeenMonth, lastSeenMonth, postedDate 등)을 자동 추출하여 전체 일괄 집계합니다.
+   *
+   * @return 생성된 총 집계 레코드 수
+   */
+  @Transactional
+  public int aggregateAllMarketData() {
+    List<JobPosting> allPostings = jobPostingRepository.findAll();
+    if (allPostings.isEmpty()) {
+      log.warn("[시장사전집계] 적재된 채용공고가 없어 집계를 건너뜁니다.");
+      return 0;
+    }
+
+    Set<String> distinctMonths = extractActiveMonths(allPostings);
+    log.info(
+        "[시장사전집계] 채용공고에서 발견된 {}개 기준월에 대해 전체 일괄 집계를 시작합니다: {}",
+        distinctMonths.size(),
+        distinctMonths);
+    return aggregateMarketDataForMonths(new ArrayList<>(distinctMonths), allPostings);
+  }
+
+  /**
+   * 특정 연도(1월~12월) 전체에 대해 시장 통계를 사전 집계합니다.
+   *
+   * @param year 대상 연도 (예: "2025")
+   * @return 생성된 총 집계 레코드 수
+   */
+  @Transactional
+  public int aggregateMarketDataForYear(String year) {
+    return aggregateMarketDataForYearRange(year, year);
+  }
+
+  /**
+   * 지정한 연도 구간(startYear ~ endYear)의 모든 월에 대해 시장 통계를 사전 집계합니다.
+   *
+   * @param startYear 시작 연도 (예: "2020")
+   * @param endYear 종료 연도 (예: "2025")
+   * @return 생성된 총 집계 레코드 수
+   */
+  @Transactional
+  public int aggregateMarketDataForYearRange(String startYear, String endYear) {
+    int start = Integer.parseInt(startYear.trim());
+    int end = (endYear != null && !endYear.isBlank()) ? Integer.parseInt(endYear.trim()) : start;
+
+    List<String> months = new ArrayList<>();
+    for (int y = start; y <= end; y++) {
+      for (int m = 1; m <= 12; m++) {
+        months.add(String.format("%04d%02d", y, m));
+      }
+    }
+
+    log.info("[시장사전집계] 연도 구간({}~{}) 총 {}개 월에 대한 사전 집계를 시작합니다.", start, end, months.size());
+    return aggregateMarketDataForMonths(months);
+  }
+
+  /**
+   * 지정된 여러 기준년월 목록에 대해 순차적으로 시장 통계를 사전 집계합니다.
+   *
+   * @param months 기준년월 목록 (예: ["202501", "202502", ...])
+   * @return 생성된 총 집계 레코드 수
+   */
+  @Transactional
+  public int aggregateMarketDataForMonths(List<String> months) {
+    List<JobPosting> allPostings = jobPostingRepository.findAll();
+    return aggregateMarketDataForMonths(months, allPostings);
+  }
+
+  private int aggregateMarketDataForMonths(List<String> months, List<JobPosting> allPostings) {
+    if (allPostings.isEmpty() || months.isEmpty()) {
+      return 0;
+    }
+
+    int totalAggregates = 0;
+    for (String m : months) {
+      totalAggregates += executeAggregationForMonth(normalizeMonth(m), allPostings);
+    }
+    return totalAggregates;
   }
 
   /**
    * 특정 기준년월에 대해 시장 통계를 사전 집계하여 DB에 적재합니다.
    *
-   * @param baseYearMonth 기준년월 (형식: "yyyyMM", 예: "202608")
+   * @param baseYearMonth 기준년월 (형식: "yyyyMM" 또는 "yyyy-MM", 예: "202608" 또는 "2026-08")
    * @return 생성된 집계 레코드 수
    */
   @Transactional
   public int aggregateMarketDataForMonth(String baseYearMonth) {
-    if (baseYearMonth == null || !baseYearMonth.matches("\\d{6}")) {
-      throw new IllegalArgumentException("기준년월은 YYYYMM 6자리여야 합니다 (입력값: " + baseYearMonth + ")");
-    }
-    log.info("[시장사전집계] 기준년월({})에 대한 다차원 사전 집계를 시작합니다...", baseYearMonth);
+    String normalizedMonth = normalizeMonth(baseYearMonth);
     List<JobPosting> allPostings = jobPostingRepository.findAll();
 
     if (allPostings.isEmpty()) {
       log.warn("[시장사전집계] 적재된 채용공고가 없어 집계를 건너뜁니다.");
       return 0;
     }
+
+    return executeAggregationForMonth(normalizedMonth, allPostings);
+  }
+
+  private int executeAggregationForMonth(String baseYearMonth, List<JobPosting> allPostings) {
+    log.info("[시장사전집계] 기준년월({})에 대한 다차원 사전 집계를 시작합니다...", baseYearMonth);
 
     // 1. 기존 해당 월 집계 데이터 삭제 후 재생성 (Idempotent Upsert)
     marketAggregateRepository.deleteByBaseYearMonth(baseYearMonth);
@@ -85,10 +197,44 @@ public class MarketAggregateService {
     }
 
     marketAggregateRepository.saveAll(aggregates);
-    log.info(
-        "[시장사전집계] 사전 집계 완료. 기준년월 {}에 대해 총 {}건의 집계 레코드가 저장되었습니다.", baseYearMonth, aggregates.size());
+    log.info("[시장사전집계] 기준년월 {} 집계 완료 ({}건 적재).", baseYearMonth, aggregates.size());
 
     return aggregates.size();
+  }
+
+  private String normalizeMonth(String month) {
+    if (month == null) {
+      throw new IllegalArgumentException("기준년월은 필수입니다.");
+    }
+    String cleaned = month.replace("-", "").trim();
+    if (!cleaned.matches("\\d{6}")) {
+      throw new IllegalArgumentException(
+          "기준년월 형식이 올바르지 않습니다 (입력값: " + month + ", 필요형식: YYYYMM 또는 YYYY-MM)");
+    }
+    return cleaned;
+  }
+
+  private Set<String> extractActiveMonths(List<JobPosting> postings) {
+    Set<String> months = new java.util.TreeSet<>();
+    DateTimeFormatter yyyyMM = DateTimeFormatter.ofPattern("yyyyMM");
+
+    for (JobPosting p : postings) {
+      if (p.getFirstSeenMonth() != null
+          && p.getFirstSeenMonth().replace("-", "").matches("\\d{6}")) {
+        months.add(p.getFirstSeenMonth().replace("-", ""));
+      }
+      if (p.getLastSeenMonth() != null && p.getLastSeenMonth().replace("-", "").matches("\\d{6}")) {
+        months.add(p.getLastSeenMonth().replace("-", ""));
+      }
+      if (p.getPostedStartDate() != null) {
+        months.add(p.getPostedStartDate().format(yyyyMM));
+      }
+    }
+
+    if (months.isEmpty()) {
+      months.add(LocalDate.now().format(yyyyMM));
+    }
+    return months;
   }
 
   private List<MarketAggregate> buildAggregatesForSource(

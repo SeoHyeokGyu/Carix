@@ -100,17 +100,45 @@ class CollectorPipelineControllerTest {
   }
 
   @Test
-  @DisplayName("POST /internal/pipeline/aggregate - 시장 사전집계 비동기 요청 시 202 Accepted 반환")
+  @DisplayName("POST /internal/pipeline/aggregate - 시장 사전집계 비동기 요청 시 202 Accepted 반환 (Query Param)")
   void triggerAggregateReturnsAccepted() throws Exception {
     JobExecutionResponse response =
         new JobExecutionResponse(
             "job-888", "MARKET_AGGREGATION", "ACCEPTED", "Started", Instant.now());
-    when(pipelineService.triggerMarketAggregation("2026-08")).thenReturn(response);
+    when(pipelineService.triggerMarketAggregation(
+            any(com.carix.pipeline.dto.MarketAggregateRequest.class)))
+        .thenReturn(response);
 
     mockMvc
         .perform(post("/internal/pipeline/aggregate?month=2026-08"))
         .andExpect(status().isAccepted())
         .andExpect(jsonPath("$.jobId").value("job-888"))
+        .andExpect(jsonPath("$.jobType").value("MARKET_AGGREGATION"));
+  }
+
+  @Test
+  @DisplayName("POST /internal/pipeline/aggregate - 시장 사전집계 연도구간 RequestBody 요청 시 202 Accepted 반환")
+  void triggerAggregateWithBodyReturnsAccepted() throws Exception {
+    JobExecutionResponse response =
+        new JobExecutionResponse(
+            "job-889", "MARKET_AGGREGATION", "ACCEPTED", "Started", Instant.now());
+    when(pipelineService.triggerMarketAggregation(
+            any(com.carix.pipeline.dto.MarketAggregateRequest.class)))
+        .thenReturn(response);
+
+    mockMvc
+        .perform(
+            post("/internal/pipeline/aggregate")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    """
+                    {
+                      "startYear": "2020",
+                      "endYear": "2025"
+                    }
+                    """))
+        .andExpect(status().isAccepted())
+        .andExpect(jsonPath("$.jobId").value("job-889"))
         .andExpect(jsonPath("$.jobType").value("MARKET_AGGREGATION"));
   }
 

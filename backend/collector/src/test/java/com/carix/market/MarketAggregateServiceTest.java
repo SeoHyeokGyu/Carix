@@ -92,4 +92,30 @@ class MarketAggregateServiceTest {
     assertThat(backendJunior.getPostingCount()).isEqualTo(2);
     assertThat(backendJunior.getSalaryMedian()).isEqualTo(6000L); // (5000 + 6000) p50
   }
+
+  @Test
+  @DisplayName("aggregateMarketData(request) - 연도 구간 및 전체 요청 시 모든 대상 월에 대해 멱등 집계를 실행한다")
+  void aggregateMarketData_withRequestOptions() {
+    // Given
+    JobPosting p =
+        JobPosting.builder()
+            .source("JOBKOREA")
+            .externalId("jk-1")
+            .jobFamily("BACKEND")
+            .firstSeenMonth("202501")
+            .lastSeenMonth("202503")
+            .collectedAt(Instant.now())
+            .build();
+    when(jobPostingRepository.findAll()).thenReturn(List.of(p));
+
+    // When: 전체(all=true) 집계 요청
+    int count =
+        marketAggregateService.aggregateMarketData(
+            new com.carix.pipeline.dto.MarketAggregateRequest(null, null, null, null, true));
+
+    // Then: 202501, 202503에 대해 delete 및 save 실행
+    assertThat(count).isGreaterThan(0);
+    verify(marketAggregateRepository).deleteByBaseYearMonth("202501");
+    verify(marketAggregateRepository).deleteByBaseYearMonth("202503");
+  }
 }
