@@ -10,13 +10,15 @@ import org.springframework.stereotype.Repository;
 public interface WageStatObservationRepository extends JpaRepository<WageStatObservation, UUID> {
 
   Optional<WageStatObservation>
-      findByJobFamilyAndExperienceBracketAndRegionAndBasePeriodAndStatVintage(
+      findByJobFamilyAndExperienceBracketAndRegionAndWageDefinitionAndBasePeriodAndStatVintage(
           String jobFamily,
           String experienceBracket,
           String region,
+          WageDefinition wageDefinition,
           String basePeriod,
           String statVintage);
 
-  List<WageStatObservation> findByBasePeriodOrderByJobFamilyAscExperienceBracketAsc(
-      String basePeriod);
+  List<WageStatObservation>
+      findByBasePeriodAndWageDefinitionOrderByJobFamilyAscExperienceBracketAsc(
+          String basePeriod, WageDefinition wageDefinition);
 }

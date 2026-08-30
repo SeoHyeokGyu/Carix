@@ -2,6 +2,8 @@ package com.carix.wagestat;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
@@ -28,6 +30,7 @@ import lombok.NoArgsConstructor;
             "job_family",
             "experience_bracket",
             "region",
+            "wage_definition",
             "base_period",
             "stat_vintage"
           })
@@ -49,8 +52,10 @@ public class WageStatObservation {
   @Column(name = "region", nullable = false, length = 100)
   private String region;
 
+  /** 임금 산정 정의 메타데이터 (기본: {@link WageDefinition#ANNUAL_GROSS_MEDIAN} = 연간 세전 중위임금). */
+  @Enumerated(EnumType.STRING)
   @Column(name = "wage_definition", nullable = false, length = 100)
-  private String wageDefinition;
+  private WageDefinition wageDefinition;
 
   @Column(name = "wage_median", nullable = false)
   private Long wageMedian;

@@ -22,10 +22,11 @@ CREATE TABLE core.wage_stat_observation (
     wage_median        bigint NOT NULL,
     base_period        character varying(6) NOT NULL,
     stat_vintage       character varying(6) NOT NULL,
-    UNIQUE (job_family, experience_bracket, region, base_period, stat_vintage)
+    UNIQUE (job_family, experience_bracket, region, wage_definition, base_period, stat_vintage)
 );
 COMMENT ON TABLE core.wage_stat_observation IS
     '연봉 격차 판정의 기준선인 공식 임금통계. 같은 기준기간의 개정판은 stat_vintage 로 공존하며, 조회는 base_period 별 최신 vintage 를 쓴다.';
+COMMENT ON COLUMN core.wage_stat_observation.wage_definition IS '임금 산정 정의 메타데이터 (예: ANNUAL_GROSS_MEDIAN = 연간 세전 중위임금)';
 COMMENT ON COLUMN core.wage_stat_observation.wage_median IS '연간 세전 중앙값 (원 단위)';
 
 CREATE TABLE core.market_aggregate (
