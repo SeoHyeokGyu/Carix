@@ -212,7 +212,7 @@
           ]
         },
         "wageStat": {
-          "wageDefinition": "초과급여 제외, 상여 포함",
+          "wageDefinition": "ANNUAL_GROSS_MEDIAN",
           "statVintage": "202606"
         },
         "expenseWeightStatus": "PARTIALLY_ESTIMATED"
@@ -232,7 +232,7 @@
 *   **Response (200 OK):**
     ```json
     {
-      "baseline": { "source": "WAGE_STAT", "median": 72000000, "wageDefinition": "초과급여 제외, 상여 포함" },
+      "baseline": { "source": "WAGE_STAT", "median": 72000000, "wageDefinition": "ANNUAL_GROSS_MEDIAN" },
       "postingReference": {
         "min": 45000000, "p25": 58000000, "median": 65000000, "p75": 74000000, "max": 95000000,
         "sampleSize": 71, "missingRate": 42.5

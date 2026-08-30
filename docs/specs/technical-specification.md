@@ -169,7 +169,7 @@ CREATE TABLE wage_stat_observation (
     job_family VARCHAR(100) NOT NULL,
     experience_bracket VARCHAR(50) NOT NULL,
     region VARCHAR(100) NOT NULL,
-    wage_definition VARCHAR(100) NOT NULL, -- 임금 정의 (초과급여·상여 포함 여부)
+    wage_definition VARCHAR(100) NOT NULL, -- 임금 정의 메타데이터 ('ANNUAL_GROSS_MEDIAN': 연간 세전 중위임금)
     wage_median BIGINT NOT NULL, -- 연간 세전 중앙값 (원)
     base_period VARCHAR(6) NOT NULL, -- 통계 기준기간 'YYYYMM'
     stat_vintage VARCHAR(6) NOT NULL, -- 발표 시점 (통계 개정 구분)

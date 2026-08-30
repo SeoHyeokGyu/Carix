@@ -17,9 +17,20 @@ import org.springframework.transaction.annotation.Transactional;
 public class WageStatIngestService {
 
   private static final String BASE_PERIOD_DEFAULT = "2025";
-  private static final String STAT_VINTAGE_DEFAULT = "202508";
   private static final String REGION_ALL = "ALL";
-  private static final String WAGE_DEFINITION = "ANNUAL_GROSS_MEDIAN";
+
+  /**
+   * 공식 임금 통계의 임금 산정 정의(Wage Definition) 메타데이터.
+   *
+   * <ul>
+   *   <li><b>ANNUAL:</b> 월급여 통계를 12개월로 환산한 연간 기준 금액
+   *   <li><b>GROSS:</b> 세금·4대보험 공제 전 세전 총급여 기준 (사용자가 입력하는 세전연봉과 일치)
+   *   <li><b>MEDIAN:</b> 통계청(KOSIS) 24개 임금계층 누적분포를 선형 보간하여 도출한 P50 중앙값
+   * </ul>
+   *
+   * <p>연봉 격차(Salary Gap) 계산 시 사용자의 세전 연봉과 공식 임금 기준선의 산정 기준 차이를 투명하게 표시하기 위한 근거 필드로 사용됩니다.
+   */
+  private static final WageDefinition WAGE_DEFINITION = WageDefinition.ANNUAL_GROSS_MEDIAN;
 
   private static final List<String> JOB_FAMILIES = List.of("DEVELOPER", "DATA", "AI", "ALL");
 
