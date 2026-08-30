@@ -2,6 +2,7 @@ package com.carix.snapshot;
 
 import jakarta.persistence.EntityManager;
 import java.time.Clock;
+import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.UUID;
 import org.springframework.transaction.annotation.Propagation;
@@ -38,7 +39,7 @@ public class PostgresDataVersionIssuer implements DataVersionIssuer {
         .setParameter("userId", userId.toString())
         .getSingleResult();
 
-    String second = SECOND_FORMAT.format(clock.instant().atZone(java.time.ZoneOffset.UTC));
+    String second = SECOND_FORMAT.format(clock.instant().atZone(ZoneOffset.UTC));
     Object max =
         entityManager
             .createNativeQuery(
@@ -51,6 +52,11 @@ public class PostgresDataVersionIssuer implements DataVersionIssuer {
             .getSingleResult();
 
     int nextSequence = max == null ? 0 : Integer.parseInt(max.toString().substring(15)) + 1;
+    if (nextSequence > 999) {
+      throw new IllegalStateException(
+          "data_version 시퀀스(NNN)가 3자리를 초과했다 — userId=%s, second=%s. 이 초 안에서 더 이상 발급할 수 없다."
+              .formatted(userId, second));
+    }
     return "%s-%03d".formatted(second, nextSequence);
   }
 }
