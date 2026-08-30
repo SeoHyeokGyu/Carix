@@ -165,7 +165,7 @@
 
 ### 5.1 대시보드 지표 요약 (Summary)
 *   **Endpoint:** `GET /api/v1/dashboard/summary`
-*   **Query Parameters (모두 선택, 가상 프로필 탐색용):**
+*   **Query Parameters (모두 선택, 가상 프로필 탐색용) — `MVP 범위 밖`:** 대응 스토리·화면이 없어 파라미터만 MVP 에서 제외한다 ([개발 계획 §5-G](../plans/carix-dev-plan.md)). 엔드포인트 자체는 MVP 포함이다.
     *   `jobFamily` (String, optional): 가상 탐색용 주 직무
     *   `yearsOfExperience` (Integer, optional): 가상 탐색용 경력 년수
     *   `region` (String, optional): 가상 탐색용 지역구
@@ -223,7 +223,7 @@
 
 ### 5.2 동료집단 연봉 분포
 *   **Endpoint:** `GET /api/v1/dashboard/salary-distribution`
-*   **Query Parameters (모두 선택, 가상 프로필 탐색용):** `jobFamily`, `yearsOfExperience`, `region`, `companySize` — 의미와 동작은 §5.1과 동일.
+*   **Query Parameters (모두 선택, 가상 프로필 탐색용) — `MVP 범위 밖`:** `jobFamily`, `yearsOfExperience`, `region`, `companySize` — 의미와 동작은 §5.1과 동일. 파라미터만 MVP 에서 제외한다 ([개발 계획 §5-G](../plans/carix-dev-plan.md)).
 *   결합 분포와 percentile은 원천별 5수치 요약으로 재구성할 수 없으므로, **동료집단 조건의 원 공고(`job_posting`)를 직접 집계**해 계산한다: `dedup_group_id` 단위로 원천 간 중복을 제거하고 유효 공개연봉 행만 사용. `market_aggregate`의 원천별 5수치는 배치 검증·참고용이며 이 응답의 산출원이 아니다.
 *   표본 부족 시에도 `200 OK`로 상태와 표본 수를 반환한다 (204 금지 — 화면은 `표본 부족`과 표본 수를 표시해야 함):
     ```json
@@ -281,7 +281,7 @@
 ### 5.5 스킬별 수요 상세
 *   **Endpoint:** `GET /api/v1/dashboard/skills`
 *   추이분석 스킬수요 탭용. 보유 스킬별 수요 지수와 산출 근거를 반환.
-*   **Query Parameters (모두 선택, 가상 프로필 탐색용):** `jobFamily`, `yearsOfExperience`, `region`, `companySize` — 의미와 동작은 §5.1과 동일.
+*   **Query Parameters (모두 선택, 가상 프로필 탐색용) — `MVP 범위 밖`:** `jobFamily`, `yearsOfExperience`, `region`, `companySize` — 의미와 동작은 §5.1과 동일. 파라미터만 MVP 에서 제외한다 ([개발 계획 §5-G](../plans/carix-dev-plan.md)).
 *   **Response (200 OK):**
     ```json
     {
@@ -306,6 +306,7 @@
     ```
 
 ### 5.6 동료집단 기반 스킬 보강 추천
+*   **`MVP 범위 밖`** — 대응 스토리·화면이 없다. `S-14` 스킬수요 탭은 §5.5 로 충족한다 ([개발 계획 §5-G](../plans/carix-dev-plan.md)). `core-api` 에 구현이 없다 — 고정값을 돌려주던 스텁은 철거했다. 아래 규격은 재도입 시의 계약으로만 남긴다.
 *   **Endpoint:** `GET /api/v1/skills/recommendations`
 *   **Response (200 OK):**
     ```json
@@ -443,6 +444,7 @@
     *(`inputs`·`result`가 각각 §6.1 요청·응답 레코드 전체를 그대로 담으므로 `scenarioName`은 최상위·`inputs` 양쪽에, `id`·`scenarioName`은 최상위·`result` 양쪽에 중복 노출된다)*
 
 ### 6.3 가상 시나리오 전체 목록 조회 (비교용)
+*   **`MVP 범위 밖`** — `US-S1` 은 마지막 시나리오 복원만 요구하고 §6.2 로 충족된다. 목록 비교 화면이 없다 ([개발 계획 §5-G](../plans/carix-dev-plan.md)). `core-api` 에 구현이 없다 — 고정값을 돌려주던 스텁은 철거했다. 아래 규격은 재도입 시의 계약으로만 남긴다.
 *   **Endpoint:** `GET /api/v1/scenarios`
 *   **Response (200 OK):** 저장된 모든 시나리오 리스트를 반환합니다.
     ```json
@@ -483,10 +485,12 @@
     *(구조는 §6.2와 동일 — `inputs`·`result` 내부 필드 중복은 §6.2 설명 참조)*
 
 ### 6.4 가상 시나리오 이력 삭제
+*   **`MVP 범위 밖`** — 시나리오 이력 삭제 화면이 없다. 계정 삭제는 `DELETE /users` 연쇄로 처리한다 ([개발 계획 §5-G](../plans/carix-dev-plan.md)). `core-api` 에 구현이 없다 — 고정값을 돌려주던 스텁은 철거했다. 아래 규격은 재도입 시의 계약으로만 남긴다.
 *   **Endpoint:** `DELETE /api/v1/scenarios/{id}`
 *   **Response (200 OK):** 삭제 완료.
 
 ### 6.5 가상 소득/소비 변화에 따른 지수 변화 예측 (Index Predictor)
+*   **`MVP 범위 밖`** — 대응 스토리가 없고 MVP 규격 §2.3 이 확정적 예측을 제외 기능으로 둔다 ([개발 계획 §5-G](../plans/carix-dev-plan.md)). `core-api` 에 구현이 없다 — 고정값을 돌려주던 스텁은 철거했다. 아래 규격은 재도입 시의 계약으로만 남긴다.
 *   **Endpoint:** `POST /api/v1/dashboard/predict`
 *   **Request Body:**
     ```json
@@ -535,6 +539,7 @@
 *   `DELETE /api/v1/users` — 사용자·개인 데이터 삭제. 쿼리 스트링으로 확인용 `?email=...` 필수 (일부 네트워크 환경에서 HTTP DELETE Body 유실 문제 방지), 이메일 불일치 시 `400`
 
 ### 7.6 공통 기준 데이터 조회 (Reference Data)
+*   **`MVP 범위 밖`** — `US-O4` 는 카테고리별 `status` 뱃지만 요구한다. 화면이 기본값 금액까지 표시하기로 하면 MVP 로 승격한다 ([개발 계획 §5-G](../plans/carix-dev-plan.md)). `core-api` 에 구현이 없다 — 고정값을 돌려주던 스텁은 철거했다. 아래 규격은 재도입 시의 계약으로만 남긴다.
 *   `GET /api/v1/reference/default-expenses` — 통계청 기준 지출 가중치 및 금액 기본값 조회 (사용자가 지출을 입력하지 않은 카테고리의 대체 기본 정보를 화면에 보여주기 위해 프론트엔드가 호출).
     *   **Response (200 OK):**
         ```json
@@ -552,6 +557,7 @@
         ```
 
 ### 7.7 소비자물가지수(CPI) 기준 데이터 조회
+*   **`MVP 범위 밖`** — `US-D3` 는 `incomeIndex`·`personalPriceIndex` 2계열만 요구한다 ([개발 계획 §5-G](../plans/carix-dev-plan.md)). `core-api` 에 구현이 없다 — 고정값을 돌려주던 스텁은 철거했다. 아래 규격은 재도입 시의 계약으로만 남긴다.
 *   `GET /api/v1/reference/cpi` — 월별 카테고리별 통계청 소비자물가지수(CPI) 변동 추이 목록 조회 (개인물가지수 추세의 기준 자료 시각화용).
     *   **Response (200 OK):**
         ```json

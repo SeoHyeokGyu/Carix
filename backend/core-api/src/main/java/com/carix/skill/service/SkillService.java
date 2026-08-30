@@ -3,7 +3,6 @@ package com.carix.skill.service;
 import com.carix.skill.domain.Skill;
 import com.carix.skill.domain.SkillAlias;
 import com.carix.skill.domain.UserSkill;
-import com.carix.skill.dto.SkillRecommendationsResponse;
 import com.carix.skill.dto.SkillSearchResponse;
 import com.carix.skill.dto.UserSkillCreateRequest;
 import com.carix.skill.dto.UserSkillResponse;
@@ -115,24 +114,6 @@ public class SkillService {
         skillRepository.delete(skill);
       }
     }
-  }
-
-  /**
-   * 동료집단 기반 추천 스킬 조회
-   *
-   * <p>TODO: [동료집단 추천 알고리즘 구현] 1. ProfileService/CareerProfileRepository 연동: 사용자의 직무(jobFamily),
-   * 경력(yearsOfExperience), 희망지역(region) 조회 2. JobPostingRepository/AnalyticsService 연동: 해당 조건과 일치하는
-   * 채용공고의 필수/우대 스킬 빈도수 상위 집계 3. 사용자가 이미 보유한 스킬(userSkillRepository.findByUserId) 제외 및 차집합 추천 도출 4.
-   * 전월 대비 증감률(trend: UP/DOWN/STABLE) 계산 현재는 도메인 프로필 및 분석 모듈 연동 전 단계로 스펙 명세 기반 Mock 데이터를 반환합니다.
-   */
-  public SkillRecommendationsResponse getSkillRecommendations(UUID userId) {
-    return new SkillRecommendationsResponse(
-        new SkillRecommendationsResponse.PeerGroupDetail("서울 전체 / 경력 MID / 회사규모 무관"),
-        List.of(
-            new SkillRecommendationsResponse.RecommendedSkillDetail(
-                "Kubernetes", "DEVOPS", 0.245, "UP", "동료집단 내 공고의 24.5%에서 요구하고 있으며, 최근 수요가 급증세입니다."),
-            new SkillRecommendationsResponse.RecommendedSkillDetail(
-                "TypeScript", "FRONTEND", 0.182, "STABLE", "동료집단 내 공고의 18.2%에서 요구되는 핵심 스택입니다.")));
   }
 
   /**
