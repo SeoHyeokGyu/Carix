@@ -1,8 +1,8 @@
 package com.carix.snapshot;
 
 /**
- * 결정표 버전. 비교는 사전순이 아니라 {@code major.minor.patch} 숫자 세그먼트 비교다 — {@code 1.10.0 > 1.9.0} (기술 명세
- * §1.3). 문자열 정렬에 맡기면 규칙표가 배포될수록 최신판을 놓친다.
+ * 결정표 버전. 비교는 사전순이 아니라 {@code major.minor.patch} 숫자 세그먼트 비교다 — {@code 1.10.0 > 1.9.0} (기술 명세 §1.3).
+ * 문자열 정렬에 맡기면 규칙표가 배포될수록 최신판을 놓친다.
  */
 public record RuleVersion(int major, int minor, int patch) implements Comparable<RuleVersion> {
 

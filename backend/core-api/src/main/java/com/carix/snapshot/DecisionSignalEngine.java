@@ -65,8 +65,8 @@ public class DecisionSignalEngine {
   }
 
   /**
-   * 데이터 부족 발동 조건 5개 (기술 명세 §2.2). 지수 값이 {@code null} 인데 상태가 부족을 가리키지 않는 경우도 조건 2·3 의 일반화로 함께
-   * 막는다 — 값 없이 비교하면 NPE 다.
+   * 데이터 부족 발동 조건 5개 (기술 명세 §2.2). 지수 값이 {@code null} 인데 상태가 부족을 가리키지 않는 경우도 조건 2·3 의 일반화로 함께 막는다 —
+   * 값 없이 비교하면 NPE 다.
    */
   private static List<String> insufficientDataReasons(
       PpiResult ppi, MviResult mvi, CurrentSalary salary) {
@@ -82,7 +82,7 @@ public class DecisionSignalEngine {
     if (mvi.wageBaseline() == null) {
       return List.of("연봉 격차 기준선(임금통계) 미확보");
     }
-    if (salary == null) {
+    if (salary == null || salary.grossSalary() <= 0) {
       return List.of("현재 연봉 미확보");
     }
     return List.of();

@@ -110,12 +110,23 @@ class DecisionSignalEngineTest {
   // ---------- 규칙 5: 현 상태 유지 ----------
 
   @Test
-  @DisplayName("격차가 -0.05 초과 0.05 미만이고 MVI 90 이상이면 현 상태 유지다")
+  @DisplayName("격차가 -0.05 초과 0.05 미만이고 MVI 90 이상이면 현 상태 유지다 — 경계값 포함, 규칙 5 문구다")
   void rule5_stay() {
     DecisionOutcome outcome = engine.evaluate(ppi(100), mvi(90.0, 60_000_000L), salary());
 
     assertThat(outcome.code()).isEqualTo(DecisionSignalCode.STAY);
-    assertThat(outcome.rulesApplied()).isNotEmpty();
+    assertThat(outcome.rulesApplied()).containsExactly("연봉이 시장 수준에 근접", "스킬 수요 안정");
+  }
+
+  @Test
+  @DisplayName("MVI 가 90 미만이면 규칙 5 가 아니라 기본행이다 — 하한 경계는 배타적이고, 문구도 기본행 문구다")
+  void rule5_defaultRow_whenMviBelowStableBoundary() {
+    // 격차는 0 이라 규칙 5 의 격차 조건은 만족하지만 MVI 가 90 미만이라 규칙 5 에는 못 미친다.
+    // STAY 코드는 규칙 5 와 기본행이 공유하므로, 문구까지 봐야 어느 행이 발동했는지 구분된다.
+    DecisionOutcome outcome = engine.evaluate(ppi(100), mvi(89.9, 60_000_000L), salary());
+
+    assertThat(outcome.code()).isEqualTo(DecisionSignalCode.STAY);
+    assertThat(outcome.rulesApplied()).containsExactly("뚜렷한 보상 격차나 가치 상승 신호 없음");
   }
 
   // ---------- 데이터 부족 5조건 ----------
@@ -184,6 +195,15 @@ class DecisionSignalEngineTest {
   @DisplayName("데이터 부족 5 - 현재 연봉이 없으면 데이터 부족이다")
   void insufficient5_noCurrentSalary() {
     assertThat(engine.evaluate(ppi(100), mvi(120, 72_000_000L), null).code())
+        .isEqualTo(DecisionSignalCode.INSUFFICIENT_DATA);
+  }
+
+  @Test
+  @DisplayName("데이터 부족 5 - 현재 연봉이 0 이면 데이터 부족이다 — 격차 비율의 분모가 될 수 없다")
+  void insufficient5_zeroCurrentSalary() {
+    CurrentSalary zeroSalary = new CurrentSalary(0L, LocalDate.of(2026, 1, 1));
+
+    assertThat(engine.evaluate(ppi(100), mvi(120, 72_000_000L), zeroSalary).code())
         .isEqualTo(DecisionSignalCode.INSUFFICIENT_DATA);
   }
 
