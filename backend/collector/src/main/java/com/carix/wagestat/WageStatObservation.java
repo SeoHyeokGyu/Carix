@@ -30,6 +30,7 @@ import lombok.NoArgsConstructor;
             "job_family",
             "experience_bracket",
             "region",
+            "wage_definition",
             "base_period",
             "stat_vintage"
           })

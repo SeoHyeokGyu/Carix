@@ -20,17 +20,12 @@ public class WageStatIngestService {
   private static final String REGION_ALL = "ALL";
 
   /**
-   * 공식 임금 통계의 임금 산정 정의(Wage Definition) 메타데이터.
+   * 통계청 고용형태별근로실태조사(전문가 직군) 기준 정액급여(기본급) 평균 구성 비중 계수 (83.5%).
    *
-   * <ul>
-   *   <li><b>ANNUAL:</b> 월급여 통계를 12개월로 환산한 연간 기준 금액
-   *   <li><b>GROSS:</b> 세금·4대보험 공제 전 세전 총급여 기준 (사용자가 입력하는 세전연봉과 일치)
-   *   <li><b>MEDIAN:</b> 통계청(KOSIS) 24개 임금계층 누적분포를 선형 보간하여 도출한 P50 중앙값
-   * </ul>
-   *
-   * <p>연봉 격차(Salary Gap) 계산 시 사용자의 세전 연봉과 공식 임금 기준선의 산정 기준 차이를 투명하게 표시하기 위한 근거 필드로 사용됩니다.
+   * <p>{@link WageDefinition#ANNUAL_GROSS_MEDIAN}(총액) 통계로부터 {@link
+   * WageDefinition#ANNUAL_BASE_MEDIAN}(정액급여)을 도출하는 공식 기준선 계수입니다.
    */
-  private static final WageDefinition WAGE_DEFINITION = WageDefinition.ANNUAL_GROSS_MEDIAN;
+  private static final double BASE_SALARY_RATIO = 0.835;
 
   private static final List<String> JOB_FAMILIES = List.of("DEVELOPER", "DATA", "AI", "ALL");
 
@@ -71,7 +66,8 @@ public class WageStatIngestService {
   }
 
   /**
-   * KOSIS 국가 공식 임금 통계를 지정한 연도 구간으로 조회하여 보간 후 DB에 Upsert 합니다.
+   * KOSIS 국가 공식 임금 통계를 지정한 연도 구간으로 조회하여 보간 후 DB에 Upsert 합니다. (ANNUAL_GROSS_MEDIAN 및
+   * ANNUAL_BASE_MEDIAN 두 기준선을 동시에 적재합니다.)
    *
    * @param startYear 수집 시작 연도 (예: "2020", null 시 최신 연도만)
    * @param endYear 수집 종료 연도 (예: "2024", null 시 startYear와 동일)
@@ -98,27 +94,49 @@ public class WageStatIngestService {
         for (Map.Entry<String, Map<String, Long>> yearEntry : yearlyDistribution.entrySet()) {
           String basePeriod = yearEntry.getKey();
           Map<String, Long> counts = yearEntry.getValue();
-          long medianWage = interpolator.calculateAnnualMedianWage(counts);
+          long grossMedian = interpolator.calculateAnnualMedianWage(counts);
 
-          if (medianWage <= 0L) {
-            medianWage = FALLBACK_MEDIAN_BY_BRACKET.getOrDefault(experienceBracket, 45_000_000L);
+          if (grossMedian <= 0L) {
+            grossMedian = FALLBACK_MEDIAN_BY_BRACKET.getOrDefault(experienceBracket, 45_000_000L);
           }
+          long baseMedian = Math.round((grossMedian * BASE_SALARY_RATIO) / 10_000.0) * 10_000L;
 
           String statVintage = basePeriod + "08";
 
           for (String jobFamily : JOB_FAMILIES) {
+            // 1) 연간 세전 총액 중위임금 (ANNUAL_GROSS_MEDIAN)
             saveOrUpdateObservation(
-                jobFamily, experienceBracket, REGION_ALL, medianWage, basePeriod, statVintage);
+                jobFamily,
+                experienceBracket,
+                REGION_ALL,
+                WageDefinition.ANNUAL_GROSS_MEDIAN,
+                grossMedian,
+                basePeriod,
+                statVintage);
+            ingestedCount++;
+
+            // 2) 연간 정액급여(기본급) 중위임금 (ANNUAL_BASE_MEDIAN)
+            saveOrUpdateObservation(
+                jobFamily,
+                experienceBracket,
+                REGION_ALL,
+                WageDefinition.ANNUAL_BASE_MEDIAN,
+                baseMedian,
+                basePeriod,
+                statVintage);
             ingestedCount++;
           }
         }
       } else {
         // KOSIS API 응답 부재 시 Fallback 기준선 저장
-        long medianWage = FALLBACK_MEDIAN_BY_BRACKET.getOrDefault(experienceBracket, 45_000_000L);
+        long grossMedian = FALLBACK_MEDIAN_BY_BRACKET.getOrDefault(experienceBracket, 45_000_000L);
+        long baseMedian = Math.round((grossMedian * BASE_SALARY_RATIO) / 10_000.0) * 10_000L;
+
         log.info(
-            "[임금통계수집] KOSIS 응답 부재로 기본 보간값을 사용합니다 (경력: {}, 중위연봉: {}원)",
+            "[임금통계수집] KOSIS 응답 부재로 기본 보간값을 사용합니다 (경력: {}, 세전총액: {}원, 정액급여: {}원)",
             experienceBracket,
-            medianWage);
+            grossMedian,
+            baseMedian);
 
         int start =
             (startYear != null && !startYear.isBlank()) ? Integer.parseInt(startYear.trim()) : 2025;
@@ -130,8 +148,26 @@ public class WageStatIngestService {
           String statVintage = basePeriod.equals("2025") ? currentVintage : basePeriod + "08";
 
           for (String jobFamily : JOB_FAMILIES) {
+            // 1) 연간 세전 총액 중위임금 (ANNUAL_GROSS_MEDIAN)
             saveOrUpdateObservation(
-                jobFamily, experienceBracket, REGION_ALL, medianWage, basePeriod, statVintage);
+                jobFamily,
+                experienceBracket,
+                REGION_ALL,
+                WageDefinition.ANNUAL_GROSS_MEDIAN,
+                grossMedian,
+                basePeriod,
+                statVintage);
+            ingestedCount++;
+
+            // 2) 연간 정액급여(기본급) 중위임금 (ANNUAL_BASE_MEDIAN)
+            saveOrUpdateObservation(
+                jobFamily,
+                experienceBracket,
+                REGION_ALL,
+                WageDefinition.ANNUAL_BASE_MEDIAN,
+                baseMedian,
+                basePeriod,
+                statVintage);
             ingestedCount++;
           }
         }
@@ -146,13 +182,15 @@ public class WageStatIngestService {
       String jobFamily,
       String experienceBracket,
       String region,
+      WageDefinition wageDefinition,
       long wageMedian,
       String basePeriod,
       String statVintage) {
 
     Optional<WageStatObservation> existing =
-        repository.findByJobFamilyAndExperienceBracketAndRegionAndBasePeriodAndStatVintage(
-            jobFamily, experienceBracket, region, basePeriod, statVintage);
+        repository
+            .findByJobFamilyAndExperienceBracketAndRegionAndWageDefinitionAndBasePeriodAndStatVintage(
+                jobFamily, experienceBracket, region, wageDefinition, basePeriod, statVintage);
 
     if (existing.isEmpty()) {
       WageStatObservation observation =
@@ -160,7 +198,7 @@ public class WageStatIngestService {
               .jobFamily(jobFamily)
               .experienceBracket(experienceBracket)
               .region(region)
-              .wageDefinition(WAGE_DEFINITION)
+              .wageDefinition(wageDefinition)
               .wageMedian(wageMedian)
               .basePeriod(basePeriod)
               .statVintage(statVintage)

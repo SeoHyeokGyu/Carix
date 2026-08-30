@@ -173,7 +173,7 @@ CREATE TABLE wage_stat_observation (
     wage_median BIGINT NOT NULL, -- 연간 세전 중앙값 (원)
     base_period VARCHAR(6) NOT NULL, -- 통계 기준기간 'YYYYMM'
     stat_vintage VARCHAR(6) NOT NULL, -- 발표 시점 (통계 개정 구분)
-    UNIQUE (job_family, experience_bracket, region, base_period, stat_vintage)
+    UNIQUE (job_family, experience_bracket, region, wage_definition, base_period, stat_vintage)
 );
 -- 같은 기준기간의 개정판은 stat_vintage로 공존한다. 조회는 base_period별 최신 stat_vintage를 사용한다.
 
