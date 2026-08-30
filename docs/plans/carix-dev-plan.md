@@ -107,6 +107,7 @@
 | C 0주차 | DB 마이그레이션 방식 통일 (auth=Flyway, core=직접 DDL) | 결정·문서화 완료 |
 | A/B 0주차 | KOSIS 임금통계 기준선 데이터 수집 및 24구간 보간 적재 완료 (`core.wage_stat_observation`) | 완료 |
 | B/C 0주차 | 스냅샷 갱신(Job 4) `core-api` 전담 실행 주체 확정 (§5-I) | 결정 완료 |
+| 공통 0주차 | 미배정 API 6개·가상 프로필 파라미터 MVP 범위 밖 확정 및 스텁 철거 (§5-G) | 결정·철거 완료 |
 | B 1~2주차 | 채용공고/임금 수집 파이프라인 (`wage_stat_observation`, 원천 간 중복제거) | 2026-08-25 |
 | B 1~2주차 | 표준 스킬 사전 정제 & 검색 API (`GET /skills/search`, user-skills CRUD) | 2026-08-24 |
 | B 3~4주차 | 월별 시장 데이터 사전 집계 (`market_aggregate`) 파이프라인 | 2026-08-25 |
@@ -120,7 +121,7 @@ gantt
     DB 마이그레이션 방식 확정 :done, c0a, 2026-08-22, 1d
     임금통계 기준선 데이터 확보(5-A) :done, a0, 2026-08-25, 3d
     스냅샷 Job4 core-api 전담 결정(5-I) :done, i0, 2026-08-29, 1d
-    미배정 API 범위 결정(5-G) :c0, 2026-08-29, 2d
+    미배정 API 범위 결정(5-G) :done, c0, 2026-08-29, 2d
     section Member A (소득/PPI)
     CPI 수집 파이프라인 & 소득/소비 CRUD API :a1, after b0, 14d
     PPI 계산 엔진 & 가중치 전파 & 암호화 키(5-E) :a2, after a1, 14d
@@ -261,30 +262,44 @@ flowchart TD
 세 곳 모두 현행 구성을 먼저 서술하고 Node SSR 구성은 "MVP 이후 목표"로 내렸다. 고치지
 않았다면 구현자가 화면마다 SSR 방식이 지정된 명세를 그대로 보고 작업했을 것이다.
 
-### 5-G. 범위 결정이 남은 항목 — 미배정 API 6개
+### 5-G. 미배정 API 6개 — MVP 범위 밖
 
 [API 규격](../specs/api-specification.md)에는 있으나
-[기능 명세 §8 추적 매트릭스](../specs/functional-specification.md)에는 없는
-엔드포인트다. **API 명세가 기능 명세보다 넓다.** MVP 포함 여부를 먼저 정해야 배정할
-수 있다.
+[기능 명세 §8 추적 매트릭스](../specs/functional-specification.md)에는 없던 엔드포인트다.
+판별 기준은 하나다 — **기존 화면의 인수 조건이 그 응답을 요구하는가.** 6개 전부와 가상
+프로필 쿼리 파라미터가 이 기준을 통과하지 못해 **MVP 범위 밖**이다. 기능 명세에 구멍이
+있던 게 아니라 API 규격이 더 넓었다.
 
-| 엔드포인트 | 규격 | 현재 | 도메인 |
-| :--- | :--- | :--- | :--- |
-| `GET /skills/recommendations` | §5.6 동료집단 기반 스킬 보강 추천 | `SkillRecommendationsResponse` DTO 스텁 존재 | B |
-| `POST /dashboard/predict` | §6.5 소득·소비 변화 지수 예측 | `IndexPredictionRequest`·`IndexPredictionResponse` DTO 스텁 존재 | A |
-| `GET /scenarios` | §6.3 가상 시나리오 목록(비교용) | 미구현 | C |
-| `DELETE /scenarios/{id}` | §6.4 시나리오 이력 삭제 | 미구현 | C |
-| `GET /reference/default-expenses` | §7.6 기본 지출 가중치 조회 | `ReferenceController` 스텁 존재 | A |
-| `GET /reference/cpi` | §7.7 CPI 기준 데이터 조회 | `ReferenceController` 스텁 존재 | A |
+**6개 모두 `core-api` 에서 철거했다.** 배제 판정만으로는 부족했다 — 여섯 개 다 `200` 과
+그럴듯한 하드코딩 값을 돌려주고 있었다. `GET /reference/cpi` 는 고정 CPI 표를,
+`POST /dashboard/predict` 는 상수 `94.2` 에 임의 계수를 곱한 값을 반환했다. 404 보다 나쁘다 —
+프런트엔드가 붙으면 가짜 수치가 화면까지 올라가고, `predict` 의 조작 수치는 `US-D2` 의
+`임의 수치를 만들지 않는다` 를 정면으로 위반한다.
 
-API 규격 §5.1·§5.5 의 가상 프로필 쿼리 파라미터(`jobFamily`·`yearsOfExperience`·
-`region`·`companySize`)도 같은 성격이다 — 대응하는 스토리와 화면이 없다.
+| 엔드포인트 | 제외 근거 | 철거 범위 |
+| :--- | :--- | :--- |
+| `GET /skills/recommendations` (§5.6) | `S-14` 스킬수요 탭은 `GET /dashboard/skills` 로 충족한다. 대응 스토리·화면이 없다 | `SkillController` 매핑, `SkillService.getSkillRecommendations`, `SkillRecommendationsResponse`, `SkillControllerTest` 해당 케이스 |
+| `POST /dashboard/predict` (§6.5) | 대응 스토리가 없다. `US-S1` 은 보상 비교이지 지수 예측이 아니고, [MVP 규격 §2.3](../specs/mvp-requirements.md)이 확정적 예측을 제외 기능으로 못박았다 | `DashboardController` 매핑, `IndexPredictionRequest`·`IndexPredictionResponse` |
+| `GET /scenarios` (§6.3) | `US-S1` 은 마지막 시나리오 복원만 요구하고 `GET /scenarios/latest` 로 충족된다. 목록 비교 화면이 없다 | `ScenarioController` 매핑 (이전 판의 `미구현` 표기는 오류였다 — 고정 1건을 반환하고 있었다) |
+| `DELETE /scenarios/{id}` (§6.4) | 시나리오 이력 삭제 화면이 없다. 계정 삭제는 `DELETE /users` 연쇄로 처리한다 | `ScenarioController` 매핑 (무조건 `200` 이었다) |
+| `GET /reference/default-expenses` (§7.6) | `US-O4` 인수 조건은 `통계청 평균 기준` 뱃지와 월 요약 상태만 요구하고 추적 매트릭스 `S-07` 행도 `PUT /expenses/{ym}` 만 건다 — 카테고리별 `status` 로 충족된다 | `ReferenceController` 와 `com.carix.reference` 패키지 전체 |
+| `GET /reference/cpi` (§7.7) | `US-D3` 는 `incomeIndex`·`personalPriceIndex` 2계열만 요구한다. 공식 CPI 원계열 대조는 인수 조건에 없다 | 위와 동일 |
 
-`GET /reference/default-expenses` 는 확인해 봤다. `US-O4` 인수 조건은 미입력 카테고리에
-`통계청 평균 기준`(`DEFAULT_CPI`) **뱃지와 월 요약 상태**만 요구하고, 추적 매트릭스의
-`S-07` 행도 `PUT /expenses/{ym}` 만 건다 — 카테고리별 `status` 로 충족된다. 화면이 기본값
-**금액**까지 보여주기로 하면 그때 A 의 필수 작업이 된다.
+DTO 도 함께 지웠다. 매핑을 걷어내면 참조가 0 이 되고, 응답 계약은 API 규격 §5.6·§6.3~6.5·
+§7.6~7.7 에 JSON 예시까지 남아 있어 재도입 비용이 DTO 재작성분뿐이다.
 
-- [ ] 6개 엔드포인트와 가상 프로필 쿼리 파라미터를 MVP 에 포함할지 결정
-- [ ] 제외 시 API 규격에서 걷거나 `MVP 범위 밖`으로 표기
-- [ ] 포함 시 기능 명세 §8 추적 매트릭스와 위 주차 표에 반영
+가상 프로필 쿼리 파라미터(`jobFamily`·`yearsOfExperience`·`region`·`companySize` —
+[API 규격 §5.1·§5.2·§5.5](../specs/api-specification.md))도 범위 밖이다. 다만 성격이 다르다.
+이건 엔드포인트가 아니라 **MVP 에 포함된 엔드포인트 위의 파라미터**라 철거 대상이 아니다.
+`GET /dashboard/summary`·`/salary-distribution`·`/skills` 는 그대로 남고 파라미터만 규격에
+`MVP 범위 밖`으로 표기했다. 구현하면 동료집단 완화 알고리즘을 로그인 사용자 프로필과 무관한
+임의 조건으로도 돌려야 해서 B 의 MVP 범위가 늘어난다.
+
+**승격 조건.** `GET /reference/default-expenses` 는 `S-07` 이 기본값 **금액**까지 보여주기로
+하면 A 의 필수 작업으로 올라온다. 그때 기능 명세 §8 의 `S-07` 행에 API 를 추가한다.
+
+- [x] 6개 엔드포인트와 가상 프로필 쿼리 파라미터의 MVP 포함 여부 결정 — 전부 범위 밖
+- [x] API 규격에 `MVP 범위 밖` 표기 (§5.1·§5.2·§5.5 파라미터, §5.6, §6.3, §6.4, §6.5, §7.6, §7.7)
+- [x] `core-api` 스텁 철거 — 매핑·서비스 메서드·전용 DTO·해당 테스트
+
+기능 명세 §8 추적 매트릭스는 바뀌지 않는다. 포함된 항목이 없기 때문이다.

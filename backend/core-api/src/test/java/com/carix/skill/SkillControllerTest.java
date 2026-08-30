@@ -229,30 +229,6 @@ class SkillControllerTest {
   }
 
   @Test
-  @DisplayName("GET /v1/skills/recommendations - 동료집단 기반 추천 스킬 목록을 반환한다")
-  void getSkillRecommendations_returnsRecommendations() throws Exception {
-    given(skillService.getSkillRecommendations(any(UUID.class)))
-        .willReturn(
-            new com.carix.skill.dto.SkillRecommendationsResponse(
-                new com.carix.skill.dto.SkillRecommendationsResponse.PeerGroupDetail(
-                    "서울 전체 / 경력 MID / 회사규모 무관"),
-                List.of(
-                    new com.carix.skill.dto.SkillRecommendationsResponse.RecommendedSkillDetail(
-                        "Kubernetes",
-                        "DEVOPS",
-                        0.245,
-                        "UP",
-                        "동료집단 내 공고의 24.5%에서 요구하고 있으며, 최근 수요가 급증세입니다."))));
-
-    mockMvc
-        .perform(
-            get("/v1/skills/recommendations").header("X-User-Id", UUID.randomUUID().toString()))
-        .andExpect(status().isOk())
-        .andExpect(jsonPath("$.success").value(true))
-        .andExpect(jsonPath("$.data.recommendations[0].standardName").value("Kubernetes"));
-  }
-
-  @Test
   @DisplayName("GET /v1/user-skills - X-User-Id 가 없으면 401 을 반환한다")
   void getUserSkills_withoutUserHeader_returnsUnauthorized() throws Exception {
     mockMvc

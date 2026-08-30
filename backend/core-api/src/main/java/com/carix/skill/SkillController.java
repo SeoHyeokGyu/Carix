@@ -117,19 +117,4 @@ public class SkillController {
     skillService.deleteUserSkill(userId, id);
     return ResponseEntity.ok(ApiResult.success(null, "스킬이 삭제되었습니다."));
   }
-
-  @Operation(
-      summary = "동료집단 기반 추천 스킬 조회",
-      description = "사용자의 동료집단 공고 수요 데이터를 기반으로 보유하고 있지 않은 인기 상위 스킬 목록을 추천합니다.")
-  @ApiResponse(responseCode = "200", description = "조회 성공")
-  @GetMapping("/skills/recommendations")
-  public ResponseEntity<ApiResult<SkillRecommendationsResponse>> getSkillRecommendations(
-      @CurrentUserId UUID userId) {
-    // TODO: [동료집단 추천 엔진 연동]
-    // 1. career_profile 도메인 완성 후 사용자의 직무(job_family), 연차(experience), 지역(region) 정보 조회
-    // 2. 해당 동료집단(Peer Group) 공고들의 스킬 요구 빈도 및 트렌드(UP/DOWN/STABLE) 통계 집계
-    // 3. 사용자가 이미 보유한 스킬을 제외한 상위 추천 스킬 목록 계산하여 반환하도록 연동 필요
-    SkillRecommendationsResponse response = skillService.getSkillRecommendations(userId);
-    return ResponseEntity.ok(ApiResult.success(response));
-  }
 }

@@ -3,8 +3,6 @@ package com.carix.dashboard;
 import com.carix.common.ApiResult;
 import com.carix.common.ErrorResponse;
 import com.carix.dashboard.dto.DashboardSummaryResponse;
-import com.carix.dashboard.dto.IndexPredictionRequest;
-import com.carix.dashboard.dto.IndexPredictionResponse;
 import com.carix.dashboard.dto.SalaryDistributionResponse;
 import com.carix.dashboard.dto.SkillDemandListResponse;
 import com.carix.dashboard.dto.SnapshotHistoryResponse;
@@ -16,14 +14,11 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import jakarta.validation.Valid;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -266,42 +261,5 @@ public class DashboardController {
                         "1.2.0",
                         new SnapshotHistoryResponse.SnapshotRationale(
                             List.of("..."), List.of("..."), LocalDate.of(2026, 7, 1)))))));
-  }
-
-  @Operation(
-      summary = "가상 소비/소득 변화에 따른 지수 예측 시뮬레이션",
-      description = "예상되는 가상의 연봉 인상률 및 지출 절감액을 적용하여 미래 구매력 지수 예측 변동치를 계산합니다.")
-  @ApiResponses({
-    @ApiResponse(responseCode = "200", description = "예측 성공"),
-    @ApiResponse(
-        responseCode = "400",
-        description = "잘못된 입력값",
-        content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
-  })
-  @PostMapping("/predict")
-  public ResponseEntity<ApiResult<IndexPredictionResponse>> predictIndices(
-      @Valid @RequestBody IndexPredictionRequest request) {
-    double currentVal = 94.2;
-    double futureVal =
-        currentVal
-            + (request.futureExpectedRaiseRate() * 0.8)
-            - (request.futureMonthlyExpenseChange() / 100000.0 * 0.9);
-    double diff = futureVal - currentVal;
-    String status = diff >= 0 ? "INCREASED" : "DECREASED";
-
-    String rationale =
-        String.format(
-            "연봉이 %.1f%% 인상되고 월 지출을 %,d원 %s하면 실질 가처분 소득이 변화하여, 구매력 지수가 현재 %.1f에서 %.1f로 약 %.1fp %s할 것으로 추정됩니다.",
-            request.futureExpectedRaiseRate(),
-            Math.abs(request.futureMonthlyExpenseChange()),
-            request.futureMonthlyExpenseChange() < 0 ? "절감" : "증가",
-            currentVal,
-            futureVal,
-            Math.abs(diff),
-            diff >= 0 ? "상승" : "하락");
-
-    return ResponseEntity.ok(
-        ApiResult.success(
-            new IndexPredictionResponse(currentVal, futureVal, diff, status, rationale)));
   }
 }
