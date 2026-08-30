@@ -144,8 +144,8 @@ gantt
 
 | 주차 | Member A (소득 & PPI) | Member B (스킬 & MVI) | Member C (인증 & 결정 & 시뮬레이터) |
 | :--- | :--- | :--- | :--- |
-| **0주차<br>(사전정렬)**<br>08-29~09-03 | ~~• **임금통계 기준선 데이터 확보 (§5-A)**~~ (완료)<br>• CPI 수집 스키마 확정<br>• 소득/소비 DDL 확정<br>• CPI 수집 파이프라인 대기 | ~~• 공고/임금 통계 스키마 확정~~ (완료)<br>~~• 표준 스킬 사전 포맷 정의~~ (완료)<br>~~• **collector 관리자 직접 구동 연동·배포 배선 (§5-C)**~~ (완료)<br>~~• **Job 4 core-api 전담 소유 결정 (§5-I)**~~ (완료) | ~~• 이메일 provider 선정~~ (불필요 — 메일 발송 경로 없음)<br>~~• DB 마이그레이션 방식 통일~~ (완료)<br>~~• PPI/MVI 계약 DTO + 스텁~~ (완료 — `com.carix.index`)<br>~~• 프론트엔드 라우팅/레이아웃/Theme~~ (완료)<br>• **세션 게이트 (§5-B)** — `/api/health` 예외 처리가 선행<br>~~• SSR Phase 2 범위 결정 (§5-F) 및 명세 3건 갱신~~ (완료) |
-| **1~2주차<br>(인프라 & 파이프라인)**<br>09-03~09-17 | • 통계청 CPI 수집 파이프라인 (`b0` 기반)<br>• `income_history`, `expense_*` CRUD API | ~~• 채용공고/임금 수집 파이프라인~~ (08-25 완료)<br>~~• 표준 스킬 사전 정제 & 검색 API~~ (08-24 완료)<br>• **스킬 수요 지수 & MVI 계산 엔진** 착수 | ~~• 인증 재설계·테스트·프록시·`S-01~03` UI~~ (완료)<br>• **월별 스냅샷 멱등성 저장/재계산 엔진 (Job 4)**<br>• **결정 신호 판정 엔진** (기존 3변수 규칙표 기준) |
+| **0주차<br>(사전정렬)**<br>08-29~09-03 | ~~• **임금통계 기준선 데이터 확보 (§5-A)**~~ (완료)<br>• CPI 수집 스키마 확정<br>• 소득/소비 DDL 확정<br>• CPI 수집 파이프라인 대기 | ~~• 공고/임금 통계 스키마 확정~~ (완료)<br>~~• 표준 스킬 사전 포맷 정의~~ (완료)<br>~~• **collector 관리자 직접 구동 연동·배포 배선 (§5-C)**~~ (완료)<br>~~• **Job 4 core-api 전담 소유 결정 (§5-I)**~~ (완료) | ~~• 이메일 provider 선정~~ (불필요 — 메일 발송 경로 없음)<br>~~• DB 마이그레이션 방식 통일~~ (완료)<br>~~• PPI/MVI 계약 DTO + 스텁~~ (완료 — `com.carix.index`)<br>~~• 프론트엔드 라우팅/레이아웃/Theme~~ (완료)<br>• **세션 게이트 (§5-B)** — 배선 완료, 플래그 전환만 남음<br>~~• SSR Phase 2 범위 결정 (§5-F) 및 명세 3건 갱신~~ (완료) |
+| **1~2주차<br>(인프라 & 파이프라인)**<br>09-03~09-17 | • 통계청 CPI 수집 파이프라인 (`b0` 기반)<br>• `income_history`, `expense_*` CRUD API | ~~• 채용공고/임금 수집 파이프라인~~ (08-25 완료)<br>~~• 표준 스킬 사전 정제 & 검색 API~~ (08-24 완료)<br>• **스킬 수요 지수 & MVI 계산 엔진** 착수 | ~~• 인증 재설계·테스트·프록시·`S-01~03` UI~~ (완료)<br>• **세션 게이트 플래그 전환 (§5-B)** — 이 구간 첫 작업, A·B 조율 후<br>• `career_profile` 영속화 (엔티티·리포지토리·실 `GET`/`PATCH /profile`. 화면 `S-05,09` 는 3~4주차)<br>• `CurrentSalaryProvider` 계약 합의 (§5-E 앞당김분)<br>• **월별 스냅샷 멱등성 저장/재계산 엔진 (Job 4)**<br>• **결정 신호 판정 엔진** (기존 3변수 규칙표 기준) |
 | **3~4주차<br>(핵심 계산 엔진)**<br>09-17~10-01 | • **개인물가 & 구매력 지수(PPI) 계산 엔진**<br>• 소비 가중치 전파(`PROPAGATED`) 로직<br>• **연봉 암호화 키 로테이션·스냅샷 복호화 경계 (§5-E)** | • 동료집단 완화 알고리즘 (N<10 클램프)<br>• `S-08` 스킬 입력 & 자동완성 UI<br>• `S-14` 연봉분포·수요 **차트 컴포넌트**<br>• `GET /dashboard/salary-distribution` (§5-J) | • `S-05, S-09` 프로필/검토 온보딩 UI<br>• `S-10` **대시보드 메인**<br>• `S-15` **시뮬레이터 UI** |
 | **5~6주차<br>(UI & 시각화 완성)**<br>10-01~10-11 | • `S-06, S-07` 소득/소비 온보딩 UI<br>• `S-14` 소득vs물가 **차트 컴포넌트** | • `S-11` 월별 스냅샷 이력 UI<br>• `S-13` 설정·계정 삭제 UI<br>• `S-16` **관리자 파이프라인 콘솔 UI** | • `S-12` **이력 관리 화면 전체** (소득·소비·스킬 탭)<br>• `S-14` **추이분석 화면 셸** + A·B 차트 조립<br>• `GET /dashboard/trends` API |
 | **7주차<br>(E2E 통합 검증)**<br>10-12~10-17 | • PPI 엣지케이스(지연/결측) 검증<br>• **민감 금액 로깅 마스킹 점검** (소득·소비 경로) | • MVI 표본부족(N<10) 엣지케이스 검증<br>• 실데이터 파이프라인 통합 점검<br>• **민감 금액 로깅 마스킹 점검** (집계·파이프라인 경로) | • 온보딩 $\rightarrow$ 대시보드 $\rightarrow$ 시뮬레이터 E2E 점검<br>• 계정 삭제 시 개인 데이터 완전 삭제 검증<br>• **민감 금액 로깅 마스킹 점검** (시나리오 요청·스냅샷 복호화 경로) |
@@ -168,6 +168,7 @@ gantt
 flowchart TD
     subgraph MemberA ["Member A (소득 & PPI)"]
         PPI_OUT["PurchasingPowerIndexProvider<br>calculate(userId, ym)"]
+        SAL_OUT["CurrentSalaryProvider<br>currentGrossSalary(userId, ym)"]
     end
 
     subgraph MemberB ["Member B (스킬 & MVI)"]
@@ -176,17 +177,19 @@ flowchart TD
 
     subgraph MemberC ["Member C (스냅샷 & 대시보드)"]
         SNAP_ENG["Snapshot Recalculation Service<br>recalculateSnapshot(userId, fromYm)"]
-        DEC_ENG["Decision Signal Engine<br>evaluateSignal(ppi, mvi, careerProfile)"]
+        DEC_ENG["Decision Signal Engine<br>evaluateSignal(ppi, mvi, salary)"]
     end
 
     PPI_OUT --> SNAP_ENG
     MVI_OUT --> SNAP_ENG
+    SAL_OUT --> DEC_ENG
     SNAP_ENG --> DEC_ENG
 ```
 
 1. **지수 산출 결과 계약 (A, B $\rightarrow$ C)** — `core-api` 의 `com.carix.index` 에 확정돼 있다:
    - Member A는 `PurchasingPowerIndexProvider.calculate(userId, baseYearMonth)` 를 구현해 `PpiResult`(지수값, 상태, 소비 가중치 출처, 지수 기준월, CPI 원천 기준일)를 반환
    - Member B는 `MarketValueIndexProvider.calculate(userId, baseYearMonth)` 를 구현해 `MviResult`(지수값, 상태, **원천별** 완화 단계·표본 수, 제외 스킬과 사유, 임금통계 기준선, 집계 기준일)를 반환
+   - Member A는 `CurrentSalaryProvider.currentGrossSalary(userId, baseYearMonth)` 도 구현해 기준월 시점에 유효한 세전 연봉을 반환한다. 결정 신호 규칙표의 **소득 격차 비율**은 이 값을 분모로 쓰는데 `PpiResult`·`MviResult` 어디에도 없어 규칙 2·3·5 가 계산되지 않았다. 연봉을 `PpiResult` 에 실으면 평문 금액이 스냅샷 `rationale` 경로까지 흘러가므로 계약을 따로 둔다. 복호화 경계는 소득 도메인 안에 남는다(§5-E)
    - 계산 불가는 예외가 아니라 `IndexStatus` 로 돌려준다. 값은 `null` 이고 0 이나 100 으로 채우지 않는다
    - 구현 빈이 없는 동안 `com.carix.index.stub` 이 `NOT_AVAILABLE` 을 돌려주므로 C 는 A·B 를 기다리지 않고 3~4주차를 시작할 수 있다
 2. **스냅샷 재계산 트리거 (A, B $\rightarrow$ C)**:
@@ -214,36 +217,40 @@ flowchart TD
 | # | 작업 | 담당 | 시점 | 잔여 범위 | 무엇을 막는가 |
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | 5-A | ~~임금통계 기준선 데이터 확보~~ | A/B | 0주차 (`a0`, **완료**) | KOSIS 24구간 누적분포 보간 완료로 `core.wage_stat_observation`에 충분한 데이터 적재 완료됨 | MVI 연봉 격차, 결정 신호 3변수 규칙표 유지 |
-| 5-B | 세션 게이트 — Gateway 세션 검증 필터 + core-api `X-User-Id` 주입 | C | 0주차 | **선행: `/api/health` 를 필터 적용 대상에서 뺀다** (아래 경고 참조). 그 다음 두 작업을 하나로 묶는다. `carix.gateway.session-validation.enabled=true` + `/actuator/refresh`, core-api 는 인터셉터·ArgumentResolver 로 `X-User-Id` 를 주입한다 — 하류가 헤더를 신뢰하는 구조라 Spring Security 스타터는 필요 없다 | 모든 도메인 API 의 `userId` 확보 경로. **A·B·C 전원** |
+| 5-B | 세션 게이트 — Gateway 세션 검증 필터 + core-api `X-User-Id` 주입 | C | 0주차 | 배선은 끝났다 — 게이트웨이 필터, `/api/health` 의 `core-health` 라우트 분리, core-api 수신부(`@CurrentUserId`·`UserContextArgumentResolver`, 헤더 없으면 401)까지 배포돼 있다. 하류가 헤더를 신뢰하는 구조라 Spring Security 스타터는 쓰지 않는다. **잔여는 운영 전환뿐** — `carix.gateway.session-validation.enabled=true` + `/actuator/refresh`, 그리고 아래 롤백 절차 | 모든 도메인 API 의 `userId` 확보 경로. **A·B·C 전원** |
 | 5-C | ~~collector 관리자 직접 구동 및 Spring Scheduler 연동 · 배포 배선~~ | B | 0주차 (`b0`, **완료**) | 내부 API 및 배포 배선(`docker-compose.yml`·`deploy.yml`) 완료. 잔여는 **관리자 콘솔 화면(S-16 Admin UI) 연동 및 Spring Scheduler(`@Scheduled`) 도입 검토** | 수집 파이프라인 관리자 콘솔 연동 및 스케줄러 확정 |
-| 5-E | 연봉 컬럼 암호화 키 로테이션 · 스냅샷 복호화 경계 | A (스냅샷 접근 경계는 core-api 내부 C 와 합의) | 3~4주차 | [SECURITY §3.2](../SECURITY.md)가 "구현 단계 처리"로 남긴 항목. 키 로테이션 절차, 로테이션 시 기존 암호문 재암호화 전략, 스냅샷 복호화 성능·키 접근 감사 | 소득 저장(A)과 스냅샷 재계산의 연봉 복호화(C) |
+| 5-E | 연봉 컬럼 암호화 키 로테이션 · 스냅샷 복호화 경계 | A (스냅샷 접근 경계는 core-api 내부 C 와 합의) | **1~2주차 초** (`CurrentSalaryProvider` 계약 합의분), 키 로테이션 절차는 3~4주차 | [SECURITY §3.2](../SECURITY.md)가 "구현 단계 처리"로 남긴 항목. **`CurrentSalaryProvider` 계약(§4)이 복호화 경계를 A 안에 고정하므로 먼저 합의한다** — C 의 결정 엔진이 1~2주차에 이 계약을 쓴다. 키 로테이션 절차, 로테이션 시 기존 암호문 재암호화 전략, 스냅샷 복호화 성능·키 접근 감사는 3~4주차 | 소득 저장(A)과 스냅샷 재계산의 연봉 복호화(C) |
 | 5-I | ~~스냅샷 갱신(Job 4) 실행 주체 결정~~ | B·C | 0주차 (**완료**) | `core-api`가 전담하여 스냅샷 갱신(`recalculateSnapshot`) 수행 확정 | C 의 스냅샷 엔진 실행 경로 확정 |
 | 5-J | `GET /dashboard/salary-distribution` 구현 소유 | B | `b3` (3~4주차) | [API 규격 §5.2](../specs/api-specification.md)가 `market_aggregate` 가 아니라 **원 공고(`job_posting`) 직접 집계**를 규정한다 — `dedup_group_id` 중복 제거와 유효 공개연봉 필터가 필요해 수집 데이터를 아는 B 가 맡는다. 화면 셸은 C(`S-14`) | `S-14` 연봉 분포 차트, 시뮬레이터 `feasibility` |
 
 세션 검증은 게이트웨이가 수행하고 하류 서비스는 `X-User-Id` 헤더를 신뢰한다
 ([SECURITY §3.2](../SECURITY.md), [Spring Cloud 아키텍처](../specs/spring-cloud-architecture.md)).
 게이트웨이 쪽은 이미 구현돼 있다 — `SessionValidationGatewayFilterFactory` 가 검증 후
-`X-User-Id` 를 주입하므로 5-B 의 잔여는 core-api 수신부와 아래 경고 처리다.
+`X-User-Id` 를 주입하고 core-api 수신부도 배선돼 있어 5-B 의 잔여는 아래 플래그 전환 절차다.
 
-> **⚠️ 플래그를 그냥 켜면 배포 파이프라인이 멈춘다.**
-> core 라우트 술어는 `Path=/api/v1/**,/api/health,/api/swagger-ui/**,/api/v3/api-docs/**`
-> 이고 여기 `SessionValidation` 필터가 붙는다
-> (`backend/gateway/src/main/resources/application.yml`). 필터에는 **경로 예외가 없어**
-> `session_token` 쿠키가 없으면 즉시 401 이다. 배포 워크플로는 쿠키 없이
-> `/api/health` 를 호출해 200 을 요구하고(`.github/workflows/deploy.yml`), 실패하면 자동
-> 롤백이 도는데 그 롤백은 `.env`(이미지 태그)만 되돌린다. 플래그는
-> `config/spring/gateway.yml` 에 있고 config-server 는 서버 git 체크아웃을 읽으므로
-> **다음 배포도 같은 자리에서 죽는다.**
+> **⚠️ 플래그는 순서를 지켜 켠다.**
+> core 라우트 술어는 `Path=/api/v1/**,/api/swagger-ui/**,/api/v3/api-docs/**` 이고 여기
+> `SessionValidation` 필터가 붙는다 (`backend/gateway/src/main/resources/application.yml`).
+> 필터에 경로 예외가 없어 `session_token` 쿠키가 없으면 즉시 401 이다.
 >
-> 따라서 5-B 는 이 순서로만 진행한다:
-> 1. `/api/health` 를 core 라우트 술어에서 분리하거나 필터 예외로 뺀다.
->    `/api/swagger-ui/**`·`/api/v3/api-docs/**` 도 운영 노출 여부와 함께 판단한다
-> 2. 그 변경을 먼저 배포하고 헬스체크 통과를 확인한다
-> 3. 그 뒤에 `carix.gateway.session-validation.enabled=true` 로 올린다
-> 4. 되돌릴 때는 `.env` 롤백으로 부족하다 — `config/spring/gateway.yml` 을 직접 되돌리고
->    `/actuator/refresh` 를 호출한다. 이 절차의 실행 담당은 C 다
+> `/api/health` 는 필터가 붙지 않는 `core-health` 라우트(`order: -15`)로 분리돼 있다. 배포
+> 워크플로가 쿠키 없이 `/api/health` 200 을 요구하는데(`.github/workflows/deploy.yml`) 필터가
+> 붙어 있으면 배포가 401 로 죽고, 자동 롤백은 `.env`(이미지 태그)만 되돌리는 반면 플래그는
+> `config/spring/gateway.yml` 에 있어 다음 배포도 같은 자리에서 죽기 때문이다. `order` 를 명시한
+> 이유는 따로 있다 — `web`(`Path=/**`, order 0)과 같으면 `/api/health` 가 프런트엔드로 흘러
+> SPA 셸을 200 으로 돌려주고, core-api 가 죽어 있어도 헬스체크가 통과한다.
 >
-> 켜는 순간 세션 없는 `core-api` 호출은 전부 401 이 되므로 팀 조율 후 켠다.
+> `/api/swagger-ui/**`·`/api/v3/api-docs/**` 는 `core` 라우트에 남긴다. 플래그를 켜면 문서도
+> 세션을 요구하지만 같은 출처 요청이라 로그인한 개발자의 브라우저는 쿠키를 실어 보내 그대로
+> 열리고, 쿠키 없는 접근에는 API 표면이 닫힌다. 쿠키 없이 스펙을 읽는 소비자는 현재 없다.
+>
+> 남은 절차:
+> 1. 서버 config 체크아웃에서 `carix.gateway.session-validation.enabled=true` 로 올리고
+>    게이트웨이 `/actuator/refresh` 를 호출한다
+> 2. 되돌릴 때는 `.env` 롤백으로 부족하다 — `config/spring/gateway.yml` 을 직접 되돌리고
+>    `/actuator/refresh` 를 다시 호출한다
+>
+> 실행 담당은 C 다. 켜는 순간 세션 없는 `core-api` 호출은 전부 401 이 되므로 팀 조율 후 켠다.
 
 ### 5-F. SSR Phase 2 — MVP 범위 밖으로 이동
 
