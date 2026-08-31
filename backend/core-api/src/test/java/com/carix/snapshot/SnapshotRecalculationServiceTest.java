@@ -1,0 +1,195 @@
+package com.carix.snapshot;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+import com.carix.index.CurrentSalary;
+import com.carix.index.CurrentSalaryProvider;
+import com.carix.index.ExpenseWeightStatus;
+import com.carix.index.IndexStatus;
+import com.carix.index.MarketValueIndexProvider;
+import com.carix.index.MviResult;
+import com.carix.index.PpiResult;
+import com.carix.index.PurchasingPowerIndexProvider;
+import com.carix.index.SourceCoverage;
+import com.carix.index.WageBaseline;
+import com.carix.snapshot.domain.IndexSnapshot;
+import com.carix.snapshot.repository.IndexSnapshotRepository;
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
+import org.springframework.boot.jdbc.test.autoconfigure.AutoConfigureTestDatabase;
+
+@DataJpaTest
+@AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
+class SnapshotRecalculationServiceTest {
+
+  private static final String CURRENT_YM = "202607";
+
+  @Autowired private IndexSnapshotRepository indexSnapshotRepository;
+
+  private UUID userId;
+  private StubProviders providers;
+  private FixedIssuer issuer;
+  private SnapshotRecalculationService service;
+
+  @BeforeEach
+  void setUp() {
+    userId = UUID.randomUUID();
+    providers = new StubProviders();
+    issuer = new FixedIssuer();
+    service =
+        new SnapshotRecalculationService(
+            providers,
+            new StubMviProvider(),
+            providers,
+            new DecisionSignalEngine(),
+            issuer,
+            indexSnapshotRepository,
+            () -> CURRENT_YM);
+  }
+
+  @Test
+  @DisplayName("fromYm 부터 현재월까지 각 월에 스냅샷을 기록한다")
+  void recalculate_writesRowForEachMonthInRange() {
+    int written = service.recalculateSnapshot(userId, "202605");
+
+    assertThat(written).isEqualTo(3);
+    assertThat(indexSnapshotRepository.findByUserIdOrderByBaseYearMonthDesc(userId))
+        .extracting(IndexSnapshot::getBaseYearMonth)
+        .containsExactly("202607", "202606", "202605");
+  }
+
+  @Test
+  @DisplayName("한 번의 호출은 모든 월에 같은 data_version 을 쓴다 — 발급 단위는 실행이다")
+  void recalculate_usesOneDataVersionPerRun() {
+    service.recalculateSnapshot(userId, "202605");
+
+    assertThat(indexSnapshotRepository.findByUserIdOrderByBaseYearMonthDesc(userId))
+        .extracting(IndexSnapshot::getDataVersion)
+        .containsOnly("20260701093000-000");
+  }
+
+  @Test
+  @DisplayName("CPI 최신월 결측(UPDATE_DELAYED)인 월은 행을 만들지 않는다 — 갭으로 남긴다")
+  void recalculate_skipsMonthWhenCpiDelayed() {
+    providers.delayedMonths = List.of("202606");
+
+    int written = service.recalculateSnapshot(userId, "202605");
+
+    assertThat(written).isEqualTo(2);
+    assertThat(indexSnapshotRepository.findByUserIdOrderByBaseYearMonthDesc(userId))
+        .extracting(IndexSnapshot::getBaseYearMonth)
+        .containsExactly("202607", "202605");
+  }
+
+  @Test
+  @DisplayName("연봉이 없으면 행을 만들되 데이터 부족으로 기록한다 — 스킵하지 않는다")
+  void recalculate_writesInsufficientDataRowWhenSalaryMissing() {
+    providers.salary = null;
+
+    service.recalculateSnapshot(userId, CURRENT_YM);
+
+    IndexSnapshot snapshot =
+        indexSnapshotRepository.findByUserIdOrderByBaseYearMonthDesc(userId).get(0);
+    assertThat(snapshot.getDecisionSignal()).isEqualTo(DecisionSignalCode.INSUFFICIENT_DATA);
+    assertThat(snapshot.getRationale().salaryGapRatio()).isNull();
+  }
+
+  @Test
+  @DisplayName("같은 버전으로 재실행하면 행이 대체되고 늘어나지 않는다")
+  void recalculate_isIdempotentWhenVersionIsFixed() {
+    issuer.fixed = true;
+
+    service.recalculateSnapshot(userId, CURRENT_YM);
+    service.recalculateSnapshot(userId, CURRENT_YM);
+
+    assertThat(indexSnapshotRepository.findByUserIdAndBaseYearMonth(userId, CURRENT_YM)).hasSize(1);
+  }
+
+  @Test
+  @DisplayName("rationale 에 금액을 남기지 않는다 — 격차 비율만 있고 중앙값은 없다")
+  void recalculate_rationaleCarriesNoAmount() {
+    service.recalculateSnapshot(userId, CURRENT_YM);
+
+    IndexSnapshot snapshot =
+        indexSnapshotRepository.findByUserIdOrderByBaseYearMonthDesc(userId).get(0);
+    assertThat(snapshot.getRationale().salaryGapRatio()).isNotNull();
+    assertThat(snapshot.getRationale().wageStatVintage()).isEqualTo("202606");
+    assertThat(snapshot.getRationale().toString())
+        .doesNotContain("72000000")
+        .doesNotContain("60000000");
+  }
+
+  /**
+   * PPI·연봉 provider 를 한 객체로 구현한 테스트용 자리표.
+   *
+   * <p>MVI 는 별도 클래스({@link StubMviProvider})다 — {@link PurchasingPowerIndexProvider} 와 {@link
+   * MarketValueIndexProvider} 가 똑같은 시그니처 {@code calculate(UUID, String)} 를 반환형만 다르게 선언해서, 한 클래스가 둘을
+   * 동시에 구현할 수 없다(JLS 8.4.8.3 — 반환형만 다른 메서드는 오버로드가 아니라 충돌이다).
+   */
+  private static final class StubProviders
+      implements PurchasingPowerIndexProvider, CurrentSalaryProvider {
+
+    private List<String> delayedMonths = List.of();
+    private CurrentSalary salary = new CurrentSalary(60_000_000L, LocalDate.of(2026, 1, 1));
+
+    @Override
+    public PpiResult calculate(UUID userId, String baseYearMonth) {
+      if (delayedMonths.contains(baseYearMonth)) {
+        return new PpiResult(
+            baseYearMonth,
+            null,
+            IndexStatus.UPDATE_DELAYED,
+            ExpenseWeightStatus.USER_DEFINED,
+            null,
+            null);
+      }
+      return new PpiResult(
+          baseYearMonth,
+          new BigDecimal("94.20"),
+          IndexStatus.OK,
+          ExpenseWeightStatus.USER_DEFINED,
+          "202601",
+          LocalDate.of(2026, 7, 1));
+    }
+
+    @Override
+    public Optional<CurrentSalary> currentGrossSalary(UUID userId, String baseYearMonth) {
+      return Optional.ofNullable(salary);
+    }
+  }
+
+  /** MVI provider 자리표. 어느 테스트도 MVI 결과를 바꾸지 않아 상태 없이 고정값만 돌려준다. */
+  private static final class StubMviProvider implements MarketValueIndexProvider {
+
+    @Override
+    public MviResult calculate(UUID userId, String baseYearMonth) {
+      return new MviResult(
+          baseYearMonth,
+          new BigDecimal("117.50"),
+          IndexStatus.OK,
+          List.of(new SourceCoverage("SARAMIN", 1, 40, "서울 전체", new BigDecimal("42.5"))),
+          List.of(),
+          new WageBaseline(72_000_000L, "초과급여 제외, 상여 포함", "202606"),
+          LocalDate.of(2026, 7, 1));
+    }
+  }
+
+  /** 고정 발급기. 이게 없으면 매 실행이 새 버전을 받아 대체 경로가 한 번도 실행되지 않는다. */
+  private static final class FixedIssuer implements DataVersionIssuer {
+    private boolean fixed = false;
+    private int sequence = 0;
+
+    @Override
+    public String issue(UUID userId) {
+      return fixed ? "20260701093000-000" : "20260701093000-%03d".formatted(sequence++);
+    }
+  }
+}
