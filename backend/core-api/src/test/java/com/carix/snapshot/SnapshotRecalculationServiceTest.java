@@ -78,23 +78,44 @@ class SnapshotRecalculationServiceTest {
   }
 
   @Test
-  @DisplayName("CPI 최신월 결측(UPDATE_DELAYED)인 월은 행을 만들지 않는다 — 갭으로 남긴다")
-  void recalculate_skipsMonthWhenCpiDelayed() {
+  @DisplayName("과거월의 UPDATE_DELAYED 는 스킵하지 않는다 — 행을 만들고 데이터 부족으로 기록한다")
+  void recalculate_writesInsufficientDataRowWhenPastMonthCpiDelayed() {
+    // 스킵은 최신월(=currentYearMonth) 에만 적용된다 (기술 명세 §1.2, 기능 명세 §4.3). 202606 은
+    // 202605~202607 범위의 중간월이라 스킵 대상이 아니다 — 행을 만들고 PPI 는 NULL, 신호는
+    // INSUFFICIENT_DATA 로 기록해야 한다.
     providers.ppiStatusOverrides = Map.of("202606", IndexStatus.UPDATE_DELAYED);
+
+    int written = service.recalculateSnapshot(userId, "202605");
+
+    assertThat(written).isEqualTo(3);
+    assertThat(indexSnapshotRepository.findByUserIdOrderByBaseYearMonthDesc(userId))
+        .extracting(IndexSnapshot::getBaseYearMonth)
+        .containsExactly("202607", "202606", "202605");
+
+    IndexSnapshot delayedMonth =
+        indexSnapshotRepository.findByUserIdAndBaseYearMonth(userId, "202606").get(0);
+    assertThat(delayedMonth.getPurchasingPowerIndex()).isNull();
+    assertThat(delayedMonth.getDecisionSignal()).isEqualTo(DecisionSignalCode.INSUFFICIENT_DATA);
+  }
+
+  @Test
+  @DisplayName("CPI 최신월 결측(UPDATE_DELAYED)인 월은 행을 만들지 않는다 — 갭으로 남긴다")
+  void recalculate_skipsLatestMonthWhenCpiDelayed() {
+    providers.ppiStatusOverrides = Map.of(CURRENT_YM, IndexStatus.UPDATE_DELAYED);
 
     int written = service.recalculateSnapshot(userId, "202605");
 
     assertThat(written).isEqualTo(2);
     assertThat(indexSnapshotRepository.findByUserIdOrderByBaseYearMonthDesc(userId))
         .extracting(IndexSnapshot::getBaseYearMonth)
-        .containsExactly("202607", "202605");
+        .containsExactly("202606", "202605");
   }
 
   @Test
-  @DisplayName("PPI 가 NOT_AVAILABLE(값 없음, 지연 아님)이어도 행을 만든다 — 갭은 UPDATE_DELAYED 뿐이다")
+  @DisplayName("PPI 가 NOT_AVAILABLE(값 없음, 지연 아님)이어도 행을 만든다 — 갭은 최신월의 UPDATE_DELAYED 뿐이다")
   void recalculate_writesRowWhenPpiNotAvailable() {
-    // UPDATE_DELAYED 만 갭이어야 한다. status 대신 value == null 로 스킵을 판단하는 회귀를 잡는 케이스 —
-    // 이 케이스는 값이 없지만 지연이 아니므로 행이 있어야 한다.
+    // 최신월의 UPDATE_DELAYED 만 갭이어야 한다. status 대신 value == null 로 스킵을 판단하는 회귀를 잡는
+    // 케이스 — 이 케이스는 값이 없지만 지연이 아니므로 행이 있어야 한다.
     providers.ppiStatusOverrides = Map.of(CURRENT_YM, IndexStatus.NOT_AVAILABLE);
 
     int written = service.recalculateSnapshot(userId, CURRENT_YM);
@@ -109,8 +130,8 @@ class SnapshotRecalculationServiceTest {
   @Test
   @DisplayName("PPI 가 INSUFFICIENT_HISTORY(값 100, OK 아님)면 갭이 아니라 정상 행을 만든다")
   void recalculate_writesRowWhenPpiInsufficientHistory() {
-    // 값이 있으면서 OK 가 아닌 유일한 상태다 — status == UPDATE_DELAYED 판정과 value == null 판정이
-    // 갈라지는 반대 방향 케이스. 값이 있으니 스킵되면 안 된다.
+    // 값이 있으면서 OK 가 아닌 유일한 상태다 — status == UPDATE_DELAYED && 최신월 판정과 value == null
+    // 판정이 갈라지는 반대 방향 케이스. 값이 있으니 스킵되면 안 된다.
     providers.ppiStatusOverrides = Map.of(CURRENT_YM, IndexStatus.INSUFFICIENT_HISTORY);
 
     int written = service.recalculateSnapshot(userId, CURRENT_YM);

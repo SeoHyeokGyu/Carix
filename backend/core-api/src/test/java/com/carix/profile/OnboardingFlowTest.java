@@ -1,5 +1,6 @@
 package com.carix.profile;
 
+import static org.hamcrest.Matchers.nullValue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -64,6 +65,7 @@ class OnboardingFlowTest {
                                 """))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.success").value(true))
+        .andExpect(jsonPath("$.message").value("프로필이 수정되었습니다."))
         .andExpect(jsonPath("$.data.jobFamily").value("DEVELOPER"))
         .andExpect(jsonPath("$.data.yearsOfExperience").value(5))
         .andExpect(jsonPath("$.data.region").value("SEOUL_GANGNAM"));
@@ -177,5 +179,33 @@ class OnboardingFlowTest {
   @Test
   void 헤더가_없으면_프로필_조회는_401_이다() throws Exception {
     mockMvc.perform(get("/v1/profile")).andExpect(status().isUnauthorized());
+  }
+
+  @Test
+  void 컬럼_너비를_넘는_필드로_프로필을_수정하면_400_이다() throws Exception {
+    // career_profile.job_family 는 varchar(100) 이다 (deploy/postgres/schema/02_user_domain.sql).
+    // 검증 없이 그대로 저장 시도하면 DataIntegrityViolationException -> 500 이 난다.
+    String userId = "00000000-0000-0000-0000-000000000003";
+    String tooLongJobFamily = "가".repeat(101);
+
+    mockMvc
+        .perform(
+            patch("/v1/profile")
+                .header("X-User-Id", userId)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"jobFamily\":\"" + tooLongJobFamily + "\"}"))
+        .andExpect(status().isBadRequest());
+  }
+
+  @Test
+  void 프로필을_한번도_저장하지_않은_사용자를_조회하면_경력연차가_null_이다() throws Exception {
+    // GET /v1/profile 은 가입 직후 앱이 가장 먼저 호출하는 API다 — career_profile 행이 없는 경로가
+    // 실제로 HTTP 로 커버되는지 확인한다. 0 이 아니라 null 이어야 한다 (기술 명세 §1.2 NULL 허용 원칙).
+    String userId = "00000000-0000-0000-0000-000000000004";
+
+    mockMvc
+        .perform(get("/v1/profile").header("X-User-Id", userId))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.data.yearsOfExperience").value(nullValue()));
   }
 }

@@ -22,6 +22,12 @@ public class PostgresDataVersionIssuer implements DataVersionIssuer {
   private static final DateTimeFormatter SECOND_FORMAT =
       DateTimeFormatter.ofPattern("yyyyMMddHHmmss");
 
+  /** {@code data_version} 문자열에서 {@code NNN} 시퀀스가 시작하는 위치. {@code "yyyyMMddHHmmss-"} 는 15자다. */
+  private static final int SEQUENCE_OFFSET = 15;
+
+  /** {@code NNN} 이 3자리라 표현 가능한 최댓값. */
+  private static final int MAX_SEQUENCE = 999;
+
   private final EntityManager entityManager;
   private final Clock clock;
 
@@ -51,12 +57,31 @@ public class PostgresDataVersionIssuer implements DataVersionIssuer {
             .setParameter("prefix", second + "-%")
             .getSingleResult();
 
-    int nextSequence = max == null ? 0 : Integer.parseInt(max.toString().substring(15)) + 1;
-    if (nextSequence > 999) {
+    int nextSequence = nextSequence(max, userId, second);
+    return format(second, nextSequence);
+  }
+
+  /**
+   * 한 초 안에서 다음에 발급할 시퀀스. 기존 최댓값이 없으면(그 초의 첫 발급) 0 이다. {@code userId}·{@code second} 는 3자리를 초과했을 때
+   * 예외 메시지에만 쓰인다 — 순수 함수다.
+   *
+   * @throws IllegalStateException 다음 시퀀스가 999 를 넘으면(3자리 초과)
+   */
+  static int nextSequence(Object maxDataVersion, UUID userId, String second) {
+    int sequence =
+        maxDataVersion == null
+            ? 0
+            : Integer.parseInt(maxDataVersion.toString().substring(SEQUENCE_OFFSET)) + 1;
+    if (sequence > MAX_SEQUENCE) {
       throw new IllegalStateException(
           "data_version 시퀀스(NNN)가 3자리를 초과했다 — userId=%s, second=%s. 이 초 안에서 더 이상 발급할 수 없다."
               .formatted(userId, second));
     }
-    return "%s-%03d".formatted(second, nextSequence);
+    return sequence;
+  }
+
+  /** {@code YYYYMMDDHHMMSS-NNN} 형식으로 조립한다. 순수 함수다. */
+  static String format(String second, int sequence) {
+    return "%s-%03d".formatted(second, sequence);
   }
 }

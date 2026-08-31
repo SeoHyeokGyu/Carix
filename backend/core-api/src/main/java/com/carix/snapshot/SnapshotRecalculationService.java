@@ -83,19 +83,23 @@ public class SnapshotRecalculationService {
   /**
    * {@code fromYearMonth} 부터 현재월까지 스냅샷을 새 데이터 버전으로 다시 계산해 저장한다.
    *
-   * @return 실제로 기록한 월 수. CPI 발행 지연으로 건너뛴 월은 빠진다
+   * @return 실제로 기록한 월 수. CPI 최신월 발행 지연으로 건너뛴 월만 빠진다 — 과거월의 산출 불가는 행을 만들고 데이터 부족으로 기록한다
    */
   @Transactional
   public int recalculateSnapshot(UUID userId, String fromYearMonth) {
     String dataVersion = dataVersionIssuer.issue(userId);
     String ruleVersion = DecisionSignalEngine.RULE_VERSION;
+    String latestYearMonth = currentYearMonth.get();
     int written = 0;
 
-    for (String ym : monthsFrom(fromYearMonth)) {
+    for (String ym : monthsFrom(fromYearMonth, latestYearMonth)) {
       PpiResult ppi = ppiProvider.calculate(userId, ym);
-      if (ppi.status() == IndexStatus.UPDATE_DELAYED) {
-        // CPI 최신월 결측은 보간하지 않고 그 월을 만들지 않는다 (기능 명세 §4.3).
+      if (ppi.status() == IndexStatus.UPDATE_DELAYED && ym.equals(latestYearMonth)) {
+        // CPI 최신월 결측은 보간하지 않고 그 월을 만들지 않는다 (기능 명세 §4.3, 기술 명세 §1.2).
         // 화면은 마지막 계산월과 `업데이트 지연` 을 표시하고 선을 잇지 않는다.
+        // 과거월의 UPDATE_DELAYED 는 스킵하지 않는다 — 행을 만들고 지수를 NULL, decision_signal 을
+        // INSUFFICIENT_DATA 로 기록한다. 모든 산출 불가를 행 스킵으로 처리하면 §2.2 우선순위 1이 저장될
+        // 자리를 잃는다.
         continue;
       }
 
@@ -148,9 +152,9 @@ public class SnapshotRecalculationService {
             rationale));
   }
 
-  private List<String> monthsFrom(String fromYearMonth) {
+  private List<String> monthsFrom(String fromYearMonth, String toYearMonth) {
     YearMonth from = YearMonth.parse(fromYearMonth, YM);
-    YearMonth to = YearMonth.parse(currentYearMonth.get(), YM);
+    YearMonth to = YearMonth.parse(toYearMonth, YM);
     List<String> months = new ArrayList<>();
     for (YearMonth ym = from; !ym.isAfter(to); ym = ym.plusMonths(1)) {
       months.add(YM.format(ym));

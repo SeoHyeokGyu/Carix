@@ -15,12 +15,14 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
 import org.springframework.boot.jdbc.test.autoconfigure.AutoConfigureTestDatabase;
+import org.springframework.boot.jpa.test.autoconfigure.TestEntityManager;
 
 @DataJpaTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 class IndexSnapshotRepositoryTest {
 
   @Autowired private IndexSnapshotRepository indexSnapshotRepository;
+  @Autowired private TestEntityManager testEntityManager;
 
   private static SnapshotRationale rationale() {
     return new SnapshotRationale(
@@ -37,6 +39,7 @@ class IndexSnapshotRepositoryTest {
   @DisplayName("rationale 이 JSON 으로 저장되고 그대로 되읽힌다")
   void rationale_roundTripsThroughJsonColumn() {
     UUID userId = UUID.randomUUID();
+    SnapshotRationale original = rationale();
     indexSnapshotRepository.saveAndFlush(
         new IndexSnapshot(
             userId,
@@ -46,7 +49,11 @@ class IndexSnapshotRepositoryTest {
             new BigDecimal("94.20"),
             new BigDecimal("117.50"),
             DecisionSignalCode.SEEK_JOB,
-            rationale()));
+            original));
+
+    // saveAndFlush 만으로는 영속성 컨텍스트에 같은 인스턴스가 남아 있어 이후 조회가 캐시를 그대로 반환한다 —
+    // clear() 로 컨텍스트를 비워야 JSON 컬럼이 실제로 DB 에서 역직렬화된다.
+    testEntityManager.clear();
 
     IndexSnapshot found =
         indexSnapshotRepository
@@ -54,10 +61,20 @@ class IndexSnapshotRepositoryTest {
                 userId, "202607", "20260701093000-000", "1.0.0")
             .orElseThrow();
 
-    assertThat(found.getRationale().rulesApplied())
-        .containsExactly("연봉 격차 15% 이상", "보유 스킬 시장수요 상승세");
-    assertThat(found.getRationale().salaryGapRatio()).isEqualByComparingTo("0.2");
-    assertThat(found.getRationale().runId()).isEqualTo("20260701093000-000");
+    SnapshotRationale reread = found.getRationale();
+    assertThat(reread.rulesApplied()).containsExactly("연봉 격차 15% 이상", "보유 스킬 시장수요 상승세");
+    assertThat(reread.salaryGapRatio()).isEqualByComparingTo("0.2");
+    assertThat(reread.runId()).isEqualTo("20260701093000-000");
+
+    // 되읽은 rationale 이 원본과 값으로 동일한지 필드별로 확인한다. BigDecimal 은 JSON 왕복에서 scale 이
+    // 바뀔 수 있어(레코드의 기본 equals 는 scale 까지 비교) isEqualByComparingTo 로 따로 비교한다.
+    assertThat(reread.rulesApplied()).isEqualTo(original.rulesApplied());
+    assertThat(reread.salaryGapRatio()).isEqualByComparingTo(original.salaryGapRatio());
+    assertThat(reread.excludedSkills()).isEqualTo(original.excludedSkills());
+    assertThat(reread.cpiAsOf()).isEqualTo(original.cpiAsOf());
+    assertThat(reread.aggregateAsOf()).isEqualTo(original.aggregateAsOf());
+    assertThat(reread.wageStatVintage()).isEqualTo(original.wageStatVintage());
+    assertThat(reread.runId()).isEqualTo(original.runId());
   }
 
   @Test
@@ -125,9 +142,10 @@ class IndexSnapshotRepositoryTest {
   @DisplayName("조회 짝 선택 - 먼저 최신 data_version, 그 안에서 최신 rule_version 을 고른다")
   void latest_picksNewestDataVersionThenNewestRuleVersion() {
     UUID userId = UUID.randomUUID();
-    // 오래된 데이터 버전에 더 높은 규칙 버전이 달려 있어도, 데이터 버전이 먼저다
+    // 오래된 데이터 버전에 더 높은 규칙 버전이 달려 있어도, 데이터 버전이 먼저다 — 1.11.0 은 최신
+    // data_version 그룹의 어떤 rule_version 보다도 커서, 우선순위가 뒤바뀌면 이 행이 뽑힌다
     indexSnapshotRepository.saveAndFlush(
-        snapshot(userId, "20260701093000-000", "1.10.0", DecisionSignalCode.UPSKILL));
+        snapshot(userId, "20260701093000-000", "1.11.0", DecisionSignalCode.UPSKILL));
     indexSnapshotRepository.saveAndFlush(
         snapshot(userId, "20260801093000-000", "1.9.0", DecisionSignalCode.STAY));
     indexSnapshotRepository.saveAndFlush(

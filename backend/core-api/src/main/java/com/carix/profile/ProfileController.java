@@ -65,7 +65,8 @@ public class ProfileController {
   @PatchMapping("/profile")
   public ResponseEntity<ApiResult<ProfileResponse>> updateProfile(
       @CurrentUserId UUID userId, @Valid @RequestBody ProfileRequest request) {
-    return ResponseEntity.ok(ApiResult.success(profileService.patch(userId, request)));
+    return ResponseEntity.ok(
+        ApiResult.success(profileService.patch(userId, request), "프로필이 수정되었습니다."));
   }
 
   @Operation(summary = "온보딩 단계 상태 조회", description = "현재 진행 중인 온보딩 단계 및 완료 여부를 확인합니다.")
