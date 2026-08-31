@@ -17,6 +17,7 @@ import com.carix.snapshot.repository.IndexSnapshotRepository;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
@@ -79,7 +80,7 @@ class SnapshotRecalculationServiceTest {
   @Test
   @DisplayName("CPI 최신월 결측(UPDATE_DELAYED)인 월은 행을 만들지 않는다 — 갭으로 남긴다")
   void recalculate_skipsMonthWhenCpiDelayed() {
-    providers.delayedMonths = List.of("202606");
+    providers.ppiStatusOverrides = Map.of("202606", IndexStatus.UPDATE_DELAYED);
 
     int written = service.recalculateSnapshot(userId, "202605");
 
@@ -87,6 +88,37 @@ class SnapshotRecalculationServiceTest {
     assertThat(indexSnapshotRepository.findByUserIdOrderByBaseYearMonthDesc(userId))
         .extracting(IndexSnapshot::getBaseYearMonth)
         .containsExactly("202607", "202605");
+  }
+
+  @Test
+  @DisplayName("PPI 가 NOT_AVAILABLE(값 없음, 지연 아님)이어도 행을 만든다 — 갭은 UPDATE_DELAYED 뿐이다")
+  void recalculate_writesRowWhenPpiNotAvailable() {
+    // UPDATE_DELAYED 만 갭이어야 한다. status 대신 value == null 로 스킵을 판단하는 회귀를 잡는 케이스 —
+    // 이 케이스는 값이 없지만 지연이 아니므로 행이 있어야 한다.
+    providers.ppiStatusOverrides = Map.of(CURRENT_YM, IndexStatus.NOT_AVAILABLE);
+
+    int written = service.recalculateSnapshot(userId, CURRENT_YM);
+
+    assertThat(written).isEqualTo(1);
+    IndexSnapshot snapshot =
+        indexSnapshotRepository.findByUserIdOrderByBaseYearMonthDesc(userId).get(0);
+    assertThat(snapshot.getPurchasingPowerIndex()).isNull();
+    assertThat(snapshot.getDecisionSignal()).isEqualTo(DecisionSignalCode.INSUFFICIENT_DATA);
+  }
+
+  @Test
+  @DisplayName("PPI 가 INSUFFICIENT_HISTORY(값 100, OK 아님)면 갭이 아니라 정상 행을 만든다")
+  void recalculate_writesRowWhenPpiInsufficientHistory() {
+    // 값이 있으면서 OK 가 아닌 유일한 상태다 — status == UPDATE_DELAYED 판정과 value == null 판정이
+    // 갈라지는 반대 방향 케이스. 값이 있으니 스킵되면 안 된다.
+    providers.ppiStatusOverrides = Map.of(CURRENT_YM, IndexStatus.INSUFFICIENT_HISTORY);
+
+    int written = service.recalculateSnapshot(userId, CURRENT_YM);
+
+    assertThat(written).isEqualTo(1);
+    IndexSnapshot snapshot =
+        indexSnapshotRepository.findByUserIdOrderByBaseYearMonthDesc(userId).get(0);
+    assertThat(snapshot.getPurchasingPowerIndex()).isEqualByComparingTo("100.00");
   }
 
   @Test
@@ -137,27 +169,41 @@ class SnapshotRecalculationServiceTest {
   private static final class StubProviders
       implements PurchasingPowerIndexProvider, CurrentSalaryProvider {
 
-    private List<String> delayedMonths = List.of();
+    /** 월별 PPI 상태 override. 기본은 모든 월이 OK 다 — {@code delayedMonths} 를 일반화한 자리다. */
+    private Map<String, IndexStatus> ppiStatusOverrides = Map.of();
+
     private CurrentSalary salary = new CurrentSalary(60_000_000L, LocalDate.of(2026, 1, 1));
 
     @Override
     public PpiResult calculate(UUID userId, String baseYearMonth) {
-      if (delayedMonths.contains(baseYearMonth)) {
-        return new PpiResult(
-            baseYearMonth,
-            null,
-            IndexStatus.UPDATE_DELAYED,
-            ExpenseWeightStatus.USER_DEFINED,
-            null,
-            null);
-      }
-      return new PpiResult(
-          baseYearMonth,
-          new BigDecimal("94.20"),
-          IndexStatus.OK,
-          ExpenseWeightStatus.USER_DEFINED,
-          "202601",
-          LocalDate.of(2026, 7, 1));
+      IndexStatus status = ppiStatusOverrides.getOrDefault(baseYearMonth, IndexStatus.OK);
+      return switch (status) {
+        case UPDATE_DELAYED ->
+            new PpiResult(
+                baseYearMonth,
+                null,
+                IndexStatus.UPDATE_DELAYED,
+                ExpenseWeightStatus.USER_DEFINED,
+                null,
+                null);
+        case NOT_AVAILABLE -> PpiResult.notAvailable(baseYearMonth);
+        case INSUFFICIENT_HISTORY ->
+            new PpiResult(
+                baseYearMonth,
+                new BigDecimal("100.00"),
+                IndexStatus.INSUFFICIENT_HISTORY,
+                ExpenseWeightStatus.USER_DEFINED,
+                baseYearMonth,
+                LocalDate.of(2026, 7, 1));
+        default ->
+            new PpiResult(
+                baseYearMonth,
+                new BigDecimal("94.20"),
+                IndexStatus.OK,
+                ExpenseWeightStatus.USER_DEFINED,
+                "202601",
+                LocalDate.of(2026, 7, 1));
+      };
     }
 
     @Override
