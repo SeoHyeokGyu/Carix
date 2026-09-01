@@ -1,5 +1,6 @@
 package com.carix.index.stub;
 
+import com.carix.index.CurrentSalaryProvider;
 import com.carix.index.MarketValueIndexProvider;
 import com.carix.index.PurchasingPowerIndexProvider;
 import org.slf4j.Logger;
@@ -31,5 +32,12 @@ public class IndexProviderStubConfiguration {
   MarketValueIndexProvider stubMarketValueIndexProvider() {
     log.info("[지수계약] 시장가치 지수(MVI) 산출기가 아직 스텁입니다. 모든 요청이 NOT_AVAILABLE 을 돌려줍니다.");
     return new StubMarketValueIndexProvider();
+  }
+
+  @Bean
+  @ConditionalOnMissingBean(CurrentSalaryProvider.class)
+  CurrentSalaryProvider stubCurrentSalaryProvider() {
+    log.info("[지수계약] 현재 연봉 제공자가 아직 스텁입니다. 모든 요청이 빈 결과를 돌려줍니다.");
+    return new StubCurrentSalaryProvider();
   }
 }

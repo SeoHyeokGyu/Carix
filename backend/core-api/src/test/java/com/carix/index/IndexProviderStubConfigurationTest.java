@@ -3,6 +3,7 @@ package com.carix.index;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.carix.index.stub.IndexProviderStubConfiguration;
+import com.carix.index.stub.StubCurrentSalaryProvider;
 import com.carix.index.stub.StubMarketValueIndexProvider;
 import com.carix.index.stub.StubPurchasingPowerIndexProvider;
 import java.math.BigDecimal;
@@ -87,6 +88,19 @@ class IndexProviderStubConfigurationTest {
           assertThat(context.getBean(MarketValueIndexProvider.class).calculate(userId, "202608"))
               .extracting(MviResult::value, MviResult::status)
               .containsExactly(null, IndexStatus.NOT_AVAILABLE);
+        });
+  }
+
+  @Test
+  void 스텁은_연봉을_지어내지_않는다() {
+    runner.run(
+        context -> {
+          assertThat(context.getBean(CurrentSalaryProvider.class))
+              .isInstanceOf(StubCurrentSalaryProvider.class);
+          UUID userId = UUID.randomUUID();
+          assertThat(
+                  context.getBean(CurrentSalaryProvider.class).currentGrossSalary(userId, "202607"))
+              .isEmpty();
         });
   }
 }
