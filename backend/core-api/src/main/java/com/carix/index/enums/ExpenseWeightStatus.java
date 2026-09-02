@@ -1,4 +1,4 @@
-package com.carix.index;
+package com.carix.index.enums;
 
 /**
  * 소비 가중치의 출처. 도메인 정의서 §1.2 가 이 4종으로 고정했다 — {@code SEMI_ESTIMATED} 같은 다른 표기를 쓰지 않는다.

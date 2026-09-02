@@ -1,4 +1,4 @@
-package com.carix.index;
+package com.carix.index.dto;
 
 import java.math.BigDecimal;
 

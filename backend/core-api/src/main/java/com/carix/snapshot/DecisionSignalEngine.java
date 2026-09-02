@@ -1,9 +1,9 @@
 package com.carix.snapshot;
 
-import com.carix.index.CurrentSalary;
-import com.carix.index.MviResult;
-import com.carix.index.PpiResult;
-import com.carix.index.SourceCoverage;
+import com.carix.index.dto.CurrentSalary;
+import com.carix.index.dto.MviResult;
+import com.carix.index.dto.PpiResult;
+import com.carix.index.dto.SourceCoverage;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.List;

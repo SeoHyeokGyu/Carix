@@ -1,5 +1,7 @@
 package com.carix.index;
 
+import com.carix.index.dto.MviResult;
+import com.carix.index.enums.IndexStatus;
 import java.util.UUID;
 
 /**

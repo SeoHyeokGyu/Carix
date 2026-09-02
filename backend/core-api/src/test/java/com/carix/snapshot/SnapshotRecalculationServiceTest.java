@@ -2,16 +2,16 @@ package com.carix.snapshot;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.carix.index.CurrentSalary;
 import com.carix.index.CurrentSalaryProvider;
-import com.carix.index.ExpenseWeightStatus;
-import com.carix.index.IndexStatus;
 import com.carix.index.MarketValueIndexProvider;
-import com.carix.index.MviResult;
-import com.carix.index.PpiResult;
 import com.carix.index.PurchasingPowerIndexProvider;
-import com.carix.index.SourceCoverage;
-import com.carix.index.WageBaseline;
+import com.carix.index.dto.CurrentSalary;
+import com.carix.index.dto.MviResult;
+import com.carix.index.dto.PpiResult;
+import com.carix.index.dto.SourceCoverage;
+import com.carix.index.dto.WageBaseline;
+import com.carix.index.enums.ExpenseWeightStatus;
+import com.carix.index.enums.IndexStatus;
 import com.carix.snapshot.domain.IndexSnapshot;
 import com.carix.snapshot.repository.IndexSnapshotRepository;
 import java.math.BigDecimal;

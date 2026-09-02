@@ -1,4 +1,4 @@
-package com.carix.index;
+package com.carix.index.enums;
 
 /**
  * 지수 산출 결과의 상태. 값이 없는 이유를 화면이 서로 다르게 그려야 하므로 하나로 뭉치지 않는다 ({@code

@@ -1,5 +1,7 @@
-package com.carix.index;
+package com.carix.index.dto;
 
+import com.carix.index.enums.ExpenseWeightStatus;
+import com.carix.index.enums.IndexStatus;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 
