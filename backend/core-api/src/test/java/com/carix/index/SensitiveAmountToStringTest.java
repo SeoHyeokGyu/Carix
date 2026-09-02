@@ -2,6 +2,8 @@ package com.carix.index;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.carix.index.dto.CurrentSalary;
+import com.carix.index.dto.WageBaseline;
 import java.time.LocalDate;
 import org.junit.jupiter.api.Test;
 

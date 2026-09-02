@@ -1,5 +1,6 @@
 package com.carix.index;
 
+import com.carix.index.dto.PpiResult;
 import java.util.UUID;
 
 /**

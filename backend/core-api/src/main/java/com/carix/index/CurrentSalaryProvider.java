@@ -1,5 +1,6 @@
 package com.carix.index;
 
+import com.carix.index.dto.CurrentSalary;
 import java.util.Optional;
 import java.util.UUID;
 

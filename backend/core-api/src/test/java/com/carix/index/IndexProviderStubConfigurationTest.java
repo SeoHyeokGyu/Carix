@@ -2,6 +2,10 @@ package com.carix.index;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.carix.index.dto.MviResult;
+import com.carix.index.dto.PpiResult;
+import com.carix.index.dto.SourceCoverage;
+import com.carix.index.dto.WageBaseline;
 import com.carix.index.stub.IndexProviderStubConfiguration;
 import com.carix.index.stub.StubCurrentSalaryProvider;
 import com.carix.index.stub.StubMarketValueIndexProvider;

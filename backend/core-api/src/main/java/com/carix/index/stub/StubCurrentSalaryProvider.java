@@ -1,7 +1,7 @@
 package com.carix.index.stub;
 
-import com.carix.index.CurrentSalary;
 import com.carix.index.CurrentSalaryProvider;
+import com.carix.index.dto.CurrentSalary;
 import java.util.Optional;
 import java.util.UUID;
 

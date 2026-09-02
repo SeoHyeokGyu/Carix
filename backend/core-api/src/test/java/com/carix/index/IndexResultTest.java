@@ -3,6 +3,10 @@ package com.carix.index;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.carix.index.dto.ExcludedSkill;
+import com.carix.index.dto.MviResult;
+import com.carix.index.dto.PpiResult;
+import com.carix.index.dto.SourceCoverage;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;

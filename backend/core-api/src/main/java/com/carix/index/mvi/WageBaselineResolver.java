@@ -1,6 +1,6 @@
 package com.carix.index.mvi;
 
-import com.carix.index.WageBaseline;
+import com.carix.index.dto.WageBaseline;
 import com.carix.profile.domain.CareerProfile;
 import com.carix.wagestat.WageStatObservation;
 import com.carix.wagestat.WageStatObservationRepository;

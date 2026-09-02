@@ -1,6 +1,6 @@
 package com.carix.index.mvi;
 
-import com.carix.index.SourceCoverage;
+import com.carix.index.dto.SourceCoverage;
 import com.carix.market.MarketAggregate;
 import com.carix.market.MarketAggregateRepository;
 import com.carix.profile.domain.CareerProfile;
