@@ -12,6 +12,11 @@ import jakarta.persistence.UniqueConstraint;
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.util.UUID;
+import lombok.AccessLevel;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
@@ -28,6 +33,10 @@ import org.hibernate.type.SqlTypes;
     uniqueConstraints =
         @UniqueConstraint(
             columnNames = {"user_id", "base_year_month", "data_version", "rule_version"}))
+@Getter
+@Builder
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
+@AllArgsConstructor(access = AccessLevel.PRIVATE)
 public class IndexSnapshot {
 
   @Id @GeneratedValue private UUID id;
@@ -61,8 +70,6 @@ public class IndexSnapshot {
   @Column(name = "created_at", insertable = false, updatable = false)
   private OffsetDateTime createdAt;
 
-  protected IndexSnapshot() {}
-
   public IndexSnapshot(
       UUID userId,
       String baseYearMonth,
@@ -92,45 +99,5 @@ public class IndexSnapshot {
     this.marketValueIndex = marketValueIndex;
     this.decisionSignal = decisionSignal;
     this.rationale = rationale;
-  }
-
-  public UUID getId() {
-    return id;
-  }
-
-  public UUID getUserId() {
-    return userId;
-  }
-
-  public String getBaseYearMonth() {
-    return baseYearMonth;
-  }
-
-  public String getDataVersion() {
-    return dataVersion;
-  }
-
-  public String getRuleVersion() {
-    return ruleVersion;
-  }
-
-  public BigDecimal getPurchasingPowerIndex() {
-    return purchasingPowerIndex;
-  }
-
-  public BigDecimal getMarketValueIndex() {
-    return marketValueIndex;
-  }
-
-  public DecisionSignalCode getDecisionSignal() {
-    return decisionSignal;
-  }
-
-  public SnapshotRationale getRationale() {
-    return rationale;
-  }
-
-  public OffsetDateTime getCreatedAt() {
-    return createdAt;
   }
 }

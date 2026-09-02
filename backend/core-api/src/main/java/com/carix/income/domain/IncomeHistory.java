@@ -5,9 +5,18 @@ import jakarta.persistence.*;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.UUID;
+import lombok.AccessLevel;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
 
 @Entity
 @Table(name = "income_history", schema = "core")
+@Getter
+@Builder
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
+@AllArgsConstructor(access = AccessLevel.PRIVATE)
 public class IncomeHistory {
 
   @Id @GeneratedValue private UUID id;
@@ -29,8 +38,6 @@ public class IncomeHistory {
   @Column(name = "created_at", insertable = false, updatable = false)
   private OffsetDateTime createdAt;
 
-  protected IncomeHistory() {}
-
   public IncomeHistory(UUID userId, Long grossSalary, Long netSalary, LocalDate effectiveDate) {
     this.userId = userId;
     this.grossSalary = grossSalary;
@@ -42,25 +49,5 @@ public class IncomeHistory {
     this.grossSalary = grossSalary;
     this.netSalary = netSalary;
     this.effectiveDate = effectiveDate;
-  }
-
-  public UUID getId() {
-    return id;
-  }
-
-  public UUID getUserId() {
-    return userId;
-  }
-
-  public Long getGrossSalary() {
-    return grossSalary;
-  }
-
-  public Long getNetSalary() {
-    return netSalary;
-  }
-
-  public LocalDate getEffectiveDate() {
-    return effectiveDate;
   }
 }

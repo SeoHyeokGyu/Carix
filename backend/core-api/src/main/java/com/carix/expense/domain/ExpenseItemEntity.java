@@ -3,9 +3,18 @@ package com.carix.expense.domain;
 import com.carix.common.EncryptedConverter;
 import jakarta.persistence.*;
 import java.util.UUID;
+import lombok.AccessLevel;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
 
 @Entity
 @Table(name = "expense_item", schema = "core")
+@Getter
+@Builder
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
+@AllArgsConstructor(access = AccessLevel.PRIVATE)
 public class ExpenseItemEntity {
 
   @Id @GeneratedValue private UUID id;
@@ -26,8 +35,6 @@ public class ExpenseItemEntity {
   @Column(name = "weight_status", nullable = false, length = 20)
   private WeightStatusEnum weightStatus;
 
-  protected ExpenseItemEntity() {}
-
   public ExpenseItemEntity(
       ExpenseCategoryEnum category, Long amount, WeightStatusEnum weightStatus) {
     this.category = category;
@@ -35,19 +42,7 @@ public class ExpenseItemEntity {
     this.weightStatus = weightStatus;
   }
 
-  void assignTo(ExpenseHistory parent) {
+  public void assignTo(ExpenseHistory parent) {
     this.expenseHistory = parent;
-  }
-
-  public ExpenseCategoryEnum getCategory() {
-    return category;
-  }
-
-  public Long getAmount() {
-    return amount;
-  }
-
-  public WeightStatusEnum getWeightStatus() {
-    return weightStatus;
   }
 }

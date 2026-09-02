@@ -6,6 +6,11 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import java.util.UUID;
+import lombok.AccessLevel;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
 
 /**
  * 커리어 프로필. 온보딩 자동 저장을 허용하려고 전 컬럼이 NULL 허용이다 — 필수 필드 완비 검증은 온보딩 완료 제출 시 애플리케이션에서 한다 (DDL 주석, {@code
@@ -13,6 +18,10 @@ import java.util.UUID;
  */
 @Entity
 @Table(name = "career_profile", schema = "core")
+@Getter
+@Builder
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
+@AllArgsConstructor(access = AccessLevel.PRIVATE)
 public class CareerProfile {
 
   @Id @GeneratedValue private UUID id;
@@ -34,8 +43,6 @@ public class CareerProfile {
 
   @Column(name = "company_size", length = 50)
   private String companySize;
-
-  protected CareerProfile() {}
 
   public CareerProfile(UUID userId) {
     this.userId = userId;
@@ -63,33 +70,5 @@ public class CareerProfile {
     if (companySize != null) {
       this.companySize = companySize;
     }
-  }
-
-  public UUID getId() {
-    return id;
-  }
-
-  public UUID getUserId() {
-    return userId;
-  }
-
-  public String getJobFamily() {
-    return jobFamily;
-  }
-
-  public Integer getYearsOfExperience() {
-    return yearsOfExperience;
-  }
-
-  public String getRegion() {
-    return region;
-  }
-
-  public String getEmploymentType() {
-    return employmentType;
-  }
-
-  public String getCompanySize() {
-    return companySize;
   }
 }
