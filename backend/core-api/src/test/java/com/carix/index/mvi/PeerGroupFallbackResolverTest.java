@@ -27,15 +27,8 @@ class PeerGroupFallbackResolverTest {
   @DisplayName("Level 1 완전 일치 표본 수 >= 10이면 Level 1로 즉시 안착해야 한다")
   void testLevel1ExactMatch() {
     // Given
-    CareerProfile profile =
-        CareerProfile.builder()
-            .userId(UUID.randomUUID())
-            .jobFamily("DEVELOPER")
-            .yearsOfExperience(5) // MID
-            .region("서울 강남구")
-            .employmentType("FULL_TIME")
-            .companySize("MEDIUM")
-            .build();
+    CareerProfile profile = new CareerProfile(UUID.randomUUID());
+    profile.patch("DEVELOPER", 5, "서울 강남구", "FULL_TIME", "MEDIUM");
 
     MarketAggregate l1Aggregate =
         MarketAggregate.builder()
@@ -68,15 +61,8 @@ class PeerGroupFallbackResolverTest {
   @DisplayName("Level 1 표본 부족 시 Level 2(회사규모 IS NULL)로 완화되어야 한다")
   void testLevel2Fallback() {
     // Given
-    CareerProfile profile =
-        CareerProfile.builder()
-            .userId(UUID.randomUUID())
-            .jobFamily("DEVELOPER")
-            .yearsOfExperience(5) // MID
-            .region("서울 강남구")
-            .employmentType("FULL_TIME")
-            .companySize("MEDIUM")
-            .build();
+    CareerProfile profile = new CareerProfile(UUID.randomUUID());
+    profile.patch("DEVELOPER", 5, "서울 강남구", "FULL_TIME", "MEDIUM");
 
     // Level 1: 표본 3건 (< 10)
     MarketAggregate l1Aggregate =

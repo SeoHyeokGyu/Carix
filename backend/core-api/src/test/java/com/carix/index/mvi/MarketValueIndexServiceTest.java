@@ -58,8 +58,8 @@ class MarketValueIndexServiceTest {
     UUID userId = UUID.randomUUID();
     String baseYearMonth = "202607";
 
-    CareerProfile profile =
-        CareerProfile.builder().userId(userId).jobFamily("DEVELOPER").yearsOfExperience(5).build();
+    CareerProfile profile = new CareerProfile(userId);
+    profile.patch("DEVELOPER", 5, "서울 강남구", "FULL_TIME", "MEDIUM");
 
     Skill skill =
         Skill.builder().id(UUID.randomUUID()).standardName("Java").isCustom(false).build();

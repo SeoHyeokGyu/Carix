@@ -89,7 +89,7 @@ public class MarketValueIndexServiceImpl implements MarketValueIndexProvider {
     }
 
     if (profile == null) {
-      profile = CareerProfile.builder().userId(userId).build();
+      profile = new CareerProfile(userId);
     }
 
     // 2. 원천별 동료집단 완화 수행
@@ -249,7 +249,7 @@ public class MarketValueIndexServiceImpl implements MarketValueIndexProvider {
 
     CareerProfile profile = careerProfileRepository.findByUserId(userId).orElse(null);
     if (profile == null) {
-      profile = CareerProfile.builder().userId(userId).build();
+      profile = new CareerProfile(userId);
     }
 
     List<UserSkill> userSkills = userSkillRepository.findByUserId(userId);
