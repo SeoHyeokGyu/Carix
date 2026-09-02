@@ -5,10 +5,10 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 
-import com.carix.index.IndexStatus;
 import com.carix.index.dto.MviResult;
 import com.carix.index.dto.SourceCoverage;
 import com.carix.index.dto.WageBaseline;
+import com.carix.index.enums.IndexStatus;
 import com.carix.profile.domain.CareerProfile;
 import com.carix.profile.repository.CareerProfileRepository;
 import com.carix.skill.domain.Skill;

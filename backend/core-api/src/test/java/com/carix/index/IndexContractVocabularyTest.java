@@ -2,6 +2,9 @@ package com.carix.index;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.carix.index.enums.ExpenseWeightStatus;
+import com.carix.index.enums.IndexStatus;
+import com.carix.index.enums.SkillExclusionReason;
 import java.util.Arrays;
 import org.junit.jupiter.api.Test;
 

@@ -1,6 +1,6 @@
 package com.carix.index.dto;
 
-import com.carix.index.SkillExclusionReason;
+import com.carix.index.enums.SkillExclusionReason;
 import java.util.UUID;
 
 /**

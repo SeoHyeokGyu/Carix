@@ -1,13 +1,13 @@
 package com.carix.snapshot;
 
 import com.carix.index.CurrentSalaryProvider;
-import com.carix.index.IndexStatus;
 import com.carix.index.MarketValueIndexProvider;
 import com.carix.index.PurchasingPowerIndexProvider;
 import com.carix.index.dto.CurrentSalary;
 import com.carix.index.dto.ExcludedSkill;
 import com.carix.index.dto.MviResult;
 import com.carix.index.dto.PpiResult;
+import com.carix.index.enums.IndexStatus;
 import com.carix.snapshot.domain.IndexSnapshot;
 import com.carix.snapshot.domain.SnapshotRationale;
 import com.carix.snapshot.repository.IndexSnapshotRepository;

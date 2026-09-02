@@ -1,4 +1,4 @@
-package com.carix.index;
+package com.carix.index.enums;
 
 /**
  * 시장가치 지수 가중합에서 스킬이 빠진 이유. 제외 스킬의 가중치는 나머지에 재정규화한다 (기능 명세 §4.2).

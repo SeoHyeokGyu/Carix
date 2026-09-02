@@ -6,6 +6,8 @@ import com.carix.index.dto.MviResult;
 import com.carix.index.dto.PpiResult;
 import com.carix.index.dto.SourceCoverage;
 import com.carix.index.dto.WageBaseline;
+import com.carix.index.enums.ExpenseWeightStatus;
+import com.carix.index.enums.IndexStatus;
 import com.carix.index.stub.IndexProviderStubConfiguration;
 import com.carix.index.stub.StubCurrentSalaryProvider;
 import com.carix.index.stub.StubMarketValueIndexProvider;
