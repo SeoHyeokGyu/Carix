@@ -3,6 +3,7 @@ package com.carix.index.mvi;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.carix.market.MarketAggregate;
@@ -74,6 +75,69 @@ class SkillDemandCalculatorTest {
     assertThat(result.getStatus()).isEqualTo("OK");
     assertThat(result.getDemandIndex()).isEqualTo(100.0);
     assertThat(result.isClamped()).isFalse();
+  }
+
+  @Test
+  @DisplayName("기간 창: 최근 3개월은 1~3개월 전, 이전 12개월은 4~15개월 전이고 기준월은 어느 창에도 들지 않는다")
+  void testWindowBoundariesFollowSpecification() {
+    // Arrange
+    UUID skillId = UUID.randomUUID();
+    String source = "JOBKOREA";
+    String baseYearMonth = "202607";
+
+    PeerGroupFallbackResolver.ResolvedPeerGroup peerGroup =
+        PeerGroupFallbackResolver.ResolvedPeerGroup.builder()
+            .source(source)
+            .jobFamily("DEVELOPER")
+            .region("서울 강남구")
+            .brackets(List.of("MID"))
+            .employmentType("FULL_TIME")
+            .companySize("MEDIUM")
+            .build();
+
+    when(marketAggregateRepository.findSkillAggregates(
+            any(), any(), any(), any(), any(), any(), any(), any()))
+        .thenReturn(List.of(MarketAggregate.builder().postingCount(10).build()));
+    when(marketAggregateRepository.findTotalPostingAggregates(
+            any(), any(), any(), any(), any(), any(), any()))
+        .thenReturn(List.of(MarketAggregate.builder().postingCount(100).build()));
+
+    // Act
+    calculator.calculateDemandIndex(source, skillId, peerGroup, baseYearMonth);
+
+    // Assert
+    List<String> recentMonths = List.of("202604", "202605", "202606");
+    List<String> baselineMonths =
+        List.of(
+            "202504", "202505", "202506", "202507", "202508", "202509", "202510", "202511",
+            "202512", "202601", "202602", "202603");
+
+    verify(marketAggregateRepository)
+        .findSkillAggregates(
+            source,
+            recentMonths,
+            "DEVELOPER",
+            "서울 강남구",
+            List.of("MID"),
+            "FULL_TIME",
+            "MEDIUM",
+            skillId);
+    verify(marketAggregateRepository)
+        .findSkillAggregates(
+            source,
+            baselineMonths,
+            "DEVELOPER",
+            "서울 강남구",
+            List.of("MID"),
+            "FULL_TIME",
+            "MEDIUM",
+            skillId);
+    verify(marketAggregateRepository)
+        .findTotalPostingAggregates(
+            source, recentMonths, "DEVELOPER", "서울 강남구", List.of("MID"), "FULL_TIME", "MEDIUM");
+    verify(marketAggregateRepository)
+        .findTotalPostingAggregates(
+            source, baselineMonths, "DEVELOPER", "서울 강남구", List.of("MID"), "FULL_TIME", "MEDIUM");
   }
 
   @Test

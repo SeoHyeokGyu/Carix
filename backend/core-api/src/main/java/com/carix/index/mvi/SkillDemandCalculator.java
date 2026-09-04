@@ -15,8 +15,8 @@ import org.springframework.stereotype.Component;
 /**
  * 스킬 수요 지수(Skill Demand Index) 산출기.
  *
- * <p>[기능 명세 §4.1]에 정의된 수식을 바탕으로, 특정 스킬의 최근 3개월간 시장 수요율과 그 이전 12개월(4~15개월 전, 비중첩 창)간의 수요율을 비교하여
- * 지수화합니다.
+ * <p>[기능 명세 §4.1]에 정의된 수식을 바탕으로, 특정 스킬의 최근 3개월(1~3개월 전)간 시장 수요율과 그 이전 12개월(4~15개월 전, 비중첩 창)간의 수요율을
+ * 비교하여 지수화합니다. 기준월은 어느 창에도 포함하지 않습니다.
  *
  * <h3>수학 공식</h3>
  *
@@ -69,11 +69,12 @@ public class SkillDemandCalculator {
     YearMonth targetYm = parseYearMonth(baseYearMonth);
 
     // 1. 기간 창(Window) 생성
-    // 최근 3개월: [targetYm - 2개월, targetYm]
-    List<String> recentMonths = getMonthsRange(targetYm.minusMonths(2), 3);
+    // NOTE: (cjkang) 기준월 자체는 두 창 어디에도 들어가지 않는다 (기능 명세 §4.1).
+    // 최근 3개월(1~3개월 전): [targetYm - 3개월, targetYm - 1개월]
+    List<String> recentMonths = getMonthsRange(targetYm.minusMonths(3), 3);
 
-    // 이전 12개월(4~15개월 전, 비중첩): [targetYm - 14개월, targetYm - 3개월]
-    List<String> baselineMonths = getMonthsRange(targetYm.minusMonths(14), 12);
+    // 이전 12개월(4~15개월 전, 비중첩): [targetYm - 15개월, targetYm - 4개월]
+    List<String> baselineMonths = getMonthsRange(targetYm.minusMonths(15), 12);
 
     // 2. 최근 3개월 집계 조회
     List<MarketAggregate> recentSkillAggs =
