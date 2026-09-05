@@ -37,7 +37,7 @@ describe("SessionProvider", () => {
     );
   }
 
-  it("throws error when useSession is used outside of SessionProvider", () => {
+  it("SessionProvider 외부에서 useSession 호출 시 에러를 던진다", () => {
     // Suppress console.error for expected thrown error
     const spy = vi.spyOn(console, "error").mockImplementation(() => {});
 
@@ -48,7 +48,7 @@ describe("SessionProvider", () => {
     spy.mockRestore();
   });
 
-  it("throws error when useRefreshSession is used outside of SessionProvider", () => {
+  it("SessionProvider 외부에서 useRefreshSession 호출 시 에러를 던진다", () => {
     const spy = vi.spyOn(console, "error").mockImplementation(() => {});
 
     expect(() => {
@@ -58,7 +58,7 @@ describe("SessionProvider", () => {
     spy.mockRestore();
   });
 
-  it("updates state to authenticated when fetchSession returns session data", async () => {
+  it("fetchSession이 세션 정보를 반환하면 authenticated 상태로 갱신한다", async () => {
     vi.mocked(authApi.fetchSession).mockResolvedValueOnce({
       userId: "u-1",
       email: "user@carix.kr",
@@ -81,7 +81,7 @@ describe("SessionProvider", () => {
     expect(screen.getByTestId("email")).toHaveTextContent("user@carix.kr");
   });
 
-  it("updates state to anonymous when fetchSession returns null", async () => {
+  it("fetchSession이 null을 반환하면 anonymous 상태로 갱신한다", async () => {
     vi.mocked(authApi.fetchSession).mockResolvedValueOnce(null);
 
     render(
@@ -95,7 +95,7 @@ describe("SessionProvider", () => {
     });
   });
 
-  it("updates state to anonymous when fetchSession throws an error", async () => {
+  it("fetchSession 호출 중 에러가 발생하면 anonymous 상태로 처리한다", async () => {
     vi.mocked(authApi.fetchSession).mockRejectedValueOnce(
       new Error("Network Error"),
     );
@@ -111,7 +111,7 @@ describe("SessionProvider", () => {
     });
   });
 
-  it("re-fetches and updates session when refresh is called", async () => {
+  it("refresh 호출 시 세션을 재조회하여 상태를 갱신한다", async () => {
     vi.mocked(authApi.fetchSession)
       .mockResolvedValueOnce(null)
       .mockResolvedValueOnce({

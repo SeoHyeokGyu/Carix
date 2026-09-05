@@ -9,7 +9,7 @@ describe("AppShell", () => {
     { to: "/dashboard/history", label: "이력" },
   ];
 
-  it("renders navigation items and applies active styles correctly", () => {
+  it("내비게이션 항목들을 렌더링하고 활성 탭 스타일을 올바르게 적용한다", () => {
     render(
       <MemoryRouter initialEntries={["/dashboard"]}>
         <Routes>

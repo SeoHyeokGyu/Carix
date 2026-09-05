@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { PlaceholderScreen } from "./PlaceholderScreen";
 
 describe("PlaceholderScreen", () => {
-  it("renders screenId, title, description, and placeholder message", () => {
+  it("화면 ID, 제목, 설명글 및 플레이스홀더 안내 문구를 렌더링한다", () => {
     render(
       <PlaceholderScreen
         screenId="S-99"

@@ -12,8 +12,8 @@ describe("authApi", () => {
     globalThis.fetch = originalFetch;
   });
 
-  describe("register", () => {
-    it("successfully registers and returns session", async () => {
+  describe("register (회원가입)", () => {
+    it("정상적으로 가입하고 세션 정보를 반환한다", async () => {
       const mockSession = {
         userId: "user-123",
         email: "test@carix.kr",
@@ -39,7 +39,7 @@ describe("authApi", () => {
       expect(result).toEqual(mockSession);
     });
 
-    it("throws ApiError when response is not ok with code and message", async () => {
+    it("실패 응답(오류 코드 및 메시지 포함) 시 ApiError를 던진다", async () => {
       globalThis.fetch = vi.fn().mockResolvedValue({
         ok: false,
         json: async () => ({
@@ -54,7 +54,7 @@ describe("authApi", () => {
       });
     });
 
-    it("throws ApiError with UNKNOWN code when response has message but no code", async () => {
+    it("응답에 코드가 없는 경우 UNKNOWN 코드로 ApiError를 던진다", async () => {
       globalThis.fetch = vi.fn().mockResolvedValue({
         ok: false,
         json: async () => ({ message: "알 수 없는 에러" }),
@@ -66,7 +66,7 @@ describe("authApi", () => {
       });
     });
 
-    it("throws fallback ApiError when response body is empty or has no message", async () => {
+    it("응답 본문이 비어있거나 메시지가 없는 경우 기본 ApiError를 던진다", async () => {
       globalThis.fetch = vi.fn().mockResolvedValue({
         ok: false,
         json: async () => ({}),
@@ -78,7 +78,7 @@ describe("authApi", () => {
       });
     });
 
-    it("throws fallback ApiError when json parsing throws (e.g. 502 Bad Gateway)", async () => {
+    it("502 등 JSON 파싱 실패 시 기본 안내 메시지로 ApiError를 던진다", async () => {
       globalThis.fetch = vi.fn().mockResolvedValue({
         ok: false,
         json: async () => {
@@ -93,8 +93,8 @@ describe("authApi", () => {
     });
   });
 
-  describe("login", () => {
-    it("successfully logs in and returns session", async () => {
+  describe("login (로그인)", () => {
+    it("정상적으로 로그인하고 세션 정보를 반환한다", async () => {
       const mockSession = {
         userId: "user-456",
         email: "login@carix.kr",
@@ -120,7 +120,7 @@ describe("authApi", () => {
       expect(result).toEqual(mockSession);
     });
 
-    it("throws ApiError when login fails", async () => {
+    it("로그인 실패 시 ApiError를 던진다", async () => {
       globalThis.fetch = vi.fn().mockResolvedValue({
         ok: false,
         json: async () => ({
@@ -136,8 +136,8 @@ describe("authApi", () => {
     });
   });
 
-  describe("logout", () => {
-    it("sends POST logout request with credentials: include", async () => {
+  describe("logout (로그아웃)", () => {
+    it("credentials: include 옵션으로 로그아웃 POST 요청을 전송한다", async () => {
       globalThis.fetch = vi.fn().mockResolvedValue({
         ok: true,
       } as unknown as Response);
@@ -151,8 +151,8 @@ describe("authApi", () => {
     });
   });
 
-  describe("fetchSession", () => {
-    it("returns SessionResponse when response is 200 ok", async () => {
+  describe("fetchSession (세션 조회)", () => {
+    it("200 정상 응답 시 SessionResponse를 반환한다", async () => {
       const mockSession = {
         userId: "user-789",
         email: "session@carix.kr",
@@ -173,7 +173,7 @@ describe("authApi", () => {
       expect(result).toEqual(mockSession);
     });
 
-    it("returns null when response status is 401", async () => {
+    it("401 미인증 응답 시 null을 반환한다", async () => {
       globalThis.fetch = vi.fn().mockResolvedValue({
         ok: false,
         status: 401,
@@ -183,7 +183,7 @@ describe("authApi", () => {
       expect(result).toBeNull();
     });
 
-    it("throws ApiError when response status is not ok and not 401", async () => {
+    it("401 외의 오류 상태 코드(500 등)인 경우 ApiError를 던진다", async () => {
       globalThis.fetch = vi.fn().mockResolvedValue({
         ok: false,
         status: 500,

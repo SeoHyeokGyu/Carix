@@ -11,19 +11,19 @@ vi.mock("../../lib/SessionProvider", () => ({
   useSession: vi.fn(),
 }));
 
-describe("Mypage routes and layout", () => {
+describe("마이페이지 라우트 및 레이아웃 (Mypage)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  describe("pages", () => {
-    it("renders MypageProfile", () => {
+  describe("개별 화면 (Pages)", () => {
+    it("MypageProfile(설정) 화면을 정상 렌더링한다", () => {
       render(<MypageProfile />);
       expect(screen.getByText("S-13")).toBeInTheDocument();
       expect(screen.getByRole("heading", { name: "설정" })).toBeInTheDocument();
     });
 
-    it("renders MypageRecords", () => {
+    it("MypageRecords(이력 관리) 화면을 정상 렌더링한다", () => {
       render(<MypageRecords />);
       expect(screen.getByText("S-12")).toBeInTheDocument();
       expect(
@@ -32,8 +32,8 @@ describe("Mypage routes and layout", () => {
     });
   });
 
-  describe("MypageLayout", () => {
-    it("renders SessionPending when session is loading", () => {
+  describe("MypageLayout (마이페이지 공통 레이아웃)", () => {
+    it("세션 조회 중일 때는 SessionPending을 렌더링한다", () => {
       vi.mocked(SessionProviderModule.useSession).mockReturnValue({
         status: "loading",
       });
@@ -47,7 +47,7 @@ describe("Mypage routes and layout", () => {
       expect(screen.getByRole("status")).toHaveTextContent("불러오는 중…");
     });
 
-    it("redirects when session is anonymous", () => {
+    it("비로그인(anonymous) 상태 시 랜딩 페이지로 리디렉트한다", () => {
       vi.mocked(SessionProviderModule.useSession).mockReturnValue({
         status: "anonymous",
       });
@@ -64,7 +64,7 @@ describe("Mypage routes and layout", () => {
       expect(screen.getByText("랜딩 페이지")).toBeInTheDocument();
     });
 
-    it("renders AppShell with mypage tabs when authenticated", () => {
+    it("로그인 상태면 온보딩 완료 여부와 관계없이 AppShell 탭을 렌더링한다", () => {
       const session: Session = {
         status: "authenticated",
         userId: "user-1",

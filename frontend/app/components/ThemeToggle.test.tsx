@@ -8,7 +8,7 @@ describe("ThemeToggle", () => {
     document.documentElement.classList.remove("light", "dark");
   });
 
-  it("initializes with dark theme if system prefers dark and no saved theme", () => {
+  it("저장된 테마가 없고 시스템이 다크 모드를 선호하면 다크 테마로 초기화한다", () => {
     window.matchMedia = vi.fn().mockImplementation((query: string) => ({
       matches: query === "(prefers-color-scheme: dark)",
       media: query,
@@ -26,7 +26,7 @@ describe("ThemeToggle", () => {
     expect(document.documentElement.classList.contains("light")).toBe(false);
   });
 
-  it("initializes with light theme if system prefers light and no saved theme", () => {
+  it("저장된 테마가 없고 시스템이 라이트 모드를 선호하면 라이트 테마로 초기화한다", () => {
     window.matchMedia = vi.fn().mockImplementation((query: string) => ({
       matches: false,
       media: query,
@@ -44,7 +44,7 @@ describe("ThemeToggle", () => {
     expect(document.documentElement.classList.contains("dark")).toBe(false);
   });
 
-  it("uses saved theme from localStorage when present", () => {
+  it("localStorage에 저장된 테마가 있으면 해당 테마를 우선 적용한다", () => {
     localStorage.setItem("theme", "light");
 
     render(<ThemeToggle />);
@@ -52,7 +52,7 @@ describe("ThemeToggle", () => {
     expect(document.documentElement.classList.contains("light")).toBe(true);
   });
 
-  it("toggles theme on click and persists in localStorage", () => {
+  it("클릭 시 테마를 토글하고 localStorage에 저장한다", () => {
     localStorage.setItem("theme", "dark");
 
     render(<ThemeToggle />);
@@ -74,7 +74,7 @@ describe("ThemeToggle", () => {
     expect(document.documentElement.classList.contains("light")).toBe(false);
   });
 
-  it("toggles theme on Enter and Space keydown, but ignores other keys", () => {
+  it("Enter 및 Space 키 입력 시 테마를 토글하고 다른 키는 무시한다", () => {
     localStorage.setItem("theme", "dark");
 
     render(<ThemeToggle />);

@@ -23,12 +23,12 @@ vi.mock("../../lib/authApi", () => ({
   register: vi.fn(),
 }));
 
-describe("Register route", () => {
+describe("회원가입 라우트 (Register)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it("renders register form with title and link to login", () => {
+  it("제목 및 로그인 링크가 포함된 회원가입 폼을 렌더링한다", () => {
     render(
       <MemoryRouter>
         <Register />
@@ -43,7 +43,7 @@ describe("Register route", () => {
     expect(link).toHaveAttribute("href", "/login");
   });
 
-  it("handles successful registration, refreshes session, and navigates to onboardingStep", async () => {
+  it("가입 성공 시 세션을 갱신하고 온보딩 단계 경로로 이동시킨다", async () => {
     vi.mocked(authApi.register).mockResolvedValueOnce({
       userId: "u-10",
       email: "newuser@carix.kr",

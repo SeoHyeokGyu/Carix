@@ -13,13 +13,13 @@ vi.mock("../../lib/SessionProvider", () => ({
   useSession: vi.fn(),
 }));
 
-describe("Dashboard routes and layout", () => {
+describe("대시보드 라우트 및 레이아웃 (Dashboard)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  describe("pages", () => {
-    it("renders DashboardHome (index)", () => {
+  describe("개별 화면 (Pages)", () => {
+    it("DashboardHome(지표 메인) 화면을 정상 렌더링한다", () => {
       render(<DashboardHome />);
       expect(screen.getByText("S-10")).toBeInTheDocument();
       expect(
@@ -27,7 +27,7 @@ describe("Dashboard routes and layout", () => {
       ).toBeInTheDocument();
     });
 
-    it("renders DashboardHistory", () => {
+    it("DashboardHistory(월별 이력) 화면을 정상 렌더링한다", () => {
       render(<DashboardHistory />);
       expect(screen.getByText("S-11")).toBeInTheDocument();
       expect(
@@ -35,7 +35,7 @@ describe("Dashboard routes and layout", () => {
       ).toBeInTheDocument();
     });
 
-    it("renders DashboardSimulator", () => {
+    it("DashboardSimulator(12개월 시뮬레이터) 화면을 정상 렌더링한다", () => {
       render(<DashboardSimulator />);
       expect(screen.getByText("S-15")).toBeInTheDocument();
       expect(
@@ -43,7 +43,7 @@ describe("Dashboard routes and layout", () => {
       ).toBeInTheDocument();
     });
 
-    it("renders DashboardTrends", () => {
+    it("DashboardTrends(추이 분석) 화면을 정상 렌더링한다", () => {
       render(<DashboardTrends />);
       expect(screen.getByText("S-14")).toBeInTheDocument();
       expect(
@@ -52,8 +52,8 @@ describe("Dashboard routes and layout", () => {
     });
   });
 
-  describe("DashboardLayout", () => {
-    it("renders SessionPending when session is loading", () => {
+  describe("DashboardLayout (대시보드 공통 레이아웃)", () => {
+    it("세션 조회 중일 때는 SessionPending을 렌더링한다", () => {
       vi.mocked(SessionProviderModule.useSession).mockReturnValue({
         status: "loading",
       });
@@ -67,7 +67,7 @@ describe("Dashboard routes and layout", () => {
       expect(screen.getByRole("status")).toHaveTextContent("불러오는 중…");
     });
 
-    it("redirects when user is not onboarded (e.g. anonymous or incomplete step)", () => {
+    it("온보딩 미완료(비로그인 또는 단계 미완료) 시 리디렉트한다", () => {
       vi.mocked(SessionProviderModule.useSession).mockReturnValue({
         status: "anonymous",
       });
@@ -84,7 +84,7 @@ describe("Dashboard routes and layout", () => {
       expect(screen.getByText("랜딩 페이지")).toBeInTheDocument();
     });
 
-    it("renders AppShell with dashboard tabs when user is onboarded", () => {
+    it("온보딩 완료 사용자인 경우 대시보드 탭 네비게이션이 포함된 AppShell을 렌더링한다", () => {
       const onboardedSession: Session = {
         status: "authenticated",
         userId: "user-1",

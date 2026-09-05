@@ -109,12 +109,12 @@ describe("guardOnboarding — 온보딩", () => {
   });
 });
 
-describe("stepPath", () => {
-  test("returns DASHBOARD_PATH when step is COMPLETED", () => {
+describe("stepPath — 온보딩 단계별 경로 매핑", () => {
+  test("온보딩 완료(COMPLETED) 상태면 대시보드 경로를 반환한다", () => {
     expect(stepPath("COMPLETED")).toBe(DASHBOARD_PATH);
   });
 
-  test("returns step path for non-completed steps", () => {
+  test("미완료 단계별 해당 온보딩 경로를 반환한다", () => {
     expect(stepPath("PROFILE")).toBe("/onboarding/profile");
     expect(stepPath("INCOME")).toBe("/onboarding/income");
     expect(stepPath("EXPENSE")).toBe("/onboarding/expense");

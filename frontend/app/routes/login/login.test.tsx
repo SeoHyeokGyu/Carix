@@ -23,12 +23,12 @@ vi.mock("../../lib/authApi", () => ({
   login: vi.fn(),
 }));
 
-describe("Login route", () => {
+describe("로그인 라우트 (Login)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it("renders login form with title and link to register", () => {
+  it("제목 및 회원가입 링크가 포함된 로그인 폼을 렌더링한다", () => {
     render(
       <MemoryRouter>
         <Login />
@@ -41,7 +41,7 @@ describe("Login route", () => {
     expect(link).toHaveAttribute("href", "/register");
   });
 
-  it("handles successful login, refreshes session, and navigates to onboardingStep", async () => {
+  it("로그인 성공 시 세션을 갱신하고 온보딩 완료 사용자를 대시보드로 이동시킨다", async () => {
     vi.mocked(authApi.login).mockResolvedValueOnce({
       userId: "u-1",
       email: "user@carix.kr",
@@ -75,7 +75,7 @@ describe("Login route", () => {
     });
   });
 
-  it("navigates to specific onboarding step when onboarding is not completed", async () => {
+  it("온보딩 미완료 사용자는 해당 온보딩 단계 경로로 이동시킨다", async () => {
     vi.mocked(authApi.login).mockResolvedValueOnce({
       userId: "u-1",
       email: "user@carix.kr",

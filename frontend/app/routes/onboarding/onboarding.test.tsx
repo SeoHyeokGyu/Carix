@@ -14,13 +14,13 @@ vi.mock("../../lib/SessionProvider", () => ({
   useSession: vi.fn(),
 }));
 
-describe("Onboarding routes and layout", () => {
+describe("온보딩 라우트 및 레이아웃 (Onboarding)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  describe("pages", () => {
-    it("renders Profile page", () => {
+  describe("개별 화면 (Pages)", () => {
+    it("Profile(프로필 입력) 화면을 정상 렌더링한다", () => {
       render(<Profile />);
       expect(screen.getByText("S-05")).toBeInTheDocument();
       expect(
@@ -28,7 +28,7 @@ describe("Onboarding routes and layout", () => {
       ).toBeInTheDocument();
     });
 
-    it("renders Income page", () => {
+    it("Income(소득 입력) 화면을 정상 렌더링한다", () => {
       render(<Income />);
       expect(screen.getByText("S-06")).toBeInTheDocument();
       expect(
@@ -36,7 +36,7 @@ describe("Onboarding routes and layout", () => {
       ).toBeInTheDocument();
     });
 
-    it("renders Expense page", () => {
+    it("Expense(소비 입력) 화면을 정상 렌더링한다", () => {
       render(<Expense />);
       expect(screen.getByText("S-07")).toBeInTheDocument();
       expect(
@@ -44,7 +44,7 @@ describe("Onboarding routes and layout", () => {
       ).toBeInTheDocument();
     });
 
-    it("renders Skills page", () => {
+    it("Skills(보유 스킬) 화면을 정상 렌더링한다", () => {
       render(<Skills />);
       expect(screen.getByText("S-08")).toBeInTheDocument();
       expect(
@@ -52,7 +52,7 @@ describe("Onboarding routes and layout", () => {
       ).toBeInTheDocument();
     });
 
-    it("renders Review page", () => {
+    it("Review(입력 검토) 화면을 정상 렌더링한다", () => {
       render(<Review />);
       expect(screen.getByText("S-09")).toBeInTheDocument();
       expect(
@@ -61,8 +61,8 @@ describe("Onboarding routes and layout", () => {
     });
   });
 
-  describe("OnboardingLayout", () => {
-    it("renders SessionPending when session is loading", () => {
+  describe("OnboardingLayout (온보딩 공통 레이아웃)", () => {
+    it("세션 조회 중일 때는 SessionPending을 렌더링한다", () => {
       vi.mocked(SessionProviderModule.useSession).mockReturnValue({
         status: "loading",
       });
@@ -76,7 +76,7 @@ describe("Onboarding routes and layout", () => {
       expect(screen.getByRole("status")).toHaveTextContent("불러오는 중…");
     });
 
-    it("redirects to landing when anonymous", () => {
+    it("비로그인 상태 시 랜딩 페이지로 리디렉트한다", () => {
       vi.mocked(SessionProviderModule.useSession).mockReturnValue({
         status: "anonymous",
       });
@@ -93,7 +93,7 @@ describe("Onboarding routes and layout", () => {
       expect(screen.getByText("랜딩 페이지")).toBeInTheDocument();
     });
 
-    it("redirects to user current step if navigating to wrong step", () => {
+    it("사용자의 현재 단계와 다른 온보딩 경로 접근 시 현재 단계로 리디렉트한다", () => {
       vi.mocked(SessionProviderModule.useSession).mockReturnValue({
         status: "authenticated",
         userId: "u-1",
@@ -116,7 +116,7 @@ describe("Onboarding routes and layout", () => {
       expect(screen.getByText("프로필로 리디렉트됨")).toBeInTheDocument();
     });
 
-    it("renders AppShell with onboarding steps when step matches user onboardingStep", () => {
+    it("현재 진행 단계와 일치하면 AppShell 탭 및 온보딩 화면을 렌더링한다", () => {
       const session: Session = {
         status: "authenticated",
         userId: "u-1",
