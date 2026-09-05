@@ -17,16 +17,17 @@ class RouteConfigurationTest {
   @Autowired private RouteLocator routeLocator;
 
   @Test
-  void 라우트_네개가_auth_coreHealth_core_web_순서로_로드된다() {
+  void 라우트_다섯개가_auth_coreHealth_collectorAdmin_core_web_순서로_로드된다() {
     List<Route> routes = routeLocator.getRoutes().collectList().block();
 
     assertThat(routes)
         .extracting(Route::getId)
-        .containsExactly("auth", "core-health", "core", "web");
+        .containsExactly("auth", "core-health", "collector-admin", "core", "web");
     assertThat(routes.get(0).getUri().toString()).isEqualTo("lb://auth-service");
     assertThat(routes.get(1).getUri().toString()).isEqualTo("lb://core-api");
-    assertThat(routes.get(2).getUri().toString()).isEqualTo("lb://core-api");
-    assertThat(routes.get(3).getUri().toString()).isEqualTo("http://frontend-node:3000");
+    assertThat(routes.get(2).getUri().toString()).isEqualTo("lb://collector");
+    assertThat(routes.get(3).getUri().toString()).isEqualTo("lb://core-api");
+    assertThat(routes.get(4).getUri().toString()).isEqualTo("http://frontend-node:3000");
   }
 
   @Test
