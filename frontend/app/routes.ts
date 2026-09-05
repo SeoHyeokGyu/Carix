@@ -44,5 +44,7 @@ export default [
 
   // 관리자 — Collector 파이프라인 관리 콘솔
   route("admin/collector", "routes/admin/collector.tsx"),
-  route("admin/pipeline", "routes/admin/collector.tsx"),
+  route("admin/pipeline", "routes/admin/collector.tsx", {
+    id: "admin-pipeline",
+  }),
 ] satisfies RouteConfig;
