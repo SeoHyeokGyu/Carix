@@ -41,4 +41,8 @@ export default [
       route("profile", "routes/mypage/profile.tsx"),
     ]),
   ),
+
+  // 관리자 — Collector 파이프라인 관리 콘솔
+  route("admin/collector", "routes/admin/collector.tsx"),
+  route("admin/pipeline", "routes/admin/collector.tsx"),
 ] satisfies RouteConfig;
