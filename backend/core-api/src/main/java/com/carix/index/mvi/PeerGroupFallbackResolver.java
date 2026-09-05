@@ -41,6 +41,9 @@ public class PeerGroupFallbackResolver {
   // TODO: [Member B] 운영 피드백 및 데이터 희소성에 따라 IndexThresholdProperties 연동 검토 (도메인 정의서 §2.3)
   public static final int MIN_SAMPLE_SIZE = 10;
 
+  /** 경력 브래킷의 낮은 쪽부터의 순서. 인접 판정과 화면 문구가 이 순서를 쓴다. */
+  private static final List<String> BRACKET_ORDER = List.of("JUNIOR", "MID", "SENIOR");
+
   private final MarketAggregateRepository marketAggregateRepository;
 
   /**
@@ -217,17 +220,41 @@ public class PeerGroupFallbackResolver {
       String region, Collection<String> brackets, String employmentType, String companySize) {
 
     String regionText = region.contains("구") ? region : region + " 전체";
-    String bracketText =
-        brackets.size() > 1
-            ? "경력 전체 구간"
-            : brackets.iterator().next()
-                + " ("
-                + formatBracketYears(brackets.iterator().next())
-                + ")";
+    String bracketText = formatBracketText(brackets);
     String sizeText = companySize != null ? companySize : "회사규모 무관";
     String typeText = employmentType != null ? employmentType : "고용형태 무관";
 
     return String.format("%s / %s / %s / %s", regionText, bracketText, sizeText, typeText);
+  }
+
+  /**
+   * 브래킷 묶음을 화면 문구로 만듭니다. 세 구간이 다 모였을 때만 `경력 전체 구간` 입니다 — 인접 확장으로 두 구간이 된 경우를 전체로 표기하면 화면이 실제보다 넓은
+   * 비교군을 본 것처럼 말하게 됩니다.
+   */
+  private String formatBracketText(Collection<String> brackets) {
+    List<String> ordered = BRACKET_ORDER.stream().filter(brackets::contains).toList();
+    if (ordered.size() >= BRACKET_ORDER.size()) {
+      return "경력 전체 구간";
+    }
+    if (ordered.size() == 1) {
+      return ordered.get(0) + " (" + formatBracketYears(ordered.get(0)) + ")";
+    }
+    return String.join("·", ordered) + " (" + formatBracketRange(ordered) + ")";
+  }
+
+  /** 인접 확장으로 묶인 구간의 연차 범위. 첫 브래킷의 하한과 마지막 브래킷의 상한을 잇습니다. */
+  private String formatBracketRange(List<String> ordered) {
+    String lowerBound =
+        switch (ordered.get(0)) {
+          case "JUNIOR" -> "0";
+          case "MID" -> "4";
+          default -> "8";
+        };
+    return switch (ordered.get(ordered.size() - 1)) {
+      case "JUNIOR" -> lowerBound + "~3년";
+      case "MID" -> lowerBound + "~7년";
+      default -> lowerBound + "년+";
+    };
   }
 
   private String formatBracketYears(String bracket) {
@@ -250,10 +277,19 @@ public class PeerGroupFallbackResolver {
     }
   }
 
-  /** Level 4 완화 시 인접 경력 브래킷 목록을 반환합니다. */
+  /**
+   * Level 4 완화 시 인접 경력 브래킷 목록을 반환합니다 (도메인 정의서 §2.1).
+   *
+   * <p>양옆 한 칸까지만 넓힙니다. {@code MID} 는 양쪽이 모두 인접이라 결과가 세 구간이 되지만, {@code JUNIOR} 에 {@code SENIOR} 를
+   * 섞지는 않습니다 — 0~3년 사용자의 동료집단에 8년+ 공고가 들어오면 수요율과 연봉 분포가 함께 왜곡됩니다. 이 단계에서 경력 차원을 통째로 버리면 남은 Level
+   * 5(고용형태 해제)가 사다리의 마지막 칸 구실을 못 합니다.
+   */
   public List<String> getAdjacentBrackets(String bracket) {
-    // 모든 브래킷을 포괄하여 안정적인 표본수 확보
-    return List.of("JUNIOR", "MID", "SENIOR");
+    return switch (bracket) {
+      case "JUNIOR" -> List.of("JUNIOR", "MID");
+      case "SENIOR" -> List.of("MID", "SENIOR");
+      default -> BRACKET_ORDER;
+    };
   }
 
   /** 상세 구 단위 지역명에서 시/도 광역 지역명을 추출합니다. 예: "서울 강남구" -> "서울특별시", "경기 성남시" -> "경기도" */

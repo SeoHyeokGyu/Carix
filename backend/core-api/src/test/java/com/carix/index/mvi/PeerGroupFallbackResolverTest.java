@@ -7,6 +7,7 @@ import com.carix.market.MarketAggregate;
 import com.carix.market.MarketAggregateRepository;
 import com.carix.profile.domain.CareerProfile;
 import java.math.BigDecimal;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
@@ -100,5 +101,45 @@ class PeerGroupFallbackResolverTest {
     assertThat(result.isSuccessful()).isTrue();
     assertThat(result.getFallbackLevel()).isEqualTo(2);
     assertThat(result.getSampleCount()).isEqualTo(18);
+  }
+
+  // ---------- Level 4 인접 브래킷 (도메인 정의서 §2.1) ----------
+
+  @Test
+  @DisplayName("Level 4 는 인접 브래킷만 더한다 — JUNIOR 에 SENIOR 를 섞지 않는다")
+  void testAdjacentBrackets_junior() {
+    assertThat(resolver.getAdjacentBrackets("JUNIOR")).containsExactly("JUNIOR", "MID");
+  }
+
+  @Test
+  @DisplayName("Level 4 는 인접 브래킷만 더한다 — SENIOR 에 JUNIOR 를 섞지 않는다")
+  void testAdjacentBrackets_senior() {
+    assertThat(resolver.getAdjacentBrackets("SENIOR")).containsExactly("MID", "SENIOR");
+  }
+
+  @Test
+  @DisplayName("MID 는 양쪽이 모두 인접이라 세 구간이 된다 — 도메인 정의서 §2.1 의 예시다")
+  void testAdjacentBrackets_mid() {
+    assertThat(resolver.getAdjacentBrackets("MID")).containsExactly("JUNIOR", "MID", "SENIOR");
+  }
+
+  @Test
+  @DisplayName("조건 문구는 세 구간이 다 모였을 때만 `경력 전체 구간` 이다")
+  void testConditionText_twoBracketsIsNotAllBrackets() {
+    String juniorMid = resolver.formatConditionText("서울특별시", List.of("JUNIOR", "MID"), null, null);
+    String midSenior = resolver.formatConditionText("서울특별시", List.of("MID", "SENIOR"), null, null);
+    String allThree =
+        resolver.formatConditionText("서울특별시", List.of("JUNIOR", "MID", "SENIOR"), null, null);
+
+    assertThat(juniorMid).doesNotContain("경력 전체 구간").contains("JUNIOR·MID (0~7년)");
+    assertThat(midSenior).doesNotContain("경력 전체 구간").contains("MID·SENIOR (4년+)");
+    assertThat(allThree).contains("경력 전체 구간");
+  }
+
+  @Test
+  @DisplayName("단일 브래킷 조건 문구는 그대로 유지된다")
+  void testConditionText_singleBracketUnchanged() {
+    assertThat(resolver.formatConditionText("서울 강남구", List.of("MID"), "FULL_TIME", "MEDIUM"))
+        .isEqualTo("서울 강남구 / MID (4~7년) / MEDIUM / FULL_TIME");
   }
 }
