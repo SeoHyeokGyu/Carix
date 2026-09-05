@@ -88,4 +88,30 @@ class SessionServiceTest {
 
     verify(repository).deleteByTokenHash(TokenHasher.sha256Hex(rawToken));
   }
+
+  @Test
+  void 모든_세션_폐기는_userId로_지운다() {
+    service.revokeAll(USER_ID);
+    verify(repository).deleteByUserId(USER_ID);
+  }
+
+  @Test
+  void 세션_도메인_getter_검증() {
+    UUID id = UUID.randomUUID();
+    OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
+    Session session = new Session(id, USER_ID, "hash", now.plusDays(1), now);
+
+    assertThat(session.getId()).isEqualTo(id);
+    assertThat(session.getUserId()).isEqualTo(USER_ID);
+    assertThat(session.getTokenHash()).isEqualTo("hash");
+    assertThat(session.getExpiresAt()).isEqualTo(now.plusDays(1));
+    assertThat(session.getCreatedAt()).isEqualTo(now);
+  }
+
+  @Test
+  void 세션_기본_생성자_검증() throws Exception {
+    var constructor = Session.class.getDeclaredConstructor();
+    constructor.setAccessible(true);
+    assertThat(constructor.newInstance()).isNotNull();
+  }
 }

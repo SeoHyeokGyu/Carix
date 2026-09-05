@@ -101,4 +101,59 @@ class SkillWeightCalculatorTest {
     assertThat(weights.containsKey(skillExcluded.getId())).isFalse();
     assertThat(weights.get(skillA.getId()).doubleValue()).isCloseTo(1.0000, offset(0.0001));
   }
+
+  @Test
+  @DisplayName("userSkills가 null이거나 빈 목록이면 빈 맵 반환")
+  void testEmptyOrNullUserSkills() {
+    assertThat(calculator.calculateWeights(null, "202607", Set.of())).isEmpty();
+    assertThat(calculator.calculateWeights(List.of(), "202607", null)).isEmpty();
+  }
+
+  @Test
+  @DisplayName("모든 스킬이 제외된 경우 빈 맵 반환")
+  void testAllSkillsExcluded() {
+    Skill skill = Skill.builder().id(UUID.randomUUID()).standardName("Java").build();
+    UserSkill us = UserSkill.builder().skill(skill).monthsOfExperience(12).build();
+
+    Map<UUID, BigDecimal> weights =
+        calculator.calculateWeights(List.of(us), "202607", Set.of(skill.getId()));
+    assertThat(weights).isEmpty();
+  }
+
+  @Test
+  @DisplayName("lastUsedDate가 null인 경우 경과 개월수 0 처리")
+  void testNullLastUsedDate() {
+    Skill skill = Skill.builder().id(UUID.randomUUID()).standardName("Java").build();
+    UserSkill us =
+        UserSkill.builder().skill(skill).monthsOfExperience(12).lastUsedDate(null).build();
+
+    Map<UUID, BigDecimal> weights = calculator.calculateWeights(List.of(us), "202607", null);
+    assertThat(weights).hasSize(1);
+  }
+
+  @Test
+  @DisplayName("기준년월 형식이 비정상(null, 길이 오류, 월 범위 초과, 숫자 아님)인 경우 현재 연월로 폴백")
+  void testInvalidBaseYearMonth() {
+    Skill skill = Skill.builder().id(UUID.randomUUID()).standardName("Java").build();
+    UserSkill us =
+        UserSkill.builder()
+            .skill(skill)
+            .monthsOfExperience(12)
+            .lastUsedDate(LocalDate.of(2026, 7, 1))
+            .build();
+
+    List<UserSkill> skills = List.of(us);
+    assertThat(calculator.calculateWeights(skills, null, Set.of())).hasSize(1);
+    assertThat(calculator.calculateWeights(skills, "2026", Set.of())).hasSize(1);
+    assertThat(calculator.calculateWeights(skills, "202613", Set.of())).hasSize(1);
+    assertThat(calculator.calculateWeights(skills, "202600", Set.of())).hasSize(1);
+    assertThat(calculator.calculateWeights(skills, "ABCDEF", Set.of())).hasSize(1);
+  }
+
+  @Test
+  @DisplayName("음수 경력 또는 음수 방치 개월수 전달 시 안전한 기본값 처리")
+  void testNegativeScoreInputs() {
+    double score = calculator.calculateRawScore(-5, -10);
+    assertThat(score).isGreaterThan(0.0);
+  }
 }

@@ -274,4 +274,113 @@ class SkillDemandCalculatorTest {
     assertThat(result.getStatus()).isEqualTo("NO_RECENT_DEMAND");
     assertThat(result.getDemandIndex()).isEqualTo(0.0);
   }
+
+  @Test
+  @DisplayName("이상치 클램프: 하한 미만(25.0 미만)은 25.0으로 클램프되고 clamped=true여야 한다")
+  void testClampMin() {
+    UUID skillId = UUID.randomUUID();
+    String source = "JOBKOREA";
+
+    PeerGroupFallbackResolver.ResolvedPeerGroup peerGroup =
+        PeerGroupFallbackResolver.ResolvedPeerGroup.builder()
+            .source(source)
+            .jobFamily("DEVELOPER")
+            .region("서울특별시")
+            .brackets(List.of("MID"))
+            .build();
+
+    // 최근: 10 / 1,000 = 0.01 (1%)
+    // 기준: 50 / 100 = 0.50 (50%)
+    // rawIndex = (0.01 / 0.50) * 100 = 2.0 -> clamped to 25.0
+    when(marketAggregateRepository.findSkillAggregates(
+            any(), any(), any(), any(), any(), any(), any(), eq(skillId)))
+        .thenReturn(List.of(MarketAggregate.builder().postingCount(10).build()))
+        .thenReturn(List.of(MarketAggregate.builder().postingCount(50).build()));
+
+    when(marketAggregateRepository.findTotalPostingAggregates(
+            any(), any(), any(), any(), any(), any(), any()))
+        .thenReturn(List.of(MarketAggregate.builder().postingCount(1000).build()))
+        .thenReturn(List.of(MarketAggregate.builder().postingCount(100).build()));
+
+    SkillDemandCalculator.SkillDemandResult result =
+        calculator.calculateDemandIndex(source, skillId, peerGroup, "202607");
+
+    assertThat(result.getStatus()).isEqualTo("OK");
+    assertThat(result.getDemandIndex()).isEqualTo(25.0);
+    assertThat(result.isClamped()).isTrue();
+  }
+
+  @Test
+  @DisplayName("이상치 클램프: 상한 초과(400.0 초과)는 400.0으로 클램프되고 clamped=true여야 한다")
+  void testClampMax() {
+    UUID skillId = UUID.randomUUID();
+    String source = "JOBKOREA";
+
+    PeerGroupFallbackResolver.ResolvedPeerGroup peerGroup =
+        PeerGroupFallbackResolver.ResolvedPeerGroup.builder()
+            .source(source)
+            .jobFamily("DEVELOPER")
+            .region("서울특별시")
+            .brackets(List.of("MID"))
+            .build();
+
+    // 최근: 50 / 100 = 0.50 (50%)
+    // 기준: 10 / 1,000 = 0.01 (1%)
+    // rawIndex = (0.50 / 0.01) * 100 = 5000.0 -> clamped to 400.0
+    when(marketAggregateRepository.findSkillAggregates(
+            any(), any(), any(), any(), any(), any(), any(), eq(skillId)))
+        .thenReturn(List.of(MarketAggregate.builder().postingCount(50).build()))
+        .thenReturn(List.of(MarketAggregate.builder().postingCount(10).build()));
+
+    when(marketAggregateRepository.findTotalPostingAggregates(
+            any(), any(), any(), any(), any(), any(), any()))
+        .thenReturn(List.of(MarketAggregate.builder().postingCount(100).build()))
+        .thenReturn(List.of(MarketAggregate.builder().postingCount(1000).build()));
+
+    SkillDemandCalculator.SkillDemandResult result =
+        calculator.calculateDemandIndex(source, skillId, peerGroup, "202607");
+
+    assertThat(result.getStatus()).isEqualTo("OK");
+    assertThat(result.getDemandIndex()).isEqualTo(400.0);
+    assertThat(result.isClamped()).isTrue();
+  }
+
+  @Test
+  @DisplayName("총 공고수가 0이거나 기준년월이 비정상이어도 안전하게 동작한다")
+  void testZeroTotalPostingsAndInvalidYm() {
+    UUID skillId = UUID.randomUUID();
+    String source = "SARAMIN";
+
+    PeerGroupFallbackResolver.ResolvedPeerGroup peerGroup =
+        PeerGroupFallbackResolver.ResolvedPeerGroup.builder()
+            .source(source)
+            .jobFamily("DEVELOPER")
+            .region("서울특별시")
+            .brackets(List.of("MID"))
+            .build();
+
+    when(marketAggregateRepository.findSkillAggregates(
+            any(), any(), any(), any(), any(), any(), any(), eq(skillId)))
+        .thenReturn(List.of());
+    when(marketAggregateRepository.findTotalPostingAggregates(
+            any(), any(), any(), any(), any(), any(), any()))
+        .thenReturn(List.of());
+
+    // null, 비정상 문자열 테스트
+    SkillDemandCalculator.SkillDemandResult res1 =
+        calculator.calculateDemandIndex(source, skillId, peerGroup, null);
+    assertThat(res1.getStatus()).isEqualTo("NEW_OBSERVATION");
+
+    SkillDemandCalculator.SkillDemandResult res2 =
+        calculator.calculateDemandIndex(source, skillId, peerGroup, "2026");
+    assertThat(res2.getStatus()).isEqualTo("NEW_OBSERVATION");
+
+    SkillDemandCalculator.SkillDemandResult res3 =
+        calculator.calculateDemandIndex(source, skillId, peerGroup, "202613");
+    assertThat(res3.getStatus()).isEqualTo("NEW_OBSERVATION");
+
+    SkillDemandCalculator.SkillDemandResult res4 =
+        calculator.calculateDemandIndex(source, skillId, peerGroup, "ABCDEF");
+    assertThat(res4.getStatus()).isEqualTo("NEW_OBSERVATION");
+  }
 }

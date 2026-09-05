@@ -53,6 +53,23 @@ class CollectorPipelineControllerTest {
   }
 
   @Test
+  @DisplayName("POST /internal/pipeline/seed-load - 시드 데이터 적재 비동기 요청 시 202 Accepted 반환")
+  void triggerSeedLoadReturnsAccepted() throws Exception {
+    JobExecutionResponse response =
+        new JobExecutionResponse("job-seed-1", "SEED_LOAD", "ACCEPTED", "Started", Instant.now());
+    when(pipelineService.triggerSeedLoad(any())).thenReturn(response);
+
+    mockMvc
+        .perform(
+            post("/internal/pipeline/seed-load")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"portal\":\"JOBKOREA\",\"seedDirPath\":\"/data\"}"))
+        .andExpect(status().isAccepted())
+        .andExpect(jsonPath("$.jobId").value("job-seed-1"))
+        .andExpect(jsonPath("$.jobType").value("SEED_LOAD"));
+  }
+
+  @Test
   @DisplayName("POST /internal/pipeline/wage-stat - KOSIS 임금 수집 비동기 요청 시 202 Accepted 반환")
   void triggerWageStatReturnsAccepted() throws Exception {
     JobExecutionResponse response =
@@ -139,6 +156,23 @@ class CollectorPipelineControllerTest {
                     """))
         .andExpect(status().isAccepted())
         .andExpect(jsonPath("$.jobId").value("job-889"))
+        .andExpect(jsonPath("$.jobType").value("MARKET_AGGREGATION"));
+  }
+
+  @Test
+  @DisplayName("POST /internal/pipeline/aggregate - 파라미터 없을 시 전체 사전집계 비동기 요청 202 Accepted 반환")
+  void triggerAggregateDefaultAllReturnsAccepted() throws Exception {
+    JobExecutionResponse response =
+        new JobExecutionResponse(
+            "job-890", "MARKET_AGGREGATION", "ACCEPTED", "Started", Instant.now());
+    when(pipelineService.triggerMarketAggregation(
+            any(com.carix.pipeline.dto.MarketAggregateRequest.class)))
+        .thenReturn(response);
+
+    mockMvc
+        .perform(post("/internal/pipeline/aggregate"))
+        .andExpect(status().isAccepted())
+        .andExpect(jsonPath("$.jobId").value("job-890"))
         .andExpect(jsonPath("$.jobType").value("MARKET_AGGREGATION"));
   }
 

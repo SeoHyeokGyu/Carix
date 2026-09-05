@@ -105,4 +105,22 @@ class SessionControllerTest {
 
     verify(sessionService).revokeAll(USER_ID);
   }
+
+  @Test
+  void 쿠키_없는_전체_로그아웃은_세션을_건드리지_않는다() throws Exception {
+    mockMvc.perform(post("/v1/auth/logout-all")).andExpect(status().isOk());
+    verify(sessionService, never()).revokeAll(any());
+  }
+
+  @Test
+  void 전체_로그아웃_시_세션은_있으나_사용자가_없으면_revokeAll을_호출하지_않는다() throws Exception {
+    given(sessionService.findUserIdBySessionToken(TOKEN)).willReturn(Optional.empty());
+
+    mockMvc
+        .perform(post("/v1/auth/logout-all").cookie(sessionCookie()))
+        .andExpect(status().isOk())
+        .andExpect(cookie().maxAge(SessionCookies.NAME, 0));
+
+    verify(sessionService, never()).revokeAll(any());
+  }
 }

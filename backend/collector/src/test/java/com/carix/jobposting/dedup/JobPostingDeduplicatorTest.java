@@ -58,4 +58,69 @@ class JobPostingDeduplicatorTest {
     assertThat(p1.getDedupRuleVersion()).isEqualTo("v1");
     assertThat(p3.getDedupGroupId()).isNotEqualTo(p1.getDedupGroupId());
   }
+
+  @Test
+  @DisplayName("deduplicateAll - DB 전체 공고 조회 후 중복제거 저장")
+  void deduplicateAll_success() {
+    com.carix.jobposting.JobPostingRepository repo =
+        org.mockito.Mockito.mock(com.carix.jobposting.JobPostingRepository.class);
+    JobPostingDeduplicator dedupWithRepo =
+        new JobPostingDeduplicator(companyNormalizer, titleNormalizer, repo);
+
+    JobPosting p1 =
+        JobPosting.builder()
+            .source("JOBKOREA")
+            .externalId("1")
+            .companyName("A")
+            .title("Dev")
+            .collectedAt(Instant.now())
+            .build();
+    org.mockito.BDDMockito.given(repo.findAll()).willReturn(java.util.List.of(p1));
+
+    int count = dedupWithRepo.deduplicateAll();
+    assertThat(count).isEqualTo(0);
+    org.mockito.Mockito.verify(repo).saveAll(org.mockito.ArgumentMatchers.anyList());
+  }
+
+  @Test
+  @DisplayName("deduplicate - null 또는 빈 목록은 0 반환")
+  void deduplicate_empty() {
+    assertThat(deduplicator.deduplicate(null)).isEqualTo(0);
+    assertThat(deduplicator.deduplicate(List.of())).isEqualTo(0);
+  }
+
+  @Test
+  @DisplayName("deduplicate - 회사명이 비어있는 경우 및 제목 키워드 부분집합 매칭")
+  void deduplicate_emptyCompanyAndSubsetKeywords() {
+    JobPosting p1 =
+        JobPosting.builder()
+            .source("JOBKOREA")
+            .externalId("jk-sub-1")
+            .companyName("테스트기업")
+            .title("백엔드 서버 개발자")
+            .collectedAt(Instant.now())
+            .build();
+
+    JobPosting p2 =
+        JobPosting.builder()
+            .source("SARAMIN")
+            .externalId("sr-sub-2")
+            .companyName("테스트기업")
+            .title("백엔드 개발자") // p2 키워드가 p1의 진부분집합
+            .collectedAt(Instant.now())
+            .build();
+
+    JobPosting pEmptyComp =
+        JobPosting.builder()
+            .source("JOBKOREA")
+            .externalId("jk-empty-3")
+            .companyName("") // 회사명 빈값
+            .title("단독 공고")
+            .collectedAt(Instant.now())
+            .build();
+
+    int matched = deduplicator.deduplicate(List.of(p1, p2, pEmptyComp));
+    assertThat(matched).isEqualTo(1);
+    assertThat(p1.getDedupGroupId()).isEqualTo(p2.getDedupGroupId());
+  }
 }

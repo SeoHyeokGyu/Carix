@@ -98,4 +98,49 @@ class SkillTaxonomyTest {
     assertEquals("JOB_CATEGORY", taxonomy.category("웹개발 "));
     assertEquals("SKILL", taxonomy.category("java"));
   }
+
+  @Test
+  void handlesCustomSkillAndNullSkillInRepository() {
+    SkillRepository skillRepo = mock(SkillRepository.class);
+    SkillAliasRepository aliasRepo = mock(SkillAliasRepository.class);
+
+    Skill customSkill = Skill.builder().standardName("Custom").isCustom(true).build();
+    SkillAlias nullSkillAlias = SkillAlias.builder().aliasName("NullAlias").skill(null).build();
+
+    given(skillRepo.findAll()).willReturn(List.of(customSkill));
+    given(aliasRepo.findAllWithSkill()).willReturn(List.of(nullSkillAlias));
+
+    SkillTaxonomy tax = new SkillTaxonomy(skillRepo, aliasRepo);
+    // fallback map populated because loaded was empty
+    assertEquals("Java", tax.canonicalName("java"));
+  }
+
+  @Test
+  void handlesRepositoryExceptionGracefullyWithFallback() {
+    SkillRepository skillRepo = mock(SkillRepository.class);
+    SkillAliasRepository aliasRepo = mock(SkillAliasRepository.class);
+
+    given(skillRepo.findAll()).willThrow(new RuntimeException("DB Error"));
+
+    SkillTaxonomy tax = new SkillTaxonomy(skillRepo, aliasRepo);
+    assertEquals("Java", tax.canonicalName("java"));
+  }
+
+  @Test
+  void handlesEdgeCaseInputsInCanonicalExtraction() {
+    assertTrue(taxonomy.extractCanonicalSkills(null).isEmpty());
+    assertTrue(taxonomy.extractCanonicalSkills("   ").isEmpty());
+    assertTrue(taxonomy.extractCanonicalSkills("a".repeat(35)).isEmpty());
+
+    // 20자 초과 미등록 키워드는 스킬로 채택되지 않음
+    assertTrue(taxonomy.extractCanonicalSkills("abcdefghijklmnopqrstuvwxyz12345").isEmpty());
+
+    // 20자 이하 미등록 키워드는 원문 그대로 채택
+    List<String> unknown = taxonomy.extractCanonicalSkills("newcooltech");
+    assertEquals(List.of("newcooltech"), unknown);
+
+    assertEquals(null, taxonomy.canonicalName(null));
+    assertEquals(null, taxonomy.canonicalName("   "));
+    assertEquals(null, taxonomy.canonicalName("인근거주자 우대"));
+  }
 }

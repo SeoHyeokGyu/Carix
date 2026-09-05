@@ -360,6 +360,136 @@ class MarketValueIndexServiceTest {
     assertThat(result.wageBaseline().medianGrossSalary()).isEqualTo(55000000L);
   }
 
+  @Test
+  @DisplayName("getSkillDemandDetails - userId null 또는 스킬 목록 없음")
+  void testGetSkillDemandDetails_empty() {
+    assertThat(service.getSkillDemandDetails(null, "202607")).isEmpty();
+
+    UUID userId = UUID.randomUUID();
+    when(careerProfileRepository.findByUserId(userId)).thenReturn(Optional.empty());
+    when(userSkillRepository.findByUserId(userId)).thenReturn(List.of());
+
+    assertThat(service.getSkillDemandDetails(userId, "202607")).isEmpty();
+  }
+
+  @Test
+  @DisplayName("getSkillDemandDetails - 표준 스킬 및 커스텀 스킬 혼합 조회")
+  void testGetSkillDemandDetails_success() {
+    UUID userId = UUID.randomUUID();
+    String baseYearMonth = "202607";
+
+    Skill standardSkill = Skill.createStandard("Spring Boot", "BACKEND");
+    Skill customSkill = Skill.createCustom("MyTool", "TOOL", userId);
+    UserSkill standardUserSkill = userSkillOf(standardSkill);
+    UserSkill customUserSkill = userSkillOf(customSkill);
+
+    when(careerProfileRepository.findByUserId(userId))
+        .thenReturn(Optional.of(new CareerProfile(userId)));
+    when(userSkillRepository.findByUserId(userId))
+        .thenReturn(List.of(standardUserSkill, customUserSkill));
+
+    PeerGroupFallbackResolver.ResolvedPeerGroup jk = resolvedGroup("JOBKOREA", 100);
+    PeerGroupFallbackResolver.ResolvedPeerGroup sm = resolvedGroup("SARAMIN", 100);
+    when(peerGroupFallbackResolver.resolveForSource(eq("JOBKOREA"), any(), eq(baseYearMonth)))
+        .thenReturn(jk);
+    when(peerGroupFallbackResolver.resolveForSource(eq("SARAMIN"), any(), eq(baseYearMonth)))
+        .thenReturn(sm);
+
+    when(skillWeightCalculator.calculateWeights(any(), eq(baseYearMonth), any()))
+        .thenReturn(Map.of(standardSkill.getId(), BigDecimal.valueOf(1.0)));
+
+    SkillDemandCalculator.SkillDemandResult demandRes =
+        SkillDemandCalculator.SkillDemandResult.builder()
+            .skillId(standardSkill.getId())
+            .demandIndex(110.0)
+            .recentDemandRate(0.35)
+            .baselineDemandRate(0.30)
+            .status("OK")
+            .build();
+
+    when(skillDemandCalculator.calculateDemandIndex(
+            any(), eq(standardSkill.getId()), any(), eq(baseYearMonth)))
+        .thenReturn(demandRes);
+
+    var details = service.getSkillDemandDetails(userId, baseYearMonth);
+
+    assertThat(details).hasSize(2);
+    var stdDetail =
+        details.stream()
+            .filter(d -> d.getSkillId().equals(standardSkill.getId()))
+            .findFirst()
+            .orElseThrow();
+    assertThat(stdDetail.getStandardName()).isEqualTo("Spring Boot");
+    assertThat(stdDetail.getStatus()).isEqualTo("OK");
+    assertThat(stdDetail.getSources()).hasSize(2);
+
+    var custDetail =
+        details.stream()
+            .filter(d -> d.getSkillId().equals(customSkill.getId()))
+            .findFirst()
+            .orElseThrow();
+    assertThat(custDetail.getStatus()).isEqualTo("CUSTOM_SKILL_NO_STATS");
+  }
+
+  @Test
+  @DisplayName("calculate - userId null 시 NOT_AVAILABLE 반환")
+  void testCalculateNullUserId() {
+    MviResult res = service.calculate(null, "202607");
+    assertThat(res.value()).isNull();
+    assertThat(res.status()).isEqualTo(IndexStatus.NOT_AVAILABLE);
+  }
+
+  @Test
+  @DisplayName("calculate - 커스텀 스킬 등으로 인해 모든 스킬이 제외되어 유효 가중치가 없으면 INSUFFICIENT_SAMPLE 반환")
+  void testCalculateAllSkillsExcluded() {
+    UUID userId = UUID.randomUUID();
+    Skill customSkill = Skill.createCustom("SpecialTool", "ETC", userId);
+    UserSkill userSkill = userSkillOf(customSkill);
+
+    when(careerProfileRepository.findByUserId(userId))
+        .thenReturn(Optional.of(new CareerProfile(userId)));
+    when(userSkillRepository.findByUserId(userId)).thenReturn(List.of(userSkill));
+
+    PeerGroupFallbackResolver.ResolvedPeerGroup jk = resolvedGroup("JOBKOREA", 50);
+    when(peerGroupFallbackResolver.resolveForSource(any(), any(), any())).thenReturn(jk);
+    when(skillWeightCalculator.calculateWeights(any(), any(), any())).thenReturn(Map.of());
+    when(wageBaselineResolver.resolveBaseline(any()))
+        .thenReturn(new WageBaseline(50000000L, "초과급여 제외", "202606"));
+
+    MviResult res = service.calculate(userId, "202607");
+    assertThat(res.status()).isEqualTo(IndexStatus.INSUFFICIENT_SAMPLE);
+    assertThat(res.value()).isNull();
+  }
+
+  @Test
+  @DisplayName("calculate - CareerProfile이 DB에 없더라도 기본 프로필을 생성하여 정상 계산 진행")
+  void testCalculateWithDefaultProfileWhenNotFound() {
+    UUID userId = UUID.randomUUID();
+    Skill skill = Skill.createStandard("Python", "DATA");
+    UserSkill userSkill = userSkillOf(skill);
+
+    when(careerProfileRepository.findByUserId(userId)).thenReturn(Optional.empty());
+    when(userSkillRepository.findByUserId(userId)).thenReturn(List.of(userSkill));
+
+    PeerGroupFallbackResolver.ResolvedPeerGroup jk = resolvedGroup("JOBKOREA", 50);
+    when(peerGroupFallbackResolver.resolveForSource(any(), any(), any())).thenReturn(jk);
+
+    SkillDemandCalculator.SkillDemandResult demandRes =
+        SkillDemandCalculator.SkillDemandResult.builder()
+            .skillId(skill.getId())
+            .demandIndex(100.0)
+            .status("OK")
+            .build();
+    when(skillDemandCalculator.calculateDemandIndex(any(), eq(skill.getId()), any(), any()))
+        .thenReturn(demandRes);
+    when(skillWeightCalculator.calculateWeights(any(), any(), any()))
+        .thenReturn(Map.of(skill.getId(), BigDecimal.valueOf(1.0)));
+
+    MviResult res = service.calculate(userId, "202607");
+    assertThat(res.status()).isEqualTo(IndexStatus.OK);
+    assertThat(res.value()).isEqualTo(BigDecimal.valueOf(100.0).setScale(1));
+  }
+
   private static PeerGroupFallbackResolver.ResolvedPeerGroup resolvedGroup(
       String source, int sampleCount) {
     return PeerGroupFallbackResolver.ResolvedPeerGroup.builder()
