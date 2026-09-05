@@ -6,7 +6,7 @@ describe("라우트 설정 (routes)", () => {
     expect(Array.isArray(routes)).toBe(true);
     expect(routes.length).toBeGreaterThan(0);
 
-    // Should include home, login, register, and 3 layouts (onboarding, dashboard, mypage)
-    expect(routes).toHaveLength(6);
+    // home, login, register, 3개 레이아웃(onboarding, dashboard, mypage), 2개 관리자 라우트(admin/collector, admin/pipeline)
+    expect(routes).toHaveLength(8);
   });
 });
