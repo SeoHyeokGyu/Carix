@@ -56,4 +56,33 @@ class CorrelationIdGlobalFilterTest {
     assertThat(exchange.getResponse().getHeaders().getFirst(CorrelationIdGlobalFilter.HEADER))
         .isEqualTo("existing-id");
   }
+
+  @Test
+  void 요청에_상관관계ID가_공백이면_새로_생성한다() {
+    MockServerWebExchange exchange =
+        MockServerWebExchange.from(
+            MockServerHttpRequest.get("/api/health")
+                .header(CorrelationIdGlobalFilter.HEADER, "   "));
+    AtomicReference<ServerWebExchange> forwarded = new AtomicReference<>();
+
+    filter
+        .filter(
+            exchange,
+            ex -> {
+              forwarded.set(ex);
+              return Mono.empty();
+            })
+        .block();
+
+    assertThat(forwarded.get().getRequest().getHeaders().getFirst(CorrelationIdGlobalFilter.HEADER))
+        .isNotBlank()
+        .isNotEqualTo("   ");
+    assertThat(exchange.getResponse().getHeaders().getFirst(CorrelationIdGlobalFilter.HEADER))
+        .isNotBlank();
+  }
+
+  @Test
+  void getOrder_검증() {
+    assertThat(filter.getOrder()).isEqualTo(org.springframework.core.Ordered.HIGHEST_PRECEDENCE);
+  }
 }
