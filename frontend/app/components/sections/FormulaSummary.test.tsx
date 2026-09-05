@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { FormulaSummary } from "./FormulaSummary";
 
 describe("FormulaSummary", () => {
@@ -18,5 +18,23 @@ describe("FormulaSummary", () => {
     render(<FormulaSummary />);
     const formulas = screen.getAllByRole("code");
     expect(formulas.length).toBeGreaterThan(0);
+  });
+
+  it("물음표 버튼 클릭 및 키보드 입력(Enter, Space)으로 공식을 토글한다", () => {
+    render(<FormulaSummary />);
+    const buttons = screen.getAllByTitle("상세 공식 보기");
+    const toggleButton = buttons[0];
+
+    // Click to toggle
+    fireEvent.click(toggleButton);
+
+    // Enter keydown to toggle
+    fireEvent.keyDown(toggleButton, { key: "Enter" });
+
+    // Space keydown to toggle
+    fireEvent.keyDown(toggleButton, { key: " " });
+
+    // Other key should not toggle
+    fireEvent.keyDown(toggleButton, { key: "Escape" });
   });
 });

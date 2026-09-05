@@ -7,6 +7,7 @@ import {
   guardOnboarded,
   guardOnboarding,
   guardSession,
+  stepPath,
 } from "./routeGuards";
 
 const anonymous: Session = { status: "anonymous" };
@@ -105,5 +106,19 @@ describe("guardOnboarding — 온보딩", () => {
     expect(guardOnboarding(signedIn("COMPLETED"), REVIEW_PATH)).toEqual({
       allow: true,
     });
+  });
+});
+
+describe("stepPath", () => {
+  test("returns DASHBOARD_PATH when step is COMPLETED", () => {
+    expect(stepPath("COMPLETED")).toBe(DASHBOARD_PATH);
+  });
+
+  test("returns step path for non-completed steps", () => {
+    expect(stepPath("PROFILE")).toBe("/onboarding/profile");
+    expect(stepPath("INCOME")).toBe("/onboarding/income");
+    expect(stepPath("EXPENSE")).toBe("/onboarding/expense");
+    expect(stepPath("SKILLS")).toBe("/onboarding/skills");
+    expect(stepPath("REVIEW")).toBe(REVIEW_PATH);
   });
 });

@@ -1,5 +1,7 @@
+import React from "react";
 import { describe, expect, it, vi, afterEach } from "vitest";
 import { renderHook } from "@testing-library/react";
+import { renderToString } from "react-dom/server";
 import { usePrefersReducedMotion } from "./usePrefersReducedMotion";
 
 function mockMatchMedia(matches: boolean) {
@@ -29,5 +31,15 @@ describe("usePrefersReducedMotion", () => {
     mockMatchMedia(false);
     const { result } = renderHook(() => usePrefersReducedMotion());
     expect(result.current).toBe(false);
+  });
+
+  it("서버 렌더링(SSR) 시에는 false를 반환한다", () => {
+    let captured = true;
+    const Component = () => {
+      captured = usePrefersReducedMotion();
+      return null;
+    };
+    renderToString(React.createElement(Component));
+    expect(captured).toBe(false);
   });
 });
