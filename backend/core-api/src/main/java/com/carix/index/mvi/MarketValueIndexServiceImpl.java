@@ -84,6 +84,7 @@ public class MarketValueIndexServiceImpl implements MarketValueIndexProvider {
           IndexStatus.INSUFFICIENT_SAMPLE,
           List.of(),
           List.of(),
+          List.of(),
           null,
           LocalDate.now());
     }
@@ -117,12 +118,15 @@ public class MarketValueIndexServiceImpl implements MarketValueIndexProvider {
           IndexStatus.INSUFFICIENT_SAMPLE,
           coverages,
           List.of(),
+          List.of(),
           baseline,
           LocalDate.now());
     }
 
     // 3. 제외 스킬 분류 및 원천별 스킬 수요 지수 산출
     Map<UUID, String> excludedSkillMap = new HashMap<>();
+    // 어느 한 원천에서라도 최근 수요가 없으면 담는다. 제외 스킬 판정(NEW_OBSERVATION)과 같은 원천 무관 규칙이다.
+    Set<UUID> zeroDemandSkillIds = new HashSet<>();
     Map<String, Map<UUID, Double>> sourceSkillDemandIndices = new HashMap<>();
 
     for (String source : SUPPORTED_SOURCES) {
@@ -146,6 +150,10 @@ public class MarketValueIndexServiceImpl implements MarketValueIndexProvider {
           // 분모 0인 신규 관측 스킬 -> 가중합 제외 (기능 명세 §4.1)
           excludedSkillMap.put(skillId, "NEW_OBSERVATION");
         } else {
+          if ("NO_RECENT_DEMAND".equals(demandResult.getStatus())) {
+            // 분자 0 -> 지수 0 으로 가중합에 반영하되 화면에서 구분한다 (기능 명세 §4.1)
+            zeroDemandSkillIds.add(skillId);
+          }
           skillIndices.put(skillId, demandResult.getDemandIndex());
         }
       }
@@ -167,6 +175,18 @@ public class MarketValueIndexServiceImpl implements MarketValueIndexProvider {
       }
     }
 
+    // 0 으로 반영된 스킬 목록. 제외가 우선하므로 겹치면 제외 쪽에만 남긴다 — 제외 스킬은 가중치 배분에서
+    // 아예 빠지고, 0 반영 스킬은 가중치를 그대로 받는다.
+    List<ExcludedSkill> zeroDemandSkills = new ArrayList<>();
+    for (UserSkill us : userSkills) {
+      UUID skillId = us.getSkill().getId();
+      if (zeroDemandSkillIds.contains(skillId) && !excludedSkillIds.contains(skillId)) {
+        zeroDemandSkills.add(
+            new ExcludedSkill(
+                skillId, us.getSkill().getStandardName(), SkillExclusionReason.NO_RECENT_DEMAND));
+      }
+    }
+
     // 4. 유효 스킬들에 대해 숙련도 가중치 재정규화 (합 = 1.0)
     Map<UUID, BigDecimal> normalizedWeights =
         skillWeightCalculator.calculateWeights(userSkills, baseYearMonth, excludedSkillIds);
@@ -180,6 +200,7 @@ public class MarketValueIndexServiceImpl implements MarketValueIndexProvider {
           IndexStatus.INSUFFICIENT_SAMPLE,
           coverages,
           excludedSkills,
+          zeroDemandSkills,
           baseline,
           LocalDate.now());
     }
@@ -230,6 +251,7 @@ public class MarketValueIndexServiceImpl implements MarketValueIndexProvider {
         status,
         coverages,
         excludedSkills,
+        zeroDemandSkills,
         wageBaseline,
         LocalDate.now());
   }

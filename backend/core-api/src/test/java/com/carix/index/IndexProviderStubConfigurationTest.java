@@ -75,7 +75,9 @@ class IndexProviderStubConfigurationTest {
               new BigDecimal("117.50"),
               IndexStatus.OK,
               List.of(
-                  new SourceCoverage("SARAMIN", 3, 124, "서울 전체 / MID", new BigDecimal("42.50"))),
+                  new SourceCoverage(
+                      "SARAMIN", 3, 124, true, "서울 전체 / MID", new BigDecimal("42.50"))),
+              List.of(),
               List.of(),
               new WageBaseline(72_000_000L, "초과급여 제외, 상여 포함", "202606"),
               LocalDate.of(2026, 7, 1));
