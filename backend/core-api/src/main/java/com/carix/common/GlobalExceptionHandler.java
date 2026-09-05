@@ -40,6 +40,13 @@ public class GlobalExceptionHandler {
         .body(ErrorResponse.of("INVALID_SKILL_CATEGORY", e.getMessage(), null));
   }
 
+  @ExceptionHandler(com.carix.skill.exception.MaxSkillLimitExceededException.class)
+  public ResponseEntity<ErrorResponse> handleMaxSkillLimitExceeded(
+      com.carix.skill.exception.MaxSkillLimitExceededException e) {
+    return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+        .body(ErrorResponse.of("MAX_SKILL_LIMIT_EXCEEDED", e.getMessage(), null));
+  }
+
   @ExceptionHandler(com.carix.expense.exception.InvalidExpenseCategoryException.class)
   public ResponseEntity<ErrorResponse> handleInvalidExpenseCategory(
       com.carix.expense.exception.InvalidExpenseCategoryException e) {

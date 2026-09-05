@@ -276,6 +276,90 @@ class MarketValueIndexServiceTest {
     assertThat(result.value()).isEqualByComparingTo("110.0");
   }
 
+  @Test
+  @DisplayName("커스텀 스킬만 등록된 경우 모든 스킬이 제외되어 INSUFFICIENT_SAMPLE 및 제외 사유를 반환해야 한다")
+  void testAllCustomSkillsExcludedReturnsInsufficientSample() {
+    UUID userId = UUID.randomUUID();
+    String baseYearMonth = "202607";
+
+    CareerProfile profile = new CareerProfile(userId);
+    Skill customSkill =
+        Skill.builder().id(UUID.randomUUID()).standardName("MyTool").isCustom(true).build();
+    UserSkill userSkill =
+        UserSkill.builder()
+            .skill(customSkill)
+            .monthsOfExperience(12)
+            .lastUsedDate(LocalDate.of(2026, 7, 1))
+            .build();
+
+    when(careerProfileRepository.findByUserId(userId)).thenReturn(Optional.of(profile));
+    when(userSkillRepository.findByUserId(userId)).thenReturn(List.of(userSkill));
+
+    PeerGroupFallbackResolver.ResolvedPeerGroup resolvedGroup =
+        PeerGroupFallbackResolver.ResolvedPeerGroup.builder()
+            .source("JOBKOREA")
+            .successful(true)
+            .sampleCount(30)
+            .fallbackLevel(0)
+            .coverage(new SourceCoverage("JOBKOREA", 0, 30, true, "조건", BigDecimal.ZERO))
+            .build();
+
+    when(peerGroupFallbackResolver.resolveForSource(any(), any(), any())).thenReturn(resolvedGroup);
+    when(skillWeightCalculator.calculateWeights(any(), any(), any())).thenReturn(Map.of());
+    when(wageBaselineResolver.resolveBaseline(any()))
+        .thenReturn(new WageBaseline(50000000L, "초과급여 제외", "202606"));
+
+    MviResult result = service.calculate(userId, baseYearMonth);
+
+    assertThat(result.status()).isEqualTo(IndexStatus.INSUFFICIENT_SAMPLE);
+    assertThat(result.value()).isNull();
+    assertThat(result.excludedSkills()).hasSize(1);
+    assertThat(result.excludedSkills().get(0).standardName()).isEqualTo("MyTool");
+    assertThat(result.excludedSkills().get(0).reason())
+        .isEqualTo(SkillExclusionReason.CUSTOM_SKILL_NO_STATS);
+  }
+
+  @Test
+  @DisplayName("모든 원천의 표본 수가 부족(N < 10)한 경우 INSUFFICIENT_SAMPLE 및 임금 기준선을 반환해야 한다")
+  void testAllSourcesInsufficientSamplesReturnsStatus() {
+    UUID userId = UUID.randomUUID();
+    String baseYearMonth = "202607";
+
+    CareerProfile profile = new CareerProfile(userId);
+    Skill skill =
+        Skill.builder().id(UUID.randomUUID()).standardName("Java").isCustom(false).build();
+    UserSkill userSkill =
+        UserSkill.builder()
+            .skill(skill)
+            .monthsOfExperience(12)
+            .lastUsedDate(LocalDate.of(2026, 7, 1))
+            .build();
+
+    when(careerProfileRepository.findByUserId(userId)).thenReturn(Optional.of(profile));
+    when(userSkillRepository.findByUserId(userId)).thenReturn(List.of(userSkill));
+
+    PeerGroupFallbackResolver.ResolvedPeerGroup lowSampleGroup =
+        PeerGroupFallbackResolver.ResolvedPeerGroup.builder()
+            .source("JOBKOREA")
+            .successful(false)
+            .sampleCount(3)
+            .fallbackLevel(4)
+            .coverage(new SourceCoverage("JOBKOREA", 4, 3, false, "조건", BigDecimal.ZERO))
+            .build();
+
+    when(peerGroupFallbackResolver.resolveForSource(any(), any(), any()))
+        .thenReturn(lowSampleGroup);
+    when(wageBaselineResolver.resolveBaseline(any()))
+        .thenReturn(new WageBaseline(55000000L, "초과급여 제외", "202606"));
+
+    MviResult result = service.calculate(userId, baseYearMonth);
+
+    assertThat(result.status()).isEqualTo(IndexStatus.INSUFFICIENT_SAMPLE);
+    assertThat(result.value()).isNull();
+    assertThat(result.wageBaseline()).isNotNull();
+    assertThat(result.wageBaseline().medianGrossSalary()).isEqualTo(55000000L);
+  }
+
   private static PeerGroupFallbackResolver.ResolvedPeerGroup resolvedGroup(
       String source, int sampleCount) {
     return PeerGroupFallbackResolver.ResolvedPeerGroup.builder()

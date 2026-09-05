@@ -304,4 +304,51 @@ class SkillServiceTest {
     verify(userSkillRepository).delete(userSkill);
     verify(skillRepository, never()).delete(any(Skill.class));
   }
+
+  @Test
+  @DisplayName("사용자 스킬 등록 - 이미 30개의 스킬이 등록된 경우 MaxSkillLimitExceededException 발생")
+  void createUserSkill_exceedsMaxSkillLimit_throwsException() {
+    UUID userId = UUID.randomUUID();
+    UserSkillCreateRequest request =
+        new UserSkillCreateRequest("Kubernetes", 12, LocalDate.of(2026, 1, 1), "DEVOPS");
+
+    given(userSkillRepository.countByUserId(userId))
+        .willReturn((long) SkillService.MAX_USER_SKILLS);
+
+    assertThatThrownBy(() -> skillService.createUserSkill(userId, request))
+        .isInstanceOf(com.carix.skill.exception.MaxSkillLimitExceededException.class)
+        .hasMessageContaining("보유 스킬은 최대 30개까지만 등록할 수 있습니다.");
+
+    verify(userSkillRepository, never()).save(any(UserSkill.class));
+  }
+
+  @Test
+  @DisplayName("사용자 스킬 등록 - 미래 일자가 마지막 사용일로 전달되면 IllegalArgumentException 발생")
+  void createUserSkill_futureDate_throwsException() {
+    UUID userId = UUID.randomUUID();
+    LocalDate futureDate = LocalDate.now().plusDays(10);
+    UserSkillCreateRequest request =
+        new UserSkillCreateRequest("Kubernetes", 12, futureDate, "DEVOPS");
+
+    assertThatThrownBy(() -> skillService.createUserSkill(userId, request))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessageContaining("마지막 사용일은 미래 날짜일 수 없습니다");
+
+    verifyNoInteractions(skillRepository);
+  }
+
+  @Test
+  @DisplayName("사용자 스킬 수정 - 미래 일자가 마지막 사용일로 전달되면 IllegalArgumentException 발생")
+  void updateUserSkill_futureDate_throwsException() {
+    UUID userId = UUID.randomUUID();
+    UUID userSkillId = UUID.randomUUID();
+    LocalDate futureDate = LocalDate.now().plusDays(5);
+    UserSkillUpdateRequest request = new UserSkillUpdateRequest(24, futureDate);
+
+    assertThatThrownBy(() -> skillService.updateUserSkill(userId, userSkillId, request))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessageContaining("마지막 사용일은 미래 날짜일 수 없습니다");
+
+    verifyNoInteractions(userSkillRepository);
+  }
 }
