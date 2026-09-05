@@ -285,4 +285,29 @@ class PeerGroupFallbackResolverTest {
     assertThat(resolver.mapExperienceBracket(7)).isEqualTo("MID");
     assertThat(resolver.mapExperienceBracket(8)).isEqualTo("SENIOR");
   }
+
+  @Test
+  @DisplayName("getAdjacentBrackets - MID 및 SENIOR 인접 구간 확장")
+  void testGetAdjacentBrackets() {
+    assertThat(resolver.getAdjacentBrackets("JUNIOR")).containsExactly("JUNIOR", "MID");
+    assertThat(resolver.getAdjacentBrackets("SENIOR")).containsExactly("MID", "SENIOR");
+    assertThat(resolver.getAdjacentBrackets("MID")).containsExactly("JUNIOR", "MID", "SENIOR");
+  }
+
+  @Test
+  @DisplayName("formatConditionText - 구 미포함 지역 및 브래킷 문구 포맷팅 검증")
+  void testFormatConditionText() {
+    // 구 미포함 지역
+    String t1 = resolver.formatConditionText("경기도", List.of("JUNIOR"), "FULL_TIME", "LARGE");
+    assertThat(t1).contains("경기도 전체").contains("JUNIOR (0~3년)");
+
+    // 3개 구간 전체
+    String t2 =
+        resolver.formatConditionText("서울 강남구", List.of("JUNIOR", "MID", "SENIOR"), null, null);
+    assertThat(t2).contains("경력 전체 구간").contains("회사규모 무관").contains("고용형태 무관");
+
+    // 2개 구간 (MID - SENIOR)
+    String t3 = resolver.formatConditionText("서울 강남구", List.of("MID", "SENIOR"), "PART_TIME", null);
+    assertThat(t3).contains("MID·SENIOR (4년+)");
+  }
 }
