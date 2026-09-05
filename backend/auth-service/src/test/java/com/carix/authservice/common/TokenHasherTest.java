@@ -26,4 +26,11 @@ class TokenHasherTest {
     String raw = "a".repeat(64);
     assertThat(TokenHasher.sha256Hex(raw)).isNotEqualTo(raw);
   }
+
+  @Test
+  void 유틸리티_클래스_생성자_호출() throws Exception {
+    var constructor = TokenHasher.class.getDeclaredConstructor();
+    constructor.setAccessible(true);
+    assertThat(constructor.newInstance()).isNotNull();
+  }
 }
