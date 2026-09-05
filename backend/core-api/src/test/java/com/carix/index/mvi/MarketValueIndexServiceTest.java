@@ -186,6 +186,116 @@ class MarketValueIndexServiceTest {
     assertThat(result.value()).isEqualByComparingTo("60.0");
   }
 
+  @Test
+  @DisplayName("모든 원천에서 표본이 미달인 스킬은 표본 부족으로 제외된다")
+  void testSkillUnderSampledInEverySourceIsExcluded() {
+    UUID userId = UUID.randomUUID();
+    String ym = "202607";
+
+    CareerProfile profile = new CareerProfile(userId);
+    profile.patch("DEVELOPER", 5, "서울 강남구", "FULL_TIME", "MEDIUM");
+
+    Skill active =
+        Skill.builder().id(UUID.randomUUID()).standardName("Java").isCustom(false).build();
+    Skill scarce =
+        Skill.builder().id(UUID.randomUUID()).standardName("Rust").isCustom(false).build();
+
+    when(careerProfileRepository.findByUserId(userId)).thenReturn(Optional.of(profile));
+    when(userSkillRepository.findByUserId(userId))
+        .thenReturn(List.of(userSkillOf(active), userSkillOf(scarce)));
+    when(peerGroupFallbackResolver.resolveForSource(any(), any(), any()))
+        .thenReturn(resolvedGroup("JOBKOREA", 50));
+
+    when(skillDemandCalculator.calculateDemandIndex(any(), eq(active.getId()), any(), eq(ym)))
+        .thenReturn(demand(active.getId(), 120.0, "OK"));
+    when(skillDemandCalculator.calculateDemandIndex(any(), eq(scarce.getId()), any(), eq(ym)))
+        .thenReturn(demand(scarce.getId(), 0.0, "INSUFFICIENT_SAMPLE"));
+
+    // 제외된 스킬은 가중치 산출에서도 빠진다 — 실제 계산기와 같은 동작을 흉내낸다.
+    when(skillWeightCalculator.calculateWeights(any(), any(), any()))
+        .thenReturn(Map.of(active.getId(), BigDecimal.valueOf(1.0)));
+    when(wageBaselineResolver.resolveBaseline(any()))
+        .thenReturn(new WageBaseline(65000000L, "초과급여 제외", "202606"));
+
+    MviResult result = service.calculate(userId, ym);
+
+    assertThat(result.zeroDemandSkills()).isEmpty();
+    assertThat(result.excludedSkills())
+        .singleElement()
+        .satisfies(
+            excluded -> {
+              assertThat(excluded.standardName()).isEqualTo("Rust");
+              assertThat(excluded.reason()).isEqualTo(SkillExclusionReason.INSUFFICIENT_SAMPLE);
+            });
+    assertThat(result.value()).isEqualByComparingTo("120.0");
+  }
+
+  @Test
+  @DisplayName("한 원천에서만 표본이 미달이면 제외하지 않고 그 원천의 가중치만 재정규화한다")
+  void testSkillUnderSampledInOneSourceIsKept() {
+    UUID userId = UUID.randomUUID();
+    String ym = "202607";
+
+    CareerProfile profile = new CareerProfile(userId);
+    profile.patch("DEVELOPER", 5, "서울 강남구", "FULL_TIME", "MEDIUM");
+
+    Skill active =
+        Skill.builder().id(UUID.randomUUID()).standardName("Java").isCustom(false).build();
+    Skill partial =
+        Skill.builder().id(UUID.randomUUID()).standardName("Kotlin").isCustom(false).build();
+
+    when(careerProfileRepository.findByUserId(userId)).thenReturn(Optional.of(profile));
+    when(userSkillRepository.findByUserId(userId))
+        .thenReturn(List.of(userSkillOf(active), userSkillOf(partial)));
+    when(peerGroupFallbackResolver.resolveForSource(any(), any(), any()))
+        .thenReturn(resolvedGroup("JOBKOREA", 50));
+
+    when(skillDemandCalculator.calculateDemandIndex(any(), eq(active.getId()), any(), eq(ym)))
+        .thenReturn(demand(active.getId(), 120.0, "OK"));
+    when(skillDemandCalculator.calculateDemandIndex(
+            eq("JOBKOREA"), eq(partial.getId()), any(), eq(ym)))
+        .thenReturn(demand(partial.getId(), 80.0, "OK"));
+    when(skillDemandCalculator.calculateDemandIndex(
+            eq("SARAMIN"), eq(partial.getId()), any(), eq(ym)))
+        .thenReturn(demand(partial.getId(), 0.0, "INSUFFICIENT_SAMPLE"));
+
+    when(skillWeightCalculator.calculateWeights(any(), any(), any()))
+        .thenReturn(
+            Map.of(
+                active.getId(), BigDecimal.valueOf(0.5),
+                partial.getId(), BigDecimal.valueOf(0.5)));
+    when(wageBaselineResolver.resolveBaseline(any()))
+        .thenReturn(new WageBaseline(65000000L, "초과급여 제외", "202606"));
+
+    MviResult result = service.calculate(userId, ym);
+
+    // JOBKOREA: 0.5×120 + 0.5×80 = 100 (가중치 합 1.0)
+    // SARAMIN: Kotlin 이 빠져 0.5×120 을 0.5 로 재정규화 = 120
+    // 표본수가 같으므로 (100 + 120) / 2 = 110. 재정규화가 없으면 SARAMIN 이 60 이 되어 80 이 나온다.
+    assertThat(result.excludedSkills()).isEmpty();
+    assertThat(result.value()).isEqualByComparingTo("110.0");
+  }
+
+  private static PeerGroupFallbackResolver.ResolvedPeerGroup resolvedGroup(
+      String source, int sampleCount) {
+    return PeerGroupFallbackResolver.ResolvedPeerGroup.builder()
+        .source(source)
+        .successful(true)
+        .sampleCount(sampleCount)
+        .fallbackLevel(1)
+        .coverage(new SourceCoverage(source, 1, sampleCount, true, "조건", BigDecimal.ZERO))
+        .build();
+  }
+
+  private static SkillDemandCalculator.SkillDemandResult demand(
+      UUID skillId, double index, String status) {
+    return SkillDemandCalculator.SkillDemandResult.builder()
+        .skillId(skillId)
+        .demandIndex(index)
+        .status(status)
+        .build();
+  }
+
   private static UserSkill userSkillOf(Skill skill) {
     return UserSkill.builder()
         .skill(skill)

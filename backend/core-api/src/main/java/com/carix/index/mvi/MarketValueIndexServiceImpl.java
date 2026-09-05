@@ -127,6 +127,8 @@ public class MarketValueIndexServiceImpl implements MarketValueIndexProvider {
     Map<UUID, String> excludedSkillMap = new HashMap<>();
     // 어느 한 원천에서라도 최근 수요가 없으면 담는다. 제외 스킬 판정(NEW_OBSERVATION)과 같은 원천 무관 규칙이다.
     Set<UUID> zeroDemandSkillIds = new HashSet<>();
+    // 어느 한 원천에서라도 표본이 미달인 스킬. 모든 원천이 미달인지는 반복이 끝난 뒤 판정한다 (기술 명세 §2.1).
+    Set<UUID> underSampledSkillIds = new HashSet<>();
     Map<String, Map<UUID, Double>> sourceSkillDemandIndices = new HashMap<>();
 
     for (String source : SUPPORTED_SOURCES) {
@@ -146,18 +148,33 @@ public class MarketValueIndexServiceImpl implements MarketValueIndexProvider {
         SkillDemandCalculator.SkillDemandResult demandResult =
             skillDemandCalculator.calculateDemandIndex(source, skillId, peerGroup, baseYearMonth);
 
-        if ("NEW_OBSERVATION".equals(demandResult.getStatus())) {
+        String demandStatus = demandResult.getStatus();
+        if ("NEW_OBSERVATION".equals(demandStatus)) {
           // 분모 0인 신규 관측 스킬 -> 가중합 제외 (기능 명세 §4.1)
           excludedSkillMap.put(skillId, "NEW_OBSERVATION");
-        } else {
-          if ("NO_RECENT_DEMAND".equals(demandResult.getStatus())) {
-            // 분자 0 -> 지수 0 으로 가중합에 반영하되 화면에서 구분한다 (기능 명세 §4.1)
-            zeroDemandSkillIds.add(skillId);
-          }
-          skillIndices.put(skillId, demandResult.getDemandIndex());
+          continue;
         }
+        if ("INSUFFICIENT_SAMPLE".equals(demandStatus)) {
+          // 이 원천에서만 미달일 수 있다. 지수를 넣지 않으면 이 원천의 가중합에서 자동으로 빠진다.
+          underSampledSkillIds.add(skillId);
+          continue;
+        }
+        if ("NO_RECENT_DEMAND".equals(demandStatus)) {
+          // 분자 0 -> 지수 0 으로 가중합에 반영하되 화면에서 구분한다 (기능 명세 §4.1)
+          zeroDemandSkillIds.add(skillId);
+        }
+        skillIndices.put(skillId, demandResult.getDemandIndex());
       }
       sourceSkillDemandIndices.put(source, skillIndices);
+    }
+
+    // 모든 원천에서 미달인 스킬만 제외한다 — 한 원천이라도 지수를 냈으면 그 원천으로 결합한다 (기술 명세 §2.1).
+    for (UUID underSampled : underSampledSkillIds) {
+      boolean usableInAnySource =
+          sourceSkillDemandIndices.values().stream().anyMatch(m -> m.containsKey(underSampled));
+      if (!usableInAnySource && !excludedSkillMap.containsKey(underSampled)) {
+        excludedSkillMap.put(underSampled, "INSUFFICIENT_SAMPLE");
+      }
     }
 
     // 제외 스킬 목록 DTO 구성
@@ -166,11 +183,12 @@ public class MarketValueIndexServiceImpl implements MarketValueIndexProvider {
     for (UserSkill us : userSkills) {
       UUID skillId = us.getSkill().getId();
       if (excludedSkillIds.contains(skillId)) {
-        String reasonCode = excludedSkillMap.get(skillId);
         SkillExclusionReason reason =
-            "CUSTOM_SKILL_NO_STATS".equals(reasonCode)
-                ? SkillExclusionReason.CUSTOM_SKILL_NO_STATS
-                : SkillExclusionReason.NEW_OBSERVATION;
+            switch (excludedSkillMap.get(skillId)) {
+              case "CUSTOM_SKILL_NO_STATS" -> SkillExclusionReason.CUSTOM_SKILL_NO_STATS;
+              case "INSUFFICIENT_SAMPLE" -> SkillExclusionReason.INSUFFICIENT_SAMPLE;
+              default -> SkillExclusionReason.NEW_OBSERVATION;
+            };
         excludedSkills.add(new ExcludedSkill(skillId, us.getSkill().getStandardName(), reason));
       }
     }
@@ -216,14 +234,27 @@ public class MarketValueIndexServiceImpl implements MarketValueIndexProvider {
       }
 
       Map<UUID, Double> skillIndices = sourceSkillDemandIndices.get(source);
-      double sourceMvi = 0.0;
+      double weightedSum = 0.0;
+      double availableWeight = 0.0;
 
       for (Map.Entry<UUID, BigDecimal> entry : normalizedWeights.entrySet()) {
-        UUID skillId = entry.getKey();
+        Double demandIndex = skillIndices.get(entry.getKey());
+        if (demandIndex == null) {
+          // 이 원천에서 표본이 미달인 스킬. 중립값으로 채우지 않는다 — 숫자를 지어내는 것이기 때문이다.
+          continue;
+        }
         double weight = entry.getValue().doubleValue();
-        double demandIndex = skillIndices.getOrDefault(skillId, 100.0);
-        sourceMvi += weight * demandIndex;
+        weightedSum += weight * demandIndex;
+        availableWeight += weight;
       }
+
+      if (availableWeight <= 0.0) {
+        // 이 원천에는 기준을 통과한 스킬이 하나도 없다 -> 결합에서 뺀다 (기술 명세 §2.1)
+        continue;
+      }
+
+      // 이 원천에서 쓸 수 있는 스킬만으로 가중치를 100% 로 다시 맞춘다.
+      double sourceMvi = weightedSum / availableWeight;
 
       int sampleCount = peerGroup.getSampleCount();
       weightedMviSum += sourceMvi * sampleCount;
