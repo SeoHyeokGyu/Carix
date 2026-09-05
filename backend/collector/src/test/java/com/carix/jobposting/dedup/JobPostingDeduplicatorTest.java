@@ -58,4 +58,34 @@ class JobPostingDeduplicatorTest {
     assertThat(p1.getDedupRuleVersion()).isEqualTo("v1");
     assertThat(p3.getDedupGroupId()).isNotEqualTo(p1.getDedupGroupId());
   }
+
+  @Test
+  @DisplayName("deduplicateAll - DB 전체 공고 조회 후 중복제거 저장")
+  void deduplicateAll_success() {
+    com.carix.jobposting.JobPostingRepository repo =
+        org.mockito.Mockito.mock(com.carix.jobposting.JobPostingRepository.class);
+    JobPostingDeduplicator dedupWithRepo =
+        new JobPostingDeduplicator(companyNormalizer, titleNormalizer, repo);
+
+    JobPosting p1 =
+        JobPosting.builder()
+            .source("JOBKOREA")
+            .externalId("1")
+            .companyName("A")
+            .title("Dev")
+            .collectedAt(Instant.now())
+            .build();
+    org.mockito.BDDMockito.given(repo.findAll()).willReturn(java.util.List.of(p1));
+
+    int count = dedupWithRepo.deduplicateAll();
+    assertThat(count).isEqualTo(0);
+    org.mockito.Mockito.verify(repo).saveAll(org.mockito.ArgumentMatchers.anyList());
+  }
+
+  @Test
+  @DisplayName("deduplicate - null 또는 빈 목록은 0 반환")
+  void deduplicate_empty() {
+    assertThat(deduplicator.deduplicate(null)).isEqualTo(0);
+    assertThat(deduplicator.deduplicate(List.of())).isEqualTo(0);
+  }
 }

@@ -39,9 +39,14 @@ public class KosisWageStatClient {
   private final HttpClient httpClient;
   private final ObjectMapper objectMapper = new ObjectMapper();
 
+  @org.springframework.beans.factory.annotation.Autowired
   public KosisWageStatClient(@Value("${kosis.api-key:${KOSIS_API_KEY:}}") String apiKey) {
+    this(apiKey, HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10)).build());
+  }
+
+  KosisWageStatClient(String apiKey, HttpClient httpClient) {
     this.apiKey = apiKey != null ? apiKey.trim() : "";
-    this.httpClient = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10)).build();
+    this.httpClient = httpClient;
   }
 
   /**

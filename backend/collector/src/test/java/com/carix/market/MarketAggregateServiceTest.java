@@ -118,4 +118,46 @@ class MarketAggregateServiceTest {
     verify(marketAggregateRepository).deleteByBaseYearMonth("202501");
     verify(marketAggregateRepository).deleteByBaseYearMonth("202503");
   }
+
+  @Test
+  @DisplayName("aggregateMarketData - null 요청 및 빈 데이터 처리")
+  void aggregateMarketData_emptyAndNull() {
+    when(jobPostingRepository.findAll()).thenReturn(List.of());
+
+    assertThat(marketAggregateService.aggregateMarketData()).isEqualTo(0);
+    assertThat(
+            marketAggregateService.aggregateMarketData(
+                (com.carix.pipeline.dto.MarketAggregateRequest) null))
+        .isEqualTo(0);
+  }
+
+  @Test
+  @DisplayName("aggregateMarketData - month, year, yearRange 조건 분기")
+  void aggregateMarketData_branches() {
+    JobPosting p =
+        JobPosting.builder()
+            .source("JOBKOREA")
+            .externalId("jk-1")
+            .jobFamily("BACKEND")
+            .firstSeenMonth("202501")
+            .lastSeenMonth("202503")
+            .collectedAt(Instant.now())
+            .build();
+    when(jobPostingRepository.findAll()).thenReturn(List.of(p));
+
+    int resMonth =
+        marketAggregateService.aggregateMarketData(
+            new com.carix.pipeline.dto.MarketAggregateRequest("2025-01", null, null, null, null));
+    assertThat(resMonth).isGreaterThan(0);
+
+    int resYear =
+        marketAggregateService.aggregateMarketData(
+            new com.carix.pipeline.dto.MarketAggregateRequest(null, "2025", null, null, null));
+    assertThat(resYear).isGreaterThan(0);
+
+    int resRange =
+        marketAggregateService.aggregateMarketData(
+            new com.carix.pipeline.dto.MarketAggregateRequest(null, null, "2024", "2025", null));
+    assertThat(resRange).isGreaterThan(0);
+  }
 }
