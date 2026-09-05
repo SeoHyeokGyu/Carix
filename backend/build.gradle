@@ -75,6 +75,14 @@ subprojects {
 			csv.required = true
 			html.required = true
 		}
+		classDirectories.setFrom(
+			sourceSets.main.output.classesDirs.collect {
+				fileTree(dir: it, exclude: [
+					'**/*Application*',
+					'**/config/**'
+				])
+			}
+		)
 	}
 }
 
