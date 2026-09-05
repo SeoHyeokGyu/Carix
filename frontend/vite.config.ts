@@ -1,28 +1,50 @@
 import { reactRouter } from "@react-router/dev/vite";
-import { defineConfig } from "vite";
+import { defineConfig, loadEnv } from "vite";
 import tailwindcss from "@tailwindcss/vite";
 
 /**
- * 개발 서버에서만 쓰는 `/api` 프록시.
+ * 개발 서버에서 쓰는 `/api` 프록시.
  *
- * 로컬에 백엔드를 띄우지 않으므로 배포된 게이트웨이로 넘긴다(README 개발 환경 절).
- * 운영에서는 Caddy 가 같은 출처에서 `/api` 를 게이트웨이로 보내므로 프록시가 필요 없다.
+ * 1. 기본값: OCI 원격 배포 서버 (https://carix.144.24.90.88.sslip.io)
+ * 2. 로컬 게이트웨이 연동: CARIX_API_TARGET=http://localhost:8080
+ * 3. 로컬 collector 단독 연동: CARIX_COLLECTOR_TARGET=http://localhost:8083 (Gateway 없이 자체 rewrite)
+ * 4. 로컬 core-api 단독 연동: CARIX_API_TARGET=http://localhost:8082
  *
- * `secure: false` 는 서버 인증서가 자체 서명이라서다. 세션 쿠키는 `Secure` 지만
- * 브라우저가 `localhost` 를 보안 컨텍스트로 취급해 http 로도 저장된다.
+ * .env 또는 .env.local 파일에서 설정하거나 환경변수로 주입할 수 있습니다.
  */
-const API_TARGET =
-  process.env.CARIX_API_TARGET ?? "https://carix.144.24.90.88.sslip.io";
+export default defineConfig(({ mode }) => {
+  const env = loadEnv(mode, process.cwd(), "");
+  const API_TARGET =
+    env.CARIX_API_TARGET ||
+    process.env.CARIX_API_TARGET ||
+    "https://carix.144.24.90.88.sslip.io";
 
-export default defineConfig({
-  plugins: [tailwindcss(), reactRouter()],
-  server: {
-    proxy: {
-      "/api": {
-        target: API_TARGET,
-        changeOrigin: true,
-        secure: false,
+  const COLLECTOR_TARGET =
+    env.CARIX_COLLECTOR_TARGET || process.env.CARIX_COLLECTOR_TARGET;
+
+  return {
+    plugins: [tailwindcss(), reactRouter()],
+    server: {
+      proxy: {
+        ...(COLLECTOR_TARGET
+          ? {
+              "/api/v1/admin/collector": {
+                target: COLLECTOR_TARGET,
+                changeOrigin: true,
+                rewrite: (path: string) =>
+                  path.replace(
+                    /^\/api\/v1\/admin\/collector/,
+                    "/internal/pipeline",
+                  ),
+              },
+            }
+          : {}),
+        "/api": {
+          target: API_TARGET,
+          changeOrigin: true,
+          secure: false,
+        },
       },
     },
-  },
+  };
 });

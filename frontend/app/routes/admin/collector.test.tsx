@@ -1,0 +1,143 @@
+import { describe, expect, it, vi, beforeEach } from "vitest";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { MemoryRouter } from "react-router";
+import CollectorAdminPage from "./collector";
+import * as collectorApi from "../../lib/collectorApi";
+
+vi.mock("../../lib/collectorApi", () => ({
+  fetchPipelineStats: vi.fn(),
+  fetchRecentJobs: vi.fn(),
+  fetchRecentPostings: vi.fn(),
+  getAdminKey: vi.fn(),
+  setAdminKey: vi.fn(),
+  clearAdminKey: vi.fn(),
+  triggerCrawl: vi.fn(),
+  triggerWageStat: vi.fn(),
+  triggerDeduplication: vi.fn(),
+  triggerMarketAggregate: vi.fn(),
+  triggerSeedLoad: vi.fn(),
+}));
+
+describe("CollectorAdminPage", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+
+    vi.mocked(collectorApi.fetchPipelineStats).mockResolvedValue({
+      totalRawIngest: 500,
+      totalJobPostings: 450,
+      totalSkills: 120,
+      totalWageStats: 24,
+      postingsBySource: { JOBKOREA: 250, SARAMIN: 200 },
+    });
+
+    vi.mocked(collectorApi.fetchRecentJobs).mockResolvedValue([
+      {
+        jobId: "job-12345678-abcd",
+        jobType: "CRAWL",
+        status: "SUCCESS",
+        startedAt: new Date().toISOString(),
+        completedAt: new Date().toISOString(),
+        details: { ingestedJobPostings: 15 },
+        errorMessage: null,
+      },
+    ]);
+
+    vi.mocked(collectorApi.fetchRecentPostings).mockResolvedValue([
+      {
+        id: "post-1",
+        source: "JOBKOREA",
+        externalId: "JK-999",
+        title: "시니어 백엔드 개발자",
+        companyName: "카릭스랩",
+        jobFamily: "BACKEND",
+        salaryMin: 5000,
+        salaryMax: 8000,
+        skills: ["Java", "Spring Boot", "PostgreSQL"],
+        collectedAt: new Date().toISOString(),
+      },
+    ]);
+
+    vi.mocked(collectorApi.getAdminKey).mockReturnValue("sample-admin-key");
+  });
+
+  it("콘솔 타이틀과 요약 카드를 정상 렌더링한다", async () => {
+    render(
+      <MemoryRouter>
+        <CollectorAdminPage />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByText("Collector 제어 콘솔")).toBeInTheDocument();
+
+    await waitFor(() => {
+      expect(screen.getByText("500")).toBeInTheDocument();
+      expect(screen.getByText("450")).toBeInTheDocument();
+      expect(screen.getByText("120")).toBeInTheDocument();
+      expect(screen.getByText("24")).toBeInTheDocument();
+    });
+  });
+
+  it("작업 실행 이력과 최근 수집 공고를 표시한다", async () => {
+    render(
+      <MemoryRouter>
+        <CollectorAdminPage />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText("job-1234...")).toBeInTheDocument();
+      expect(screen.getByText("시니어 백엔드 개발자")).toBeInTheDocument();
+      expect(screen.getByText("카릭스랩")).toBeInTheDocument();
+      expect(screen.getByText("#Java")).toBeInTheDocument();
+    });
+  });
+
+  it("제어 패널에서 탭을 전환할 수 있다", async () => {
+    render(
+      <MemoryRouter>
+        <CollectorAdminPage />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText("500")).toBeInTheDocument();
+    });
+
+    const wageTabButton = screen.getByRole("button", {
+      name: /KOSIS 공식 임금 수집/i,
+    });
+    fireEvent.click(wageTabButton);
+
+    await waitFor(() => {
+      expect(
+        screen.getByText("KOSIS 국가 공식 임금 통계 수집 및 보간"),
+      ).toBeInTheDocument();
+    });
+  });
+
+  it("관리자 키 모달 열기 및 저장이 동작한다", async () => {
+    render(
+      <MemoryRouter>
+        <CollectorAdminPage />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText("500")).toBeInTheDocument();
+    });
+
+    const keyBtn = screen.getByRole("button", { name: /키 등록됨/i });
+    fireEvent.click(keyBtn);
+
+    expect(
+      screen.getByText("Collector 관리자 시크릿 키 설정"),
+    ).toBeInTheDocument();
+
+    const saveBtn = screen.getByRole("button", { name: "저장하기" });
+    fireEvent.click(saveBtn);
+
+    await waitFor(() => {
+      expect(collectorApi.setAdminKey).toHaveBeenCalled();
+    });
+  });
+});
