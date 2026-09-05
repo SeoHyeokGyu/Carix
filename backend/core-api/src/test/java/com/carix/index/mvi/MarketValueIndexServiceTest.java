@@ -431,6 +431,65 @@ class MarketValueIndexServiceTest {
     assertThat(custDetail.getStatus()).isEqualTo("CUSTOM_SKILL_NO_STATS");
   }
 
+  @Test
+  @DisplayName("calculate - userId null 시 NOT_AVAILABLE 반환")
+  void testCalculateNullUserId() {
+    MviResult res = service.calculate(null, "202607");
+    assertThat(res.value()).isNull();
+    assertThat(res.status()).isEqualTo(IndexStatus.NOT_AVAILABLE);
+  }
+
+  @Test
+  @DisplayName("calculate - 커스텀 스킬 등으로 인해 모든 스킬이 제외되어 유효 가중치가 없으면 INSUFFICIENT_SAMPLE 반환")
+  void testCalculateAllSkillsExcluded() {
+    UUID userId = UUID.randomUUID();
+    Skill customSkill = Skill.createCustom("SpecialTool", "ETC", userId);
+    UserSkill userSkill = userSkillOf(customSkill);
+
+    when(careerProfileRepository.findByUserId(userId))
+        .thenReturn(Optional.of(new CareerProfile(userId)));
+    when(userSkillRepository.findByUserId(userId)).thenReturn(List.of(userSkill));
+
+    PeerGroupFallbackResolver.ResolvedPeerGroup jk = resolvedGroup("JOBKOREA", 50);
+    when(peerGroupFallbackResolver.resolveForSource(any(), any(), any())).thenReturn(jk);
+    when(skillWeightCalculator.calculateWeights(any(), any(), any())).thenReturn(Map.of());
+    when(wageBaselineResolver.resolveBaseline(any()))
+        .thenReturn(new WageBaseline(50000000L, "초과급여 제외", "202606"));
+
+    MviResult res = service.calculate(userId, "202607");
+    assertThat(res.status()).isEqualTo(IndexStatus.INSUFFICIENT_SAMPLE);
+    assertThat(res.value()).isNull();
+  }
+
+  @Test
+  @DisplayName("calculate - CareerProfile이 DB에 없더라도 기본 프로필을 생성하여 정상 계산 진행")
+  void testCalculateWithDefaultProfileWhenNotFound() {
+    UUID userId = UUID.randomUUID();
+    Skill skill = Skill.createStandard("Python", "DATA");
+    UserSkill userSkill = userSkillOf(skill);
+
+    when(careerProfileRepository.findByUserId(userId)).thenReturn(Optional.empty());
+    when(userSkillRepository.findByUserId(userId)).thenReturn(List.of(userSkill));
+
+    PeerGroupFallbackResolver.ResolvedPeerGroup jk = resolvedGroup("JOBKOREA", 50);
+    when(peerGroupFallbackResolver.resolveForSource(any(), any(), any())).thenReturn(jk);
+
+    SkillDemandCalculator.SkillDemandResult demandRes =
+        SkillDemandCalculator.SkillDemandResult.builder()
+            .skillId(skill.getId())
+            .demandIndex(100.0)
+            .status("OK")
+            .build();
+    when(skillDemandCalculator.calculateDemandIndex(any(), eq(skill.getId()), any(), any()))
+        .thenReturn(demandRes);
+    when(skillWeightCalculator.calculateWeights(any(), any(), any()))
+        .thenReturn(Map.of(skill.getId(), BigDecimal.valueOf(1.0)));
+
+    MviResult res = service.calculate(userId, "202607");
+    assertThat(res.status()).isEqualTo(IndexStatus.OK);
+    assertThat(res.value()).isEqualTo(BigDecimal.valueOf(100.0).setScale(1));
+  }
+
   private static PeerGroupFallbackResolver.ResolvedPeerGroup resolvedGroup(
       String source, int sampleCount) {
     return PeerGroupFallbackResolver.ResolvedPeerGroup.builder()

@@ -128,4 +128,34 @@ class SeedLoaderJobKoreaTest {
     int loaded = seedLoader.load(outDir);
     assertThat(loaded).isEqualTo(0);
   }
+
+  @Test
+  @DisplayName("load - 사람인 CSV 및 목록 JSON 적재 성공")
+  void load_saramin_withListpage() throws IOException {
+    Path srRaw = outDir.resolve("raw/SARAMIN");
+    Files.createDirectories(srRaw);
+
+    String jsonListing =
+        """
+        {
+          "rawId": "listpage-1",
+          "rawContent": "<div class=\\"item_recruit\\" value=\\"8801\\"><div class=\\"area_corp\\"><strong class=\\"corp_name\\"><a>사람인회사</a></strong></div><div class=\\"area_job\\"><h2 class=\\"job_tit\\"><a>백엔드 개발자</a></h2><div class=\\"job_condition\\"><span>서울 구로구</span><span>경력 2~4년</span></div><div class=\\"job_sector\\"><a class=\\"track_event\\">Java</a><a class=\\"track_event\\">IT/인터넷</a></div></div></div>",
+          "collectedAt": "2026-08-09T00:00:00Z"
+        }
+        """;
+    Files.writeString(srRaw.resolve("listpage-1.json"), jsonListing, StandardCharsets.UTF_8);
+
+    String csvContent =
+        """
+        Portal,ID,Company,Title,CareerType,CareerRange,Education,Location,Link,CreatedAt,Skills,SalaryRaw
+        SARAMIN,8801,사람인회사,백엔드 개발자,경력 2~4년,4,대졸,서울 구로구,https://saramin.com,오늘,Java,
+        """;
+
+    Files.writeString(outDir.resolve("saramin_jobs.csv"), csvContent, StandardCharsets.UTF_8);
+
+    int loaded = seedLoader.load(outDir);
+
+    assertThat(loaded).isEqualTo(1);
+    verify(jobPostingRepository, atLeastOnce()).save(any(JobPosting.class));
+  }
 }
