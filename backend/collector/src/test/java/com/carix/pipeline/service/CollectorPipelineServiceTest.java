@@ -6,6 +6,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
 
+import com.carix.cpi.CpiIngestService;
 import com.carix.jobposting.JobPostingRepository;
 import com.carix.jobposting.RawIngestRepository;
 import com.carix.jobposting.SkillRepository;
@@ -38,6 +39,7 @@ class CollectorPipelineServiceTest {
   private MarketAggregateRepository marketAggregateRepository;
   private JobPostingIngestService jobPostingIngestService;
   private WageStatIngestService wageStatIngestService;
+  private CpiIngestService cpiIngestService;
   private JobPostingDeduplicator jobPostingDeduplicator;
   private MarketAggregateService marketAggregateService;
 
@@ -52,6 +54,7 @@ class CollectorPipelineServiceTest {
     marketAggregateRepository = mock(MarketAggregateRepository.class);
     jobPostingIngestService = mock(JobPostingIngestService.class);
     wageStatIngestService = mock(WageStatIngestService.class);
+    cpiIngestService = mock(CpiIngestService.class);
     jobPostingDeduplicator = mock(JobPostingDeduplicator.class);
     marketAggregateService = mock(MarketAggregateService.class);
 
@@ -64,6 +67,7 @@ class CollectorPipelineServiceTest {
             marketAggregateRepository,
             jobPostingIngestService,
             wageStatIngestService,
+            cpiIngestService,
             jobPostingDeduplicator,
             marketAggregateService);
   }
@@ -120,6 +124,27 @@ class CollectorPipelineServiceTest {
 
     JobStatusResponse status = service.getJobStatus(response2.jobId());
     assertThat(status.status()).isEqualTo("SUCCESS");
+  }
+
+  @Test
+  @DisplayName("triggerCpiIngest - 기본 및 파라미터 전달 실행")
+  void triggerCpiIngest_success() throws Exception {
+    given(cpiIngestService.ingestCpi(any(), any())).willReturn(12);
+
+    JobExecutionResponse response1 = service.triggerCpiIngest();
+    assertThat(response1.jobType()).isEqualTo("CPI_INGEST");
+
+    TimeUnit.MILLISECONDS.sleep(200);
+
+    JobExecutionResponse response2 =
+        service.triggerCpiIngest(new com.carix.pipeline.dto.CpiRequest("202401", "202412"));
+    assertThat(response2.jobType()).isEqualTo("CPI_INGEST");
+
+    TimeUnit.MILLISECONDS.sleep(200);
+
+    JobStatusResponse status = service.getJobStatus(response2.jobId());
+    assertThat(status.status()).isEqualTo("SUCCESS");
+    assertThat(status.details()).containsEntry("ingestedCpiObservations", 12);
   }
 
   @Test

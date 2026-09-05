@@ -1,10 +1,12 @@
 package com.carix.pipeline.service;
 
+import com.carix.cpi.CpiIngestService;
 import com.carix.jobposting.JobPostingRepository;
 import com.carix.jobposting.RawIngestRepository;
 import com.carix.jobposting.SkillRepository;
 import com.carix.jobposting.seed.SeedLoader;
 import com.carix.jobposting.service.JobPostingIngestService;
+import com.carix.pipeline.dto.CpiRequest;
 import com.carix.pipeline.dto.CrawlRequest;
 import com.carix.pipeline.dto.JobExecutionResponse;
 import com.carix.pipeline.dto.JobStatusResponse;
@@ -52,6 +54,7 @@ public class CollectorPipelineService {
   private final com.carix.market.MarketAggregateRepository marketAggregateRepository;
   private final JobPostingIngestService jobPostingIngestService;
   private final WageStatIngestService wageStatIngestService;
+  private final CpiIngestService cpiIngestService;
   private final com.carix.jobposting.dedup.JobPostingDeduplicator jobPostingDeduplicator;
   private final com.carix.market.MarketAggregateService marketAggregateService;
 
@@ -175,10 +178,12 @@ public class CollectorPipelineService {
             int count = wageStatIngestService.ingestWageStats(startYear, endYear);
             state.complete(
                 Map.of(
-                    "ingestedWageStats", count,
-                    "startYear", startYear != null ? startYear : "LATEST",
+                    "ingestedWageStats",
+                    count,
+                    "startYear",
+                    startYear != null ? startYear : "LATEST",
                     "endYear",
-                        endYear != null ? endYear : (startYear != null ? startYear : "LATEST")));
+                    endYear != null ? endYear : (startYear != null ? startYear : "LATEST")));
             log.info("[작업:{}] KOSIS 임금 통계 수집 완료. 총 {}개 관측치가 저장되었습니다.", jobId, count);
           } catch (Exception e) {
             log.error("[작업:{}] KOSIS 임금 통계 수집 실패: {}", jobId, e.getMessage(), e);
@@ -191,6 +196,66 @@ public class CollectorPipelineService {
 
     return new JobExecutionResponse(
         jobId, "WAGE_STAT_INGEST", "ACCEPTED", "KOSIS 임금 통계 수집 작업이 수락되어 백그라운드에서 시작되었습니다.", now);
+  }
+
+  /**
+   * KOSIS 지출목적별 소비자물가지수를 실시간 수신하여 DB에 적재합니다. (최신 1개월)
+   *
+   * @return 비동기 작업 수락 응답
+   */
+  public JobExecutionResponse triggerCpiIngest() {
+    return triggerCpiIngest(null);
+  }
+
+  /**
+   * KOSIS 지출목적별 소비자물가지수를 지정한 연월 구간으로 수신하여 DB에 적재합니다.
+   *
+   * @param request 연월 범위 요청 DTO (null 시 최신 1개월)
+   * @return 비동기 작업 수락 응답
+   */
+  public JobExecutionResponse triggerCpiIngest(CpiRequest request) {
+    ensureNoJobRunning();
+    String jobId = UUID.randomUUID().toString();
+    Instant now = Instant.now();
+    JobState state = new JobState(jobId, "CPI_INGEST", "RUNNING", now);
+    jobHistory.put(jobId, state);
+
+    CompletableFuture.runAsync(
+        () -> {
+          try {
+            String startYearMonth = request != null ? request.startYearMonth() : null;
+            String endYearMonth = request != null ? request.endYearMonth() : null;
+            log.info(
+                "[작업:{}] KOSIS 소비자물가지수 수집 작업을 시작합니다... (기간: {} ~ {})",
+                jobId,
+                startYearMonth != null ? startYearMonth : "최신",
+                endYearMonth != null
+                    ? endYearMonth
+                    : (startYearMonth != null ? startYearMonth : "최신"));
+
+            int count = cpiIngestService.ingestCpi(startYearMonth, endYearMonth);
+            state.complete(
+                Map.of(
+                    "ingestedCpiObservations",
+                    count,
+                    "startYearMonth",
+                    startYearMonth != null ? startYearMonth : "LATEST",
+                    "endYearMonth",
+                    endYearMonth != null
+                        ? endYearMonth
+                        : (startYearMonth != null ? startYearMonth : "LATEST")));
+            log.info("[작업:{}] KOSIS 소비자물가지수 수집 완료. 총 {}개 관측치가 저장되었습니다.", jobId, count);
+          } catch (Exception e) {
+            log.error("[작업:{}] KOSIS 소비자물가지수 수집 실패: {}", jobId, e.getMessage(), e);
+            state.fail(e.getMessage());
+          } finally {
+            isJobRunning.set(false);
+          }
+        },
+        executor);
+
+    return new JobExecutionResponse(
+        jobId, "CPI_INGEST", "ACCEPTED", "KOSIS 소비자물가지수 수집 작업이 수락되어 백그라운드에서 시작되었습니다.", now);
   }
 
   /**
