@@ -141,6 +141,70 @@ class SkillDemandCalculatorTest {
   }
 
   @Test
+  @DisplayName("이전 12개월 스킬 표본이 기준 미만이면 표본 부족이다 — 비율이 커도 신뢰할 수 없다")
+  void testInsufficientBaselineSample() {
+    SkillDemandCalculator.SkillDemandResult result =
+        calculateWith(/* recentSkillPostings= */ 40, /* baselineSkillPostings= */ 5);
+
+    assertThat(result.getStatus()).isEqualTo("INSUFFICIENT_SAMPLE");
+  }
+
+  @Test
+  @DisplayName("최근 3개월 스킬 표본이 0 초과 기준 미만이면 표본 부족이다")
+  void testInsufficientRecentSample() {
+    SkillDemandCalculator.SkillDemandResult result =
+        calculateWith(/* recentSkillPostings= */ 4, /* baselineSkillPostings= */ 40);
+
+    assertThat(result.getStatus()).isEqualTo("INSUFFICIENT_SAMPLE");
+  }
+
+  @Test
+  @DisplayName("최근 표본이 0 이고 기준선 표본이 충분하면 표본 부족이 아니라 최근 수요 없음이다")
+  void testZeroRecentWithSufficientBaselineStaysNoRecentDemand() {
+    SkillDemandCalculator.SkillDemandResult result =
+        calculateWith(/* recentSkillPostings= */ 0, /* baselineSkillPostings= */ 40);
+
+    assertThat(result.getStatus()).isEqualTo("NO_RECENT_DEMAND");
+    assertThat(result.getDemandIndex()).isZero();
+  }
+
+  @Test
+  @DisplayName("두 창 모두 기준을 넘기면 정상 산출이다 — 경계값 포함")
+  void testBothWindowsAtThresholdAreSufficient() {
+    SkillDemandCalculator.SkillDemandResult result =
+        calculateWith(
+            /* recentSkillPostings= */ SkillDemandCalculator.MIN_SKILL_SAMPLE_SIZE,
+            /* baselineSkillPostings= */ SkillDemandCalculator.MIN_SKILL_SAMPLE_SIZE);
+
+    assertThat(result.getStatus()).isEqualTo("OK");
+  }
+
+  /** 최근 창과 기준선 창의 스킬 공고 수만 달리해 계산한다. 전체 공고 수는 두 창 모두 1000 으로 고정한다. */
+  private SkillDemandCalculator.SkillDemandResult calculateWith(
+      int recentSkillPostings, int baselineSkillPostings) {
+    UUID skillId = UUID.randomUUID();
+    String source = "JOBKOREA";
+
+    PeerGroupFallbackResolver.ResolvedPeerGroup peerGroup =
+        PeerGroupFallbackResolver.ResolvedPeerGroup.builder()
+            .source(source)
+            .jobFamily("DEVELOPER")
+            .region("서울특별시")
+            .brackets(List.of("MID"))
+            .build();
+
+    when(marketAggregateRepository.findSkillAggregates(
+            any(), any(), any(), any(), any(), any(), any(), eq(skillId)))
+        .thenReturn(List.of(MarketAggregate.builder().postingCount(recentSkillPostings).build()))
+        .thenReturn(List.of(MarketAggregate.builder().postingCount(baselineSkillPostings).build()));
+    when(marketAggregateRepository.findTotalPostingAggregates(
+            any(), any(), any(), any(), any(), any(), any()))
+        .thenReturn(List.of(MarketAggregate.builder().postingCount(1000).build()));
+
+    return calculator.calculateDemandIndex(source, skillId, peerGroup, "202607");
+  }
+
+  @Test
   @DisplayName("분모 0 (이전 12개월 관측 없음): NEW_OBSERVATION 상태 반환")
   void testDenominatorZeroNewObservation() {
     // Given
