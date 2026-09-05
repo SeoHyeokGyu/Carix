@@ -110,19 +110,6 @@ jobs:
         working-directory: backend
         run: ./gradlew :${{ matrix.module }}:check --build-cache
 
-      - name: JaCoCo Coverage Report
-        uses: madrapps/jacoco-report@v1.7.1
-        if: always() && github.event_name == 'pull_request' && hashFiles(format('backend/{0}/build/reports/jacoco/test/jacocoTestReport.xml', matrix.module)) != ''
-        with:
-          paths: ${{ github.workspace }}/backend/${{ matrix.module }}/build/reports/jacoco/test/jacocoTestReport.xml
-          token: ${{ secrets.GITHUB_TOKEN }}
-          min-coverage-overall: 0
-          min-coverage-changed-files: 0
-          title: '📊 ${{ matrix.module }} Coverage Report'
-          update-comment: true
-          comment-type: both
-          show-missing-lines: true
-
       - name: Upload Coverage HTML Report
         uses: actions/upload-artifact@v4
         if: always() && hashFiles(format('backend/{0}/build/reports/jacoco/test/html/**', matrix.module)) != ''
@@ -130,7 +117,42 @@ jobs:
           name: jacoco-report-${{ matrix.module }}
           path: backend/${{ matrix.module }}/build/reports/jacoco/test/html/
           retention-days: 7
-          if-no-files-found: ignore
+
+      - name: Upload Coverage XML Report
+        uses: actions/upload-artifact@v4
+        if: always() && hashFiles(format('backend/{0}/build/reports/jacoco/test/jacocoTestReport.xml', matrix.module)) != ''
+        with:
+          name: jacoco-xml-${{ matrix.module }}
+          path: backend/${{ matrix.module }}/build/reports/jacoco/test/jacocoTestReport.xml
+          retention-days: 1
+
+  backend-coverage:
+    name: Consolidated Coverage Report
+    needs: [filter, backend]
+    if: always() && github.event_name == 'pull_request' && needs.filter.outputs.backend == 'true' && needs.backend.result != 'cancelled' && needs.backend.result != 'skipped'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download All Coverage XML Reports
+        uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          pattern: jacoco-xml-*
+          path: jacoco-reports
+
+      - name: JaCoCo Coverage Report
+        uses: madrapps/jacoco-report@v1.7.1
+        with:
+          paths: ${{ github.workspace }}/jacoco-reports/**/jacocoTestReport.xml
+          token: ${{ secrets.GITHUB_TOKEN }}
+          min-coverage-overall: 0
+          min-coverage-changed-files: 0
+          title: '📊 Backend Test Coverage Report'
+          update-comment: true
+          comment-type: both
+          show-missing-lines: true
+          skip-if-empty: true
 
   frontend:
     name: Frontend Typecheck, Lint & Test
