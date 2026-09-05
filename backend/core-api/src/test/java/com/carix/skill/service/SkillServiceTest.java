@@ -19,6 +19,7 @@ import com.carix.skill.exception.UserSkillNotFoundException;
 import com.carix.skill.repository.SkillAliasRepository;
 import com.carix.skill.repository.SkillRepository;
 import com.carix.skill.repository.UserSkillRepository;
+import com.carix.snapshot.SnapshotRecalculationService;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
@@ -36,6 +37,7 @@ class SkillServiceTest {
   @Mock private SkillRepository skillRepository;
   @Mock private SkillAliasRepository skillAliasRepository;
   @Mock private UserSkillRepository userSkillRepository;
+  @Mock private SnapshotRecalculationService snapshotRecalculationService;
 
   @InjectMocks private SkillService skillService;
 

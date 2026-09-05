@@ -13,6 +13,7 @@ import com.carix.income.dto.IncomeResponse;
 import com.carix.income.exception.DuplicateEffectiveDateException;
 import com.carix.income.exception.IncomeNotFoundException;
 import com.carix.income.repository.IncomeHistoryRepository;
+import com.carix.snapshot.SnapshotRecalculationService;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
@@ -31,7 +32,7 @@ class IncomeServiceTest {
   @BeforeEach
   void setUp() {
     repository = mock(IncomeHistoryRepository.class);
-    service = new IncomeService(repository);
+    service = new IncomeService(repository, mock(SnapshotRecalculationService.class));
   }
 
   @Test

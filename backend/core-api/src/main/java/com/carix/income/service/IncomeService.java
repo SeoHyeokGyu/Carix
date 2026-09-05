@@ -6,6 +6,8 @@ import com.carix.income.dto.IncomeResponse;
 import com.carix.income.exception.DuplicateEffectiveDateException;
 import com.carix.income.exception.IncomeNotFoundException;
 import com.carix.income.repository.IncomeHistoryRepository;
+import com.carix.snapshot.SnapshotRecalculationService;
+import com.carix.snapshot.YearMonths;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
@@ -15,9 +17,13 @@ import org.springframework.transaction.annotation.Transactional;
 public class IncomeService {
 
   private final IncomeHistoryRepository repository;
+  private final SnapshotRecalculationService snapshotRecalculationService;
 
-  public IncomeService(IncomeHistoryRepository repository) {
+  public IncomeService(
+      IncomeHistoryRepository repository,
+      SnapshotRecalculationService snapshotRecalculationService) {
     this.repository = repository;
+    this.snapshotRecalculationService = snapshotRecalculationService;
   }
 
   public List<IncomeResponse> getHistory(UUID userId) {
@@ -35,7 +41,8 @@ public class IncomeService {
         repository.save(
             new IncomeHistory(
                 userId, request.grossSalary(), request.netSalary(), request.effectiveDate()));
-    // TODO: C의 recalculateSnapshot(userId, fromYm) 트리거 — 계약(§4) 확정 후 연결
+    snapshotRecalculationService.recalculateSnapshot(
+        userId, YearMonths.of(request.effectiveDate()));
     return toResponse(saved);
   }
 
@@ -49,8 +56,12 @@ public class IncomeService {
     if (repository.existsByUserIdAndEffectiveDateAndIdNot(userId, request.effectiveDate(), id)) {
       throw new DuplicateEffectiveDateException(request.effectiveDate());
     }
+    // 유효월을 앞으로 당기는 수정이면 옛 달부터 다시 계산해야 한다 — 새 달만 보면 그 사이 달이 옛 연봉으로 남는다.
+    String fromYearMonth =
+        YearMonths.earlier(
+            YearMonths.of(entity.getEffectiveDate()), YearMonths.of(request.effectiveDate()));
     entity.update(request.grossSalary(), request.netSalary(), request.effectiveDate());
-    // TODO: recalculateSnapshot 트리거
+    snapshotRecalculationService.recalculateSnapshot(userId, fromYearMonth);
     return toResponse(entity);
   }
 
@@ -61,8 +72,9 @@ public class IncomeService {
             .findById(id)
             .filter(e -> e.getUserId().equals(userId))
             .orElseThrow(() -> new IncomeNotFoundException(id));
+    String fromYearMonth = YearMonths.of(entity.getEffectiveDate());
     repository.delete(entity);
-    // TODO: recalculateSnapshot 트리거
+    snapshotRecalculationService.recalculateSnapshot(userId, fromYearMonth);
   }
 
   private IncomeResponse toResponse(IncomeHistory e) {

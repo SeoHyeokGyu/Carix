@@ -14,6 +14,8 @@ import com.carix.skill.exception.UserSkillNotFoundException;
 import com.carix.skill.repository.SkillAliasRepository;
 import com.carix.skill.repository.SkillRepository;
 import com.carix.skill.repository.UserSkillRepository;
+import com.carix.snapshot.SnapshotRecalculationService;
+import com.carix.snapshot.YearMonths;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
@@ -40,6 +42,7 @@ public class SkillService {
   private final SkillRepository skillRepository;
   private final SkillAliasRepository skillAliasRepository;
   private final UserSkillRepository userSkillRepository;
+  private final SnapshotRecalculationService snapshotRecalculationService;
 
   /** 표준 스킬 사전 검색 (별칭 포함 자동완성용) */
   public List<SkillSearchResponse> searchSkills(String query) {
@@ -90,6 +93,7 @@ public class SkillService {
             .build();
     UserSkill saved = userSkillRepository.save(userSkill);
 
+    snapshotRecalculationService.recalculateSnapshot(userId, YearMonths.current());
     return mapToUserSkillResponse(saved);
   }
 
@@ -105,6 +109,7 @@ public class SkillService {
             .orElseThrow(() -> new UserSkillNotFoundException("수정할 보유 스킬을 찾을 수 없습니다."));
 
     userSkill.update(request.monthsOfExperience(), request.lastUsedDate());
+    snapshotRecalculationService.recalculateSnapshot(userId, YearMonths.current());
     return mapToUserSkillResponse(userSkill);
   }
 
@@ -127,6 +132,8 @@ public class SkillService {
         skillRepository.delete(skill);
       }
     }
+
+    snapshotRecalculationService.recalculateSnapshot(userId, YearMonths.current());
   }
 
   /**

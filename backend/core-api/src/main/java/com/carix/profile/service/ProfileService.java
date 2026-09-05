@@ -4,6 +4,8 @@ import com.carix.profile.domain.CareerProfile;
 import com.carix.profile.dto.ProfileRequest;
 import com.carix.profile.dto.ProfileResponse;
 import com.carix.profile.repository.CareerProfileRepository;
+import com.carix.snapshot.SnapshotRecalculationService;
+import com.carix.snapshot.YearMonths;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -12,9 +14,13 @@ import org.springframework.transaction.annotation.Transactional;
 public class ProfileService {
 
   private final CareerProfileRepository careerProfileRepository;
+  private final SnapshotRecalculationService snapshotRecalculationService;
 
-  public ProfileService(CareerProfileRepository careerProfileRepository) {
+  public ProfileService(
+      CareerProfileRepository careerProfileRepository,
+      SnapshotRecalculationService snapshotRecalculationService) {
     this.careerProfileRepository = careerProfileRepository;
+    this.snapshotRecalculationService = snapshotRecalculationService;
   }
 
   @Transactional(readOnly = true)
@@ -37,6 +43,8 @@ public class ProfileService {
         request.region(),
         request.employmentType(),
         request.companySize());
+    // 동료집단 조건이 바뀌면 이후 MVI 가 달라진다. 과거월은 그때의 프로필로 계산된 값이라 다시 쓰지 않는다.
+    snapshotRecalculationService.recalculateSnapshot(userId, YearMonths.current());
     return toResponse(profile);
   }
 
