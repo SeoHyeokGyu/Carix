@@ -79,6 +79,7 @@ subprojects {
 			sourceSets.main.output.classesDirs.collect {
 				fileTree(dir: it, exclude: [
 					'**/*Application*',
+					'**/*App*',
 					'**/config/**'
 				])
 			}

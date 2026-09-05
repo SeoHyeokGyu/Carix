@@ -275,7 +275,7 @@ public class JobPostingIngestService {
     return ingestedCount;
   }
 
-  private void ingestJobKoreaPosting(
+  void ingestJobKoreaPosting(
       String externalId,
       String title,
       String companyName,
@@ -348,7 +348,7 @@ public class JobPostingIngestService {
     jobPostingRepository.save(posting);
   }
 
-  private void ingestSaraminPosting(
+  void ingestSaraminPosting(
       String externalId,
       String title,
       String companyName,
