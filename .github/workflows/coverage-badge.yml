@@ -1,0 +1,59 @@
+name: Update Coverage Badges
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'backend/**'
+      - '.github/workflows/coverage-badge.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: coverage-badge-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  coverage:
+    name: Generate and Update Coverage Badges
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Java 25
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 25
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Run Tests and Generate JaCoCo Reports
+        working-directory: backend
+        run: ./gradlew test jacocoTestReport --build-cache
+
+      - name: Generate JaCoCo Coverage Badges
+        uses: cicirega/jacoco-badge-generator@v2
+        with:
+          jacoco-csv-file: >
+            backend/auth-service/build/reports/jacoco/test/jacocoTestReport.csv
+            backend/collector/build/reports/jacoco/test/jacocoTestReport.csv
+            backend/core-api/build/reports/jacoco/test/jacocoTestReport.csv
+            backend/gateway/build/reports/jacoco/test/jacocoTestReport.csv
+          badges-directory: .github/badges
+          generate-branches-badge: true
+          generate-coverage-badge: true
+          coverage-badge-filename: jacoco.svg
+          branches-badge-filename: branches.svg
+
+      - name: Commit and Push Badges
+        uses: EndBug/add-and-commit@v9
+        with:
+          author_name: github-actions[bot]
+          author_email: 41898282+github-actions[bot]@users.noreply.github.com
+          message: 'chore(ci): update test coverage badges [skip ci]'
+          add: '.github/badges'
