@@ -120,6 +120,7 @@ jobs:
           min-coverage-changed-files: 0
           title: '📊 ${{ matrix.module }} Coverage Report'
           update-comment: true
+          skip-if-empty: true
 
       - name: Upload Coverage HTML Report
         uses: actions/upload-artifact@v4
@@ -128,6 +129,7 @@ jobs:
           name: jacoco-report-${{ matrix.module }}
           path: backend/${{ matrix.module }}/build/reports/jacoco/test/html/
           retention-days: 7
+          if-no-files-found: ignore
 
   frontend:
     name: Frontend Typecheck, Lint & Test
