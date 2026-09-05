@@ -142,4 +142,147 @@ class PeerGroupFallbackResolverTest {
     assertThat(resolver.formatConditionText("서울 강남구", List.of("MID"), "FULL_TIME", "MEDIUM"))
         .isEqualTo("서울 강남구 / MID (4~7년) / MEDIUM / FULL_TIME");
   }
+
+  @Test
+  @DisplayName("Level 3 지역 범위 확장으로 완화 성공")
+  void testLevel3Fallback() {
+    CareerProfile profile = new CareerProfile(UUID.randomUUID());
+    profile.patch("DEVELOPER", 5, "경기 성남시", "FULL_TIME", null);
+
+    MarketAggregate l3 =
+        MarketAggregate.builder()
+            .source("JOBKOREA")
+            .jobFamily("DEVELOPER")
+            .postingCount(20)
+            .salaryMissingRatePercent(BigDecimal.valueOf(10.0))
+            .build();
+
+    when(marketAggregateRepository.findPeerGroupAggregate(
+            "JOBKOREA", "202607", "DEVELOPER", "경기 성남시", "MID", "FULL_TIME", null))
+        .thenReturn(Optional.empty());
+    when(marketAggregateRepository.findPeerGroupAggregate(
+            "JOBKOREA", "202607", "DEVELOPER", "경기도", "MID", "FULL_TIME", null))
+        .thenReturn(Optional.of(l3));
+
+    var result = resolver.resolveForSource("JOBKOREA", profile, "202607");
+
+    assertThat(result.isSuccessful()).isTrue();
+    assertThat(result.getFallbackLevel()).isEqualTo(3);
+    assertThat(result.getRegion()).isEqualTo("경기도");
+  }
+
+  @Test
+  @DisplayName("Level 4 경력 구간 확장으로 완화 성공")
+  void testLevel4Fallback() {
+    CareerProfile profile = new CareerProfile(UUID.randomUUID());
+    profile.patch("DEVELOPER", 2, "인천 남동구", "FULL_TIME", null);
+
+    MarketAggregate m1 =
+        MarketAggregate.builder()
+            .source("JOBKOREA")
+            .jobFamily("DEVELOPER")
+            .postingCount(6)
+            .salaryMissingRatePercent(BigDecimal.valueOf(10.0))
+            .build();
+    MarketAggregate m2 =
+        MarketAggregate.builder()
+            .source("JOBKOREA")
+            .jobFamily("DEVELOPER")
+            .postingCount(7)
+            .salaryMissingRatePercent(BigDecimal.valueOf(20.0))
+            .build();
+
+    when(marketAggregateRepository.findPeerGroupAggregate(
+            "JOBKOREA", "202607", "DEVELOPER", "인천 남동구", "JUNIOR", "FULL_TIME", null))
+        .thenReturn(Optional.empty());
+    when(marketAggregateRepository.findPeerGroupAggregate(
+            "JOBKOREA", "202607", "DEVELOPER", "인천광역시", "JUNIOR", "FULL_TIME", null))
+        .thenReturn(Optional.empty());
+    when(marketAggregateRepository.findPeerGroupAggregatesByBrackets(
+            "JOBKOREA",
+            "202607",
+            "DEVELOPER",
+            "인천광역시",
+            List.of("JUNIOR", "MID"),
+            "FULL_TIME",
+            null))
+        .thenReturn(List.of(m1, m2));
+
+    var result = resolver.resolveForSource("JOBKOREA", profile, "202607");
+
+    assertThat(result.isSuccessful()).isTrue();
+    assertThat(result.getFallbackLevel()).isEqualTo(4);
+    assertThat(result.getSampleCount()).isEqualTo(13);
+  }
+
+  @Test
+  @DisplayName("Level 5 고용 형태 해제로 완화 성공")
+  void testLevel5Fallback() {
+    CareerProfile profile = new CareerProfile(UUID.randomUUID());
+    profile.patch("DEVELOPER", 10, "부산 해운대구", "CONTRACT", null);
+
+    MarketAggregate m =
+        MarketAggregate.builder()
+            .source("SARAMIN")
+            .jobFamily("DEVELOPER")
+            .postingCount(12)
+            .salaryMissingRatePercent(BigDecimal.valueOf(15.0))
+            .build();
+
+    when(marketAggregateRepository.findPeerGroupAggregate(
+            "SARAMIN", "202607", "DEVELOPER", "부산 해운대구", "SENIOR", "CONTRACT", null))
+        .thenReturn(Optional.empty());
+    when(marketAggregateRepository.findPeerGroupAggregate(
+            "SARAMIN", "202607", "DEVELOPER", "부산광역시", "SENIOR", "CONTRACT", null))
+        .thenReturn(Optional.empty());
+    when(marketAggregateRepository.findPeerGroupAggregatesByBrackets(
+            "SARAMIN", "202607", "DEVELOPER", "부산광역시", List.of("MID", "SENIOR"), "CONTRACT", null))
+        .thenReturn(List.of());
+    when(marketAggregateRepository.findPeerGroupAggregatesByBrackets(
+            "SARAMIN", "202607", "DEVELOPER", "부산광역시", List.of("MID", "SENIOR"), null, null))
+        .thenReturn(List.of(m));
+
+    var result = resolver.resolveForSource("SARAMIN", profile, "202607");
+
+    assertThat(result.isSuccessful()).isTrue();
+    assertThat(result.getFallbackLevel()).isEqualTo(5);
+  }
+
+  @Test
+  @DisplayName("모든 레벨에서 표본 부족 시 완화 실패(successful=false)")
+  void testAllFallbackFailed() {
+    CareerProfile profile = new CareerProfile(UUID.randomUUID());
+    profile.patch("DEVELOPER", 5, "대구 수성구", "FULL_TIME", null);
+
+    var result = resolver.resolveForSource("JOBKOREA", profile, "202607");
+
+    assertThat(result.isSuccessful()).isFalse();
+    assertThat(result.getFallbackLevel()).isEqualTo(5);
+    assertThat(result.getSampleCount()).isEqualTo(0);
+  }
+
+  @Test
+  @DisplayName("extractBroadRegion 다양한 시/도 변환")
+  void testExtractBroadRegion() {
+    assertThat(resolver.extractBroadRegion(null)).isEqualTo("서울특별시");
+    assertThat(resolver.extractBroadRegion("")).isEqualTo("서울특별시");
+    assertThat(resolver.extractBroadRegion("서울 마포구")).isEqualTo("서울특별시");
+    assertThat(resolver.extractBroadRegion("경기 수원시")).isEqualTo("경기도");
+    assertThat(resolver.extractBroadRegion("인천 연수구")).isEqualTo("인천광역시");
+    assertThat(resolver.extractBroadRegion("부산 진구")).isEqualTo("부산광역시");
+    assertThat(resolver.extractBroadRegion("대구 중구")).isEqualTo("대구광역시");
+    assertThat(resolver.extractBroadRegion("대전 유성구")).isEqualTo("대전광역시");
+    assertThat(resolver.extractBroadRegion("광주 북구")).isEqualTo("광주광역시");
+    assertThat(resolver.extractBroadRegion("제주 서귀포시")).isEqualTo("제주 서귀포시");
+  }
+
+  @Test
+  @DisplayName("mapExperienceBracket 연차 매핑")
+  void testMapExperienceBracket() {
+    assertThat(resolver.mapExperienceBracket(0)).isEqualTo("JUNIOR");
+    assertThat(resolver.mapExperienceBracket(3)).isEqualTo("JUNIOR");
+    assertThat(resolver.mapExperienceBracket(4)).isEqualTo("MID");
+    assertThat(resolver.mapExperienceBracket(7)).isEqualTo("MID");
+    assertThat(resolver.mapExperienceBracket(8)).isEqualTo("SENIOR");
+  }
 }
