@@ -329,20 +329,21 @@ CONFIG_SERVER_URL=http://144.24.90.88:8890 EUREKA_URL=http://144.24.90.88:8761/e
   ./gradlew :collector:bootRun --args='--spring.profiles.active=local'
 ```
 
-#### Collector 파이프라인 관리 (관리자 콘솔 S-16 & API)
+#### Collector 파이프라인 관리 (관리자 콘솔 `/admin/collector` & API)
 
-`collector`는 관리자가 관리자 콘솔 화면(`S-16`, `/admin/pipeline`) 또는 관리 전용 내부 API(`http://localhost:8083/internal/pipeline/**`)를 통해 직접 수동으로 파이프라인을 구동하고 모니터링하며, 필요 시 Spring Scheduler(`@Scheduled`)를 통한 정기 자동 실행 도입도 함께 고려합니다:
+`collector`는 관리자가 관리자 콘솔 화면(`S-16`, `/admin/collector` 또는 `/admin/pipeline`) 또는 관리 전용 API(`/api/v1/admin/collector/**` / `http://localhost:8083/internal/pipeline/**`)를 통해 직접 수동으로 파이프라인을 구동하고 모니터링하며, 필요 시 Spring Scheduler(`@Scheduled`)를 통한 정기 자동 실행 도입도 함께 고려합니다. 모든 API 호출 시 `X-Admin-Key: <ADMIN_SECRET_KEY>` 헤더가 필요합니다:
 
 | 메서드 & 경로 | 설명 | 호출 예시 |
 | --- | --- | --- |
-| `POST /internal/pipeline/crawl` | 잡코리아/사람인 웹 스크래핑 & DB 실시간 직접 적재 | `curl -X POST http://localhost:8083/internal/pipeline/crawl -H "Content-Type: application/json" -d '{"portal": "ALL", "maxPages": 5}'` |
-| `POST /internal/pipeline/wage-stat` | KOSIS 임금 통계 수집 & 24구간 누적분포 보간 적재 (기간 지정 백필 지원) | `curl -X POST http://localhost:8083/internal/pipeline/wage-stat`<br>`curl -X POST http://localhost:8083/internal/pipeline/wage-stat -H "Content-Type: application/json" -d '{"startYear": "2020", "endYear": "2024"}'` |
-| `POST /internal/pipeline/dedup` | 원천 간(잡코리아-사람인) 채용공고 중복제거(dedup_group_id) | `curl -X POST http://localhost:8083/internal/pipeline/dedup` |
-| `POST /internal/pipeline/aggregate` | 월별 채용 시장 데이터 다차원 사전 집계 (P50 연봉, 스킬수요율) | `curl -X POST "http://localhost:8083/internal/pipeline/aggregate?month=2026-08"` |
-| `POST /internal/pipeline/seed-load` | 파일시스템 스냅샷 시드 파일 DB 적재 | `curl -X POST http://localhost:8083/internal/pipeline/seed-load` |
-| `GET /internal/pipeline/jobs/{jobId}` | 특정 비동기 파이프라인 작업 상태 조회 | `curl http://localhost:8083/internal/pipeline/jobs/{jobId}` |
-| `GET /internal/pipeline/jobs` | 최근 실행된 파이프라인 작업 히스토리 목록 조회 | `curl http://localhost:8083/internal/pipeline/jobs` |
-| `GET /internal/pipeline/stats` | 수집 DB(`raw_ingest`, `job_posting`, `skill`, `wage_stat`) 건수 통계 | `curl http://localhost:8083/internal/pipeline/stats` |
+| `POST /internal/pipeline/crawl` | 잡코리아/사람인 웹 스크래핑 & DB 실시간 직접 적재 | `curl -X POST http://localhost:8083/internal/pipeline/crawl -H "X-Admin-Key: carix-admin-secret-dev-key" -H "Content-Type: application/json" -d '{"portal": "ALL", "maxPages": 5}'` |
+| `POST /internal/pipeline/wage-stat` | KOSIS 임금 통계 수집 & 24구간 누적분포 보간 적재 (기간 지정 백필 지원) | `curl -X POST http://localhost:8083/internal/pipeline/wage-stat -H "X-Admin-Key: carix-admin-secret-dev-key"`<br>`curl -X POST http://localhost:8083/internal/pipeline/wage-stat -H "X-Admin-Key: carix-admin-secret-dev-key" -H "Content-Type: application/json" -d '{"startYear": "2020", "endYear": "2024"}'` |
+| `POST /internal/pipeline/dedup` | 원천 간(잡코리아-사람인) 채용공고 중복제거(dedup_group_id) | `curl -X POST http://localhost:8083/internal/pipeline/dedup -H "X-Admin-Key: carix-admin-secret-dev-key"` |
+| `POST /internal/pipeline/aggregate` | 월별 채용 시장 데이터 다차원 사전 집계 (P50 연봉, 스킬수요율) | `curl -X POST "http://localhost:8083/internal/pipeline/aggregate?month=2026-08" -H "X-Admin-Key: carix-admin-secret-dev-key"` |
+| `POST /internal/pipeline/seed-load` | 파일시스템 스냅샷 시드 파일 DB 적재 | `curl -X POST http://localhost:8083/internal/pipeline/seed-load -H "X-Admin-Key: carix-admin-secret-dev-key"` |
+| `GET /internal/pipeline/jobs/{jobId}` | 특정 비동기 파이프라인 작업 상태 조회 | `curl http://localhost:8083/internal/pipeline/jobs/{jobId} -H "X-Admin-Key: carix-admin-secret-dev-key"` |
+| `GET /internal/pipeline/jobs` | 최근 실행된 파이프라인 작업 히스토리 목록 조회 | `curl http://localhost:8083/internal/pipeline/jobs -H "X-Admin-Key: carix-admin-secret-dev-key"` |
+| `GET /internal/pipeline/stats` | 수집 DB(`raw_ingest`, `job_posting`, `skill`, `wage_stat`) 건수 통계 | `curl http://localhost:8083/internal/pipeline/stats -H "X-Admin-Key: carix-admin-secret-dev-key"` |
+| `GET /internal/pipeline/recent-postings` | 최근 수집 및 정규화된 채용공고 및 스킬 매핑 결과 조회 | `curl "http://localhost:8083/internal/pipeline/recent-postings?limit=20" -H "X-Admin-Key: carix-admin-secret-dev-key"` |
 
 프로젝트 진행 상태는 [`README.md` 진행 상태](README.md#진행-상태)를 참조.
 

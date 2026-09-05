@@ -42,7 +42,7 @@
 | S-13 | `/mypage/profile` | 세션·사용자 정보 관리, 삭제 | SPA | 세션 |
 | S-14 | `/dashboard/trends` | 추이분석 (소득vs물가·스킬수요·연봉분포) | SPA | 세션 + 온보딩 완료 |
 | S-15 | `/dashboard/simulator` | 12개월 시뮬레이터 | SPA | 세션 + 온보딩 완료 |
-| S-16 | `/admin/pipeline` | 관리자 파이프라인 콘솔 (수집·집계 구동/모니터링) | SPA | 관리자 / 내부망 |
+| S-16 | `/admin/collector` | 관리자 파이프라인 콘솔 (수집·집계 제어/모니터링) | SPA | 관리자 키 (`X-Admin-Key`) |
 
 렌더링 열은 MVP 현행 구성이다 — `/` 만 빌드 시 사전 렌더링하고 나머지는 SPA 셸에서
 클라이언트가 렌더링한다(`ssr: false`). 화면별 Node SSR·SSR shell 적용은 MVP 이후로

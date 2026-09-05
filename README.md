@@ -171,6 +171,7 @@ flowchart TD
 | `/dashboard/simulator` | 12개월 시뮬레이터 | 세션 + 온보딩 완료 |
 | `/mypage/records` | 소득·소비·스킬 이력 관리 | 세션 |
 | `/mypage/profile` | 세션 관리·계정 삭제 | 세션 |
+| `/admin/collector` | 수집기 파이프라인 관리 콘솔 (별칭: `/admin/pipeline`) | 관리자 키 (`X-Admin-Key`) |
 
 라우팅 가드: 세션 없으면 랜딩(`/`)으로, 온보딩 미완료면 마지막 미완료 단계로,
 온보딩 완료 후 `/onboarding/*` 접근은 `/dashboard`로 이동합니다

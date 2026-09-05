@@ -583,7 +583,10 @@
 
 ## 8. 관리자 파이프라인 제어 API (Admin / Internal)
 
-수집기(Collector)의 공고 수집, KOSIS 임금통계 보간, 공고 중복제거, 다차원 시장 집계 등 백그라운드 파이프라인을 수동 트리거하고 상태를 모니터링하는 API다 (관리자 콘솔 S-16 연동).
+수집기(Collector)의 공고 수집, KOSIS 임금통계 보간, 공고 중복제거, 다차원 시장 집계 등 백그라운드 파이프라인을 수동 트리거하고 상태를 모니터링하는 API다 (관리자 콘솔 `/admin/collector` 연동).
+
+*   **Gateway 경유 Base URL:** `/api/v1/admin/collector` (내부 경로 `/internal/pipeline`으로 자동 Rewrite 매핑)
+*   **보안 인증:** 모든 요청에 요청 헤더 `X-Admin-Key: <ADMIN_SECRET_KEY>` 필수 전송 (누락 또는 불일치 시 `403 FORBIDDEN`).
 
 ### 8.1 채용공고 크롤링 비동기 실행
 *   `POST /internal/pipeline/crawl` — 잡코리아·사람인 IT/개발 채용공고 실시간 스크래핑 트리거.
@@ -692,10 +695,36 @@
     *   **Response (200 OK):**
         ```json
         {
-          "rawCount": 12500,
-          "cleanedCount": 11800,
-          "dedupedCount": 8400,
+          "totalRawIngest": 12500,
+          "totalJobPostings": 11800,
+          "totalSkills": 340,
           "totalWageStats": 24,
-          "lastUpdated": "2026-08-29T13:05:12Z"
+          "postingsBySource": {
+            "JOBKOREA": 6000,
+            "SARAMIN": 5800
+          }
         }
+        ```
+
+### 8.7 최근 수집 공고 미리보기 조회
+*   `GET /internal/pipeline/recent-postings?limit={limit}` — 가장 최근 수집 및 정규화된 채용공고 목록 및 스킬 매핑 결과 조회 (기본 20건, 최대 50건).
+    *   **Response (200 OK):**
+        ```json
+        [
+          {
+            "id": "c1a12345-6789-4abc-def0-123456789012",
+            "source": "JOBKOREA",
+            "externalId": "JK-42819012",
+            "title": "백엔드 스프링부트 시니어 개발자 채용",
+            "companyName": "카릭스랩",
+            "jobFamily": "BACKEND",
+            "salaryMin": 5000,
+            "salaryMax": 8000,
+            "region": "서울 강남구",
+            "experienceMin": 5,
+            "experienceMax": 10,
+            "skills": ["Java", "Spring Boot", "PostgreSQL", "Docker"],
+            "collectedAt": "2026-09-05T17:30:00Z"
+          }
+        ]
         ```
