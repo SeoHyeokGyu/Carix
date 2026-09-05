@@ -91,15 +91,19 @@ flowchart TD
     Router --> CarixCaddy["carix_caddy (:80) — 앱 라우팅 진입"]
     CarixCaddy --> GW["gateway :8080"]
     GW -->|"/api/v1/auth/**"| Auth["auth-service :8081"]
+    GW -->|"/api/v1/admin/collector/** (RewritePath)"| Collector["collector :8083"]
     GW -->|"/api/v1/**"| Core["core-api :8082"]
     GW -->|"그 외"| Web["frontend-node :3000"]
     GW -.->|"세션 검증"| Auth
     Auth --> DBA[("carix — auth 스키마")]
     Core --> DBC[("carix — core 스키마")]
-    Collector["collector — Gateway 라우팅 대상 아님"] --> DBC
+    Collector --> DBC
 ```
 
-**Gateway 는 `collector` 를 라우팅하지 않는다.**
+**Gateway 는 관리자 콘솔을 위해 `collector` 를 라우팅한다 (`/api/v1/admin/collector/**` $\rightarrow$ `lb://collector/internal/pipeline/**`).**
+- **순서(Order)**: `-12` (`core`의 `-10`보다 앞서 매칭되도록 보장)
+- **필터**: `RewritePath=/api/v1/admin/collector/(?<segment>.*), /internal/pipeline/${segment}`
+- **보안**: `collector`의 `AdminKeyInterceptor`가 모든 요청에 대해 `X-Admin-Key` 헤더를 검증하여 인가되지 않은 외부 호출을 차단합니다 (`403 Forbidden`).
 
 ### Gateway 필터 체인
 

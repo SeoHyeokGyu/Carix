@@ -149,4 +149,16 @@ public class CollectorPipelineController {
   public ResponseEntity<PipelineStatsResponse> getStats() {
     return ResponseEntity.ok(pipelineService.getStats());
   }
+
+  /**
+   * [GET /internal/pipeline/recent-postings] 최근 수집/정규화된 채용공고 목록 조회 (최대 50건).
+   *
+   * @param limit 조회할 공고 건수 (기본값 20, 최대 50)
+   * @return 최근 채용공고 목록 (스킬 태그 포함)
+   */
+  @GetMapping("/recent-postings")
+  public ResponseEntity<List<com.carix.pipeline.dto.RecentPostingResponse>> getRecentPostings(
+      @RequestParam(value = "limit", defaultValue = "20") int limit) {
+    return ResponseEntity.ok(pipelineService.getRecentPostings(limit));
+  }
 }

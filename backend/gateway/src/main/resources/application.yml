@@ -36,6 +36,13 @@ spring:
               predicates:
                 - Path=/api/health
               order: -15
+            - id: collector-admin
+              uri: lb://collector
+              predicates:
+                - Path=/api/v1/admin/collector/**
+              filters:
+                - RewritePath=/api/v1/admin/collector/(?<segment>.*), /internal/pipeline/${segment}
+              order: -12
             - id: core
               uri: lb://core-api
               predicates:

@@ -62,7 +62,7 @@ flowchart TD
 | 경로 | 방식 | 목적 |
 | --- | --- | --- |
 | `/` | 빌드 시 사전 렌더링 | 빠른 첫 화면과 검색 노출 |
-| `/admin/pipeline` | SPA 셸 후 클라이언트 렌더링 | 관리자 수집/집계 파이프라인 제어 콘솔 |
+| `/admin/collector` | SPA 셸 후 클라이언트 렌더링 | 관리자 수집/집계 파이프라인 제어 콘솔 (별칭: `/admin/pipeline`) |
 | 그 외 전 경로 | SPA 셸 후 클라이언트 렌더링 | 세션 화면이라 SEO 대상이 아니다 |
 
 `react-router.config` 는 `ssr: false` + `prerender: ["/"]` 이고 `frontend/server.js` 는

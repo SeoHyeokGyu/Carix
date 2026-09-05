@@ -22,9 +22,12 @@ spring:
         default_schema: core
 
 server:
-  # Gateway 라우트를 만들지 않는다(설계 §4). 컨텍스트 패스를 /api 로 두지 않는 것도
-  # 같은 이유 — 이 서비스의 경로는 Gateway 의 어떤 predicate 에도 걸리지 않아야 한다.
+  # Gateway 라우트(/api/v1/admin/collector/** -> /internal/pipeline/**)를 통해 관리자 요청을 수신합니다.
   port: 8083
+
+carix:
+  collector:
+    admin-key: ${CARIX_ADMIN_KEY:carix-admin-secret-dev-key}
 
 eureka:
   client:
