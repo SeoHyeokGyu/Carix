@@ -233,9 +233,16 @@ public class SkillDemandCalculator {
     if (baseYearMonth == null || baseYearMonth.length() != 6) {
       return YearMonth.now();
     }
-    int year = Integer.parseInt(baseYearMonth.substring(0, 4));
-    int month = Integer.parseInt(baseYearMonth.substring(4, 6));
-    return YearMonth.of(year, month);
+    try {
+      int year = Integer.parseInt(baseYearMonth.substring(0, 4));
+      int month = Integer.parseInt(baseYearMonth.substring(4, 6));
+      if (month < 1 || month > 12) {
+        return YearMonth.now();
+      }
+      return YearMonth.of(year, month);
+    } catch (Exception e) {
+      return YearMonth.now();
+    }
   }
 
   /** 스킬 수요 지수 산출 결과 DTO. */

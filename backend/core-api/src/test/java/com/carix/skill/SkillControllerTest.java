@@ -262,4 +262,54 @@ class SkillControllerTest {
 
     verify(skillService).getUserSkills(userId);
   }
+
+  @Test
+  @DisplayName(
+      "POST /v1/user-skills - 30개 상한 초과 등록 시 400 Bad Request와 MAX_SKILL_LIMIT_EXCEEDED를 반환한다")
+  void createUserSkill_exceedsLimit_returns400() throws Exception {
+    given(skillService.createUserSkill(any(UUID.class), any(UserSkillCreateRequest.class)))
+        .willThrow(
+            new com.carix.skill.exception.MaxSkillLimitExceededException(
+                "보유 스킬은 최대 30개까지만 등록할 수 있습니다."));
+
+    mockMvc
+        .perform(
+            post("/v1/user-skills")
+                .header("X-User-Id", UUID.randomUUID().toString())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    """
+                    {
+                      "standardName": "Kubernetes",
+                      "monthsOfExperience": 24,
+                      "lastUsedDate": "2026-07-01"
+                    }
+                    """))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.code").value("MAX_SKILL_LIMIT_EXCEEDED"));
+  }
+
+  @Test
+  @DisplayName("POST /v1/user-skills - 미래 날짜 lastUsedDate 전달 시 400 Bad Request를 반환한다")
+  void createUserSkill_futureDate_returns400() throws Exception {
+    LocalDate futureDate = LocalDate.now().plusDays(30);
+
+    mockMvc
+        .perform(
+            post("/v1/user-skills")
+                .header("X-User-Id", UUID.randomUUID().toString())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    String.format(
+                        """
+                        {
+                          "standardName": "Kubernetes",
+                          "monthsOfExperience": 24,
+                          "lastUsedDate": "%s"
+                        }
+                        """,
+                        futureDate)))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.code").value("INVALID_INPUT"));
+  }
 }

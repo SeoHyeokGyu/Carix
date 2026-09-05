@@ -9,10 +9,12 @@ import com.carix.skill.dto.UserSkillResponse;
 import com.carix.skill.dto.UserSkillUpdateRequest;
 import com.carix.skill.exception.DuplicateSkillException;
 import com.carix.skill.exception.InvalidSkillCategoryException;
+import com.carix.skill.exception.MaxSkillLimitExceededException;
 import com.carix.skill.exception.UserSkillNotFoundException;
 import com.carix.skill.repository.SkillAliasRepository;
 import com.carix.skill.repository.SkillRepository;
 import com.carix.skill.repository.UserSkillRepository;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -25,6 +27,9 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class SkillService {
+
+  /** 사용자당 최대 보유 스킬 등록 개수 (기능 명세 §3 입력 검증 규칙) */
+  public static final int MAX_USER_SKILLS = 30;
 
   // TODO: [직군 카테고리 체계 확장]
   // 현재는 IT 개발 직군 위주 카테고리만 허용되어 있습니다.
@@ -57,6 +62,14 @@ public class SkillService {
   /** 사용자 보유 스킬 등록 */
   @Transactional
   public UserSkillResponse createUserSkill(UUID userId, UserSkillCreateRequest request) {
+    validateLastUsedDate(request.lastUsedDate());
+
+    // 0. 보유 스킬 수 상한 검증 (최대 30개)
+    long currentCount = userSkillRepository.countByUserId(userId);
+    if (currentCount >= MAX_USER_SKILLS) {
+      throw new MaxSkillLimitExceededException("보유 스킬은 최대 " + MAX_USER_SKILLS + "개까지만 등록할 수 있습니다.");
+    }
+
     String trimmedName = request.standardName().trim();
 
     // 1. 표준 스킬 또는 별칭으로 기존 표준 스킬 탐색
@@ -68,8 +81,6 @@ public class SkillService {
     }
 
     // 3. UserSkill 생성 및 저장
-    // TODO: [스킬 숙련도 평가 연동]
-    // 추후 온보딩/프로필 고도화 시 숙련도(proficiency_level: BEGINNER, INTERMEDIATE, ADVANCED) 입력값 DTO 및 엔티티 매핑 추가
     UserSkill userSkill =
         UserSkill.builder()
             .userId(userId)
@@ -86,6 +97,8 @@ public class SkillService {
   @Transactional
   public UserSkillResponse updateUserSkill(
       UUID userId, UUID userSkillId, UserSkillUpdateRequest request) {
+    validateLastUsedDate(request.lastUsedDate());
+
     UserSkill userSkill =
         userSkillRepository
             .findByIdAndUserId(userSkillId, userId)
@@ -155,6 +168,17 @@ public class SkillService {
     if (!ALLOWED_CATEGORIES.contains(upper)) {
       throw new InvalidSkillCategoryException(
           "지원하지 않는 카테고리입니다: " + category + ". 허용 카테고리: " + ALLOWED_CATEGORIES);
+    }
+  }
+
+  private void validateLastUsedDate(LocalDate lastUsedDate) {
+    if (lastUsedDate == null) {
+      return;
+    }
+    LocalDate today = LocalDate.now();
+    if (lastUsedDate.isAfter(today)) {
+      throw new IllegalArgumentException(
+          "마지막 사용일은 미래 날짜일 수 없습니다 (입력값: " + lastUsedDate + ", 기준일: " + today + ").");
     }
   }
 

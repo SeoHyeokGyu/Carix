@@ -21,5 +21,7 @@ public interface UserSkillRepository extends JpaRepository<UserSkill, UUID> {
 
   long countBySkillId(UUID skillId);
 
+  long countByUserId(UUID userId);
+
   void deleteByUserIdAndId(UUID userId, UUID id);
 }
