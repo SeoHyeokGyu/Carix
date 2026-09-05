@@ -88,4 +88,39 @@ class JobPostingDeduplicatorTest {
     assertThat(deduplicator.deduplicate(null)).isEqualTo(0);
     assertThat(deduplicator.deduplicate(List.of())).isEqualTo(0);
   }
+
+  @Test
+  @DisplayName("deduplicate - 회사명이 비어있는 경우 및 제목 키워드 부분집합 매칭")
+  void deduplicate_emptyCompanyAndSubsetKeywords() {
+    JobPosting p1 =
+        JobPosting.builder()
+            .source("JOBKOREA")
+            .externalId("jk-sub-1")
+            .companyName("테스트기업")
+            .title("백엔드 서버 개발자")
+            .collectedAt(Instant.now())
+            .build();
+
+    JobPosting p2 =
+        JobPosting.builder()
+            .source("SARAMIN")
+            .externalId("sr-sub-2")
+            .companyName("테스트기업")
+            .title("백엔드 개발자") // p2 키워드가 p1의 진부분집합
+            .collectedAt(Instant.now())
+            .build();
+
+    JobPosting pEmptyComp =
+        JobPosting.builder()
+            .source("JOBKOREA")
+            .externalId("jk-empty-3")
+            .companyName("") // 회사명 빈값
+            .title("단독 공고")
+            .collectedAt(Instant.now())
+            .build();
+
+    int matched = deduplicator.deduplicate(List.of(p1, p2, pEmptyComp));
+    assertThat(matched).isEqualTo(1);
+    assertThat(p1.getDedupGroupId()).isEqualTo(p2.getDedupGroupId());
+  }
 }

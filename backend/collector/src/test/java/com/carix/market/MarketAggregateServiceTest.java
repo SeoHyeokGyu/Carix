@@ -159,5 +159,23 @@ class MarketAggregateServiceTest {
         marketAggregateService.aggregateMarketData(
             new com.carix.pipeline.dto.MarketAggregateRequest(null, null, "2024", "2025", null));
     assertThat(resRange).isGreaterThan(0);
+
+    // endYear null 인 경우 startYear 로 단일연도 처리
+    int resSingleRange =
+        marketAggregateService.aggregateMarketData(
+            new com.carix.pipeline.dto.MarketAggregateRequest(null, null, "2025", null, null));
+    assertThat(resSingleRange).isGreaterThan(0);
+  }
+
+  @Test
+  @DisplayName("기준년월 유효성 검사 - null 또는 비정상 형식 시 IllegalArgumentException 발생")
+  void normalizeMonth_exceptions() {
+    org.assertj.core.api.Assertions.assertThatThrownBy(
+            () -> marketAggregateService.aggregateMarketDataForMonth(null))
+        .isInstanceOf(IllegalArgumentException.class);
+
+    org.assertj.core.api.Assertions.assertThatThrownBy(
+            () -> marketAggregateService.aggregateMarketDataForMonth("2026-8"))
+        .isInstanceOf(IllegalArgumentException.class);
   }
 }
