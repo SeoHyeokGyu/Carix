@@ -165,6 +165,8 @@
 
 ### 5.1 대시보드 지표 요약 (Summary)
 *   **Endpoint:** `GET /api/v1/dashboard/summary`
+*   구현: `com.carix.dashboard.service.DashboardSummaryService`. `index_snapshot` 의 그 달 유효 행을 읽는다.
+*   **`metadata` 의 `sources`·`sampleSize`·`salaryMissingRate`·`peerGroup` 은 비어 있다.** 원천별 커버리지는 `MviResult` 에만 있고 `rationale` 에 저장되지 않는다 ([개발 계획 §5-M](../plans/carix-dev-plan.md) 미결). 저장이 결정될 때까지 임의 값으로 채우지 않는다.
 *   **Query Parameters (모두 선택, 가상 프로필 탐색용) — `MVP 범위 밖`:** 대응 스토리·화면이 없어 파라미터만 MVP 에서 제외한다 ([개발 계획 §5-G](../plans/carix-dev-plan.md)). 엔드포인트 자체는 MVP 포함이다.
     *   `jobFamily` (String, optional): 가상 탐색용 주 직무
     *   `yearsOfExperience` (Integer, optional): 가상 탐색용 경력 년수
@@ -178,12 +180,14 @@
         "value": 94.2,
         "changeFromLastMonth": -1.2,
         "status": "DECREASED",
+        "indexStatus": "OK",
         "estimateLabel": "PARTIALLY_ESTIMATED"
       },
       "marketValueIndex": {
-        "value": 117.5,
-        "changeFromLastMonth": 3.8,
-        "status": "INCREASED"
+        "value": null,
+        "changeFromLastMonth": null,
+        "status": null,
+        "indexStatus": "INSUFFICIENT_SAMPLE"
       },
       "decisionSignal": {
         "code": "SEEK_JOB",
@@ -220,22 +224,41 @@
     }
     ```
     *(`changeFromLastMonth`는 지수 포인트(p) 차이다. 백분율 변화가 아니다)*
+*   **계산 불가 표현.** `value`·`changeFromLastMonth`·`status`는 nullable 이고, 값이 없는 이유는
+    `indexStatus`가 담는다 — `OK` / `INSUFFICIENT_SAMPLE` / `UPDATE_DELAYED` /
+    `INSUFFICIENT_HISTORY` / `NOT_AVAILABLE` (`com.carix.index.enums.IndexStatus`).
+    **0 이나 100 으로 채우지 않는다** ([개발 계획 §4-1](../plans/carix-dev-plan.md),
+    `index_snapshot.purchasing_power_index` DDL 주석). 위 예시는 PPI 는 산출됐고 MVI 는 표본이
+    부족한 경우다. 화면은 `indexStatus`로 카드별 뱃지를 그린다 ([기능 명세 §5](functional-specification.md)).
 
 ### 5.2 동료집단 연봉 분포
 *   **Endpoint:** `GET /api/v1/dashboard/salary-distribution`
+*   구현: `com.carix.dashboard.service.SalaryDistributionService`. 완화 5단계를 원 공고 위에서 돌리고 백분위는 nearest-rank 로 낸다 — collector 의 `MarketAggregateService` 와 같은 방식이라야 두 경로의 숫자가 어긋나지 않고 H2/Postgres 분위수 함수 차이도 타지 않는다.
 *   **Query Parameters (모두 선택, 가상 프로필 탐색용) — `MVP 범위 밖`:** `jobFamily`, `yearsOfExperience`, `region`, `companySize` — 의미와 동작은 §5.1과 동일. 파라미터만 MVP 에서 제외한다 ([개발 계획 §5-G](../plans/carix-dev-plan.md)).
 *   결합 분포와 percentile은 원천별 5수치 요약으로 재구성할 수 없으므로, **동료집단 조건의 원 공고(`job_posting`)를 직접 집계**해 계산한다: `dedup_group_id` 단위로 원천 간 중복을 제거하고 유효 공개연봉 행만 사용. `market_aggregate`의 원천별 5수치는 배치 검증·참고용이며 이 응답의 산출원이 아니다.
-*   표본 부족 시에도 `200 OK`로 상태와 표본 수를 반환한다 (204 금지 — 화면은 `표본 부족`과 표본 수를 표시해야 함):
+*   표본 부족 시에도 `200 OK`로 상태와 표본 수를 반환한다 (204 금지 — 화면은 `표본 부족`과 표본 수를 표시해야 함).
+    이때 `postingReference`·`userPosition` 은 `null` 이다:
     ```json
-    { "status": "INSUFFICIENT_SAMPLE", "sampleSize": 4, "minRequired": 10 }
+    {
+      "status": "INSUFFICIENT_SAMPLE",
+      "sampleSize": 4,
+      "minRequired": 10,
+      "baseline": { "source": "WAGE_STAT", "median": 72000000, "wageDefinition": "초과급여 제외, 상여 포함" },
+      "postingReference": null,
+      "userPosition": null,
+      "peerGroup": { "fallbackLevel": null, "appliedConditions": "서울 / 경력 MID±1 / 회사규모 무관" }
+    }
     ```
 *   **Response (200 OK):**
     ```json
     {
+      "status": "OK",
+      "sampleSize": 71,
+      "minRequired": null,
       "baseline": { "source": "WAGE_STAT", "median": 72000000, "wageDefinition": "ANNUAL_GROSS_MEDIAN" },
       "postingReference": {
         "min": 45000000, "p25": 58000000, "median": 65000000, "p75": 74000000, "max": 95000000,
-        "sampleSize": 71, "missingRate": 42.5
+        "sampleSize": 41, "missingRate": 42.5
       },
       "userPosition": { "grossSalary": 60000000, "percentile": 35 },
       "peerGroup": {
@@ -245,9 +268,16 @@
     }
     ```
     *(공고 분포는 참고 표시 전용, 판정 기준선은 `baseline` — 상세 기술 명세 §2.1 규약)*
+*   **두 `sampleSize` 는 다르다.** 최상위는 중복 제거 후 동료집단 공고 수, `postingReference.sampleSize` 는
+    그중 **연봉이 공개된** 건수다. `minRequired` 는 최상위에만 걸린다 — 동료집단이 10건이어도 공개연봉이
+    1건이면 5수치가 한 점으로 뭉친 채 `status: "OK"` 로 나간다. 화면은 `missingRate` 와
+    `postingReference.sampleSize` 로 분포의 신뢰도를 따로 판단한다.
+*   **온보딩 미완료**(커리어 프로필 없음)면 동료집단 조건 자체가 없어 `sampleSize: 0` 이고
+    `baseline`·`peerGroup` 까지 `null` 이다. 위 표본 부족 예시는 프로필은 있고 표본만 모자란 경우다.
 
 ### 5.3 지수 트렌드 차트 데이터
 *   **Endpoint:** `GET /api/v1/dashboard/trends`
+*   구현: `com.carix.dashboard.service.SnapshotSeriesService`. **`incomeIndex`·`personalPriceIndex`·`nominalIncome`·`realIncome` 은 아직 항상 `null` 이다** — `index_snapshot` 에 그 컬럼이 없고 원천인 PPI 도메인(Member A)이 미착수다. 0 으로 채우면 차트가 있지도 않은 하락을 그린다.
 *   **Query Parameters:**
     *   `baseYearMonth` (String, optional): 인덱스 기준 월 (YYYY-MM). 지정하지 않으면 사용자의 첫 소득 이력 발생 월을 기준으로 자동 지정됨.
     *   `durationMonths` (Integer, optional): 조회할 개원 수 (기본값: 12).
@@ -272,11 +302,58 @@
           "personalPriceIndex": 100.9,
           "nominalIncome": 5000000,
           "realIncome": 4955000
+        },
+        {
+          "yearMonth": "2026-03",
+          "purchasingPowerIndex": null,
+          "marketValueIndex": 103.1,
+          "incomeIndex": null,
+          "personalPriceIndex": null,
+          "nominalIncome": null,
+          "realIncome": null
+        }
+      ],
+      "purchasingPowerStatus": "UPDATE_DELAYED",
+      "marketValueStatus": "OK"
+    }
+    ```
+*   **결측월 표현.** `trends[]`의 지수·금액 필드는 모두 nullable 이다. 그 달을 계산하지 못했으면
+    `null` 로 두고 **차트는 선을 잇지 않고 갭으로 그린다** ([기능 명세 §5](functional-specification.md) —
+    `일부 월 누락 시 갭 표시(선 연결 금지)`). 계열 단위 사유는 응답 최상위의
+    `purchasingPowerStatus`·`marketValueStatus`(`IndexStatus`)가 담는다.
+    *(소득 vs 물가 차트는 `incomeIndex`와 `personalPriceIndex` 두 지수 계열(기준월 100)로 그린다. 원화 금액과 지수를 같은 축에 겹치지 않는다. `purchasingPowerIndex = incomeIndex ÷ personalPriceIndex × 100`. 파생 금액(`realIncome` 등)은 원 단위로 계산 후 천 원 단위 반올림해 표시한다)*
+
+### 5.4 월별 스냅샷 이력
+*   **Endpoint:** `GET /api/v1/dashboard/history`
+*   구현: `com.carix.dashboard.service.SnapshotSeriesService`. 한 달에 여러 행이 있으면 최신 `data_version` → 최신 `rule_version` 순으로 하나만 고른다 (`IndexSnapshotSelector`). 스냅샷이 없으면 빈 배열이다.
+*   S-11 화면용. 월별 스냅샷 목록을 최신순으로 반환.
+*   **Response (200 OK):**
+    ```json
+    {
+      "snapshots": [
+        {
+          "baseYearMonth": "202607",
+          "purchasingPowerIndex": 94.2,
+          "marketValueIndex": 117.5,
+          "decisionSignal": "SEEK_JOB",
+          "dataVersion": "20260701093000-000",
+          "ruleVersion": "1.2.0",
+          "rationale": { "rulesApplied": ["..."], "excluded": ["..."], "baseDate": "2026-07-01" }
+        },
+        {
+          "baseYearMonth": "202606",
+          "purchasingPowerIndex": null,
+          "marketValueIndex": 115.0,
+          "decisionSignal": "INSUFFICIENT_DATA",
+          "dataVersion": "20260601093000-000",
+          "ruleVersion": "1.2.0",
+          "rationale": { "rulesApplied": [], "excluded": ["..."], "baseDate": "2026-06-01" }
         }
       ]
     }
     ```
-    *(소득 vs 물가 차트는 `incomeIndex`와 `personalPriceIndex` 두 지수 계열(기준월 100)로 그린다. 원화 금액과 지수를 같은 축에 겹치지 않는다. `purchasingPowerIndex = incomeIndex ÷ personalPriceIndex × 100`. 파생 금액(`realIncome` 등)은 원 단위로 계산 후 천 원 단위 반올림해 표시한다)*
+*   `purchasingPowerIndex`·`marketValueIndex`는 nullable 이다. 그 달에 계산이 불가했으면 행은
+    남기되 지수를 `null` 로 둔다 (`index_snapshot` DDL 주석 — 0 이나 100 으로 채우지 않는다).
 
 ### 5.5 스킬별 수요 상세
 *   **Endpoint:** `GET /api/v1/dashboard/skills`
@@ -328,26 +405,6 @@
           "demandRate": 0.182,
           "growthTrend": "STABLE",
           "reason": "동료집단 내 공고의 18.2%에서 요구되는 핵심 스택입니다."
-        }
-      ]
-    }
-    ```
-
-### 5.4 월별 스냅샷 이력
-*   **Endpoint:** `GET /api/v1/dashboard/history`
-*   S-11 화면용. 월별 스냅샷 목록을 최신순으로 반환.
-*   **Response (200 OK):**
-    ```json
-    {
-      "snapshots": [
-        {
-          "baseYearMonth": "202607",
-          "purchasingPowerIndex": 94.2,
-          "marketValueIndex": 117.5,
-          "decisionSignal": "SEEK_JOB",
-          "dataVersion": "20260701093000-000",
-          "ruleVersion": "1.2.0",
-          "rationale": { "rulesApplied": ["..."], "excluded": ["..."], "baseDate": "2026-07-01" }
         }
       ]
     }
@@ -407,6 +464,8 @@
 
 ### 6.2 최근 시나리오 조회
 *   **Endpoint:** `GET /api/v1/scenarios/latest`
+*   **`스텁`** — `ScenarioController.java:86` 이 고정값을 돌려준다. 실데이터 전환 담당·시점은 [개발 계획 §5-O](../plans/carix-dev-plan.md)에 있다. 프런트엔드는 이 응답을 실데이터로 취급하지 않는다.
+*   `core.career_scenario` 에 쓰는 코드가 아직 없어 저장 배선이 선행 조건이다 ([개발 계획 §5-O](../plans/carix-dev-plan.md)).
 *   **Response (200 OK):** 6.1의 요청 필드와 응답 필드를 합친 단건. 저장된 시나리오가 없으면 `204 No Content`. `calculated_at DESC, id DESC` 순 첫 행 반환.
     ```json
     {
