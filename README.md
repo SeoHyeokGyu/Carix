@@ -1,5 +1,8 @@
 # Carix
 
+![Coverage](.github/badges/jacoco.svg)
+![Branches](.github/badges/branches.svg)
+
 > 내 소득, 물가, 스킬 수요를 연결해 커리어의 실질가치를 추적하는 개인 커리어 지수 플랫폼
 
 ## Carix란?
