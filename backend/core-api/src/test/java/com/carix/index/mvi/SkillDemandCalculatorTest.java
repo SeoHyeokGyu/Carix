@@ -383,4 +383,76 @@ class SkillDemandCalculatorTest {
         calculator.calculateDemandIndex(source, skillId, peerGroup, "ABCDEF");
     assertThat(res4.getStatus()).isEqualTo("NEW_OBSERVATION");
   }
+
+  @Test
+  @DisplayName("calculateTotalPostings: 최근 3개월 및 이전 12개월 전체 공고 수를 1회 조회하여 TotalPostings로 반환한다")
+  void testCalculateTotalPostings() {
+    String source = "JOBKOREA";
+    String baseYearMonth = "202607";
+    PeerGroupFallbackResolver.ResolvedPeerGroup peerGroup =
+        PeerGroupFallbackResolver.ResolvedPeerGroup.builder()
+            .source(source)
+            .jobFamily("DEVELOPER")
+            .region("서울 강남구")
+            .brackets(List.of("MID"))
+            .employmentType("FULL_TIME")
+            .companySize("MEDIUM")
+            .build();
+
+    when(marketAggregateRepository.findTotalPostingAggregates(
+            eq(source),
+            any(),
+            eq("DEVELOPER"),
+            eq("서울 강남구"),
+            eq(List.of("MID")),
+            eq("FULL_TIME"),
+            eq("MEDIUM")))
+        .thenReturn(List.of(MarketAggregate.builder().postingCount(100).build()))
+        .thenReturn(List.of(MarketAggregate.builder().postingCount(400).build()));
+
+    SkillDemandCalculator.TotalPostings totals =
+        calculator.calculateTotalPostings(source, peerGroup, baseYearMonth);
+
+    assertThat(totals.recentTotalPostings()).isEqualTo(100);
+    assertThat(totals.baselineTotalPostings()).isEqualTo(400);
+  }
+
+  @Test
+  @DisplayName(
+      "calculateDemandIndex: 사전에 계산된 TotalPostings를 넘기면 findTotalPostingAggregates를 재호출하지 않는다")
+  void testCalculateDemandIndexWithPrecalculatedTotalPostings() {
+    UUID skillId = UUID.randomUUID();
+    String source = "JOBKOREA";
+    String baseYearMonth = "202607";
+    PeerGroupFallbackResolver.ResolvedPeerGroup peerGroup =
+        PeerGroupFallbackResolver.ResolvedPeerGroup.builder()
+            .source(source)
+            .jobFamily("DEVELOPER")
+            .region("서울 강남구")
+            .brackets(List.of("MID"))
+            .employmentType("FULL_TIME")
+            .companySize("MEDIUM")
+            .build();
+
+    SkillDemandCalculator.TotalPostings totals = new SkillDemandCalculator.TotalPostings(100, 400);
+
+    when(marketAggregateRepository.findSkillAggregates(
+            eq(source),
+            any(),
+            eq("DEVELOPER"),
+            eq("서울 강남구"),
+            eq(List.of("MID")),
+            eq("FULL_TIME"),
+            eq("MEDIUM"),
+            eq(skillId)))
+        .thenReturn(List.of(MarketAggregate.builder().postingCount(10).build()))
+        .thenReturn(List.of(MarketAggregate.builder().postingCount(20).build()));
+
+    SkillDemandCalculator.SkillDemandResult result =
+        calculator.calculateDemandIndex(source, skillId, peerGroup, baseYearMonth, totals);
+
+    assertThat(result.getStatus()).isEqualTo("OK");
+    // 최근 10/100 = 0.10, 이전 20/400 = 0.05 -> 지수 = 200.0
+    assertThat(result.getDemandIndex()).isEqualTo(200.0);
+  }
 }

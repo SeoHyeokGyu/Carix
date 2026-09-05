@@ -490,6 +490,111 @@ class MarketValueIndexServiceTest {
     assertThat(res.value()).isEqualTo(BigDecimal.valueOf(100.0).setScale(1));
   }
 
+  @Test
+  @DisplayName("calculate - TotalPostings가 사전에 조회되면 오버로딩된 5인자 calculateDemandIndex를 호출하여 처리한다")
+  void testCalculateWithPrecalculatedTotalPostings() {
+    UUID userId = UUID.randomUUID();
+    Skill skill = Skill.createStandard("Java", "BACKEND");
+    UserSkill userSkill = userSkillOf(skill);
+
+    when(careerProfileRepository.findByUserId(userId))
+        .thenReturn(Optional.of(new CareerProfile(userId)));
+    when(userSkillRepository.findByUserId(userId)).thenReturn(List.of(userSkill));
+
+    PeerGroupFallbackResolver.ResolvedPeerGroup jk = resolvedGroup("JOBKOREA", 50);
+    when(peerGroupFallbackResolver.resolveForSource(any(), any(), any())).thenReturn(jk);
+
+    SkillDemandCalculator.TotalPostings totals = new SkillDemandCalculator.TotalPostings(100, 400);
+    when(skillDemandCalculator.calculateTotalPostings(any(), any(), any())).thenReturn(totals);
+
+    SkillDemandCalculator.SkillDemandResult demandRes =
+        SkillDemandCalculator.SkillDemandResult.builder()
+            .skillId(skill.getId())
+            .demandIndex(150.0)
+            .status("OK")
+            .build();
+    when(skillDemandCalculator.calculateDemandIndex(
+            any(), eq(skill.getId()), any(), any(), eq(totals)))
+        .thenReturn(demandRes);
+    when(skillWeightCalculator.calculateWeights(any(), any(), any()))
+        .thenReturn(Map.of(skill.getId(), BigDecimal.valueOf(1.0)));
+
+    MviResult res = service.calculate(userId, "202607");
+    assertThat(res.status()).isEqualTo(IndexStatus.OK);
+    assertThat(res.value()).isEqualTo(BigDecimal.valueOf(150.0).setScale(1));
+  }
+
+  @Test
+  @DisplayName(
+      "getSkillDemandDetails - TotalPostings가 사전에 조회되면 5인자 calculateDemandIndex를 호출하여 상세 집계한다")
+  void testGetSkillDemandDetailsWithPrecalculatedTotalPostings() {
+    UUID userId = UUID.randomUUID();
+    String baseYearMonth = "202607";
+    Skill skill = Skill.createStandard("Java", "BACKEND");
+    UserSkill userSkill = userSkillOf(skill);
+
+    when(careerProfileRepository.findByUserId(userId))
+        .thenReturn(Optional.of(new CareerProfile(userId)));
+    when(userSkillRepository.findByUserId(userId)).thenReturn(List.of(userSkill));
+
+    PeerGroupFallbackResolver.ResolvedPeerGroup jk = resolvedGroup("JOBKOREA", 100);
+    PeerGroupFallbackResolver.ResolvedPeerGroup sm = resolvedGroup("SARAMIN", 100);
+    when(peerGroupFallbackResolver.resolveForSource(eq("JOBKOREA"), any(), eq(baseYearMonth)))
+        .thenReturn(jk);
+    when(peerGroupFallbackResolver.resolveForSource(eq("SARAMIN"), any(), eq(baseYearMonth)))
+        .thenReturn(sm);
+
+    SkillDemandCalculator.TotalPostings totals = new SkillDemandCalculator.TotalPostings(100, 400);
+    when(skillDemandCalculator.calculateTotalPostings(any(), any(), any())).thenReturn(totals);
+
+    when(skillWeightCalculator.calculateWeights(any(), eq(baseYearMonth), any()))
+        .thenReturn(Map.of(skill.getId(), BigDecimal.valueOf(1.0)));
+
+    SkillDemandCalculator.SkillDemandResult demandRes =
+        SkillDemandCalculator.SkillDemandResult.builder()
+            .skillId(skill.getId())
+            .demandIndex(120.0)
+            .recentDemandRate(0.3)
+            .baselineDemandRate(0.25)
+            .status("OK")
+            .build();
+
+    when(skillDemandCalculator.calculateDemandIndex(
+            any(), eq(skill.getId()), any(), eq(baseYearMonth), eq(totals)))
+        .thenReturn(demandRes);
+
+    var details = service.getSkillDemandDetails(userId, baseYearMonth);
+
+    assertThat(details).hasSize(1);
+    assertThat(details.get(0).getDemandIndex()).isEqualTo(120.0);
+    assertThat(details.get(0).getSources()).hasSize(2);
+  }
+
+  @Test
+  @DisplayName("calculate - 사용자 프로필 조회 중 예외 발생 시 RuntimeException으로 래핑하여 던진다")
+  void testCalculateThrowsWrappedExceptionWhenUserLoadFails() {
+    UUID userId = UUID.randomUUID();
+    when(careerProfileRepository.findByUserId(userId))
+        .thenThrow(new IllegalStateException("DB 연결 실패"));
+
+    org.assertj.core.api.Assertions.assertThatThrownBy(() -> service.calculate(userId, "202607"))
+        .isInstanceOf(RuntimeException.class)
+        .hasMessageContaining("사용자 데이터 로드 실패");
+  }
+
+  @Test
+  @DisplayName("getSkillDemandDetails - 사용자 데이터 조회 실패 시 RuntimeException으로 래핑하여 던진다")
+  void testGetSkillDemandDetailsThrowsWrappedExceptionWhenLoadFails() {
+    UUID userId = UUID.randomUUID();
+    when(careerProfileRepository.findByUserId(userId))
+        .thenThrow(new IllegalStateException("DB 연결 실패"));
+
+    org.assertj.core.api.Assertions.assertThatThrownBy(
+            () -> service.getSkillDemandDetails(userId, "202607"))
+        .isInstanceOf(RuntimeException.class)
+        .hasMessageContaining("스킬 상세 수요 데이터 로드 실패");
+  }
+
   private static PeerGroupFallbackResolver.ResolvedPeerGroup resolvedGroup(
       String source, int sampleCount) {
     return PeerGroupFallbackResolver.ResolvedPeerGroup.builder()

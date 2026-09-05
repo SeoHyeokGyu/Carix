@@ -19,10 +19,18 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.Semaphore;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Primary;
@@ -47,6 +55,9 @@ import org.springframework.transaction.annotation.Transactional;
  *       N_{src}} \)
  *   <li>공식 임금통계 기준선({@code WageBaseline}) 첨부 후 {@link MviResult} 반환
  * </ol>
+ *
+ * <p>Virtual Threads(가상 스레드)와 동시 DB I/O 제한(Semaphore)을 적용하여 원천별 완화, 임금 기준선 사전 조회, 스킬별 수요 지수 계산을 고성능
+ * 병렬로 처리합니다.
  */
 @Slf4j
 @Service
@@ -57,12 +68,52 @@ public class MarketValueIndexServiceImpl implements MarketValueIndexProvider {
   /** 지원하는 채용공고 원천 플랫폼 목록 */
   public static final List<String> SUPPORTED_SOURCES = List.of("JOBKOREA", "SARAMIN");
 
+  /**
+   * DB 커넥션 풀 고갈(Connection Starvation) 방지를 위한 동시 DB I/O 제한 허가 수.
+   *
+   * <p>가상 스레드(Virtual Threads)는 수백~수천 개를 경량으로 동시 생성할 수 있지만, 물리적인 RDBMS 커넥션 풀(HikariCP, 통상 10~30개)의
+   * 크기는 제한되어 있습니다. 단일 사용자의 MVI 계산 요청에서 수십 개의 가상 스레드가 동시에 커넥션을 점유하려 들면 다른 웹 요청 처리를 위한 커넥션이 고갈되거나
+   * {@code ConnectionTimeoutException}이 발생할 수 있습니다.
+   *
+   * <p>따라서 단일 MVI 엔진 인스턴스 내에서 동시에 DB I/O를 수행할 수 있는 최대 동시 작업 수를 8개로 제한하여 안정적인 커넥션 획득과 빠른 반납을 유도합니다.
+   */
+  private static final int DEFAULT_MAX_CONCURRENT_DB_TASKS = 8;
+
+  /**
+   * MVI 비동기 병렬 계산 시 DB 커넥션을 점유하는 가상 스레드의 동시성을 제어하는 세마포어.
+   *
+   * <p>허가증(Permit)을 획득하지 못한 가상 스레드는 대기하는 동안 캐리어 스레드(OS 스레드)에서 마운트 해제(unmount)되어 대기하므로, 시스템 리소스를
+   * 낭비하지 않으면서도 DB 커넥션 풀을 안전하게 보호합니다.
+   */
+  private final Semaphore dbConcurrencyLimiter = new Semaphore(DEFAULT_MAX_CONCURRENT_DB_TASKS);
+
   private final CareerProfileRepository careerProfileRepository;
   private final UserSkillRepository userSkillRepository;
   private final PeerGroupFallbackResolver peerGroupFallbackResolver;
   private final SkillDemandCalculator skillDemandCalculator;
   private final SkillWeightCalculator skillWeightCalculator;
   private final WageBaselineResolver wageBaselineResolver;
+
+  /**
+   * 세마포어({@link #dbConcurrencyLimiter}) 허가증을 획득하고 작업을 실행한 후 반드시 반납하도록 보장하는 함수형 헬퍼 메서드.
+   *
+   * <p>가상 스레드 실행 블록 내에서 DB I/O 호출을 감싸는 데 사용되며, 예외 발생 여부와 무관하게 {@code finally} 블록에서 허가증을 즉시 반환하여 커넥션
+   * 및 허가증 누수를 방지합니다.
+   *
+   * @param task 실행할 DB I/O 작업 (Callable)
+   * @param <T> 작업 결과 반환 타입
+   * @return 세마포어 허가증 획득/반납이 보장된 래핑된 작업
+   */
+  private <T> Callable<T> withDbPermit(Callable<T> task) {
+    return () -> {
+      dbConcurrencyLimiter.acquire();
+      try {
+        return task.call();
+      } finally {
+        dbConcurrencyLimiter.release();
+      }
+    };
+  }
 
   @Override
   @Transactional(readOnly = true)
@@ -71,9 +122,23 @@ public class MarketValueIndexServiceImpl implements MarketValueIndexProvider {
       return MviResult.notAvailable(baseYearMonth);
     }
 
-    // 1. 사용자 프로필 및 보유 스킬 조회
-    CareerProfile profile = careerProfileRepository.findByUserId(userId).orElse(null);
-    List<UserSkill> userSkills = userSkillRepository.findByUserId(userId);
+    // 1. 사용자 프로필 및 보유 스킬 병렬 조회
+    CareerProfile profile;
+    List<UserSkill> userSkills;
+    try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
+      Future<Optional<CareerProfile>> profileFuture =
+          executor.submit(withDbPermit(() -> careerProfileRepository.findByUserId(userId)));
+      Future<List<UserSkill>> skillsFuture =
+          executor.submit(withDbPermit(() -> userSkillRepository.findByUserId(userId)));
+
+      profile = profileFuture.get().orElse(null);
+      userSkills = skillsFuture.get();
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throw new RuntimeException("MVI 산출 중 인터럽트 발생", e);
+    } catch (ExecutionException e) {
+      throw new RuntimeException("사용자 데이터 로드 실패", e.getCause());
+    }
 
     // 보유 스킬이 없거나 프로필이 없는 경우 계산 불가 (INSUFFICIENT_SAMPLE)
     if (userSkills == null || userSkills.isEmpty()) {
@@ -92,61 +157,122 @@ public class MarketValueIndexServiceImpl implements MarketValueIndexProvider {
     if (profile == null) {
       profile = new CareerProfile(userId);
     }
+    final CareerProfile finalProfile = profile;
 
-    // 2. 원천별 동료집단 완화 수행
-    List<SourceCoverage> coverages = new ArrayList<>();
-    Map<String, PeerGroupFallbackResolver.ResolvedPeerGroup> resolvedPeerGroups = new HashMap<>();
-    int totalOverallSamples = 0;
+    try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
+      // 2. 임금 기준선(Wage Baseline) 백그라운드 사전 조회(Prefetch)
+      Future<WageBaseline> baselineFuture =
+          executor.submit(withDbPermit(() -> wageBaselineResolver.resolveBaseline(finalProfile)));
 
-    for (String source : SUPPORTED_SOURCES) {
-      PeerGroupFallbackResolver.ResolvedPeerGroup resolved =
-          peerGroupFallbackResolver.resolveForSource(source, profile, baseYearMonth);
-      resolvedPeerGroups.put(source, resolved);
-      coverages.add(resolved.getCoverage());
-      if (resolved.isSuccessful()) {
-        totalOverallSamples += resolved.getSampleCount();
+      // 3. 원천별 동료집단 완화 병렬 수행
+      Map<String, Future<PeerGroupFallbackResolver.ResolvedPeerGroup>> peerGroupFutures =
+          new LinkedHashMap<>();
+      for (String source : SUPPORTED_SOURCES) {
+        peerGroupFutures.put(
+            source,
+            executor.submit(
+                withDbPermit(
+                    () ->
+                        peerGroupFallbackResolver.resolveForSource(
+                            source, finalProfile, baseYearMonth))));
       }
-    }
 
-    // 모든 원천에서 표본이 부족한 경우 (N < 10)
-    if (totalOverallSamples < PeerGroupFallbackResolver.MIN_SAMPLE_SIZE) {
-      log.debug("Insufficient sample count across all sources for user {}", userId);
-      WageBaseline baseline = wageBaselineResolver.resolveBaseline(profile);
-      return new MviResult(
-          baseYearMonth,
-          null,
-          IndexStatus.INSUFFICIENT_SAMPLE,
-          coverages,
-          List.of(),
-          List.of(),
-          baseline,
-          LocalDate.now());
-    }
+      List<SourceCoverage> coverages = new ArrayList<>();
+      Map<String, PeerGroupFallbackResolver.ResolvedPeerGroup> resolvedPeerGroups = new HashMap<>();
+      int totalOverallSamples = 0;
 
-    // 3. 제외 스킬 분류 및 원천별 스킬 수요 지수 산출
-    Map<UUID, String> excludedSkillMap = new HashMap<>();
-    // 어느 한 원천에서라도 최근 수요가 없으면 담는다. 제외 스킬 판정(NEW_OBSERVATION)과 같은 원천 무관 규칙이다.
-    Set<UUID> zeroDemandSkillIds = new HashSet<>();
-    // 어느 한 원천에서라도 표본이 미달인 스킬. 모든 원천이 미달인지는 반복이 끝난 뒤 판정한다 (기술 명세 §2.1).
-    Set<UUID> underSampledSkillIds = new HashSet<>();
-    Map<String, Map<UUID, Double>> sourceSkillDemandIndices = new HashMap<>();
-
-    for (String source : SUPPORTED_SOURCES) {
-      PeerGroupFallbackResolver.ResolvedPeerGroup peerGroup = resolvedPeerGroups.get(source);
-      Map<UUID, Double> skillIndices = new HashMap<>();
-
-      for (UserSkill us : userSkills) {
-        Skill skill = us.getSkill();
-        UUID skillId = skill.getId();
-
-        // 표준 스킬이 아닌 사용자 정의 스킬 여부 검사 (도메인 정의서 §4.2)
-        if (skill.isCustom()) {
-          excludedSkillMap.put(skillId, "CUSTOM_SKILL_NO_STATS");
-          continue;
+      for (String source : SUPPORTED_SOURCES) {
+        PeerGroupFallbackResolver.ResolvedPeerGroup resolved = peerGroupFutures.get(source).get();
+        resolvedPeerGroups.put(source, resolved);
+        coverages.add(resolved.getCoverage());
+        if (resolved.isSuccessful()) {
+          totalOverallSamples += resolved.getSampleCount();
         }
+      }
 
-        SkillDemandCalculator.SkillDemandResult demandResult =
-            skillDemandCalculator.calculateDemandIndex(source, skillId, peerGroup, baseYearMonth);
+      // 모든 원천에서 표본이 부족한 경우 (N < 10)
+      if (totalOverallSamples < PeerGroupFallbackResolver.MIN_SAMPLE_SIZE) {
+        log.debug("Insufficient sample count across all sources for user {}", userId);
+        WageBaseline baseline = baselineFuture.get();
+        return new MviResult(
+            baseYearMonth,
+            null,
+            IndexStatus.INSUFFICIENT_SAMPLE,
+            coverages,
+            List.of(),
+            List.of(),
+            baseline,
+            LocalDate.now());
+      }
+
+      // 4. 원천별 전체 공고 수(모수)를 스킬 루프 전에 1회만 병렬 조회 (중복 쿼리 제거)
+      Map<String, Future<SkillDemandCalculator.TotalPostings>> totalPostingsFutures =
+          new HashMap<>();
+      for (String source : SUPPORTED_SOURCES) {
+        PeerGroupFallbackResolver.ResolvedPeerGroup peerGroup = resolvedPeerGroups.get(source);
+        totalPostingsFutures.put(
+            source,
+            executor.submit(
+                withDbPermit(
+                    () ->
+                        skillDemandCalculator.calculateTotalPostings(
+                            source, peerGroup, baseYearMonth))));
+      }
+      Map<String, SkillDemandCalculator.TotalPostings> totalPostingsMap = new HashMap<>();
+      for (String source : SUPPORTED_SOURCES) {
+        totalPostingsMap.put(source, totalPostingsFutures.get(source).get());
+      }
+
+      // 5. 스킬 수요 지수 계산을 (원천 × 스킬) 가상 스레드로 병렬 실행
+      Map<UUID, String> excludedSkillMap = new ConcurrentHashMap<>();
+      // 어느 한 원천에서라도 최근 수요가 없으면 담는다. 제외 스킬 판정(NEW_OBSERVATION)과 같은 원천 무관 규칙이다.
+      Set<UUID> zeroDemandSkillIds = ConcurrentHashMap.newKeySet();
+      // 어느 한 원천에서라도 표본이 미달인 스킬. 모든 원천이 미달인지는 반복이 끝난 뒤 판정한다 (기술 명세 §2.1).
+      Set<UUID> underSampledSkillIds = ConcurrentHashMap.newKeySet();
+      Map<String, Map<UUID, Double>> sourceSkillDemandIndices = new ConcurrentHashMap<>();
+      for (String source : SUPPORTED_SOURCES) {
+        sourceSkillDemandIndices.put(source, new ConcurrentHashMap<>());
+      }
+
+      record SkillDemandTask(
+          String source, UUID skillId, Future<SkillDemandCalculator.SkillDemandResult> future) {}
+      List<SkillDemandTask> demandTasks = new ArrayList<>();
+
+      for (String source : SUPPORTED_SOURCES) {
+        PeerGroupFallbackResolver.ResolvedPeerGroup peerGroup = resolvedPeerGroups.get(source);
+        SkillDemandCalculator.TotalPostings totalPostings = totalPostingsMap.get(source);
+
+        for (UserSkill us : userSkills) {
+          Skill skill = us.getSkill();
+          UUID skillId = skill.getId();
+
+          // 표준 스킬이 아닌 사용자 정의 스킬 여부 검사 (도메인 정의서 §4.2)
+          if (skill.isCustom()) {
+            excludedSkillMap.put(skillId, "CUSTOM_SKILL_NO_STATS");
+            continue;
+          }
+
+          Future<SkillDemandCalculator.SkillDemandResult> future =
+              executor.submit(
+                  withDbPermit(
+                      () -> {
+                        if (totalPostings != null) {
+                          return skillDemandCalculator.calculateDemandIndex(
+                              source, skillId, peerGroup, baseYearMonth, totalPostings);
+                        } else {
+                          return skillDemandCalculator.calculateDemandIndex(
+                              source, skillId, peerGroup, baseYearMonth);
+                        }
+                      }));
+          demandTasks.add(new SkillDemandTask(source, skillId, future));
+        }
+      }
+
+      // 스킬 수요 지수 산출 결과 취합
+      for (SkillDemandTask task : demandTasks) {
+        SkillDemandCalculator.SkillDemandResult demandResult = task.future().get();
+        UUID skillId = task.skillId();
+        String source = task.source();
 
         String demandStatus = demandResult.getStatus();
         if ("NEW_OBSERVATION".equals(demandStatus)) {
@@ -163,21 +289,286 @@ public class MarketValueIndexServiceImpl implements MarketValueIndexProvider {
           // 분자 0 -> 지수 0 으로 가중합에 반영하되 화면에서 구분한다 (기능 명세 §4.1)
           zeroDemandSkillIds.add(skillId);
         }
-        skillIndices.put(skillId, demandResult.getDemandIndex());
+        sourceSkillDemandIndices.get(source).put(skillId, demandResult.getDemandIndex());
       }
-      sourceSkillDemandIndices.put(source, skillIndices);
+
+      // 모든 원천에서 미달인 스킬만 제외한다 — 한 원천이라도 지수를 냈으면 그 원천으로 결합한다 (기술 명세 §2.1).
+      for (UUID underSampled : underSampledSkillIds) {
+        boolean usableInAnySource =
+            sourceSkillDemandIndices.values().stream().anyMatch(m -> m.containsKey(underSampled));
+        if (!usableInAnySource && !excludedSkillMap.containsKey(underSampled)) {
+          excludedSkillMap.put(underSampled, "INSUFFICIENT_SAMPLE");
+        }
+      }
+
+      // 제외 스킬 목록 DTO 구성
+      Set<UUID> excludedSkillIds = excludedSkillMap.keySet();
+      List<ExcludedSkill> excludedSkills = buildExcludedSkills(userSkills, excludedSkillMap);
+      List<ExcludedSkill> zeroDemandSkills =
+          buildZeroDemandSkills(userSkills, zeroDemandSkillIds, excludedSkillIds);
+
+      // 6. 유효 스킬들에 대해 숙련도 가중치 재정규화 (합 = 1.0)
+      Map<UUID, BigDecimal> normalizedWeights =
+          skillWeightCalculator.calculateWeights(userSkills, baseYearMonth, excludedSkillIds);
+
+      WageBaseline wageBaseline = baselineFuture.get();
+
+      if (normalizedWeights.isEmpty()) {
+        log.debug("No valid skills remaining after exclusion for user {}", userId);
+        return new MviResult(
+            baseYearMonth,
+            null,
+            IndexStatus.INSUFFICIENT_SAMPLE,
+            coverages,
+            excludedSkills,
+            zeroDemandSkills,
+            wageBaseline,
+            LocalDate.now());
+      }
+
+      // 7. 원천별 MVI 산출 및 표본수 가중 결합
+      BigDecimal finalMviValue =
+          calculateCombinedMvi(normalizedWeights, resolvedPeerGroups, sourceSkillDemandIndices);
+      IndexStatus status =
+          (finalMviValue != null) ? IndexStatus.OK : IndexStatus.INSUFFICIENT_SAMPLE;
+
+      // TODO: [Member B/C] aggregateAsOf에 market_aggregate 최신 적재 일자 또는 배치 완료 시점 동적 매핑
+      // TODO: [Member B/C] 스냅샷 재계산(Job 4) 트리거 연동 시 recalculateSnapshot(userId, fromYm) 호출 배선
+      return new MviResult(
+          baseYearMonth,
+          finalMviValue,
+          status,
+          coverages,
+          excludedSkills,
+          zeroDemandSkills,
+          wageBaseline,
+          LocalDate.now());
+
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throw new RuntimeException("MVI 산출 중 인터럽트 발생", e);
+    } catch (ExecutionException e) {
+      throw new RuntimeException("MVI 병렬 연산 실패", e.getCause());
+    }
+  }
+
+  /**
+   * 사용자의 스킬별 상세 수요 정보 및 가중치 목록을 계산합니다 (대시보드 S-14 연동용).
+   *
+   * @param userId 사용자 식별자
+   * @param baseYearMonth 기준년월 (YYYYMM)
+   * @return 스킬별 수요 계산 상세 목록
+   */
+  @Transactional(readOnly = true)
+  public List<SkillDemandDetailData> getSkillDemandDetails(UUID userId, String baseYearMonth) {
+    if (userId == null) {
+      return Collections.emptyList();
     }
 
-    // 모든 원천에서 미달인 스킬만 제외한다 — 한 원천이라도 지수를 냈으면 그 원천으로 결합한다 (기술 명세 §2.1).
-    for (UUID underSampled : underSampledSkillIds) {
-      boolean usableInAnySource =
-          sourceSkillDemandIndices.values().stream().anyMatch(m -> m.containsKey(underSampled));
-      if (!usableInAnySource && !excludedSkillMap.containsKey(underSampled)) {
-        excludedSkillMap.put(underSampled, "INSUFFICIENT_SAMPLE");
-      }
+    CareerProfile profile;
+    List<UserSkill> userSkills;
+    try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
+      Future<Optional<CareerProfile>> profileFuture =
+          executor.submit(withDbPermit(() -> careerProfileRepository.findByUserId(userId)));
+      Future<List<UserSkill>> skillsFuture =
+          executor.submit(withDbPermit(() -> userSkillRepository.findByUserId(userId)));
+
+      profile = profileFuture.get().orElse(new CareerProfile(userId));
+      userSkills = skillsFuture.get();
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throw new RuntimeException("스킬 상세 수요 조회 중 인터럽트 발생", e);
+    } catch (ExecutionException e) {
+      throw new RuntimeException("스킬 상세 수요 데이터 로드 실패", e.getCause());
     }
 
-    // 제외 스킬 목록 DTO 구성
+    if (userSkills == null || userSkills.isEmpty()) {
+      return Collections.emptyList();
+    }
+
+    try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
+      final CareerProfile finalProfile = profile;
+
+      // 1. 원천별 완화 수행 (가상 스레드 병렬)
+      Map<String, Future<PeerGroupFallbackResolver.ResolvedPeerGroup>> peerGroupFutures =
+          new LinkedHashMap<>();
+      for (String source : SUPPORTED_SOURCES) {
+        peerGroupFutures.put(
+            source,
+            executor.submit(
+                withDbPermit(
+                    () ->
+                        peerGroupFallbackResolver.resolveForSource(
+                            source, finalProfile, baseYearMonth))));
+      }
+
+      Map<String, PeerGroupFallbackResolver.ResolvedPeerGroup> resolvedPeerGroups = new HashMap<>();
+      int totalSamples = 0;
+      for (String source : SUPPORTED_SOURCES) {
+        PeerGroupFallbackResolver.ResolvedPeerGroup resolved = peerGroupFutures.get(source).get();
+        resolvedPeerGroups.put(source, resolved);
+        if (resolved.isSuccessful()) {
+          totalSamples += resolved.getSampleCount();
+        }
+      }
+
+      // 2. 제외 스킬 식별
+      Set<UUID> excludedSkillIds = new HashSet<>();
+      for (UserSkill us : userSkills) {
+        Skill skill = us.getSkill();
+        if (skill.isCustom()) {
+          excludedSkillIds.add(skill.getId());
+        }
+      }
+
+      // 3. 가중치 계산 (인메모리)
+      Map<UUID, BigDecimal> weights =
+          skillWeightCalculator.calculateWeights(userSkills, baseYearMonth, excludedSkillIds);
+
+      // 4. 원천별 전체 모수 1회 병렬 조회
+      Map<String, Future<SkillDemandCalculator.TotalPostings>> totalPostingsFutures =
+          new HashMap<>();
+      for (String source : SUPPORTED_SOURCES) {
+        PeerGroupFallbackResolver.ResolvedPeerGroup peerGroup = resolvedPeerGroups.get(source);
+        totalPostingsFutures.put(
+            source,
+            executor.submit(
+                withDbPermit(
+                    () ->
+                        skillDemandCalculator.calculateTotalPostings(
+                            source, peerGroup, baseYearMonth))));
+      }
+      Map<String, SkillDemandCalculator.TotalPostings> totalPostingsMap = new HashMap<>();
+      for (String source : SUPPORTED_SOURCES) {
+        totalPostingsMap.put(source, totalPostingsFutures.get(source).get());
+      }
+
+      // 5. 스킬별 수요 통계 병렬 조회
+      record SkillSourceTask(
+          UUID skillId, String source, Future<SkillDemandCalculator.SkillDemandResult> future) {}
+      List<SkillSourceTask> tasks = new ArrayList<>();
+
+      for (UserSkill us : userSkills) {
+        Skill skill = us.getSkill();
+        UUID skillId = skill.getId();
+        if (excludedSkillIds.contains(skillId)) {
+          continue;
+        }
+
+        for (String source : SUPPORTED_SOURCES) {
+          PeerGroupFallbackResolver.ResolvedPeerGroup peerGroup = resolvedPeerGroups.get(source);
+          SkillDemandCalculator.TotalPostings totalPostings = totalPostingsMap.get(source);
+          Future<SkillDemandCalculator.SkillDemandResult> future =
+              executor.submit(
+                  withDbPermit(
+                      () -> {
+                        if (totalPostings != null) {
+                          return skillDemandCalculator.calculateDemandIndex(
+                              source, skillId, peerGroup, baseYearMonth, totalPostings);
+                        } else {
+                          return skillDemandCalculator.calculateDemandIndex(
+                              source, skillId, peerGroup, baseYearMonth);
+                        }
+                      }));
+          tasks.add(new SkillSourceTask(skillId, source, future));
+        }
+      }
+
+      Map<UUID, Map<String, SkillDemandCalculator.SkillDemandResult>> demandResults =
+          new HashMap<>();
+      for (SkillSourceTask task : tasks) {
+        demandResults
+            .computeIfAbsent(task.skillId(), k -> new HashMap<>())
+            .put(task.source(), task.future().get());
+      }
+
+      // 6. 결과 리스트 구성 (순서 보장 userSkills 기준)
+      List<SkillDemandDetailData> resultList = new ArrayList<>();
+      for (UserSkill us : userSkills) {
+        Skill skill = us.getSkill();
+        UUID skillId = skill.getId();
+        String standardName = skill.getStandardName();
+        double weight = weights.getOrDefault(skillId, BigDecimal.ZERO).doubleValue();
+
+        if (excludedSkillIds.contains(skillId)) {
+          resultList.add(
+              SkillDemandDetailData.builder()
+                  .skillId(skillId)
+                  .standardName(standardName)
+                  .demandIndex(0.0)
+                  .recentDemandRate(0.0)
+                  .baselineDemandRate(0.0)
+                  .weight(0.0)
+                  .status("CUSTOM_SKILL_NO_STATS")
+                  .sources(List.of())
+                  .build());
+          continue;
+        }
+
+        double combinedDemandIndex = 0.0;
+        double combinedRecentRate = 0.0;
+        double combinedBaselineRate = 0.0;
+        List<SkillSourceStatData> sourceStats = new ArrayList<>();
+        String overallStatus = "OK";
+
+        Map<String, SkillDemandCalculator.SkillDemandResult> sourceMap =
+            demandResults.getOrDefault(skillId, Collections.emptyMap());
+
+        for (String source : SUPPORTED_SOURCES) {
+          PeerGroupFallbackResolver.ResolvedPeerGroup peerGroup = resolvedPeerGroups.get(source);
+          SkillDemandCalculator.SkillDemandResult demandRes = sourceMap.get(source);
+          if (demandRes == null) {
+            continue;
+          }
+
+          int sampleSize = peerGroup.getSampleCount();
+          sourceStats.add(new SkillSourceStatData(source, demandRes.getDemandIndex(), sampleSize));
+
+          if ("NEW_OBSERVATION".equals(demandRes.getStatus())) {
+            overallStatus = "NEW_OBSERVATION";
+          }
+
+          if (totalSamples > 0 && peerGroup.isSuccessful()) {
+            double share = (double) sampleSize / totalSamples;
+            combinedDemandIndex += demandRes.getDemandIndex() * share;
+            combinedRecentRate += demandRes.getRecentDemandRate() * share;
+            combinedBaselineRate += demandRes.getBaselineDemandRate() * share;
+          }
+        }
+
+        resultList.add(
+            SkillDemandDetailData.builder()
+                .skillId(skillId)
+                .standardName(standardName)
+                .demandIndex(
+                    BigDecimal.valueOf(combinedDemandIndex)
+                        .setScale(1, RoundingMode.HALF_UP)
+                        .doubleValue())
+                .recentDemandRate(
+                    BigDecimal.valueOf(combinedRecentRate)
+                        .setScale(4, RoundingMode.HALF_UP)
+                        .doubleValue())
+                .baselineDemandRate(
+                    BigDecimal.valueOf(combinedBaselineRate)
+                        .setScale(4, RoundingMode.HALF_UP)
+                        .doubleValue())
+                .weight(weight)
+                .status(overallStatus)
+                .sources(sourceStats)
+                .build());
+      }
+
+      return resultList;
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throw new RuntimeException("스킬 상세 수요 집계 중 인터럽트 발생", e);
+    } catch (ExecutionException e) {
+      throw new RuntimeException("스킬 상세 수요 병렬 연산 실패", e.getCause());
+    }
+  }
+
+  private List<ExcludedSkill> buildExcludedSkills(
+      List<UserSkill> userSkills, Map<UUID, String> excludedSkillMap) {
     Set<UUID> excludedSkillIds = excludedSkillMap.keySet();
     List<ExcludedSkill> excludedSkills = new ArrayList<>();
     for (UserSkill us : userSkills) {
@@ -192,9 +583,13 @@ public class MarketValueIndexServiceImpl implements MarketValueIndexProvider {
         excludedSkills.add(new ExcludedSkill(skillId, us.getSkill().getStandardName(), reason));
       }
     }
+    return excludedSkills;
+  }
 
-    // 0 으로 반영된 스킬 목록. 제외가 우선하므로 겹치면 제외 쪽에만 남긴다 — 제외 스킬은 가중치 배분에서
-    // 아예 빠지고, 0 반영 스킬은 가중치를 그대로 받는다.
+  // 0 으로 반영된 스킬 목록. 제외가 우선하므로 겹치면 제외 쪽에만 남긴다 — 제외 스킬은 가중치 배분에서
+  // 아예 빠지고, 0 반영 스킬은 가중치를 그대로 받는다.
+  private List<ExcludedSkill> buildZeroDemandSkills(
+      List<UserSkill> userSkills, Set<UUID> zeroDemandSkillIds, Set<UUID> excludedSkillIds) {
     List<ExcludedSkill> zeroDemandSkills = new ArrayList<>();
     for (UserSkill us : userSkills) {
       UUID skillId = us.getSkill().getId();
@@ -204,26 +599,14 @@ public class MarketValueIndexServiceImpl implements MarketValueIndexProvider {
                 skillId, us.getSkill().getStandardName(), SkillExclusionReason.NO_RECENT_DEMAND));
       }
     }
+    return zeroDemandSkills;
+  }
 
-    // 4. 유효 스킬들에 대해 숙련도 가중치 재정규화 (합 = 1.0)
-    Map<UUID, BigDecimal> normalizedWeights =
-        skillWeightCalculator.calculateWeights(userSkills, baseYearMonth, excludedSkillIds);
+  private BigDecimal calculateCombinedMvi(
+      Map<UUID, BigDecimal> normalizedWeights,
+      Map<String, PeerGroupFallbackResolver.ResolvedPeerGroup> resolvedPeerGroups,
+      Map<String, Map<UUID, Double>> sourceSkillDemandIndices) {
 
-    if (normalizedWeights.isEmpty()) {
-      log.debug("No valid skills remaining after exclusion for user {}", userId);
-      WageBaseline baseline = wageBaselineResolver.resolveBaseline(profile);
-      return new MviResult(
-          baseYearMonth,
-          null,
-          IndexStatus.INSUFFICIENT_SAMPLE,
-          coverages,
-          excludedSkills,
-          zeroDemandSkills,
-          baseline,
-          LocalDate.now());
-    }
-
-    // 5. 원천별 MVI 산출 및 표본수 가중 결합
     double weightedMviSum = 0.0;
     int validSampleSum = 0;
 
@@ -234,6 +617,9 @@ public class MarketValueIndexServiceImpl implements MarketValueIndexProvider {
       }
 
       Map<UUID, Double> skillIndices = sourceSkillDemandIndices.get(source);
+      if (skillIndices == null) {
+        continue;
+      }
       double weightedSum = 0.0;
       double availableWeight = 0.0;
 
@@ -261,152 +647,11 @@ public class MarketValueIndexServiceImpl implements MarketValueIndexProvider {
       validSampleSum += sampleCount;
     }
 
-    BigDecimal finalMviValue = null;
-    IndexStatus status = IndexStatus.OK;
-
     if (validSampleSum > 0) {
       double combinedMvi = weightedMviSum / validSampleSum;
-      finalMviValue = BigDecimal.valueOf(combinedMvi).setScale(1, RoundingMode.HALF_UP);
-    } else {
-      status = IndexStatus.INSUFFICIENT_SAMPLE;
+      return BigDecimal.valueOf(combinedMvi).setScale(1, RoundingMode.HALF_UP);
     }
-
-    // 6. 임금 기준선 조회
-    WageBaseline wageBaseline = wageBaselineResolver.resolveBaseline(profile);
-
-    // TODO: [Member B/C] aggregateAsOf에 market_aggregate 최신 적재 일자 또는 배치 완료 시점 동적 매핑
-    // TODO: [Member B/C] 스냅샷 재계산(Job 4) 트리거 연동 시 recalculateSnapshot(userId, fromYm) 호출 배선
-    return new MviResult(
-        baseYearMonth,
-        finalMviValue,
-        status,
-        coverages,
-        excludedSkills,
-        zeroDemandSkills,
-        wageBaseline,
-        LocalDate.now());
-  }
-
-  /**
-   * 사용자의 스킬별 상세 수요 정보 및 가중치 목록을 계산합니다 (대시보드 S-14 연동용).
-   *
-   * @param userId 사용자 식별자
-   * @param baseYearMonth 기준년월 (YYYYMM)
-   * @return 스킬별 수요 계산 상세 목록
-   */
-  @Transactional(readOnly = true)
-  public List<SkillDemandDetailData> getSkillDemandDetails(UUID userId, String baseYearMonth) {
-    if (userId == null) {
-      return Collections.emptyList();
-    }
-
-    CareerProfile profile = careerProfileRepository.findByUserId(userId).orElse(null);
-    if (profile == null) {
-      profile = new CareerProfile(userId);
-    }
-
-    List<UserSkill> userSkills = userSkillRepository.findByUserId(userId);
-    if (userSkills == null || userSkills.isEmpty()) {
-      return Collections.emptyList();
-    }
-
-    // 1. 원천별 완화 수행
-    Map<String, PeerGroupFallbackResolver.ResolvedPeerGroup> resolvedPeerGroups = new HashMap<>();
-    int totalSamples = 0;
-    for (String source : SUPPORTED_SOURCES) {
-      PeerGroupFallbackResolver.ResolvedPeerGroup resolved =
-          peerGroupFallbackResolver.resolveForSource(source, profile, baseYearMonth);
-      resolvedPeerGroups.put(source, resolved);
-      if (resolved.isSuccessful()) {
-        totalSamples += resolved.getSampleCount();
-      }
-    }
-
-    // 2. 제외 스킬 식별
-    Set<UUID> excludedSkillIds = new HashSet<>();
-    for (UserSkill us : userSkills) {
-      Skill skill = us.getSkill();
-      if (skill.isCustom()) {
-        excludedSkillIds.add(skill.getId());
-      }
-    }
-
-    // 3. 가중치 계산
-    Map<UUID, BigDecimal> weights =
-        skillWeightCalculator.calculateWeights(userSkills, baseYearMonth, excludedSkillIds);
-
-    // 4. 스킬별 수요 통계 집계
-    List<SkillDemandDetailData> resultList = new ArrayList<>();
-    for (UserSkill us : userSkills) {
-      Skill skill = us.getSkill();
-      UUID skillId = skill.getId();
-      String standardName = skill.getStandardName();
-      double weight = weights.getOrDefault(skillId, BigDecimal.ZERO).doubleValue();
-
-      if (excludedSkillIds.contains(skillId)) {
-        resultList.add(
-            SkillDemandDetailData.builder()
-                .skillId(skillId)
-                .standardName(standardName)
-                .demandIndex(0.0)
-                .recentDemandRate(0.0)
-                .baselineDemandRate(0.0)
-                .weight(0.0)
-                .status("CUSTOM_SKILL_NO_STATS")
-                .sources(List.of())
-                .build());
-        continue;
-      }
-
-      double combinedDemandIndex = 0.0;
-      double combinedRecentRate = 0.0;
-      double combinedBaselineRate = 0.0;
-      List<SkillSourceStatData> sourceStats = new ArrayList<>();
-      String overallStatus = "OK";
-
-      for (String source : SUPPORTED_SOURCES) {
-        PeerGroupFallbackResolver.ResolvedPeerGroup peerGroup = resolvedPeerGroups.get(source);
-        SkillDemandCalculator.SkillDemandResult demandRes =
-            skillDemandCalculator.calculateDemandIndex(source, skillId, peerGroup, baseYearMonth);
-
-        int sampleSize = peerGroup.getSampleCount();
-        sourceStats.add(new SkillSourceStatData(source, demandRes.getDemandIndex(), sampleSize));
-
-        if ("NEW_OBSERVATION".equals(demandRes.getStatus())) {
-          overallStatus = "NEW_OBSERVATION";
-        }
-
-        if (totalSamples > 0 && peerGroup.isSuccessful()) {
-          double share = (double) sampleSize / totalSamples;
-          combinedDemandIndex += demandRes.getDemandIndex() * share;
-          combinedRecentRate += demandRes.getRecentDemandRate() * share;
-          combinedBaselineRate += demandRes.getBaselineDemandRate() * share;
-        }
-      }
-
-      resultList.add(
-          SkillDemandDetailData.builder()
-              .skillId(skillId)
-              .standardName(standardName)
-              .demandIndex(
-                  BigDecimal.valueOf(combinedDemandIndex)
-                      .setScale(1, RoundingMode.HALF_UP)
-                      .doubleValue())
-              .recentDemandRate(
-                  BigDecimal.valueOf(combinedRecentRate)
-                      .setScale(4, RoundingMode.HALF_UP)
-                      .doubleValue())
-              .baselineDemandRate(
-                  BigDecimal.valueOf(combinedBaselineRate)
-                      .setScale(4, RoundingMode.HALF_UP)
-                      .doubleValue())
-              .weight(weight)
-              .status(overallStatus)
-              .sources(sourceStats)
-              .build());
-    }
-
-    return resultList;
+    return null;
   }
 
   @lombok.Getter
