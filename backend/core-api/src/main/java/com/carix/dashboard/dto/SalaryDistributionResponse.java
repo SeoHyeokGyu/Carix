@@ -2,19 +2,50 @@ package com.carix.dashboard.dto;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 
+/**
+ * 동료집단 연봉 분포 응답 (API 규격 §5.2).
+ *
+ * <p>표본이 모자라도 {@code 200 OK} 다 — 규격이 204 를 금지한다. 그때는 {@code status} 가 {@code INSUFFICIENT_SAMPLE}
+ * 이고 {@code postingReference}·{@code userPosition} 이 {@code null} 이다. 화면은 `표본 부족` 배지와 표본 수를 함께
+ * 보여준다.
+ */
 @Schema(description = "동료집단 연봉 분포 응답")
 public record SalaryDistributionResponse(
-    WageBaseline baseline,
-    PostingReference postingReference,
-    UserPosition userPosition,
-    DistributionPeerGroup peerGroup) {
+    @Schema(
+            description = "산출 상태",
+            allowableValues = {"OK", "INSUFFICIENT_SAMPLE"})
+        String status,
+    @Schema(description = "중복 제거 후 동료집단 공고 수") Integer sampleSize,
+    @Schema(description = "최소 표본 기준. 표본 부족일 때만 채운다", nullable = true) Integer minRequired,
+    @Schema(nullable = true) WageBaseline baseline,
+    @Schema(description = "표본 부족 시 null", nullable = true) PostingReference postingReference,
+    @Schema(description = "연봉 이력이 없으면 null", nullable = true) UserPosition userPosition,
+    @Schema(nullable = true) DistributionPeerGroup peerGroup) {
 
-  public record WageBaseline(String source, long median, String wageDefinition) {}
+  public record WageBaseline(
+      String source, @Schema(nullable = true) Long median, String wageDefinition) {}
 
+  /**
+   * 유효 공개연봉만으로 낸 5수치.
+   *
+   * <p><b>여기의 {@code sampleSize} 는 최상위 {@code sampleSize} 와 다르다.</b> 최상위는 동료집단 공고 수이고 이쪽은 그중 연봉이
+   * 공개된 건수다. {@code minRequired} 는 최상위에만 걸리므로 동료집단이 10건이어도 공개연봉이 1건이면 5수치가 한 점으로 뭉친 채 {@code OK} 로
+   * 나간다 — 규격이 공고 분포를 참고 표시 전용으로 두기 때문이다. 화면은 {@code missingRate} 와 이 {@code sampleSize} 로 신뢰도를
+   * 판단한다.
+   */
   public record PostingReference(
-      long min, long p25, long median, long p75, long max, int sampleSize, double missingRate) {}
+      @Schema(nullable = true) Long min,
+      @Schema(nullable = true) Long p25,
+      @Schema(nullable = true) Long median,
+      @Schema(nullable = true) Long p75,
+      @Schema(nullable = true) Long max,
+      int sampleSize,
+      @Schema(description = "동료집단 공고 중 연봉 미공개 비율(%)") double missingRate) {}
 
-  public record UserPosition(long grossSalary, int percentile) {}
+  public record UserPosition(Long grossSalary, Integer percentile) {}
 
-  public record DistributionPeerGroup(int fallbackLevel, String appliedConditions) {}
+  public record DistributionPeerGroup(
+      @Schema(description = "안착한 완화 단계 (1~5). 완화에 실패하면 null", nullable = true)
+          Integer fallbackLevel,
+      String appliedConditions) {}
 }

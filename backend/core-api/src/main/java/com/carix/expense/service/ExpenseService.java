@@ -6,6 +6,7 @@ import com.carix.expense.dto.ExpenseItem;
 import com.carix.expense.dto.ExpenseUpdateRequest;
 import com.carix.expense.exception.InvalidExpenseCategoryException;
 import com.carix.expense.repository.ExpenseHistoryRepository;
+import com.carix.snapshot.SnapshotRecalculationService;
 import java.util.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -14,9 +15,13 @@ import org.springframework.transaction.annotation.Transactional;
 public class ExpenseService {
 
   private final ExpenseHistoryRepository repository;
+  private final SnapshotRecalculationService snapshotRecalculationService;
 
-  public ExpenseService(ExpenseHistoryRepository repository) {
+  public ExpenseService(
+      ExpenseHistoryRepository repository,
+      SnapshotRecalculationService snapshotRecalculationService) {
     this.repository = repository;
+    this.snapshotRecalculationService = snapshotRecalculationService;
   }
 
   public List<ExpenseHistoryResponse> getHistory(UUID userId) {
@@ -54,7 +59,7 @@ public class ExpenseService {
     history.replaceItems(items);
     var saved = repository.save(history);
 
-    // TODO: C의 recalculateSnapshot(userId, fromYm) 트리거 — 계약(§4) 확정 후 연결
+    snapshotRecalculationService.recalculateSnapshot(userId, baseYearMonth);
     return toResponse(saved);
   }
 

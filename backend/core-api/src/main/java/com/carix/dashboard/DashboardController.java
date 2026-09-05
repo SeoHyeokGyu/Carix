@@ -10,6 +10,9 @@ import com.carix.dashboard.dto.SkillDemandListResponse.SkillDemandDetail;
 import com.carix.dashboard.dto.SkillDemandListResponse.SkillSourceStats;
 import com.carix.dashboard.dto.SnapshotHistoryResponse;
 import com.carix.dashboard.dto.TrendListResponse;
+import com.carix.dashboard.service.DashboardSummaryService;
+import com.carix.dashboard.service.SalaryDistributionService;
+import com.carix.dashboard.service.SnapshotSeriesService;
 import com.carix.index.mvi.MarketValueIndexServiceImpl;
 import com.carix.index.mvi.MarketValueIndexServiceImpl.SkillDemandDetailData;
 import io.swagger.v3.oas.annotations.Operation;
@@ -19,7 +22,6 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -46,6 +48,9 @@ import org.springframework.web.bind.annotation.RestController;
 public class DashboardController {
 
   private final MarketValueIndexServiceImpl marketValueIndexService;
+  private final SalaryDistributionService salaryDistributionService;
+  private final DashboardSummaryService dashboardSummaryService;
+  private final SnapshotSeriesService snapshotSeriesService;
 
   // =========================================================================
   // 1. [Member C 소유] 대시보드 지표 요약 (S-10)
@@ -57,71 +62,26 @@ public class DashboardController {
   @ApiResponse(responseCode = "200", description = "조회 성공")
   @GetMapping("/summary")
   public ResponseEntity<ApiResult<DashboardSummaryResponse>> getDashboardSummary(
-      @Parameter(description = "가상 탐색용 주 직무", example = "DEVELOPER") @RequestParam(required = false)
+      @CurrentUserId UUID userId,
+      @Parameter(description = "인덱스 기준 월 (YYYYMM 또는 YYYY-MM, 기본: 현재월)")
+          @RequestParam(required = false)
+          String baseYearMonth,
+      @Parameter(description = "MVP 범위 밖 — 받기만 하고 쓰지 않는다 (개발 계획 §5-G)")
+          @RequestParam(required = false)
           String jobFamily,
-      @Parameter(description = "가상 탐색용 경력 년수", example = "5") @RequestParam(required = false)
+      @Parameter(description = "MVP 범위 밖 — 받기만 하고 쓰지 않는다 (개발 계획 §5-G)")
+          @RequestParam(required = false)
           Integer yearsOfExperience,
-      @Parameter(description = "가상 탐색용 지역구", example = "SEOUL_GANGNAM")
+      @Parameter(description = "MVP 범위 밖 — 받기만 하고 쓰지 않는다 (개발 계획 §5-G)")
           @RequestParam(required = false)
           String region,
-      @Parameter(description = "가상 탐색용 회사 규모", example = "MEDIUM") @RequestParam(required = false)
+      @Parameter(description = "MVP 범위 밖 — 받기만 하고 쓰지 않는다 (개발 계획 §5-G)")
+          @RequestParam(required = false)
           String companySize) {
-
-    // TODO: [Member C 3~4주차] Snapshot 및 Decision Signal 엔진 연동 실데이터 전환
-    double purchasingPower = 94.2;
-    double marketValue = 117.5;
-    String decisionCode = "SEEK_JOB";
-    String decisionLabel = "이직 탐색";
-    String bracket = "MID";
-
-    if (yearsOfExperience != null) {
-      if (yearsOfExperience >= 8) {
-        purchasingPower = 120.4;
-        marketValue = 145.8;
-        decisionCode = "NEGOTIATE";
-        decisionLabel = "연봉 협상";
-        bracket = "SENIOR";
-      } else if (yearsOfExperience <= 3) {
-        purchasingPower = 81.5;
-        marketValue = 92.1;
-        decisionCode = "STAY";
-        decisionLabel = "잔류 권장";
-        bracket = "JUNIOR";
-      }
-    }
-
-    String jobLabel = jobFamily != null ? jobFamily : "DEVELOPER";
-    String regionLabel = region != null ? region : "서울 전체";
-    String sizeLabel = companySize != null ? companySize : "회사규모 무관";
 
     return ResponseEntity.ok(
         ApiResult.success(
-            new DashboardSummaryResponse(
-                new DashboardSummaryResponse.IndexDetail(
-                    purchasingPower, -1.2, "DECREASED", "PARTIALLY_ESTIMATED"),
-                new DashboardSummaryResponse.IndexDetail(marketValue, 3.8, "INCREASED", null),
-                new DashboardSummaryResponse.DecisionSignal(
-                    decisionCode,
-                    decisionLabel,
-                    List.of("연봉 격차 분석 기준", "보유 스킬 시장수요 추세 반영"),
-                    String.format(
-                        "가상 탐색(%s, %s, %s) 결과 기준 신호입니다.", jobLabel, regionLabel, sizeLabel)),
-                new DashboardSummaryResponse.SummaryMetadata(
-                    LocalDate.of(2026, 7, 1),
-                    "20260701093000-000",
-                    "1.2.0",
-                    false,
-                    List.of(new DashboardSummaryResponse.DataLimitSource("SARAMIN", 124)),
-                    124,
-                    42.5,
-                    new DashboardSummaryResponse.PeerGroup(
-                        3,
-                        String.format("%s / 경력 %s / %s", regionLabel, bracket, sizeLabel),
-                        List.of(
-                            new DashboardSummaryResponse.ExcludedSkill(
-                                "CustomSkillX", "CUSTOM_SKILL_NO_STATS"))),
-                    new DashboardSummaryResponse.WageStatInfo("초과급여 제외, 상여 포함", "202606"),
-                    "PARTIALLY_ESTIMATED"))));
+            dashboardSummaryService.resolve(userId, normalizeYearMonth(baseYearMonth))));
   }
 
   // =========================================================================
@@ -168,66 +128,28 @@ public class DashboardController {
         description = "인증 에러",
         content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
   })
-  // TODO: [Member B 3~4주차] job_posting 직접 집계 기반 실데이터 연동 구현 (개발 계획 §5-J)
   @GetMapping("/salary-distribution")
   public ResponseEntity<ApiResult<SalaryDistributionResponse>> getSalaryDistribution(
-      @Parameter(description = "가상 탐색용 주 직무", example = "DEVELOPER") @RequestParam(required = false)
+      @CurrentUserId UUID userId,
+      @Parameter(description = "인덱스 기준 월 (YYYYMM 또는 YYYY-MM, 기본: 현재월)")
+          @RequestParam(required = false)
+          String baseYearMonth,
+      @Parameter(description = "MVP 범위 밖 — 받기만 하고 쓰지 않는다 (개발 계획 §5-G)")
+          @RequestParam(required = false)
           String jobFamily,
-      @Parameter(description = "가상 탐색용 경력 년수", example = "5") @RequestParam(required = false)
+      @Parameter(description = "MVP 범위 밖 — 받기만 하고 쓰지 않는다 (개발 계획 §5-G)")
+          @RequestParam(required = false)
           Integer yearsOfExperience,
-      @Parameter(description = "가상 탐색용 지역구", example = "SEOUL_GANGNAM")
+      @Parameter(description = "MVP 범위 밖 — 받기만 하고 쓰지 않는다 (개발 계획 §5-G)")
           @RequestParam(required = false)
           String region,
-      @Parameter(description = "가상 탐색용 회사 규모", example = "MEDIUM") @RequestParam(required = false)
+      @Parameter(description = "MVP 범위 밖 — 받기만 하고 쓰지 않는다 (개발 계획 §5-G)")
+          @RequestParam(required = false)
           String companySize) {
-
-    long baselineMedian = 72000000L;
-    long min = 45000000L;
-    long p25 = 58000000L;
-    long median = 65000000L;
-    long p75 = 74000000L;
-    long max = 95000000L;
-    long userSalary = 60000000L;
-    int percentile = 35;
-    String bracket = "MID";
-
-    if (yearsOfExperience != null) {
-      if (yearsOfExperience >= 8) {
-        baselineMedian = 95000000L;
-        min = 60000000L;
-        p25 = 80000000L;
-        median = 90000000L;
-        p75 = 110000000L;
-        max = 150000000L;
-        userSalary = 90000000L;
-        percentile = 50;
-        bracket = "SENIOR";
-      } else if (yearsOfExperience <= 3) {
-        baselineMedian = 48000000L;
-        min = 30000000L;
-        p25 = 40000000L;
-        median = 45000000L;
-        p75 = 52000000L;
-        max = 70000000L;
-        userSalary = 42000000L;
-        percentile = 35;
-        bracket = "JUNIOR";
-      }
-    }
-
-    String regionLabel = region != null ? region : "서울 전체";
-    String sizeLabel = companySize != null ? companySize : "회사규모 무관";
 
     return ResponseEntity.ok(
         ApiResult.success(
-            new SalaryDistributionResponse(
-                new SalaryDistributionResponse.WageBaseline(
-                    "WAGE_STAT", baselineMedian, "초과급여 제외, 상여 포함"),
-                new SalaryDistributionResponse.PostingReference(
-                    min, p25, median, p75, max, 71, 42.5),
-                new SalaryDistributionResponse.UserPosition(userSalary, percentile),
-                new SalaryDistributionResponse.DistributionPeerGroup(
-                    3, String.format("%s / 경력 %s / %s", regionLabel, bracket, sizeLabel)))));
+            salaryDistributionService.resolve(userId, normalizeYearMonth(baseYearMonth))));
   }
 
   // =========================================================================
@@ -237,10 +159,10 @@ public class DashboardController {
       summary = "지수 트렌드 차트 데이터",
       description = "소득 지수, 물가 지수 및 구매력/시장가치 지수의 시계열 월별 차트용 데이터를 조회합니다.")
   @ApiResponse(responseCode = "200", description = "조회 성공")
-  // TODO: [Member C 5~6주차] A/B 지수 계열 합성 trends[] API 실데이터 연동 (개발 계획 §2)
   @GetMapping("/trends")
   public ResponseEntity<ApiResult<TrendListResponse>> getTrends(
-      @Parameter(description = "인덱스 기준 월 (YYYY-MM)", example = "2026-01")
+      @CurrentUserId UUID userId,
+      @Parameter(description = "인덱스 기준 월 (YYYYMM 또는 YYYY-MM, 기본: 현재월)")
           @RequestParam(required = false)
           String baseYearMonth,
       @Parameter(description = "조회할 개월 수 (기본 12)", example = "12")
@@ -249,12 +171,8 @@ public class DashboardController {
 
     return ResponseEntity.ok(
         ApiResult.success(
-            new TrendListResponse(
-                List.of(
-                    new TrendListResponse.TrendPoint(
-                        "2026-01", 100.0, 100.0, 100.0, 100.0, 5000000L, 5000000L),
-                    new TrendListResponse.TrendPoint(
-                        "2026-02", 99.1, 102.3, 100.0, 100.9, 5000000L, 4955000L)))));
+            snapshotSeriesService.trends(
+                userId, normalizeYearMonth(baseYearMonth), durationMonths)));
   }
 
   // =========================================================================
@@ -262,27 +180,24 @@ public class DashboardController {
   // =========================================================================
   @Operation(summary = "월별 지수 스냅샷 이력", description = "과거 월별 기준 지수값 및 결정 신호 등의 스냅샷 목록을 최신순으로 가져옵니다.")
   @ApiResponse(responseCode = "200", description = "조회 성공")
-  // TODO: [Member C 1~2주차] core.index_snapshot 기반 실데이터 이력 조회 연동
   @GetMapping("/history")
-  public ResponseEntity<ApiResult<SnapshotHistoryResponse>> getSnapshotHistory() {
-    return ResponseEntity.ok(
-        ApiResult.success(
-            new SnapshotHistoryResponse(
-                List.of(
-                    new SnapshotHistoryResponse.SnapshotPoint(
-                        "202607",
-                        94.2,
-                        117.5,
-                        "SEEK_JOB",
-                        "20260701093000-000",
-                        "1.2.0",
-                        new SnapshotHistoryResponse.SnapshotRationale(
-                            List.of("..."), List.of("..."), LocalDate.of(2026, 7, 1)))))));
+  public ResponseEntity<ApiResult<SnapshotHistoryResponse>> getSnapshotHistory(
+      @CurrentUserId UUID userId) {
+    return ResponseEntity.ok(ApiResult.success(snapshotSeriesService.history(userId)));
   }
 
   // =========================================================================
   // Private Helper Methods
   // =========================================================================
+  /** {@code YYYY-MM} 과 {@code YYYYMM} 을 모두 받아 {@code YYYYMM} 으로 맞춘다. 없으면 현재월이다. */
+  private String normalizeYearMonth(String baseYearMonth) {
+    if (baseYearMonth == null || baseYearMonth.isBlank()) {
+      return java.time.YearMonth.now()
+          .format(java.time.format.DateTimeFormatter.ofPattern("yyyyMM"));
+    }
+    return baseYearMonth.replace("-", "");
+  }
+
   private SkillDemandDetail toSkillDemandDetailDto(SkillDemandDetailData data) {
     List<SkillSourceStats> sourceStats =
         data.getSources().stream()

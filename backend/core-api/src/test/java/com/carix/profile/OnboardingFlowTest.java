@@ -10,16 +10,19 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.carix.skill.domain.Skill;
 import com.carix.skill.repository.SkillRepository;
+import com.carix.support.H2DataVersionIssuerConfiguration;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
 @SpringBootTest
 @AutoConfigureMockMvc
+@Import(H2DataVersionIssuerConfiguration.class)
 class OnboardingFlowTest {
 
   private static final String USER_ID = "00000000-0000-0000-0000-000000000001";

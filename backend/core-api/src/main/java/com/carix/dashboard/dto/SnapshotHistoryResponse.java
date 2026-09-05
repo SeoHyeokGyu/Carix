@@ -7,10 +7,11 @@ import java.util.List;
 @Schema(description = "월별 지수 스냅샷 이력 응답")
 public record SnapshotHistoryResponse(List<SnapshotPoint> snapshots) {
 
+  /** 스냅샷 한 행. 그 달에 지수를 계산하지 못했으면 {@code null} 로 남는다 ({@code index_snapshot} DDL 주석). */
   public record SnapshotPoint(
       String baseYearMonth,
-      double purchasingPowerIndex,
-      double marketValueIndex,
+      @Schema(nullable = true) Double purchasingPowerIndex,
+      @Schema(nullable = true) Double marketValueIndex,
       String decisionSignal,
       String dataVersion,
       String ruleVersion,
