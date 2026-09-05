@@ -9,5 +9,19 @@ export default defineConfig({
     setupFiles: ["./test-setup.ts"],
     globals: true,
     exclude: [...configDefaults.exclude, "e2e/**", "server.test.js"],
+    coverage: {
+      provider: "v8",
+      reporter: ["text", "json-summary", "json", "html", "lcov"],
+      reportsDirectory: "./coverage",
+      include: ["app/**"],
+      exclude: [
+        ...(configDefaults.coverage?.exclude ?? []),
+        "**/*.d.ts",
+        "**/*.test.{ts,tsx}",
+        "**/*.spec.{ts,tsx}",
+        "e2e/**",
+        "server.test.js",
+      ],
+    },
   },
 });

@@ -3,5 +3,6 @@
 /e2e/screenshots
 /test-results
 /playwright-report
+/coverage
 node_modules
 

@@ -83,7 +83,7 @@ jobs:
           echo "modules=$MODULES" >> "$GITHUB_OUTPUT"
 
   backend:
-    name: Backend Test & Lint (${{ matrix.module }})
+    name: Backend Test & Lint
     needs: filter
     if: needs.filter.outputs.backend == 'true' && needs.filter.outputs.backend_modules != '[]'
     runs-on: ubuntu-latest
