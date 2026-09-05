@@ -9,6 +9,7 @@ import com.carix.index.dto.MviResult;
 import com.carix.index.dto.SourceCoverage;
 import com.carix.index.dto.WageBaseline;
 import com.carix.index.enums.IndexStatus;
+import com.carix.index.enums.SkillExclusionReason;
 import com.carix.profile.domain.CareerProfile;
 import com.carix.profile.repository.CareerProfileRepository;
 import com.carix.skill.domain.Skill;
@@ -79,7 +80,7 @@ class MarketValueIndexServiceTest {
             .successful(true)
             .sampleCount(50)
             .fallbackLevel(1)
-            .coverage(new SourceCoverage("JOBKOREA", 1, 50, "조건", BigDecimal.ZERO))
+            .coverage(new SourceCoverage("JOBKOREA", 1, 50, true, "조건", BigDecimal.ZERO))
             .build();
 
     when(peerGroupFallbackResolver.resolveForSource(any(), any(), any())).thenReturn(resolvedGroup);
@@ -110,5 +111,86 @@ class MarketValueIndexServiceTest {
     assertThat(result.value().doubleValue()).isEqualTo(120.0);
     assertThat(result.wageBaseline()).isNotNull();
     assertThat(result.wageBaseline().medianGrossSalary()).isEqualTo(65000000L);
+  }
+
+  @Test
+  @DisplayName("최근 수요 없음 스킬은 제외가 아니라 0 으로 가중합에 들어가고 별도 목록으로 구분된다")
+  void testNoRecentDemandSkillIsZeroWeightedNotExcluded() {
+    // Arrange
+    UUID userId = UUID.randomUUID();
+    String baseYearMonth = "202607";
+
+    CareerProfile profile = new CareerProfile(userId);
+    profile.patch("DEVELOPER", 5, "서울 강남구", "FULL_TIME", "MEDIUM");
+
+    Skill active =
+        Skill.builder().id(UUID.randomUUID()).standardName("Java").isCustom(false).build();
+    Skill stale =
+        Skill.builder().id(UUID.randomUUID()).standardName("COBOL").isCustom(false).build();
+
+    when(careerProfileRepository.findByUserId(userId)).thenReturn(Optional.of(profile));
+    when(userSkillRepository.findByUserId(userId))
+        .thenReturn(List.of(userSkillOf(active), userSkillOf(stale)));
+
+    when(peerGroupFallbackResolver.resolveForSource(any(), any(), any()))
+        .thenReturn(
+            PeerGroupFallbackResolver.ResolvedPeerGroup.builder()
+                .source("JOBKOREA")
+                .successful(true)
+                .sampleCount(50)
+                .fallbackLevel(1)
+                .coverage(new SourceCoverage("JOBKOREA", 1, 50, true, "조건", BigDecimal.ZERO))
+                .build());
+
+    when(skillDemandCalculator.calculateDemandIndex(
+            any(), eq(active.getId()), any(), eq(baseYearMonth)))
+        .thenReturn(
+            SkillDemandCalculator.SkillDemandResult.builder()
+                .skillId(active.getId())
+                .demandIndex(120.0)
+                .status("OK")
+                .build());
+    when(skillDemandCalculator.calculateDemandIndex(
+            any(), eq(stale.getId()), any(), eq(baseYearMonth)))
+        .thenReturn(
+            SkillDemandCalculator.SkillDemandResult.builder()
+                .skillId(stale.getId())
+                .demandIndex(0.0)
+                .status("NO_RECENT_DEMAND")
+                .build());
+
+    // 두 스킬 모두 가중치를 받는다 — 최근 수요 없음은 제외가 아니기 때문이다.
+    when(skillWeightCalculator.calculateWeights(any(), any(), any()))
+        .thenReturn(
+            Map.of(
+                active.getId(), BigDecimal.valueOf(0.5),
+                stale.getId(), BigDecimal.valueOf(0.5)));
+    when(wageBaselineResolver.resolveBaseline(any()))
+        .thenReturn(new WageBaseline(65000000L, "초과급여 제외", "202606"));
+
+    // Act
+    MviResult result = service.calculate(userId, baseYearMonth);
+
+    // Assert
+    assertThat(result.excludedSkills()).isEmpty();
+    assertThat(result.zeroDemandSkills())
+        .singleElement()
+        .satisfies(
+            noted -> {
+              assertThat(noted.skillId()).isEqualTo(stale.getId());
+              assertThat(noted.standardName()).isEqualTo("COBOL");
+              assertThat(noted.reason()).isEqualTo(SkillExclusionReason.NO_RECENT_DEMAND);
+            });
+
+    // 0.5 × 120 + 0.5 × 0 = 60. 제외였다면 남은 스킬로 재정규화돼 120 이 나온다.
+    assertThat(result.value()).isEqualByComparingTo("60.0");
+  }
+
+  private static UserSkill userSkillOf(Skill skill) {
+    return UserSkill.builder()
+        .skill(skill)
+        .monthsOfExperience(24)
+        .lastUsedDate(LocalDate.of(2026, 7, 1))
+        .build();
   }
 }

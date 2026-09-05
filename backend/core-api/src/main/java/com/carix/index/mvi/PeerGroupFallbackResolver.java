@@ -125,6 +125,7 @@ public class PeerGroupFallbackResolver {
                 source,
                 5,
                 fallbackSampleCount,
+                false,
                 formatConditionText(broadRegion, expandedBrackets, null, null),
                 BigDecimal.valueOf(100.00)))
         .jobFamily(jobFamily)
@@ -151,6 +152,7 @@ public class PeerGroupFallbackResolver {
             source,
             level,
             aggregate.getPostingCount(),
+            true,
             conditionText,
             aggregate.getSalaryMissingRatePercent());
 
@@ -194,7 +196,7 @@ public class PeerGroupFallbackResolver {
 
     String conditionText = formatConditionText(region, brackets, employmentType, companySize);
     SourceCoverage coverage =
-        new SourceCoverage(source, level, totalPostings, conditionText, avgMissingRate);
+        new SourceCoverage(source, level, totalPostings, true, conditionText, avgMissingRate);
 
     return ResolvedPeerGroup.builder()
         .source(source)

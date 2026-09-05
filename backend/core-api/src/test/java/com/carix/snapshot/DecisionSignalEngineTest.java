@@ -28,7 +28,10 @@ class DecisionSignalEngineTest {
         YM,
         BigDecimal.valueOf(value),
         IndexStatus.OK,
-        List.of(new SourceCoverage("SARAMIN", 1, 40, "서울 전체 / 경력 4~7년", BigDecimal.valueOf(42.5))),
+        List.of(
+            new SourceCoverage(
+                "SARAMIN", 1, 40, true, "서울 전체 / 경력 4~7년", BigDecimal.valueOf(42.5))),
+        List.of(),
         List.of(),
         new WageBaseline(medianGrossSalary, "초과급여 제외, 상여 포함", "202606"),
         LocalDate.of(2026, 7, 1));
@@ -140,14 +143,39 @@ class DecisionSignalEngineTest {
             BigDecimal.valueOf(150),
             IndexStatus.OK,
             List.of(
-                new SourceCoverage("SARAMIN", 5, 4, "서울 전체", BigDecimal.valueOf(80)),
-                new SourceCoverage("JOBKOREA", 5, 5, "서울 전체", BigDecimal.valueOf(80))),
+                new SourceCoverage("SARAMIN", 5, 4, false, "서울 전체", BigDecimal.valueOf(80)),
+                new SourceCoverage("JOBKOREA", 5, 5, false, "서울 전체", BigDecimal.valueOf(80))),
+            List.of(),
             List.of(),
             new WageBaseline(72_000_000L, "초과급여 제외, 상여 포함", "202606"),
             LocalDate.of(2026, 7, 1));
 
     assertThat(engine.evaluate(ppi(100), scarce, salary()).code())
         .isEqualTo(DecisionSignalCode.INSUFFICIENT_DATA);
+  }
+
+  @Test
+  @DisplayName("데이터 부족 1 - 완화에 실패한 원천의 잔여 표본은 합산하지 않는다")
+  void insufficient1_ignoresSamplesFromFailedSources() {
+    // 두 원천 모두 완화 Level 5 에서도 미달(6 + 6)이라 지수 결합에 들어가지 못했다.
+    // 단순 합산이면 12 >= 10 이라 조건 1 을 통과해 조건 2 의 근거가 대신 나온다.
+    MviResult allSourcesFailed =
+        new MviResult(
+            YM,
+            null,
+            IndexStatus.INSUFFICIENT_SAMPLE,
+            List.of(
+                new SourceCoverage("SARAMIN", 5, 6, false, "서울 전체", BigDecimal.valueOf(80)),
+                new SourceCoverage("JOBKOREA", 5, 6, false, "서울 전체", BigDecimal.valueOf(80))),
+            List.of(),
+            List.of(),
+            new WageBaseline(72_000_000L, "초과급여 제외, 상여 포함", "202606"),
+            LocalDate.of(2026, 7, 1));
+
+    DecisionOutcome outcome = engine.evaluate(ppi(100), allSourcesFailed, salary());
+
+    assertThat(outcome.code()).isEqualTo(DecisionSignalCode.INSUFFICIENT_DATA);
+    assertThat(outcome.rulesApplied()).containsExactly("동료집단 표본 수가 통계 기준치 미만");
   }
 
   @Test
@@ -158,7 +186,8 @@ class DecisionSignalEngineTest {
             YM,
             null,
             IndexStatus.INSUFFICIENT_SAMPLE,
-            List.of(new SourceCoverage("SARAMIN", 1, 40, "서울 전체", BigDecimal.valueOf(42.5))),
+            List.of(new SourceCoverage("SARAMIN", 1, 40, true, "서울 전체", BigDecimal.valueOf(42.5))),
+            List.of(),
             List.of(),
             new WageBaseline(72_000_000L, "초과급여 제외, 상여 포함", "202606"),
             LocalDate.of(2026, 7, 1));
@@ -182,7 +211,8 @@ class DecisionSignalEngineTest {
             YM,
             BigDecimal.valueOf(120),
             IndexStatus.OK,
-            List.of(new SourceCoverage("SARAMIN", 1, 40, "서울 전체", BigDecimal.valueOf(42.5))),
+            List.of(new SourceCoverage("SARAMIN", 1, 40, true, "서울 전체", BigDecimal.valueOf(42.5))),
+            List.of(),
             List.of(),
             null,
             LocalDate.of(2026, 7, 1));

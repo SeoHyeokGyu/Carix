@@ -88,8 +88,16 @@ public class DecisionSignalEngine {
     return List.of();
   }
 
+  /**
+   * 완화에 성공한 원천의 표본만 더한다 (기술 명세 §2.2 데이터 부족 조건 1 — "완화 Level 5까지 적용한 <b>최종</b> 동료집단"). 실패한 원천도 끝까지
+   * 밀어 모은 잔여 표본을 {@code sampleCount} 에 싣고 돌아오므로, 전부 더하면 어느 원천도 기준을 못 채웠는데 합계가 기준을 넘는 상태가 된다. 그러면 조건
+   * 1 을 건너뛰고 조건 2 의 근거가 대신 나온다.
+   */
   private static int totalSampleCount(List<SourceCoverage> sources) {
-    return sources.stream().mapToInt(SourceCoverage::sampleCount).sum();
+    return sources.stream()
+        .filter(SourceCoverage::successful)
+        .mapToInt(SourceCoverage::sampleCount)
+        .sum();
   }
 
   /** $(중앙값 - 연봉) / 연봉$. 사용자 연봉이 기준 중앙값보다 낮을 때 양수다 (기술 명세 §2.1). */
