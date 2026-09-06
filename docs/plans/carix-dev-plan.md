@@ -45,6 +45,7 @@
 | B 1~2주차 | 스킬 수요 지수 & MVI 계산 엔진 (`SkillWeightCalculator`, `PeerGroupFallbackResolver`, `SkillDemandCalculator`, `MarketValueIndexServiceImpl`, `GET /dashboard/skills` 연동) | 2026-09-02 (완료) |
 | B 3~4주차 | 월별 시장 데이터 사전 집계 (`market_aggregate`) 파이프라인 | 2026-08-25 |
 | B 5~6주차 | `S-16` 관리자 파이프라인 콘솔 UI (`US-M1`) — 라우트·API 클라이언트·컴포넌트·테스트 | 2026-09-05 |
+| C 5~6주차 | 시나리오 시뮬레이터 실데이터 전환 (§5-O) — 실현 가능성·실업급여 공식·저장 배선·`GET /scenarios/latest` | 완료 |
 | C 1~2주차 | 인증 재설계 구현, `auth-service` 테스트, `/api` 프록시, `S-01~03` UI | 2026-08-28 |
 | B `b3` | `GET /dashboard/salary-distribution` — 원 공고 직접 집계 (`SalaryDistributionService`) | 2026-09-06 |
 | C `c4` | `GET /dashboard/summary`·`/trends`·`/history` 실데이터 전환 | 2026-09-06 |
@@ -76,7 +77,7 @@ gantt
     스냅샷 멱등성 엔진(Job 4) & 결정신호 판정 엔진 :done, c2, 2026-08-30, 4d
     온보딩(S-05,09) & 대시보드(S-10) & 시뮬레이터(S-15) :c3, after c2, 14d
     이력관리(S-12) & 추이분석(S-14) 화면 셸 & trends API :c4, after c3, 10d
-    career_scenario 저장 & scenarios/latest(5-O) & 스냅샷 쓰기 운영검증(5-K) :c5, after c4, 14d
+    스냅샷 쓰기 운영 Postgres 검증(5-K)          :c5, after c4, 14d
     section 전원 통합 (7주차)
     E2E 연동 테스트 & 비기능/완료기준 점검 :crit, e2e, after a3 b5 c5, 5d
 ```
@@ -86,7 +87,7 @@ gantt
 | **0주차<br>(사전정렬)**<br>08-29~09-03 | 완료 | 완료 | 완료. **세션 게이트 플래그 전환(§5-B)만 미실행** |
 | **1~2주차<br>(인프라 & 파이프라인)**<br>09-03~09-17 | 완료 | 완료 | 완료 |
 | **3~4주차<br>(핵심 계산 엔진)**<br>09-17~10-01 | • **개인물가 & 구매력 지수(PPI) 계산 엔진**<br>• 소비 가중치 전파(`PROPAGATED`) 로직<br>• **연봉 암호화 키 로테이션·스냅샷 복호화 경계 (§5-E)** | • 동료집단 완화 알고리즘 (N<10 클램프)<br>• `S-08` 스킬 입력 & 자동완성 UI<br>• `S-14` 연봉분포·수요 **차트 컴포넌트** | • `S-05, S-09` 프로필/검토 온보딩 UI<br>• `S-10` **대시보드 메인**<br>• `S-15` **시뮬레이터 UI** |
-| **5~6주차<br>(UI & 시각화 완성)**<br>10-01~10-11 | • `S-06, S-07` 소득/소비 온보딩 UI<br>• `S-14` 소득vs물가 **차트 컴포넌트** | • `S-11` 월별 스냅샷 이력 UI<br>• `S-13` 설정·계정 삭제 UI<br>• collector `@Scheduled` 도입 (§5-C)<br>• MVI 표본부족 엣지케이스 검증 | • `S-12` **이력 관리 화면 전체** (소득·소비·스킬 탭)<br>• `S-14` **추이분석 화면 셸** + A·B 차트 조립<br>• `career_scenario` 저장 배선 + `GET /scenarios/latest` (§5-O)<br>• **스냅샷 쓰기 운영 Postgres 검증 (§5-K)** |
+| **5~6주차<br>(UI & 시각화 완성)**<br>10-01~10-11 | • `S-06, S-07` 소득/소비 온보딩 UI<br>• `S-14` 소득vs물가 **차트 컴포넌트** | • `S-11` 월별 스냅샷 이력 UI<br>• `S-13` 설정·계정 삭제 UI<br>• MVI 표본부족 엣지케이스 검증 | • `S-12` **이력 관리 화면 전체** (소득·소비·스킬 탭)<br>• `S-14` **추이분석 화면 셸** + A·B 차트 조립<br>• **스냅샷 쓰기 운영 Postgres 검증 (§5-K)** |
 | **7주차<br>(E2E 통합 검증)**<br>10-11~10-16 | • PPI 엣지케이스(지연/결측) 검증<br>• **민감 금액 로깅 마스킹 점검** (소득·소비 경로) | • MVI 표본부족(N<10) 엣지케이스 검증<br>• 실데이터 파이프라인 통합 점검<br>• **민감 금액 로깅 마스킹 점검** (집계·파이프라인 경로) | • 온보딩 $\rightarrow$ 대시보드 $\rightarrow$ 시뮬레이터 E2E 점검<br>• 계정 삭제 시 개인 데이터 완전 삭제 검증<br>• **민감 금액 로깅 마스킹 점검** (시나리오 요청·스냅샷 복호화 경로) |
 
 > **주차 표의 날짜 구간은 최장 경로인 A 레인 기준이다.** B·C 는 선행 블록이 `done` 으로
@@ -169,12 +170,13 @@ flowchart TD
 | # | 작업 | 담당 | 시점 | 잔여 범위 | 무엇을 막는가 |
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | 5-B | 세션 게이트 — Gateway 세션 검증 필터 + core-api `X-User-Id` 주입 | C | 0주차 — **기한 초과.** `config/spring/gateway.yml` 이 아직 `enabled: false` 다 | 배선은 끝났다 — 게이트웨이 필터, `/api/health` 의 `core-health` 라우트 분리, core-api 수신부(`@CurrentUserId`·`UserContextArgumentResolver`, 헤더 없으면 401)까지 배포돼 있다. 하류가 헤더를 신뢰하는 구조라 Spring Security 스타터는 쓰지 않는다. **잔여는 운영 전환뿐** — `carix.gateway.session-validation.enabled=true` + `/actuator/refresh`, 그리고 아래 롤백 절차 | 모든 도메인 API 의 `userId` 확보 경로. **A·B·C 전원** — 다만 실제로는 막지 않은 채 1~2주차가 진행됐다. 차단 항목이 아니라 **배포 전 필수 전환**으로 읽는다 |
-| 5-C | collector 수집 주기 자동화 | B | `b5` | 내부 API·배포 배선·관리자 콘솔(`S-16`)은 끝났다. 남은 것은 **Spring Scheduler(`@Scheduled`) 도입 여부** — 지금은 관리자가 직접 구동한다 | 수집 파이프라인 정기 실행 |
+| ~~5-C~~ | ~~collector 수집 주기 자동화~~ | B | — | **수동 구동으로 확정.** 관리자가 `S-16` 콘솔에서 원천별로 직접 돌린다. `@Scheduled` 는 도입하지 않는다 — 수집 실패 재시도·중복 실행 방지·관측 경로가 함께 따라오는데 MVP 표본 규모에서 그만한 값을 하지 않는다. 정기 실행이 필요해지면 그때 다시 올린다 | (해소) |
 | 5-E | 연봉 컬럼 암호화 키 로테이션 · 스냅샷 복호화 경계 | A (스냅샷 접근 경계는 core-api 내부 C 와 합의) | 계약 합의분 **완료**, 키 로테이션 절차는 3~4주차 | [SECURITY §3.2](../SECURITY.md)가 "구현 단계 처리"로 남긴 항목. `CurrentSalaryProvider` 계약이 복호화 경계를 A 안에 고정한다(계약·스텁은 `com.carix.index`, **구현은 A**). 남은 것은 키 로테이션 절차, 로테이션 시 기존 암호문 재암호화 전략, 스냅샷 복호화 성능·키 접근 감사 | 소득 저장(A)과 스냅샷 재계산의 연봉 복호화(C) |
-| 5-K | 스냅샷 쓰기 경로 운영 Postgres 검증 | C | **배포 전 필수** | `index_snapshot` 쓰기가 운영에서 처음 도는 시점에 세 가지가 동시에 처음 실행된다 — `@JdbcTypeCode(SqlTypes.JSON)` 의 `jsonb` 바인딩(테스트는 H2 로만 검증), `pg_advisory_xact_lock`(H2 에 없어 발급기 자동 검증 없음), `DataVersionIssuer` 의 `MANDATORY` 전파. 운영 `ddl-auto` 가 `none` 이라 매핑 오류는 기동이 아니라 **첫 쓰기 시점**에 터진다. OCI DB 에 붙여 `recalculateSnapshot` 을 한 사용자에 한 번 돌리면 셋이 함께 확인된다. **이 경로는 배치가 아니라 소득·소비·스킬·프로필 저장에 동기로 걸린다** — 잠금이나 `jsonb` 바인딩이 운영에서 깨지면 사용자 쓰기가 통째로 실패한다. H2 통합 테스트는 `pg_advisory_xact_lock` 이 없어 `H2DataVersionIssuerConfiguration` 으로 대체하므로 자동 검증이 여기서 멈춘다 | Job 4 + **모든 도메인 쓰기** |
-| 5-L | `rationale.salaryGapRatio` 저장 형태 결정 | 명세 소유자 | `S-10`·`S-14` 착수 전 (3~4주차) | `rationale` 의 격차 비율(소수점 6자리, 평문 JSONB)은 평문 `wage_stat_observation.wage_median` · 평문 `career_profile` 동료집단과 조인하면 `연봉 = 중앙값 / (1 + 격차비율)` 로 원 단위 복원된다 — `income_history` 의 AES-256-GCM 이 막으려던 결과다. 구현은 규칙의 문자를 지켰고(비율만 저장, 중앙값 미저장) 명세 §1.3 자체의 결함이다. 선택지: (a) 저장하지 않고 조회 시 재계산 (b) 구간 코드로 저장 (c) 자릿수 축소(가장 약함). `rulesApplied` 가 이미 구간을 담아 6자리는 복원 정밀도만 더한다 | 이 필드를 읽는 화면(`S-10` 근거 아코디언, `S-14`) |
-| 5-M | `index_snapshot.rationale` 페이로드 확장 여부 | 명세 소유자 (데이터 제공 B, 쓰기 C) | 다음 스냅샷 정기 실행 전 | 지금 `rationale`은 `rulesApplied`·`salaryGapRatio`·`excludedSkills`(이름)·원천 기준일 3종·`runId`만 담는다. 이력을 읽는 화면이 붙으면 두 가지가 빈다 — **원천별 커버리지**(완화 단계·표본 수·결측률. `MviResult`에만 있고 저장되지 않아 "표본이 부족해 조건을 넓혔다"는 이력이 남지 않는다)와 **스킬별 기여도**(가중치 × 수요 지수. 빠진 스킬의 *이름*만 남아 어떤 스킬이 지수를 끌어올렸는지 시간축으로 볼 수 없다). 둘 다 §1.1 암호화 컬럼으로 가는 경로를 더하지 않아 5-L 과 무관하다 — 판단 대상은 페이로드 비대함과 저장량이다. 선택지: (a) 둘 다 기록 (b) 커버리지만 기록 (c) 기록하지 않고 화면이 필요할 때 재계산 — 다만 (c)는 완화 결과가 당시 프로필에 의존해 프로필이 바뀌면 같은 값이 안 나온다. **`jsonb` 라 DDL 변경은 없으나 소급이 불가능하다** — 결정을 미루는 동안 계산되는 달에는 그 데이터가 영원히 없다 | `S-11` 표본 커버리지 추이, `S-10` 근거 아코디언의 스킬별 기여도 |
-| 5-O | `GET /scenarios/latest` 스텁 잔여 | C | `c5` | 대시보드 4개는 실데이터로 전환했다. 이 하나가 고정값으로 남아 있고 [MVP 규격 §13](../specs/mvp-requirements.md)의 `데이터가 없는 기능을 추정값으로 채워 출시하지 않는다` 에 걸린다. **막힌 이유는 명세↔DDL 충돌** — 아래 5-O 절 | `S-15` 시나리오 복원 |
+| 5-K | 스냅샷 쓰기 경로 운영 Postgres 검증 | C | **배포 전 필수** | `index_snapshot` 쓰기가 운영에서 처음 도는 시점에 세 가지가 동시에 처음 실행된다 — `@JdbcTypeCode(SqlTypes.JSON)` 의 `jsonb` 바인딩(테스트는 H2 로만 검증), `pg_advisory_xact_lock`(H2 에 없어 발급기 자동 검증 없음), `DataVersionIssuer` 의 `MANDATORY` 전파. 운영 `ddl-auto` 가 `none` 이라 매핑 오류는 기동이 아니라 **첫 쓰기 시점**에 터진다. OCI DB 에 붙여 `recalculateSnapshot` 을 한 사용자에 한 번 돌리면 셋이 함께 확인된다. **이 경로는 배치가 아니라 소득·소비·스킬·프로필 저장에 동기로 걸린다** — 잠금이나 `jsonb` 바인딩이 운영에서 깨지면 사용자 쓰기가 통째로 실패한다. H2 통합 테스트는 `pg_advisory_xact_lock` 이 없어 `H2DataVersionIssuerConfiguration` 으로 대체하므로 자동 검증이 여기서 멈춘다. **첫 배포 전까지만 유효한 여유가 하나 있다** — `rationale` 은 `jsonb` 라 운영 행이 없는 지금은 형상을 자유롭게 바꿀 수 있지만(5-L·5-M 이 그렇게 들어갔다), 배포 후에는 같은 변경에 마이그레이션이 필요하다 | Job 4 + **모든 도메인 쓰기** |
+| ~~5-L~~ | ~~`rationale.salaryGapRatio` 저장 형태 결정~~ | 명세 소유자 | **결정 완료 — 구간 코드** | `rationale` 의 격차 비율(소수점 6자리, 평문 JSONB)은 평문 `wage_stat_observation.wage_median` · 평문 `career_profile` 동료집단과 조인하면 `연봉 = 중앙값 / (1 + 격차비율)` 로 원 단위 복원된다 — `income_history` 의 AES-256-GCM 이 막으려던 결과다. 구현은 규칙의 문자를 지켰고(비율만 저장, 중앙값 미저장) 명세 §1.3 자체의 결함이다. **구간 코드로 저장한다** (`SalaryGapBucket` — 경계는 결정 규칙표의 -0.05/0.05/0.15 와 같다). `rulesApplied` 가 이미 같은 구간을 문구로 담고 있어 화면 근거에서 잃는 정보가 없고, 6자리는 복원 정밀도만 더했다. 조회 시 재계산 안(案)은 완화 결과가 당시 프로필에 의존해 이력이 깨진다 | (해소) |
+| ~~5-M~~ | ~~`index_snapshot.rationale` 페이로드 확장 여부~~ | 명세 소유자 (데이터 제공 B, 쓰기 C) | **결정 완료 — 둘 다 기록** | 지금 `rationale`은 `rulesApplied`·`salaryGapRatio`·`excludedSkills`(이름)·원천 기준일 3종·`runId`만 담는다. 이력을 읽는 화면이 붙으면 두 가지가 빈다 — **원천별 커버리지**(완화 단계·표본 수·결측률. `MviResult`에만 있고 저장되지 않아 "표본이 부족해 조건을 넓혔다"는 이력이 남지 않는다)와 **스킬별 기여도**(가중치 × 수요 지수. 빠진 스킬의 *이름*만 남아 어떤 스킬이 지수를 끌어올렸는지 시간축으로 볼 수 없다). 둘 다 §1.1 암호화 컬럼으로 가는 경로를 더하지 않아 5-L 과 무관하다 — 판단 대상은 페이로드 비대함과 저장량이다. **둘 다 기록한다.** 소급이 불가능해 미루는 동안 계산되는 달의 데이터가 영원히 사라지는 것이 결정적이었다 — `jsonb` 라 DDL 변경은 없고 비용은 페이로드 몇 KB 다. `MviResult` 에 `skillContributions` 를 더해 `SnapshotRationale.sourceCoverages`·`skillContributions` 로 저장한다. `GET /dashboard/summary` 의 `metadata` 커버리지 4필드가 이걸로 채워진다 | (해소) |
+| ~~5-P~~ | ~~`career_scenario` 평문 연봉 복원~~ | 명세 소유자 (구현 C) | **결정 완료 — 금액 컬럼 암호화** | `stay_compensation_12m = 현재연봉 × (1 + stay_expected_raise_rate/100)` 이고 두 컬럼 다 평문이라 나눗셈 한 번으로 현재 연봉이 ±1원까지 복원됐다. `move_target_gross_salary` 는 아예 평문이었다 — §5-L 과 같은 결함의 두 번째 사례인데, 화면이 금액을 그대로 쓰므로 구간으로 접을 수 없다. **금액 컬럼을 `income_history` 와 같은 `EncryptedConverter` 로 암호화한다**(§5-O 가 더한 `current_gross_salary` 까지 여섯). 비용이 거의 없어 갈렸다 — 테이블이 0행이라 데이터 마이그레이션이 없고, 인덱스가 `(user_id, calculated_at DESC, id DESC)` 뿐이라 금액으로 조회·정렬하는 경로가 없다. `move_one_time_cost` 만 평문으로 남긴다(사용자 입력 부대비용이라 연봉 복원에 쓰이지 않는다). "평문 유지 + 접근 통제" 안(案)은 실재하지 않았다 — `income_history` 의 보호가 곧 암호화고 별도 행 단위 ACL 은 없다 | (해소) |
+| ~~5-O~~ | ~~시나리오 시뮬레이터 실데이터 전환~~ | C | **완료** | 막힌 것으로 적혀 있던 `GET /scenarios/latest` 외에 여섯 가지가 더 열려 있었다. 가장 큰 것은 `POST /simulate` 쪽이었다 — 실현 가능성이 코드에 박힌 5수치(45M/58M/65M/74M/95M)를 보간했고 이 엔드포인트에는 스텁 배지가 없어 프런트가 백분위를 실데이터로 취급했다. 규격 §6.1 이 요구한 §5.2 동료집단 분포로 바꿨다. 실업급여도 `isEligible ? 3960000 : 0` 고정이라 공백 0개월에도 396만원이 나왔다 — 도메인 정의서 §4.1 공식으로 대체하고 상·하한 가정치와 기준 시점을 설정으로 뺐다. `@CurrentUserId` 주입, `60000000L` 기본값 제거(`CurrentSalaryProvider` 경유, 둘 다 없으면 400), 엔티티·리포지토리 신설, `scenario_name`·`current_gross_salary` 컬럼 추가. **배포 시 `04_snapshot_and_scenario.sql` 재적용이 필요하다** — 컬럼 이름과 타입이 바뀌었고 테이블은 0행이다 | (해소) |
 
 번호 `5-D` 는 결번이다. 재사용하지 않는다 — 다른 문서가 옛 번호를 가리킬 때 결번임이 드러나야 한다.
 
@@ -256,46 +258,11 @@ B 의 범위가 늘어난다.
 
 | 항목 | 상태 | 담당 |
 | :--- | :--- | :--- |
-| 데모 컨트롤러 2개 | `POST /v1/demo/echo`·`GET /v1/demo/thresholds` — 위 6개는 규격에는 있었지만 이 둘은 **규격·명세 양쪽에 없다.** 각 파일의 TODO 도 "도메인 API 구현 완료 시 제거"를 달고 있다 | C (`c5`) |
+| ~~`POST /v1/demo/echo`~~ | 철거 완료. 규격·명세 양쪽에 없었고 Swagger 확인 외 목적이 없었다 | — |
+| `GET /v1/demo/thresholds` | **데모가 아니다.** [DEVELOPMENT.md](../DEVELOPMENT.md)가 Config Server 연동 확인 절차로 이 경로를 쓴다 — 서버 `config/spring/core-api.yml` 값이 실제로 주입됐는지 보는 유일한 경로다. 지우려면 대체 수단을 먼저 정한다 | 미결 |
 | 가상 프로필 파라미터의 동작 | 규격은 `MVP 범위 밖`인데 `DashboardController` 가 `yearsOfExperience` 로 반환값을 분기한다. 표기와 코드가 반대다 | C (`c5`) |
 | `/admin/pipeline` 별칭 | `routes.ts` 가 `admin/collector` 와 함께 매핑하는데 [기능 명세 §1](../specs/functional-specification.md)은 `/admin/collector` 만 규정한다. 유지할지 지울지 정해 한쪽을 맞춘다 | B |
 
-
-### 5-O. `GET /scenarios/latest` — 명세↔DDL 충돌로 막혀 있다
-
-인스코프 스텁 다섯 중 넷은 실데이터로 전환했다. 남은 하나가 고정값을 돌려주는데
-(`ScenarioController.java:86`), 원인이 구현이 아니라 **규격과 스키마의 불일치**다.
-
-[API 규격 §6.2](../specs/api-specification.md)는 "6.1의 요청 필드와 응답 필드를 합친 단건"을
-약속하고 `LatestScenarioResponse.inputs` 는 `SimulationRequest` 통째다. 그런데
-`core.career_scenario` 에 **`scenario_name` 도 `current_gross_salary` 도 없다.**
-
-선택지 셋 중 하나는 배제한다 — **컬럼 추가는 안 된다.** 평문 `current_gross_salary` 를
-비암호화 테이블에 두면 5-L 이 `income_history` 의 AES-256-GCM 에 대해 지적한 복원 경로가
-그대로 생긴다. 남는 것은 (a) §6.2 응답을 스키마에 맞춰 좁히기 (b) `scenario_name` 만 저장하고
-연봉은 조회 시 `CurrentSalaryProvider` 로 채우기. **명세 소유자 결정** — 5-L·5-M 과 같은 바구니다.
-
-결정과 무관하게 두 가지가 먼저 필요하다:
-
-- `POST /scenarios/simulate` 에 `@CurrentUserId` 가 없다(`ScenarioController.java:41`).
-  소유자를 모르면 행을 저장할 수 없다.
-- 같은 메서드가 `currentGrossSalary` 가 비면 `60000000L` 로 대체한다(`:42`).
-  `CurrentSalaryProvider` 를 거치면 기본값이 아니라 상태가 된다.
-
-`core.career_scenario` 를 참조하는 Java 파일이 아직 0개다 — 엔티티도 리포지토리도 없다.
-
-**남은 명세 공백 둘** (담당: 명세 소유자)
-
-- [API 규격 §5.2](../specs/api-specification.md)의 `minRequired` 는 동료집단 표본에만 걸리고
-  그 부분집합인 **공개연봉 표본에는 기준이 없다.** 동료집단이 10건이어도 공개연봉이 1건이면
-  5수치가 한 점으로 뭉친 채 `OK` 로 나간다. 구현은 규격대로 뒀고(`missingRate` 와
-  `postingReference.sampleSize` 로 판단 가능) 경계는 테스트로 못 박았다.
-- `GET /dashboard/summary` 의 `metadata.sources`·`sampleSize`·`salaryMissingRate`·`peerGroup`
-  은 비어 있다. 원천별 커버리지는 `MviResult` 에만 있고 `rationale` 에 저장되지 않는다 — 5-M 이
-  결정될 때까지 임의 값으로 채우지 않는다.
-
-
----
 
 ## 6. 아직 쓰이지 않는 수집 데이터
 
@@ -311,6 +278,5 @@ B 의 범위가 늘어난다.
 | 공고 체류기간 | `posted_start_date`·`posted_end_date`·`first_seen_month`·`last_seen_month` | 네 컬럼 모두 수집되지만 읽는 코드가 없다. 오래 열려 있는 자리는 대체 인력이 희소하다는 신호이고 공고 **수**만 세는 현재 지수가 못 잡는 차원이다. 다만 수집이 회차 단위라 관측이 편향되고 해상도가 월 단위라, **연속 수집이 쌓이기 전에는 못 쓴다** | 조건부 |
 
 **시나리오 예측의 사후 검증** — `career_scenario` 의 12개월 예측을 같은 기간 `index_snapshot` 과
-맞대면 이 서비스의 조언이 맞았는지 검증된다. 선행 조건은 §5-O 의 `career_scenario` 저장 배선이고,
-그 뒤로는 DDL 에 `UNIQUE` 가 없어 행이 쌓이므로 그대로 두면 된다. 결과가 나오기까지 12개월이
+맞대면 이 서비스의 조언이 맞았는지 검증된다. 저장 배선이 붙었고 DDL 에 `UNIQUE` 가 없어 행이 쌓이므로 그대로 두면 된다. 결과가 나오기까지 12개월이
 걸려 **시작 시점이 곧 결과 시점을 정한다.**

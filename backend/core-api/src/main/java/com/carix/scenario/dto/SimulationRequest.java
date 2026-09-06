@@ -1,6 +1,8 @@
 package com.carix.scenario.dto;
 
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.DecimalMax;
+import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
@@ -13,7 +15,10 @@ public record SimulationRequest(
     @PositiveOrZero
         @Schema(description = "세전 연봉 (선택적 가상 입력)", example = "60000000", nullable = true)
         Long currentGrossSalary,
-    @NotNull @Schema(description = "현 직장 향후 12개월 예상 연봉 인상률 (%)", example = "3.5")
+    @NotNull
+        @DecimalMin("-100.0")
+        @DecimalMax("100.0")
+        @Schema(description = "현 직장 향후 12개월 예상 연봉 인상률 (%). 소수점 두 자리까지 저장한다", example = "3.5")
         Double stayExpectedRaiseRate,
     @NotNull @PositiveOrZero @Schema(description = "이직 목표 세전 연봉 (원)", example = "72000000")
         Long moveTargetGrossSalary,

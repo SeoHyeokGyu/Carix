@@ -26,22 +26,33 @@ COMMENT ON COLUMN core.index_snapshot.rationale IS
     '적용 규칙, 사용한 근거, 제외한 데이터와 그 사유, 원천 기준일, 배치 실행 ID.';
 
 CREATE TABLE core.career_scenario (
-    id                                  uuid PRIMARY KEY,
-    user_id                             uuid NOT NULL,
-    stay_expected_raise_rate            numeric(5,2) NOT NULL,
-    move_target_gross_salary            bigint NOT NULL,
-    move_one_time_cost                  bigint NOT NULL,
-    expected_unemployment_months        integer NOT NULL DEFAULT 0
+    id                                   uuid PRIMARY KEY,
+    user_id                              uuid NOT NULL,
+    scenario_name                        varchar(100),
+    current_gross_salary_encrypted       varchar(512) NOT NULL,
+    stay_expected_raise_rate             numeric(5,2) NOT NULL,
+    move_target_gross_salary_encrypted   varchar(512) NOT NULL,
+    move_one_time_cost                   bigint NOT NULL,
+    expected_unemployment_months         integer NOT NULL DEFAULT 0
         CHECK (expected_unemployment_months BETWEEN 0 AND 6),
     is_eligible_for_unemployment_benefit boolean NOT NULL DEFAULT true,
-    stay_compensation_12m               bigint NOT NULL,
-    move_compensation_12m               bigint NOT NULL,
-    estimated_unemployment_benefit      bigint NOT NULL DEFAULT 0,
-    difference                          bigint NOT NULL,
-    calculated_at                       timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP
+    stay_compensation_12m_encrypted      varchar(512) NOT NULL,
+    move_compensation_12m_encrypted      varchar(512) NOT NULL,
+    estimated_unemployment_benefit_encrypted varchar(512) NOT NULL,
+    difference_encrypted                 varchar(512) NOT NULL,
+    feasibility_status                   varchar(30) NOT NULL,
+    feasibility_percentile               integer,
+    feasibility_sample_size              integer,
+    calculated_at                        timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 COMMENT ON TABLE core.career_scenario IS
     '사용자당 최근 1건을 유효 시나리오로 본다. 조회는 calculated_at DESC, id DESC 순 첫 행이다.';
+COMMENT ON COLUMN core.career_scenario.stay_compensation_12m_encrypted IS
+    '금액 컬럼은 income_history 와 같은 AES-256-GCM 으로 저장한다. 평문이면 stay_expected_raise_rate 와 나눠 현재 연봉이 원 단위로 복원돼, 연봉을 암호화한 이유가 이 테이블에서 사라진다.';
+COMMENT ON COLUMN core.career_scenario.feasibility_percentile IS
+    '목표 연봉의 동료집단 분포 내 백분위. 표본이 부족해 산출하지 못했으면 NULL 이고 feasibility_status 가 사유를 말한다. 분포는 시점에 의존해 나중에 재계산하면 그때의 판단이 나오지 않으므로 저장한다.';
+COMMENT ON COLUMN core.career_scenario.move_one_time_cost IS
+    '사용자가 입력한 부대비용이라 연봉 복원에 쓰이지 않는다. 평문으로 둔다.';
 
 CREATE INDEX index_snapshot_user_month_idx
     ON core.index_snapshot (user_id, base_year_month DESC);
