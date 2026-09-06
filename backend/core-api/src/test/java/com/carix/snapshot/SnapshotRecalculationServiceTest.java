@@ -152,7 +152,7 @@ class SnapshotRecalculationServiceTest {
     IndexSnapshot snapshot =
         indexSnapshotRepository.findByUserIdOrderByBaseYearMonthDesc(userId).get(0);
     assertThat(snapshot.getDecisionSignal()).isEqualTo(DecisionSignalCode.INSUFFICIENT_DATA);
-    assertThat(snapshot.getRationale().salaryGapRatio()).isNull();
+    assertThat(snapshot.getRationale().salaryGapBucket()).isNull();
   }
 
   @Test
@@ -173,7 +173,7 @@ class SnapshotRecalculationServiceTest {
 
     IndexSnapshot snapshot =
         indexSnapshotRepository.findByUserIdOrderByBaseYearMonthDesc(userId).get(0);
-    assertThat(snapshot.getRationale().salaryGapRatio()).isNotNull();
+    assertThat(snapshot.getRationale().salaryGapBucket()).isNotNull();
     assertThat(snapshot.getRationale().wageStatVintage()).isEqualTo("202606");
     assertThat(snapshot.getRationale().toString())
         .doesNotContain("72000000")
@@ -243,6 +243,7 @@ class SnapshotRecalculationServiceTest {
           new BigDecimal("117.50"),
           IndexStatus.OK,
           List.of(new SourceCoverage("SARAMIN", 1, 40, true, "서울 전체", new BigDecimal("42.5"))),
+          List.of(),
           List.of(),
           List.of(),
           new WageBaseline(72_000_000L, "초과급여 제외, 상여 포함", "202606"),

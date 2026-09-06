@@ -33,6 +33,7 @@ class DecisionSignalEngineTest {
                 "SARAMIN", 1, 40, true, "서울 전체 / 경력 4~7년", BigDecimal.valueOf(42.5))),
         List.of(),
         List.of(),
+        List.of(),
         new WageBaseline(medianGrossSalary, "초과급여 제외, 상여 포함", "202606"),
         LocalDate.of(2026, 7, 1));
   }
@@ -147,6 +148,7 @@ class DecisionSignalEngineTest {
                 new SourceCoverage("JOBKOREA", 5, 5, false, "서울 전체", BigDecimal.valueOf(80))),
             List.of(),
             List.of(),
+            List.of(),
             new WageBaseline(72_000_000L, "초과급여 제외, 상여 포함", "202606"),
             LocalDate.of(2026, 7, 1));
 
@@ -169,6 +171,7 @@ class DecisionSignalEngineTest {
                 new SourceCoverage("JOBKOREA", 5, 6, false, "서울 전체", BigDecimal.valueOf(80))),
             List.of(),
             List.of(),
+            List.of(),
             new WageBaseline(72_000_000L, "초과급여 제외, 상여 포함", "202606"),
             LocalDate.of(2026, 7, 1));
 
@@ -187,6 +190,7 @@ class DecisionSignalEngineTest {
             null,
             IndexStatus.INSUFFICIENT_SAMPLE,
             List.of(new SourceCoverage("SARAMIN", 1, 40, true, "서울 전체", BigDecimal.valueOf(42.5))),
+            List.of(),
             List.of(),
             List.of(),
             new WageBaseline(72_000_000L, "초과급여 제외, 상여 포함", "202606"),
@@ -212,6 +216,7 @@ class DecisionSignalEngineTest {
             BigDecimal.valueOf(120),
             IndexStatus.OK,
             List.of(new SourceCoverage("SARAMIN", 1, 40, true, "서울 전체", BigDecimal.valueOf(42.5))),
+            List.of(),
             List.of(),
             List.of(),
             null,

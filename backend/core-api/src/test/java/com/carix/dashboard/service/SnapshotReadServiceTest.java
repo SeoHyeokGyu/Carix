@@ -7,6 +7,8 @@ import static org.mockito.Mockito.mock;
 import com.carix.dashboard.dto.DashboardSummaryResponse;
 import com.carix.dashboard.dto.SnapshotHistoryResponse;
 import com.carix.dashboard.dto.TrendListResponse;
+import com.carix.index.dto.SkillContribution;
+import com.carix.index.dto.SourceCoverage;
 import com.carix.index.enums.IndexStatus;
 import com.carix.snapshot.DecisionSignalCode;
 import com.carix.snapshot.domain.IndexSnapshot;
@@ -105,8 +107,8 @@ class SnapshotReadServiceTest {
   }
 
   @Test
-  @DisplayName("summary - 원천별 커버리지는 rationale 에 없어 metadata 를 채우지 않는다 (§5-M)")
-  void summary_커버리지_미저장() {
+  @DisplayName("summary - 저장된 원천별 커버리지로 metadata 를 채운다 (§5-M)")
+  void summary_커버리지_저장분() {
     given(repository.findByUserIdOrderByBaseYearMonthDesc(USER_ID))
         .willReturn(List.of(snapshot("202607", "94.20", "117.50", DecisionSignalCode.SEEK_JOB)));
 
@@ -114,13 +116,59 @@ class SnapshotReadServiceTest {
         summaryService.resolve(USER_ID, "202607").metadata();
 
     assertThat(metadata.dataVersion()).isEqualTo("20260701093000-000");
-    assertThat(metadata.ruleVersion()).isEqualTo("1.2.0");
     assertThat(metadata.baseDate()).isEqualTo(LocalDate.of(2026, 7, 1));
-    // 아래 넷은 MviResult 에만 있고 저장되지 않는다. 임의 값으로 채우지 않는다.
+    // SARAMIN 40건(결측 42.5%) + JOBKOREA 60건(결측 20.0%)
+    assertThat(metadata.sampleSize()).isEqualTo(100);
+    assertThat(metadata.sources()).hasSize(2);
+    // 표본 수로 가중 평균: (42.5×40 + 20.0×60) / 100 = 29.0
+    assertThat(metadata.salaryMissingRate()).isEqualTo(29.0);
+    // 표본이 가장 큰 원천의 안착 조건을 대표로 쓴다
+    assertThat(metadata.peerGroup().fallbackLevel()).isEqualTo(3);
+    assertThat(metadata.peerGroup().appliedConditions()).isEqualTo("서울 전체 / 경력 MID / 회사규모 무관");
+    assertThat(metadata.peerGroup().excluded()).hasSize(1);
+  }
+
+  @Test
+  @DisplayName("summary - 결측률을 남기지 않은 원천은 가중 평균의 분모에서도 빠진다")
+  void summary_결측률_미기록원천() {
+    given(repository.findByUserIdOrderByBaseYearMonthDesc(USER_ID))
+        .willReturn(List.of(snapshotWithUnmeasuredMissingRate()));
+
+    DashboardSummaryResponse.SummaryMetadata metadata =
+        summaryService.resolve(USER_ID, "202607").metadata();
+
+    // 표본 수는 성공한 원천 전체를 센다
+    assertThat(metadata.sampleSize()).isEqualTo(100);
+    // 결측률을 아는 원천은 JOBKOREA 뿐이다. 20.0×60 / 60 = 20.0
+    // SARAMIN 40건을 분모에만 남기면 12.0 이 되어, 모르는 값이 결측률을 낮춰 보이게 만든다
+    assertThat(metadata.salaryMissingRate()).isEqualTo(20.0);
+  }
+
+  @Test
+  @DisplayName("summary - 완화에 실패한 원천만 있으면 metadata 를 채우지 않는다")
+  void summary_커버리지_실패만() {
+    given(repository.findByUserIdOrderByBaseYearMonthDesc(USER_ID))
+        .willReturn(List.of(snapshotWithFailedCoverage()));
+
+    DashboardSummaryResponse.SummaryMetadata metadata =
+        summaryService.resolve(USER_ID, "202607").metadata();
+
     assertThat(metadata.sampleSize()).isNull();
     assertThat(metadata.salaryMissingRate()).isNull();
     assertThat(metadata.peerGroup()).isNull();
     assertThat(metadata.sources()).isEmpty();
+  }
+
+  @Test
+  @DisplayName("summary - 근거 문장은 격차 구간 문구다 — 비율을 되살리지 않는다 (§5-L)")
+  void summary_격차_구간문구() {
+    given(repository.findByUserIdOrderByBaseYearMonthDesc(USER_ID))
+        .willReturn(List.of(snapshot("202607", "94.20", "117.50", DecisionSignalCode.SEEK_JOB)));
+
+    String rationale = summaryService.resolve(USER_ID, "202607").decisionSignal().rationale();
+
+    assertThat(rationale).isEqualTo("공식 임금통계 중앙값보다 15% 이상 낮습니다.");
+    assertThat(rationale).doesNotContain("%%");
   }
 
   // --- /dashboard/history ---
@@ -240,10 +288,70 @@ class SnapshotReadServiceTest {
         .build();
   }
 
+  private IndexSnapshot snapshotWithFailedCoverage() {
+    return IndexSnapshot.builder()
+        .userId(USER_ID)
+        .baseYearMonth("202607")
+        .dataVersion("20260701093000-000")
+        .ruleVersion("1.2.0")
+        .purchasingPowerIndex(new BigDecimal("94.20"))
+        .marketValueIndex(new BigDecimal("117.50"))
+        .decisionSignal(DecisionSignalCode.SEEK_JOB)
+        .rationale(
+            new SnapshotRationale(
+                List.of(),
+                null,
+                List.of(
+                    new SourceCoverage("SARAMIN", 5, 4, false, "서울 전체", new BigDecimal("80.00"))),
+                List.of(),
+                List.of(),
+                LocalDate.of(2026, 7, 1),
+                LocalDate.of(2026, 7, 1),
+                "202606",
+                "20260701093000-000"))
+        .build();
+  }
+
+  private IndexSnapshot snapshotWithUnmeasuredMissingRate() {
+    return IndexSnapshot.builder()
+        .userId(USER_ID)
+        .baseYearMonth("202607")
+        .dataVersion("20260701093000-000")
+        .ruleVersion("1.2.0")
+        .purchasingPowerIndex(new BigDecimal("94.20"))
+        .marketValueIndex(new BigDecimal("117.50"))
+        .decisionSignal(DecisionSignalCode.SEEK_JOB)
+        .rationale(
+            new SnapshotRationale(
+                List.of(),
+                "BELOW_MARKET_15_PLUS",
+                List.of(
+                    new SourceCoverage("SARAMIN", 4, 40, true, "서울 / 경력 MID±1", null),
+                    new SourceCoverage("JOBKOREA", 3, 60, true, "서울 전체", new BigDecimal("20.00"))),
+                List.of(),
+                List.of(),
+                LocalDate.of(2026, 7, 1),
+                LocalDate.of(2026, 7, 1),
+                "202606",
+                "20260701093000-000"))
+        .build();
+  }
+
   private SnapshotRationale rationale() {
     return new SnapshotRationale(
         List.of("연봉 격차 15% 이상"),
-        new BigDecimal("0.200000"),
+        "BELOW_MARKET_15_PLUS",
+        List.of(
+            new SourceCoverage(
+                "SARAMIN", 4, 40, true, "서울 / 경력 MID±1 / 회사규모 무관", new BigDecimal("42.50")),
+            new SourceCoverage(
+                "JOBKOREA", 3, 60, true, "서울 전체 / 경력 MID / 회사규모 무관", new BigDecimal("20.00"))),
+        List.of(
+            new SkillContribution(
+                "Spring Boot",
+                new BigDecimal("0.70"),
+                new BigDecimal("120.0"),
+                new BigDecimal("84.00"))),
         List.of("CustomSkillX"),
         LocalDate.of(2026, 7, 1),
         LocalDate.of(2026, 7, 1),

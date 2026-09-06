@@ -1,16 +1,22 @@
 package com.carix.dashboard.service;
 
 import com.carix.dashboard.dto.DashboardSummaryResponse;
+import com.carix.dashboard.dto.DashboardSummaryResponse.DataLimitSource;
 import com.carix.dashboard.dto.DashboardSummaryResponse.DecisionSignal;
+import com.carix.dashboard.dto.DashboardSummaryResponse.ExcludedSkill;
 import com.carix.dashboard.dto.DashboardSummaryResponse.IndexDetail;
+import com.carix.dashboard.dto.DashboardSummaryResponse.PeerGroup;
 import com.carix.dashboard.dto.DashboardSummaryResponse.SummaryMetadata;
 import com.carix.dashboard.dto.DashboardSummaryResponse.WageStatInfo;
+import com.carix.index.dto.SourceCoverage;
 import com.carix.index.enums.IndexStatus;
 import com.carix.snapshot.DecisionSignalCode;
+import com.carix.snapshot.SalaryGapBucket;
 import com.carix.snapshot.domain.IndexSnapshot;
 import com.carix.snapshot.domain.SnapshotRationale;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -107,37 +113,103 @@ public class DashboardSummaryService {
     };
   }
 
-  /** 근거 문장. 격차 비율은 본인 데이터라 본인에게는 보여준다 — 다만 임금통계 중앙값과 함께 싣지 않는다 (기술 명세 §1.3: 둘이 함께 있으면 연봉이 복원된다). */
+  /** 근거 문장. 격차는 구간으로만 저장되므로 문구도 구간이다 (개발 계획 §5-L). */
   private String gapSentence(SnapshotRationale rationale) {
-    if (rationale == null || rationale.salaryGapRatio() == null) {
+    if (rationale == null || rationale.salaryGapBucket() == null) {
       return null;
     }
-    BigDecimal percent =
-        rationale
-            .salaryGapRatio()
-            .multiply(BigDecimal.valueOf(100))
-            .setScale(1, RoundingMode.HALF_UP);
-    return "공식 임금통계 중앙값 대비 연봉 격차가 %s%% 입니다."
-        .formatted(percent.stripTrailingZeros().toPlainString());
+    try {
+      return SalaryGapBucket.valueOf(rationale.salaryGapBucket()).label() + ".";
+    } catch (IllegalArgumentException e) {
+      // NOTE: (cjkang) 지금 읽히지 않는 가지다 — rationale 은 jsonb 라 운영 행이 없는 현재는
+      // 저장된 값이 곧 현재 enum 이다. 남겨 두는 이유는 나중이다. jsonb 에는 enum 제약이 없어
+      // 구간을 이름만 바꿔도 옛 행의 문자열이 매핑을 잃는다. 그때 문구를 지어내는 대신 비운다.
+      return null;
+    }
   }
 
   // --- 메타데이터 ---
 
+  /**
+   * 근거·기준일 묶음. 원천별 커버리지는 {@code rationale.sourceCoverages} 에서 온다 (개발 계획 §5-M 결정분) — 그 달의 완화 결과는 당시
+   * 프로필에 의존해 나중에 재계산하면 같은 값이 안 나오므로 저장분을 그대로 읽는다.
+   */
   private SummaryMetadata metadata(IndexSnapshot snapshot) {
     SnapshotRationale rationale = snapshot.getRationale();
+    if (rationale == null) {
+      return new SummaryMetadata(
+          null,
+          snapshot.getDataVersion(),
+          snapshot.getRuleVersion(),
+          false,
+          List.of(),
+          null,
+          null,
+          null,
+          null,
+          null);
+    }
+
+    List<SourceCoverage> successful =
+        rationale.sourceCoverages().stream().filter(SourceCoverage::successful).toList();
+    List<DataLimitSource> sources =
+        successful.stream()
+            .map(coverage -> new DataLimitSource(coverage.source(), coverage.sampleCount()))
+            .toList();
+    Integer sampleSize =
+        successful.isEmpty()
+            ? null
+            : successful.stream().mapToInt(SourceCoverage::sampleCount).sum();
 
     return new SummaryMetadata(
-        rationale == null ? null : rationale.aggregateAsOf(),
+        rationale.aggregateAsOf(),
         snapshot.getDataVersion(),
         snapshot.getRuleVersion(),
         false,
-        // 아래 넷은 원천별 커버리지라 rationale 에 저장되지 않는다 (§5-M). 저장이 결정되기 전까지 비운다.
-        List.of(),
-        null,
-        null,
-        null,
-        rationale == null ? null : new WageStatInfo(null, rationale.wageStatVintage()),
+        sources,
+        sampleSize,
+        weightedMissingRate(successful),
+        peerGroup(successful, rationale),
+        new WageStatInfo(null, rationale.wageStatVintage()),
         null);
+  }
+
+  /**
+   * 원천마다 결측률이 다르므로 표본 수로 가중 평균한다. 단순 평균은 표본이 적은 원천을 과대 반영한다.
+   *
+   * <p>결측률을 남기지 않은 원천은 분자와 분모 <b>양쪽</b>에서 뺀다. 분모에만 남기면 그 원천을 결측률 0% 로 계산한 것과 같아져, 모르는 값이 전체 결측률을
+   * 실제보다 낮게 보이게 만든다.
+   */
+  private Double weightedMissingRate(List<SourceCoverage> successful) {
+    List<SourceCoverage> measured =
+        successful.stream().filter(c -> c.salaryMissingRatePercent() != null).toList();
+    int totalSamples = measured.stream().mapToInt(SourceCoverage::sampleCount).sum();
+    if (totalSamples == 0) {
+      return null;
+    }
+    BigDecimal weighted = BigDecimal.ZERO;
+    for (SourceCoverage coverage : measured) {
+      weighted =
+          weighted.add(
+              coverage
+                  .salaryMissingRatePercent()
+                  .multiply(BigDecimal.valueOf(coverage.sampleCount())));
+    }
+    return weighted.divide(BigDecimal.valueOf(totalSamples), 2, RoundingMode.HALF_UP).doubleValue();
+  }
+
+  /** 화면은 조건 문구를 하나만 보여준다. 표본이 가장 큰 원천의 안착 조건을 대표로 쓴다. */
+  private PeerGroup peerGroup(List<SourceCoverage> successful, SnapshotRationale rationale) {
+    Optional<SourceCoverage> representative =
+        successful.stream().max(Comparator.comparingInt(SourceCoverage::sampleCount));
+    if (representative.isEmpty()) {
+      return null;
+    }
+    List<ExcludedSkill> excluded =
+        rationale.excludedSkills().stream().map(name -> new ExcludedSkill(name, null)).toList();
+
+    return new PeerGroup(
+        representative.get().fallbackLevel(), representative.get().appliedConditions(), excluded);
   }
 
   private DashboardSummaryResponse empty() {

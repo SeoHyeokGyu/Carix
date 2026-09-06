@@ -27,7 +27,9 @@ class IndexSnapshotRepositoryTest {
   private static SnapshotRationale rationale() {
     return new SnapshotRationale(
         List.of("연봉 격차 15% 이상", "보유 스킬 시장수요 상승세"),
-        new BigDecimal("0.200000"),
+        "BELOW_MARKET_15_PLUS",
+        List.of(),
+        List.of(),
         List.of("CustomSkillX"),
         LocalDate.of(2026, 7, 1),
         LocalDate.of(2026, 7, 1),
@@ -63,13 +65,13 @@ class IndexSnapshotRepositoryTest {
 
     SnapshotRationale reread = found.getRationale();
     assertThat(reread.rulesApplied()).containsExactly("연봉 격차 15% 이상", "보유 스킬 시장수요 상승세");
-    assertThat(reread.salaryGapRatio()).isEqualByComparingTo("0.2");
+    assertThat(reread.salaryGapBucket()).isEqualTo("BELOW_MARKET_15_PLUS");
     assertThat(reread.runId()).isEqualTo("20260701093000-000");
 
     // 되읽은 rationale 이 원본과 값으로 동일한지 필드별로 확인한다. BigDecimal 은 JSON 왕복에서 scale 이
     // 바뀔 수 있어(레코드의 기본 equals 는 scale 까지 비교) isEqualByComparingTo 로 따로 비교한다.
     assertThat(reread.rulesApplied()).isEqualTo(original.rulesApplied());
-    assertThat(reread.salaryGapRatio()).isEqualByComparingTo(original.salaryGapRatio());
+    assertThat(reread.salaryGapBucket()).isEqualTo(original.salaryGapBucket());
     assertThat(reread.excludedSkills()).isEqualTo(original.excludedSkills());
     assertThat(reread.cpiAsOf()).isEqualTo(original.cpiAsOf());
     assertThat(reread.aggregateAsOf()).isEqualTo(original.aggregateAsOf());
@@ -91,7 +93,15 @@ class IndexSnapshotRepositoryTest {
             null,
             DecisionSignalCode.INSUFFICIENT_DATA,
             new SnapshotRationale(
-                List.of("현재 연봉 미확보"), null, List.of(), null, null, null, "20260701093000-000")));
+                List.of("현재 연봉 미확보"),
+                null,
+                List.of(),
+                List.of(),
+                List.of(),
+                null,
+                null,
+                null,
+                "20260701093000-000")));
 
     IndexSnapshot found =
         indexSnapshotRepository

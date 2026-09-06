@@ -40,6 +40,7 @@ class IndexResultTest {
                 new SourceCoverage("SARAMIN", 5, 117, true, "서울 전체 / MID / 회사규모 무관", null)),
             List.of(),
             List.of(),
+            List.of(),
             null,
             null);
 
@@ -49,7 +50,8 @@ class IndexResultTest {
   @Test
   void 목록은_null_을_받아도_빈_목록이_된다() {
     MviResult result =
-        new MviResult("202608", null, IndexStatus.NOT_AVAILABLE, null, null, null, null, null);
+        new MviResult(
+            "202608", null, IndexStatus.NOT_AVAILABLE, null, null, null, null, null, null);
 
     assertThat(result.sources()).isEmpty();
     assertThat(result.excludedSkills()).isEmpty();
@@ -64,7 +66,15 @@ class IndexResultTest {
 
     MviResult result =
         new MviResult(
-            "202608", null, IndexStatus.NOT_AVAILABLE, List.of(), mutable, List.of(), null, null);
+            "202608",
+            null,
+            IndexStatus.NOT_AVAILABLE,
+            List.of(),
+            mutable,
+            List.of(),
+            List.of(),
+            null,
+            null);
     mutable.clear();
 
     assertThat(result.excludedSkills()).hasSize(1);

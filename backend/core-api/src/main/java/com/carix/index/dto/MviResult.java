@@ -26,6 +26,7 @@ public record MviResult(
     List<SourceCoverage> sources,
     List<ExcludedSkill> excludedSkills,
     List<ExcludedSkill> zeroDemandSkills,
+    List<SkillContribution> skillContributions,
     WageBaseline wageBaseline,
     LocalDate aggregateAsOf) {
 
@@ -33,6 +34,7 @@ public record MviResult(
     sources = sources == null ? List.of() : List.copyOf(sources);
     excludedSkills = excludedSkills == null ? List.of() : List.copyOf(excludedSkills);
     zeroDemandSkills = zeroDemandSkills == null ? List.of() : List.copyOf(zeroDemandSkills);
+    skillContributions = skillContributions == null ? List.of() : List.copyOf(skillContributions);
   }
 
   /** 입력이 없거나 산출기가 준비되지 않은 상태. */
@@ -41,6 +43,7 @@ public record MviResult(
         baseYearMonth,
         null,
         IndexStatus.NOT_AVAILABLE,
+        List.of(),
         List.of(),
         List.of(),
         List.of(),
