@@ -6,6 +6,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.carix.index.enums.SkillDemandStatus;
 import com.carix.market.MarketAggregate;
 import com.carix.market.MarketAggregateRepository;
 import java.util.List;
@@ -72,7 +73,7 @@ class SkillDemandCalculatorTest {
 
     // Then
     // 최근 10/100 = 0.10, 이전 10/100 = 0.10 (동일 mock 반환 시 100.0)
-    assertThat(result.getStatus()).isEqualTo("OK");
+    assertThat(result.getStatus()).isEqualTo(SkillDemandStatus.OK);
     assertThat(result.getDemandIndex()).isEqualTo(100.0);
     assertThat(result.isClamped()).isFalse();
   }
@@ -146,7 +147,7 @@ class SkillDemandCalculatorTest {
     SkillDemandCalculator.SkillDemandResult result =
         calculateWith(/* recentSkillPostings= */ 40, /* baselineSkillPostings= */ 5);
 
-    assertThat(result.getStatus()).isEqualTo("INSUFFICIENT_SAMPLE");
+    assertThat(result.getStatus()).isEqualTo(SkillDemandStatus.INSUFFICIENT_SAMPLE);
   }
 
   @Test
@@ -155,7 +156,7 @@ class SkillDemandCalculatorTest {
     SkillDemandCalculator.SkillDemandResult result =
         calculateWith(/* recentSkillPostings= */ 4, /* baselineSkillPostings= */ 40);
 
-    assertThat(result.getStatus()).isEqualTo("INSUFFICIENT_SAMPLE");
+    assertThat(result.getStatus()).isEqualTo(SkillDemandStatus.INSUFFICIENT_SAMPLE);
   }
 
   @Test
@@ -164,7 +165,7 @@ class SkillDemandCalculatorTest {
     SkillDemandCalculator.SkillDemandResult result =
         calculateWith(/* recentSkillPostings= */ 0, /* baselineSkillPostings= */ 40);
 
-    assertThat(result.getStatus()).isEqualTo("NO_RECENT_DEMAND");
+    assertThat(result.getStatus()).isEqualTo(SkillDemandStatus.NO_RECENT_DEMAND);
     assertThat(result.getDemandIndex()).isZero();
   }
 
@@ -176,7 +177,7 @@ class SkillDemandCalculatorTest {
             /* recentSkillPostings= */ SkillDemandCalculator.MIN_SKILL_SAMPLE_SIZE,
             /* baselineSkillPostings= */ SkillDemandCalculator.MIN_SKILL_SAMPLE_SIZE);
 
-    assertThat(result.getStatus()).isEqualTo("OK");
+    assertThat(result.getStatus()).isEqualTo(SkillDemandStatus.OK);
   }
 
   /** 최근 창과 기준선 창의 스킬 공고 수만 달리해 계산한다. 전체 공고 수는 두 창 모두 1000 으로 고정한다. */
@@ -236,7 +237,7 @@ class SkillDemandCalculatorTest {
         calculator.calculateDemandIndex(source, skillId, peerGroup, baseYearMonth);
 
     // Then
-    assertThat(result.getStatus()).isEqualTo("NEW_OBSERVATION");
+    assertThat(result.getStatus()).isEqualTo(SkillDemandStatus.NEW_OBSERVATION);
     assertThat(result.getDemandIndex()).isEqualTo(0.0);
   }
 
@@ -271,7 +272,7 @@ class SkillDemandCalculatorTest {
         calculator.calculateDemandIndex(source, skillId, peerGroup, baseYearMonth);
 
     // Then
-    assertThat(result.getStatus()).isEqualTo("NO_RECENT_DEMAND");
+    assertThat(result.getStatus()).isEqualTo(SkillDemandStatus.NO_RECENT_DEMAND);
     assertThat(result.getDemandIndex()).isEqualTo(0.0);
   }
 
@@ -305,7 +306,7 @@ class SkillDemandCalculatorTest {
     SkillDemandCalculator.SkillDemandResult result =
         calculator.calculateDemandIndex(source, skillId, peerGroup, "202607");
 
-    assertThat(result.getStatus()).isEqualTo("OK");
+    assertThat(result.getStatus()).isEqualTo(SkillDemandStatus.OK);
     assertThat(result.getDemandIndex()).isEqualTo(25.0);
     assertThat(result.isClamped()).isTrue();
   }
@@ -340,7 +341,7 @@ class SkillDemandCalculatorTest {
     SkillDemandCalculator.SkillDemandResult result =
         calculator.calculateDemandIndex(source, skillId, peerGroup, "202607");
 
-    assertThat(result.getStatus()).isEqualTo("OK");
+    assertThat(result.getStatus()).isEqualTo(SkillDemandStatus.OK);
     assertThat(result.getDemandIndex()).isEqualTo(400.0);
     assertThat(result.isClamped()).isTrue();
   }
@@ -369,19 +370,19 @@ class SkillDemandCalculatorTest {
     // null, 비정상 문자열 테스트
     SkillDemandCalculator.SkillDemandResult res1 =
         calculator.calculateDemandIndex(source, skillId, peerGroup, null);
-    assertThat(res1.getStatus()).isEqualTo("NEW_OBSERVATION");
+    assertThat(res1.getStatus()).isEqualTo(SkillDemandStatus.NEW_OBSERVATION);
 
     SkillDemandCalculator.SkillDemandResult res2 =
         calculator.calculateDemandIndex(source, skillId, peerGroup, "2026");
-    assertThat(res2.getStatus()).isEqualTo("NEW_OBSERVATION");
+    assertThat(res2.getStatus()).isEqualTo(SkillDemandStatus.NEW_OBSERVATION);
 
     SkillDemandCalculator.SkillDemandResult res3 =
         calculator.calculateDemandIndex(source, skillId, peerGroup, "202613");
-    assertThat(res3.getStatus()).isEqualTo("NEW_OBSERVATION");
+    assertThat(res3.getStatus()).isEqualTo(SkillDemandStatus.NEW_OBSERVATION);
 
     SkillDemandCalculator.SkillDemandResult res4 =
         calculator.calculateDemandIndex(source, skillId, peerGroup, "ABCDEF");
-    assertThat(res4.getStatus()).isEqualTo("NEW_OBSERVATION");
+    assertThat(res4.getStatus()).isEqualTo(SkillDemandStatus.NEW_OBSERVATION);
   }
 
   @Test
@@ -451,7 +452,7 @@ class SkillDemandCalculatorTest {
     SkillDemandCalculator.SkillDemandResult result =
         calculator.calculateDemandIndex(source, skillId, peerGroup, baseYearMonth, totals);
 
-    assertThat(result.getStatus()).isEqualTo("OK");
+    assertThat(result.getStatus()).isEqualTo(SkillDemandStatus.OK);
     // 최근 10/100 = 0.10, 이전 20/400 = 0.05 -> 지수 = 200.0
     assertThat(result.getDemandIndex()).isEqualTo(200.0);
   }
