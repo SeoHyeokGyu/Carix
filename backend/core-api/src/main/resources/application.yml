@@ -52,3 +52,14 @@ management:
     web:
       exposure:
         include: health,info,refresh
+
+carix:
+  scenario:
+    unemployment:
+      # 도메인 정의서 §4.1 의 가정치다. 법정 공시값이 아니므로 고용보험 공시 기준이 바뀌면
+      # 여기와 assumption-as-of 를 함께 갱신한다. 응답의 unemploymentBenefitNote 가
+      # 이 시점을 화면에 그대로 실어 `가정 기반 추정` 임을 알린다.
+      # Config Server 의 core-api.yml 이 덮어쓸 수 있다.
+      daily-upper-limit: 66000
+      daily-lower-limit: 60120
+      assumption-as-of: "2026-01"

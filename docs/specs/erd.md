@@ -191,15 +191,20 @@ erDiagram
     career_scenario {
         uuid id PK
         uuid user_id FK
+        varchar scenario_name
+        varchar current_gross_salary_encrypted
         decimal stay_expected_raise_rate
-        bigint move_target_gross_salary
+        varchar move_target_gross_salary_encrypted
         bigint move_one_time_cost
         int expected_unemployment_months
         boolean is_eligible_for_unemployment_benefit
-        bigint stay_compensation_12m
-        bigint move_compensation_12m
-        bigint estimated_unemployment_benefit
-        bigint difference
+        varchar stay_compensation_12m_encrypted
+        varchar move_compensation_12m_encrypted
+        varchar estimated_unemployment_benefit_encrypted
+        varchar difference_encrypted
+        varchar feasibility_status
+        int feasibility_percentile "표본 부족이면 NULL"
+        int feasibility_sample_size
         timestamp calculated_at
     }
 ```

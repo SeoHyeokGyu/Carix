@@ -51,7 +51,14 @@ Carix는 연봉·실수령액·소비 금액 등 민감한 개인 재무 정보�
 ### 3.1 컬럼 레벨 암호화
 
 - 대상: `income_history.gross_salary_encrypted`, `income_history.net_salary_encrypted`,
-  `expense_item.amount_encrypted`.
+  `expense_item.amount_encrypted`, 그리고 `career_scenario` 의 금액 컬럼 여섯
+  (`current_gross_salary_encrypted`, `move_target_gross_salary_encrypted`,
+  `stay_compensation_12m_encrypted`, `move_compensation_12m_encrypted`,
+  `estimated_unemployment_benefit_encrypted`, `difference_encrypted`).
+- `career_scenario` 를 포함하는 이유는 파생값도 원본을 되돌리기 때문이다.
+  `stay_compensation_12m = 현재연봉 × (1 + stay_expected_raise_rate/100)` 이므로 두 값이
+  평문이면 나눗셈 한 번으로 연봉이 원 단위까지 복원된다. 금액이 아닌 컬럼
+  (`move_one_time_cost`, `stay_expected_raise_rate`)은 평문으로 둔다.
 - 알고리즘: AES-256-GCM (또는 검증된 AES-256-CBC).
 - 애플리케이션 레이어(Spring Data JPA `AttributeConverter`)에서 적재 시 암호화,
   조회 시 복호화한다. 평문은 DB 버퍼·파일시스템에 그대로 남기지 않는다.

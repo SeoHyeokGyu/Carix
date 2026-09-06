@@ -38,7 +38,6 @@ Security는 다음 단계다. `collector`는 채용공고 도메인의 JPA와 `c
 | 경로 | 용도 |
 | --- | --- |
 | `GET /api/health` | 배포 워크플로 헬스체크 대상 |
-| `POST /api/v1/demo/echo` | **데모/검증용.** Swagger UI에서 요청 스키마·검증·에러 포맷을 확인하는 엔드포인트 |
 | `GET /api/v1/demo/thresholds` | **데모/검증용.** Config Server 연동 확인용. 값은 [`../config/spring/core-api.yml`](../config/spring/core-api.yml)에서 오며 `/actuator/refresh` 로 재배포 없이 동적 갱신 확인 |
 
 ### auth-service

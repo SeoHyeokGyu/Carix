@@ -166,7 +166,8 @@
 ### 5.1 대시보드 지표 요약 (Summary)
 *   **Endpoint:** `GET /api/v1/dashboard/summary`
 *   구현: `com.carix.dashboard.service.DashboardSummaryService`. `index_snapshot` 의 그 달 유효 행을 읽는다.
-*   **`metadata` 의 `sources`·`sampleSize`·`salaryMissingRate`·`peerGroup` 은 비어 있다.** 원천별 커버리지는 `MviResult` 에만 있고 `rationale` 에 저장되지 않는다 ([개발 계획 §5-M](../plans/carix-dev-plan.md) 미결). 저장이 결정될 때까지 임의 값으로 채우지 않는다.
+*   `metadata` 의 원천별 커버리지는 `index_snapshot.rationale.sourceCoverages` 에서 온다 ([개발 계획 §5-M](../plans/carix-dev-plan.md) 결정분). 완화 결과는 당시 프로필에 의존해 나중에 재계산하면 같은 값이 안 나오므로 저장분을 그대로 읽는다. `salaryMissingRate` 는 원천별 결측률을 **표본 수로 가중 평균**한 값이고, `peerGroup` 은 표본이 가장 큰 원천의 안착 조건이다. 완화에 성공한 원천이 없으면 네 필드 모두 `null`·빈 배열이다.
+*   `decisionSignal.rationale` 은 격차 **구간** 문구다 — 비율을 그대로 실으면 임금통계 중앙값과 조인해 연봉이 원 단위로 복원된다 ([§5-L](../plans/carix-dev-plan.md)).
 *   **Query Parameters (모두 선택, 가상 프로필 탐색용) — `MVP 범위 밖`:** 대응 스토리·화면이 없어 파라미터만 MVP 에서 제외한다 ([개발 계획 §5-G](../plans/carix-dev-plan.md)). 엔드포인트 자체는 MVP 포함이다.
     *   `jobFamily` (String, optional): 가상 탐색용 주 직무
     *   `yearsOfExperience` (Integer, optional): 가상 탐색용 경력 년수
@@ -196,7 +197,7 @@
           "연봉 격차 15% 이상",
           "보유 스킬 시장수요 상승세"
         ],
-        "rationale": "보유 중인 스킬의 가치는 상승 추세이며, 공식 임금통계 중앙값 대비 연봉 격차가 20%입니다."
+        "rationale": "공식 임금통계 중앙값보다 15% 이상 낮습니다."
       },
       "metadata": {
         "baseDate": "2026-07-01",
@@ -429,7 +430,9 @@
     }
     ```
     *(`scenarioName`: 선택 입력. 저장할 가상 시나리오의 별칭. 생략 시 기본명 부여됨)*
-    *(`currentGrossSalary`: 선택 입력. 생략 시 사용자의 최신 소득 이력 값을 사용하며, 가상 시뮬레이션을 위해 임의의 세전 연봉을 지정하여 테스트할 수 있습니다)*
+    *(`currentGrossSalary`: 선택 입력. 생략 시 사용자의 최신 소득 이력 값을 사용하며, 가상 시뮬레이션을 위해 임의의 세전 연봉을 지정하여 테스트할 수 있습니다. 생략했는데 소득 이력도 없으면 `400 INVALID_INPUT` 입니다 — 호출자가 이 필드를 채우면 바로 해소되는 입력 문제라 상태값으로 표현하지 않습니다)*
+    *(실업급여의 평균임금은 이 시뮬레이션에 실제 사용한 연봉을 따릅니다. 가상 연봉을 넣으면 실업급여도 그 값을 기준으로 계산됩니다 — 한 응답 안에서 잔류 보상과 실업급여가 서로 다른 연봉을 기준으로 나오지 않도록 합니다)*
+    *(`stayExpectedRaiseRate`: -100.0 ~ 100.0. 범위를 벗어나면 `400` 입니다. 저장 정밀도는 소수점 두 자리라 그 아래는 반올림됩니다)*
     *(`expectedUnemploymentMonths`: 0~6. `isEligibleForUnemploymentBenefit` 기본값 true, false면 실업급여 0으로 계산하고 `실업급여 미반영` 안내 표시. 공식은 [도메인 정의서 §4](domain-logic.md)를 따릅니다)*
 *   **Response (200 OK):**
     ```json
@@ -439,11 +442,15 @@
       "stayCompensation12m": 62100000,
       "moveCompensation12m": 60960000,
       "estimatedUnemploymentBenefit": 3960000,
+      "unemploymentBenefitNote": "가정 기반 추정 (기준 시점: 2026-01)",
       "difference": -1140000,
       "type": "ESTIMATED_OPPORTUNITY_COST",
       "typeLabel": "추정 기회비용",
       "warningNote": "이 계산에는 세금, 성과급, 퇴직금 등이 포함되지 않은 단순 세전 기준 시뮬레이션입니다.",
       "feasibility": {
+        "status": "OK",
+        "sampleSize": 42,
+        "minRequired": null,
         "feasibilityScore": 31,
         "targetPercentile": 69,
         "difficultyGrade": "CHALLENGING",
@@ -452,7 +459,10 @@
     }
     ```
     *(예시 산출: 잔류 = 60,000,000 × 1.035 = 62,100,000. 이직 = 72,000,000 × 10/12 + 실업급여 3,960,000 − 3,000,000 = 60,960,000. 차이 = −1,140,000)*
+    *(`unemploymentBenefitNote`: 실업급여 상·하한이 법정 공시값이 아닌 가정치이므로 기준 시점과 함께 알린다([도메인 정의서 §4.1](domain-logic.md)). 수급 자격이 없으면 `실업급여 미반영`)*
     *(`feasibility`: 이직 목표 연봉이 §5.2 동료집단 공고 분포에서 몇 번째 백분위(`targetPercentile`)에 해당하는지로 실현 난이도를 계산해 함께 반환한다. `difficultyGrade`는 `EASY`/`REALISTIC`/`CHALLENGING`/`VERY_HIGH_CHALLENGE` 중 하나)*
+    *(`feasibility.status`: 표본이 모자라면 `INSUFFICIENT_SAMPLE` 이고 `feasibilityScore`·`targetPercentile`·`difficultyGrade`·`feedbackMessage` 가 전부 `null` 이다. 백분위를 임의 분포로 지어내지 않는다. `sampleSize` 는 백분위를 매긴 **공개연봉** 표본 수이고, `minRequired` 는 표본 부족일 때만 채운다)*
+    *(산출 조건: 동료집단 공고 수와 그중 공개연봉 건수가 **둘 다** `minRequired` 이상이어야 한다. §5.2 의 최소 표본은 동료집단에만 걸리지만, 그쪽 5수치는 참고 표시 전용인 반면 백분위는 분포 모양에 대한 주장이라 공개연봉 표본에도 같은 기준을 건다)*
 *   **결과 타입 매핑 (고정):**
 
 | 조건 | `type` | `typeLabel` |
@@ -464,8 +474,6 @@
 
 ### 6.2 최근 시나리오 조회
 *   **Endpoint:** `GET /api/v1/scenarios/latest`
-*   **`스텁`** — `ScenarioController.java:86` 이 고정값을 돌려준다. 실데이터 전환 담당·시점은 [개발 계획 §5-O](../plans/carix-dev-plan.md)에 있다. 프런트엔드는 이 응답을 실데이터로 취급하지 않는다.
-*   `core.career_scenario` 에 쓰는 코드가 아직 없어 저장 배선이 선행 조건이다 ([개발 계획 §5-O](../plans/carix-dev-plan.md)).
 *   **Response (200 OK):** 6.1의 요청 필드와 응답 필드를 합친 단건. 저장된 시나리오가 없으면 `204 No Content`. `calculated_at DESC, id DESC` 순 첫 행 반환.
     ```json
     {
@@ -486,11 +494,15 @@
         "stayCompensation12m": 62100000,
         "moveCompensation12m": 60960000,
         "estimatedUnemploymentBenefit": 3960000,
+        "unemploymentBenefitNote": "가정 기반 추정 (기준 시점: 2026-01)",
         "difference": -1140000,
         "type": "ESTIMATED_OPPORTUNITY_COST",
         "typeLabel": "추정 기회비용",
         "warningNote": "이 계산에는 세금, 성과급, 퇴직금 등이 포함되지 않은 단순 세전 기준 시뮬레이션입니다.",
         "feasibility": {
+          "status": "OK",
+          "sampleSize": 42,
+          "minRequired": null,
           "feasibilityScore": 31,
           "targetPercentile": 69,
           "difficultyGrade": "CHALLENGING",
@@ -501,6 +513,8 @@
     }
     ```
     *(`inputs`·`result`가 각각 §6.1 요청·응답 레코드 전체를 그대로 담으므로 `scenarioName`은 최상위·`inputs` 양쪽에, `id`·`scenarioName`은 최상위·`result` 양쪽에 중복 노출된다)*
+    *(`result.feasibility` 는 저장한 백분위에서 등급·점수·문구를 다시 만든 값이다. 백분위 자체를 재계산하지 않는 이유는 동료집단 분포가 그 시점의 공고에 의존해, 나중에 다시 구하면 사용자가 실제로 본 판단이 나오지 않기 때문이다)*
+    *(`result.unemploymentBenefitNote` 의 기준 시점은 **현재** 가정치를 가리킨다. 금액은 저장분 그대로이므로 숫자는 바뀌지 않는다)*
 
 ### 6.3 가상 시나리오 전체 목록 조회 (비교용)
 *   **`MVP 범위 밖`** — `US-S1` 은 마지막 시나리오 복원만 요구하고 §6.2 로 충족된다. 목록 비교 화면이 없다 ([개발 계획 §5-G](../plans/carix-dev-plan.md)). `core-api` 에 구현이 없다 — 고정값을 돌려주던 스텁은 철거했다. 아래 규격은 재도입 시의 계약으로만 남긴다.

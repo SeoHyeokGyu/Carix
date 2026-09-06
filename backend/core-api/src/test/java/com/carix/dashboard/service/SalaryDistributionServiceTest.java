@@ -16,6 +16,7 @@ import com.carix.index.mvi.WageBaselineResolver;
 import com.carix.jobposting.JobPosting;
 import com.carix.jobposting.JobPostingRepository;
 import com.carix.market.MarketAggregateRepository;
+import com.carix.peergroup.PeerSalaryDistributionResolver;
 import com.carix.profile.domain.CareerProfile;
 import com.carix.profile.repository.CareerProfileRepository;
 import java.util.ArrayList;
@@ -51,13 +52,16 @@ class SalaryDistributionServiceTest {
     wageBaselineResolver = mock(WageBaselineResolver.class);
     currentSalaryProvider = mock(CurrentSalaryProvider.class);
 
+    // 완화 사다리와 중복 제거는 PeerSalaryDistributionResolver 로 옮겼다. 시나리오 §6.1 도 같은 분포를
+    // 읽기 때문이다. 여기서는 진짜 구현을 끼워 이 테스트가 검증하던 경로를 그대로 태운다.
     service =
         new SalaryDistributionService(
             careerProfileRepository,
-            jobPostingRepository,
             wageBaselineResolver,
             currentSalaryProvider,
-            new PeerGroupFallbackResolver(mock(MarketAggregateRepository.class)));
+            new PeerSalaryDistributionResolver(
+                jobPostingRepository,
+                new PeerGroupFallbackResolver(mock(MarketAggregateRepository.class))));
 
     given(careerProfileRepository.findByUserId(USER_ID)).willReturn(Optional.of(profile()));
     given(wageBaselineResolver.resolveBaseline(any(CareerProfile.class)))

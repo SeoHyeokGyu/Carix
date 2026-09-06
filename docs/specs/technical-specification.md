@@ -253,18 +253,31 @@ CREATE TABLE index_snapshot (
 CREATE TABLE career_scenario (
     id UUID PRIMARY KEY,
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    scenario_name VARCHAR(100),
+    current_gross_salary_encrypted VARCHAR(512) NOT NULL, -- AES-256-GCM
     stay_expected_raise_rate DECIMAL(5,2) NOT NULL,
-    move_target_gross_salary BIGINT NOT NULL,
-    move_one_time_cost BIGINT NOT NULL,
+    move_target_gross_salary_encrypted VARCHAR(512) NOT NULL,
+    move_one_time_cost BIGINT NOT NULL, -- 사용자 입력 부대비용. 연봉 복원에 쓰이지 않아 평문
     expected_unemployment_months INT NOT NULL DEFAULT 0, -- 0~6
     is_eligible_for_unemployment_benefit BOOLEAN NOT NULL DEFAULT true, -- 실업급여 수급 요건 충족 가정 (false면 급여 0으로 계산)
-    stay_compensation_12m BIGINT NOT NULL,
-    move_compensation_12m BIGINT NOT NULL,
-    estimated_unemployment_benefit BIGINT NOT NULL DEFAULT 0,
-    difference BIGINT NOT NULL,
+    stay_compensation_12m_encrypted VARCHAR(512) NOT NULL,
+    move_compensation_12m_encrypted VARCHAR(512) NOT NULL,
+    estimated_unemployment_benefit_encrypted VARCHAR(512) NOT NULL,
+    difference_encrypted VARCHAR(512) NOT NULL,
+    feasibility_status VARCHAR(30) NOT NULL,
+    feasibility_percentile INT, -- 표본 부족이면 NULL
+    feasibility_sample_size INT,
     calculated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 ```
+
+금액 컬럼은 `income_history` 와 같은 AES-256-GCM 으로 저장한다. 평문이면
+`stay_compensation_12m` 을 `stay_expected_raise_rate` 로 나눠 현재 연봉이 원 단위까지
+복원되어, 연봉을 암호화한 이유가 이 테이블에서 사라진다. 금액으로 조회·정렬하는 인덱스가
+없어 질의 비용은 없다.
+
+실현 가능성은 재계산하지 않고 저장한다. 동료집단 분포는 그 시점의 공고에 의존해 나중에 다시
+구하면 사용자가 실제로 본 판단이 나오지 않는다.
 
 ### 1.3 스냅샷 갱신 의미론 (Snapshot Replacement Semantics)
 

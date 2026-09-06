@@ -3,6 +3,7 @@ package com.carix.index.mvi;
 import com.carix.index.MarketValueIndexProvider;
 import com.carix.index.dto.ExcludedSkill;
 import com.carix.index.dto.MviResult;
+import com.carix.index.dto.SkillContribution;
 import com.carix.index.dto.SourceCoverage;
 import com.carix.index.dto.WageBaseline;
 import com.carix.index.enums.IndexStatus;
@@ -215,11 +216,19 @@ public class MarketValueIndexServiceImpl implements MarketValueIndexProvider {
               peerGroupResolution.peerGroups(),
               classification.sourceSkillDemandIndices());
 
+      List<SkillContribution> skillContributions =
+          buildSkillContributions(
+              userData.skills(),
+              normalizedWeights,
+              classification.sourceSkillDemandIndices(),
+              peerGroupResolution.peerGroups());
+
       return buildFinalMviResult(
           baseYearMonth,
           finalMviValue,
           peerGroupResolution.coverages(),
           classification,
+          skillContributions,
           wageBaseline);
 
     } catch (InterruptedException e) {
@@ -657,6 +666,7 @@ public class MarketValueIndexServiceImpl implements MarketValueIndexProvider {
         List.of(),
         List.of(),
         List.of(),
+        List.of(),
         null,
         LocalDate.now());
   }
@@ -668,6 +678,7 @@ public class MarketValueIndexServiceImpl implements MarketValueIndexProvider {
         null,
         IndexStatus.INSUFFICIENT_SAMPLE,
         coverages,
+        List.of(),
         List.of(),
         List.of(),
         wageBaseline,
@@ -686,6 +697,7 @@ public class MarketValueIndexServiceImpl implements MarketValueIndexProvider {
         coverages,
         classification.excludedSkills(),
         classification.zeroDemandSkills(),
+        List.of(),
         wageBaseline,
         LocalDate.now());
   }
@@ -695,11 +707,11 @@ public class MarketValueIndexServiceImpl implements MarketValueIndexProvider {
       BigDecimal finalMviValue,
       List<SourceCoverage> coverages,
       SkillClassification classification,
+      List<SkillContribution> skillContributions,
       WageBaseline wageBaseline) {
     IndexStatus status = (finalMviValue != null) ? IndexStatus.OK : IndexStatus.INSUFFICIENT_SAMPLE;
 
     // TODO: [Member B/C] aggregateAsOf에 market_aggregate 최신 적재 일자 또는 배치 완료 시점 동적 매핑
-    // TODO: [Member B/C] 스냅샷 재계산(Job 4) 트리거 연동 시 recalculateSnapshot(userId, fromYm) 호출 배선
     return new MviResult(
         baseYearMonth,
         finalMviValue,
@@ -707,8 +719,57 @@ public class MarketValueIndexServiceImpl implements MarketValueIndexProvider {
         coverages,
         classification.excludedSkills(),
         classification.zeroDemandSkills(),
+        skillContributions,
         wageBaseline,
         LocalDate.now());
+  }
+
+  /**
+   * 스킬별 지수 기여도를 만든다 (개발 계획 §5-M).
+   *
+   * <p>수요 지수는 MVI 결합과 같은 방식으로 접는다 — 원천별 지수를 그 원천의 표본 수로 가중 평균한다. 두 경로가 다른 방식을 쓰면 기여도의 합이 지수와 어긋난다.
+   * 어느 원천에서도 지수를 내지 못한 스킬은 담지 않는다: 0 으로 채우면 기여가 없었다는 뜻이 되는데 실제로는 표본이 없었던 것이다.
+   */
+  private List<SkillContribution> buildSkillContributions(
+      List<UserSkill> userSkills,
+      Map<UUID, BigDecimal> normalizedWeights,
+      Map<String, Map<UUID, Double>> sourceSkillDemandIndices,
+      Map<String, PeerGroupFallbackResolver.ResolvedPeerGroup> resolvedPeerGroups) {
+
+    List<SkillContribution> contributions = new ArrayList<>();
+
+    for (UserSkill userSkill : userSkills) {
+      UUID skillId = userSkill.getSkill().getId();
+      BigDecimal weight = normalizedWeights.get(skillId);
+      if (weight == null) {
+        continue;
+      }
+
+      double weightedIndexSum = 0.0;
+      int sampleSum = 0;
+      for (String source : SUPPORTED_SOURCES) {
+        PeerGroupFallbackResolver.ResolvedPeerGroup peerGroup = resolvedPeerGroups.get(source);
+        Double demandIndex = sourceSkillDemandIndices.get(source).get(skillId);
+        if (demandIndex == null || peerGroup == null || !peerGroup.isSuccessful()) {
+          continue;
+        }
+        weightedIndexSum += demandIndex * peerGroup.getSampleCount();
+        sampleSum += peerGroup.getSampleCount();
+      }
+      if (sampleSum == 0) {
+        continue;
+      }
+
+      BigDecimal demandIndex =
+          BigDecimal.valueOf(weightedIndexSum / sampleSum).setScale(1, RoundingMode.HALF_UP);
+      contributions.add(
+          new SkillContribution(
+              userSkill.getSkill().getStandardName(),
+              weight,
+              demandIndex,
+              weight.multiply(demandIndex).setScale(2, RoundingMode.HALF_UP)));
+    }
+    return contributions;
   }
 
   private List<SkillDemandDetailData> buildSkillDemandDetails(

@@ -110,7 +110,9 @@ public class SnapshotRecalculationService {
       SnapshotRationale rationale =
           new SnapshotRationale(
               outcome.rulesApplied(),
-              outcome.salaryGapRatio(),
+              bucketName(outcome),
+              mvi.sources(),
+              mvi.skillContributions(),
               mvi.excludedSkills().stream().map(ExcludedSkill::standardName).toList(),
               ppi.cpiAsOf(),
               mvi.aggregateAsOf(),
@@ -121,6 +123,15 @@ public class SnapshotRecalculationService {
       written++;
     }
     return written;
+  }
+
+  /**
+   * 격차 비율을 구간 이름으로 접는다 (개발 계획 §5-L). 비율 자체는 {@link DecisionOutcome} 안에만 두고 저장하지 않는다 — 임금통계 중앙값과
+   * 조인하면 연봉이 원 단위로 복원되기 때문이다.
+   */
+  private static String bucketName(DecisionOutcome outcome) {
+    SalaryGapBucket bucket = SalaryGapBucket.of(outcome.salaryGapRatio());
+    return bucket == null ? null : bucket.name();
   }
 
   private void save(
