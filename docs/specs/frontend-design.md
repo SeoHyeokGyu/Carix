@@ -10,9 +10,9 @@ Carix의 프런트엔드를 Vite 기반 React 애플리케이션과 Node.js SSR 
 PostgreSQL, Collector 모듈과 관련된 기존 백엔드·데이터 설계는 유지한다.
 
 **Next.js App Router를 접은 이유:** 풀스택 프레임워크라 Node 계층이 API·데이터 접근으로
-번지기 쉽고, Spring Boot와의 역할 경계가 흐려진다. Node는 HTML SSR·SEO만 맡고 인증·도메인·
-API·데이터 접근은 전부 Spring Boot가 담당하는 경계를 유지하기 위해 Vite + Node SSR로
-바꿨다.
+번지기 쉽고, Spring Boot와의 역할 경계가 흐려진다. Node는 HTML 렌더링·SEO만 맡고 인증·도메인·
+API·데이터 접근은 전부 Spring Boot가 담당하는 경계를 유지하기 위해 Vite + React Router로
+바꿨다. MVP 는 그중 Node SSR 을 켜지 않은 구성이다 — 아래 §렌더링 전략 참조.
 
 ## 기술 구성
 
@@ -90,6 +90,17 @@ robots 정책과 필요한 구조화 데이터를 제공한다. 대시보드의 
 데이터는 hydration 이후 TanStack Query로 갱신한다.
 
 ## 데이터 흐름
+
+### MVP 현행
+
+1. 문서 요청은 라우터 Caddy와 `carix_caddy`를 거쳐 `frontend/server.js`(`node:http`
+   정적 서버)로 전달된다.
+2. 사전 렌더링된 `/` 는 그대로 주고, 나머지 경로는 SPA 셸(`__spa-fallback.html`)로 넘긴다.
+3. 라우팅과 데이터 로딩은 전부 브라우저에서 일어난다. API 요청은 동일 출처 `/api/*` 를 통해
+   Spring Boot로 전달된다.
+4. Spring Boot가 인증·검증·계산·데이터 접근을 수행하고 JSON으로 응답한다.
+
+### Node SSR 전환 시 (MVP 이후)
 
 1. 문서 요청은 라우터 Caddy와 `carix_caddy`를 거쳐 Node SSR 서버로 전달된다.
 2. 공개 동적 페이지의 route loader는 내부 네트워크에서 Spring Boot API를

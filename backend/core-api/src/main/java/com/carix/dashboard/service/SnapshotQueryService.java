@@ -30,7 +30,7 @@ public class SnapshotQueryService {
   /**
    * 사용자의 모든 월을 최신월부터 훑되 월마다 유효한 한 행만 남긴다.
    *
-   * <p>스냅샷이 하나도 없는 것은 오류가 아니다 — 재계산 트리거가 아직 배선되지 않았고(개발 계획 §5-N) 온보딩 직후에도 비어 있다.
+   * <p>스냅샷이 하나도 없는 것은 오류가 아니다 — 온보딩 직후이거나 재계산이 아직 한 번도 돌지 않은 사용자다. 트리거 배선 자체는 끝나 있다 (개발 계획 §4-2).
    */
   @Transactional(readOnly = true)
   public List<IndexSnapshot> latestPerMonthDesc(UUID userId) {

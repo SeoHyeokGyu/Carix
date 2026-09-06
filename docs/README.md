@@ -86,7 +86,7 @@
 | KOSIS 임금통계 기준선 데이터 | 수집 및 보간 완료 — 24계층 누적분포 보간으로 `core.wage_stat_observation`에 충분한 데이터 적재 완료 |
 | OCI 배포 환경 | 구성 완료 — 최소 스캐폴드 기준 빌드 → GHCR → SSH → 헬스체크 전 구간 검증 |
 | Spring Cloud 전환 | 계획 A(멀티모듈·Config Server·Eureka) 구현·운영 검증 완료, 계획 B(Gateway 도입, 요청경로 편입) 구현 완료, 계획 C(auth-service 배포 배선) 구현 완료 |
-| core-api | 스킬 도메인이 JPA로 `core` 스키마 사용. 나머지 도메인은 고정 응답 스텁, Security 없음. 지수 스냅샷 갱신(Job 4)은 core-api 가 전담 소유 |
+| core-api | 사용자 도메인(프로필·소득·소비·스킬)과 지수·스냅샷·시나리오가 JPA로 `core` 스키마 사용. 고정 응답 스텁은 전부 철거했다 ([개발 계획 §5-G](plans/carix-dev-plan.md)). 인증은 Spring Security 대신 게이트웨이가 주입한 `X-User-Id` 를 신뢰하고 헤더가 없으면 401 이다. 지수 스냅샷 갱신(Job 4)은 core-api 가 전담 소유 |
 | auth-service | 이메일·비밀번호 가입·로그인·세션 조회·로그아웃 구현 완료. 세션 토큰 해시 저장. 매직링크·초대·메일 코드와 설정 폐기 완료 |
 | collector | 모듈 추출 완료. 크롤러·중복제거·정규화·`market_aggregate` 집계·임금통계 수집과 파이프라인 내부 API(`/internal/pipeline/**`)까지 구현돼 있다 |
 | DB 스키마 소유권 | auth 스키마는 auth-service, core 스키마는 collector(채용공고 5개 테이블·market_aggregate)와 core-api(사용자 도메인 5개 테이블·지수/시나리오)가 공유 (DDL 직접 적용) |
@@ -96,10 +96,10 @@
 
 | 영역 | 남은 작업 |
 | --- | --- |
-| 애플리케이션 구현 | core-api 사용자 도메인 및 지수/시나리오 계산 로직 구현, 스냅샷 갱신 엔진(`recalculateSnapshot`), 온보딩·대시보드·마이페이지 화면 UI (라우트와 가드는 완료, 화면은 플레이스홀더) |
-| collector | 관리자 직접 구동(내부 파이프라인 API 연동) 및 Spring Scheduler(`@Scheduled`) 도입 고려에 따른 관리자 UI 연동. 배포 배선(`docker-compose.yml`·`deploy.yml`) 및 내부 API(`/internal/pipeline/**`)는 완료 |
+| 애플리케이션 구현 | 온보딩·대시보드·추이분석·시뮬레이터·마이페이지 화면 UI (라우트와 가드는 완료, 화면은 플레이스홀더). 구매력 지수(PPI) 계산 엔진. 사용자 도메인 CRUD·MVI·스냅샷 갱신 엔진(`recalculateSnapshot`)·시나리오 계산은 구현 완료 |
+| collector | 없음. 관리자 콘솔(`S-16`) UI 연동까지 완료했다. `@Scheduled` 정기 실행은 도입하지 않기로 확정했다 ([개발 계획 §5-C](plans/carix-dev-plan.md)) |
 | 프런트엔드 | 온보딩 5단계·대시보드·추이분석·시뮬레이터·마이페이지 화면 구현. 라우트·가드·세션 연결은 완료 |
-| Gateway 세션 검증 필터 | `carix.gateway.session-validation.enabled` 활성화 — 기본값 `false`. **그냥 켜면 안 된다.** core 라우트 술어에 `/api/health` 가 들어 있고 필터에 경로 예외가 없어, 켜는 순간 배포 워크플로의 헬스체크가 401 을 받고 자동 롤백이 돈다. 그 롤백은 `.env` 만 되돌리므로 플래그는 남고 다음 배포도 같은 자리에서 실패한다. 선행 조건과 롤백 절차는 [개발 계획 §5-B](plans/carix-dev-plan.md) |
+| Gateway 세션 검증 필터 | `carix.gateway.session-validation.enabled` 활성화 — 기본값 `false`. **`/api/health` 는 필터가 붙지 않는 `core-health` 라우트(`order: -15`)로 이미 분리돼 있어** 배포 헬스체크는 401 을 받지 않는다. 남은 주의점은 되돌릴 때다 — 플래그가 `config/spring/gateway.yml` 에 있어 `.env`(이미지 태그) 롤백으로는 안 꺼진다. 전환·롤백 절차는 [개발 계획 §5-B](plans/carix-dev-plan.md) |
 
 ---
 

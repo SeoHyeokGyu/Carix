@@ -42,9 +42,9 @@ public record DashboardSummaryResponse(
   /**
    * 지수 산출의 근거·기준일 묶음.
    *
-   * <p>{@code sources}·{@code sampleSize}·{@code salaryMissingRate}·{@code peerGroup} 은 원천별 커버리지라
-   * {@code MviResult} 에만 있고 {@code index_snapshot.rationale} 에 저장되지 않는다 (개발 계획 §5-M). 저장 여부가 결정되기
-   * 전까지는 비어 있고, <b>임의 값으로 채우지 않는다</b>.
+   * <p>{@code sources}·{@code sampleSize}·{@code salaryMissingRate}·{@code peerGroup} 은 원천별 커버리지이고
+   * {@code index_snapshot.rationale.sourceCoverages} 에서 온다 (개발 계획 §5-M — 둘 다 기록으로 결정됨). 그 달에 저장된
+   * 커버리지가 없으면 비어 있고, <b>임의 값으로 채우지 않는다</b>.
    */
   public record SummaryMetadata(
       @Schema(nullable = true) LocalDate baseDate,

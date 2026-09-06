@@ -208,3 +208,12 @@ erDiagram
         timestamp calculated_at
     }
 ```
+
+## 운영 스키마 적용 이력
+
+`core` 스키마는 Flyway 를 쓰지 않아 적용 이력이 자동으로 남지 않는다
+([DEVELOPMENT.md §3.2](../DEVELOPMENT.md)). 운영 DB 에 무엇을 적용했는지 여기 남긴다.
+
+| 적용일 | 대상 | 내용 |
+| :--- | :--- | :--- |
+| 2026-09-06 | `core.career_scenario` | 금액 여섯 컬럼을 `bigint` → `varchar(512)` 암호문으로 바꾸고 `scenario_name`·`feasibility_*` 를 더했다. 0행이라 `DROP` 후 정본 정의로 재생성했다. `career_scenario_user_latest_idx` 도 함께 다시 만들었다 |

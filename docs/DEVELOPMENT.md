@@ -315,8 +315,8 @@ CONFIG_SERVER_URL=http://144.24.90.88:8890 EUREKA_URL=http://144.24.90.88:8761/e
 `/api/v1/demo/thresholds` 는 경로가 `demo` 로 시작하지만 데모가 아니라 위 확인 절차의 도구다.
 같은 패키지에 있던 `/api/v1/demo/echo` 는 철거했고 이 경로만 남겼다.
 
-- **core-api 는 `core` 스키마에 붙는다** — 스킬 도메인(`skill`, `skill_alias`, `user_skill`)이
-  JPA 로 매핑돼 있어 `spring.datasource.*` 가 필요하다. 나머지 사용자 도메인은 아직 스텁이다.
+- **core-api 는 `core` 스키마에 붙는다** — 사용자 도메인(프로필·소득·소비·스킬)과 지수·스냅샷·
+  시나리오가 모두 JPA 로 매핑돼 있어 `spring.datasource.*` 가 필요하다.
   `market_aggregate` 읽기는 JPA 가 아니라 `JdbcClient` 읽기 전용으로 들이기로 했다
   (`specs/data-architecture.md` §3.1).
 - core-api 에는 Flyway 의존성이 없다. `core` 스키마 DDL 은 `collector` 와 `core-api` 가
