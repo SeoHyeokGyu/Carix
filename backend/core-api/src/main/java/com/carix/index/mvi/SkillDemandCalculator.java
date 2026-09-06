@@ -1,5 +1,6 @@
 package com.carix.index.mvi;
 
+import com.carix.index.enums.SkillDemandStatus;
 import com.carix.market.MarketAggregate;
 import com.carix.market.MarketAggregateRepository;
 import java.time.YearMonth;
@@ -207,7 +208,7 @@ public class SkillDemandCalculator {
           .demandIndex(0.0)
           .recentDemandRate(recentDemandRate)
           .baselineDemandRate(baselineDemandRate)
-          .status("NEW_OBSERVATION")
+          .status(SkillDemandStatus.NEW_OBSERVATION)
           .clamped(false)
           .recentSkillPostings(recentSkillPostings)
           .baselineSkillPostings(baselineSkillPostings)
@@ -227,7 +228,7 @@ public class SkillDemandCalculator {
           .demandIndex(0.0)
           .recentDemandRate(recentDemandRate)
           .baselineDemandRate(baselineDemandRate)
-          .status("INSUFFICIENT_SAMPLE")
+          .status(SkillDemandStatus.INSUFFICIENT_SAMPLE)
           .clamped(false)
           .recentSkillPostings(recentSkillPostings)
           .baselineSkillPostings(baselineSkillPostings)
@@ -242,7 +243,7 @@ public class SkillDemandCalculator {
           .demandIndex(0.0)
           .recentDemandRate(0.0)
           .baselineDemandRate(baselineDemandRate)
-          .status("NO_RECENT_DEMAND")
+          .status(SkillDemandStatus.NO_RECENT_DEMAND)
           .clamped(false)
           .recentSkillPostings(0)
           .baselineSkillPostings(baselineSkillPostings)
@@ -262,7 +263,7 @@ public class SkillDemandCalculator {
         .demandIndex(clampedIndex)
         .recentDemandRate(recentDemandRate)
         .baselineDemandRate(baselineDemandRate)
-        .status("OK")
+        .status(SkillDemandStatus.OK)
         .clamped(isClamped)
         .recentSkillPostings(recentSkillPostings)
         .baselineSkillPostings(baselineSkillPostings)
@@ -303,7 +304,7 @@ public class SkillDemandCalculator {
     private final double demandIndex;
     private final double recentDemandRate;
     private final double baselineDemandRate;
-    private final String status; // OK, NEW_OBSERVATION, NO_RECENT_DEMAND, INSUFFICIENT_SAMPLE
+    private final SkillDemandStatus status;
     private final boolean clamped;
     private final int recentSkillPostings;
     private final int baselineSkillPostings;

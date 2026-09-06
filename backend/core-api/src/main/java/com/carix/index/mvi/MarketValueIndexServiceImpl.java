@@ -6,6 +6,7 @@ import com.carix.index.dto.MviResult;
 import com.carix.index.dto.SourceCoverage;
 import com.carix.index.dto.WageBaseline;
 import com.carix.index.enums.IndexStatus;
+import com.carix.index.enums.SkillDemandStatus;
 import com.carix.index.enums.SkillExclusionReason;
 import com.carix.profile.domain.CareerProfile;
 import com.carix.profile.repository.CareerProfileRepository;
@@ -499,7 +500,7 @@ public class MarketValueIndexServiceImpl implements MarketValueIndexProvider {
       List<UserSkill> userSkills,
       Map<UUID, Map<String, SkillDemandCalculator.SkillDemandResult>> demandResults) {
 
-    Map<UUID, String> excludedSkillMap = new HashMap<>();
+    Map<UUID, SkillExclusionReason> excludedSkillMap = new HashMap<>();
     Set<UUID> zeroDemandSkillIds = new HashSet<>();
     Set<UUID> underSampledSkillIds = new HashSet<>();
     Map<String, Map<UUID, Double>> sourceSkillDemandIndices = new HashMap<>();
@@ -513,7 +514,7 @@ public class MarketValueIndexServiceImpl implements MarketValueIndexProvider {
 
       // 1. 표준 스킬이 아닌 사용자 정의 스킬 여부 검사 (도메인 정의서 §4.2)
       if (skill.isCustom()) {
-        excludedSkillMap.put(skillId, "CUSTOM_SKILL_NO_STATS");
+        excludedSkillMap.put(skillId, SkillExclusionReason.CUSTOM_SKILL_NO_STATS);
         continue;
       }
 
@@ -526,18 +527,18 @@ public class MarketValueIndexServiceImpl implements MarketValueIndexProvider {
           continue;
         }
 
-        String demandStatus = demandResult.getStatus();
-        if ("NEW_OBSERVATION".equals(demandStatus)) {
+        SkillDemandStatus demandStatus = demandResult.getStatus();
+        if (demandStatus == SkillDemandStatus.NEW_OBSERVATION) {
           // 분모 0인 신규 관측 스킬 -> 가중합 제외 (기능 명세 §4.1)
-          excludedSkillMap.put(skillId, "NEW_OBSERVATION");
+          excludedSkillMap.put(skillId, SkillExclusionReason.NEW_OBSERVATION);
           continue;
         }
-        if ("INSUFFICIENT_SAMPLE".equals(demandStatus)) {
+        if (demandStatus == SkillDemandStatus.INSUFFICIENT_SAMPLE) {
           // 이 원천에서만 미달일 수 있다. 지수를 넣지 않으면 이 원천의 가중합에서 자동으로 빠진다.
           underSampledSkillIds.add(skillId);
           continue;
         }
-        if ("NO_RECENT_DEMAND".equals(demandStatus)) {
+        if (demandStatus == SkillDemandStatus.NO_RECENT_DEMAND) {
           // 분자 0 -> 지수 0 으로 가중합에 반영하되 화면에서 구분한다 (기능 명세 §4.1)
           zeroDemandSkillIds.add(skillId);
         }
@@ -550,7 +551,7 @@ public class MarketValueIndexServiceImpl implements MarketValueIndexProvider {
       boolean usableInAnySource =
           sourceSkillDemandIndices.values().stream().anyMatch(m -> m.containsKey(underSampled));
       if (!usableInAnySource && !excludedSkillMap.containsKey(underSampled)) {
-        excludedSkillMap.put(underSampled, "INSUFFICIENT_SAMPLE");
+        excludedSkillMap.put(underSampled, SkillExclusionReason.INSUFFICIENT_SAMPLE);
       }
     }
 
@@ -761,8 +762,8 @@ public class MarketValueIndexServiceImpl implements MarketValueIndexProvider {
         int sampleSize = peerGroup.getSampleCount();
         sourceStats.add(new SkillSourceStatData(source, demandRes.getDemandIndex(), sampleSize));
 
-        if ("NEW_OBSERVATION".equals(demandRes.getStatus())) {
-          overallStatus = "NEW_OBSERVATION";
+        if (demandRes.getStatus() == SkillDemandStatus.NEW_OBSERVATION) {
+          overallStatus = SkillDemandStatus.NEW_OBSERVATION.name();
         }
 
         if (totalSamples > 0 && peerGroup.isSuccessful()) {
@@ -799,18 +800,12 @@ public class MarketValueIndexServiceImpl implements MarketValueIndexProvider {
   }
 
   private List<ExcludedSkill> buildExcludedSkills(
-      List<UserSkill> userSkills, Map<UUID, String> excludedSkillMap) {
-    Set<UUID> excludedSkillIds = excludedSkillMap.keySet();
+      List<UserSkill> userSkills, Map<UUID, SkillExclusionReason> excludedSkillMap) {
     List<ExcludedSkill> excludedSkills = new ArrayList<>();
     for (UserSkill us : userSkills) {
       UUID skillId = us.getSkill().getId();
-      if (excludedSkillIds.contains(skillId)) {
-        SkillExclusionReason reason =
-            switch (excludedSkillMap.get(skillId)) {
-              case "CUSTOM_SKILL_NO_STATS" -> SkillExclusionReason.CUSTOM_SKILL_NO_STATS;
-              case "INSUFFICIENT_SAMPLE" -> SkillExclusionReason.INSUFFICIENT_SAMPLE;
-              default -> SkillExclusionReason.NEW_OBSERVATION;
-            };
+      SkillExclusionReason reason = excludedSkillMap.get(skillId);
+      if (reason != null) {
         excludedSkills.add(new ExcludedSkill(skillId, us.getSkill().getStandardName(), reason));
       }
     }
@@ -877,14 +872,14 @@ public class MarketValueIndexServiceImpl implements MarketValueIndexProvider {
   /**
    * 스킬 분류 결과 및 가중합용 수요 지수 홀더.
    *
-   * @param excludedSkillMap 제외 사유 매핑 (skillId -> 사유 코드)
+   * @param excludedSkillMap 제외 사유 매핑 (skillId -> 사유 열거형)
    * @param zeroDemandSkillIds 최근 수요가 0인 스킬 식별자 집합
    * @param sourceSkillDemandIndices 원천별 스킬 수요 지수 매핑
    * @param excludedSkills 제외 스킬 DTO 목록
    * @param zeroDemandSkills 0 반영 스킬 DTO 목록
    */
   private record SkillClassification(
-      Map<UUID, String> excludedSkillMap,
+      Map<UUID, SkillExclusionReason> excludedSkillMap,
       Set<UUID> zeroDemandSkillIds,
       Map<String, Map<UUID, Double>> sourceSkillDemandIndices,
       List<ExcludedSkill> excludedSkills,

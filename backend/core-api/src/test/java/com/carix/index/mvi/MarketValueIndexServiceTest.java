@@ -9,6 +9,7 @@ import com.carix.index.dto.MviResult;
 import com.carix.index.dto.SourceCoverage;
 import com.carix.index.dto.WageBaseline;
 import com.carix.index.enums.IndexStatus;
+import com.carix.index.enums.SkillDemandStatus;
 import com.carix.index.enums.SkillExclusionReason;
 import com.carix.profile.domain.CareerProfile;
 import com.carix.profile.repository.CareerProfileRepository;
@@ -89,7 +90,7 @@ class MarketValueIndexServiceTest {
         SkillDemandCalculator.SkillDemandResult.builder()
             .skillId(skill.getId())
             .demandIndex(120.0)
-            .status("OK")
+            .status(SkillDemandStatus.OK)
             .build();
 
     when(skillDemandCalculator.calculateDemandIndex(
@@ -148,7 +149,7 @@ class MarketValueIndexServiceTest {
             SkillDemandCalculator.SkillDemandResult.builder()
                 .skillId(active.getId())
                 .demandIndex(120.0)
-                .status("OK")
+                .status(SkillDemandStatus.OK)
                 .build());
     when(skillDemandCalculator.calculateDemandIndex(
             any(), eq(stale.getId()), any(), eq(baseYearMonth)))
@@ -156,7 +157,7 @@ class MarketValueIndexServiceTest {
             SkillDemandCalculator.SkillDemandResult.builder()
                 .skillId(stale.getId())
                 .demandIndex(0.0)
-                .status("NO_RECENT_DEMAND")
+                .status(SkillDemandStatus.NO_RECENT_DEMAND)
                 .build());
 
     // 두 스킬 모두 가중치를 받는다 — 최근 수요 없음은 제외가 아니기 때문이다.
@@ -207,9 +208,9 @@ class MarketValueIndexServiceTest {
         .thenReturn(resolvedGroup("JOBKOREA", 50));
 
     when(skillDemandCalculator.calculateDemandIndex(any(), eq(active.getId()), any(), eq(ym)))
-        .thenReturn(demand(active.getId(), 120.0, "OK"));
+        .thenReturn(demand(active.getId(), 120.0, SkillDemandStatus.OK));
     when(skillDemandCalculator.calculateDemandIndex(any(), eq(scarce.getId()), any(), eq(ym)))
-        .thenReturn(demand(scarce.getId(), 0.0, "INSUFFICIENT_SAMPLE"));
+        .thenReturn(demand(scarce.getId(), 0.0, SkillDemandStatus.INSUFFICIENT_SAMPLE));
 
     // 제외된 스킬은 가중치 산출에서도 빠진다 — 실제 계산기와 같은 동작을 흉내낸다.
     when(skillWeightCalculator.calculateWeights(any(), any(), any()))
@@ -251,13 +252,13 @@ class MarketValueIndexServiceTest {
         .thenReturn(resolvedGroup("JOBKOREA", 50));
 
     when(skillDemandCalculator.calculateDemandIndex(any(), eq(active.getId()), any(), eq(ym)))
-        .thenReturn(demand(active.getId(), 120.0, "OK"));
+        .thenReturn(demand(active.getId(), 120.0, SkillDemandStatus.OK));
     when(skillDemandCalculator.calculateDemandIndex(
             eq("JOBKOREA"), eq(partial.getId()), any(), eq(ym)))
-        .thenReturn(demand(partial.getId(), 80.0, "OK"));
+        .thenReturn(demand(partial.getId(), 80.0, SkillDemandStatus.OK));
     when(skillDemandCalculator.calculateDemandIndex(
             eq("SARAMIN"), eq(partial.getId()), any(), eq(ym)))
-        .thenReturn(demand(partial.getId(), 0.0, "INSUFFICIENT_SAMPLE"));
+        .thenReturn(demand(partial.getId(), 0.0, SkillDemandStatus.INSUFFICIENT_SAMPLE));
 
     when(skillWeightCalculator.calculateWeights(any(), any(), any()))
         .thenReturn(
@@ -404,7 +405,7 @@ class MarketValueIndexServiceTest {
             .demandIndex(110.0)
             .recentDemandRate(0.35)
             .baselineDemandRate(0.30)
-            .status("OK")
+            .status(SkillDemandStatus.OK)
             .build();
 
     when(skillDemandCalculator.calculateDemandIndex(
@@ -478,7 +479,7 @@ class MarketValueIndexServiceTest {
         SkillDemandCalculator.SkillDemandResult.builder()
             .skillId(skill.getId())
             .demandIndex(100.0)
-            .status("OK")
+            .status(SkillDemandStatus.OK)
             .build();
     when(skillDemandCalculator.calculateDemandIndex(any(), eq(skill.getId()), any(), any()))
         .thenReturn(demandRes);
@@ -511,7 +512,7 @@ class MarketValueIndexServiceTest {
         SkillDemandCalculator.SkillDemandResult.builder()
             .skillId(skill.getId())
             .demandIndex(150.0)
-            .status("OK")
+            .status(SkillDemandStatus.OK)
             .build();
     when(skillDemandCalculator.calculateDemandIndex(
             any(), eq(skill.getId()), any(), any(), eq(totals)))
@@ -556,7 +557,7 @@ class MarketValueIndexServiceTest {
             .demandIndex(120.0)
             .recentDemandRate(0.3)
             .baselineDemandRate(0.25)
-            .status("OK")
+            .status(SkillDemandStatus.OK)
             .build();
 
     when(skillDemandCalculator.calculateDemandIndex(
@@ -607,7 +608,7 @@ class MarketValueIndexServiceTest {
   }
 
   private static SkillDemandCalculator.SkillDemandResult demand(
-      UUID skillId, double index, String status) {
+      UUID skillId, double index, SkillDemandStatus status) {
     return SkillDemandCalculator.SkillDemandResult.builder()
         .skillId(skillId)
         .demandIndex(index)

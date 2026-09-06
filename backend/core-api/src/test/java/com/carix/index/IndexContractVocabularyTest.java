@@ -35,4 +35,11 @@ class IndexContractVocabularyTest {
         .containsExactlyInAnyOrder(
             "OK", "INSUFFICIENT_SAMPLE", "UPDATE_DELAYED", "INSUFFICIENT_HISTORY", "NOT_AVAILABLE");
   }
+
+  @Test
+  void 스킬_수요_지수_산출_상태는_4종이다() {
+    assertThat(Arrays.stream(com.carix.index.enums.SkillDemandStatus.values()).map(Enum::name))
+        .containsExactlyInAnyOrder(
+            "OK", "NEW_OBSERVATION", "INSUFFICIENT_SAMPLE", "NO_RECENT_DEMAND");
+  }
 }
