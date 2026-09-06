@@ -9,6 +9,7 @@ import com.carix.index.dto.MviResult;
 import com.carix.index.dto.SourceCoverage;
 import com.carix.index.dto.WageBaseline;
 import com.carix.index.enums.IndexStatus;
+import com.carix.index.enums.SkillDemandStatus;
 import com.carix.index.enums.SkillExclusionReason;
 import com.carix.profile.domain.CareerProfile;
 import com.carix.profile.repository.CareerProfileRepository;
@@ -89,7 +90,7 @@ class MarketValueIndexServiceTest {
         SkillDemandCalculator.SkillDemandResult.builder()
             .skillId(skill.getId())
             .demandIndex(120.0)
-            .status("OK")
+            .status(SkillDemandStatus.OK)
             .build();
 
     when(skillDemandCalculator.calculateDemandIndex(
@@ -148,7 +149,7 @@ class MarketValueIndexServiceTest {
             SkillDemandCalculator.SkillDemandResult.builder()
                 .skillId(active.getId())
                 .demandIndex(120.0)
-                .status("OK")
+                .status(SkillDemandStatus.OK)
                 .build());
     when(skillDemandCalculator.calculateDemandIndex(
             any(), eq(stale.getId()), any(), eq(baseYearMonth)))
@@ -156,7 +157,7 @@ class MarketValueIndexServiceTest {
             SkillDemandCalculator.SkillDemandResult.builder()
                 .skillId(stale.getId())
                 .demandIndex(0.0)
-                .status("NO_RECENT_DEMAND")
+                .status(SkillDemandStatus.NO_RECENT_DEMAND)
                 .build());
 
     // 두 스킬 모두 가중치를 받는다 — 최근 수요 없음은 제외가 아니기 때문이다.
@@ -207,9 +208,9 @@ class MarketValueIndexServiceTest {
         .thenReturn(resolvedGroup("JOBKOREA", 50));
 
     when(skillDemandCalculator.calculateDemandIndex(any(), eq(active.getId()), any(), eq(ym)))
-        .thenReturn(demand(active.getId(), 120.0, "OK"));
+        .thenReturn(demand(active.getId(), 120.0, SkillDemandStatus.OK));
     when(skillDemandCalculator.calculateDemandIndex(any(), eq(scarce.getId()), any(), eq(ym)))
-        .thenReturn(demand(scarce.getId(), 0.0, "INSUFFICIENT_SAMPLE"));
+        .thenReturn(demand(scarce.getId(), 0.0, SkillDemandStatus.INSUFFICIENT_SAMPLE));
 
     // 제외된 스킬은 가중치 산출에서도 빠진다 — 실제 계산기와 같은 동작을 흉내낸다.
     when(skillWeightCalculator.calculateWeights(any(), any(), any()))
@@ -251,13 +252,13 @@ class MarketValueIndexServiceTest {
         .thenReturn(resolvedGroup("JOBKOREA", 50));
 
     when(skillDemandCalculator.calculateDemandIndex(any(), eq(active.getId()), any(), eq(ym)))
-        .thenReturn(demand(active.getId(), 120.0, "OK"));
+        .thenReturn(demand(active.getId(), 120.0, SkillDemandStatus.OK));
     when(skillDemandCalculator.calculateDemandIndex(
             eq("JOBKOREA"), eq(partial.getId()), any(), eq(ym)))
-        .thenReturn(demand(partial.getId(), 80.0, "OK"));
+        .thenReturn(demand(partial.getId(), 80.0, SkillDemandStatus.OK));
     when(skillDemandCalculator.calculateDemandIndex(
             eq("SARAMIN"), eq(partial.getId()), any(), eq(ym)))
-        .thenReturn(demand(partial.getId(), 0.0, "INSUFFICIENT_SAMPLE"));
+        .thenReturn(demand(partial.getId(), 0.0, SkillDemandStatus.INSUFFICIENT_SAMPLE));
 
     when(skillWeightCalculator.calculateWeights(any(), any(), any()))
         .thenReturn(
@@ -404,7 +405,7 @@ class MarketValueIndexServiceTest {
             .demandIndex(110.0)
             .recentDemandRate(0.35)
             .baselineDemandRate(0.30)
-            .status("OK")
+            .status(SkillDemandStatus.OK)
             .build();
 
     when(skillDemandCalculator.calculateDemandIndex(
@@ -478,7 +479,7 @@ class MarketValueIndexServiceTest {
         SkillDemandCalculator.SkillDemandResult.builder()
             .skillId(skill.getId())
             .demandIndex(100.0)
-            .status("OK")
+            .status(SkillDemandStatus.OK)
             .build();
     when(skillDemandCalculator.calculateDemandIndex(any(), eq(skill.getId()), any(), any()))
         .thenReturn(demandRes);
@@ -488,6 +489,111 @@ class MarketValueIndexServiceTest {
     MviResult res = service.calculate(userId, "202607");
     assertThat(res.status()).isEqualTo(IndexStatus.OK);
     assertThat(res.value()).isEqualTo(BigDecimal.valueOf(100.0).setScale(1));
+  }
+
+  @Test
+  @DisplayName("calculate - TotalPostings가 사전에 조회되면 오버로딩된 5인자 calculateDemandIndex를 호출하여 처리한다")
+  void testCalculateWithPrecalculatedTotalPostings() {
+    UUID userId = UUID.randomUUID();
+    Skill skill = Skill.createStandard("Java", "BACKEND");
+    UserSkill userSkill = userSkillOf(skill);
+
+    when(careerProfileRepository.findByUserId(userId))
+        .thenReturn(Optional.of(new CareerProfile(userId)));
+    when(userSkillRepository.findByUserId(userId)).thenReturn(List.of(userSkill));
+
+    PeerGroupFallbackResolver.ResolvedPeerGroup jk = resolvedGroup("JOBKOREA", 50);
+    when(peerGroupFallbackResolver.resolveForSource(any(), any(), any())).thenReturn(jk);
+
+    SkillDemandCalculator.TotalPostings totals = new SkillDemandCalculator.TotalPostings(100, 400);
+    when(skillDemandCalculator.calculateTotalPostings(any(), any(), any())).thenReturn(totals);
+
+    SkillDemandCalculator.SkillDemandResult demandRes =
+        SkillDemandCalculator.SkillDemandResult.builder()
+            .skillId(skill.getId())
+            .demandIndex(150.0)
+            .status(SkillDemandStatus.OK)
+            .build();
+    when(skillDemandCalculator.calculateDemandIndex(
+            any(), eq(skill.getId()), any(), any(), eq(totals)))
+        .thenReturn(demandRes);
+    when(skillWeightCalculator.calculateWeights(any(), any(), any()))
+        .thenReturn(Map.of(skill.getId(), BigDecimal.valueOf(1.0)));
+
+    MviResult res = service.calculate(userId, "202607");
+    assertThat(res.status()).isEqualTo(IndexStatus.OK);
+    assertThat(res.value()).isEqualTo(BigDecimal.valueOf(150.0).setScale(1));
+  }
+
+  @Test
+  @DisplayName(
+      "getSkillDemandDetails - TotalPostings가 사전에 조회되면 5인자 calculateDemandIndex를 호출하여 상세 집계한다")
+  void testGetSkillDemandDetailsWithPrecalculatedTotalPostings() {
+    UUID userId = UUID.randomUUID();
+    String baseYearMonth = "202607";
+    Skill skill = Skill.createStandard("Java", "BACKEND");
+    UserSkill userSkill = userSkillOf(skill);
+
+    when(careerProfileRepository.findByUserId(userId))
+        .thenReturn(Optional.of(new CareerProfile(userId)));
+    when(userSkillRepository.findByUserId(userId)).thenReturn(List.of(userSkill));
+
+    PeerGroupFallbackResolver.ResolvedPeerGroup jk = resolvedGroup("JOBKOREA", 100);
+    PeerGroupFallbackResolver.ResolvedPeerGroup sm = resolvedGroup("SARAMIN", 100);
+    when(peerGroupFallbackResolver.resolveForSource(eq("JOBKOREA"), any(), eq(baseYearMonth)))
+        .thenReturn(jk);
+    when(peerGroupFallbackResolver.resolveForSource(eq("SARAMIN"), any(), eq(baseYearMonth)))
+        .thenReturn(sm);
+
+    SkillDemandCalculator.TotalPostings totals = new SkillDemandCalculator.TotalPostings(100, 400);
+    when(skillDemandCalculator.calculateTotalPostings(any(), any(), any())).thenReturn(totals);
+
+    when(skillWeightCalculator.calculateWeights(any(), eq(baseYearMonth), any()))
+        .thenReturn(Map.of(skill.getId(), BigDecimal.valueOf(1.0)));
+
+    SkillDemandCalculator.SkillDemandResult demandRes =
+        SkillDemandCalculator.SkillDemandResult.builder()
+            .skillId(skill.getId())
+            .demandIndex(120.0)
+            .recentDemandRate(0.3)
+            .baselineDemandRate(0.25)
+            .status(SkillDemandStatus.OK)
+            .build();
+
+    when(skillDemandCalculator.calculateDemandIndex(
+            any(), eq(skill.getId()), any(), eq(baseYearMonth), eq(totals)))
+        .thenReturn(demandRes);
+
+    var details = service.getSkillDemandDetails(userId, baseYearMonth);
+
+    assertThat(details).hasSize(1);
+    assertThat(details.get(0).getDemandIndex()).isEqualTo(120.0);
+    assertThat(details.get(0).getSources()).hasSize(2);
+  }
+
+  @Test
+  @DisplayName("calculate - 사용자 프로필 조회 중 예외 발생 시 RuntimeException으로 래핑하여 던진다")
+  void testCalculateThrowsWrappedExceptionWhenUserLoadFails() {
+    UUID userId = UUID.randomUUID();
+    when(careerProfileRepository.findByUserId(userId))
+        .thenThrow(new IllegalStateException("DB 연결 실패"));
+
+    org.assertj.core.api.Assertions.assertThatThrownBy(() -> service.calculate(userId, "202607"))
+        .isInstanceOf(RuntimeException.class)
+        .hasMessageContaining("사용자 데이터 로드 실패");
+  }
+
+  @Test
+  @DisplayName("getSkillDemandDetails - 사용자 데이터 조회 실패 시 RuntimeException으로 래핑하여 던진다")
+  void testGetSkillDemandDetailsThrowsWrappedExceptionWhenLoadFails() {
+    UUID userId = UUID.randomUUID();
+    when(careerProfileRepository.findByUserId(userId))
+        .thenThrow(new IllegalStateException("DB 연결 실패"));
+
+    org.assertj.core.api.Assertions.assertThatThrownBy(
+            () -> service.getSkillDemandDetails(userId, "202607"))
+        .isInstanceOf(RuntimeException.class)
+        .hasMessageContaining("스킬 상세 수요 데이터 로드 실패");
   }
 
   private static PeerGroupFallbackResolver.ResolvedPeerGroup resolvedGroup(
@@ -502,7 +608,7 @@ class MarketValueIndexServiceTest {
   }
 
   private static SkillDemandCalculator.SkillDemandResult demand(
-      UUID skillId, double index, String status) {
+      UUID skillId, double index, SkillDemandStatus status) {
     return SkillDemandCalculator.SkillDemandResult.builder()
         .skillId(skillId)
         .demandIndex(index)

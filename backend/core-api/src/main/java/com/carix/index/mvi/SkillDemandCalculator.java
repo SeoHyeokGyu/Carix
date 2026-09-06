@@ -1,5 +1,6 @@
 package com.carix.index.mvi;
 
+import com.carix.index.enums.SkillDemandStatus;
 import com.carix.market.MarketAggregate;
 import com.carix.market.MarketAggregateRepository;
 import java.time.YearMonth;
@@ -64,6 +65,54 @@ public class SkillDemandCalculator {
 
   private final MarketAggregateRepository marketAggregateRepository;
 
+  /** 동료집단의 최근 3개월 및 이전 12개월 전체 공고 수 요약. */
+  public record TotalPostings(int recentTotalPostings, int baselineTotalPostings) {}
+
+  /**
+   * 주어진 동료집단 완화 조건 및 기준월에 대해 전체 공고 수(모수)를 계산합니다.
+   *
+   * <p>스킬 ID와 무관한 공통 모수이므로, 스킬 루프 밖에서 1회만 조회하여 재사용할 수 있습니다.
+   *
+   * @param source 플랫폼 원천 (JOBKOREA, SARAMIN)
+   * @param peerGroup 완화 완료된 동료집단 조건
+   * @param baseYearMonth 기준년월 (YYYYMM)
+   * @return 최근 3개월 및 이전 12개월 전체 공고 수
+   */
+  public TotalPostings calculateTotalPostings(
+      String source, PeerGroupFallbackResolver.ResolvedPeerGroup peerGroup, String baseYearMonth) {
+    YearMonth targetYm = parseYearMonth(baseYearMonth);
+
+    List<String> recentMonths = getMonthsRange(targetYm.minusMonths(3), 3);
+    List<String> baselineMonths = getMonthsRange(targetYm.minusMonths(15), 12);
+
+    List<MarketAggregate> recentTotalAggs =
+        marketAggregateRepository.findTotalPostingAggregates(
+            source,
+            recentMonths,
+            peerGroup.getJobFamily(),
+            peerGroup.getRegion(),
+            peerGroup.getBrackets(),
+            peerGroup.getEmploymentType(),
+            peerGroup.getCompanySize());
+
+    List<MarketAggregate> baselineTotalAggs =
+        marketAggregateRepository.findTotalPostingAggregates(
+            source,
+            baselineMonths,
+            peerGroup.getJobFamily(),
+            peerGroup.getRegion(),
+            peerGroup.getBrackets(),
+            peerGroup.getEmploymentType(),
+            peerGroup.getCompanySize());
+
+    int recentTotalPostings =
+        recentTotalAggs.stream().mapToInt(MarketAggregate::getPostingCount).sum();
+    int baselineTotalPostings =
+        baselineTotalAggs.stream().mapToInt(MarketAggregate::getPostingCount).sum();
+
+    return new TotalPostings(recentTotalPostings, baselineTotalPostings);
+  }
+
   /**
    * 주어진 동료집단 완화 조건 및 기준월에 대해 특정 스킬의 수요 지수를 계산합니다.
    *
@@ -78,6 +127,30 @@ public class SkillDemandCalculator {
       UUID skillId,
       PeerGroupFallbackResolver.ResolvedPeerGroup peerGroup,
       String baseYearMonth) {
+    return calculateDemandIndex(source, skillId, peerGroup, baseYearMonth, null);
+  }
+
+  /**
+   * 사전 계산된 전체 공고 수({@link TotalPostings})를 전달받아 특정 스킬의 수요 지수를 계산합니다.
+   *
+   * @param source 플랫폼 원천 (JOBKOREA, SARAMIN)
+   * @param skillId 대상 스킬 ID
+   * @param peerGroup 완화 완료된 동료집단 조건
+   * @param baseYearMonth 기준년월 (YYYYMM)
+   * @param totalPostings 사전 조회된 동료집단 전체 공고 수 (null인 경우 내부에서 직접 조회)
+   * @return 스킬 수요 지수 계산 결과
+   */
+  public SkillDemandResult calculateDemandIndex(
+      String source,
+      UUID skillId,
+      PeerGroupFallbackResolver.ResolvedPeerGroup peerGroup,
+      String baseYearMonth,
+      TotalPostings totalPostings) {
+
+    TotalPostings resolvedTotals =
+        (totalPostings != null)
+            ? totalPostings
+            : calculateTotalPostings(source, peerGroup, baseYearMonth);
 
     YearMonth targetYm = parseYearMonth(baseYearMonth);
 
@@ -101,20 +174,9 @@ public class SkillDemandCalculator {
             peerGroup.getCompanySize(),
             skillId);
 
-    List<MarketAggregate> recentTotalAggs =
-        marketAggregateRepository.findTotalPostingAggregates(
-            source,
-            recentMonths,
-            peerGroup.getJobFamily(),
-            peerGroup.getRegion(),
-            peerGroup.getBrackets(),
-            peerGroup.getEmploymentType(),
-            peerGroup.getCompanySize());
-
     int recentSkillPostings =
         recentSkillAggs.stream().mapToInt(MarketAggregate::getPostingCount).sum();
-    int recentTotalPostings =
-        recentTotalAggs.stream().mapToInt(MarketAggregate::getPostingCount).sum();
+    int recentTotalPostings = resolvedTotals.recentTotalPostings();
 
     // 3. 이전 12개월 집계 조회
     List<MarketAggregate> baselineSkillAggs =
@@ -128,20 +190,9 @@ public class SkillDemandCalculator {
             peerGroup.getCompanySize(),
             skillId);
 
-    List<MarketAggregate> baselineTotalAggs =
-        marketAggregateRepository.findTotalPostingAggregates(
-            source,
-            baselineMonths,
-            peerGroup.getJobFamily(),
-            peerGroup.getRegion(),
-            peerGroup.getBrackets(),
-            peerGroup.getEmploymentType(),
-            peerGroup.getCompanySize());
-
     int baselineSkillPostings =
         baselineSkillAggs.stream().mapToInt(MarketAggregate::getPostingCount).sum();
-    int baselineTotalPostings =
-        baselineTotalAggs.stream().mapToInt(MarketAggregate::getPostingCount).sum();
+    int baselineTotalPostings = resolvedTotals.baselineTotalPostings();
 
     // 4. 수요율 계산
     double recentDemandRate =
@@ -157,7 +208,7 @@ public class SkillDemandCalculator {
           .demandIndex(0.0)
           .recentDemandRate(recentDemandRate)
           .baselineDemandRate(baselineDemandRate)
-          .status("NEW_OBSERVATION")
+          .status(SkillDemandStatus.NEW_OBSERVATION)
           .clamped(false)
           .recentSkillPostings(recentSkillPostings)
           .baselineSkillPostings(baselineSkillPostings)
@@ -177,7 +228,7 @@ public class SkillDemandCalculator {
           .demandIndex(0.0)
           .recentDemandRate(recentDemandRate)
           .baselineDemandRate(baselineDemandRate)
-          .status("INSUFFICIENT_SAMPLE")
+          .status(SkillDemandStatus.INSUFFICIENT_SAMPLE)
           .clamped(false)
           .recentSkillPostings(recentSkillPostings)
           .baselineSkillPostings(baselineSkillPostings)
@@ -192,7 +243,7 @@ public class SkillDemandCalculator {
           .demandIndex(0.0)
           .recentDemandRate(0.0)
           .baselineDemandRate(baselineDemandRate)
-          .status("NO_RECENT_DEMAND")
+          .status(SkillDemandStatus.NO_RECENT_DEMAND)
           .clamped(false)
           .recentSkillPostings(0)
           .baselineSkillPostings(baselineSkillPostings)
@@ -212,7 +263,7 @@ public class SkillDemandCalculator {
         .demandIndex(clampedIndex)
         .recentDemandRate(recentDemandRate)
         .baselineDemandRate(baselineDemandRate)
-        .status("OK")
+        .status(SkillDemandStatus.OK)
         .clamped(isClamped)
         .recentSkillPostings(recentSkillPostings)
         .baselineSkillPostings(baselineSkillPostings)
@@ -253,7 +304,7 @@ public class SkillDemandCalculator {
     private final double demandIndex;
     private final double recentDemandRate;
     private final double baselineDemandRate;
-    private final String status; // OK, NEW_OBSERVATION, NO_RECENT_DEMAND, INSUFFICIENT_SAMPLE
+    private final SkillDemandStatus status;
     private final boolean clamped;
     private final int recentSkillPostings;
     private final int baselineSkillPostings;
