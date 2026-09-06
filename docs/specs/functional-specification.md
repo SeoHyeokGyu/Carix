@@ -309,7 +309,7 @@
 | 항목 | 상태 | 처리 시점 |
 | --- | --- | --- |
 | 임금통계 기준선 데이터 확보 | **확정** | KOSIS 24구간 누적분포 보간 모델 채택 완료 — [외부 API 연동 명세 §3.3](external-api-integration.md) 참조 |
-| 최소 표본 기준 N≥10, 이상치 클램프 [25,400] | 후보값 | 데이터 검증 후 설정값 확정 |
+| 최소 표본 기준 N≥10, 이상치 클램프 [25,400] | **확정** | 값은 그대로 채택. 현재 위치는 코드 상수(`PeerGroupFallbackResolver.MIN_SAMPLE_SIZE`, `SkillDemandCalculator.MIN_CLAMP`·`MAX_CLAMP`)이며 Config Server 외부화는 [개발 계획 §5-Q](../plans/carix-dev-plan.md) |
 | 기본 소비 가중치 6개 값 | **확정** | `config/default-expense-weights.yml` — KOSIS 가계동향조사 `DT_1L9U101`, 2025년 기준, 2026-07-25 검증 |
 | 암호화 연봉의 배치 복호화 키 관리·로테이션 | 미설계 | 구현 단계. [보안 문서 §3.2](../SECURITY.md) 참조 |
 | percentile 근사 표시 캐비앗 | 5수치 요약 보간 | 표시 시 `근사` 라벨 |

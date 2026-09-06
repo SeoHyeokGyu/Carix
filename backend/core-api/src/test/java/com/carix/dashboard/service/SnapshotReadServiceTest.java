@@ -25,8 +25,8 @@ import org.junit.jupiter.api.Test;
 /**
  * 스냅샷을 읽는 세 화면 API 검증 — `/dashboard/summary`, `/history`, `/trends`.
  *
- * <p>셋 다 {@code index_snapshot} 이 원천이고, 행이 없으면 <b>임의 값 대신 빈 상태</b>를 돌려준다. 스냅샷 재계산 트리거가 아직 배선되지
- * 않아(개발 계획 §5-N) 당분간 행이 없는 사용자가 정상이며, 그때 0 이나 100 을 채우면 §5-G 가 철거한 스텁과 같은 죄가 된다.
+ * <p>셋 다 {@code index_snapshot} 이 원천이고, 행이 없으면 <b>임의 값 대신 빈 상태</b>를 돌려준다. 온보딩 직후처럼 재계산이 한 번도
+ * 돌지 않은 사용자는 행이 없는 것이 정상이며(개발 계획 §4-2), 그때 0 이나 100 을 채우면 §5-G 가 철거한 스텁과 같은 죄가 된다.
  */
 class SnapshotReadServiceTest {
 

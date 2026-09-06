@@ -33,7 +33,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 /**
- * 스냅샷 재계산 트리거 배선 검증 (개발 계획 §5-N).
+ * 스냅샷 재계산 트리거 배선 검증 (개발 계획 §4-2).
  *
  * <p>엔진은 1~2주차에 착지했으나 호출자가 없어 {@code core.index_snapshot} 에 행이 생기지 않았다. 계약(§4-2)이 규정한 네 경로 —
  * 소득·소비(A), 스킬(B), 프로필(C) — 이 변경 시 {@code recalculateSnapshot(userId, fromYm)} 을 부르는지 확인한다.

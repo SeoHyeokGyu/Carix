@@ -240,7 +240,7 @@ Config Server의 `{cipher}` 암호화는 쓰지 않는다. "설정 중앙화"를
 | 로그 레벨 | 가능 (`/actuator/loggers`는 refresh도 불필요) |
 | 기능 플래그 | 가능 |
 | Gateway 라우트 | 가능 (`/actuator/gateway/refresh`) |
-| 수집 파이프라인/스케줄 설정 | 가능 (`@RefreshScope` + refresh 호출, 스케줄 변경 시 스케줄러 재등록) |
+| 수집 파이프라인 설정 | 가능 (`@RefreshScope` + refresh 호출). 스케줄러는 도입하지 않았다 ([개발 계획 §5-C](../plans/carix-dev-plan.md)) |
 | DataSource·커넥션 풀 | **불가 — 재기동 필요** |
 
 지수 가중치 튜닝이 잦을 프로젝트이므로 이 범위만으로도 실익이 있다.
@@ -350,7 +350,7 @@ JVM 6개가 실사용 250~400MB씩이면 1.5~2.4GB 증가한다. 여유 범위 �
 | 항목 | 이유 |
 | --- | --- |
 | Feign·Resilience4j | 학습 대상으로 선택하지 않음. 설계가 서비스 간 호출을 Gateway→auth 하나로 제한한다 |
-| Spring Cloud Stream·브로커 | 같음. 지수 재계산은 사용자 입력 시 즉시 계산 또는 관리자 구동/스케줄러 파이프라인이 담당한다 |
+| Spring Cloud Stream·브로커 | 같음. 지수 재계산은 사용자 입력 시 `core-api` 안에서 동기로 계산하고, 시장 데이터 집계는 관리자가 `S-16` 콘솔에서 직접 구동한다 |
 | Spring Cloud Bus | 설정 갱신 브로드캐스트. 서비스 4개면 `/actuator/refresh` 직접 호출로 충분 |
 | Redis | 세션 캐시는 인메모리, rate limit은 도입하지 않음 |
 | 서비스별 DB 인스턴스 | 단일 DB(DEVELOPMENT.md §3)이므로 `auth`만 스키마로 분리한다 |

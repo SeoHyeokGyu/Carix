@@ -277,7 +277,9 @@ networks:
 ### Task 2.3: 스캐폴드 담당자에게 전달할 계약
 
 > **이행 완료 (PR #15).** 아래는 계약 원문이며, 실제 스캐폴드에서 달라진 점은 각 항목 아래
-> 인용문으로 덧붙였다. 실물은 [`backend/Dockerfile`](../../backend/Dockerfile) 참조.
+> 인용문으로 덧붙였다. **Spring Cloud 전환으로 Dockerfile 은 모듈별로 갈렸다** — 실물은
+> [`backend/core-api/Dockerfile`](../../backend/core-api/Dockerfile) 과 `gateway`·`auth-service`·
+> `collector`·`config-server`·`eureka` 의 같은 파일들이다.
 
 - [x] **`backend/Dockerfile` — 컴파일하지 않는다.** JAR은 GitHub Actions 러너가 Gradle 캐시를 써서
       만들고, Dockerfile은 그 산출물을 layered로 풀어 담기만 한다.
@@ -982,7 +984,7 @@ gh run watch -R SeoHyeokGyu/Carix
 
 **차단 조건:**
 
-1. `backend/Dockerfile`, `backend/build.gradle*`, `frontend/Dockerfile`, `frontend/package.json` 존재
+1. `backend/*/Dockerfile`(모듈별), `backend/build.gradle*`, `frontend/Dockerfile`, `frontend/package.json` 존재
 2. **Phase 2의 compose 변경이 main에 머지됨** — 어기면 구버전 compose가 `build:`를 시도해 실패하고, initdb 스크립트는 빈 볼륨에서만 도는 기회를 놓친다
 3. **Phase 1 디스크 정리 완료**
 4. **Phase 3 Caddy 라우팅 적용 완료**
@@ -990,7 +992,7 @@ gh run watch -R SeoHyeokGyu/Carix
 - [ ] **Step 1: 게이트 확인**
 
 ```bash
-ls backend/Dockerfile backend/build.gradle* frontend/Dockerfile frontend/package.json
+ls backend/*/Dockerfile backend/build.gradle* frontend/Dockerfile frontend/package.json
 rg -n "image: ghcr.io" docker-compose.yml
 rg -n "nginx" docker-compose.yml   # 결과 없어야 한다
 ```
@@ -1037,6 +1039,9 @@ Expected: `enabled` (+ compose의 `restart: unless-stopped`).
   **아직 암호화된 데이터가 없으므로 지금은 재생성이 자유롭다.** 첫 운영 쓰기 전에 아래로 꺼내
   비밀번호 관리자나 OCI Vault에 보관한다. 그 시점 이후 분실은 복구 불가다.
 
+  > **첫 운영 쓰기는 [개발 계획 §7](carix-dev-plan.md) 2번(§5-K 스냅샷 쓰기 검증)이다.**
+  > 그걸 돌리는 순간 이 항목이 선택에서 **필수**로 바뀐다. 순서를 지켜 키를 먼저 꺼낸다.
+
   ```bash
   ssh <oci-server-alias> 'grep ^CARIX_ENCRYPTION_KEY= /home/opc/carix/.env'
   ```
@@ -1057,10 +1062,10 @@ Expected: `enabled` (+ compose의 `restart: unless-stopped`).
 
 | 항목 | 상태 |
 | --- | --- |
-| `backend/`, `frontend/` 스캐폴드 | 미완 → Phase 6 게이트. 워크플로는 `backend/build.gradle`과 `frontend/Dockerfile` 존재를 전제한다 |
+| ~~`backend/`, `frontend/` 스캐폴드~~ | 해소. `backend/build.gradle`·`frontend/Dockerfile` 모두 존재하고 모듈별 `backend/*/Dockerfile` 로 빌드한다 |
 | Spring Boot 버전 | layered jar 문법이 3.3 기준으로 갈린다 → Task 2.3 |
 | Phase 3 실행 시 다운타임 | Caddy 교체 중 `pulse.144.24.90.88.sslip.io` 수 초 중단. asset-pulse compose(코덱스 워크트리)도 함께 수정해야 한다 |
-| `/api/health` 구현 | 백엔드 스캐폴드 시 필수. CD 헬스체크 전제 |
-| `collector` 실행 형태 | 관리자 화면/API 직접 트리거 방식 |
+| ~~`/api/health` 구현~~ | 해소. `core-api` 의 `HealthController` 와 게이트웨이 `core-health` 라우트(`order: -15`, 세션 필터 미적용)로 배선됐다 |
+| ~~`collector` 실행 형태~~ | 해소 — 관리자 화면(`S-16`)/내부 API 직접 트리거로 확정. `@Scheduled` 는 도입하지 않는다 ([개발 계획 §5-C](carix-dev-plan.md)) |
 | 메모리 여유 | 스왑 4GB가 이미 소진됨. Carix 기동 후 재평가. 부족 시 flaresolverr×4 / warp×3 정리 논의 |
 | 커스텀 도메인 | sslip.io로 충분. 정식 도메인이 생기면 Caddyfile에 호스트만 추가하면 된다 |
