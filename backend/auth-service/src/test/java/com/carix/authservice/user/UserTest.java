@@ -35,4 +35,18 @@ class UserTest {
     User user = constructor.newInstance();
     assertThat(user).isNotNull();
   }
+
+  @Test
+  void 온보딩_단계를_바꾸면_갱신시각도_함께_바뀐다() {
+    OffsetDateTime created = OffsetDateTime.parse("2026-09-01T00:00:00Z");
+    OffsetDateTime changed = OffsetDateTime.parse("2026-09-07T10:00:00Z");
+    User user =
+        new User(UUID.randomUUID(), "user@example.com", "hash", "PROFILE", created, created);
+
+    user.changeOnboardingStep("INCOME", changed);
+
+    assertThat(user.getOnboardingStep()).isEqualTo("INCOME");
+    assertThat(user.getUpdatedAt()).isEqualTo(changed);
+    assertThat(user.getCreatedAt()).isEqualTo(created);
+  }
 }

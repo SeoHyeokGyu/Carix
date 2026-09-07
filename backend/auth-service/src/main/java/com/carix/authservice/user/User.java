@@ -64,6 +64,12 @@ public class User {
     return updatedAt;
   }
 
+  /** 온보딩 단계를 옮긴다. 허용값 검증은 요청 경계(OnboardingUpdateRequest)에서 한다. */
+  public void changeOnboardingStep(String step, OffsetDateTime now) {
+    this.onboardingStep = step;
+    this.updatedAt = now;
+  }
+
   public boolean isOnboardingComplete() {
     return "COMPLETED".equals(onboardingStep);
   }
