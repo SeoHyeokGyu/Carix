@@ -1,15 +1,4 @@
-import {
-  Links,
-  Meta,
-  Outlet,
-  Scripts,
-  ScrollRestoration,
-  useLoaderData,
-} from "react-router";
-import { SessionPending } from "./components/layout/SessionPending";
-import { fetchSession } from "./lib/authApi";
-import { ANONYMOUS, setSession, type Session } from "./lib/session";
-import { SessionProvider } from "./lib/SessionProvider";
+import { Links, Meta, Outlet, Scripts, ScrollRestoration } from "react-router";
 import "pretendard/dist/web/variable/pretendardvariable.css";
 import "./styles/tokens.css";
 
@@ -48,31 +37,6 @@ export function Layout({ children }: { children: React.ReactNode }) {
   );
 }
 
-export async function clientLoader() {
-  try {
-    const response = await fetchSession();
-    const session: Session = response
-      ? { status: "authenticated", ...response }
-      : ANONYMOUS;
-    setSession(session);
-    return { session };
-  } catch {
-    // 서버에 닿지 못한 것과 비로그인을 구분하지 않는다. 어느 쪽이든 보호 화면은 못 연다.
-    setSession(ANONYMOUS);
-    return { session: ANONYMOUS };
-  }
-}
-
-/** ssr:false 에서 root clientLoader 가 도는 동안 보여줄 화면. */
-export function HydrateFallback() {
-  return <SessionPending />;
-}
-
 export default function Root() {
-  const { session } = useLoaderData<typeof clientLoader>();
-  return (
-    <SessionProvider initialSession={session}>
-      <Outlet />
-    </SessionProvider>
-  );
+  return <Outlet />;
 }

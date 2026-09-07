@@ -31,19 +31,40 @@ export interface SessionResponse {
 }
 
 let cached: Session | null = null;
+let pending: Promise<Session> | null = null;
 
-/** root clientLoader 가 채우고 하위 layout loader 가 읽는다. */
+/** protected 레이아웃의 clientLoader 가 채우고, 로그인·로그아웃·단계 갱신 뒤 다시 채운다. */
 export function setSession(session: Session): void {
   cached = session;
 }
 
+/** 테스트 전용 — 모듈 캐시와 진행 중인 조회를 지운다. 프로덕션 코드는 부르지 않는다. */
+export function resetSession(): void {
+  cached = null;
+  pending = null;
+}
+
 /**
- * 이미 확정된 세션을 돌려준다. root clientLoader 가 먼저 실행돼 캐시를 채워 두므로,
- * 하위 layout loader 는 세션을 다시 조회하지 않는다.
+ * 이미 확정된 세션을 돌려준다. React Router 는 매칭된 layout 들의 loader 를 병렬로 돌리므로,
+ * `protected.tsx` 의 clientLoader 와 하위 layout loader 가 캐시가 비어 있는 채로 동시에 이
+ * 함수를 부를 수 있다 — in-app 네비게이션에서는 protected 쪽이 먼저 끝나 있는 게 보통이지만
+ * 보장되지는 않는다. 그래서 진행 중인 조회를 `pending` 에 공유해 fetchSession 이 한 번만
+ * 나가게 한다.
  */
 export async function requireSession(): Promise<Session> {
   if (cached) return cached;
-  const response = await fetchSession();
-  cached = response ? { status: "authenticated", ...response } : ANONYMOUS;
-  return cached;
+  if (!pending) {
+    pending = fetchSession()
+      .then((response): Session =>
+        response ? { status: "authenticated", ...response } : ANONYMOUS,
+      )
+      // 서버에 닿지 못한 것과 비로그인을 구분하지 않는다. 어느 쪽이든 보호 화면은 못 연다.
+      .catch((): Session => ANONYMOUS)
+      .then((session) => {
+        cached = session;
+        pending = null;
+        return session;
+      });
+  }
+  return pending;
 }

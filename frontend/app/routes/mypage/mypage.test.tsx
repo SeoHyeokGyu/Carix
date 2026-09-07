@@ -1,7 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import { createRoutesStub } from "react-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { setSession } from "../../lib/session";
+import { resetSession, setSession } from "../../lib/session";
 import MypageLayout, { clientLoader as mypageLayoutLoader } from "./layout";
 import MypageProfile from "./profile";
 import MypageRecords from "./records";
@@ -9,6 +9,9 @@ import MypageRecords from "./records";
 describe("마이페이지 라우트 및 레이아웃 (Mypage)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    // 세션 캐시는 모듈 전역이라 앞 테스트 값을 물려받을 수 있다 — 매번 지우고 각 테스트가
+    // setSession 으로 필요한 값을 명시적으로 채운다.
+    resetSession();
   });
 
   describe("개별 화면 (Pages)", () => {

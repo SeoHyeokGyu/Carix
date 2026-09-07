@@ -7,6 +7,11 @@ import "@testing-library/jest-dom/vitest";
 // 전달하므로, createRoutesStub 을 쓰는 라우팅 테스트에서 이 충돌이 그대로 터져 네비게이션이
 // 멈춘다. 테스트에서는 요청 취소(abort) 동작을 검증하지 않으므로, 호환되지 않는 signal 은
 // 생성자에 전달하기 전에 제거한다 — Request 는 signal 이 없으면 내부적으로 기본 신호를 만든다.
+//
+// 주의 1: signal 을 무조건 제거하므로, 이후 실제 abort 동작을 검증하는 테스트를 추가하면
+// 이 패치가 그 테스트를 막는다.
+// 주의 2: 전역 Request 를 서브클래스로 바꿔치기하므로, 네이티브 undici Request 인스턴스가
+// (이 패치 이후 생성된) `Request` 를 상대로 `instanceof` 검사를 받으면 false 가 나온다.
 const NativeRequest = globalThis.Request;
 if (NativeRequest) {
   class TestCompatibleRequest extends NativeRequest {
