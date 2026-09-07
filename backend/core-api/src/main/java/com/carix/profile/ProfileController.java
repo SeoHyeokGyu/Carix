@@ -3,8 +3,6 @@ package com.carix.profile;
 import com.carix.common.ApiResult;
 import com.carix.common.ErrorResponse;
 import com.carix.common.usercontext.CurrentUserId;
-import com.carix.profile.dto.OnboardingStatusRequest;
-import com.carix.profile.dto.OnboardingStatusResponse;
 import com.carix.profile.dto.ProfileRequest;
 import com.carix.profile.dto.ProfileResponse;
 import com.carix.profile.service.ProfileService;
@@ -67,27 +65,6 @@ public class ProfileController {
       @CurrentUserId UUID userId, @Valid @RequestBody ProfileRequest request) {
     return ResponseEntity.ok(
         ApiResult.success(profileService.patch(userId, request), "프로필이 수정되었습니다."));
-  }
-
-  @Operation(summary = "온보딩 단계 상태 조회", description = "현재 진행 중인 온보딩 단계 및 완료 여부를 확인합니다.")
-  @ApiResponse(responseCode = "200", description = "조회 성공")
-  @GetMapping("/onboarding")
-  public ResponseEntity<ApiResult<OnboardingStatusResponse>> getOnboardingStatus() {
-    return ResponseEntity.ok(ApiResult.success(new OnboardingStatusResponse("EXPENSE", false)));
-  }
-
-  @Operation(
-      summary = "온보딩 단계 상태 갱신",
-      description = "온보딩 단계를 진행합니다. REVIEW -> COMPLETED 단계로 전환 시 최초 지수 연산이 수행됩니다.")
-  @ApiResponse(responseCode = "200", description = "갱신 성공")
-  @PatchMapping("/onboarding")
-  public ResponseEntity<ApiResult<OnboardingStatusResponse>> updateOnboardingStatus(
-      @Valid @RequestBody OnboardingStatusRequest request) {
-    return ResponseEntity.ok(
-        ApiResult.success(
-            new OnboardingStatusResponse(
-                request.currentStep(), "COMPLETED".equals(request.currentStep())),
-            "온보딩 상태가 업데이트되었습니다."));
   }
 
   @Operation(

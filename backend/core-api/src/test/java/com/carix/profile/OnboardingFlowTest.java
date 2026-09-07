@@ -39,18 +39,7 @@ class OnboardingFlowTest {
 
   @Test
   void 신규_사용자의_전체_온보딩_시나리오_동작을_검증한다() throws Exception {
-    // 1. 현재 온보딩 단계 조회 (초기 상태: 미완료, EXPENSE 단계)
-    mockMvc
-        .perform(
-            get("/v1/onboarding")
-                .header("X-User-Id", USER_ID)
-                .contentType(MediaType.APPLICATION_JSON))
-        .andExpect(status().isOk())
-        .andExpect(jsonPath("$.success").value(true))
-        .andExpect(jsonPath("$.data.currentStep").value("EXPENSE"))
-        .andExpect(jsonPath("$.data.completed").value(false));
-
-    // 2. 커리어 프로필 수정/저장
+    // 1. 커리어 프로필 수정/저장
     mockMvc
         .perform(
             patch("/v1/profile")
@@ -73,7 +62,7 @@ class OnboardingFlowTest {
         .andExpect(jsonPath("$.data.yearsOfExperience").value(5))
         .andExpect(jsonPath("$.data.region").value("SEOUL_GANGNAM"));
 
-    // 3. 최초 소득 이력 정보 등록
+    // 2. 최초 소득 이력 정보 등록
     mockMvc
         .perform(
             post("/v1/income")
@@ -93,7 +82,7 @@ class OnboardingFlowTest {
         .andExpect(jsonPath("$.data.netSalary").value(4500000))
         .andExpect(jsonPath("$.data.effectiveDate").value("2026-07-01"));
 
-    // 4. 지출 내역 등록
+    // 3. 지출 내역 등록
     mockMvc
         .perform(
             put("/v1/expenses/202607")
@@ -113,7 +102,7 @@ class OnboardingFlowTest {
         .andExpect(jsonPath("$.data.baseYearMonth").value("202607"))
         .andExpect(jsonPath("$.data.weightStatus").value("PARTIALLY_ESTIMATED"));
 
-    // 5. 보유 스킬 등록
+    // 4. 보유 스킬 등록
     mockMvc
         .perform(
             post("/v1/user-skills")
@@ -133,23 +122,6 @@ class OnboardingFlowTest {
         .andExpect(jsonPath("$.data.standardName").value("Spring Boot"))
         .andExpect(jsonPath("$.data.monthsOfExperience").value(24))
         .andExpect(jsonPath("$.data.lastUsedDate").value("2026-07-01"));
-
-    // 6. 온보딩 최종 완료 처리
-    mockMvc
-        .perform(
-            patch("/v1/onboarding")
-                .header("X-User-Id", USER_ID)
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(
-                    """
-                                {
-                                  "currentStep": "COMPLETED"
-                                }
-                                """))
-        .andExpect(status().isOk())
-        .andExpect(jsonPath("$.success").value(true))
-        .andExpect(jsonPath("$.data.currentStep").value("COMPLETED"))
-        .andExpect(jsonPath("$.data.completed").value(true));
   }
 
   @Test
