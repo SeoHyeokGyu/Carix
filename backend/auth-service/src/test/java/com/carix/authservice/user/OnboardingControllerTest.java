@@ -1,6 +1,8 @@
 package com.carix.authservice.user;
 
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.then;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -52,6 +54,8 @@ class OnboardingControllerTest {
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.currentStep").value("INCOME"))
         .andExpect(jsonPath("$.completed").value(false));
+
+    then(userRepository).should().save(any(User.class));
   }
 
   @Test
@@ -67,6 +71,8 @@ class OnboardingControllerTest {
                 .content("{\"currentStep\":\"COMPLETED\"}"))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.completed").value(true));
+
+    then(userRepository).should().save(any(User.class));
   }
 
   @Test
@@ -74,6 +80,19 @@ class OnboardingControllerTest {
     mockMvc
         .perform(
             patch("/v1/auth/onboarding")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"currentStep\":\"INCOME\"}"))
+        .andExpect(status().isUnauthorized());
+  }
+
+  @Test
+  void 만료되었거나_없는_세션은_401_이다() throws Exception {
+    given(sessionService.findUserIdBySessionToken(TOKEN)).willReturn(Optional.empty());
+
+    mockMvc
+        .perform(
+            patch("/v1/auth/onboarding")
+                .cookie(sessionCookie())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"currentStep\":\"INCOME\"}"))
         .andExpect(status().isUnauthorized());
