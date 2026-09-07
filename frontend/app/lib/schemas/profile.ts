@@ -1,47 +1,56 @@
 import { z } from "zod";
 import { values, type Option } from "./options";
 
-/** collector 의 JobFamilyClassifier 가 만드는 값과 같아야 한다. */
-export const JOB_FAMILIES: Option[] = [
+/**
+ * collector 의 JobFamilyClassifier 가 만드는 값과 같아야 한다.
+ *
+ * `: Option[]` 대신 `as const satisfies Option[]` 로 선언한다 — 타입을
+ * 넓히지 않으면서 형태만 `Option[]` 인지 검사해, `values()` 제네릭이
+ * `value` 리터럴 유니온을 그대로 추론하게 한다.
+ */
+export const JOB_FAMILIES = [
   { value: "DEVELOPER", label: "개발" },
   { value: "DATA", label: "데이터" },
   { value: "AI", label: "AI/ML" },
   { value: "OTHER", label: "기타" },
-];
+] as const satisfies Option[];
 
-export const EMPLOYMENT_TYPES: Option[] = [
+export const EMPLOYMENT_TYPES = [
   { value: "FULL_TIME", label: "정규직" },
   { value: "CONTRACT", label: "계약직" },
   { value: "FREELANCE", label: "프리랜서" },
   { value: "INTERN", label: "인턴" },
-];
+] as const satisfies Option[];
 
-export const COMPANY_SIZES: Option[] = [
+export const COMPANY_SIZES = [
   { value: "LARGE", label: "대기업" },
   { value: "MEDIUM", label: "중견·중소" },
   { value: "STARTUP", label: "스타트업" },
-];
+] as const satisfies Option[];
 
-/** collector 의 RegionRollup.SIDO 와 같은 어휘다. */
-export const REGIONS: Option[] = [
-  "서울",
-  "부산",
-  "대구",
-  "인천",
-  "광주",
-  "대전",
-  "울산",
-  "세종",
-  "경기",
-  "강원",
-  "충북",
-  "충남",
-  "전북",
-  "전남",
-  "경북",
-  "경남",
-  "제주",
-].map((name) => ({ value: name, label: name }));
+/**
+ * collector 의 RegionRollup.SIDO 와 같은 어휘다. 리터럴을 살리려면 `.map()`
+ * 으로 생성할 수 없다 — 배열 리터럴로 직접 나열한다.
+ */
+export const REGIONS = [
+  { value: "서울", label: "서울" },
+  { value: "부산", label: "부산" },
+  { value: "대구", label: "대구" },
+  { value: "인천", label: "인천" },
+  { value: "광주", label: "광주" },
+  { value: "대전", label: "대전" },
+  { value: "울산", label: "울산" },
+  { value: "세종", label: "세종" },
+  { value: "경기", label: "경기" },
+  { value: "강원", label: "강원" },
+  { value: "충북", label: "충북" },
+  { value: "충남", label: "충남" },
+  { value: "전북", label: "전북" },
+  { value: "전남", label: "전남" },
+  { value: "경북", label: "경북" },
+  { value: "경남", label: "경남" },
+  { value: "제주", label: "제주" },
+] as const satisfies Option[];
 
 export const profileSchema = z.object({
   jobFamily: z.enum(values(JOB_FAMILIES)),

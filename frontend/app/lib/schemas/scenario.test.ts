@@ -44,6 +44,18 @@ describe("scenarioSchema", () => {
     expect(
       scenarioSchema.safeParse({
         ...valid,
+        moveTargetGrossSalary: 10_000_000,
+      }).success,
+    ).toBe(true);
+    expect(
+      scenarioSchema.safeParse({
+        ...valid,
+        moveTargetGrossSalary: 3_000_000_000,
+      }).success,
+    ).toBe(true);
+    expect(
+      scenarioSchema.safeParse({
+        ...valid,
         moveTargetGrossSalary: 3_000_000_001,
       }).success,
     ).toBe(false);
@@ -71,6 +83,10 @@ describe("scenarioSchema", () => {
       scenarioSchema.safeParse({ ...valid, expectedUnemploymentMonths: -1 })
         .success,
     ).toBe(false);
+    expect(
+      scenarioSchema.safeParse({ ...valid, expectedUnemploymentMonths: 0 })
+        .success,
+    ).toBe(true);
     expect(
       scenarioSchema.safeParse({ ...valid, expectedUnemploymentMonths: 6 })
         .success,
