@@ -1,15 +1,10 @@
 import { render, screen } from "@testing-library/react";
-import { MemoryRouter, Route, Routes } from "react-router";
+import { createRoutesStub } from "react-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import * as SessionProviderModule from "../../lib/SessionProvider";
-import type { Session } from "../../lib/session";
-import MypageLayout from "./layout";
+import { setSession } from "../../lib/session";
+import MypageLayout, { clientLoader as mypageLayoutLoader } from "./layout";
 import MypageProfile from "./profile";
 import MypageRecords from "./records";
-
-vi.mock("../../lib/SessionProvider", () => ({
-  useSession: vi.fn(),
-}));
 
 describe("마이페이지 라우트 및 레이아웃 (Mypage)", () => {
   beforeEach(() => {
@@ -33,61 +28,48 @@ describe("마이페이지 라우트 및 레이아웃 (Mypage)", () => {
   });
 
   describe("MypageLayout (마이페이지 공통 레이아웃)", () => {
-    it("세션 조회 중일 때는 SessionPending을 렌더링한다", () => {
-      vi.mocked(SessionProviderModule.useSession).mockReturnValue({
-        status: "loading",
-      });
+    it("비로그인(anonymous) 상태 시 랜딩 페이지로 리디렉트한다", async () => {
+      setSession({ status: "anonymous" });
 
-      render(
-        <MemoryRouter initialEntries={["/mypage/profile"]}>
-          <MypageLayout />
-        </MemoryRouter>,
-      );
+      const Stub = createRoutesStub([
+        {
+          path: "/mypage/profile",
+          loader: mypageLayoutLoader,
+          HydrateFallback: () => null,
+          Component: () => <div>마이페이지</div>,
+        },
+        { path: "/", Component: () => <div>랜딩 페이지</div> },
+      ]);
 
-      expect(screen.getByRole("status")).toHaveTextContent("불러오는 중…");
+      render(<Stub initialEntries={["/mypage/profile"]} />);
+
+      expect(await screen.findByText("랜딩 페이지")).toBeInTheDocument();
     });
 
-    it("비로그인(anonymous) 상태 시 랜딩 페이지로 리디렉트한다", () => {
-      vi.mocked(SessionProviderModule.useSession).mockReturnValue({
-        status: "anonymous",
-      });
-
-      render(
-        <MemoryRouter initialEntries={["/mypage/profile"]}>
-          <Routes>
-            <Route path="/mypage/profile" element={<MypageLayout />} />
-            <Route path="/" element={<div>랜딩 페이지</div>} />
-          </Routes>
-        </MemoryRouter>,
-      );
-
-      expect(screen.getByText("랜딩 페이지")).toBeInTheDocument();
-    });
-
-    it("로그인 상태면 온보딩 완료 여부와 관계없이 AppShell 탭을 렌더링한다", () => {
-      const session: Session = {
+    it("로그인 상태면 온보딩 완료 여부와 관계없이 AppShell 탭을 렌더링한다", async () => {
+      setSession({
         status: "authenticated",
         userId: "user-1",
         email: "user@carix.kr",
         onboardingStep: "PROFILE", // Even incomplete onboarding is allowed in mypage
-      };
-      vi.mocked(SessionProviderModule.useSession).mockReturnValue(session);
+      });
 
-      render(
-        <MemoryRouter initialEntries={["/mypage/profile"]}>
-          <Routes>
-            <Route element={<MypageLayout />}>
-              <Route
-                path="/mypage/profile"
-                element={<div>설정 페이지 내용</div>}
-              />
-            </Route>
-          </Routes>
-        </MemoryRouter>,
-      );
+      const Stub = createRoutesStub([
+        {
+          path: "/mypage/profile",
+          loader: mypageLayoutLoader,
+          HydrateFallback: () => null,
+          Component: MypageLayout,
+          children: [
+            { index: true, Component: () => <div>설정 페이지 내용</div> },
+          ],
+        },
+      ]);
+
+      render(<Stub initialEntries={["/mypage/profile"]} />);
 
       expect(
-        screen.getByRole("navigation", { name: "마이페이지" }),
+        await screen.findByRole("navigation", { name: "마이페이지" }),
       ).toBeInTheDocument();
       expect(screen.getByText("설정 페이지 내용")).toBeInTheDocument();
     });

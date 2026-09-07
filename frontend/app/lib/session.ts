@@ -1,3 +1,5 @@
+import { fetchSession } from "./authApi";
+
 /** 백엔드 `users.onboarding_step` 과 같은 값이다 (상세 기술 명세 §1.2). */
 export type OnboardingStep =
   "PROFILE" | "INCOME" | "EXPENSE" | "SKILLS" | "REVIEW" | "COMPLETED";
@@ -26,4 +28,22 @@ export interface SessionResponse {
   userId: string;
   email: string;
   onboardingStep: OnboardingStep;
+}
+
+let cached: Session | null = null;
+
+/** root clientLoader 가 채우고 하위 layout loader 가 읽는다. */
+export function setSession(session: Session): void {
+  cached = session;
+}
+
+/**
+ * 이미 확정된 세션을 돌려준다. root clientLoader 가 먼저 실행돼 캐시를 채워 두므로,
+ * 하위 layout loader 는 세션을 다시 조회하지 않는다.
+ */
+export async function requireSession(): Promise<Session> {
+  if (cached) return cached;
+  const response = await fetchSession();
+  cached = response ? { status: "authenticated", ...response } : ANONYMOUS;
+  return cached;
 }

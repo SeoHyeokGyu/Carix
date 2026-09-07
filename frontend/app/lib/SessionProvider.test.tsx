@@ -7,6 +7,7 @@ import {
 } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as authApi from "./authApi";
+import { ANONYMOUS, type Session } from "./session";
 import {
   SessionProvider,
   useRefreshSession,
@@ -16,6 +17,17 @@ import {
 vi.mock("./authApi", () => ({
   fetchSession: vi.fn(),
 }));
+
+function Probe() {
+  const session = useSession();
+  return (
+    <span data-testid="step">
+      {session.status === "authenticated"
+        ? session.onboardingStep
+        : session.status}
+    </span>
+  );
+}
 
 describe("SessionProvider", () => {
   beforeEach(() => {
@@ -58,7 +70,26 @@ describe("SessionProvider", () => {
     spy.mockRestore();
   });
 
-  it("fetchSession이 세션 정보를 반환하면 authenticated 상태로 갱신한다", async () => {
+  it("초기 세션을 props 로 받아 조회 없이 그대로 노출한다", () => {
+    const fetchSpy = vi.spyOn(authApi, "fetchSession");
+    const initial: Session = {
+      status: "authenticated",
+      userId: "u-1",
+      email: "a@b.kr",
+      onboardingStep: "INCOME",
+    };
+
+    render(
+      <SessionProvider initialSession={initial}>
+        <Probe />
+      </SessionProvider>,
+    );
+
+    expect(screen.getByTestId("step")).toHaveTextContent("INCOME");
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it("refresh 호출 시 fetchSession 응답으로 authenticated 상태로 갱신한다", async () => {
     vi.mocked(authApi.fetchSession).mockResolvedValueOnce({
       userId: "u-1",
       email: "user@carix.kr",
@@ -66,69 +97,12 @@ describe("SessionProvider", () => {
     });
 
     render(
-      <SessionProvider>
+      <SessionProvider initialSession={ANONYMOUS}>
         <TestConsumer />
       </SessionProvider>,
     );
 
-    // Initial state is loading
-    expect(screen.getByTestId("status")).toHaveTextContent("loading");
-
-    await waitFor(() => {
-      expect(screen.getByTestId("status")).toHaveTextContent("authenticated");
-    });
-
-    expect(screen.getByTestId("email")).toHaveTextContent("user@carix.kr");
-  });
-
-  it("fetchSession이 null을 반환하면 anonymous 상태로 갱신한다", async () => {
-    vi.mocked(authApi.fetchSession).mockResolvedValueOnce(null);
-
-    render(
-      <SessionProvider>
-        <TestConsumer />
-      </SessionProvider>,
-    );
-
-    await waitFor(() => {
-      expect(screen.getByTestId("status")).toHaveTextContent("anonymous");
-    });
-  });
-
-  it("fetchSession 호출 중 에러가 발생하면 anonymous 상태로 처리한다", async () => {
-    vi.mocked(authApi.fetchSession).mockRejectedValueOnce(
-      new Error("Network Error"),
-    );
-
-    render(
-      <SessionProvider>
-        <TestConsumer />
-      </SessionProvider>,
-    );
-
-    await waitFor(() => {
-      expect(screen.getByTestId("status")).toHaveTextContent("anonymous");
-    });
-  });
-
-  it("refresh 호출 시 세션을 재조회하여 상태를 갱신한다", async () => {
-    vi.mocked(authApi.fetchSession)
-      .mockResolvedValueOnce(null)
-      .mockResolvedValueOnce({
-        userId: "u-2",
-        email: "after-login@carix.kr",
-        onboardingStep: "COMPLETED",
-      });
-
-    render(
-      <SessionProvider>
-        <TestConsumer />
-      </SessionProvider>,
-    );
-
-    await waitFor(() => {
-      expect(screen.getByTestId("status")).toHaveTextContent("anonymous");
-    });
+    expect(screen.getByTestId("status")).toHaveTextContent("anonymous");
 
     const refreshButton = screen.getByRole("button", { name: "새로고침" });
     await act(async () => {
@@ -138,8 +112,60 @@ describe("SessionProvider", () => {
     await waitFor(() => {
       expect(screen.getByTestId("status")).toHaveTextContent("authenticated");
     });
-    expect(screen.getByTestId("email")).toHaveTextContent(
-      "after-login@carix.kr",
+    expect(screen.getByTestId("email")).toHaveTextContent("user@carix.kr");
+  });
+
+  it("refresh 호출 시 fetchSession이 null을 반환하면 anonymous 상태로 갱신한다", async () => {
+    const authenticatedInitial: Session = {
+      status: "authenticated",
+      userId: "u-9",
+      email: "old@carix.kr",
+      onboardingStep: "COMPLETED",
+    };
+    vi.mocked(authApi.fetchSession).mockResolvedValueOnce(null);
+
+    render(
+      <SessionProvider initialSession={authenticatedInitial}>
+        <TestConsumer />
+      </SessionProvider>,
     );
+
+    expect(screen.getByTestId("status")).toHaveTextContent("authenticated");
+
+    const refreshButton = screen.getByRole("button", { name: "새로고침" });
+    await act(async () => {
+      refreshButton.click();
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId("status")).toHaveTextContent("anonymous");
+    });
+  });
+
+  it("refresh 호출 중 에러가 발생하면 anonymous 상태로 처리한다", async () => {
+    const authenticatedInitial: Session = {
+      status: "authenticated",
+      userId: "u-9",
+      email: "old@carix.kr",
+      onboardingStep: "COMPLETED",
+    };
+    vi.mocked(authApi.fetchSession).mockRejectedValueOnce(
+      new Error("Network Error"),
+    );
+
+    render(
+      <SessionProvider initialSession={authenticatedInitial}>
+        <TestConsumer />
+      </SessionProvider>,
+    );
+
+    const refreshButton = screen.getByRole("button", { name: "새로고침" });
+    await act(async () => {
+      refreshButton.click();
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId("status")).toHaveTextContent("anonymous");
+    });
   });
 });

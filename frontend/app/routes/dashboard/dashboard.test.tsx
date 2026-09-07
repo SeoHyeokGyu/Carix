@@ -1,17 +1,12 @@
 import { render, screen } from "@testing-library/react";
-import { MemoryRouter, Route, Routes } from "react-router";
+import { createRoutesStub } from "react-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import * as SessionProviderModule from "../../lib/SessionProvider";
-import type { Session } from "../../lib/session";
+import { setSession } from "../../lib/session";
 import DashboardHistory from "./history";
 import DashboardHome from "./index";
-import DashboardLayout from "./layout";
+import DashboardLayout, { clientLoader as dashboardLayoutLoader } from "./layout";
 import DashboardSimulator from "./simulator";
 import DashboardTrends from "./trends";
-
-vi.mock("../../lib/SessionProvider", () => ({
-  useSession: vi.fn(),
-}));
 
 describe("대시보드 라우트 및 레이아웃 (Dashboard)", () => {
   beforeEach(() => {
@@ -53,60 +48,76 @@ describe("대시보드 라우트 및 레이아웃 (Dashboard)", () => {
   });
 
   describe("DashboardLayout (대시보드 공통 레이아웃)", () => {
-    it("세션 조회 중일 때는 SessionPending을 렌더링한다", () => {
-      vi.mocked(SessionProviderModule.useSession).mockReturnValue({
-        status: "loading",
-      });
+    it("비로그인 상태면 랜딩 페이지로 보낸다", async () => {
+      setSession({ status: "anonymous" });
 
-      render(
-        <MemoryRouter initialEntries={["/dashboard"]}>
-          <DashboardLayout />
-        </MemoryRouter>,
-      );
+      const Stub = createRoutesStub([
+        {
+          path: "/dashboard",
+          loader: dashboardLayoutLoader,
+          HydrateFallback: () => null,
+          Component: () => <div>대시보드</div>,
+        },
+        { path: "/", Component: () => <div>랜딩 페이지</div> },
+      ]);
 
-      expect(screen.getByRole("status")).toHaveTextContent("불러오는 중…");
+      render(<Stub initialEntries={["/dashboard"]} />);
+
+      expect(await screen.findByText("랜딩 페이지")).toBeInTheDocument();
     });
 
-    it("온보딩 미완료(비로그인 또는 단계 미완료) 시 리디렉트한다", () => {
-      vi.mocked(SessionProviderModule.useSession).mockReturnValue({
-        status: "anonymous",
+    it("온보딩 미완료 사용자면 남은 단계 화면으로 보낸다", async () => {
+      setSession({
+        status: "authenticated",
+        userId: "user-1",
+        email: "user@carix.kr",
+        onboardingStep: "PROFILE",
       });
 
-      render(
-        <MemoryRouter initialEntries={["/dashboard"]}>
-          <Routes>
-            <Route path="/dashboard" element={<DashboardLayout />} />
-            <Route path="/" element={<div>랜딩 페이지</div>} />
-          </Routes>
-        </MemoryRouter>,
-      );
+      const Stub = createRoutesStub([
+        {
+          path: "/dashboard",
+          loader: dashboardLayoutLoader,
+          HydrateFallback: () => null,
+          Component: () => <div>대시보드</div>,
+        },
+        {
+          path: "/onboarding/profile",
+          Component: () => <div>프로필 온보딩으로 리디렉트됨</div>,
+        },
+      ]);
 
-      expect(screen.getByText("랜딩 페이지")).toBeInTheDocument();
+      render(<Stub initialEntries={["/dashboard"]} />);
+
+      expect(
+        await screen.findByText("프로필 온보딩으로 리디렉트됨"),
+      ).toBeInTheDocument();
     });
 
-    it("온보딩 완료 사용자인 경우 대시보드 탭 네비게이션이 포함된 AppShell을 렌더링한다", () => {
-      const onboardedSession: Session = {
+    it("온보딩 완료 사용자인 경우 대시보드 탭 네비게이션이 포함된 AppShell을 렌더링한다", async () => {
+      setSession({
         status: "authenticated",
         userId: "user-1",
         email: "user@carix.kr",
         onboardingStep: "COMPLETED",
-      };
-      vi.mocked(SessionProviderModule.useSession).mockReturnValue(
-        onboardedSession,
-      );
+      });
 
-      render(
-        <MemoryRouter initialEntries={["/dashboard"]}>
-          <Routes>
-            <Route element={<DashboardLayout />}>
-              <Route path="/dashboard" element={<div>대시보드 콘텐츠</div>} />
-            </Route>
-          </Routes>
-        </MemoryRouter>,
-      );
+      const Stub = createRoutesStub([
+        {
+          path: "/dashboard",
+          loader: dashboardLayoutLoader,
+          HydrateFallback: () => null,
+          Component: DashboardLayout,
+          children: [
+            { index: true, Component: () => <div>대시보드 콘텐츠</div> },
+          ],
+        },
+      ]);
+
+      render(<Stub initialEntries={["/dashboard"]} />);
 
       expect(
-        screen.getByRole("navigation", { name: "대시보드" }),
+        await screen.findByRole("navigation", { name: "대시보드" }),
       ).toBeInTheDocument();
       expect(screen.getByText("대시보드 콘텐츠")).toBeInTheDocument();
     });

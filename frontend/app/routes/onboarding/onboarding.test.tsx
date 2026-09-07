@@ -1,18 +1,13 @@
 import { render, screen } from "@testing-library/react";
-import { MemoryRouter, Route, Routes } from "react-router";
+import { createRoutesStub } from "react-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import * as SessionProviderModule from "../../lib/SessionProvider";
-import type { Session } from "../../lib/session";
+import { setSession } from "../../lib/session";
 import Expense from "./expense";
 import Income from "./income";
-import OnboardingLayout from "./layout";
+import OnboardingLayout, { clientLoader as onboardingLayoutLoader } from "./layout";
 import Profile from "./profile";
 import Review from "./review";
 import Skills from "./skills";
-
-vi.mock("../../lib/SessionProvider", () => ({
-  useSession: vi.fn(),
-}));
 
 describe("온보딩 라우트 및 레이아웃 (Onboarding)", () => {
   beforeEach(() => {
@@ -62,84 +57,99 @@ describe("온보딩 라우트 및 레이아웃 (Onboarding)", () => {
   });
 
   describe("OnboardingLayout (온보딩 공통 레이아웃)", () => {
-    it("세션 조회 중일 때는 SessionPending을 렌더링한다", () => {
-      vi.mocked(SessionProviderModule.useSession).mockReturnValue({
-        status: "loading",
-      });
+    it("비로그인 상태면 랜딩 페이지로 보낸다", async () => {
+      setSession({ status: "anonymous" });
 
-      render(
-        <MemoryRouter initialEntries={["/onboarding/profile"]}>
-          <OnboardingLayout />
-        </MemoryRouter>,
-      );
+      const Stub = createRoutesStub([
+        {
+          path: "/onboarding/profile",
+          loader: onboardingLayoutLoader,
+          HydrateFallback: () => null,
+          Component: () => <div>온보딩</div>,
+        },
+        { path: "/", Component: () => <div>랜딩 페이지</div> },
+      ]);
 
-      expect(screen.getByRole("status")).toHaveTextContent("불러오는 중…");
+      render(<Stub initialEntries={["/onboarding/profile"]} />);
+
+      expect(await screen.findByText("랜딩 페이지")).toBeInTheDocument();
     });
 
-    it("비로그인 상태 시 랜딩 페이지로 리디렉트한다", () => {
-      vi.mocked(SessionProviderModule.useSession).mockReturnValue({
-        status: "anonymous",
-      });
-
-      render(
-        <MemoryRouter initialEntries={["/onboarding/profile"]}>
-          <Routes>
-            <Route path="/onboarding/profile" element={<OnboardingLayout />} />
-            <Route path="/" element={<div>랜딩 페이지</div>} />
-          </Routes>
-        </MemoryRouter>,
-      );
-
-      expect(screen.getByText("랜딩 페이지")).toBeInTheDocument();
-    });
-
-    it("사용자의 현재 단계와 다른 온보딩 경로 접근 시 현재 단계로 리디렉트한다", () => {
-      vi.mocked(SessionProviderModule.useSession).mockReturnValue({
+    it("사용자의 현재 단계와 다른 온보딩 경로 접근 시 현재 단계로 리디렉트한다", async () => {
+      setSession({
         status: "authenticated",
         userId: "u-1",
         email: "user@carix.kr",
         onboardingStep: "PROFILE",
       });
 
-      render(
-        <MemoryRouter initialEntries={["/onboarding/skills"]}>
-          <Routes>
-            <Route path="/onboarding/*" element={<OnboardingLayout />} />
-            <Route
-              path="/onboarding/profile"
-              element={<div>프로필로 리디렉트됨</div>}
-            />
-          </Routes>
-        </MemoryRouter>,
-      );
+      const Stub = createRoutesStub([
+        {
+          path: "/onboarding/skills",
+          loader: onboardingLayoutLoader,
+          HydrateFallback: () => null,
+          Component: () => <div>스킬</div>,
+        },
+        {
+          path: "/onboarding/profile",
+          Component: () => <div>프로필로 리디렉트됨</div>,
+        },
+      ]);
 
-      expect(screen.getByText("프로필로 리디렉트됨")).toBeInTheDocument();
-    });
-
-    it("현재 진행 단계와 일치하면 AppShell 탭 및 온보딩 화면을 렌더링한다", () => {
-      const session: Session = {
-        status: "authenticated",
-        userId: "u-1",
-        email: "user@carix.kr",
-        onboardingStep: "PROFILE",
-      };
-      vi.mocked(SessionProviderModule.useSession).mockReturnValue(session);
-
-      render(
-        <MemoryRouter initialEntries={["/onboarding/profile"]}>
-          <Routes>
-            <Route element={<OnboardingLayout />}>
-              <Route
-                path="/onboarding/profile"
-                element={<div>프로필 온보딩 본문</div>}
-              />
-            </Route>
-          </Routes>
-        </MemoryRouter>,
-      );
+      render(<Stub initialEntries={["/onboarding/skills"]} />);
 
       expect(
-        screen.getByRole("navigation", { name: "온보딩 단계" }),
+        await screen.findByText("프로필로 리디렉트됨"),
+      ).toBeInTheDocument();
+    });
+
+    it("온보딩 완료 사용자가 소득 화면을 열면 대시보드로 보낸다", async () => {
+      setSession({
+        status: "authenticated",
+        userId: "u-1",
+        email: "a@b.kr",
+        onboardingStep: "COMPLETED",
+      });
+
+      const Stub = createRoutesStub([
+        {
+          path: "/onboarding/income",
+          loader: onboardingLayoutLoader,
+          HydrateFallback: () => null,
+          Component: () => <div>온보딩</div>,
+        },
+        { path: "/dashboard", Component: () => <div>대시보드</div> },
+      ]);
+
+      render(<Stub initialEntries={["/onboarding/income"]} />);
+
+      expect(await screen.findByText("대시보드")).toBeInTheDocument();
+    });
+
+    it("현재 진행 단계와 일치하면 AppShell 탭 및 온보딩 화면을 렌더링한다", async () => {
+      setSession({
+        status: "authenticated",
+        userId: "u-1",
+        email: "user@carix.kr",
+        onboardingStep: "PROFILE",
+      });
+
+      const Stub = createRoutesStub([
+        {
+          path: "/onboarding/profile",
+          loader: onboardingLayoutLoader,
+          HydrateFallback: () => null,
+          Component: OnboardingLayout,
+          children: [
+            { index: true, Component: () => <div>프로필 온보딩 본문</div> },
+          ],
+        },
+      ]);
+
+      render(<Stub initialEntries={["/onboarding/profile"]} />);
+
+      expect(
+        await screen.findByRole("navigation", { name: "온보딩 단계" }),
       ).toBeInTheDocument();
       expect(screen.getByText("프로필 온보딩 본문")).toBeInTheDocument();
     });
