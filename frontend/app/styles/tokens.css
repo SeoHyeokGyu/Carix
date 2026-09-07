@@ -14,6 +14,39 @@
   --font-body: "Pretendard", "Outfit", sans-serif;
 }
 
+/*
+ * shadcn/ui 컴포넌트가 쓰는 `bg-primary`, `text-muted-foreground` 같은 유틸리티는
+ * Tailwind 가 `--color-*`/`--radius-*` 네임스페이스에서 값을 찾을 때만 생성된다.
+ * 아래 `:root` 의 시맨틱 변수(전부 carix 변수 참조)를 그 네임스페이스에 연결한다.
+ * `inline` 을 쓰는 이유: 값 자체가 이미 `var(--carix-*)` 참조라서, inline 없이 등록하면
+ * 다크모드에서 --carix-* 가 바뀌어도 유틸리티가 따라가지 않을 수 있다.
+ */
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
 @layer base {
   :root {
     --carix-bg: #f3f4f6; /* 연한 블루그레이 배경 */
@@ -24,6 +57,27 @@
     --carix-warning: #c2410c; /* 오렌지 다크 (접근성 대비 충족) */
     --carix-danger: #ef4444; /* 빨간색 */
     --carix-info: #4f46e5; /* 인디고 브랜드 컬러 */
+
+    /* shadcn/ui 가 기대하는 토큰 이름 — carix 변수를 그대로 참조해 팔레트를 한 벌로 유지한다 */
+    --background: var(--carix-bg);
+    --foreground: var(--carix-text);
+    --card: var(--carix-surface);
+    --card-foreground: var(--carix-text);
+    --popover: var(--carix-surface);
+    --popover-foreground: var(--carix-text);
+    --border: var(--carix-border);
+    --input: var(--carix-border);
+    --ring: var(--carix-info);
+    --primary: var(--carix-info);
+    --primary-foreground: #ffffff;
+    --secondary: var(--carix-border);
+    --secondary-foreground: var(--carix-text);
+    --muted: var(--carix-bg);
+    --muted-foreground: var(--carix-text);
+    --accent: var(--carix-border);
+    --accent-foreground: var(--carix-text);
+    --destructive: var(--carix-danger);
+    --radius: 0.5rem;
   }
 
   @media (prefers-color-scheme: dark) {
