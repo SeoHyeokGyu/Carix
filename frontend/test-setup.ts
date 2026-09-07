@@ -28,6 +28,55 @@ if (NativeRequest) {
   globalThis.Request = TestCompatibleRequest as unknown as typeof Request;
 }
 
+// jsdom 은 자신만의 FormData·URLSearchParams 구현을 `window` 에 심어 둔다. React Router 의
+// `<Form>` 은 실제 제출 시 `new FormData(formElement)` 로 이 jsdom 클래스의 인스턴스를 만들고
+// (그래야 jsdom 이 만든 `<form>` DOM 을 읽을 수 있다), 기본 encType
+// (`application/x-www-form-urlencoded`)에서는 그 값을 다시 `new URLSearchParams(...)` 로
+// 감싼다 — 이것도 jsdom 클래스다.
+//
+// Node 내장(undici 기반) Request 생성자는 body 가 FormData·URLSearchParams 인지 "자신의"
+// 클래스 레퍼런스로만 판별한다. jsdom 인스턴스는 그 판별을 통과하지 못해 기본값인
+// `text/plain` 으로 떨어지고, 그 결과 `request.formData()` 가 "Content-Type was not one of
+// multipart/form-data or application/x-www-form-urlencoded" 로 터진다 — action 이 있는
+// 화면에서 폼을 제출하는 모든 라우트 테스트가 이 문제를 겪는다.
+//
+// 클래스 판별 자체를 우회한다: body 가 (FormData 든 URLSearchParams 든) `.entries()` 를
+// 가진 값이면 그 자리에서 문자열로 직렬화하고 Content-Type 을 직접 지정한다 — 이 프로젝트의
+// 폼은 파일 입력이 없어 항상 `application/x-www-form-urlencoded` 이므로 안전하다. 파일
+// 입력이 생겨 실제 멀티파트가 필요해지면 이 우회를 다시 봐야 한다.
+//
+// 위 AbortSignal 패치가 이미 `globalThis.Request` 를 `TestCompatibleRequest` 로 바꿔
+// 두었다. 아래는 그 위에 다시 한 겹 씌우는 것이지 대체가 아니다 — `RequestAfterAbortSignalPatch`
+// 가 가리키는 건 원본 undici Request 가 아니라 signal 을 제거해 주는 그 클래스이므로,
+// signal 제거와 form-body 직렬화가 순서대로 함께 적용된다.
+const RequestAfterAbortSignalPatch = globalThis.Request;
+
+function hasEntries(value: unknown): value is Iterable<[string, unknown]> {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    typeof (value as { entries?: unknown }).entries === "function"
+  );
+}
+
+class RequestWithUrlEncodedFormFix extends RequestAfterAbortSignalPatch {
+  constructor(input: RequestInfo | URL, init?: RequestInit) {
+    if (init && hasEntries(init.body)) {
+      const params = new URLSearchParams();
+      for (const [key, value] of init.body) {
+        params.append(key, typeof value === "string" ? value : String(value));
+      }
+      const headers = new Headers(init.headers);
+      headers.set("Content-Type", "application/x-www-form-urlencoded;charset=UTF-8");
+      super(input, { ...init, body: params.toString(), headers });
+    } else {
+      super(input, init);
+    }
+  }
+}
+
+globalThis.Request = RequestWithUrlEncodedFormFix as unknown as typeof Request;
+
 if (typeof window !== "undefined" && !window.matchMedia) {
   window.matchMedia = (query: string) =>
     ({
