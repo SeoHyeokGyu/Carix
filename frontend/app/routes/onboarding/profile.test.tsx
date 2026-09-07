@@ -33,6 +33,7 @@ describe("S-05 프로필 화면", () => {
         HydrateFallback: () => null,
       },
       { path: "/onboarding/income", Component: () => <div>소득 화면</div> },
+      { path: "/", Component: () => <div>랜딩 페이지</div> },
     ]);
     return render(<Stub initialEntries={["/onboarding/profile"]} />);
   }
@@ -153,7 +154,7 @@ describe("S-05 프로필 화면", () => {
     });
   });
 
-  it("저장 후 나가기는 부분 검증만 하고 저장됨 뱃지를 보여준다", async () => {
+  it("저장 후 나가기는 부분 검증만 하고 랜딩 페이지로 이동한다", async () => {
     vi.spyOn(profileApi, "getProfile").mockResolvedValue({
       jobFamily: null,
       yearsOfExperience: null,
@@ -176,9 +177,45 @@ describe("S-05 프로필 화면", () => {
     await user.selectOptions(await screen.findByLabelText("주 직무"), "DEVELOPER");
     await user.click(screen.getByRole("button", { name: "저장 후 나가기" }));
 
-    expect(await screen.findByText("저장됨")).toBeInTheDocument();
+    // 목적지는 랜딩(`/`) 뿐이다 — 온보딩 미완료 상태에서는 /dashboard 로 가도
+    // guardOnboarded 가 다시 현재 단계로 돌려보내므로 갈 이유가 없다.
+    expect(await screen.findByText("랜딩 페이지")).toBeInTheDocument();
     expect(patch).toHaveBeenCalledWith({ jobFamily: "DEVELOPER" });
     // 부분 저장은 온보딩 단계를 넘기지 않는다 — "다음" 만 advanceOnboarding 을 부른다.
     expect(advance).not.toHaveBeenCalled();
+  });
+
+  // 회귀 테스트 — "다음" 분기의 setSession 을 이 분기에 그대로 옮겨 붙이는 실수를
+  // 잡는다. "저장 후 나가기"는 사용자가 지금 단계에서 멈추는 것이므로, 세션 캐시의
+  // onboardingStep 은 그대로 PROFILE 이어야 한다 — 그래야 나중에 다시 로그인했을 때
+  // guardOnboarding 이 이 화면으로 돌려보낸다.
+  it("저장 후 나가기는 세션 캐시의 onboardingStep 을 바꾸지 않는다", async () => {
+    vi.spyOn(profileApi, "getProfile").mockResolvedValue({
+      jobFamily: null,
+      yearsOfExperience: null,
+      region: null,
+      employmentType: null,
+      companySize: null,
+    });
+    vi.spyOn(profileApi, "patchProfile").mockResolvedValue({
+      jobFamily: "DEVELOPER",
+      yearsOfExperience: null,
+      region: null,
+      employmentType: null,
+      companySize: null,
+    });
+
+    renderScreen();
+    const user = userEvent.setup();
+
+    await user.selectOptions(await screen.findByLabelText("주 직무"), "DEVELOPER");
+    await user.click(screen.getByRole("button", { name: "저장 후 나가기" }));
+
+    await screen.findByText("랜딩 페이지");
+
+    await expect(requireSession()).resolves.toMatchObject({
+      status: "authenticated",
+      onboardingStep: "PROFILE",
+    });
   });
 });

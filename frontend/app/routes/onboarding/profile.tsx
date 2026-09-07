@@ -1,6 +1,4 @@
 import { Form, redirect, useActionData, useLoaderData, useNavigation } from "react-router";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -14,6 +12,7 @@ import { Label } from "@/components/ui/label";
 import { StepBadges } from "../../components/onboarding/StepBadges";
 import { getProfile, patchProfile } from "../../lib/api/profile";
 import { advanceOnboarding } from "../../lib/onboardingApi";
+import { LANDING_PATH } from "../../lib/routeGuards";
 import {
   COMPANY_SIZES,
   EMPLOYMENT_TYPES,
@@ -25,7 +24,7 @@ import {
 import { requireSession, setSession } from "../../lib/session";
 
 type FieldErrors = Partial<Record<keyof ProfileInput, string>>;
-type ActionData = { errors: FieldErrors } | { saved: true };
+type ActionData = { errors: FieldErrors };
 
 const FIELD_ERROR_MESSAGES: Record<keyof ProfileInput, string> = {
   jobFamily: "주 직무를 선택해 주세요.",
@@ -93,18 +92,19 @@ export async function clientAction({ request }: { request: Request }) {
   const raw = readProfileForm(formData);
 
   // "저장 후 나가기" — PATCH 는 부분 필드 저장을 허용한다(전체 완비 검증은 검토 화면
-  // 몫이다). 온보딩 단계는 넘기지 않는다 — 이 버튼은 이탈 시 유실 방지용이지 "다음"
-  // 이 아니다.
-  // NOTE: (cjkang) 어디로 이동할지는 명세·와이어프레임 어디에도 없다 — 그래서 이동하지
-  // 않는다. 저장 성공 뱃지만 보여주고 실제로 나가는 것(닫기·다른 경로 이동)은 사용자
-  // 손에 맡긴다. 목적지가 정해지면 여기서 redirect 를 추가한다.
+  // 몫이다). 온보딩 단계는 넘기지 않고 세션 캐시도 건드리지 않는다 — 사용자는 여기서
+  // 멈추는 것이고, 나중에 다시 로그인하면 guardOnboarding 이 같은 단계로 돌려보내야
+  // 하기 때문이다. 로그아웃도 하지 않는다 — 세션은 유지된다.
+  //
+  // 목적지는 랜딩(LANDING_PATH) 뿐이다 — 온보딩 미완료 상태에서는 guardOnboarded 가
+  // /dashboard 를 막고 현재 단계로 돌려보내므로 그쪽으로 보내는 건 의미가 없다.
   if (intent === "exit") {
     const result = profileSchema.partial().safeParse(raw);
     if (!result.success) {
       return { errors: toFieldErrors(result.error.issues) } satisfies ActionData;
     }
     await patchProfile(result.data);
-    return { saved: true } satisfies ActionData;
+    return redirect(LANDING_PATH);
   }
 
   const result = profileSchema.safeParse(raw);
@@ -130,8 +130,7 @@ export default function Profile() {
   const { profile } = useLoaderData<typeof clientLoader>();
   const actionData = useActionData<ActionData>();
   const navigation = useNavigation();
-  const errors = actionData && "errors" in actionData ? actionData.errors : undefined;
-  const saved = actionData && "saved" in actionData && actionData.saved;
+  const errors = actionData?.errors;
   const isSubmitting = navigation.state === "submitting";
 
   return (
@@ -245,15 +244,6 @@ export default function Profile() {
                 <p className="text-sm text-destructive">{errors.companySize}</p>
               )}
             </div>
-
-            {saved && (
-              <Alert>
-                <AlertDescription>
-                  <Badge variant="secondary">저장됨</Badge>
-                  <span>입력한 내용이 저장되었습니다. 이어서 진행하거나 나가도 됩니다.</span>
-                </AlertDescription>
-              </Alert>
-            )}
 
             <div className="flex flex-wrap justify-end gap-3">
               <Button
