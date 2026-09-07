@@ -40,42 +40,40 @@ if (NativeRequest) {
 // multipart/form-data or application/x-www-form-urlencoded" 로 터진다 — action 이 있는
 // 화면에서 폼을 제출하는 모든 라우트 테스트가 이 문제를 겪는다.
 //
-// 클래스 판별 자체를 우회한다: body 가 (FormData 든 URLSearchParams 든) `.entries()` 를
-// 가진 값이면 그 자리에서 문자열로 직렬화하고 Content-Type 을 직접 지정한다 — 이 프로젝트의
-// 폼은 파일 입력이 없어 항상 `application/x-www-form-urlencoded` 이므로 안전하다. 파일
-// 입력이 생겨 실제 멀티파트가 필요해지면 이 우회를 다시 봐야 한다.
+// 클래스 판별 자체를 우회한다: body 가 이 jsdom 환경의 FormData 든 URLSearchParams 든
+// (둘 다 `<Form>` 이 실제로 만드는 클래스와 정확히 같다 — 이 환경엔 다른 FormData·
+// URLSearchParams 구현이 없으므로 `instanceof` 로 좁혀도 안전하다) 그 자리에서 문자열로
+// 직렬화하고, 호출부가 Content-Type 을 이미 지정하지 않았을 때만 기본값을 채운다 — 이
+// 프로젝트의 폼은 파일 입력이 없어 항상 `application/x-www-form-urlencoded` 이므로
+// 안전하다. 파일 입력이 생겨 실제 멀티파트가 필요해지면 이 우회를 다시 봐야 한다.
 //
 // 위 AbortSignal 패치가 이미 `globalThis.Request` 를 `TestCompatibleRequest` 로 바꿔
 // 두었다. 아래는 그 위에 다시 한 겹 씌우는 것이지 대체가 아니다 — `RequestAfterAbortSignalPatch`
 // 가 가리키는 건 원본 undici Request 가 아니라 signal 을 제거해 주는 그 클래스이므로,
-// signal 제거와 form-body 직렬화가 순서대로 함께 적용된다.
+// signal 제거와 form-body 직렬화가 순서대로 함께 적용된다. 이웃 패치와 같은 이유로 같은
+// `if (...)` 가드를 둔다 — `globalThis.Request` 가 없는 실행 환경에서 `extends undefined`
+// 로 터지지 않게 한다.
 const RequestAfterAbortSignalPatch = globalThis.Request;
-
-function hasEntries(value: unknown): value is Iterable<[string, unknown]> {
-  return (
-    typeof value === "object" &&
-    value !== null &&
-    typeof (value as { entries?: unknown }).entries === "function"
-  );
-}
-
-class RequestWithUrlEncodedFormFix extends RequestAfterAbortSignalPatch {
-  constructor(input: RequestInfo | URL, init?: RequestInit) {
-    if (init && hasEntries(init.body)) {
-      const params = new URLSearchParams();
-      for (const [key, value] of init.body) {
-        params.append(key, typeof value === "string" ? value : String(value));
+if (RequestAfterAbortSignalPatch) {
+  class RequestWithUrlEncodedFormFix extends RequestAfterAbortSignalPatch {
+    constructor(input: RequestInfo | URL, init?: RequestInit) {
+      if (init && (init.body instanceof FormData || init.body instanceof URLSearchParams)) {
+        const params = new URLSearchParams();
+        for (const [key, value] of init.body) {
+          params.append(key, typeof value === "string" ? value : String(value));
+        }
+        const headers = new Headers(init.headers);
+        if (!headers.has("Content-Type")) {
+          headers.set("Content-Type", "application/x-www-form-urlencoded;charset=UTF-8");
+        }
+        super(input, { ...init, body: params.toString(), headers });
+      } else {
+        super(input, init);
       }
-      const headers = new Headers(init.headers);
-      headers.set("Content-Type", "application/x-www-form-urlencoded;charset=UTF-8");
-      super(input, { ...init, body: params.toString(), headers });
-    } else {
-      super(input, init);
     }
   }
+  globalThis.Request = RequestWithUrlEncodedFormFix as unknown as typeof Request;
 }
-
-globalThis.Request = RequestWithUrlEncodedFormFix as unknown as typeof Request;
 
 if (typeof window !== "undefined" && !window.matchMedia) {
   window.matchMedia = (query: string) =>

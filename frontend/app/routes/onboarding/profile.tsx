@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import { Form, redirect, useActionData, useLoaderData, useNavigation } from "react-router";
 import { Button } from "@/components/ui/button";
 import {
@@ -8,11 +9,17 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Field } from "../../components/onboarding/Field";
+import { NativeSelect } from "../../components/onboarding/NativeSelect";
 import { StepBadges } from "../../components/onboarding/StepBadges";
+import { toUserMessage } from "../../lib/apiError";
 import { getProfile, patchProfile } from "../../lib/api/profile";
+import { UnauthorizedError } from "../../lib/coreApi";
+import { toFieldErrors, type FieldErrors } from "../../lib/fieldErrors";
+import { focusFirstInvalidField } from "../../lib/focusFirstInvalidField";
+import { formDataToObject } from "../../lib/formData";
 import { advanceOnboarding } from "../../lib/onboardingApi";
-import { LANDING_PATH } from "../../lib/routeGuards";
+import { LANDING_PATH, LOGIN_PATH } from "../../lib/routeGuards";
 import {
   COMPANY_SIZES,
   EMPLOYMENT_TYPES,
@@ -23,7 +30,6 @@ import {
 } from "../../lib/schemas/profile";
 import { requireSession, setSession } from "../../lib/session";
 
-type FieldErrors = Partial<Record<keyof ProfileInput, string>>;
 type ActionData = { errors: FieldErrors };
 
 const FIELD_ERROR_MESSAGES: Record<keyof ProfileInput, string> = {
@@ -34,96 +40,62 @@ const FIELD_ERROR_MESSAGES: Record<keyof ProfileInput, string> = {
   companySize: "회사 규모를 올바르게 선택해 주세요.",
 };
 
-const SELECT_CLASS =
-  "h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 dark:bg-input/30";
-
 export async function clientLoader() {
-  const profile = await getProfile();
-  return { profile };
-}
-
-/**
- * FormData → 후보 객체. 빈 문자열(미입력·미선택)은 아예 키를 만들지 않는다 — "다음"
- * 은 profileSchema(필수) 로, "저장 후 나가기" 는 profileSchema.partial() 로 검증하는데,
- * 빈 문자열을 그대로 넣으면 partial 에서도 "필드가 있는데 값이 유효하지 않다" 로 걸린다.
- */
-function readProfileForm(formData: FormData): Record<string, unknown> {
-  const raw: Record<string, unknown> = {};
-
-  const jobFamily = formData.get("jobFamily");
-  if (typeof jobFamily === "string" && jobFamily !== "") raw.jobFamily = jobFamily;
-
-  const yearsOfExperience = formData.get("yearsOfExperience");
-  if (typeof yearsOfExperience === "string" && yearsOfExperience !== "") {
-    const parsed = Number(yearsOfExperience);
-    if (Number.isFinite(parsed)) raw.yearsOfExperience = parsed;
+  try {
+    return { profile: await getProfile() };
+  } catch (error) {
+    if (error instanceof UnauthorizedError) throw redirect(LOGIN_PATH);
+    // 조회 실패는 이 화면에 그릴 자리가 없다(아직 아무것도 입력하지 않았다) —
+    // ErrorBoundary 몫이다.
+    throw error;
   }
-
-  const region = formData.get("region");
-  if (typeof region === "string" && region !== "") raw.region = region;
-
-  const employmentType = formData.get("employmentType");
-  if (typeof employmentType === "string" && employmentType !== "")
-    raw.employmentType = employmentType;
-
-  const companySize = formData.get("companySize");
-  if (typeof companySize === "string" && companySize !== "")
-    raw.companySize = companySize;
-
-  return raw;
-}
-
-function toFieldErrors(issues: { path: PropertyKey[] }[]): FieldErrors {
-  const errors: FieldErrors = {};
-  for (const issue of issues) {
-    const field = issue.path[0];
-    if (typeof field !== "string" || field in errors) continue;
-    if (field in FIELD_ERROR_MESSAGES) {
-      errors[field as keyof ProfileInput] =
-        FIELD_ERROR_MESSAGES[field as keyof ProfileInput];
-    }
-  }
-  return errors;
 }
 
 export async function clientAction({ request }: { request: Request }) {
   const formData = await request.formData();
   const intent = formData.get("intent");
-  const raw = readProfileForm(formData);
+  const raw = formDataToObject(formData, { numeric: ["yearsOfExperience"] });
 
-  // "저장 후 나가기" — PATCH 는 부분 필드 저장을 허용한다(전체 완비 검증은 검토 화면
-  // 몫이다). 온보딩 단계는 넘기지 않고 세션 캐시도 건드리지 않는다 — 사용자는 여기서
-  // 멈추는 것이고, 나중에 다시 로그인하면 guardOnboarding 이 같은 단계로 돌려보내야
-  // 하기 때문이다. 로그아웃도 하지 않는다 — 세션은 유지된다.
-  //
-  // 목적지는 랜딩(LANDING_PATH) 뿐이다 — 온보딩 미완료 상태에서는 guardOnboarded 가
-  // /dashboard 를 막고 현재 단계로 돌려보내므로 그쪽으로 보내는 건 의미가 없다.
-  if (intent === "exit") {
-    const result = profileSchema.partial().safeParse(raw);
-    if (!result.success) {
-      return { errors: toFieldErrors(result.error.issues) } satisfies ActionData;
-    }
-    await patchProfile(result.data);
-    return redirect(LANDING_PATH);
-  }
-
-  const result = profileSchema.safeParse(raw);
+  // "저장 후 나가기" 는 profileSchema.partial() 로(PATCH 는 부분 필드 저장을 허용한다 —
+  // 전체 완비 검증은 검토 화면 몫이다), "다음" 은 profileSchema 전체로 검증한다.
+  const schema = intent === "exit" ? profileSchema.partial() : profileSchema;
+  const result = schema.safeParse(raw);
   if (!result.success) {
-    return { errors: toFieldErrors(result.error.issues) } satisfies ActionData;
+    return {
+      errors: toFieldErrors(result.error.issues, FIELD_ERROR_MESSAGES),
+    } satisfies ActionData;
   }
 
-  await patchProfile(result.data);
-  await advanceOnboarding("INCOME");
+  // 저장 구간만 감싼다 — safeParse 는 던지지 않으므로 바깥에 둔다. 401 은 로그인으로
+  // 보내고(입력을 잃어도 어차피 세션이 없어 되돌아올 곳이 없다), 그 밖의 실패는 화면에
+  // 남아 입력을 보존한 채 오류만 보여준다.
+  try {
+    await patchProfile(result.data);
 
-  // guardOnboarding 은 세션 캐시(session.ts 의 모듈 전역)의 onboardingStep 을 읽는다.
-  // 여기서 캐시를 갱신하지 않으면 온보딩 레이아웃 가드가 여전히 PROFILE 로 보고 다음
-  // 화면 진입을 이 화면으로 되튕긴다.
-  const session = await requireSession();
-  if (session.status === "authenticated") {
-    setSession({ ...session, onboardingStep: "INCOME" });
+    if (intent === "exit") {
+      // 온보딩 단계·세션 캐시를 그대로 두고 랜딩으로 나간다 — 사용자는 여기서
+      // 멈추는 것이고, 나중에 다시 로그인하면 guardOnboarding 이 같은 단계로
+      // 돌려보내야 한다. 로그아웃도 하지 않는다. 목적지는 랜딩뿐이다 — 온보딩
+      // 미완료 상태에서는 guardOnboarded 가 /dashboard 를 막고 현재 단계로
+      // 돌려보내므로 그쪽으로 보내는 건 의미가 없다.
+      return redirect(LANDING_PATH);
+    }
+
+    await advanceOnboarding("INCOME");
+
+    // guardOnboarding 은 세션 캐시(session.ts 의 모듈 전역)의 onboardingStep 을 읽는다.
+    // 여기서 캐시를 갱신하지 않으면 온보딩 레이아웃 가드가 여전히 PROFILE 로 보고 다음
+    // 화면 진입을 이 화면으로 되튕긴다.
+    const session = await requireSession();
+    if (session.status === "authenticated") {
+      setSession({ ...session, onboardingStep: "INCOME" });
+    }
+
+    return redirect("/onboarding/income");
+  } catch (error) {
+    if (error instanceof UnauthorizedError) throw redirect(LOGIN_PATH);
+    return { errors: { _form: toUserMessage(error) } } satisfies ActionData;
   }
-
-  return redirect("/onboarding/income");
 }
 
 export default function Profile() {
@@ -131,7 +103,12 @@ export default function Profile() {
   const actionData = useActionData<ActionData>();
   const navigation = useNavigation();
   const errors = actionData?.errors;
-  const isSubmitting = navigation.state === "submitting";
+  const isSubmitting = navigation.state === "submitting" || navigation.state === "loading";
+  const formRef = useRef<HTMLFormElement>(null);
+
+  useEffect(() => {
+    if (errors) focusFirstInvalidField(formRef.current);
+  }, [errors]);
 
   return (
     <section className="mx-auto w-full max-w-3xl px-6 py-16">
@@ -145,107 +122,88 @@ export default function Profile() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <Form method="post" className="flex flex-col gap-6">
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="jobFamily">주 직무</Label>
-              <select
-                id="jobFamily"
-                name="jobFamily"
-                defaultValue={profile.jobFamily ?? ""}
-                aria-invalid={Boolean(errors?.jobFamily)}
-                className={SELECT_CLASS}
-              >
-                <option value="">선택해 주세요</option>
-                {JOB_FAMILIES.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-              {errors?.jobFamily && (
-                <p className="text-sm text-destructive">{errors.jobFamily}</p>
+          <Form method="post" ref={formRef} className="flex flex-col gap-6">
+            <Field id="jobFamily" label="주 직무" error={errors?.jobFamily}>
+              {(aria) => (
+                <NativeSelect
+                  {...aria}
+                  name="jobFamily"
+                  defaultValue={profile.jobFamily ?? ""}
+                  placeholder="선택해 주세요"
+                  options={JOB_FAMILIES}
+                />
               )}
-            </div>
+            </Field>
 
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="yearsOfExperience">총 경력 (년)</Label>
-              <Input
-                id="yearsOfExperience"
-                name="yearsOfExperience"
-                type="number"
-                inputMode="numeric"
-                defaultValue={profile.yearsOfExperience ?? ""}
-                aria-invalid={Boolean(errors?.yearsOfExperience)}
-              />
-              {errors?.yearsOfExperience && (
-                <p className="text-sm text-destructive">{errors.yearsOfExperience}</p>
+            <Field
+              id="yearsOfExperience"
+              label="총 경력 (년)"
+              error={errors?.yearsOfExperience}
+            >
+              {(aria) => (
+                <Input
+                  {...aria}
+                  name="yearsOfExperience"
+                  type="number"
+                  inputMode="numeric"
+                  defaultValue={profile.yearsOfExperience ?? ""}
+                />
               )}
-            </div>
+            </Field>
 
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="region">희망 근무 지역</Label>
-              <select
-                id="region"
-                name="region"
-                defaultValue={profile.region ?? ""}
-                aria-invalid={Boolean(errors?.region)}
-                className={SELECT_CLASS}
-              >
-                <option value="">선택해 주세요</option>
-                {REGIONS.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-              {errors?.region && (
-                <p className="text-sm text-destructive">{errors.region}</p>
+            <Field id="region" label="희망 근무 지역" error={errors?.region}>
+              {(aria) => (
+                <NativeSelect
+                  {...aria}
+                  name="region"
+                  defaultValue={profile.region ?? ""}
+                  placeholder="선택해 주세요"
+                  options={REGIONS}
+                />
               )}
-            </div>
+            </Field>
 
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="employmentType">고용 형태</Label>
-              <select
-                id="employmentType"
-                name="employmentType"
-                defaultValue={profile.employmentType ?? ""}
-                aria-invalid={Boolean(errors?.employmentType)}
-                className={SELECT_CLASS}
-              >
-                <option value="">선택해 주세요</option>
-                {EMPLOYMENT_TYPES.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-              {errors?.employmentType && (
-                <p className="text-sm text-destructive">{errors.employmentType}</p>
+            <Field id="employmentType" label="고용 형태" error={errors?.employmentType}>
+              {(aria) => (
+                <NativeSelect
+                  {...aria}
+                  name="employmentType"
+                  defaultValue={profile.employmentType ?? ""}
+                  placeholder="선택해 주세요"
+                  options={EMPLOYMENT_TYPES}
+                />
               )}
-            </div>
+            </Field>
 
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="companySize">회사 규모 (선택)</Label>
-              <select
-                id="companySize"
-                name="companySize"
-                defaultValue={profile.companySize ?? ""}
-                aria-invalid={Boolean(errors?.companySize)}
-                className={SELECT_CLASS}
-              >
-                <option value="">선택 안 함</option>
-                {COMPANY_SIZES.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-              {errors?.companySize && (
-                <p className="text-sm text-destructive">{errors.companySize}</p>
+            <Field id="companySize" label="회사 규모 (선택)" error={errors?.companySize}>
+              {(aria) => (
+                <NativeSelect
+                  {...aria}
+                  name="companySize"
+                  defaultValue={profile.companySize ?? ""}
+                  placeholder="선택 안 함"
+                  options={COMPANY_SIZES}
+                />
               )}
-            </div>
+            </Field>
 
-            <div className="flex flex-wrap justify-end gap-3">
+            {errors?._form && (
+              <p role="alert" className="text-sm text-destructive">
+                {errors._form}
+              </p>
+            )}
+
+            {/* DOM 순서를 "다음" 이 먼저 오도록 둔다 — 한 필드에서 Enter 로 암묵
+                제출하면 브라우저는 DOM 상 첫 번째 제출 버튼을 활성화한다. "저장 후
+                나가기" 가 먼저면 Enter 만으로 부분 저장 후 랜딩으로 튕겨 나간다.
+                시각적 순서(저장 후 나가기가 왼쪽, 다음이 오른쪽)는 유지해야 하므로
+                컨테이너를 flex-row-reverse 로 뒤집는다 — row-reverse 에서는 주축의
+                시작·끝이 반대가 되어 justify-end 대신 justify-start 를 써야 원래
+                자리(오른쪽 끝)에 그대로 붙는다. */}
+            <div className="flex flex-row-reverse flex-wrap justify-start gap-3">
+              <Button type="submit" name="intent" value="next" disabled={isSubmitting}>
+                다음
+              </Button>
               <Button
                 type="submit"
                 name="intent"
@@ -254,9 +212,6 @@ export default function Profile() {
                 disabled={isSubmitting}
               >
                 저장 후 나가기
-              </Button>
-              <Button type="submit" name="intent" value="next" disabled={isSubmitting}>
-                다음
               </Button>
             </div>
           </Form>

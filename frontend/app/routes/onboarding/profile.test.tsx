@@ -2,6 +2,7 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { createRoutesStub } from "react-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { UnauthorizedError } from "../../lib/coreApi";
 import { requireSession, resetSession, setSession } from "../../lib/session";
 import Profile, { clientLoader, clientAction } from "./profile";
 import * as profileApi from "../../lib/api/profile";
@@ -34,6 +35,7 @@ describe("S-05 프로필 화면", () => {
       },
       { path: "/onboarding/income", Component: () => <div>소득 화면</div> },
       { path: "/", Component: () => <div>랜딩 페이지</div> },
+      { path: "/login", Component: () => <div>로그인 화면</div> },
     ]);
     return render(<Stub initialEntries={["/onboarding/profile"]} />);
   }
@@ -107,10 +109,17 @@ describe("S-05 프로필 화면", () => {
 
     // 라벨("총 경력 (년)")도 같은 부분 문자열을 포함해 느슨한 정규식은 다중 매치로 깨진다
     // — 필드 에러 메시지 전체를 정확히 매칭한다.
-    expect(
-      await screen.findByText("총 경력은 0~50 사이의 정수로 입력해 주세요."),
-    ).toBeInTheDocument();
+    const errorText = await screen.findByText(
+      "총 경력은 0~50 사이의 정수로 입력해 주세요.",
+    );
+    expect(errorText).toBeInTheDocument();
     expect(patch).not.toHaveBeenCalled();
+
+    // 접근성 배선 — 입력이 자신의 오류 문단을 aria-describedby 로 가리키고, 실패한
+    // 제출 뒤 포커스가 그 입력(첫 번째이자 유일한 잘못된 필드)으로 옮겨져야 한다.
+    const invalidField = screen.getByLabelText("총 경력 (년)");
+    expect(invalidField).toHaveAttribute("aria-describedby", errorText.id);
+    expect(invalidField).toHaveFocus();
   });
 
   // 회귀 테스트 — guardOnboarding 은 세션 캐시의 onboardingStep 을 읽는다. "다음" 으로
@@ -217,5 +226,107 @@ describe("S-05 프로필 화면", () => {
       status: "authenticated",
       onboardingStep: "PROFILE",
     });
+  });
+
+  // 회귀 테스트 — "저장 후 나가기" 가 DOM 상 첫 번째 제출 버튼이던 시절에는 어느
+  // 필드에서든 Enter 로 암묵 제출하면 브라우저가 그 버튼을 활성화해, 부분 저장 후
+  // 랜딩으로 튕겨 나갔다. "다음" 을 DOM 순서상 먼저 두어 Enter 가 그 버튼을 쓰게
+  // 했다 — 이 테스트는 그 순서가 다시 바뀌면 실패한다.
+  it("필드에서 Enter 를 누르면 '다음' 이 실행된다", async () => {
+    vi.spyOn(profileApi, "getProfile").mockResolvedValue({
+      jobFamily: null,
+      yearsOfExperience: null,
+      region: null,
+      employmentType: null,
+      companySize: null,
+    });
+    vi.spyOn(profileApi, "patchProfile").mockResolvedValue({
+      jobFamily: "DEVELOPER",
+      yearsOfExperience: 5,
+      region: "서울",
+      employmentType: "FULL_TIME",
+      companySize: null,
+    });
+    const advance = vi
+      .spyOn(onboardingApi, "advanceOnboarding")
+      .mockResolvedValue({ currentStep: "INCOME", completed: false });
+
+    renderScreen();
+    const user = userEvent.setup();
+
+    await user.selectOptions(await screen.findByLabelText("주 직무"), "DEVELOPER");
+    await user.selectOptions(screen.getByLabelText("희망 근무 지역"), "서울");
+    await user.selectOptions(screen.getByLabelText("고용 형태"), "FULL_TIME");
+    await user.type(screen.getByLabelText("총 경력 (년)"), "5{Enter}");
+
+    expect(await screen.findByText("소득 화면")).toBeInTheDocument();
+    expect(advance).toHaveBeenCalledWith("INCOME");
+  });
+
+  it("조회 중 401 을 받으면 로그인 화면으로 보낸다", async () => {
+    vi.spyOn(profileApi, "getProfile").mockRejectedValue(new UnauthorizedError());
+
+    renderScreen();
+
+    expect(await screen.findByText("로그인 화면")).toBeInTheDocument();
+  });
+
+  it("저장 중 401 을 받으면 로그인 화면으로 보낸다", async () => {
+    vi.spyOn(profileApi, "getProfile").mockResolvedValue({
+      jobFamily: null,
+      yearsOfExperience: null,
+      region: null,
+      employmentType: null,
+      companySize: null,
+    });
+    vi.spyOn(profileApi, "patchProfile").mockRejectedValue(new UnauthorizedError());
+
+    renderScreen();
+    const user = userEvent.setup();
+
+    await user.selectOptions(await screen.findByLabelText("주 직무"), "DEVELOPER");
+    await user.selectOptions(screen.getByLabelText("희망 근무 지역"), "서울");
+    await user.selectOptions(screen.getByLabelText("고용 형태"), "FULL_TIME");
+    await user.type(screen.getByLabelText("총 경력 (년)"), "5");
+    await user.click(screen.getByRole("button", { name: "다음" }));
+
+    expect(await screen.findByText("로그인 화면")).toBeInTheDocument();
+  });
+
+  // Critical fix — 저장이 401 이 아닌 다른 이유로 실패하면(서버 오류 등) 입력을
+  // 잃지 않고 같은 화면에 남아 오류를 보여줘야 한다. coreApi 가 던지는 정규화된
+  // ApiError 모양(고정 문구가 아니라 그 message)을 그대로 보여준다.
+  it("저장이 API 오류로 실패하면 입력을 유지한 채 오류 메시지를 보여준다", async () => {
+    vi.spyOn(profileApi, "getProfile").mockResolvedValue({
+      jobFamily: null,
+      yearsOfExperience: null,
+      region: null,
+      employmentType: null,
+      companySize: null,
+    });
+    const patch = vi.spyOn(profileApi, "patchProfile").mockRejectedValue({
+      code: "SERVER_ERROR",
+      message: "요청을 처리하지 못했습니다. 잠시 후 다시 시도해 주세요.",
+      status: 500,
+    });
+    const advance = vi.spyOn(onboardingApi, "advanceOnboarding");
+
+    renderScreen();
+    const user = userEvent.setup();
+
+    await user.selectOptions(await screen.findByLabelText("주 직무"), "DEVELOPER");
+    await user.selectOptions(screen.getByLabelText("희망 근무 지역"), "서울");
+    await user.selectOptions(screen.getByLabelText("고용 형태"), "FULL_TIME");
+    await user.type(screen.getByLabelText("총 경력 (년)"), "5");
+    await user.click(screen.getByRole("button", { name: "다음" }));
+
+    const banner = await screen.findByRole("alert");
+    expect(banner).toHaveTextContent(
+      "요청을 처리하지 못했습니다. 잠시 후 다시 시도해 주세요.",
+    );
+    // 화면을 벗어나지 않았다 — 입력한 값이 그대로 남아 있다.
+    expect(screen.getByLabelText("주 직무")).toHaveValue("DEVELOPER");
+    expect(patch).toHaveBeenCalled();
+    expect(advance).not.toHaveBeenCalled();
   });
 });
