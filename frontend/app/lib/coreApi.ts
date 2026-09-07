@@ -63,6 +63,10 @@ async function unwrap<T>(response: Response): Promise<T> {
   return body.data;
 }
 
+/**
+ * 204 응답을 받을 수 있는 엔드포인트라면 호출자의 `T` 에 `| null` 을 포함해야 한다.
+ * 래퍼가 204 일 때 타입을 넓히지 않고 단순히 null 을 반환하기 때문이다.
+ */
 export async function coreGet<T>(path: string): Promise<T> {
   const response = await fetch(`/api${path}`, {
     method: "GET",
@@ -72,6 +76,10 @@ export async function coreGet<T>(path: string): Promise<T> {
   return unwrap<T>(response);
 }
 
+/**
+ * 204 응답을 받을 수 있는 엔드포인트라면 호출자의 `T` 에 `| null` 을 포함해야 한다.
+ * 래퍼가 204 일 때 타입을 넓히지 않고 단순히 null 을 반환하기 때문이다.
+ */
 export async function coreSend<T>(
   method: "POST" | "PUT" | "PATCH" | "DELETE",
   path: string,

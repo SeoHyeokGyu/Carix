@@ -107,4 +107,22 @@ describe("coreApi", () => {
       body: JSON.stringify({ items: [] }),
     });
   });
+
+  it("본문이 없는 요청은 body 키를 포함하지 않는다", async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 204,
+      json: async () => {
+        throw new Error("본문 없음");
+      },
+    } as unknown as Response);
+
+    await coreSend("DELETE", "/v1/income/abc");
+
+    expect(globalThis.fetch).toHaveBeenCalledWith("/api/v1/income/abc", {
+      method: "DELETE",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+    });
+  });
 });
