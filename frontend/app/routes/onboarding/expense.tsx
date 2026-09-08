@@ -77,6 +77,7 @@ export async function clientLoader() {
     const currentRow = expenseHistory.find((row) => row.baseYearMonth === currentYearMonth());
 
     const amounts: Record<string, string> = {};
+    const savedAmounts: Record<string, number> = {};
     const statuses: Record<string, ExpenseItemStatus> = {};
     for (const item of currentRow?.items ?? []) {
       // DEFAULT_CPI 항목은 서버가 통계청 평균으로 보간한 값이지 사용자가 입력한
@@ -86,6 +87,7 @@ export async function clientLoader() {
       // 카테고리의 상태를 그대로 그리되(서버가 돌려준 그대로), 입력칸은
       // USER_DEFINED 항목만 채운다.
       statuses[item.category] = item.status;
+      savedAmounts[item.category] = item.amount;
       if (item.status === "USER_DEFINED") {
         amounts[item.category] = String(item.amount);
       }
@@ -97,7 +99,7 @@ export async function clientLoader() {
       b.effectiveDate.localeCompare(a.effectiveDate),
     )[0];
 
-    return { amounts, statuses, takeHome: latestIncome?.netSalary ?? null };
+    return { amounts, savedAmounts, statuses, takeHome: latestIncome?.netSalary ?? null };
   } catch (error) {
     if (error instanceof UnauthorizedError) throw redirect(LOGIN_PATH);
     // 조회 실패는 이 화면에 그릴 자리가 없다 — ErrorBoundary 몫이다(S-05·S-06 과 동일 판단).
@@ -150,7 +152,12 @@ export async function clientAction({ request }: { request: Request }) {
 }
 
 export default function Expense() {
-  const { amounts: initialAmounts, statuses, takeHome } = useLoaderData<typeof clientLoader>();
+  const {
+    amounts: initialAmounts,
+    savedAmounts,
+    statuses,
+    takeHome,
+  } = useLoaderData<typeof clientLoader>();
   const actionData = useActionData<typeof clientAction>();
   const navigation = useNavigation();
   const formRef = useRef<HTMLFormElement>(null);
@@ -163,12 +170,34 @@ export default function Expense() {
   }, [errors]);
 
   const itemIndex = buildItemIndex(amounts);
-  const donutItems = EXPENSE_CATEGORIES.map((category) => ({
-    category: category.value,
-    amount: Number(amounts[category.value]) || 0,
-  }));
-  const total = donutItems.reduce((sum, item) => sum + item.amount, 0);
-  const overBudget = takeHome != null && total > takeHome;
+
+  // 실수령액 경고는 "지금 저장하면 무엇이 나갈지"만 본다 — 입력칸에 없는(서버가
+  // 보간한) 값은 사용자가 지금 선언하는 지출이 아니므로 합계에 넣지 않는다.
+  const enteredTotal = EXPENSE_CATEGORIES.reduce(
+    (sum, category) => sum + (Number(amounts[category.value]) || 0),
+    0,
+  );
+  const overBudget = takeHome != null && enteredTotal > takeHome;
+
+  // 도넛은 반대다 — 구매력 계산을 실제로 움직이는 전체 비중 그림을 보여줘야
+  // 하므로, 지금 입력칸에 없는 카테고리는 서버가 마지막으로 돌려준 값으로
+  // 채운다(입력칸 자체는 여전히 비워 둔다 — 채워서 보여주는 자리와 채워서
+  // 제출하는 자리는 다른 문제다). 그 대체값은 estimated 로 표시해 실제
+  // 입력값과 구분한다(프로젝트 공통 규칙 — 색만으로 구분하지 않는다).
+  const donutItems = EXPENSE_CATEGORIES.map((category) => {
+    const entered = amounts[category.value];
+    if (typeof entered === "string" && entered !== "" && Number.isFinite(Number(entered))) {
+      return { category: category.value, amount: Number(entered) };
+    }
+    const saved = savedAmounts[category.value];
+    return saved === undefined
+      ? { category: category.value, amount: 0 }
+      : {
+          category: category.value,
+          amount: saved,
+          estimated: statuses[category.value] === "DEFAULT_CPI",
+        };
+  });
 
   return (
     <section className="mx-auto w-full max-w-3xl px-6 py-16">

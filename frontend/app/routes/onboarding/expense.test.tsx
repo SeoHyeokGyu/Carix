@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { createRoutesStub } from "react-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { UnauthorizedError } from "../../lib/coreApi";
+import { EXPENSE_CATEGORIES } from "../../lib/schemas/expense";
 import { resetSession, setSession } from "../../lib/session";
 import Expense, { clientLoader, clientAction } from "./expense";
 import * as expenseApi from "../../lib/api/expense";
@@ -220,6 +221,63 @@ describe("S-07 소비 화면", () => {
     expect(transportInput).toHaveAttribute("aria-describedby", errorText.id);
     expect(foodInput).not.toHaveAttribute("aria-describedby", errorText.id);
     expect(put).not.toHaveBeenCalled();
+  });
+
+  // 팀 리드 판정 — 소득 이력이 없는 사용자도 이 화면에 정상 도달할 수 있다
+  // (온보딩 흐름이 순서를 강제하지 않는다). 비교 기준이 없으므로 경고 자체를
+  // 내지 않아야 하고, 에러가 나거나 저장을 막아서도 안 된다.
+  it("소득 이력이 없으면 합계가 아무리 커도 경고를 내지 않는다", async () => {
+    vi.spyOn(incomeApi, "listIncome").mockResolvedValue([]);
+    vi.spyOn(expenseApi, "listExpenses").mockResolvedValue([]);
+    const put = vi.spyOn(expenseApi, "putExpenses").mockResolvedValue({
+      baseYearMonth: currentYearMonth(),
+      items: [],
+      weightStatus: "OK",
+    });
+    vi.spyOn(onboardingApi, "advanceOnboarding").mockResolvedValue({
+      currentStep: "SKILLS",
+      completed: false,
+    });
+
+    renderScreen();
+    const user = userEvent.setup();
+
+    await user.type(await screen.findByLabelText(/주거·공공요금/), "50000000");
+
+    expect(screen.queryByText(/월 실수령액을 초과했습니다/)).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "다음" }));
+
+    expect(await screen.findByText("스킬 화면")).toBeInTheDocument();
+    expect(put).toHaveBeenCalled();
+  });
+
+  // 팀 리드 판정 — 도넛은 서버가 돌려준 값(추정치 포함)도 반영해야 한다. 저장된
+  // 행이 전부 DEFAULT_CPI 인 재방문 사용자가 아무것도 새로 입력하지 않아도,
+  // 서버는 완전한 6카테고리 그림을 갖고 있으므로 도넛은 "계산할 수 없음"이
+  // 아니라 실제 비중을 보여줘야 한다. 다만 그 조각들은 추정치라는 걸 텍스트로
+  // 구분해야 한다.
+  it("전부 DEFAULT_CPI 로 저장된 재방문 사용자는 도넛이 계산된 비중을 보여준다", async () => {
+    vi.spyOn(expenseApi, "listExpenses").mockResolvedValue([
+      {
+        baseYearMonth: currentYearMonth(),
+        items: EXPENSE_CATEGORIES.map(({ value: category }, index) => ({
+          category,
+          amount: (index + 1) * 100_000,
+          status: "DEFAULT_CPI" as const,
+        })),
+        weightStatus: "OK",
+      },
+    ]);
+
+    renderScreen();
+
+    await screen.findByLabelText(/주거·공공요금/);
+
+    // 계산 불가 안내가 아니라 실제 비중이 나와야 한다.
+    expect(screen.queryByText(/비중을 계산할 수 없습니다/)).not.toBeInTheDocument();
+    // 여섯 조각 전부 추정치라는 게 텍스트로 드러나야 한다(색으로만 구분하지 않는다).
+    expect(screen.getAllByText(/\(추정\)/)).toHaveLength(6);
   });
 
   it("'이전' 을 누르면 소득 화면으로 이동한다", async () => {
