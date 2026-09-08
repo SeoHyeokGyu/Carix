@@ -263,6 +263,31 @@ describe("S-05 프로필 화면", () => {
     expect(advance).toHaveBeenCalledWith("INCOME");
   });
 
+  // 회귀 테스트 — flex-row-reverse 로 시각 순서만 뒤집었을 때는 DOM·포커스 순서가
+  // 그대로라 키보드 사용자는 시각상 오른쪽의 "다음" 으로 먼저 Tab 됐다(WCAG 2.4.3
+  // 위반). 지금은 CSS 뒤집기 없이 DOM 순서 자체가 와이어프레임과 같으므로, Tab 순서가
+  // 시각 순서(다음 → 저장 후 나가기)와 일치해야 한다.
+  it("Tab 순서가 시각 순서(다음 → 저장 후 나가기)와 일치한다", async () => {
+    vi.spyOn(profileApi, "getProfile").mockResolvedValue({
+      jobFamily: null,
+      yearsOfExperience: null,
+      region: null,
+      employmentType: null,
+      companySize: null,
+    });
+
+    renderScreen();
+    const user = userEvent.setup();
+
+    (await screen.findByLabelText("회사 규모 (선택)")).focus();
+
+    await user.tab();
+    expect(screen.getByRole("button", { name: "다음" })).toHaveFocus();
+
+    await user.tab();
+    expect(screen.getByRole("button", { name: "저장 후 나가기" })).toHaveFocus();
+  });
+
   it("조회 중 401 을 받으면 로그인 화면으로 보낸다", async () => {
     vi.spyOn(profileApi, "getProfile").mockRejectedValue(new UnauthorizedError());
 

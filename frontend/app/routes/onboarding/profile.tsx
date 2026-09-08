@@ -196,11 +196,12 @@ export default function Profile() {
             {/* DOM 순서를 "다음" 이 먼저 오도록 둔다 — 한 필드에서 Enter 로 암묵
                 제출하면 브라우저는 DOM 상 첫 번째 제출 버튼을 활성화한다. "저장 후
                 나가기" 가 먼저면 Enter 만으로 부분 저장 후 랜딩으로 튕겨 나간다.
-                시각적 순서(저장 후 나가기가 왼쪽, 다음이 오른쪽)는 유지해야 하므로
-                컨테이너를 flex-row-reverse 로 뒤집는다 — row-reverse 에서는 주축의
-                시작·끝이 반대가 되어 justify-end 대신 justify-start 를 써야 원래
-                자리(오른쪽 끝)에 그대로 붙는다. */}
-            <div className="flex flex-row-reverse flex-wrap justify-start gap-3">
+                시각 순서를 CSS 로 뒤집지 않는다 — flex-row-reverse 는 페인트
+                순서만 바꾸고 DOM·포커스 순서는 그대로라, 키보드 사용자는 시각상
+                오른쪽(다음)으로 먼저 Tab 이 가는 순서 불일치(WCAG 2.4.3)가
+                생긴다. DOM 순서를 와이어프레임(01-profile.html, "다음" 이 먼저,
+                왼쪽 정렬)과 그대로 맞춰 시각·DOM·포커스 순서를 전부 일치시킨다. */}
+            <div className="flex flex-wrap gap-3">
               <Button type="submit" name="intent" value="next" disabled={isSubmitting}>
                 다음
               </Button>
