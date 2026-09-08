@@ -1,13 +1,14 @@
 import { useEffect, useRef, useState } from "react";
 import {
   Form,
+  Link,
   redirect,
   useActionData,
   useFetcher,
   useLoaderData,
   useNavigation,
 } from "react-router";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -224,24 +225,25 @@ export default function Income() {
               )}
             </Field>
 
-            <Field id="netSalary" label="월 실수령액 (원)" error={errors?.netSalary}>
+            {/* 명세·와이어프레임은 선택이라 하지만 서버 IncomeRequest 가 @NotNull 이라
+                필수로 받는다 — 0 을 대신 넣으면 미입력과 구분이 안 돼 PPI 가 세전
+                기반 추정으로 잘못 떨어진다. "안 넣어도 된다"는 인상을 주면 안 되므로
+                필수라는 사실과 이유를 힌트로 남긴다 — Field 의 hint 는 aria-describedby
+                로 오류 문단과 함께 연결되어, 오류가 나도 이 안내가 밀려나지 않는다. */}
+            <Field
+              id="netSalary"
+              label="월 실수령액 (원)"
+              hint="구매력 지수(PPI) 계산에 정확히 반영하기 위해 필수로 입력해야 합니다."
+              error={errors?.netSalary}
+            >
               {(aria) => (
-                <div className="flex flex-col gap-1">
-                  <Input
-                    {...aria}
-                    name="netSalary"
-                    type="number"
-                    inputMode="numeric"
-                    defaultValue={editingIncome?.netSalary ?? ""}
-                  />
-                  {/* 명세·와이어프레임은 선택이라 하지만 서버 IncomeRequest 가 @NotNull
-                      이라 필수로 받는다 — 0 을 대신 넣으면 미입력과 구분이 안 돼 PPI 가
-                      세전 기반 추정으로 잘못 떨어진다. "안 넣어도 된다"는 인상을 주면 안
-                      되므로 필수라는 사실과 이유를 함께 남긴다. */}
-                  <p className="text-xs text-muted-foreground">
-                    구매력 지수(PPI) 계산에 정확히 반영하기 위해 필수로 입력해야 합니다.
-                  </p>
-                </div>
+                <Input
+                  {...aria}
+                  name="netSalary"
+                  type="number"
+                  inputMode="numeric"
+                  defaultValue={editingIncome?.netSalary ?? ""}
+                />
               )}
             </Field>
 
@@ -316,17 +318,30 @@ export default function Income() {
         </CardContent>
       </Card>
 
-      <Form method="post" className="mt-6 flex flex-col gap-3">
-        <input type="hidden" name="intent" value="next" />
+      <div className="mt-6 flex flex-col gap-3">
         {nextErrors?._form && (
           <p role="alert" className="text-sm text-destructive">
             {nextErrors._form}
           </p>
         )}
-        <Button type="submit" disabled={isAdvancing}>
-          다음
-        </Button>
-      </Form>
+        {/* 와이어프레임(02-income.html) 순서를 그대로 따른다 — "이전" 이 먼저, "다음"
+            이 그 다음(강조). "이전" 은 순수 내비게이션 Link 라 이 화면의 어떤
+            <Form> 에도 속하지 않으므로, 어느 입력에서 Enter 를 눌러도 관여하지
+            않는다 — DOM 순서를 CSS 로 뒤집을 필요가 없다. guardOnboarding 이
+            이제 앞선 단계로의 이동을 허용하므로(routeGuards.ts) 이 링크가 더 이상
+            죽은 버튼이 아니다. */}
+        <div className="flex flex-wrap gap-3">
+          <Link to="/onboarding/profile" className={buttonVariants({ variant: "outline" })}>
+            이전
+          </Link>
+          <Form method="post">
+            <input type="hidden" name="intent" value="next" />
+            <Button type="submit" disabled={isAdvancing}>
+              다음
+            </Button>
+          </Form>
+        </div>
+      </div>
     </section>
   );
 }

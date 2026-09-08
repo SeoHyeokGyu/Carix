@@ -82,17 +82,29 @@ describe("guardOnboarding — 온보딩", () => {
     });
   });
 
-  test("앞선 단계를 건너뛰면 현재 단계로 되돌린다", () => {
+  test("앞선(아직 도달하지 않은) 단계를 건너뛰면 현재 단계로 되돌린다", () => {
     expect(guardOnboarding(signedIn("PROFILE"), "/onboarding/skills")).toEqual({
       allow: false,
       redirectTo: "/onboarding/profile",
     });
   });
 
-  test("이미 지난 단계로 돌아가도 현재 단계로 되돌린다", () => {
+  // 정책 변경 — 예전에는 지난 단계로 돌아가는 것도 현재 단계로 되돌렸다. 검토(S-09)
+  // 화면의 "수정" 링크가 앞선 단계로 돌아갈 수 있어야 해서(그리고 이 소득 화면의
+  // "이전" 링크도 같은 이유로) 한 단계 전이든 여러 단계 전이든 뒤로 가는 것은
+  // 이제 허용한다. 아직 도달하지 않은 단계로 앞서가는 것만 계속 막는다.
+  test("한 단계 이전으로 돌아가면 허용한다", () => {
+    expect(guardOnboarding(signedIn("EXPENSE"), "/onboarding/income")).toEqual({
+      allow: true,
+    });
+  });
+
+  test("여러 단계 이전으로 돌아가면 허용한다", () => {
     expect(guardOnboarding(signedIn("REVIEW"), "/onboarding/income")).toEqual({
-      allow: false,
-      redirectTo: REVIEW_PATH,
+      allow: true,
+    });
+    expect(guardOnboarding(signedIn("SKILLS"), "/onboarding/profile")).toEqual({
+      allow: true,
     });
   });
 

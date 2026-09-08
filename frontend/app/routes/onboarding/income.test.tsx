@@ -32,6 +32,7 @@ describe("S-06 소득 화면", () => {
         HydrateFallback: () => null,
       },
       { path: "/onboarding/expense", Component: () => <div>소비 화면</div> },
+      { path: "/onboarding/profile", Component: () => <div>프로필 화면</div> },
       { path: "/login", Component: () => <div>로그인 화면</div> },
     ]);
     return render(<Stub initialEntries={["/onboarding/income"]} />);
@@ -165,6 +166,18 @@ describe("S-06 소득 화면", () => {
 
     expect(del).toHaveBeenCalledWith("i-1");
     await screen.findByText("등록된 이력이 없습니다.");
+  });
+
+  it("'이전' 을 누르면 프로필 화면으로 이동한다", async () => {
+    vi.spyOn(incomeApi, "listIncome").mockResolvedValue([]);
+
+    renderScreen();
+    const user = userEvent.setup();
+
+    await screen.findByText("소득 관리");
+    await user.click(screen.getByRole("link", { name: "이전" }));
+
+    expect(await screen.findByText("프로필 화면")).toBeInTheDocument();
   });
 
   it("조회 중 401 을 받으면 로그인 화면으로 보낸다", async () => {
