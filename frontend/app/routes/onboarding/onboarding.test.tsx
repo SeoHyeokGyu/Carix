@@ -21,7 +21,11 @@ describe("온보딩 라우트 및 레이아웃 (Onboarding)", () => {
     // profile.test.tsx·income.test.tsx·expense.test.tsx·review.test.tsx 가 전담한다.
 
     it("Skills(보유 스킬) 화면을 정상 렌더링한다", () => {
-      render(<Skills />);
+      render(
+        <MemoryRouter>
+          <Skills />
+        </MemoryRouter>,
+      );
       expect(screen.getByText("S-08")).toBeInTheDocument();
       expect(
         screen.getByRole("heading", { name: "보유 스킬" }),
