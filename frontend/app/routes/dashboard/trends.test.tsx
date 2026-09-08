@@ -1,0 +1,120 @@
+import { describe, expect, it, vi, beforeEach } from "vitest";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { MemoryRouter } from "react-router";
+import DashboardTrends from "./trends";
+import * as dashboardMarketApi from "../../lib/dashboardMarketApi";
+
+vi.mock("../../lib/dashboardMarketApi", () => ({
+  fetchSalaryDistribution: vi.fn(),
+  fetchSkillDemands: vi.fn(),
+}));
+
+describe("S-14 DashboardTrends 라우트", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+
+    vi.mocked(dashboardMarketApi.fetchSalaryDistribution).mockResolvedValue({
+      status: "OK",
+      sampleSize: 80,
+      baseline: {
+        source: "KOSIS",
+        median: 60_000_000,
+        wageDefinition: "임금통계",
+      },
+      postingReference: {
+        min: 35_000_000,
+        p25: 48_000_000,
+        median: 62_000_000,
+        p75: 75_000_000,
+        max: 95_000_000,
+        sampleSize: 30,
+        missingRate: 62.5,
+      },
+      userPosition: {
+        grossSalary: 65_000_000,
+        percentile: 55,
+      },
+      peerGroup: {
+        fallbackLevel: 1,
+        appliedConditions: "수도권 / 경력 3년 이상",
+      },
+    });
+
+    vi.mocked(dashboardMarketApi.fetchSkillDemands).mockResolvedValue({
+      skills: [
+        {
+          skillId: "s-1",
+          standardName: "Kotlin",
+          demandIndex: 115.0,
+          recentDemandRate: 0.12,
+          baselineDemandRate: 0.1,
+          sources: [{ source: "SARAMIN", demandIndex: 115.0, sampleSize: 45 }],
+          weight: 1.0,
+          status: "NORMAL",
+        },
+      ],
+      coverage: "보유 스킬 1개 중 1개 반영 (가중치 100% 재정규화)",
+    });
+  });
+
+  it("S-14 화면 헤더 및 기본 탭(스킬 수요)을 정상 렌더링한다", async () => {
+    render(
+      <MemoryRouter>
+        <DashboardTrends />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByText("S-14")).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "추이 분석" }),
+    ).toBeInTheDocument();
+
+    await waitFor(() => {
+      expect(screen.getByText("Kotlin")).toBeInTheDocument();
+      expect(screen.getByText(/▲ 상승/)).toBeInTheDocument();
+    });
+  });
+
+  it("연봉 분포 탭 클릭 시 SalaryDistributionChart 컴포넌트가 마운트된다", async () => {
+    render(
+      <MemoryRouter>
+        <DashboardTrends />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText("Kotlin")).toBeInTheDocument();
+    });
+
+    const salaryTabBtn = screen.getByRole("button", { name: "연봉 분포" });
+    fireEvent.click(salaryTabBtn);
+
+    await waitFor(() => {
+      expect(screen.getByText("동료집단 연봉 분포")).toBeInTheDocument();
+      expect(screen.getAllByText(/6,200만 원/).length).toBeGreaterThan(0);
+      expect(screen.getByText(/현재 세전: 6,500만 원/)).toBeInTheDocument();
+    });
+  });
+
+  it("소득 vs 물가 탭 클릭 시 Member A 안내 영역이 표시된다", async () => {
+    render(
+      <MemoryRouter>
+        <DashboardTrends />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText("Kotlin")).toBeInTheDocument();
+    });
+
+    const incomeVsPriceTabBtn = screen.getByRole("button", {
+      name: "소득 vs 물가",
+    });
+    fireEvent.click(incomeVsPriceTabBtn);
+
+    expect(screen.getByText("소득 대 개인물가 지수 추이")).toBeInTheDocument();
+    expect(
+      screen.getByText(/Member A 컴포넌트 마운트 영역/i),
+    ).toBeInTheDocument();
+  });
+});
