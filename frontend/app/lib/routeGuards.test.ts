@@ -119,6 +119,16 @@ describe("guardOnboarding — 온보딩", () => {
       allow: true,
     });
   });
+
+  // deny-by-default — 알 수 없는 경로는 어떤 단계에도 대응되지 않아 인덱스
+  // 비교를 할 수 없다. 이 경우 fail-closed 로 현재 단계로 되돌린다(허용 쪽으로
+  // 새지 않는다).
+  test("알려지지 않은 경로는 현재 단계로 되돌린다", () => {
+    expect(guardOnboarding(signedIn("INCOME"), "/onboarding/unknown")).toEqual({
+      allow: false,
+      redirectTo: "/onboarding/income",
+    });
+  });
 });
 
 describe("stepPath — 온보딩 단계별 경로 매핑", () => {

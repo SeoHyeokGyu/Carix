@@ -102,6 +102,13 @@ describe("S-06 소득 화면", () => {
     const errorText = await screen.findByText("같은 유효 시작일이 이미 있습니다.");
     expect(errorText).toBeInTheDocument();
 
+    // 텍스트만으로는 이 오류가 실제로 effectiveDate 필드에 붙었는지, 아니면
+    // 일반 _form 배너로 떨어졌는지 구분되지 않는다(toUserMessage 의 _form 경로도
+    // 같은 문자열을 만든다) — range 검증 테스트와 같은 패턴으로 aria-describedby
+    // 배선을 직접 확인해야 이 어서션이 실제로 필드 착지를 핀한다.
+    const dateInput = screen.getByLabelText("유효 시작일");
+    expect(dateInput).toHaveAttribute("aria-describedby", errorText.id);
+
     // 입력값이 그대로 남아 있어야 한다.
     expect(screen.getByLabelText("세전 연봉 (원)")).toHaveValue(52_000_000);
     expect(screen.getByLabelText("월 실수령액 (원)")).toHaveValue(3_600_000);
@@ -166,6 +173,80 @@ describe("S-06 소득 화면", () => {
 
     expect(del).toHaveBeenCalledWith("i-1");
     await screen.findByText("등록된 이력이 없습니다.");
+  });
+
+  it("수정하면 updateIncome 이 호출되고 표가 새 값으로 갱신된다", async () => {
+    vi.spyOn(incomeApi, "listIncome")
+      .mockResolvedValueOnce([
+        { id: "i-1", grossSalary: 50_000_000, netSalary: 3_500_000, effectiveDate: "2024-01-01" },
+      ])
+      .mockResolvedValueOnce([
+        { id: "i-1", grossSalary: 55_000_000, netSalary: 3_500_000, effectiveDate: "2024-01-01" },
+      ]);
+    const update = vi.spyOn(incomeApi, "updateIncome").mockResolvedValue({
+      id: "i-1",
+      grossSalary: 55_000_000,
+      netSalary: 3_500_000,
+      effectiveDate: "2024-01-01",
+    });
+
+    renderScreen();
+    const user = userEvent.setup();
+
+    await user.click(await screen.findByRole("button", { name: "수정" }));
+
+    // key={editingId} 리마운트로 defaultValue 가 기존 값(5천만 원)으로 다시
+    // 채워진다 — 지우고 새 값을 넣는다.
+    const grossInput = screen.getByLabelText("세전 연봉 (원)");
+    await user.clear(grossInput);
+    await user.type(grossInput, "55000000");
+    await user.click(screen.getByRole("button", { name: "저장" }));
+
+    // API 호출 인자를 직접 단언한다 — 호출 여부만으로는 create 로 잘못 착지해도
+    // (또는 id 를 빠뜨려도) 통과할 수 있다.
+    expect(update).toHaveBeenCalledWith("i-1", {
+      grossSalary: 55_000_000,
+      netSalary: 3_500_000,
+      effectiveDate: "2024-01-01",
+    });
+    expect(await screen.findByText((55_000_000).toLocaleString())).toBeInTheDocument();
+    expect(screen.queryByText((50_000_000).toLocaleString())).not.toBeInTheDocument();
+  });
+
+  it("수정이 API 오류로 실패하면 오류를 보여주고 표는 원래 값을 유지한다", async () => {
+    vi.spyOn(incomeApi, "listIncome").mockResolvedValue([
+      { id: "i-1", grossSalary: 50_000_000, netSalary: 3_500_000, effectiveDate: "2024-01-01" },
+    ]);
+    const update = vi.spyOn(incomeApi, "updateIncome").mockRejectedValue({
+      code: "SERVER_ERROR",
+      message: "요청을 처리하지 못했습니다. 잠시 후 다시 시도해 주세요.",
+      status: 500,
+    });
+
+    renderScreen();
+    const user = userEvent.setup();
+
+    await user.click(await screen.findByRole("button", { name: "수정" }));
+
+    const grossInput = screen.getByLabelText("세전 연봉 (원)");
+    await user.clear(grossInput);
+    await user.type(grossInput, "60000000");
+    await user.click(screen.getByRole("button", { name: "저장" }));
+
+    expect(update).toHaveBeenCalledWith("i-1", {
+      grossSalary: 60_000_000,
+      netSalary: 3_500_000,
+      effectiveDate: "2024-01-01",
+    });
+
+    const banner = await screen.findByRole("alert");
+    expect(banner).toHaveTextContent("요청을 처리하지 못했습니다. 잠시 후 다시 시도해 주세요.");
+    // Field 의 필드별 오류 문단은 항상 `id={field}-error` 를 갖는다 — 이 오류가
+    // 특정 필드가 아니라 폼 전체(_form) 배너로 떨어졌는지는 id 부재로만
+    // 구분된다(FIX 2 와 같은 이유 — 텍스트만으로는 착지 위치를 핀하지 못한다).
+    expect(banner).not.toHaveAttribute("id");
+    // 서버가 거부했으므로 표는 갱신되지 않고 원래 값이 남아 있어야 한다.
+    expect(screen.getByText((50_000_000).toLocaleString())).toBeInTheDocument();
   });
 
   it("'이전' 을 누르면 프로필 화면으로 이동한다", async () => {
