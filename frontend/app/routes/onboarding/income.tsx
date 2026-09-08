@@ -1,11 +1,332 @@
-import { PlaceholderScreen } from "../../components/layout/PlaceholderScreen";
+import { useEffect, useRef, useState } from "react";
+import {
+  Form,
+  redirect,
+  useActionData,
+  useFetcher,
+  useLoaderData,
+  useNavigation,
+} from "react-router";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Field } from "../../components/onboarding/Field";
+import { StepBadges } from "../../components/onboarding/StepBadges";
+import { toUserMessage } from "../../lib/apiError";
+import {
+  createIncome,
+  deleteIncome,
+  listIncome,
+  updateIncome,
+  type IncomeResponse,
+} from "../../lib/api/income";
+import { type ApiError, UnauthorizedError } from "../../lib/coreApi";
+import { toFieldErrors, type FieldErrors } from "../../lib/fieldErrors";
+import { focusFirstInvalidField } from "../../lib/focusFirstInvalidField";
+import { formDataToObject } from "../../lib/formData";
+import { advanceOnboarding } from "../../lib/onboardingApi";
+import { LOGIN_PATH } from "../../lib/routeGuards";
+import { incomeSchema, type IncomeInput } from "../../lib/schemas/income";
+import { requireSession, setSession } from "../../lib/session";
+
+type ActionData = { errors: FieldErrors } | null;
+
+const FIELD_ERROR_MESSAGES: Record<keyof IncomeInput, string> = {
+  grossSalary: "세전 연봉은 1천만 원~30억 원 사이로 입력해 주세요.",
+  netSalary: "월 실수령액은 50만 원~2억 원 사이로 입력해 주세요.",
+  effectiveDate: "유효 시작일은 YYYY-MM-DD 형식의 과거~당월 날짜여야 합니다.",
+};
+
+/** 유효 시작일 중복(설계 §8-a) 은 서버가 409 로 알린다 — 다른 오류와 달리 특정
+ * 필드(effectiveDate)에 붙여야 하므로 `toUserMessage` 의 일반 `_form` 경로를
+ * 타지 않고 여기서 먼저 갈라낸다. */
+function isConflict(error: unknown): error is ApiError {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "code" in error &&
+    "message" in error &&
+    "status" in error &&
+    (error as ApiError).status === 409
+  );
+}
+
+export async function clientLoader() {
+  try {
+    const income = await listIncome();
+    // 화면·테스트 모두 "유효 시작일 내림차순"을 기대한다 — 서버 정렬 순서를
+    // 신뢰하지 않고 항상 클라이언트에서 다시 정렬한다.
+    return {
+      income: [...income].sort((a, b) => b.effectiveDate.localeCompare(a.effectiveDate)),
+    };
+  } catch (error) {
+    if (error instanceof UnauthorizedError) throw redirect(LOGIN_PATH);
+    // 조회 실패는 이 화면에 그릴 자리가 없다 — ErrorBoundary 몫이다(S-05 와 동일 판단).
+    throw error;
+  }
+}
+
+export async function clientAction({ request }: { request: Request }) {
+  const formData = await request.formData();
+  const intent = formData.get("intent");
+
+  if (intent === "next") {
+    // 이 화면은 행 단위로 이미 저장된 상태라("추가"·"수정" 각각이 즉시 서버에
+    // 반영된다) "다음" 은 검증할 폼 필드가 없다 — 온보딩 단계만 넘긴다.
+    try {
+      await advanceOnboarding("EXPENSE");
+
+      // guardOnboarding 은 세션 캐시(session.ts 의 모듈 전역)를 읽는다 — 갱신하지
+      // 않으면 다음 화면 진입이 이 화면으로 되튕긴다.
+      const session = await requireSession();
+      if (session.status === "authenticated") {
+        setSession({ ...session, onboardingStep: "EXPENSE" });
+      }
+
+      return redirect("/onboarding/expense");
+    } catch (error) {
+      if (error instanceof UnauthorizedError) throw redirect(LOGIN_PATH);
+      return { errors: { _form: toUserMessage(error) } } satisfies ActionData;
+    }
+  }
+
+  if (intent === "delete") {
+    const id = formData.get("id");
+    try {
+      if (typeof id === "string" && id) await deleteIncome(id);
+      return null;
+    } catch (error) {
+      if (error instanceof UnauthorizedError) throw redirect(LOGIN_PATH);
+      return { errors: { _form: toUserMessage(error) } } satisfies ActionData;
+    }
+  }
+
+  // "create" 또는 "update" — 소득 이력은 부분 저장 개념이 없다(행마다 완결된
+  // 레코드다), 그래서 항상 전체 스키마로 검증한다.
+  const raw = formDataToObject(formData, { numeric: ["grossSalary", "netSalary"] });
+  const result = incomeSchema.safeParse(raw);
+  if (!result.success) {
+    return { errors: toFieldErrors(result.error.issues, FIELD_ERROR_MESSAGES) } satisfies ActionData;
+  }
+
+  try {
+    const id = formData.get("id");
+    if (intent === "update" && typeof id === "string" && id) {
+      await updateIncome(id, result.data);
+    } else {
+      await createIncome(result.data);
+    }
+    return null;
+  } catch (error) {
+    if (error instanceof UnauthorizedError) throw redirect(LOGIN_PATH);
+    if (isConflict(error)) {
+      return { errors: { effectiveDate: error.message } } satisfies ActionData;
+    }
+    return { errors: { _form: toUserMessage(error) } } satisfies ActionData;
+  }
+}
+
+interface IncomeRowProps {
+  income: IncomeResponse;
+  isEditing: boolean;
+  onEdit: (id: string) => void;
+}
+
+function IncomeRow({ income, isEditing, onEdit }: IncomeRowProps) {
+  const deleteFetcher = useFetcher<ActionData>();
+  const isDeleting = deleteFetcher.state !== "idle";
+  const deleteError = deleteFetcher.data?.errors?._form;
+
+  return (
+    <tr aria-current={isEditing ? "true" : undefined}>
+      <td className="px-3 py-2">{income.effectiveDate}</td>
+      <td className="px-3 py-2">{income.grossSalary.toLocaleString()}</td>
+      <td className="px-3 py-2">{income.netSalary.toLocaleString()}</td>
+      <td className="px-3 py-2">
+        <div className="flex flex-col gap-1">
+          <div className="flex gap-2">
+            <Button type="button" variant="outline" size="sm" onClick={() => onEdit(income.id)}>
+              수정
+            </Button>
+            <deleteFetcher.Form method="post" className="inline">
+              <input type="hidden" name="intent" value="delete" />
+              <input type="hidden" name="id" value={income.id} />
+              <Button type="submit" variant="destructive" size="sm" disabled={isDeleting}>
+                삭제
+              </Button>
+            </deleteFetcher.Form>
+          </div>
+          {deleteError && (
+            <p role="alert" className="text-xs text-destructive">
+              {deleteError}
+            </p>
+          )}
+        </div>
+      </td>
+    </tr>
+  );
+}
 
 export default function Income() {
+  const { income } = useLoaderData<typeof clientLoader>();
+  const formFetcher = useFetcher<ActionData>();
+  const nextActionData = useActionData<ActionData>();
+  const navigation = useNavigation();
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const formRef = useRef<HTMLFormElement>(null);
+  const errors = formFetcher.data?.errors;
+  const nextErrors = nextActionData?.errors;
+  const editingIncome = editingId ? (income.find((item) => item.id === editingId) ?? null) : null;
+  const isSubmittingForm = formFetcher.state !== "idle";
+  const isAdvancing = navigation.state === "submitting" || navigation.state === "loading";
+
+  useEffect(() => {
+    if (errors) focusFirstInvalidField(formRef.current);
+  }, [errors]);
+
   return (
-    <PlaceholderScreen
-      screenId="S-06"
-      title="소득 입력"
-      description="세전 연봉과 유효 시작일을 입력합니다. 월 실수령액은 선택입니다."
-    />
+    <section className="mx-auto w-full max-w-3xl px-6 py-16">
+      <StepBadges current={2} />
+
+      <Card className="mt-6">
+        <CardHeader>
+          <CardTitle>소득 관리</CardTitle>
+          <CardDescription>
+            동료집단 비교와 구매력 계산을 위해 세전 연봉과 월 실수령액, 유효 시작일을
+            입력해 주세요.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <formFetcher.Form
+            method="post"
+            ref={formRef}
+            key={editingId ?? "new"}
+            className="flex flex-col gap-4"
+          >
+            <input type="hidden" name="intent" value={editingId ? "update" : "create"} />
+            {editingId && <input type="hidden" name="id" value={editingId} />}
+
+            <Field id="grossSalary" label="세전 연봉 (원)" error={errors?.grossSalary}>
+              {(aria) => (
+                <Input
+                  {...aria}
+                  name="grossSalary"
+                  type="number"
+                  inputMode="numeric"
+                  defaultValue={editingIncome?.grossSalary ?? ""}
+                />
+              )}
+            </Field>
+
+            <Field id="netSalary" label="월 실수령액 (원)" error={errors?.netSalary}>
+              {(aria) => (
+                <div className="flex flex-col gap-1">
+                  <Input
+                    {...aria}
+                    name="netSalary"
+                    type="number"
+                    inputMode="numeric"
+                    defaultValue={editingIncome?.netSalary ?? ""}
+                  />
+                  {/* 명세·와이어프레임은 선택이라 하지만 서버 IncomeRequest 가 @NotNull
+                      이라 필수로 받는다 — 0 을 대신 넣으면 미입력과 구분이 안 돼 PPI 가
+                      세전 기반 추정으로 잘못 떨어진다. "안 넣어도 된다"는 인상을 주면 안
+                      되므로 필수라는 사실과 이유를 함께 남긴다. */}
+                  <p className="text-xs text-muted-foreground">
+                    구매력 지수(PPI) 계산에 정확히 반영하기 위해 필수로 입력해야 합니다.
+                  </p>
+                </div>
+              )}
+            </Field>
+
+            <Field id="effectiveDate" label="유효 시작일" error={errors?.effectiveDate}>
+              {(aria) => (
+                <Input
+                  {...aria}
+                  name="effectiveDate"
+                  type="text"
+                  placeholder="YYYY-MM-DD"
+                  defaultValue={editingIncome?.effectiveDate ?? ""}
+                />
+              )}
+            </Field>
+
+            {errors?._form && (
+              <p role="alert" className="text-sm text-destructive">
+                {errors._form}
+              </p>
+            )}
+
+            <div className="flex flex-wrap gap-3">
+              <Button type="submit" disabled={isSubmittingForm}>
+                {editingId ? "저장" : "추가"}
+              </Button>
+              {editingId && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={isSubmittingForm}
+                  onClick={() => setEditingId(null)}
+                >
+                  취소
+                </Button>
+              )}
+            </div>
+          </formFetcher.Form>
+        </CardContent>
+      </Card>
+
+      <Card className="mt-6">
+        <CardHeader>
+          <CardTitle>과거 연봉 이력</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {income.length === 0 ? (
+            <p className="text-sm text-muted-foreground">등록된 이력이 없습니다.</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-sm">
+                <thead>
+                  <tr className="border-b">
+                    <th className="px-3 py-2 font-medium">유효 시작일</th>
+                    <th className="px-3 py-2 font-medium">세전 연봉</th>
+                    <th className="px-3 py-2 font-medium">월 실수령액</th>
+                    <th className="px-3 py-2 font-medium">작업</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {income.map((item) => (
+                    <IncomeRow
+                      key={item.id}
+                      income={item}
+                      isEditing={item.id === editingId}
+                      onEdit={setEditingId}
+                    />
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Form method="post" className="mt-6 flex flex-col gap-3">
+        <input type="hidden" name="intent" value="next" />
+        {nextErrors?._form && (
+          <p role="alert" className="text-sm text-destructive">
+            {nextErrors._form}
+          </p>
+        )}
+        <Button type="submit" disabled={isAdvancing}>
+          다음
+        </Button>
+      </Form>
+    </section>
   );
 }

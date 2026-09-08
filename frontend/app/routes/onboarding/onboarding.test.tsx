@@ -3,7 +3,6 @@ import { createRoutesStub } from "react-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { resetSession, setSession } from "../../lib/session";
 import Expense from "./expense";
-import Income from "./income";
 import OnboardingLayout, { clientLoader as onboardingLayoutLoader } from "./layout";
 import Review from "./review";
 import Skills from "./skills";
@@ -17,16 +16,8 @@ describe("온보딩 라우트 및 레이아웃 (Onboarding)", () => {
   });
 
   describe("개별 화면 (Pages)", () => {
-    // Profile 은 S-05 실화면(clientLoader/clientAction)을 구현한 뒤로 여기서 다루지
-    // 않는다 — profile.test.tsx 가 이 화면을 전담한다.
-
-    it("Income(소득 입력) 화면을 정상 렌더링한다", () => {
-      render(<Income />);
-      expect(screen.getByText("S-06")).toBeInTheDocument();
-      expect(
-        screen.getByRole("heading", { name: "소득 입력" }),
-      ).toBeInTheDocument();
-    });
+    // Profile·Income 은 각각 S-05·S-06 실화면(clientLoader/clientAction)을 구현한
+    // 뒤로 여기서 다루지 않는다 — profile.test.tsx·income.test.tsx 가 전담한다.
 
     it("Expense(소비 입력) 화면을 정상 렌더링한다", () => {
       render(<Expense />);
