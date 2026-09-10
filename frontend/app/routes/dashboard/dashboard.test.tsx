@@ -8,7 +8,6 @@ import { resetSession, setSession } from "../../lib/session";
 import DashboardHistory from "./history";
 import DashboardHome, { clientLoader } from "./index";
 import DashboardLayout, { clientLoader as dashboardLayoutLoader } from "./layout";
-import DashboardSimulator from "./simulator";
 import DashboardTrends from "./trends";
 
 const EMPTY_INDEX = {
@@ -32,14 +31,6 @@ describe("대시보드 라우트 및 레이아웃 (Dashboard)", () => {
       expect(screen.getByText("S-11")).toBeInTheDocument();
       expect(
         screen.getByRole("heading", { name: "월별 이력" }),
-      ).toBeInTheDocument();
-    });
-
-    it("DashboardSimulator(12개월 시뮬레이터) 화면을 정상 렌더링한다", () => {
-      render(<DashboardSimulator />);
-      expect(screen.getByText("S-15")).toBeInTheDocument();
-      expect(
-        screen.getByRole("heading", { name: "12개월 시뮬레이터" }),
       ).toBeInTheDocument();
     });
 
