@@ -59,7 +59,7 @@ describe("S-15 시뮬레이터 화면", () => {
         action: clientAction,
         HydrateFallback: () => null,
       },
-      { path: "/onboarding/income", Component: () => <div>소득 온보딩 화면</div> },
+      { path: "/mypage/records", Component: () => <div>이력 관리 화면</div> },
       { path: "/login", Component: () => <div>로그인 화면</div> },
     ]);
     return render(<Stub initialEntries={["/dashboard/simulator"]} />);
@@ -209,9 +209,11 @@ describe("S-15 시뮬레이터 화면", () => {
 
   // 브리프의 여섯 케이스에는 없지만, 설계 문서·브리프가 명시적으로 요구하는 동작이다
   // (currentGrossSalary 를 생략했는데 소득 이력이 없으면 서버가 400 을 주고, 화면은
-  // 원문 오류 대신/함께 소득 화면으로 가는 안내를 보여줘야 한다). 클라이언트 스키마가
+  // 원문 오류와 함께 소득 화면으로 가는 안내를 보여줘야 한다). 클라이언트 스키마가
   // 이 화면이 보내는 다섯 필드를 이미 전부 검증하므로, 검증을 통과한 제출이 그래도
   // 400 을 받는 현실적인 경우는 이 케이스뿐이라고 보고 status===400 을 신호로 쓴다.
+  // 링크는 /onboarding/income 이 아니라 /mypage/records 다 — guardOnboarding 이
+  // 온보딩 완료 사용자의 /onboarding/* 진입을 막아 앞쪽은 죽은 링크다(팀 리드 판정).
   it("소득 이력이 없어 400 을 받으면 소득 입력 안내 링크를 함께 보여준다", async () => {
     vi.spyOn(scenarioApi, "getLatestScenario").mockResolvedValue(null as never);
     vi.spyOn(scenarioApi, "simulate").mockRejectedValue({
@@ -231,8 +233,35 @@ describe("S-15 시뮬레이터 화면", () => {
     await user.click(screen.getByRole("button", { name: "계산" }));
 
     expect(await screen.findByText("소득 이력이 없어 계산할 수 없습니다.")).toBeInTheDocument();
-    const link = screen.getByRole("link", { name: "소득 먼저 입력하기" });
-    expect(link).toHaveAttribute("href", "/onboarding/income");
+    const link = screen.getByRole("link", { name: "이력 관리" });
+    expect(link).toHaveAttribute("href", "/mypage/records");
+  });
+
+  // 팀 리드 판정 — 소득과 무관한 400 도 같은 status===400 판별을 타지만, 그래도
+  // 서버 원문 메시지가 대체되지 않고 그대로 보여야 한다(소득 안내는 그 아래 보조
+  // 문구로만 얹힌다, 위 렌더 로직 참고). 이 테스트는 그 "원문이 우선"이라는 계약을
+  // 소득과 명백히 무관한 메시지로 고정한다.
+  it("소득과 무관한 400 오류도 서버 원문 메시지를 그대로 보여준다", async () => {
+    vi.spyOn(scenarioApi, "getLatestScenario").mockResolvedValue(null as never);
+    vi.spyOn(scenarioApi, "simulate").mockRejectedValue({
+      code: "INVALID_INPUT",
+      message: "예상 인상률이 유효 범위를 벗어났습니다.",
+      status: 400,
+    });
+
+    renderScreen();
+    const user = userEvent.setup();
+
+    await user.type(await screen.findByLabelText("예상 인상률 (%)"), "3.5");
+    await user.type(screen.getByLabelText("이직 시 목표 세전 연봉 (원)"), "72000000");
+    await user.type(screen.getByLabelText("이직에 드는 일회성 비용 (원)"), "3000000");
+    await user.type(screen.getByLabelText("예상 구직 공백 (개월, 0~6)"), "2");
+    await user.click(screen.getByRole("radio", { name: "있음" }));
+    await user.click(screen.getByRole("button", { name: "계산" }));
+
+    expect(
+      await screen.findByText("예상 인상률이 유효 범위를 벗어났습니다."),
+    ).toBeInTheDocument();
   });
 
   // income.test.tsx 의 "세전 연봉이 범위를 벗어나면..." 테스트와 같은 모양 — 필드별
