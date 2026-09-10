@@ -160,6 +160,27 @@ describe("S-09 검토 화면", () => {
     ).toHaveAttribute("href", "/onboarding/profile");
   });
 
+  // 경계값 — 0년 경력은 유효한 값이지 미입력이 아니다. `yearsOfExperience`를
+  // falsy 체크(`!profile.yearsOfExperience`)로 판정하면 신입(0년) 사용자가
+  // 영원히 "미완"으로 오판되어 프로필을 아무리 다시 저장해도(0을 그대로
+  // 다시 보내므로) 제출할 수 없는 막다른 상태에 빠진다. `!== null` 로만
+  // 판정해야 한다.
+  it("경력이 0년인 사용자도 프로필 완비로 인정되어 제출 버튼이 보인다", async () => {
+    vi.spyOn(profileApi, "getProfile").mockResolvedValue({
+      ...COMPLETE_PROFILE,
+      yearsOfExperience: 0,
+    });
+
+    renderScreen();
+
+    expect(
+      await screen.findByRole("button", { name: "제출하고 대시보드로" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("link", { name: "프로필 완료하러 가기" }),
+    ).not.toBeInTheDocument();
+  });
+
   // 브리프 5 — 소득 이력이 없으면 소득 카드가 「입력 필요」로 표시되고 제출이 막힌다.
   it("소득 이력이 없으면 소득 카드가 입력 필요로 표시되고 제출이 막힌다", async () => {
     vi.spyOn(incomeApi, "listIncome").mockResolvedValue([]);
