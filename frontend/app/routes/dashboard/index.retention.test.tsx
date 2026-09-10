@@ -15,6 +15,13 @@ import { describe, expect, it, vi } from "vitest";
  * 컴포넌트를 그 자리에서 다시 그릴 뿐 언마운트하지 않는다) 컴포넌트 단위로 이 상태 기계
  * 자체를 검증한다. `login.test.tsx`/`root.test.tsx` 가 쓰는 `vi.mock("react-router", ...)`
  * 부분 목킹과 같은 패턴이다.
+ *
+ * **이 테스트가 증명하지 못하는 것.** `rerender` 는 같은 파이버를 재사용한다는 전제
+ * 위에서 "재검증은 언마운트 없이 새 loaderData 를 준다"는 실제 동작을 흉내 낸다 —
+ * 지금은 맞는 전제다. 하지만 나중에 이 라우트에 `key` 가 붙거나 라우트 트리가
+ * 바뀌어 재검증이 실제로 리마운트를 일으키게 되면, `lastGood` 은 조용히 초기화되고
+ * 실제 화면의 유지 기능은 깨지는데 이 테스트는 그 변화를 반영할 방법이 없어 계속
+ * 초록불로 남는다 — `rerender` 자체가 "같은 인스턴스"를 가정하고 있기 때문이다.
  */
 const mockUseLoaderData = vi.fn();
 const mockRevalidate = vi.fn();

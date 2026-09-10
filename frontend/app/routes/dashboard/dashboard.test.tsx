@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { createRoutesStub } from "react-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -194,6 +194,39 @@ describe("대시보드 라우트 및 레이아웃 (Dashboard)", () => {
       expect(await screen.findByText("94.2")).toBeInTheDocument();
       expect(screen.queryByText("요청을 처리하지 못했습니다.")).not.toBeInTheDocument();
       expect(screen.queryByRole("button", { name: "다시 시도" })).not.toBeInTheDocument();
+    });
+
+    // profile.tsx 의 isSubmitting 가드(FIX 7)와 같은 부류 — 진행 중인 재조회 위에
+    // 클릭이 새 GET 을 또 쌓지 않는지, 응답이 오기 전 시점을 직접 붙잡아 확인한다.
+    it("재조회 중에는 다시 시도 버튼이 비활성화된다", async () => {
+      const user = userEvent.setup();
+      const spy = vi.spyOn(dashboardApi, "fetchSummary");
+      spy.mockResolvedValueOnce({
+        ok: false,
+        error: { code: "UNKNOWN", message: "요청을 처리하지 못했습니다.", status: 502 },
+      } as never);
+
+      renderScreen();
+      const retryButton = await screen.findByRole("button", { name: "다시 시도" });
+      expect(retryButton).not.toBeDisabled();
+
+      let resolveRetry!: (value: Awaited<ReturnType<typeof dashboardApi.fetchSummary>>) => void;
+      spy.mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            resolveRetry = resolve;
+          }),
+      );
+
+      await user.click(retryButton);
+      expect(retryButton).toBeDisabled();
+
+      resolveRetry({
+        ok: false,
+        error: { code: "UNKNOWN", message: "요청을 처리하지 못했습니다.", status: 502 },
+      });
+
+      await waitFor(() => expect(retryButton).not.toBeDisabled());
     });
 
     // 브리프 시나리오 4 — 근거를 펼치면 적용 규칙과 동료집단 조건이 보인다.
