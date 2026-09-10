@@ -158,12 +158,12 @@ describe("대시보드 라우트 및 레이아웃 (Dashboard)", () => {
       expect(screen.queryByText(/UNKNOWN/)).not.toBeInTheDocument();
     });
 
-    // 설계 §10 "마지막 성공 데이터 유지" — loader 가 던지지 않는 것만으로는 이 요구가
-    // 성립하지 않는다(재검증이 실패하면 loaderData 자체가 통째로 ok:false 로 바뀐다).
-    // 최초 마운트 시점의 초기값만으로 통과하지 않도록, 실패 → 성공 → 실패 순서로 검증한다
-    // (첫 로드부터 성공했다면 useState 초기값만으로도 우연히 통과할 수 있다 — 실제로
-    // 뮤테이션 검증에서 확인했다).
-    it("성공 후 재조회가 실패해도 마지막 성공 데이터를 화면에 남긴다", async () => {
+    // "다시 시도" 는 실패 상태의 어포던스다 — 정상 조회에는 뜨지 않는다. 재시도가
+    // 성공하면 오류·버튼 모두 사라지고 새 데이터로 바뀐다. "마지막 성공 데이터 유지"
+    // 자체(재조회가 실패했을 때 이전 성공 데이터가 남는지)는 이 화면에서 클릭만으로
+    // 재현할 트리거가 없다(성공하면 버튼이 사라진다) — 컴포넌트 단위로
+    // `index.retention.test.tsx` 에서 따로 검증한다.
+    it("재시도가 성공하면 오류 배너와 재시도 버튼이 사라지고 새 데이터로 바뀐다", async () => {
       const user = userEvent.setup();
       const spy = vi.spyOn(dashboardApi, "fetchSummary");
       spy.mockResolvedValueOnce({
@@ -190,16 +190,10 @@ describe("대시보드 라우트 및 레이아웃 (Dashboard)", () => {
         },
       } as never);
       await user.click(screen.getByRole("button", { name: "다시 시도" }));
+
       expect(await screen.findByText("94.2")).toBeInTheDocument();
-
-      spy.mockResolvedValueOnce({
-        ok: false,
-        error: { code: "UNKNOWN", message: "요청을 처리하지 못했습니다.", status: 502 },
-      } as never);
-      await user.click(screen.getByRole("button", { name: "다시 시도" }));
-
-      expect(await screen.findByText("요청을 처리하지 못했습니다.")).toBeInTheDocument();
-      expect(screen.getByText("94.2")).toBeInTheDocument();
+      expect(screen.queryByText("요청을 처리하지 못했습니다.")).not.toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "다시 시도" })).not.toBeInTheDocument();
     });
 
     // 브리프 시나리오 4 — 근거를 펼치면 적용 규칙과 동료집단 조건이 보인다.

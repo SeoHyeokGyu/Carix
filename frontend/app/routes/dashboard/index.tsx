@@ -70,24 +70,23 @@ export default function DashboardHome() {
 
       <div className="mt-6 flex items-center justify-between gap-3">
         <h2 className="font-display text-2xl font-bold text-carix-text">핵심 지표</h2>
-        {/* 실패 시에만 필요한 게 아니라, 정상 조회 뒤에도 재조회할 방법이 있어야 "마지막
-            성공 데이터 유지" 경로 자체가 실제로 동작한다(재조회 트리거가 없으면 위 상태
-            보존 로직이 죽은 코드가 된다) — 그래서 상시 노출한다. */}
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          disabled={revalidator.state === "loading"}
-          onClick={() => revalidator.revalidate()}
-        >
-          다시 시도
-        </Button>
       </div>
 
       {!summary.ok && (
-        <p role="alert" className="mt-3 text-sm text-destructive">
-          {toUserMessage(summary.error)}
-        </p>
+        <div className="mt-3 flex flex-wrap items-center gap-3">
+          <p role="alert" className="text-sm text-destructive">
+            {toUserMessage(summary.error)}
+          </p>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={revalidator.state === "loading"}
+            onClick={() => revalidator.revalidate()}
+          >
+            다시 시도
+          </Button>
+        </div>
       )}
 
       {data && firstCalculation && (
