@@ -97,12 +97,15 @@
 
 ### 3.1 커리어 프로필 조회
 *   **Endpoint:** `GET /api/v1/profile`
+*   `region` 은 시/도 17개 한글 어휘다(`서울`·`부산`·`경기`… 전체 목록은 collector 의
+    `RegionRollup.SIDO`). 구 단위(`서울 강남구`)가 아니다 — `market_aggregate` 조회가 이 값과
+    정확일치로 걸리므로 값이 어긋나면 동료집단이 조용히 비어 `표본 부족`이 된다
 *   **Response (200 OK):**
     ```json
     {
       "jobFamily": "DEVELOPER",
       "yearsOfExperience": 5,
-      "region": "SEOUL_GANGNAM",
+      "region": "서울",
       "employmentType": "FULL_TIME",
       "companySize": "MEDIUM"
     }
@@ -116,7 +119,7 @@
     {
       "jobFamily": "DEVELOPER",
       "yearsOfExperience": 5,
-      "region": "SEOUL_GANGNAM",
+      "region": "서울",
       "employmentType": "FULL_TIME",
       "companySize": "MEDIUM"
     }
@@ -432,7 +435,11 @@
     *(`scenarioName`: 선택 입력. 저장할 가상 시나리오의 별칭. 생략 시 기본명 부여됨)*
     *(`currentGrossSalary`: 선택 입력. 생략 시 사용자의 최신 소득 이력 값을 사용하며, 가상 시뮬레이션을 위해 임의의 세전 연봉을 지정하여 테스트할 수 있습니다. 생략했는데 소득 이력도 없으면 `400 INVALID_INPUT` 입니다 — 호출자가 이 필드를 채우면 바로 해소되는 입력 문제라 상태값으로 표현하지 않습니다)*
     *(실업급여의 평균임금은 이 시뮬레이션에 실제 사용한 연봉을 따릅니다. 가상 연봉을 넣으면 실업급여도 그 값을 기준으로 계산됩니다 — 한 응답 안에서 잔류 보상과 실업급여가 서로 다른 연봉을 기준으로 나오지 않도록 합니다)*
-    *(`stayExpectedRaiseRate`: -100.0 ~ 100.0. 범위를 벗어나면 `400` 입니다. 저장 정밀도는 소수점 두 자리라 그 아래는 반올림됩니다)*
+    *(`stayExpectedRaiseRate`: 서버는 -100.0 ~ 100.0 을 벗어나면 `400` 입니다. **정본은
+    [기능 명세 §3](functional-specification.md)의 -50 ~ +100 입니다** — 화면(Zod)이 이 좁은
+    범위를 걸어 두 규격을 동시에 만족시킵니다. 서버 검증은 아직 넓은 범위 그대로라 API 를
+    직접 부르면 범위 밖 값이 저장될 수 있습니다([c3 설계 §8-g](../plans/carix-dev-plan-c3-design.md)).
+    저장 정밀도는 소수점 두 자리라 그 아래는 반올림됩니다)*
     *(`expectedUnemploymentMonths`: 0~6. `isEligibleForUnemploymentBenefit` 기본값 true, false면 실업급여 0으로 계산하고 `실업급여 미반영` 안내 표시. 공식은 [도메인 정의서 §4](domain-logic.md)를 따릅니다)*
 *   **Response (200 OK):**
     ```json
@@ -600,8 +607,15 @@
 *   `PUT /api/v1/user-skills/{id}` / `DELETE /api/v1/user-skills/{id}` — 수정·삭제
 
 ### 7.3 온보딩 상태
-*   `GET /api/v1/onboarding` — `{ "currentStep": "EXPENSE", "completed": false }` (`users.onboarding_step` 기반)
-*   `PATCH /api/v1/onboarding` — 단계 진행 갱신. `REVIEW` → `COMPLETED` 전환 시 첫 지수 계산을 트리거
+*   ~~`GET /api/v1/onboarding`~~ — 철거했다. 현재 단계는 `GET /api/v1/auth/session`(§2.3) 응답의
+    `onboardingStep` 이 이미 담고 있어 별도 조회 엔드포인트가 필요 없다
+*   ~~`PATCH /api/v1/onboarding`~~ → **`PATCH /api/v1/auth/onboarding`**(`auth-service` 소유).
+    `users.onboarding_step` 은 `auth-service` 가 소유한 컬럼이라 갱신도 그쪽으로 옮겼다 —
+    `core-api` 의 두 엔드포인트는 받은 값을 그대로 되돌려줄 뿐 아무것도 쓰지 않는 스텁이었다.
+    세션 조회 응답도 `auth-service` 가 만들므로 갱신과 재조회가 한 서비스에 모인다. 단계
+    진행만 갱신하며 `REVIEW` → `COMPLETED` 전환에서 별도로 첫 지수 계산을 트리거하지 않는다 —
+    소득·소비·스킬·프로필 저장마다 걸린 스냅샷 재계산 트리거([개발 계획 §4-2](../plans/carix-dev-plan.md))가
+    이미 8곳에 있어 검토 단계에 닿을 때는 스냅샷이 먼저 나와 있다
 
 ### 7.4 소득 이력 수정·삭제
 *   `PUT /api/v1/income/{id}` / `DELETE /api/v1/income/{id}` — 유효 시작일 중복 시 `409 Conflict`. 변경 시 영향 유효월부터 스냅샷 재계산 트리거

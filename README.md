@@ -261,15 +261,15 @@ flowchart TD
 
 ## 기술 구성
 
-목표 스택과 현재 반영 여부를 함께 적습니다. 프런트엔드는 랜딩 화면까지, 백엔드는
-인증(auth-service)과 채용공고 수집·영속화까지 실제 구현이 있고, 나머지 도메인은
-스텁 또는 미착수 단계입니다.
+목표 스택과 현재 반영 여부를 함께 적습니다. 프런트엔드는 랜딩·로그인·회원가입과 온보딩
+4화면·대시보드·시뮬레이터까지, 백엔드는 인증(auth-service)과 채용공고 수집·영속화까지 실제
+구현이 있고, 나머지 도메인은 스텁 또는 미착수 단계입니다.
 
 | 계층 | 기술 | 책임 | 현재 |
 | --- | --- | --- | --- |
-| 프런트엔드 | Vite, React, TypeScript, React Router Framework Mode | UI, 라우팅, SSR·사전 렌더링 | 도입 — 랜딩·로그인·회원가입이 실제로 동작합니다. 온보딩·대시보드·마이페이지는 라우트와 가드만 있고 화면은 플레이스홀더입니다. `ssr: false` + `/` 사전 렌더링 구성이라 SSR은 아직 꺼져 있고, 가드는 클라이언트에서 돕니다 |
+| 프런트엔드 | Vite, React, TypeScript, React Router Framework Mode | UI, 라우팅, SSR·사전 렌더링 | 도입 — 랜딩·로그인·회원가입과 온보딩 4화면(`S-05`·`S-06`·`S-07`·`S-09`)·대시보드 메인(`S-10`)·시뮬레이터(`S-15`)가 실제로 동작합니다. 스킬 입력(`S-08`)과 스냅샷 이력·마이페이지·추이분석(`S-11`~`S-14`)은 라우트와 가드만 있고 화면은 플레이스홀더입니다. `ssr: false` + `/` 사전 렌더링 구성이라 SSR은 아직 꺼져 있고, 가드는 클라이언트에서 돕니다 |
 | Node SSR | Node.js 24 LTS, Express, `@react-router/express` | HTML 렌더링, SEO metadata, 공개 콘텐츠 | 미도입 — `frontend/server.js`는 `node:http` 정적 파일 서버입니다. 사전 렌더링된 `/` 는 그대로 주고, 나머지 앱 경로는 SPA 셸(`__spa-fallback.html`)로 넘겨 클라이언트가 라우팅합니다 (아래 §렌더링 전략 주석 참조) |
-| 클라이언트 데이터 | TanStack Query, React Hook Form, Zod | API 상태, 입력 폼, 검증 | 미도입 |
+| 클라이언트 데이터 | React Router 7 `clientLoader`·`clientAction`, Zod | API 상태, 입력 폼, 검증 | 도입 — 프레임워크 loader·action 이 서버 상태를, Zod 스키마가 검증을 맡습니다. TanStack Query·React Hook Form 은 역할이 겹쳐 채택하지 않았습니다 ([프런트엔드 설계 §기술 구성](docs/specs/frontend-design.md)) |
 | UI·시각화 | Tailwind CSS, shadcn/ui, Recharts | 컴포넌트, 스타일, 지수 차트 | 부분 도입 — Tailwind CSS 4(`@tailwindcss/vite`)만 도입. shadcn/ui·Recharts는 미도입 |
 | 백엔드 | Java 25, Spring Boot 4.1, Gradle 멀티모듈 | 인증, 도메인 로직, REST API, 데이터 접근 | 도입 (인증은 auth-service에 구현·배포 배선 완료. core-api는 DB를 쓰지 않는다 — 채용공고 도메인은 `collector`로 이동했고, 대시보드·소득·소비·스킬·시나리오·프로필·참조 도메인은 REST 컨트롤러와 DTO만 있는 고정 응답 스텁 — 서비스·리포지터리 미연결) |
 | API 문서 | springdoc-openapi | OpenAPI 문서, Swagger UI | 도입 |

@@ -21,11 +21,15 @@ API·데이터 접근은 전부 Spring Boot가 담당하는 경계를 유지하�
 - UI: React, TypeScript
 - 라우팅·렌더링: React Router Framework Mode
 - Node 서버: Express, `@react-router/express`
-- 서버 상태: TanStack Query
-- 폼·검증: React Hook Form, Zod
+- 서버 상태: React Router 7 framework mode 의 `clientLoader`·`clientAction`. 프레임워크가
+  조회·제출·재검증을 이미 갖고 있어 TanStack Query 를 더하면 같은 역할이 겹친다 — 별도 서버
+  상태 캐시를 두지 않는다
+- 검증: Zod. `clientAction` 이 제출을 받아 Zod 로 파싱하면 React Hook Form 이 더할 역할이
+  제어 컴포넌트 상태 관리뿐이고 온보딩 화면들은 필드가 적어 넣지 않는다
 - 스타일·컴포넌트: Tailwind CSS, shadcn/ui
 - 차트: Recharts
-- 프런트엔드 테스트: Vitest, Testing Library, MSW, Playwright
+- 프런트엔드 테스트: Vitest, Testing Library, Playwright. API 모듈 함수를 `vi.spyOn`으로 직접
+  모킹해 네트워크 계층을 가로챌 MSW 가 필요 없다
 
 구현 시작 시 각 라이브러리는 상호 호환되는 지원 중인 안정 버전으로 잠근다.
 
@@ -87,7 +91,8 @@ Node SSR 전환(Express + `@react-router/express`)은 MVP 범위 밖으로 미�
 
 공개 페이지는 title, description, canonical URL, Open Graph metadata, sitemap,
 robots 정책과 필요한 구조화 데이터를 제공한다. 대시보드의 차트·필터·사용자
-데이터는 hydration 이후 TanStack Query로 갱신한다.
+데이터는 hydration 이후 route loader 재검증(자동 revalidation·`useRevalidator`)으로 갱신한다
+— §기술 구성 참조.
 
 ## 데이터 흐름
 
