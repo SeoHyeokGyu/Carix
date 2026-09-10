@@ -97,8 +97,11 @@ const REVIEW_REQUIREMENTS: ReviewRequirement[] = [
   },
 ];
 
+// 데이터를 반환하는 액션 뒤에는 React Router 가 loader 를 자동으로 다시
+// 돌린다 — 화면을 수동으로 새로고침하라고 안내할 필요가 없다. 어떤 항목이
+// 다시 비었는지는 이 오류 아래 곧바로 뜨는 단계별 안내 링크가 보여준다.
 const GATE_REFUSAL_MESSAGE =
-  "입력하신 정보가 변경되어 필수 항목이 비어 있습니다. 화면을 새로고침한 뒤 다시 확인해 주세요.";
+  "입력하신 정보가 변경되어 필수 항목이 비어 있습니다. 아래 안내에 따라 다시 완료한 뒤 제출해 주세요.";
 
 export async function clientLoader() {
   try {
@@ -201,7 +204,11 @@ export default function Review() {
           <CardHeader>
             <CardTitle>프로필</CardTitle>
             <CardAction>
-              <Link to="/onboarding/profile" className={buttonVariants({ variant: "outline", size: "sm" })}>
+              <Link
+                to="/onboarding/profile"
+                aria-label="프로필 정보 수정"
+                className={buttonVariants({ variant: "outline", size: "sm" })}
+              >
                 수정
               </Link>
             </CardAction>
@@ -215,7 +222,11 @@ export default function Review() {
           <CardHeader>
             <CardTitle>소득</CardTitle>
             <CardAction>
-              <Link to="/onboarding/income" className={buttonVariants({ variant: "outline", size: "sm" })}>
+              <Link
+                to="/onboarding/income"
+                aria-label="소득 정보 수정"
+                className={buttonVariants({ variant: "outline", size: "sm" })}
+              >
                 수정
               </Link>
             </CardAction>
@@ -233,7 +244,11 @@ export default function Review() {
           <CardHeader>
             <CardTitle>소비</CardTitle>
             <CardAction>
-              <Link to="/onboarding/expense" className={buttonVariants({ variant: "outline", size: "sm" })}>
+              <Link
+                to="/onboarding/expense"
+                aria-label="소비 정보 수정"
+                className={buttonVariants({ variant: "outline", size: "sm" })}
+              >
                 수정
               </Link>
             </CardAction>
@@ -251,7 +266,11 @@ export default function Review() {
           <CardHeader>
             <CardTitle>스킬</CardTitle>
             <CardAction>
-              <Link to="/onboarding/skills" className={buttonVariants({ variant: "outline", size: "sm" })}>
+              <Link
+                to="/onboarding/skills"
+                aria-label="스킬 정보 수정"
+                className={buttonVariants({ variant: "outline", size: "sm" })}
+              >
                 수정
               </Link>
             </CardAction>

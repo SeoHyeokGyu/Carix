@@ -7,6 +7,7 @@ import { resetSession, setSession } from "../../lib/session";
 import OnboardingLayout, { clientLoader as onboardingLayoutLoader } from "./layout";
 import Review, { clientLoader, clientAction } from "./review";
 import * as profileApi from "../../lib/api/profile";
+import type { ProfileResponse } from "../../lib/api/profile";
 import * as incomeApi from "../../lib/api/income";
 import * as expenseApi from "../../lib/api/expense";
 import * as userSkillsApi from "../../lib/api/userSkills";
@@ -20,13 +21,62 @@ function currentYearMonth(): string {
   return `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}`;
 }
 
-const COMPLETE_PROFILE = {
+const COMPLETE_PROFILE: ProfileResponse = {
   jobFamily: "DEVELOPER",
   yearsOfExperience: 5,
   region: "서울",
   employmentType: "FULL_TIME",
   companySize: "MEDIUM",
 };
+
+// 완비 게이트가 실제로 네 필수 필드 전부를 보는지, 그리고 선택 필드
+// (companySize)는 없어도 막지 않는지를 표 하나로 고정한다. jobFamily 만
+// 비우는 단일 사례로는 region·employmentType 판정 코드를 지워도 초록불이
+// 나온다 — 필수 필드 넷을 각각 단독으로 비우는 행이 있어야 그 삭제를 잡는다.
+// companySize 행은 반대 방향의 회귀(선택 필드를 실수로 필수 목록에 넣는 것)를
+// 잡는다.
+const PROFILE_GATE_CASES: {
+  name: string;
+  overrides: Partial<ProfileResponse>;
+  expectBlocked: boolean;
+  expectCompanySizeInSummary?: boolean;
+}[] = [
+  { name: "jobFamily 없음", overrides: { jobFamily: null }, expectBlocked: true },
+  {
+    name: "yearsOfExperience 없음",
+    overrides: { yearsOfExperience: null },
+    expectBlocked: true,
+  },
+  { name: "region 없음", overrides: { region: null }, expectBlocked: true },
+  {
+    name: "employmentType 없음",
+    overrides: { employmentType: null },
+    expectBlocked: true,
+  },
+  {
+    // 경계값 — 0년 경력은 유효한 값이지 미입력이 아니다. falsy 체크
+    // (`!profile.yearsOfExperience`)로 판정하면 신입(0년) 사용자가 영원히
+    // "미완"으로 오판되어(0 을 아무리 다시 저장해도 여전히 falsy) 제출할
+    // 수 없는 막다른 상태에 빠진다.
+    name: "yearsOfExperience=0(경계값, 유효한 값)",
+    overrides: { yearsOfExperience: 0 },
+    expectBlocked: false,
+  },
+  {
+    // companySize 는 profileSchema 에서도 optional() 이다 — 없어도 완비로
+    // 인정돼야 하고, 요약 문장에도 회사 규모 부분이 나타나지 않아야 한다.
+    name: "companySize 없음(선택 필드, 완비로 인정)",
+    overrides: { companySize: null },
+    expectBlocked: false,
+    expectCompanySizeInSummary: false,
+  },
+  {
+    name: "전체 완비(companySize 포함)",
+    overrides: {},
+    expectBlocked: false,
+    expectCompanySizeInSummary: true,
+  },
+];
 
 const ONE_INCOME = [
   { id: "i-1", grossSalary: 65_000_000, netSalary: 4_200_000, effectiveDate: "2026-01-01" },
@@ -142,44 +192,48 @@ describe("S-09 검토 화면", () => {
     ).toBeInTheDocument();
   });
 
-  // 브리프 3 — 필수 프로필 필드가 비어 있으면 제출 버튼 대신 해당 단계로 가는 안내를 보여준다.
-  it("필수 프로필 필드가 비어 있으면 제출 버튼 대신 프로필 단계로 가는 안내를 보여준다", async () => {
-    vi.spyOn(profileApi, "getProfile").mockResolvedValue({
-      ...COMPLETE_PROFILE,
-      jobFamily: null,
-    });
+  // 브리프 3 — 필수 프로필 필드가 비어 있으면 제출 버튼 대신 해당 단계로 가는
+  // 안내를 보여준다. 네 필수 필드 각각을 단독으로 비우는 행 + 0년 경력 경계값
+  // + companySize(선택 필드) 행을 표로 돌려, 필드 하나를 실수로 판정에서
+  // 빼거나(필수 필드 삭제) 실수로 판정에 더하는(선택 필드 오추가) 두 방향의
+  // 회귀를 모두 잡는다.
+  it.each(PROFILE_GATE_CASES)(
+    "프로필 완비 판정 — $name",
+    async ({ overrides, expectBlocked, expectCompanySizeInSummary }) => {
+      vi.spyOn(profileApi, "getProfile").mockResolvedValue({
+        ...COMPLETE_PROFILE,
+        ...overrides,
+      });
 
-    renderScreen();
+      renderScreen();
+      await screen.findByText(/세전 연봉/);
 
-    await screen.findByText(/세전 연봉/);
-    expect(
-      screen.queryByRole("button", { name: "제출하고 대시보드로" }),
-    ).not.toBeInTheDocument();
-    expect(
-      screen.getByRole("link", { name: "프로필 완료하러 가기" }),
-    ).toHaveAttribute("href", "/onboarding/profile");
-  });
+      if (expectBlocked) {
+        expect(
+          screen.queryByRole("button", { name: "제출하고 대시보드로" }),
+        ).not.toBeInTheDocument();
+        expect(
+          screen.getByRole("link", { name: "프로필 완료하러 가기" }),
+        ).toHaveAttribute("href", "/onboarding/profile");
+      } else {
+        expect(
+          await screen.findByRole("button", { name: "제출하고 대시보드로" }),
+        ).toBeInTheDocument();
+        expect(
+          screen.queryByRole("link", { name: "프로필 완료하러 가기" }),
+        ).not.toBeInTheDocument();
+      }
 
-  // 경계값 — 0년 경력은 유효한 값이지 미입력이 아니다. `yearsOfExperience`를
-  // falsy 체크(`!profile.yearsOfExperience`)로 판정하면 신입(0년) 사용자가
-  // 영원히 "미완"으로 오판되어 프로필을 아무리 다시 저장해도(0을 그대로
-  // 다시 보내므로) 제출할 수 없는 막다른 상태에 빠진다. `!== null` 로만
-  // 판정해야 한다.
-  it("경력이 0년인 사용자도 프로필 완비로 인정되어 제출 버튼이 보인다", async () => {
-    vi.spyOn(profileApi, "getProfile").mockResolvedValue({
-      ...COMPLETE_PROFILE,
-      yearsOfExperience: 0,
-    });
-
-    renderScreen();
-
-    expect(
-      await screen.findByRole("button", { name: "제출하고 대시보드로" }),
-    ).toBeInTheDocument();
-    expect(
-      screen.queryByRole("link", { name: "프로필 완료하러 가기" }),
-    ).not.toBeInTheDocument();
-  });
+      if (expectCompanySizeInSummary !== undefined) {
+        const summary = screen.getByText(/개발.*경력.*서울.*정규직/);
+        if (expectCompanySizeInSummary) {
+          expect(summary).toHaveTextContent("중견·중소");
+        } else {
+          expect(summary).not.toHaveTextContent("중견·중소");
+        }
+      }
+    },
+  );
 
   // 브리프 5 — 소득 이력이 없으면 소득 카드가 「입력 필요」로 표시되고 제출이 막힌다.
   it("소득 이력이 없으면 소득 카드가 입력 필요로 표시되고 제출이 막힌다", async () => {
@@ -221,7 +275,13 @@ describe("S-09 검토 화면", () => {
     vi.spyOn(incomeApi, "listIncome")
       .mockResolvedValueOnce(ONE_INCOME) // loader — 진입 시점엔 완비
       .mockResolvedValueOnce([]); // clientAction 재조회 — 그 사이 다른 탭에서 삭제됨
-    const advance = vi.spyOn(onboardingApi, "advanceOnboarding");
+    // 성공 응답을 준다 — 그래야 게이트가 실제로 호출을 막는 것과, mock 없는
+    // advanceOnboarding 이 진짜 fetch 로 떨어져 거부처럼 보이는 것을 구분할 수
+    // 있다(가짜 fetch 실패도 같은 role="alert" 배너를 만들어 앞의 구성으로는
+    // 이 테스트가 게이트를 지워도 통과했다).
+    const advance = vi
+      .spyOn(onboardingApi, "advanceOnboarding")
+      .mockResolvedValue({ currentStep: "COMPLETED", completed: true });
 
     renderScreen();
     const user = userEvent.setup();
@@ -271,14 +331,24 @@ describe("S-09 검토 화면", () => {
     renderScreen();
     const user = userEvent.setup();
 
-    const editLinks = await screen.findAllByRole("link", { name: "수정" });
-    expect(editLinks).toHaveLength(4);
-    expect(editLinks[0]).toHaveAttribute("href", "/onboarding/profile");
-    expect(editLinks[1]).toHaveAttribute("href", "/onboarding/income");
-    expect(editLinks[2]).toHaveAttribute("href", "/onboarding/expense");
-    expect(editLinks[3]).toHaveAttribute("href", "/onboarding/skills");
+    await screen.findByText(/세전 연봉/);
+    // 네 링크가 각자 자기 구간을 이름 짓는 접근성 이름(aria-label)을 갖는다 —
+    // 화면에 보이는 글자는 전부 "수정"이라 위치로만 구분하면 스크린 리더
+    // 사용자도, 이 테스트도 서로 쉽게 헷갈린다.
+    expect(
+      screen.getByRole("link", { name: "프로필 정보 수정" }),
+    ).toHaveAttribute("href", "/onboarding/profile");
+    expect(
+      screen.getByRole("link", { name: "소득 정보 수정" }),
+    ).toHaveAttribute("href", "/onboarding/income");
+    expect(
+      screen.getByRole("link", { name: "소비 정보 수정" }),
+    ).toHaveAttribute("href", "/onboarding/expense");
+    expect(
+      screen.getByRole("link", { name: "스킬 정보 수정" }),
+    ).toHaveAttribute("href", "/onboarding/skills");
 
-    await user.click(editLinks[2]);
+    await user.click(screen.getByRole("link", { name: "소비 정보 수정" }));
     expect(await screen.findByText("소비 화면")).toBeInTheDocument();
   });
 
@@ -309,7 +379,7 @@ describe("S-09 검토 화면", () => {
     render(<Stub initialEntries={["/onboarding/review"]} />);
     const user = userEvent.setup();
 
-    await user.click((await screen.findAllByRole("link", { name: "수정" }))[0]);
+    await user.click(await screen.findByRole("link", { name: "프로필 정보 수정" }));
 
     expect(await screen.findByText("프로필 화면")).toBeInTheDocument();
   });
