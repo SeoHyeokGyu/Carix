@@ -133,6 +133,14 @@ export default function DashboardSimulator() {
   // 결과를 지우지 않는다(별도 "마지막 성공 결과" 상태를 만들 필요가 없다).
   const success = fetcher.data && "result" in fetcher.data ? fetcher.data : null;
   const result = success?.result ?? scenario?.result ?? null;
+  // difficultyGrade 는 서버 응답을 실측한 적이 없다(검증 범위 절 참고) — 이 화면이
+  // 아는 네 값(EASY/REALISTIC/CHALLENGING/VERY_HIGH_CHALLENGE) 밖의 문자열이 오면
+  // DIFFICULTY_GRADE_LABEL 조회가 undefined 를 돌려준다. TS 는 DifficultyGrade
+  // 유니온을 신뢰해 이 조회가 항상 string 이라고 믿지만, 실제 응답은 타입 검증을
+  // 거치지 않으므로 값 자체(undefined 가능성)를 신뢰 소스로 삼아 렌더 여부를 가른다.
+  const gradeLabel = result?.feasibility.difficultyGrade
+    ? DIFFICULTY_GRADE_LABEL[result.feasibility.difficultyGrade]
+    : undefined;
   // SimulationResult 응답 자체에는 isEligibleForUnemploymentBenefit 이 없다 —
   // 지금 화면에 보이는 result 가 어느 쪽으로 계산됐는지는 그 result 가 온 자리
   // (fetcher 성공 응답 또는 loader 의 저장분)에서 함께 따라온 값으로만 알 수
@@ -371,10 +379,10 @@ export default function DashboardSimulator() {
                 {result.feasibility.status === "OK" ? (
                   <>
                     <p className="mt-1 text-carix-text">
-                      상위 {result.feasibility.targetPercentile}%
-                      {result.feasibility.difficultyGrade && (
-                        <> · {DIFFICULTY_GRADE_LABEL[result.feasibility.difficultyGrade]}</>
+                      {result.feasibility.targetPercentile !== null && (
+                        <>상위 {result.feasibility.targetPercentile}%</>
                       )}
+                      {gradeLabel && <> · {gradeLabel}</>}
                     </p>
                     {result.feasibility.feedbackMessage && (
                       <p className="mt-1 text-carix-text/70">

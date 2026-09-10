@@ -149,6 +149,36 @@ describe("S-15 시뮬레이터 화면", () => {
     expect(screen.queryByText(/상위 \d+%/)).not.toBeInTheDocument();
   });
 
+  // status가 OK 인데 targetPercentile·difficultyGrade 가 비어 있거나(서버가 이
+  // 화면이 아는 네 등급 밖의 값을 주는 등) 값을 찾을 수 없는 경우를 실측 없이도
+  // 방어한다 — 빈 자리("상위 %")나 구분자만 남는 자리(" · ")를 그대로 보여주지
+  // 않는다.
+  it("OK 인데 백분위나 등급을 찾을 수 없으면 빈 자리를 만들지 않는다", async () => {
+    vi.spyOn(scenarioApi, "getLatestScenario").mockResolvedValue({
+      inputs: SAVED_INPUTS,
+      result: {
+        ...OK_RESULT,
+        feasibility: {
+          status: "OK",
+          sampleSize: 42,
+          minRequired: null,
+          feasibilityScore: 31,
+          targetPercentile: null,
+          difficultyGrade: "UNKNOWN_GRADE",
+          feedbackMessage: "상위권 수준입니다.",
+        },
+      },
+      calculatedAt: "2026-09-07T00:00:00Z",
+    } as never);
+
+    renderScreen();
+
+    await screen.findByText("추정 기회비용");
+    expect(screen.queryByText(/상위\s*%/)).not.toBeInTheDocument();
+    expect(screen.queryByText("·")).not.toBeInTheDocument();
+    expect(screen.getByText("상위권 수준입니다.")).toBeInTheDocument();
+  });
+
   it("isEligibleForUnemploymentBenefit 이 거짓이면 실업급여 미반영이 나온다", async () => {
     vi.spyOn(scenarioApi, "getLatestScenario").mockResolvedValue({
       inputs: { ...SAVED_INPUTS, isEligibleForUnemploymentBenefit: false },
@@ -205,6 +235,43 @@ describe("S-15 시뮬레이터 화면", () => {
 
     expect(await screen.findByText("입력값을 확인해 주세요.")).toBeInTheDocument();
     expect(screen.getByText("추정 기회비용")).toBeInTheDocument();
+  });
+
+  // 복합 경로 — 위의 "라디오만 바꿔도" 테스트와 "계산 실패해도 이전 결과 유지" 테스트를
+  // 하나로 잇는다: 라디오를 바꾸고, 실제로 제출하고, 그 계산이 실패한다. success 가
+  // 실패 시 완전히 null 이 되므로(all-or-nothing) resultEligible 도 result 와 함께
+  // 정확히 같은 자리(scenario)로 폴백해야 한다 — 이 세 단계를 한 테스트로 pin 해 둔다.
+  // 저장된 시나리오가 있어야 폴백할 대상이 있으므로 loader 는 null 이 아니라 SAVED_INPUTS
+  // 를 돌려준다.
+  it("라디오를 바꾸고 제출했는데 계산이 실패하면, 화면 숫자와 안내가 여전히 같은 가정을 말한다", async () => {
+    vi.spyOn(scenarioApi, "getLatestScenario").mockResolvedValue({
+      inputs: SAVED_INPUTS, // isEligibleForUnemploymentBenefit: true
+      result: OK_RESULT,
+      calculatedAt: "2026-09-07T00:00:00Z",
+    } as never);
+    vi.spyOn(scenarioApi, "simulate").mockRejectedValue({
+      code: "INVALID_INPUT",
+      message: "입력값을 확인해 주세요.",
+      status: 400,
+    });
+
+    renderScreen();
+    const user = userEvent.setup();
+
+    expect(await screen.findByText(OK_RESULT.unemploymentBenefitNote)).toBeInTheDocument();
+
+    await user.click(screen.getByRole("radio", { name: "없음" }));
+    await user.click(screen.getByRole("button", { name: "계산" }));
+
+    expect(await screen.findByText("입력값을 확인해 주세요.")).toBeInTheDocument();
+
+    // 화면에 남은 결과는 여전히 실업급여를 반영해 계산된 이전 값(OK_RESULT)이다 —
+    // 라디오는 "없음"이지만 그건 다음 제출에 실릴 값일 뿐, 지금 보이는 숫자를 만든
+    // 가정은 아니다. 안내도 그 숫자를 따라가야 한다.
+    expect(screen.getByText(OK_RESULT.unemploymentBenefitNote)).toBeInTheDocument();
+    expect(screen.queryByText("실업급여 미반영")).not.toBeInTheDocument();
+    expect(screen.getByText("추정 기회비용")).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: "없음" })).toBeChecked();
   });
 
   // 브리프의 여섯 케이스에는 없지만, 설계 문서·브리프가 명시적으로 요구하는 동작이다
@@ -315,10 +382,11 @@ describe("S-15 시뮬레이터 화면", () => {
     expect(errorText.id).toBe("eligibility-error");
     expect(simulateSpy).not.toHaveBeenCalled();
 
-    expect(screen.getByRole("radiogroup")).toHaveAttribute(
-      "aria-describedby",
-      "eligibility-error",
-    );
+    const group = screen.getByRole("radiogroup");
+    expect(group).toHaveAttribute("aria-describedby", "eligibility-error");
+    // tabIndex={-1} 가 있어야 focusFirstInvalidField 가 이 그룹을 포커스할 수 있다
+    // — 그 속성이 빠지면 이 어서션만 조용히 깨진다(다른 열한 건은 무관).
+    expect(group).toHaveFocus();
   });
 
   it("조회 중 401 을 받으면 로그인 화면으로 보낸다", async () => {
