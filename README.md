@@ -446,7 +446,7 @@ PR 단계에서 `pr-check.yml` 워크플로가 백엔드 테스트와 프런트�
 - `GET /api/v1/skills/search`, `POST /api/v1/user-skills`, `DELETE /api/v1/user-skills/{id}` —
   구현 완료 (JPA로 `core` 스키마 사용)
 - `/api/v1/dashboard/**`, `/api/v1/income/**`, `/api/v1/expenses/**`, `/api/v1/scenarios/**`,
-  `/api/v1/reference/**`, `/api/v1/profile`, `/api/v1/onboarding`, `DELETE /api/v1/users` —
+  `/api/v1/reference/**`, `/api/v1/profile`, `DELETE /api/v1/users` —
   고정 응답 스텁 (API 규격 및 명세 우선 확정 단계)
 
 `collector`의 파이프라인 관리 API(`/internal/pipeline/**`)는 게이트웨이가 라우팅하지 않아
