@@ -10,7 +10,7 @@ import {
 import { StepBadges } from "../../components/onboarding/StepBadges";
 import { toUserMessage } from "../../lib/apiError";
 import { getProfile, type ProfileResponse } from "../../lib/api/profile";
-import { listIncome } from "../../lib/api/income";
+import { listIncome, type IncomeResponse } from "../../lib/api/income";
 import { listExpenses } from "../../lib/api/expense";
 import { listUserSkills } from "../../lib/api/userSkills";
 import { UnauthorizedError } from "../../lib/coreApi";
@@ -58,6 +58,48 @@ function isProfileComplete(
   );
 }
 
+interface GateData {
+  profile: ProfileResponse;
+  income: IncomeResponse[];
+}
+
+interface ReviewRequirement {
+  label: string;
+  path: string;
+  isSatisfied: (data: GateData) => boolean;
+}
+
+/**
+ * 완비 게이트가 요구하는 항목 하나로 된 목록. 렌더링(미완 안내 링크)과
+ * `clientAction`(제출 거부)이 이 배열 하나를 그대로 공유한다 — 같은 조건을
+ * 두 곳에 따로 적으면 한쪽만 고치는 실수로 조용히 어긋난다(버튼은 뜨는데
+ * 액션은 거부하거나, 그 반대). 항목을 추가하려면 이 배열에 한 줄만 더하면
+ * 된다.
+ *
+ * **스킬(US-O5, 최소 1개)은 아직 여기 없다.** S-08(스킬 입력) 화면이 아직
+ * `PlaceholderScreen`이라 자신의 "다음" 제출에 최소 1개 검증이 없다 — 지금
+ * 여기서 스킬을 요구하면 아무도 온보딩을 끝낼 수 없는 교착 상태가 된다.
+ * S-08 이 자신의 최소 1개 요구를 실제로 갖추면 이 배열에 한 줄을 추가해
+ * 이중 방어로 승격할 수 있다. 그 전까지 스킬 0개는 시장가치 지수에 "표본
+ * 부족" 뱃지로만 나타난다 — 설계가 이미 다루는 열화 상태라 아무것도 깨지지
+ * 않는다.
+ */
+const REVIEW_REQUIREMENTS: ReviewRequirement[] = [
+  {
+    label: "프로필",
+    path: "/onboarding/profile",
+    isSatisfied: ({ profile }) => isProfileComplete(profile),
+  },
+  {
+    label: "소득",
+    path: "/onboarding/income",
+    isSatisfied: ({ income }) => income.length > 0,
+  },
+];
+
+const GATE_REFUSAL_MESSAGE =
+  "입력하신 정보가 변경되어 필수 항목이 비어 있습니다. 화면을 새로고침한 뒤 다시 확인해 주세요.";
+
 export async function clientLoader() {
   try {
     const [profile, income, expenses, skills] = await Promise.all([
@@ -76,6 +118,20 @@ export async function clientLoader() {
 
 export async function clientAction() {
   try {
+    // 렌더는 loader 가 진입 시점에 가져온 데이터로 버튼을 보여줬을 뿐이다 —
+    // 그 사이(다른 탭에서 소득 이력을 지우는 등) 완비 조건이 깨질 수 있다.
+    // `PATCH /v1/auth/onboarding` 은 COMPLETED 를 무조건 받아 주므로(서버에
+    // 완비 개념이 없다), 이 화면이 유일한 완비 게이트다 — 제출 시점에
+    // REVIEW_REQUIREMENTS 로 다시 검증한다(렌더와 완전히 같은 조건 — 배열을
+    // 공유하므로 표류할 수 없다).
+    const [profile, income] = await Promise.all([getProfile(), listIncome()]);
+    const isIncomplete = REVIEW_REQUIREMENTS.some(
+      (requirement) => !requirement.isSatisfied({ profile, income }),
+    );
+    if (isIncomplete) {
+      return { errors: { _form: GATE_REFUSAL_MESSAGE } } satisfies ActionData;
+    }
+
     await advanceOnboarding("COMPLETED");
 
     // guardOnboarding 은 세션 캐시(session.ts 의 모듈 전역)를 읽는다 — 갱신하지 않으면
@@ -122,14 +178,14 @@ export default function Review() {
     .filter((item) => item.status === "DEFAULT_CPI")
     .map((item) => labelFor(EXPENSE_CATEGORIES, item.category));
 
-  const incomeComplete = income.length > 0;
-
   // 부분 저장을 허용한 대가(§3.2)로 이 화면이 완비를 검증한다. 미완인 항목은
   // 제출 버튼 대신 해당 단계로 가는 안내로 대체한다 — 아무 것도 누를 수 없는
   // 화면이 아니라, 무엇을 더 해야 하는지 알려주는 화면이어야 한다.
-  const incompleteSteps: { label: string; path: string }[] = [];
-  if (!profileComplete) incompleteSteps.push({ label: "프로필", path: "/onboarding/profile" });
-  if (!incomeComplete) incompleteSteps.push({ label: "소득", path: "/onboarding/income" });
+  // `clientAction`의 제출 거부와 정확히 같은 조건(REVIEW_REQUIREMENTS)을 쓴다.
+  const gateData: GateData = { profile, income };
+  const incompleteSteps = REVIEW_REQUIREMENTS.filter(
+    (requirement) => !requirement.isSatisfied(gateData),
+  );
   const canSubmit = incompleteSteps.length === 0;
 
   return (

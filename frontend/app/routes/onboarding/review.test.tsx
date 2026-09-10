@@ -212,6 +212,26 @@ describe("S-09 검토 화면", () => {
     expect(advance).toHaveBeenCalledWith("COMPLETED");
   });
 
+  // 팀 리드 지시 — 렌더가 버튼을 보여준 뒤에도(진입 시점엔 완비였다) 제출
+  // 시점에 조건이 깨질 수 있다(다른 탭에서 소득 이력을 지우고 돌아와 제출).
+  // `PATCH /v1/auth/onboarding`은 COMPLETED 를 무조건 받아 주므로, 이
+  // 화면이 유일한 방어선이다 — clientAction 이 제출 시점에 다시 조회해
+  // 스스로 거부해야 한다.
+  it("렌더 시점엔 완비였어도 제출 시점에 조건이 깨졌으면 제출을 거부한다", async () => {
+    vi.spyOn(incomeApi, "listIncome")
+      .mockResolvedValueOnce(ONE_INCOME) // loader — 진입 시점엔 완비
+      .mockResolvedValueOnce([]); // clientAction 재조회 — 그 사이 다른 탭에서 삭제됨
+    const advance = vi.spyOn(onboardingApi, "advanceOnboarding");
+
+    renderScreen();
+    const user = userEvent.setup();
+
+    await user.click(await screen.findByRole("button", { name: "제출하고 대시보드로" }));
+
+    expect(await screen.findByRole("alert")).toBeInTheDocument();
+    expect(advance).not.toHaveBeenCalled();
+  });
+
   it("제출 성공 후 세션 캐시의 onboardingStep 을 COMPLETED 로 갱신한다", async () => {
     vi.spyOn(onboardingApi, "advanceOnboarding").mockResolvedValue({
       currentStep: "COMPLETED",
