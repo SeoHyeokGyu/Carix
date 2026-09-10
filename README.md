@@ -297,8 +297,8 @@ flowchart TD
 | --- | --- |
 | Vite + React + React Router (Next.js 대체) | Next.js는 풀스택 프레임워크라 Node 계층이 API·데이터로 번지기 쉽고 Spring Boot와 역할 경계가 흐려집니다. Node는 HTML SSR·SEO만 맡깁니다 (자세한 배경은 [프런트엔드 설계](docs/specs/frontend-design.md)) |
 | Node SSR (Express) | 공개 랜딩·콘텐츠의 SEO와 로그인 후 대시보드의 상호작용성을 한 앱에서 지원하기 위해 |
-| TanStack Query | 서버 상태를 클라이언트 스토어에 복제하지 않기 위해. 캐시·재검증을 직접 구현하지 않습니다 |
-| Zod + React Hook Form | 입력 검증을 프런트·백엔드 양쪽에서 하되, 프런트 스키마를 한 곳에 두기 위해 |
+| React Router 7 `clientLoader`·`clientAction` (TanStack Query 대체) | 프레임워크가 조회·제출·재검증을 이미 갖고 있어 별도 서버 상태 캐시를 얹으면 역할이 겹칩니다 |
+| Zod (React Hook Form 없이) | 입력 검증을 프런트·백엔드 양쪽에서 하되, 프런트 스키마를 한 곳에 둡니다. `clientAction`이 제출을 받고 Zod가 파싱하면 React Hook Form이 더할 역할이 제어 컴포넌트 상태 관리뿐이라 넣지 않았습니다 |
 | Recharts | 지수·트렌드 차트가 핵심 화면이며 React 컴포넌트 모델과 맞물립니다 |
 | Java 25 | 최신 LTS. Spring Boot 4.x의 하한(17)보다 높고 가상 스레드·AOT 캐시(Java 25+ 전용) 등 최신 LTS 기능을 씁니다 |
 | Spring Boot 4.1 | 스캐폴드 시점의 최신 GA. Spring Initializr 기본값이며 3.x는 더 이상 제공되지 않습니다 |
@@ -372,7 +372,7 @@ Node SSR 전환(Express + `@react-router/express`)은 **MVP 범위 밖으로 미
 | 백엔드 단위·슬라이스 | JUnit 5, Spring Boot Test, MockMvc | 도입 |
 | 백엔드 통합 | — | **두지 않습니다.** 테스트용 DB를 쓰지 않기로 했습니다. 로컬에 Docker가 없어 Testcontainers 테스트가 어디서도 실행되지 않던 상태라, auth-service의 해당 테스트 10개와 의존성을 제거했습니다 |
 | 프런트 단위·컴포넌트 | Vitest, Testing Library | 도입 — `pnpm test:unit` |
-| API 모킹 | MSW | 미도입 |
+| API 모킹 | `vi.spyOn`(모듈 함수 직접 모킹) | 도입 — 네트워크 계층을 가로챌 MSW는 채택하지 않았습니다 |
 | 브라우저 E2E | Playwright | 도입 — 랜딩 E2E와 `@axe-core/playwright` 접근성 검사 (`pnpm test:e2e`) |
 
 PR 단계 CI(`pr-check.yml`)를 통해 백엔드 전체 테스트(`./gradlew check`) 및 프런트엔드 타입체크·린트·단위테스트(`pnpm`)를 자동 검증합니다. `main` 푸시 시 배포 워크플로(`deploy.yml`)가 동작합니다.

@@ -352,7 +352,7 @@ MVP 완료 기준 10개 항목(MVP 스펙 §11)과 본 문서 스토리의 매�
 | S-06 소득 | US-O3 | `POST /income`, `PUT /income/{id}` | `income_history` |
 | S-07 소비 | US-O4 | `PUT /expenses/{ym}` | `expense_history`, `expense_item` |
 | S-08 스킬 | US-O5 | `GET /skills/search`, `POST /user-skills` | `skill`, `skill_alias`, `user_skill` |
-| S-09 검토·완료 | US-O6 | `PATCH /onboarding` | `users`(onboarding_step) |
+| S-09 검토·완료 | US-O6 | `PATCH /auth/onboarding`(`auth-service`) | `users`(onboarding_step) |
 | S-10 대시보드 | US-D1~D2 | `GET /dashboard/summary` | `index_snapshot`, `market_aggregate` |
 | S-11 이력 | US-D4 | `GET /dashboard/history` | `index_snapshot` |
 | S-14 추이분석 | US-D3 | `GET /trends`, `/salary-distribution`, `/skills` | `market_aggregate`, `wage_stat_observation` |

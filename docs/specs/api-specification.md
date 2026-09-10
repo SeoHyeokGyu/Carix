@@ -98,8 +98,10 @@
 ### 3.1 커리어 프로필 조회
 *   **Endpoint:** `GET /api/v1/profile`
 *   `region` 은 시/도 17개 한글 어휘다(`서울`·`부산`·`경기`… 전체 목록은 collector 의
-    `RegionRollup.SIDO`). 구 단위(`서울 강남구`)가 아니다 — `market_aggregate` 조회가 이 값과
-    정확일치로 걸리므로 값이 어긋나면 동료집단이 조용히 비어 `표본 부족`이 된다
+    `RegionRollup.SIDO`). 구 단위(`서울 강남구`)가 아니다 — 동료집단 완화가 기대하는 값이
+    이 어휘다. 현재 `market_aggregate` 조회는 `(m.region = :region OR m.region = 'ALL')`로
+    떨어져 있어 값이 어긋나도 `ALL` 행에 걸려 증상이 바로 드러나지는 않지만([c3 설계
+    §8-c](../plans/carix-dev-plan-c3-design.md)), 값 규약은 이 어휘로 확정한다
 *   **Response (200 OK):**
     ```json
     {

@@ -81,7 +81,7 @@ CREATE TABLE career_profile (
     user_id UUID NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
     job_family VARCHAR(100), -- 'DEVELOPER', 'DATA', 'AI'
     years_of_experience INT,
-    region VARCHAR(100), -- 예: 'SEOUL_GANGNAM', 'GYEONGGI' 등 코드화
+    region VARCHAR(100), -- 시/도 17개 한글 어휘. 예: '서울', '경기' (collector RegionRollup.SIDO 와 동일, API 규격 §3.1)
     employment_type VARCHAR(50), -- 'FULL_TIME', 'CONTRACT'
     company_size VARCHAR(50) -- 'LARGE', 'MEDIUM', 'STARTUP' (선택값)
 );
