@@ -22,3 +22,10 @@ export const expenseSchema = z.object({
 });
 
 export type ExpenseInput = z.infer<typeof expenseSchema>;
+
+/**
+ * 화면(expense.tsx)이 쓰는 카테고리 금액 오류 문구. 항목마다 다른 키
+ * (`items.N.amount`)로 착지하지만 규칙은 하나뿐이라 메시지도 하나다 — 규칙
+ * (위 스키마의 amount 범위)과 나란히 둔다.
+ */
+export const EXPENSE_ITEM_AMOUNT_MESSAGE = "0원 이상 5천만 원 이하의 정수로 입력해 주세요.";

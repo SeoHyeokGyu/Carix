@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { GROSS_SALARY_RANGE_TEXT } from "./options";
 
 /**
  * 당월 말일을 "YYYY-MM-DD" 로 돌려준다. 기능 명세 §3 은 유효 시작일 허용 범위를
@@ -28,3 +29,14 @@ export const incomeSchema = z.object({
 });
 
 export type IncomeInput = z.infer<typeof incomeSchema>;
+
+/**
+ * 화면(income.tsx)이 쓰는 필드별 오류 문구. 규칙(위 스키마)과 그 규칙을 사람이
+ * 읽을 문장으로 바로 옆에 두어, 범위가 바뀌었는데 문구만 옛날 값으로 남는 것을
+ * 막는다.
+ */
+export const INCOME_FIELD_MESSAGES: Record<keyof IncomeInput, string> = {
+  grossSalary: `세전 연봉은 ${GROSS_SALARY_RANGE_TEXT}`,
+  netSalary: "월 실수령액은 50만 원~2억 원 사이로 입력해 주세요.",
+  effectiveDate: "유효 시작일은 YYYY-MM-DD 형식의 과거~당월 날짜여야 합니다.",
+};

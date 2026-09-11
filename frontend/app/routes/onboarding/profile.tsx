@@ -24,21 +24,13 @@ import {
   COMPANY_SIZES,
   EMPLOYMENT_TYPES,
   JOB_FAMILIES,
+  PROFILE_FIELD_MESSAGES,
   profileSchema,
   REGIONS,
-  type ProfileInput,
 } from "../../lib/schemas/profile";
 import { requireSession, setSession } from "../../lib/session";
 
 type ActionData = { errors: FieldErrors };
-
-const FIELD_ERROR_MESSAGES: Record<keyof ProfileInput, string> = {
-  jobFamily: "주 직무를 선택해 주세요.",
-  yearsOfExperience: "총 경력은 0~50 사이의 정수로 입력해 주세요.",
-  region: "희망 근무 지역을 선택해 주세요.",
-  employmentType: "고용 형태를 선택해 주세요.",
-  companySize: "회사 규모를 올바르게 선택해 주세요.",
-};
 
 export async function clientLoader() {
   try {
@@ -62,7 +54,7 @@ export async function clientAction({ request }: { request: Request }) {
   const result = schema.safeParse(raw);
   if (!result.success) {
     return {
-      errors: toFieldErrors(result.error.issues, FIELD_ERROR_MESSAGES),
+      errors: toFieldErrors(result.error.issues, PROFILE_FIELD_MESSAGES),
     } satisfies ActionData;
   }
 

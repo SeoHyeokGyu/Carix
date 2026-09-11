@@ -33,16 +33,10 @@ import { focusFirstInvalidField } from "../../lib/focusFirstInvalidField";
 import { formDataToObject } from "../../lib/formData";
 import { advanceOnboarding } from "../../lib/onboardingApi";
 import { isForwardStep, LOGIN_PATH } from "../../lib/routeGuards";
-import { incomeSchema, type IncomeInput } from "../../lib/schemas/income";
+import { incomeSchema, INCOME_FIELD_MESSAGES } from "../../lib/schemas/income";
 import { requireSession, setSession } from "../../lib/session";
 
 type ActionData = { errors: FieldErrors } | null;
-
-const FIELD_ERROR_MESSAGES: Record<keyof IncomeInput, string> = {
-  grossSalary: "세전 연봉은 1천만 원~30억 원 사이로 입력해 주세요.",
-  netSalary: "월 실수령액은 50만 원~2억 원 사이로 입력해 주세요.",
-  effectiveDate: "유효 시작일은 YYYY-MM-DD 형식의 과거~당월 날짜여야 합니다.",
-};
 
 /** 유효 시작일 중복(설계 §8-a) 은 서버가 409 로 알린다 — 다른 오류와 달리 특정
  * 필드(effectiveDate)에 붙여야 하므로 `toUserMessage` 의 일반 `_form` 경로를
@@ -107,7 +101,7 @@ export async function clientAction({ request }: { request: Request }) {
   const raw = formDataToObject(formData, { numeric: ["grossSalary", "netSalary"] });
   const result = incomeSchema.safeParse(raw);
   if (!result.success) {
-    return { errors: toFieldErrors(result.error.issues, FIELD_ERROR_MESSAGES) } satisfies ActionData;
+    return { errors: toFieldErrors(result.error.issues, INCOME_FIELD_MESSAGES) } satisfies ActionData;
   }
 
   try {

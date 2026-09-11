@@ -26,13 +26,15 @@ import { focusFirstInvalidField } from "../../lib/focusFirstInvalidField";
 import { formDataToObject } from "../../lib/formData";
 import { advanceOnboarding } from "../../lib/onboardingApi";
 import { isForwardStep, LOGIN_PATH } from "../../lib/routeGuards";
-import { EXPENSE_CATEGORIES, expenseSchema } from "../../lib/schemas/expense";
+import {
+  EXPENSE_CATEGORIES,
+  EXPENSE_ITEM_AMOUNT_MESSAGE,
+  expenseSchema,
+} from "../../lib/schemas/expense";
 import { requireSession, setSession } from "../../lib/session";
 import { currentYearMonth } from "../../lib/yearMonth";
 
 type ActionData = { errors: FieldErrors } | null;
-
-const CATEGORY_ERROR_MESSAGE = "0원 이상 5천만 원 이하의 정수로 입력해 주세요.";
 
 const STATUS_LABELS: Record<ExpenseItemStatus, string> = {
   DEFAULT_CPI: "통계청 평균 기준",
@@ -121,7 +123,7 @@ export async function clientAction({ request }: { request: Request }) {
   // 지점이 팀 리드가 지목한, 행 인덱스 오류 키가 실제로 시험대에 오르는 자리다.
   const messages: Record<string, string> = {};
   items.forEach((_, index) => {
-    messages[`items.${index}.amount`] = CATEGORY_ERROR_MESSAGE;
+    messages[`items.${index}.amount`] = EXPENSE_ITEM_AMOUNT_MESSAGE;
   });
 
   const result = expenseSchema.safeParse({ items });

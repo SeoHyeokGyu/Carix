@@ -23,21 +23,12 @@ import { toFieldErrors, type FieldErrors } from "../../lib/fieldErrors";
 import { focusFirstInvalidField } from "../../lib/focusFirstInvalidField";
 import { formDataToObject } from "../../lib/formData";
 import { LOGIN_PATH } from "../../lib/routeGuards";
-import { scenarioSchema } from "../../lib/schemas/scenario";
+import { scenarioSchema, SCENARIO_FIELD_MESSAGES } from "../../lib/schemas/scenario";
 
 type ActionData =
   | { result: SimulationResult; isEligible: boolean }
   | { errors: FieldErrors; missingIncome?: boolean }
   | null;
-
-const FIELD_ERROR_MESSAGES: Record<string, string> = {
-  scenarioName: "시나리오 이름은 100자 이하로 입력해 주세요.",
-  stayExpectedRaiseRate: "예상 인상률은 -50~100 사이로 입력해 주세요.",
-  moveTargetGrossSalary: "이직 목표 세전 연봉은 1천만 원~30억 원 사이로 입력해 주세요.",
-  moveOneTimeCost: "이직 일회성 비용은 0원~1억 원 사이로 입력해 주세요.",
-  expectedUnemploymentMonths: "예상 구직 공백은 0~6개월 사이로 입력해 주세요.",
-  isEligibleForUnemploymentBenefit: "실업급여 수급 자격 여부를 선택해 주세요.",
-};
 
 const DIFFICULTY_GRADE_LABEL: Record<DifficultyGrade, string> = {
   EASY: "쉬움",
@@ -97,7 +88,7 @@ export async function clientAction({ request }: { request: Request }) {
 
   const parsed = scenarioSchema.safeParse(input);
   if (!parsed.success) {
-    return { errors: toFieldErrors(parsed.error.issues, FIELD_ERROR_MESSAGES) } satisfies ActionData;
+    return { errors: toFieldErrors(parsed.error.issues, SCENARIO_FIELD_MESSAGES) } satisfies ActionData;
   }
 
   try {

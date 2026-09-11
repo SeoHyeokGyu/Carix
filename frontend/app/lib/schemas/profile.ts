@@ -61,3 +61,16 @@ export const profileSchema = z.object({
 });
 
 export type ProfileInput = z.infer<typeof profileSchema>;
+
+/**
+ * 화면(profile.tsx)이 쓰는 필드별 오류 문구. 규칙(위 스키마)과 그 규칙을 사람이
+ * 읽을 문장으로 바로 옆에 두어, 범위가 바뀌었는데 문구만 옛날 값으로 남는 것을
+ * 막는다.
+ */
+export const PROFILE_FIELD_MESSAGES: Record<keyof ProfileInput, string> = {
+  jobFamily: "주 직무를 선택해 주세요.",
+  yearsOfExperience: "총 경력은 0~50 사이의 정수로 입력해 주세요.",
+  region: "희망 근무 지역을 선택해 주세요.",
+  employmentType: "고용 형태를 선택해 주세요.",
+  companySize: "회사 규모를 올바르게 선택해 주세요.",
+};
