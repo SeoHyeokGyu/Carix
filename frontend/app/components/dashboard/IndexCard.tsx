@@ -18,7 +18,13 @@ function formatChange(change: number): string {
   return `${arrow} ${Math.abs(change).toFixed(1)}p`;
 }
 
-export function IndexCard({ title, index }: { title: string; index: IndexValue }) {
+export function IndexCard({
+  title,
+  index,
+}: {
+  title: string;
+  index: IndexValue;
+}) {
   const { value, changeFromLastMonth, indexStatus } = index;
 
   return (
@@ -32,7 +38,9 @@ export function IndexCard({ title, index }: { title: string; index: IndexValue }
           <div className="flex items-baseline gap-2">
             <span className="text-2xl font-bold">{value.toFixed(1)}</span>
             {changeFromLastMonth !== null && (
-              <Badge variant={changeFromLastMonth < 0 ? "destructive" : "secondary"}>
+              <Badge
+                variant={changeFromLastMonth < 0 ? "destructive" : "secondary"}
+              >
                 {formatChange(changeFromLastMonth)}
               </Badge>
             )}

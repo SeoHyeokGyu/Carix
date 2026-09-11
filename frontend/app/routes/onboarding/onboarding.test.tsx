@@ -2,7 +2,9 @@ import { render, screen } from "@testing-library/react";
 import { createRoutesStub } from "react-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { resetSession, setSession } from "../../lib/session";
-import OnboardingLayout, { clientLoader as onboardingLayoutLoader } from "./layout";
+import OnboardingLayout, {
+  clientLoader as onboardingLayoutLoader,
+} from "./layout";
 import Skills from "./skills";
 
 describe("온보딩 라우트 및 레이아웃 (Onboarding)", () => {

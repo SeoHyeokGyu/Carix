@@ -40,8 +40,18 @@ describe("S-06 소득 화면", () => {
 
   it("기존 이력이 표에 유효 시작일 내림차순으로 나온다", async () => {
     vi.spyOn(incomeApi, "listIncome").mockResolvedValue([
-      { id: "i-1", grossSalary: 58_000_000, netSalary: 3_800_000, effectiveDate: "2023-01-01" },
-      { id: "i-2", grossSalary: 65_000_000, netSalary: 4_200_000, effectiveDate: "2024-01-01" },
+      {
+        id: "i-1",
+        grossSalary: 58_000_000,
+        netSalary: 3_800_000,
+        effectiveDate: "2023-01-01",
+      },
+      {
+        id: "i-2",
+        grossSalary: 65_000_000,
+        netSalary: 4_200_000,
+        effectiveDate: "2024-01-01",
+      },
     ]);
 
     renderScreen();
@@ -56,7 +66,12 @@ describe("S-06 소득 화면", () => {
     vi.spyOn(incomeApi, "listIncome")
       .mockResolvedValueOnce([])
       .mockResolvedValueOnce([
-        { id: "i-1", grossSalary: 50_000_000, netSalary: 3_500_000, effectiveDate: "2024-01-01" },
+        {
+          id: "i-1",
+          grossSalary: 50_000_000,
+          netSalary: 3_500_000,
+          effectiveDate: "2024-01-01",
+        },
       ]);
     const create = vi.spyOn(incomeApi, "createIncome").mockResolvedValue({
       id: "i-1",
@@ -83,7 +98,12 @@ describe("S-06 소득 화면", () => {
 
   it("같은 유효 시작일로 추가하면 필드 오류를 보여주고 입력값을 지우지 않는다", async () => {
     vi.spyOn(incomeApi, "listIncome").mockResolvedValue([
-      { id: "i-1", grossSalary: 50_000_000, netSalary: 3_500_000, effectiveDate: "2024-01-01" },
+      {
+        id: "i-1",
+        grossSalary: 50_000_000,
+        netSalary: 3_500_000,
+        effectiveDate: "2024-01-01",
+      },
     ]);
     vi.spyOn(incomeApi, "createIncome").mockRejectedValue({
       code: "DUPLICATE_EFFECTIVE_DATE",
@@ -99,7 +119,9 @@ describe("S-06 소득 화면", () => {
     await user.type(screen.getByLabelText("유효 시작일"), "2024-01-01");
     await user.click(screen.getByRole("button", { name: "추가" }));
 
-    const errorText = await screen.findByText("같은 유효 시작일이 이미 있습니다.");
+    const errorText = await screen.findByText(
+      "같은 유효 시작일이 이미 있습니다.",
+    );
     expect(errorText).toBeInTheDocument();
 
     // 텍스트만으로는 이 오류가 실제로 effectiveDate 필드에 붙었는지, 아니면
@@ -117,7 +139,12 @@ describe("S-06 소득 화면", () => {
 
   it("'다음' 을 누르면 advanceOnboarding 후 소비 화면으로 간다", async () => {
     vi.spyOn(incomeApi, "listIncome").mockResolvedValue([
-      { id: "i-1", grossSalary: 50_000_000, netSalary: 3_500_000, effectiveDate: "2024-01-01" },
+      {
+        id: "i-1",
+        grossSalary: 50_000_000,
+        netSalary: 3_500_000,
+        effectiveDate: "2024-01-01",
+      },
     ]);
     const advance = vi
       .spyOn(onboardingApi, "advanceOnboarding")
@@ -171,7 +198,12 @@ describe("S-06 소득 화면", () => {
       onboardingStep: "REVIEW",
     });
     vi.spyOn(incomeApi, "listIncome").mockResolvedValue([
-      { id: "i-1", grossSalary: 50_000_000, netSalary: 3_500_000, effectiveDate: "2024-01-01" },
+      {
+        id: "i-1",
+        grossSalary: 50_000_000,
+        netSalary: 3_500_000,
+        effectiveDate: "2024-01-01",
+      },
     ]);
     const advance = vi.spyOn(onboardingApi, "advanceOnboarding");
 
@@ -194,7 +226,12 @@ describe("S-06 소득 화면", () => {
   it("삭제하면 deleteIncome 이 불리고 표에서 사라진다", async () => {
     vi.spyOn(incomeApi, "listIncome")
       .mockResolvedValueOnce([
-        { id: "i-1", grossSalary: 50_000_000, netSalary: 3_500_000, effectiveDate: "2024-01-01" },
+        {
+          id: "i-1",
+          grossSalary: 50_000_000,
+          netSalary: 3_500_000,
+          effectiveDate: "2024-01-01",
+        },
       ])
       .mockResolvedValueOnce([]);
     const del = vi.spyOn(incomeApi, "deleteIncome").mockResolvedValue(null);
@@ -212,10 +249,20 @@ describe("S-06 소득 화면", () => {
   it("수정하면 updateIncome 이 호출되고 표가 새 값으로 갱신된다", async () => {
     vi.spyOn(incomeApi, "listIncome")
       .mockResolvedValueOnce([
-        { id: "i-1", grossSalary: 50_000_000, netSalary: 3_500_000, effectiveDate: "2024-01-01" },
+        {
+          id: "i-1",
+          grossSalary: 50_000_000,
+          netSalary: 3_500_000,
+          effectiveDate: "2024-01-01",
+        },
       ])
       .mockResolvedValueOnce([
-        { id: "i-1", grossSalary: 55_000_000, netSalary: 3_500_000, effectiveDate: "2024-01-01" },
+        {
+          id: "i-1",
+          grossSalary: 55_000_000,
+          netSalary: 3_500_000,
+          effectiveDate: "2024-01-01",
+        },
       ]);
     const update = vi.spyOn(incomeApi, "updateIncome").mockResolvedValue({
       id: "i-1",
@@ -243,8 +290,12 @@ describe("S-06 소득 화면", () => {
       netSalary: 3_500_000,
       effectiveDate: "2024-01-01",
     });
-    expect(await screen.findByText((55_000_000).toLocaleString())).toBeInTheDocument();
-    expect(screen.queryByText((50_000_000).toLocaleString())).not.toBeInTheDocument();
+    expect(
+      await screen.findByText((55_000_000).toLocaleString()),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText((50_000_000).toLocaleString()),
+    ).not.toBeInTheDocument();
   });
 
   // FIX 4c — 수정 성공 후 editingId 를 지우지 않으면 폼이 계속 편집
@@ -257,10 +308,20 @@ describe("S-06 소득 화면", () => {
   it("수정 성공 후 편집 모드가 풀리고, 그 뒤 같은 행을 삭제해도 문제없이 지워진다", async () => {
     vi.spyOn(incomeApi, "listIncome")
       .mockResolvedValueOnce([
-        { id: "i-1", grossSalary: 50_000_000, netSalary: 3_500_000, effectiveDate: "2024-01-01" },
+        {
+          id: "i-1",
+          grossSalary: 50_000_000,
+          netSalary: 3_500_000,
+          effectiveDate: "2024-01-01",
+        },
       ])
       .mockResolvedValueOnce([
-        { id: "i-1", grossSalary: 55_000_000, netSalary: 3_500_000, effectiveDate: "2024-01-01" },
+        {
+          id: "i-1",
+          grossSalary: 55_000_000,
+          netSalary: 3_500_000,
+          effectiveDate: "2024-01-01",
+        },
       ])
       .mockResolvedValueOnce([]);
     vi.spyOn(incomeApi, "updateIncome").mockResolvedValue({
@@ -286,7 +347,9 @@ describe("S-06 소득 화면", () => {
 
     // 편집 모드가 풀려야 한다 — "취소" 버튼이 사라지고 제출 버튼이 "추가"로
     // 되돌아온다. 풀리지 않으면(버그) "저장" 버튼과 "취소" 버튼이 그대로 남는다.
-    expect(screen.queryByRole("button", { name: "취소" })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "취소" }),
+    ).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "추가" })).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "삭제" }));
@@ -297,7 +360,12 @@ describe("S-06 소득 화면", () => {
 
   it("수정이 API 오류로 실패하면 오류를 보여주고 표는 원래 값을 유지한다", async () => {
     vi.spyOn(incomeApi, "listIncome").mockResolvedValue([
-      { id: "i-1", grossSalary: 50_000_000, netSalary: 3_500_000, effectiveDate: "2024-01-01" },
+      {
+        id: "i-1",
+        grossSalary: 50_000_000,
+        netSalary: 3_500_000,
+        effectiveDate: "2024-01-01",
+      },
     ]);
     const update = vi.spyOn(incomeApi, "updateIncome").mockRejectedValue({
       code: "SERVER_ERROR",
@@ -322,7 +390,9 @@ describe("S-06 소득 화면", () => {
     });
 
     const banner = await screen.findByRole("alert");
-    expect(banner).toHaveTextContent("요청을 처리하지 못했습니다. 잠시 후 다시 시도해 주세요.");
+    expect(banner).toHaveTextContent(
+      "요청을 처리하지 못했습니다. 잠시 후 다시 시도해 주세요.",
+    );
     // Field 의 필드별 오류 문단은 항상 `id={field}-error` 를 갖는다 — 이 오류가
     // 특정 필드가 아니라 폼 전체(_form) 배너로 떨어졌는지는 id 부재로만
     // 구분된다(FIX 2 와 같은 이유 — 텍스트만으로는 착지 위치를 핀하지 못한다).
@@ -344,7 +414,9 @@ describe("S-06 소득 화면", () => {
   });
 
   it("조회 중 401 을 받으면 로그인 화면으로 보낸다", async () => {
-    vi.spyOn(incomeApi, "listIncome").mockRejectedValue(new UnauthorizedError());
+    vi.spyOn(incomeApi, "listIncome").mockRejectedValue(
+      new UnauthorizedError(),
+    );
 
     renderScreen();
 
@@ -382,7 +454,12 @@ describe("S-06 소득 화면", () => {
   // 보여줘야 한다. 조용히 사라지면 사용자는 삭제가 됐는지 실패했는지 알 수 없다.
   it("삭제가 API 오류로 실패하면 행에 오류 메시지를 보여준다", async () => {
     vi.spyOn(incomeApi, "listIncome").mockResolvedValue([
-      { id: "i-1", grossSalary: 50_000_000, netSalary: 3_500_000, effectiveDate: "2024-01-01" },
+      {
+        id: "i-1",
+        grossSalary: 50_000_000,
+        netSalary: 3_500_000,
+        effectiveDate: "2024-01-01",
+      },
     ]);
     vi.spyOn(incomeApi, "deleteIncome").mockRejectedValue({
       code: "SERVER_ERROR",
@@ -397,7 +474,9 @@ describe("S-06 소득 화면", () => {
     await user.click(screen.getByRole("button", { name: "삭제" }));
 
     const banner = await screen.findByRole("alert");
-    expect(banner).toHaveTextContent("요청을 처리하지 못했습니다. 잠시 후 다시 시도해 주세요.");
+    expect(banner).toHaveTextContent(
+      "요청을 처리하지 못했습니다. 잠시 후 다시 시도해 주세요.",
+    );
     // 행이 그대로 남아 있다 — 삭제되지 않았다.
     expect(screen.getByText("2024-01-01")).toBeInTheDocument();
   });

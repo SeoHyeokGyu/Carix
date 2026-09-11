@@ -1,4 +1,11 @@
-import { Link, redirect, useActionData, useLoaderData, useNavigation, Form } from "react-router";
+import {
+  Link,
+  redirect,
+  useActionData,
+  useLoaderData,
+  useNavigation,
+  Form,
+} from "react-router";
 import { buttonVariants, Button } from "@/components/ui/button";
 import {
   Card,
@@ -32,7 +39,10 @@ type ActionData = { errors: FieldErrors } | null;
 // 월(baseYearMonth)은 이 화면에도 선택 UI 가 없다 — 언제나 "당월" 지출 행을
 // 읽는다(expense.tsx 와 같은 이유·같은 계산 — currentYearMonth, ../../lib/yearMonth).
 
-function labelFor(options: readonly { value: string; label: string }[], value: string): string {
+function labelFor(
+  options: readonly { value: string; label: string }[],
+  value: string,
+): string {
   return options.find((option) => option.value === value)?.label ?? value;
 }
 
@@ -147,11 +157,13 @@ export async function clientAction() {
 }
 
 export default function Review() {
-  const { profile, income, expenses, skills } = useLoaderData<typeof clientLoader>();
+  const { profile, income, expenses, skills } =
+    useLoaderData<typeof clientLoader>();
   const actionData = useActionData<typeof clientAction>();
   const navigation = useNavigation();
   const errors = actionData?.errors;
-  const isSubmitting = navigation.state === "submitting" || navigation.state === "loading";
+  const isSubmitting =
+    navigation.state === "submitting" || navigation.state === "loading";
 
   const profileComplete = isProfileComplete(profile);
   const profileSummary = profileComplete
@@ -160,7 +172,9 @@ export default function Review() {
         `경력 ${profile.yearsOfExperience}년`,
         labelFor(REGIONS, profile.region),
         labelFor(EMPLOYMENT_TYPES, profile.employmentType),
-        profile.companySize ? labelFor(COMPANY_SIZES, profile.companySize) : null,
+        profile.companySize
+          ? labelFor(COMPANY_SIZES, profile.companySize)
+          : null,
       ]
         .filter((part): part is string => Boolean(part))
         .join(" · ")
@@ -168,10 +182,14 @@ export default function Review() {
 
   const latestIncome =
     income.length > 0
-      ? [...income].sort((a, b) => b.effectiveDate.localeCompare(a.effectiveDate))[0]
+      ? [...income].sort((a, b) =>
+          b.effectiveDate.localeCompare(a.effectiveDate),
+        )[0]
       : null;
 
-  const currentExpense = expenses.find((row) => row.baseYearMonth === currentYearMonth());
+  const currentExpense = expenses.find(
+    (row) => row.baseYearMonth === currentYearMonth(),
+  );
   const defaultCpiLabels = (currentExpense?.items ?? [])
     .filter((item) => item.status === "DEFAULT_CPI")
     .map((item) => labelFor(EXPENSE_CATEGORIES, item.category));
@@ -209,7 +227,9 @@ export default function Review() {
             </CardAction>
           </CardHeader>
           <CardContent>
-            <p>{profileComplete ? profileSummary : "필수 정보가 비어 있습니다."}</p>
+            <p>
+              {profileComplete ? profileSummary : "필수 정보가 비어 있습니다."}
+            </p>
           </CardContent>
         </Card>
 
@@ -283,13 +303,13 @@ export default function Review() {
       <div className="mt-6 flex flex-col gap-2 rounded-lg border border-carix-border bg-carix-surface px-5 py-4 text-sm text-carix-text/80">
         {defaultCpiLabels.length > 0 && (
           <p>
-            <strong>기본값으로 대체된 항목:</strong> {defaultCpiLabels.join(", ")} (통계청 평균
-            소비지출 비중 사용)
+            <strong>기본값으로 대체된 항목:</strong>{" "}
+            {defaultCpiLabels.join(", ")} (통계청 평균 소비지출 비중 사용)
           </p>
         )}
         <p>
-          <strong>계산 제한 사항:</strong> 세금, 성과급, 주식보상, 퇴직금은 추정하지 않으며
-          결과에 포함되지 않습니다.
+          <strong>계산 제한 사항:</strong> 세금, 성과급, 주식보상, 퇴직금은
+          추정하지 않으며 결과에 포함되지 않습니다.
         </p>
       </div>
 
@@ -318,7 +338,10 @@ export default function Review() {
         {/* 와이어프레임(05-review.html) 순서 그대로 "이전"이 먼저, 제출 버튼이 그
             다음이다. DOM 순서를 CSS 로 뒤집지 않는다. */}
         <div className="flex flex-wrap gap-3">
-          <Link to="/onboarding/skills" className={buttonVariants({ variant: "outline" })}>
+          <Link
+            to="/onboarding/skills"
+            className={buttonVariants({ variant: "outline" })}
+          >
             이전
           </Link>
           {canSubmit && (

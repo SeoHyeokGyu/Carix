@@ -73,7 +73,11 @@
     --secondary: var(--carix-border);
     --secondary-foreground: var(--carix-text);
     --muted: var(--carix-bg);
-    --muted-foreground: color-mix(in oklab, var(--carix-text) 62%, var(--carix-bg));
+    --muted-foreground: color-mix(
+      in oklab,
+      var(--carix-text) 62%,
+      var(--carix-bg)
+    );
     --accent: var(--carix-border);
     --accent-foreground: var(--carix-text);
     --destructive: var(--carix-danger);

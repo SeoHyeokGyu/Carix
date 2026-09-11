@@ -1,5 +1,11 @@
 import { useEffect, useRef } from "react";
-import { Form, redirect, useActionData, useLoaderData, useNavigation } from "react-router";
+import {
+  Form,
+  redirect,
+  useActionData,
+  useLoaderData,
+  useNavigation,
+} from "react-router";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -81,7 +87,10 @@ export async function clientAction({ request }: { request: Request }) {
     // 떠민다 — 그 단계는 화면 자체가 없어 오도 가도 못하고 갇힌다. 실제로 앞으로
     // 가는 경우에만 서버 단계·세션 캐시를 갱신한다.
     const session = await requireSession();
-    if (session.status === "authenticated" && isForwardStep(session.onboardingStep, "INCOME")) {
+    if (
+      session.status === "authenticated" &&
+      isForwardStep(session.onboardingStep, "INCOME")
+    ) {
       await advanceOnboarding("INCOME");
       setSession({ ...session, onboardingStep: "INCOME" });
     }
@@ -98,7 +107,8 @@ export default function Profile() {
   const actionData = useActionData<ActionData>();
   const navigation = useNavigation();
   const errors = actionData?.errors;
-  const isSubmitting = navigation.state === "submitting" || navigation.state === "loading";
+  const isSubmitting =
+    navigation.state === "submitting" || navigation.state === "loading";
   const formRef = useRef<HTMLFormElement>(null);
 
   useEffect(() => {
@@ -158,7 +168,11 @@ export default function Profile() {
               )}
             </Field>
 
-            <Field id="employmentType" label="고용 형태" error={errors?.employmentType}>
+            <Field
+              id="employmentType"
+              label="고용 형태"
+              error={errors?.employmentType}
+            >
               {(aria) => (
                 <NativeSelect
                   {...aria}
@@ -170,7 +184,11 @@ export default function Profile() {
               )}
             </Field>
 
-            <Field id="companySize" label="회사 규모 (선택)" error={errors?.companySize}>
+            <Field
+              id="companySize"
+              label="회사 규모 (선택)"
+              error={errors?.companySize}
+            >
               {(aria) => (
                 <NativeSelect
                   {...aria}
@@ -197,7 +215,12 @@ export default function Profile() {
                 생긴다. DOM 순서를 와이어프레임(01-profile.html, "다음" 이 먼저,
                 왼쪽 정렬)과 그대로 맞춰 시각·DOM·포커스 순서를 전부 일치시킨다. */}
             <div className="flex flex-wrap gap-3">
-              <Button type="submit" name="intent" value="next" disabled={isSubmitting}>
+              <Button
+                type="submit"
+                name="intent"
+                value="next"
+                disabled={isSubmitting}
+              >
                 다음
               </Button>
               <Button

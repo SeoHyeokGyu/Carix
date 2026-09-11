@@ -4,7 +4,9 @@ import { createRoutesStub } from "react-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { UnauthorizedError } from "../../lib/coreApi";
 import { resetSession, setSession } from "../../lib/session";
-import OnboardingLayout, { clientLoader as onboardingLayoutLoader } from "./layout";
+import OnboardingLayout, {
+  clientLoader as onboardingLayoutLoader,
+} from "./layout";
 import Review, { clientLoader, clientAction } from "./review";
 import * as profileApi from "../../lib/api/profile";
 import type { ProfileResponse } from "../../lib/api/profile";
@@ -41,7 +43,11 @@ const PROFILE_GATE_CASES: {
   expectBlocked: boolean;
   expectCompanySizeInSummary?: boolean;
 }[] = [
-  { name: "jobFamily 없음", overrides: { jobFamily: null }, expectBlocked: true },
+  {
+    name: "jobFamily 없음",
+    overrides: { jobFamily: null },
+    expectBlocked: true,
+  },
   {
     name: "yearsOfExperience 없음",
     overrides: { yearsOfExperience: null },
@@ -79,7 +85,12 @@ const PROFILE_GATE_CASES: {
 ];
 
 const ONE_INCOME = [
-  { id: "i-1", grossSalary: 65_000_000, netSalary: 4_200_000, effectiveDate: "2026-01-01" },
+  {
+    id: "i-1",
+    grossSalary: 65_000_000,
+    netSalary: 4_200_000,
+    effectiveDate: "2026-01-01",
+  },
 ];
 
 const PARTIAL_EXPENSE = [
@@ -87,7 +98,11 @@ const PARTIAL_EXPENSE = [
     baseYearMonth: currentYearMonth(),
     items: [
       { category: "HOUSING", amount: 750_000, status: "USER_DEFINED" as const },
-      { category: "TRANSPORT", amount: 120_000, status: "DEFAULT_CPI" as const },
+      {
+        category: "TRANSPORT",
+        amount: 120_000,
+        status: "DEFAULT_CPI" as const,
+      },
       { category: "MEDICAL", amount: 80_000, status: "DEFAULT_CPI" as const },
     ],
     weightStatus: "PARTIALLY_ESTIMATED",
@@ -152,12 +167,16 @@ describe("S-09 검토 화면", () => {
   it("loader 가 모은 데이터로 네 요약 카드를 그린다", async () => {
     renderScreen();
 
-    expect(await screen.findByText(/개발.*경력 5년.*서울.*정규직/)).toBeInTheDocument();
+    expect(
+      await screen.findByText(/개발.*경력 5년.*서울.*정규직/),
+    ).toBeInTheDocument();
     expect(
       screen.getByText(/세전 연봉 65,000,000원.*월 실수령액 4,200,000원/),
     ).toBeInTheDocument();
     expect(screen.getByText(/3개 카테고리 입력 완료/)).toBeInTheDocument();
-    expect(screen.getByText(/2개 등록.*Spring Boot.*TypeScript/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/2개 등록.*Spring Boot.*TypeScript/),
+    ).toBeInTheDocument();
   });
 
   // 브리프 2 — status: DEFAULT_CPI 인 카테고리 이름이 「기본값으로 대체된 항목」에 나온다.
@@ -166,7 +185,9 @@ describe("S-09 검토 화면", () => {
     renderScreen();
 
     await screen.findByText(/세전 연봉/);
-    const defaultSection = screen.getByText(/기본값으로 대체된 항목/).closest("p");
+    const defaultSection = screen
+      .getByText(/기본값으로 대체된 항목/)
+      .closest("p");
     expect(defaultSection).toHaveTextContent("교통");
     expect(defaultSection).toHaveTextContent("의료");
     // USER_DEFINED(주거·공공요금)는 이 목록에 없어야 한다.
@@ -177,7 +198,9 @@ describe("S-09 검토 화면", () => {
     vi.spyOn(expenseApi, "listExpenses").mockResolvedValue([
       {
         baseYearMonth: currentYearMonth(),
-        items: [{ category: "HOUSING", amount: 750_000, status: "USER_DEFINED" }],
+        items: [
+          { category: "HOUSING", amount: 750_000, status: "USER_DEFINED" },
+        ],
         weightStatus: "OK",
       },
     ]);
@@ -185,7 +208,9 @@ describe("S-09 검토 화면", () => {
     renderScreen();
 
     await screen.findByText(/세전 연봉/);
-    expect(screen.queryByText(/기본값으로 대체된 항목/)).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(/기본값으로 대체된 항목/),
+    ).not.toBeInTheDocument();
     // 계산 제한 사항은 대체 항목 유무와 무관하게 항상 고정으로 뜬다.
     expect(
       screen.getByText(/세금, 성과급, 주식보상, 퇴직금은 추정하지 않으며/),
@@ -260,7 +285,9 @@ describe("S-09 검토 화면", () => {
     renderScreen();
     const user = userEvent.setup();
 
-    await user.click(await screen.findByRole("button", { name: "제출하고 대시보드로" }));
+    await user.click(
+      await screen.findByRole("button", { name: "제출하고 대시보드로" }),
+    );
 
     expect(await screen.findByText("대시보드")).toBeInTheDocument();
     expect(advance).toHaveBeenCalledWith("COMPLETED");
@@ -286,7 +313,9 @@ describe("S-09 검토 화면", () => {
     renderScreen();
     const user = userEvent.setup();
 
-    await user.click(await screen.findByRole("button", { name: "제출하고 대시보드로" }));
+    await user.click(
+      await screen.findByRole("button", { name: "제출하고 대시보드로" }),
+    );
 
     expect(await screen.findByRole("alert")).toBeInTheDocument();
     expect(advance).not.toHaveBeenCalled();
@@ -301,7 +330,9 @@ describe("S-09 검토 화면", () => {
     renderScreen();
     const user = userEvent.setup();
 
-    await user.click(await screen.findByRole("button", { name: "제출하고 대시보드로" }));
+    await user.click(
+      await screen.findByRole("button", { name: "제출하고 대시보드로" }),
+    );
     await screen.findByText("대시보드");
 
     const { requireSession } = await import("../../lib/session");
@@ -321,10 +352,14 @@ describe("S-09 검토 화면", () => {
     renderScreen();
     const user = userEvent.setup();
 
-    await user.click(await screen.findByRole("button", { name: "제출하고 대시보드로" }));
+    await user.click(
+      await screen.findByRole("button", { name: "제출하고 대시보드로" }),
+    );
 
     const banner = await screen.findByRole("alert");
-    expect(banner).toHaveTextContent("요청을 처리하지 못했습니다. 잠시 후 다시 시도해 주세요.");
+    expect(banner).toHaveTextContent(
+      "요청을 처리하지 못했습니다. 잠시 후 다시 시도해 주세요.",
+    );
   });
 
   it("각 항목의 '수정' 링크가 해당 단계로 이동한다", async () => {
@@ -366,7 +401,14 @@ describe("S-09 검토 화면", () => {
         loader: onboardingLayoutLoader,
         HydrateFallback: () => null,
         Component: OnboardingLayout,
-        children: [{ index: true, Component: Review, loader: clientLoader, action: clientAction }],
+        children: [
+          {
+            index: true,
+            Component: Review,
+            loader: clientLoader,
+            action: clientAction,
+          },
+        ],
       },
       {
         path: "/onboarding/profile",
@@ -379,7 +421,9 @@ describe("S-09 검토 화면", () => {
     render(<Stub initialEntries={["/onboarding/review"]} />);
     const user = userEvent.setup();
 
-    await user.click(await screen.findByRole("link", { name: "프로필 정보 수정" }));
+    await user.click(
+      await screen.findByRole("link", { name: "프로필 정보 수정" }),
+    );
 
     expect(await screen.findByText("프로필 화면")).toBeInTheDocument();
   });
@@ -395,7 +439,9 @@ describe("S-09 검토 화면", () => {
   });
 
   it("조회 중 401 을 받으면 로그인 화면으로 보낸다", async () => {
-    vi.spyOn(profileApi, "getProfile").mockRejectedValue(new UnauthorizedError());
+    vi.spyOn(profileApi, "getProfile").mockRejectedValue(
+      new UnauthorizedError(),
+    );
 
     renderScreen();
 

@@ -75,8 +75,12 @@ describe("S-15 시뮬레이터 화면", () => {
     renderScreen();
 
     expect(await screen.findByDisplayValue("A사 오퍼")).toBeInTheDocument();
-    expect(screen.getByLabelText("이직 시 목표 세전 연봉 (원)")).toHaveValue(72_000_000);
-    expect(screen.getByLabelText("이직에 드는 일회성 비용 (원)")).toHaveValue(3_000_000);
+    expect(screen.getByLabelText("이직 시 목표 세전 연봉 (원)")).toHaveValue(
+      72_000_000,
+    );
+    expect(screen.getByLabelText("이직에 드는 일회성 비용 (원)")).toHaveValue(
+      3_000_000,
+    );
     expect(screen.getByLabelText("예상 구직 공백 (개월, 0~6)")).toHaveValue(2);
     expect(screen.getByRole("radio", { name: "있음" })).toBeChecked();
 
@@ -91,9 +95,13 @@ describe("S-15 시뮬레이터 화면", () => {
     renderScreen();
 
     expect(
-      await screen.findByText("아직 계산한 시나리오가 없습니다. 값을 입력하고 계산해 주세요."),
+      await screen.findByText(
+        "아직 계산한 시나리오가 없습니다. 값을 입력하고 계산해 주세요.",
+      ),
     ).toBeInTheDocument();
-    expect(screen.getByLabelText("이직 시 목표 세전 연봉 (원)")).toHaveValue(null);
+    expect(screen.getByLabelText("이직 시 목표 세전 연봉 (원)")).toHaveValue(
+      null,
+    );
     expect(screen.getByLabelText("예상 인상률 (%)")).toHaveValue(null);
     expect(screen.getByRole("radio", { name: "있음" })).not.toBeChecked();
     expect(screen.getByRole("radio", { name: "없음" })).not.toBeChecked();
@@ -101,14 +109,22 @@ describe("S-15 시뮬레이터 화면", () => {
 
   it("계산하면 simulate 가 불리고 결과 카드(typeLabel·difference·warningNote)가 나온다", async () => {
     vi.spyOn(scenarioApi, "getLatestScenario").mockResolvedValue(null as never);
-    const simulateSpy = vi.spyOn(scenarioApi, "simulate").mockResolvedValue(OK_RESULT as never);
+    const simulateSpy = vi
+      .spyOn(scenarioApi, "simulate")
+      .mockResolvedValue(OK_RESULT as never);
 
     renderScreen();
     const user = userEvent.setup();
 
     await user.type(await screen.findByLabelText("예상 인상률 (%)"), "3.5");
-    await user.type(screen.getByLabelText("이직 시 목표 세전 연봉 (원)"), "72000000");
-    await user.type(screen.getByLabelText("이직에 드는 일회성 비용 (원)"), "3000000");
+    await user.type(
+      screen.getByLabelText("이직 시 목표 세전 연봉 (원)"),
+      "72000000",
+    );
+    await user.type(
+      screen.getByLabelText("이직에 드는 일회성 비용 (원)"),
+      "3000000",
+    );
     await user.type(screen.getByLabelText("예상 구직 공백 (개월, 0~6)"), "2");
     await user.click(screen.getByRole("radio", { name: "있음" }));
     await user.click(screen.getByRole("button", { name: "계산" }));
@@ -189,7 +205,9 @@ describe("S-15 시뮬레이터 화면", () => {
     renderScreen();
 
     expect(await screen.findByText("실업급여 미반영")).toBeInTheDocument();
-    expect(screen.queryByText(OK_RESULT.unemploymentBenefitNote)).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(OK_RESULT.unemploymentBenefitNote),
+    ).not.toBeInTheDocument();
     expect(screen.getByRole("radio", { name: "없음" })).toBeChecked();
   });
 
@@ -209,11 +227,15 @@ describe("S-15 시뮬레이터 화면", () => {
     renderScreen();
     const user = userEvent.setup();
 
-    expect(await screen.findByText(OK_RESULT.unemploymentBenefitNote)).toBeInTheDocument();
+    expect(
+      await screen.findByText(OK_RESULT.unemploymentBenefitNote),
+    ).toBeInTheDocument();
 
     await user.click(screen.getByRole("radio", { name: "없음" }));
 
-    expect(screen.getByText(OK_RESULT.unemploymentBenefitNote)).toBeInTheDocument();
+    expect(
+      screen.getByText(OK_RESULT.unemploymentBenefitNote),
+    ).toBeInTheDocument();
     expect(screen.queryByText("실업급여 미반영")).not.toBeInTheDocument();
   });
 
@@ -233,7 +255,9 @@ describe("S-15 시뮬레이터 화면", () => {
     const user = userEvent.setup();
     await user.click(await screen.findByRole("button", { name: "계산" }));
 
-    expect(await screen.findByText("입력값을 확인해 주세요.")).toBeInTheDocument();
+    expect(
+      await screen.findByText("입력값을 확인해 주세요."),
+    ).toBeInTheDocument();
     expect(screen.getByText("추정 기회비용")).toBeInTheDocument();
   });
 
@@ -258,17 +282,23 @@ describe("S-15 시뮬레이터 화면", () => {
     renderScreen();
     const user = userEvent.setup();
 
-    expect(await screen.findByText(OK_RESULT.unemploymentBenefitNote)).toBeInTheDocument();
+    expect(
+      await screen.findByText(OK_RESULT.unemploymentBenefitNote),
+    ).toBeInTheDocument();
 
     await user.click(screen.getByRole("radio", { name: "없음" }));
     await user.click(screen.getByRole("button", { name: "계산" }));
 
-    expect(await screen.findByText("입력값을 확인해 주세요.")).toBeInTheDocument();
+    expect(
+      await screen.findByText("입력값을 확인해 주세요."),
+    ).toBeInTheDocument();
 
     // 화면에 남은 결과는 여전히 실업급여를 반영해 계산된 이전 값(OK_RESULT)이다 —
     // 라디오는 "없음"이지만 그건 다음 제출에 실릴 값일 뿐, 지금 보이는 숫자를 만든
     // 가정은 아니다. 안내도 그 숫자를 따라가야 한다.
-    expect(screen.getByText(OK_RESULT.unemploymentBenefitNote)).toBeInTheDocument();
+    expect(
+      screen.getByText(OK_RESULT.unemploymentBenefitNote),
+    ).toBeInTheDocument();
     expect(screen.queryByText("실업급여 미반영")).not.toBeInTheDocument();
     expect(screen.getByText("추정 기회비용")).toBeInTheDocument();
     expect(screen.getByRole("radio", { name: "없음" })).toBeChecked();
@@ -293,13 +323,21 @@ describe("S-15 시뮬레이터 화면", () => {
     const user = userEvent.setup();
 
     await user.type(await screen.findByLabelText("예상 인상률 (%)"), "3.5");
-    await user.type(screen.getByLabelText("이직 시 목표 세전 연봉 (원)"), "72000000");
-    await user.type(screen.getByLabelText("이직에 드는 일회성 비용 (원)"), "3000000");
+    await user.type(
+      screen.getByLabelText("이직 시 목표 세전 연봉 (원)"),
+      "72000000",
+    );
+    await user.type(
+      screen.getByLabelText("이직에 드는 일회성 비용 (원)"),
+      "3000000",
+    );
     await user.type(screen.getByLabelText("예상 구직 공백 (개월, 0~6)"), "2");
     await user.click(screen.getByRole("radio", { name: "있음" }));
     await user.click(screen.getByRole("button", { name: "계산" }));
 
-    expect(await screen.findByText("소득 이력이 없어 계산할 수 없습니다.")).toBeInTheDocument();
+    expect(
+      await screen.findByText("소득 이력이 없어 계산할 수 없습니다."),
+    ).toBeInTheDocument();
     const link = screen.getByRole("link", { name: "이력 관리" });
     expect(link).toHaveAttribute("href", "/mypage/records");
   });
@@ -320,8 +358,14 @@ describe("S-15 시뮬레이터 화면", () => {
     const user = userEvent.setup();
 
     await user.type(await screen.findByLabelText("예상 인상률 (%)"), "3.5");
-    await user.type(screen.getByLabelText("이직 시 목표 세전 연봉 (원)"), "72000000");
-    await user.type(screen.getByLabelText("이직에 드는 일회성 비용 (원)"), "3000000");
+    await user.type(
+      screen.getByLabelText("이직 시 목표 세전 연봉 (원)"),
+      "72000000",
+    );
+    await user.type(
+      screen.getByLabelText("이직에 드는 일회성 비용 (원)"),
+      "3000000",
+    );
     await user.type(screen.getByLabelText("예상 구직 공백 (개월, 0~6)"), "2");
     await user.click(screen.getByRole("radio", { name: "있음" }));
     await user.click(screen.getByRole("button", { name: "계산" }));
@@ -343,8 +387,14 @@ describe("S-15 시뮬레이터 화면", () => {
     const user = userEvent.setup();
 
     await user.type(await screen.findByLabelText("예상 인상률 (%)"), "3.5");
-    await user.type(screen.getByLabelText("이직 시 목표 세전 연봉 (원)"), "1000");
-    await user.type(screen.getByLabelText("이직에 드는 일회성 비용 (원)"), "3000000");
+    await user.type(
+      screen.getByLabelText("이직 시 목표 세전 연봉 (원)"),
+      "1000",
+    );
+    await user.type(
+      screen.getByLabelText("이직에 드는 일회성 비용 (원)"),
+      "3000000",
+    );
     await user.type(screen.getByLabelText("예상 구직 공백 (개월, 0~6)"), "2");
     await user.click(screen.getByRole("radio", { name: "있음" }));
     await user.click(screen.getByRole("button", { name: "계산" }));
@@ -372,12 +422,20 @@ describe("S-15 시뮬레이터 화면", () => {
     const user = userEvent.setup();
 
     await user.type(await screen.findByLabelText("예상 인상률 (%)"), "3.5");
-    await user.type(screen.getByLabelText("이직 시 목표 세전 연봉 (원)"), "72000000");
-    await user.type(screen.getByLabelText("이직에 드는 일회성 비용 (원)"), "3000000");
+    await user.type(
+      screen.getByLabelText("이직 시 목표 세전 연봉 (원)"),
+      "72000000",
+    );
+    await user.type(
+      screen.getByLabelText("이직에 드는 일회성 비용 (원)"),
+      "3000000",
+    );
     await user.type(screen.getByLabelText("예상 구직 공백 (개월, 0~6)"), "2");
     await user.click(screen.getByRole("button", { name: "계산" }));
 
-    const errorText = await screen.findByText("실업급여 수급 자격 여부를 선택해 주세요.");
+    const errorText = await screen.findByText(
+      "실업급여 수급 자격 여부를 선택해 주세요.",
+    );
     expect(errorText).toBeInTheDocument();
     expect(errorText.id).toBe("eligibility-error");
     expect(simulateSpy).not.toHaveBeenCalled();
@@ -390,7 +448,9 @@ describe("S-15 시뮬레이터 화면", () => {
   });
 
   it("조회 중 401 을 받으면 로그인 화면으로 보낸다", async () => {
-    vi.spyOn(scenarioApi, "getLatestScenario").mockRejectedValue(new UnauthorizedError());
+    vi.spyOn(scenarioApi, "getLatestScenario").mockRejectedValue(
+      new UnauthorizedError(),
+    );
 
     renderScreen();
 

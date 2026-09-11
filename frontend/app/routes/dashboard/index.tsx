@@ -63,13 +63,18 @@ export default function DashboardHome() {
         <p className="text-sm text-carix-text/70">
           기준일: {data?.metadata.baseDate ?? "-"}
         </p>
-        <Link to="/dashboard/history" className="text-sm text-carix-info underline">
+        <Link
+          to="/dashboard/history"
+          className="text-sm text-carix-info underline"
+        >
           월별 스냅샷 이력 보기
         </Link>
       </div>
 
       <div className="mt-6 flex items-center justify-between gap-3">
-        <h2 className="font-display text-2xl font-bold text-carix-text">핵심 지표</h2>
+        <h2 className="font-display text-2xl font-bold text-carix-text">
+          핵심 지표
+        </h2>
       </div>
 
       {!summary.ok && (
@@ -93,7 +98,8 @@ export default function DashboardHome() {
         <div className="mt-8 rounded-lg border border-dashed border-carix-border bg-carix-surface px-5 py-4 text-sm text-carix-text/70">
           <p>첫 지수를 계산하고 있습니다</p>
           <p className="mt-1 text-carix-text/50">
-            계산이 끝나면 이 화면에 자동으로 표시됩니다. 잠시 후 다시 확인해 주세요.
+            계산이 끝나면 이 화면에 자동으로 표시됩니다. 잠시 후 다시 확인해
+            주세요.
           </p>
         </div>
       )}
@@ -132,7 +138,8 @@ export default function DashboardHome() {
                     </ul>
                     {data.metadata.peerGroup && (
                       <p>
-                        적용 비교 조건: <span>{data.metadata.peerGroup.appliedConditions}</span>
+                        적용 비교 조건:{" "}
+                        <span>{data.metadata.peerGroup.appliedConditions}</span>
                       </p>
                     )}
                     {data.metadata.ruleVersion && (

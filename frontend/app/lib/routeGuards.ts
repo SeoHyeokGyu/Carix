@@ -41,13 +41,18 @@ export function stepPath(step: OnboardingStep): string {
  * 새로 만들지 않는다. 두 목록이 따로 있으면 한쪽만 고치고 잊는 실수가 난다.
  * 객체 리터럴의 문자열 키는 선언 순서를 유지하므로 안전하게 이 순서를 쓸 수 있다.
  */
-const STEP_ORDER = Object.keys(STEP_PATH) as Exclude<OnboardingStep, "COMPLETED">[];
+const STEP_ORDER = Object.keys(STEP_PATH) as Exclude<
+  OnboardingStep,
+  "COMPLETED"
+>[];
 
 function stepIndex(step: Exclude<OnboardingStep, "COMPLETED">): number {
   return STEP_ORDER.indexOf(step);
 }
 
-function stepForPath(pathname: string): Exclude<OnboardingStep, "COMPLETED"> | undefined {
+function stepForPath(
+  pathname: string,
+): Exclude<OnboardingStep, "COMPLETED"> | undefined {
   return STEP_ORDER.find((step) => STEP_PATH[step] === pathname);
 }
 

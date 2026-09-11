@@ -23,7 +23,10 @@ import { toFieldErrors, type FieldErrors } from "../../lib/fieldErrors";
 import { focusFirstInvalidField } from "../../lib/focusFirstInvalidField";
 import { formDataToObject } from "../../lib/formData";
 import { LOGIN_PATH } from "../../lib/routeGuards";
-import { scenarioSchema, SCENARIO_FIELD_MESSAGES } from "../../lib/schemas/scenario";
+import {
+  scenarioSchema,
+  SCENARIO_FIELD_MESSAGES,
+} from "../../lib/schemas/scenario";
 
 type ActionData =
   | { result: SimulationResult; isEligible: boolean }
@@ -88,7 +91,9 @@ export async function clientAction({ request }: { request: Request }) {
 
   const parsed = scenarioSchema.safeParse(input);
   if (!parsed.success) {
-    return { errors: toFieldErrors(parsed.error.issues, SCENARIO_FIELD_MESSAGES) } satisfies ActionData;
+    return {
+      errors: toFieldErrors(parsed.error.issues, SCENARIO_FIELD_MESSAGES),
+    } satisfies ActionData;
   }
 
   try {
@@ -122,7 +127,8 @@ export default function DashboardSimulator() {
   // 계산이 실패하면 fetcher.data 는 {errors} 만 담고 {result} 는 없다 — loader 가
   // 준 이전 결과(scenario.result)로 자연히 폴백해, 실패한 계산이 화면에서 이전
   // 결과를 지우지 않는다(별도 "마지막 성공 결과" 상태를 만들 필요가 없다).
-  const success = fetcher.data && "result" in fetcher.data ? fetcher.data : null;
+  const success =
+    fetcher.data && "result" in fetcher.data ? fetcher.data : null;
   const result = success?.result ?? scenario?.result ?? null;
   // difficultyGrade 는 서버 응답을 실측한 적이 없다(검증 범위 절 참고) — 이 화면이
   // 아는 네 값(EASY/REALISTIC/CHALLENGING/VERY_HIGH_CHALLENGE) 밖의 문자열이 오면
@@ -142,9 +148,12 @@ export default function DashboardSimulator() {
   const resultEligible = success
     ? success.isEligible
     : (scenario?.inputs.isEligibleForUnemploymentBenefit ?? null);
-  const errors = fetcher.data && "errors" in fetcher.data ? fetcher.data.errors : undefined;
+  const errors =
+    fetcher.data && "errors" in fetcher.data ? fetcher.data.errors : undefined;
   const missingIncome = Boolean(
-    fetcher.data && "missingIncome" in fetcher.data && fetcher.data.missingIncome,
+    fetcher.data &&
+    "missingIncome" in fetcher.data &&
+    fetcher.data.missingIncome,
   );
   const isSubmitting = fetcher.state !== "idle";
   const inputs = scenario?.inputs;
@@ -155,22 +164,33 @@ export default function DashboardSimulator() {
 
   return (
     <section className="mx-auto w-full max-w-3xl px-6 py-10">
-      <h2 className="font-display text-2xl font-bold text-carix-text">12개월 시뮬레이터</h2>
+      <h2 className="font-display text-2xl font-bold text-carix-text">
+        12개월 시뮬레이터
+      </h2>
       <p className="mt-1 text-sm text-carix-text/70">
-        잔류와 이직의 12개월 보상을 비교합니다. 세금·성과급·주식보상·퇴직금은 포함하지
-        않습니다.
+        잔류와 이직의 12개월 보상을 비교합니다. 세금·성과급·주식보상·퇴직금은
+        포함하지 않습니다.
       </p>
 
       <Card className="mt-6">
         <CardHeader>
           <CardTitle>시나리오 입력</CardTitle>
           <CardDescription>
-            값을 비워 두면 임의로 채우지 않습니다 — 계산에 필요한 값을 직접 입력해 주세요.
+            값을 비워 두면 임의로 채우지 않습니다 — 계산에 필요한 값을 직접
+            입력해 주세요.
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <fetcher.Form method="post" ref={formRef} className="flex flex-col gap-4">
-            <Field id="scenarioName" label="시나리오 이름 (선택)" error={errors?.scenarioName}>
+          <fetcher.Form
+            method="post"
+            ref={formRef}
+            className="flex flex-col gap-4"
+          >
+            <Field
+              id="scenarioName"
+              label="시나리오 이름 (선택)"
+              error={errors?.scenarioName}
+            >
               {(aria) => (
                 <Input
                   {...aria}
@@ -254,7 +274,10 @@ export default function DashboardSimulator() {
             </Field>
 
             <div className="flex flex-col gap-2">
-              <span id="eligibility-label" className="text-sm font-medium text-carix-text">
+              <span
+                id="eligibility-label"
+                className="text-sm font-medium text-carix-text"
+              >
                 실업급여 수급 자격
               </span>
               <div
@@ -262,7 +285,9 @@ export default function DashboardSimulator() {
                 aria-labelledby="eligibility-label"
                 aria-invalid={Boolean(errors?.isEligibleForUnemploymentBenefit)}
                 aria-describedby={
-                  errors?.isEligibleForUnemploymentBenefit ? "eligibility-error" : undefined
+                  errors?.isEligibleForUnemploymentBenefit
+                    ? "eligibility-error"
+                    : undefined
                 }
                 tabIndex={-1}
                 className="flex gap-4"
@@ -289,7 +314,11 @@ export default function DashboardSimulator() {
                 </label>
               </div>
               {errors?.isEligibleForUnemploymentBenefit && (
-                <p id="eligibility-error" role="alert" className="text-sm text-destructive">
+                <p
+                  id="eligibility-error"
+                  role="alert"
+                  className="text-sm text-destructive"
+                >
                   {errors.isEligibleForUnemploymentBenefit}
                 </p>
               )}
@@ -319,7 +348,11 @@ export default function DashboardSimulator() {
               </div>
             )}
 
-            <Button type="submit" disabled={isSubmitting} className="self-start">
+            <Button
+              type="submit"
+              disabled={isSubmitting}
+              className="self-start"
+            >
               {isSubmitting ? "계산 중..." : "계산"}
             </Button>
           </fetcher.Form>
@@ -360,13 +393,17 @@ export default function DashboardSimulator() {
                 <p className="text-sm text-carix-text/70">실업급여 미반영</p>
               )}
               {resultEligible === true && (
-                <p className="text-sm text-carix-text/70">{result.unemploymentBenefitNote}</p>
+                <p className="text-sm text-carix-text/70">
+                  {result.unemploymentBenefitNote}
+                </p>
               )}
 
               <p className="text-sm text-carix-text/70">{result.warningNote}</p>
 
               <div className="rounded-md border border-carix-border p-3 text-sm">
-                <p className="font-medium text-carix-text">목표 연봉 실현 가능성</p>
+                <p className="font-medium text-carix-text">
+                  목표 연봉 실현 가능성
+                </p>
                 {result.feasibility.status === "OK" ? (
                   <>
                     <p className="mt-1 text-carix-text">
@@ -386,8 +423,9 @@ export default function DashboardSimulator() {
                     <p className="mt-1 text-carix-text">표본 부족</p>
                     {result.feasibility.minRequired !== null && (
                       <p className="mt-1 text-carix-text/70">
-                        비교에 쓸 공개연봉 표본이 {result.feasibility.minRequired}건 이상
-                        필요합니다(현재 {result.feasibility.sampleSize}건).
+                        비교에 쓸 공개연봉 표본이{" "}
+                        {result.feasibility.minRequired}건 이상 필요합니다(현재{" "}
+                        {result.feasibility.sampleSize}건).
                       </p>
                     )}
                   </>

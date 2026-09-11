@@ -51,7 +51,9 @@ export async function clientLoader() {
     // 화면·테스트 모두 "유효 시작일 내림차순"을 기대한다 — 서버 정렬 순서를
     // 신뢰하지 않고 항상 클라이언트에서 다시 정렬한다.
     return {
-      income: [...income].sort((a, b) => b.effectiveDate.localeCompare(a.effectiveDate)),
+      income: [...income].sort((a, b) =>
+        b.effectiveDate.localeCompare(a.effectiveDate),
+      ),
     };
   } catch (error) {
     if (error instanceof UnauthorizedError) throw redirect(LOGIN_PATH);
@@ -73,7 +75,10 @@ export async function clientAction({ request }: { request: Request }) {
       // 화면이 없는 단계로 사용자가 떠밀려 갇힌다. 실제로 앞으로 가는 경우에만
       // 서버 단계·세션 캐시를 갱신한다.
       const session = await requireSession();
-      if (session.status === "authenticated" && isForwardStep(session.onboardingStep, "EXPENSE")) {
+      if (
+        session.status === "authenticated" &&
+        isForwardStep(session.onboardingStep, "EXPENSE")
+      ) {
         await advanceOnboarding("EXPENSE");
         setSession({ ...session, onboardingStep: "EXPENSE" });
       }
@@ -98,10 +103,14 @@ export async function clientAction({ request }: { request: Request }) {
 
   // "create" 또는 "update" — 소득 이력은 부분 저장 개념이 없다(행마다 완결된
   // 레코드다), 그래서 항상 전체 스키마로 검증한다.
-  const raw = formDataToObject(formData, { numeric: ["grossSalary", "netSalary"] });
+  const raw = formDataToObject(formData, {
+    numeric: ["grossSalary", "netSalary"],
+  });
   const result = incomeSchema.safeParse(raw);
   if (!result.success) {
-    return { errors: toFieldErrors(result.error.issues, INCOME_FIELD_MESSAGES) } satisfies ActionData;
+    return {
+      errors: toFieldErrors(result.error.issues, INCOME_FIELD_MESSAGES),
+    } satisfies ActionData;
   }
 
   try {
@@ -140,13 +149,23 @@ function IncomeRow({ income, isEditing, onEdit }: IncomeRowProps) {
       <td className="px-3 py-2">
         <div className="flex flex-col gap-1">
           <div className="flex gap-2">
-            <Button type="button" variant="outline" size="sm" onClick={() => onEdit(income.id)}>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => onEdit(income.id)}
+            >
               수정
             </Button>
             <deleteFetcher.Form method="post" className="inline">
               <input type="hidden" name="intent" value="delete" />
               <input type="hidden" name="id" value={income.id} />
-              <Button type="submit" variant="destructive" size="sm" disabled={isDeleting}>
+              <Button
+                type="submit"
+                variant="destructive"
+                size="sm"
+                disabled={isDeleting}
+              >
                 삭제
               </Button>
             </deleteFetcher.Form>
@@ -171,9 +190,12 @@ export default function Income() {
   const formRef = useRef<HTMLFormElement>(null);
   const errors = formFetcher.data?.errors;
   const nextErrors = nextActionData?.errors;
-  const editingIncome = editingId ? (income.find((item) => item.id === editingId) ?? null) : null;
+  const editingIncome = editingId
+    ? (income.find((item) => item.id === editingId) ?? null)
+    : null;
   const isSubmittingForm = formFetcher.state !== "idle";
-  const isAdvancing = navigation.state === "submitting" || navigation.state === "loading";
+  const isAdvancing =
+    navigation.state === "submitting" || navigation.state === "loading";
 
   useEffect(() => {
     if (errors) focusFirstInvalidField(formRef.current);
@@ -192,7 +214,9 @@ export default function Income() {
   // (react-hooks/set-state-in-effect, dashboard/index.tsx 의 lastGood 과 같은
   // 이유), 렌더링 중에 이전 state 와 비교해 바로 갱신한다(React 공식 패턴 —
   // https://react.dev/learn/you-might-not-need-an-effect).
-  const [prevFormFetcherState, setPrevFormFetcherState] = useState(formFetcher.state);
+  const [prevFormFetcherState, setPrevFormFetcherState] = useState(
+    formFetcher.state,
+  );
   if (formFetcher.state !== prevFormFetcherState) {
     setPrevFormFetcherState(formFetcher.state);
     if (formFetcher.state === "idle" && formFetcher.data === null) {
@@ -208,8 +232,8 @@ export default function Income() {
         <CardHeader>
           <CardTitle>소득 관리</CardTitle>
           <CardDescription>
-            동료집단 비교와 구매력 계산을 위해 세전 연봉과 월 실수령액, 유효 시작일을
-            입력해 주세요.
+            동료집단 비교와 구매력 계산을 위해 세전 연봉과 월 실수령액, 유효
+            시작일을 입력해 주세요.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -219,10 +243,18 @@ export default function Income() {
             key={editingId ?? "new"}
             className="flex flex-col gap-4"
           >
-            <input type="hidden" name="intent" value={editingId ? "update" : "create"} />
+            <input
+              type="hidden"
+              name="intent"
+              value={editingId ? "update" : "create"}
+            />
             {editingId && <input type="hidden" name="id" value={editingId} />}
 
-            <Field id="grossSalary" label="세전 연봉 (원)" error={errors?.grossSalary}>
+            <Field
+              id="grossSalary"
+              label="세전 연봉 (원)"
+              error={errors?.grossSalary}
+            >
               {(aria) => (
                 <Input
                   {...aria}
@@ -256,7 +288,11 @@ export default function Income() {
               )}
             </Field>
 
-            <Field id="effectiveDate" label="유효 시작일" error={errors?.effectiveDate}>
+            <Field
+              id="effectiveDate"
+              label="유효 시작일"
+              error={errors?.effectiveDate}
+            >
               {(aria) => (
                 <Input
                   {...aria}
@@ -299,7 +335,9 @@ export default function Income() {
         </CardHeader>
         <CardContent>
           {income.length === 0 ? (
-            <p className="text-sm text-muted-foreground">등록된 이력이 없습니다.</p>
+            <p className="text-sm text-muted-foreground">
+              등록된 이력이 없습니다.
+            </p>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-left text-sm">
@@ -340,7 +378,10 @@ export default function Income() {
             이제 앞선 단계로의 이동을 허용하므로(routeGuards.ts) 이 링크가 더 이상
             죽은 버튼이 아니다. */}
         <div className="flex flex-wrap gap-3">
-          <Link to="/onboarding/profile" className={buttonVariants({ variant: "outline" })}>
+          <Link
+            to="/onboarding/profile"
+            className={buttonVariants({ variant: "outline" })}
+          >
             이전
           </Link>
           <Form method="post">

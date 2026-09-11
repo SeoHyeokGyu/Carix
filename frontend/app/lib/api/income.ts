@@ -16,4 +16,5 @@ export const createIncome = (input: IncomeInput) =>
 export const updateIncome = (id: string, input: IncomeInput) =>
   coreSend<IncomeResponse>("PUT", `/v1/income/${id}`, input);
 
-export const deleteIncome = (id: string) => coreSend<null>("DELETE", `/v1/income/${id}`);
+export const deleteIncome = (id: string) =>
+  coreSend<null>("DELETE", `/v1/income/${id}`);

@@ -36,7 +36,10 @@ describe("보호 레이아웃 (protected)", () => {
         HydrateFallback,
         loader: () => ({ session }),
         children: [
-          { index: true, Component: () => <div data-testid="outlet">본문</div> },
+          {
+            index: true,
+            Component: () => <div data-testid="outlet">본문</div>,
+          },
         ],
       },
     ]);

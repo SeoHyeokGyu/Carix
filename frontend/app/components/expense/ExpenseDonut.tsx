@@ -40,7 +40,10 @@ const CATEGORY_LABELS: Record<string, string> = Object.fromEntries(
 );
 
 const CATEGORY_COLORS: Record<string, string> = Object.fromEntries(
-  EXPENSE_CATEGORIES.map((category, index) => [category.value, PALETTE[index % PALETTE.length]]),
+  EXPENSE_CATEGORIES.map((category, index) => [
+    category.value,
+    PALETTE[index % PALETTE.length],
+  ]),
 );
 
 function colorFor(category: string, estimated: boolean | undefined): string {
@@ -115,8 +118,12 @@ export function ExpenseDonut({ items }: { items: readonly ExpenseAmount[] }) {
                   : "h-2.5 w-2.5 shrink-0 rounded-full"
               }
               style={{
-                borderColor: share.estimated ? CATEGORY_COLORS[share.category] : undefined,
-                background: share.estimated ? undefined : CATEGORY_COLORS[share.category],
+                borderColor: share.estimated
+                  ? CATEGORY_COLORS[share.category]
+                  : undefined,
+                background: share.estimated
+                  ? undefined
+                  : CATEGORY_COLORS[share.category],
               }}
             />
             {CATEGORY_LABELS[share.category]} {share.share}%

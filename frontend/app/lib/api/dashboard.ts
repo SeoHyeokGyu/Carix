@@ -54,8 +54,7 @@ export interface DashboardSummary {
 }
 
 export type FetchSummaryResult =
-  | { ok: true; data: DashboardSummary }
-  | { ok: false; error: ApiError };
+  { ok: true; data: DashboardSummary } | { ok: false; error: ApiError };
 
 /**
  * 열화가 정상 응답이다 (설계 §10) — 던지지 않는다. `UnauthorizedError` 만

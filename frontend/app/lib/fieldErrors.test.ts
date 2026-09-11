@@ -63,10 +63,10 @@ describe("toFieldErrors", () => {
   // 전체 경로를 합친 키(`items.0.amount`)로 매핑 테이블에 있는 메시지를 찾을 수
   // 있어야 반복 필드(소득·소비 화면의 행별 입력)에 인라인 오류를 붙일 수 있다.
   it("중첩 경로는 합쳐진 키로 매핑되고 _form 으로 뭉개지지 않는다", () => {
-    const errors = toFieldErrors(
-      [{ path: ["items", 0, "amount"] }],
-      { ...messages, "items.0.amount": "금액을 입력해 주세요." },
-    );
+    const errors = toFieldErrors([{ path: ["items", 0, "amount"] }], {
+      ...messages,
+      "items.0.amount": "금액을 입력해 주세요.",
+    });
 
     expect(errors).toEqual({ "items.0.amount": "금액을 입력해 주세요." });
     expect(errors._form).toBeUndefined();

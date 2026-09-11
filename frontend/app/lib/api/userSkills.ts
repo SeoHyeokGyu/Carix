@@ -13,4 +13,5 @@ export interface UserSkillResponse {
   lastUsedDate: string;
 }
 
-export const listUserSkills = () => coreGet<UserSkillResponse[]>("/v1/user-skills");
+export const listUserSkills = () =>
+  coreGet<UserSkillResponse[]>("/v1/user-skills");

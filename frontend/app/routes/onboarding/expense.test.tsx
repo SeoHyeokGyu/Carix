@@ -158,7 +158,12 @@ describe("S-07 소비 화면", () => {
   // 브리프 4 — 합계가 월 실수령액을 넘으면 경고가 뜨지만 저장은 진행된다.
   it("합계가 월 실수령액을 넘으면 경고가 뜨지만 저장은 진행된다", async () => {
     vi.spyOn(incomeApi, "listIncome").mockResolvedValue([
-      { id: "i-1", grossSalary: 50_000_000, netSalary: 3_000_000, effectiveDate: "2024-01-01" },
+      {
+        id: "i-1",
+        grossSalary: 50_000_000,
+        netSalary: 3_000_000,
+        effectiveDate: "2024-01-01",
+      },
     ]);
     vi.spyOn(expenseApi, "listExpenses").mockResolvedValue([]);
     const put = vi.spyOn(expenseApi, "putExpenses").mockResolvedValue({
@@ -244,7 +249,9 @@ describe("S-07 소비 화면", () => {
 
     await user.type(await screen.findByLabelText(/주거·공공요금/), "50000000");
 
-    expect(screen.queryByText(/월 실수령액을 초과했습니다/)).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(/월 실수령액을 초과했습니다/),
+    ).not.toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "다음" }));
 
@@ -275,7 +282,9 @@ describe("S-07 소비 화면", () => {
     await screen.findByLabelText(/주거·공공요금/);
 
     // 계산 불가 안내가 아니라 실제 비중이 나와야 한다.
-    expect(screen.queryByText(/비중을 계산할 수 없습니다/)).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(/비중을 계산할 수 없습니다/),
+    ).not.toBeInTheDocument();
     // 여섯 조각 전부 추정치라는 게 텍스트로 드러나야 한다(색으로만 구분하지 않는다).
     expect(screen.getAllByText(/\(추정\)/)).toHaveLength(6);
   });
@@ -293,7 +302,9 @@ describe("S-07 소비 화면", () => {
   });
 
   it("조회 중 401 을 받으면 로그인 화면으로 보낸다", async () => {
-    vi.spyOn(expenseApi, "listExpenses").mockRejectedValue(new UnauthorizedError());
+    vi.spyOn(expenseApi, "listExpenses").mockRejectedValue(
+      new UnauthorizedError(),
+    );
 
     renderScreen();
 
@@ -381,7 +392,9 @@ describe("S-07 소비 화면", () => {
     await user.click(screen.getByRole("button", { name: "다음" }));
 
     const banner = await screen.findByRole("alert");
-    expect(banner).toHaveTextContent("요청을 처리하지 못했습니다. 잠시 후 다시 시도해 주세요.");
+    expect(banner).toHaveTextContent(
+      "요청을 처리하지 못했습니다. 잠시 후 다시 시도해 주세요.",
+    );
     // Field 의 필드별 오류 문단은 항상 id={field}-error 를 갖는다 — id 가 없어야
     // 이 오류가 특정 필드가 아니라 폼 전체(_form) 배너로 착지했다는 뜻이다
     // (income.test.tsx 와 같은 패턴 — 텍스트만으로는 착지 위치가 구분되지 않는다).

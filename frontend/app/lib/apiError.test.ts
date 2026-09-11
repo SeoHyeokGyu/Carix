@@ -3,7 +3,11 @@ import { isApiError, toUserMessage } from "./apiError";
 
 describe("toUserMessage", () => {
   it("정규화된 ApiError 는 그 message 를 그대로 쓴다", () => {
-    const error = { code: "SERVER_ERROR", message: "서버 오류가 발생했습니다.", status: 500 };
+    const error = {
+      code: "SERVER_ERROR",
+      message: "서버 오류가 발생했습니다.",
+      status: 500,
+    };
 
     expect(toUserMessage(error)).toBe("서버 오류가 발생했습니다.");
   });
@@ -25,7 +29,9 @@ describe("toUserMessage", () => {
 // 판별이 이 판별자 하나를 공유한다 — 각자 status 만 덧붙여 좁힌다(apiError.ts).
 describe("isApiError", () => {
   it("code·message·status 를 모두 가진 객체를 ApiError 로 인정한다", () => {
-    expect(isApiError({ code: "CONFLICT", message: "중복", status: 409 })).toBe(true);
+    expect(isApiError({ code: "CONFLICT", message: "중복", status: 409 })).toBe(
+      true,
+    );
   });
 
   it("셋 중 하나라도 없으면 ApiError 가 아니다", () => {

@@ -33,10 +33,15 @@ describe("onboardingApi", () => {
     globalThis.fetch = vi.fn().mockResolvedValue({
       ok: false,
       status: 401,
-      json: async () => ({ code: "UNAUTHORIZED", message: "인증이 필요합니다." }),
+      json: async () => ({
+        code: "UNAUTHORIZED",
+        message: "인증이 필요합니다.",
+      }),
     } as unknown as Response);
 
-    await expect(advanceOnboarding("INCOME")).rejects.toBeInstanceOf(UnauthorizedError);
+    await expect(advanceOnboarding("INCOME")).rejects.toBeInstanceOf(
+      UnauthorizedError,
+    );
   });
 
   it("401 이 아닌 실패는 일반 오류를 던진다", async () => {

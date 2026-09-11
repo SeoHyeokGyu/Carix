@@ -77,7 +77,10 @@ describe("S-05 프로필 화면", () => {
     renderScreen();
     const user = userEvent.setup();
 
-    await user.selectOptions(await screen.findByLabelText("주 직무"), "DEVELOPER");
+    await user.selectOptions(
+      await screen.findByLabelText("주 직무"),
+      "DEVELOPER",
+    );
     await user.type(screen.getByLabelText("총 경력 (년)"), "5");
     await user.selectOptions(screen.getByLabelText("희망 근무 지역"), "서울");
     await user.selectOptions(screen.getByLabelText("고용 형태"), "FULL_TIME");
@@ -109,7 +112,10 @@ describe("S-05 프로필 화면", () => {
     renderScreen();
     const user = userEvent.setup();
 
-    await user.selectOptions(await screen.findByLabelText("주 직무"), "DEVELOPER");
+    await user.selectOptions(
+      await screen.findByLabelText("주 직무"),
+      "DEVELOPER",
+    );
     await user.type(screen.getByLabelText("총 경력 (년)"), "99");
     await user.selectOptions(screen.getByLabelText("희망 근무 지역"), "서울");
     await user.selectOptions(screen.getByLabelText("고용 형태"), "FULL_TIME");
@@ -157,7 +163,10 @@ describe("S-05 프로필 화면", () => {
     renderScreen();
     const user = userEvent.setup();
 
-    await user.selectOptions(await screen.findByLabelText("주 직무"), "DEVELOPER");
+    await user.selectOptions(
+      await screen.findByLabelText("주 직무"),
+      "DEVELOPER",
+    );
     await user.type(screen.getByLabelText("총 경력 (년)"), "5");
     await user.selectOptions(screen.getByLabelText("희망 근무 지역"), "서울");
     await user.selectOptions(screen.getByLabelText("고용 형태"), "FULL_TIME");
@@ -252,7 +261,10 @@ describe("S-05 프로필 화면", () => {
     renderScreen();
     const user = userEvent.setup();
 
-    await user.selectOptions(await screen.findByLabelText("주 직무"), "DEVELOPER");
+    await user.selectOptions(
+      await screen.findByLabelText("주 직무"),
+      "DEVELOPER",
+    );
     await user.click(screen.getByRole("button", { name: "저장 후 나가기" }));
 
     // 목적지는 랜딩(`/`) 뿐이다 — 온보딩 미완료 상태에서는 /dashboard 로 가도
@@ -286,7 +298,10 @@ describe("S-05 프로필 화면", () => {
     renderScreen();
     const user = userEvent.setup();
 
-    await user.selectOptions(await screen.findByLabelText("주 직무"), "DEVELOPER");
+    await user.selectOptions(
+      await screen.findByLabelText("주 직무"),
+      "DEVELOPER",
+    );
     await user.click(screen.getByRole("button", { name: "저장 후 나가기" }));
 
     await screen.findByText("랜딩 페이지");
@@ -323,7 +338,10 @@ describe("S-05 프로필 화면", () => {
     renderScreen();
     const user = userEvent.setup();
 
-    await user.selectOptions(await screen.findByLabelText("주 직무"), "DEVELOPER");
+    await user.selectOptions(
+      await screen.findByLabelText("주 직무"),
+      "DEVELOPER",
+    );
     await user.selectOptions(screen.getByLabelText("희망 근무 지역"), "서울");
     await user.selectOptions(screen.getByLabelText("고용 형태"), "FULL_TIME");
     await user.type(screen.getByLabelText("총 경력 (년)"), "5{Enter}");
@@ -354,11 +372,15 @@ describe("S-05 프로필 화면", () => {
     expect(screen.getByRole("button", { name: "다음" })).toHaveFocus();
 
     await user.tab();
-    expect(screen.getByRole("button", { name: "저장 후 나가기" })).toHaveFocus();
+    expect(
+      screen.getByRole("button", { name: "저장 후 나가기" }),
+    ).toHaveFocus();
   });
 
   it("조회 중 401 을 받으면 로그인 화면으로 보낸다", async () => {
-    vi.spyOn(profileApi, "getProfile").mockRejectedValue(new UnauthorizedError());
+    vi.spyOn(profileApi, "getProfile").mockRejectedValue(
+      new UnauthorizedError(),
+    );
 
     renderScreen();
 
@@ -373,12 +395,17 @@ describe("S-05 프로필 화면", () => {
       employmentType: null,
       companySize: null,
     });
-    vi.spyOn(profileApi, "patchProfile").mockRejectedValue(new UnauthorizedError());
+    vi.spyOn(profileApi, "patchProfile").mockRejectedValue(
+      new UnauthorizedError(),
+    );
 
     renderScreen();
     const user = userEvent.setup();
 
-    await user.selectOptions(await screen.findByLabelText("주 직무"), "DEVELOPER");
+    await user.selectOptions(
+      await screen.findByLabelText("주 직무"),
+      "DEVELOPER",
+    );
     await user.selectOptions(screen.getByLabelText("희망 근무 지역"), "서울");
     await user.selectOptions(screen.getByLabelText("고용 형태"), "FULL_TIME");
     await user.type(screen.getByLabelText("총 경력 (년)"), "5");
@@ -408,7 +435,10 @@ describe("S-05 프로필 화면", () => {
     renderScreen();
     const user = userEvent.setup();
 
-    await user.selectOptions(await screen.findByLabelText("주 직무"), "DEVELOPER");
+    await user.selectOptions(
+      await screen.findByLabelText("주 직무"),
+      "DEVELOPER",
+    );
     await user.selectOptions(screen.getByLabelText("희망 근무 지역"), "서울");
     await user.selectOptions(screen.getByLabelText("고용 형태"), "FULL_TIME");
     await user.type(screen.getByLabelText("총 경력 (년)"), "5");

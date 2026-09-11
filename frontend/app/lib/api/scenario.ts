@@ -2,7 +2,8 @@ import { coreGet, coreSend } from "../coreApi";
 import type { ScenarioInput } from "../schemas/scenario";
 
 export type FeasibilityStatus = "OK" | "INSUFFICIENT_SAMPLE";
-export type DifficultyGrade = "EASY" | "REALISTIC" | "CHALLENGING" | "VERY_HIGH_CHALLENGE";
+export type DifficultyGrade =
+  "EASY" | "REALISTIC" | "CHALLENGING" | "VERY_HIGH_CHALLENGE";
 export type ScenarioType = "ESTIMATED_GAIN" | "ESTIMATED_OPPORTUNITY_COST";
 
 /**
@@ -45,7 +46,8 @@ export interface LatestScenario {
  * 타입을 넓히지 않는다(coreApi.ts 주석). 이 엔드포인트가 실제로 204 를 받는 유일한
  * 곳이라 여기서 명시적으로 `| null` 을 붙인다.
  */
-export const getLatestScenario = () => coreGet<LatestScenario | null>("/v1/scenarios/latest");
+export const getLatestScenario = () =>
+  coreGet<LatestScenario | null>("/v1/scenarios/latest");
 
 export const simulate = (input: ScenarioInput) =>
   coreSend<SimulationResult>("POST", "/v1/scenarios/simulate", input);

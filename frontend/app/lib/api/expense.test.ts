@@ -12,10 +12,15 @@ describe("expense API", () => {
     globalThis.fetch = vi.fn().mockResolvedValue({
       ok: true,
       status: 200,
-      json: async () => ({ success: true, data: [{ baseYearMonth: "202608" }] }),
+      json: async () => ({
+        success: true,
+        data: [{ baseYearMonth: "202608" }],
+      }),
     } as unknown as Response);
 
-    await expect(listExpenses()).resolves.toEqual([{ baseYearMonth: "202608" }]);
+    await expect(listExpenses()).resolves.toEqual([
+      { baseYearMonth: "202608" },
+    ]);
     expect(globalThis.fetch).toHaveBeenCalledWith(
       "/api/v1/expenses",
       expect.objectContaining({ method: "GET" }),
@@ -30,7 +35,9 @@ describe("expense API", () => {
         success: true,
         data: {
           baseYearMonth: "202609",
-          items: [{ category: "HOUSING", amount: 750_000, status: "USER_DEFINED" }],
+          items: [
+            { category: "HOUSING", amount: 750_000, status: "USER_DEFINED" },
+          ],
           weightStatus: "OK",
         },
       }),
@@ -41,7 +48,10 @@ describe("expense API", () => {
 
     expect(globalThis.fetch).toHaveBeenCalledWith(
       "/api/v1/expenses/202609",
-      expect.objectContaining({ method: "PUT", body: JSON.stringify({ items }) }),
+      expect.objectContaining({
+        method: "PUT",
+        body: JSON.stringify({ items }),
+      }),
     );
   });
 });

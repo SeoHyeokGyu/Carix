@@ -57,14 +57,20 @@ const RequestAfterAbortSignalPatch = globalThis.Request;
 if (RequestAfterAbortSignalPatch) {
   class RequestWithUrlEncodedFormFix extends RequestAfterAbortSignalPatch {
     constructor(input: RequestInfo | URL, init?: RequestInit) {
-      if (init && (init.body instanceof FormData || init.body instanceof URLSearchParams)) {
+      if (
+        init &&
+        (init.body instanceof FormData || init.body instanceof URLSearchParams)
+      ) {
         const params = new URLSearchParams();
         for (const [key, value] of init.body) {
           params.append(key, typeof value === "string" ? value : String(value));
         }
         const headers = new Headers(init.headers);
         if (!headers.has("Content-Type")) {
-          headers.set("Content-Type", "application/x-www-form-urlencoded;charset=UTF-8");
+          headers.set(
+            "Content-Type",
+            "application/x-www-form-urlencoded;charset=UTF-8",
+          );
         }
         super(input, { ...init, body: params.toString(), headers });
       } else {
@@ -72,7 +78,8 @@ if (RequestAfterAbortSignalPatch) {
       }
     }
   }
-  globalThis.Request = RequestWithUrlEncodedFormFix as unknown as typeof Request;
+  globalThis.Request =
+    RequestWithUrlEncodedFormFix as unknown as typeof Request;
 }
 
 if (typeof window !== "undefined" && !window.matchMedia) {

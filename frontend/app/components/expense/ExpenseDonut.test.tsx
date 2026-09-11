@@ -57,7 +57,11 @@ describe("ExpenseDonut", () => {
       { category: "FOOD", share: 25, estimated: true },
     ]);
 
-    render(<ExpenseDonut items={[{ category: "FOOD", amount: 100, estimated: true }]} />);
+    render(
+      <ExpenseDonut
+        items={[{ category: "FOOD", amount: 100, estimated: true }]}
+      />,
+    );
     expect(screen.getByText("식비 100% (추정)")).toBeInTheDocument();
   });
 

@@ -19,7 +19,8 @@ export interface ExpenseHistoryResponse {
   weightStatus: string;
 }
 
-export const listExpenses = () => coreGet<ExpenseHistoryResponse[]>("/v1/expenses");
+export const listExpenses = () =>
+  coreGet<ExpenseHistoryResponse[]>("/v1/expenses");
 
 /**
  * 미입력 카테고리는 `items` 에서 아예 빼서 넘겨야 한다 — 호출부(화면)의 책임이다.

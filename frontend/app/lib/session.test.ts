@@ -84,7 +84,9 @@ describe("requireSession / setSession / resetSession", () => {
   });
 
   it("캐시가 비어 있는 동안 동시에 여러 번 불러도 fetchSession 은 한 번만 나간다", async () => {
-    let resolveFetch!: (value: Awaited<ReturnType<typeof authApi.fetchSession>>) => void;
+    let resolveFetch!: (
+      value: Awaited<ReturnType<typeof authApi.fetchSession>>,
+    ) => void;
     vi.mocked(authApi.fetchSession).mockReturnValueOnce(
       new Promise((resolve) => {
         resolveFetch = resolve;

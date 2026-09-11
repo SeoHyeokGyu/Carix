@@ -7,7 +7,12 @@ describe("IndexCard", () => {
     render(
       <IndexCard
         title="구매력 지수"
-        index={{ value: 94.2, changeFromLastMonth: -1.2, status: "DECREASED", indexStatus: "OK" }}
+        index={{
+          value: 94.2,
+          changeFromLastMonth: -1.2,
+          status: "DECREASED",
+          indexStatus: "OK",
+        }}
       />,
     );
     expect(screen.getByText("94.2")).toBeInTheDocument();
@@ -25,7 +30,12 @@ describe("IndexCard", () => {
     const { container } = render(
       <IndexCard
         title="시장가치 지수"
-        index={{ value: null, changeFromLastMonth: null, status: null, indexStatus: "INSUFFICIENT_SAMPLE" }}
+        index={{
+          value: null,
+          changeFromLastMonth: null,
+          status: null,
+          indexStatus: "INSUFFICIENT_SAMPLE",
+        }}
       />,
     );
     expect(screen.getByText("표본 부족")).toBeInTheDocument();
@@ -36,7 +46,12 @@ describe("IndexCard", () => {
     render(
       <IndexCard
         title="구매력 지수"
-        index={{ value: 91.0, changeFromLastMonth: null, status: null, indexStatus: "UPDATE_DELAYED" }}
+        index={{
+          value: 91.0,
+          changeFromLastMonth: null,
+          status: null,
+          indexStatus: "UPDATE_DELAYED",
+        }}
       />,
     );
     expect(screen.getByText("업데이트 지연")).toBeInTheDocument();
@@ -46,7 +61,12 @@ describe("IndexCard", () => {
     render(
       <IndexCard
         title="시장가치 지수"
-        index={{ value: null, changeFromLastMonth: null, status: null, indexStatus: "NOT_AVAILABLE" }}
+        index={{
+          value: null,
+          changeFromLastMonth: null,
+          status: null,
+          indexStatus: "NOT_AVAILABLE",
+        }}
       />,
     );
     expect(screen.getByText("계산 대기")).toBeInTheDocument();
@@ -59,7 +79,12 @@ describe("IndexCard", () => {
     render(
       <IndexCard
         title="구매력 지수"
-        index={{ value: null, changeFromLastMonth: null, status: null, indexStatus: "INSUFFICIENT_HISTORY" }}
+        index={{
+          value: null,
+          changeFromLastMonth: null,
+          status: null,
+          indexStatus: "INSUFFICIENT_HISTORY",
+        }}
       />,
     );
     expect(screen.getByText("계산 대기")).toBeInTheDocument();

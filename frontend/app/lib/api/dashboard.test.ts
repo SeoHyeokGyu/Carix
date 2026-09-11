@@ -40,12 +40,19 @@ describe("dashboard API", () => {
     globalThis.fetch = vi.fn().mockResolvedValue({
       ok: false,
       status: 502,
-      json: async () => ({ code: "UNKNOWN", message: "요청을 처리하지 못했습니다." }),
+      json: async () => ({
+        code: "UNKNOWN",
+        message: "요청을 처리하지 못했습니다.",
+      }),
     } as unknown as Response);
 
     await expect(fetchSummary()).resolves.toEqual({
       ok: false,
-      error: { code: "UNKNOWN", message: "요청을 처리하지 못했습니다.", status: 502 },
+      error: {
+        code: "UNKNOWN",
+        message: "요청을 처리하지 못했습니다.",
+        status: 502,
+      },
     });
   });
 });

@@ -1,5 +1,12 @@
 import { useEffect, useRef, useState } from "react";
-import { Form, Link, redirect, useActionData, useLoaderData, useNavigation } from "react-router";
+import {
+  Form,
+  Link,
+  redirect,
+  useActionData,
+  useLoaderData,
+  useNavigation,
+} from "react-router";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
@@ -56,7 +63,9 @@ const STATUS_LABELS: Record<ExpenseItemStatus, string> = {
  * 같은 순서·같은 필터 조건을 써야 toFieldErrors 가 만든 "items.N.amount" 키가
  * 화면에서 같은 카테고리로 다시 찾아진다.
  */
-function buildItemIndex(values: Record<string, string>): Record<string, number> {
+function buildItemIndex(
+  values: Record<string, string>,
+): Record<string, number> {
   const index: Record<string, number> = {};
   let cursor = 0;
   for (const category of EXPENSE_CATEGORIES) {
@@ -71,8 +80,13 @@ function buildItemIndex(values: Record<string, string>): Record<string, number> 
 
 export async function clientLoader() {
   try {
-    const [expenseHistory, income] = await Promise.all([listExpenses(), listIncome()]);
-    const currentRow = expenseHistory.find((row) => row.baseYearMonth === currentYearMonth());
+    const [expenseHistory, income] = await Promise.all([
+      listExpenses(),
+      listIncome(),
+    ]);
+    const currentRow = expenseHistory.find(
+      (row) => row.baseYearMonth === currentYearMonth(),
+    );
 
     const amounts: Record<string, string> = {};
     const savedAmounts: Record<string, number> = {};
@@ -97,7 +111,12 @@ export async function clientLoader() {
       b.effectiveDate.localeCompare(a.effectiveDate),
     )[0];
 
-    return { amounts, savedAmounts, statuses, takeHome: latestIncome?.netSalary ?? null };
+    return {
+      amounts,
+      savedAmounts,
+      statuses,
+      takeHome: latestIncome?.netSalary ?? null,
+    };
   } catch (error) {
     if (error instanceof UnauthorizedError) throw redirect(LOGIN_PATH);
     // 조회 실패는 이 화면에 그릴 자리가 없다 — ErrorBoundary 몫이다(S-05·S-06 과 동일 판단).
@@ -114,9 +133,12 @@ export async function clientAction({ request }: { request: Request }) {
   const raw = formDataToObject(formData, {
     numeric: EXPENSE_CATEGORIES.map((category) => category.value),
   });
-  const items = EXPENSE_CATEGORIES.filter((category) => category.value in raw).map(
-    (category) => ({ category: category.value, amount: raw[category.value] as number }),
-  );
+  const items = EXPENSE_CATEGORIES.filter(
+    (category) => category.value in raw,
+  ).map((category) => ({
+    category: category.value,
+    amount: raw[category.value] as number,
+  }));
 
   // 메시지 맵을 items 길이만큼 동적으로 만든다 — 카테고리 개수가 고정이라도
   // "몇 번째가 실제로 제출됐는지"는 매번 다르므로 미리 완비할 수 없다. 바로 이
@@ -128,7 +150,9 @@ export async function clientAction({ request }: { request: Request }) {
 
   const result = expenseSchema.safeParse({ items });
   if (!result.success) {
-    return { errors: toFieldErrors(result.error.issues, messages) } satisfies ActionData;
+    return {
+      errors: toFieldErrors(result.error.issues, messages),
+    } satisfies ActionData;
   }
 
   try {
@@ -139,7 +163,10 @@ export async function clientAction({ request }: { request: Request }) {
     // 화면이 없는 단계로 사용자가 떠밀려 갇힌다. 실제로 앞으로 가는 경우에만
     // 서버 단계·세션 캐시를 갱신한다.
     const session = await requireSession();
-    if (session.status === "authenticated" && isForwardStep(session.onboardingStep, "SKILLS")) {
+    if (
+      session.status === "authenticated" &&
+      isForwardStep(session.onboardingStep, "SKILLS")
+    ) {
       await advanceOnboarding("SKILLS");
       setSession({ ...session, onboardingStep: "SKILLS" });
     }
@@ -161,9 +188,11 @@ export default function Expense() {
   const actionData = useActionData<typeof clientAction>();
   const navigation = useNavigation();
   const formRef = useRef<HTMLFormElement>(null);
-  const [amounts, setAmounts] = useState<Record<string, string>>(initialAmounts);
+  const [amounts, setAmounts] =
+    useState<Record<string, string>>(initialAmounts);
   const errors = actionData?.errors;
-  const isSubmitting = navigation.state === "submitting" || navigation.state === "loading";
+  const isSubmitting =
+    navigation.state === "submitting" || navigation.state === "loading";
 
   useEffect(() => {
     if (errors) focusFirstInvalidField(formRef.current);
@@ -186,7 +215,11 @@ export default function Expense() {
   // 입력값과 구분한다(프로젝트 공통 규칙 — 색만으로 구분하지 않는다).
   const donutItems = EXPENSE_CATEGORIES.map((category) => {
     const entered = amounts[category.value];
-    if (typeof entered === "string" && entered !== "" && Number.isFinite(Number(entered))) {
+    if (
+      typeof entered === "string" &&
+      entered !== "" &&
+      Number.isFinite(Number(entered))
+    ) {
       return { category: category.value, amount: Number(entered) };
     }
     const saved = savedAmounts[category.value];
@@ -207,15 +240,16 @@ export default function Expense() {
         <CardHeader>
           <CardTitle>소비 관리</CardTitle>
           <CardDescription>
-            6대 카테고리의 월 소비 금액을 입력해 주세요. 비워 둔 카테고리는 통계청
-            평균 소비지출 비중으로 자동 보완됩니다.
+            6대 카테고리의 월 소비 금액을 입력해 주세요. 비워 둔 카테고리는
+            통계청 평균 소비지출 비중으로 자동 보완됩니다.
           </CardDescription>
         </CardHeader>
         <CardContent>
           <Form method="post" ref={formRef} className="flex flex-col gap-6">
             {EXPENSE_CATEGORIES.map((category) => {
               const index = itemIndex[category.value];
-              const errorKey = index !== undefined ? `items.${index}.amount` : undefined;
+              const errorKey =
+                index !== undefined ? `items.${index}.amount` : undefined;
               const fieldError = errorKey ? errors?.[errorKey] : undefined;
               const status = statuses[category.value];
 
@@ -243,7 +277,9 @@ export default function Expense() {
                       />
                       {status && (
                         <Badge
-                          variant={status === "DEFAULT_CPI" ? "secondary" : "outline"}
+                          variant={
+                            status === "DEFAULT_CPI" ? "secondary" : "outline"
+                          }
                           className="shrink-0"
                         >
                           {STATUS_LABELS[status]}
@@ -256,8 +292,12 @@ export default function Expense() {
             })}
 
             {overBudget && (
-              <p role="status" className="text-sm text-amber-600 dark:text-amber-400">
-                입력한 합계가 월 실수령액을 초과했습니다. 그래도 저장할 수 있습니다.
+              <p
+                role="status"
+                className="text-sm text-amber-600 dark:text-amber-400"
+              >
+                입력한 합계가 월 실수령액을 초과했습니다. 그래도 저장할 수
+                있습니다.
               </p>
             )}
 
@@ -275,7 +315,10 @@ export default function Expense() {
                 "이전"은 Link 라 이 <Form> 의 제출 버튼 판정에 관여하지 않는다.
                 DOM 순서를 CSS 로 뒤집지 않는다. */}
             <div className="flex flex-wrap gap-3">
-              <Link to="/onboarding/income" className={buttonVariants({ variant: "outline" })}>
+              <Link
+                to="/onboarding/income"
+                className={buttonVariants({ variant: "outline" })}
+              >
                 이전
               </Link>
               <Button type="submit" disabled={isSubmitting}>

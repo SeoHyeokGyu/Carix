@@ -7,7 +7,9 @@ import { UnauthorizedError } from "../../lib/coreApi";
 import { resetSession, setSession } from "../../lib/session";
 import DashboardHistory from "./history";
 import DashboardHome, { clientLoader } from "./index";
-import DashboardLayout, { clientLoader as dashboardLayoutLoader } from "./layout";
+import DashboardLayout, {
+  clientLoader as dashboardLayoutLoader,
+} from "./layout";
 import DashboardTrends from "./trends";
 
 const EMPTY_INDEX = {
@@ -52,7 +54,10 @@ describe("대시보드 라우트 및 레이아웃 (Dashboard)", () => {
           loader: clientLoader,
           HydrateFallback: () => null,
         },
-        { path: "/dashboard/history", Component: () => <div>월별 이력 화면</div> },
+        {
+          path: "/dashboard/history",
+          Component: () => <div>월별 이력 화면</div>,
+        },
         { path: "/login", Component: () => <div>로그인 화면</div> },
       ]);
       return render(<Stub initialEntries={["/dashboard"]} />);
@@ -106,7 +111,9 @@ describe("대시보드 라우트 및 레이아웃 (Dashboard)", () => {
 
       renderScreen();
 
-      expect(await screen.findByText("첫 지수를 계산하고 있습니다")).toBeInTheDocument();
+      expect(
+        await screen.findByText("첫 지수를 계산하고 있습니다"),
+      ).toBeInTheDocument();
     });
 
     // 판별력 보강 — "둘 다 null" 만으로는 조건을 못 가른다. 하나만 NOT_AVAILABLE 이고
@@ -117,7 +124,10 @@ describe("대시보드 라우트 및 레이아웃 (Dashboard)", () => {
         ok: true,
         data: {
           purchasingPowerIndex: EMPTY_INDEX,
-          marketValueIndex: { ...EMPTY_INDEX, indexStatus: "INSUFFICIENT_SAMPLE" },
+          marketValueIndex: {
+            ...EMPTY_INDEX,
+            indexStatus: "INSUFFICIENT_SAMPLE",
+          },
           decisionSignal: null,
           metadata: { baseDate: "2026-09-01", updateDelayed: false },
         },
@@ -136,14 +146,24 @@ describe("대시보드 라우트 및 레이아웃 (Dashboard)", () => {
     it("조회에 실패하면 재시도 버튼을 보여주고 화면을 비우지 않는다", async () => {
       vi.spyOn(dashboardApi, "fetchSummary").mockResolvedValue({
         ok: false,
-        error: { code: "UNKNOWN", message: "요청을 처리하지 못했습니다.", status: 502 },
+        error: {
+          code: "UNKNOWN",
+          message: "요청을 처리하지 못했습니다.",
+          status: 502,
+        },
       } as never);
 
       renderScreen();
 
-      expect(await screen.findByRole("button", { name: "다시 시도" })).toBeInTheDocument();
-      expect(screen.getByText("요청을 처리하지 못했습니다.")).toBeInTheDocument();
-      expect(screen.getByRole("heading", { name: "핵심 지표" })).toBeInTheDocument();
+      expect(
+        await screen.findByRole("button", { name: "다시 시도" }),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByText("요청을 처리하지 못했습니다."),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByRole("heading", { name: "핵심 지표" }),
+      ).toBeInTheDocument();
       // code·status 는 절대 화면에 노출하지 않는다.
       expect(screen.queryByText(/502/)).not.toBeInTheDocument();
       expect(screen.queryByText(/UNKNOWN/)).not.toBeInTheDocument();
@@ -159,11 +179,17 @@ describe("대시보드 라우트 및 레이아웃 (Dashboard)", () => {
       const spy = vi.spyOn(dashboardApi, "fetchSummary");
       spy.mockResolvedValueOnce({
         ok: false,
-        error: { code: "UNKNOWN", message: "요청을 처리하지 못했습니다.", status: 502 },
+        error: {
+          code: "UNKNOWN",
+          message: "요청을 처리하지 못했습니다.",
+          status: 502,
+        },
       } as never);
 
       renderScreen();
-      expect(await screen.findByText("요청을 처리하지 못했습니다.")).toBeInTheDocument();
+      expect(
+        await screen.findByText("요청을 처리하지 못했습니다."),
+      ).toBeInTheDocument();
       expect(screen.queryByText("94.2")).not.toBeInTheDocument();
 
       spy.mockResolvedValueOnce({
@@ -183,8 +209,12 @@ describe("대시보드 라우트 및 레이아웃 (Dashboard)", () => {
       await user.click(screen.getByRole("button", { name: "다시 시도" }));
 
       expect(await screen.findByText("94.2")).toBeInTheDocument();
-      expect(screen.queryByText("요청을 처리하지 못했습니다.")).not.toBeInTheDocument();
-      expect(screen.queryByRole("button", { name: "다시 시도" })).not.toBeInTheDocument();
+      expect(
+        screen.queryByText("요청을 처리하지 못했습니다."),
+      ).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole("button", { name: "다시 시도" }),
+      ).not.toBeInTheDocument();
     });
 
     // profile.tsx 의 isSubmitting 가드(FIX 7)와 같은 부류 — 진행 중인 재조회 위에
@@ -194,14 +224,22 @@ describe("대시보드 라우트 및 레이아웃 (Dashboard)", () => {
       const spy = vi.spyOn(dashboardApi, "fetchSummary");
       spy.mockResolvedValueOnce({
         ok: false,
-        error: { code: "UNKNOWN", message: "요청을 처리하지 못했습니다.", status: 502 },
+        error: {
+          code: "UNKNOWN",
+          message: "요청을 처리하지 못했습니다.",
+          status: 502,
+        },
       } as never);
 
       renderScreen();
-      const retryButton = await screen.findByRole("button", { name: "다시 시도" });
+      const retryButton = await screen.findByRole("button", {
+        name: "다시 시도",
+      });
       expect(retryButton).not.toBeDisabled();
 
-      let resolveRetry!: (value: Awaited<ReturnType<typeof dashboardApi.fetchSummary>>) => void;
+      let resolveRetry!: (
+        value: Awaited<ReturnType<typeof dashboardApi.fetchSummary>>,
+      ) => void;
       spy.mockImplementationOnce(
         () =>
           new Promise((resolve) => {
@@ -214,7 +252,11 @@ describe("대시보드 라우트 및 레이아웃 (Dashboard)", () => {
 
       resolveRetry({
         ok: false,
-        error: { code: "UNKNOWN", message: "요청을 처리하지 못했습니다.", status: 502 },
+        error: {
+          code: "UNKNOWN",
+          message: "요청을 처리하지 못했습니다.",
+          status: 502,
+        },
       });
 
       await waitFor(() => expect(retryButton).not.toBeDisabled());
@@ -236,13 +278,18 @@ describe("대시보드 라우트 및 레이아웃 (Dashboard)", () => {
           metadata: {
             baseDate: "2026-09-01",
             updateDelayed: false,
-            peerGroup: { fallbackLevel: 3, appliedConditions: "서울 전체 / 경력 MID / 회사규모 무관" },
+            peerGroup: {
+              fallbackLevel: 3,
+              appliedConditions: "서울 전체 / 경력 MID / 회사규모 무관",
+            },
           },
         },
       } as never);
 
       renderScreen();
-      await userEvent.setup().click(await screen.findByRole("button", { name: "근거 보기" }));
+      await userEvent
+        .setup()
+        .click(await screen.findByRole("button", { name: "근거 보기" }));
 
       expect(screen.getByText("연봉 격차 15% 이상")).toBeInTheDocument();
       expect(
@@ -255,7 +302,11 @@ describe("대시보드 라우트 및 레이아웃 (Dashboard)", () => {
       vi.spyOn(dashboardApi, "fetchSummary").mockResolvedValue({
         ok: true,
         data: {
-          purchasingPowerIndex: { ...EMPTY_INDEX, value: 94.2, indexStatus: "OK" },
+          purchasingPowerIndex: {
+            ...EMPTY_INDEX,
+            value: 94.2,
+            indexStatus: "OK",
+          },
           marketValueIndex: EMPTY_INDEX,
           decisionSignal: {
             code: "STAY",
@@ -263,12 +314,18 @@ describe("대시보드 라우트 및 레이아웃 (Dashboard)", () => {
             rulesApplied: ["연봉 격차 5% 미만"],
             rationale: "공식 임금통계 중앙값과 비슷한 수준입니다.",
           },
-          metadata: { baseDate: "2026-09-01", updateDelayed: false, ruleVersion: "1.2.0" },
+          metadata: {
+            baseDate: "2026-09-01",
+            updateDelayed: false,
+            ruleVersion: "1.2.0",
+          },
         },
       } as never);
 
       renderScreen();
-      await userEvent.setup().click(await screen.findByRole("button", { name: "근거 보기" }));
+      await userEvent
+        .setup()
+        .click(await screen.findByRole("button", { name: "근거 보기" }));
 
       expect(screen.getByText(/1\.2\.0/)).toBeInTheDocument();
     });
@@ -294,7 +351,9 @@ describe("대시보드 라우트 및 레이아웃 (Dashboard)", () => {
     });
 
     it("조회 중 401 을 받으면 로그인 화면으로 보낸다", async () => {
-      vi.spyOn(dashboardApi, "fetchSummary").mockRejectedValue(new UnauthorizedError());
+      vi.spyOn(dashboardApi, "fetchSummary").mockRejectedValue(
+        new UnauthorizedError(),
+      );
 
       renderScreen();
 

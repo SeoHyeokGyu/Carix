@@ -31,7 +31,10 @@ vi.mock("react-router", async () => {
   return {
     ...actual,
     useLoaderData: () => mockUseLoaderData(),
-    useRevalidator: () => ({ revalidate: mockRevalidate, state: "idle" as const }),
+    useRevalidator: () => ({
+      revalidate: mockRevalidate,
+      state: "idle" as const,
+    }),
   };
 });
 
@@ -61,10 +64,16 @@ const OK_SUMMARY = {
 
 const FAIL_SUMMARY = {
   ok: false as const,
-  error: { code: "UNKNOWN", message: "요청을 처리하지 못했습니다.", status: 502 },
+  error: {
+    code: "UNKNOWN",
+    message: "요청을 처리하지 못했습니다.",
+    status: 502,
+  },
 };
 
-function renderWithLoaderData(summary: typeof OK_SUMMARY | typeof FAIL_SUMMARY) {
+function renderWithLoaderData(
+  summary: typeof OK_SUMMARY | typeof FAIL_SUMMARY,
+) {
   mockUseLoaderData.mockReturnValue({ summary });
   return render(
     <MemoryRouter>

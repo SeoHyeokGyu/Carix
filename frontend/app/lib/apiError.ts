@@ -1,6 +1,7 @@
 import type { ApiError } from "./coreApi";
 
-const GENERIC_MESSAGE = "요청을 처리하지 못했습니다. 잠시 후 다시 시도해 주세요.";
+const GENERIC_MESSAGE =
+  "요청을 처리하지 못했습니다. 잠시 후 다시 시도해 주세요.";
 
 /**
  * `coreApi` 가 정규화해 던지는 `ApiError` 구조를 판별한다 — 이 프로젝트에서
