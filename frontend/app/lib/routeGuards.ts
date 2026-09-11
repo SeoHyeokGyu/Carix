@@ -28,7 +28,12 @@ const redirect = (redirectTo: string): GuardResult => ({
 });
 
 export function stepPath(step: OnboardingStep): string {
-  return step === "COMPLETED" ? DASHBOARD_PATH : STEP_PATH[step];
+  if (step === "COMPLETED") return DASHBOARD_PATH;
+  // step 은 session.ts 가 서버 응답을 그대로 펼쳐 만든 값이라 검증을 거치지
+  // 않는다 — 알려진 온보딩 단계가 아니면 fail-closed 로 랜딩으로 보낸다.
+  // STEP_PATH[step] 을 그대로 돌려주면 unrecognized 값에서 undefined 가 나와
+  // redirect(undefined) 가 "/undefined" 로 튕기는 루프가 된다.
+  return step in STEP_PATH ? STEP_PATH[step] : LANDING_PATH;
 }
 
 /**
@@ -44,6 +49,22 @@ function stepIndex(step: Exclude<OnboardingStep, "COMPLETED">): number {
 
 function stepForPath(pathname: string): Exclude<OnboardingStep, "COMPLETED"> | undefined {
   return STEP_ORDER.find((step) => STEP_PATH[step] === pathname);
+}
+
+/**
+ * `target` 이 `current` 보다 앞선(아직 도달하지 않은) 단계인지 — 화면의
+ * `clientAction` 이 "다음"을 눌렀을 때 실제로 앞으로 갈 때만
+ * `advanceOnboarding` 을 부르도록 가른다. 이미 지난 단계를 수정하고 다시
+ * "다음"을 누르는 경우(검토 화면의 "수정" 링크로 돌아간 뒤)는 여기서 false 가
+ * 나와 서버 단계를 되돌리지 않는다 — 화면은 그래도 다음 경로로 리다이렉트한다.
+ * `current` 가 COMPLETED 면 그보다 앞선 단계가 없으므로 항상 false 다.
+ */
+export function isForwardStep(
+  current: OnboardingStep,
+  target: Exclude<OnboardingStep, "COMPLETED">,
+): boolean {
+  if (current === "COMPLETED") return false;
+  return stepIndex(target) > stepIndex(current);
 }
 
 /**

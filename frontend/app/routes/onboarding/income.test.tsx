@@ -157,6 +157,40 @@ describe("S-06 소득 화면", () => {
     });
   });
 
+  // FIX 1 (Critical, 최종 리뷰) — REVIEW 단계를 지난 사용자가 검토 화면의 "수정"
+  // 링크로 돌아와 "다음"을 다시 누르면, 예전에는 advanceOnboarding("EXPENSE") 을
+  // 무조건 다시 불러 서버 단계를 REVIEW 에서 EXPENSE 로 되돌렸다(profile.test.tsx 의
+  // 같은 이름 테스트와 같은 이유 — 반복되면 화면이 없는 SKILLS 로 사용자가 갇힌다).
+  // "다음"은 여전히 소비 화면으로 데려가야 한다.
+  it("이미 REVIEW 단계를 지난 사용자가 '다음'을 눌러도 온보딩 단계를 되돌리지 않는다", async () => {
+    resetSession();
+    setSession({
+      status: "authenticated",
+      userId: "u-1",
+      email: "user@carix.kr",
+      onboardingStep: "REVIEW",
+    });
+    vi.spyOn(incomeApi, "listIncome").mockResolvedValue([
+      { id: "i-1", grossSalary: 50_000_000, netSalary: 3_500_000, effectiveDate: "2024-01-01" },
+    ]);
+    const advance = vi.spyOn(onboardingApi, "advanceOnboarding");
+
+    renderScreen();
+    const user = userEvent.setup();
+
+    await screen.findByText("2024-01-01");
+    await user.click(screen.getByRole("button", { name: "다음" }));
+
+    expect(await screen.findByText("소비 화면")).toBeInTheDocument();
+    expect(advance).not.toHaveBeenCalled();
+
+    const { requireSession } = await import("../../lib/session");
+    await expect(requireSession()).resolves.toMatchObject({
+      status: "authenticated",
+      onboardingStep: "REVIEW",
+    });
+  });
+
   it("삭제하면 deleteIncome 이 불리고 표에서 사라진다", async () => {
     vi.spyOn(incomeApi, "listIncome")
       .mockResolvedValueOnce([
@@ -211,6 +245,54 @@ describe("S-06 소득 화면", () => {
     });
     expect(await screen.findByText((55_000_000).toLocaleString())).toBeInTheDocument();
     expect(screen.queryByText((50_000_000).toLocaleString())).not.toBeInTheDocument();
+  });
+
+  // FIX 4c — 수정 성공 후 editingId 를 지우지 않으면 폼이 계속 편집
+  // 모드(제출 버튼 "저장", "취소" 버튼 노출)에 머물고, 숨은 intent=update·id 필드가
+  // 방금 수정한 행의 id 를 계속 가리킨다. 그 상태로 같은 행을 삭제하면(다른, 독립된
+  // deleteFetcher 를 통해서긴 하지만) 위쪽 폼은 여전히 이미 사라진 그 id 로
+  // "저장"을 다시 보낼 준비가 된 채 남는다. 수정 성공 뒤 편집 모드가 실제로
+  // 풀리는지("취소"가 사라지고 제출 버튼이 "추가"로 돌아오는지), 그리고 그 뒤 같은
+  // 행을 삭제해도 올바른 id 로 나가는지를 함께 확인한다.
+  it("수정 성공 후 편집 모드가 풀리고, 그 뒤 같은 행을 삭제해도 문제없이 지워진다", async () => {
+    vi.spyOn(incomeApi, "listIncome")
+      .mockResolvedValueOnce([
+        { id: "i-1", grossSalary: 50_000_000, netSalary: 3_500_000, effectiveDate: "2024-01-01" },
+      ])
+      .mockResolvedValueOnce([
+        { id: "i-1", grossSalary: 55_000_000, netSalary: 3_500_000, effectiveDate: "2024-01-01" },
+      ])
+      .mockResolvedValueOnce([]);
+    vi.spyOn(incomeApi, "updateIncome").mockResolvedValue({
+      id: "i-1",
+      grossSalary: 55_000_000,
+      netSalary: 3_500_000,
+      effectiveDate: "2024-01-01",
+    });
+    const del = vi.spyOn(incomeApi, "deleteIncome").mockResolvedValue(null);
+
+    renderScreen();
+    const user = userEvent.setup();
+
+    await user.click(await screen.findByRole("button", { name: "수정" }));
+    expect(screen.getByRole("button", { name: "취소" })).toBeInTheDocument();
+
+    const grossInput = screen.getByLabelText("세전 연봉 (원)");
+    await user.clear(grossInput);
+    await user.type(grossInput, "55000000");
+    await user.click(screen.getByRole("button", { name: "저장" }));
+
+    await screen.findByText((55_000_000).toLocaleString());
+
+    // 편집 모드가 풀려야 한다 — "취소" 버튼이 사라지고 제출 버튼이 "추가"로
+    // 되돌아온다. 풀리지 않으면(버그) "저장" 버튼과 "취소" 버튼이 그대로 남는다.
+    expect(screen.queryByRole("button", { name: "취소" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "추가" })).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "삭제" }));
+
+    expect(del).toHaveBeenCalledWith("i-1");
+    await screen.findByText("등록된 이력이 없습니다.");
   });
 
   it("수정이 API 오류로 실패하면 오류를 보여주고 표는 원래 값을 유지한다", async () => {

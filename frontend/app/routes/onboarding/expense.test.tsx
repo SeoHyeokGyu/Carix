@@ -327,6 +327,45 @@ describe("S-07 소비 화면", () => {
     });
   });
 
+  // FIX 1 (Critical, 최종 리뷰) — REVIEW 단계를 지난 사용자가 검토 화면의 "수정"
+  // 링크로 돌아와 소비 입력을 고치고 "다음"을 다시 누르면, 예전에는
+  // advanceOnboarding("SKILLS") 을 무조건 다시 불러 서버 단계를 REVIEW 에서
+  // SKILLS 로 되돌렸다(profile.test.tsx·income.test.tsx 의 같은 이름 테스트와 같은
+  // 이유). putExpenses 는 그대로 불러야 한다 — 막히는 건 서버 단계 갱신뿐이다.
+  it("이미 REVIEW 단계를 지난 사용자가 '다음'을 눌러도 온보딩 단계를 되돌리지 않는다", async () => {
+    resetSession();
+    setSession({
+      status: "authenticated",
+      userId: "u-1",
+      email: "user@carix.kr",
+      onboardingStep: "REVIEW",
+    });
+    vi.spyOn(incomeApi, "listIncome").mockResolvedValue([]);
+    vi.spyOn(expenseApi, "listExpenses").mockResolvedValue([]);
+    const put = vi.spyOn(expenseApi, "putExpenses").mockResolvedValue({
+      baseYearMonth: currentYearMonth(),
+      items: [],
+      weightStatus: "OK",
+    });
+    const advance = vi.spyOn(onboardingApi, "advanceOnboarding");
+
+    renderScreen();
+    const user = userEvent.setup();
+
+    await user.type(await screen.findByLabelText(/주거·공공요금/), "750000");
+    await user.click(screen.getByRole("button", { name: "다음" }));
+
+    expect(await screen.findByText("스킬 화면")).toBeInTheDocument();
+    expect(put).toHaveBeenCalled();
+    expect(advance).not.toHaveBeenCalled();
+
+    const { requireSession } = await import("../../lib/session");
+    await expect(requireSession()).resolves.toMatchObject({
+      status: "authenticated",
+      onboardingStep: "REVIEW",
+    });
+  });
+
   it("저장이 API 오류로 실패하면 입력을 유지한 채 오류 메시지를 보여준다", async () => {
     vi.spyOn(expenseApi, "listExpenses").mockResolvedValue([]);
     vi.spyOn(expenseApi, "putExpenses").mockRejectedValue({

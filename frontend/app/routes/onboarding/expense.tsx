@@ -25,9 +25,10 @@ import { toFieldErrors, type FieldErrors } from "../../lib/fieldErrors";
 import { focusFirstInvalidField } from "../../lib/focusFirstInvalidField";
 import { formDataToObject } from "../../lib/formData";
 import { advanceOnboarding } from "../../lib/onboardingApi";
-import { LOGIN_PATH } from "../../lib/routeGuards";
+import { isForwardStep, LOGIN_PATH } from "../../lib/routeGuards";
 import { EXPENSE_CATEGORIES, expenseSchema } from "../../lib/schemas/expense";
 import { requireSession, setSession } from "../../lib/session";
+import { currentYearMonth } from "../../lib/yearMonth";
 
 type ActionData = { errors: FieldErrors } | null;
 
@@ -38,17 +39,12 @@ const STATUS_LABELS: Record<ExpenseItemStatus, string> = {
   USER_DEFINED: "직접 입력",
 };
 
-/**
- * 월(baseYearMonth, "YYYYMM")은 URL 경로에만 있고 폼 어디에도 없다 — 이 화면에
- * 월 선택 UI 자체가 없으므로 언제나 "당월"이다. 서버에 보낼 값을 항상 이 함수로만
- * 새로 계산해, 사용자 입력이 이 값에 영향을 줄 수 있는 경로를 아예 없앤다(스키마
- * 에 제약을 둘 자리가 없는 "당월을 넘지 않는다" 요구는 이렇게 구조적으로
- * 지켜진다).
- */
-function currentYearMonth(): string {
-  const now = new Date();
-  return `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}`;
-}
+// 월(baseYearMonth, "YYYYMM")은 URL 경로에만 있고 폼 어디에도 없다 — 이 화면에
+// 월 선택 UI 자체가 없으므로 언제나 "당월"이다(currentYearMonth, ../../lib/yearMonth).
+// 서버에 보낼 값을 항상 이 함수로만 새로 계산해, 사용자 입력이 이 값에 영향을 줄 수
+// 있는 경로를 아예 없앤다(스키마에 제약을 둘 자리가 없는 "당월을 넘지 않는다" 요구는
+// 이렇게 구조적으로 지켜진다). review.tsx 가 같은 함수로 저장분을 읽는다 — 둘이 각자
+// 계산하면 월 경계에서 서로 어긋날 수 있다.
 
 /**
  * 현재 입력값(문자열 맵) → 제출될 items 배열에서 각 카테고리가 차지할 인덱스.
@@ -135,12 +131,14 @@ export async function clientAction({ request }: { request: Request }) {
 
   try {
     await putExpenses(currentYearMonth(), result.data.items);
-    await advanceOnboarding("SKILLS");
 
-    // guardOnboarding 은 세션 캐시(session.ts 의 모듈 전역)를 읽는다 — 갱신하지
-    // 않으면 다음 화면 진입이 이 화면으로 되튕긴다.
+    // 이미 이 단계를 지난 사용자가 검토 화면에서 돌아와 다시 "다음"을 누르는
+    // 정당한 흐름까지 서버 단계를 되돌리면(profile.tsx 와 같은 이유), 아직
+    // 화면이 없는 단계로 사용자가 떠밀려 갇힌다. 실제로 앞으로 가는 경우에만
+    // 서버 단계·세션 캐시를 갱신한다.
     const session = await requireSession();
-    if (session.status === "authenticated") {
+    if (session.status === "authenticated" && isForwardStep(session.onboardingStep, "SKILLS")) {
+      await advanceOnboarding("SKILLS");
       setSession({ ...session, onboardingStep: "SKILLS" });
     }
 

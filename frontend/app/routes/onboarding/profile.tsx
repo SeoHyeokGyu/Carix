@@ -19,7 +19,7 @@ import { toFieldErrors, type FieldErrors } from "../../lib/fieldErrors";
 import { focusFirstInvalidField } from "../../lib/focusFirstInvalidField";
 import { formDataToObject } from "../../lib/formData";
 import { advanceOnboarding } from "../../lib/onboardingApi";
-import { LANDING_PATH, LOGIN_PATH } from "../../lib/routeGuards";
+import { isForwardStep, LANDING_PATH, LOGIN_PATH } from "../../lib/routeGuards";
 import {
   COMPANY_SIZES,
   EMPLOYMENT_TYPES,
@@ -81,13 +81,16 @@ export async function clientAction({ request }: { request: Request }) {
       return redirect(LANDING_PATH);
     }
 
-    await advanceOnboarding("INCOME");
-
     // guardOnboarding 은 세션 캐시(session.ts 의 모듈 전역)의 onboardingStep 을 읽는다.
-    // 여기서 캐시를 갱신하지 않으면 온보딩 레이아웃 가드가 여전히 PROFILE 로 보고 다음
-    // 화면 진입을 이 화면으로 되튕긴다.
+    // 이미 이 단계를 지난 사용자가 검토 화면의 "수정" 링크로 돌아와 다시 "다음"을
+    // 누르는 경우("이미 지난 단계를 고치는" 정당한 흐름)까지 여기서 무조건
+    // advanceOnboarding 을 부르면, 서버 단계가 뒤로 밀렸다가 다음 화면 진입에서
+    // 다시 앞으로 밀리기를 반복하며 결국 아직 손대지 않은 단계(예: 스킬)로 사용자를
+    // 떠민다 — 그 단계는 화면 자체가 없어 오도 가도 못하고 갇힌다. 실제로 앞으로
+    // 가는 경우에만 서버 단계·세션 캐시를 갱신한다.
     const session = await requireSession();
-    if (session.status === "authenticated") {
+    if (session.status === "authenticated" && isForwardStep(session.onboardingStep, "INCOME")) {
+      await advanceOnboarding("INCOME");
       setSession({ ...session, onboardingStep: "INCOME" });
     }
 

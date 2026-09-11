@@ -163,6 +163,58 @@ describe("S-05 프로필 화면", () => {
     });
   });
 
+  // FIX 1 (Critical, 최종 리뷰) — 검토(REVIEW) 화면의 "수정" 링크로 돌아와 프로필을
+  // 고친 사용자가 "다음"을 다시 누르면, 예전에는 advanceOnboarding("INCOME") 을
+  // 무조건 다시 불러 서버 단계를 REVIEW 에서 INCOME 으로 되돌렸다. 이어서 소득→소비
+  // 화면에서도 같은 실수가 반복되면 결국 화면 자체가 없는 SKILLS 단계로 사용자가
+  // 떠밀려 어디로도 못 가는 루프에 갇힌다("최종 리뷰" 보고서 참고). "다음"은 여전히
+  // 소득 화면으로 데려가고 patchProfile 은 그대로 불러야 한다(이미 지난 단계를
+  // 고치는 것 자체는 정당한 흐름이다) — 다만 이미 지나온 단계를 다시 서버에 적어
+  // 넣지는 않아야 한다.
+  it("이미 REVIEW 단계를 지난 사용자가 프로필을 고치고 '다음'을 눌러도 온보딩 단계를 되돌리지 않는다", async () => {
+    resetSession();
+    setSession({
+      status: "authenticated",
+      userId: "u-1",
+      email: "user@carix.kr",
+      onboardingStep: "REVIEW",
+    });
+    vi.spyOn(profileApi, "getProfile").mockResolvedValue({
+      jobFamily: "DEVELOPER",
+      yearsOfExperience: 5,
+      region: "서울",
+      employmentType: "FULL_TIME",
+      companySize: null,
+    });
+    const patch = vi.spyOn(profileApi, "patchProfile").mockResolvedValue({
+      jobFamily: "DEVELOPER",
+      yearsOfExperience: 6,
+      region: "서울",
+      employmentType: "FULL_TIME",
+      companySize: null,
+    });
+    const advance = vi.spyOn(onboardingApi, "advanceOnboarding");
+
+    renderScreen();
+    const user = userEvent.setup();
+
+    const experienceInput = await screen.findByLabelText("총 경력 (년)");
+    await user.clear(experienceInput);
+    await user.type(experienceInput, "6");
+    await user.click(screen.getByRole("button", { name: "다음" }));
+
+    // "다음"은 여전히 다음 화면으로 데려가고 프로필은 그대로 저장한다 — 막히는 건
+    // 서버 단계 갱신뿐이다.
+    expect(await screen.findByText("소득 화면")).toBeInTheDocument();
+    expect(patch).toHaveBeenCalled();
+    expect(advance).not.toHaveBeenCalled();
+
+    await expect(requireSession()).resolves.toMatchObject({
+      status: "authenticated",
+      onboardingStep: "REVIEW",
+    });
+  });
+
   it("저장 후 나가기는 부분 검증만 하고 랜딩 페이지로 이동한다", async () => {
     vi.spyOn(profileApi, "getProfile").mockResolvedValue({
       jobFamily: null,

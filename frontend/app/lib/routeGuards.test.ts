@@ -7,6 +7,7 @@ import {
   guardOnboarded,
   guardOnboarding,
   guardSession,
+  isForwardStep,
   stepPath,
 } from "./routeGuards";
 
@@ -142,5 +143,43 @@ describe("stepPath — 온보딩 단계별 경로 매핑", () => {
     expect(stepPath("EXPENSE")).toBe("/onboarding/expense");
     expect(stepPath("SKILLS")).toBe("/onboarding/skills");
     expect(stepPath("REVIEW")).toBe(REVIEW_PATH);
+  });
+
+  // FIX 4b — session.ts 는 서버 응답의 onboardingStep 을 검증 없이 그대로 편다.
+  // 알려지지 않은 값이 들어오면 이전에는 STEP_PATH 조회가 undefined 를 돌려줘
+  // redirect(undefined) → "/undefined" 로 튕기는 루프가 됐다. fail-closed 로
+  // 랜딩을 돌려줘야 한다.
+  test("알려지지 않은 단계값은 undefined 가 아니라 랜딩 경로로 fail-closed 한다", () => {
+    expect(stepPath("BOGUS" as OnboardingStep)).toBe(LANDING_PATH);
+  });
+});
+
+describe("guardOnboarded — 알려지지 않은 단계값 (FIX 4b)", () => {
+  test("알려지지 않은 단계값이면 /undefined 가 아니라 랜딩으로 보낸다", () => {
+    expect(guardOnboarded(signedIn("BOGUS" as OnboardingStep))).toEqual({
+      allow: false,
+      redirectTo: LANDING_PATH,
+    });
+  });
+});
+
+describe("isForwardStep — 서버 단계 갱신을 앞으로 갈 때만 허용", () => {
+  test("아직 도달하지 않은 단계로 가면 true다", () => {
+    expect(isForwardStep("PROFILE", "INCOME")).toBe(true);
+    expect(isForwardStep("PROFILE", "REVIEW")).toBe(true);
+  });
+
+  test("이미 지난 단계를 다시 저장해도 false다(뒤로 가지 않는다)", () => {
+    expect(isForwardStep("REVIEW", "INCOME")).toBe(false);
+    expect(isForwardStep("EXPENSE", "PROFILE")).toBe(false);
+  });
+
+  test("같은 단계를 다시 제출해도 false다", () => {
+    expect(isForwardStep("INCOME", "INCOME")).toBe(false);
+  });
+
+  test("COMPLETED 는 그 앞의 어떤 단계로도 갈 수 없다", () => {
+    expect(isForwardStep("COMPLETED", "REVIEW")).toBe(false);
+    expect(isForwardStep("COMPLETED", "PROFILE")).toBe(false);
   });
 });

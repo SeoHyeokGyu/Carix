@@ -19,7 +19,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Field } from "../../components/onboarding/Field";
 import { StepBadges } from "../../components/onboarding/StepBadges";
-import { toUserMessage } from "../../lib/apiError";
+import { isApiError, toUserMessage } from "../../lib/apiError";
 import {
   createIncome,
   deleteIncome,
@@ -32,7 +32,7 @@ import { toFieldErrors, type FieldErrors } from "../../lib/fieldErrors";
 import { focusFirstInvalidField } from "../../lib/focusFirstInvalidField";
 import { formDataToObject } from "../../lib/formData";
 import { advanceOnboarding } from "../../lib/onboardingApi";
-import { LOGIN_PATH } from "../../lib/routeGuards";
+import { isForwardStep, LOGIN_PATH } from "../../lib/routeGuards";
 import { incomeSchema, type IncomeInput } from "../../lib/schemas/income";
 import { requireSession, setSession } from "../../lib/session";
 
@@ -48,14 +48,7 @@ const FIELD_ERROR_MESSAGES: Record<keyof IncomeInput, string> = {
  * 필드(effectiveDate)에 붙여야 하므로 `toUserMessage` 의 일반 `_form` 경로를
  * 타지 않고 여기서 먼저 갈라낸다. */
 function isConflict(error: unknown): error is ApiError {
-  return (
-    typeof error === "object" &&
-    error !== null &&
-    "code" in error &&
-    "message" in error &&
-    "status" in error &&
-    (error as ApiError).status === 409
-  );
+  return isApiError(error) && error.status === 409;
 }
 
 export async function clientLoader() {
@@ -81,12 +74,13 @@ export async function clientAction({ request }: { request: Request }) {
     // 이 화면은 행 단위로 이미 저장된 상태라("추가"·"수정" 각각이 즉시 서버에
     // 반영된다) "다음" 은 검증할 폼 필드가 없다 — 온보딩 단계만 넘긴다.
     try {
-      await advanceOnboarding("EXPENSE");
-
-      // guardOnboarding 은 세션 캐시(session.ts 의 모듈 전역)를 읽는다 — 갱신하지
-      // 않으면 다음 화면 진입이 이 화면으로 되튕긴다.
+      // 이미 이 단계를 지난 사용자가 검토 화면에서 돌아와 다시 "다음"을 누르는
+      // 정당한 흐름까지 서버 단계를 되돌리면(profile.tsx 와 같은 이유), 아직
+      // 화면이 없는 단계로 사용자가 떠밀려 갇힌다. 실제로 앞으로 가는 경우에만
+      // 서버 단계·세션 캐시를 갱신한다.
       const session = await requireSession();
-      if (session.status === "authenticated") {
+      if (session.status === "authenticated" && isForwardStep(session.onboardingStep, "EXPENSE")) {
+        await advanceOnboarding("EXPENSE");
         setSession({ ...session, onboardingStep: "EXPENSE" });
       }
 
@@ -190,6 +184,27 @@ export default function Income() {
   useEffect(() => {
     if (errors) focusFirstInvalidField(formRef.current);
   }, [errors]);
+
+  // 성공한 제출은 항상 null 을 반환하고(실패는 { errors }), 초기값은 undefined 다 —
+  // 그래서 "state 가 idle 로 막 돌아왔을 때 data 가 정확히 null" 은 방금 create·
+  // update 가 성공했다는 신호로 안전하게 쓸 수 있다(제출 전에는 data 가 undefined
+  // 라 걸리지 않고, 실패하면 {errors} 라 역시 걸리지 않는다). 수정 성공 뒤
+  // editingId 를 그대로 두면 폼이 계속 "저장"/취소 가 있는 편집 모드에 머물고,
+  // 숨은 intent=update·id 필드가 방금 수정한(또는 그 뒤 삭제된) 행의 id 를 계속
+  // 가리킨다 — 그 상태로 다시 제출하면 죽은 id 로 update 를 보낸다. create 성공
+  // 시에는 editingId 가 이미 null 이라 이 설정이 아무 것도 바꾸지 않는다.
+  //
+  // useEffect 로 동기화하면 렌더 한 번 더 도는 캐스케이드가 생기므로
+  // (react-hooks/set-state-in-effect, dashboard/index.tsx 의 lastGood 과 같은
+  // 이유), 렌더링 중에 이전 state 와 비교해 바로 갱신한다(React 공식 패턴 —
+  // https://react.dev/learn/you-might-not-need-an-effect).
+  const [prevFormFetcherState, setPrevFormFetcherState] = useState(formFetcher.state);
+  if (formFetcher.state !== prevFormFetcherState) {
+    setPrevFormFetcherState(formFetcher.state);
+    if (formFetcher.state === "idle" && formFetcher.data === null) {
+      setEditingId(null);
+    }
+  }
 
   return (
     <section className="mx-auto w-full max-w-3xl px-6 py-16">
