@@ -201,7 +201,16 @@ describe("S-05 프로필 화면", () => {
       employmentType: "FULL_TIME",
       companySize: null,
     });
-    const advance = vi.spyOn(onboardingApi, "advanceOnboarding");
+    // 성공값을 준다 — 목킹 없이 두면 가드가 사라졌을 때 이 스파이가 실제
+    // advanceOnboarding(진짜 fetch)로 새 나가 요청이 걸린 채 타임아웃으로
+    // 실패한다. 그러면 이 테스트는 "advance 가 불렸다"가 아니라 "요청이 안
+    // 끝났다"로 우연히 초록불이 아닌 빨간불이 되는 것이라, 다음에 누군가 이
+    // 스위트에 advanceOnboarding 목을 하나 추가하기만 해도(자연스러운 일이다)
+    // 타임아웃이 사라지고 가드 삭제가 다시 조용히 통과할 수 있다. 실패
+    // 지점을 `expect(advance).not.toHaveBeenCalled()` 자체로 고정한다.
+    const advance = vi
+      .spyOn(onboardingApi, "advanceOnboarding")
+      .mockResolvedValue({ currentStep: "INCOME", completed: false });
 
     renderScreen();
     const user = userEvent.setup();
