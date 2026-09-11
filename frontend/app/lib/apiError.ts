@@ -2,7 +2,13 @@ import type { ApiError } from "./coreApi";
 
 const GENERIC_MESSAGE = "요청을 처리하지 못했습니다. 잠시 후 다시 시도해 주세요.";
 
-function isApiError(error: unknown): error is ApiError {
+/**
+ * `coreApi` 가 정규화해 던지는 `ApiError` 구조를 판별한다 — 이 프로젝트에서
+ * 유일한 판별 구현이다(이전에는 `income.tsx`·`simulator.tsx` 가 각자 비슷한
+ * 조건을 다시 적었다). 호출부가 특정 status 만 더 좁혀 쓰고 싶으면 이 함수로
+ * 먼저 좁힌 뒤 `.status` 를 직접 비교한다.
+ */
+export function isApiError(error: unknown): error is ApiError {
   return (
     typeof error === "object" &&
     error !== null &&

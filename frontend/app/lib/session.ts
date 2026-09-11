@@ -33,7 +33,18 @@ export interface SessionResponse {
 let cached: Session | null = null;
 let pending: Promise<Session> | null = null;
 
-/** protected 레이아웃의 clientLoader 가 채우고, 로그인·로그아웃·단계 갱신 뒤 다시 채운다. */
+/**
+ * protected 레이아웃의 clientLoader 가 채우고, 로그인·로그아웃·단계 갱신 뒤 다시 채운다.
+ *
+ * 이론상 위험해 보이는 경합 하나 — `pending` 이 아직 진행 중인데 `setSession` 이
+ * `cached` 를 먼저 채우면, 나중에 `pending` 이 resolve 하며 `requireSession` 안의
+ * `.then` 이 `cached` 를 자신의(오래된) 값으로 다시 덮어쓰지 않을까? — 는 실제로는
+ * 일어나지 않는다. 이 모듈 밖에서 `setSession` 을 부르는 모든 자리(온보딩 네 화면의
+ * `clientAction` 등)가 그 직전에 `await requireSession()` 을 먼저 부르고, 그 호출이
+ * `pending` 이 있으면 끝까지 기다려 비운 뒤에야 반환한다 — 따라서 `setSession` 이
+ * 실행되는 시점에는 `pending` 이 이미 `null` 이다. 검토했고 의도적으로 닫아 둔
+ * 경합이다 — 재발견하지 않도록 남겨 둔다.
+ */
 export function setSession(session: Session): void {
   cached = session;
 }

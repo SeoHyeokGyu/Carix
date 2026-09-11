@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Field } from "../../components/onboarding/Field";
-import { toUserMessage } from "../../lib/apiError";
+import { isApiError, toUserMessage } from "../../lib/apiError";
 import {
   getLatestScenario,
   simulate,
@@ -52,15 +52,15 @@ const DIFFICULTY_GRADE_LABEL: Record<DifficultyGrade, string> = {
  * `scenarioSchema` 가 이미 서버와 같거나 더 좁은 범위로 전부 걸러내므로, 검증을
  * 통과한 제출이 그래도 400 을 받는 현실적인 경우는 이 케이스뿐이다. 전용 코드가
  * 없어(같은 INVALID_INPUT) status 만으로 판별한다 — income.tsx 의 `isConflict` 와
- * 같은 판단(그쪽은 409).
+ * 같은 판단(그쪽은 409), 판별자 자체는 `apiError.ts` 의 `isApiError` 하나를 공유한다.
+ *
+ * 이전에는 이 함수가 `"status" in error` 만 보고 `code`·`message` 존재는 확인하지
+ * 않아 `isConflict`·`isApiError` 보다 느슨했다 — `coreApi` 가 던지는 `ApiError` 는
+ * 항상 세 필드를 함께 갖고 있어(`coreApi.ts` `toApiError`) 이 화면이 실제로 받는
+ * 오류에 대해서는 관찰 가능한 차이가 없다. 통일한다.
  */
 function isLikelyMissingIncome(error: unknown): error is ApiError {
-  return (
-    typeof error === "object" &&
-    error !== null &&
-    "status" in error &&
-    (error as ApiError).status === 400
-  );
+  return isApiError(error) && error.status === 400;
 }
 
 export async function clientLoader() {
