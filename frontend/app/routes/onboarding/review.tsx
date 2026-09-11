@@ -25,17 +25,12 @@ import {
 } from "../../lib/schemas/profile";
 import { EXPENSE_CATEGORIES } from "../../lib/schemas/expense";
 import { requireSession, setSession } from "../../lib/session";
+import { currentYearMonth } from "../../lib/yearMonth";
 
 type ActionData = { errors: FieldErrors } | null;
 
-/**
- * 월(baseYearMonth)은 이 화면에도 선택 UI 가 없다 — 언제나 "당월" 지출 행을
- * 읽는다(expense.tsx 와 같은 이유·같은 계산).
- */
-function currentYearMonth(): string {
-  const now = new Date();
-  return `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}`;
-}
+// 월(baseYearMonth)은 이 화면에도 선택 UI 가 없다 — 언제나 "당월" 지출 행을
+// 읽는다(expense.tsx 와 같은 이유·같은 계산 — currentYearMonth, ../../lib/yearMonth).
 
 function labelFor(options: readonly { value: string; label: string }[], value: string): string {
   return options.find((option) => option.value === value)?.label ?? value;
