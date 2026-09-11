@@ -6,7 +6,8 @@ describe("라우트 설정 (routes)", () => {
     expect(Array.isArray(routes)).toBe(true);
     expect(routes.length).toBeGreaterThan(0);
 
-    // home, login, register, 3개 레이아웃(onboarding, dashboard, mypage), 2개 관리자 라우트(admin/collector, admin/pipeline)
-    expect(routes).toHaveLength(8);
+    // home, login, register, protected 레이아웃(그 안에 onboarding/dashboard/mypage 3개가
+    // 중첩된다), 2개 관리자 라우트(admin/collector, admin/pipeline)
+    expect(routes).toHaveLength(6);
   });
 });

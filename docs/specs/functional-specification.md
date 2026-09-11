@@ -57,9 +57,14 @@
 
 라우팅 가드 규칙:
 
-- 세션 없이 S-05 이후 접근 → `/login` 리다이렉트
+- 세션 없이 S-05 이후 접근 → 랜딩(`/`) 리다이렉트. 로그인 화면이 아니다 — 처음 온 사용자는
+  가입이 필요하고, 랜딩이 가입·로그인을 모두 안내한다
 - 온보딩 미완료 세션이 `/dashboard`, `/dashboard/trends`, `/dashboard/simulator` 접근 → 마지막 미완료 온보딩 단계로 리다이렉트
 - 온보딩 완료 세션이 `/onboarding/*` 접근 → `/dashboard` 리다이렉트 (검토 화면 S-09는 재진입 허용)
+- 온보딩 미완료 세션이 `/onboarding/*` 내에서 현재 진행 단계보다 앞선(아직 도달하지 않은) 단계에
+  접근 → 현재 단계로 리다이렉트. **현재 단계와 같거나 그 이전 단계 접근은 허용한다** — 검토
+  화면(S-09)의 `수정` 링크가 각 항목의 앞선 단계로 되돌아가야 동작하고, 같은 이유로 각 화면의
+  `이전` 링크도 필요하다. 알려진 온보딩 경로가 아니면(오타 등) 현재 단계로 되돌린다
 
 ---
 
@@ -348,7 +353,7 @@ MVP 완료 기준 10개 항목(MVP 스펙 §11)과 본 문서 스토리의 매�
 | S-06 소득 | US-O3 | `POST /income`, `PUT /income/{id}` | `income_history` |
 | S-07 소비 | US-O4 | `PUT /expenses/{ym}` | `expense_history`, `expense_item` |
 | S-08 스킬 | US-O5 | `GET /skills/search`, `POST /user-skills` | `skill`, `skill_alias`, `user_skill` |
-| S-09 검토·완료 | US-O6 | `PATCH /onboarding` | `users`(onboarding_step) |
+| S-09 검토·완료 | US-O6 | `PATCH /auth/onboarding`(`auth-service`) | `users`(onboarding_step) |
 | S-10 대시보드 | US-D1~D2 | `GET /dashboard/summary` | `index_snapshot`, `market_aggregate` |
 | S-11 이력 | US-D4 | `GET /dashboard/history` | `index_snapshot` |
 | S-14 추이분석 | US-D3 | `GET /trends`, `/salary-distribution`, `/skills` | `market_aggregate`, `wage_stat_observation` |

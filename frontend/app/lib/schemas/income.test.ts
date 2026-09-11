@@ -1,0 +1,82 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { incomeSchema } from "./income";
+
+describe("incomeSchema", () => {
+  const valid = {
+    grossSalary: 50_000_000,
+    netSalary: 3_500_000,
+    effectiveDate: "2026-01-15",
+  };
+
+  beforeEach(() => {
+    // 2026-09-10 을 오늘로 고정한다. 아래 "당월 이내" 케이스가 실행일에 따라
+    // 흔들리지 않도록 하기 위함이다.
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(2026, 8, 10));
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("정상 입력을 통과시킨다", () => {
+    expect(incomeSchema.safeParse(valid).success).toBe(true);
+  });
+
+  it("세전 연봉은 1,000만~30억 원이다", () => {
+    expect(
+      incomeSchema.safeParse({ ...valid, grossSalary: 9_999_999 }).success,
+    ).toBe(false);
+    expect(
+      incomeSchema.safeParse({ ...valid, grossSalary: 10_000_000 }).success,
+    ).toBe(true);
+    expect(
+      incomeSchema.safeParse({ ...valid, grossSalary: 3_000_000_000 }).success,
+    ).toBe(true);
+    expect(
+      incomeSchema.safeParse({ ...valid, grossSalary: 3_000_000_001 }).success,
+    ).toBe(false);
+  });
+
+  it("월 실수령액은 50만~2억 원이고 필수다", () => {
+    expect(
+      incomeSchema.safeParse({ ...valid, netSalary: 499_999 }).success,
+    ).toBe(false);
+    expect(
+      incomeSchema.safeParse({ ...valid, netSalary: 500_000 }).success,
+    ).toBe(true);
+    expect(
+      incomeSchema.safeParse({ ...valid, netSalary: 200_000_000 }).success,
+    ).toBe(true);
+    expect(
+      incomeSchema.safeParse({ ...valid, netSalary: 200_000_001 }).success,
+    ).toBe(false);
+
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { netSalary: _drop, ...withoutNetSalary } = valid;
+    expect(incomeSchema.safeParse(withoutNetSalary).success).toBe(false);
+  });
+
+  it("유효 시작일은 과거~당월 말일까지 허용하고 다음달부터 거부한다", () => {
+    // 오늘(9/10)보다 늦지만 같은 달인 9/25 — "당월 이내"와 "오늘까지"를 가르는 케이스.
+    expect(
+      incomeSchema.safeParse({ ...valid, effectiveDate: "2026-09-25" }).success,
+    ).toBe(true);
+    // 당월 말일
+    expect(
+      incomeSchema.safeParse({ ...valid, effectiveDate: "2026-09-30" }).success,
+    ).toBe(true);
+    // 다음달 첫날은 거부
+    expect(
+      incomeSchema.safeParse({ ...valid, effectiveDate: "2026-10-01" }).success,
+    ).toBe(false);
+    // 과거 날짜는 허용
+    expect(
+      incomeSchema.safeParse({ ...valid, effectiveDate: "2020-01-01" }).success,
+    ).toBe(true);
+    // 형식이 틀리면 거부
+    expect(
+      incomeSchema.safeParse({ ...valid, effectiveDate: "2026/09/10" }).success,
+    ).toBe(false);
+  });
+});

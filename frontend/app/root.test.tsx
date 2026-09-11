@@ -15,12 +15,6 @@ vi.mock("react-router", async () => {
   };
 });
 
-vi.mock("./lib/SessionProvider", () => ({
-  SessionProvider: ({ children }: { children: React.ReactNode }) => (
-    <div data-testid="session-provider">{children}</div>
-  ),
-}));
-
 describe("루트 컴포넌트 (root)", () => {
   it("Layout이 메타데이터, 폰트 링크, 스크립트 및 자식 요소를 렌더링한다", () => {
     render(
@@ -35,14 +29,13 @@ describe("루트 컴포넌트 (root)", () => {
     expect(document.querySelector('[data-testid="links"]')).not.toBeNull();
   });
 
-  it("Root가 Outlet을 SessionProvider로 감싸서 렌더링한다", () => {
+  it("Root가 Outlet을 렌더링한다", () => {
     render(
       <MemoryRouter>
         <Root />
       </MemoryRouter>,
     );
 
-    expect(screen.getByTestId("session-provider")).toBeInTheDocument();
     expect(screen.getByTestId("outlet")).toBeInTheDocument();
   });
 });

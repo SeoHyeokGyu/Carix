@@ -1,17 +1,18 @@
 import { Link, useNavigate } from "react-router";
 import { AuthForm } from "../../components/auth/AuthForm";
 import { register } from "../../lib/authApi";
-import { useRefreshSession } from "../../lib/SessionProvider";
 import { stepPath } from "../../lib/routeGuards";
+import { setSession } from "../../lib/session";
 
 export default function Register() {
   const navigate = useNavigate();
-  const refresh = useRefreshSession();
 
   async function handleRegister(email: string, password: string) {
-    const session = await register(email, password);
-    await refresh();
-    void navigate(stepPath(session.onboardingStep), { replace: true });
+    const response = await register(email, password);
+    // 가입 화면은 protected 레이아웃 밖이라 세션 캐시가 아직 채워지지 않았다 — 모듈
+    // 캐시를 직접 채운다.
+    setSession({ status: "authenticated", ...response });
+    void navigate(stepPath(response.onboardingStep), { replace: true });
   }
 
   return (

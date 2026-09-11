@@ -2,10 +2,10 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as authApi from "../../lib/authApi";
+import * as sessionLib from "../../lib/session";
 import Register from "./register";
 
 const mockNavigate = vi.fn();
-const mockRefresh = vi.fn().mockResolvedValue(undefined);
 
 vi.mock("react-router", async () => {
   const actual = await vi.importActual("react-router");
@@ -14,10 +14,6 @@ vi.mock("react-router", async () => {
     useNavigate: () => mockNavigate,
   };
 });
-
-vi.mock("../../lib/SessionProvider", () => ({
-  useRefreshSession: () => mockRefresh,
-}));
 
 vi.mock("../../lib/authApi", () => ({
   register: vi.fn(),
@@ -43,7 +39,8 @@ describe("회원가입 라우트 (Register)", () => {
     expect(link).toHaveAttribute("href", "/login");
   });
 
-  it("가입 성공 시 세션을 갱신하고 온보딩 단계 경로로 이동시킨다", async () => {
+  it("가입 성공 시 세션 캐시를 채우고 온보딩 단계 경로로 이동시킨다", async () => {
+    const setSessionSpy = vi.spyOn(sessionLib, "setSession");
     vi.mocked(authApi.register).mockResolvedValueOnce({
       userId: "u-10",
       email: "newuser@carix.kr",
@@ -70,7 +67,12 @@ describe("회원가입 라우트 (Register)", () => {
         "newuser@carix.kr",
         "password123",
       );
-      expect(mockRefresh).toHaveBeenCalled();
+      expect(setSessionSpy).toHaveBeenCalledWith({
+        status: "authenticated",
+        userId: "u-10",
+        email: "newuser@carix.kr",
+        onboardingStep: "PROFILE",
+      });
       expect(mockNavigate).toHaveBeenCalledWith("/onboarding/profile", {
         replace: true,
       });

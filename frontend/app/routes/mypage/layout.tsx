@@ -1,8 +1,7 @@
-import { Navigate } from "react-router";
+import { redirect } from "react-router";
 import { AppShell, type NavItem } from "../../components/layout/AppShell";
-import { SessionPending } from "../../components/layout/SessionPending";
-import { useSession } from "../../lib/SessionProvider";
-import { guardSession } from "../../lib/routeGuards";
+import { guardSession, LANDING_PATH } from "../../lib/routeGuards";
+import { requireSession } from "../../lib/session";
 
 const TABS: NavItem[] = [
   { to: "/mypage/records", label: "이력 관리" },
@@ -10,16 +9,18 @@ const TABS: NavItem[] = [
 ];
 
 /** 마이페이지는 온보딩 완료를 요구하지 않는다 — 중단한 사용자도 계정 삭제는 할 수 있어야 한다. */
-export default function MypageLayout() {
-  const session = useSession();
+export async function clientLoader() {
+  const session = await requireSession();
   const guard = guardSession(session);
-
-  if (guard.allow === "pending") {
-    return <SessionPending />;
+  // guard.allow === "pending" 은 여기서 실제로 나오지 않는다 — requireSession 이 이미
+  // 세션을 확정해 돌려준다. 그래도 fail-closed 로 처리한다: allow 가 true 가 아니면 무조건
+  // 막는다(랜딩으로).
+  if (guard.allow !== true) {
+    throw redirect(guard.allow === false ? guard.redirectTo : LANDING_PATH);
   }
-  if (!guard.allow) {
-    return <Navigate to={guard.redirectTo} replace />;
-  }
+  return null;
+}
 
+export default function MypageLayout() {
   return <AppShell navLabel="마이페이지" items={TABS} />;
 }

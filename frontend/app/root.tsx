@@ -1,5 +1,4 @@
 import { Links, Meta, Outlet, Scripts, ScrollRestoration } from "react-router";
-import { SessionProvider } from "./lib/SessionProvider";
 import "pretendard/dist/web/variable/pretendardvariable.css";
 import "./styles/tokens.css";
 
@@ -39,9 +38,5 @@ export function Layout({ children }: { children: React.ReactNode }) {
 }
 
 export default function Root() {
-  return (
-    <SessionProvider>
-      <Outlet />
-    </SessionProvider>
-  );
+  return <Outlet />;
 }

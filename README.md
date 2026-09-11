@@ -261,16 +261,16 @@ flowchart TD
 
 ## 기술 구성
 
-목표 스택과 현재 반영 여부를 함께 적습니다. 프런트엔드는 랜딩 화면까지, 백엔드는
-인증(auth-service)과 채용공고 수집·영속화까지 실제 구현이 있고, 나머지 도메인은
-스텁 또는 미착수 단계입니다.
+목표 스택과 현재 반영 여부를 함께 적습니다. 프런트엔드는 랜딩·로그인·회원가입과 온보딩
+4화면·대시보드·시뮬레이터까지, 백엔드는 인증(auth-service)과 채용공고 수집·영속화까지 실제
+구현이 있고, 나머지 도메인은 스텁 또는 미착수 단계입니다.
 
 | 계층 | 기술 | 책임 | 현재 |
 | --- | --- | --- | --- |
-| 프런트엔드 | Vite, React, TypeScript, React Router Framework Mode | UI, 라우팅, SSR·사전 렌더링 | 도입 — 랜딩·로그인·회원가입이 실제로 동작합니다. 온보딩·대시보드·마이페이지는 라우트와 가드만 있고 화면은 플레이스홀더입니다. `ssr: false` + `/` 사전 렌더링 구성이라 SSR은 아직 꺼져 있고, 가드는 클라이언트에서 돕니다 |
+| 프런트엔드 | Vite, React, TypeScript, React Router Framework Mode | UI, 라우팅, SSR·사전 렌더링 | 도입 — 랜딩·로그인·회원가입과 온보딩 4화면(`S-05`·`S-06`·`S-07`·`S-09`)·대시보드 메인(`S-10`)·시뮬레이터(`S-15`)가 실제로 동작합니다. 스킬 입력(`S-08`)과 스냅샷 이력·마이페이지·추이분석(`S-11`~`S-14`)은 라우트와 가드만 있고 화면은 플레이스홀더입니다. `ssr: false` + `/` 사전 렌더링 구성이라 SSR은 아직 꺼져 있고, 가드는 클라이언트에서 돕니다 |
 | Node SSR | Node.js 24 LTS, Express, `@react-router/express` | HTML 렌더링, SEO metadata, 공개 콘텐츠 | 미도입 — `frontend/server.js`는 `node:http` 정적 파일 서버입니다. 사전 렌더링된 `/` 는 그대로 주고, 나머지 앱 경로는 SPA 셸(`__spa-fallback.html`)로 넘겨 클라이언트가 라우팅합니다 (아래 §렌더링 전략 주석 참조) |
-| 클라이언트 데이터 | TanStack Query, React Hook Form, Zod | API 상태, 입력 폼, 검증 | 미도입 |
-| UI·시각화 | Tailwind CSS, shadcn/ui, Recharts | 컴포넌트, 스타일, 지수 차트 | 부분 도입 — Tailwind CSS 4(`@tailwindcss/vite`)만 도입. shadcn/ui·Recharts는 미도입 |
+| 클라이언트 데이터 | React Router 7 `clientLoader`·`clientAction`, Zod | API 상태, 입력 폼, 검증 | 도입 — 프레임워크 loader·action 이 서버 상태를, Zod 스키마가 검증을 맡습니다. TanStack Query·React Hook Form 은 역할이 겹쳐 채택하지 않았습니다 ([프런트엔드 설계 §기술 구성](docs/specs/frontend-design.md)) |
+| UI·시각화 | Tailwind CSS, shadcn/ui, Recharts | 컴포넌트, 스타일, 지수 차트 | 부분 도입 — Tailwind CSS 4(`@tailwindcss/vite`)·shadcn/ui(Button·Input·Card 등, `@/` 경로 별칭 배선 포함) 도입. Recharts는 미도입 — 소비 화면 도넛은 CSS `conic-gradient` 로 만들었다 |
 | 백엔드 | Java 25, Spring Boot 4.1, Gradle 멀티모듈 | 인증, 도메인 로직, REST API, 데이터 접근 | 도입 (인증은 auth-service에 구현·배포 배선 완료. core-api는 DB를 쓰지 않는다 — 채용공고 도메인은 `collector`로 이동했고, 대시보드·소득·소비·스킬·시나리오·프로필·참조 도메인은 REST 컨트롤러와 DTO만 있는 고정 응답 스텁 — 서비스·리포지터리 미연결) |
 | API 문서 | springdoc-openapi | OpenAPI 문서, Swagger UI | 도입 |
 | 데이터 접근 | Spring Data JPA, Flyway | 영속화, 스키마 마이그레이션 | 모듈별로 다름 — auth-service(`auth` 스키마)는 Flyway로 관리. collector(`core` 스키마)는 **Flyway를 쓰지 않고 DDL을 직접 적용**한다(정본은 [상세 기술 명세](docs/specs/technical-specification.md), 절차는 [DEVELOPMENT.md §3.2](docs/DEVELOPMENT.md)). 채용공고 도메인이 JPA로 매핑돼 있다. core-api는 DB를 쓰지 않아 JPA·Flyway 둘 다 미도입 |
@@ -297,8 +297,8 @@ flowchart TD
 | --- | --- |
 | Vite + React + React Router (Next.js 대체) | Next.js는 풀스택 프레임워크라 Node 계층이 API·데이터로 번지기 쉽고 Spring Boot와 역할 경계가 흐려집니다. Node는 HTML SSR·SEO만 맡깁니다 (자세한 배경은 [프런트엔드 설계](docs/specs/frontend-design.md)) |
 | Node SSR (Express) | 공개 랜딩·콘텐츠의 SEO와 로그인 후 대시보드의 상호작용성을 한 앱에서 지원하기 위해 |
-| TanStack Query | 서버 상태를 클라이언트 스토어에 복제하지 않기 위해. 캐시·재검증을 직접 구현하지 않습니다 |
-| Zod + React Hook Form | 입력 검증을 프런트·백엔드 양쪽에서 하되, 프런트 스키마를 한 곳에 두기 위해 |
+| React Router 7 `clientLoader`·`clientAction` (TanStack Query 대체) | 프레임워크가 조회·제출·재검증을 이미 갖고 있어 별도 서버 상태 캐시를 얹으면 역할이 겹칩니다 |
+| Zod (React Hook Form 없이) | 입력 검증을 프런트·백엔드 양쪽에서 하되, 프런트 스키마를 한 곳에 둡니다. `clientAction`이 제출을 받고 Zod가 파싱하면 React Hook Form이 더할 역할이 제어 컴포넌트 상태 관리뿐이라 넣지 않았습니다 |
 | Recharts | 지수·트렌드 차트가 핵심 화면이며 React 컴포넌트 모델과 맞물립니다 |
 | Java 25 | 최신 LTS. Spring Boot 4.x의 하한(17)보다 높고 가상 스레드·AOT 캐시(Java 25+ 전용) 등 최신 LTS 기능을 씁니다 |
 | Spring Boot 4.1 | 스캐폴드 시점의 최신 GA. Spring Initializr 기본값이며 3.x는 더 이상 제공되지 않습니다 |
@@ -372,7 +372,7 @@ Node SSR 전환(Express + `@react-router/express`)은 **MVP 범위 밖으로 미
 | 백엔드 단위·슬라이스 | JUnit 5, Spring Boot Test, MockMvc | 도입 |
 | 백엔드 통합 | — | **두지 않습니다.** 테스트용 DB를 쓰지 않기로 했습니다. 로컬에 Docker가 없어 Testcontainers 테스트가 어디서도 실행되지 않던 상태라, auth-service의 해당 테스트 10개와 의존성을 제거했습니다 |
 | 프런트 단위·컴포넌트 | Vitest, Testing Library | 도입 — `pnpm test:unit` |
-| API 모킹 | MSW | 미도입 |
+| API 모킹 | `vi.spyOn`(모듈 함수 직접 모킹) | 도입 — 네트워크 계층을 가로챌 MSW는 채택하지 않았습니다 |
 | 브라우저 E2E | Playwright | 도입 — 랜딩 E2E와 `@axe-core/playwright` 접근성 검사 (`pnpm test:e2e`) |
 
 PR 단계 CI(`pr-check.yml`)를 통해 백엔드 전체 테스트(`./gradlew check`) 및 프런트엔드 타입체크·린트·단위테스트(`pnpm`)를 자동 검증합니다. `main` 푸시 시 배포 워크플로(`deploy.yml`)가 동작합니다.
@@ -446,7 +446,7 @@ PR 단계에서 `pr-check.yml` 워크플로가 백엔드 테스트와 프런트�
 - `GET /api/v1/skills/search`, `POST /api/v1/user-skills`, `DELETE /api/v1/user-skills/{id}` —
   구현 완료 (JPA로 `core` 스키마 사용)
 - `/api/v1/dashboard/**`, `/api/v1/income/**`, `/api/v1/expenses/**`, `/api/v1/scenarios/**`,
-  `/api/v1/reference/**`, `/api/v1/profile`, `/api/v1/onboarding`, `DELETE /api/v1/users` —
+  `/api/v1/reference/**`, `/api/v1/profile`, `DELETE /api/v1/users` —
   고정 응답 스텁 (API 규격 및 명세 우선 확정 단계)
 
 `collector`의 파이프라인 관리 API(`/internal/pipeline/**`)는 게이트웨이가 라우팅하지 않아
