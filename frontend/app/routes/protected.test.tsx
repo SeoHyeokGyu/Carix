@@ -4,7 +4,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as authApi from "../lib/authApi";
 import * as sessionLib from "../lib/session";
 import type { Session } from "../lib/session";
-import * as SessionProviderModule from "../lib/SessionProvider";
 import ProtectedLayout, { HydrateFallback, clientLoader } from "./protected";
 
 const { ANONYMOUS } = sessionLib;
@@ -13,19 +12,16 @@ vi.mock("../lib/authApi", () => ({
   fetchSession: vi.fn(),
 }));
 
-vi.mock("../lib/SessionProvider", () => ({
-  SessionProvider: vi.fn(({ children }: { children: React.ReactNode }) => (
-    <div data-testid="session-provider">{children}</div>
-  )),
-}));
-
 describe("보호 레이아웃 (protected)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     sessionLib.resetSession();
   });
 
-  it("loader 가 반환한 세션을 SessionProvider 에 그대로 전달한다", async () => {
+  // SessionProvider 는 최종 리뷰에서 제거됐다 — 세션은 module-level 캐시(session.ts)가
+  // 정본이고 하위 layout 이 각자 requireSession() 으로 읽는다. 이 레이아웃은 하위
+  // 라우트를 그대로 렌더하기만 하면 된다.
+  it("하위 라우트를 그대로 렌더한다", async () => {
     const session: Session = {
       status: "authenticated",
       userId: "u-1",
@@ -47,12 +43,7 @@ describe("보호 레이아웃 (protected)", () => {
 
     render(<Stub initialEntries={["/"]} />);
 
-    expect(await screen.findByTestId("session-provider")).toBeInTheDocument();
-    expect(screen.getByTestId("outlet")).toBeInTheDocument();
-
-    const providerProps = vi.mocked(SessionProviderModule.SessionProvider).mock
-      .calls[0]?.[0];
-    expect(providerProps).toMatchObject({ initialSession: session });
+    expect(await screen.findByTestId("outlet")).toBeInTheDocument();
   });
 
   describe("clientLoader", () => {

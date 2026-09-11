@@ -9,7 +9,8 @@ export default function Register() {
 
   async function handleRegister(email: string, password: string) {
     const response = await register(email, password);
-    // 가입 화면은 protected 레이아웃 밖이라 SessionProvider 가 없다 — 모듈 캐시를 직접 채운다.
+    // 가입 화면은 protected 레이아웃 밖이라 세션 캐시가 아직 채워지지 않았다 — 모듈
+    // 캐시를 직접 채운다.
     setSession({ status: "authenticated", ...response });
     void navigate(stepPath(response.onboardingStep), { replace: true });
   }
