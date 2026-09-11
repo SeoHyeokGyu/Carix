@@ -3,6 +3,7 @@ package com.carix.authservice.user;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
+import static org.mockito.Mockito.never;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -107,5 +108,45 @@ class OnboardingControllerTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"currentStep\":\"DONE\"}"))
         .andExpect(status().isBadRequest());
+  }
+
+  // FIX 1 (Critical, 최종 리뷰) — 서버는 클라이언트 가드(routeGuards.ts
+  // isForwardStep)의 2차 방어선이다. 클라이언트 버그나 가드를 우회한 직접 호출로
+  // 뒤로 가는 요청이 와도 users.onboarding_step 이 조용히 되돌아가면 안 된다.
+  @Test
+  void 뒤로_가는_단계_전환은_400_이고_저장하지_않는다() throws Exception {
+    given(sessionService.findUserIdBySessionToken(TOKEN)).willReturn(Optional.of(USER_ID));
+    given(userRepository.findById(USER_ID)).willReturn(Optional.of(user("REVIEW")));
+
+    mockMvc
+        .perform(
+            patch("/v1/auth/onboarding")
+                .cookie(sessionCookie())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"currentStep\":\"PROFILE\"}"))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.code").value("ONBOARDING_STEP_REGRESSION"));
+
+    then(userRepository).should(never()).save(any(User.class));
+  }
+
+  // 같은 단계로의 재전환은 "뒤로"가 아니다 — 완료(COMPLETED) 후 재진입이 허용된
+  // 검토 화면(guardOnboarding)을 다시 제출하는 정상 경로가 이 케이스를 실제로 탄다.
+  // 막으면 멀쩡한 재제출이 400 을 받는다.
+  @Test
+  void 같은_단계로의_재전환은_허용한다() throws Exception {
+    given(sessionService.findUserIdBySessionToken(TOKEN)).willReturn(Optional.of(USER_ID));
+    given(userRepository.findById(USER_ID)).willReturn(Optional.of(user("COMPLETED")));
+
+    mockMvc
+        .perform(
+            patch("/v1/auth/onboarding")
+                .cookie(sessionCookie())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"currentStep\":\"COMPLETED\"}"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.completed").value(true));
+
+    then(userRepository).should().save(any(User.class));
   }
 }

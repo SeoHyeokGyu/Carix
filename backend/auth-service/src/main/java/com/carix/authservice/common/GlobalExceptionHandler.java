@@ -40,4 +40,11 @@ public class GlobalExceptionHandler {
     return ResponseEntity.badRequest()
         .body(ErrorResponse.of("INVALID_INPUT", e.getMessage(), null));
   }
+
+  @ExceptionHandler(com.carix.authservice.user.OnboardingStepRegressionException.class)
+  public ResponseEntity<ErrorResponse> handleOnboardingStepRegression(
+      com.carix.authservice.user.OnboardingStepRegressionException e) {
+    return ResponseEntity.badRequest()
+        .body(ErrorResponse.of("ONBOARDING_STEP_REGRESSION", e.getMessage(), null));
+  }
 }
