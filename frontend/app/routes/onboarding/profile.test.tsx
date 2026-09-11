@@ -84,7 +84,15 @@ describe("S-05 프로필 화면", () => {
     await user.click(screen.getByRole("button", { name: "다음" }));
 
     expect(await screen.findByText("소득 화면")).toBeInTheDocument();
-    expect(patch).toHaveBeenCalled();
+    // 호출 여부만으로는 필드 하나가 누락되거나 잘못된 키로 나가도 통과할 수 있다
+    // — 실제로 보낸 페이로드를 직접 단언한다(companySize 는 선택 필드라 고르지
+    // 않으면 키 자체가 없다, formData.ts 의 "빈 문자열은 키를 안 만든다" 규칙).
+    expect(patch).toHaveBeenCalledWith({
+      jobFamily: "DEVELOPER",
+      yearsOfExperience: 5,
+      region: "서울",
+      employmentType: "FULL_TIME",
+    });
     expect(advance).toHaveBeenCalledWith("INCOME");
   });
 
