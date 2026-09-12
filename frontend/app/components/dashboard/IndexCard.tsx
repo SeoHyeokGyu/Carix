@@ -28,15 +28,19 @@ export function IndexCard({
   const { value, changeFromLastMonth, indexStatus } = index;
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>{title}</CardTitle>
+    <Card className="p-5 gap-3 transition-transform hover:-translate-y-0.5 duration-200">
+      <CardHeader className="p-0">
+        <CardTitle className="text-xs font-medium text-carix-text/70">
+          {title}
+        </CardTitle>
       </CardHeader>
-      <CardContent className="flex flex-col gap-2">
+      <CardContent className="p-0 flex flex-col gap-2">
         {/* 값이 없으면(indexStatus !== "OK") 절대 0 이나 100 으로 채우지 않는다 — 아예 렌더링하지 않는다. */}
         {value !== null && (
           <div className="flex items-baseline gap-2">
-            <span className="text-2xl font-bold">{value.toFixed(1)}</span>
+            <span className="text-2xl font-bold tracking-tight text-carix-text">
+              {value.toFixed(1)}
+            </span>
             {changeFromLastMonth !== null && (
               <Badge
                 variant={changeFromLastMonth < 0 ? "destructive" : "secondary"}

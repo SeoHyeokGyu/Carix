@@ -30,7 +30,7 @@ export function CoreIndexCards() {
           {CORE_INDEX_CARDS.map((card) => (
             <article
               key={card.title}
-              className="rounded-2xl border border-carix-border bg-carix-surface p-6 shadow-sm transition-all duration-300 hover:shadow-md"
+              className="rounded-xl border border-carix-border bg-carix-surface p-6 shadow-xs transition-transform hover:-translate-y-0.5 duration-200"
             >
               <div className="flex items-center gap-3">
                 <span className="text-3xl" role="img" aria-label={card.title}>

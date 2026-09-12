@@ -46,7 +46,7 @@ export function IncomeVsPriceChart({ data }: IncomeVsPriceChartProps) {
     return (
       <div
         data-testid="trends-empty-state"
-        className="rounded-xl border border-dashed border-carix-border bg-carix-surface p-12 text-center"
+        className="rounded-xl border border-dashed border-carix-border bg-carix-surface p-12 text-center shadow-xs"
       >
         <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-carix-info/10 text-xl">
           📊
@@ -196,7 +196,7 @@ export function IncomeVsPriceChart({ data }: IncomeVsPriceChartProps) {
   return (
     <div
       data-testid="income-vs-price-chart"
-      className="rounded-xl border border-carix-border bg-carix-surface p-6 shadow-sm"
+      className="rounded-xl border border-carix-border bg-carix-surface p-6 shadow-xs"
     >
       {/* 1. 상단 타이틀 및 상태 */}
       <div className="flex flex-wrap items-start justify-between gap-4 border-b border-carix-border pb-4">
