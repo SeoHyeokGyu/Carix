@@ -4,6 +4,7 @@ import { guardSession, LANDING_PATH } from "../../lib/routeGuards";
 import { requireSession } from "../../lib/session";
 
 const TABS: NavItem[] = [
+  { to: "/dashboard", label: "대시보드" },
   { to: "/mypage/records", label: "이력 관리" },
   { to: "/mypage/profile", label: "설정" },
 ];

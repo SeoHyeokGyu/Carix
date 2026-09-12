@@ -25,3 +25,20 @@ export async function advanceOnboarding(step: OnboardingStep) {
   }
   return (await response.json()) as { currentStep: string; completed: boolean };
 }
+
+/**
+ * 온보딩을 1단계(PROFILE)부터 다시 시작하도록 초기화한다.
+ */
+export async function resetOnboarding() {
+  const response = await fetch("/api/v1/auth/onboarding/reset", {
+    method: "POST",
+    credentials: "include",
+  });
+  if (response.status === 401) {
+    throw new UnauthorizedError();
+  }
+  if (!response.ok) {
+    throw new Error("온보딩을 재시작하지 못했습니다.");
+  }
+  return (await response.json()) as { currentStep: string; completed: boolean };
+}

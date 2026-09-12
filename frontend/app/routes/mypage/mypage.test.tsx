@@ -1,9 +1,11 @@
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { createRoutesStub } from "react-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import * as onboardingApi from "../../lib/onboardingApi";
 import { resetSession, setSession } from "../../lib/session";
 import MypageLayout, { clientLoader as mypageLayoutLoader } from "./layout";
-import MypageProfile from "./profile";
+import MypageProfile, { clientAction as mypageProfileAction } from "./profile";
 import MypageRecords from "./records";
 
 describe("마이페이지 라우트 및 레이아웃 (Mypage)", () => {
@@ -15,10 +17,60 @@ describe("마이페이지 라우트 및 레이아웃 (Mypage)", () => {
   });
 
   describe("개별 화면 (Pages)", () => {
-    it("MypageProfile(설정) 화면을 정상 렌더링한다", () => {
-      render(<MypageProfile />);
-      expect(screen.getByText("S-13")).toBeInTheDocument();
+    it("MypageProfile(설정) 화면을 정상 렌더링한다", async () => {
+      const Stub = createRoutesStub([
+        {
+          path: "/mypage/profile",
+          Component: MypageProfile,
+        },
+      ]);
+      render(<Stub initialEntries={["/mypage/profile"]} />);
+      expect(await screen.findByText("S-13")).toBeInTheDocument();
       expect(screen.getByRole("heading", { name: "설정" })).toBeInTheDocument();
+      expect(screen.getByText("온보딩 재설정")).toBeInTheDocument();
+      expect(
+        screen.getByRole("button", { name: "온보딩 처음부터 다시 시작" }),
+      ).toBeInTheDocument();
+    });
+
+    it("온보딩 다시 시작을 누르면 resetOnboarding 을 부르고 프로필로 이동한다", async () => {
+      setSession({
+        status: "authenticated",
+        userId: "user-1",
+        email: "user@carix.kr",
+        onboardingStep: "COMPLETED",
+      });
+
+      const resetSpy = vi
+        .spyOn(onboardingApi, "resetOnboarding")
+        .mockResolvedValue({
+          currentStep: "PROFILE",
+          completed: false,
+        });
+
+      const Stub = createRoutesStub([
+        {
+          path: "/mypage/profile",
+          Component: MypageProfile,
+          action: mypageProfileAction,
+        },
+        {
+          path: "/onboarding/profile",
+          Component: () => <div>프로필 화면</div>,
+        },
+      ]);
+
+      render(<Stub initialEntries={["/mypage/profile"]} />);
+      const user = userEvent.setup();
+
+      await user.click(
+        await screen.findByRole("button", {
+          name: "온보딩 처음부터 다시 시작",
+        }),
+      );
+
+      expect(resetSpy).toHaveBeenCalledTimes(1);
+      expect(await screen.findByText("프로필 화면")).toBeInTheDocument();
     });
 
     it("MypageRecords(이력 관리) 화면을 정상 렌더링한다", () => {

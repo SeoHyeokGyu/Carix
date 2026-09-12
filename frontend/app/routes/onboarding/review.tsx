@@ -22,7 +22,7 @@ import { listExpenses } from "../../lib/api/expense";
 import { listUserSkills } from "../../lib/api/userSkills";
 import { UnauthorizedError } from "../../lib/coreApi";
 import type { FieldErrors } from "../../lib/fieldErrors";
-import { advanceOnboarding } from "../../lib/onboardingApi";
+import { advanceOnboarding, resetOnboarding } from "../../lib/onboardingApi";
 import { LOGIN_PATH } from "../../lib/routeGuards";
 import {
   COMPANY_SIZES,
@@ -110,13 +110,17 @@ const GATE_REFUSAL_MESSAGE =
 
 export async function clientLoader() {
   try {
-    const [profile, income, expenses, skills] = await Promise.all([
+    const [profile, income, expenses, skills, session] = await Promise.all([
       getProfile(),
       listIncome(),
       listExpenses(),
       listUserSkills(),
+      requireSession(),
     ]);
-    return { profile, income, expenses, skills };
+    const isCompleted =
+      session.status === "authenticated" &&
+      session.onboardingStep === "COMPLETED";
+    return { profile, income, expenses, skills, isCompleted };
   } catch (error) {
     if (error instanceof UnauthorizedError) throw redirect(LOGIN_PATH);
     // 조회 실패는 이 화면에 그릴 자리가 없다 — ErrorBoundary 몫이다(다른 온보딩 화면과 동일 판단).
@@ -124,7 +128,24 @@ export async function clientLoader() {
   }
 }
 
-export async function clientAction() {
+export async function clientAction({ request }: { request: Request }) {
+  const formData = await request.formData();
+  const intent = formData.get("intent");
+
+  if (intent === "reset") {
+    try {
+      await resetOnboarding();
+      const session = await requireSession();
+      if (session.status === "authenticated") {
+        setSession({ ...session, onboardingStep: "PROFILE" });
+      }
+      return redirect("/onboarding/profile");
+    } catch (error) {
+      if (error instanceof UnauthorizedError) throw redirect(LOGIN_PATH);
+      return { errors: { _form: toUserMessage(error) } } satisfies ActionData;
+    }
+  }
+
   try {
     // 렌더는 loader 가 진입 시점에 가져온 데이터로 버튼을 보여줬을 뿐이다 —
     // 그 사이(다른 탭에서 소득 이력을 지우는 등) 완비 조건이 깨질 수 있다.
@@ -157,7 +178,7 @@ export async function clientAction() {
 }
 
 export default function Review() {
-  const { profile, income, expenses, skills } =
+  const { profile, income, expenses, skills, isCompleted } =
     useLoaderData<typeof clientLoader>();
   const actionData = useActionData<typeof clientAction>();
   const navigation = useNavigation();
@@ -211,6 +232,31 @@ export default function Review() {
       <h1 className="mt-6 font-display text-3xl font-bold text-carix-text sm:text-4xl">
         검토
       </h1>
+
+      {isCompleted && (
+        <div className="mt-6 rounded-lg border border-carix-info/40 bg-carix-info/10 p-5 text-sm text-carix-text">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="font-semibold text-carix-info">온보딩 완료 상태</p>
+              <p className="mt-1 text-carix-text/80">
+                이미 온보딩을 완료하셨습니다. 처음부터 다시 온보딩을
+                진행하시려면 재시작을 눌러주세요.
+              </p>
+            </div>
+            <Button
+              type="submit"
+              name="intent"
+              value="reset"
+              form="review-form"
+              variant="default"
+              disabled={isSubmitting}
+              className="self-start sm:self-auto"
+            >
+              온보딩 처음부터 다시 시작
+            </Button>
+          </div>
+        </div>
+      )}
 
       <div className="mt-6 flex flex-col gap-4">
         <Card>
@@ -313,14 +359,14 @@ export default function Review() {
         </p>
       </div>
 
-      <Form method="post" className="mt-8 flex flex-col gap-4">
+      <Form id="review-form" method="post" className="mt-8 flex flex-col gap-4">
         {errors?._form && (
           <p role="alert" className="text-sm text-destructive">
             {errors._form}
           </p>
         )}
 
-        {!canSubmit && (
+        {!canSubmit && !isCompleted && (
           <div className="flex flex-col gap-2 text-sm text-carix-text/80">
             <p>다음 단계를 완료해야 제출할 수 있습니다.</p>
             <ul className="flex flex-col gap-1">
@@ -338,16 +384,37 @@ export default function Review() {
         {/* 와이어프레임(05-review.html) 순서 그대로 "이전"이 먼저, 제출 버튼이 그
             다음이다. DOM 순서를 CSS 로 뒤집지 않는다. */}
         <div className="flex flex-wrap gap-3">
-          <Link
-            to="/onboarding/skills"
-            className={buttonVariants({ variant: "outline" })}
-          >
-            이전
-          </Link>
-          {canSubmit && (
-            <Button type="submit" disabled={isSubmitting}>
-              제출하고 대시보드로
-            </Button>
+          {!isCompleted && (
+            <Link
+              to="/onboarding/skills"
+              className={buttonVariants({ variant: "outline" })}
+            >
+              이전
+            </Link>
+          )}
+          {isCompleted ? (
+            <>
+              <Button
+                type="submit"
+                name="intent"
+                value="reset"
+                disabled={isSubmitting}
+              >
+                온보딩 처음부터 다시 시작
+              </Button>
+              <Link
+                to="/dashboard"
+                className={buttonVariants({ variant: "outline" })}
+              >
+                대시보드로 돌아가기
+              </Link>
+            </>
+          ) : (
+            canSubmit && (
+              <Button type="submit" disabled={isSubmitting}>
+                제출하고 대시보드로
+              </Button>
+            )
           )}
         </div>
       </Form>

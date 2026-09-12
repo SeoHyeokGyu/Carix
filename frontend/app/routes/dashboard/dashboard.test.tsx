@@ -95,6 +95,9 @@ describe("대시보드 라우트 및 레이아웃 (Dashboard)", () => {
       expect(await screen.findByText("94.2")).toBeInTheDocument();
       expect(screen.getByText("117.5")).toBeInTheDocument();
       expect(screen.getByText("이직 탐색")).toBeInTheDocument();
+      expect(
+        screen.getByRole("link", { name: "온보딩 검토 및 재시작" }),
+      ).toHaveAttribute("href", "/onboarding/review");
     });
 
     // 브리프 시나리오 2 — 둘 다 계산 전이면 첫 계산 안내를 띄운다.
