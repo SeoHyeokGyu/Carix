@@ -1,13 +1,8 @@
 import { redirect } from "react-router";
-import { AppShell, type NavItem } from "../../components/layout/AppShell";
+import { AppShell } from "../../components/layout/AppShell";
 import { guardSession, LANDING_PATH } from "../../lib/routeGuards";
 import { requireSession } from "../../lib/session";
-
-const TABS: NavItem[] = [
-  { to: "/dashboard", label: "대시보드" },
-  { to: "/mypage/records", label: "이력 관리" },
-  { to: "/mypage/profile", label: "설정" },
-];
+import { MAIN_NAV_ITEMS, MAIN_UTILITY_ITEMS } from "../dashboard/layout";
 
 /** 마이페이지는 온보딩 완료를 요구하지 않는다 — 중단한 사용자도 계정 삭제는 할 수 있어야 한다. */
 export async function clientLoader() {
@@ -23,5 +18,11 @@ export async function clientLoader() {
 }
 
 export default function MypageLayout() {
-  return <AppShell navLabel="마이페이지" items={TABS} />;
+  return (
+    <AppShell
+      navLabel="마이페이지"
+      items={MAIN_NAV_ITEMS}
+      utilityItems={MAIN_UTILITY_ITEMS}
+    />
+  );
 }

@@ -2,11 +2,14 @@ import { useState, useEffect, useCallback } from "react";
 import {
   fetchSalaryDistribution,
   fetchSkillDemands,
+  fetchTrends,
   type SalaryDistributionResponse,
   type SkillDemandResponse,
+  type TrendListResponse,
 } from "../../lib/dashboardMarketApi";
 import { SalaryDistributionChart } from "../../components/dashboard/SalaryDistributionChart";
 import { SkillDemandSection } from "../../components/dashboard/SkillDemandSection";
+import { IncomeVsPriceChart } from "../../components/dashboard/IncomeVsPriceChart";
 
 type TrendsTab = "INCOME_VS_PRICE" | "SKILL_DEMAND" | "SALARY_DISTRIBUTION";
 
@@ -27,6 +30,7 @@ export default function DashboardTrends() {
   const [salaryData, setSalaryData] =
     useState<SalaryDistributionResponse | null>(null);
   const [skillData, setSkillData] = useState<SkillDemandResponse | null>(null);
+  const [trendData, setTrendData] = useState<TrendListResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -34,9 +38,10 @@ export default function DashboardTrends() {
     setIsLoading(true);
     setErrorMessage(null);
     try {
-      const [salaryRes, skillRes] = await Promise.allSettled([
+      const [salaryRes, skillRes, trendRes] = await Promise.allSettled([
         fetchSalaryDistribution(),
         fetchSkillDemands(),
+        fetchTrends(),
       ]);
 
       if (salaryRes.status === "fulfilled") {
@@ -45,8 +50,15 @@ export default function DashboardTrends() {
       if (skillRes.status === "fulfilled") {
         setSkillData(skillRes.value);
       }
+      if (trendRes.status === "fulfilled") {
+        setTrendData(trendRes.value);
+      }
 
-      if (salaryRes.status === "rejected" && skillRes.status === "rejected") {
+      if (
+        salaryRes.status === "rejected" &&
+        skillRes.status === "rejected" &&
+        trendRes.status === "rejected"
+      ) {
         setErrorMessage("시장 분석 데이터를 불러오는 데 실패했습니다.");
       }
     } catch {
@@ -176,17 +188,14 @@ export default function DashboardTrends() {
 
           {/* 탭 3: 소득 vs 물가 */}
           {activeTab === "INCOME_VS_PRICE" && (
-            <div className="rounded-xl border border-dashed border-carix-border bg-carix-surface p-8 text-center">
-              <h3 className="text-base font-semibold text-carix-text">
-                소득 대 개인물가 지수 추이
-              </h3>
-              <p className="mt-2 text-xs text-carix-text/60">
-                기준월(100) 대비 소득 지수선과 개인물가 지수선 및 구매력 손실
-                음영 차트입니다.
-              </p>
-              <div className="mt-6 rounded bg-carix-bg p-4 text-xs text-carix-text/50">
-                [소득 vs 개인물가 지수 시계열 차트 연동 예정 영역]
-              </div>
+            <div>
+              {trendData ? (
+                <IncomeVsPriceChart data={trendData} />
+              ) : (
+                <div className="rounded-xl border border-carix-border bg-carix-surface p-8 text-center text-sm text-carix-text/60">
+                  소득 대 물가 추이 데이터를 불러오지 못했습니다.
+                </div>
+              )}
             </div>
           )}
         </div>

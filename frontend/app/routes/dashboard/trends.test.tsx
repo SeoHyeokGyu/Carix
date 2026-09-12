@@ -7,6 +7,7 @@ import * as dashboardMarketApi from "../../lib/dashboardMarketApi";
 vi.mock("../../lib/dashboardMarketApi", () => ({
   fetchSalaryDistribution: vi.fn(),
   fetchSkillDemands: vi.fn(),
+  fetchTrends: vi.fn(),
 }));
 
 describe("S-14 DashboardTrends 라우트", () => {
@@ -55,6 +56,31 @@ describe("S-14 DashboardTrends 라우트", () => {
       ],
       coverage: "보유 스킬 1개 중 1개 반영 (가중치 100% 재정규화)",
     });
+
+    vi.mocked(dashboardMarketApi.fetchTrends).mockResolvedValue({
+      trends: [
+        {
+          yearMonth: "202601",
+          incomeIndex: 100,
+          personalPriceIndex: 100,
+          purchasingPowerIndex: 100,
+          marketValueIndex: 100,
+          nominalIncome: 60000000,
+          realIncome: 60000000,
+        },
+        {
+          yearMonth: "202602",
+          incomeIndex: 102,
+          personalPriceIndex: 101,
+          purchasingPowerIndex: 100.9,
+          marketValueIndex: 102,
+          nominalIncome: 61200000,
+          realIncome: 60500000,
+        },
+      ],
+      purchasingPowerStatus: "OK",
+      marketValueStatus: "OK",
+    });
   });
 
   it("S-14 화면 헤더 및 기본 탭(스킬 수요)을 정상 렌더링한다", async () => {
@@ -96,7 +122,7 @@ describe("S-14 DashboardTrends 라우트", () => {
     });
   });
 
-  it("소득 vs 물가 탭 클릭 시 Member A 안내 영역이 표시된다", async () => {
+  it("소득 vs 물가 탭 클릭 시 IncomeVsPriceChart 컴포넌트가 마운트된다", async () => {
     render(
       <MemoryRouter>
         <DashboardTrends />
@@ -112,9 +138,61 @@ describe("S-14 DashboardTrends 라우트", () => {
     });
     fireEvent.click(incomeVsPriceTabBtn);
 
-    expect(screen.getByText("소득 대 개인물가 지수 추이")).toBeInTheDocument();
-    expect(
-      screen.getByText(/소득 vs 개인물가 지수 시계열 차트/i),
-    ).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByTestId("income-vs-price-chart")).toBeInTheDocument();
+      expect(
+        screen.getByText("소득 대 개인물가 지수 추이"),
+      ).toBeInTheDocument();
+    });
+  });
+
+  it("연봉 분포 데이터가 null일 때 안내 문구를 렌더링한다", async () => {
+    vi.mocked(dashboardMarketApi.fetchSalaryDistribution).mockResolvedValue(
+      null as never,
+    );
+
+    render(
+      <MemoryRouter>
+        <DashboardTrends />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText("Kotlin")).toBeInTheDocument();
+    });
+
+    const salaryTabBtn = screen.getByRole("button", { name: "연봉 분포" });
+    fireEvent.click(salaryTabBtn);
+
+    await waitFor(() => {
+      expect(
+        screen.getByText("연봉 분포 데이터를 불러오지 못했습니다."),
+      ).toBeInTheDocument();
+    });
+  });
+
+  it("소득 대 물가 데이터가 null일 때 안내 문구를 렌더링한다", async () => {
+    vi.mocked(dashboardMarketApi.fetchTrends).mockResolvedValue(null as never);
+
+    render(
+      <MemoryRouter>
+        <DashboardTrends />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText("Kotlin")).toBeInTheDocument();
+    });
+
+    const incomeVsPriceTabBtn = screen.getByRole("button", {
+      name: "소득 vs 물가",
+    });
+    fireEvent.click(incomeVsPriceTabBtn);
+
+    await waitFor(() => {
+      expect(
+        screen.getByText("소득 대 물가 추이 데이터를 불러오지 못했습니다."),
+      ).toBeInTheDocument();
+    });
   });
 });

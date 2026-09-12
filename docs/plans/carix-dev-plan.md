@@ -92,6 +92,15 @@
 | C `c4a` | `GET /dashboard/summary`·`/trends`·`/history` 실데이터 전환. `c4` 의 API 분만이고 `S-12`·`S-14` 화면 셸은 잔여다 | 2026-09-06 |
 | A·B·C | 스냅샷 재계산 트리거 배선 — 소득 3·소비 1·스킬 3·프로필 1. `fromYm` 규약은 `YearMonths` | 2026-09-06 |
 | A `a1` | CPI 수집 파이프라인(`POST /internal/pipeline/cpi` → `core.cpi_observation`) & 소득/소비 이력 CRUD API (`/v1/income` 4개, `/v1/expenses` 조회·월단위 upsert) | 2026-09-06 |
+| B 3~4주차 | `S-08` 스킬 온보딩 UI (자동완성 검색·커스텀 스킬 등록·경력 입력 및 관리) | 2026-09-12 (PR #144) |
+| B 3~4주차 | `S-14` 연봉분포 & 스킬수요 차트 2종 (`SalaryDistributionChart`, `SkillDemandSection`) | 2026-09-12 (PR #144) |
+| B 3~4주차 | `S-13` 설정 화면 셸 및 온보딩 재시작(`POST /v1/auth/onboarding/reset`) 실화면 연동 | 2026-09-12 (PR #147) |
+| B 3~4주차 | `S-14` 소득 vs 물가 차트 연동 (`IncomeVsPriceChart`, 기준월 100 2계열 및 구매력 손실 밴드) | 2026-09-12 |
+| B 3~4주차 | `S-11` 월별 스냅샷 이력 화면 UI (실데이터 연동, 테이블·상세 근거 패널, 갭 처리) | 2026-09-12 |
+| B 3~4주차 | `S-13` 계정 삭제/탈퇴 및 세션 관리 (`DELETE /v1/users`, `POST /v1/auth/logout-all`, 탈퇴 UI) | 2026-09-12 |
+| A/C 3~4주차 | 기준월 세전 연봉 공급자 (`IncomeCurrentSalaryProvider`) — 복호화 경계 유지 및 소득 격차 분모 제공 | 2026-09-12 |
+| A/C 3~4주차 | 기본 구매력 지수 산출기 (`DefaultPurchasingPowerIndexProvider`) — 최초 소득월 100 기준월 설정 및 스냅샷 결측 해소 | 2026-09-12 |
+| B 3~4주차 | OCI DB 실측 데이터(공고 4,356건, 사전집계 12,568행) 검증 및 동료집단 최소 표본($N \ge 10$) 충족 확인 | 2026-09-12 |
 
 ```mermaid
 gantt
@@ -112,8 +121,8 @@ gantt
     스킬수요 지수 & MVI 계산 엔진 :done, b2, 2026-08-30, 4d
     S-16 관리자 파이프라인 콘솔(US-M1) :done, b16, 2026-09-05, 1d
     salary-distribution API — 원 공고 직접 집계 :done, b3a, 2026-09-06, 1d
-    스킬 UI(S-08) & 차트 3종(연봉분포·수요·소득vs물가) :b3, after b3a, 10d
-    스냅샷 이력(S-11) & 설정·탈퇴(S-13) UI :b4, after b3, 7d
+    스킬 UI(S-08) & 차트 3종(연봉분포·수요·소득vs물가) :done, b3, after b3a, 10d
+    스냅샷 이력(S-11) & 설정·탈퇴(S-13) UI :done, b4, after b3, 7d
     MVI 표본부족 엣지케이스 검증 :b5, after b4, 12d
     section Member C (인증/결정/시뮬레이터)
     세션 게이트 — Gateway 필터 + core-api X-User-Id 주입(5-B) :crit, c0b, 2026-08-29, 4d
@@ -130,7 +139,7 @@ gantt
 | :--- | :--- | :--- | :--- |
 | **0주차<br>(사전정렬)**<br>08-29~09-03 | 완료 | 완료 | 완료. **세션 게이트 플래그 전환(§5-B)만 미실행** |
 | **1~2주차<br>(인프라 & 파이프라인)**<br>09-03~09-17 | ~~`a1` — CPI 수집 파이프라인, 소득/소비 CRUD API~~ 완료 (2026-09-06) | 완료 | 완료 |
-| **3~4주차<br>(핵심 계산 엔진)**<br>09-17~10-01 | • **개인물가 & 구매력 지수(PPI) 계산 엔진**<br>• 소비 가중치 전파(`PROPAGATED`) 로직<br>• **연봉 암호화 키 로테이션·스냅샷 복호화 경계 (§5-E)**<br>_(간트 `a2` 는 09-06~09-20 로 이 칸보다 앞선다)_ | • ~~동료집단 완화 알고리즘 (`N<10` 클램프)~~ — 2026-09-02 완료<br>• `S-08` 스킬 입력 & 자동완성 UI<br>• `S-14` **차트 3종** — 연봉분포·수요·**소득vs물가**(A 이관분)<br>• `S-11` 월별 스냅샷 이력 UI<br>• `S-13` 설정·계정 삭제 UI | • ~~`S-05`~`S-09` **온보딩 5화면 전체**~~ `S-05`·`S-06`·`S-07`·`S-09` (`S-08`은 B — 근거는 §1 각주)<br>• `S-10` **대시보드 메인**<br>• `S-15` **시뮬레이터 UI**<br>• `auth-service` 온보딩 단계 갱신(`PATCH /v1/auth/onboarding`) — `c3` 의 18d 에 없던 작업이다. `S-08` 이 B 로 정리되며 회수한 구간에서 낸다 |
+| **3~4주차<br>(핵심 계산 엔진)**<br>09-17~10-01 | • **개인물가 & 구매력 지수(PPI) 계산 엔진**<br>• 소비 가중치 전파(`PROPAGATED`) 로직<br>• **연봉 암호화 키 로테이션·스냅샷 복호화 경계 (§5-E)**<br>_(간트 `a2` 는 09-06~09-20 로 이 칸보다 앞선다)_ | • ~~동료집단 완화 알고리즘 (`N<10` 클램프)~~ — 2026-09-02 완료<br>• ~~`S-08` 스킬 입력 & 자동완성 UI~~ — 2026-09-12 완료 (PR #144)<br>• ~~`S-14` **차트 3종** (연봉분포·수요·소득vs물가)~~ — 2026-09-12 완료<br>• ~~`S-11` 월별 스냅샷 이력 UI~~ — 2026-09-12 완료<br>• ~~`S-13` 설정·계정 삭제 UI (세션 관리 & 완전 삭제)~~ — 2026-09-12 완료 | • ~~`S-05`~`S-09` **온보딩 5화면 전체**~~ `S-05`·`S-06`·`S-07`·`S-09` (`S-08`은 B — 근거는 §1 각주)<br>• `S-10` **대시보드 메인**<br>• `S-15` **시뮬레이터 UI**<br>• `auth-service` 온보딩 단계 갱신(`PATCH /v1/auth/onboarding`) — `c3` 의 18d 에 없던 작업이다. `S-08` 이 B 로 정리되며 회수한 구간에서 낸다 |
 | **5~6주차<br>(UI & 시각화 완성)**<br>10-01~10-06 | ~~`a3` — `S-06`·`S-07` 온보딩 UI, `S-14` 소득vs물가 차트~~ → C·B 이관<br>**유휴 구간(09-20~10-06).** 7주차 몫을 앞당기거나 §5-K 검증에 합류 — 아래 레인 표 참조 | • MVI 표본부족(`N<10`) 엣지케이스 검증 (`b5`) | • `S-12` **이력 관리 화면 전체** (소득·소비·스킬 탭)<br>• `S-14` **추이분석 화면 셸** + A·B 차트 조립<br>• **스냅샷 쓰기 운영 Postgres 검증 (§5-K)** |
 | **7주차<br>(E2E 통합 검증)**<br>10-06~10-11 | • PPI 엣지케이스(지연/결측) 검증<br>• **민감 금액 로깅 마스킹 점검** (소득·소비 경로) | • ~~MVI 표본부족(`N<10`) 엣지케이스 검증~~ — `b5`(5~6주차)와 중복<br>• 실데이터 파이프라인 통합 점검<br>• **민감 금액 로깅 마스킹 점검** (집계·파이프라인 경로) | • 온보딩 $\rightarrow$ 대시보드 $\rightarrow$ 시뮬레이터 E2E 점검<br>• 계정 삭제 시 개인 데이터 완전 삭제 검증<br>• **민감 금액 로깅 마스킹 점검** (시나리오 요청·스냅샷 복호화 경로) |
 
@@ -192,11 +201,11 @@ flowchart TD
 ```
 
 1. **지수 산출 결과 계약 (A, B $\rightarrow$ C)** — `core-api` 의 `com.carix.index` (인터페이스 SPI), `com.carix.index.dto` (결과 Record), `com.carix.index.enums` (도메인 Enum) 에 확정돼 있다:
-   - Member A는 `PurchasingPowerIndexProvider.calculate(userId, baseYearMonth)` 를 구현해 `PpiResult`(지수값, 상태, 소비 가중치 출처, 지수 기준월, CPI 원천 기준일)를 반환
+   - Member A는 `PurchasingPowerIndexProvider.calculate(userId, baseYearMonth)` 를 구현해 `PpiResult`(지수값, 상태, 소비 가중치 출처, 지수 기준월, CPI 원천 기준일)를 반환 (품목별 CPI 모듈 완성 전까지 사용자의 최초 소득월 100.0 및 소득 변동 기반 구매력 지수를 제공하는 기본 산출기 `DefaultPurchasingPowerIndexProvider` 배선 완료)
    - Member B는 `MarketValueIndexProvider.calculate(userId, baseYearMonth)` 를 구현해 `MviResult`(지수값, 상태, **원천별** 완화 단계·표본 수, 제외 스킬과 사유, 임금통계 기준선, 집계 기준일)를 반환 (실제 구현체 `MarketValueIndexServiceImpl` 배선 완료)
-   - Member A는 `CurrentSalaryProvider.currentGrossSalary(userId, baseYearMonth)` 도 구현해 기준월 시점에 유효한 세전 연봉을 반환한다. 결정 신호 규칙표의 **소득 격차 비율**은 이 값을 분모로 쓰는데 `PpiResult`·`MviResult` 어디에도 없어 규칙 2·3·5 가 계산되지 않았다. 연봉을 `PpiResult` 에 실으면 평문 금액이 스냅샷 `rationale` 경로까지 흘러가므로 계약을 따로 둔다. 복호화 경계는 소득 도메인 안에 남는다(§5-E)
+   - Member A는 `CurrentSalaryProvider.currentGrossSalary(userId, baseYearMonth)` 도 구현해 기준월 시점에 유효한 세전 연봉을 반환한다 (`IncomeCurrentSalaryProvider` 배선 완료). 결정 신호 규칙표의 **소득 격차 비율**은 이 값을 분모로 쓰는데 `PpiResult`·`MviResult` 어디에도 없어 규칙 2·3·5 가 계산되지 않았다. 연봉을 `PpiResult` 에 실으면 평문 금액이 스냅샷 `rationale` 경로까지 흘러가므로 계약을 따로 둔다. 복호화 경계는 소득 도메인 안에 남는다(§5-E)
    - 계산 불가는 예외가 아니라 `IndexStatus` 로 돌려준다. 값은 `null` 이고 0 이나 100 으로 채우지 않는다
-   - 구현 빈이 없는 동안 `com.carix.index.stub` 이 `NOT_AVAILABLE` 을 돌려주므로 C 는 A·B 를 기다리지 않고 3~4주차를 시작할 수 있다
+   - 구현 빈이 없는 동안 `com.carix.index.stub` 이 `NOT_AVAILABLE` 을 돌려주도록 설계되었으나, 현재 실제 연봉 공급자(`IncomeCurrentSalaryProvider`) 및 기본 지수 공급자(`DefaultPurchasingPowerIndexProvider`)가 배선되어 소득 이력이 존재하는 사용자의 스냅샷 지수 결측 및 결정 신호 `데이터 부족`(`INSUFFICIENT_DATA`) 문제가 정상 해소되었다.
 2. **스냅샷 재계산 트리거 (A, B $\rightarrow$ C)**:
    - 사용자가 소득/소비(Member A) 또는 스킬(Member B)을 추가/수정/삭제했을 때, Member C의 `recalculateSnapshot(userId, fromYm)`을 호출하여 해당 시점 이후의 스냅샷을 멱등하게 갱신
    - 호출 대상은 `com.carix.snapshot.SnapshotRecalculationService.recalculateSnapshot(UUID userId, String fromYearMonth)` 이며 `fromYearMonth` 는 변경의 가장 이른 유효월(`YYYYMM`)이다. 한 번의 호출이 그 월부터 현재월까지를 하나의 `data_version` 으로 다시 쓴다
@@ -228,7 +237,7 @@ flowchart TD
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | 5-B | 세션 게이트 — Gateway 세션 검증 필터 + core-api `X-User-Id` 주입 | C | 0주차 — **기한 초과.** `config/spring/gateway.yml` 이 아직 `enabled: false` 다 | 배선은 끝났다 — 게이트웨이 필터, `/api/health` 의 `core-health` 라우트 분리, core-api 수신부(`@CurrentUserId`·`UserContextArgumentResolver`, 헤더 없으면 401)까지 배포돼 있다. 하류가 헤더를 신뢰하는 구조라 Spring Security 스타터는 쓰지 않는다. **잔여는 운영 전환뿐** — `carix.gateway.session-validation.enabled=true` + `/actuator/refresh`, 그리고 아래 롤백 절차 | 모든 도메인 API 의 `userId` 확보 경로. **A·B·C 전원** — 다만 실제로는 막지 않은 채 1~2주차가 진행됐다. 차단 항목이 아니라 **배포 전 필수 전환**으로 읽는다 |
 | ~~5-C~~ | ~~collector 수집 주기 자동화~~ | B | — | **수동 구동으로 확정.** 관리자가 `S-16` 콘솔에서 원천별로 직접 돌린다. `@Scheduled` 는 도입하지 않는다 — 수집 실패 재시도·중복 실행 방지·관측 경로가 함께 따라오는데 MVP 표본 규모에서 그만한 값을 하지 않는다. 정기 실행이 필요해지면 그때 다시 올린다 | (해소) |
-| 5-E | 연봉 컬럼 암호화 키 로테이션 · 스냅샷 복호화 경계 | A (스냅샷 접근 경계는 core-api 내부 C 와 합의) | 계약 합의분 **완료**, 키 로테이션 절차는 3~4주차 | [SECURITY §3.2](../SECURITY.md)가 "구현 단계 처리"로 남긴 항목. `CurrentSalaryProvider` 계약이 복호화 경계를 A 안에 고정한다(계약·스텁은 `com.carix.index`, **구현은 A**). 남은 것은 키 로테이션 절차, 로테이션 시 기존 암호문 재암호화 전략, 스냅샷 복호화 성능·키 접근 감사 | 소득 저장(A)과 스냅샷 재계산의 연봉 복호화(C) |
+| 5-E | 연봉 컬럼 암호화 키 로테이션 · 스냅샷 복호화 경계 | A (스냅샷 접근 경계는 core-api 내부 C 와 합의) | 공급 구현체(`IncomeCurrentSalaryProvider`) 배선 **완료**, 키 로테이션 절차는 3~4주차 잔여 | [SECURITY §3.2](../SECURITY.md)가 "구현 단계 처리"로 남긴 항목. `CurrentSalaryProvider` 계약이 복호화 경계를 A 안에 고정하며, `IncomeCurrentSalaryProvider` 구현체로 기준월 시점의 세전 연봉을 스냅샷 엔진에 공급 완료함. 남은 것은 키 로테이션 절차, 로테이션 시 기존 암호문 재암호화 전략, 스냅샷 복호화 성능·키 접근 감사 | 소득 저장(A)과 스냅샷 재계산의 연봉 복호화(C) |
 | ~~5-H~~ | ~~5-A 가 안 C 로 귀결될 경우 결정 신호 규칙표 재작성~~ | 명세 소유자 | — | **조건 미발생.** 5-A 가 원천 교체 없이 해소돼 규칙표를 다시 쓸 이유가 사라졌다. 결정 신호는 3변수 규칙표를 그대로 쓴다 | (해소) |
 | 5-Q | MVI 임계값 Config Server 외부화 | B | MVP 이후 | 값은 확정됐다(N≥10, 클램프 [25,400] — [기능 명세 §6.2](../specs/functional-specification.md)). 위치만 코드 상수다 — `PeerGroupFallbackResolver.MIN_SAMPLE_SIZE`, `SkillDemandCalculator.MIN_CLAMP`·`MAX_CLAMP`. [MVP 규격](../specs/mvp-requirements.md)이 "초기값을 코드 여러 위치에 하드코딩하지 않는다"를, [Spring Cloud 아키텍처](../specs/spring-cloud-architecture.md)가 Config Server 소관에 "지수 계산 임계값·가중치"를 각각 요구해 두 규격이 외부화를 가리킨다. `@ConfigurationProperties` 주입으로 옮기면 `/actuator/refresh` 로 재배포 없이 조정된다 | 아무것도 막지 않는다 — 값이 확정돼 동작에 영향이 없다 |
 | 5-K | 스냅샷 쓰기 경로 운영 Postgres 검증 | C | **배포 전 필수** | `index_snapshot` 쓰기가 운영에서 처음 도는 시점에 세 가지가 동시에 처음 실행된다 — `@JdbcTypeCode(SqlTypes.JSON)` 의 `jsonb` 바인딩(테스트는 H2 로만 검증), `pg_advisory_xact_lock`(H2 에 없어 발급기 자동 검증 없음), `DataVersionIssuer` 의 `MANDATORY` 전파. 운영 `ddl-auto` 가 `none` 이라 매핑 오류는 기동이 아니라 **첫 쓰기 시점**에 터진다. OCI DB 에 붙여 `recalculateSnapshot` 을 한 사용자에 한 번 돌리면 셋이 함께 확인된다. **이 경로는 배치가 아니라 소득·소비·스킬·프로필 저장에 동기로 걸린다** — 잠금이나 `jsonb` 바인딩이 운영에서 깨지면 사용자 쓰기가 통째로 실패한다. H2 통합 테스트는 `pg_advisory_xact_lock` 이 없어 `H2DataVersionIssuerConfiguration` 으로 대체하므로 자동 검증이 여기서 멈춘다. **첫 배포 전까지만 유효한 여유가 하나 있다** — `rationale` 은 `jsonb` 라 운영 행이 없는 지금은 형상을 자유롭게 바꿀 수 있지만(5-L·5-M 이 그렇게 들어갔다), 배포 후에는 같은 변경에 마이그레이션이 필요하다 | Job 4 + **모든 도메인 쓰기** |

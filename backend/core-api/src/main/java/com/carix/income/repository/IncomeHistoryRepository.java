@@ -13,4 +13,6 @@ public interface IncomeHistoryRepository extends JpaRepository<IncomeHistory, UU
 
   boolean existsByUserIdAndEffectiveDateAndIdNot(
       UUID userId, LocalDate effectiveDate, UUID excludeId);
+
+  void deleteByUserId(UUID userId);
 }

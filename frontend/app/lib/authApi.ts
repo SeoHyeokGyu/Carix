@@ -57,6 +57,31 @@ export async function logout(): Promise<void> {
   });
 }
 
+/**
+ * 모든 기기에서 세션을 폐기하고 로그아웃 (US-C1)
+ */
+export async function logoutAll(): Promise<void> {
+  await fetch("/api/v1/auth/logout-all", {
+    method: "POST",
+    credentials: "include",
+  });
+}
+
+/**
+ * 회원 탈퇴 및 사용자 개인 데이터 완전 삭제 (US-C2)
+ */
+export async function deleteAccount(email: string): Promise<void> {
+  const params = new URLSearchParams({ email });
+  const response = await fetch(`/api/v1/users?${params.toString()}`, {
+    method: "DELETE",
+    credentials: "include",
+  });
+
+  if (!response.ok) {
+    throw await toApiError(response);
+  }
+}
+
 /** 세션이 없으면 `null`. 401 은 오류가 아니라 "비로그인"이라는 정상 응답이다. */
 export async function fetchSession(): Promise<SessionResponse | null> {
   const response = await fetch("/api/v1/auth/session", {

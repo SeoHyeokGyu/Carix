@@ -49,6 +49,11 @@ export function setSession(session: Session): void {
   cached = session;
 }
 
+/** 현재 캐시된 세션을 동기식으로 반환한다. 캐시가 없으면 null. */
+export function getSession(): Session | null {
+  return cached;
+}
+
 /** 테스트 전용 — 모듈 캐시와 진행 중인 조회를 지운다. 프로덕션 코드는 부르지 않는다. */
 export function resetSession(): void {
   cached = null;

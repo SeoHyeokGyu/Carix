@@ -3,12 +3,16 @@ import { AppShell, type NavItem } from "../../components/layout/AppShell";
 import { guardOnboarded, LANDING_PATH } from "../../lib/routeGuards";
 import { requireSession } from "../../lib/session";
 
-const TABS: NavItem[] = [
+export const MAIN_NAV_ITEMS: NavItem[] = [
   { to: "/dashboard", label: "지표", end: true },
   { to: "/dashboard/history", label: "이력" },
   { to: "/dashboard/trends", label: "추이 분석" },
   { to: "/dashboard/simulator", label: "시뮬레이터" },
-  { to: "/mypage/profile", label: "설정" },
+  { to: "/mypage/records", label: "이력 관리" },
+];
+
+export const MAIN_UTILITY_ITEMS: NavItem[] = [
+  { to: "/mypage/profile", label: "설정", icon: "⚙️" },
 ];
 
 export async function clientLoader() {
@@ -24,5 +28,11 @@ export async function clientLoader() {
 }
 
 export default function DashboardLayout() {
-  return <AppShell navLabel="대시보드" items={TABS} />;
+  return (
+    <AppShell
+      navLabel="대시보드"
+      items={MAIN_NAV_ITEMS}
+      utilityItems={MAIN_UTILITY_ITEMS}
+    />
+  );
 }

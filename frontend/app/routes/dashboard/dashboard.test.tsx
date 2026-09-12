@@ -32,7 +32,7 @@ describe("대시보드 라우트 및 레이아웃 (Dashboard)", () => {
       render(<DashboardHistory />);
       expect(screen.getByText("S-11")).toBeInTheDocument();
       expect(
-        screen.getByRole("heading", { name: "월별 이력" }),
+        screen.getByRole("heading", { name: /월별 (스냅샷 )?이력/ }),
       ).toBeInTheDocument();
     });
 

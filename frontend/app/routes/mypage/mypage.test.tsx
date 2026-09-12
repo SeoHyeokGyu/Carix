@@ -127,6 +127,20 @@ describe("마이페이지 라우트 및 레이아웃 (Mypage)", () => {
         await screen.findByRole("navigation", { name: "마이페이지" }),
       ).toBeInTheDocument();
       expect(screen.getByText("설정 페이지 내용")).toBeInTheDocument();
+
+      // 상단 메인 메뉴바의 항목들이 설정 화면에서도 변경되지 않고 그대로 유지되는지 검증
+      expect(screen.getByRole("link", { name: "지표" })).toBeInTheDocument();
+      expect(screen.getByRole("link", { name: "이력" })).toBeInTheDocument();
+      expect(
+        screen.getByRole("link", { name: "추이 분석" }),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByRole("link", { name: "시뮬레이터" }),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByRole("link", { name: "이력 관리" }),
+      ).toBeInTheDocument();
+      expect(screen.getByRole("link", { name: /설정/ })).toBeInTheDocument();
     });
   });
 });
