@@ -114,7 +114,7 @@ describe("S-14 DashboardTrends 라우트", () => {
 
     expect(screen.getByText("소득 대 개인물가 지수 추이")).toBeInTheDocument();
     expect(
-      screen.getByText(/Member A 컴포넌트 마운트 영역/i),
+      screen.getByText(/소득 vs 개인물가 지수 시계열 차트/i),
     ).toBeInTheDocument();
   });
 });
