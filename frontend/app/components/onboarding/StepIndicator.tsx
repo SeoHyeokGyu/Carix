@@ -1,4 +1,5 @@
-import { useLocation } from "react-router";
+import { Link, useLocation } from "react-router";
+import { getSession } from "../../lib/session";
 
 export const ONBOARDING_STEPS = [
   { step: 1, to: "/onboarding/profile", label: "프로필" },
@@ -10,13 +11,22 @@ export const ONBOARDING_STEPS = [
 
 export type StepNumber = 1 | 2 | 3 | 4 | 5;
 
+const STEP_ORDER_MAP: Record<string, StepNumber> = {
+  PROFILE: 1,
+  INCOME: 2,
+  EXPENSE: 3,
+  SKILLS: 4,
+  REVIEW: 5,
+  COMPLETED: 5,
+};
+
 interface StepIndicatorProps {
   current?: StepNumber;
 }
 
 /**
  * 온보딩 화면 본문 상단에 표시되는 세련된 단계 표시(Stepper) 컴포넌트.
- * current prop이 주어지지 않으면 현재 URL 경로를 기반으로 단계를 자동 감별합니다.
+ * 이미 도달했거나 작성한 단계는 클릭하여 자유롭게 이동 및 재수정할 수 있습니다.
  */
 export function StepIndicator({ current }: StepIndicatorProps) {
   const location = useLocation();
@@ -31,6 +41,15 @@ export function StepIndicator({ current }: StepIndicatorProps) {
     if (path.includes("/review")) return 5;
     return 1;
   })();
+
+  // 세션의 최대 도달 단계 확인 (이전 단계로 돌아왔더라도 앞선 단계로 다시 이동 가능)
+  const session = getSession();
+  const sessionMaxStep: StepNumber =
+    session && session.status === "authenticated"
+      ? (STEP_ORDER_MAP[session.onboardingStep] ?? 1)
+      : 1;
+
+  const maxReachableStep = Math.max(resolvedStep, sessionMaxStep);
 
   const progressPercent = Math.max(
     0,
@@ -58,22 +77,19 @@ export function StepIndicator({ current }: StepIndicatorProps) {
           aria-label="온보딩 진행 단계"
           className="relative z-10 flex w-full items-start justify-between"
         >
-          {ONBOARDING_STEPS.map(({ step, label }) => {
+          {ONBOARDING_STEPS.map(({ step, to, label }) => {
             const isCompleted = step < resolvedStep;
             const isCurrent = step === resolvedStep;
+            const isClickable = step <= maxReachableStep && !isCurrent;
 
-            return (
-              <li
-                key={step}
-                className="flex flex-col items-center"
-                aria-current={isCurrent ? "step" : undefined}
-              >
+            const content = (
+              <div className="flex flex-col items-center">
                 {/* 원형 배지 */}
                 <div
                   className={[
                     "flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-full text-xs sm:text-sm font-semibold transition-all duration-200",
                     isCompleted
-                      ? "bg-carix-info text-white shadow-sm ring-2 ring-carix-info/20"
+                      ? "bg-carix-info text-white shadow-sm ring-2 ring-carix-info/20 group-hover:ring-carix-info/40 group-hover:scale-105"
                       : isCurrent
                         ? "border-2 border-carix-info bg-carix-surface text-carix-info font-bold shadow-md ring-4 ring-carix-info/15 scale-105"
                         : "border-2 border-carix-border bg-carix-surface text-carix-text/40",
@@ -105,12 +121,39 @@ export function StepIndicator({ current }: StepIndicatorProps) {
                     isCurrent
                       ? "font-bold text-carix-info"
                       : isCompleted
-                        ? "font-medium text-carix-text/80"
+                        ? "font-medium text-carix-text/80 group-hover:text-carix-info"
                         : "font-medium text-carix-text/40",
                   ].join(" ")}
                 >
                   {label}
                 </span>
+              </div>
+            );
+
+            return (
+              <li
+                key={step}
+                aria-current={isCurrent ? "step" : undefined}
+                className="flex flex-col items-center"
+              >
+                {isClickable ? (
+                  <Link
+                    to={to}
+                    className="group flex flex-col items-center focus:outline-none focus-visible:ring-2 focus-visible:ring-carix-info rounded-lg p-1 transition-transform"
+                    title={`${label} 단계로 이동`}
+                  >
+                    {content}
+                  </Link>
+                ) : (
+                  <div
+                    className={[
+                      "flex flex-col items-center p-1",
+                      isCurrent ? "" : "cursor-not-allowed opacity-80",
+                    ].join(" ")}
+                  >
+                    {content}
+                  </div>
+                )}
               </li>
             );
           })}
