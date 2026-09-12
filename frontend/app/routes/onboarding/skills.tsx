@@ -300,36 +300,12 @@ export default function Skills() {
   };
 
   return (
-    <div className="mx-auto w-full max-w-3xl px-4 py-10 sm:px-6">
-      {/* 1. 상단 메타 및 단계 네비게이션 */}
-      <div className="mb-6 flex flex-wrap items-center justify-between gap-2 border-b border-carix-border pb-4">
-        <div className="flex items-center gap-2">
-          <span className="font-display text-xs font-semibold tracking-widest text-carix-info">
-            S-08
-          </span>
-          <span className="text-sm text-carix-text/60">온보딩 4단계</span>
-        </div>
-        <div className="flex items-center gap-1.5 text-xs text-carix-text/70">
-          <span className="rounded bg-carix-surface px-2 py-1 border border-carix-border">
-            1 프로필
-          </span>
-          <span className="text-carix-text/40">›</span>
-          <span className="rounded bg-carix-surface px-2 py-1 border border-carix-border">
-            2 소득
-          </span>
-          <span className="text-carix-text/40">›</span>
-          <span className="rounded bg-carix-surface px-2 py-1 border border-carix-border">
-            3 소비
-          </span>
-          <span className="text-carix-text/40">›</span>
-          <span className="rounded bg-carix-info/10 font-bold text-carix-info px-2 py-1 border border-carix-info/30">
-            4 스킬
-          </span>
-          <span className="text-carix-text/40">›</span>
-          <span className="rounded bg-carix-surface px-2 py-1 border border-carix-border">
-            5 검토
-          </span>
-        </div>
+    <div className="mx-auto w-full max-w-3xl px-4 py-8 sm:px-6 sm:py-12">
+      {/* 1. 상단 메타 */}
+      <div className="mb-2 flex items-center gap-2">
+        <span className="font-display text-xs font-semibold tracking-widest text-carix-info">
+          S-08
+        </span>
       </div>
 
       {/* 2. 타이틀 영역 */}

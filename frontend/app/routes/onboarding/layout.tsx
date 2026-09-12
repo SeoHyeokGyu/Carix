@@ -1,15 +1,8 @@
-import { redirect } from "react-router";
-import { AppShell, type NavItem } from "../../components/layout/AppShell";
+import { Outlet, redirect } from "react-router";
+import { AppShell } from "../../components/layout/AppShell";
+import { StepIndicator } from "../../components/onboarding/StepIndicator";
 import { guardOnboarding, LANDING_PATH } from "../../lib/routeGuards";
 import { requireSession } from "../../lib/session";
-
-const STEPS: NavItem[] = [
-  { to: "/onboarding/profile", label: "프로필" },
-  { to: "/onboarding/income", label: "소득" },
-  { to: "/onboarding/expense", label: "소비" },
-  { to: "/onboarding/skills", label: "스킬" },
-  { to: "/onboarding/review", label: "검토" },
-];
 
 export async function clientLoader({ request }: { request: Request }) {
   const session = await requireSession();
@@ -24,5 +17,15 @@ export async function clientLoader({ request }: { request: Request }) {
 }
 
 export default function OnboardingLayout() {
-  return <AppShell navLabel="온보딩 단계" items={STEPS} />;
+  return (
+    <AppShell navLabel="온보딩" items={[]}>
+      {/* 화면 내에 일관된 온보딩 Step 인디케이터 표시 */}
+      <div className="w-full border-b border-carix-border/60 bg-carix-surface/40 backdrop-blur-xs py-4 sm:py-6">
+        <div className="mx-auto w-full max-w-3xl px-6">
+          <StepIndicator />
+        </div>
+      </div>
+      <Outlet />
+    </AppShell>
+  );
 }
