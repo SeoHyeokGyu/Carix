@@ -98,13 +98,27 @@ export function SalaryDistributionChart({
     return ((clamped - scaleMin) / range) * 100;
   };
 
+  const minPercent = getPercent(min);
   const leftP25 = getPercent(p25);
-  const widthIQR = Math.max(2, getPercent(p75) - leftP25);
+  const rightP75 = getPercent(p75);
+  const widthIQR = Math.max(1, rightP75 - leftP25);
   const medianPercent = getPercent(median);
+  const maxPercent = getPercent(max);
   const officialPercent = officialMedian ? getPercent(officialMedian) : null;
   const userPercent = userPosition
     ? getPercent(userPosition.grossSalary)
     : null;
+
+  // 인디케이터 라벨이 차트 좌우 경계를 벗어나지 않도록 정렬 보정
+  const getPercentStyle = (percent: number) => {
+    if (percent <= 8) {
+      return { left: `${percent}%`, transform: "translateX(0%)" };
+    }
+    if (percent >= 92) {
+      return { left: `${percent}%`, transform: "translateX(-100%)" };
+    }
+    return { left: `${percent}%`, transform: "translateX(-50%)" };
+  };
 
   // 백분위 상위 % 계산 (100 - percentile)
   const topPercentText = userPosition
@@ -185,26 +199,49 @@ export function SalaryDistributionChart({
           {/* 2. 인터랙티브 수평 Box-Plot 시각화 그래프 */}
           <div className="my-8 px-2">
             {/* 그래프 축 및 마커 컨테이너 */}
-            <div className="relative h-28 w-full">
+            <div className="relative h-32 w-full pt-6">
               {/* 사용자 위치 핀 (상단 플로팅 핀) */}
               {userPercent != null && (
                 <div
-                  className="absolute -top-7 -translate-x-1/2 flex flex-col items-center z-10 transition-all duration-300"
-                  style={{ left: `${userPercent}%` }}
+                  className="absolute top-0 flex flex-col items-center z-10 transition-all duration-300"
+                  style={getPercentStyle(userPercent)}
                 >
-                  <span className="rounded bg-carix-info px-2 py-0.5 text-[11px] font-bold text-white shadow">
-                    내 연봉
+                  <span className="rounded bg-carix-info px-2 py-0.5 text-[11px] font-bold text-white shadow whitespace-nowrap">
+                    내 연봉 ({formatKoreanSalary(userPosition?.grossSalary)})
                   </span>
                   <span className="text-carix-info text-xs -mt-1">▼</span>
                 </div>
               )}
 
-              {/* 메인 레일 바 (전체 범위 Min ~ Max) */}
-              <div className="absolute top-8 h-3 w-full rounded-full bg-carix-bg border border-carix-border" />
+              {/* 메인 레일 바 (전체 범위) */}
+              <div className="absolute top-[48px] h-2 w-full rounded-full bg-carix-bg border border-carix-border/80" />
+
+              {/* 공고 연봉 수염 선 (Min ~ Max Whisker) */}
+              <div
+                className="absolute top-[51px] h-0.5 bg-carix-info/50 z-[2]"
+                style={{
+                  left: `${minPercent}%`,
+                  width: `${Math.max(0, maxPercent - minPercent)}%`,
+                }}
+              />
+
+              {/* 최소값 세로 눈금 캡 */}
+              <div
+                className="absolute top-[45px] h-3.5 w-0.5 bg-carix-info/70 z-[2] -translate-x-1/2"
+                style={{ left: `${minPercent}%` }}
+                title={`최소: ${formatKoreanSalary(min)}`}
+              />
+
+              {/* 최대값 세로 눈금 캡 */}
+              <div
+                className="absolute top-[45px] h-3.5 w-0.5 bg-carix-info/70 z-[2] -translate-x-1/2"
+                style={{ left: `${maxPercent}%` }}
+                title={`최대: ${formatKoreanSalary(max)}`}
+              />
 
               {/* 25% ~ 75% IQR (중위 50% 박스 영역) */}
               <div
-                className="absolute top-7 h-5 rounded border border-carix-info/40 bg-carix-info/20"
+                className="absolute top-[40px] h-6 rounded border border-carix-info/50 bg-carix-info/20 z-[3]"
                 style={{
                   left: `${leftP25}%`,
                   width: `${widthIQR}%`,
@@ -214,7 +251,7 @@ export function SalaryDistributionChart({
 
               {/* 공고 연봉 중앙값 (Median) 표시선 */}
               <div
-                className="absolute top-6 h-7 w-0.5 bg-carix-info z-[5]"
+                className="absolute top-[36px] h-8 w-1 bg-carix-info z-[4] -translate-x-1/2 rounded-full"
                 style={{ left: `${medianPercent}%` }}
                 title={`공고 중앙값: ${formatKoreanSalary(median)}`}
               />
@@ -222,22 +259,37 @@ export function SalaryDistributionChart({
               {/* 공식 임금통계 기준선 (KOSIS Median) 표시선 (굵은 오렌지선) */}
               {officialPercent != null && (
                 <div
-                  className="absolute top-4 h-11 w-1 bg-carix-warning z-[6]"
+                  className="absolute top-[32px] h-10 w-1 bg-carix-warning z-[5] -translate-x-1/2 rounded-full"
                   style={{ left: `${officialPercent}%` }}
                   title={`공식 임금통계 기준선: ${formatKoreanSalary(officialMedian)}`}
                 />
               )}
 
-              {/* 축 눈금 라벨 (하단) */}
-              <div className="absolute -bottom-1 w-full flex justify-between text-[11px] text-carix-text/50">
-                <span>{formatKoreanSalary(min)} (최소)</span>
-                <span>{formatKoreanSalary(median)} (공고중앙)</span>
-                <span>{formatKoreanSalary(max)} (최대)</span>
+              {/* 축 눈금 라벨 (하단) - 실제 퍼센트 위치에 정확하게 렌더링 */}
+              <div className="absolute top-[68px] w-full text-[11px] text-carix-text/60">
+                <span
+                  className="absolute whitespace-nowrap font-medium text-carix-text/80"
+                  style={getPercentStyle(minPercent)}
+                >
+                  {formatKoreanSalary(min)} (최소)
+                </span>
+                <span
+                  className="absolute whitespace-nowrap font-bold text-carix-info"
+                  style={getPercentStyle(medianPercent)}
+                >
+                  {formatKoreanSalary(median)} (공고중앙)
+                </span>
+                <span
+                  className="absolute whitespace-nowrap font-medium text-carix-text/80"
+                  style={getPercentStyle(maxPercent)}
+                >
+                  {formatKoreanSalary(max)} (최대)
+                </span>
               </div>
             </div>
 
             {/* 범례 표시 */}
-            <div className="mt-2 flex flex-wrap items-center justify-center gap-4 text-xs text-carix-text/80">
+            <div className="mt-4 flex flex-wrap items-center justify-center gap-4 text-xs text-carix-text/80">
               <div className="flex items-center gap-1.5">
                 <span className="inline-block h-3.5 w-3.5 rounded bg-carix-info/30 border border-carix-info/60" />
                 <span>중위 50% 구간 (25% ~ 75%)</span>
