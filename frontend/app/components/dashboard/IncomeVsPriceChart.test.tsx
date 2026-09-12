@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, fireEvent } from "@testing-library/react";
 import { describe, it, expect } from "vitest";
 import { IncomeVsPriceChart } from "./IncomeVsPriceChart";
 import type { TrendListResponse } from "../../lib/dashboardMarketApi";
@@ -213,5 +213,45 @@ describe("IncomeVsPriceChart", () => {
 
     render(<IncomeVsPriceChart data={dataWithGap} />);
     expect(screen.getByTestId("income-vs-price-chart")).toBeInTheDocument();
+  });
+
+  it("차트의 데이터 포인트를 호버하면 툴팁(기준월 대비 지수 및 명목/실질 소득)이 렌더링된다", () => {
+    const data: TrendListResponse = {
+      trends: [
+        {
+          yearMonth: "202607",
+          incomeIndex: 108,
+          personalPriceIndex: 105,
+          purchasingPowerIndex: 102.8,
+          marketValueIndex: 110,
+          nominalIncome: 65000000,
+          realIncome: 62000000,
+        },
+      ],
+      purchasingPowerStatus: "OK",
+      marketValueStatus: "OK",
+    };
+
+    render(<IncomeVsPriceChart data={data} />);
+
+    // 포인트 영역을 찾아 hover
+    const pointGroup = document.querySelector("g.cursor-pointer");
+    expect(pointGroup).not.toBeNull();
+
+    fireEvent.mouseEnter(pointGroup!);
+
+    expect(screen.getByText("202607")).toBeInTheDocument();
+    expect(screen.getByText("소득 지수:")).toBeInTheDocument();
+    expect(screen.getByText("108")).toBeInTheDocument();
+    expect(screen.getByText("개인물가 지수:")).toBeInTheDocument();
+    expect(screen.getByText("105")).toBeInTheDocument();
+    expect(screen.getByText("명목 소득:")).toBeInTheDocument();
+    expect(screen.getByText("6,500만 원")).toBeInTheDocument();
+    expect(screen.getByText("실질 소득:")).toBeInTheDocument();
+    expect(screen.getByText("6,200만 원")).toBeInTheDocument();
+
+    // 마우스 떠나면 툴팁 제거
+    fireEvent.mouseLeave(pointGroup!);
+    expect(screen.queryByText("기준월 대비")).not.toBeInTheDocument();
   });
 });

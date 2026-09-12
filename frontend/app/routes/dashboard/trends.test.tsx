@@ -145,4 +145,54 @@ describe("S-14 DashboardTrends 라우트", () => {
       ).toBeInTheDocument();
     });
   });
+
+  it("연봉 분포 데이터가 null일 때 안내 문구를 렌더링한다", async () => {
+    vi.mocked(dashboardMarketApi.fetchSalaryDistribution).mockResolvedValue(
+      null as never,
+    );
+
+    render(
+      <MemoryRouter>
+        <DashboardTrends />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText("Kotlin")).toBeInTheDocument();
+    });
+
+    const salaryTabBtn = screen.getByRole("button", { name: "연봉 분포" });
+    fireEvent.click(salaryTabBtn);
+
+    await waitFor(() => {
+      expect(
+        screen.getByText("연봉 분포 데이터를 불러오지 못했습니다."),
+      ).toBeInTheDocument();
+    });
+  });
+
+  it("소득 대 물가 데이터가 null일 때 안내 문구를 렌더링한다", async () => {
+    vi.mocked(dashboardMarketApi.fetchTrends).mockResolvedValue(null as never);
+
+    render(
+      <MemoryRouter>
+        <DashboardTrends />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText("Kotlin")).toBeInTheDocument();
+    });
+
+    const incomeVsPriceTabBtn = screen.getByRole("button", {
+      name: "소득 vs 물가",
+    });
+    fireEvent.click(incomeVsPriceTabBtn);
+
+    await waitFor(() => {
+      expect(
+        screen.getByText("소득 대 물가 추이 데이터를 불러오지 못했습니다."),
+      ).toBeInTheDocument();
+    });
+  });
 });

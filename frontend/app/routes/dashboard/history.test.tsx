@@ -148,4 +148,90 @@ describe("S-11 DashboardHistory 라우트", () => {
       ).toBeInTheDocument();
     });
   });
+
+  it("API 호출 실패 시 에러 알림을 표시하고 '다시 시도' 클릭 시 재호출한다", async () => {
+    vi.mocked(dashboardMarketApi.fetchSnapshotHistory)
+      .mockRejectedValueOnce(new Error("서버 에러 발생"))
+      .mockResolvedValueOnce({ snapshots: [] });
+
+    render(
+      <MemoryRouter>
+        <DashboardHistory />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByRole("alert")).toBeInTheDocument();
+      expect(
+        screen.getByText("월별 스냅샷 이력을 불러오는 데 실패했습니다."),
+      ).toBeInTheDocument();
+    });
+
+    const retryBtn = screen.getByRole("button", { name: "다시 시도" });
+    fireEvent.click(retryBtn);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("history-empty-state")).toBeInTheDocument();
+    });
+    expect(dashboardMarketApi.fetchSnapshotHistory).toHaveBeenCalledTimes(2);
+  });
+
+  it("새로고침 버튼 클릭 시 최신 스냅샷 데이터를 다시 조회한다", async () => {
+    vi.mocked(dashboardMarketApi.fetchSnapshotHistory).mockResolvedValue({
+      snapshots: [],
+    });
+
+    render(
+      <MemoryRouter>
+        <DashboardHistory />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId("history-empty-state")).toBeInTheDocument();
+    });
+
+    const refreshBtn = screen.getByRole("button", { name: "새로고침 ↻" });
+    fireEvent.click(refreshBtn);
+
+    await waitFor(() => {
+      expect(dashboardMarketApi.fetchSnapshotHistory).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  it("적용 규칙이 비어 있는 스냅샷 행 상세 패널에서는 '기록된 적용 규칙 없음'을 표시한다", async () => {
+    vi.mocked(dashboardMarketApi.fetchSnapshotHistory).mockResolvedValue({
+      snapshots: [
+        {
+          baseYearMonth: "202607",
+          purchasingPowerIndex: 100.0,
+          marketValueIndex: 100.0,
+          decisionSignal: "STAY",
+          dataVersion: "v1.0",
+          ruleVersion: "v1.0",
+          rationale: {
+            rulesApplied: [],
+            excluded: [],
+            baseDate: "2026-07-01",
+          },
+        },
+      ],
+    });
+
+    render(
+      <MemoryRouter>
+        <DashboardHistory />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText("2026-07")).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByText("2026-07"));
+
+    await waitFor(() => {
+      expect(screen.getByText("기록된 적용 규칙 없음")).toBeInTheDocument();
+    });
+  });
 });
