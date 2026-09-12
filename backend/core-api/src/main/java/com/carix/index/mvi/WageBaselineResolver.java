@@ -40,8 +40,13 @@ public class WageBaselineResolver {
         wageStatObservationRepository.findLatestBaseline(jobFamily, bracket, broadRegion);
 
     if (obsOpt.isEmpty()) {
-      // 광역 지역으로 없을 경우 전국 기준 또는 기본 검색 시도
+      // 광역 지역으로 없을 경우 전국 기준 조회
       obsOpt = wageStatObservationRepository.findLatestBaseline(jobFamily, bracket, "전국");
+    }
+
+    if (obsOpt.isEmpty()) {
+      // 전국 기준도 없으면 collector 저장 형식인 "ALL" 코드로 조회 (임금통계 수집 시 region="ALL" 고정)
+      obsOpt = wageStatObservationRepository.findLatestBaseline(jobFamily, bracket, "ALL");
     }
 
     return obsOpt

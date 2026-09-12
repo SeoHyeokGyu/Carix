@@ -755,8 +755,16 @@ public class MarketValueIndexServiceImpl implements MarketValueIndexProvider {
     if (baseYearMonth == null || baseYearMonth.length() != 6 || marketAggregateRepository == null) {
       return baseYearMonth;
     }
+    // 1. 요청 월 이하의 최신 집계월 조회 (당월 미마감 시 직전 유효월로 fallback)
+    Optional<String> backward =
+        marketAggregateRepository.findLatestAvailableYearMonth(baseYearMonth);
+    if (backward.isPresent()) {
+      return backward.get();
+    }
+    // 2. 이하 데이터가 없으면(과거 소급 미수집 구간) 가장 가까운 미래 데이터를 대신 사용
+    //    예: 202201 요청 시 최초 집계월인 202608을 proxy로 활용 → INSUFFICIENT_DATA 방지
     return marketAggregateRepository
-        .findLatestAvailableYearMonth(baseYearMonth)
+        .findEarliestAvailableYearMonth(baseYearMonth)
         .orElse(baseYearMonth);
   }
 
