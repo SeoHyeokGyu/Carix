@@ -115,4 +115,15 @@ public interface MarketAggregateRepository extends JpaRepository<MarketAggregate
       @Param("brackets") Collection<String> brackets,
       @Param("employmentType") String employmentType,
       @Param("companySize") String companySize);
+
+  /**
+   * 주어진 기준월 이하(:baseYearMonth) 중 DB에 적재된 시장 집계 데이터의 최신 기준월을 조회합니다. 당월 데이터가 아직 마감/수집되지 않았을 때 직전 유효
+   * 월로 fallback하기 위해 사용됩니다.
+   */
+  @Query(
+      """
+      SELECT MAX(m.baseYearMonth) FROM MarketAggregate m
+      WHERE m.baseYearMonth <= :baseYearMonth
+      """)
+  Optional<String> findLatestAvailableYearMonth(@Param("baseYearMonth") String baseYearMonth);
 }

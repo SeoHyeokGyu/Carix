@@ -38,6 +38,7 @@ class MarketValueIndexServiceTest {
   @Mock private SkillDemandCalculator skillDemandCalculator;
   @Mock private SkillWeightCalculator skillWeightCalculator;
   @Mock private WageBaselineResolver wageBaselineResolver;
+  @Mock private com.carix.market.MarketAggregateRepository marketAggregateRepository;
 
   @InjectMocks private MarketValueIndexServiceImpl service;
 
@@ -614,6 +615,56 @@ class MarketValueIndexServiceTest {
         .demandIndex(index)
         .status(status)
         .build();
+  }
+
+  @Test
+  @DisplayName("당월 데이터가 없을 때 직전 유효 월로 fallback하여 MVI를 정상 산출해야 한다")
+  void testFallbackToLatestAvailableYearMonth() {
+    UUID userId = UUID.randomUUID();
+    String requestedYm = "202609";
+    String latestAvailableYm = "202608";
+
+    when(marketAggregateRepository.findLatestAvailableYearMonth(requestedYm))
+        .thenReturn(Optional.of(latestAvailableYm));
+
+    CareerProfile profile = new CareerProfile(userId);
+    profile.patch("DEVELOPER", 5, "서울 강남구", "FULL_TIME", "MEDIUM");
+
+    Skill skill =
+        Skill.builder().id(UUID.randomUUID()).standardName("Java").isCustom(false).build();
+    UserSkill userSkill = userSkillOf(skill);
+
+    when(userSkillRepository.findByUserId(userId)).thenReturn(List.of(userSkill));
+    when(careerProfileRepository.findByUserId(userId)).thenReturn(Optional.of(profile));
+    when(wageBaselineResolver.resolveBaseline(profile))
+        .thenReturn(new WageBaseline(60_000_000L, "초과급여 제외, 상여 포함", latestAvailableYm));
+
+    // fallback된 202608로 완화 및 스킬 수요 조회
+    PeerGroupFallbackResolver.ResolvedPeerGroup peerJobkorea = resolvedGroup("JOBKOREA", 100);
+    PeerGroupFallbackResolver.ResolvedPeerGroup peerSaramin = resolvedGroup("SARAMIN", 200);
+    when(peerGroupFallbackResolver.resolveForSource(
+            eq("JOBKOREA"), eq(profile), eq(latestAvailableYm)))
+        .thenReturn(peerJobkorea);
+    when(peerGroupFallbackResolver.resolveForSource(
+            eq("SARAMIN"), eq(profile), eq(latestAvailableYm)))
+        .thenReturn(peerSaramin);
+
+    when(skillDemandCalculator.calculateDemandIndex(
+            eq("JOBKOREA"), eq(skill.getId()), any(), eq(latestAvailableYm)))
+        .thenReturn(demand(skill.getId(), 105.0, SkillDemandStatus.OK));
+    when(skillDemandCalculator.calculateDemandIndex(
+            eq("SARAMIN"), eq(skill.getId()), any(), eq(latestAvailableYm)))
+        .thenReturn(demand(skill.getId(), 110.0, SkillDemandStatus.OK));
+
+    when(skillWeightCalculator.calculateWeights(any(), eq(latestAvailableYm), any()))
+        .thenReturn(Map.of(skill.getId(), BigDecimal.ONE));
+
+    MviResult result = service.calculate(userId, requestedYm);
+
+    assertThat(result.value()).isNotNull();
+    assertThat(result.baseYearMonth()).isEqualTo(requestedYm);
+    assertThat(result.aggregateAsOf()).isEqualTo(LocalDate.of(2026, 8, 31));
+    assertThat(result.status()).isEqualTo(IndexStatus.OK);
   }
 
   private static UserSkill userSkillOf(Skill skill) {
