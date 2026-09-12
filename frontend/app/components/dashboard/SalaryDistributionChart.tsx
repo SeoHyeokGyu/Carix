@@ -206,10 +206,10 @@ export function SalaryDistributionChart({
                   className="absolute top-0 flex flex-col items-center z-10 transition-all duration-300"
                   style={getPercentStyle(userPercent)}
                 >
-                  <span className="rounded bg-carix-info px-2 py-0.5 text-[11px] font-bold text-white shadow whitespace-nowrap">
+                  <span className="rounded bg-carix-positive px-2 py-0.5 text-[11px] font-bold text-white shadow whitespace-nowrap">
                     내 연봉 ({formatKoreanSalary(userPosition?.grossSalary)})
                   </span>
-                  <span className="text-carix-info text-xs -mt-1">▼</span>
+                  <span className="text-carix-positive text-xs -mt-1">▼</span>
                 </div>
               )}
 
@@ -265,6 +265,18 @@ export function SalaryDistributionChart({
                 />
               )}
 
+              {/* 사용자 연봉 세로선 (| 인디케이터 - 그래프 축 관통) */}
+              {userPercent != null && (
+                <div
+                  className="absolute top-[26px] h-10 w-1 bg-carix-positive z-[6] -translate-x-1/2 rounded-full shadow-sm"
+                  style={{ left: `${userPercent}%` }}
+                  title={`내 연봉: ${formatKoreanSalary(userPosition?.grossSalary)}`}
+                >
+                  {/* 세로선 상단 포인트 헤드 */}
+                  <div className="absolute -top-1 left-1/2 -translate-x-1/2 h-2 w-2 rounded-full bg-carix-positive ring-2 ring-white dark:ring-carix-surface" />
+                </div>
+              )}
+
               {/* 축 눈금 라벨 (하단) - 실제 퍼센트 위치에 정확하게 렌더링 */}
               <div className="absolute top-[68px] w-full text-[11px] text-carix-text/60">
                 <span
@@ -306,8 +318,10 @@ export function SalaryDistributionChart({
               </div>
               {userPercent != null && (
                 <div className="flex items-center gap-1.5">
-                  <span className="text-carix-info text-sm">▼</span>
-                  <span className="font-semibold text-carix-info">내 위치</span>
+                  <span className="inline-block h-4 w-1 rounded-full bg-carix-positive" />
+                  <span className="font-semibold text-carix-positive">
+                    내 연봉 ({formatKoreanSalary(userPosition?.grossSalary)})
+                  </span>
                 </div>
               )}
             </div>

@@ -65,6 +65,10 @@ describe("SalaryDistributionChart", () => {
       screen.getByText(/임금직무정보시스템 500인 이상/),
     ).toBeInTheDocument();
     expect(screen.getByText(/66.7%/)).toBeInTheDocument();
+
+    // 내 연봉 인디케이터(상단 핀 배지, 세로선 툴팁, 범례) 확인
+    expect(screen.getAllByText(/내 연봉 \(7,200만 원\)/).length).toBe(2);
+    expect(screen.getByTitle("내 연봉: 7,200만 원")).toBeInTheDocument();
   });
 
   it("공고 표본은 충족하지만 공개된 연봉이 0건일 때 왜곡된 0원 차트 대신 안내 화면을 표시한다", () => {
