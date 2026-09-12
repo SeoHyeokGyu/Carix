@@ -51,6 +51,20 @@ public class CollectorPipelineController {
   }
 
   /**
+   * [POST /internal/pipeline/refine-skills] 크롤링된 채용공고 스킬 일괄 재정제 비동기 실행.
+   *
+   * <p>DB에 적재된 모든 채용공고의 제목과 기존 태그를 스킬 사전을 통해 다시 분석하여 스킬 매핑(job_posting_skill)을 최신화하고 불필요한 노이즈를
+   * 제거합니다.
+   *
+   * @return 202 Accepted 및 비동기 작업 추적용 jobId
+   */
+  @PostMapping("/refine-skills")
+  public ResponseEntity<JobExecutionResponse> triggerSkillRefine() {
+    JobExecutionResponse response = pipelineService.triggerSkillRefine();
+    return ResponseEntity.status(HttpStatus.ACCEPTED).body(response);
+  }
+
+  /**
    * [POST /internal/pipeline/seed-load] 파일 기반 스냅샷 시드 데이터 적재.
    *
    * <p>로컬/서버 파일시스템에 보존된 원문 JSON 파일들로부터 {@code core.raw_ingest}와 {@code core.job_posting} 테이블을 초기

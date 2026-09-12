@@ -138,6 +138,43 @@ public class SkillTaxonomy {
     this.trie = builder.build();
   }
 
+  /**
+   * 공고 제목이나 본문 같은 자연어 문장에서 사전에 등록된 표준 스킬만 단어 경계를 준수하여 고속 추출합니다. 사전에 없는 일반 단어나 노이즈는 절대 스킬로 승격되지
+   * 않습니다.
+   */
+  public List<String> extractSkillsFromSentence(String sentence) {
+    if (sentence == null || sentence.isBlank()) {
+      return Collections.emptyList();
+    }
+
+    Trie currentTrie = this.trie;
+    if (currentTrie == null) {
+      return Collections.emptyList();
+    }
+
+    String normalizedText = key(sentence);
+    Collection<Emit> emits = currentTrie.parseText(normalizedText);
+    if (emits.isEmpty()) {
+      return Collections.emptyList();
+    }
+
+    Set<String> results = new LinkedHashSet<>();
+    for (Emit emit : emits) {
+      if (isWordBoundary(normalizedText, emit.getStart(), emit.getEnd())) {
+        String canonicalSkill = aliasMap.get(emit.getKeyword());
+        if (canonicalSkill != null
+            && !canonicalSkill.isBlank()
+            && !JOB_TITLES.contains(key(canonicalSkill))) {
+          results.add(canonicalSkill);
+        }
+      }
+    }
+
+    return new ArrayList<>(results);
+  }
+
+  private static final Pattern UNKNOWN_TECH_PATTERN = Pattern.compile("^[a-zA-Z0-9_+#.-]{2,20}$");
+
   public List<String> extractCanonicalSkills(String rawText) {
     if (rawText == null || rawText.isBlank()) {
       return Collections.emptyList();
@@ -171,20 +208,49 @@ public class SkillTaxonomy {
       Collection<Emit> emits =
           currentTrie != null ? currentTrie.parseText(normalizedKey) : Collections.emptyList();
 
+      boolean matched = false;
       if (!emits.isEmpty()) {
         for (Emit emit : emits) {
-          String matchedKeyword = emit.getKeyword();
-          String canonicalSkill = aliasMap.get(matchedKeyword);
-          if (canonicalSkill != null) {
-            results.add(canonicalSkill);
+          if (isWordBoundary(normalizedKey, emit.getStart(), emit.getEnd())) {
+            String canonicalSkill = aliasMap.get(emit.getKeyword());
+            if (canonicalSkill != null) {
+              results.add(canonicalSkill);
+              matched = true;
+            }
           }
         }
-      } else if (!JOB_TITLES.contains(normalizedKey) && trimmed.length() <= 20) {
+      }
+
+      // 4. 사전에 없는 단어: 1글자이거나 한글 일반명사(사전 미등록)는 노이즈이므로 버림.
+      // 2~20자의 영문/기술 식별자 패턴인 경우에만 신기술 후보로 채택.
+      if (!matched
+          && !JOB_TITLES.contains(normalizedKey)
+          && UNKNOWN_TECH_PATTERN.matcher(trimmed).matches()) {
         results.add(trimmed);
       }
     }
 
     return new ArrayList<>(results);
+  }
+
+  /**
+   * 텍스트 내에서 매칭된 토큰의 시작과 끝이 단어 경계(비알파벳/비숫자)인지 검사합니다. "javascript" 내의 "java" 매칭이나 "good" 내의 "go" 같은
+   * 서브스트링 오탐을 방지합니다.
+   */
+  private static boolean isWordBoundary(String text, int start, int end) {
+    if (start > 0) {
+      char prev = text.charAt(start - 1);
+      if (Character.isLetterOrDigit(prev)) {
+        return false;
+      }
+    }
+    if (end < text.length() - 1) {
+      char next = text.charAt(end + 1);
+      if (Character.isLetterOrDigit(next)) {
+        return false;
+      }
+    }
+    return true;
   }
 
   private static int findWholeWordIndex(String text, String word) {
@@ -239,6 +305,10 @@ public class SkillTaxonomy {
   private static Map<String, String> createFallbackAliasMap() {
     Map<String, String> map = new HashMap<>();
 
+    // Mobile
+    add(map, "Android", "android", "안드로이드");
+    add(map, "iOS", "ios", "아이폰");
+
     // Java
     add(map, "Java", "java", "java8", "java11", "java17", "java21", "jdk", "자바", "java mdd");
     // Spring Boot & Framework
@@ -251,13 +321,25 @@ public class SkillTaxonomy {
         "spring framework",
         "스프링",
         "스프링부트",
-        "spring batch");
+        "spring batch",
+        "egovframe",
+        "전자정부프레임워크",
+        "egov");
     // JavaScript
-    add(map, "JavaScript", "javascript", "javascrip", "x-javascript", "js", "자바스크립트", "vanilla js");
+    add(
+        map,
+        "JavaScript",
+        "javascript",
+        "javascrip",
+        "x-javascript",
+        "js",
+        "자바스크립트",
+        "vanilla js",
+        "ecmascript");
     // TypeScript
     add(map, "TypeScript", "typescript", "ts", "타입스크립트");
     // Python
-    add(map, "Python", "python", "python3", "파이썬", "py");
+    add(map, "Python", "python", "python3", "파이썬", "py", "fastapi", "django", "flask");
     // Kotlin
     add(map, "Kotlin", "kotlin", "코틀린");
     // Go

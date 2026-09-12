@@ -11,6 +11,7 @@ import {
   triggerDeduplication,
   triggerMarketAggregate,
   triggerSeedLoad,
+  triggerSkillRefine,
   triggerWageStat,
 } from "./collectorApi";
 
@@ -227,6 +228,21 @@ describe("collectorApi (Collector 파이프라인 관리자 API 클라이언트)
         expect.objectContaining({
           method: "POST",
           body: JSON.stringify({}),
+        }),
+      );
+    });
+
+    it("triggerSkillRefine() 호출 시 스킬 재정제 작업을 실행한다", async () => {
+      globalThis.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({ jobId: "refine-1" }),
+      } as unknown as Response);
+
+      await triggerSkillRefine();
+      expect(globalThis.fetch).toHaveBeenCalledWith(
+        "/api/v1/admin/collector/refine-skills",
+        expect.objectContaining({
+          method: "POST",
         }),
       );
     });

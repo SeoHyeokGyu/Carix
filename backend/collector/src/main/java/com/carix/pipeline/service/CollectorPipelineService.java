@@ -104,6 +104,38 @@ public class CollectorPipelineService {
   }
 
   /**
+   * DB에 적재된 모든 채용공고의 스킬을 공고 제목과 기존 태그를 바탕으로 일괄 재정제(Refinement)합니다.
+   *
+   * @return 비동기 작업 수락 응답
+   */
+  public JobExecutionResponse triggerSkillRefine() {
+    ensureNoJobRunning();
+    String jobId = UUID.randomUUID().toString();
+    Instant now = Instant.now();
+    JobState state = new JobState(jobId, "SKILL_REFINE", "RUNNING", now);
+    jobHistory.put(jobId, state);
+
+    CompletableFuture.runAsync(
+        () -> {
+          try {
+            log.info("[작업:{}] 채용공고 스킬 일괄 재정제 작업을 시작합니다...", jobId);
+            Map<String, Object> stats = jobPostingIngestService.refineAllPostingSkills();
+            state.complete(stats);
+            log.info("[작업:{}] 채용공고 스킬 재정제 완료: {}", jobId, stats);
+          } catch (Exception e) {
+            log.error("[작업:{}] 채용공고 스킬 재정제 실패: {}", jobId, e.getMessage(), e);
+            state.fail(e.getMessage());
+          } finally {
+            isJobRunning.set(false);
+          }
+        },
+        executor);
+
+    return new JobExecutionResponse(
+        jobId, "SKILL_REFINE", "ACCEPTED", "스킬 재정제 작업이 수락되어 백그라운드에서 시작되었습니다.", now);
+  }
+
+  /**
    * 로컬/서버 파일시스템의 스냅샷 시드 데이터를 DB로 적재합니다.
    *
    * @param request 시드 디렉토리 경로

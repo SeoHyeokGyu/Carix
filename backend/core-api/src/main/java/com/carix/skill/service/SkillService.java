@@ -143,9 +143,12 @@ public class SkillService {
    * 거쳐 표준 스킬(is_custom = false)로 승격하고 동의어/별칭(Alias)을 매핑하는 배치 파이프라인 연동 고려
    */
   private Skill resolveOrCreateSkill(UUID userId, String name, String category) {
-    // 1. 표준 스킬명 일치 확인
+    // 1. 표준 스킬명 일치 확인 (중복 행 존재 시 NonUniqueResultException 방지 위해 findFirst 우선 시도)
     Optional<Skill> standardSkillOpt =
-        skillRepository.findByStandardNameIgnoreCaseAndIsCustomFalse(name);
+        skillRepository.findFirstByStandardNameIgnoreCaseAndIsCustomFalse(name);
+    if (standardSkillOpt.isEmpty()) {
+      standardSkillOpt = skillRepository.findByStandardNameIgnoreCaseAndIsCustomFalse(name);
+    }
     if (standardSkillOpt.isPresent()) {
       return standardSkillOpt.get();
     }
@@ -160,10 +163,15 @@ public class SkillService {
     validateCategory(category);
     String normalizedCategory = category.toUpperCase().trim();
 
-    return skillRepository
-        .findByStandardNameIgnoreCaseAndCategory(name, normalizedCategory)
-        .orElseGet(
-            () -> skillRepository.save(Skill.createCustom(name, normalizedCategory, userId)));
+    Optional<Skill> customSkillOpt =
+        skillRepository.findFirstByStandardNameIgnoreCaseAndCategory(name, normalizedCategory);
+    if (customSkillOpt.isEmpty()) {
+      customSkillOpt =
+          skillRepository.findByStandardNameIgnoreCaseAndCategory(name, normalizedCategory);
+    }
+
+    return customSkillOpt.orElseGet(
+        () -> skillRepository.save(Skill.createCustom(name, normalizedCategory, userId)));
   }
 
   private void validateCategory(String category) {

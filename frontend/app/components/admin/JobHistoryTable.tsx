@@ -59,6 +59,8 @@ export function JobHistoryTable({ jobs, isLoading }: JobHistoryTableProps) {
           label: "시장 집계",
           color: "text-emerald-600 bg-emerald-500/10",
         };
+      case "SKILL_REFINE":
+        return { label: "스킬 재정제", color: "text-cyan-600 bg-cyan-500/10" };
       case "SEED_LOAD":
         return { label: "시드 적재", color: "text-slate-600 bg-slate-500/10" };
       default:

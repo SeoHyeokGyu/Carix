@@ -143,4 +143,40 @@ class SkillTaxonomyTest {
     assertEquals(null, taxonomy.canonicalName("   "));
     assertEquals(null, taxonomy.canonicalName("인근거주자 우대"));
   }
+
+  @Test
+  void extractsSkillsFromSentenceWithWordBoundaries() {
+    // 1. 공고 제목에서 단어 경계를 준수하여 표준 스킬 추출
+    String title = "AI/Java/eGovFrame/웹개발 정규직 신입 개발자 모집";
+    List<String> skills = taxonomy.extractSkillsFromSentence(title);
+    assertTrue(skills.contains("Java"));
+    assertTrue(skills.contains("Spring Boot")); // eGovFrame 매핑
+
+    // 2. 단어의 일부분(서브스트링) 오탐 방지: "javascript" 에서 "Java"가 잡히지 않아야 함
+    String jsTitle = "JavaScript 프론트엔드 개발자 채용";
+    List<String> jsSkills = taxonomy.extractSkillsFromSentence(jsTitle);
+    assertEquals(List.of("JavaScript"), jsSkills);
+
+    // 3. 괄호, 슬래시 등 다양한 특수문자 경계
+    String mixedTitle = "[백엔드] Kotlin/Spring Boot 주니어 개발자 (Python 우대)";
+    List<String> mixedSkills = taxonomy.extractSkillsFromSentence(mixedTitle);
+    assertTrue(mixedSkills.contains("Kotlin"));
+    assertTrue(mixedSkills.contains("Spring Boot"));
+    assertTrue(mixedSkills.contains("Python"));
+  }
+
+  @Test
+  void filtersOutSingleCharacterAndKoreanNoises() {
+    // 1글자 영문자 노이즈는 제외됨
+    assertTrue(taxonomy.extractCanonicalSkills("W").isEmpty());
+    assertTrue(taxonomy.extractCanonicalSkills("S").isEmpty());
+
+    // 미등록 한글 일반명사는 제외됨
+    assertTrue(taxonomy.extractCanonicalSkills("전자").isEmpty());
+    assertTrue(taxonomy.extractCanonicalSkills("성남").isEmpty());
+
+    // 유효한 기술은 정상 추출
+    assertEquals(List.of("React"), taxonomy.extractCanonicalSkills("React"));
+    assertEquals(List.of("Spring Boot"), taxonomy.extractCanonicalSkills("전자정부프레임워크"));
+  }
 }

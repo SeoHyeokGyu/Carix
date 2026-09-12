@@ -19,11 +19,21 @@ public interface SkillRepository extends JpaRepository<Skill, UUID> {
           + ")")
   List<Skill> searchStandardSkills(@Param("query") String query);
 
+  /** 대소문자 무시 표준 스킬명 최초 1건 조회 (중복 레코드 존재 시 NonUniqueResultException 방지) */
+  Optional<Skill> findFirstByStandardNameIgnoreCaseAndIsCustomFalse(String standardName);
+
   /** 대소문자 무시 표준 스킬명 조회 */
   Optional<Skill> findByStandardNameIgnoreCaseAndIsCustomFalse(String standardName);
 
+  /** 대소문자 무시 스킬명 최초 1건 조회 */
+  Optional<Skill> findFirstByStandardNameIgnoreCase(String standardName);
+
   /** 대소문자 무시 스킬명 조회 */
   Optional<Skill> findByStandardNameIgnoreCase(String standardName);
+
+  /** 스킬명 및 카테고리 일치 최초 1건 조회 */
+  Optional<Skill> findFirstByStandardNameIgnoreCaseAndCategory(
+      String standardName, String category);
 
   /** 스킬명 및 카테고리 일치 조회 */
   Optional<Skill> findByStandardNameIgnoreCaseAndCategory(String standardName, String category);
