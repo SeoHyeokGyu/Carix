@@ -38,5 +38,6 @@ export type IncomeInput = z.infer<typeof incomeSchema>;
 export const INCOME_FIELD_MESSAGES: Record<keyof IncomeInput, string> = {
   grossSalary: `세전 연봉은 ${GROSS_SALARY_RANGE_TEXT}`,
   netSalary: "월 실수령액은 50만 원~2억 원 사이로 입력해 주세요.",
-  effectiveDate: "유효 시작일은 YYYY-MM-DD 형식의 과거~당월 날짜여야 합니다.",
+  effectiveDate:
+    "연봉 적용 시작일은 YYYY-MM-DD 형식의 과거~당월 날짜여야 합니다.",
 };

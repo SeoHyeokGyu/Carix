@@ -30,7 +30,6 @@ import {
 import { type ApiError, UnauthorizedError } from "../../lib/coreApi";
 import { toFieldErrors, type FieldErrors } from "../../lib/fieldErrors";
 import { focusFirstInvalidField } from "../../lib/focusFirstInvalidField";
-import { formDataToObject } from "../../lib/formData";
 import { advanceOnboarding } from "../../lib/onboardingApi";
 import { isForwardStep, LOGIN_PATH } from "../../lib/routeGuards";
 import { incomeSchema, INCOME_FIELD_MESSAGES } from "../../lib/schemas/income";
@@ -103,10 +102,24 @@ export async function clientAction({ request }: { request: Request }) {
 
   // "create" 또는 "update" — 소득 이력은 부분 저장 개념이 없다(행마다 완결된
   // 레코드다), 그래서 항상 전체 스키마로 검증한다.
-  const raw = formDataToObject(formData, {
-    numeric: ["grossSalary", "netSalary"],
+  // 사용자가 화면에서 만원 단위(천 단위 콤마 포함)로 입력하므로 콤마를 제거하고
+  // 원 단위(* 10,000)로 환산해 스키마로 검증한다.
+  const grossRaw = String(formData.get("grossSalary") ?? "")
+    .replace(/,/g, "")
+    .trim();
+  const netRaw = String(formData.get("netSalary") ?? "")
+    .replace(/,/g, "")
+    .trim();
+  const effectiveDate = String(formData.get("effectiveDate") ?? "").trim();
+
+  const grossSalary = grossRaw === "" ? NaN : Number(grossRaw) * 10_000;
+  const netSalary = netRaw === "" ? NaN : Number(netRaw) * 10_000;
+
+  const result = incomeSchema.safeParse({
+    grossSalary,
+    netSalary,
+    effectiveDate,
   });
-  const result = incomeSchema.safeParse(raw);
   if (!result.success) {
     return {
       errors: toFieldErrors(result.error.issues, INCOME_FIELD_MESSAGES),
@@ -141,11 +154,19 @@ function IncomeRow({ income, isEditing, onEdit }: IncomeRowProps) {
   const isDeleting = deleteFetcher.state !== "idle";
   const deleteError = deleteFetcher.data?.errors?._form;
 
+  // 만원 단위 및 천 단위 콤마 포맷팅
+  const grossInTenThousand = Math.round(
+    income.grossSalary / 10_000,
+  ).toLocaleString();
+  const netInTenThousand = Math.round(
+    income.netSalary / 10_000,
+  ).toLocaleString();
+
   return (
     <tr aria-current={isEditing ? "true" : undefined}>
       <td className="px-3 py-2">{income.effectiveDate}</td>
-      <td className="px-3 py-2">{income.grossSalary.toLocaleString()}</td>
-      <td className="px-3 py-2">{income.netSalary.toLocaleString()}</td>
+      <td className="px-3 py-2">{grossInTenThousand}만 원</td>
+      <td className="px-3 py-2">{netInTenThousand}만 원</td>
       <td className="px-3 py-2">
         <div className="flex flex-col gap-1">
           <div className="flex gap-2">
@@ -197,23 +218,43 @@ export default function Income() {
   const isAdvancing =
     navigation.state === "submitting" || navigation.state === "loading";
 
+  // 실시간 천 단위 콤마 입력 상태 (만원 단위)
+  const [grossInput, setGrossInput] = useState(
+    editingIncome
+      ? Math.round(editingIncome.grossSalary / 10_000).toLocaleString()
+      : "",
+  );
+  const [netInput, setNetInput] = useState(
+    editingIncome
+      ? Math.round(editingIncome.netSalary / 10_000).toLocaleString()
+      : "",
+  );
+  const [effectiveDateInput, setEffectiveDateInput] = useState(
+    editingIncome?.effectiveDate ?? "",
+  );
+
+  const [prevEditingId, setPrevEditingId] = useState<string | null>(editingId);
+  if (editingId !== prevEditingId) {
+    setPrevEditingId(editingId);
+    if (editingIncome) {
+      setGrossInput(
+        Math.round(editingIncome.grossSalary / 10_000).toLocaleString(),
+      );
+      setNetInput(
+        Math.round(editingIncome.netSalary / 10_000).toLocaleString(),
+      );
+      setEffectiveDateInput(editingIncome.effectiveDate);
+    } else {
+      setGrossInput("");
+      setNetInput("");
+      setEffectiveDateInput("");
+    }
+  }
+
   useEffect(() => {
     if (errors) focusFirstInvalidField(formRef.current);
   }, [errors]);
 
-  // 성공한 제출은 항상 null 을 반환하고(실패는 { errors }), 초기값은 undefined 다 —
-  // 그래서 "state 가 idle 로 막 돌아왔을 때 data 가 정확히 null" 은 방금 create·
-  // update 가 성공했다는 신호로 안전하게 쓸 수 있다(제출 전에는 data 가 undefined
-  // 라 걸리지 않고, 실패하면 {errors} 라 역시 걸리지 않는다). 수정 성공 뒤
-  // editingId 를 그대로 두면 폼이 계속 "저장"/취소 가 있는 편집 모드에 머물고,
-  // 숨은 intent=update·id 필드가 방금 수정한(또는 그 뒤 삭제된) 행의 id 를 계속
-  // 가리킨다 — 그 상태로 다시 제출하면 죽은 id 로 update 를 보낸다. create 성공
-  // 시에는 editingId 가 이미 null 이라 이 설정이 아무 것도 바꾸지 않는다.
-  //
-  // useEffect 로 동기화하면 렌더 한 번 더 도는 캐스케이드가 생기므로
-  // (react-hooks/set-state-in-effect, dashboard/index.tsx 의 lastGood 과 같은
-  // 이유), 렌더링 중에 이전 state 와 비교해 바로 갱신한다(React 공식 패턴 —
-  // https://react.dev/learn/you-might-not-need-an-effect).
   const [prevFormFetcherState, setPrevFormFetcherState] = useState(
     formFetcher.state,
   );
@@ -221,8 +262,49 @@ export default function Income() {
     setPrevFormFetcherState(formFetcher.state);
     if (formFetcher.state === "idle" && formFetcher.data === null) {
       setEditingId(null);
+      setGrossInput("");
+      setNetInput("");
+      setEffectiveDateInput("");
     }
   }
+
+  // 숫자 입력 시 천 단위 콤마 자동 포맷팅
+  const handleGrossChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const rawDigits = e.target.value.replace(/[^0-9]/g, "");
+    if (!rawDigits) {
+      setGrossInput("");
+      return;
+    }
+    setGrossInput(Number(rawDigits).toLocaleString());
+  };
+
+  const handleNetChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const rawDigits = e.target.value.replace(/[^0-9]/g, "");
+    if (!rawDigits) {
+      setNetInput("");
+      return;
+    }
+    setNetInput(Number(rawDigits).toLocaleString());
+  };
+
+  const handleCancel = () => {
+    setEditingId(null);
+    setGrossInput("");
+    setNetInput("");
+    setEffectiveDateInput("");
+  };
+
+  // 입력된 만원 단위를 원 단위로 계산해주는 헬퍼
+  const getWonHint = (val: string) => {
+    const digits = val.replace(/,/g, "");
+    if (!digits) return null;
+    const won = Number(digits) * 10_000;
+    if (isNaN(won) || won <= 0) return null;
+    return `= ${won.toLocaleString()}원`;
+  };
+
+  const grossWonHint = getWonHint(grossInput);
+  const netWonHint = getWonHint(netInput);
 
   return (
     <section className="mx-auto w-full max-w-3xl px-6 py-16">
@@ -232,8 +314,8 @@ export default function Income() {
         <CardHeader>
           <CardTitle>소득 관리</CardTitle>
           <CardDescription>
-            동료집단 비교와 구매력 계산을 위해 세전 연봉과 월 실수령액, 유효
-            시작일을 입력해 주세요.
+            동료집단 비교와 구매력 지수(PPI) 추이 계산을 위해 세전 연봉과 월
+            실수령액, 해당 연봉의 적용 시작일을 입력해 주세요.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -252,16 +334,23 @@ export default function Income() {
 
             <Field
               id="grossSalary"
-              label="세전 연봉 (원)"
+              label="세전 연봉 (만원)"
+              hint={
+                grossWonHint
+                  ? `${grossInput}만 원 (${grossWonHint})`
+                  : "1,000만 원 ~ 300,000만 원 사이로 입력해 주세요. (예: 5,000)"
+              }
               error={errors?.grossSalary}
             >
               {(aria) => (
                 <Input
                   {...aria}
                   name="grossSalary"
-                  type="number"
+                  type="text"
                   inputMode="numeric"
-                  defaultValue={editingIncome?.grossSalary ?? ""}
+                  placeholder="예: 5,000"
+                  value={grossInput}
+                  onChange={handleGrossChange}
                 />
               )}
             </Field>
@@ -273,24 +362,31 @@ export default function Income() {
                 로 오류 문단과 함께 연결되어, 오류가 나도 이 안내가 밀려나지 않는다. */}
             <Field
               id="netSalary"
-              label="월 실수령액 (원)"
-              hint="구매력 지수(PPI) 계산에 정확히 반영하기 위해 필수로 입력해야 합니다."
+              label="월 실수령액 (만원)"
+              hint={
+                netWonHint
+                  ? `${netInput}만 원 (${netWonHint})`
+                  : "구매력 지수(PPI) 계산에 정확히 반영하기 위해 필수로 입력해야 합니다. (50만 원 ~ 20,000만 원, 예: 350)"
+              }
               error={errors?.netSalary}
             >
               {(aria) => (
                 <Input
                   {...aria}
                   name="netSalary"
-                  type="number"
+                  type="text"
                   inputMode="numeric"
-                  defaultValue={editingIncome?.netSalary ?? ""}
+                  placeholder="예: 350"
+                  value={netInput}
+                  onChange={handleNetChange}
                 />
               )}
             </Field>
 
             <Field
               id="effectiveDate"
-              label="유효 시작일"
+              label="연봉 적용 시작일"
+              hint="해당 연봉 계약이 적용되기 시작한 날짜를 입력해 주세요. (과거 시계열 구매력 계산의 기준일로 사용됩니다)"
               error={errors?.effectiveDate}
             >
               {(aria) => (
@@ -298,8 +394,9 @@ export default function Income() {
                   {...aria}
                   name="effectiveDate"
                   type="text"
-                  placeholder="YYYY-MM-DD"
-                  defaultValue={editingIncome?.effectiveDate ?? ""}
+                  placeholder="YYYY-MM-DD (예: 2024-03-01)"
+                  value={effectiveDateInput}
+                  onChange={(e) => setEffectiveDateInput(e.target.value)}
                 />
               )}
             </Field>
@@ -319,7 +416,7 @@ export default function Income() {
                   type="button"
                   variant="outline"
                   disabled={isSubmittingForm}
-                  onClick={() => setEditingId(null)}
+                  onClick={handleCancel}
                 >
                   취소
                 </Button>
@@ -343,7 +440,7 @@ export default function Income() {
               <table className="w-full text-left text-sm">
                 <thead>
                   <tr className="border-b">
-                    <th className="px-3 py-2 font-medium">유효 시작일</th>
+                    <th className="px-3 py-2 font-medium">연봉 적용 시작일</th>
                     <th className="px-3 py-2 font-medium">세전 연봉</th>
                     <th className="px-3 py-2 font-medium">월 실수령액</th>
                     <th className="px-3 py-2 font-medium">작업</th>

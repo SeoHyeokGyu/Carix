@@ -83,9 +83,9 @@ describe("S-06 소득 화면", () => {
     renderScreen();
     const user = userEvent.setup();
 
-    await user.type(await screen.findByLabelText("세전 연봉 (원)"), "50000000");
-    await user.type(screen.getByLabelText("월 실수령액 (원)"), "3500000");
-    await user.type(screen.getByLabelText("유효 시작일"), "2024-01-01");
+    await user.type(await screen.findByLabelText("세전 연봉 (만원)"), "5000");
+    await user.type(screen.getByLabelText("월 실수령액 (만원)"), "350");
+    await user.type(screen.getByLabelText("연봉 적용 시작일"), "2024-01-01");
     await user.click(screen.getByRole("button", { name: "추가" }));
 
     expect(create).toHaveBeenCalledWith({
@@ -93,7 +93,7 @@ describe("S-06 소득 화면", () => {
       netSalary: 3_500_000,
       effectiveDate: "2024-01-01",
     });
-    expect(await screen.findByText("2024-01-01")).toBeInTheDocument();
+    expect(await screen.findByText("5,000만 원")).toBeInTheDocument();
   });
 
   it("같은 유효 시작일로 추가하면 필드 오류를 보여주고 입력값을 지우지 않는다", async () => {
@@ -114,9 +114,9 @@ describe("S-06 소득 화면", () => {
     renderScreen();
     const user = userEvent.setup();
 
-    await user.type(await screen.findByLabelText("세전 연봉 (원)"), "52000000");
-    await user.type(screen.getByLabelText("월 실수령액 (원)"), "3600000");
-    await user.type(screen.getByLabelText("유효 시작일"), "2024-01-01");
+    await user.type(await screen.findByLabelText("세전 연봉 (만원)"), "5200");
+    await user.type(screen.getByLabelText("월 실수령액 (만원)"), "360");
+    await user.type(screen.getByLabelText("연봉 적용 시작일"), "2024-01-01");
     await user.click(screen.getByRole("button", { name: "추가" }));
 
     const errorText = await screen.findByText(
@@ -128,13 +128,16 @@ describe("S-06 소득 화면", () => {
     // 일반 _form 배너로 떨어졌는지 구분되지 않는다(toUserMessage 의 _form 경로도
     // 같은 문자열을 만든다) — range 검증 테스트와 같은 패턴으로 aria-describedby
     // 배선을 직접 확인해야 이 어서션이 실제로 필드 착지를 핀한다.
-    const dateInput = screen.getByLabelText("유효 시작일");
-    expect(dateInput).toHaveAttribute("aria-describedby", errorText.id);
+    const dateInput = screen.getByLabelText("연봉 적용 시작일");
+    expect(dateInput).toHaveAttribute(
+      "aria-describedby",
+      expect.stringContaining(errorText.id),
+    );
 
-    // 입력값이 그대로 남아 있어야 한다.
-    expect(screen.getByLabelText("세전 연봉 (원)")).toHaveValue(52_000_000);
-    expect(screen.getByLabelText("월 실수령액 (원)")).toHaveValue(3_600_000);
-    expect(screen.getByLabelText("유효 시작일")).toHaveValue("2024-01-01");
+    // 입력값이 그대로 남아 있어야 한다 (천 단위 콤마 포맷팅 유지).
+    expect(screen.getByLabelText("세전 연봉 (만원)")).toHaveValue("5,200");
+    expect(screen.getByLabelText("월 실수령액 (만원)")).toHaveValue("360");
+    expect(screen.getByLabelText("연봉 적용 시작일")).toHaveValue("2024-01-01");
   });
 
   it("'다음' 을 누르면 advanceOnboarding 후 소비 화면으로 간다", async () => {
@@ -278,9 +281,9 @@ describe("S-06 소득 화면", () => {
 
     // key={editingId} 리마운트로 defaultValue 가 기존 값(5천만 원)으로 다시
     // 채워진다 — 지우고 새 값을 넣는다.
-    const grossInput = screen.getByLabelText("세전 연봉 (원)");
+    const grossInput = screen.getByLabelText("세전 연봉 (만원)");
     await user.clear(grossInput);
-    await user.type(grossInput, "55000000");
+    await user.type(grossInput, "5500");
     await user.click(screen.getByRole("button", { name: "저장" }));
 
     // API 호출 인자를 직접 단언한다 — 호출 여부만으로는 create 로 잘못 착지해도
@@ -290,12 +293,8 @@ describe("S-06 소득 화면", () => {
       netSalary: 3_500_000,
       effectiveDate: "2024-01-01",
     });
-    expect(
-      await screen.findByText((55_000_000).toLocaleString()),
-    ).toBeInTheDocument();
-    expect(
-      screen.queryByText((50_000_000).toLocaleString()),
-    ).not.toBeInTheDocument();
+    expect(await screen.findByText("5,500만 원")).toBeInTheDocument();
+    expect(screen.queryByText("5,000만 원")).not.toBeInTheDocument();
   });
 
   // FIX 4c — 수정 성공 후 editingId 를 지우지 않으면 폼이 계속 편집
@@ -338,12 +337,12 @@ describe("S-06 소득 화면", () => {
     await user.click(await screen.findByRole("button", { name: "수정" }));
     expect(screen.getByRole("button", { name: "취소" })).toBeInTheDocument();
 
-    const grossInput = screen.getByLabelText("세전 연봉 (원)");
+    const grossInput = screen.getByLabelText("세전 연봉 (만원)");
     await user.clear(grossInput);
-    await user.type(grossInput, "55000000");
+    await user.type(grossInput, "5500");
     await user.click(screen.getByRole("button", { name: "저장" }));
 
-    await screen.findByText((55_000_000).toLocaleString());
+    await screen.findByText("5,500만 원");
 
     // 편집 모드가 풀려야 한다 — "취소" 버튼이 사라지고 제출 버튼이 "추가"로
     // 되돌아온다. 풀리지 않으면(버그) "저장" 버튼과 "취소" 버튼이 그대로 남는다.
@@ -378,9 +377,9 @@ describe("S-06 소득 화면", () => {
 
     await user.click(await screen.findByRole("button", { name: "수정" }));
 
-    const grossInput = screen.getByLabelText("세전 연봉 (원)");
+    const grossInput = screen.getByLabelText("세전 연봉 (만원)");
     await user.clear(grossInput);
-    await user.type(grossInput, "60000000");
+    await user.type(grossInput, "6000");
     await user.click(screen.getByRole("button", { name: "저장" }));
 
     expect(update).toHaveBeenCalledWith("i-1", {
@@ -398,7 +397,7 @@ describe("S-06 소득 화면", () => {
     // 구분된다(FIX 2 와 같은 이유 — 텍스트만으로는 착지 위치를 핀하지 못한다).
     expect(banner).not.toHaveAttribute("id");
     // 서버가 거부했으므로 표는 갱신되지 않고 원래 값이 남아 있어야 한다.
-    expect(screen.getByText((50_000_000).toLocaleString())).toBeInTheDocument();
+    expect(screen.getByText("5,000만 원")).toBeInTheDocument();
   });
 
   it("'이전' 을 누르면 프로필 화면으로 이동한다", async () => {
@@ -432,12 +431,12 @@ describe("S-06 소득 화면", () => {
     renderScreen();
     const user = userEvent.setup();
 
-    await user.type(await screen.findByLabelText("세전 연봉 (원)"), "1000");
-    await user.type(screen.getByLabelText("월 실수령액 (원)"), "3500000");
-    await user.type(screen.getByLabelText("유효 시작일"), "2024-01-01");
+    await user.type(await screen.findByLabelText("세전 연봉 (만원)"), "500");
+    await user.type(screen.getByLabelText("월 실수령액 (만원)"), "350");
+    await user.type(screen.getByLabelText("연봉 적용 시작일"), "2024-01-01");
     await user.click(screen.getByRole("button", { name: "추가" }));
 
-    // 라벨("세전 연봉 (원)")도 부분 문자열을 포함해 느슨한 정규식은 다중 매치로 깨진다
+    // 라벨("세전 연봉 (만원)")도 부분 문자열을 포함해 느슨한 정규식은 다중 매치로 깨진다
     // — 필드 에러 메시지 전체를 정확히 매칭한다.
     const errorText = await screen.findByText(
       "세전 연봉은 1천만 원~30억 원 사이로 입력해 주세요.",
@@ -445,8 +444,11 @@ describe("S-06 소득 화면", () => {
     expect(errorText).toBeInTheDocument();
     expect(create).not.toHaveBeenCalled();
 
-    const invalidField = screen.getByLabelText("세전 연봉 (원)");
-    expect(invalidField).toHaveAttribute("aria-describedby", errorText.id);
+    const invalidField = screen.getByLabelText("세전 연봉 (만원)");
+    expect(invalidField).toHaveAttribute(
+      "aria-describedby",
+      expect.stringContaining(errorText.id),
+    );
     expect(invalidField).toHaveFocus();
   });
 
