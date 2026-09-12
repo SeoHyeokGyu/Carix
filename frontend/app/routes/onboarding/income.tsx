@@ -18,7 +18,6 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Field } from "../../components/onboarding/Field";
-import { StepBadges } from "../../components/onboarding/StepBadges";
 import { isApiError, toUserMessage } from "../../lib/apiError";
 import {
   createIncome,
@@ -307,10 +306,8 @@ export default function Income() {
   const netWonHint = getWonHint(netInput);
 
   return (
-    <section className="mx-auto w-full max-w-3xl px-6 py-16">
-      <StepBadges current={2} />
-
-      <Card className="mt-6">
+    <section className="mx-auto w-full max-w-3xl px-6 py-8 sm:py-12">
+      <Card>
         <CardHeader>
           <CardTitle>소득 관리</CardTitle>
           <CardDescription>

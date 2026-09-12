@@ -12,10 +12,16 @@ interface AppShellProps {
   navLabel: string;
   items: NavItem[];
   utilityItems?: NavItem[];
+  children?: React.ReactNode;
 }
 
 /** 세션 이후 화면(온보딩·대시보드·마이페이지)의 공통 껍데기. */
-export function AppShell({ navLabel, items, utilityItems }: AppShellProps) {
+export function AppShell({
+  navLabel,
+  items,
+  utilityItems,
+  children,
+}: AppShellProps) {
   return (
     <div className="min-h-screen bg-carix-bg text-carix-text transition-colors duration-300">
       <header className="sticky top-0 z-40 border-b border-carix-border bg-carix-surface/80 backdrop-blur-md">
@@ -31,28 +37,30 @@ export function AppShell({ navLabel, items, utilityItems }: AppShellProps) {
               </span>
             </Link>
 
-            <nav
-              aria-label={navLabel}
-              className="flex items-center gap-1 overflow-x-auto py-0.5"
-            >
-              {items.map((item) => (
-                <NavLink
-                  key={item.to}
-                  to={item.to}
-                  end={item.end}
-                  className={({ isActive }) =>
-                    [
-                      "whitespace-nowrap rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
-                      isActive
-                        ? "bg-carix-info/10 text-carix-info font-semibold"
-                        : "text-carix-text/70 hover:bg-carix-border/40 hover:text-carix-text",
-                    ].join(" ")
-                  }
-                >
-                  {item.label}
-                </NavLink>
-              ))}
-            </nav>
+            {items.length > 0 && (
+              <nav
+                aria-label={navLabel}
+                className="flex items-center gap-1 overflow-x-auto py-0.5"
+              >
+                {items.map((item) => (
+                  <NavLink
+                    key={item.to}
+                    to={item.to}
+                    end={item.end}
+                    className={({ isActive }) =>
+                      [
+                        "whitespace-nowrap rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
+                        isActive
+                          ? "bg-carix-info/10 text-carix-info font-semibold"
+                          : "text-carix-text/70 hover:bg-carix-border/40 hover:text-carix-text",
+                      ].join(" ")
+                    }
+                  >
+                    {item.label}
+                  </NavLink>
+                ))}
+              </nav>
+            )}
           </div>
 
           {/* 우측: 유틸리티 (설정) */}
@@ -79,9 +87,7 @@ export function AppShell({ navLabel, items, utilityItems }: AppShellProps) {
         </div>
       </header>
       <ThemeToggle />
-      <main>
-        <Outlet />
-      </main>
+      <main>{children ?? <Outlet />}</main>
     </div>
   );
 }

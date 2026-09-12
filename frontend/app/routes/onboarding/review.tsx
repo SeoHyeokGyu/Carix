@@ -14,7 +14,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { StepBadges } from "../../components/onboarding/StepBadges";
 import { toUserMessage } from "../../lib/apiError";
 import { getProfile, type ProfileResponse } from "../../lib/api/profile";
 import { listIncome, type IncomeResponse } from "../../lib/api/income";
@@ -226,10 +225,8 @@ export default function Review() {
   const canSubmit = incompleteSteps.length === 0;
 
   return (
-    <section className="mx-auto w-full max-w-3xl px-6 py-16">
-      <StepBadges current={5} />
-
-      <h1 className="mt-6 font-display text-3xl font-bold text-carix-text sm:text-4xl">
+    <section className="mx-auto w-full max-w-3xl px-6 py-8 sm:py-12">
+      <h1 className="font-display text-3xl font-bold text-carix-text sm:text-4xl">
         검토
       </h1>
 

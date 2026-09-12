@@ -19,7 +19,6 @@ import {
 import { Input } from "@/components/ui/input";
 import { ExpenseDonut } from "../../components/expense/ExpenseDonut";
 import { Field } from "../../components/onboarding/Field";
-import { StepBadges } from "../../components/onboarding/StepBadges";
 import { toUserMessage } from "../../lib/apiError";
 import {
   listExpenses,
@@ -233,10 +232,8 @@ export default function Expense() {
   });
 
   return (
-    <section className="mx-auto w-full max-w-3xl px-6 py-16">
-      <StepBadges current={3} />
-
-      <Card className="mt-6">
+    <section className="mx-auto w-full max-w-3xl px-6 py-8 sm:py-12">
+      <Card>
         <CardHeader>
           <CardTitle>소비 관리</CardTitle>
           <CardDescription>

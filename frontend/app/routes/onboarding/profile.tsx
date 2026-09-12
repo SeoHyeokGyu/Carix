@@ -17,7 +17,6 @@ import {
 import { Input } from "@/components/ui/input";
 import { Field } from "../../components/onboarding/Field";
 import { NativeSelect } from "../../components/onboarding/NativeSelect";
-import { StepBadges } from "../../components/onboarding/StepBadges";
 import { toUserMessage } from "../../lib/apiError";
 import { getProfile, patchProfile } from "../../lib/api/profile";
 import { UnauthorizedError } from "../../lib/coreApi";
@@ -116,10 +115,8 @@ export default function Profile() {
   }, [errors]);
 
   return (
-    <section className="mx-auto w-full max-w-3xl px-6 py-16">
-      <StepBadges current={1} />
-
-      <Card className="mt-6">
+    <section className="mx-auto w-full max-w-3xl px-6 py-8 sm:py-12">
+      <Card>
         <CardHeader>
           <CardTitle>프로필</CardTitle>
           <CardDescription>
