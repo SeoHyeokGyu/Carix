@@ -8,6 +8,7 @@ const TABS: NavItem[] = [
   { to: "/dashboard/history", label: "이력" },
   { to: "/dashboard/trends", label: "추이 분석" },
   { to: "/dashboard/simulator", label: "시뮬레이터" },
+  { to: "/mypage/profile", label: "설정" },
 ];
 
 export async function clientLoader() {

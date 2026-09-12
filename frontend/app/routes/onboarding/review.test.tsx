@@ -447,4 +447,64 @@ describe("S-09 검토 화면", () => {
 
     expect(await screen.findByText("로그인 화면")).toBeInTheDocument();
   });
+
+  describe("온보딩 완료(COMPLETED) 후 재진입 및 재시작", () => {
+    beforeEach(() => {
+      setSession({
+        status: "authenticated",
+        userId: "u-1",
+        email: "user@carix.kr",
+        onboardingStep: "COMPLETED",
+      });
+    });
+
+    it("COMPLETED 사용자에게 완료 배너와 재시작 버튼을 보여준다", async () => {
+      renderScreen();
+
+      expect(await screen.findByText("온보딩 완료 상태")).toBeInTheDocument();
+      expect(
+        screen.getAllByRole("button", { name: "온보딩 처음부터 다시 시작" }),
+      ).toHaveLength(2);
+      expect(
+        screen.getByRole("link", { name: "대시보드로 돌아가기" }),
+      ).toHaveAttribute("href", "/dashboard");
+    });
+
+    it("'온보딩 처음부터 다시 시작'을 누르면 resetOnboarding 을 호출하고 프로필 화면으로 이동한다", async () => {
+      const resetSpy = vi
+        .spyOn(onboardingApi, "resetOnboarding")
+        .mockResolvedValue({
+          currentStep: "PROFILE",
+          completed: false,
+        });
+
+      renderScreen();
+      const user = userEvent.setup();
+
+      const restartButtons = await screen.findAllByRole("button", {
+        name: "온보딩 처음부터 다시 시작",
+      });
+      await user.click(restartButtons[0]);
+
+      expect(resetSpy).toHaveBeenCalledTimes(1);
+      expect(await screen.findByText("프로필 화면")).toBeInTheDocument();
+    });
+
+    it("재시작 실패 시 에러 메시지를 표시한다", async () => {
+      vi.spyOn(onboardingApi, "resetOnboarding").mockRejectedValue(
+        new Error("재시작 실패"),
+      );
+
+      renderScreen();
+      const user = userEvent.setup();
+
+      const restartButtons = await screen.findAllByRole("button", {
+        name: "온보딩 처음부터 다시 시작",
+      });
+      await user.click(restartButtons[0]);
+
+      const banner = await screen.findByRole("alert");
+      expect(banner).toHaveTextContent("요청을 처리하지 못했습니다");
+    });
+  });
 });

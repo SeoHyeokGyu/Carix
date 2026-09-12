@@ -96,4 +96,29 @@ class UserTest {
 
     assertThat(user.getOnboardingStep()).isEqualTo("PROFILE");
   }
+
+  @Test
+  void 온보딩을_재시작하면_COMPLETED_상태에서도_PROFILE_로_초기화된다() {
+    OffsetDateTime now = OffsetDateTime.parse("2026-09-07T00:00:00Z");
+    User user = new User(UUID.randomUUID(), "user@example.com", "hash", "COMPLETED", now, now);
+    OffsetDateTime later = now.plusMinutes(5);
+
+    user.resetOnboarding(later);
+
+    assertThat(user.getOnboardingStep()).isEqualTo("PROFILE");
+    assertThat(user.isOnboardingComplete()).isFalse();
+    assertThat(user.getUpdatedAt()).isEqualTo(later);
+  }
+
+  @Test
+  void 온보딩_진행_중에도_재시작하면_PROFILE_로_초기화된다() {
+    OffsetDateTime now = OffsetDateTime.parse("2026-09-07T00:00:00Z");
+    User user = new User(UUID.randomUUID(), "user@example.com", "hash", "EXPENSE", now, now);
+    OffsetDateTime later = now.plusMinutes(2);
+
+    user.resetOnboarding(later);
+
+    assertThat(user.getOnboardingStep()).isEqualTo("PROFILE");
+    assertThat(user.getUpdatedAt()).isEqualTo(later);
+  }
 }

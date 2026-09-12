@@ -93,6 +93,12 @@ public class User {
     this.updatedAt = now;
   }
 
+  /** 온보딩을 처음부터 다시 시작하도록 1단계(PROFILE)로 초기화한다. 사용자의 명시적인 재시작 요청에 의해서만 호출된다. */
+  public void resetOnboarding(OffsetDateTime now) {
+    this.onboardingStep = "PROFILE";
+    this.updatedAt = now;
+  }
+
   public boolean isOnboardingComplete() {
     return "COMPLETED".equals(onboardingStep);
   }

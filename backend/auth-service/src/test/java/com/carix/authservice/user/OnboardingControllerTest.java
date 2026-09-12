@@ -5,6 +5,7 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
 import static org.mockito.Mockito.never;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -148,5 +149,33 @@ class OnboardingControllerTest {
         .andExpect(jsonPath("$.completed").value(true));
 
     then(userRepository).should().save(any(User.class));
+  }
+
+  @Test
+  void 온보딩_재시작은_COMPLETED_상태인_사용자도_PROFILE_로_초기화한다() throws Exception {
+    given(sessionService.findUserIdBySessionToken(TOKEN)).willReturn(Optional.of(USER_ID));
+    given(userRepository.findById(USER_ID)).willReturn(Optional.of(user("COMPLETED")));
+
+    mockMvc
+        .perform(post("/v1/auth/onboarding/reset").cookie(sessionCookie()))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.currentStep").value("PROFILE"))
+        .andExpect(jsonPath("$.completed").value(false));
+
+    then(userRepository).should().save(any(User.class));
+  }
+
+  @Test
+  void 온보딩_재시작_시_쿠키가_없으면_401_이다() throws Exception {
+    mockMvc.perform(post("/v1/auth/onboarding/reset")).andExpect(status().isUnauthorized());
+  }
+
+  @Test
+  void 온보딩_재시작_시_만료된_세션은_401_이다() throws Exception {
+    given(sessionService.findUserIdBySessionToken(TOKEN)).willReturn(Optional.empty());
+
+    mockMvc
+        .perform(post("/v1/auth/onboarding/reset").cookie(sessionCookie()))
+        .andExpect(status().isUnauthorized());
   }
 }

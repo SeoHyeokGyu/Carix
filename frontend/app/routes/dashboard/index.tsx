@@ -63,12 +63,20 @@ export default function DashboardHome() {
         <p className="text-sm text-carix-text/70">
           기준일: {data?.metadata.baseDate ?? "-"}
         </p>
-        <Link
-          to="/dashboard/history"
-          className="text-sm text-carix-info underline"
-        >
-          월별 스냅샷 이력 보기
-        </Link>
+        <div className="flex flex-wrap items-center gap-4">
+          <Link
+            to="/dashboard/history"
+            className="text-sm text-carix-info underline"
+          >
+            월별 스냅샷 이력 보기
+          </Link>
+          <Link
+            to="/onboarding/review"
+            className="text-sm text-carix-text/70 hover:text-carix-text underline"
+          >
+            온보딩 검토 및 재시작
+          </Link>
+        </div>
       </div>
 
       <div className="mt-6 flex items-center justify-between gap-3">
