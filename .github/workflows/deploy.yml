@@ -644,6 +644,10 @@ jobs:
             # 재생성하지 않으므로 마운트가 살아 있고 reload로 충분하다. reload로 되돌리지 말 것.
             docker exec infra_caddy caddy reload --config /etc/caddy/Caddyfile
 
+            # config/spring/*.yml 등 설정 파일 갱신 반영 (@RefreshScope)
+            # config-server 가 git 체크아웃을 읽으므로 git reset --hard 이후 게이트웨이에 갱신을 알린다.
+            curl -sS -X POST https://carix.144.24.90.88.sslip.io/actuator/refresh >/dev/null 2>&1 || true
+
             # 디스크가 빡빡한 호스트다(81%). dangling 이미지를 매 배포마다 정리한다.
             # `prune -a`는 금지 — 이 호스트엔 레지스트리 없이 로컬 빌드된 타 프로젝트
             # 이미지가 여럿 있어 소스 재빌드로만 복구된다.
@@ -713,6 +717,13 @@ jobs:
           echo "마지막 응답: api=$api web=$web"
           echo "헬스체크 실패 — 자동 롤백을 수행합니다."
           exit 1
+
+      - name: Refresh Spring Cloud Gateway config
+        run: |
+          # config/spring/*.yml 등 설정 파일만 변경된 경우에도 게이트웨이에 최신 설정을 즉시 반영한다.
+          echo "게이트웨이 설정 갱신(/actuator/refresh) 요청 중..."
+          refreshed=$(curl -sS -X POST https://carix.144.24.90.88.sslip.io/actuator/refresh || true)
+          echo "갱신된 항목: ${refreshed:-없음}"
 
       - name: 배포 실패 시 자동 롤백 (Auto-Rollback on Failure)
         if: failure()
