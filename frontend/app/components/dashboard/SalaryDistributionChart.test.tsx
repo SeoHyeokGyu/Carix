@@ -82,8 +82,14 @@ describe("SalaryDistributionChart", () => {
     ).toBeInTheDocument();
     expect(screen.getByText(/66.7%/)).toBeInTheDocument();
 
-    // 내 연봉 인디케이터(세로선 툴팁, 뱃지) 확인
+    // 내 연봉, 공고 중앙값, 공식 기준선 인디케이터(실루엣 내부 마커 툴팁 및 라벨) 확인
     expect(screen.getByTitle("내 연봉: 7,200만 원")).toBeInTheDocument();
+    expect(screen.getByTitle("공고 중앙값: 6,800만 원")).toBeInTheDocument();
+    expect(
+      screen.getByTitle("공식 임금통계 기준선: 6,500만 원"),
+    ).toBeInTheDocument();
+    expect(screen.getByText("공고중앙")).toBeInTheDocument();
+    expect(screen.getByText("공식기준")).toBeInTheDocument();
   });
 
   it("공고 표본은 충족하지만 공개된 연봉이 0건일 때 왜곡된 0원 차트 대신 안내 화면을 표시한다", () => {

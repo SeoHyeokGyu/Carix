@@ -100,6 +100,23 @@ export function getBodyPartInfo(percentile: number): BodyPartInfo {
   };
 }
 
+/**
+ * 백분위(0~100)를 인체 실루엣 높이 비례(bottom %: 10% ~ 93%)로 변환
+ */
+export function percentileToBodyY(pct: number): number {
+  const clamped = Math.max(0, Math.min(100, pct));
+  if (clamped <= 25) {
+    return 10 + (clamped / 25) * 18; // 10% (발목) ~ 28% (무릎)
+  }
+  if (clamped <= 50) {
+    return 28 + ((clamped - 25) / 25) * 18; // 28% (무릎) ~ 46% (허리)
+  }
+  if (clamped <= 75) {
+    return 46 + ((clamped - 50) / 25) * 26; // 46% (허리) ~ 72% (어깨)
+  }
+  return 72 + ((clamped - 75) / 25) * 21; // 72% (어깨) ~ 93% (정수리)
+}
+
 export function SalaryDistributionChart({
   data,
 }: SalaryDistributionChartProps) {
@@ -152,12 +169,35 @@ export function SalaryDistributionChart({
     ? `상위 ${Math.max(1, 100 - userPosition.percentile)}% (백분위 ${userPosition.percentile}%)`
     : "미등록";
 
+  // 금액 기준 백분위 추정 (공식 임금통계 기준선 등의 위치 계산용)
+  const estimatePercentile = (won: number | null | undefined): number => {
+    if (won == null || !hasPostingSalaries) return 50;
+    if (won <= min) return 5;
+    if (won >= max) return 95;
+    if (won <= p25) {
+      return 5 + ((won - min) / (p25 - min || 1)) * 20;
+    }
+    if (won <= median) {
+      return 25 + ((won - p25) / (median - p25 || 1)) * 25;
+    }
+    if (won <= p75) {
+      return 50 + ((won - median) / (p75 - median || 1)) * 25;
+    }
+    return 75 + ((won - p75) / (max - p75 || 1)) * 20;
+  };
+
   const userBodyPart = userPosition
     ? getBodyPartInfo(userPosition.percentile)
     : null;
 
-  // 신체 그래픽 상의 사용자 위치 (bottom 기준 %: 5% ~ 95%)
-  const userVisualY = userBodyPart?.relativeY ?? 50;
+  // 신체 그래픽 상의 각 지표 위치 (bottom %: 10% ~ 93%)
+  const userVisualY = userPosition
+    ? percentileToBodyY(userPosition.percentile)
+    : null;
+  const medianVisualY = percentileToBodyY(50); // 공고 중앙값은 표본의 50%
+  const officialVisualY = officialMedian
+    ? percentileToBodyY(estimatePercentile(officialMedian))
+    : null;
 
   return (
     <div
@@ -265,11 +305,11 @@ export function SalaryDistributionChart({
             <div className="grid grid-cols-1 md:grid-cols-12 items-center gap-6">
               {/* 왼쪽: 세련된 인체 실루엣 그래픽 (4 컬럼) */}
               <div className="md:col-span-4 flex flex-col items-center justify-center py-2">
-                <div className="relative h-64 w-32 flex items-center justify-center">
+                <div className="relative h-64 w-44 flex items-center justify-center">
                   {/* 신체 실루엣 SVG */}
                   <svg
                     viewBox="0 0 100 240"
-                    className="h-full w-full overflow-visible drop-shadow-xs"
+                    className="h-full w-28 overflow-visible drop-shadow-xs"
                     aria-label="연봉 위치 인체 실루엣"
                   >
                     <defs>
@@ -346,10 +386,38 @@ export function SalaryDistributionChart({
                     />
                   </svg>
 
-                  {/* 사용자 연봉 실루엣 스캔 빔 & 핀 포인트 */}
-                  {userPosition && (
+                  {/* 1. 공고 중앙값 수평 마커 (허리 50% 기준선) */}
+                  <div
+                    className="absolute -left-2 -right-2 z-10 flex items-center transition-all duration-500"
+                    style={{ bottom: `${medianVisualY}%` }}
+                    title={`공고 중앙값: ${formatKoreanSalary(median)}`}
+                  >
+                    <div className="h-[1.5px] w-full bg-carix-info/60 border-b border-dashed border-carix-info/70" />
+                    <div className="absolute left-1/2 -translate-x-1/2 h-2.5 w-2.5 rounded-full bg-carix-info ring-2 ring-white dark:ring-carix-surface shadow-xs" />
+                    <span className="absolute -left-1 -translate-x-full rounded bg-carix-info/90 px-1.5 py-0.5 text-[9px] font-bold text-white shadow-xs whitespace-nowrap">
+                      공고중앙
+                    </span>
+                  </div>
+
+                  {/* 2. 공식 임금통계 기준선 수평 마커 (KOSIS 기준선) */}
+                  {officialVisualY != null && (
                     <div
-                      className="absolute left-0 right-0 z-20 flex items-center transition-all duration-500"
+                      className="absolute -left-2 -right-2 z-10 flex items-center transition-all duration-500"
+                      style={{ bottom: `${officialVisualY}%` }}
+                      title={`공식 임금통계 기준선: ${formatKoreanSalary(officialMedian)}`}
+                    >
+                      <div className="h-[1.5px] w-full bg-carix-warning/70 border-b border-dashed border-carix-warning/80" />
+                      <div className="absolute left-1/2 -translate-x-1/2 h-2.5 w-2.5 rounded-full bg-carix-warning ring-2 ring-white dark:ring-carix-surface shadow-xs" />
+                      <span className="absolute -right-1 translate-x-full rounded bg-carix-warning/90 px-1.5 py-0.5 text-[9px] font-bold text-white shadow-xs whitespace-nowrap">
+                        공식기준
+                      </span>
+                    </div>
+                  )}
+
+                  {/* 3. 사용자 연봉 실루엣 스캔 빔 & 핀 포인트 */}
+                  {userPosition && userVisualY != null && (
+                    <div
+                      className="absolute -left-3 -right-3 z-20 flex items-center transition-all duration-500"
                       style={{ bottom: `${userVisualY}%` }}
                       title={`내 연봉: ${formatKoreanSalary(userPosition.grossSalary)}`}
                     >
@@ -357,6 +425,9 @@ export function SalaryDistributionChart({
                       <div className="h-0.5 w-full bg-carix-positive shadow-[0_0_8px_var(--carix-positive)]" />
                       {/* 중심 핀 포인트 헤드 */}
                       <div className="absolute left-1/2 -translate-x-1/2 h-3.5 w-3.5 rounded-full bg-carix-positive ring-4 ring-white dark:ring-carix-surface shadow-md" />
+                      <span className="absolute -left-1 -translate-x-full rounded bg-carix-positive px-1.5 py-0.5 text-[10px] font-bold text-white shadow whitespace-nowrap">
+                        내 연봉
+                      </span>
                     </div>
                   )}
                 </div>
