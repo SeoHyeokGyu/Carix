@@ -2,11 +2,14 @@ package com.carix.jobposting.service;
 
 import com.carix.jobposting.JobPosting;
 import com.carix.jobposting.JobPostingRepository;
+import com.carix.jobposting.JobPostingSkillRepository;
 import com.carix.jobposting.RawIngest;
 import com.carix.jobposting.RawIngestIds;
 import com.carix.jobposting.RawIngestRepository;
 import com.carix.jobposting.Skill;
+import com.carix.jobposting.SkillAliasRepository;
 import com.carix.jobposting.SkillRepository;
+import com.carix.jobposting.UserSkillRepository;
 import com.carix.jobposting.crawler.JobKoreaDetailParser;
 import com.carix.jobposting.normalize.CompanySizeClassifier;
 import com.carix.jobposting.normalize.EmploymentTypeClassifier;
@@ -32,18 +35,18 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import lombok.RequiredArgsConstructor;
+import java.util.UUID;
 import lombok.extern.slf4j.Slf4j;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class JobPostingIngestService {
 
   private static final DateTimeFormatter YM_FORMATTER = DateTimeFormatter.ofPattern("yyyyMM");
@@ -57,6 +60,10 @@ public class JobPostingIngestService {
   private final JobPostingRepository jobPostingRepository;
   private final SkillRepository skillRepository;
   private final RawIngestRepository rawIngestRepository;
+  private final JobPostingSkillRepository jobPostingSkillRepository;
+  private final SkillAliasRepository skillAliasRepository;
+  private final UserSkillRepository userSkillRepository;
+  private final SkillTaxonomy skillTaxonomy;
 
   private final JobKoreaListingEnricher jobKoreaListingEnricher = new JobKoreaListingEnricher();
   private final SaraminListingEnricher saraminListingEnricher = new SaraminListingEnricher();
@@ -65,7 +72,41 @@ public class JobPostingIngestService {
   private final JobFamilyClassifier jobFamilyClassifier = new JobFamilyClassifier();
   private final CompanySizeClassifier companySizeClassifier = new CompanySizeClassifier();
   private final EmploymentTypeClassifier employmentTypeClassifier = new EmploymentTypeClassifier();
-  private final SkillTaxonomy skillTaxonomy = new SkillTaxonomy();
+
+  @Autowired
+  public JobPostingIngestService(
+      JobPostingRepository jobPostingRepository,
+      SkillRepository skillRepository,
+      RawIngestRepository rawIngestRepository,
+      @Autowired(required = false) JobPostingSkillRepository jobPostingSkillRepository,
+      @Autowired(required = false) SkillAliasRepository skillAliasRepository,
+      @Autowired(required = false) UserSkillRepository userSkillRepository,
+      @Autowired(required = false) SkillTaxonomy skillTaxonomy) {
+    this.jobPostingRepository = jobPostingRepository;
+    this.skillRepository = skillRepository;
+    this.rawIngestRepository = rawIngestRepository;
+    this.jobPostingSkillRepository = jobPostingSkillRepository;
+    this.skillAliasRepository = skillAliasRepository;
+    this.userSkillRepository = userSkillRepository;
+    this.skillTaxonomy =
+        skillTaxonomy != null
+            ? skillTaxonomy
+            : new SkillTaxonomy(skillRepository, skillAliasRepository);
+  }
+
+  public JobPostingIngestService(
+      JobPostingRepository jobPostingRepository,
+      SkillRepository skillRepository,
+      RawIngestRepository rawIngestRepository) {
+    this(
+        jobPostingRepository,
+        skillRepository,
+        rawIngestRepository,
+        null,
+        null,
+        null,
+        new SkillTaxonomy(skillRepository, null));
+  }
 
   /** 크롤링 요청 DTO 기반 전체 크롤링 & DB 실시간 적재 */
   public int crawlAndIngest(CrawlRequest request) {
@@ -493,8 +534,8 @@ public class JobPostingIngestService {
   }
 
   /**
-   * DB에 동일한 standard_name(대소문자 무시)으로 여러 행이 존재하는 경우, 가장 구체적인 카테고리를 가진 행(SKILL 이외)을 대표로 남기고 나머지를
-   * 병합·정리합니다.
+   * DB에 동일한 standard_name(대소문자 무시)으로 여러 행이 존재하는 경우, 가장 구체적인 카테고리를 가진 행(SKILL 이외)을 대표로 남기고 나머지를 벌크
+   * 쿼리로 안전하게 병합·정리합니다. (영속성 컨텍스트 충돌 및 외래키 제약 오류 방지)
    */
   @Transactional
   public int deduplicateSkills() {
@@ -526,27 +567,53 @@ public class JobPostingIngestService {
           continue;
         }
 
-        // 2. 해당 중복 스킬을 참조하는 JobPosting들의 링크를 대표 스킬로 교체
-        for (JobPosting posting : jobPostingRepository.findAll()) {
-          boolean hasDup =
-              posting.getSkills().stream().anyMatch(s -> s.getId().equals(dup.getId()));
-          if (hasDup) {
-            List<Skill> updatedSkills = new ArrayList<>(posting.getSkills());
-            updatedSkills.removeIf(s -> s.getId().equals(dup.getId()));
-            if (updatedSkills.stream().noneMatch(s -> s.getId().equals(canonical.getId()))) {
-              updatedSkills.add(canonical);
+        UUID dupId = dup.getId();
+        UUID canonicalId = canonical.getId();
+
+        // 2. JobPostingSkill 링크 정리 (벌크 쿼리 지원 시 안전하게 선행 삭제 후 재할당)
+        if (jobPostingSkillRepository != null) {
+          jobPostingSkillRepository.deleteDuplicateLinks(dupId, canonicalId);
+          jobPostingSkillRepository.reassignSkill(dupId, canonical);
+        } else {
+          for (JobPosting posting : jobPostingRepository.findAll()) {
+            boolean hasDup = posting.getSkills().stream().anyMatch(s -> s.getId().equals(dupId));
+            if (hasDup) {
+              List<Skill> updatedSkills = new ArrayList<>(posting.getSkills());
+              updatedSkills.removeIf(s -> s.getId().equals(dupId));
+              if (updatedSkills.stream().noneMatch(s -> s.getId().equals(canonicalId))) {
+                updatedSkills.add(canonical);
+              }
+              posting.replaceSkills(updatedSkills);
+              jobPostingRepository.save(posting);
             }
-            posting.replaceSkills(updatedSkills);
-            jobPostingRepository.save(posting);
           }
         }
 
-        // 3. 미참조 상태가 된 중복 스킬 삭제
+        // 3. SkillAlias 별칭 링크 정리
+        if (skillAliasRepository != null) {
+          try {
+            skillAliasRepository.reassignSkill(dupId, canonical);
+          } catch (Exception e) {
+            log.trace("[스킬 중복제거] 별칭 정리 건너뜀: {}", e.getMessage());
+          }
+        }
+
+        // 4. UserSkill (사용자 보유 스킬) 링크 정리
+        if (userSkillRepository != null) {
+          try {
+            userSkillRepository.deleteDuplicateLinks(dupId, canonicalId);
+            userSkillRepository.reassignSkill(dupId, canonical);
+          } catch (Exception e) {
+            log.trace("[스킬 중복제거] user_skill 정리 건너뜀: {}", e.getMessage());
+          }
+        }
+
+        // 5. 미참조 상태가 된 중복 스킬 엔티티 직접 삭제
         try {
-          skillRepository.delete(dup);
+          skillRepository.deleteSkillDirectly(dupId);
           removedDuplicates++;
         } catch (Exception e) {
-          log.warn("[스킬 중복제거] 스킬 ID {} 삭제 중 건너뜀: {}", dup.getId(), e.getMessage());
+          log.warn("[스킬 중복제거] 스킬 ID {} 삭제 중 건너뜀: {}", dupId, e.getMessage());
         }
       }
     }
@@ -560,7 +627,14 @@ public class JobPostingIngestService {
   private Skill upsertSkill(String standardName, String category) {
     Optional<Skill> byName = skillRepository.findFirstByStandardNameIgnoreCase(standardName);
     if (byName.isPresent()) {
-      return byName.get();
+      Skill existing = byName.get();
+      if ("SKILL".equalsIgnoreCase(existing.getCategory())
+          && category != null
+          && !"SKILL".equalsIgnoreCase(category)) {
+        existing.recategorize(category);
+        return skillRepository.save(existing);
+      }
+      return existing;
     }
     return skillRepository
         .findByStandardNameAndCategory(standardName, category)

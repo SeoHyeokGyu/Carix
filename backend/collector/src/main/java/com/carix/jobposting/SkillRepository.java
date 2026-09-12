@@ -4,7 +4,9 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 public interface SkillRepository extends JpaRepository<Skill, UUID> {
 
@@ -25,4 +27,8 @@ public interface SkillRepository extends JpaRepository<Skill, UUID> {
         AND NOT EXISTS (SELECT 1 FROM JobPostingSkill jps WHERE jps.skill = s)
       """)
   List<Skill> findUnreferencedCrawledSkills();
+
+  @Modifying(clearAutomatically = true)
+  @Query("DELETE FROM Skill s WHERE s.id = :id")
+  int deleteSkillDirectly(@Param("id") UUID id);
 }
