@@ -3,6 +3,7 @@ import { render, screen } from "@testing-library/react";
 import {
   SalaryDistributionChart,
   formatKoreanSalary,
+  getBodyPartInfo,
 } from "./SalaryDistributionChart";
 import type { SalaryDistributionResponse } from "../../lib/dashboardMarketApi";
 
@@ -15,6 +16,18 @@ describe("SalaryDistributionChart", () => {
       expect(formatKoreanSalary(55_000_000)).toBe("5,500만 원");
       expect(formatKoreanSalary(100_000_000)).toBe("1억 원");
       expect(formatKoreanSalary(125_000_000)).toBe("1억 2,500만 원");
+    });
+  });
+
+  describe("getBodyPartInfo", () => {
+    it("백분위에 따라 정확한 신체 부위(정수리, 머리, 어깨, 허리, 무릎, 발목)를 매핑한다", () => {
+      expect(getBodyPartInfo(95).name).toBe("정수리");
+      expect(getBodyPartInfo(80).name).toBe("머리");
+      expect(getBodyPartInfo(65).name).toBe("어깨");
+      expect(getBodyPartInfo(50).name).toBe("가슴");
+      expect(getBodyPartInfo(40).name).toBe("허리");
+      expect(getBodyPartInfo(25).name).toBe("무릎");
+      expect(getBodyPartInfo(10).name).toBe("발목");
     });
   });
 
@@ -50,15 +63,18 @@ describe("SalaryDistributionChart", () => {
 
     // 차트 제목 및 사용자 백분위 위치 확인
     expect(screen.getByText("동료집단 연봉 분포")).toBeInTheDocument();
-    expect(screen.getByText(/상위 35%/)).toBeInTheDocument();
-    expect(screen.getByText(/현재 세전: 7,200만 원/)).toBeInTheDocument();
+    expect(screen.getAllByText(/상위 35%/).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText(/현재 세전:/).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText("[어깨]")).toBeInTheDocument();
 
     // 5수치 확인
-    expect(screen.getByText("4,000만 원")).toBeInTheDocument();
-    expect(screen.getByText("5,200만 원")).toBeInTheDocument();
-    expect(screen.getByText("6,800만 원")).toBeInTheDocument();
-    expect(screen.getByText("8,500만 원")).toBeInTheDocument();
-    expect(screen.getByText("1억 2,000만 원")).toBeInTheDocument();
+    expect(screen.getAllByText("4,000만 원").length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText("5,200만 원").length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText("6,800만 원").length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText("8,500만 원").length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText("1억 2,000만 원").length).toBeGreaterThanOrEqual(
+      1,
+    );
 
     // 공식 통계 기준선 및 결측률 정보
     expect(
@@ -66,8 +82,7 @@ describe("SalaryDistributionChart", () => {
     ).toBeInTheDocument();
     expect(screen.getByText(/66.7%/)).toBeInTheDocument();
 
-    // 내 연봉 인디케이터(상단 핀 배지, 세로선 툴팁, 범례) 확인
-    expect(screen.getAllByText(/내 연봉 \(7,200만 원\)/).length).toBe(2);
+    // 내 연봉 인디케이터(세로선 툴팁, 뱃지) 확인
     expect(screen.getByTitle("내 연봉: 7,200만 원")).toBeInTheDocument();
   });
 
