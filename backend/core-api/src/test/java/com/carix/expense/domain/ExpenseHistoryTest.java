@@ -35,4 +35,48 @@ class ExpenseHistoryTest {
     history.replaceItems(null);
     assertThat(history.getItems()).isEmpty();
   }
+
+  @Test
+  @DisplayName("replaceItems 호출 시 기존 카테고리 항목은 in-place로 갱신되어 객체 인스턴스를 유지한다")
+  void testReplaceItemsInPlaceUpdate() {
+    UUID userId = UUID.randomUUID();
+    ExpenseHistory history = new ExpenseHistory(userId, "202609");
+
+    ExpenseItemEntity initialFood =
+        new ExpenseItemEntity(ExpenseCategoryEnum.FOOD, 300000L, WeightStatusEnum.USER_DEFINED);
+    ExpenseItemEntity initialHousing =
+        new ExpenseItemEntity(ExpenseCategoryEnum.HOUSING, 500000L, WeightStatusEnum.USER_DEFINED);
+
+    history.replaceItems(List.of(initialFood, initialHousing));
+    assertThat(history.getItems()).hasSize(2);
+
+    ExpenseItemEntity originalFoodEntity =
+        history.getItems().stream()
+            .filter(e -> e.getCategory() == ExpenseCategoryEnum.FOOD)
+            .findFirst()
+            .orElseThrow();
+
+    // 두 번째 온보딩 저장 시뮬레이션: FOOD 금액 변경, HOUSING 유지, CLOTHING 신규 추가
+    ExpenseItemEntity updatedFood =
+        new ExpenseItemEntity(ExpenseCategoryEnum.FOOD, 450000L, WeightStatusEnum.USER_DEFINED);
+    ExpenseItemEntity updatedHousing =
+        new ExpenseItemEntity(ExpenseCategoryEnum.HOUSING, 500000L, WeightStatusEnum.USER_DEFINED);
+    ExpenseItemEntity newTransport =
+        new ExpenseItemEntity(
+            ExpenseCategoryEnum.TRANSPORT, 100000L, WeightStatusEnum.USER_DEFINED);
+
+    history.replaceItems(List.of(updatedFood, updatedHousing, newTransport));
+
+    assertThat(history.getItems()).hasSize(3);
+
+    // 기존 Food 엔티티 인스턴스가 그대로 유지되면서 값만 갱신되었는지 검증 (새 INSERT 방지)
+    ExpenseItemEntity currentFoodEntity =
+        history.getItems().stream()
+            .filter(e -> e.getCategory() == ExpenseCategoryEnum.FOOD)
+            .findFirst()
+            .orElseThrow();
+
+    assertThat(currentFoodEntity).isSameAs(originalFoodEntity);
+    assertThat(currentFoodEntity.getAmount()).isEqualTo(450000L);
+  }
 }
