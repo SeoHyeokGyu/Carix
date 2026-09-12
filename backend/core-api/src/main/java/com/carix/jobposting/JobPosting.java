@@ -69,7 +69,11 @@ public class JobPosting {
     if (salaryMin == null || salaryMax == null) {
       return null;
     }
-    return (salaryMin + salaryMax) / 2;
+    long avg = (salaryMin + salaryMax) / 2;
+    if (avg > 0 && avg < 1_000_000) {
+      avg *= 10_000L;
+    }
+    return avg;
   }
 
   /** 중복 제거 키. 묶음이 없으면 자기 자신이 하나의 묶음이다. */

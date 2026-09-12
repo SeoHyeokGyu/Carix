@@ -43,8 +43,8 @@ class MarketAggregateServiceTest {
             .externalId("jk-1")
             .jobFamily("BACKEND")
             .experienceMin(3)
-            .salaryMin(4000L)
-            .salaryMax(6000L)
+            .salaryMin(40_000_000L)
+            .salaryMax(60_000_000L)
             .collectedAt(Instant.now())
             .build();
     p1.addSkill(javaSkill);
@@ -55,8 +55,8 @@ class MarketAggregateServiceTest {
             .externalId("jk-2")
             .jobFamily("BACKEND")
             .experienceMin(2)
-            .salaryMin(5000L)
-            .salaryMax(7000L)
+            .salaryMin(50_000_000L)
+            .salaryMax(70_000_000L)
             .collectedAt(Instant.now())
             .build();
     p2.addSkill(javaSkill);
@@ -90,7 +90,8 @@ class MarketAggregateServiceTest {
             .orElseThrow();
 
     assertThat(backendJunior.getPostingCount()).isEqualTo(2);
-    assertThat(backendJunior.getSalaryMedian()).isEqualTo(6000L); // (5000 + 6000) p50
+    assertThat(backendJunior.getSalaryMedian())
+        .isEqualTo(60_000_000L); // (50,000,000 + 60,000,000) p50
   }
 
   @Test

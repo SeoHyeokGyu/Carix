@@ -32,13 +32,15 @@ public class JobKoreaPayParser {
     if (!range.hasNonNull("from")) {
       return null;
     }
-    long min = range.path("from").asLong();
+    long minMan = range.path("from").asLong();
+    long min = minMan < 1_000_000 ? minMan * 10_000L : minMan;
     if (!range.hasNonNull("to")) {
       return new SalaryRange(min, min);
     }
-    long to = range.path("to").asLong();
+    long toMan = range.path("to").asLong();
     // 상한이 배타적이면 표기값 그대로 쓰면 한 구간 위로 부풀려진다 (3801 -> 3800).
-    long max = range.path("toInclusive").asBoolean(false) ? to : to - 1;
+    long maxMan = range.path("toInclusive").asBoolean(false) ? toMan : toMan - 1;
+    long max = maxMan < 1_000_000 ? maxMan * 10_000L : maxMan;
     return new SalaryRange(min, Math.max(min, max));
   }
 }

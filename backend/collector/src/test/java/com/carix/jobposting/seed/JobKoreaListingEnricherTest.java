@@ -39,8 +39,8 @@ class JobKoreaListingEnricherTest {
     JobKoreaListingFields fields = enricher.extract(html, "12345");
 
     assertThat(fields.employmentType()).isEqualTo("정규직");
-    assertThat(fields.salaryMin()).isEqualTo(4000L);
-    assertThat(fields.salaryMax()).isEqualTo(6000L);
+    assertThat(fields.salaryMin()).isEqualTo(40_000_000L);
+    assertThat(fields.salaryMax()).isEqualTo(60_000_000L);
     assertThat(fields.positionLevel()).isEqualTo("대리~과장급");
     assertThat(fields.companyBadge()).isEqualTo("유망중소기업");
     assertThat(fields.postedEndDateRaw()).isEqualTo("~ 09/30(화)");
@@ -67,8 +67,8 @@ class JobKoreaListingEnricherTest {
         </table>
         """;
     JobKoreaListingFields fieldsSingle = enricher.extract(htmlSingle, "222");
-    assertThat(fieldsSingle.salaryMin()).isEqualTo(3500L);
-    assertThat(fieldsSingle.salaryMax()).isEqualTo(3500L);
+    assertThat(fieldsSingle.salaryMin()).isEqualTo(35_000_000L);
+    assertThat(fieldsSingle.salaryMax()).isEqualTo(35_000_000L);
 
     String htmlFive =
         """
