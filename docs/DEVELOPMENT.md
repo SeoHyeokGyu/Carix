@@ -91,7 +91,7 @@ cp .env.example .env
 | 스키마 사고 | `auth`는 브랜치에서 잘못 실행한 Flyway 마이그레이션이, `core`는 손으로 친 DDL이 곧바로 운영 스키마에 적용된다 |
 | 테스트 데이터 혼입 | 로컬에서 만든 데이터가 운영 DB에 남는다 |
 | 자격증명 확산 | 운영 DB 접근 정보가 팀원 노트북마다 존재한다 |
-| 게이트 부재 | PR 단계 CI(pr-check.yml)와 배포 실패 시 자동 롤백 및 수동 롤백 워크플로(rollback.yml)를 구축하여 운영 안정성을 확보 |
+| 게이트 부재 | PR 단계 CI(pr-check.yml)와 배포 실패 시 자동 롤백 및 수동 롤백 워크플로(rollback.yml), 배포 후 게이트웨이 설정 자동 갱신(/actuator/refresh)을 구축하여 운영 안정성을 확보 |
 
 ### 3.0 팀원 온보딩
 
@@ -368,6 +368,7 @@ cd backend && ./gradlew test
 > - **작업 중 스킵 (Draft PR)**: PR이 Draft 상태일 때는 CI가 돌지 않으며, "Ready for review" 전환 시 검증이 실행됩니다.
 > - **수동 스킵 (`[skip ci]` / 라벨)**: 커밋 메시지에 `[skip ci]`를 포함하거나 PR에 `skip-ci` 라벨 부착 시 검증을 건너뜁니다.
 > - **빌드 캐시 가속**: `ubuntu-latest` 러너와 Gradle 빌드 캐시, pnpm 캐시를 통해 수십 초 내로 빠르게 완료됩니다.
+> - **배포 후 게이트웨이 자동 리프레시**: 배포 워크플로(`.github/workflows/deploy.yml`)가 헬스체크 완료 후 Spring Cloud Gateway의 `/actuator/refresh`를 자동 호출하여, 재기동 없이도 동적 설정(`@RefreshScope`, 세션 검증 토글 등)이 즉시 메모리에 반영됩니다.
 
 ### DB를 쓰는 테스트는 두지 않는다
 

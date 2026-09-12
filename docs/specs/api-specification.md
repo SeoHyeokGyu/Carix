@@ -162,6 +162,10 @@
       "effectiveDate": "2026-07-01"
     }
     ```
+*   **필드 규격 및 화면 입력 정책:**
+    *   `grossSalary` (Long, 필수): 세전 연봉(원 단위 정수). 화면에서는 사용자 입력 편의를 위해 **만원 단위**로 입력받으며, 천 단위 콤마(`,`) 실시간 서식과 실시간 원화 환산 힌트(`= N원`)를 제공하고 제출 시 원 단위로 변환해 전송한다.
+    *   `netSalary` (Long, 선택): 월 실수령액(원 단위 정수). 화면에서는 만원 단위 및 천 단위 콤마 서식을 제공한다.
+    *   `effectiveDate` (String, YYYY-MM-DD): 소득 적용 기준일. 화면에서는 사용자가 직관적으로 이해할 수 있도록 **"연봉 적용 시작일"**로 표기한다.
 *   **Response (201 Created):** 등록 완료된 단건 반환
 
 ---
@@ -608,7 +612,7 @@
 *   `POST /api/v1/user-skills` — 스킬 추가. `monthsOfExperience`는 1~600 범위만 허용. 사전에 없으면 `isCustom: true`로 생성하며 이때 `category` 입력 필수 (`BACKEND`/`FRONTEND`/`DEVOPS`/`DATA`/`AI_ML`/`ETC`). 커스텀 스킬은 생성자 전용으로 검색·자동완성에 노출하지 않고, 마지막 사용자가 삭제하면 함께 삭제한다. 동일 정규화 스킬 중복 시 `409 Conflict`
 *   `PUT /api/v1/user-skills/{id}` / `DELETE /api/v1/user-skills/{id}` — 수정·삭제
 
-### 7.3 온보딩 상태
+### 7.3 온보딩 상태 및 재시작
 *   ~~`GET /api/v1/onboarding`~~ — 철거했다. 현재 단계는 `GET /api/v1/auth/session`(§2.3) 응답의
     `onboardingStep` 이 이미 담고 있어 별도 조회 엔드포인트가 필요 없다
 *   ~~`PATCH /api/v1/onboarding`~~ → **`PATCH /api/v1/auth/onboarding`**(`auth-service` 소유).
@@ -617,7 +621,19 @@
     세션 조회 응답도 `auth-service` 가 만들므로 갱신과 재조회가 한 서비스에 모인다. 단계
     진행만 갱신하며 `REVIEW` → `COMPLETED` 전환에서 별도로 첫 지수 계산을 트리거하지 않는다 —
     소득·소비·스킬·프로필 저장마다 걸린 스냅샷 재계산 트리거([개발 계획 §4-2](../plans/carix-dev-plan.md))가
-    이미 8곳에 있어 검토 단계에 닿을 때는 스냅샷이 먼저 나와 있다
+    이미 8곳에 있어 검토 단계에 닿을 때는 스냅샷이 먼저 나와 있다.
+    *   **역방향 전환 방어:** 클라이언트 버그 등으로 이전 단계로 역행하는 요청은 `400 Bad Request`(`ONBOARDING_STEP_REGRESSION`)로 거부한다.
+*   **`POST /api/v1/auth/onboarding/reset`**(`auth-service` 소유).
+    *   **목적:** 온보딩을 완료(`COMPLETED`)했거나 진행 중인 사용자가 온보딩을 처음부터 다시 시작할 수 있도록 단계를 `PROFILE`로 초기화한다.
+    *   **보안:** 세션 쿠키 필수 (`401 Unauthorized`).
+    *   **동작:** `users.onboarding_step`을 `PROFILE`로 갱신하고 `updated_at`을 최신화한다. 기존 입력된 프로필, 소득, 소비, 스킬 데이터는 삭제되지 않고 유지된다.
+    *   **Response (200 OK):**
+        ```json
+        {
+          "currentStep": "PROFILE",
+          "completed": false
+        }
+        ```
 
 ### 7.4 소득 이력 수정·삭제
 *   `PUT /api/v1/income/{id}` / `DELETE /api/v1/income/{id}` — 유효 시작일 중복 시 `409 Conflict`. 변경 시 영향 유효월부터 스냅샷 재계산 트리거
