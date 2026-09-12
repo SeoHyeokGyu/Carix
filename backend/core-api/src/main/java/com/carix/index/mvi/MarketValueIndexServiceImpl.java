@@ -9,6 +9,7 @@ import com.carix.index.dto.WageBaseline;
 import com.carix.index.enums.IndexStatus;
 import com.carix.index.enums.SkillDemandStatus;
 import com.carix.index.enums.SkillExclusionReason;
+import com.carix.market.MarketAggregateRepository;
 import com.carix.profile.domain.CareerProfile;
 import com.carix.profile.repository.CareerProfileRepository;
 import com.carix.skill.domain.Skill;
@@ -17,6 +18,8 @@ import com.carix.skill.repository.UserSkillRepository;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
+import java.time.YearMonth;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -95,6 +98,9 @@ public class MarketValueIndexServiceImpl implements MarketValueIndexProvider {
   private final SkillDemandCalculator skillDemandCalculator;
   private final SkillWeightCalculator skillWeightCalculator;
   private final WageBaselineResolver wageBaselineResolver;
+  private final MarketAggregateRepository marketAggregateRepository;
+
+  private static final DateTimeFormatter YM_FORMATTER = DateTimeFormatter.ofPattern("yyyyMM");
 
   /**
    * 세마포어({@link #dbConcurrencyLimiter}) 허가증을 획득하고 작업을 실행한 후 반드시 반납하도록 보장하는 함수형 헬퍼 메서드.
@@ -166,24 +172,29 @@ public class MarketValueIndexServiceImpl implements MarketValueIndexProvider {
     }
 
     CareerProfile profile = userData.profileOrDefault(userId);
+    String effectiveYearMonth = resolveEffectiveYearMonth(baseYearMonth);
 
     try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
       // 2. 임금 기준선(Wage Baseline) 백그라운드 사전 조회(Prefetch)
       Future<WageBaseline> baselineFuture = prefetchWageBaseline(executor, profile);
 
       // 3. 원천별 동료집단 완화 병렬 수행
-      PeerGroupResolution peerGroupResolution = resolvePeerGroups(executor, profile, baseYearMonth);
+      PeerGroupResolution peerGroupResolution =
+          resolvePeerGroups(executor, profile, effectiveYearMonth);
 
-      // 모든 원천에서 표본이 부족한 경우 (N < 10)
+      // 모든 원천에서 표본이 부족한 경우 (N < 5)
       if (!peerGroupResolution.hasSufficientSample()) {
         log.debug("Insufficient sample count across all sources for user {}", userId);
         return buildInsufficientSampleResult(
-            baseYearMonth, peerGroupResolution.coverages(), baselineFuture.get());
+            baseYearMonth,
+            peerGroupResolution.coverages(),
+            baselineFuture.get(),
+            resolveAggregateAsOf(effectiveYearMonth));
       }
 
       // 4. 원천별 전체 공고 수(모수) 병렬 조회 (중복 쿼리 제거)
       Map<String, SkillDemandCalculator.TotalPostings> totalPostingsMap =
-          fetchTotalPostings(executor, peerGroupResolution.peerGroups(), baseYearMonth);
+          fetchTotalPostings(executor, peerGroupResolution.peerGroups(), effectiveYearMonth);
 
       // 5. 스킬 수요 지수 병렬 계산 및 상태 분류
       Map<UUID, Map<String, SkillDemandCalculator.SkillDemandResult>> demandResults =
@@ -192,21 +203,25 @@ public class MarketValueIndexServiceImpl implements MarketValueIndexProvider {
               userData.skills(),
               peerGroupResolution.peerGroups(),
               totalPostingsMap,
-              baseYearMonth);
+              effectiveYearMonth);
 
       SkillClassification classification = classifySkills(userData.skills(), demandResults);
 
       // 6. 유효 스킬들에 대해 숙련도 가중치 재정규화 (합 = 1.0)
       Map<UUID, BigDecimal> normalizedWeights =
           skillWeightCalculator.calculateWeights(
-              userData.skills(), baseYearMonth, classification.excludedSkillIds());
+              userData.skills(), effectiveYearMonth, classification.excludedSkillIds());
 
       WageBaseline wageBaseline = baselineFuture.get();
 
       if (normalizedWeights.isEmpty()) {
         log.debug("No valid skills remaining after exclusion for user {}", userId);
         return buildNoValidSkillsResult(
-            baseYearMonth, peerGroupResolution.coverages(), classification, wageBaseline);
+            baseYearMonth,
+            peerGroupResolution.coverages(),
+            classification,
+            wageBaseline,
+            resolveAggregateAsOf(effectiveYearMonth));
       }
 
       // 7. 원천별 MVI 산출 및 표본수 가중 결합
@@ -229,7 +244,8 @@ public class MarketValueIndexServiceImpl implements MarketValueIndexProvider {
           peerGroupResolution.coverages(),
           classification,
           skillContributions,
-          wageBaseline);
+          wageBaseline,
+          resolveAggregateAsOf(effectiveYearMonth));
 
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
@@ -273,19 +289,22 @@ public class MarketValueIndexServiceImpl implements MarketValueIndexProvider {
     }
 
     CareerProfile profile = userData.profileOrDefault(userId);
+    String effectiveYearMonth = resolveEffectiveYearMonth(baseYearMonth);
 
     try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
       // 1. 원천별 완화 수행 (가상 스레드 병렬)
-      PeerGroupResolution peerGroupResolution = resolvePeerGroups(executor, profile, baseYearMonth);
+      PeerGroupResolution peerGroupResolution =
+          resolvePeerGroups(executor, profile, effectiveYearMonth);
 
       // 2. 제외 스킬(커스텀 스킬) 식별 및 가중치 계산
       Set<UUID> customSkillIds = identifyCustomSkillIds(userData.skills());
       Map<UUID, BigDecimal> weights =
-          skillWeightCalculator.calculateWeights(userData.skills(), baseYearMonth, customSkillIds);
+          skillWeightCalculator.calculateWeights(
+              userData.skills(), effectiveYearMonth, customSkillIds);
 
       // 3. 원천별 전체 모수 1회 병렬 조회
       Map<String, SkillDemandCalculator.TotalPostings> totalPostingsMap =
-          fetchTotalPostings(executor, peerGroupResolution.peerGroups(), baseYearMonth);
+          fetchTotalPostings(executor, peerGroupResolution.peerGroups(), effectiveYearMonth);
 
       // 4. 스킬별 수요 통계 병렬 조회 (공통 메서드 재사용)
       Map<UUID, Map<String, SkillDemandCalculator.SkillDemandResult>> demandResults =
@@ -294,7 +313,7 @@ public class MarketValueIndexServiceImpl implements MarketValueIndexProvider {
               userData.skills(),
               peerGroupResolution.peerGroups(),
               totalPostingsMap,
-              baseYearMonth);
+              effectiveYearMonth);
 
       // 5. 결과 리스트 구성 (순서 보장 userSkills 기준)
       return buildSkillDemandDetails(
@@ -672,7 +691,10 @@ public class MarketValueIndexServiceImpl implements MarketValueIndexProvider {
   }
 
   private MviResult buildInsufficientSampleResult(
-      String baseYearMonth, List<SourceCoverage> coverages, WageBaseline wageBaseline) {
+      String baseYearMonth,
+      List<SourceCoverage> coverages,
+      WageBaseline wageBaseline,
+      LocalDate aggregateAsOf) {
     return new MviResult(
         baseYearMonth,
         null,
@@ -682,14 +704,15 @@ public class MarketValueIndexServiceImpl implements MarketValueIndexProvider {
         List.of(),
         List.of(),
         wageBaseline,
-        LocalDate.now());
+        aggregateAsOf != null ? aggregateAsOf : LocalDate.now());
   }
 
   private MviResult buildNoValidSkillsResult(
       String baseYearMonth,
       List<SourceCoverage> coverages,
       SkillClassification classification,
-      WageBaseline wageBaseline) {
+      WageBaseline wageBaseline,
+      LocalDate aggregateAsOf) {
     return new MviResult(
         baseYearMonth,
         null,
@@ -699,7 +722,7 @@ public class MarketValueIndexServiceImpl implements MarketValueIndexProvider {
         classification.zeroDemandSkills(),
         List.of(),
         wageBaseline,
-        LocalDate.now());
+        aggregateAsOf != null ? aggregateAsOf : LocalDate.now());
   }
 
   private MviResult buildFinalMviResult(
@@ -708,10 +731,10 @@ public class MarketValueIndexServiceImpl implements MarketValueIndexProvider {
       List<SourceCoverage> coverages,
       SkillClassification classification,
       List<SkillContribution> skillContributions,
-      WageBaseline wageBaseline) {
+      WageBaseline wageBaseline,
+      LocalDate aggregateAsOf) {
     IndexStatus status = (finalMviValue != null) ? IndexStatus.OK : IndexStatus.INSUFFICIENT_SAMPLE;
 
-    // TODO: [Member B/C] aggregateAsOf에 market_aggregate 최신 적재 일자 또는 배치 완료 시점 동적 매핑
     return new MviResult(
         baseYearMonth,
         finalMviValue,
@@ -721,7 +744,34 @@ public class MarketValueIndexServiceImpl implements MarketValueIndexProvider {
         classification.zeroDemandSkills(),
         skillContributions,
         wageBaseline,
-        LocalDate.now());
+        aggregateAsOf != null ? aggregateAsOf : LocalDate.now());
+  }
+
+  /**
+   * 주어진 기준월 이하(:baseYearMonth) 중 DB에 적재된 최신 시장 집계 기준월을 탐색합니다. 당월 데이터가 아직 마감/수집되지 않은 경우 직전 유효 월로
+   * fallback합니다.
+   */
+  private String resolveEffectiveYearMonth(String baseYearMonth) {
+    if (baseYearMonth == null || baseYearMonth.length() != 6 || marketAggregateRepository == null) {
+      return baseYearMonth;
+    }
+    return marketAggregateRepository
+        .findLatestAvailableYearMonth(baseYearMonth)
+        .orElse(baseYearMonth);
+  }
+
+  /** 적용된 시장 집계 기준월의 실질 기준일(말일 또는 현재일)을 도출합니다. */
+  private LocalDate resolveAggregateAsOf(String effectiveYearMonth) {
+    try {
+      if (effectiveYearMonth != null && effectiveYearMonth.length() == 6) {
+        YearMonth ym = YearMonth.parse(effectiveYearMonth, YM_FORMATTER);
+        LocalDate endOfMonth = ym.atEndOfMonth();
+        LocalDate today = LocalDate.now();
+        return endOfMonth.isBefore(today) ? endOfMonth : today;
+      }
+    } catch (Exception ignored) {
+    }
+    return LocalDate.now();
   }
 
   /**
