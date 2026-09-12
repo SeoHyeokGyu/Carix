@@ -1,6 +1,7 @@
 import { useState } from "react";
 import {
   triggerCrawl,
+  triggerSkillRefine,
   triggerWageStat,
   triggerDeduplication,
   triggerMarketAggregate,
@@ -14,7 +15,7 @@ interface PipelineControlPanelProps {
   onError: (err: { message: string }) => void;
 }
 
-type TabType = "crawl" | "wage" | "dedup" | "aggregate" | "seed";
+type TabType = "crawl" | "refine" | "wage" | "dedup" | "aggregate" | "seed";
 
 export function PipelineControlPanel({
   isJobRunning,
@@ -57,6 +58,9 @@ export function PipelineControlPanel({
         case "crawl":
           res = await triggerCrawl({ portal, maxPages, delayMs });
           break;
+        case "refine":
+          res = await triggerSkillRefine();
+          break;
         case "wage":
           res = await triggerWageStat(
             wageMode === "latest" ? {} : { startYear, endYear },
@@ -97,6 +101,7 @@ export function PipelineControlPanel({
 
   const tabs: { id: TabType; label: string; icon: string }[] = [
     { id: "crawl", label: "채용공고 크롤링", icon: "🕷️" },
+    { id: "refine", label: "스킬 일괄 재정제", icon: "✨" },
     { id: "wage", label: "KOSIS 공식 임금 수집", icon: "📊" },
     { id: "dedup", label: "공고 중복제거 (Dedup)", icon: "🔗" },
     { id: "aggregate", label: "시장 데이터 사전 집계", icon: "📈" },
@@ -187,7 +192,49 @@ export function PipelineControlPanel({
           </div>
         )}
 
-        {/* 2. KOSIS 임금 통계 탭 */}
+        {/* 2. 스킬 일괄 재정제 탭 */}
+        {activeTab === "refine" && (
+          <div className="space-y-4">
+            <div>
+              <h3 className="text-sm font-semibold text-carix-text">
+                채용공고 스킬 데이터 일괄 재정제 (Skill Refinement)
+              </h3>
+              <p className="text-xs text-carix-text/60 mt-0.5">
+                DB에 크롤링된 전체 채용공고의 제목과 원천 태그를 최신 스킬
+                사전을 기반으로 재분석하여 스킬 매핑을 최신화합니다.
+              </p>
+            </div>
+
+            <div className="rounded-lg border border-carix-border/70 bg-carix-bg/50 p-3.5 space-y-2 text-xs text-carix-text/80">
+              <div className="flex items-start gap-2">
+                <span className="text-carix-info font-bold">✓</span>
+                <span>
+                  <strong>제목 기반 자동 추출:</strong> 태그가 누락된 공고라도
+                  제목에 포함된 기술 스택(Java, Spring, React, Python 등)을 단어
+                  경계를 지켜 고속 자동 추출합니다.
+                </span>
+              </div>
+              <div className="flex items-start gap-2">
+                <span className="text-carix-info font-bold">✓</span>
+                <span>
+                  <strong>노이즈 및 가짜 스킬 제거:</strong> 1글자 알파벳이나
+                  사전 미등록 한글 일반 명사(전자, 성남, 신규 등) 같은 오염
+                  데이터를 깨끗하게 정제합니다.
+                </span>
+              </div>
+              <div className="flex items-start gap-2">
+                <span className="text-carix-info font-bold">✓</span>
+                <span>
+                  <strong>사전 캐시 자동 갱신:</strong> 실행 시 DB의 core.skill
+                  및 core.skill_alias 최신 사전을 먼저 메모리에 리로드한 후 전체
+                  공고를 처리합니다.
+                </span>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* 3. KOSIS 임금 통계 탭 */}
         {activeTab === "wage" && (
           <div className="space-y-4">
             <div>

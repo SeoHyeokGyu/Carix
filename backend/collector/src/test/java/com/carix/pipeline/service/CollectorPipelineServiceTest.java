@@ -24,6 +24,7 @@ import com.carix.pipeline.dto.WageStatRequest;
 import com.carix.wagestat.WageStatIngestService;
 import com.carix.wagestat.WageStatObservationRepository;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -89,6 +90,26 @@ class CollectorPipelineServiceTest {
     JobStatusResponse status = service.getJobStatus(response.jobId());
     assertThat(status.status()).isEqualTo("SUCCESS");
     assertThat(status.details()).containsEntry("ingestedJobPostings", 10);
+  }
+
+  @Test
+  @DisplayName("triggerSkillRefine - 비동기 스킬 재정제 작업 수락 및 상태 완료 확인")
+  void triggerSkillRefine_success() throws Exception {
+    given(jobPostingIngestService.refineAllPostingSkills())
+        .willReturn(Map.of("totalPostings", 100, "refinedPostings", 100, "postingsWithSkills", 80));
+
+    JobExecutionResponse response = service.triggerSkillRefine();
+
+    assertThat(response.status()).isEqualTo("ACCEPTED");
+    assertThat(response.jobType()).isEqualTo("SKILL_REFINE");
+
+    // 비동기 완료 대기
+    TimeUnit.MILLISECONDS.sleep(200);
+
+    JobStatusResponse status = service.getJobStatus(response.jobId());
+    assertThat(status.status()).isEqualTo("SUCCESS");
+    assertThat(status.details()).containsEntry("totalPostings", 100);
+    assertThat(status.details()).containsEntry("postingsWithSkills", 80);
   }
 
   @Test

@@ -178,6 +178,12 @@ export function triggerCrawl(
   });
 }
 
+export function triggerSkillRefine(): Promise<JobExecutionResponse> {
+  return request<JobExecutionResponse>("/refine-skills", {
+    method: "POST",
+  });
+}
+
 export function triggerWageStat(
   req?: WageStatRequest,
 ): Promise<JobExecutionResponse> {

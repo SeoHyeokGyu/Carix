@@ -53,6 +53,21 @@ class CollectorPipelineControllerTest {
   }
 
   @Test
+  @DisplayName("POST /internal/pipeline/refine-skills - 스킬 재정제 비동기 요청 시 202 Accepted 반환")
+  void triggerSkillRefineReturnsAccepted() throws Exception {
+    JobExecutionResponse response =
+        new JobExecutionResponse(
+            "job-refine-1", "SKILL_REFINE", "ACCEPTED", "Started", Instant.now());
+    when(pipelineService.triggerSkillRefine()).thenReturn(response);
+
+    mockMvc
+        .perform(post("/internal/pipeline/refine-skills"))
+        .andExpect(status().isAccepted())
+        .andExpect(jsonPath("$.jobId").value("job-refine-1"))
+        .andExpect(jsonPath("$.jobType").value("SKILL_REFINE"));
+  }
+
+  @Test
   @DisplayName("POST /internal/pipeline/seed-load - 시드 데이터 적재 비동기 요청 시 202 Accepted 반환")
   void triggerSeedLoadReturnsAccepted() throws Exception {
     JobExecutionResponse response =

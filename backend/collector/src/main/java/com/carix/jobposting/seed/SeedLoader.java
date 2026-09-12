@@ -25,6 +25,7 @@ import java.nio.file.Path;
 import java.time.Instant;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.csv.CSVFormat;
@@ -244,6 +245,10 @@ public class SeedLoader {
 
   /** 수집으로 관측된 스킬이므로 `is_custom` 은 false 다 — 사용자 직접 입력분이 아니다. */
   private Skill upsertSkill(String standardName, String category) {
+    Optional<Skill> byName = skillRepository.findFirstByStandardNameIgnoreCase(standardName);
+    if (byName.isPresent()) {
+      return byName.get();
+    }
     return skillRepository
         .findByStandardNameAndCategory(standardName, category)
         .orElseGet(() -> skillRepository.save(new Skill(standardName, category, false)));
