@@ -89,6 +89,34 @@ class WageBaselineResolverTest {
   }
 
   @Test
+  @DisplayName("resolveBaseline - 전국 기준도 없으면 ALL 코드로 조회 성공")
+  void resolveBaseline_fallbackToAll() {
+    CareerProfile profile = new CareerProfile(UUID.randomUUID());
+    profile.patch("DEVELOPER", 5, "서울 강남구", "FULL_TIME", "LARGE");
+
+    given(fallbackResolver.mapExperienceBracket(5)).willReturn("MID");
+    given(fallbackResolver.extractBroadRegion("서울 강남구")).willReturn("서울특별시");
+
+    given(repository.findLatestBaseline("DEVELOPER", "MID", "서울특별시")).willReturn(Optional.empty());
+    given(repository.findLatestBaseline("DEVELOPER", "MID", "전국")).willReturn(Optional.empty());
+
+    WageStatObservation obs =
+        WageStatObservation.builder()
+            .wageMedian(47690057L)
+            .wageDefinition("ANNUAL_GROSS_MEDIAN")
+            .statVintage("202508")
+            .build();
+
+    given(repository.findLatestBaseline("DEVELOPER", "MID", "ALL")).willReturn(Optional.of(obs));
+
+    WageBaseline baseline = resolver.resolveBaseline(profile);
+
+    assertThat(baseline).isNotNull();
+    assertThat(baseline.medianGrossSalary()).isEqualTo(47690057L);
+    assertThat(baseline.statVintage()).isEqualTo("202508");
+  }
+
+  @Test
   @DisplayName("resolveBaseline - 전국 기준도 없으면 null 반환")
   void resolveBaseline_notFound() {
     CareerProfile profile = new CareerProfile(UUID.randomUUID());
