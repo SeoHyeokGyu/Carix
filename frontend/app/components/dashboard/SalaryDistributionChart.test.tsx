@@ -1,0 +1,97 @@
+import { describe, expect, it } from "vitest";
+import { render, screen } from "@testing-library/react";
+import {
+  SalaryDistributionChart,
+  formatKoreanSalary,
+} from "./SalaryDistributionChart";
+import type { SalaryDistributionResponse } from "../../lib/dashboardMarketApi";
+
+describe("SalaryDistributionChart", () => {
+  describe("formatKoreanSalary", () => {
+    it("원 단위 금액을 만원/억원으로 올바르게 변환한다", () => {
+      expect(formatKoreanSalary(null)).toBe("-");
+      expect(formatKoreanSalary(0)).toBe("0원");
+      expect(formatKoreanSalary(55_000_000)).toBe("5,500만 원");
+      expect(formatKoreanSalary(100_000_000)).toBe("1억 원");
+      expect(formatKoreanSalary(125_000_000)).toBe("1억 2,500만 원");
+    });
+  });
+
+  it("정상 연봉 분포 데이터를 올바르게 시각화하고 5수치를 표시한다", () => {
+    const mockData: SalaryDistributionResponse = {
+      status: "OK",
+      sampleSize: 150,
+      baseline: {
+        source: "KOSIS",
+        median: 65_000_000,
+        wageDefinition: "임금직무정보시스템 500인 이상",
+      },
+      postingReference: {
+        min: 40_000_000,
+        p25: 52_000_000,
+        median: 68_000_000,
+        p75: 85_000_000,
+        max: 120_000_000,
+        sampleSize: 50,
+        missingRate: 66.7,
+      },
+      userPosition: {
+        grossSalary: 72_000_000,
+        percentile: 65,
+      },
+      peerGroup: {
+        fallbackLevel: 1,
+        appliedConditions: "서울 전체 / 경력 4~7년(MID) / 회사규모 무관",
+      },
+    };
+
+    render(<SalaryDistributionChart data={mockData} />);
+
+    // 차트 제목 및 사용자 백분위 위치 확인
+    expect(screen.getByText("동료집단 연봉 분포")).toBeInTheDocument();
+    expect(screen.getByText(/상위 35%/)).toBeInTheDocument();
+    expect(screen.getByText(/현재 세전: 7,200만 원/)).toBeInTheDocument();
+
+    // 5수치 확인
+    expect(screen.getByText("4,000만 원")).toBeInTheDocument();
+    expect(screen.getByText("5,200만 원")).toBeInTheDocument();
+    expect(screen.getByText("6,800만 원")).toBeInTheDocument();
+    expect(screen.getByText("8,500만 원")).toBeInTheDocument();
+    expect(screen.getByText("1억 2,000만 원")).toBeInTheDocument();
+
+    // 공식 통계 기준선 및 결측률 정보
+    expect(
+      screen.getByText(/임금직무정보시스템 500인 이상/),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/66.7%/)).toBeInTheDocument();
+  });
+
+  it("표본 부족(INSUFFICIENT_SAMPLE) 상태일 때 경고 화면을 표시하고 임의 수치를 그리지 않는다", () => {
+    const insufficientData: SalaryDistributionResponse = {
+      status: "INSUFFICIENT_SAMPLE",
+      sampleSize: 6,
+      minRequired: 10,
+      baseline: null,
+      postingReference: null,
+      userPosition: null,
+      peerGroup: {
+        fallbackLevel: 5,
+        appliedConditions: "전국 / 전체 경력 / 회사규모 무관",
+      },
+    };
+
+    render(<SalaryDistributionChart data={insufficientData} />);
+
+    expect(screen.getByTestId("insufficient-sample-state")).toBeInTheDocument();
+    expect(screen.getByText("⚠️ 표본 부족")).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        /동료집단 표본 수가 부족하여 연봉 분포를 산출할 수 없습니다/i,
+      ),
+    ).toBeInTheDocument();
+    expect(screen.getByText("6건")).toBeInTheDocument();
+    expect(
+      screen.queryByTestId("salary-distribution-chart"),
+    ).not.toBeInTheDocument();
+  });
+});

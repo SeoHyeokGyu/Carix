@@ -10,4 +10,4 @@ carix:
       # 켜는 절차: 이 값을 true 로 바꾸고 게이트웨이의 /actuator/refresh 를 호출한다.
       # 되돌릴 때 .env(이미지 태그) 롤백으로는 부족하다 — config-server 가 서버의 git
       # 체크아웃을 읽으므로 이 파일을 직접 되돌리고 /actuator/refresh 를 다시 호출해야 한다.
-      enabled: false
+      enabled: true

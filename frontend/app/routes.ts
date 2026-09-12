@@ -51,4 +51,12 @@ export default [
   route("admin/pipeline", "routes/admin/collector.tsx", {
     id: "admin-pipeline",
   }),
+
+  // 개발 프리뷰 — 세션 가드 없이 화면 UI/컴포넌트를 즉시 확인
+  route("dev/skills", "routes/onboarding/skills.tsx", {
+    id: "dev-skills",
+  }),
+  route("dev/trends", "routes/dashboard/trends.tsx", {
+    id: "dev-trends",
+  }),
 ] satisfies RouteConfig;
