@@ -45,4 +45,9 @@ public class ExpenseItemEntity {
   public void assignTo(ExpenseHistory parent) {
     this.expenseHistory = parent;
   }
+
+  public void update(Long amount, WeightStatusEnum weightStatus) {
+    this.amount = amount;
+    this.weightStatus = weightStatus;
+  }
 }
