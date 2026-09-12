@@ -9,7 +9,9 @@ import jakarta.persistence.Table;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -143,7 +145,9 @@ public class JobPosting {
   }
 
   public void addSkill(Skill skill) {
-    jobPostingSkills.add(new JobPostingSkill(this, skill));
+    if (skill != null) {
+      jobPostingSkills.add(new JobPostingSkill(this, skill));
+    }
   }
 
   /** 원천이 공개한 세전 연봉 범위(만원). 비공개 공고는 호출하지 않는다. */
@@ -178,12 +182,25 @@ public class JobPosting {
    * 안에서 삭제보다 삽입이 먼저 나가면 그대로 남을 연결이 중복으로 걸린다. 빠질 것만 빼고 새것만 넣는다.
    */
   public void replaceSkills(List<Skill> skills) {
-    Set<UUID> targetIds = skills.stream().map(Skill::getId).collect(Collectors.toSet());
-    jobPostingSkills.removeIf(link -> !targetIds.contains(link.getSkill().getId()));
+    if (skills == null) {
+      skills = Collections.emptyList();
+    }
+    List<Skill> validSkills =
+        skills.stream().filter(s -> s != null && s.getId() != null).collect(Collectors.toList());
+
+    Set<UUID> targetIds = validSkills.stream().map(Skill::getId).collect(Collectors.toSet());
+    jobPostingSkills.removeIf(
+        link -> link.getSkill() == null || !targetIds.contains(link.getSkill().getId()));
 
     Set<UUID> linkedIds =
-        jobPostingSkills.stream().map(link -> link.getSkill().getId()).collect(Collectors.toSet());
-    skills.stream().filter(skill -> !linkedIds.contains(skill.getId())).forEach(this::addSkill);
+        jobPostingSkills.stream()
+            .filter(link -> link.getSkill() != null)
+            .map(link -> link.getSkill().getId())
+            .collect(Collectors.toSet());
+
+    validSkills.stream()
+        .filter(skill -> !linkedIds.contains(skill.getId()))
+        .forEach(this::addSkill);
   }
 
   public void assignDedupGroup(UUID groupId, String ruleVersion) {
@@ -192,6 +209,9 @@ public class JobPosting {
   }
 
   public List<Skill> getSkills() {
-    return jobPostingSkills.stream().map(JobPostingSkill::getSkill).collect(Collectors.toList());
+    return jobPostingSkills.stream()
+        .map(JobPostingSkill::getSkill)
+        .filter(Objects::nonNull)
+        .collect(Collectors.toList());
   }
 }

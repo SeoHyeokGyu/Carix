@@ -19,6 +19,7 @@ import com.carix.jobposting.seed.SaraminListingFields;
 import com.carix.pipeline.dto.CrawlRequest;
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -178,5 +179,61 @@ class JobPostingIngestServiceTest {
         "2003", "자바 주니어", "당근", "서울 서초구", ExperienceRange.parse("신입"), null, fields, now, "202608");
 
     verify(jobPostingRepository, atLeastOnce()).save(any(JobPosting.class));
+  }
+
+  @Test
+  @DisplayName("refineAllPostingSkills - 전체 공고 스킬 일괄 재정제 및 사전 캐시 자동 갱신 정상 수행")
+  void refineAllPostingSkills_success() {
+    Skill javaSkill = new Skill("Java", "LANGUAGE", false);
+    given(skillRepository.findAll()).willReturn(List.of(javaSkill));
+    given(skillRepository.findFirstByStandardNameIgnoreCase("Java"))
+        .willReturn(Optional.of(javaSkill));
+
+    JobPosting posting =
+        JobPosting.builder().source("JOBKOREA").externalId("1001").title("백엔드 Java 개발자 채용").build();
+    given(jobPostingRepository.findAll()).willReturn(List.of(posting));
+
+    Map<String, Object> stats = service.refineAllPostingSkills();
+
+    assertThat(stats).isNotNull();
+    assertThat(stats.get("totalPostings")).isEqualTo(1);
+    assertThat(stats.get("refinedPostings")).isEqualTo(1);
+    verify(jobPostingRepository, atLeastOnce()).save(posting);
+  }
+
+  @Test
+  @DisplayName("deduplicateSkills - 벌크 Repository가 제공될 때 중복 스킬 링크 재할당 및 삭제 정상 수행")
+  void deduplicateSkills_withBulkRepositories() {
+    com.carix.jobposting.JobPostingSkillRepository jpsRepo =
+        mock(com.carix.jobposting.JobPostingSkillRepository.class);
+    com.carix.jobposting.SkillAliasRepository saRepo =
+        mock(com.carix.jobposting.SkillAliasRepository.class);
+    com.carix.jobposting.UserSkillRepository usRepo =
+        mock(com.carix.jobposting.UserSkillRepository.class);
+
+    Skill canonical = new Skill("React", "FRAMEWORK", false);
+    Skill duplicate = new Skill("React", "SKILL", false);
+
+    given(skillRepository.findAll()).willReturn(List.of(canonical, duplicate));
+
+    JobPostingIngestService bulkService =
+        new JobPostingIngestService(
+            jobPostingRepository,
+            skillRepository,
+            rawIngestRepository,
+            jpsRepo,
+            saRepo,
+            usRepo,
+            null);
+
+    int deduped = bulkService.deduplicateSkills();
+
+    assertThat(deduped).isEqualTo(1);
+    verify(jpsRepo).deleteDuplicateLinks(duplicate.getId(), canonical.getId());
+    verify(jpsRepo).reassignSkill(duplicate.getId(), canonical);
+    verify(saRepo).reassignSkill(duplicate.getId(), canonical);
+    verify(usRepo).deleteDuplicateLinks(duplicate.getId(), canonical.getId());
+    verify(usRepo).reassignSkill(duplicate.getId(), canonical);
+    verify(skillRepository).deleteSkillDirectly(duplicate.getId());
   }
 }
