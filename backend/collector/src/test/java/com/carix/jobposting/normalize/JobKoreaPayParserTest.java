@@ -18,8 +18,8 @@ class JobKoreaPayParserTest {
 
     SalaryRange range = parser.parse(payJson);
 
-    assertEquals(3300L, range.min());
-    assertEquals(3800L, range.max());
+    assertEquals(33_000_000L, range.min());
+    assertEquals(38_000_000L, range.max());
   }
 
   @Test
@@ -31,8 +31,8 @@ class JobKoreaPayParserTest {
 
     SalaryRange range = parser.parse(payJson);
 
-    assertEquals(4000L, range.min());
-    assertEquals(6000L, range.max());
+    assertEquals(40_000_000L, range.min());
+    assertEquals(60_000_000L, range.max());
   }
 
   @Test

@@ -31,8 +31,14 @@ public class JobKoreaListingEnricher {
       if (salaryText != null) {
         Matcher matcher = SALARY_PATTERN.matcher(salaryText);
         if (matcher.find()) {
-          salaryMin = parseAmount(matcher.group(1));
-          salaryMax = matcher.group(2) != null ? parseAmount(matcher.group(2)) : salaryMin;
+          long parsedMin = parseAmount(matcher.group(1));
+          salaryMin = parsedMin < 1_000_000 ? parsedMin * 10_000L : parsedMin;
+          if (matcher.group(2) != null) {
+            long parsedMax = parseAmount(matcher.group(2));
+            salaryMax = parsedMax < 1_000_000 ? parsedMax * 10_000L : parsedMax;
+          } else {
+            salaryMax = salaryMin;
+          }
         }
       }
       positionLevel = textOrNull(cells.get(5));

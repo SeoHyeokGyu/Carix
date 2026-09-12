@@ -124,8 +124,8 @@ public class JobPosting {
     this.externalId = externalId;
     this.title = title;
     this.companyName = companyName;
-    this.salaryMin = salaryMin;
-    this.salaryMax = salaryMax;
+    this.salaryMin = normalizeSalary(salaryMin);
+    this.salaryMax = normalizeSalary(salaryMax);
     this.region = region;
     this.experienceMin = experienceMin;
     this.experienceMax = experienceMax;
@@ -150,10 +150,20 @@ public class JobPosting {
     }
   }
 
-  /** 원천이 공개한 세전 연봉 범위(만원). 비공개 공고는 호출하지 않는다. */
+  /** 원천이 공개한 세전 연봉 범위(원 단위). 만원 단위로 전달될 경우 원 단위로 보정한다. */
   public void applyDisclosedSalary(Long min, Long max) {
-    this.salaryMin = min;
-    this.salaryMax = max;
+    this.salaryMin = normalizeSalary(min);
+    this.salaryMax = normalizeSalary(max);
+  }
+
+  private static Long normalizeSalary(Long value) {
+    if (value == null) {
+      return null;
+    }
+    if (value > 0 && value < 1_000_000) {
+      return value * 10_000L;
+    }
+    return value;
   }
 
   /** 공고가 요구하는 경력 연차 범위. 하한이 동료집단 브래킷의 기준이다 — 공고가 받아 주는 가장 낮은 연차로 비교한다. */
