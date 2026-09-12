@@ -10,4 +10,6 @@ public interface ExpenseHistoryRepository extends JpaRepository<ExpenseHistory, 
   List<ExpenseHistory> findByUserIdOrderByBaseYearMonthDesc(UUID userId);
 
   Optional<ExpenseHistory> findByUserIdAndBaseYearMonth(UUID userId, String baseYearMonth);
+
+  void deleteByUserId(UUID userId);
 }

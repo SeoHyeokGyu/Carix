@@ -56,6 +56,42 @@ export interface SalaryDistributionResponse {
   peerGroup?: DistributionPeerGroup | null;
 }
 
+export interface TrendPoint {
+  yearMonth: string;
+  purchasingPowerIndex: number | null;
+  marketValueIndex: number | null;
+  incomeIndex: number | null;
+  personalPriceIndex: number | null;
+  nominalIncome: number | null;
+  realIncome: number | null;
+}
+
+export interface TrendListResponse {
+  trends: TrendPoint[];
+  purchasingPowerStatus: string;
+  marketValueStatus: string;
+}
+
+export interface SnapshotRationale {
+  rulesApplied: string[];
+  excluded: string[];
+  baseDate: string | null;
+}
+
+export interface SnapshotPoint {
+  baseYearMonth: string;
+  purchasingPowerIndex: number | null;
+  marketValueIndex: number | null;
+  decisionSignal: string;
+  dataVersion: string;
+  ruleVersion: string;
+  rationale: SnapshotRationale | null;
+}
+
+export interface SnapshotHistoryResponse {
+  snapshots: SnapshotPoint[];
+}
+
 interface ApiResponse<T> {
   success: boolean;
   data: T;
@@ -98,4 +134,33 @@ export async function fetchSalaryDistribution(
     credentials: "include",
   });
   return handleResponse<SalaryDistributionResponse>(res);
+}
+
+/**
+ * 지수 트렌드 시계열 데이터 조회 (S-14 소득 vs 물가 탭)
+ */
+export async function fetchTrends(
+  baseYearMonth?: string,
+  durationMonths = 12,
+): Promise<TrendListResponse> {
+  const params = new URLSearchParams();
+  if (baseYearMonth) {
+    params.set("baseYearMonth", baseYearMonth);
+  }
+  params.set("durationMonths", String(durationMonths));
+
+  const res = await fetch(`/api/v1/dashboard/trends?${params.toString()}`, {
+    credentials: "include",
+  });
+  return handleResponse<TrendListResponse>(res);
+}
+
+/**
+ * 월별 스냅샷 이력 조회 (S-11 월별 스냅샷 이력 화면)
+ */
+export async function fetchSnapshotHistory(): Promise<SnapshotHistoryResponse> {
+  const res = await fetch("/api/v1/dashboard/history", {
+    credentials: "include",
+  });
+  return handleResponse<SnapshotHistoryResponse>(res);
 }

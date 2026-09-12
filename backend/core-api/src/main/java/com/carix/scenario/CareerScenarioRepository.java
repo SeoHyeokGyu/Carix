@@ -14,4 +14,6 @@ public interface CareerScenarioRepository extends JpaRepository<CareerScenario, 
    * 두 행이 들어가면 값이 같아서다. 그때 순서가 정해지지 않으면 조회가 흔들린다.
    */
   Optional<CareerScenario> findFirstByUserIdOrderByCalculatedAtDescIdDesc(UUID userId);
+
+  void deleteByUserId(UUID userId);
 }

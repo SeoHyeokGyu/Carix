@@ -7,4 +7,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface CareerProfileRepository extends JpaRepository<CareerProfile, UUID> {
   Optional<CareerProfile> findByUserId(UUID userId);
+
+  void deleteByUserId(UUID userId);
 }

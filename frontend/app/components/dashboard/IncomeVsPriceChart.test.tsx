@@ -1,0 +1,217 @@
+import { render, screen } from "@testing-library/react";
+import { describe, it, expect } from "vitest";
+import { IncomeVsPriceChart } from "./IncomeVsPriceChart";
+import type { TrendListResponse } from "../../lib/dashboardMarketApi";
+
+describe("IncomeVsPriceChart", () => {
+  it("데이터가 비어 있을 때 비어있음 안내 상태를 렌더링한다", () => {
+    const emptyData: TrendListResponse = {
+      trends: [],
+      purchasingPowerStatus: "NOT_AVAILABLE",
+      marketValueStatus: "NOT_AVAILABLE",
+    };
+
+    render(<IncomeVsPriceChart data={emptyData} />);
+    expect(screen.getByTestId("trends-empty-state")).toBeInTheDocument();
+    expect(
+      screen.getByText("시계열 추이 데이터가 아직 충분하지 않습니다."),
+    ).toBeInTheDocument();
+  });
+
+  it("12개월 이상 정상 소득 및 개인물가 데이터가 주어지면 차트와 손실 구간을 렌더링한다", () => {
+    const fullData: TrendListResponse = {
+      trends: [
+        {
+          yearMonth: "202509",
+          incomeIndex: 100,
+          personalPriceIndex: 100,
+          purchasingPowerIndex: 100,
+          marketValueIndex: 100,
+          nominalIncome: 60000000,
+          realIncome: 60000000,
+        },
+        {
+          yearMonth: "202510",
+          incomeIndex: 100,
+          personalPriceIndex: 101.5,
+          purchasingPowerIndex: 98.5,
+          marketValueIndex: 102,
+          nominalIncome: 60000000,
+          realIncome: 59100000,
+        },
+        {
+          yearMonth: "202511",
+          incomeIndex: 100,
+          personalPriceIndex: 102.3,
+          purchasingPowerIndex: 97.7,
+          marketValueIndex: 103,
+          nominalIncome: 60000000,
+          realIncome: 58600000,
+        },
+        {
+          yearMonth: "202512",
+          incomeIndex: 102,
+          personalPriceIndex: 103.0,
+          purchasingPowerIndex: 99.0,
+          marketValueIndex: 104,
+          nominalIncome: 61200000,
+          realIncome: 59400000,
+        },
+        {
+          yearMonth: "202601",
+          incomeIndex: 105,
+          personalPriceIndex: 103.8,
+          purchasingPowerIndex: 101.1,
+          marketValueIndex: 106,
+          nominalIncome: 63000000,
+          realIncome: 60700000,
+        },
+        {
+          yearMonth: "202602",
+          incomeIndex: 105,
+          personalPriceIndex: 104.5,
+          purchasingPowerIndex: 100.4,
+          marketValueIndex: 107,
+          nominalIncome: 63000000,
+          realIncome: 60200000,
+        },
+        {
+          yearMonth: "202603",
+          incomeIndex: 105,
+          personalPriceIndex: 105.2,
+          purchasingPowerIndex: 99.8,
+          marketValueIndex: 108,
+          nominalIncome: 63000000,
+          realIncome: 59800000,
+        },
+        {
+          yearMonth: "202604",
+          incomeIndex: 105,
+          personalPriceIndex: 105.8,
+          purchasingPowerIndex: 99.2,
+          marketValueIndex: 109,
+          nominalIncome: 63000000,
+          realIncome: 59500000,
+        },
+        {
+          yearMonth: "202605",
+          incomeIndex: 108,
+          personalPriceIndex: 106.3,
+          purchasingPowerIndex: 101.5,
+          marketValueIndex: 111,
+          nominalIncome: 64800000,
+          realIncome: 60900000,
+        },
+        {
+          yearMonth: "202606",
+          incomeIndex: 108,
+          personalPriceIndex: 107.0,
+          purchasingPowerIndex: 100.9,
+          marketValueIndex: 112,
+          nominalIncome: 64800000,
+          realIncome: 60500000,
+        },
+        {
+          yearMonth: "202607",
+          incomeIndex: 108,
+          personalPriceIndex: 107.8,
+          purchasingPowerIndex: 100.1,
+          marketValueIndex: 114,
+          nominalIncome: 64800000,
+          realIncome: 60100000,
+        },
+        {
+          yearMonth: "202608",
+          incomeIndex: 110,
+          personalPriceIndex: 108.5,
+          purchasingPowerIndex: 101.3,
+          marketValueIndex: 115,
+          nominalIncome: 66000000,
+          realIncome: 60800000,
+        },
+      ],
+      purchasingPowerStatus: "OK",
+      marketValueStatus: "OK",
+    };
+
+    render(<IncomeVsPriceChart data={fullData} />);
+    expect(screen.getByTestId("income-vs-price-chart")).toBeInTheDocument();
+    expect(screen.getByText("소득 대 개인물가 지수 추이")).toBeInTheDocument();
+    expect(screen.getByText("소득 지수 (실선)")).toBeInTheDocument();
+    expect(screen.getByText("개인물가 지수 (점선)")).toBeInTheDocument();
+    expect(screen.getByText("구매력 손실 구간")).toBeInTheDocument();
+    expect(
+      screen.getByRole("img", { name: "소득 대 개인물가 지수 시계열 차트" }),
+    ).toBeInTheDocument();
+  });
+
+  it("12개월 미만 데이터일 때 누적 개월 수 안내 배너를 표시한다", () => {
+    const shortData: TrendListResponse = {
+      trends: [
+        {
+          yearMonth: "202605",
+          incomeIndex: 100,
+          personalPriceIndex: 100,
+          purchasingPowerIndex: 100,
+          marketValueIndex: 100,
+          nominalIncome: null,
+          realIncome: null,
+        },
+        {
+          yearMonth: "202606",
+          incomeIndex: 102,
+          personalPriceIndex: 101,
+          purchasingPowerIndex: 100.9,
+          marketValueIndex: 102,
+          nominalIncome: null,
+          realIncome: null,
+        },
+      ],
+      purchasingPowerStatus: "OK",
+      marketValueStatus: "OK",
+    };
+
+    render(<IncomeVsPriceChart data={shortData} />);
+    expect(screen.getByText(/데이터가 누적되어 있습니다/)).toBeInTheDocument();
+    expect(screen.getByText("2개월")).toBeInTheDocument();
+  });
+
+  it("중간 월 결측치가 포함되어 있어도 오류 없이 렌더링된다", () => {
+    const dataWithGap: TrendListResponse = {
+      trends: [
+        {
+          yearMonth: "202605",
+          incomeIndex: 100,
+          personalPriceIndex: 100,
+          purchasingPowerIndex: 100,
+          marketValueIndex: 100,
+          nominalIncome: null,
+          realIncome: null,
+        },
+        {
+          yearMonth: "202606",
+          incomeIndex: null,
+          personalPriceIndex: null,
+          purchasingPowerIndex: null,
+          marketValueIndex: null,
+          nominalIncome: null,
+          realIncome: null,
+        },
+        {
+          yearMonth: "202607",
+          incomeIndex: 104,
+          personalPriceIndex: 102,
+          purchasingPowerIndex: 101.9,
+          marketValueIndex: 103,
+          nominalIncome: null,
+          realIncome: null,
+        },
+      ],
+      purchasingPowerStatus: "OK",
+      marketValueStatus: "OK",
+    };
+
+    render(<IncomeVsPriceChart data={dataWithGap} />);
+    expect(screen.getByTestId("income-vs-price-chart")).toBeInTheDocument();
+  });
+});

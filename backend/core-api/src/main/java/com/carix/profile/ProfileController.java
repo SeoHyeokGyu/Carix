@@ -79,11 +79,13 @@ public class ProfileController {
   })
   @DeleteMapping("/users")
   public ResponseEntity<ApiResult<Void>> deleteUser(
+      @CurrentUserId UUID userId,
       @Parameter(description = "탈퇴 확인을 위한 이메일 주소", required = true, example = "user@example.com")
           @RequestParam
           @NotBlank
           @Email
           String email) {
+    profileService.deleteUser(userId, email);
     return ResponseEntity.ok(ApiResult.success(null, "탈퇴 처리가 완료되었습니다. 모든 데이터가 삭제되었습니다."));
   }
 }
