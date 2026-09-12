@@ -55,7 +55,7 @@ export function AppShell({ navLabel, items, utilityItems }: AppShellProps) {
             </nav>
           </div>
 
-          {/* 우측: 유틸리티 (설정 + 테마 전환) */}
+          {/* 우측: 유틸리티 (설정) */}
           <div className="flex items-center gap-2 shrink-0">
             {utilityItems?.map((uItem) => (
               <NavLink
@@ -75,10 +75,10 @@ export function AppShell({ navLabel, items, utilityItems }: AppShellProps) {
                 <span>{uItem.label}</span>
               </NavLink>
             ))}
-            <ThemeToggle inHeader />
           </div>
         </div>
       </header>
+      <ThemeToggle />
       <main>
         <Outlet />
       </main>

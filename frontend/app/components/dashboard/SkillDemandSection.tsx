@@ -77,7 +77,7 @@ export function SkillDemandSection({ data }: SkillDemandSectionProps) {
   return (
     <div
       data-testid="skill-demand-section"
-      className="rounded-xl border border-carix-border bg-carix-surface p-6 shadow-sm"
+      className="rounded-xl border border-carix-border bg-carix-surface p-6 shadow-xs"
     >
       {/* 1. 섹션 헤더 및 커버리지 정보 */}
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-carix-border pb-4">
@@ -107,7 +107,7 @@ export function SkillDemandSection({ data }: SkillDemandSectionProps) {
           </p>
         </div>
       ) : (
-        <div className="mt-4 overflow-hidden rounded-lg border border-carix-border">
+        <div className="mt-4 overflow-hidden rounded-xl border border-carix-border bg-carix-surface shadow-xs">
           <table className="w-full text-left text-sm text-carix-text">
             <thead className="border-b border-carix-border bg-carix-bg/60 text-xs font-medium text-carix-text/70">
               <tr>

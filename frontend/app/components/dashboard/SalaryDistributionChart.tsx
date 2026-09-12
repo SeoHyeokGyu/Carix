@@ -31,7 +31,7 @@ export function SalaryDistributionChart({
     return (
       <div
         data-testid="insufficient-sample-state"
-        className="rounded-xl border border-carix-warning/30 bg-carix-warning/5 p-6 text-center"
+        className="rounded-xl border border-carix-warning/30 bg-carix-warning/5 p-6 text-center shadow-xs"
       >
         <div className="inline-flex items-center gap-1.5 rounded-full bg-carix-warning/10 px-3 py-1 text-xs font-semibold text-carix-warning mb-3">
           ⚠️ 표본 부족
@@ -45,7 +45,7 @@ export function SalaryDistributionChart({
           (최소 기준: {data.minRequired ?? 10}건 이상 필요)
         </p>
         {data.peerGroup?.appliedConditions && (
-          <p className="mt-3 text-xs text-carix-text/60 bg-carix-surface rounded p-2 border border-carix-border inline-block">
+          <p className="mt-3 text-xs text-carix-text/60 bg-carix-surface rounded-lg p-2 border border-carix-border inline-block shadow-xs">
             적용된 비교 조건: {data.peerGroup.appliedConditions}
           </p>
         )}
@@ -95,7 +95,7 @@ export function SalaryDistributionChart({
   return (
     <div
       data-testid="salary-distribution-chart"
-      className="rounded-xl border border-carix-border bg-carix-surface p-6 shadow-sm"
+      className="rounded-xl border border-carix-border bg-carix-surface p-6 shadow-xs"
     >
       {/* 1. 상단 타이틀 및 사용자 연봉 위치 요약 */}
       <div className="flex flex-wrap items-start justify-between gap-4 border-b border-carix-border pb-5">

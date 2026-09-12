@@ -145,14 +145,14 @@ export default function DashboardHistory() {
 
       {/* 3. 콘텐츠 영역 */}
       {isLoading ? (
-        <div className="rounded-xl border border-carix-border bg-carix-surface p-12 text-center text-sm text-carix-text/60">
+        <div className="rounded-xl border border-carix-border bg-carix-surface p-12 text-center text-sm text-carix-text/60 shadow-xs">
           스냅샷 이력을 조회하고 있습니다...
         </div>
       ) : snapshots.length === 0 ? (
         /* 스냅샷 0개 비어있음 상태 */
         <div
           data-testid="history-empty-state"
-          className="rounded-xl border border-dashed border-carix-border bg-carix-surface p-12 text-center"
+          className="rounded-xl border border-dashed border-carix-border bg-carix-surface p-12 text-center shadow-xs"
         >
           <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-carix-info/10 text-xl">
             📋
@@ -178,7 +178,7 @@ export default function DashboardHistory() {
           {isSingleOrEmpty && (
             <div
               data-testid="history-single-notice"
-              className="rounded-xl border border-dashed border-carix-border bg-carix-surface p-6 text-center"
+              className="rounded-xl border border-dashed border-carix-border bg-carix-surface p-6 text-center shadow-xs"
             >
               <h4 className="text-sm font-semibold text-carix-text">
                 초기 스냅샷이 생성되었습니다
@@ -190,7 +190,7 @@ export default function DashboardHistory() {
           )}
 
           {/* 스냅샷 이력 테이블 */}
-          <div className="overflow-hidden rounded-xl border border-carix-border bg-carix-surface shadow-sm">
+          <div className="overflow-hidden rounded-xl border border-carix-border bg-carix-surface shadow-xs">
             <div className="overflow-x-auto">
               <table className="w-full text-left text-sm">
                 <thead className="border-b border-carix-border bg-carix-bg/60 text-xs font-semibold text-carix-text/70">
@@ -311,7 +311,7 @@ export default function DashboardHistory() {
 
                 <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 text-xs">
                   {/* 적용된 판정 규칙 */}
-                  <div className="rounded-lg border border-carix-border bg-carix-surface p-4">
+                  <div className="rounded-xl border border-carix-border bg-carix-surface p-4.5 shadow-xs">
                     <span className="font-semibold text-carix-text">
                       적용된 규칙 (Rules Applied)
                     </span>
@@ -337,7 +337,7 @@ export default function DashboardHistory() {
                   </div>
 
                   {/* 제외된 스킬 및 사유 */}
-                  <div className="rounded-lg border border-carix-border bg-carix-surface p-4">
+                  <div className="rounded-xl border border-carix-border bg-carix-surface p-4.5 shadow-xs">
                     <span className="font-semibold text-carix-text">
                       제외된 스킬 (Excluded Skills)
                     </span>

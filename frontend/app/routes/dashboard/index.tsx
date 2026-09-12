@@ -103,7 +103,7 @@ export default function DashboardHome() {
       )}
 
       {data && firstCalculation && (
-        <div className="mt-8 rounded-lg border border-dashed border-carix-border bg-carix-surface px-5 py-4 text-sm text-carix-text/70">
+        <div className="mt-8 rounded-xl border border-dashed border-carix-border bg-carix-surface p-5 text-sm text-carix-text/70 shadow-xs">
           <p>첫 지수를 계산하고 있습니다</p>
           <p className="mt-1 text-carix-text/50">
             계산이 끝나면 이 화면에 자동으로 표시됩니다. 잠시 후 다시 확인해
@@ -118,11 +118,13 @@ export default function DashboardHome() {
           <IndexCard title="시장가치 지수" index={data.marketValueIndex} />
 
           {data.decisionSignal && (
-            <Card>
-              <CardHeader>
-                <CardTitle>결정 신호</CardTitle>
+            <Card className="p-5 gap-3 transition-transform hover:-translate-y-0.5 duration-200">
+              <CardHeader className="p-0">
+                <CardTitle className="text-xs font-medium text-carix-text/70">
+                  결정 신호
+                </CardTitle>
               </CardHeader>
-              <CardContent className="flex flex-col gap-3">
+              <CardContent className="p-0 flex flex-col gap-3">
                 <Badge>{data.decisionSignal.label}</Badge>
 
                 <Button
