@@ -58,6 +58,11 @@ export interface WageStatRequest {
   endYear?: string;
 }
 
+export interface CpiRequest {
+  startYearMonth?: string;
+  endYearMonth?: string;
+}
+
 export interface MarketAggregateRequest {
   month?: string;
   year?: string;
@@ -188,6 +193,13 @@ export function triggerWageStat(
   req?: WageStatRequest,
 ): Promise<JobExecutionResponse> {
   return request<JobExecutionResponse>("/wage-stat", {
+    method: "POST",
+    body: JSON.stringify(req ?? {}),
+  });
+}
+
+export function triggerCpi(req?: CpiRequest): Promise<JobExecutionResponse> {
+  return request<JobExecutionResponse>("/cpi", {
     method: "POST",
     body: JSON.stringify(req ?? {}),
   });

@@ -52,6 +52,11 @@ export function JobHistoryTable({ jobs, isLoading }: JobHistoryTableProps) {
         return { label: "크롤링", color: "text-blue-600 bg-blue-500/10" };
       case "WAGE_STAT_INGEST":
         return { label: "임금 통계", color: "text-amber-600 bg-amber-500/10" };
+      case "CPI_INGEST":
+        return {
+          label: "소비자물가지수",
+          color: "text-rose-600 bg-rose-500/10",
+        };
       case "DEDUPLICATION":
         return { label: "중복제거", color: "text-purple-600 bg-purple-500/10" };
       case "MARKET_AGGREGATION":

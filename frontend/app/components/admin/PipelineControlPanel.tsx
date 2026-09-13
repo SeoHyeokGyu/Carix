@@ -3,6 +3,7 @@ import {
   triggerCrawl,
   triggerSkillRefine,
   triggerWageStat,
+  triggerCpi,
   triggerDeduplication,
   triggerMarketAggregate,
   triggerSeedLoad,
@@ -15,7 +16,8 @@ interface PipelineControlPanelProps {
   onError: (err: { message: string }) => void;
 }
 
-type TabType = "crawl" | "refine" | "wage" | "dedup" | "aggregate" | "seed";
+type TabType =
+  "crawl" | "refine" | "wage" | "cpi" | "dedup" | "aggregate" | "seed";
 
 export function PipelineControlPanel({
   isJobRunning,
@@ -34,6 +36,11 @@ export function PipelineControlPanel({
   const [wageMode, setWageMode] = useState<"latest" | "custom">("latest");
   const [startYear, setStartYear] = useState<string>("2020");
   const [endYear, setEndYear] = useState<string>("2024");
+
+  // CPI 폼 상태
+  const [cpiMode, setCpiMode] = useState<"latest" | "custom">("latest");
+  const [cpiStartYearMonth, setCpiStartYearMonth] = useState<string>("202401");
+  const [cpiEndYearMonth, setCpiEndYearMonth] = useState<string>("202412");
 
   // 시장 사전 집계 폼 상태
   const [aggMode, setAggMode] = useState<"all" | "month" | "year" | "range">(
@@ -64,6 +71,16 @@ export function PipelineControlPanel({
         case "wage":
           res = await triggerWageStat(
             wageMode === "latest" ? {} : { startYear, endYear },
+          );
+          break;
+        case "cpi":
+          res = await triggerCpi(
+            cpiMode === "latest"
+              ? {}
+              : {
+                  startYearMonth: cpiStartYearMonth,
+                  endYearMonth: cpiEndYearMonth,
+                },
           );
           break;
         case "dedup":
@@ -103,6 +120,7 @@ export function PipelineControlPanel({
     { id: "crawl", label: "채용공고 크롤링", icon: "🕷️" },
     { id: "refine", label: "스킬 일괄 재정제", icon: "✨" },
     { id: "wage", label: "KOSIS 공식 임금 수집", icon: "📊" },
+    { id: "cpi", label: "KOSIS 소비자물가지수 수집", icon: "💰" },
     { id: "dedup", label: "공고 중복제거 (Dedup)", icon: "🔗" },
     { id: "aggregate", label: "시장 데이터 사전 집계", icon: "📈" },
     { id: "seed", label: "파일 시드 적재", icon: "💾" },
@@ -296,6 +314,76 @@ export function PipelineControlPanel({
                       value={endYear}
                       onChange={(e) => setEndYear(e.target.value)}
                       className="w-28 rounded-md border border-carix-border bg-carix-bg px-3 py-1.5 text-xs text-carix-text"
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* 3-2. KOSIS 소비자물가지수 탭 */}
+        {activeTab === "cpi" && (
+          <div className="space-y-4">
+            <div>
+              <h3 className="text-sm font-semibold text-carix-text">
+                KOSIS 지출목적별 소비자물가지수 수집
+              </h3>
+              <p className="text-xs text-carix-text/60 mt-0.5">
+                통계청 OpenAPI(지출목적별 소비자물가지수, DT_1J22001)로부터 12대
+                분류(A~L) CPI를 수집하여 core.cpi_observation에 적재합니다.
+              </p>
+            </div>
+
+            <div className="pt-2 space-y-3">
+              <div className="flex items-center gap-4">
+                <label className="flex items-center gap-1.5 text-xs text-carix-text cursor-pointer">
+                  <input
+                    type="radio"
+                    name="cpiMode"
+                    checked={cpiMode === "latest"}
+                    onChange={() => setCpiMode("latest")}
+                    className="text-carix-info"
+                  />
+                  <span>최신 1개월 수집</span>
+                </label>
+                <label className="flex items-center gap-1.5 text-xs text-carix-text cursor-pointer">
+                  <input
+                    type="radio"
+                    name="cpiMode"
+                    checked={cpiMode === "custom"}
+                    onChange={() => setCpiMode("custom")}
+                    className="text-carix-info"
+                  />
+                  <span>연월 구간 지정 수집 (Backfill)</span>
+                </label>
+              </div>
+
+              {cpiMode === "custom" && (
+                <div className="flex items-center gap-3 pt-1">
+                  <div>
+                    <label className="block text-xs font-medium text-carix-text mb-1">
+                      시작 연월 (YYYYMM)
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="202401"
+                      value={cpiStartYearMonth}
+                      onChange={(e) => setCpiStartYearMonth(e.target.value)}
+                      className="w-32 rounded-md border border-carix-border bg-carix-bg px-3 py-1.5 text-xs text-carix-text"
+                    />
+                  </div>
+                  <span className="text-carix-text/50 pt-5">~</span>
+                  <div>
+                    <label className="block text-xs font-medium text-carix-text mb-1">
+                      종료 연월 (YYYYMM)
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="202412"
+                      value={cpiEndYearMonth}
+                      onChange={(e) => setCpiEndYearMonth(e.target.value)}
+                      className="w-32 rounded-md border border-carix-border bg-carix-bg px-3 py-1.5 text-xs text-carix-text"
                     />
                   </div>
                 </div>
