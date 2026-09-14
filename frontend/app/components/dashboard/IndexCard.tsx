@@ -1,17 +1,8 @@
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import type { IndexStatus, IndexValue } from "../../lib/api/dashboard";
-
-/**
- * `OK` 가 아닐 때 카드에 보여줄 뱃지 문구 (설계 §7.5 표).
- * `INSUFFICIENT_HISTORY`·`NOT_AVAILABLE` 은 화면 구분 없이 같은 "계산 대기"로 묶인다.
- */
-const STATUS_BADGE_LABEL: Record<Exclude<IndexStatus, "OK">, string> = {
-  INSUFFICIENT_SAMPLE: "표본 부족",
-  UPDATE_DELAYED: "업데이트 지연",
-  INSUFFICIENT_HISTORY: "계산 대기",
-  NOT_AVAILABLE: "계산 대기",
-};
+import { ToneBadge } from "@/components/ui/tone-badge";
+import type { IndexValue } from "../../lib/api/dashboard";
+import { resolveIndexStatus } from "../../lib/indexStatus";
 
 function formatChange(change: number): string {
   const arrow = change > 0 ? "▲" : change < 0 ? "▼" : "－";
@@ -26,6 +17,7 @@ export function IndexCard({
   index: IndexValue;
 }) {
   const { value, changeFromLastMonth, indexStatus } = index;
+  const status = resolveIndexStatus(indexStatus);
 
   return (
     <Card className="p-5 gap-3 transition-transform hover:-translate-y-0.5 duration-200">
@@ -50,9 +42,7 @@ export function IndexCard({
             )}
           </div>
         )}
-        {indexStatus !== "OK" && (
-          <Badge variant="outline">{STATUS_BADGE_LABEL[indexStatus]}</Badge>
-        )}
+        {status && <ToneBadge tone={status.tone}>{status.label}</ToneBadge>}
       </CardContent>
     </Card>
   );
