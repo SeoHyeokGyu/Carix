@@ -200,6 +200,20 @@ admin 만 `animate-pulse` 스켈레톤과 `⏳ animate-spin` 을 쓴다. 공용 
 기준으로 잡는다 — 실제 표본 수와 최소 기준, 적용된 완화 조건, 대체 지표 안내까지 담는
 형태가 이미 거기 있다.
 
+**P2 가 P3 로 넘긴 것 (최종 리뷰에서 나온 것들).**
+
+| 항목 | 내용 |
+| :--- | :--- |
+| `EmptyState` 의 제목 태그 | `h4` 로 고정돼 있다. `history.tsx` 에서 `h1 → h4` 로 한 단계를 건너뛴다. 선행 문제(삭제한 블록도 `h4` 였다)지만 이제 공용 프리미티브에 박혀 있어 P3/P4 가 호출부를 늘리면 같이 번진다. `headingLevel` prop 을 받되 기본값은 현행 유지. |
+| 손수 뱃지 잔여 8건 | `admin/JobHistoryTable`, `admin/CollectorStatusBanner`, `hero/Hero`, `onboarding/skills`, `SalaryDistributionChart`. 앞 넷은 P4, `SalaryDistributionChart` 는 P3 (열화 상태 3종이 본문에 표본 수·완화 조건을 엮고 있어 프리미티브 재정의와 같이 간다). |
+| `history.tsx` 로딩 분기 | 기계 검증이 0인 유일한 자리다. 모든 테스트가 `fetchSnapshotHistory` 를 즉시 resolve 해서 `isLoading` 을 타지 않는다. |
+| 시각 커버리지 없는 호출부 | `IndexCard` 의 뱃지(P0 의 `w-fit` 늘어남 버그가 빠져나간 바로 그 레이아웃 맥락인데 아직 갤러리 밖), `SkillDemandSection` 의 `variant="plain"` 빈 상태(갤러리엔 합성 카드만 있다). |
+
+**서버 수정 시 같이 볼 것.** 아래 서버 결함이 고쳐져 `INSUFFICIENT_SAMPLE`·`NO_RECENT_DEMAND` 행이
+실제로 내려오기 시작하면, `SkillDemandSection` 의 가중치 셀이 `CUSTOM_SKILL_NO_STATS` 만 걸러
+"-" 를 그리므로 그 행들은 숫자 분기로 흘러 가중치 %를 렌더한다. 그때 `weight` 에 뭐가 들어오는지
+확인할 것 — 이미 처리됐다고 가정하지 말 것.
+
 ### P3 — 프리미티브 제자리 재정의
 
 - `Card` — `py-6` + 자식 `px-6` 구조를 B 의 `p-6` 단일로. `gap-6` 기본값은 B 카드가
