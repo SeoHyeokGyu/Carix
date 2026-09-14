@@ -30,7 +30,7 @@ describe("S-11 DashboardHistory 라우트", () => {
     ).toBeInTheDocument();
 
     await waitFor(() => {
-      expect(screen.getByTestId("history-empty-state")).toBeInTheDocument();
+      expect(screen.getByTestId("empty-state")).toBeInTheDocument();
       expect(
         screen.getByText("기록된 월별 스냅샷이 없습니다."),
       ).toBeInTheDocument();
@@ -174,7 +174,7 @@ describe("S-11 DashboardHistory 라우트", () => {
     fireEvent.click(retryBtn);
 
     await waitFor(() => {
-      expect(screen.getByTestId("history-empty-state")).toBeInTheDocument();
+      expect(screen.getByTestId("empty-state")).toBeInTheDocument();
     });
     expect(dashboardMarketApi.fetchSnapshotHistory).toHaveBeenCalledTimes(2);
   });
@@ -191,7 +191,7 @@ describe("S-11 DashboardHistory 라우트", () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByTestId("history-empty-state")).toBeInTheDocument();
+      expect(screen.getByTestId("empty-state")).toBeInTheDocument();
     });
 
     const refreshBtn = screen.getByRole("button", { name: "새로고침 ↻" });

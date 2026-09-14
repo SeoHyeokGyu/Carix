@@ -8,6 +8,7 @@ import {
   resolveSkillDemandStatus,
 } from "../../lib/skillDemandStatus";
 import { ToneBadge } from "@/components/ui/tone-badge";
+import { EmptyState } from "@/components/ui/empty-state";
 
 export interface SkillDemandSectionProps {
   data: SkillDemandResponse;
@@ -62,13 +63,11 @@ export function SkillDemandSection({ data }: SkillDemandSectionProps) {
 
       {/* 2. 스킬 목록 테이블 */}
       {skills.length === 0 ? (
-        <div className="py-12 text-center text-sm text-carix-text/60">
-          <p>등록된 보유 스킬이 없습니다.</p>
-          <p className="mt-1 text-xs text-carix-text/40">
-            온보딩 또는 마이페이지에서 스킬을 등록하면 채용 시장 수요 지수가
-            표시됩니다.
-          </p>
-        </div>
+        <EmptyState
+          variant="plain"
+          title="등록된 보유 스킬이 없습니다."
+          description="온보딩 또는 마이페이지에서 스킬을 등록하면 채용 시장 수요 지수가 표시됩니다."
+        />
       ) : (
         <div className="mt-4 overflow-hidden rounded-xl border border-carix-border bg-carix-surface shadow-xs">
           <table className="w-full text-left text-sm text-carix-text">
