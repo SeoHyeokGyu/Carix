@@ -3,7 +3,7 @@ package com.carix.snapshot;
 import java.math.BigDecimal;
 
 /**
- * 소득 격차 비율의 저장 구간 (개발 계획 §5-L).
+ * 소득 격차 비율의 저장 구간 (기술 명세 §1.3).
  *
  * <p>비율 자체를 소수점 6자리로 {@code rationale} 에 남기면 평문 {@code wage_stat_observation.wage_median} · 평문
  * {@code career_profile} 동료집단과 조인해 {@code 연봉 = 중앙값 / (1 + 격차비율)} 로 원 단위까지 복원된다. {@code

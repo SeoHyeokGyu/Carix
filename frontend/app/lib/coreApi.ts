@@ -4,7 +4,7 @@
  * core-api 는 응답을 `ApiResult<T>` 로 감싼다 (`{success, data, message, timestamp}`).
  * auth-service 는 감싸지 않으므로 그쪽은 `authApi.ts` 를 그대로 쓴다.
  *
- * 401 을 한곳에서 다루는 이유는 세션 게이트(개발 계획 §5-B) 때문이다. 플래그를 켜는 순간
+ * 401 을 한곳에서 다루는 이유는 세션 게이트(backend/README.md 게이트웨이) 때문이다. 플래그를 켜는 순간
  * 세션 없는 모든 호출이 401 이 되므로 처리 지점이 흩어져 있으면 안 된다.
  */
 const JSON_HEADERS = { "Content-Type": "application/json" };

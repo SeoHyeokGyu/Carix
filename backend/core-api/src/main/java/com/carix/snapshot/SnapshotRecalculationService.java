@@ -126,7 +126,7 @@ public class SnapshotRecalculationService {
   }
 
   /**
-   * 격차 비율을 구간 이름으로 접는다 (개발 계획 §5-L). 비율 자체는 {@link DecisionOutcome} 안에만 두고 저장하지 않는다 — 임금통계 중앙값과
+   * 격차 비율을 구간 이름으로 접는다 (기술 명세 §1.3). 비율 자체는 {@link DecisionOutcome} 안에만 두고 저장하지 않는다 — 임금통계 중앙값과
    * 조인하면 연봉이 원 단위로 복원되기 때문이다.
    */
   private static String bucketName(DecisionOutcome outcome) {

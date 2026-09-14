@@ -13,7 +13,7 @@ import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
 import org.springframework.boot.jdbc.test.autoconfigure.AutoConfigureTestDatabase;
 import org.springframework.boot.jpa.test.autoconfigure.TestEntityManager;
 
-/** 시나리오 저장 (개발 계획 §5-O·§5-P). */
+/** 시나리오 저장 (ERD 적용 이력·SECURITY §3.1). */
 @DataJpaTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 class CareerScenarioRepositoryTest {

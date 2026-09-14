@@ -5,7 +5,7 @@ import com.carix.index.enums.IndexStatus;
 import java.util.UUID;
 
 /**
- * 구매력 지수 산출기. Member A 가 구현하고 Member C 의 스냅샷 엔진이 호출한다 (개발 계획 §4-1).
+ * 구매력 지수 산출기. Member A 가 구현하고 Member C 의 스냅샷 엔진이 호출한다 (API 규격 §5.1).
  *
  * <p>구현체가 없는 동안에는 {@code IndexProviderStubConfiguration} 의 스텁이 {@link IndexStatus#NOT_AVAILABLE} 을
  * 돌려준다. 실제 구현을 빈으로 등록하면 스텁은 물러난다.

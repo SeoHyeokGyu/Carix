@@ -66,16 +66,16 @@ public class DashboardController {
       @Parameter(description = "인덱스 기준 월 (YYYYMM 또는 YYYY-MM, 기본: 현재월)")
           @RequestParam(required = false)
           String baseYearMonth,
-      @Parameter(description = "MVP 범위 밖 — 받기만 하고 쓰지 않는다 (개발 계획 §5-G)")
+      @Parameter(description = "MVP 범위 밖 — 받기만 하고 쓰지 않는다 (개발 계획 §4)")
           @RequestParam(required = false)
           String jobFamily,
-      @Parameter(description = "MVP 범위 밖 — 받기만 하고 쓰지 않는다 (개발 계획 §5-G)")
+      @Parameter(description = "MVP 범위 밖 — 받기만 하고 쓰지 않는다 (개발 계획 §4)")
           @RequestParam(required = false)
           Integer yearsOfExperience,
-      @Parameter(description = "MVP 범위 밖 — 받기만 하고 쓰지 않는다 (개발 계획 §5-G)")
+      @Parameter(description = "MVP 범위 밖 — 받기만 하고 쓰지 않는다 (개발 계획 §4)")
           @RequestParam(required = false)
           String region,
-      @Parameter(description = "MVP 범위 밖 — 받기만 하고 쓰지 않는다 (개발 계획 §5-G)")
+      @Parameter(description = "MVP 범위 밖 — 받기만 하고 쓰지 않는다 (개발 계획 §4)")
           @RequestParam(required = false)
           String companySize) {
 
@@ -134,16 +134,16 @@ public class DashboardController {
       @Parameter(description = "인덱스 기준 월 (YYYYMM 또는 YYYY-MM, 기본: 현재월)")
           @RequestParam(required = false)
           String baseYearMonth,
-      @Parameter(description = "MVP 범위 밖 — 받기만 하고 쓰지 않는다 (개발 계획 §5-G)")
+      @Parameter(description = "MVP 범위 밖 — 받기만 하고 쓰지 않는다 (개발 계획 §4)")
           @RequestParam(required = false)
           String jobFamily,
-      @Parameter(description = "MVP 범위 밖 — 받기만 하고 쓰지 않는다 (개발 계획 §5-G)")
+      @Parameter(description = "MVP 범위 밖 — 받기만 하고 쓰지 않는다 (개발 계획 §4)")
           @RequestParam(required = false)
           Integer yearsOfExperience,
-      @Parameter(description = "MVP 범위 밖 — 받기만 하고 쓰지 않는다 (개발 계획 §5-G)")
+      @Parameter(description = "MVP 범위 밖 — 받기만 하고 쓰지 않는다 (개발 계획 §4)")
           @RequestParam(required = false)
           String region,
-      @Parameter(description = "MVP 범위 밖 — 받기만 하고 쓰지 않는다 (개발 계획 §5-G)")
+      @Parameter(description = "MVP 범위 밖 — 받기만 하고 쓰지 않는다 (개발 계획 §4)")
           @RequestParam(required = false)
           String companySize) {
 
