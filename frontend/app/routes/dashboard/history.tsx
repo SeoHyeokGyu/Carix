@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { Link } from "react-router";
 import { SignalBadge } from "../../components/dashboard/SignalBadge";
 import { EmptyState } from "@/components/ui/empty-state";
+import { LoadingState } from "@/components/ui/loading-state";
 import {
   fetchSnapshotHistory,
   type SnapshotHistoryResponse,
@@ -103,9 +104,7 @@ export default function DashboardHistory() {
 
       {/* 3. 콘텐츠 영역 */}
       {isLoading ? (
-        <div className="rounded-xl border border-carix-border bg-carix-surface p-12 text-center text-sm text-carix-text/60 shadow-xs">
-          스냅샷 이력을 조회하고 있습니다...
-        </div>
+        <LoadingState message="스냅샷 이력을 조회하고 있습니다..." />
       ) : snapshots.length === 0 ? (
         /* 스냅샷 0개 비어있음 상태 */
         <EmptyState
