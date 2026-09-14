@@ -59,4 +59,5 @@ export default [
   route("dev/trends", "routes/dashboard/trends.tsx", {
     id: "dev-trends",
   }),
+  route("dev/primitives", "routes/dev/primitives.tsx"),
 ] satisfies RouteConfig;
