@@ -141,7 +141,13 @@ admin 만 `animate-pulse` 스켈레톤과 `⏳ animate-spin` 을 쓴다. 공용 
   출발값은 라이트 `#6d28d9` / 다크 `#a78bfa` 로 잡되, **기존 토큰과 같은 기준으로 대비를
   실측해 확정한다** — `docs/specs/ui-ux-design.md` §1.1 은 `positive` 5.29:1,
   `warning` 4.84:1 처럼 실측치를 적고 있고 새 토큰도 같은 자리에 실측치를 남긴다
-- 포커스 링 토큰(`--ring`)을 raw 요소에서도 쓸 수 있는 유틸로 노출
+- ~~포커스 링 토큰(`--ring`)을 raw 요소에서도 쓸 수 있는 유틸로 노출~~ — **뺀다.** P3 이
+  raw `<button>` 30개를 `<Button>` 으로 바꾸고 `<Button>` 은 이미 `focus-visible:ring` 을
+  갖는다. 그 유틸의 소비자를 P3 이 없앤다. P3 마이그레이션이 멈추면 다시 본다
+- **`@custom-variant dark` 를 추가한다** — P0 최종 리뷰가 드러낸 것. 레포에 이 선언이 없어
+  Tailwind v4 가 `dark:` 를 `prefers-color-scheme` 미디어쿼리로 컴파일하는데 `ThemeToggle` 은
+  `.dark` 클래스를 건다. 10파일 22곳의 `dark:` 가 토글 경로에서 전부 무효다. 실행 계획은
+  `ui-unification-p1-tasks.md`
 
 ### P2 — 공용 컴포넌트 4개
 
