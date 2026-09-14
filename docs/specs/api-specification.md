@@ -141,13 +141,15 @@
         "id": "e812d8a4-0cfb-4a5f-9dfb-12d88c91350a",
         "grossSalary": 60000000,
         "netSalary": 4200000,
-        "effectiveDate": "2026-01-01"
+        "effectiveDate": "2026-01-01",
+        "changeReason": "JOB_CHANGE"
       },
       {
         "id": "fa91b5c4-2dfb-402a-bf39-44ef8c91361c",
         "grossSalary": 55000000,
         "netSalary": 3900000,
-        "effectiveDate": "2025-01-01"
+        "effectiveDate": "2025-01-01",
+        "changeReason": "INITIAL"
       }
     ]
     ```
@@ -159,13 +161,16 @@
     {
       "grossSalary": 65000000,
       "netSalary": 4500000,
-      "effectiveDate": "2026-07-01"
+      "effectiveDate": "2026-07-01",
+      "changeReason": "RAISE"
     }
     ```
 *   **필드 규격 및 화면 입력 정책:**
     *   `grossSalary` (Long, 필수): 세전 연봉(원 단위 정수). 화면에서는 사용자 입력 편의를 위해 **만원 단위**로 입력받으며, 천 단위 콤마(`,`) 실시간 서식과 실시간 원화 환산 힌트(`= N원`)를 제공하고 제출 시 원 단위로 변환해 전송한다.
     *   `netSalary` (Long, 선택): 월 실수령액(원 단위 정수). 화면에서는 만원 단위 및 천 단위 콤마 서식을 제공한다.
     *   `effectiveDate` (String, YYYY-MM-DD): 소득 적용 기준일. 화면에서는 사용자가 직관적으로 이해할 수 있도록 **"연봉 적용 시작일"**로 표기한다.
+    *   `changeReason` (String, 선택): `INITIAL` · `RAISE` · `JOB_CHANGE`. **그 사용자의 첫 소득 행은 서버가 `INITIAL` 로 확정하고 요청값을 무시한다.** 두 번째 이후 행에서만 의미가 있고, 미지정은 `null` 로 저장한다 — 기본값을 채우면 고르지 않은 것이 고른 것으로 기록된다 ([기능 명세 US-O3](functional-specification.md)).
+    *   `JOB_CHANGE` 는 12개월 뒤 시나리오 예측을 실제 소득과 맞댈 때 **잔류 예측과 이직 예측 중 어느 쪽을 검증할지**를 가른다. 자기 신고값이며 그 한계는 검증 결과에 함께 표기한다.
 *   **Response (201 Created):** 등록 완료된 단건 반환
 
 ---
@@ -175,9 +180,13 @@
 ### 5.1 대시보드 지표 요약 (Summary)
 *   **Endpoint:** `GET /api/v1/dashboard/summary`
 *   구현: `com.carix.dashboard.service.DashboardSummaryService`. `index_snapshot` 의 그 달 유효 행을 읽는다.
-*   `metadata` 의 원천별 커버리지는 `index_snapshot.rationale.sourceCoverages` 에서 온다 ([개발 계획 §5-M](../plans/carix-dev-plan.md) 결정분). 완화 결과는 당시 프로필에 의존해 나중에 재계산하면 같은 값이 안 나오므로 저장분을 그대로 읽는다. `salaryMissingRate` 는 원천별 결측률을 **표본 수로 가중 평균**한 값이고, `peerGroup` 은 표본이 가장 큰 원천의 안착 조건이다. 완화에 성공한 원천이 없으면 네 필드 모두 `null`·빈 배열이다.
-*   `decisionSignal.rationale` 은 격차 **구간** 문구다 — 비율을 그대로 실으면 임금통계 중앙값과 조인해 연봉이 원 단위로 복원된다 ([§5-L](../plans/carix-dev-plan.md)).
-*   **Query Parameters (모두 선택, 가상 프로필 탐색용) — `MVP 범위 밖`:** 대응 스토리·화면이 없어 파라미터만 MVP 에서 제외한다 ([개발 계획 §5-G](../plans/carix-dev-plan.md)). 엔드포인트 자체는 MVP 포함이다.
+*   `metadata` 의 원천별 커버리지는 `index_snapshot.rationale.sourceCoverages` 에서 온다 ([기술 명세 §1.3](technical-specification.md)). 완화 결과는 당시 프로필에 의존해 나중에 재계산하면 같은 값이 안 나오므로 저장분을 그대로 읽는다. `salaryMissingRate` 는 원천별 결측률을 **표본 수로 가중 평균**한 값이고, `peerGroup` 은 표본이 가장 큰 원천의 안착 조건이다. 완화에 성공한 원천이 없으면 네 필드 모두 `null`·빈 배열이다.
+*   `openingWindowIndex` 는 동료집단 공고의 중앙 모집기간을 전체시장 대비 100 기준으로 환산한 값이다 ([기능 명세 §4.5](functional-specification.md)). 근거 3종은 `metadata.openingWindow` 에 담는다 — `medianWindowDays`(일), `openEndedRate`(상시채용 비율 %), `deadlineSampleSize`(마감일 보유 표본 수). **마감일 보유 표본이 최소 기준 미달이면 `indexStatus` 가 `INSUFFICIENT_SAMPLE` 이고 `value` 는 `null` 이며 `openEndedRate` 만 채워진다.** 계획된 모집 기간이지 충원 소요가 아니므로 화면 문구는 US-D5 의 경계를 따른다.
+*   **`metadata.wageStat.basis` 는 기준선의 성격이다.** `AGE_BAND_PROXY` 는 KOSIS 연령대를 경력구간으로 옮긴 값이라는 뜻이고, `estimated: true` 는 KOSIS 호출 실패로 하드코딩 폴백이 쓰였다는 뜻이다 (개발 계획 §2 `b12`). 화면은 이 기준선으로 낸 격차·신호에 출처를 함께 표시한다 — 프록시 위의 판정을 출처 없이 내보내지 않는다.
+*   `negotiationTargets` 는 결정 신호가 `NEGOTIATE`·`SEEK_JOB` 일 때 화면이 쓰는 목표 인상률 셋이다 ([기능 명세 US-D7·§4.8](functional-specification.md)). 기준선을 못 잡거나 현재 연봉이 없으면 그 항목이 `null` 이고, 이미 넘어섰으면 `status` 가 `ABOVE` 이며 `raiseRatePercent` 는 `null` 이다. `toPurchasingPowerRecovery` 는 품목별 PPI 본 엔진 착수 전까지 `null` 이다. **이 값은 `index_snapshot.rationale` 에 저장하지 않는다** — 같은 응답의 기준선 금액과 조인하면 연봉이 원 단위로 복원되며, 저장은 §1.3 소득 격차가 막은 것과 같은 경로를 연다.
+*   `metadata.topPriceDriver` 는 그 사용자의 물가 상승에 가장 크게 기여한 6대 카테고리 중 1위다 ([기능 명세 US-D1·§4.3](functional-specification.md)). **원자료 CPI 가 아니라 `카테고리 가중치 × 품목 CPI 변화` 로 계산된 값**이라 사용자 가중치를 아는 PPI 엔진만 만들 수 있다. 산출 불가면 `null` 이고 화면은 뱃지를 생략한다. `estimated` 는 그 카테고리 가중치가 `DEFAULT_CPI` 로 채워졌는지다.
+*   `decisionSignal.rationale` 은 격차 **구간** 문구다 — 비율을 그대로 실으면 임금통계 중앙값과 조인해 연봉이 원 단위로 복원된다 ([기술 명세 §1.3](technical-specification.md)).
+*   **Query Parameters (모두 선택, 가상 프로필 탐색용) — `MVP 범위 밖`:** 대응 스토리·화면이 없어 파라미터만 MVP 에서 제외한다 ([개발 계획 §4](../plans/carix-dev-plan.md)). 엔드포인트 자체는 MVP 포함이다.
     *   `jobFamily` (String, optional): 가상 탐색용 주 직무
     *   `yearsOfExperience` (Integer, optional): 가상 탐색용 경력 년수
     *   `region` (String, optional): 가상 탐색용 지역구
@@ -198,6 +207,18 @@
         "changeFromLastMonth": null,
         "status": null,
         "indexStatus": "INSUFFICIENT_SAMPLE"
+      },
+      "openingWindowIndex": {
+        "value": 118.4,
+        "changeFromLastMonth": 3.1,
+        "status": "INCREASED",
+        "indexStatus": "OK",
+        "estimateLabel": null
+      },
+      "negotiationTargets": {
+        "toWageStatMedian": { "raiseRatePercent": 20.0, "status": "BELOW" },
+        "toPeerP75":        { "raiseRatePercent": 23.3, "status": "BELOW" },
+        "toPurchasingPowerRecovery": null
       },
       "decisionSignal": {
         "code": "SEEK_JOB",
@@ -227,9 +248,17 @@
         },
         "wageStat": {
           "wageDefinition": "ANNUAL_GROSS_MEDIAN",
-          "statVintage": "202606"
+          "statVintage": "202606",
+          "basis": "AGE_BAND_PROXY",
+          "estimated": false
         },
-        "expenseWeightStatus": "PARTIALLY_ESTIMATED"
+        "expenseWeightStatus": "PARTIALLY_ESTIMATED",
+        "topPriceDriver": { "category": "TRANSPORT", "label": "교통비 부담률 최대 상승", "estimated": false },
+        "openingWindow": {
+          "medianWindowDays": 34,
+          "openEndedRate": 21.5,
+          "deadlineSampleSize": 86
+        }
       }
     }
     ```
@@ -237,15 +266,15 @@
 *   **계산 불가 표현.** `value`·`changeFromLastMonth`·`status`는 nullable 이고, 값이 없는 이유는
     `indexStatus`가 담는다 — `OK` / `INSUFFICIENT_SAMPLE` / `UPDATE_DELAYED` /
     `INSUFFICIENT_HISTORY` / `NOT_AVAILABLE` (`com.carix.index.enums.IndexStatus`).
-    **0 이나 100 으로 채우지 않는다** ([개발 계획 §4-1](../plans/carix-dev-plan.md),
+    **0 이나 100 으로 채우지 않는다** ([API 규격 §5.1](../plans/carix-dev-plan.md),
     `index_snapshot.purchasing_power_index` DDL 주석). 위 예시는 PPI 는 산출됐고 MVI 는 표본이
     부족한 경우다. 화면은 `indexStatus`로 카드별 뱃지를 그린다 ([기능 명세 §5](functional-specification.md)).
 
 ### 5.2 동료집단 연봉 분포
 *   **Endpoint:** `GET /api/v1/dashboard/salary-distribution`
 *   구현: `com.carix.dashboard.service.SalaryDistributionService`. 완화 5단계를 원 공고 위에서 돌리고 백분위는 nearest-rank 로 낸다 — collector 의 `MarketAggregateService` 와 같은 방식이라야 두 경로의 숫자가 어긋나지 않고 H2/Postgres 분위수 함수 차이도 타지 않는다.
-*   **Query Parameters (모두 선택, 가상 프로필 탐색용) — `MVP 범위 밖`:** `jobFamily`, `yearsOfExperience`, `region`, `companySize` — 의미와 동작은 §5.1과 동일. 파라미터만 MVP 에서 제외한다 ([개발 계획 §5-G](../plans/carix-dev-plan.md)).
-*   결합 분포와 percentile은 원천별 5수치 요약으로 재구성할 수 없으므로, **동료집단 조건의 원 공고(`job_posting`)를 직접 집계**해 계산한다: `dedup_group_id` 단위로 원천 간 중복을 제거하고 유효 공개연봉 행만 사용. `market_aggregate`의 원천별 5수치는 배치 검증·참고용이며 이 응답의 산출원이 아니다.
+*   **Query Parameters (모두 선택, 가상 프로필 탐색용) — `MVP 범위 밖`:** `jobFamily`, `yearsOfExperience`, `region`, `companySize` — 의미와 동작은 §5.1과 동일. 파라미터만 MVP 에서 제외한다 ([개발 계획 §4](../plans/carix-dev-plan.md)).
+*   결합 분포와 percentile은 원천별 5수치 요약으로 재구성할 수 없으므로, **동료집단 조건의 원 공고(`job_posting`)를 직접 집계**해 계산한다: `dedup_group_id` 단위로 원천 간 중복을 제거하고 유효 공개연봉 행만 사용. `market_aggregate` 에는 연봉 5수치를 두지 않는다 — 원천별 행은 중복 미제거라 이 응답과 모수가 다르고, 사람인은 연봉을 주지 않아 값 자체가 없다. **연봉 숫자의 정본은 이 경로 하나다**(개발 계획 `b11`). `salary_missing_rate` 는 `demand_rate` 신뢰도 지표라 집계에 남는다. 이 응답의 산출원이 아니다.
 *   표본 부족 시에도 `200 OK`로 상태와 표본 수를 반환한다 (204 금지 — 화면은 `표본 부족`과 표본 수를 표시해야 함).
     이때 `postingReference`·`userPosition` 은 `null` 이다:
     ```json
@@ -274,10 +303,27 @@
       "peerGroup": {
         "fallbackLevel": 3,
         "appliedConditions": "서울 전체 / 경력 MID / 회사규모 무관"
-      }
+      },
+      "careerLadder": {
+        "userBracket": "MID",
+        "steps": [
+          { "bracket": "ENTRY",  "median": 31200000, "raiseFromPrevious": null, "estimated": true },
+          { "bracket": "JUNIOR", "median": 39600000, "raiseFromPrevious": 26.9, "estimated": false },
+          { "bracket": "MID",    "median": 51600000, "raiseFromPrevious": 30.3, "estimated": false },
+          { "bracket": "SENIOR", "median": 62400000, "raiseFromPrevious": 20.9, "estimated": false },
+          { "bracket": "LEAD",   "median": 74400000, "raiseFromPrevious": 19.2, "estimated": false }
+        ]
+      },
+      "trend": [
+        { "yearMonth": "2026-05", "median": 62000000, "sampleSize": 18, "disclosedSampleSize": 11, "missingRate": 38.9 },
+        { "yearMonth": "2026-06", "median": null,     "sampleSize": 6,  "disclosedSampleSize": 2,  "missingRate": 66.7 },
+        { "yearMonth": "2026-07", "median": 64000000, "sampleSize": 22, "disclosedSampleSize": 14, "missingRate": 36.4 }
+      ]
     }
     ```
     *(공고 분포는 참고 표시 전용, 판정 기준선은 `baseline` — 상세 기술 명세 §2.1 규약)*
+*   **`careerLadder` 는 같은 직군의 경력 구간별 임금 곡선이다** ([기능 명세 §4.7](functional-specification.md)). `wage_stat_observation` 을 자기 자신과 비교하므로 연령 프록시가 구간 간 비율에서 상쇄된다 — 공고 중앙값과 빼는 비교(모수가 다르다)와 다르다. `estimated: true` 는 그 구간이 KOSIS 실측 보간이 아니라 하드코딩 폴백으로 적재됐다는 뜻이고, 화면은 실측과 섞어 한 곡선으로 그리지 않는다. `userBracket` 은 현재 3구간 매핑의 결과라 신입·13년차가 양 끝에 못 선다(개발 계획 §2 `b7`). `region` 은 항상 `ALL` 이다.
+*   **`trend` 는 같은 동료집단의 등록월별 중앙 제시 연봉이다** ([기능 명세 §4.6](functional-specification.md)). 버킷 키는 `job_posting.posted_start_date` 의 등록월이라 수집 회차와 무관하다. **완화는 현재 시점 조건으로 한 번만 안착시키고 그 조건으로 월별 집계한다** — 월마다 다시 완화하면 비교 대상이 달라져 계열이 이어지지 않는다. 그 달 공개연봉 표본이 부족하면 `median` 이 `null` 이고 화면은 선을 잇지 않는다. 금액이므로 지수로 환산하지 않는다.
 *   **두 `sampleSize` 는 다르다.** 최상위는 중복 제거 후 동료집단 공고 수, `postingReference.sampleSize` 는
     그중 **연봉이 공개된** 건수다. `minRequired` 는 최상위에만 걸린다 — 동료집단이 10건이어도 공개연봉이
     1건이면 5수치가 한 점으로 뭉친 채 `status: "OK"` 로 나간다. 화면은 `missingRate` 와
@@ -299,6 +345,7 @@
           "yearMonth": "2026-01",
           "purchasingPowerIndex": 100.0,
           "marketValueIndex": 100.0,
+          "openingWindowIndex": 100.0,
           "incomeIndex": 100.0,
           "personalPriceIndex": 100.0,
           "nominalIncome": 5000000,
@@ -308,6 +355,7 @@
           "yearMonth": "2026-02",
           "purchasingPowerIndex": 99.1,
           "marketValueIndex": 102.3,
+          "openingWindowIndex": 104.7,
           "incomeIndex": 100.0,
           "personalPriceIndex": 100.9,
           "nominalIncome": 5000000,
@@ -370,7 +418,7 @@
 ### 5.5 스킬별 수요 상세
 *   **Endpoint:** `GET /api/v1/dashboard/skills`
 *   추이분석 스킬수요 탭용. 보유 스킬별 수요 지수와 산출 근거를 반환.
-*   **Query Parameters (모두 선택, 가상 프로필 탐색용) — `MVP 범위 밖`:** `jobFamily`, `yearsOfExperience`, `region`, `companySize` — 의미와 동작은 §5.1과 동일. 파라미터만 MVP 에서 제외한다 ([개발 계획 §5-G](../plans/carix-dev-plan.md)).
+*   **Query Parameters (모두 선택, 가상 프로필 탐색용) — `MVP 범위 밖`:** `jobFamily`, `yearsOfExperience`, `region`, `companySize` — 의미와 동작은 §5.1과 동일. 파라미터만 MVP 에서 제외한다 ([개발 계획 §4](../plans/carix-dev-plan.md)).
 *   **Response (200 OK):**
     ```json
     {
@@ -395,7 +443,11 @@
     ```
 
 ### 5.6 동료집단 기반 스킬 보강 추천
-*   **`MVP 범위 밖`** — 대응 스토리·화면이 없다. `S-14` 스킬수요 탭은 §5.5 로 충족한다 ([개발 계획 §5-G](../plans/carix-dev-plan.md)). `core-api` 에 구현이 없다 — 고정값을 돌려주던 스텁은 철거했다. 아래 규격은 재도입 시의 계약으로만 남긴다.
+*   **MVP 포함.** `UPSKILL` 결정 신호가 "스킬 보강이 먼저입니다"에서 끝나 무엇을 배우라는지 말하지 않던 빈칸을 메운다. 대응 스토리는 [기능 명세 US-D6](functional-specification.md), 화면은 `S-10` 결정 신호 카드의 근거 아코디언이다.
+*   **산출 경로.** 동료집단 `market_aggregate` 행을 `demand_rate` 내림차순으로 정렬하고 사용자 `user_skill` 보유분을 뺀 상위 3개다. 동료집단 완화는 `PeerGroupFallbackResolver` 를 그대로 쓴다. **`job_posting_skill` self-join 이 필요 없다** — 그건 "내 스킬과 함께 요구되는 스킬"(동시출현) 을 낼 때의 경로이고, 이 응답은 조합이 아니라 수요율 순위다.
+*   **`coOccurrence` 가 `reason` 을 만든다.** 순위는 `demand_rate` 로 정하고, 근거는 **사용자 보유 스킬과 함께 요구되는 비율**로 쓴다 — 순위만으로는 왜 그걸 배우는지 말하지 못한다. 기준 스킬은 보유 스킬 중 동료집단 공고 수가 가장 많은 것이고, 비율은 `(기준 스킬과 후보를 함께 요구하는 공고) ÷ (기준 스킬을 요구하는 공고)` 다. `job_posting_skill` self-join 이며 중복제거는 `dedup_group_id`, 동료집단은 `PeerGroupFallbackResolver` 를 그대로 쓴다.
+*   **경계.** `skill.is_custom` 은 양쪽(기준·후보)에서 제외한다. 동료집단 표본이 `PeerGroupFallbackResolver.MIN_SAMPLE_SIZE` 미만이면 `recommendations` 는 빈 배열이고 임의 스킬을 채우지 않는다. 기준 스킬의 공고 수가 같은 기준에 미달하거나 동시출현율이 임계값 미만이면 `coOccurrence` 는 `null` 이고 `reason` 은 수요율 문구로 되돌린다 — 임계값은 `b8` 에서 `SkillDemandCalculator` 상수와 함께 Config Server 로 외부화한다.
+*   **품질 상한.** `raw_ingest` 가 원문을 보관하지 않아 스킬 사전을 개선해도 **이미 수집된 공고에는 소급되지 않는다.** 동시출현율은 수집 시점의 파싱 품질에 묶인다.
 *   **Endpoint:** `GET /api/v1/skills/recommendations`
 *   **Response (200 OK):**
     ```json
@@ -409,13 +461,15 @@
           "category": "DEVOPS",
           "demandRate": 0.245,
           "growthTrend": "UP",
-          "reason": "동료집단 내 공고의 24.5%에서 요구하고 있으며, 최근 수요가 급증세입니다."
+          "coOccurrence": { "withSkill": "Spring Boot", "rate": 0.62 },
+          "reason": "보유하신 Spring Boot 공고의 62%가 함께 요구합니다."
         },
         {
           "standardName": "TypeScript",
           "category": "FRONTEND",
           "demandRate": 0.182,
           "growthTrend": "STABLE",
+          "coOccurrence": null,
           "reason": "동료집단 내 공고의 18.2%에서 요구되는 핵심 스택입니다."
         }
       ]
@@ -531,8 +585,11 @@
     *(`result.feasibility` 는 저장한 백분위에서 등급·점수·문구를 다시 만든 값이다. 백분위 자체를 재계산하지 않는 이유는 동료집단 분포가 그 시점의 공고에 의존해, 나중에 다시 구하면 사용자가 실제로 본 판단이 나오지 않기 때문이다)*
     *(`result.unemploymentBenefitNote` 의 기준 시점은 **현재** 가정치를 가리킨다. 금액은 저장분 그대로이므로 숫자는 바뀌지 않는다)*
 
-### 6.3 가상 시나리오 전체 목록 조회 (비교용)
-*   **`MVP 범위 밖`** — `US-S1` 은 마지막 시나리오 복원만 요구하고 §6.2 로 충족된다. 목록 비교 화면이 없다 ([개발 계획 §5-G](../plans/carix-dev-plan.md)). `core-api` 에 구현이 없다 — 고정값을 돌려주던 스텁은 철거했다. 아래 규격은 재도입 시의 계약으로만 남긴다.
+### 6.3 저장된 시나리오 목록 조회 (복원용)
+*   **MVP 포함, 다만 용도는 복원이다.** `career_scenario` 는 `scenario_name` 을 받고 `UNIQUE` 가 없어 행이 쌓이는데 조회가 §6.2 `latest` 하나뿐이라 **이름을 붙여도 다시 볼 수 없었다** — 쓰기 전용 컬럼이었다. 이 엔드포인트가 그 읽기 경로다 ([기능 명세 US-S1](functional-specification.md)).
+*   **비교 화면은 만들지 않는다.** `S-15` 안의 선택 컨트롤로 과거 입력 가정을 불러오는 데까지다.
+*   같은 목록이 12개월 뒤 사후 검증(예측 vs 실제 소득)의 읽기 경로이기도 하다 — 그때 백엔드를 새로 만들지 않는다.
+*   **응답에 복호화된 금액이 여러 건 실린다.** 본인 데이터라 노출 문제는 아니지만 로그·분석 이벤트에 남기지 않는다 (완료 기준 10번).
 *   **Endpoint:** `GET /api/v1/scenarios`
 *   **Response (200 OK):** 저장된 모든 시나리오 리스트를 반환합니다.
     ```json
@@ -573,12 +630,13 @@
     *(구조는 §6.2와 동일 — `inputs`·`result` 내부 필드 중복은 §6.2 설명 참조)*
 
 ### 6.4 가상 시나리오 이력 삭제
-*   **`MVP 범위 밖`** — 시나리오 이력 삭제 화면이 없다. 계정 삭제는 `DELETE /users` 연쇄로 처리한다 ([개발 계획 §5-G](../plans/carix-dev-plan.md)). `core-api` 에 구현이 없다 — 고정값을 돌려주던 스텁은 철거했다. 아래 규격은 재도입 시의 계약으로만 남긴다.
+*   **`MVP 범위 밖`** — 시나리오 이력 삭제 화면이 없다. 계정 삭제는 `DELETE /users` 연쇄로 처리한다 ([개발 계획 §4](../plans/carix-dev-plan.md)). `core-api` 에 구현이 없다 — 고정값을 돌려주던 스텁은 철거했다. 아래 규격은 재도입 시의 계약으로만 남긴다.
 *   **Endpoint:** `DELETE /api/v1/scenarios/{id}`
 *   **Response (200 OK):** 삭제 완료.
 
 ### 6.5 가상 소득/소비 변화에 따른 지수 변화 예측 (Index Predictor)
-*   **`MVP 범위 밖`** — 대응 스토리가 없고 MVP 규격 §2.3 이 확정적 예측을 제외 기능으로 둔다 ([개발 계획 §5-G](../plans/carix-dev-plan.md)). `core-api` 에 구현이 없다 — 고정값을 돌려주던 스텁은 철거했다. 아래 규격은 재도입 시의 계약으로만 남긴다.
+*   **폐기.** 엔드포인트를 재도입하지 않는다. 대신 같은 계산을 **역으로** 돌린 `negotiationTargets` 가 §5.1 로 들어갔다 — "이렇게 바꾸면 지수가 얼마"보다 "목표에 닿으려면 얼마가 필요한가"가 `NEGOTIATE`·`SEEK_JOB` 신호의 빈칸을 메운다.
+*   **옛 배제 근거는 틀렸다.** MVP 규격 §2.3 이 막는 것은 **확정적 연봉 예측**인데 이 엔드포인트는 연봉을 예측하지 않았다 — 인상률을 사용자가 넣고 시스템은 재계산만 했다. `S-15` 시뮬레이터가 같은 구조로 이미 MVP 에 있다. 실제 사유는 규격이 먼저 적은 쪽, **대응 스토리·화면이 없다**였다. 아래 규격은 폐기된 계약의 기록으로만 남긴다.
 *   **Endpoint:** `POST /api/v1/dashboard/predict`
 *   **Request Body:**
     ```json
@@ -622,7 +680,7 @@
     `core-api` 의 두 엔드포인트는 받은 값을 그대로 되돌려줄 뿐 아무것도 쓰지 않는 스텁이었다.
     세션 조회 응답도 `auth-service` 가 만들므로 갱신과 재조회가 한 서비스에 모인다. 단계
     진행만 갱신하며 `REVIEW` → `COMPLETED` 전환에서 별도로 첫 지수 계산을 트리거하지 않는다 —
-    소득·소비·스킬·프로필 저장마다 걸린 스냅샷 재계산 트리거([개발 계획 §4-2](../plans/carix-dev-plan.md))가
+    소득·소비·스킬·프로필 저장마다 걸린 스냅샷 재계산 트리거([기술 명세 §1.3](../plans/carix-dev-plan.md))가
     이미 8곳에 있어 검토 단계에 닿을 때는 스냅샷이 먼저 나와 있다.
     *   **역방향 전환 방어:** 클라이언트 버그 등으로 이전 단계로 역행하는 요청은 `400 Bad Request`(`ONBOARDING_STEP_REGRESSION`)로 거부한다.
 *   **`POST /api/v1/auth/onboarding/reset`**(`auth-service` 소유).
@@ -646,25 +704,27 @@
 *   `DELETE /api/v1/users` — 사용자·개인 데이터 삭제. 쿼리 스트링으로 확인용 `?email=...` 필수 (일부 네트워크 환경에서 HTTP DELETE Body 유실 문제 방지), 이메일 불일치 시 `400`
 
 ### 7.6 공통 기준 데이터 조회 (Reference Data)
-*   **`MVP 범위 밖`** — `US-O4` 는 카테고리별 `status` 뱃지만 요구한다. 화면이 기본값 금액까지 표시하기로 하면 MVP 로 승격한다 ([개발 계획 §5-G](../plans/carix-dev-plan.md)). `core-api` 에 구현이 없다 — 고정값을 돌려주던 스텁은 철거했다. 아래 규격은 재도입 시의 계약으로만 남긴다.
+*   **MVP 포함.** `S-09` 검토 화면이 이미 "기본값으로 대체된 항목 목록"을 약속하는데(`US-O6`) **금액이 없어** 사용자가 어떤 수치로 지수가 계산됐는지 모른 채 넘어간다. 그 빈칸을 메운다 ([기능 명세 US-O6](functional-specification.md)).
+*   **`S-07` 입력 화면에서는 쓰지 않는다.** 입력 전에 평균 금액을 보여주면 사용자가 거기 끌려가 앵커링이 걸린다. `S-09` 는 입력을 마친 뒤라 그 위험이 없고 투명성만 남는다. 이것이 이 API 의 배치 조건이다.
+*   **카테고리 코드는 `ExpenseCategoryEnum` 과 같아야 한다** — `HOUSING`·`FOOD`·`TRANSPORT`·`MEDICAL`·`EDUCATION`·`LEISURE`. 정본은 `config/default-expense-weights.yml` 이다. 아래 예시가 쓰던 `TRANSPORTATION`·`HEALTH`·`OTHER` 는 **오기이며 `OTHER` 는 분할 자체가 달랐다**(0.405 잔여 버킷). 응답은 정본 여섯 코드로 낸다.
 *   `GET /api/v1/reference/default-expenses` — 통계청 기준 지출 가중치 및 금액 기본값 조회 (사용자가 지출을 입력하지 않은 카테고리의 대체 기본 정보를 화면에 보여주기 위해 프론트엔드가 호출).
     *   **Response (200 OK):**
         ```json
         {
-          "version": "2025-v1",
+          "version": 1,
           "categories": [
             { "category": "HOUSING", "weight": 0.174, "averageAmount": 511000 },
             { "category": "FOOD", "weight": 0.142, "averageAmount": 417000 },
-            { "category": "TRANSPORTATION", "weight": 0.123, "averageAmount": 361000 },
-            { "category": "HEALTH", "weight": 0.081, "averageAmount": 238000 },
+            { "category": "TRANSPORT", "weight": 0.123, "averageAmount": 361000 },
+            { "category": "MEDICAL", "weight": 0.081, "averageAmount": 238000 },
             { "category": "EDUCATION", "weight": 0.075, "averageAmount": 220000 },
-            { "category": "OTHER", "weight": 0.405, "averageAmount": 1192000 }
+            { "category": "LEISURE", "weight": 0.405, "averageAmount": 1192000 }
           ]
         }
         ```
 
 ### 7.7 소비자물가지수(CPI) 기준 데이터 조회
-*   **`MVP 범위 밖`** — `US-D3` 는 `incomeIndex`·`personalPriceIndex` 2계열만 요구한다 ([개발 계획 §5-G](../plans/carix-dev-plan.md)). `core-api` 에 구현이 없다 — 고정값을 돌려주던 스텁은 철거했다. 아래 규격은 재도입 시의 계약으로만 남긴다.
+*   **`MVP 범위 밖`** — 화면이 필요로 하는 것은 **원자료 CPI 가 아니라 계산된 기여도**다. `S-10` 구매력 카드의 1위 품목 뱃지는 사용자 가중치가 곱해진 값이라 `GET /dashboard/summary` 의 `metadata.topPriceDriver` 로 나가고(`US-D1`), `S-14` 소득vs물가는 `incomeIndex`·`personalPriceIndex` 2계열만 쓴다. 원자료를 그대로 노출할 화면이 없다 ([API 규격 §5.1](api-specification.md)). `core-api` 에 구현이 없다 — 고정값을 돌려주던 스텁은 철거했다. 아래 규격은 재도입 시의 계약으로만 남긴다.
 *   `GET /api/v1/reference/cpi` — 월별 카테고리별 통계청 소비자물가지수(CPI) 변동 추이 목록 조회 (개인물가지수 추세의 기준 자료 시각화용).
     *   **Response (200 OK):**
         ```json
@@ -676,10 +736,10 @@
               "categories": [
                 { "category": "HOUSING", "cpiValue": 108.5 },
                 { "category": "FOOD", "cpiValue": 115.2 },
-                { "category": "TRANSPORTATION", "cpiValue": 105.1 },
-                { "category": "HEALTH", "cpiValue": 102.3 },
+                { "category": "TRANSPORT", "cpiValue": 105.1 },
+                { "category": "MEDICAL", "cpiValue": 102.3 },
                 { "category": "EDUCATION", "cpiValue": 103.8 },
-                { "category": "OTHER", "cpiValue": 109.4 }
+                { "category": "LEISURE", "cpiValue": 109.4 }
               ]
             }
           ]

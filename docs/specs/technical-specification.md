@@ -31,12 +31,39 @@
 > | 테이블 | 아래 서술 | 실제 |
 > | --- | --- | --- |
 > | `job_posting` | `title VARCHAR(255)`, `company_name`·`region`·`experience_min`·`employment_type`·`company_size`·`job_family` 전부 NOT NULL | `title VARCHAR(500)`, 해당 컬럼 전부 NULL 허용. `company_badge`·`position_level` 컬럼 추가 |
-> | `job_posting.salary_*` | 원 단위 | **만원 단위** (원천 표기 그대로) |
+> | `job_posting.salary_*` | 원 단위 | **원 단위로 저장한다.** 원천 표기가 만원이라 적재 경로가 변환한다 — `JobKoreaListingEnricher`·`JobKoreaPayParser` 가 `값 < 1,000,000` 이면 `× 10,000`. 옛 만원 단위 행은 `06_fix_salary_units.sql` 이 같은 기준으로 올렸다. **읽을 때 다시 환산하지 않는다.** 휴리스틱이라 연 100만원 미만 실제 금액은 잘못 곱해지지만 채용공고 연봉에는 그런 값이 없다 |
+> | `job_posting.salary_*` (사람인) | — | **사람인은 연봉을 주지 않는다.** `SaraminListingFields` 에 필드가 없어 사람인 행은 전부 `null` 이고, 그 원천의 `market_aggregate` 5수치도 전부 `null`·결측률 100% 다 |
 > | `skill` | `standard_name VARCHAR(100)` 단독 UNIQUE, `category NOT NULL` | `VARCHAR(255)`, `UNIQUE (standard_name, category)`, `category` NULL 허용 |
 > | `skill.category` | `'BACKEND'`·`'FRONTEND'` 등 기술 분야 | `'SKILL'`·`'JOB_CATEGORY'`·`'INDUSTRY'` — 수집 태그의 성격 구분 |
-> | `skill_alias` | `alias_name VARCHAR(100) UNIQUE` | `VARCHAR(255)`, UNIQUE 없음. 별칭 78개가 스킬 24개에 붙어 있으나 읽는 코드가 아직 없다 |
+> | `skill_alias` | `alias_name VARCHAR(100) UNIQUE` | `VARCHAR(255)`, UNIQUE 없음. `SkillService`·`SkillRepository` 가 자동완성 검색에서 읽는다(`US-O5`) |
 > | `raw_ingest` | 원문 보관 + 24개월 purge | **원문을 보관하지 않는다.** `payload`·`purged_at`·`schema_version` 컬럼 없음. 수집 이력만 남는다 |
 > | `job_posting.content` | 공고 상세 본문 텍스트 | **컬럼 없음.** 스킬 파싱은 `raw_ingest` 원문에서 직접 한다 |
+> | `job_posting.first_seen_month`·`last_seen_month` | 공고를 처음·마지막 본 월 | **상수다.** `SeedLoader` 가 `SEED_MONTH` 를 그대로 넣어 공고마다 같은 값이다. 관측 기간을 재는 데 쓸 수 없다 — 등록·마감은 `posted_start_date`·`posted_end_date` 를 쓴다(원천이 공고마다 실어 준다) |
+>
+> **`market_aggregate.base_year_month` 는 집계 실행 라벨이지 공고의 월이 아니다.**
+> `MarketAggregateService.aggregateMarketDataForMonth` 가 `jobPostingRepository.findAll()` 을
+> 월 필터 없이 집계하므로 그 라벨은 "그 달에 열려 있던 공고"를 뜻하지 않는다. 월별 시계열이
+> 필요한 값은 `job_posting.posted_start_date`(등록일)로 직접 버킷해야 한다(§4.5·§4.6).
+> **집계월이 하나뿐이면** `MarketValueIndexServiceImpl.resolveEffectiveYearMonth` 가 모든
+> 요청월을 그 달로 접어 MVI 가 전 기간 상수가 된다 — 실재 여부는
+> `SELECT DISTINCT base_year_month FROM core.market_aggregate ORDER BY 1;` 로 확인한다.
+>
+> **수집하지만 `core-api` 가 읽지 않는 컬럼들.** 크롤러가 채우고 어느 화면도 쓰지 않는다 —
+> 지우자는 판단이 아니라, 새 기능을 설계할 때 **이미 있는 재료**임을 잃지 않으려고 적는다.
+>
+> | 컬럼 | 상태 |
+> | --- | --- |
+> | `job_posting.title`·`company_name` | 적재만 된다. 집계는 차원만 쓰고 화면은 공고 개별을 보여주지 않는다 |
+> | `job_posting.position_level` | 직급 문자열. **잡코리아 원천에만 있다** — 사람인 행은 `null` 이라 절반 모수다. 경력 브래킷과 별개의 세 번째 연차 신호이지만 반쪽이라 그대로는 못 쓴다 |
+> | `job_posting.company_badge` | 잡코리아 전용 배지. 사람인 `null` |
+> | `job_posting.dedup_rule_version` | 중복제거 규칙 버전. 규칙을 바꿔 재집계할 때 어느 행이 옛 규칙 산물인지 가리려던 컬럼인데 읽는 코드가 없다 |
+> | `cpi_observation` 전체 | `collector` 가 적재하고 **`core-api` 에 읽는 코드가 0건이다.** 품목별 CPI 기반 PPI 본 엔진이 미착수라서다(개발 계획 `a2`). 첫 소비자는 `a5` 의 1위 품목 뱃지(`US-D1`)로 잡혀 있다 |
+>
+> **`wage_stat_observation.wage_median` 은 경력별 실측이 아니다.** KOSIS 연령대를 경력구간으로
+> 프록시한 값이고(`25~29세 → JUNIOR`, `WageStatIngestService.AGE_CODE_TO_EXPERIENCE_BRACKET`),
+> API 를 호출하지 못하면 하드코딩 `FALLBACK_MEDIAN_BY_BRACKET` 로 떨어진다. `region` 은 항상
+> `ALL` 이다. 연봉 격차 판정의 기준선으로는 채택된 값이지만, **이 값을 분모로 비율을 만들면 그
+> 비율이 시장이 아니라 프록시 정합도를 절반쯤 잰다.**
 
 ```sql
 -- 1. 인증 및 사용자 영역
@@ -95,9 +122,13 @@ CREATE TABLE income_history (
     gross_salary_encrypted VARCHAR(512) NOT NULL, -- 세전연봉 (암호화)
     net_salary_encrypted VARCHAR(512),            -- 월 실수령액 (선택적, 암호화)
     effective_date DATE NOT NULL,
+    change_reason VARCHAR(20), -- 'INITIAL'|'RAISE'|'JOB_CHANGE'. **계획, 미적용** — 실행 정본 02_user_domain.sql 과 ERD 에는 아직 없다. 적용은 개발 계획 a4 블록
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
     UNIQUE (user_id, effective_date)
 );
+-- change_reason 은 NULL 을 허용한다. 기본값을 주면 사용자가 고르지 않은 것이 고른 것으로 기록돼
+-- 검증 표본이 오염된다. 그 사용자의 첫 행만 서버가 INITIAL 로 확정한다 (기능 명세 US-O3).
+-- 금액이 아니라 평문이며 §1.1 암호화 경로를 열지 않는다.
 
 CREATE TABLE expense_history (
     id UUID PRIMARY KEY,
@@ -244,6 +275,7 @@ CREATE TABLE index_snapshot (
     rule_version VARCHAR(50) NOT NULL,   -- 결정 신호 규칙표 버전
     purchasing_power_index DECIMAL(6,2), -- 계산 불가 시 NULL (표본 부족 등)
     market_value_index DECIMAL(6,2),
+    opening_window_index DECIMAL(6,2), -- 개방창 지수(기능 명세 §4.5). **계획, 미적용** — 실행 정본 04_snapshot_and_scenario.sql 과 ERD 에는 아직 없다. 적용은 개발 계획 c6 블록
     decision_signal VARCHAR(50) NOT NULL, -- 'NEGOTIATE', 'SEEK_JOB', 'STAY', 'UPSKILL', 'INSUFFICIENT_DATA'
     rationale JSONB NOT NULL, -- 적용 규칙, 근거, 제외 데이터 사유, 원천 기준일
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -288,9 +320,15 @@ CREATE TABLE career_scenario (
 *   시나리오는 사용자당 최근 1건을 유효 시나리오로 취급하며, `GET /api/v1/scenarios/latest`는 `calculated_at DESC, id DESC` 순 첫 행을 반환한다 (동일 시각 타이브레이커: `id`).
 *   `data_version`은 **스냅샷 계산 실행 단위**로 발급한다: 사용자 입력 변경에 따른 재계산과 배치 정기 재계산(외부 데이터 갱신 — CPI, 공고 집계, 임금통계 vintage, dedup 규칙 변경 포함) 모두 새 버전을 발급받는다. 형식은 발급 시각 기반 `YYYYMMDDHHMMSS-NNN`(UTC, `NNN`은 같은 초 내 충돌 시 0부터 증가하는 3자리 시퀀스)이며, 발급은 사용자 단위 직렬화로 유일성과 단조 증가를 보장한다 — 잠글 행을 전제하지 않는 `pg_advisory_xact_lock(hashtextextended(user_id::text, 0))`을 쓴다. 온보딩 중인 사용자는 `career_profile` 행이 아직 없을 수 있고, 해시 충돌은 무관한 두 사용자를 직렬화할 뿐 정합성을 해치지 않는다. "최신 버전" 판정은 사전순 비교를 따른다. 스냅샷 `rationale`에 계산에 사용된 원천 기준일·배치 실행 ID를 기록해 외부 데이터 상태를 재현 가능하게 한다.
 *   **`rationale`에 금액을 쓰지 않는다.** 이 컬럼은 평문 JSONB이고 연봉은 `income_history`에서 AES-256-GCM으로 보호된다(§1.1). 같은 값을 여기 적으면 컬럼 암호화가 무력화된다. 기록 대상은 임계값 문구·원천 기준일·배치 실행 ID·원천별 커버리지·스킬별 기여도, 그리고 **소득 격차의 구간 코드**다.
-*   **소득 격차는 비율이 아니라 구간으로 적는다.** 비율(소수점)을 남기면 평문 `wage_stat_observation.wage_median`·평문 `career_profile` 동료집단과 조인해 $연봉 = 중앙값 / (1 + 격차비율)$ 로 원 단위 복원된다 — 중앙값을 안 적어도 조인으로 구해지므로 "둘 중 하나만"으로는 막히지 않는다. `SalaryGapBucket` 구간(경계 -0.05/0.05/0.15)만 저장하고 비율 자체는 `DecisionOutcome` 안에만 둔다 ([개발 계획 §5-L](../plans/carix-dev-plan.md)). 화면이 금액이 포함된 문장을 보여줘야 하면 프런트엔드가 보유한 값으로 조립한다.
-*   **원천별 커버리지(`sourceCoverages`)와 스킬별 기여도(`skillContributions`)를 함께 기록한다.** 완화 단계·표본 수·결측률과 스킬별 가중치×수요 지수는 계산 시점의 프로필에 의존해 나중에 재계산하면 같은 값이 안 나온다. 저장하지 않으면 그 달의 근거가 영구히 사라진다 ([개발 계획 §5-M](../plans/carix-dev-plan.md)). 둘 다 금액이 아니라 §1.1 암호화 경로를 열지 않는다.
+*   **소득 격차는 비율이 아니라 구간으로 적는다.** 비율(소수점)을 남기면 평문 `wage_stat_observation.wage_median`·평문 `career_profile` 동료집단과 조인해 $연봉 = 중앙값 / (1 + 격차비율)$ 로 원 단위 복원된다 — 중앙값을 안 적어도 조인으로 구해지므로 "둘 중 하나만"으로는 막히지 않는다. `SalaryGapBucket` 구간(경계 -0.05/0.05/0.15, 결정 규칙표와 같다)만 저장하고 비율 자체는 `DecisionOutcome` 안에만 둔다. 구간으로 접어도 화면 근거에서 잃는 정보는 없다 — `rulesApplied` 가 이미 같은 구간을 문구로 담고 있고 소수점 비율은 복원 정밀도만 더했다. **저장하지 않고 조회 시 재계산하는 안(案)은 기각했다** — 완화 결과가 계산 당시 프로필에 의존해 나중에 재계산하면 이력이 깨진다. 화면이 금액이 포함된 문장을 보여줘야 하면 프런트엔드가 보유한 값으로 조립한다.
+*   **개방창 근거(`openingWindow`)를 기록한다** (컬럼과 함께 `c6` 에서 들어간다). 중앙 모집기간(일), 상시채용 비율, 마감일 보유 표본 수, 기준 모수의 중앙 모집기간이다. 지수 자체는 `opening_window_index` 컬럼이 갖고 여기에는 근거만 둔다. 일수와 비율이라 §1.1 암호화 경로를 열지 않는다.
+*   **원천별 커버리지(`sourceCoverages`)와 스킬별 기여도(`skillContributions`)를 함께 기록한다.** 완화 단계·표본 수·결측률과 스킬별 가중치×수요 지수는 계산 시점의 프로필에 의존해 나중에 재계산하면 같은 값이 안 나온다. 저장하지 않으면 그 달의 근거가 영구히 사라지고 소급도 불가능하다. 둘 다 금액이 아니라 §1.1 암호화 경로를 열지 않는다.
 *   **월 행 생성 범위.** CPI **최신월** 결측(발행 지연)은 그 월의 스냅샷 행을 만들지 않는다 — 화면은 마지막 계산월과 `업데이트 지연`을 표시한다([기능 명세 §4.3](functional-specification.md)). 그 외의 산출 불가는 행을 만들고 지수 컬럼을 `NULL`, `decision_signal`을 `INSUFFICIENT_DATA`로 기록한다. 모든 산출 불가를 행 스킵으로 처리하면 §2.2 우선순위 1이 저장될 자리를 잃는다.
+*   **재계산 트리거는 트랜잭션 안의 동기 직접 호출이다.** 호출 대상은 `SnapshotRecalculationService.recalculateSnapshot(UUID userId, String fromYearMonth)` 이고 호출부는 소득 3경로·소비 1·스킬 3·프로필 1 이다. 스케줄러나 비동기 이벤트는 쓰지 않는다 — 스레드풀·재시도·실패 관측 경로를 늘리지 않기 위해서이며, 멱등성은 `pg_advisory_xact_lock` 과 `data_version` 이 이미 보증한다. 응답 지연이 실측으로 문제가 되면 그때 비동기로 옮긴다.
+*   **`fromYm` 규약은 `com.carix.snapshot.YearMonths` 한 곳에 있다.** 값에 유효월이 있으면(소득·소비) 그 달, 없으면(스킬·프로필) 변경 시점의 달이다. 유효월을 앞으로 당기는 수정은 옛 달부터 다시 계산한다. 한 번의 호출이 그 월부터 현재월까지를 하나의 `data_version` 으로 다시 쓴다.
+*   **스냅샷 행이 없는 것은 오류가 아니다.** 온보딩 직후나 재계산이 한 번도 돌지 않은 사용자는 행이 없는 것이 정상이고, 조회는 빈 상태를 돌려준다 — 0 이나 100 으로 채우지 않는다.
+*   **운영 첫 쓰기에 세 가지가 동시에 처음 실행된다** — `@JdbcTypeCode(SqlTypes.JSON)` 의 `jsonb` 바인딩, `pg_advisory_xact_lock`, `DataVersionIssuer` 의 `MANDATORY` 전파. 통합 테스트는 H2 라 앞의 둘을 검증하지 못한다(자문 잠금이 없어 `H2DataVersionIssuerConfiguration` 으로 대체된다). 운영 `ddl-auto` 가 `none` 이라 매핑 오류는 기동이 아니라 **첫 쓰기 시점**에 터지고, **이 경로는 배치가 아니라 소득·소비·스킬·프로필 저장에 동기로 걸려** 깨지면 사용자 쓰기가 통째로 실패한다. 운영 DB 에서 한 사용자에 `recalculateSnapshot` 을 한 번 돌리면 셋이 함께 확인된다 — 실행 시점은 [OCI 「배포 전 실행 순서」](../plans/oci-server-provisioning-plan.md) 1번이다.
+*   **`rationale` 형상은 운영 행이 쌓이기 전까지만 자유롭다.** `jsonb` 라 지금은 DDL 변경 없이 필드를 더하거나 바꿀 수 있지만, 첫 쓰기 뒤의 같은 변경에는 마이그레이션이 붙는다.
 *   `rule_version`은 결정표 배포 시 수동 증가시키는 semver다. 비교는 사전순이 아니라 `major.minor.patch` 숫자 세그먼트 비교로 정의한다 (`1.10.0` > `1.9.0`).
 
 ---
@@ -303,7 +341,7 @@ CREATE TABLE career_scenario (
 *   **소득 격차 비율 ($SalaryGapRatio$):**
     $$SalaryGapRatio = \frac{\text{공식 임금통계 기준 연봉 중앙값} - \text{현재 사용자 연봉}}{\text{현재 사용자 연봉}}$$
     *(사용자 연봉이 기준 중앙값보다 낮을 때 양수가 됨. 기준선은 `wage_stat_observation`의 직종×경력구간×지역 중앙값을 사용하며, 공고 공개연봉은 결측률이 높아 참고 표시 전용)*
-*   **현재 사용자 연봉:** `core.income_history`의 암호화 컬럼이 원천이며, 기준월 시점에 유효한(가장 늦은 `effective_date` $\le$ 기준월 말일) 세전 연봉이다. 결정 엔진은 이 컬럼을 직접 읽지 않고 `CurrentSalaryProvider`(구현체: `IncomeCurrentSalaryProvider`) 계약으로 받는다 — 복호화 경계를 소득 도메인 안에 둔다([개발 계획 §5-E](../plans/carix-dev-plan.md)).
+*   **현재 사용자 연봉:** `core.income_history`의 암호화 컬럼이 원천이며, 기준월 시점에 유효한(가장 늦은 `effective_date` $\le$ 기준월 말일) 세전 연봉이다. 결정 엔진은 이 컬럼을 직접 읽지 않고 `CurrentSalaryProvider`(구현체: `IncomeCurrentSalaryProvider`) 계약으로 받는다 — 복호화 경계를 소득 도메인 안에 둔다([API 규격 §5.1](../plans/carix-dev-plan.md)).
 *   **시장가치 지수 ($MVI_{recent}$):** 스킬 수요율 변화량 기준 (100점 기준값, 구현체: `MarketValueIndexServiceImpl`)
 *   **구매력 지수 ($PPI$):** 실질 구매력 수치 (100점 기준값, 구현체: `DefaultPurchasingPowerIndexProvider`). 품목별 CPI 연동 전까지 소득 등록 사용자의 최초 소득월(=100.0) 대비 소득 변동 비율을 기반으로 지수를 도출하여 스냅샷 결측을 방지한다.
 *   **최소 표본 조건 ($MinSampleSize$):** 유효 공고 수 $\ge 10$개 (확정값). OCI 운영 DB 실측 결과 4,356건의 공고와 12,568행의 사전 집계가 적재되어 있어 동료집단 셀(예: DEVELOPER 직무 100~200건 이상)에서 기준을 충족한다. **적용 지점:** 원천별 × 스킬별 × 기간 창별(최근 3개월 / 이전 12개월 각각)로 판정한다. 기준을 통과한 원천만 지수 결합에 포함하고, 모든 원천이 미달인 스킬은 `표본 부족`으로 제외한다. 연봉 분포·전체 공고 수(스킬 무관 행)도 동일 기준을 따른다.

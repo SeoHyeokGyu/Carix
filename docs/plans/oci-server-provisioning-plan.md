@@ -1039,14 +1039,42 @@ Expected: `enabled` (+ compose의 `restart: unless-stopped`).
   **아직 암호화된 데이터가 없으므로 지금은 재생성이 자유롭다.** 첫 운영 쓰기 전에 아래로 꺼내
   비밀번호 관리자나 OCI Vault에 보관한다. 그 시점 이후 분실은 복구 불가다.
 
-  > **첫 운영 쓰기는 [개발 계획 §7](carix-dev-plan.md) 2번(§5-K 스냅샷 쓰기 검증)이다.**
-  > 그걸 돌리는 순간 이 항목이 선택에서 **필수**로 바뀐다. 순서를 지켜 키를 먼저 꺼낸다.
+  > **첫 운영 쓰기는 아래 「배포 전 실행 순서」 1번([기술 명세 §1.3](../specs/technical-specification.md)
+  > 스냅샷 쓰기 검증)이다.** 그걸 돌리는 순간 이 항목이 선택에서 **필수**로 바뀐다.
+  > 순서를 지켜 키를 먼저 꺼낸다.
 
   ```bash
   ssh <oci-server-alias> 'grep ^CARIX_ENCRYPTION_KEY= /home/opc/carix/.env'
   ```
 
 ---
+
+### 배포 전 실행 순서
+
+작업의 정본은 [개발 계획 §2 로드맵](carix-dev-plan.md)이다 — 여기는 **운영에서 무엇을 어떤
+순서로 실행할지**만 정한다. 각 행의 내용은 소관 절에 있다.
+
+| 순서 | 실행할 것 | 소관 | 담당 |
+| :--- | :--- | :--- | :--- |
+| 0 | `CARIX_ENCRYPTION_KEY` 를 `.env` 밖으로 백업 | 위 「암호화 키 백업」 | C |
+| 1 | 스냅샷 쓰기 경로 운영 Postgres 검증 — **첫 운영 쓰기다** | [기술 명세 §1.3](../specs/technical-specification.md) | C |
+| 2 | 세션 게이트 플래그 전환 + 게이트웨이 `/actuator/refresh` | [`backend/README.md` 게이트웨이](../../backend/README.md) | C |
+| — | 경력 브래킷 불일치 수정 여부 결정 | [개발 계획 §2](carix-dev-plan.md) `b7` | B |
+| — | 연봉 암호화 키 로테이션 절차 확정 | [SECURITY §3.2](../SECURITY.md) | A |
+
+**0 → 1 → 2 는 순서가 근거를 가진다.**
+
+- **0 이 1 보다 먼저다.** 1번이 첫 운영 쓰기라 그 뒤로는 키 분실이 복구 불가가 된다.
+- **1 이 2 보다 먼저다.** 플래그를 켜 놓고 1번을 돌리면 실패가 401 로 돌아왔을 때 게이트 설정
+  탓인지 `jsonb`·자문 잠금 탓인지 갈리지 않는다. 순서를 지키면 원인이 하나씩 남는다.
+
+순서가 없는 둘은 배포 시점과 직결되지 않지만 **1번 이후에는 값이 달라진다** — 브래킷 수정은
+`data_version` 재발급과 스냅샷 재계산을 부르고, 키 로테이션은 운영 키로 실제 연봉을 암호화하기
+시작한 뒤에는 절차 없이 못 바꾼다.
+
+`core.career_scenario` DDL 재적용은 끝났다. `core` 는 Flyway 이력이 없어
+[ERD 적용 이력](../specs/erd.md)이 유일한 근거이고, 재배포로 스키마를 다시 세울 때 같은 절차를
+되짚는다.
 
 ## 완료 기준
 
@@ -1066,6 +1094,6 @@ Expected: `enabled` (+ compose의 `restart: unless-stopped`).
 | Spring Boot 버전 | layered jar 문법이 3.3 기준으로 갈린다 → Task 2.3 |
 | Phase 3 실행 시 다운타임 | Caddy 교체 중 `pulse.144.24.90.88.sslip.io` 수 초 중단. asset-pulse compose(코덱스 워크트리)도 함께 수정해야 한다 |
 | ~~`/api/health` 구현~~ | 해소. `core-api` 의 `HealthController` 와 게이트웨이 `core-health` 라우트(`order: -15`, 세션 필터 미적용)로 배선됐다 |
-| ~~`collector` 실행 형태~~ | 해소 — 관리자 화면(`S-16`)/내부 API 직접 트리거로 확정. `@Scheduled` 는 도입하지 않는다 ([개발 계획 §5-C](carix-dev-plan.md)) |
+| ~~`collector` 실행 형태~~ | 해소 — 관리자 화면(`S-16`)/내부 API 직접 트리거로 확정. `@Scheduled` 는 도입하지 않는다 ([애플리케이션 워크플로 §2](../specs/application-workflow.md)) |
 | 메모리 여유 | 스왑 4GB가 이미 소진됨. Carix 기동 후 재평가. 부족 시 flaresolverr×4 / warp×3 정리 논의 |
 | 커스텀 도메인 | sslip.io로 충분. 정식 도메인이 생기면 Caddyfile에 호스트만 추가하면 된다 |

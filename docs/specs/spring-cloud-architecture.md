@@ -123,7 +123,7 @@ flowchart TD
      `web`(`/**`)에는 필터가 없어 우회한다. `/api/health` 를 뺀 이유는 배포 워크플로가 쿠키 없이
      200 을 요구하기 때문이다
    - `carix.gateway.session-validation.enabled` 로 켜고 끈다. **꺼져 있으면 요청을 그대로 통과시킨다.**
-     현재 운영 값은 `false` 이고, 전환·롤백 절차는 [개발 계획 §5-B](../plans/carix-dev-plan.md)가 규정한다
+     현재 운영 값은 `false` 이고, 전환·롤백 절차는 [`backend/README.md` 게이트웨이](../../backend/README.md)가 규정한다
 
 ### 경로 규약
 
@@ -158,7 +158,7 @@ Gateway 에서 Swagger UI 하나로 두 서비스 문서를 전환해 본다. `c
 >
 > `/api/swagger-ui/**`·`/api/v3/api-docs/**`가 `core` 라우트에 있으므로 세션 검증 플래그를 켜면
 > 문서도 세션을 요구한다. 같은 출처 요청이라 로그인한 브라우저는 쿠키를 실어 보내 그대로 열리고,
-> 쿠키 없는 접근에는 닫힌다. 별도 라우트로 빼지 않기로 한 판단은 [개발 계획 §5-B](../plans/carix-dev-plan.md)에 있다.
+> 쿠키 없는 접근에는 닫힌다. 별도 라우트로 빼지 않기로 한 판단은 [`backend/README.md` 게이트웨이](../../backend/README.md)에 있다.
 
 **하류 서비스는 세션을 모른다.** `X-User-Id`만 신뢰한다. 그 전제는 **Gateway를 거치지 않으면
 도달할 수 없는 네트워크 구성**이다 — 도메인 서비스는 호스트 포트를 발행하지 않고 compose
@@ -240,7 +240,7 @@ Config Server의 `{cipher}` 암호화는 쓰지 않는다. "설정 중앙화"를
 | 로그 레벨 | 가능 (`/actuator/loggers`는 refresh도 불필요) |
 | 기능 플래그 | 가능 |
 | Gateway 라우트 | 가능 (`/actuator/gateway/refresh`) |
-| 수집 파이프라인 설정 | 가능 (`@RefreshScope` + refresh 호출). 스케줄러는 도입하지 않았다 ([개발 계획 §5-C](../plans/carix-dev-plan.md)) |
+| 수집 파이프라인 설정 | 가능 (`@RefreshScope` + refresh 호출). 스케줄러는 도입하지 않았다 ([애플리케이션 워크플로 §2](application-workflow.md)) |
 | DataSource·커넥션 풀 | **불가 — 재기동 필요** |
 
 지수 가중치 튜닝이 잦을 프로젝트이므로 이 범위만으로도 실익이 있다.

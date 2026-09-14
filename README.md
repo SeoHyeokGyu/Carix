@@ -165,7 +165,7 @@ flowchart TD
 | `/login` | 로그인 (이메일·비밀번호) | 공개 |
 | `/register` | 회원가입 (이메일·비밀번호) | 공개 |
 | `/onboarding/{profile,income,expense,skills,review}` | 온보딩 5단계 | 세션 |
-| `/dashboard` | 핵심 지표 3카드 | 세션 + 온보딩 완료 |
+| `/dashboard` | 핵심 지표 4카드 | 세션 + 온보딩 완료 |
 | `/dashboard/history` | 월별 스냅샷 이력 | 세션 + 온보딩 완료 |
 | `/dashboard/trends` | 추이분석 (소득vs물가·스킬수요·연봉분포) | 세션 + 온보딩 완료 |
 | `/dashboard/simulator` | 12개월 시뮬레이터 | 세션 + 온보딩 완료 |
@@ -362,8 +362,8 @@ MVP는 빌드 시점 사전 렌더링만 씁니다(`prerender: ["/"]`, `ssr: fal
 Node SSR 전환(Express + `@react-router/express`)은 **MVP 범위 밖으로 미뤘습니다.** `S-05`~`S-15`는
 전부 세션을 요구해 SEO 대상이 아니고 진입 가드가 이미 클라이언트에서 동작하므로, 남는 실익이 초기
 로드뿐인데 최장 경로에 2주를 더합니다. 결정과 근거는
-[개발 계획 §5-F](docs/plans/carix-dev-plan.md), 전환 시 적용할 화면별 구성은
-[프런트엔드 설계 §렌더링 전략](docs/specs/frontend-design.md)에 있습니다.
+[프런트엔드 설계 §렌더링 전략](docs/specs/frontend-design.md)에 있고, 전환 시 적용할 화면별
+구성도 같은 절에 있습니다.
 
 ### 테스트
 
