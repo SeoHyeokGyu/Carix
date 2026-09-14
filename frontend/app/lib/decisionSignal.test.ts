@@ -2,12 +2,21 @@ import { describe, expect, it } from "vitest";
 import { resolveDecisionSignal } from "./decisionSignal";
 
 describe("resolveDecisionSignal", () => {
-  it("아는 코드는 프런트 테이블의 문구와 톤을 돌려준다", () => {
-    const view = resolveDecisionSignal("UPSKILL");
+  it.each([
+    ["SEEK_JOB", "이직 탐색", "warning"],
+    ["NEGOTIATE", "협상 검토", "action"],
+    ["UPSKILL", "스킬 보강 우선", "info"],
+    ["STAY", "현 상태 유지", "positive"],
+    ["INSUFFICIENT_DATA", "데이터 부족", "danger"],
+  ] as const)(
+    "아는 코드 %s 는 프런트 테이블의 문구와 톤을 돌려준다",
+    (code, label, tone) => {
+      const view = resolveDecisionSignal(code);
 
-    expect(view.label).toBe("스킬 보강 우선");
-    expect(view.tone).toBe("info");
-  });
+      expect(view.label).toBe(label);
+      expect(view.tone).toBe(tone);
+    },
+  );
 
   it("아는 코드는 서버 문구가 달라도 프런트 테이블을 따른다", () => {
     const view = resolveDecisionSignal("UPSKILL", "스킬 보강");

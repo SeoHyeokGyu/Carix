@@ -2,6 +2,7 @@ import {
   resolveDecisionSignal,
   SIGNAL_TONE_CLASS,
 } from "../../lib/decisionSignal";
+import { cn } from "@/lib/utils";
 
 interface SignalBadgeProps {
   code: string;
@@ -22,11 +23,11 @@ export function SignalBadge({
     <span
       data-testid="signal-badge"
       data-tone={tone}
-      className={[
+      className={cn(
         "inline-flex items-center rounded px-2 py-0.5 text-xs font-semibold",
         SIGNAL_TONE_CLASS[tone],
-        className ?? "",
-      ].join(" ")}
+        className,
+      )}
     >
       {label}
     </span>
