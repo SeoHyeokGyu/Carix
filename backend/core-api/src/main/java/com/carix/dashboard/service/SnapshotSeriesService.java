@@ -84,6 +84,7 @@ public class SnapshotSeriesService {
         toDouble(snapshot.getPurchasingPowerIndex()),
         toDouble(snapshot.getMarketValueIndex()),
         snapshot.getDecisionSignal().name(),
+        snapshot.getDecisionSignal().label(),
         snapshot.getDataVersion(),
         snapshot.getRuleVersion(),
         rationale == null

@@ -211,6 +211,19 @@ class SnapshotReadServiceTest {
     assertThat(response.snapshots().get(0).decisionSignal()).isEqualTo("INSUFFICIENT_DATA");
   }
 
+  @Test
+  @DisplayName("history - 결정 신호의 한글 문구를 코드와 함께 싣는다")
+  void history_라벨() {
+    given(repository.findByUserIdOrderByBaseYearMonthDesc(USER_ID))
+        .willReturn(List.of(snapshot("202609", "101.00", "108.00", DecisionSignalCode.UPSKILL)));
+
+    SnapshotHistoryResponse response = seriesService.history(USER_ID);
+
+    assertThat(response.snapshots()).hasSize(1);
+    assertThat(response.snapshots().get(0).decisionSignal()).isEqualTo("UPSKILL");
+    assertThat(response.snapshots().get(0).label()).isEqualTo("스킬 보강 우선");
+  }
+
   // --- /dashboard/trends ---
 
   @Test

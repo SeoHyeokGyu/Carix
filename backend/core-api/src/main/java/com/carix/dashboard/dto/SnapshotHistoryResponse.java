@@ -13,6 +13,7 @@ public record SnapshotHistoryResponse(List<SnapshotPoint> snapshots) {
       @Schema(nullable = true) Double purchasingPowerIndex,
       @Schema(nullable = true) Double marketValueIndex,
       String decisionSignal,
+      @Schema(example = "스킬 보강 우선") String label,
       String dataVersion,
       String ruleVersion,
       SnapshotRationale rationale) {}
