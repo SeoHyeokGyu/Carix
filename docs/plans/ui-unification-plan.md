@@ -149,7 +149,7 @@ admin 만 `animate-pulse` 스켈레톤과 `⏳ animate-spin` 을 쓴다. 공용 
   `.dark` 클래스를 건다. 10파일 22곳의 `dark:` 가 토글 경로에서 전부 무효다. 실행 계획은
   `ui-unification-p1-tasks.md`
 
-### P2 — 공용 컴포넌트 3개  ✅ 완료
+### P2 — 공용 컴포넌트 3개  ✅ 완료 (PR #164)
 
 **`SignalBadge` 는 이 목록에서 빠졌다** — P0 이 먼저 납품했다(`components/dashboard/SignalBadge.tsx`).
 원래 네 개였고 결정 신호가 P0 의 본체였으므로 그쪽으로 당겨졌다.
