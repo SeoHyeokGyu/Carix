@@ -98,19 +98,9 @@ public class DashboardSummaryService {
 
     return new DecisionSignal(
         code.name(),
-        label(code),
+        code.label(),
         rationale == null ? List.of() : rationale.rulesApplied(),
         gapSentence(rationale));
-  }
-
-  private String label(DecisionSignalCode code) {
-    return switch (code) {
-      case SEEK_JOB -> "이직 탐색";
-      case NEGOTIATE -> "협상 검토";
-      case UPSKILL -> "스킬 보강";
-      case STAY -> "현 상태 유지";
-      case INSUFFICIENT_DATA -> "데이터 부족";
-    };
   }
 
   /** 근거 문장. 격차는 구간으로만 저장되므로 문구도 구간이다 (개발 계획 §5-L). */
@@ -219,7 +209,11 @@ public class DashboardSummaryService {
     return new DashboardSummaryResponse(
         unavailable,
         unavailable,
-        new DecisionSignal(DecisionSignalCode.INSUFFICIENT_DATA.name(), "데이터 부족", List.of(), null),
+        new DecisionSignal(
+            DecisionSignalCode.INSUFFICIENT_DATA.name(),
+            DecisionSignalCode.INSUFFICIENT_DATA.label(),
+            List.of(),
+            null),
         new SummaryMetadata(null, null, null, false, List.of(), null, null, null, null, null));
   }
 }

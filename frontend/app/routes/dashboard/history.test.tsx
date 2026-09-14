@@ -45,6 +45,7 @@ describe("S-11 DashboardHistory 라우트", () => {
           purchasingPowerIndex: 98.5,
           marketValueIndex: 110.2,
           decisionSignal: "STAY",
+          label: "현 상태 유지",
           dataVersion: "v1.0",
           ruleVersion: "v1.0",
           rationale: {
@@ -77,6 +78,7 @@ describe("S-11 DashboardHistory 라우트", () => {
           purchasingPowerIndex: 94.2,
           marketValueIndex: 117.5,
           decisionSignal: "SEEK_JOB",
+          label: "이직 탐색",
           dataVersion: "v1.1",
           ruleVersion: "v1.0",
           rationale: {
@@ -90,6 +92,7 @@ describe("S-11 DashboardHistory 라우트", () => {
           purchasingPowerIndex: null,
           marketValueIndex: null,
           decisionSignal: "INSUFFICIENT_DATA",
+          label: "데이터 부족",
           dataVersion: "v1.0",
           ruleVersion: "v1.0",
           rationale: {
@@ -207,6 +210,7 @@ describe("S-11 DashboardHistory 라우트", () => {
           purchasingPowerIndex: 100.0,
           marketValueIndex: 100.0,
           decisionSignal: "STAY",
+          label: "현 상태 유지",
           dataVersion: "v1.0",
           ruleVersion: "v1.0",
           rationale: {

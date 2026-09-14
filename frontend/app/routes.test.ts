@@ -7,7 +7,7 @@ describe("라우트 설정 (routes)", () => {
     expect(routes.length).toBeGreaterThan(0);
 
     // home, login, register, protected 레이아웃(그 안에 onboarding/dashboard/mypage 3개가
-    // 중첩된다), 2개 관리자 라우트(admin/collector, admin/pipeline), 2개 개발 프리뷰 라우트
-    expect(routes).toHaveLength(8);
+    // 중첩된다), 2개 관리자 라우트(admin/collector, admin/pipeline), 3개 개발 프리뷰 라우트
+    expect(routes).toHaveLength(9);
   });
 });

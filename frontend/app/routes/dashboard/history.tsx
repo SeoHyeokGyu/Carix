@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { Link } from "react-router";
+import { SignalBadge } from "../../components/dashboard/SignalBadge";
 import {
   fetchSnapshotHistory,
   type SnapshotHistoryResponse,
@@ -25,50 +26,6 @@ function formatYearMonth(ym: string): string {
     return `${clean.slice(0, 4)}-${clean.slice(4, 6)}`;
   }
   return ym;
-}
-
-/**
- * 결정 신호 한글명 및 스타일 반환
- */
-function getSignalBadge(signal: string) {
-  switch (signal) {
-    case "SEEK_JOB":
-      return {
-        label: "이직 탐색",
-        className:
-          "bg-carix-warning/15 text-carix-warning border border-carix-warning/30",
-      };
-    case "NEGOTIATE":
-      return {
-        label: "협상 검토",
-        className:
-          "bg-purple-500/15 text-purple-400 border border-purple-500/30",
-      };
-    case "UPSKILL":
-      return {
-        label: "스킬 보강 우선",
-        className:
-          "bg-carix-info/15 text-carix-info border border-carix-info/30",
-      };
-    case "STAY":
-      return {
-        label: "현 상태 유지",
-        className:
-          "bg-carix-positive/15 text-carix-positive border border-carix-positive/30",
-      };
-    case "INSUFFICIENT_DATA":
-      return {
-        label: "데이터 부족",
-        className:
-          "bg-carix-danger/15 text-carix-danger border border-carix-danger/30",
-      };
-    default:
-      return {
-        label: signal || "판정 대기",
-        className:
-          "bg-carix-border/40 text-carix-text/70 border border-carix-border",
-      };
-  }
 }
 
 export default function DashboardHistory() {
@@ -207,7 +164,6 @@ export default function DashboardHistory() {
                 </thead>
                 <tbody className="divide-y divide-carix-border">
                   {snapshots.map((item) => {
-                    const signalInfo = getSignalBadge(item.decisionSignal);
                     const isSelected =
                       selectedSnapshot?.baseYearMonth === item.baseYearMonth;
 
@@ -254,11 +210,11 @@ export default function DashboardHistory() {
 
                         {/* 결정 신호 */}
                         <td className="px-4 py-3.5">
-                          <span
-                            className={`inline-block rounded px-2.5 py-1 text-xs font-semibold ${signalInfo.className}`}
-                          >
-                            {signalInfo.label}
-                          </span>
+                          <SignalBadge
+                            code={item.decisionSignal}
+                            serverLabel={item.label}
+                            className="px-2.5 py-1"
+                          />
                         </td>
 
                         {/* 데이터 기준일 */}
@@ -291,14 +247,10 @@ export default function DashboardHistory() {
                       {formatYearMonth(selectedSnapshot.baseYearMonth)} 스냅샷
                       산출 근거
                     </h3>
-                    <span
-                      className={`rounded px-2 py-0.5 text-xs font-semibold ${
-                        getSignalBadge(selectedSnapshot.decisionSignal)
-                          .className
-                      }`}
-                    >
-                      {getSignalBadge(selectedSnapshot.decisionSignal).label}
-                    </span>
+                    <SignalBadge
+                      code={selectedSnapshot.decisionSignal}
+                      serverLabel={selectedSnapshot.label}
+                    />
                   </div>
                   <button
                     type="button"

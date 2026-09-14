@@ -346,6 +346,7 @@
           "purchasingPowerIndex": 94.2,
           "marketValueIndex": 117.5,
           "decisionSignal": "SEEK_JOB",
+          "label": "이직 탐색",
           "dataVersion": "20260701093000-000",
           "ruleVersion": "1.2.0",
           "rationale": { "rulesApplied": ["..."], "excluded": ["..."], "baseDate": "2026-07-01" }
@@ -355,6 +356,7 @@
           "purchasingPowerIndex": null,
           "marketValueIndex": 115.0,
           "decisionSignal": "INSUFFICIENT_DATA",
+          "label": "데이터 부족",
           "dataVersion": "20260601093000-000",
           "ruleVersion": "1.2.0",
           "rationale": { "rulesApplied": [], "excluded": ["..."], "baseDate": "2026-06-01" }

@@ -83,6 +83,7 @@ export interface SnapshotPoint {
   purchasingPowerIndex: number | null;
   marketValueIndex: number | null;
   decisionSignal: string;
+  label: string;
   dataVersion: string;
   ruleVersion: string;
   rationale: SnapshotRationale | null;

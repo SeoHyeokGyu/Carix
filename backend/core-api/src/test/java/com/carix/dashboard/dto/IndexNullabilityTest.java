@@ -3,6 +3,7 @@ package com.carix.dashboard.dto;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.carix.index.enums.IndexStatus;
+import com.carix.snapshot.DecisionSignalCode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import java.time.LocalDate;
@@ -81,6 +82,7 @@ class IndexNullabilityTest {
             null,
             null,
             "INSUFFICIENT_DATA",
+            DecisionSignalCode.INSUFFICIENT_DATA.label(),
             "20260301093000-000",
             "1.2.0",
             new SnapshotHistoryResponse.SnapshotRationale(
