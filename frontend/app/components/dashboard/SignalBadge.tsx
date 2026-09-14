@@ -1,8 +1,5 @@
-import {
-  resolveDecisionSignal,
-  SIGNAL_TONE_CLASS,
-} from "../../lib/decisionSignal";
-import { cn } from "@/lib/utils";
+import { resolveDecisionSignal } from "../../lib/decisionSignal";
+import { ToneBadge } from "@/components/ui/tone-badge";
 
 interface SignalBadgeProps {
   code: string;
@@ -20,16 +17,8 @@ export function SignalBadge({
   const { label, tone } = resolveDecisionSignal(code, serverLabel);
 
   return (
-    <span
-      data-testid="signal-badge"
-      data-tone={tone}
-      className={cn(
-        "inline-flex items-center rounded px-2 py-0.5 text-xs font-semibold",
-        SIGNAL_TONE_CLASS[tone],
-        className,
-      )}
-    >
+    <ToneBadge tone={tone} data-testid="signal-badge" className={className}>
       {label}
-    </span>
+    </ToneBadge>
   );
 }

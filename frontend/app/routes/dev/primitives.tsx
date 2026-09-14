@@ -7,6 +7,9 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
+import { LoadingState } from "@/components/ui/loading-state";
+import { ToneBadge, TONE_CLASS } from "@/components/ui/tone-badge";
 import { SignalBadge } from "../../components/dashboard/SignalBadge";
 
 /**
@@ -41,6 +44,8 @@ const SIGNAL_CODES = [
   "INSUFFICIENT_DATA",
   "RELOCATE",
 ] as const;
+
+const TONES = Object.keys(TONE_CLASS) as (keyof typeof TONE_CLASS)[];
 
 function Section({
   id,
@@ -115,6 +120,51 @@ function Gallery() {
             <SignalBadge key={code} code={code} serverLabel="서버 폴백 문구" />
           ))}
         </div>
+      </Section>
+
+      <Section id="gallery-tone-badge" title="ToneBadge">
+        <div className="flex flex-wrap gap-2">
+          {TONES.map((tone) => (
+            <ToneBadge key={tone} tone={tone}>
+              {tone}
+            </ToneBadge>
+          ))}
+        </div>
+      </Section>
+
+      <Section id="gallery-empty-state" title="EmptyState">
+        <div className="flex flex-col gap-4">
+          <EmptyState data-testid="empty-state-title-only" title="제목만" />
+          <EmptyState
+            data-testid="empty-state-icon-description"
+            icon="📋"
+            title="아이콘과 설명"
+            description="중립 원형 아이콘입니다."
+          />
+          <EmptyState
+            data-testid="empty-state-tone-icon"
+            icon="⚠️"
+            tone="warning"
+            title="톤 알약 아이콘"
+            description="tone 을 주면 알약이 됩니다."
+          >
+            <button type="button" className="text-sm text-carix-info underline">
+              행동 슬롯
+            </button>
+          </EmptyState>
+          <div className="rounded-xl border border-carix-border bg-carix-surface p-6">
+            <EmptyState
+              data-testid="empty-state-plain"
+              variant="plain"
+              title="plain — 카드 안에 놓인 경우"
+              description="테두리와 배경을 벗어 박스 안의 박스를 막습니다."
+            />
+          </div>
+        </div>
+      </Section>
+
+      <Section id="gallery-loading-state" title="LoadingState">
+        <LoadingState message="불러오는 중입니다..." />
       </Section>
 
       <Section id="primitives-cards" title="Card">

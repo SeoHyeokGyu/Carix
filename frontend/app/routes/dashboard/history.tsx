@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback } from "react";
 import { Link } from "react-router";
 import { SignalBadge } from "../../components/dashboard/SignalBadge";
+import { EmptyState } from "@/components/ui/empty-state";
+import { LoadingState } from "@/components/ui/loading-state";
 import {
   fetchSnapshotHistory,
   type SnapshotHistoryResponse,
@@ -102,33 +104,21 @@ export default function DashboardHistory() {
 
       {/* 3. 콘텐츠 영역 */}
       {isLoading ? (
-        <div className="rounded-xl border border-carix-border bg-carix-surface p-12 text-center text-sm text-carix-text/60 shadow-xs">
-          스냅샷 이력을 조회하고 있습니다...
-        </div>
+        <LoadingState message="스냅샷 이력을 조회하고 있습니다..." />
       ) : snapshots.length === 0 ? (
         /* 스냅샷 0개 비어있음 상태 */
-        <div
-          data-testid="history-empty-state"
-          className="rounded-xl border border-dashed border-carix-border bg-carix-surface p-12 text-center shadow-xs"
+        <EmptyState
+          icon="📋"
+          title="기록된 월별 스냅샷이 없습니다."
+          description="다음 달부터 변화를 볼 수 있습니다."
         >
-          <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-carix-info/10 text-xl">
-            📋
-          </div>
-          <h4 className="text-base font-bold text-carix-text">
-            기록된 월별 스냅샷이 없습니다.
-          </h4>
-          <p className="mt-2 text-sm text-carix-text/70">
-            다음 달부터 변화를 볼 수 있습니다.
-          </p>
-          <div className="mt-6">
-            <Link
-              to="/onboarding/profile"
-              className="inline-flex items-center rounded-lg bg-carix-info px-4 py-2 text-xs font-semibold text-white shadow hover:opacity-90"
-            >
-              온보딩 정보 확인하기
-            </Link>
-          </div>
-        </div>
+          <Link
+            to="/onboarding/profile"
+            className="inline-flex items-center rounded-lg bg-carix-info px-4 py-2 text-xs font-semibold text-white shadow hover:opacity-90"
+          >
+            온보딩 정보 확인하기
+          </Link>
+        </EmptyState>
       ) : (
         <div className="space-y-6">
           {/* 스냅샷 1개 이하 시 안내 카드 (와이어프레임 준수) */}

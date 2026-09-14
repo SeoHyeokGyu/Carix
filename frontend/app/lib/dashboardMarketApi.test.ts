@@ -29,7 +29,7 @@ describe("dashboardMarketApi", () => {
               { source: "SARAMIN", demandIndex: 120.5, sampleSize: 50 },
             ],
             weight: 0.6,
-            status: "NORMAL",
+            status: "OK",
           },
         ],
         coverage: "보유 스킬 1개 중 1개 반영 (가중치 100% 재정규화)",

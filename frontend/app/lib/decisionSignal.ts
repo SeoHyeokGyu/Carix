@@ -7,8 +7,10 @@
  * 서버 `label` 은 여기 없는 코드가 내려왔을 때만 쓴다 — 신호가 늘어도 프런트 배포 전까지 빈 뱃지가
  * 나가지 않게 한다.
  */
-export type SignalTone =
-  "positive" | "warning" | "danger" | "info" | "action" | "muted";
+import type { Tone } from "@/components/ui/tone-badge";
+
+/** 톤 이름은 `ToneBadge` 소관이다. 기존 import 를 깨지 않으려고 여기서 다시 내보낸다. */
+export type SignalTone = Tone;
 
 export interface DecisionSignalView {
   label: string;
@@ -48,17 +50,11 @@ const SIGNALS: Record<
   },
 };
 
-/** 톤 → 클래스. 다섯 톤 모두 의미 색상 토큰을 쓴다. */
-export const SIGNAL_TONE_CLASS: Record<SignalTone, string> = {
-  positive:
-    "bg-carix-positive/15 text-carix-positive border border-carix-positive/30",
-  warning:
-    "bg-carix-warning/15 text-carix-warning border border-carix-warning/30",
-  danger: "bg-carix-danger/15 text-carix-danger border border-carix-danger/30",
-  info: "bg-carix-info/15 text-carix-info border border-carix-info/30",
-  action: "bg-carix-action/15 text-carix-action border border-carix-action/30",
-  muted: "bg-carix-border/40 text-carix-text/70 border border-carix-border",
-};
+/**
+ * `SIGNALS` 표의 키에서 파생한 결정 신호 어휘 전체.
+ * 손으로 다시 나열하지 않는다: 표가 늘면 여기도 같이 는다.
+ */
+export const DECISION_SIGNAL_CODES = Object.keys(SIGNALS);
 
 export function resolveDecisionSignal(
   code: string,
