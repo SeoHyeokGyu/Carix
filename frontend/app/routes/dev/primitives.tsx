@@ -85,6 +85,20 @@ function Gallery() {
           <Button size="default">default</Button>
           <Button size="lg">lg</Button>
         </div>
+        <div className="flex flex-wrap items-center gap-3">
+          <Button size="icon-xs" aria-label="icon-xs">
+            +
+          </Button>
+          <Button size="icon-sm" aria-label="icon-sm">
+            +
+          </Button>
+          <Button size="icon" aria-label="icon">
+            +
+          </Button>
+          <Button size="icon-lg" aria-label="icon-lg">
+            +
+          </Button>
+        </div>
         <Button data-testid="button-focus-target">포커스 대상</Button>
       </Section>
 
@@ -183,12 +197,7 @@ export function meta() {
 export default function DevPrimitives() {
   return (
     <main className="min-h-screen">
-      <div className="light">
-        <Gallery />
-      </div>
-      <div className="dark">
-        <Gallery />
-      </div>
+      <Gallery />
     </main>
   );
 }

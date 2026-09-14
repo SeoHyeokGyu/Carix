@@ -669,7 +669,9 @@ function Section({
 }) {
   return (
     <section data-testid={id} className="flex flex-col gap-3 p-6">
-      <h2 className="font-display text-sm font-bold text-carix-text/70">{title}</h2>
+      <h2 className="font-display text-sm font-bold text-carix-text/70">
+        {title}
+      </h2>
       {children}
     </section>
   );
@@ -699,6 +701,20 @@ function Gallery() {
           <Button size="default">default</Button>
           <Button size="lg">lg</Button>
         </div>
+        <div className="flex flex-wrap items-center gap-3">
+          <Button size="icon-xs" aria-label="icon-xs">
+            +
+          </Button>
+          <Button size="icon-sm" aria-label="icon-sm">
+            +
+          </Button>
+          <Button size="icon" aria-label="icon">
+            +
+          </Button>
+          <Button size="icon-lg" aria-label="icon-lg">
+            +
+          </Button>
+        </div>
         <Button data-testid="button-focus-target">포커스 대상</Button>
       </Section>
 
@@ -720,7 +736,9 @@ function Gallery() {
       <Section id="primitives-cards" title="Card">
         <div className="grid gap-4 sm:grid-cols-3">
           <Card className="p-5">
-            <span className="text-xs text-carix-text/70">className 으로 p-5 를 준 카드</span>
+            <span className="text-xs text-carix-text/70">
+              className 으로 p-5 를 준 카드
+            </span>
           </Card>
           <Card>
             <CardContent>기본 카드</CardContent>
@@ -734,10 +752,14 @@ function Gallery() {
       <Section id="primitives-composed" title="합성 카드 — 간격 변화 감지용">
         <Card>
           <CardHeader>
-            <CardTitle>헤더 · 본문 · 푸터를 실제 화면과 같은 순서로 쌓는다</CardTitle>
+            <CardTitle>
+              헤더 · 본문 · 푸터를 실제 화면과 같은 순서로 쌓는다
+            </CardTitle>
           </CardHeader>
           <CardContent>
-            <p>Card 의 gap 이 바뀌면 이 세 덩어리 사이 간격이 diff 로 드러난다.</p>
+            <p>
+              Card 의 gap 이 바뀌면 이 세 덩어리 사이 간격이 diff 로 드러난다.
+            </p>
           </CardContent>
           <CardFooter>
             <Button size="sm">푸터 버튼</Button>
@@ -791,12 +813,7 @@ export function meta() {
 export default function DevPrimitives() {
   return (
     <main className="min-h-screen">
-      <div className="light">
-        <Gallery />
-      </div>
-      <div className="dark">
-        <Gallery />
-      </div>
+      <Gallery />
     </main>
   );
 }
@@ -832,7 +849,7 @@ Expected: `200`. 확인 후 서버를 내린다.
 `frontend/e2e/primitives.spec.ts`
 
 ```ts
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 
 /**
  * 프리미티브 시각 회귀 베이스라인.
@@ -842,6 +859,10 @@ import { expect, test } from "@playwright/test";
  *
  * 인증이 필요한 화면 7개는 이 그물에 들어오지 않는다 — `CARIX_E2E_EMAIL` 계정이 서는 7주차에
  * 별도로 붙인다 (`onboarding-flow.spec.ts` 참고).
+ *
+ * 라이트/다크는 `ThemeToggle` 이 실제로 쓰는 메커니즘 그대로 `document.documentElement` 에
+ * `light`/`dark` 클래스를 넣고 뺀다 — `tokens.css` 의 `.dark`/`.light` 는 `:root` 에서만
+ * `--carix-*` 를 재정의하기 때문에, 중첩된 div 에 클래스를 넣는 방식은 다크 베이스라인을 못 만든다.
  */
 const SECTIONS = [
   "primitives-buttons",
@@ -851,38 +872,56 @@ const SECTIONS = [
   "primitives-table",
 ];
 
+async function setTheme(page: Page, theme: "light" | "dark") {
+  await page.evaluate((t) => {
+    document.documentElement.classList.remove("light", "dark");
+    document.documentElement.classList.add(t);
+  }, theme);
+}
+
 test.beforeEach(async ({ page }) => {
   await page.goto("/dev/primitives");
 });
 
 for (const section of SECTIONS) {
   test(`${section} 절이 베이스라인과 같다`, async ({ page }) => {
-    // 라이트·다크 두 벌이 같은 testid 로 렌더된다.
-    const blocks = page.getByTestId(section);
-    await expect(blocks).toHaveCount(2);
+    const block = page.getByTestId(section);
 
-    await expect(blocks.nth(0)).toHaveScreenshot(`${section}-light.png`);
-    await expect(blocks.nth(1)).toHaveScreenshot(`${section}-dark.png`);
+    await setTheme(page, "light");
+    await expect(block).toHaveScreenshot(`${section}-light.png`);
+
+    await setTheme(page, "dark");
+    await expect(block).toHaveScreenshot(`${section}-dark.png`);
   });
 }
 
 test("버튼 hover 상태가 베이스라인과 같다", async ({ page }) => {
   const target = page.getByTestId("button-focus-target").first();
   await target.hover();
-  await expect(target).toHaveScreenshot("button-hover.png");
+
+  await setTheme(page, "light");
+  await expect(target).toHaveScreenshot("button-hover-light.png");
+
+  await setTheme(page, "dark");
+  await expect(target).toHaveScreenshot("button-hover-dark.png");
 });
 
 test("버튼 focus-visible 링이 베이스라인과 같다", async ({ page }) => {
   const target = page.getByTestId("button-focus-target").first();
   await target.focus();
-  await expect(target).toHaveScreenshot("button-focus.png");
+
+  await setTheme(page, "light");
+  await expect(target).toHaveScreenshot("button-focus-light.png");
+
+  await setTheme(page, "dark");
+  await expect(target).toHaveScreenshot("button-focus-dark.png");
 });
 ```
 
 - [ ] **Step 6: 베이스라인 생성**
 
 Run: `cd frontend && pnpm test:e2e --update-snapshots primitives.spec.ts`
-Expected: 스냅샷 파일이 `frontend/e2e/primitives.spec.ts-snapshots/` 에 생성된다. 12개(5절 × 2테마 + hover + focus).
+Expected: 스냅샷 파일이 `frontend/e2e/primitives.spec.ts-snapshots/` 에 생성된다. 14개(5절 × 2테마 + hover 2테마 + focus 2테마) — hover·focus 도 라이트/다크를 각각 찍는다.
 
 - [ ] **Step 7: 베이스라인이 실제로 잠그는지 확인**
 
