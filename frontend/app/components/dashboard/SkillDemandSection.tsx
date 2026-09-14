@@ -3,6 +3,11 @@ import type {
   SkillDemandResponse,
   SkillDemandDetail,
 } from "../../lib/dashboardMarketApi";
+import {
+  resolveDemandTrend,
+  resolveSkillDemandStatus,
+} from "../../lib/skillDemandStatus";
+import { ToneBadge } from "@/components/ui/tone-badge";
 
 export interface SkillDemandSectionProps {
   data: SkillDemandResponse;
@@ -18,60 +23,18 @@ export function SkillDemandSection({ data }: SkillDemandSectionProps) {
   };
 
   const getTrendBadge = (detail: SkillDemandDetail) => {
-    // 상태값 우선 처리
-    if (detail.status === "CUSTOM_SKILL_NO_STATS") {
-      return (
-        <span className="inline-flex items-center rounded bg-carix-warning/10 px-2 py-0.5 text-xs font-semibold text-carix-warning">
-          통계 미제공
-        </span>
-      );
-    }
-    if (detail.status === "SAMPLE_TOO_SMALL") {
-      return (
-        <span className="inline-flex items-center rounded bg-carix-danger/10 px-2 py-0.5 text-xs font-semibold text-carix-danger">
-          표본 부족
-        </span>
-      );
-    }
-    if (detail.status === "NEW_OBSERVATION") {
-      return (
-        <span className="inline-flex items-center rounded bg-carix-info/10 px-2 py-0.5 text-xs font-semibold text-carix-info">
-          신규 관측
-        </span>
-      );
-    }
-    if (detail.status === "NO_RECENT_DEMAND") {
-      return (
-        <span className="inline-flex items-center rounded bg-carix-text/10 px-2 py-0.5 text-xs font-semibold text-carix-text/70">
-          최근 수요 없음
-        </span>
-      );
+    const status = resolveSkillDemandStatus(detail.status);
+    if (status) {
+      return <ToneBadge tone={status.tone}>{status.label}</ToneBadge>;
     }
 
-    // 지수 기준 추세 (기준 100)
-    const idx = detail.demandIndex;
-    if (idx >= 105) {
-      return (
-        <span className="inline-flex items-center gap-1 rounded bg-carix-positive/10 px-2 py-0.5 text-xs font-bold text-carix-positive">
-          <span>▲ 상승</span>
-          <span>({idx.toFixed(1)})</span>
-        </span>
-      );
-    } else if (idx <= 95) {
-      return (
-        <span className="inline-flex items-center gap-1 rounded bg-carix-warning/10 px-2 py-0.5 text-xs font-bold text-carix-warning">
-          <span>▼ 하락</span>
-          <span>({idx.toFixed(1)})</span>
-        </span>
-      );
-    } else {
-      return (
-        <span className="inline-flex items-center gap-1 rounded bg-carix-info/10 px-2 py-0.5 text-xs font-medium text-carix-info">
-          <span>- 유지</span>
-          <span>({idx.toFixed(1)})</span>
-        </span>
-      );
-    }
+    const trend = resolveDemandTrend(detail.demandIndex);
+    return (
+      <ToneBadge tone={trend.tone}>
+        <span>{trend.label}</span>
+        <span>({detail.demandIndex.toFixed(1)})</span>
+      </ToneBadge>
+    );
   };
 
   return (

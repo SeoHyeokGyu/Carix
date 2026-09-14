@@ -51,7 +51,7 @@ describe("S-14 DashboardTrends 라우트", () => {
           baselineDemandRate: 0.1,
           sources: [{ source: "SARAMIN", demandIndex: 115.0, sampleSize: 45 }],
           weight: 1.0,
-          status: "NORMAL",
+          status: "OK",
         },
       ],
       coverage: "보유 스킬 1개 중 1개 반영 (가중치 100% 재정규화)",

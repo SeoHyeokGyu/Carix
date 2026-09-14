@@ -1,3 +1,5 @@
+import type { SkillDemandStatusCode } from "./skillDemandStatus";
+
 export interface SkillDemandSource {
   source: string;
   demandIndex: number;
@@ -12,7 +14,8 @@ export interface SkillDemandDetail {
   baselineDemandRate: number;
   sources: SkillDemandSource[];
   weight: number;
-  status: string;
+  /** 서버 어휘는 `skillDemandStatus.ts` 가 못박는다. 여기 문자열을 복제하지 않는다. */
+  status: SkillDemandStatusCode;
 }
 
 export interface SkillDemandResponse {
