@@ -17,7 +17,8 @@ import java.util.List;
  *     연봉이 원 단위로 복원되므로 구간만 남긴다 (기술 명세 §1.3). 산출 불가면 {@code null}
  * @param sourceCoverages 원천별 완화 단계·표본 수·결측률. {@code MviResult} 에만 있고 저장되지 않으면 "표본이 부족해 조건을 넓혔다"는
  *     이력이 사라진다 (기술 명세 §1.3)
- * @param skillContributions 스킬별 가중치 × 수요 지수. 빠진 스킬의 이름만으로는 어떤 스킬이 지수를 끌어올렸는지 시간축으로 볼 수 없다 (기술 명세 §1.3)
+ * @param skillContributions 스킬별 가중치 × 수요 지수. 빠진 스킬의 이름만으로는 어떤 스킬이 지수를 끌어올렸는지 시간축으로 볼 수 없다 (기술 명세
+ *     §1.3)
  * @param excludedSkills 가중합에서 빠진 스킬 이름
  * @param cpiAsOf 사용한 CPI 원천의 기준일
  * @param aggregateAsOf 사용한 시장 집계의 기준일

@@ -14,8 +14,8 @@ import org.junit.jupiter.api.Test;
 /**
  * 지수 응답 DTO 의 계산 불가 표현 검증.
  *
- * <p>계약(API 규격 §5.1)은 "계산 불가는 예외가 아니라 {@link IndexStatus} 로 돌려준다. 값은 {@code null} 이고 0 이나 100 으로 채우지
- * 않는다"고 규정한다. DTO 가 primitive 를 쓰면 이 계약을 표현할 수 없어 스텁을 걷어내도 {@code 0.0} 이 나간다.
+ * <p>계약(API 규격 §5.1)은 "계산 불가는 예외가 아니라 {@link IndexStatus} 로 돌려준다. 값은 {@code null} 이고 0 이나 100 으로
+ * 채우지 않는다"고 규정한다. DTO 가 primitive 를 쓰면 이 계약을 표현할 수 없어 스텁을 걷어내도 {@code 0.0} 이 나간다.
  */
 class IndexNullabilityTest {
 

@@ -53,7 +53,8 @@ public record DashboardSummaryResponse(
       boolean updateDelayed,
       @Schema(description = "원천별 완화 단계·표본 수. 저장된 커버리지가 없으면 빈 배열") List<DataLimitSource> sources,
       @Schema(description = "표본 수 가중 합계. 완화에 성공한 원천이 없으면 null", nullable = true) Integer sampleSize,
-      @Schema(description = "원천별 결측률의 표본 수 가중 평균. 없으면 null", nullable = true) Double salaryMissingRate,
+      @Schema(description = "원천별 결측률의 표본 수 가중 평균. 없으면 null", nullable = true)
+          Double salaryMissingRate,
       @Schema(description = "표본이 가장 큰 원천의 안착 조건. 없으면 null", nullable = true) PeerGroup peerGroup,
       @Schema(nullable = true) WageStatInfo wageStat,
       @Schema(nullable = true) String expenseWeightStatus) {}
