@@ -1,9 +1,9 @@
 import { useState } from "react";
 import { Link, redirect, useLoaderData, useRevalidator } from "react-router";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { IndexCard } from "../../components/dashboard/IndexCard";
+import { SignalBadge } from "../../components/dashboard/SignalBadge";
 import { toUserMessage } from "../../lib/apiError";
 import { fetchSummary, type DashboardSummary } from "../../lib/api/dashboard";
 import { UnauthorizedError } from "../../lib/coreApi";
@@ -125,7 +125,11 @@ export default function DashboardHome() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-0 flex flex-col gap-3">
-                <Badge>{data.decisionSignal.label}</Badge>
+                <SignalBadge
+                  code={data.decisionSignal.code}
+                  serverLabel={data.decisionSignal.label}
+                  className="self-start"
+                />
 
                 <Button
                   type="button"
