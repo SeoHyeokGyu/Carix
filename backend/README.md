@@ -3,9 +3,13 @@
 Java 25 + Spring Boot. Gradle 멀티모듈 — `config-server`, `eureka`, `core-api`, `auth-service`,
 `gateway`, `collector`.
 `auth-service` 가 회원가입·로그인·세션을 맡는다(스키마 `auth`). `core-api` 가 도메인 로직과
-REST API를 맡는다 — 스킬 도메인부터 JPA로 `core` 스키마에 붙어 있다. 채용공고 도메인
-(`com.carix.jobposting`)과 `core` 스키마는 `collector` 소관이며, 이미 JPA로 원격 DB에 연결돼
-있다(`core` 스키마 DDL은 [`../deploy/postgres/schema/`](../deploy/postgres/schema/)에 있음). `core-api`의 Security는 아직 없음 — 다음 단계.
+REST API를 맡는다 — 사용자 도메인(프로필·소득·소비·스킬)과 지수·스냅샷·시나리오가 JPA로
+`core` 스키마를 쓴다. 채용공고 수집·집계는 `collector` 소관이고 같은 `core` 스키마를 공유한다
+(DDL은 [`../deploy/postgres/schema/`](../deploy/postgres/schema/)).
+
+**`core-api` 에 Spring Security 스타터를 쓰지 않는다.** 세션 검증은 게이트웨이가 하고 하류는
+주입된 `X-User-Id` 를 인증된 사용자로 신뢰한다 — 수신부는 `@CurrentUserId` 와
+`UserContextArgumentResolver` 이며 헤더가 없으면 401 이다. 빠진 것이 아니라 택한 구조다.
 
 상세 설계:
 - DB 스키마·규칙: [`../docs/specs/technical-specification.md`](../docs/specs/technical-specification.md)
@@ -13,32 +17,34 @@ REST API를 맡는다 — 스킬 도메인부터 JPA로 `core` 스키마에 붙�
 - 도메인 계산: [`../docs/specs/domain-logic.md`](../docs/specs/domain-logic.md)
 - Spring Cloud 구성: [`../docs/specs/spring-cloud-architecture.md`](../docs/specs/spring-cloud-architecture.md)
 
-`core-api` 는 아직 배포 파이프라인 검증용 최소 스캐폴드다. Spring Boot 4.1 + springdoc(OpenAPI) +
-Config·Eureka 클라이언트에 더해 dashboard·expense·income·profile·reference·scenario·skill
-7개 도메인 컨트롤러가 REST로 노출돼 있다(경로·요청·응답 규격은 위 API 규격 문서 참조) — 다만
-리포지토리·서비스 계층은 아직 연결되지 않은 스텁이다. 채용공고 도메인의 JPA 엔티티·리포지토리·
-시드 로더·크롤러는 `collector` 모듈에 별도로 이미 추가됐으며, `core-api`의 REST로는 노출되지
-않는다. `core-api`의 Security는 다음 단계에서 추가한다.
+`core-api` 는 Spring Boot 4.1 + springdoc(OpenAPI) + Config·Eureka 클라이언트 위에
+dashboard·expense·income·profile·scenario·skill 도메인 컨트롤러를 REST로 노출한다(경로·요청·응답
+규격은 위 API 규격 문서). **리포지토리·서비스 계층이 연결돼 실데이터로 응답한다** — 고정값을
+돌려주던 스텁 컨트롤러는 전부 철거했다. 채용공고 수집·파싱·집계는 `collector` 모듈 소관이라
+`core-api` 의 REST로는 노출되지 않지만, `core-api` 는 그 결과 테이블(`job_posting`·
+`market_aggregate`·`wage_stat_observation`)을 읽는다.
 
 지수 산출 계약(`com.carix.index`)은 소득/구매력 도메인과 스킬/시장가치 도메인이 각각 구현하고
-스냅샷·결정신호 엔진이 호출한다. `PurchasingPowerIndexProvider`·`MarketValueIndexProvider` 와
-결과 타입(`PpiResult`, `MviResult`)만 정의돼 있고 구현은 아직 없다 — 구현 빈이 없는 동안
-`com.carix.index.stub` 의 스텁이 `NOT_AVAILABLE` 을 돌려준다(기동 로그에 어느 산출기가 스텁인지
-남는다). 실제 구현을 빈으로 등록하면 스텁은 물러난다.
+스냅샷·결정신호 엔진이 호출한다. `MarketValueIndexServiceImpl`(MVI),
+`IncomeCurrentSalaryProvider`(기준월 세전 연봉), `DefaultPurchasingPowerIndexProvider`(최초
+소득월 100 기준의 잠정 PPI)가 배선돼 있다. **품목별 CPI 기반 PPI 본 엔진은 아직 없다.**
+`com.carix.index.stub` 은 구현 빈이 없을 때만 `NOT_AVAILABLE` 을 돌려주는 폴백으로 남아 있고,
+기동 로그에 어느 산출기가 스텁인지 남는다.
 
-**구현 상태:** `auth-service` 의 배포 배선(`Dockerfile`, `docker-compose.yml` 서비스 항목,
-Caddy 라우트, CI 빌드 잡)은 완료됐다. 인증 로직은 재설계 반영 전이라 아래 `auth-service`
-절의 설계와 현재 코드가 다르다. Spring Cloud Gateway도 도입돼 요청 경로에 편입됐다(설계는 위
-spring-cloud-architecture.md). `core-api`는 스킬 도메인이 JPA로 `core` 스키마를 쓰고 있고,
-Security는 다음 단계다. `collector`는 채용공고 도메인의 JPA와 `core` 스키마를 이미 쓰고
-있다(위 참조).
+**구현 상태:** `auth-service` 는 인증 재설계가 반영돼 가입·로그인·세션 조회·로그아웃이 동작하고
+배포 배선(`Dockerfile`, compose 서비스, Caddy 라우트, CI 빌드 잡)도 끝났다. Spring Cloud Gateway
+는 요청 경로에 편입돼 있다(설계는 위 spring-cloud-architecture.md). `collector` 는 크롤러·중복제거·
+정규화·`market_aggregate` 집계·임금통계 수집과 내부 API(`/internal/pipeline/**`)까지 구현돼 있다.
 
-아래는 배포 검증·데모용 경로다. 7개 도메인 컨트롤러의 경로는 위 API 규격 문서를 참조.
+> 마일스톤 진행 상태(무엇이 끝났고 무엇이 남았나)는 [`../docs/README.md` 「진행 상태」](../docs/README.md#진행-상태)가
+> 소관이다. 이 문서는 모듈별 구현 상태만 다룬다.
+
+아래는 운영·검증용 경로다. 도메인 컨트롤러의 경로는 위 API 규격 문서를 참조.
 
 | 경로 | 용도 |
 | --- | --- |
 | `GET /api/health` | 배포 워크플로 헬스체크 대상 |
-| `GET /api/v1/demo/thresholds` | **데모/검증용.** Config Server 연동 확인용. 값은 [`../config/spring/core-api.yml`](../config/spring/core-api.yml)에서 오며 `/actuator/refresh` 로 재배포 없이 동적 갱신 확인 |
+| `GET /api/v1/demo/thresholds` | **데모가 아니다 — Config Server 연동 확인 절차의 도구다** ([DEVELOPMENT.md](../docs/DEVELOPMENT.md)). 경로가 `demo` 로 시작하는 것만 오해를 부른다. 값은 [`../config/spring/core-api.yml`](../config/spring/core-api.yml)에서 오며 `/actuator/refresh` 로 재배포 없이 동적 갱신 확인 |
 
 ### auth-service
 
@@ -103,9 +109,23 @@ Spring Cloud Gateway(WebFlux/reactive). `carix_caddy(:80)`의 업스트림으로
 | `web` | 그 외 | `frontend-node` (정적 URI, Eureka 미등록) | 없음 |
 
 세션 검증 필터는 `core` 라우트에만 붙고 `carix.gateway.session-validation.enabled`
-(`config/spring/gateway.yml`) 플래그로 켜고 끕니다. 헬스체크를 별도 라우트로 뺀 이유는
-배포 워크플로가 쿠키 없이 `/api/health` 를 호출하기 때문입니다 — 같은 라우트에 두면 플래그를
-켜는 순간 배포가 401 로 죽습니다.
+(`config/spring/gateway.yml`) 플래그로 켜고 끕니다. 필터에 경로 예외가 없어 `session_token`
+쿠키가 없으면 즉시 401 입니다.
+
+헬스체크를 별도 라우트로 뺀 이유는 배포 워크플로가 쿠키 없이 `/api/health` 를 호출하기
+때문입니다(`.github/workflows/deploy.yml`) — 같은 라우트에 두면 플래그를 켜는 순간 배포가
+401 로 죽고, 자동 롤백은 `.env`(이미지 태그)만 되돌리는 반면 플래그는 `config/spring/gateway.yml`
+에 있어 다음 배포도 같은 자리에서 죽습니다. `core-health` 에 `order: -15` 를 명시한 이유는
+따로 있습니다 — `web`(`Path=/**`, order 0)과 같으면 `/api/health` 가 프런트엔드로 흘러 SPA 셸을
+200 으로 돌려주고, `core-api` 가 죽어 있어도 헬스체크가 통과합니다.
+
+`/api/swagger-ui/**`·`/api/v3/api-docs/**` 는 `core` 라우트에 남깁니다. 플래그를 켜면 문서도
+세션을 요구하지만 같은 출처 요청이라 로그인한 개발자의 브라우저는 쿠키를 실어 보내 그대로
+열리고, 쿠키 없는 접근에는 API 표면이 닫힙니다.
+
+**플래그를 되돌릴 때는 `.env` 롤백으로 부족합니다** — `config/spring/gateway.yml` 을 직접
+되돌리고 게이트웨이 `/actuator/refresh` 를 다시 호출합니다. 켜고 끄는 시점과 순서는
+[OCI 서버 구성·배포 「배포 전 실행 순서」](../docs/plans/oci-server-provisioning-plan.md)가 갖습니다.
 
 인바운드 `X-User-Id` 는 `UserIdHeaderStripGlobalFilter` 가 플래그와 무관하게 전 라우트에서
 벗깁니다. 하류는 이 헤더를 인증된 사용자로 신뢰하므로 출처가 게이트웨이여야 합니다.

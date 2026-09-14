@@ -19,7 +19,7 @@ import org.springframework.web.bind.annotation.RestController;
  * 온보딩 단계 갱신 및 재시작.
  *
  * <p>{@code users.onboarding_step} 은 auth-service 소유라 갱신도 여기서 한다. core-api 에 있던 같은 이름의 엔드포인트는 아무것도
- * 쓰지 않는 스텁이었고 철거했다 (개발 계획 §5-G).
+ * 쓰지 않는 스텁이었고 철거했다 (개발 계획 §4 MVP 범위 판별).
  */
 @RestController
 @Tag(name = "auth", description = "세션 관리")

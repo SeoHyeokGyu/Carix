@@ -1,6 +1,6 @@
 # Carix 전체 애플리케이션 작업 흐름 명세 (Application Workflow Specification)
 
-이 문서는 Carix 플랫폼의 사용자 라이프사이클, 외부 원천 데이터 수집/집계 파이프라인(관리자 직접 구동 및 Spring Scheduler 고려), 그리고 사용자 커리어 지표 및 시뮬레이션 산출에 이르는 **전체적인 데이터 흐름(E2E Data Flow)**을 명세화합니다.
+이 문서는 Carix 플랫폼의 사용자 라이프사이클, 외부 원천 데이터 수집/집계 파이프라인(관리자 직접 구동), 그리고 사용자 커리어 지표 및 시뮬레이션 산출에 이르는 **전체적인 데이터 흐름(E2E Data Flow)**을 명세화합니다.
 
 ---
 
@@ -22,7 +22,7 @@ flowchart TD
     end
 
     %% 2. 수집 및 집계 파이프라인 프로세서 (Down 1)
-    subgraph Collector ["collector 모듈 (수집 & 집계 파이프라인 - 관리자 직접 구동 / Spring Scheduler 고려)"]
+    subgraph Collector ["collector 모듈 (수집 & 집계 파이프라인 - 관리자 직접 구동)"]
         Job1["CPI 수집 Job (/internal/pipeline/crawl)"]
         Job2["구인공고 수집 & 스킬 파싱 Job - 잡코리아/사람인"]
         Job2b["임금통계 수집 Job (/internal/pipeline/wage-stat)"]
@@ -101,11 +101,13 @@ flowchart TD
 
 ---
 
-## 2. 수집 및 집계 파이프라인 (2번 상세 흐름 — 관리자 직접 구동 & Spring Scheduler 고려)
+## 2. 수집 및 집계 파이프라인 (2번 상세 흐름 — 관리자 직접 구동)
 
-외부 수집 데이터는 데이터 무결성 보장과 자원 관리의 유연성을 위해 **관리자 화면에서 직접 구동하는 방식(Admin UI/API)**을 기본으로 하며, **Spring Scheduler(`@Scheduled`) 기반의 정기 자동 실행 도입도 고려**할 수 있는 파이프라인 Job(CPI 수집, 공고 수집·파싱, 임금통계 수집, 집계·스냅샷)으로 나누어 실행됩니다. 내부 API(`/internal/pipeline/**`)를 통해 관리자가 수동으로 트리거하거나 스케줄러를 통해 실행하며, 모든 원천 응답은 정규화 전에 `raw_ingest`에 원문 보존됩니다.
+외부 수집 데이터는 **관리자 화면에서 직접 구동하는 방식(Admin UI/API)**으로만 실행됩니다. 파이프라인 Job(CPI 수집, 공고 수집·파싱, 임금통계 수집, 집계)을 내부 API(`/internal/pipeline/**`)로 관리자가 트리거합니다.
 
-### 2.1 Job 1: CPI 소비자물가지수 수집 (관리자 직접 구동 / Spring Scheduler 월 1회 고려)
+**`@Scheduled` 정기 실행은 도입하지 않기로 확정했습니다.** 정기 실행에는 수집 실패 재시도, 중복 실행 방지, 실패 관측 경로가 함께 따라오는데 MVP 표본 규모에서 그만한 값을 하지 않습니다. 정기 실행이 필요해지면 그때 다시 판단합니다.
+
+### 2.1 Job 1: CPI 소비자물가지수 수집 (관리자 직접 구동, 월 1회 권장)
 통계청 공표 일정에 맞춰 관리자가 관리자 화면에서 직접 기동합니다.
 
 ```mermaid
@@ -118,7 +120,7 @@ stateDiagram-v2
     cpi_observation --> [*]
 ```
 
-### 2.2 Job 2: 구인공고 수집 및 스킬 정규화 (관리자 직접 구동 / 일·주 1회 권장)
+### 2.2 Job 2: 구인공고 수집 및 스킬 정규화 (관리자 직접 구동, 일·주 1회 권장)
 가장 많은 연산과 파싱이 필요한 핵심 수집 파이프라인입니다. 잡코리아와 사람인 어댑터가 동일 구조로 실행되며, 관리자가 트리거 시 수집 후 원천 간 중복 공고를 `dedup_group_id`로 매칭합니다. 파싱된 스킬은 `job_posting_skill`에 공고별로 저장합니다.
 
 ```mermaid
@@ -140,7 +142,7 @@ flowchart TD
 ```
 
 ### 2.3 Job 3(시장 데이터 집계) 및 Job 4(사용자 스냅샷 갱신 — core-api 전담)
-Job 3(원천별 집계)은 `collector`가 실행하며, Job 4(사용자 스냅샷 갱신)는 `core-api` 안에서 사용자 프로필·소득·소비·스킬 변경 시 **트랜잭션 안의 동기 직접 호출**(`recalculateSnapshot(userId, fromYm)`)로 실행됩니다. 스케줄러나 비동기 이벤트는 쓰지 않습니다 ([개발 계획 §4-2](../plans/carix-dev-plan.md)). 사용자 스냅샷 계산 및 저장은 `core-api`가 전담 소유합니다. 아래 흐름도는 두 Job의 연쇄 데이터 흐름을 표현한 것입니다. 수집된 원천 공고 및 CPI 데이터를 사용자의 동료집단(Peer Group) 단위로 그룹핑하고 통계를 집계한 뒤 사용자 스냅샷을 갱신합니다.
+Job 3(원천별 집계)은 `collector`가 실행하며, Job 4(사용자 스냅샷 갱신)는 `core-api` 안에서 사용자 프로필·소득·소비·스킬 변경 시 **트랜잭션 안의 동기 직접 호출**(`recalculateSnapshot(userId, fromYm)`)로 실행됩니다. 스케줄러나 비동기 이벤트는 쓰지 않습니다 ([기술 명세 §1.3](../plans/carix-dev-plan.md)). 사용자 스냅샷 계산 및 저장은 `core-api`가 전담 소유합니다. 아래 흐름도는 두 Job의 연쇄 데이터 흐름을 표현한 것입니다. 수집된 원천 공고 및 CPI 데이터를 사용자의 동료집단(Peer Group) 단위로 그룹핑하고 통계를 집계한 뒤 사용자 스냅샷을 갱신합니다.
 
 롤업 집합(GROUPING SETS) 열거 — 롤업 차원은 `employment_type`, `company_size`, `skill_id` 3개이며, 원천×월×직무×지역×경력구간마다 다음 6개 집합을 생성합니다 (`NULL` = 전체 롤업, 원천 미상 `'UNKNOWN'`은 세분 값의 하나로 취급):
 

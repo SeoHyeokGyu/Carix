@@ -26,7 +26,7 @@ import org.junit.jupiter.api.Test;
  * 스냅샷을 읽는 세 화면 API 검증 — `/dashboard/summary`, `/history`, `/trends`.
  *
  * <p>셋 다 {@code index_snapshot} 이 원천이고, 행이 없으면 <b>임의 값 대신 빈 상태</b>를 돌려준다. 온보딩 직후처럼 재계산이 한 번도 돌지 않은
- * 사용자는 행이 없는 것이 정상이며(개발 계획 §4-2), 그때 0 이나 100 을 채우면 §5-G 가 철거한 스텁과 같은 죄가 된다.
+ * 사용자는 행이 없는 것이 정상이며(기술 명세 §1.3), 그때 0 이나 100 을 채우면 MVP 범위 판별로 철거한 스텁과 같은 죄가 된다 (개발 계획 §4).
  */
 class SnapshotReadServiceTest {
 
@@ -107,7 +107,7 @@ class SnapshotReadServiceTest {
   }
 
   @Test
-  @DisplayName("summary - 저장된 원천별 커버리지로 metadata 를 채운다 (§5-M)")
+  @DisplayName("summary - 저장된 원천별 커버리지로 metadata 를 채운다 (기술 명세 §1.3)")
   void summary_커버리지_저장분() {
     given(repository.findByUserIdOrderByBaseYearMonthDesc(USER_ID))
         .willReturn(List.of(snapshot("202607", "94.20", "117.50", DecisionSignalCode.SEEK_JOB)));
@@ -160,7 +160,7 @@ class SnapshotReadServiceTest {
   }
 
   @Test
-  @DisplayName("summary - 근거 문장은 격차 구간 문구다 — 비율을 되살리지 않는다 (§5-L)")
+  @DisplayName("summary - 근거 문장은 격차 구간 문구다 — 비율을 되살리지 않는다 (기술 명세 §1.3)")
   void summary_격차_구간문구() {
     given(repository.findByUserIdOrderByBaseYearMonthDesc(USER_ID))
         .willReturn(List.of(snapshot("202607", "94.20", "117.50", DecisionSignalCode.SEEK_JOB)));

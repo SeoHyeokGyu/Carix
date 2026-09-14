@@ -7,7 +7,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 /**
- * 소득 격차의 저장 형태 (개발 계획 §5-L).
+ * 소득 격차의 저장 형태 (기술 명세 §1.3).
  *
  * <p>비율을 소수점 6자리로 저장하면 평문 {@code wage_stat_observation.wage_median} · 평문 {@code career_profile}
  * 동료집단과 조인해 {@code 연봉 = 중앙값 / (1 + 격차비율)} 로 원 단위까지 복원된다 — {@code income_history} 의 AES-256-GCM 이

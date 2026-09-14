@@ -27,7 +27,7 @@ import org.springframework.transaction.annotation.Transactional;
 /**
  * 대시보드 지표 요약 (API 규격 §5.1, 화면 `S-10`).
  *
- * <p>스냅샷이 없으면 예외가 아니라 {@link IndexStatus#NOT_AVAILABLE} 이다. 값을 0 이나 100 으로 채우지 않는다 (개발 계획 §4-1,
+ * <p>스냅샷이 없으면 예외가 아니라 {@link IndexStatus#NOT_AVAILABLE} 이다. 값을 0 이나 100 으로 채우지 않는다 (API 규격 §5.1,
  * [MVP 규격 §13] 데이터가 없는 기능을 추정값으로 채워 출시하지 않는다).
  */
 @Service
@@ -67,7 +67,7 @@ public class DashboardSummaryService {
 
   private IndexDetail detail(BigDecimal value, BigDecimal previousValue) {
     if (value == null) {
-      // 그 달에 계산이 불가했다. 사유를 더 좁히려면 rationale 에 상태가 남아야 한다 (§5-M).
+      // 그 달에 계산이 불가했다. 사유를 더 좁히려면 rationale 에 상태가 남아야 한다 (기술 명세 §1.3).
       return new IndexDetail(null, null, null, IndexStatus.NOT_AVAILABLE.name(), null);
     }
     Double change =
@@ -103,7 +103,7 @@ public class DashboardSummaryService {
         gapSentence(rationale));
   }
 
-  /** 근거 문장. 격차는 구간으로만 저장되므로 문구도 구간이다 (개발 계획 §5-L). */
+  /** 근거 문장. 격차는 구간으로만 저장되므로 문구도 구간이다 (기술 명세 §1.3). */
   private String gapSentence(SnapshotRationale rationale) {
     if (rationale == null || rationale.salaryGapBucket() == null) {
       return null;
@@ -121,7 +121,7 @@ public class DashboardSummaryService {
   // --- 메타데이터 ---
 
   /**
-   * 근거·기준일 묶음. 원천별 커버리지는 {@code rationale.sourceCoverages} 에서 온다 (개발 계획 §5-M 결정분) — 그 달의 완화 결과는 당시
+   * 근거·기준일 묶음. 원천별 커버리지는 {@code rationale.sourceCoverages} 에서 온다 (기술 명세 §1.3 결정분) — 그 달의 완화 결과는 당시
    * 프로필에 의존해 나중에 재계산하면 같은 값이 안 나오므로 저장분을 그대로 읽는다.
    */
   private SummaryMetadata metadata(IndexSnapshot snapshot) {

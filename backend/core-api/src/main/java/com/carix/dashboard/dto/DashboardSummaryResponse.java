@@ -13,7 +13,7 @@ public record DashboardSummaryResponse(
 
   /**
    * 지수 한 건. 계산 불가면 {@code value} 와 {@code changeFromLastMonth} 가 {@code null} 이고 사유는 {@code
-   * indexStatus} 에 담긴다 (개발 계획 §4-1 — 0 이나 100 으로 채우지 않는다).
+   * indexStatus} 에 담긴다 (API 규격 §5.1 — 0 이나 100 으로 채우지 않는다).
    */
   public record IndexDetail(
       @Schema(example = "94.2", nullable = true) Double value,
@@ -43,7 +43,7 @@ public record DashboardSummaryResponse(
    * 지수 산출의 근거·기준일 묶음.
    *
    * <p>{@code sources}·{@code sampleSize}·{@code salaryMissingRate}·{@code peerGroup} 은 원천별 커버리지이고
-   * {@code index_snapshot.rationale.sourceCoverages} 에서 온다 (개발 계획 §5-M — 둘 다 기록으로 결정됨). 그 달에 저장된
+   * {@code index_snapshot.rationale.sourceCoverages} 에서 온다 (기술 명세 §1.3 — 둘 다 기록으로 결정됨). 그 달에 저장된
    * 커버리지가 없으면 비어 있고, <b>임의 값으로 채우지 않는다</b>.
    */
   public record SummaryMetadata(
@@ -51,10 +51,11 @@ public record DashboardSummaryResponse(
       @Schema(nullable = true) String dataVersion,
       @Schema(nullable = true) String ruleVersion,
       boolean updateDelayed,
-      @Schema(description = "원천별 표본. §5-M 결정 전까지 빈 배열") List<DataLimitSource> sources,
-      @Schema(description = "§5-M 미저장 — null", nullable = true) Integer sampleSize,
-      @Schema(description = "§5-M 미저장 — null", nullable = true) Double salaryMissingRate,
-      @Schema(description = "§5-M 미저장 — null", nullable = true) PeerGroup peerGroup,
+      @Schema(description = "원천별 완화 단계·표본 수. 저장된 커버리지가 없으면 빈 배열") List<DataLimitSource> sources,
+      @Schema(description = "표본 수 가중 합계. 완화에 성공한 원천이 없으면 null", nullable = true) Integer sampleSize,
+      @Schema(description = "원천별 결측률의 표본 수 가중 평균. 없으면 null", nullable = true)
+          Double salaryMissingRate,
+      @Schema(description = "표본이 가장 큰 원천의 안착 조건. 없으면 null", nullable = true) PeerGroup peerGroup,
       @Schema(nullable = true) WageStatInfo wageStat,
       @Schema(nullable = true) String expenseWeightStatus) {}
 

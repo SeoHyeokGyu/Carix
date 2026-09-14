@@ -1,6 +1,6 @@
 # 개발자 C 3~4주차 설계 — 온보딩·대시보드·시뮬레이터 화면 (`c3`)
 
-[개발 계획 §3](carix-dev-plan.md) 의 `c3` 블록 설계다. 대상은 화면 여섯 — `S-05` 프로필,
+[개발 계획 §2](carix-dev-plan.md) 의 `c3` 블록 설계다. 대상은 화면 여섯 — `S-05` 프로필,
 `S-06` 소득, `S-07` 소비, `S-09` 검토, `S-10` 대시보드, `S-15` 시뮬레이터.
 
 라우트·진입 가드·`AppShell`·세션 컨텍스트는 이미 배선돼 있고 여섯 화면만 `PlaceholderScreen`
@@ -32,12 +32,12 @@
 | 문서 | 고칠 내용 |
 | :--- | :--- |
 | [개발 계획 §1](carix-dev-plan.md) C 행 | 「`S-05`~`S-09` 온보딩 5화면 전체」 → `S-05`·`S-06`·`S-07`·`S-09` (`S-08` 은 B). 근거는 §1 |
-| [개발 계획 §3](carix-dev-plan.md) 주차 표 C 3~4주차 칸 | 같은 문구. 그리고 `auth-service` 온보딩 단계 갱신을 항목으로 추가 — `c3` 에 없던 작업이다 (§3) |
+| [개발 계획 §2](carix-dev-plan.md) 주차 표 C 3~4주차 칸 | 같은 문구. 그리고 `auth-service` 온보딩 단계 갱신을 항목으로 추가 — `c3` 에 없던 작업이다 (§3) |
 | [프런트엔드 설계 §기술 구성](../specs/frontend-design.md) | TanStack Query·React Hook Form·MSW 삭제, Zod·shadcn/ui·Recharts 유지. 근거는 §4·§5·§6 |
 | [API 규격 §7.3](../specs/api-specification.md) | 온보딩 단계 갱신 경로를 `auth-service` 로 이동 (§3) |
 | [API 규격 §3.1](../specs/api-specification.md) | `region` 예시 `SEOUL_GANGNAM` → 시/도 한글 어휘 (§8-c) |
 
-명세와 코드가 갈릴 때 문서를 같이 고치는 것은 [개발 계획 §5-F](carix-dev-plan.md) 가 세운
+명세와 코드가 갈릴 때 문서를 같이 고치는 것은 [개발 계획 머리말 표기 규약](carix-dev-plan.md) 이 세운
 선례다. 고치지 않으면 다음 구현자가 무효가 된 명세를 그대로 보고 작업한다.
 
 ---
@@ -58,7 +58,7 @@
 
 **`auth-service` 에 `PATCH /v1/auth/onboarding` 을 신설한다.** 소유자가 쓴다. 세션 조회
 응답도 `auth-service` 가 만들므로 갱신과 재조회가 한 서비스에 모인다. `core-api` 의 온보딩
-엔드포인트 둘은 철거한다 — [개발 계획 §5-G](carix-dev-plan.md) 의 판별 기준(화면 인수 조건이
+엔드포인트 둘은 철거한다 — [개발 계획 §4](carix-dev-plan.md) 의 판별 기준(화면 인수 조건이
 그 응답을 요구하는가)에 걸리고, 하드코딩 값을 돌려주고 있어 배제 판정만으로는 부족하다.
 
 **엔드포인트만 더하면 되는 일이 아니다.** `User` 는 생성자로만 값을 받고 `onboardingStep` 에
@@ -80,7 +80,7 @@
 
 **「`REVIEW` → `COMPLETED` 전환 시 첫 지수 계산 트리거」는 따로 만들지 않는다.** 스냅샷
 재계산 트리거 8개가 이미 소득·소비·스킬·프로필 저장마다 걸려 있어
-([개발 계획 §4-2](carix-dev-plan.md)) 검토 화면에 닿은 시점에는 스냅샷이 이미 있다.
+([기술 명세 §1.3](carix-dev-plan.md)) 검토 화면에 닿은 시점에는 스냅샷이 이미 있다.
 
 ---
 
@@ -115,7 +115,7 @@ fetch 래퍼 하나를 새로 만든다.
 
 - `credentials: "include"` 고정 — 세션이 HTTP-only 쿠키다
 - 오류를 `ApiError` 로 정규화. `authApi.ts` 의 `toApiError` 를 이 모듈로 승격해 공용화
-- **401 을 한 곳에서 로그인 리다이렉트로 처리한다.** [개발 계획 §5-B](carix-dev-plan.md) 의
+- **401 을 한 곳에서 로그인 리다이렉트로 처리한다.** [backend/README.md 게이트웨이](../../backend/README.md) 의
   세션 게이트 플래그를 켜는 순간 세션 없는 모든 `core-api` 호출이 401 이 되므로 단일 처리
   지점이 필요하다
 
@@ -241,7 +241,7 @@ React Hook Form 은 넣지 않는다 — `clientAction` 이 제출을 받고 Zod
 | `UPDATE_DELAYED` | `업데이트 지연` 뱃지 + 마지막 성공 데이터 |
 | `INSUFFICIENT_HISTORY`·`NOT_AVAILABLE` | `계산 대기` |
 
-값을 0 이나 100 으로 채우지 않는다 ([개발 계획 §4-1](carix-dev-plan.md)).
+값을 0 이나 100 으로 채우지 않는다 ([API 규격 §5.1](carix-dev-plan.md)).
 
 - 「첫 계산 전」 판정을 규칙으로 고정한다 — PPI 와 MVI 가 **둘 다** 값이 `null` 이고
   `NOT_AVAILABLE` 이면 「첫 지수를 계산하고 있습니다」를 띄운다

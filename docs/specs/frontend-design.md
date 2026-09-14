@@ -74,10 +74,12 @@ flowchart TD
 
 ### MVP 이후 목표
 
-Node SSR 전환(Express + `@react-router/express`)은 MVP 범위 밖으로 미뤘다. 보호 화면은
-전부 세션을 요구해 SEO 대상이 아니고 진입 가드가 이미 클라이언트에서 동작하므로, 남는
-실익이 초기 로드뿐인데 최장 경로에 2주를 더한다. 결정과 근거는
-[개발 계획 §5-F](../plans/carix-dev-plan.md).
+Node SSR 전환(Express + `@react-router/express`)은 MVP 범위 밖으로 미뤘다. `S-05`~`S-15` 는
+전부 세션을 요구해 SEO 대상이 아니고 진입 가드는 이미 클라이언트에서 동작한다. 남는 실익이
+초기 로드뿐인데 전환은 C 레인에 14일을 더해 통합 종료를 밀어낸다. 그래서 현행 `ssr: false` +
+`/` 사전 렌더링 + SPA 셸을 유지한다. 이 결정이 화면별 렌더링 지정을 무효로 만들었고,
+[기능 명세 §1 화면 맵](functional-specification.md)·[README 렌더링 전략](../../README.md)도
+현행 구성 기준으로 갱신돼 있다.
 
 전환 시 적용할 구성:
 
