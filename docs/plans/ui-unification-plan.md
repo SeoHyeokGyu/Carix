@@ -105,9 +105,9 @@ admin 만 `animate-pulse` 스켈레톤과 `⏳ animate-spin` 을 쓴다. 공용 
 
 ## 5. 단계
 
-### P0 — 결정 신호 단일 출처 + 시각 회귀 베이스라인
+### P0 — 결정 신호 단일 출처 + 시각 회귀 베이스라인  ✅ 완료 (PR #161)
 
-유일하게 급한 단계다. 1-A 는 동작이 갈린 건이다.
+유일하게 급한 단계였다. 1-A 는 동작이 갈린 건이다. 실행 계획은 `ui-unification-p0-tasks.md`.
 
 - `app/lib/decisionSignal.ts` 신설 — `code → { label, tone, description }` 단일 테이블.
   서버 `label` 은 프런트에 매핑 없는 새 코드일 때만 폴백
@@ -131,7 +131,7 @@ admin 만 `animate-pulse` 스켈레톤과 `⏳ animate-spin` 을 쓴다. 공용 
   `Footer` 적층) 절을 함께 두어 간격 변화가 diff 로 드러나게 하는 것이 P0 크기에 맞는
   완화다. 화면 단위 베이스라인은 7주차 계정이 설 때 붙인다
 
-### P1 — 토큰 확장
+### P1 — 토큰 확장  ✅ 완료 (PR #162)
 
 - 다섯 번째 의미 색상을 `--carix-action` 으로 추가한다. 역할 이름이라야
   `positive`/`warning`/`danger`/`info` 와 같은 계열이 된다 — `--carix-purple` 같은 색 이름은
@@ -143,11 +143,13 @@ admin 만 `animate-pulse` 스켈레톤과 `⏳ animate-spin` 을 쓴다. 공용 
   `warning` 4.84:1 처럼 실측치를 적고 있고 새 토큰도 같은 자리에 실측치를 남긴다
 - 포커스 링 토큰(`--ring`)을 raw 요소에서도 쓸 수 있는 유틸로 노출
 
-### P2 — 공용 컴포넌트 4개
+### P2 — 공용 컴포넌트 3개
+
+**`SignalBadge` 는 이 목록에서 빠졌다** — P0 이 먼저 납품했다(`components/dashboard/SignalBadge.tsx`).
+원래 네 개였고 결정 신호가 P0 의 본체였으므로 그쪽으로 당겨졌다.
 
 | 컴포넌트 | 흡수 대상 |
 | :--- | :--- |
-| `SignalBadge` | `history.tsx` `getSignalBadge` + `dashboard/index.tsx` 의 `<Badge>` |
 | `StatusBadge` | `IndexCard` 의 `STATUS_BADGE_LABEL` + `SkillDemandSection` 의 `getTrendBadge` — 현재 둘로 갈림 |
 | `EmptyState` | B 의 열화 박스를 표준으로. 알약 뱃지 + 제목 + 설명 + 대체 안내 슬롯 |
 | `LoadingState` | 텍스트 3종 + admin 스켈레톤을 스켈레톤 하나로 |
