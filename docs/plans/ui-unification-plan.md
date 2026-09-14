@@ -156,9 +156,45 @@ admin 만 `animate-pulse` 스켈레톤과 `⏳ animate-spin` 을 쓴다. 공용 
 
 | 컴포넌트 | 흡수 대상 |
 | :--- | :--- |
-| `StatusBadge` | `IndexCard` 의 `STATUS_BADGE_LABEL` + `SkillDemandSection` 의 `getTrendBadge` — 현재 둘로 갈림 |
+| `ToneBadge` | 뱃지 표현 계층 한 벌. `SignalBadge` 가 들고 있던 클래스 문자열이 여기로 내려온다 |
 | `EmptyState` | B 의 열화 박스를 표준으로. 알약 뱃지 + 제목 + 설명 + 대체 안내 슬롯 |
 | `LoadingState` | 텍스트 3종 + admin 스켈레톤을 스켈레톤 하나로 |
+
+**`StatusBadge` 는 만들지 않는다 — 결번.** 이 자리에 `ToneBadge` 가 들어간다.
+원래 계획은 `IndexCard` 의 `STATUS_BADGE_LABEL` 과 `SkillDemandSection` 의 `getTrendBadge` 를
+"둘로 갈린 하나"로 보고 합치는 것이었다. **그 전제가 틀렸다.** 둘은 서로 다른 서버 enum 이다 —
+`IndexStatus`(5종)와 `SkillDemandStatus`(4종)는 각자 다른 도메인의 어휘이고 애초에 하나였던 적이
+없다. 어휘를 합치면 없는 상태값을 서로에게 노출하게 된다.
+
+합칠 수 있는 것은 어휘가 아니라 **표현 계층**이다. P0 이 결정 신호에서 세운 구조를 그대로 복제한다:
+
+- `ToneBadge` — `tone` + 내용만 받는 표현 프리미티브. 어휘를 모른다.
+- 도메인별 해석 모듈 1개씩 (`lib/indexStatus.ts`, `lib/skillDemandStatus.ts`) — `decisionSignal.ts` 와
+  같은 모양. 각자 자기 코드→{문구, 톤} 표와 미지 코드용 `muted` 폴백을 가진다.
+- `SignalBadge` 는 `ToneBadge` 위의 얇은 래퍼로 내려앉는다.
+
+**같이 고치는 계약 결함.** `dashboardMarketApi.ts` 의 `SkillDemandDetail.status` 가 맨 `string` 이라
+어휘가 서버와 말없이 어긋나 있었다 — P0 이 `decisionSignal` 에서 고친 것과 같은 부류다. 실제 상태:
+
+| 프런트 `getTrendBadge` 분기 | 서버 |
+| :--- | :--- |
+| `CUSTOM_SKILL_NO_STATS` | 내려온다 (`MarketValueIndexServiceImpl` 의 문자열 리터럴) |
+| `NEW_OBSERVATION` | 내려온다 |
+| `SAMPLE_TOO_SMALL` | **어디에도 없다.** 죽은 분기 |
+| `NO_RECENT_DEMAND` | 이 엔드포인트로는 안 내려온다 (`excludedSkills` 쪽 어휘) |
+
+프런트 타입은 현재 내려오는 3종이 아니라 `SkillDemandStatus` 어휘 전체 + `CUSTOM_SKILL_NO_STATS`
+를 덮는다. 아래 서버 결함이 고쳐지면 바로 맞아 들어가게 하려는 것이고, 그때까지 남는 분기는
+폴백이 받는다. 백엔드 `IndexContractVocabularyTest` 에 대응하는 프런트 계약 테스트를 같이 세운다 —
+이번 어긋남을 잡았을 물건이 그것뿐이다.
+
+**범위 밖으로 넘기는 서버 결함 (P2 에서 고치지 않는다).**
+`MarketValueIndexServiceImpl#buildSkillDemandDetails` 의 `overallStatus` 는 `"OK"` 로 시작해
+`NEW_OBSERVATION` 일 때만 바뀐다. `SkillDemandCalculator` 가 계산한 `INSUFFICIENT_SAMPLE`·
+`NO_RECENT_DEMAND` 는 집계에서 버려지고, 해당 스킬은 `status:"OK"` 에 정상 `demandIndex` 를 달고
+나간다 — 표본이 모자란 스킬이 화면에서 정상 추세로 보인다. 이 목록은 제외 스킬을 걸러내지 않고
+보유 스킬 전체를 순회하므로 회피 경로도 없다. 표시 규칙이 바뀌는 제품 판단이라 UI 통일 축에서
+처리하지 않고 별건으로 올린다.
 
 `EmptyState` 의 형태는 `SalaryDistributionChart` 의 표본 부족·공개연봉 미제공 상태를
 기준으로 잡는다 — 실제 표본 수와 최소 기준, 적용된 완화 조건, 대체 지표 안내까지 담는
