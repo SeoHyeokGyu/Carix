@@ -65,3 +65,57 @@ test("버튼 focus-visible 링이 베이스라인과 같다", async ({ page }) =
   await setTheme(page, "dark");
   await expect(target).toHaveScreenshot("button-focus-dark.png");
 });
+
+for (const theme of ["light", "dark"] as const) {
+  for (const section of [
+    "gallery-tone-badge",
+    "gallery-empty-state",
+    "gallery-loading-state",
+  ]) {
+    test(`${section} — ${theme}`, async ({ page }) => {
+      await page.goto("/dev/primitives");
+      await setTheme(page, theme);
+      await expect(page.getByTestId(section)).toHaveScreenshot(
+        `${section}-${theme}.png`,
+      );
+    });
+  }
+}
+
+test("톤마다 실제로 다른 색을 쓴다 — 스냅샷이 못 잡는 근접색 교체 방어", async ({
+  page,
+}) => {
+  await page.goto("/dev/primitives");
+  await setTheme(page, "light");
+
+  const colors = await page
+    .getByTestId("gallery-tone-badge")
+    .locator("[data-tone]")
+    .evaluateAll((nodes) =>
+      nodes.map((n) => ({
+        tone: n.getAttribute("data-tone"),
+        color: getComputedStyle(n).color,
+      })),
+    );
+
+  expect(colors).toHaveLength(6);
+  const distinct = new Set(colors.map((c) => c.color));
+  expect(distinct.size).toBe(6);
+});
+
+test("테마를 바꾸면 토큰 값이 실제로 바뀐다", async ({ page }) => {
+  await page.goto("/dev/primitives");
+
+  const read = () =>
+    page
+      .getByTestId("gallery-tone-badge")
+      .locator('[data-tone="action"]')
+      .evaluate((n) => getComputedStyle(n).color);
+
+  await setTheme(page, "light");
+  const light = await read();
+  await setTheme(page, "dark");
+  const dark = await read();
+
+  expect(light).not.toBe(dark);
+});
