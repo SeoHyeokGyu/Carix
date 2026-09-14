@@ -20,6 +20,15 @@ const INDEX_STATUS: Record<
   NOT_AVAILABLE: { label: "계산 대기", tone: "muted" },
 };
 
+/**
+ * `IndexStatus` 어휘 전체 — `INDEX_STATUS` 표의 키에서 파생한다.
+ * 손으로 다시 나열하지 않는다: 표가 늘면 여기도 같이 는다.
+ */
+export const INDEX_STATUS_CODES: IndexStatus[] = [
+  "OK",
+  ...(Object.keys(INDEX_STATUS) as Exclude<IndexStatus, "OK">[]),
+];
+
 /** `OK` 는 뱃지를 만들지 않는다 — 정상 상태에 라벨을 붙이지 않는다. */
 export function resolveIndexStatus(
   status: IndexStatus,

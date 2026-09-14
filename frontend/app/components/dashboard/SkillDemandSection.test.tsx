@@ -37,7 +37,13 @@ describe("SkillDemandSection", () => {
     render(<SkillDemandSection data={mockData} />);
 
     expect(screen.getByText("보유 스킬 수요 추세")).toBeInTheDocument();
-    expect(screen.getByText(/보유 스킬 2개 중 2개 반영/)).toBeInTheDocument();
+    const coveragePill = screen.getByText(/보유 스킬 2개 중 2개 반영/);
+    expect(coveragePill).toBeInTheDocument();
+    // ToneBadge 를 실제로 거쳤는지 — data-tone 은 ToneBadge 만 찍는다.
+    expect(coveragePill).toHaveAttribute("data-tone", "info");
+    // cn() 이 rounded-full 로 base 의 rounded 를 실제로 덮어썼는지 (tailwind-merge 병합 검증).
+    expect(coveragePill.className).toContain("rounded-full");
+    expect(coveragePill.className.split(/\s+/)).not.toContain("rounded");
 
     // 스킬명 확인
     expect(screen.getByText("Spring Boot")).toBeInTheDocument();

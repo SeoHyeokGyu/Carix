@@ -55,9 +55,9 @@ export function SkillDemandSection({ data }: SkillDemandSectionProps) {
           </p>
         </div>
         {coverage && (
-          <span className="rounded-full bg-carix-info/10 border border-carix-info/30 px-3 py-1 text-xs font-medium text-carix-info">
+          <ToneBadge tone="info" className="rounded-full px-3 py-1 font-medium">
             {coverage}
-          </span>
+          </ToneBadge>
         )}
       </div>
 

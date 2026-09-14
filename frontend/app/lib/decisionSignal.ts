@@ -50,6 +50,12 @@ const SIGNALS: Record<
   },
 };
 
+/**
+ * `SIGNALS` 표의 키에서 파생한 결정 신호 어휘 전체.
+ * 손으로 다시 나열하지 않는다: 표가 늘면 여기도 같이 는다.
+ */
+export const DECISION_SIGNAL_CODES = Object.keys(SIGNALS);
+
 export function resolveDecisionSignal(
   code: string,
   serverLabel?: string | null,
