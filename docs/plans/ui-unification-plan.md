@@ -141,7 +141,13 @@ admin 만 `animate-pulse` 스켈레톤과 `⏳ animate-spin` 을 쓴다. 공용 
   출발값은 라이트 `#6d28d9` / 다크 `#a78bfa` 로 잡되, **기존 토큰과 같은 기준으로 대비를
   실측해 확정한다** — `docs/specs/ui-ux-design.md` §1.1 은 `positive` 5.29:1,
   `warning` 4.84:1 처럼 실측치를 적고 있고 새 토큰도 같은 자리에 실측치를 남긴다
-- 포커스 링 토큰(`--ring`)을 raw 요소에서도 쓸 수 있는 유틸로 노출
+- ~~포커스 링 토큰(`--ring`)을 raw 요소에서도 쓸 수 있는 유틸로 노출~~ — **뺀다.** P3 이
+  raw `<button>` 30개를 `<Button>` 으로 바꾸고 `<Button>` 은 이미 `focus-visible:ring` 을
+  갖는다. 그 유틸의 소비자를 P3 이 없앤다. P3 마이그레이션이 멈추면 다시 본다
+- **`@custom-variant dark` 를 추가한다** — P0 최종 리뷰가 드러낸 것. 레포에 이 선언이 없어
+  Tailwind v4 가 `dark:` 를 `prefers-color-scheme` 미디어쿼리로 컴파일하는데 `ThemeToggle` 은
+  `.dark` 클래스를 건다. 10파일 22곳의 `dark:` 가 토글 경로에서 전부 무효다. 실행 계획은
+  `ui-unification-p1-tasks.md`
 
 ### P2 — 공용 컴포넌트 4개
 
@@ -168,6 +174,53 @@ admin 만 `animate-pulse` 스켈레톤과 `⏳ animate-spin` 을 쓴다. 공용 
 - `Table` — 죽은 `ui/table.tsx` 를 B 의 `thead` 스타일로 되살림
 - `alert`·`select` — import 0. 삭제하고 역할은 `EmptyState` 가 흡수
 
+**수동 다크모드 확인 시 주의.** `/dev/trends`·`/dev/skills`·`/dev/primitives` 는
+`routes.ts` 에서 `AppShell` 밖에 매핑돼 `ThemeToggle` 이 마운트되지 않는다 — devtools
+로 `documentElement` 에 클래스를 수동 주입하지 않는 한 `.dark`/`.light` 클래스가 전혀
+걸리지 않는다. `primitives.spec.ts` 는 클래스를 직접 토글하므로 자동 베이스라인은
+영향이 없다. 문제는 사람이 이 URL 을 열어 `dark:` 유틸(예: `SalaryDistributionChart`
+의 `dark:ring-carix-surface`)을 육안 확인할 때다 — OS 가 다크면 토큰만 다크값으로
+바뀌고 `dark:` 규칙은 안 걸려, 운영에는 없는 상태(흰 마커 링이 남는 것)를 버그로
+오인하게 된다. 수동 확인은 `ThemeToggle` 이 실제로 뜨는 라우트(`/dashboard/trends`,
+`/onboarding/skills` 등)에서 토글을 눌러 해야 한다.
+
+### P3 착수 전 — 시각 회귀 그물 보강
+
+P3 착수 전에 시각 회귀 그물을 아래 순서로 보강한다.
+
+1. **갤러리부터 넓힌다.** `routes/dev/primitives.tsx` 는 `Button`·`Badge`·`Card`·
+   `Table` 과 합성 카드까지만 덮는다. `Input`·`Select`·`NativeSelect`, 차트 마커
+   링은 갤러리에 없다 — 그 상태로 computed-style 단언(2번)을 추가해도 이미
+   픽셀이 덮는 것만 다시 덮는다. 갤러리를 미커버 컴포넌트로 넓히는 것이 2번의
+   전제 조건이다.
+2. **`getComputedStyle` 기반 단언을 1급 테스트로 추가한다** — 톤·프리미티브
+   색상별로. 허용오차에 흔들리지 않고, 재색상화를 직접 재는 유일한 계측기다.
+   스크린샷은 이 종류의 변경에는 애초에 맞지 않는 도구다.
+3. **`expect.toHaveScreenshot.threshold` 를 0.05 이하로 좁히고 1회
+   재베이스라인한다.** AA·폰트 힌팅 노이즈를 관찰할 것. 0.1 이 아니라 0.05 인
+   이유: Playwright pixelmatch 컷오프는 `35215 × threshold²` 다. 0.1 은 352.15 로,
+   이 결함을 드러낸 YIQ 델타 268.43 / 102.67 보다 커서 정작 잡아야 할 변경에
+   대해 무효(no-op)다. 0.05 는 88.04 로 둘 다 잡지만, 다크 쪽 델타는 그 문턱을
+   약 17% 차이로 겨우 넘는다.
+4. **P3 브리프에 "`--update-snapshots` 후 `*.png` diff 없음"이 "색 변화 없음"의
+   증거가 아니라고 명시한다.** `--update-snapshots` 기본 모드 `changed` 는
+   허용오차 안의 렌더는 파일을 바이트 단위로 그대로 둔다. computed-style
+   확인은 선택이 아닌 필수 단계여야 한다.
+5. **`maxDiffPixels`/`maxDiffPixelRatio` 는 "조이는" 용도로 건드리지 않는다.**
+   설치된 Playwright 에서 미설정 값은 이미 0(가장 엄격한 값)으로 해석되고,
+   비교는 `count > maxDiffPixels` 일 때만 실패한다. 0 이 아닌 값을 넣으면
+   그물을 조이는 것이 아니라 **느슨하게 만들 수만 있다** — 예를 들어 500×300
+   캡처에 `maxDiffPixelRatio: 0.01` 을 걸면 약 1500 픽셀의 차이를 공짜로
+   허용하게 된다. 3번이 노이즈로 불안정하다고 판명될 때만, 관측된 노이즈
+   크기에 맞춰 flake 허용 노브로 쓴다.
+
+미니파이된 CSS 를 검증할 때 쓴 형태도 재도출을 두 번 겪었으므로 여기 남긴다 —
+단일행 빌드 산출물을 grep 가능하게 바꾸는 형태다.
+
+```sh
+tr '}' '\n' < build/client/assets/root-*.css | grep ...
+```
+
 ### P4 — 규범 반영과 회귀 방지
 
 - `docs/specs/ui-ux-design.md` 에 컴포넌트 계약·상태 표현 규칙 반영.
@@ -186,7 +239,7 @@ C 는 공용 계층만 낸다. 화면 교체는 소유자 몫이므로 **이 표
 | 소유 | 파일 | 교체 |
 | :--- | :--- | :--- |
 | B | `SalaryDistributionChart`·`SkillDemandSection`·`IncomeVsPriceChart`·`routes/dashboard/history`·`trends`·`routes/onboarding/skills` | raw 카드 6 → `Card`, raw button 10종 → `Button`, raw table 3 → `Table`, 열화 박스 → `EmptyState`, 상태 span → `StatusBadge`, `getSignalBadge` → `SignalBadge` |
-| 박지수 | `components/admin/` 4파일 | 팔레트 누출 → 토큰, raw button → `Button`, `animate-pulse` → `LoadingState` |
+| 박지수 | `components/admin/` 6파일 + `routes/admin/collector.tsx` | 팔레트 누출 → 토큰, raw button → `Button`, `animate-pulse` → `LoadingState`, `collector.tsx` 상태 뱃지 `-300` → 테이블과 동일한 `-400`(P4 로 이연) |
 | C | 온보딩 4화면·대시보드·시뮬레이터·`mypage/profile` | P3 으로 자동 반영. `routes/onboarding/expense.tsx` 의 amber 누출만 수동 |
 
 **실패 모드.** 교체 PR 이 들어오지 않으면 공용 계층과 raw 복제본이 영구 공존한다. 통일이

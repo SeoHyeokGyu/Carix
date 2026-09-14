@@ -17,11 +17,20 @@ describe("design tokens", () => {
     expect(css).toContain("#e5e7eb");
   });
 
-  it("강조 색상 4종 hex를 spec 값 그대로 포함한다", () => {
+  it("강조 색상 5종 hex를 spec 값 그대로 포함한다", () => {
     expect(css).toContain("#10b981");
     expect(css).toContain("#f97316");
     expect(css).toContain("#ef4444");
     expect(css).toContain("#4f46e5");
+    expect(css).toContain("#a78bfa");
+    expect(css).toContain("#6d28d9");
+  });
+
+  it("--carix-action 을 @theme 등록 1곳과 값 정의 4곳(:root·미디어·.dark·.light)에 전부 유지한다", () => {
+    expect(css).toContain("--color-carix-action: var(--carix-action);");
+    const valueDefinitions =
+      css.match(/--carix-action:\s*#[0-9a-f]{6};/g) ?? [];
+    expect(valueDefinitions).toHaveLength(4);
   });
 
   it("Outfit과 Pretendard 서체 토큰을 정의한다", () => {

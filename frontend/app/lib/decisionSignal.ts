@@ -48,17 +48,7 @@ const SIGNALS: Record<
   },
 };
 
-/**
- * 톤 → 클래스.
- *
- * NOTE: (cjkang) `action` 만 토큰 밖 팔레트를 쓴다. 의미 색상 토큰이 넷인데 신호가 다섯이라
- * 다섯 번째가 없기 때문이다. UI 통일 계획 P1 에서 `--carix-action` 이 생기면 이 한 줄만 바꾼다.
- * `[.dark_&]:text-purple-400` 을 쓰는 이유 — Tailwind v4 의 `dark:` 는 `prefers-color-scheme`
- * 미디어 쿼리로 컴파일되는데, `ThemeToggle` 은 `document.documentElement` 에 `.dark`/`.light`
- * 클래스를 토글한다. 그냥 `dark:` 를 쓰면 OS 가 라이트인 채로 토글만 다크로 바꾼 사용자에게는
- * 죽은 코드다. P4 에서 원색 팔레트 클래스를 금지하는 eslint 규칙이 들어오면 이 줄이 걸리므로,
- * `--carix-action` 을 도입하는 P1 이 P4 보다 먼저 land 해야 한다.
- */
+/** 톤 → 클래스. 다섯 톤 모두 의미 색상 토큰을 쓴다. */
 export const SIGNAL_TONE_CLASS: Record<SignalTone, string> = {
   positive:
     "bg-carix-positive/15 text-carix-positive border border-carix-positive/30",
@@ -66,8 +56,7 @@ export const SIGNAL_TONE_CLASS: Record<SignalTone, string> = {
     "bg-carix-warning/15 text-carix-warning border border-carix-warning/30",
   danger: "bg-carix-danger/15 text-carix-danger border border-carix-danger/30",
   info: "bg-carix-info/15 text-carix-info border border-carix-info/30",
-  action:
-    "bg-purple-500/15 text-purple-600 [.dark_&]:text-purple-400 border border-purple-500/30",
+  action: "bg-carix-action/15 text-carix-action border border-carix-action/30",
   muted: "bg-carix-border/40 text-carix-text/70 border border-carix-border",
 };
 
