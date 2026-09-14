@@ -640,7 +640,14 @@ const BUTTON_VARIANTS = [
   "link",
 ] as const;
 
-const BADGE_VARIANTS = ["default", "secondary", "destructive", "outline"] as const;
+const BADGE_VARIANTS = [
+  "default",
+  "secondary",
+  "destructive",
+  "outline",
+  "ghost",
+  "link",
+] as const;
 
 const SIGNAL_CODES = [
   "SEEK_JOB",
@@ -803,13 +810,24 @@ export default function DevPrimitives() {
   route("dev/primitives", "routes/dev/primitives.tsx"),
 ```
 
-- [ ] **Step 3: 화면이 뜨는지 확인**
+- [ ] **Step 3: 라우트 개수 테스트 갱신**
+
+`frontend/app/routes.test.ts` 가 최상위 라우트 개수를 센다. `dev/primitives` 가 늘었으므로
+같이 고친다 — 안 고치면 Step 8 의 `pnpm test:unit` 이 반드시 실패한다.
+
+```ts
+    // home, login, register, protected 레이아웃(그 안에 onboarding/dashboard/mypage 3개가
+    // 중첩된다), 2개 관리자 라우트(admin/collector, admin/pipeline), 3개 개발 프리뷰 라우트
+    expect(routes).toHaveLength(9);
+```
+
+- [ ] **Step 4: 화면이 뜨는지 확인**
 
 Run: `cd frontend && pnpm build && pnpm start`
 그리고 다른 터미널에서: `curl -s -o /dev/null -w '%{http_code}\n' http://localhost:3000/dev/primitives`
 Expected: `200`. 확인 후 서버를 내린다.
 
-- [ ] **Step 4: 시각 회귀 스펙 작성**
+- [ ] **Step 5: 시각 회귀 스펙 작성**
 
 `frontend/e2e/primitives.spec.ts`
 
@@ -861,12 +879,12 @@ test("버튼 focus-visible 링이 베이스라인과 같다", async ({ page }) =
 });
 ```
 
-- [ ] **Step 5: 베이스라인 생성**
+- [ ] **Step 6: 베이스라인 생성**
 
 Run: `cd frontend && pnpm test:e2e --update-snapshots primitives.spec.ts`
 Expected: 스냅샷 파일이 `frontend/e2e/primitives.spec.ts-snapshots/` 에 생성된다. 12개(5절 × 2테마 + hover + focus).
 
-- [ ] **Step 6: 베이스라인이 실제로 잠그는지 확인**
+- [ ] **Step 7: 베이스라인이 실제로 잠그는지 확인**
 
 `frontend/app/components/ui/button.tsx` 의 `default` size 를 `h-9` 에서 `h-12` 로 잠시 바꾼다.
 
@@ -878,15 +896,16 @@ Expected: FAIL — `primitives-buttons-light.png` 등이 diff 로 실패한다.
 Run: `cd frontend && pnpm test:e2e primitives.spec.ts`
 Expected: PASS
 
-- [ ] **Step 7: 프런트 전체 검증**
+- [ ] **Step 8: 프런트 전체 검증**
 
 Run: `cd frontend && pnpm lint && pnpm typecheck && pnpm format:check && pnpm test:unit && pnpm build`
 Expected: 다섯 개 모두 PASS
 
-- [ ] **Step 8: 커밋**
+- [ ] **Step 9: 커밋**
 
 ```bash
 git add frontend/app/routes/dev/primitives.tsx frontend/app/routes.ts \
+        frontend/app/routes.test.ts \
         frontend/e2e/primitives.spec.ts frontend/e2e/primitives.spec.ts-snapshots
 git commit -m "test(frontend): 프리미티브 갤러리와 시각 회귀 베이스라인을 세운다"
 ```
@@ -901,5 +920,5 @@ git commit -m "test(frontend): 프리미티브 갤러리와 시각 회귀 베이
 - [ ] `S-10` 과 `S-11` 이 같은 신호에 같은 문구·같은 색을 보여준다.
 - [ ] `UPSKILL` 문구가 두 화면 모두 `스킬 보강 우선` 이다.
 - [ ] `/dev/primitives` 가 열리고 `pnpm test:e2e primitives.spec.ts` 가 베이스라인과 대조해 통과한다.
-- [ ] 베이스라인이 실제로 잠근다는 것을 Task 3 Step 6 으로 확인했다 — 통과만 보고 넘어가지 않는다.
+- [ ] 베이스라인이 실제로 잠근다는 것을 Task 3 Step 7 으로 확인했다 — 통과만 보고 넘어가지 않는다.
 - [ ] 프런트 검증 5종과 `./gradlew :core-api:check` 가 통과한다.
