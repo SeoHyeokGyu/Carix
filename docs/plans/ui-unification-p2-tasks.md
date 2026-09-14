@@ -17,7 +17,7 @@
 - 서버 어휘를 프런트에 문자열 리터럴로 복제하지 않는다. 해석 모듈의 표가 유일한 사본이다.
 - 미지 코드는 던지지 않고 `muted` 톤 폴백으로 렌더한다 — 서버가 상태를 늘려도 빈 뱃지가 나가지 않게 한다.
 - 커밋 메시지는 한글 Conventional Commits. `Co-Authored-By` 및 생성 푸터 금지.
-- 각 태스크 끝에서 `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm format:check`, `pnpm build` 5종이 통과해야 한다.
+- 각 태스크 끝에서 CI 5종이 통과해야 한다: `pnpm typecheck`, `pnpm lint`, `pnpm format:check`, `pnpm test:unit`, `pnpm build` (`frontend/` 에서). **`pnpm test` 는 서버 스모크 테스트라 CI 가 부르지 않는다 — vitest 는 `test:unit` 이다.**
 
 ## 파일 구조
 
@@ -157,7 +157,9 @@ export function ToneBadge({
     <span
       data-tone={tone}
       className={cn(
-        "inline-flex items-center gap-1 rounded px-2 py-0.5 text-xs font-semibold",
+        // `w-fit shrink-0` 은 기존 `ui/badge.tsx` 가 들고 있던 것이다. 빼면 flex 컨테이너
+        // (`flex flex-col`) 안에서 align-items 기본값 stretch 를 받아 뱃지가 가로로 늘어난다.
+        "inline-flex w-fit shrink-0 items-center gap-1 rounded px-2 py-0.5 text-xs font-semibold",
         TONE_CLASS[tone],
         className,
       )}
@@ -267,15 +269,16 @@ import { resolveIndexStatus } from "../../lib/indexStatus";
 import { ToneBadge } from "@/components/ui/tone-badge";
 ```
 
-`indexStatus !== "OK"` 블록을 다음으로 바꾼다:
+`const { value, changeFromLastMonth, indexStatus } = index;` 바로 아래에 더한다:
 
 ```tsx
-        {(() => {
-          const status = resolveIndexStatus(indexStatus);
-          return (
-            status && <ToneBadge tone={status.tone}>{status.label}</ToneBadge>
-          );
-        })()}
+  const status = resolveIndexStatus(indexStatus);
+```
+
+`indexStatus !== "OK"` 블록을 다음으로 바꾼다 — 두 줄 위의 `changeFromLastMonth !== null &&` 와 같은 모양으로 맞춘다:
+
+```tsx
+        {status && <ToneBadge tone={status.tone}>{status.label}</ToneBadge>}
 ```
 
 `Badge` 는 `changeFromLastMonth` 쪽에서 계속 쓰므로 import 를 지우지 않는다.
@@ -284,7 +287,7 @@ import { ToneBadge } from "@/components/ui/tone-badge";
 
 ```bash
 cd frontend
-pnpm lint && pnpm typecheck && pnpm test && pnpm format:check && pnpm build
+pnpm lint && pnpm typecheck && pnpm test:unit && pnpm format:check && pnpm build
 ```
 Expected: 전부 PASS. `IndexCard.test.tsx` 가 `Badge` 의 `variant="outline"` 클래스를 문자열로 단언하고 있으면 톤 클래스로 고친다 — 문구 단언은 그대로 통과해야 한다.
 
@@ -342,7 +345,7 @@ describe("resolveSkillDemandStatus", () => {
     });
     expect(resolveSkillDemandStatus("INSUFFICIENT_SAMPLE")).toEqual({
       label: "표본 부족",
-      tone: "danger",
+      tone: "warning",
     });
     expect(resolveSkillDemandStatus("NO_RECENT_DEMAND")).toEqual({
       label: "최근 수요 없음",
@@ -428,7 +431,8 @@ const STATUS: Record<
 > = {
   CUSTOM_SKILL_NO_STATS: { label: "통계 미제공", tone: "warning" },
   NEW_OBSERVATION: { label: "신규 관측", tone: "info" },
-  INSUFFICIENT_SAMPLE: { label: "표본 부족", tone: "danger" },
+  // `indexStatus.ts` 의 같은 문구와 톤을 맞춘다 — 같은 라벨이면 같은 색이다.
+  INSUFFICIENT_SAMPLE: { label: "표본 부족", tone: "warning" },
   NO_RECENT_DEMAND: { label: "최근 수요 없음", tone: "muted" },
 };
 
@@ -510,7 +514,7 @@ import { ToneBadge } from "@/components/ui/tone-badge";
 
 ```bash
 cd frontend
-pnpm lint && pnpm typecheck && pnpm test && pnpm format:check && pnpm build
+pnpm lint && pnpm typecheck && pnpm test:unit && pnpm format:check && pnpm build
 ```
 
 Expected: 전부 PASS 하기 전에 **하나가 먼저 깨진다.**
@@ -739,7 +743,7 @@ import 를 더한다: `import { EmptyState } from "@/components/ui/empty-state";
 
 ```bash
 cd frontend
-pnpm lint && pnpm typecheck && pnpm test && pnpm format:check && pnpm build
+pnpm lint && pnpm typecheck && pnpm test:unit && pnpm format:check && pnpm build
 ```
 Expected: 전부 PASS.
 
@@ -855,7 +859,7 @@ import 를 더한다: `import { LoadingState } from "@/components/ui/loading-sta
 
 ```bash
 cd frontend
-pnpm lint && pnpm typecheck && pnpm test && pnpm format:check && pnpm build
+pnpm lint && pnpm typecheck && pnpm test:unit && pnpm format:check && pnpm build
 ```
 Expected: 전부 PASS.
 
@@ -1043,7 +1047,7 @@ Expected: "톤마다 실제로 다른 색을 쓴다" 가 `expect(distinct.size).
 
 ```bash
 cd frontend
-pnpm lint && pnpm typecheck && pnpm test && pnpm format:check && pnpm build && pnpm test:e2e
+pnpm lint && pnpm typecheck && pnpm test:unit && pnpm format:check && pnpm build && pnpm test:e2e
 ```
 Expected: 전부 PASS.
 
