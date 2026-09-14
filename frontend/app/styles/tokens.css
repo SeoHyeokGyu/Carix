@@ -1,5 +1,16 @@
 @import "tailwindcss";
 
+/*
+ * `dark:` 를 `.dark` 클래스 기준으로 돌린다.
+ *
+ * Tailwind v4 의 기본 `dark:` 는 `@media (prefers-color-scheme: dark)` 로 컴파일된다.
+ * 그런데 `ThemeToggle` 은 `document.documentElement` 에 `.dark`/`.light` 클래스를 건다 —
+ * 두 메커니즘이 독립이라 토글을 눌러도 `dark:` 규칙이 하나도 발화하지 않았다.
+ * 아래 :root 의 `@media (prefers-color-scheme: dark)` 블록은 그대로 둔다. 그쪽은 토글을
+ * 건드리지 않은 사용자의 기본값을 담당한다.
+ */
+@custom-variant dark (&:where(.dark, .dark *));
+
 @theme {
   --color-carix-bg: var(--carix-bg);
   --color-carix-surface: var(--carix-surface);
