@@ -615,11 +615,11 @@ Expected: FAIL — `Failed to resolve import "./empty-state"`
 `frontend/app/components/ui/empty-state.tsx`:
 
 ```tsx
-import type { ReactNode } from "react";
+import type { ComponentPropsWithoutRef, ReactNode } from "react";
 import { cn } from "@/lib/utils";
 import { ToneBadge, type Tone } from "./tone-badge";
 
-export interface EmptyStateProps {
+export interface EmptyStateProps extends ComponentPropsWithoutRef<"div"> {
   /**
    * `boxed`(기본) — 점선 박스. 화면에 바로 놓일 때.
    * `plain` — 테두리·배경 없음. 이미 카드 안에 놓일 때. 박스 안의 박스를 만들지 않는다.
@@ -660,10 +660,14 @@ export function EmptyState({
   description,
   children,
   className,
+  ...rest
 }: EmptyStateProps) {
   return (
     <div
+      // 기본 식별자를 먼저 두고 `...rest` 를 뒤에 편다 — 호출부가 덮어쓸 수 있게.
+      // 갤러리처럼 한 화면에 여러 개가 놓이면 Playwright strict 모드가 중복으로 던진다.
       data-testid="empty-state"
+      {...rest}
       className={cn("text-center", VARIANT_CLASS[variant], className)}
     >
       {icon &&
