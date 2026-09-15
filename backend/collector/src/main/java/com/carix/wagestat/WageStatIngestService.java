@@ -5,6 +5,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -233,19 +234,23 @@ public class WageStatIngestService {
             .findByJobFamilyAndExperienceBracketAndRegionAndWageDefinitionAndBasePeriodAndStatVintage(
                 jobFamily, experienceBracket, region, wageDefinition, basePeriod, statVintage);
 
-    if (existing.isEmpty()) {
-      WageStatObservation observation =
-          WageStatObservation.builder()
-              .jobFamily(jobFamily)
-              .experienceBracket(experienceBracket)
-              .region(region)
-              .wageDefinition(wageDefinition)
-              .wageMedian(wageMedian)
-              .basePeriod(basePeriod)
-              .statVintage(statVintage)
-              .source(source)
-              .build();
-      repository.save(observation);
+    // 실측(KOSIS)만 기존 행을 덮는다. 폴백 상수가 실측을 덮으면 기준선이 상수로 퇴화한다.
+    if (existing.isPresent() && source != WageStatSource.KOSIS) {
+      return;
     }
+
+    WageStatObservation observation =
+        WageStatObservation.builder()
+            .id(existing.map(WageStatObservation::getId).orElseGet(UUID::randomUUID))
+            .jobFamily(jobFamily)
+            .experienceBracket(experienceBracket)
+            .region(region)
+            .wageDefinition(wageDefinition)
+            .wageMedian(wageMedian)
+            .basePeriod(basePeriod)
+            .statVintage(statVintage)
+            .source(source)
+            .build();
+    repository.save(observation);
   }
 }
