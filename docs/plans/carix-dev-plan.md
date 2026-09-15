@@ -44,8 +44,11 @@
 
 **§2 는 결번이다.** 「담당자별 상세 개발 범위」였는데 위 §1 표와 아래 로드맵이 같은 내용을
 중복해 걷어냈다. **절 번호는 고정 식별자가 아니다.** 한때 코드 주석과 테스트가 `§4-1`·`§5-B` 처럼 이 문서의 절
-번호를 인용해 번호를 못 당겼는데, 그 인용을 전부 소관 문서(API 규격·기술 명세·SECURITY)로
-옮겨 지금은 이 문서 밖에서 절 번호를 부르는 곳이 없다. 절이 늘거나 줄면 번호를 당긴다.
+번호를 인용해 번호를 못 당겼다. `§4-1`·`§5-B` 계열은 소관 문서로 옮겼지만 **`§4` 는 아직
+밖에서 불린다** — 코드 열 곳(`com.carix.dashboard.DashboardController` 여덟,
+`SnapshotReadServiceTest`, `auth-service` 의 `OnboardingController`)과 문서 일곱 곳(API 규격
+넷, `c3` 문서 둘, `docs/README.md`)이 `개발 계획 §4` 를 가리킨다. **§4 번호는 당길 수 없다.**
+앞 절이 늘거나 줄면 §4 가 밀리므로, 절을 더할 때는 §4 뒤에 붙이거나 인용 열일곱을 같이 고친다.
 
 ---
 
@@ -236,9 +239,15 @@ flowchart TD
 ### MVP 범위 밖 API — 판별 기준
 
 판별 기준은 하나다 — **기존 화면의 인수 조건이 그 응답을 요구하는가.** [API 규격](../specs/api-specification.md)에는
-있으나 [기능 명세 §8 추적 매트릭스](../specs/functional-specification.md)에는 없던 6개가 이
-기준을 통과하지 못했다. 기능 명세에 구멍이 있던 게 아니라 API 규격이 더 넓었다. **판정 결과와
-각 사유는 API 규격의 해당 절이 갖는다** — 이 기준은 규격이 또 넓어질 때 다시 쓴다.
+있으나 [기능 명세 §8 추적 매트릭스](../specs/functional-specification.md)에는 없던 여섯이 이
+기준에 걸렸다. 기능 명세에 구멍이 있던 게 아니라 API 규격이 더 넓었다.
+
+**지금 범위 밖은 둘이다.** 나머지는 갈렸다 — `GET /skills/recommendations`·`GET /scenarios`·
+`GET /reference/default-expenses` 셋은 인수 조건이 서면서 **승격**했고(각각 `US-D6`·`US-S1`·`US-O6`),
+`POST /dashboard/predict` 는 **폐기**다 — 재도입하지 않으며 옛 배제 근거가 틀렸다는 것까지
+[API 규격 §6.5](../specs/api-specification.md)가 적고 있다. 범위 밖으로 남은 것은
+`DELETE /scenarios/{id}` 와 `GET /reference/cpi` 다. **판정 결과와 각 사유는 API 규격의 해당
+절이 갖는다** — 이 기준은 규격이 또 넓어질 때 다시 쓴다.
 
 승격하려면 **기능 명세에 인수 조건을 먼저 세운다.** 화면이 요구하지 않는 응답을 먼저 만들면
 판별 기준 자체가 무의미해진다.
