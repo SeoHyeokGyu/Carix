@@ -131,12 +131,17 @@ public class WageStatIngestService {
     for (Map.Entry<String, Map<String, Long>> yearEntry : yearlyDistribution.entrySet()) {
       String basePeriod = yearEntry.getKey();
       long grossMedian = interpolator.calculateAnnualMedianWage(yearEntry.getValue());
+      WageStatSource source = WageStatSource.KOSIS;
+      // KOSIS 가 응답해도 그 해만 보간에 실패할 수 있다. 출처를 메서드 단위로 정하면
+      // 상수가 KOSIS 라벨을 달고 실측으로 승격된다.
       if (grossMedian <= 0L) {
         grossMedian =
             FALLBACK_MEDIAN_BY_BRACKET.getOrDefault(experienceBracket, DEFAULT_MEDIAN_FALLBACK);
+        source = WageStatSource.FALLBACK;
       }
       String statVintage = basePeriod + STAT_VINTAGE_MONTH_SUFFIX;
-      count += saveDualWageObservations(experienceBracket, grossMedian, basePeriod, statVintage);
+      count +=
+          saveDualWageObservations(experienceBracket, grossMedian, basePeriod, statVintage, source);
     }
     return count;
   }
@@ -165,14 +170,20 @@ public class WageStatIngestService {
           basePeriod.equals(BASE_PERIOD_DEFAULT)
               ? currentVintage
               : basePeriod + STAT_VINTAGE_MONTH_SUFFIX;
-      count += saveDualWageObservations(experienceBracket, grossMedian, basePeriod, statVintage);
+      count +=
+          saveDualWageObservations(
+              experienceBracket, grossMedian, basePeriod, statVintage, WageStatSource.FALLBACK);
     }
     return count;
   }
 
   /** 지정된 경력구간/연도에 대해 모든 직군(JOB_FAMILIES)의 세전총액(GROSS)과 정액급여(BASE) 관측치를 저장합니다. */
   private int saveDualWageObservations(
-      String experienceBracket, long grossMedian, String basePeriod, String statVintage) {
+      String experienceBracket,
+      long grossMedian,
+      String basePeriod,
+      String statVintage,
+      WageStatSource source) {
     long baseMedian = calculateBaseMedian(grossMedian);
     int savedCount = 0;
 
@@ -184,7 +195,8 @@ public class WageStatIngestService {
           WageDefinition.ANNUAL_GROSS_MEDIAN,
           grossMedian,
           basePeriod,
-          statVintage);
+          statVintage,
+          source);
       savedCount++;
 
       saveOrUpdateObservation(
@@ -194,7 +206,8 @@ public class WageStatIngestService {
           WageDefinition.ANNUAL_BASE_MEDIAN,
           baseMedian,
           basePeriod,
-          statVintage);
+          statVintage,
+          source);
       savedCount++;
     }
     return savedCount;
@@ -212,7 +225,8 @@ public class WageStatIngestService {
       WageDefinition wageDefinition,
       long wageMedian,
       String basePeriod,
-      String statVintage) {
+      String statVintage,
+      WageStatSource source) {
 
     Optional<WageStatObservation> existing =
         repository
@@ -229,6 +243,7 @@ public class WageStatIngestService {
               .wageMedian(wageMedian)
               .basePeriod(basePeriod)
               .statVintage(statVintage)
+              .source(source)
               .build();
       repository.save(observation);
     }

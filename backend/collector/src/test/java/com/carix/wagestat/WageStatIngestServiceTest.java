@@ -8,11 +8,13 @@ import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 
 class WageStatIngestServiceTest {
 
@@ -86,5 +88,39 @@ class WageStatIngestServiceTest {
     int count = service.ingestWageStats("2025", "2025");
 
     assertThat(count).isEqualTo(48);
+  }
+
+  @Test
+  @DisplayName("ingestWageStats - KOSIS 응답 안에서 보간 실패한 연도만 FALLBACK 으로 기록한다")
+  void ingestWageStats_recordsSourcePerYear() {
+    Map<String, Long> okDist = Map.of("A01", 100L);
+    Map<String, Long> badDist = Map.of("A02", 200L);
+    Map<String, Map<String, Long>> yearlyDist = new LinkedHashMap<>();
+    yearlyDist.put("2023", okDist);
+    yearlyDist.put("2024", badDist);
+
+    given(kosisClient.fetchWageDistributionByPeriod(anyString(), any(), any()))
+        .willReturn(yearlyDist);
+    given(interpolator.calculateAnnualMedianWage(okDist)).willReturn(50_000_000L);
+    given(interpolator.calculateAnnualMedianWage(badDist)).willReturn(0L);
+    given(
+            repository
+                .findByJobFamilyAndExperienceBracketAndRegionAndWageDefinitionAndBasePeriodAndStatVintage(
+                    anyString(), anyString(), anyString(), any(), anyString(), anyString()))
+        .willReturn(Optional.empty());
+
+    service.ingestWageStats("2023", "2024");
+
+    ArgumentCaptor<WageStatObservation> captor = ArgumentCaptor.forClass(WageStatObservation.class);
+    verify(repository, atLeastOnce()).save(captor.capture());
+
+    assertThat(captor.getAllValues())
+        .filteredOn(o -> "2023".equals(o.getBasePeriod()))
+        .isNotEmpty()
+        .allMatch(o -> o.getSource() == WageStatSource.KOSIS);
+    assertThat(captor.getAllValues())
+        .filteredOn(o -> "2024".equals(o.getBasePeriod()))
+        .isNotEmpty()
+        .allMatch(o -> o.getSource() == WageStatSource.FALLBACK);
   }
 }

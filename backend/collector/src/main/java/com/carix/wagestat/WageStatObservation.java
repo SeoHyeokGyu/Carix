@@ -65,4 +65,9 @@ public class WageStatObservation {
 
   @Column(name = "stat_vintage", nullable = false, length = 6)
   private String statVintage;
+
+  /** 관측치 출처. 쓰기 경로가 항상 명시하므로 기본값을 두지 않는다 — 빠뜨리면 적재 시점에 터진다. */
+  @Enumerated(EnumType.STRING)
+  @Column(name = "source", nullable = false, length = 20)
+  private WageStatSource source;
 }
