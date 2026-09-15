@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.regex.Pattern;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -30,6 +31,9 @@ public class WageStatIngestService {
 
   private static final String BASE_PERIOD_DEFAULT = "2025";
   private static final String REGION_ALL = "ALL";
+
+  /** 연도 파라미터는 네 자리 숫자만 받는다. base_period 가 연 단위 공시라 그 형상과 같다. */
+  private static final Pattern YEAR_PATTERN = Pattern.compile("\\d{4}");
 
   /** 통계청 고용형태별근로실태조사 정기 공시 월 (매년 8월 기준 빈티지). */
   private static final String STAT_VINTAGE_MONTH_SUFFIX = "08";
@@ -100,14 +104,17 @@ public class WageStatIngestService {
    */
   @Transactional
   public int ingestWageStats(String startYear, String endYear) {
+    String start = validateYear(startYear, "startYear");
+    String end = validateYear(endYear, "endYear");
+
     log.info(
         "[임금통계수집] KOSIS 임금 통계 수집 및 보간 작업을 시작합니다... (기간: {} ~ {})",
-        startYear != null ? startYear : "최신",
-        endYear != null ? endYear : (startYear != null ? startYear : "최신"));
+        start != null ? start : "최신",
+        end != null ? end : (start != null ? start : "최신"));
 
     int ingestedCount = 0;
     for (Map.Entry<String, String> entry : AGE_CODE_TO_EXPERIENCE_BRACKET.entrySet()) {
-      ingestedCount += ingestBracket(entry.getKey(), entry.getValue(), startYear, endYear);
+      ingestedCount += ingestBracket(entry.getKey(), entry.getValue(), start, end);
     }
 
     log.info("[임금통계수집] KOSIS 임금 통계 수집 완료: 총 {}건의 관측치가 저장/갱신되었습니다.", ingestedCount);
@@ -177,6 +184,23 @@ public class WageStatIngestService {
       return startYear.trim();
     }
     return BASE_PERIOD_DEFAULT;
+  }
+
+  /**
+   * 연도 파라미터를 검증해 돌려준다. 비어 있으면 {@code null} 이다.
+   *
+   * <p>검증 없이 통과시키면 두 곳이 깨진다. 값이 {@code base_period} 에 그대로 저장되는데 {@code findLatestBaseline} 이 {@code
+   * base_period DESC} 라 숫자가 아닌 값이 실측 연도를 이긴다. 같은 값이 KOSIS 요청 URL 에도 붙어 질의 파라미터가 섞인다.
+   */
+  private String validateYear(String value, String field) {
+    if (value == null || value.isBlank()) {
+      return null;
+    }
+    String trimmed = value.trim();
+    if (!YEAR_PATTERN.matcher(trimmed).matches()) {
+      throw new IllegalArgumentException("%s 는 네 자리 연도여야 합니다: %s".formatted(field, trimmed));
+    }
+    return trimmed;
   }
 
   /** 지정된 경력구간/연도에 대해 모든 직군(JOB_FAMILIES)의 세전총액(GROSS)과 정액급여(BASE) 관측치를 저장합니다. */

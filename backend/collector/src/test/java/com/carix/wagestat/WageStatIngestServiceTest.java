@@ -1,6 +1,7 @@
 package com.carix.wagestat;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
@@ -10,6 +11,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -149,6 +151,20 @@ class WageStatIngestServiceTest {
     assertThat(captor.getAllValues())
         .allMatch(o -> "2024".equals(o.getBasePeriod()))
         .allMatch(o -> o.getSource() == WageStatSource.FALLBACK);
+  }
+
+  @Test
+  @DisplayName("ingestWageStats - 네 자리 숫자가 아닌 연도는 거부한다")
+  void ingestWageStats_rejectsNonNumericYear() {
+    assertThatThrownBy(() -> service.ingestWageStats("abc", "2024"))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessageContaining("startYear");
+
+    assertThatThrownBy(() -> service.ingestWageStats("2020", "20x4"))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessageContaining("endYear");
+
+    verifyNoInteractions(kosisClient, repository);
   }
 
   @Test
