@@ -8,6 +8,7 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 import java.util.LinkedHashMap;
@@ -124,6 +125,29 @@ class WageStatIngestServiceTest {
     assertThat(captor.getAllValues())
         .filteredOn(o -> "2024".equals(o.getBasePeriod()))
         .isNotEmpty()
+        .allMatch(o -> o.getSource() == WageStatSource.FALLBACK);
+  }
+
+  @Test
+  @DisplayName("ingestWageStats - KOSIS 부재 시 폴백은 범위를 돌지 않고 마지막 연도 한 해만 쓴다")
+  void ingestWageStats_fallbackWritesSingleYear() {
+    given(kosisClient.fetchWageDistributionByPeriod(anyString(), any(), any()))
+        .willReturn(Map.of());
+    given(
+            repository
+                .findByJobFamilyAndExperienceBracketAndRegionAndWageDefinitionAndBasePeriodAndStatVintage(
+                    anyString(), anyString(), anyString(), any(), anyString(), anyString()))
+        .willReturn(Optional.empty());
+
+    int count = service.ingestWageStats("2020", "2024");
+
+    // 5년 * 48 = 240 이 아니라 48 이다.
+    assertThat(count).isEqualTo(48);
+
+    ArgumentCaptor<WageStatObservation> captor = ArgumentCaptor.forClass(WageStatObservation.class);
+    verify(repository, times(48)).save(captor.capture());
+    assertThat(captor.getAllValues())
+        .allMatch(o -> "2024".equals(o.getBasePeriod()))
         .allMatch(o -> o.getSource() == WageStatSource.FALLBACK);
   }
 

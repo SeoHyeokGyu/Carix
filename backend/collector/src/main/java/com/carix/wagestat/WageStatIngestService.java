@@ -29,7 +29,6 @@ import org.springframework.transaction.annotation.Transactional;
 public class WageStatIngestService {
 
   private static final String BASE_PERIOD_DEFAULT = "2025";
-  private static final int DEFAULT_BASE_YEAR = 2025;
   private static final String REGION_ALL = "ALL";
 
   /** 통계청 고용형태별근로실태조사 정기 공시 월 (매년 8월 기준 빈티지). */
@@ -157,25 +156,27 @@ public class WageStatIngestService {
         grossMedian,
         baseMedian);
 
-    String currentVintage = LocalDate.now().format(VINTAGE_DATE_FORMATTER);
-    int start =
-        (startYear != null && !startYear.isBlank())
-            ? Integer.parseInt(startYear.trim())
-            : DEFAULT_BASE_YEAR;
-    int end = (endYear != null && !endYear.isBlank()) ? Integer.parseInt(endYear.trim()) : start;
+    // 여러 해에 같은 상수를 뿌리지 않는다. findLatestBaseline 이 base_period DESC 라
+    // 폴백의 최신 연도가 실측을 이기고, 상승률 0% 의 가짜 시계열도 여기서 생긴다.
+    String basePeriod = resolveFallbackBasePeriod(startYear, endYear);
+    String statVintage =
+        BASE_PERIOD_DEFAULT.equals(basePeriod)
+            ? LocalDate.now().format(VINTAGE_DATE_FORMATTER)
+            : basePeriod + STAT_VINTAGE_MONTH_SUFFIX;
 
-    int count = 0;
-    for (int yr = start; yr <= end; yr++) {
-      String basePeriod = String.valueOf(yr);
-      String statVintage =
-          basePeriod.equals(BASE_PERIOD_DEFAULT)
-              ? currentVintage
-              : basePeriod + STAT_VINTAGE_MONTH_SUFFIX;
-      count +=
-          saveDualWageObservations(
-              experienceBracket, grossMedian, basePeriod, statVintage, WageStatSource.FALLBACK);
+    return saveDualWageObservations(
+        experienceBracket, grossMedian, basePeriod, statVintage, WageStatSource.FALLBACK);
+  }
+
+  /** 폴백은 요청 범위의 마지막 연도 한 해만 쓴다. 범위가 없으면 기본 기준연도다. */
+  private String resolveFallbackBasePeriod(String startYear, String endYear) {
+    if (endYear != null && !endYear.isBlank()) {
+      return endYear.trim();
     }
-    return count;
+    if (startYear != null && !startYear.isBlank()) {
+      return startYear.trim();
+    }
+    return BASE_PERIOD_DEFAULT;
   }
 
   /** 지정된 경력구간/연도에 대해 모든 직군(JOB_FAMILIES)의 세전총액(GROSS)과 정액급여(BASE) 관측치를 저장합니다. */
