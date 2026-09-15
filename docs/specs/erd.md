@@ -120,6 +120,7 @@ erDiagram
         bigint wage_median
         varchar base_period
         varchar stat_vintage
+        varchar source
     }
 
     job_posting {
