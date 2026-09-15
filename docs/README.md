@@ -106,6 +106,7 @@
 | 개방창 지수(OWI) | 네 번째 지표 카드 미착수. 공고 집계·완화·Provider(B)와 `index_snapshot` 컬럼·대시보드 3 API 확장(C)이 잔여다. 정의는 [기능 명세 §4.5](specs/functional-specification.md), 일정은 [개발 계획 §2](plans/carix-dev-plan.md) `b6`·`c6` |
 | 연봉 암호화 | 키 로테이션 절차와 로테이션 시 기존 암호문 재암호화 전략 미확정 ([SECURITY §3.2](SECURITY.md)) |
 | Gateway 세션 검증 필터 | `carix.gateway.session-validation.enabled` 활성화 — 기본값 `false`. **`/api/health` 는 필터가 붙지 않는 `core-health` 라우트(`order: -15`)로 이미 분리돼 있어** 배포 헬스체크는 401 을 받지 않는다. 남은 주의점은 되돌릴 때다 — 플래그가 `config/spring/gateway.yml` 에 있어 `.env`(이미지 태그) 롤백으로는 안 꺼진다. 전환·롤백 절차는 [`backend/README.md` 게이트웨이](../backend/README.md) |
+| 임금통계 연도 시계열 | 출처 컬럼(`source`)과 수집 배선은 섰다. 읽기 경로(`findSeries`·구간 상승률), 내 상승률 vs 시장(`a9`), 임금 vs 개인물가(`a10`), 출처 노출(`b13`), 경력 사다리 연도 축(`b14`)이 잔여다. **KOSIS 연도 커버리지는 미검증** — `S-16` 콘솔에서 범위 수집 한 번이 판정한다 |
 
 ---
 
