@@ -220,8 +220,14 @@ erDiagram
 | 2026-09-06 | `core.career_scenario` | 금액 여섯 컬럼을 `bigint` → `varchar(512)` 암호문으로 바꾸고 `scenario_name`·`feasibility_*` 를 더했다. 0행이라 `DROP` 후 정본 정의로 재생성했다. `career_scenario_user_latest_idx` 도 함께 다시 만들었다 |
 | 2026-09-15 | `core.wage_stat_observation` | 출처 컬럼 `source varchar(20) NOT NULL DEFAULT 'UNKNOWN'` 을 더했다. 기존 360행은 기본값으로 `UNKNOWN` 이 됐다 — 컬럼 도입 이전 적재분이라 KOSIS 실측인지 폴백 상수인지 알 수 없다 |
 
-> **`core.wage_stat_observation.source` 는 컬럼만 섰고 아직 아무도 쓰지 않는다.** 수집 경로가
-> 값을 기록하지 않아 새로 적재되는 행도 `UNKNOWN` 이 된다 — `WageStatObservation` 엔티티에
-> 필드가 없어 Hibernate 가 컬럼을 건드리지 않고 DDL 의 `DEFAULT 'UNKNOWN'` 이 받는다.
-> 연도별 출처 기록과 실측만 덮는 승격 규칙이 들어가기 전까지는 `UNKNOWN` 과 실측을 구별하지
-> 못한다.
+> **`core.wage_stat_observation.source` 는 쓰기 경로까지 들어왔다.** 수집이 연도별로 출처를
+> 기록하고, KOSIS 실측만 기존 행을 덮는다 — 폴백 상수는 기존 행을 건드리지 않는다. 위 360행은
+> 컬럼 도입 이전 적재분이라 **재수집 전까지 `UNKNOWN` 으로 남는다.**
+>
+> **폴백 재적재로는 승격되지 않는다.** KOSIS 경로는 `stat_vintage` 가 `base_period + "08"` 로
+> 결정적이라 재수집이 같은 좌표를 덮어 `UNKNOWN` → `KOSIS` 승격이 일어난다. 반면 기본
+> 기준연도의 폴백 경로는 `stat_vintage` 가 실행 시점의 `yyyyMM` 이고, `stat_vintage` 가
+> 유니크 키 안에 있어 달이 바뀌면 **승격이 아니라 행이 는다.** 그렇게 늘어난 폴백 행의
+> `stat_vintage` 는 실측(`202508`)보다 커서 `findLatestBaseline`(`base_period DESC,
+> stat_vintage DESC`)이 그것을 고른다 — 승격 규칙의 강등 가드는 좌표가 달라 **도달하지
+> 않는다.** 읽기 경로에 출처 우선순위를 넣는 것이 `b13` 소관이다.
