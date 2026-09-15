@@ -218,3 +218,9 @@ erDiagram
 | 적용일 | 대상 | 내용 |
 | :--- | :--- | :--- |
 | 2026-09-06 | `core.career_scenario` | 금액 여섯 컬럼을 `bigint` → `varchar(512)` 암호문으로 바꾸고 `scenario_name`·`feasibility_*` 를 더했다. 0행이라 `DROP` 후 정본 정의로 재생성했다. `career_scenario_user_latest_idx` 도 함께 다시 만들었다 |
+
+> **`core.wage_stat_observation.source` 는 정본에만 있고 운영에는 아직 없다.** 위 다이어그램과
+> [`deploy/postgres/schema/03_reference_and_aggregate.sql`](../../deploy/postgres/schema/03_reference_and_aggregate.sql)
+> 이 컬럼을 선언하지만 운영 DB 에 `ALTER` 를 적용하지 않았다. 적용 전까지 수집 경로도 값을
+> 기록하지 않는다 — `WageStatObservation` 엔티티에 필드가 없어 Hibernate 가 컬럼을 건드리지
+> 않고, DDL 의 `DEFAULT 'UNKNOWN'` 이 받는다. 적용하면 이 표에 행을 더한다.
