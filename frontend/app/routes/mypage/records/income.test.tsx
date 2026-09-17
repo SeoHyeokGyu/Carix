@@ -116,19 +116,22 @@ describe("소득 탭 (S-12)", () => {
     await user.type(screen.getByLabelText(/연봉 적용 시작일/), "2024-01-01");
     await user.click(screen.getByRole("button", { name: "저장" }));
 
-    const errorText = await screen.findByText(
-      "같은 유효 시작일이 이미 있습니다.",
-    );
-    expect(errorText).toBeInTheDocument();
+    await screen.findByText("같은 유효 시작일이 이미 있습니다.");
 
     // 텍스트만으로는 이 오류가 effectiveDate 필드에 붙었는지 아니면 일반
     // _form 배너로 떨어졌는지 구분되지 않는다(toUserMessage 의 _form 경로도
-    // 같은 문자열을 만든다) — onboarding/income.test.tsx 와 같은 패턴으로
-    // aria-describedby 배선을 직접 확인해야 필드 착지를 핀한다.
-    expect(screen.getByLabelText(/연봉 적용 시작일/)).toHaveAttribute(
-      "aria-describedby",
-      expect.stringContaining(errorText.id),
-    );
+    // 같은 문자열을 만든다). `expect.stringContaining(errorText.id)` 로
+    // aria-describedby 를 검사하는 이전 버전은 _form 회귀에서도 통과했다 —
+    // _form 문단엔 id 가 없어 `errorText.id` 가 `""` 이고
+    // `stringContaining("")` 은 항상 참이기 때문이다(힌트 id 는 항상 붙어
+    // 있어 aria-describedby 자체는 비지 않는다). `<Field>` 가 오류를
+    // `${id}-error` 로 렌더링하므로(app/components/onboarding/Field.tsx),
+    // effectiveDate 필드 착지는 그 id 를 가진 요소가 실제로 존재하고 그
+    // 안에 이 메시지가 있는지로 직접 확인해야 한다 — _form 배너로 떨어지면
+    // 이 id 를 가진 요소 자체가 생기지 않는다.
+    const fieldError = document.getElementById("effectiveDate-error");
+    expect(fieldError).not.toBeNull();
+    expect(fieldError).toHaveTextContent("같은 유효 시작일이 이미 있습니다.");
   });
 
   it("저장이 실패해도 입력값을 지우지 않는다", async () => {
@@ -162,5 +165,23 @@ describe("소득 탭 (S-12)", () => {
     await waitFor(() =>
       expect(incomeApi.deleteIncome).toHaveBeenCalledWith("i-new"),
     );
+  });
+
+  it("삭제가 실패하면 해당 행에 오류를 보여주고 목록은 그대로 둔다", async () => {
+    vi.mocked(incomeApi.deleteIncome).mockRejectedValue({
+      code: "UNKNOWN",
+      message: "삭제하지 못했습니다.",
+      status: 500,
+    });
+    renderTab();
+    const user = userEvent.setup();
+
+    const buttons = await screen.findAllByRole("button", { name: "삭제" });
+    await user.click(buttons[0]);
+
+    expect(await screen.findByText("삭제하지 못했습니다.")).toBeInTheDocument();
+    // 행별 삭제 실패가 목록 전체를 비우지 않는다 — 두 행 모두 남아 있다.
+    expect(screen.getByText("2024-01-01")).toBeInTheDocument();
+    expect(screen.getByText("2023-01-01")).toBeInTheDocument();
   });
 });
