@@ -47,9 +47,13 @@ describe("userSkillSchema", () => {
   });
 
   it("오늘 날짜는 받고 내일은 거부한다", () => {
+    // toISOString() 은 UTC 로 밀린다 — KST 는 UTC+9 라 자정~09시 사이엔
+    // "내일"의 UTC 날짜가 "오늘"의 로컬 날짜와 같아져 이 테스트가 거짓으로
+    // 통과(실은 실패)한다. skill.ts 의 today() 와 같은 방식(로컬 달력
+    // 필드 직접 조합)으로 맞춘다.
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
-    const iso = tomorrow.toISOString().slice(0, 10);
+    const iso = `${tomorrow.getFullYear()}-${String(tomorrow.getMonth() + 1).padStart(2, "0")}-${String(tomorrow.getDate()).padStart(2, "0")}`;
 
     expect(
       userSkillSchema.safeParse({
