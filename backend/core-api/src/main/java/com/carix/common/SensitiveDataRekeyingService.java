@@ -1,7 +1,5 @@
-package com.carix.income.service;
+package com.carix.common;
 
-import com.carix.common.EncryptedConverter;
-import com.carix.common.KeyRing;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -10,27 +8,27 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * 키 로테이션 시 기존 데이터베이스에 저장된 암호화 컬럼들을 최신 활성 키(Active Key)로 점진적 재암호화(Rekeying)하는 서비스.
+ * 키 로테이션 시 기존 데이터베이스에 저장된 암호화 컬럼들을 최신 활성 키(Active Key)로 점진적 재암호화(Rekeying)하는 공통 서비스.
  *
  * <p><b>배경 및 구현 원리 (SECURITY §3.2, 기술 명세 §1.1):</b>
- *
  * <ol>
- *   <li><b>JPA 더티 체킹(Dirty Checking) 우회 필요성:</b> JPA 엔티티를 로딩하면 복호화된 {@code Long} 금액이 메모리에 올라온다. 이
- *       값이 동일하면 Hibernate는 변경 사항이 없다고 판단하여 {@code UPDATE} 쿼리를 발행하지 않는다. 따라서 데이터베이스의 물리적 컬럼 ({@code
- *       ..._encrypted})을 직접 다루기 위해 {@link JdbcTemplate}을 사용하여 직접 조회·갱신한다.
- *   <li><b>멱등성 및 증분 마이그레이션 (Incremental Migration):</b> 이미 최신 활성 키 접두사({@code activeKeyId + ":%"})로
- *       암호화된 행은 쿼리 조건({@code NOT LIKE ?})에서 자동으로 제외되므로, 재실행하더라도 안전하고 중복 연산이 발생하지 않는다.
- *   <li><b>민감 정보 로깅 방지:</b> 로테이션 과정에서 어떠한 평문 금액이나 암호화 키 값도 로그에 출력하지 않으며, 오직 대상 테이블별 갱신 건수와 {@code
- *       activeKeyId} 메타데이터만 로깅한다 (완료 기준 10).
+ *   <li><b>JPA 더티 체킹(Dirty Checking) 우회 필요성:</b>
+ *       JPA 엔티티를 로딩하면 복호화된 {@code Long} 금액이 메모리에 올라온다. 이 값이 동일하면 Hibernate는 변경 사항이
+ *       없다고 판단하여 {@code UPDATE} 쿼리를 발행하지 않는다. 따라서 데이터베이스의 물리적 컬럼
+ *       ({@code ..._encrypted})을 직접 다루기 위해 {@link JdbcTemplate}을 사용하여 직접 조회·갱신한다.</li>
+ *   <li><b>멱등성 및 증분 마이그레이션 (Incremental Migration):</b>
+ *       이미 최신 활성 키 접두사({@code activeKeyId + ":%"})로 암호화된 행은 쿼리 조건({@code NOT LIKE ?})에서
+ *       자동으로 제외되므로, 재실행하더라도 안전하고 중복 연산이 발생하지 않는다.</li>
+ *   <li><b>민감 정보 로깅 방지:</b>
+ *       로테이션 과정에서 어떠한 평문 금액이나 암호화 키 값도 로그에 출력하지 않으며, 오직 대상 테이블별 갱신 건수와
+ *       {@code activeKeyId} 메타데이터만 로깅한다 (완료 기준 10).</li>
  * </ol>
  *
  * <p><b>대상 테이블 및 컬럼:</b>
- *
  * <ul>
- *   <li>{@code core.income_history} (세전 연봉: {@code gross_salary_encrypted}, 월 실수령액: {@code
- *       net_salary_encrypted})
- *   <li>{@code core.expense_item} (월 소비액: {@code amount_encrypted})
- *   <li>{@code core.career_scenario} (시뮬레이션 관련 금액 6개 컬럼)
+ *   <li>{@code core.income_history} (세전 연봉: {@code gross_salary_encrypted}, 월 실수령액: {@code net_salary_encrypted})</li>
+ *   <li>{@code core.expense_item} (월 소비액: {@code amount_encrypted})</li>
+ *   <li>{@code core.career_scenario} (시뮬레이션 관련 금액 6개 컬럼)</li>
  * </ul>
  */
 @Slf4j
@@ -77,7 +75,8 @@ public class SensitiveDataRekeyingService {
       String activeKeyId) {
 
     /**
-     * 모든 대상 테이블의 암호문이 현재 활성 키로 100% 전환 완료되었는지 여부. 이 값이 {@code true}인 경우에만 이전 구 키를 안전하게 폐기할 수 있다.
+     * 모든 대상 테이블의 암호문이 현재 활성 키로 100% 전환 완료되었는지 여부.
+     * 이 값이 {@code true}인 경우에만 이전 구 키를 안전하게 폐기할 수 있다.
      */
     public boolean isFullyMigrated() {
       return outdatedIncomeHistory == 0 && outdatedExpenseItem == 0 && outdatedCareerScenario == 0;
@@ -226,7 +225,9 @@ public class SensitiveDataRekeyingService {
             String newAmount = converter.convertToDatabaseColumn(amount);
 
             jdbcTemplate.update(
-                "UPDATE core.expense_item SET amount_encrypted = ? WHERE id = ?", newAmount, id);
+                "UPDATE core.expense_item SET amount_encrypted = ? WHERE id = ?",
+                newAmount,
+                id);
             count++;
           }
           return count;
@@ -282,7 +283,8 @@ public class SensitiveDataRekeyingService {
                         rs.getString("estimated_unemployment_benefit_encrypted")));
             String newDiff =
                 converter.convertToDatabaseColumn(
-                    converter.convertToEntityAttribute(rs.getString("difference_encrypted")));
+                    converter.convertToEntityAttribute(
+                        rs.getString("difference_encrypted")));
 
             jdbcTemplate.update(
                 "UPDATE core.career_scenario SET "
