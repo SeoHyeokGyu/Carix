@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { redirect, useFetcher, useLoaderData } from "react-router";
 import { ToneBadge, type Tone } from "@/components/ui/tone-badge";
 import { Button } from "@/components/ui/button";
@@ -13,8 +13,14 @@ import {
 } from "../../../lib/api/expense";
 import { listIncome } from "../../../lib/api/income";
 import { UnauthorizedError } from "../../../lib/coreApi";
+import { toFieldErrors, type FieldErrors } from "../../../lib/fieldErrors";
+import { focusFirstInvalidField } from "../../../lib/focusFirstInvalidField";
 import { LOGIN_PATH } from "../../../lib/routeGuards";
-import { EXPENSE_CATEGORIES } from "../../../lib/schemas/expense";
+import {
+  EXPENSE_CATEGORIES,
+  EXPENSE_ITEM_AMOUNT_MESSAGE,
+  expenseSchema,
+} from "../../../lib/schemas/expense";
 import {
   currentYearMonth,
   formatYearMonth,
@@ -22,7 +28,7 @@ import {
   toWireYearMonth,
 } from "../../../lib/yearMonth";
 
-type ActionData = { error: string } | null;
+type ActionData = { errors: FieldErrors } | null;
 
 /**
  * 서버가 준 카테고리 상태를 그대로 문구와 톤으로 옮긴다 — 클라이언트가 계산하지 않는다.
@@ -71,41 +77,101 @@ export async function clientAction({ request }: { request: Request }) {
   // 백엔드는 `^\d{6}$` 만 보고 미래를 안 막는다 — US-R1 의 "미래 날짜 입력 거부"를
   // 여기서 지킨다. `<input type="month">` 의 max 만으로는 부족하다(직접 입력·자동화).
   if (isFutureYearMonth(baseYearMonth)) {
-    return { error: "미래 기준월은 추가할 수 없습니다." } satisfies ActionData;
+    return {
+      errors: { _form: "미래 기준월은 추가할 수 없습니다." },
+    } satisfies ActionData;
   }
   if (!/^\d{6}$/.test(baseYearMonth)) {
-    return { error: "기준월 형식이 올바르지 않습니다." } satisfies ActionData;
+    return {
+      errors: { _form: "기준월 형식이 올바르지 않습니다." },
+    } satisfies ActionData;
   }
 
   // 미입력 카테고리는 items 에서 빼서 보낸다 — 서버가 DEFAULT_CPI 로 보간한다.
   // 0 으로 채우지 않는다. `lib/api/expense.ts` 의 규약이며 호출부 책임이다.
+  // 범위를 벗어난 값은 여기서 조용히 버리지 않는다 — 버리면 사용자가 잘못
+  // 입력한 값이 DEFAULT_CPI 로 슬쩍 바뀌어 나가는 무언의 데이터 손실이 된다.
+  // 검증은 expenseSchema(app/lib/schemas/expense.ts) 하나로만 한다 — 화면마다
+  // 범위 숫자를 다시 적지 않는다(onboarding/expense.tsx 와 같은 규약).
   const items = EXPENSE_CATEGORIES.flatMap((category) => {
     const raw = String(formData.get(`amount-${category.value}`) ?? "").trim();
     if (raw === "") return [];
-    const amount = Number(raw.replace(/,/g, ""));
-    if (!Number.isInteger(amount) || amount < 0 || amount > 50_000_000) {
-      return [];
-    }
-    return [{ category: category.value, amount }];
+    return [
+      { category: category.value, amount: Number(raw.replace(/,/g, "")) },
+    ];
   });
 
+  // 메시지 맵을 items 길이만큼 동적으로 만든다 — items 는 실제로 값이 있는
+  // 카테고리만 순서대로 담으므로 "몇 번째가 제출됐는지"는 매번 다르다
+  // (onboarding/expense.tsx clientAction 과 같은 이유).
+  const messages: Record<string, string> = {};
+  items.forEach((_, index) => {
+    messages[`items.${index}.amount`] = EXPENSE_ITEM_AMOUNT_MESSAGE;
+  });
+
+  const result = expenseSchema.safeParse({ items });
+  if (!result.success) {
+    return {
+      errors: toFieldErrors(result.error.issues, messages),
+    } satisfies ActionData;
+  }
+
   try {
-    await putExpenses(baseYearMonth, items);
+    await putExpenses(baseYearMonth, result.data.items);
     return null;
   } catch (error) {
     if (error instanceof UnauthorizedError) throw redirect(LOGIN_PATH);
-    return { error: toUserMessage(error) } satisfies ActionData;
+    return { errors: { _form: toUserMessage(error) } } satisfies ActionData;
   }
+}
+
+/**
+ * 현재 입력값(카테고리 → 문자열) → 제출될 items 배열에서 그 카테고리가 차지할
+ * 인덱스. clientAction 의 items 필터(빈 문자열만 제외)와 반드시 같은 순서·같은
+ * 조건으로 훑어야 toFieldErrors 가 만든 "items.N.amount" 키가 화면에서 같은
+ * 카테고리로 다시 찾아진다 — 둘 중 하나만 고치면 오류가 엉뚱한 칸에 붙는다
+ * (onboarding/expense.tsx buildItemIndex 와 같은 결합).
+ */
+function buildItemIndex(
+  amounts: Record<string, string>,
+): Record<string, number> {
+  const index: Record<string, number> = {};
+  let cursor = 0;
+  for (const category of EXPENSE_CATEGORIES) {
+    const raw = amounts[category.value];
+    if (typeof raw === "string" && raw !== "") {
+      index[category.value] = cursor;
+      cursor += 1;
+    }
+  }
+  return index;
 }
 
 export default function RecordsExpense() {
   const { months, latestNet } = useLoaderData<typeof clientLoader>();
   const fetcher = useFetcher<ActionData>();
+  const formRef = useRef<HTMLFormElement>(null);
   const [editing, setEditing] = useState<string | null>(null);
   const [amounts, setAmounts] = useState<Record<string, string>>({});
   const [newMonth, setNewMonth] = useState("");
   const [monthError, setMonthError] = useState<string | null>(null);
-  const actionError = fetcher.data?.error;
+  const errors = fetcher.data?.errors;
+  const itemIndex = buildItemIndex(amounts);
+
+  useEffect(() => {
+    if (errors) focusFirstInvalidField(formRef.current);
+  }, [errors]);
+
+  // 저장이 성공하면(action 이 null 을 돌려준다) 편집 폼을 닫는다 — 그렇지 않으면
+  // 표를 보고서야 성공을 짐작해야 한다. 실패하면 입력을 남겨 다시 고치게 한다.
+  // 소득 탭(income.tsx)과 같은 렌더 단계 갱신 패턴이다.
+  const [prevFetcherState, setPrevFetcherState] = useState(fetcher.state);
+  if (fetcher.state !== prevFetcherState) {
+    setPrevFetcherState(fetcher.state);
+    if (fetcher.state === "idle" && fetcher.data === null) {
+      setEditing(null);
+    }
+  }
 
   const openMonth = (wire: string) => {
     const target = months.find((m) => m.baseYearMonth === wire);
@@ -222,6 +288,7 @@ export default function RecordsExpense() {
       {editing && (
         <fetcher.Form
           method="post"
+          ref={formRef}
           className="flex flex-col gap-4 rounded-xl border border-carix-border bg-carix-surface p-6"
         >
           <input type="hidden" name="baseYearMonth" value={editing} />
@@ -229,50 +296,61 @@ export default function RecordsExpense() {
             {formatYearMonth(editing)} 소비
           </h2>
 
-          {EXPENSE_CATEGORIES.map((category) => (
-            <div key={category.value} className="flex items-end gap-2">
-              <div className="flex-1">
-                <Field id={`amount-${category.value}`} label={category.label}>
-                  {(aria) => (
-                    <Input
-                      {...aria}
-                      name={`amount-${category.value}`}
-                      type="text"
-                      inputMode="numeric"
-                      placeholder="미입력 시 통계청 평균으로 보간됩니다"
-                      value={amounts[category.value] ?? ""}
-                      onChange={(e) =>
-                        setAmounts((prev) => ({
-                          ...prev,
-                          [category.value]: e.target.value.replace(
-                            /[^0-9]/g,
-                            "",
-                          ),
-                        }))
-                      }
-                    />
-                  )}
-                </Field>
-              </div>
-              {/* D2: 라벨은 "삭제"가 아니다. 값을 빼면 지워지는 게 아니라 서버가
+          {EXPENSE_CATEGORIES.map((category) => {
+            const index = itemIndex[category.value];
+            const errorKey =
+              index !== undefined ? `items.${index}.amount` : undefined;
+            const fieldError = errorKey ? errors?.[errorKey] : undefined;
+
+            return (
+              <div key={category.value} className="flex items-end gap-2">
+                <div className="flex-1">
+                  <Field
+                    id={`amount-${category.value}`}
+                    label={category.label}
+                    error={fieldError}
+                  >
+                    {(aria) => (
+                      <Input
+                        {...aria}
+                        name={`amount-${category.value}`}
+                        type="text"
+                        inputMode="numeric"
+                        placeholder="미입력 시 통계청 평균으로 보간됩니다"
+                        value={amounts[category.value] ?? ""}
+                        onChange={(e) =>
+                          setAmounts((prev) => ({
+                            ...prev,
+                            [category.value]: e.target.value.replace(
+                              /[^0-9]/g,
+                              "",
+                            ),
+                          }))
+                        }
+                      />
+                    )}
+                  </Field>
+                </div>
+                {/* D2: 라벨은 "삭제"가 아니다. 값을 빼면 지워지는 게 아니라 서버가
                   통계청 평균으로 보간해 DEFAULT_CPI 로 돌려준다. */}
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                aria-label={`${category.label} 기본값으로 되돌리기`}
-                onClick={() =>
-                  setAmounts((prev) => {
-                    const next = { ...prev };
-                    delete next[category.value];
-                    return next;
-                  })
-                }
-              >
-                기본값으로
-              </Button>
-            </div>
-          ))}
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  aria-label={`${category.label} 기본값으로 되돌리기`}
+                  onClick={() =>
+                    setAmounts((prev) => {
+                      const next = { ...prev };
+                      delete next[category.value];
+                      return next;
+                    })
+                  }
+                >
+                  기본값으로
+                </Button>
+              </div>
+            );
+          })}
 
           {exceedsNet && (
             <p role="alert" className="text-sm text-carix-warning">
@@ -282,9 +360,9 @@ export default function RecordsExpense() {
             </p>
           )}
 
-          {actionError && (
+          {errors?._form && (
             <p role="alert" className="text-sm text-destructive">
-              {actionError}
+              {errors._form}
             </p>
           )}
 

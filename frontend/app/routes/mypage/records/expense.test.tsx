@@ -4,6 +4,7 @@ import { createRoutesStub } from "react-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as expenseApi from "../../../lib/api/expense";
 import * as incomeApi from "../../../lib/api/income";
+import { EXPENSE_ITEM_AMOUNT_MESSAGE } from "../../../lib/schemas/expense";
 import { currentYearMonth, formatYearMonth } from "../../../lib/yearMonth";
 import RecordsExpense, { clientAction, clientLoader } from "./expense";
 
@@ -105,6 +106,29 @@ describe("소비 탭 (S-12)", () => {
     const [, items] = vi.mocked(expenseApi.putExpenses).mock.calls[0];
     expect(items.map((i) => i.category)).not.toContain("FOOD");
     expect(items.map((i) => i.category)).toContain("HOUSING");
+  });
+
+  it("금액이 범위를 벗어나면 그 칸에 오류를 보여주고 PUT 하지 않는다", async () => {
+    renderTab();
+    const user = userEvent.setup();
+    await user.click(
+      (await screen.findAllByRole("button", { name: "편집" }))[0],
+    );
+
+    // 202607 은 HOUSING·FOOD 만 USER_DEFINED 라 폼을 열면 이 둘만 채워진다 —
+    // items 는 [HOUSING, FOOD] 순서로 나가므로 HOUSING 오류는 items.0.amount 다.
+    const housing = screen.getByLabelText("주거·공공요금");
+    await user.clear(housing);
+    await user.type(housing, "60000000");
+    await user.click(screen.getByRole("button", { name: "저장" }));
+
+    // 이전에는 범위를 벗어난 값을 조용히 버려 items 에서 뺐다 — 그러면 사용자가
+    // 입력한 값이 아무 피드백 없이 DEFAULT_CPI 로 바뀌어 버린다. 이제는 그
+    // 카테고리 칸에 오류로 붙고 PUT 자체를 막는다.
+    expect(
+      await screen.findByText(EXPENSE_ITEM_AMOUNT_MESSAGE),
+    ).toBeInTheDocument();
+    expect(expenseApi.putExpenses).not.toHaveBeenCalled();
   });
 
   it("미래 월 추가를 거부하고 서버를 부르지 않는다", async () => {
