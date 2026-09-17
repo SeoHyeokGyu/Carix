@@ -100,8 +100,8 @@
 *   `region` 은 시/도 17개 한글 어휘다(`서울`·`부산`·`경기`… 전체 목록은 collector 의
     `RegionRollup.SIDO`). 구 단위(`서울 강남구`)가 아니다 — 동료집단 완화가 기대하는 값이
     이 어휘다. 현재 `market_aggregate` 조회는 `(m.region = :region OR m.region = 'ALL')`로
-    떨어져 있어 값이 어긋나도 `ALL` 행에 걸려 증상이 바로 드러나지는 않지만([c3 설계
-    §8-c](../plans/carix-dev-plan-c3-design.md)), 값 규약은 이 어휘로 확정한다
+    떨어져 있어 값이 어긋나도 `ALL` 행에 걸려 증상이 바로 드러나지는 않지만
+    (`MarketAggregateRepository` 의 조회 둘), 값 규약은 이 어휘로 확정한다
 *   **Response (200 OK):**
     ```json
     {
@@ -500,7 +500,7 @@
     *(`stayExpectedRaiseRate`: 서버는 -100.0 ~ 100.0 을 벗어나면 `400` 입니다. **정본은
     [기능 명세 §3](functional-specification.md)의 -50 ~ +100 입니다** — 화면(Zod)이 이 좁은
     범위를 걸어 두 규격을 동시에 만족시킵니다. 서버 검증은 아직 넓은 범위 그대로라 API 를
-    직접 부르면 범위 밖 값이 저장될 수 있습니다([c3 설계 §8-g](../plans/carix-dev-plan-c3-design.md)).
+    직접 부르면 범위 밖 값이 저장될 수 있습니다(`SimulationRequest` 의 `@DecimalMin("-100.0")`·`@DecimalMax("100.0")`).
     저장 정밀도는 소수점 두 자리라 그 아래는 반올림됩니다)*
     *(`expectedUnemploymentMonths`: 0~6. `isEligibleForUnemploymentBenefit` 기본값 true, false면 실업급여 0으로 계산하고 `실업급여 미반영` 안내 표시. 공식은 [도메인 정의서 §4](domain-logic.md)를 따릅니다)*
 *   **Response (200 OK):**

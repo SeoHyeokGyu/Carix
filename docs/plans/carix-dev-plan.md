@@ -46,9 +46,9 @@
 중복해 걷어냈다. **절 번호는 고정 식별자가 아니다.** 한때 코드 주석과 테스트가 `§4-1`·`§5-B` 처럼 이 문서의 절
 번호를 인용해 번호를 못 당겼다. `§4-1`·`§5-B` 계열은 소관 문서로 옮겼지만 **`§4` 는 아직
 밖에서 불린다** — 코드 열 곳(`com.carix.dashboard.DashboardController` 여덟,
-`SnapshotReadServiceTest`, `auth-service` 의 `OnboardingController`)과 문서 일곱 곳(API 규격
-넷, `c3` 문서 둘, `docs/README.md`)이 `개발 계획 §4` 를 가리킨다. **§4 번호는 당길 수 없다.**
-앞 절이 늘거나 줄면 §4 가 밀리므로, 절을 더할 때는 §4 뒤에 붙이거나 인용 열일곱을 같이 고친다.
+`SnapshotReadServiceTest`, `auth-service` 의 `OnboardingController`)과 문서 다섯 곳(API 규격
+넷, `docs/README.md`)이 `개발 계획 §4` 를 가리킨다. **§4 번호는 당길 수 없다.**
+앞 절이 늘거나 줄면 §4 가 밀리므로, 절을 더할 때는 §4 뒤에 붙이거나 인용 열다섯을 같이 고친다.
 
 ---
 
