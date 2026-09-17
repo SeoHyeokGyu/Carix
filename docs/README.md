@@ -94,6 +94,7 @@
 | DB 스키마 소유권 | auth 스키마는 auth-service, core 스키마는 collector(채용공고 5개 테이블·market_aggregate)와 core-api(사용자 도메인 5개 테이블·지수/시나리오)가 공유 (DDL 직접 적용) |
 | 프런트엔드 | React Router + Vite 기반. ESLint/Prettier 코드 스타일 표준화, 라이트/다크 듀얼 테마, WCAG AA 접근성 준수. 테스트 스크립트(`pnpm dev`·`test`·`test:unit`·`test:e2e`) 모두 구비. 공용 계층(`coreApi` 래퍼의 봉투 해제·오류 정규화·401 단일 처리, 세션·진입 가드 loader, shadcn/ui, Zod 스키마)이 서 있다 |
 | 화면 구현 | 랜딩·로그인·가입, 온보딩 5화면, 대시보드 메인, 추이분석(차트 3종), 스냅샷 이력, 설정·탈퇴, 12개월 시뮬레이터, 관리자 파이프라인 콘솔이 실제 API 에 연결돼 동작한다 |
+| 연봉 암호화 및 복호화 경계 | KeyRing 기반 다중 키 관리·무중단 로테이션, 암호문 버전 접두사({keyId}:), 레거시 하위 호환, SensitiveDataRekeyingService 점진적 재암호화, 스냅샷 복호화 경계 및 평문 누출 차단 불변식 검증 완료 ([SECURITY §3.2](SECURITY.md)) |
 
 ### 남은 것
 
@@ -104,7 +105,6 @@
 | 프런트엔드 | 이력 관리 화면(`S-12` 소득·소비·스킬 탭)과 UI 일관성 통일 P3~P4 가 잔여 |
 | 검증 | 스냅샷 쓰기 경로의 운영 Postgres 검증([기술 명세 §1.3](specs/technical-specification.md)), MVI 표본부족(`N<10`) 엣지케이스 검증, 민감 금액 로깅 마스킹 점검, E2E 통합과 완료 기준 10항목 점검 |
 | 개방창 지수(OWI) | 네 번째 지표 카드 미착수. 공고 집계·완화·Provider(B)와 `index_snapshot` 컬럼·대시보드 3 API 확장(C)이 잔여다. 정의는 [기능 명세 §4.5](specs/functional-specification.md), 일정은 [개발 계획 §2](plans/carix-dev-plan.md) `b6`·`c6` |
-| 연봉 암호화 | 키 로테이션 절차와 로테이션 시 기존 암호문 재암호화 전략 미확정 ([SECURITY §3.2](SECURITY.md)) |
 | 지출 카테고리 Swagger 문구 | `ExpenseItem` 의 `category` 설명이 `TRANSPORTATION`·`HEALTH`·`OTHER` 를 적고 있는데 정본 `ExpenseCategoryEnum` 은 `TRANSPORT`·`MEDICAL`·`LEISURE` 다 — 세 값 모두 실존하지 않는다. 코드 주석만의 문제라 동작은 멀쩡하고 공개 API 문서만 틀렸다. 소관 A (소비 API) |
 | 광역 지역 어휘 두 벌 | `core-api` `PeerGroupFallbackResolver#extractBroadRegion` 은 `서울특별시` 를 만들고 collector `RegionRollup` 은 `서울` 을 만든다. 동료집단 완화 Level 3 의 광역 조회가 `region = 'ALL'` 행으로 떨어져 증상이 가려져 있다. 값 규약 정본은 시/도 17개 한글([API 규격 §3.1](specs/api-specification.md), [기술 명세](specs/technical-specification.md)). 소관 B (동료집단) |
 | Gateway 세션 검증 필터 | `carix.gateway.session-validation.enabled` 활성화 — 기본값 `false`. **`/api/health` 는 필터가 붙지 않는 `core-health` 라우트(`order: -15`)로 이미 분리돼 있어** 배포 헬스체크는 401 을 받지 않는다. 남은 주의점은 되돌릴 때다 — 플래그가 `config/spring/gateway.yml` 에 있어 `.env`(이미지 태그) 롤백으로는 안 꺼진다. 전환·롤백 절차는 [`backend/README.md` 게이트웨이](../backend/README.md) |
