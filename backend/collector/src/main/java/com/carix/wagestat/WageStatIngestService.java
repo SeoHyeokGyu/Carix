@@ -1,7 +1,5 @@
 package com.carix.wagestat;
 
-import java.time.LocalDate;
-import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -43,10 +41,6 @@ public class WageStatIngestService {
 
   /** 브래킷별 Fallback 누락 시 적용되는 기본 연간 중위연봉 (4,500만 원). */
   private static final long DEFAULT_MEDIAN_FALLBACK = 45_000_000L;
-
-  /** 실시간 빈티지 생성용 포맷터. */
-  private static final DateTimeFormatter VINTAGE_DATE_FORMATTER =
-      DateTimeFormatter.ofPattern("yyyyMM");
 
   /**
    * 통계청 고용형태별근로실태조사(전문가 직군) 기준 정액급여(기본급) 평균 구성 비중 계수 (83.5%).
@@ -106,6 +100,10 @@ public class WageStatIngestService {
   public int ingestWageStats(String startYear, String endYear) {
     String start = validateYear(startYear, "startYear");
     String end = validateYear(endYear, "endYear");
+    if (start != null && end != null && start.compareTo(end) > 0) {
+      throw new IllegalArgumentException(
+          "startYear 가 endYear 보다 늦습니다: %s ~ %s".formatted(start, end));
+    }
 
     log.info(
         "[임금통계수집] KOSIS 임금 통계 수집 및 보간 작업을 시작합니다... (기간: {} ~ {})",
@@ -166,10 +164,11 @@ public class WageStatIngestService {
     // 여러 해에 같은 상수를 뿌리지 않는다. findLatestBaseline 이 base_period DESC 라
     // 폴백의 최신 연도가 실측을 이기고, 상승률 0% 의 가짜 시계열도 여기서 생긴다.
     String basePeriod = resolveFallbackBasePeriod(startYear, endYear);
-    String statVintage =
-        BASE_PERIOD_DEFAULT.equals(basePeriod)
-            ? LocalDate.now().format(VINTAGE_DATE_FORMATTER)
-            : basePeriod + STAT_VINTAGE_MONTH_SUFFIX;
+    // vintage 를 실행 시점(yyyyMM)으로 두면 stat_vintage 가 유니크 키의 일부라 달마다 좌표가
+    // 달라진다. 그러면 승격 가드가 조회하는 자리에 기존 행이 없어 발화하지 않고, 매달 행이
+    // 쌓이며, 그 행의 vintage 가 실측보다 커서 findLatestBaseline 이 상수를 고른다.
+    // KOSIS 경로와 같은 식으로 고정해 좌표를 안정시킨다.
+    String statVintage = basePeriod + STAT_VINTAGE_MONTH_SUFFIX;
 
     return saveDualWageObservations(
         experienceBracket, grossMedian, basePeriod, statVintage, WageStatSource.FALLBACK);
@@ -214,7 +213,7 @@ public class WageStatIngestService {
     int savedCount = 0;
 
     for (String jobFamily : JOB_FAMILIES) {
-      saveOrUpdateObservation(
+      if (saveOrUpdateObservation(
           jobFamily,
           experienceBracket,
           REGION_ALL,
@@ -222,10 +221,11 @@ public class WageStatIngestService {
           grossMedian,
           basePeriod,
           statVintage,
-          source);
-      savedCount++;
+          source)) {
+        savedCount++;
+      }
 
-      saveOrUpdateObservation(
+      if (saveOrUpdateObservation(
           jobFamily,
           experienceBracket,
           REGION_ALL,
@@ -233,8 +233,9 @@ public class WageStatIngestService {
           baseMedian,
           basePeriod,
           statVintage,
-          source);
-      savedCount++;
+          source)) {
+        savedCount++;
+      }
     }
     return savedCount;
   }
@@ -244,7 +245,7 @@ public class WageStatIngestService {
         * (long) ROUNDING_UNIT_TEN_THOUSAND;
   }
 
-  private void saveOrUpdateObservation(
+  private boolean saveOrUpdateObservation(
       String jobFamily,
       String experienceBracket,
       String region,
@@ -261,7 +262,7 @@ public class WageStatIngestService {
 
     // 실측(KOSIS)만 기존 행을 덮는다. 폴백 상수가 실측을 덮으면 기준선이 상수로 퇴화한다.
     if (existing.isPresent() && source != WageStatSource.KOSIS) {
-      return;
+      return false;
     }
 
     WageStatObservation observation =
@@ -277,5 +278,6 @@ public class WageStatIngestService {
             .source(source)
             .build();
     repository.save(observation);
+    return true;
   }
 }

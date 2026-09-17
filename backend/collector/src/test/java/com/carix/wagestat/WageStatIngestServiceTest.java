@@ -93,7 +93,8 @@ class WageStatIngestServiceTest {
 
     int count = service.ingestWageStats("2025", "2025");
 
-    assertThat(count).isEqualTo(48);
+    assertThat(count).isZero();
+    verify(repository, never()).save(any(WageStatObservation.class));
   }
 
   @Test
@@ -165,6 +166,34 @@ class WageStatIngestServiceTest {
         .hasMessageContaining("endYear");
 
     verifyNoInteractions(kosisClient, repository);
+  }
+
+  @Test
+  @DisplayName("ingestWageStats - startYear 가 endYear 보다 늦으면 거부한다")
+  void ingestWageStats_rejectsInvertedRange() {
+    assertThatThrownBy(() -> service.ingestWageStats("2024", "2020"))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessageContaining("endYear");
+
+    verifyNoInteractions(kosisClient, repository);
+  }
+
+  @Test
+  @DisplayName("ingestWageStats - 폴백 vintage 는 실행 시점이 아니라 base_period 로 결정된다")
+  void ingestWageStats_fallbackVintageIsDeterministic() {
+    given(kosisClient.fetchWageDistributionByPeriod(anyString(), any(), any()))
+        .willReturn(Map.of());
+    given(
+            repository
+                .findByJobFamilyAndExperienceBracketAndRegionAndWageDefinitionAndBasePeriodAndStatVintage(
+                    anyString(), anyString(), anyString(), any(), anyString(), anyString()))
+        .willReturn(Optional.empty());
+
+    service.ingestWageStats("2025", "2025");
+
+    ArgumentCaptor<WageStatObservation> captor = ArgumentCaptor.forClass(WageStatObservation.class);
+    verify(repository, atLeastOnce()).save(captor.capture());
+    assertThat(captor.getAllValues()).allMatch(o -> "202508".equals(o.getStatVintage()));
   }
 
   @Test
