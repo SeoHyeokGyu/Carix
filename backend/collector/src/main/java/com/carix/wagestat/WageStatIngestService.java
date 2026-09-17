@@ -100,6 +100,8 @@ public class WageStatIngestService {
   public int ingestWageStats(String startYear, String endYear) {
     String start = validateYear(startYear, "startYear");
     String end = validateYear(endYear, "endYear");
+    // 형식만 보는 검증은 역순 범위를 통과시킨다. 그러면 KOSIS 가 빈 응답을 주고 폴백으로
+    // 떨어져 엉뚱한 연도에 상수가 쓰이는데 작업은 성공으로 보고된다.
     if (start != null && end != null && start.compareTo(end) > 0) {
       throw new IllegalArgumentException(
           "startYear 가 endYear 보다 늦습니다: %s ~ %s".formatted(start, end));
