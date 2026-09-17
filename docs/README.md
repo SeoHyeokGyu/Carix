@@ -105,6 +105,8 @@
 | 검증 | 스냅샷 쓰기 경로의 운영 Postgres 검증([기술 명세 §1.3](specs/technical-specification.md)), MVI 표본부족(`N<10`) 엣지케이스 검증, 민감 금액 로깅 마스킹 점검, E2E 통합과 완료 기준 10항목 점검 |
 | 개방창 지수(OWI) | 네 번째 지표 카드 미착수. 공고 집계·완화·Provider(B)와 `index_snapshot` 컬럼·대시보드 3 API 확장(C)이 잔여다. 정의는 [기능 명세 §4.5](specs/functional-specification.md), 일정은 [개발 계획 §2](plans/carix-dev-plan.md) `b6`·`c6` |
 | 연봉 암호화 | 키 로테이션 절차와 로테이션 시 기존 암호문 재암호화 전략 미확정 ([SECURITY §3.2](SECURITY.md)) |
+| 지출 카테고리 Swagger 문구 | `ExpenseItem` 의 `category` 설명이 `TRANSPORTATION`·`HEALTH`·`OTHER` 를 적고 있는데 정본 `ExpenseCategoryEnum` 은 `TRANSPORT`·`MEDICAL`·`LEISURE` 다 — 세 값 모두 실존하지 않는다. 코드 주석만의 문제라 동작은 멀쩡하고 공개 API 문서만 틀렸다. 소관 A (소비 API) |
+| 광역 지역 어휘 두 벌 | `core-api` `PeerGroupFallbackResolver#extractBroadRegion` 은 `서울특별시` 를 만들고 collector `RegionRollup` 은 `서울` 을 만든다. 동료집단 완화 Level 3 의 광역 조회가 `region = 'ALL'` 행으로 떨어져 증상이 가려져 있다. 값 규약 정본은 시/도 17개 한글([API 규격 §3.1](specs/api-specification.md), [기술 명세](specs/technical-specification.md)). 소관 B (동료집단) |
 | Gateway 세션 검증 필터 | `carix.gateway.session-validation.enabled` 활성화 — 기본값 `false`. **`/api/health` 는 필터가 붙지 않는 `core-health` 라우트(`order: -15`)로 이미 분리돼 있어** 배포 헬스체크는 401 을 받지 않는다. 남은 주의점은 되돌릴 때다 — 플래그가 `config/spring/gateway.yml` 에 있어 `.env`(이미지 태그) 롤백으로는 안 꺼진다. 전환·롤백 절차는 [`backend/README.md` 게이트웨이](../backend/README.md) |
 | 임금통계 연도 시계열 | 출처 컬럼(`source`)과 **쓰기 경로가 섰다** — 수집이 연도별로 출처를 기록하고, 실측만 기존 행을 덮으며, 폴백 vintage 를 고정해 벽시계 드리프트를 막았다. 고정 이전에 쌓인 `base_period=2025` 드리프트 72행은 삭제했다([ERD 운영 스키마 적용 이력](specs/erd.md)). 운영 288행은 컬럼 도입 이전 적재분이라 재수집 전까지 `UNKNOWN` 이다. 잔여 구현은 **읽기 경로**다 — `findSeries`·구간 상승률, `findLatestBaseline` 의 출처 우선순위. 지표 넷은 내 상승률 vs 시장(`a9`), 임금 vs 개인물가(`a10`), 출처 노출(`b13`), 경력 사다리 연도 축(`b14`) — 일정은 [개발 계획 §2](plans/carix-dev-plan.md) |
 

@@ -107,7 +107,8 @@ admin 만 `animate-pulse` 스켈레톤과 `⏳ animate-spin` 을 쓴다. 공용 
 
 ### P0 — 결정 신호 단일 출처 + 시각 회귀 베이스라인  ✅ 완료 (PR #161)
 
-유일하게 급한 단계였다. 1-A 는 동작이 갈린 건이다. 실행 계획은 `ui-unification-p0-tasks.md`.
+유일하게 급한 단계였다. 1-A 는 동작이 갈린 건이다. 태스크 단위 실행 계획은 병합과 함께
+걷어냈다 — 납품 내역은 PR #161 이다.
 
 - `app/lib/decisionSignal.ts` 신설 — `code → { label, tone, description }` 단일 테이블.
   서버 `label` 은 프런트에 매핑 없는 새 코드일 때만 폴백
@@ -146,8 +147,8 @@ admin 만 `animate-pulse` 스켈레톤과 `⏳ animate-spin` 을 쓴다. 공용 
   갖는다. 그 유틸의 소비자를 P3 이 없앤다. P3 마이그레이션이 멈추면 다시 본다
 - **`@custom-variant dark` 를 추가한다** — P0 최종 리뷰가 드러낸 것. 레포에 이 선언이 없어
   Tailwind v4 가 `dark:` 를 `prefers-color-scheme` 미디어쿼리로 컴파일하는데 `ThemeToggle` 은
-  `.dark` 클래스를 건다. 10파일 22곳의 `dark:` 가 토글 경로에서 전부 무효다. 실행 계획은
-  `ui-unification-p1-tasks.md`
+  `.dark` 클래스를 건다. 10파일 22곳의 `dark:` 가 토글 경로에서 전부 무효다. 태스크 단위
+  실행 계획은 병합과 함께 걷어냈다 — 납품 내역은 PR #162 다
 
 ### P2 — 공용 컴포넌트 3개  ✅ 완료 (PR #164)
 
