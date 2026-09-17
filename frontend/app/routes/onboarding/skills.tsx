@@ -83,12 +83,16 @@ export default function Skills() {
       setIsLoading(true);
       const data = await fetchUserSkills();
       setUserSkills(data);
-    } catch {
+    } catch (err) {
+      if (err instanceof UnauthorizedError) {
+        navigate(LOGIN_PATH);
+        return;
+      }
       setErrorMessage("스킬 목록을 불러오는 중 오류가 발생했습니다.");
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [navigate]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -124,7 +128,11 @@ export default function Skills() {
         const results = await searchSkills(searchQuery);
         setSearchResults(results);
         setShowDropdown(true);
-      } catch {
+      } catch (err) {
+        if (err instanceof UnauthorizedError) {
+          navigate(LOGIN_PATH);
+          return;
+        }
         // 검색 실패 무시
       } finally {
         setIsSearching(false);
@@ -132,7 +140,7 @@ export default function Skills() {
     }, 300);
 
     return () => clearTimeout(timer);
-  }, [searchQuery]);
+  }, [searchQuery, navigate]);
 
   // 알림 메시지 자동 제거
   useEffect(() => {

@@ -1,8 +1,9 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
-import { MemoryRouter } from "react-router";
+import { MemoryRouter, createRoutesStub } from "react-router";
 import Skills from "./skills";
 import * as skillApi from "../../lib/skillApi";
+import { UnauthorizedError } from "../../lib/coreApi";
 
 vi.mock("../../lib/skillApi", () => ({
   fetchUserSkills: vi.fn(),
@@ -294,5 +295,19 @@ describe("S-08 Skills 온보딩 화면", () => {
     expect(
       screen.getByText("최소 1개 이상의 보유 스킬을 등록해야 합니다."),
     ).toBeInTheDocument();
+  });
+
+  it("스킬 목록 조회 중 401 을 받으면 로그인 화면으로 보낸다", async () => {
+    vi.mocked(skillApi.fetchUserSkills).mockRejectedValue(
+      new UnauthorizedError(),
+    );
+
+    const Stub = createRoutesStub([
+      { path: "/onboarding/skills", Component: Skills },
+      { path: "/login", Component: () => <div>로그인 화면</div> },
+    ]);
+    render(<Stub initialEntries={["/onboarding/skills"]} />);
+
+    expect(await screen.findByText("로그인 화면")).toBeInTheDocument();
   });
 });
