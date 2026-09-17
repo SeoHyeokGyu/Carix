@@ -4,6 +4,7 @@ import { createRoutesStub } from "react-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as expenseApi from "../../../lib/api/expense";
 import * as incomeApi from "../../../lib/api/income";
+import { currentYearMonth, formatYearMonth } from "../../../lib/yearMonth";
 import RecordsExpense, { clientAction, clientLoader } from "./expense";
 
 vi.mock("../../../lib/api/expense");
@@ -109,7 +110,15 @@ describe("소비 탭 (S-12)", () => {
   it("미래 월 추가를 거부하고 서버를 부르지 않는다", async () => {
     renderTab();
     const user = userEvent.setup();
-    await user.type(await screen.findByLabelText("추가할 기준월"), "2099-01");
+    const monthInput = await screen.findByLabelText("추가할 기준월");
+    // 1차 방어선: `<input type="month">` 의 max 로 당월 이후를 고를 수 없게 한다.
+    // 2차 방어선(아래)은 max 를 우회한 직접 입력·자동화를 잡는다.
+    expect(monthInput).toHaveAttribute(
+      "max",
+      formatYearMonth(currentYearMonth()),
+    );
+
+    await user.type(monthInput, "2099-01");
     await user.click(screen.getByRole("button", { name: "기준월 추가" }));
 
     expect(

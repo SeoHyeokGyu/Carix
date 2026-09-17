@@ -16,6 +16,7 @@ import { UnauthorizedError } from "../../../lib/coreApi";
 import { LOGIN_PATH } from "../../../lib/routeGuards";
 import { EXPENSE_CATEGORIES } from "../../../lib/schemas/expense";
 import {
+  currentYearMonth,
   formatYearMonth,
   isFutureYearMonth,
   toWireYearMonth,
@@ -200,6 +201,7 @@ export default function RecordsExpense() {
             <Input
               {...aria}
               type="month"
+              max={formatYearMonth(currentYearMonth())}
               value={newMonth}
               onChange={(e) => setNewMonth(e.target.value)}
             />
