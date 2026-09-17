@@ -37,6 +37,15 @@ describe("userSkillSchema", () => {
     ).toBe(false);
   });
 
+  it("정수가 아닌 개월 수를 거부한다", () => {
+    expect(
+      userSkillSchema.safeParse({
+        monthsOfExperience: 1.5,
+        lastUsedDate: today(),
+      }).success,
+    ).toBe(false);
+  });
+
   it("오늘 날짜는 받고 내일은 거부한다", () => {
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);

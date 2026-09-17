@@ -14,6 +14,10 @@ function today(): string {
 
 /** 서버 제약과 같다 — API 규격 §7.2 의 `monthsOfExperience` 1~600. */
 export const userSkillSchema = z.object({
+  // 서버 UserSkillCreateRequest/UserSkillUpdateRequest/UserSkill 의
+  // monthsOfExperience 는 모두 자바 원시형 int 다. 정수 검증을 빼면 1.5 처럼
+  // 사용자가 입력한 값과 Jackson 이 서버에 저장하는 값(1로 절삭)이 조용히
+  // 달라진다 — .int() 는 그 침묵을 드러낸다.
   monthsOfExperience: z.number().int().min(1).max(600),
   lastUsedDate: z
     .string()
