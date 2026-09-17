@@ -112,12 +112,14 @@ class SensitiveDataRekeyingServiceTest {
     // 4. checkStatus 확인: 3개 테이블 모두 미전환(접두사 없음) 상태 감지
     SensitiveDataRekeyingService.RekeyingStatus statusBefore = rekeyingService.checkStatus();
     assertThat(statusBefore.isFullyMigrated()).isFalse();
+    assertThat(statusBefore.totalOutdated()).isGreaterThanOrEqualTo(3);
     assertThat(statusBefore.outdatedIncomeHistory()).isGreaterThanOrEqualTo(1);
     assertThat(statusBefore.outdatedExpenseItem()).isGreaterThanOrEqualTo(1);
     assertThat(statusBefore.outdatedCareerScenario()).isGreaterThanOrEqualTo(1);
 
     // 5. rekeyAll 실행: 모든 대상 행을 최신 활성 키(v1:)로 재암호화
     SensitiveDataRekeyingService.RekeyingResult result = rekeyingService.rekeyAll();
+    assertThat(result.totalUpdated()).isGreaterThanOrEqualTo(3);
     assertThat(result.incomeHistoryUpdated()).isGreaterThanOrEqualTo(1);
     assertThat(result.expenseItemUpdated()).isGreaterThanOrEqualTo(1);
     assertThat(result.careerScenarioUpdated()).isGreaterThanOrEqualTo(1);

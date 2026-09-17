@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.util.Base64;
+import java.util.Collections;
 import java.util.Map;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -16,10 +17,11 @@ import org.junit.jupiter.api.Test;
  * <ul>
  *   <li>1. 단일 레거시 키({@code CARIX_ENCRYPTION_KEY})만 주어진 경우 자동으로 {@code v1} 활성 키 등록
  *   <li>2. 다중 키 링({@code CARIX_ENCRYPTION_KEYS}) 파싱 및 지정된 활성 키({@code activeKeyId}) 바인딩
- *   <li>3. 활성 키 미지정 시 {@code v1} 기본 폴백
+ *   <li>3. 활성 키 미지정 시 {@code v1} 기본 폴백 및 v1 부재 시 첫 번째 키 채택
  *   <li>4. 존재하지 않는 활성 키 ID 지정 시 예외 발생 검증
  *   <li>5. 32바이트(256비트)가 아닌 비정상 키 길이에 대한 방어
  *   <li>6. 키 설정 부재 시 Fail-Fast 예외 발생 검증
+ *   <li>7. 콜론(:)이 없거나 Base64 인코딩이 올바르지 않은 잘못된 형식 방어 검증
  * </ul>
  */
 class KeyRingTest {
@@ -42,6 +44,8 @@ class KeyRingTest {
     assertThat(keyRing.hasKey("v1")).isTrue();
     assertThat(keyRing.getKey("v1")).isNotNull();
     assertThat(keyRing.getActiveKey()).isNotNull();
+    assertThat(keyRing.getLegacyKey()).isNotNull();
+    assertThat(keyRing.getKeyIds()).containsExactly("v1");
   }
 
   @Test
@@ -74,6 +78,19 @@ class KeyRingTest {
   }
 
   @Test
+  @DisplayName("v1 이 없는 다중 키 목록에서 active-key-id 미지정 시 첫 번째 키를 기본값으로 사용")
+  void multiKeyConfig_withoutV1_defaultsToFirstKey() {
+    String keyA = generateKey((byte) 1);
+    String keyB = generateKey((byte) 2);
+    String config = "alpha:" + keyA + ",beta:" + keyB;
+
+    KeyRing keyRing = new KeyRing(config, null, null);
+
+    assertThat(keyRing.getActiveKeyId()).isEqualTo("alpha");
+    assertThat(keyRing.getLegacyKeyId()).isEqualTo("alpha");
+  }
+
+  @Test
   @DisplayName("존재하지 않는 active-key-id 지정 시 예외 발생 (잘못된 배포 방지)")
   void nonExistentActiveKeyId_throwsException() {
     String key1 = generateKey((byte) 1);
@@ -82,6 +99,22 @@ class KeyRingTest {
     assertThatThrownBy(() -> new KeyRing(config, "v99", null))
         .isInstanceOf(IllegalStateException.class)
         .hasMessageContaining("v99");
+  }
+
+  @Test
+  @DisplayName("콜론(:)이 누락된 잘못된 키 링 형식에 대해 IllegalArgumentException 발생")
+  void invalidFormatWithoutColon_throwsException() {
+    assertThatThrownBy(() -> new KeyRing("invalid-format-without-colon", null, null))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessageContaining("keyId:base64Key");
+  }
+
+  @Test
+  @DisplayName("Base64 인코딩이 올바르지 않은 경우 IllegalArgumentException 발생")
+  void invalidBase64Encoding_throwsException() {
+    assertThatThrownBy(() -> new KeyRing("v1:???NotBase64???", null, null))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessageContaining("Base64");
   }
 
   @Test
@@ -103,7 +136,7 @@ class KeyRingTest {
   }
 
   @Test
-  @DisplayName("정적 팩토리 메서드 of 동작 검증 (단위 테스트 배선용)")
+  @DisplayName("정적 팩토리 메서드 of 동작 및 예외 분기 검증")
   void staticFactoryOf() {
     String key1 = generateKey((byte) 1);
     String key2 = generateKey((byte) 2);
@@ -113,5 +146,17 @@ class KeyRingTest {
     assertThat(ring.getActiveKeyId()).isEqualTo("v2");
     assertThat(ring.getActiveKey()).isNotNull();
     assertThat(ring.getKey("v1")).isNotNull();
+
+    // v1 없는 맵의 경우 첫 번째 키가 레거시 키로 선정됨
+    KeyRing ringNoV1 = KeyRing.of("k1", Map.of("k1", key1));
+    assertThat(ringNoV1.getLegacyKeyId()).isEqualTo("k1");
+
+    // 빈 맵 전달 시 예외
+    assertThatThrownBy(() -> KeyRing.of("v1", Collections.emptyMap()))
+        .isInstanceOf(IllegalStateException.class);
+
+    // 활성 키가 맵에 없는 경우 예외
+    assertThatThrownBy(() -> KeyRing.of("v99", Map.of("v1", key1)))
+        .isInstanceOf(IllegalStateException.class);
   }
 }

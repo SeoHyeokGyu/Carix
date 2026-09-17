@@ -62,6 +62,8 @@ class EncryptedConverterTest {
 
     // 암호문에 v1: 접두사가 포함되어야 함
     assertThat(encrypted).isNotNull().startsWith("v1:");
+    assertThat(converter.getKeyRing()).isNotNull();
+    assertThat(converter.getKeyRing().getActiveKeyId()).isEqualTo("v1");
 
     // 복호화 결과가 원본 금액과 정확히 일치해야 함
     Long decrypted = converter.convertToEntityAttribute(encrypted);
