@@ -9,6 +9,7 @@ import {
   type UserSkill,
   type SkillSearchItem,
 } from "../../lib/skillApi";
+import { SKILL_FIELD_MESSAGES, userSkillSchema } from "../../lib/schemas/skill";
 
 const CATEGORY_OPTIONS = [
   { value: "BACKEND", label: "백엔드 (Backend)" },
@@ -188,18 +189,18 @@ export default function Skills() {
       return;
     }
 
-    // 개월 수 검증
     const numMonths =
       typeof months === "number" ? months : parseInt(months, 10);
-    if (isNaN(numMonths) || numMonths < 1 || numMonths > 600) {
-      setErrorMessage("실무 사용 기간은 1개월에서 600개월 사이여야 합니다.");
-      return;
-    }
-
-    // 날짜 검증 (미래 거부)
-    const today = getCurrentYearMonthDay();
-    if (lastUsedDate > today) {
-      setErrorMessage("마지막 사용일은 과거 또는 현재 날짜여야 합니다.");
+    const parsed = userSkillSchema.safeParse({
+      monthsOfExperience: numMonths,
+      lastUsedDate,
+    });
+    if (!parsed.success) {
+      setErrorMessage(
+        parsed.error.issues[0]?.path[0] === "lastUsedDate"
+          ? SKILL_FIELD_MESSAGES.lastUsedDate
+          : SKILL_FIELD_MESSAGES.monthsOfExperience,
+      );
       return;
     }
 
@@ -259,14 +260,16 @@ export default function Skills() {
   const handleSaveEdit = async (id: string) => {
     const numMonths =
       typeof editMonths === "number" ? editMonths : parseInt(editMonths, 10);
-    if (isNaN(numMonths) || numMonths < 1 || numMonths > 600) {
-      setErrorMessage("실무 사용 기간은 1개월에서 600개월 사이여야 합니다.");
-      return;
-    }
-
-    const today = getCurrentYearMonthDay();
-    if (editDate > today) {
-      setErrorMessage("마지막 사용일은 과거 또는 현재 날짜여야 합니다.");
+    const parsed = userSkillSchema.safeParse({
+      monthsOfExperience: numMonths,
+      lastUsedDate: editDate,
+    });
+    if (!parsed.success) {
+      setErrorMessage(
+        parsed.error.issues[0]?.path[0] === "lastUsedDate"
+          ? SKILL_FIELD_MESSAGES.lastUsedDate
+          : SKILL_FIELD_MESSAGES.monthsOfExperience,
+      );
       return;
     }
 
