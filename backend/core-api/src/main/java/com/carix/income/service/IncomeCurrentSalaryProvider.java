@@ -11,6 +11,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -19,6 +20,7 @@ import org.springframework.transaction.annotation.Transactional;
  *
  * <p>기준월 말일 이하 중 가장 최근 {@code effective_date} 의 연봉을 사용한다.
  */
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class IncomeCurrentSalaryProvider implements CurrentSalaryProvider {
@@ -35,6 +37,8 @@ public class IncomeCurrentSalaryProvider implements CurrentSalaryProvider {
 
     YearMonth ym = YearMonth.parse(baseYearMonth, YM);
     LocalDate endOfMonth = ym.atEndOfMonth();
+
+    log.debug("기준월 연봉 복호화 조회: userId={}, baseYearMonth={}", userId, baseYearMonth);
 
     List<IncomeHistory> histories =
         incomeHistoryRepository.findByUserIdOrderByEffectiveDateDesc(userId);
