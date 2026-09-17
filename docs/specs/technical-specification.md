@@ -202,11 +202,13 @@ CREATE TABLE wage_stat_observation (
     region VARCHAR(100) NOT NULL,
     wage_definition VARCHAR(100) NOT NULL, -- 임금 정의 메타데이터 ('ANNUAL_GROSS_MEDIAN': 연간 세전 중위임금)
     wage_median BIGINT NOT NULL, -- 연간 세전 중앙값 (원)
-    base_period VARCHAR(6) NOT NULL, -- 통계 기준기간 'YYYYMM'
+    base_period VARCHAR(6) NOT NULL, -- 통계 기준기간 'YYYY' (연 단위 공시)
     stat_vintage VARCHAR(6) NOT NULL, -- 발표 시점 (통계 개정 구분)
+    source VARCHAR(20) NOT NULL DEFAULT 'UNKNOWN', -- 'KOSIS'(실측) | 'FALLBACK'(하드코딩 상수) | 'UNKNOWN'(컬럼 도입 이전)
     UNIQUE (job_family, experience_bracket, region, wage_definition, base_period, stat_vintage)
 );
 -- 같은 기준기간의 개정판은 stat_vintage로 공존한다. 조회는 base_period별 최신 stat_vintage를 사용한다.
+-- source 가 FALLBACK 인 행은 실측이 아니다. 연도 시계열 계산은 KOSIS 행만 쓴다.
 
 CREATE TABLE job_posting (
     id UUID PRIMARY KEY,

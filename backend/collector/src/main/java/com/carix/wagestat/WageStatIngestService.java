@@ -1,10 +1,10 @@
 package com.carix.wagestat;
 
-import java.time.LocalDate;
-import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
+import java.util.regex.Pattern;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -28,8 +28,10 @@ import org.springframework.transaction.annotation.Transactional;
 public class WageStatIngestService {
 
   private static final String BASE_PERIOD_DEFAULT = "2025";
-  private static final int DEFAULT_BASE_YEAR = 2025;
   private static final String REGION_ALL = "ALL";
+
+  /** 연도 파라미터는 네 자리 숫자만 받는다. base_period 가 연 단위 공시라 그 형상과 같다. */
+  private static final Pattern YEAR_PATTERN = Pattern.compile("\\d{4}");
 
   /** 통계청 고용형태별근로실태조사 정기 공시 월 (매년 8월 기준 빈티지). */
   private static final String STAT_VINTAGE_MONTH_SUFFIX = "08";
@@ -39,10 +41,6 @@ public class WageStatIngestService {
 
   /** 브래킷별 Fallback 누락 시 적용되는 기본 연간 중위연봉 (4,500만 원). */
   private static final long DEFAULT_MEDIAN_FALLBACK = 45_000_000L;
-
-  /** 실시간 빈티지 생성용 포맷터. */
-  private static final DateTimeFormatter VINTAGE_DATE_FORMATTER =
-      DateTimeFormatter.ofPattern("yyyyMM");
 
   /**
    * 통계청 고용형태별근로실태조사(전문가 직군) 기준 정액급여(기본급) 평균 구성 비중 계수 (83.5%).
@@ -100,14 +98,23 @@ public class WageStatIngestService {
    */
   @Transactional
   public int ingestWageStats(String startYear, String endYear) {
+    String start = validateYear(startYear, "startYear");
+    String end = validateYear(endYear, "endYear");
+    // 형식만 보는 검증은 역순 범위를 통과시킨다. 그러면 KOSIS 가 빈 응답을 주고 폴백으로
+    // 떨어져 엉뚱한 연도에 상수가 쓰이는데 작업은 성공으로 보고된다.
+    if (start != null && end != null && start.compareTo(end) > 0) {
+      throw new IllegalArgumentException(
+          "startYear 가 endYear 보다 늦습니다: %s ~ %s".formatted(start, end));
+    }
+
     log.info(
         "[임금통계수집] KOSIS 임금 통계 수집 및 보간 작업을 시작합니다... (기간: {} ~ {})",
-        startYear != null ? startYear : "최신",
-        endYear != null ? endYear : (startYear != null ? startYear : "최신"));
+        start != null ? start : "최신",
+        end != null ? end : (start != null ? start : "최신"));
 
     int ingestedCount = 0;
     for (Map.Entry<String, String> entry : AGE_CODE_TO_EXPERIENCE_BRACKET.entrySet()) {
-      ingestedCount += ingestBracket(entry.getKey(), entry.getValue(), startYear, endYear);
+      ingestedCount += ingestBracket(entry.getKey(), entry.getValue(), start, end);
     }
 
     log.info("[임금통계수집] KOSIS 임금 통계 수집 완료: 총 {}건의 관측치가 저장/갱신되었습니다.", ingestedCount);
@@ -131,12 +138,17 @@ public class WageStatIngestService {
     for (Map.Entry<String, Map<String, Long>> yearEntry : yearlyDistribution.entrySet()) {
       String basePeriod = yearEntry.getKey();
       long grossMedian = interpolator.calculateAnnualMedianWage(yearEntry.getValue());
+      WageStatSource source = WageStatSource.KOSIS;
+      // KOSIS 가 응답해도 그 해만 보간에 실패할 수 있다. 출처를 메서드 단위로 정하면
+      // 상수가 KOSIS 라벨을 달고 실측으로 승격된다.
       if (grossMedian <= 0L) {
         grossMedian =
             FALLBACK_MEDIAN_BY_BRACKET.getOrDefault(experienceBracket, DEFAULT_MEDIAN_FALLBACK);
+        source = WageStatSource.FALLBACK;
       }
       String statVintage = basePeriod + STAT_VINTAGE_MONTH_SUFFIX;
-      count += saveDualWageObservations(experienceBracket, grossMedian, basePeriod, statVintage);
+      count +=
+          saveDualWageObservations(experienceBracket, grossMedian, basePeriod, statVintage, source);
     }
     return count;
   }
@@ -151,51 +163,81 @@ public class WageStatIngestService {
         grossMedian,
         baseMedian);
 
-    String currentVintage = LocalDate.now().format(VINTAGE_DATE_FORMATTER);
-    int start =
-        (startYear != null && !startYear.isBlank())
-            ? Integer.parseInt(startYear.trim())
-            : DEFAULT_BASE_YEAR;
-    int end = (endYear != null && !endYear.isBlank()) ? Integer.parseInt(endYear.trim()) : start;
+    // 여러 해에 같은 상수를 뿌리지 않는다. findLatestBaseline 이 base_period DESC 라
+    // 폴백의 최신 연도가 실측을 이기고, 상승률 0% 의 가짜 시계열도 여기서 생긴다.
+    String basePeriod = resolveFallbackBasePeriod(startYear, endYear);
+    // vintage 를 실행 시점(yyyyMM)으로 두면 stat_vintage 가 유니크 키의 일부라 달마다 좌표가
+    // 달라진다. 그러면 승격 가드가 조회하는 자리에 기존 행이 없어 발화하지 않고, 매달 행이
+    // 쌓이며, 그 행의 vintage 가 실측보다 커서 findLatestBaseline 이 상수를 고른다.
+    // KOSIS 경로와 같은 식으로 고정해 좌표를 안정시킨다.
+    String statVintage = basePeriod + STAT_VINTAGE_MONTH_SUFFIX;
 
-    int count = 0;
-    for (int yr = start; yr <= end; yr++) {
-      String basePeriod = String.valueOf(yr);
-      String statVintage =
-          basePeriod.equals(BASE_PERIOD_DEFAULT)
-              ? currentVintage
-              : basePeriod + STAT_VINTAGE_MONTH_SUFFIX;
-      count += saveDualWageObservations(experienceBracket, grossMedian, basePeriod, statVintage);
+    return saveDualWageObservations(
+        experienceBracket, grossMedian, basePeriod, statVintage, WageStatSource.FALLBACK);
+  }
+
+  /** 폴백은 요청 범위의 마지막 연도 한 해만 쓴다. 범위가 없으면 기본 기준연도다. */
+  private String resolveFallbackBasePeriod(String startYear, String endYear) {
+    if (endYear != null && !endYear.isBlank()) {
+      return endYear.trim();
     }
-    return count;
+    if (startYear != null && !startYear.isBlank()) {
+      return startYear.trim();
+    }
+    return BASE_PERIOD_DEFAULT;
+  }
+
+  /**
+   * 연도 파라미터를 검증해 돌려준다. 비어 있으면 {@code null} 이다.
+   *
+   * <p>검증 없이 통과시키면 두 곳이 깨진다. 값이 {@code base_period} 에 그대로 저장되는데 {@code findLatestBaseline} 이 {@code
+   * base_period DESC} 라 숫자가 아닌 값이 실측 연도를 이긴다. 같은 값이 KOSIS 요청 URL 에도 붙어 질의 파라미터가 섞인다.
+   */
+  private String validateYear(String value, String field) {
+    if (value == null || value.isBlank()) {
+      return null;
+    }
+    String trimmed = value.trim();
+    if (!YEAR_PATTERN.matcher(trimmed).matches()) {
+      throw new IllegalArgumentException("%s 는 네 자리 연도여야 합니다: %s".formatted(field, trimmed));
+    }
+    return trimmed;
   }
 
   /** 지정된 경력구간/연도에 대해 모든 직군(JOB_FAMILIES)의 세전총액(GROSS)과 정액급여(BASE) 관측치를 저장합니다. */
   private int saveDualWageObservations(
-      String experienceBracket, long grossMedian, String basePeriod, String statVintage) {
+      String experienceBracket,
+      long grossMedian,
+      String basePeriod,
+      String statVintage,
+      WageStatSource source) {
     long baseMedian = calculateBaseMedian(grossMedian);
     int savedCount = 0;
 
     for (String jobFamily : JOB_FAMILIES) {
-      saveOrUpdateObservation(
+      if (saveOrUpdateObservation(
           jobFamily,
           experienceBracket,
           REGION_ALL,
           WageDefinition.ANNUAL_GROSS_MEDIAN,
           grossMedian,
           basePeriod,
-          statVintage);
-      savedCount++;
+          statVintage,
+          source)) {
+        savedCount++;
+      }
 
-      saveOrUpdateObservation(
+      if (saveOrUpdateObservation(
           jobFamily,
           experienceBracket,
           REGION_ALL,
           WageDefinition.ANNUAL_BASE_MEDIAN,
           baseMedian,
           basePeriod,
-          statVintage);
-      savedCount++;
+          statVintage,
+          source)) {
+        savedCount++;
+      }
     }
     return savedCount;
   }
@@ -205,32 +247,39 @@ public class WageStatIngestService {
         * (long) ROUNDING_UNIT_TEN_THOUSAND;
   }
 
-  private void saveOrUpdateObservation(
+  private boolean saveOrUpdateObservation(
       String jobFamily,
       String experienceBracket,
       String region,
       WageDefinition wageDefinition,
       long wageMedian,
       String basePeriod,
-      String statVintage) {
+      String statVintage,
+      WageStatSource source) {
 
     Optional<WageStatObservation> existing =
         repository
             .findByJobFamilyAndExperienceBracketAndRegionAndWageDefinitionAndBasePeriodAndStatVintage(
                 jobFamily, experienceBracket, region, wageDefinition, basePeriod, statVintage);
 
-    if (existing.isEmpty()) {
-      WageStatObservation observation =
-          WageStatObservation.builder()
-              .jobFamily(jobFamily)
-              .experienceBracket(experienceBracket)
-              .region(region)
-              .wageDefinition(wageDefinition)
-              .wageMedian(wageMedian)
-              .basePeriod(basePeriod)
-              .statVintage(statVintage)
-              .build();
-      repository.save(observation);
+    // 실측(KOSIS)만 기존 행을 덮는다. 폴백 상수가 실측을 덮으면 기준선이 상수로 퇴화한다.
+    if (existing.isPresent() && source != WageStatSource.KOSIS) {
+      return false;
     }
+
+    WageStatObservation observation =
+        WageStatObservation.builder()
+            .id(existing.map(WageStatObservation::getId).orElseGet(UUID::randomUUID))
+            .jobFamily(jobFamily)
+            .experienceBracket(experienceBracket)
+            .region(region)
+            .wageDefinition(wageDefinition)
+            .wageMedian(wageMedian)
+            .basePeriod(basePeriod)
+            .statVintage(statVintage)
+            .source(source)
+            .build();
+    repository.save(observation);
+    return true;
   }
 }

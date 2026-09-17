@@ -161,7 +161,7 @@
 - Given 12개월 이상 데이터 / When 소득 vs 물가 탭 / Then 소득 지수선(`incomeIndex`)과 개인물가 지수선(`personalPriceIndex`)을 기준월 100 지수 2계열로 표시하고, 소득선이 물가선 아래인 구간에 구매력 손실 음영을 칠한다. 원화 금액은 툴팁 보조 정보로만 노출한다 (원화·지수 축 혼용 금지 — UI §4.1과 동일).
 - Given 공개연봉 표본 존재 / When 연봉 분포 탭 / Then 판정 기준선은 공식 임금통계 중앙값이며, 공고 공개연봉 분포(최소·25%·중앙값·75%·최대)는 참고로 병기하고 사용자 위치 핀, 표본 수, 결측률을 함께 표시한다.
 - Given 경력 구간별 임금 기준선 / When 연봉 분포 탭 / Then 같은 직군의 **6구간 임금 사다리**(`ENTRY`~`LEAD`)를 표시하고 사용자의 현재 구간을 짚어 **다음 구간까지의 인상률**을 함께 보여준다. 구간 상승이 시장에서 얼마짜리인지가 이 화면에 없다.
-- Given 어느 구간이든 기준선이 하드코딩 폴백으로 적재된 경우 / When 사다리 표시 / Then 그 구간을 `추정`으로 라벨링한다. 실측 보간값과 섞어 한 곡선으로 보이면 안 된다.
+- Given 어느 구간이든 기준선의 `source` 가 `KOSIS` 가 아닌 경우(하드코딩 상수인 `FALLBACK`, 출처 미상인 `UNKNOWN`) / When 사다리 표시 / Then 그 구간을 `추정`으로 라벨링한다. 실측 보간값과 섞어 한 곡선으로 보이면 안 된다.
 - Given 12개월 이상 등록월 표본 / When 연봉 분포 탭 / Then 같은 동료집단의 **등록월별 중앙 제시 연봉**을 원화 시계열로 병기한다. 현재 분포가 "내가 어디 있나"를 답하고 이 계열이 "시장이 오르는가"를 답한다.
 - Given 특정 월의 공개연봉 표본 부족 / When 추이 표시 / Then 그 달 점을 비우고 선을 잇지 않는다. 0 이나 인접월 값으로 채우지 않는다.
 - Given 월별 결측률 차이 / When 추이 표시 / Then 각 점의 공개연봉 표본 수와 결측률을 함께 제공한다 — 중앙값 변동이 시장이 아니라 공개 성향 변화일 수 있다.
@@ -195,6 +195,15 @@
 - Given 카드 근거 펼치기 / When 상세 보기 / Then 중앙 모집기간(일), 상시채용 비율, 마감일 보유 표본 수, 적용된 완화 조건을 표시한다.
 - Given 마감일 보유 표본 미달 / When 지수 요청 / Then 수치 대신 `표본 부족`과 상시채용 비율만 표시한다. 임의 수치를 만들지 않는다.
 - Given 지수 문구 작성 / When 화면 표시 / Then **모집 기간**으로만 서술한다. `posted_end_date` 는 고용주가 게시한 계획된 마감일이므로 "충원 난이도"나 "자리가 비어 있다"로 해석하지 않는다.
+
+**US-D8. 내 상승률 vs 시장 상승률 (S-14)**
+> 사용자로서, 내 연봉이 오른 속도가 시장이 오른 속도를 따라갔는지 알고 싶다.
+
+- Given 소득 이력이 두 해 이상 / When 추이분석 `상승률 비교` 탭 진입 / Then 연도별 내 세전 연봉과 동료집단 임금통계 중앙값, 각각의 전년 대비 상승률을 함께 표시한다.
+- Given 연속된 두 해가 모두 공식 임금통계 실측(`source = KOSIS`) / When 상승률 표시 / Then 그 구간의 누적 격차를 직전 구간에 이어 쌓는다.
+- Given 구간의 어느 한 해라도 실측이 아님(`FALLBACK`·`UNKNOWN`) / When 상승률 표시 / Then **그 구간은 상승률을 내지 않고** 누적 격차는 다음 실측 구간에서 다시 시작한다. 0% 로 채우지 않는다.
+- Given 모든 구간이 제외됨 / When 탭 진입 / Then 빈 상태와 `공식 임금통계 결측 구간` 문구를 표시하고 차트를 그리지 않는다.
+- Given 임금통계 기준선 표시 / When 어느 화면이든 / Then 그 기준선의 성격(`basis`)과 출처(`source`)를 함께 보여준다.
 
 ### 2.4 12개월 시나리오 (SCEN)
 
@@ -327,7 +336,7 @@ OWI         = 동료집단 중앙 개방일수 ÷ 전체시장 중앙 개방일�
 
 - **같은 `job_family` 의 6구간(`ENTRY`·`JUNIOR`·`MID`·`SENIOR`·`LEAD`, `ALL` 제외)을 한 곡선으로 낸다.** 각 구간의 `wage_stat_observation.wage_median` 과 직전 구간 대비 인상률이다.
 - **`wage_stat_observation` 을 자기 자신과 비교하므로 연령 프록시가 상쇄된다.** 프록시는 모든 구간에 일관되게 걸려 구간 *간* 비율에는 영향이 적다 — 공고 중앙값과 빼는 비교(모수가 다르다)와 다른 점이다.
-- **폴백 적재분은 섞지 않는다.** KOSIS 호출 실패 시 `FALLBACK_MEDIAN_BY_BRACKET` 하드코딩 상수가 들어가므로, 그 구간은 `추정`으로 구분해 표시한다. 구분 없이 한 곡선이면 상수를 실측으로 읽게 된다.
+- **실측이 아닌 적재분은 섞지 않는다.** `source` 가 `KOSIS` 가 아닌 구간 — KOSIS 호출 실패로 `FALLBACK_MEDIAN_BY_BRACKET` 하드코딩 상수가 들어간 `FALLBACK`, 출처 컬럼 도입 이전 적재분인 `UNKNOWN` — 은 `추정`으로 구분해 표시한다. 구분 없이 한 곡선이면 상수를 실측으로 읽게 된다.
 - **사용자 구간 표시는 6구간 매핑에 의존한다.** 현재 `PeerGroupFallbackResolver.mapExperienceBracket` 은 3구간만 내므로 신입·13년차가 사다리 양 끝에 못 선다 (개발 계획 §2 `b7`).
 - `region` 은 항상 `ALL` 이라 지역 차이를 말하지 않는다. 화면 문구가 지역별 차이를 암시하면 안 된다.
 - 마지막 구간(`LEAD`)은 다음이 없어 인상률을 내지 않는다.
@@ -343,6 +352,19 @@ OWI         = 동료집단 중앙 개방일수 ÷ 전체시장 중앙 개방일�
 - **이미 목표를 넘었으면 음수가 아니라 `이미 상회` 상태로 돌린다.** 음수 인상률은 화면에서 읽히지 않는다.
 - **금액이 아니라 비율로 돌린다.** 다만 같은 응답에 기준선 금액이 함께 있으므로 **이 값을 `index_snapshot.rationale` 에 저장하지 않는다** — 저장하면 평문 기준선과 조인해 연봉이 원 단위로 복원된다(§1.3 소득 격차와 같은 경로). 응답은 본인에게만 가므로 무방하지만 저장은 다르다.
 - 임금통계 중앙값은 연령대 프록시다([기술 명세 §1.2](technical-specification.md)). 화면은 그 기준선의 성격을 함께 표시한다.
+
+### 4.9 임금 상승률 구간
+
+```text
+구간 상승률 = (해당 연도 중앙값 − 직전 연도 중앙값) ÷ 직전 연도 중앙값
+```
+
+- **구간 단위로 제외한다.** 상승률은 두 점의 차이라 한 점이 실측이 아니면 그 점을 쓰는 구간 둘이 같이 죽는다. 점만 비우는 규율(§4.6 제시 연봉 추이)로는 부족하다.
+- **`source = KOSIS` 인 두 점 사이에서만 낸다.** `FALLBACK` 은 하드코딩 상수라 여러 해에 같은 값이 들어가면 상승률 0% 가 되고, 그건 임금이 안 올랐다는 뜻이 아니다. `UNKNOWN` 은 출처 컬럼 도입 이전 적재분이라 어느 쪽인지 모른다.
+- **누적 격차는 연속 구간에서만 쌓는다.** 구간이 끊기면 다음 실측 구간에서 0 부터 다시 시작한다.
+- **전 구간이 제외되면 빈 상태다.** 0% 를 그리지 않는다.
+- 사용자 연봉은 연 단위로 접는다 — 그 해 말일 시점 유효 연봉(`CurrentSalaryProvider.currentGrossSalary(userId, "YYYY12")`)이다. 임금통계가 연 단위 공시라 월 해상도가 없다.
+- **이 값을 `index_snapshot.rationale` 에 저장하지 않는다.** 응답은 본인에게만 가므로 무방하나, 저장하면 §4.8 이 막은 금액 복원 경로가 열린다.
 
 ---
 
@@ -445,10 +467,10 @@ MVP 완료 기준 10개 항목(MVP 스펙 §11)과 본 문서 스토리의 매�
 | S-06 소득 | US-O3 | `POST /income`, `PUT /income/{id}` | `income_history` |
 | S-07 소비 | US-O4 | `PUT /expenses/{ym}` | `expense_history`, `expense_item` |
 | S-08 스킬 | US-O5 | `GET /skills/search`, `POST /user-skills` | `skill`, `skill_alias`, `user_skill` |
-| S-09 검토·완료 | US-O6 | `PATCH /auth/onboarding`(`auth-service`) | `users`(onboarding_step) |
+| S-09 검토·완료 | US-O6 | `PATCH /auth/onboarding`(`auth-service`), `GET /reference/default-expenses` | `users`(onboarding_step), `config/default-expense-weights.yml` |
 | S-10 대시보드 | US-D1~D2, US-D5~D6 | `GET /dashboard/summary`, `GET /skills/recommendations` | `index_snapshot`, `market_aggregate`, `job_posting`(OWI), `user_skill` |
 | S-11 이력 | US-D4 | `GET /dashboard/history` | `index_snapshot` |
-| S-14 추이분석 | US-D3 | `GET /trends`, `/salary-distribution`, `/skills` | `market_aggregate`, `wage_stat_observation` |
+| S-14 추이분석 | US-D3, US-D8 | `GET /trends`, `/salary-distribution`, `/skills`, `/wage-growth` | `market_aggregate`, `wage_stat_observation`, `income_history` |
 | S-15 시뮬레이터 | US-S1 | `POST /scenarios/simulate`, `GET /scenarios/latest`, `GET /scenarios` | `career_scenario` |
 | S-12 이력 관리 | US-R1 | `PUT`·`DELETE /income`·`/user-skills`, `PUT /expenses/{ym}` | `income_history`(`change_reason`), `expense_*`, `user_skill` |
 | S-13 설정/탈퇴 | US-C1, US-C2 | `POST /auth/logout`·`/logout-all`, `DELETE /users` | `session`, 전 개인 테이블 |

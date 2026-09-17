@@ -1,18 +1,26 @@
 package com.carix.wagestat;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 
 class WageStatIngestServiceTest {
 
@@ -85,6 +93,199 @@ class WageStatIngestServiceTest {
 
     int count = service.ingestWageStats("2025", "2025");
 
+    assertThat(count).isZero();
+    verify(repository, never()).save(any(WageStatObservation.class));
+  }
+
+  @Test
+  @DisplayName("ingestWageStats - KOSIS 응답 안에서 보간 실패한 연도만 FALLBACK 으로 기록한다")
+  void ingestWageStats_recordsSourcePerYear() {
+    Map<String, Long> okDist = Map.of("A01", 100L);
+    Map<String, Long> badDist = Map.of("A02", 200L);
+    Map<String, Map<String, Long>> yearlyDist = new LinkedHashMap<>();
+    yearlyDist.put("2023", okDist);
+    yearlyDist.put("2024", badDist);
+
+    given(kosisClient.fetchWageDistributionByPeriod(anyString(), any(), any()))
+        .willReturn(yearlyDist);
+    given(interpolator.calculateAnnualMedianWage(okDist)).willReturn(50_000_000L);
+    given(interpolator.calculateAnnualMedianWage(badDist)).willReturn(0L);
+    given(
+            repository
+                .findByJobFamilyAndExperienceBracketAndRegionAndWageDefinitionAndBasePeriodAndStatVintage(
+                    anyString(), anyString(), anyString(), any(), anyString(), anyString()))
+        .willReturn(Optional.empty());
+
+    service.ingestWageStats("2023", "2024");
+
+    ArgumentCaptor<WageStatObservation> captor = ArgumentCaptor.forClass(WageStatObservation.class);
+    verify(repository, atLeastOnce()).save(captor.capture());
+
+    assertThat(captor.getAllValues())
+        .filteredOn(o -> "2023".equals(o.getBasePeriod()))
+        .isNotEmpty()
+        .allMatch(o -> o.getSource() == WageStatSource.KOSIS);
+    assertThat(captor.getAllValues())
+        .filteredOn(o -> "2024".equals(o.getBasePeriod()))
+        .isNotEmpty()
+        .allMatch(o -> o.getSource() == WageStatSource.FALLBACK);
+  }
+
+  @Test
+  @DisplayName("ingestWageStats - KOSIS 부재 시 폴백은 범위를 돌지 않고 마지막 연도 한 해만 쓴다")
+  void ingestWageStats_fallbackWritesSingleYear() {
+    given(kosisClient.fetchWageDistributionByPeriod(anyString(), any(), any()))
+        .willReturn(Map.of());
+    given(
+            repository
+                .findByJobFamilyAndExperienceBracketAndRegionAndWageDefinitionAndBasePeriodAndStatVintage(
+                    anyString(), anyString(), anyString(), any(), anyString(), anyString()))
+        .willReturn(Optional.empty());
+
+    int count = service.ingestWageStats("2020", "2024");
+
+    // 5년 * 48 = 240 이 아니라 48 이다.
     assertThat(count).isEqualTo(48);
+
+    ArgumentCaptor<WageStatObservation> captor = ArgumentCaptor.forClass(WageStatObservation.class);
+    verify(repository, times(48)).save(captor.capture());
+    assertThat(captor.getAllValues())
+        .allMatch(o -> "2024".equals(o.getBasePeriod()))
+        .allMatch(o -> o.getSource() == WageStatSource.FALLBACK);
+  }
+
+  @Test
+  @DisplayName("ingestWageStats - 네 자리 숫자가 아닌 연도는 거부한다")
+  void ingestWageStats_rejectsNonNumericYear() {
+    assertThatThrownBy(() -> service.ingestWageStats("abc", "2024"))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessageContaining("startYear");
+
+    assertThatThrownBy(() -> service.ingestWageStats("2020", "20x4"))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessageContaining("endYear");
+
+    verifyNoInteractions(kosisClient, repository);
+  }
+
+  @Test
+  @DisplayName("ingestWageStats - startYear 가 endYear 보다 늦으면 거부한다")
+  void ingestWageStats_rejectsInvertedRange() {
+    assertThatThrownBy(() -> service.ingestWageStats("2024", "2020"))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessageContaining("endYear");
+
+    verifyNoInteractions(kosisClient, repository);
+  }
+
+  @Test
+  @DisplayName("ingestWageStats - 폴백 vintage 는 실행 시점이 아니라 base_period 로 결정된다")
+  void ingestWageStats_fallbackVintageIsDeterministic() {
+    given(kosisClient.fetchWageDistributionByPeriod(anyString(), any(), any()))
+        .willReturn(Map.of());
+    given(
+            repository
+                .findByJobFamilyAndExperienceBracketAndRegionAndWageDefinitionAndBasePeriodAndStatVintage(
+                    anyString(), anyString(), anyString(), any(), anyString(), anyString()))
+        .willReturn(Optional.empty());
+
+    service.ingestWageStats("2025", "2025");
+
+    ArgumentCaptor<WageStatObservation> captor = ArgumentCaptor.forClass(WageStatObservation.class);
+    verify(repository, atLeastOnce()).save(captor.capture());
+    assertThat(captor.getAllValues()).allMatch(o -> "202508".equals(o.getStatVintage()));
+  }
+
+  @Test
+  @DisplayName("saveOrUpdate - 폴백 상수는 기존 행을 덮지 않는다 (강등 금지)")
+  void ingestWageStats_fallbackDoesNotOverwriteExisting() {
+    given(kosisClient.fetchWageDistributionByPeriod(anyString(), any(), any()))
+        .willReturn(Map.of());
+
+    WageStatObservation existing =
+        WageStatObservation.builder()
+            .jobFamily("DEVELOPER")
+            .experienceBracket("MID")
+            .region("ALL")
+            .wageDefinition(WageDefinition.ANNUAL_GROSS_MEDIAN)
+            .wageMedian(53_400_000L)
+            .basePeriod("2025")
+            .statVintage("202508")
+            .source(WageStatSource.KOSIS)
+            .build();
+    given(
+            repository
+                .findByJobFamilyAndExperienceBracketAndRegionAndWageDefinitionAndBasePeriodAndStatVintage(
+                    anyString(), anyString(), anyString(), any(), anyString(), anyString()))
+        .willReturn(Optional.of(existing));
+
+    service.ingestWageStats("2025", "2025");
+
+    verify(repository, never()).save(any(WageStatObservation.class));
+  }
+
+  @Test
+  @DisplayName("saveOrUpdate - KOSIS 실측은 기존 행을 같은 id 로 덮어쓴다 (승격)")
+  void ingestWageStats_kosisOverwritesExisting() {
+    Map<String, Long> gradeDist = Map.of("A01", 100L);
+    Map<String, Map<String, Long>> yearlyDist = Map.of("2024", gradeDist);
+    UUID existingId = UUID.randomUUID();
+
+    given(kosisClient.fetchWageDistributionByPeriod(anyString(), any(), any()))
+        .willReturn(yearlyDist);
+    given(interpolator.calculateAnnualMedianWage(gradeDist)).willReturn(50_000_000L);
+
+    WageStatObservation existing =
+        WageStatObservation.builder()
+            .id(existingId)
+            .jobFamily("DEVELOPER")
+            .experienceBracket("MID")
+            .region("ALL")
+            .wageDefinition(WageDefinition.ANNUAL_GROSS_MEDIAN)
+            .wageMedian(51_600_000L)
+            .basePeriod("2024")
+            .statVintage("202408")
+            .source(WageStatSource.FALLBACK)
+            .build();
+
+    // GROSS 만 기존 행이 있고 BASE 는 없다. 한 스텁을 모든 조회에 물리면
+    // "행마다 제 id 를 재사용" 과 "스텁 하나의 id 를 전부에 박음" 이 구별되지 않는다.
+    given(
+            repository
+                .findByJobFamilyAndExperienceBracketAndRegionAndWageDefinitionAndBasePeriodAndStatVintage(
+                    anyString(),
+                    anyString(),
+                    anyString(),
+                    eq(WageDefinition.ANNUAL_GROSS_MEDIAN),
+                    anyString(),
+                    anyString()))
+        .willReturn(Optional.of(existing));
+    given(
+            repository
+                .findByJobFamilyAndExperienceBracketAndRegionAndWageDefinitionAndBasePeriodAndStatVintage(
+                    anyString(),
+                    anyString(),
+                    anyString(),
+                    eq(WageDefinition.ANNUAL_BASE_MEDIAN),
+                    anyString(),
+                    anyString()))
+        .willReturn(Optional.empty());
+
+    service.ingestWageStats("2024", "2024");
+
+    ArgumentCaptor<WageStatObservation> captor = ArgumentCaptor.forClass(WageStatObservation.class);
+    verify(repository, atLeastOnce()).save(captor.capture());
+
+    assertThat(captor.getAllValues())
+        .isNotEmpty()
+        .allMatch(o -> o.getSource() == WageStatSource.KOSIS);
+    assertThat(captor.getAllValues())
+        .filteredOn(o -> o.getWageDefinition() == WageDefinition.ANNUAL_GROSS_MEDIAN)
+        .isNotEmpty()
+        .allMatch(o -> existingId.equals(o.getId()));
+    assertThat(captor.getAllValues())
+        .filteredOn(o -> o.getWageDefinition() == WageDefinition.ANNUAL_BASE_MEDIAN)
+        .isNotEmpty()
+        .allMatch(o -> !existingId.equals(o.getId()));
   }
 }

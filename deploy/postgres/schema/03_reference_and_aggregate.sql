@@ -22,12 +22,16 @@ CREATE TABLE core.wage_stat_observation (
     wage_median        bigint NOT NULL,
     base_period        character varying(6) NOT NULL,
     stat_vintage       character varying(6) NOT NULL,
+    source             character varying(20) NOT NULL DEFAULT 'UNKNOWN',
     UNIQUE (job_family, experience_bracket, region, wage_definition, base_period, stat_vintage)
 );
 COMMENT ON TABLE core.wage_stat_observation IS
     '연봉 격차 판정의 기준선인 공식 임금통계. 같은 기준기간의 개정판은 stat_vintage 로 공존하며, 조회는 base_period 별 최신 vintage 를 쓴다.';
 COMMENT ON COLUMN core.wage_stat_observation.wage_definition IS '임금 산정 정의 메타데이터 (예: ANNUAL_GROSS_MEDIAN = 연간 세전 중위임금)';
 COMMENT ON COLUMN core.wage_stat_observation.wage_median IS '연간 세전 중앙값 (원 단위)';
+COMMENT ON COLUMN core.wage_stat_observation.base_period IS '통계 기준기간. 고용형태별근로실태조사는 연 단위 공시라 YYYY 네 자리다 (varchar(6) 은 월 단위 개정 여지).';
+COMMENT ON COLUMN core.wage_stat_observation.source IS
+    '관측치 출처. KOSIS = 24계층 누적분포 보간 실측, FALLBACK = 하드코딩 상수(실측 아님), UNKNOWN = 컬럼 도입 이전 적재분. 구분이 없으면 상수가 실측으로 읽혀 상승률 0% 의 가짜 시계열이 만들어진다.';
 
 CREATE TABLE core.market_aggregate (
     id                      uuid PRIMARY KEY,
