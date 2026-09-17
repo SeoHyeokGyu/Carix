@@ -10,6 +10,9 @@ import {
   type SkillSearchItem,
 } from "../../lib/skillApi";
 import { SKILL_FIELD_MESSAGES, userSkillSchema } from "../../lib/schemas/skill";
+import { toUserMessage } from "../../lib/apiError";
+import { UnauthorizedError } from "../../lib/coreApi";
+import { LOGIN_PATH } from "../../lib/routeGuards";
 
 const CATEGORY_OPTIONS = [
   { value: "BACKEND", label: "백엔드 (Backend)" },
@@ -221,9 +224,11 @@ export default function Skills() {
       setMonths("");
       setLastUsedDate(getCurrentYearMonthDay());
     } catch (err) {
-      setErrorMessage(
-        err instanceof Error ? err.message : "스킬 등록에 실패했습니다.",
-      );
+      if (err instanceof UnauthorizedError) {
+        navigate(LOGIN_PATH);
+        return;
+      }
+      setErrorMessage(toUserMessage(err));
     } finally {
       setActionLoading(false);
     }
@@ -240,9 +245,11 @@ export default function Skills() {
       setUserSkills((prev) => prev.filter((s) => s.id !== id));
       setSuccessMessage(`'${name}' 스킬이 삭제되었습니다.`);
     } catch (err) {
-      setErrorMessage(
-        err instanceof Error ? err.message : "스킬 삭제에 실패했습니다.",
-      );
+      if (err instanceof UnauthorizedError) {
+        navigate(LOGIN_PATH);
+        return;
+      }
+      setErrorMessage(toUserMessage(err));
     } finally {
       setActionLoading(false);
     }
@@ -284,9 +291,11 @@ export default function Skills() {
       setEditingId(null);
       setSuccessMessage("스킬 정보가 수정되었습니다.");
     } catch (err) {
-      setErrorMessage(
-        err instanceof Error ? err.message : "스킬 수정에 실패했습니다.",
-      );
+      if (err instanceof UnauthorizedError) {
+        navigate(LOGIN_PATH);
+        return;
+      }
+      setErrorMessage(toUserMessage(err));
     } finally {
       setActionLoading(false);
     }
