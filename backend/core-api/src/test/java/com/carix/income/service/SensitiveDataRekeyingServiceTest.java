@@ -12,6 +12,7 @@ import com.carix.income.domain.IncomeHistory;
 import com.carix.scenario.domain.CareerScenario;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.OffsetDateTime;
 import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -22,6 +23,18 @@ import org.springframework.boot.jpa.test.autoconfigure.TestEntityManager;
 import org.springframework.context.annotation.Import;
 import org.springframework.jdbc.core.JdbcTemplate;
 
+/**
+ * SensitiveDataRekeyingService 통합 테스트.
+ *
+ * <p>검증 항목:
+ *
+ * <ul>
+ *   <li>1. 접두사가 없는 레거시 암호문이 저장된 테이블(소득, 소비, 시나리오 3종)을 감지하는 {@code checkStatus()} 검증
+ *   <li>2. {@code rekeyAll()} 실행 후 모든 암호문이 최신 활성 키 접두사({@code v1:})로 갱신되는지 검증
+ *   <li>3. 재암호화 완료 후 엔티티를 조회했을 때 평문 금액이 정상 복호화되는지 정합성 확인
+ *   <li>4. 재암호화 완료 후 {@code isFullyMigrated() == true} 및 {@code totalOutdated() == 0} 검증
+ * </ul>
+ */
 @DataJpaTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @Import({SensitiveDataRekeyingService.class, KeyRing.class, EncryptedConverter.class})
@@ -39,7 +52,7 @@ class SensitiveDataRekeyingServiceTest {
     UUID userId = UUID.randomUUID();
 
     // 1. income_history 에 레거시 암호문 (접두사 없이) 직접 INSERT
-    // build.gradle 의 테스트 키(v1)로 암호화하되 접두사를 제거해 레거시 상태 모사
+    // build.gradle 의 테스트 키(v1)로 암호화하되 접두사를 제거해 마이그레이션 대상 데이터 모사
     String v1Encrypted = converter.convertToDatabaseColumn(65_000_000L);
     String rawLegacyCiphertext =
         v1Encrypted.contains(":")
@@ -92,7 +105,7 @@ class SensitiveDataRekeyingServiceTest {
         rawLegacyCiphertext,
         rawLegacyCiphertext,
         "OK",
-        java.time.OffsetDateTime.now());
+        OffsetDateTime.now());
 
     em.clear();
 
@@ -103,7 +116,7 @@ class SensitiveDataRekeyingServiceTest {
     assertThat(statusBefore.outdatedExpenseItem()).isGreaterThanOrEqualTo(1);
     assertThat(statusBefore.outdatedCareerScenario()).isGreaterThanOrEqualTo(1);
 
-    // 5. rekeyAll 실행
+    // 5. rekeyAll 실행: 모든 대상 행을 최신 활성 키(v1:)로 재암호화
     SensitiveDataRekeyingService.RekeyingResult result = rekeyingService.rekeyAll();
     assertThat(result.incomeHistoryUpdated()).isGreaterThanOrEqualTo(1);
     assertThat(result.expenseItemUpdated()).isGreaterThanOrEqualTo(1);
@@ -116,7 +129,7 @@ class SensitiveDataRekeyingServiceTest {
     assertThat(statusAfter.isFullyMigrated()).isTrue();
     assertThat(statusAfter.totalOutdated()).isZero();
 
-    // 7. 엔티티를 조회했을 때 정상 복호화 확인
+    // 7. 엔티티를 조회했을 때 정상 복호화 확인 (데이터 무결성 검증)
     IncomeHistory reloadedIncome = em.find(IncomeHistory.class, incomeId);
     assertThat(reloadedIncome.getGrossSalary()).isEqualTo(65_000_000L);
 
