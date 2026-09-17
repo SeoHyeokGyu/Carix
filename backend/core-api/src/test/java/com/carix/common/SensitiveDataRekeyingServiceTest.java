@@ -25,11 +25,12 @@ import org.springframework.jdbc.core.JdbcTemplate;
  * SensitiveDataRekeyingService 통합 테스트.
  *
  * <p>검증 항목:
+ *
  * <ul>
- *   <li>1. 접두사가 없는 레거시 암호문이 저장된 테이블(소득, 소비, 시나리오 3종)을 감지하는 {@code checkStatus()} 검증</li>
- *   <li>2. {@code rekeyAll()} 실행 후 모든 암호문이 최신 활성 키 접두사({@code v1:})로 갱신되는지 검증</li>
- *   <li>3. 재암호화 완료 후 엔티티를 조회했을 때 평문 금액이 정상 복호화되는지 정합성 확인</li>
- *   <li>4. 재암호화 완료 후 {@code isFullyMigrated() == true} 및 {@code totalOutdated() == 0} 검증</li>
+ *   <li>1. 접두사가 없는 레거시 암호문이 저장된 테이블(소득, 소비, 시나리오 3종)을 감지하는 {@code checkStatus()} 검증
+ *   <li>2. {@code rekeyAll()} 실행 후 모든 암호문이 최신 활성 키 접두사({@code v1:})로 갱신되는지 검증
+ *   <li>3. 재암호화 완료 후 엔티티를 조회했을 때 평문 금액이 정상 복호화되는지 정합성 확인
+ *   <li>4. 재암호화 완료 후 {@code isFullyMigrated() == true} 및 {@code totalOutdated() == 0} 검증
  * </ul>
  */
 @DataJpaTest
