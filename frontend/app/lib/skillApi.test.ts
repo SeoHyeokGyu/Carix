@@ -172,7 +172,11 @@ describe("skillApi 요청 형태", () => {
   });
 
   it("deleteUserSkill 은 DELETE /api/v1/user-skills/:id 를 호출한다", async () => {
-    const mockFetch = vi.fn().mockResolvedValue(mockResponse(204, null));
+    // 실제 백엔드(SkillController#deleteUserSkill)는 204 가 아니라
+    // `ResponseEntity.ok(ApiResult.success(null, ...))` — 200 에 봉투를 씌워 돌려준다.
+    const mockFetch = vi
+      .fn()
+      .mockResolvedValue(mockResponse(200, { success: true, data: null }));
     vi.stubGlobal("fetch", mockFetch);
 
     await deleteUserSkill("u-1");
