@@ -10,13 +10,12 @@
 
 | 문서 | 내용 |
 | --- | --- |
-| [MVP 설계](specs/mvp-requirements.md) | 제품 목적, MVP 범위, 사용자 흐름, 지표·규칙, 완료 기준 |
 
 ## 기능 (Functional)
 
 | 문서 | 내용 |
 | --- | --- |
-| [기능 명세서](specs/functional-specification.md) | 화면 맵, 사용자 스토리·인수 조건, 입력 검증, 계산 경계, 추적 매트릭스 |
+| [기능 명세서](specs/functional-specification.md) | 제품 범위·사용자 흐름·지표 규칙과 화면 맵·인수 조건·입력 검증·계산 경계·추적 매트릭스 |
 | [와이어프레임 인덱스](specs/wireframes/README.md) | HTML 와이어프레임 맵 및 UI 화면 스크린샷 인덱스 |
 
 ## 아키텍처 (Architecture)

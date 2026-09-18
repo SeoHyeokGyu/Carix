@@ -84,7 +84,7 @@
 이 절은 파이프라인 재설계가 **바꾼 것만** 갖는다. 구매력 지수는
 [도메인 정의서 §1](domain-logic.md)과 [기능 명세 §4.3](functional-specification.md),
 동료집단 완화는 [도메인 정의서 §2](domain-logic.md), 12개월 시나리오는
-[MVP 설계 §5.5](mvp-requirements.md)가 갖는다.
+[기능 명세 §12.5](functional-specification.md)가 갖는다.
 
 ### 2.1 스킬 수요 지수 (구 시장가치 지수)
 
