@@ -93,7 +93,7 @@
 | collector | 모듈 추출 완료. 크롤러·중복제거·정규화·`market_aggregate` 집계·임금통계 수집과 파이프라인 내부 API(`/internal/pipeline/**`)까지 구현돼 있다 |
 | DB 스키마 소유권 | auth 스키마는 auth-service, core 스키마는 collector(채용공고 5개 테이블·market_aggregate)와 core-api(사용자 도메인 5개 테이블·지수/시나리오)가 공유 (DDL 직접 적용) |
 | 프런트엔드 | React Router + Vite 기반. ESLint/Prettier 코드 스타일 표준화, 라이트/다크 듀얼 테마, WCAG AA 접근성 준수. 테스트 스크립트(`pnpm dev`·`test`·`test:unit`·`test:e2e`) 모두 구비. 공용 계층(`coreApi` 래퍼의 봉투 해제·오류 정규화·401 단일 처리, 세션·진입 가드 loader, shadcn/ui, Zod 스키마)이 서 있다 |
-| 화면 구현 | 랜딩·로그인·가입, 온보딩 5화면, 대시보드 메인, 추이분석(차트 3종), 스냅샷 이력, 설정·탈퇴, 12개월 시뮬레이터, 관리자 파이프라인 콘솔이 실제 API 에 연결돼 동작한다 |
+| 화면 구현 | 랜딩·로그인·가입, 온보딩 5화면, 대시보드 메인, 추이분석(차트 3종), 스냅샷 이력, 설정·탈퇴, 12개월 시뮬레이터, 관리자 파이프라인 콘솔, 이력 관리 화면(`S-12` 소득·소비·스킬 탭)이 실제 API 에 연결돼 동작한다 |
 
 ### 남은 것
 
@@ -101,7 +101,8 @@
 | --- | --- |
 | 구매력 지수(PPI) | 품목별 CPI 기반 본 엔진과 소비 가중치 전파(`PROPAGATED`)가 잔여. 최초 소득월 100 기준의 기본 산출기(`DefaultPurchasingPowerIndexProvider`)가 배선돼 있어 스냅샷 결측은 나지 않는다 |
 | collector | 없음. 임금통계 적재의 출처 기록·승격 규칙·폴백 단일 연도화까지 들어왔다. 관리자 콘솔(`S-16`) UI 연동까지 완료했다. `@Scheduled` 정기 실행은 도입하지 않기로 확정했다 ([애플리케이션 워크플로 §2](specs/application-workflow.md)) |
-| 프런트엔드 | 이력 관리 화면(`S-12` 소득·소비·스킬 탭)과 UI 일관성 통일 P3~P4 가 잔여 |
+| 프런트엔드 | UI 일관성 통일 P3~P4 가 잔여 |
+| 소득 변경 사유 | `income_history.change_reason` 컬럼·API(`a4`)가 미착수다. 컬럼이 서면 `S-12` 소득 탭에 선택 컨트롤 한 개를 붙이는 후속 작업이 남는다. 정의는 [기능 명세 US-R1](specs/functional-specification.md) |
 | 검증 | 스냅샷 쓰기 경로의 운영 Postgres 검증([기술 명세 §1.3](specs/technical-specification.md)), MVI 표본부족(`N<10`) 엣지케이스 검증, 민감 금액 로깅 마스킹 점검, E2E 통합과 완료 기준 10항목 점검 |
 | 개방창 지수(OWI) | 네 번째 지표 카드 미착수. 공고 집계·완화·Provider(B)와 `index_snapshot` 컬럼·대시보드 3 API 확장(C)이 잔여다. 정의는 [기능 명세 §4.5](specs/functional-specification.md), 일정은 [개발 계획 §2](plans/carix-dev-plan.md) `b6`·`c6` |
 | 연봉 암호화 | 키 로테이션 절차와 로테이션 시 기존 암호문 재암호화 전략 미확정 ([SECURITY §3.2](SECURITY.md)) |
