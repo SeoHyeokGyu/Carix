@@ -272,7 +272,7 @@ flowchart TD
 | UI·시각화 | Tailwind CSS, shadcn/ui, 손수 SVG | 컴포넌트, 스타일, 지수 차트 | 도입 — Tailwind CSS 4(`@tailwindcss/vite`)·shadcn/ui(Button·Input·Card 등, `@/` 경로 별칭 배선 포함). **차트 라이브러리는 쓰지 않습니다** — `S-14` 차트 3종은 손수 SVG 이고 소비 도넛은 CSS `conic-gradient` 입니다 |
 | 백엔드 | Java 25, Spring Boot 4.1, Gradle 멀티모듈 | 인증, 도메인 로직, REST API, 데이터 접근 | 도입 — auth-service(인증), core-api(프로필·소득·소비·스킬·지수·스냅샷·시나리오·대시보드), collector(수집·정규화·집계)가 모두 실데이터로 동작합니다. 고정 응답 스텁은 전부 철거했습니다 |
 | API 문서 | springdoc-openapi | OpenAPI 문서, Swagger UI | 도입 |
-| 데이터 접근 | Spring Data JPA, Flyway | 영속화, 스키마 마이그레이션 | 모듈별로 다름 — auth-service(`auth` 스키마)는 Flyway 로 관리. `core` 스키마는 collector 와 core-api 가 공유하며 **Flyway 를 쓰지 않고 DDL 을 직접 적용**한다(정본은 [상세 기술 명세](docs/specs/technical-specification.md), 절차는 [DEVELOPMENT.md §3.2](docs/DEVELOPMENT.md)). 셋 다 JPA 로 매핑돼 있다 |
+| 데이터 접근 | Spring Data JPA, Flyway | 영속화, 스키마 마이그레이션 | 모듈별로 다름 — auth-service(`auth` 스키마)는 Flyway 로 관리. `core` 스키마는 collector 와 core-api 가 공유하며 **Flyway 를 쓰지 않고 DDL 을 직접 적용**한다(정본은 [`deploy/postgres/schema/`](deploy/postgres/schema/), 절차는 [DEVELOPMENT.md §3.2](docs/DEVELOPMENT.md)). 셋 다 JPA 로 매핑돼 있다 |
 | 데이터 수집 | Spring Batch | 외부 원천 수집·집계 | 미도입 — collector 가 관리자 콘솔(`S-16`)과 내부 API(`/internal/pipeline/**`)로 직접 구동합니다. 재시도·청크·잡 이력이 실제로 필요해질 때 도입합니다 |
 | 데이터베이스 | PostgreSQL 16 | 영속화 | 도입 — `auth` 스키마 3테이블, `core` 스키마에 채용공고·시장집계·사용자 도메인·지수·시나리오까지 전부 존재 |
 | 엣지 — 라우터 | Caddy 2 (`infra_caddy`) | 80/443 소유, TLS 종료·자동 발급, 호스트명 분기 | 도입 — **이 저장소 밖**(`~/infra`, 타 프로젝트와 공유) |

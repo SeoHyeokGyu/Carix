@@ -12,7 +12,7 @@ REST API를 맡는다 — 사용자 도메인(프로필·소득·소비·스킬)
 `UserContextArgumentResolver` 이며 헤더가 없으면 401 이다. 빠진 것이 아니라 택한 구조다.
 
 상세 설계:
-- DB 스키마·규칙: [`../docs/specs/technical-specification.md`](../docs/specs/technical-specification.md)
+- DB 스키마: [`../docs/specs/erd.md`](../docs/specs/erd.md) · 계산 규칙: [`../docs/specs/domain-logic.md`](../docs/specs/domain-logic.md)
 - API 규격: [`../docs/specs/api-specification.md`](../docs/specs/api-specification.md)
 - 도메인 계산: [`../docs/specs/domain-logic.md`](../docs/specs/domain-logic.md)
 - Spring Cloud 구성: [`../docs/specs/spring-cloud-architecture.md`](../docs/specs/spring-cloud-architecture.md)

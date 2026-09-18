@@ -150,7 +150,7 @@ flowchart TD
 ```
 
 ### 2.3 Job 3(시장 데이터 집계) 및 Job 4(사용자 스냅샷 갱신 — core-api 전담)
-Job 3(원천별 집계)은 `collector`가 실행하며, Job 4(사용자 스냅샷 갱신)는 `core-api` 안에서 사용자 프로필·소득·소비·스킬 변경 시 **트랜잭션 안의 동기 직접 호출**(`recalculateSnapshot(userId, fromYm)`)로 실행됩니다. 스케줄러나 비동기 이벤트는 쓰지 않습니다 ([기술 명세 §1.3](technical-specification.md)). 사용자 스냅샷 계산 및 저장은 `core-api`가 전담 소유합니다. 아래 흐름도는 두 Job의 연쇄 데이터 흐름을 표현한 것입니다. 수집된 원천 공고 및 CPI 데이터를 사용자의 동료집단(Peer Group) 단위로 그룹핑하고 통계를 집계한 뒤 사용자 스냅샷을 갱신합니다.
+Job 3(원천별 집계)은 `collector`가 실행하며, Job 4(사용자 스냅샷 갱신)는 `core-api` 안에서 사용자 프로필·소득·소비·스킬 변경 시 **트랜잭션 안의 동기 직접 호출**(`recalculateSnapshot(userId, fromYm)`)로 실행됩니다. 스케줄러나 비동기 이벤트는 쓰지 않습니다 ([도메인 정의서 §5](domain-logic.md)). 사용자 스냅샷 계산 및 저장은 `core-api`가 전담 소유합니다. 아래 흐름도는 두 Job의 연쇄 데이터 흐름을 표현한 것입니다. 수집된 원천 공고 및 CPI 데이터를 사용자의 동료집단(Peer Group) 단위로 그룹핑하고 통계를 집계한 뒤 사용자 스냅샷을 갱신합니다.
 
 롤업 집합(GROUPING SETS) 열거 — 롤업 차원은 `employment_type`, `company_size`, `skill_id` 3개이며, 원천×월×직무×지역×경력구간마다 다음 6개 집합을 생성합니다 (`NULL` = 전체 롤업, 원천 미상 `'UNKNOWN'`은 세분 값의 하나로 취급):
 

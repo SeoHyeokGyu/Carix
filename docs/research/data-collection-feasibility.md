@@ -5,7 +5,7 @@
 > **조사 기록이며 정본이 아니다.** 현재 유효한 원천 상태와 호출 규격은
 > [외부 원천 API 연동 명세](../specs/external-api-integration.md), 파이프라인 구조는
 > [데이터 아키텍처](../specs/data-architecture.md), 파싱·상수 규약은
-> [상세 기술 명세](../specs/technical-specification.md)를 따른다.
+> [도메인 정의서](../specs/domain-logic.md)를 따른다.
 
 ---
 

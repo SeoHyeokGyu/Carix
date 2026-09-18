@@ -217,6 +217,66 @@ erDiagram
     }
 ```
 
+## 스키마 설계 주석
+
+> **실행 정본은 [`deploy/postgres/schema/`](../../deploy/postgres/schema/)의 `.sql` 파일이고,
+> 테이블·컬럼 목록은 위 ERD 가 갖는다**(적용 절차는 [DEVELOPMENT.md §3.2](../DEVELOPMENT.md)).
+> 이 절은 둘 중 어느 쪽에도 안 남는 것만 적는다 — 설계 의도, 실물과 갈린 지점, 수집되지만
+> 아무도 안 읽는 컬럼.
+>
+> **`users` 외래키는 걸지 않는다.** `users`는 auth-service가 `auth` 스키마에 소유하고,
+> `core` 테이블은 core-api가 소유한다. 스키마를 가로지르는 외래키는 두 서비스의 배포를
+> 묶어 버리므로 `user_id UUID NOT NULL`만 두고 참조 무결성은 애플리케이션이 지킨다.
+>
+> **채용공고 수집 5개 테이블은 원 설계와 다르다.** 크롤링 실측에 맞춰 완화된 상태로
+> 운영 중이며, 정확한 정의는 [`01_job_posting.sql`](../../deploy/postgres/schema/01_job_posting.sql)에 있다.
+>
+> | 테이블 | 원 설계 | 실물 |
+> | --- | --- | --- |
+> | `job_posting` | `title VARCHAR(255)`, `company_name`·`region`·`experience_min`·`employment_type`·`company_size`·`job_family` 전부 NOT NULL | `title VARCHAR(500)`, 해당 컬럼 전부 NULL 허용. `company_badge`·`position_level` 컬럼 추가 |
+> | `job_posting.salary_*` | 원 단위 | **원 단위로 저장한다.** 원천 표기가 만원이라 적재 경로가 변환한다 — `JobKoreaListingEnricher`·`JobKoreaPayParser` 가 `값 < 1,000,000` 이면 `× 10,000`. 옛 만원 단위 행은 `06_fix_salary_units.sql` 이 같은 기준으로 올렸다. **읽을 때 다시 환산하지 않는다.** 휴리스틱이라 연 100만원 미만 실제 금액은 잘못 곱해지지만 채용공고 연봉에는 그런 값이 없다 |
+> | `job_posting.salary_*` (사람인) | — | **사람인은 연봉을 주지 않는다.** `SaraminListingFields` 에 필드가 없어 사람인 행은 전부 `null` 이고, 그 원천의 `market_aggregate` 5수치도 전부 `null`·결측률 100% 다 |
+> | `skill` | `standard_name VARCHAR(100)` 단독 UNIQUE, `category NOT NULL` | `VARCHAR(255)`, `UNIQUE (standard_name, category)`, `category` NULL 허용 |
+> | `skill.category` | `'BACKEND'`·`'FRONTEND'` 등 기술 분야 | `'SKILL'`·`'JOB_CATEGORY'`·`'INDUSTRY'` — 수집 태그의 성격 구분 |
+> | `skill_alias` | `alias_name VARCHAR(100) UNIQUE` | `VARCHAR(255)`, UNIQUE 없음. `SkillService`·`SkillRepository` 가 자동완성 검색에서 읽는다(`US-O5`) |
+> | `raw_ingest` | 원문 보관 + 24개월 purge | **원문을 보관하지 않는다.** `payload`·`purged_at`·`schema_version` 컬럼 없음. 수집 이력만 남는다 |
+> | `job_posting.content` | 공고 상세 본문 텍스트 | **컬럼 없음.** 스킬 파싱은 `raw_ingest` 원문에서 직접 한다 |
+> | `job_posting.first_seen_month`·`last_seen_month` | 공고를 처음·마지막 본 월 | **상수다.** `SeedLoader` 가 `SEED_MONTH` 를 그대로 넣어 공고마다 같은 값이다. 관측 기간을 재는 데 쓸 수 없다 — 등록·마감은 `posted_start_date`·`posted_end_date` 를 쓴다(원천이 공고마다 실어 준다) |
+>
+> **`market_aggregate.base_year_month` 는 집계 실행 라벨이지 공고의 월이 아니다.**
+> `MarketAggregateService.aggregateMarketDataForMonth` 가 `jobPostingRepository.findAll()` 을
+> 월 필터 없이 집계하므로 그 라벨은 "그 달에 열려 있던 공고"를 뜻하지 않는다. 월별 시계열이
+> 필요한 값은 `job_posting.posted_start_date`(등록일)로 직접 버킷해야 한다(§4.5·§4.6).
+> **집계월이 하나뿐이면** `MarketValueIndexServiceImpl.resolveEffectiveYearMonth` 가 모든
+> 요청월을 그 달로 접어 MVI 가 전 기간 상수가 된다 — 실재 여부는
+> `SELECT DISTINCT base_year_month FROM core.market_aggregate ORDER BY 1;` 로 확인한다.
+>
+> **수집하지만 `core-api` 가 읽지 않는 컬럼들.** 크롤러가 채우고 어느 화면도 쓰지 않는다 —
+> 지우자는 판단이 아니라, 새 기능을 설계할 때 **이미 있는 재료**임을 잃지 않으려고 적는다.
+>
+> | 컬럼 | 상태 |
+> | --- | --- |
+> | `job_posting.title`·`company_name` | 적재만 된다. 집계는 차원만 쓰고 화면은 공고 개별을 보여주지 않는다 |
+> | `job_posting.position_level` | 직급 문자열. **잡코리아 원천에만 있다** — 사람인 행은 `null` 이라 절반 모수다. 경력 브래킷과 별개의 세 번째 연차 신호이지만 반쪽이라 그대로는 못 쓴다 |
+> | `job_posting.company_badge` | 잡코리아 전용 배지. 사람인 `null` |
+> | `job_posting.dedup_rule_version` | 중복제거 규칙 버전. 규칙을 바꿔 재집계할 때 어느 행이 옛 규칙 산물인지 가리려던 컬럼인데 읽는 코드가 없다 |
+> | `cpi_observation` 전체 | `collector` 가 적재하고 **`core-api` 에 읽는 코드가 0건이다.** 품목별 CPI 기반 PPI 본 엔진이 미착수라서다(개발 계획 `a2`). 첫 소비자는 `a5` 의 1위 품목 뱃지(`US-D1`)로 잡혀 있다 |
+>
+> **`wage_stat_observation.wage_median` 은 경력별 실측이 아니다.** KOSIS 연령대를 경력구간으로
+> 프록시한 값이고(`25~29세 → JUNIOR`, `WageStatIngestService.AGE_CODE_TO_EXPERIENCE_BRACKET`),
+> API 를 호출하지 못하면 하드코딩 `FALLBACK_MEDIAN_BY_BRACKET` 로 떨어진다. `region` 은 항상
+> `ALL` 이다. 연봉 격차 판정의 기준선으로는 채택된 값이지만, **이 값을 분모로 비율을 만들면 그
+> 비율이 시장이 아니라 프록시 정합도를 절반쯤 잰다.**
+
+
+**`career_scenario` 의 금액 컬럼**은 `income_history` 와 같은 AES-256-GCM 으로 저장한다.
+평문이면 `stay_compensation_12m` 을 `stay_expected_raise_rate` 로 나눠 현재 연봉이 원
+단위까지 복원되어, 연봉을 암호화한 이유가 이 테이블에서 사라진다. 금액으로 조회·정렬하는 인덱스가
+없어 질의 비용은 없다.
+
+실현 가능성은 재계산하지 않고 저장한다. 동료집단 분포는 그 시점의 공고에 의존해 나중에 다시
+구하면 사용자가 실제로 본 판단이 나오지 않는다.
+
 ## 운영 스키마 적용 이력
 
 `core` 스키마는 Flyway 를 쓰지 않아 적용 이력이 자동으로 남지 않는다

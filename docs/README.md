@@ -23,9 +23,8 @@
 | 문서 | 내용 |
 | --- | --- |
 | [파이프라인 재설계](specs/data-architecture.md) | 데이터 아키텍처: 원천 4개, RawIngest, dedup, 임금통계 기준선 |
-| [데이터베이스 ERD](specs/erd.md) | 데이터베이스 엔티티 관계도 (Mermaid) |
+| [데이터베이스 ERD](specs/erd.md) | 엔티티 관계도(Mermaid), 스키마 설계 주석, 운영 적용 이력 |
 | [애플리케이션 워크플로우](specs/application-workflow.md) | E2E 데이터 흐름, 관리자 직접 구동 및 Spring Scheduler 수집/집계 파이프라인, 시퀀스 |
-| [상세 기술 명세](specs/technical-specification.md) | DB 스키마(DDL), 결정 규칙표, 스킬 사전 |
 | [도메인 계산 정의](specs/domain-logic.md) | 지수·시나리오 계산 공식, 가중치 전파, 완화 알고리즘 |
 | [프런트엔드 설계](specs/frontend-design.md) | Vite·React·Node SSR 구성, 렌더링 전략, 배포 단위, 비주얼 테마·레이아웃·시각화 컴포넌트 |
 | [Spring Cloud 아키텍처](specs/spring-cloud-architecture.md) | Gateway·Config·Eureka 기반 재설계. 서비스 경계, 설정 관리, 로컬 개발 |
@@ -103,10 +102,10 @@
 | collector | 없음. 임금통계 적재의 출처 기록·승격 규칙·폴백 단일 연도화까지 들어왔다. 관리자 콘솔(`S-16`) UI 연동까지 완료했다. `@Scheduled` 정기 실행은 도입하지 않기로 확정했다 ([애플리케이션 워크플로 §2](specs/application-workflow.md)) |
 | 프런트엔드 | UI 일관성 통일 P3~P4 가 잔여 |
 | 소득 변경 사유 | `income_history.change_reason` 컬럼·API(`a4`)가 미착수다. 컬럼이 서면 `S-12` 소득 탭에 선택 컨트롤 한 개를 붙이는 후속 작업이 남는다. 정의는 [기능 명세 US-R1](specs/functional-specification.md) |
-| 검증 | 스냅샷 쓰기 경로의 운영 Postgres 검증([기술 명세 §1.3](specs/technical-specification.md)), MVI 표본부족(`N<10`) 엣지케이스 검증, 민감 금액 로깅 마스킹 점검, E2E 통합과 완료 기준 10항목 점검 |
+| 검증 | 스냅샷 쓰기 경로의 운영 Postgres 검증([도메인 정의서 §5](specs/domain-logic.md)), MVI 표본부족(`N<10`) 엣지케이스 검증, 민감 금액 로깅 마스킹 점검, E2E 통합과 완료 기준 10항목 점검 |
 | 개방창 지수(OWI) | 네 번째 지표 카드 미착수. 공고 집계·완화·Provider(B)와 `index_snapshot` 컬럼·대시보드 3 API 확장(C)이 잔여다. 정의는 [기능 명세 §4.5](specs/functional-specification.md), 일정은 [개발 계획 §2](plans/carix-dev-plan.md) `b6`·`c6` |
 | 지출 카테고리 Swagger 문구 | `ExpenseItem` 의 `category` 설명이 `TRANSPORTATION`·`HEALTH`·`OTHER` 를 적고 있는데 정본 `ExpenseCategoryEnum` 은 `TRANSPORT`·`MEDICAL`·`LEISURE` 다 — 세 값 모두 실존하지 않는다. 코드 주석만의 문제라 동작은 멀쩡하고 공개 API 문서만 틀렸다. 소관 A (소비 API) |
-| 광역 지역 어휘 두 벌 | `core-api` `PeerGroupFallbackResolver#extractBroadRegion` 은 `서울특별시` 를 만들고 collector `RegionRollup` 은 `서울` 을 만든다. 동료집단 완화 Level 3 의 광역 조회가 `region = 'ALL'` 행으로 떨어져 증상이 가려져 있다. 값 규약 정본은 시/도 17개 한글([API 규격 §3.1](specs/api-specification.md), [기술 명세](specs/technical-specification.md)). 소관 B (동료집단) |
+| 광역 지역 어휘 두 벌 | `core-api` `PeerGroupFallbackResolver#extractBroadRegion` 은 `서울특별시` 를 만들고 collector `RegionRollup` 은 `서울` 을 만든다. 동료집단 완화 Level 3 의 광역 조회가 `region = 'ALL'` 행으로 떨어져 증상이 가려져 있다. 값 규약 정본은 시/도 17개 한글([API 규격 §3.1](specs/api-specification.md), [ERD](specs/erd.md)). 소관 B (동료집단) |
 | Gateway 세션 검증 필터 | `carix.gateway.session-validation.enabled` 활성화 — 기본값 `false`. **`/api/health` 는 필터가 붙지 않는 `core-health` 라우트(`order: -15`)로 이미 분리돼 있어** 배포 헬스체크는 401 을 받지 않는다. 남은 주의점은 되돌릴 때다 — 플래그가 `config/spring/gateway.yml` 에 있어 `.env`(이미지 태그) 롤백으로는 안 꺼진다. 전환·롤백 절차는 [`backend/README.md` 게이트웨이](../backend/README.md). 프런트엔드 잔여 소비자는 `dashboardMarketApi.ts`(S-11 스냅샷 이력, S-14 추이분석)다 — `skillApi.ts` 가 갈아탄 `coreApi` 기반이 아니라 원시 `fetch` 라 `UnauthorizedError` 를 던지지 않고, 401 을 로그인 리다이렉트가 아니라 문자열 오류로 받는다 |
 | 임금통계 연도 시계열 | 출처 컬럼(`source`)과 **쓰기 경로가 섰다** — 수집이 연도별로 출처를 기록하고, 실측만 기존 행을 덮으며, 폴백 vintage 를 고정해 벽시계 드리프트를 막았다. 고정 이전에 쌓인 `base_period=2025` 드리프트 72행은 삭제했다([ERD 운영 스키마 적용 이력](specs/erd.md)). 운영 288행은 컬럼 도입 이전 적재분이라 재수집 전까지 `UNKNOWN` 이다. 잔여 구현은 **읽기 경로**다 — `findSeries`·구간 상승률, `findLatestBaseline` 의 출처 우선순위. 지표 넷은 내 상승률 vs 시장(`a9`), 임금 vs 개인물가(`a10`), 출처 노출(`b13`), 경력 사다리 연도 축(`b14`) — 일정은 [개발 계획 §2](plans/carix-dev-plan.md) |
 | 운영 감시 | 컨테이너 헬스체크 감시를 이 호스트의 Dozzle(8888)·Dockge(3001)에 붙이는 것과 디스크 사용률 알림이 미착수다. 루트 사용률은 정리 후 81% 이고, 공유 호스트라 스왑 4GB 가 이미 소진된 상태에서 Carix 가 올라가 있다 |

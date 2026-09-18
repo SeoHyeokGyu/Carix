@@ -178,7 +178,7 @@ uid:gid `70:70`는 `postgres:16-alpine` 이미지의 postgres 프로세스 실�
 
 `core-api`와 `collector` 모두 Flyway를 쓰지 않는다. **실행 정본은
 [`deploy/postgres/schema/`](../deploy/postgres/schema/)의 `.sql` 파일들**이고, 설계 배경은
-[`specs/technical-specification.md` §1](specs/technical-specification.md)에 있다.
+[`specs/erd.md` 「스키마 설계 주석」](specs/erd.md)에 있다.
 
 ```
 deploy/postgres/schema/
