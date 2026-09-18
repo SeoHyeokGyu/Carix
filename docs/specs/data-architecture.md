@@ -1,5 +1,9 @@
 # Carix 파이프라인 중심 재설계
 
+> **§3 은 결번이다.** 시스템 구조(기술 스택·모듈 구성·데이터 모델)는
+> 루트 [`README.md` 「채택 사유」](../../README.md#채택-사유),
+> [Spring Cloud 아키텍처](spring-cloud-architecture.md), [ERD](erd.md)가 갖는다.
+
 ## 1. 데이터 아키텍처
 
 ### 1.1 원천 구성
@@ -77,18 +81,12 @@
 
 ## 2. 지수와 결정 규칙
 
-### 2.1 구매력 지수
+이 절은 파이프라인 재설계가 **바꾼 것만** 갖는다. 구매력 지수는
+[도메인 정의서 §1](domain-logic.md)과 [기능 명세 §4.3](functional-specification.md),
+동료집단 완화는 [도메인 정의서 §2](domain-logic.md), 12개월 시나리오는
+[MVP 설계 §5.5](mvp-requirements.md)가 갖는다.
 
-기존 MVP 설계 5.2와 동일하다. 미입력 소비 카테고리는 통계청 전체 가구 평균
-소비지출 비중으로 보완하고 `추정`으로 표시한다.
-
-### 2.2 동료집단
-
-동료집단은 사용자의 직무 × 경력구간 × 지역으로 정의한다. 표본이 최소 기준에
-미달하면 지역, 인접 경력구간 순으로 조건을 완화하고, 화면에 실제 적용된
-조건과 완화 내역을 표시한다.
-
-### 2.3 스킬 수요 지수 (구 시장가치 지수)
+### 2.1 스킬 수요 지수 (구 시장가치 지수)
 
 ```text
 원천별 스킬 수요율   = 원천 내 스킬 언급 공고 수 ÷ 원천 내 동료집단 전체 공고 수
@@ -110,7 +108,7 @@
 - 채용 계절성(1분기 집중 등)은 MVP에서 보정하지 않으며 알려진 한계로
   문서화한다.
 
-### 2.4 연봉 격차
+### 2.2 연봉 격차
 
 ```text
 기준 연봉 = 공식 임금통계의 직종 × 경력구간 × 지역 중앙값
@@ -127,7 +125,7 @@
   안내하며, 정의가 다를 경우 `정의 차이 존재` 캐비앳을 고정 표시한다. 상여 포함 여부 입력을
   추가할지는 아직 정하지 않았다 — 판단 조건은 §4 에 있다.
 
-### 2.5 결정 신호
+### 2.3 결정 신호
 
 기존 5.4 규칙 엔진 구조를 유지한다. 신호 5종(`협상 검토`, `이직 탐색`,
 `현 상태 유지`, `스킬 보강 우선`, `데이터 부족`)과 버전 관리되는 결정표를
@@ -140,70 +138,6 @@
 
 규칙 평가에는 사용자 경력구간의 기준 연봉 중앙값으로 계산한 점 추정 격차를
 사용한다. 범위와 인접 구간 병기는 표시 전용이다.
-
-### 2.6 12개월 시나리오
-
-기존 5.5와 동일하다. 변경 없음.
-
-## 3. 시스템 구조
-
-### 3.1 기술 스택
-
-- API: Java 25, Spring Boot, Spring Security(세션 로그인)
-- 데이터베이스: PostgreSQL. 스키마 관리는 `auth`만 Flyway이고 `core`는 DDL 직접 적용이다
-- 영속성: Spring Data JPA, 복잡한 집계는 `JdbcClient`
-- 서비스 분리: 인증은 `auth-service`(스키마 `auth`), 수집·정규화·집계는 `collector`,
-  서빙은 `core-api`. 뒤 둘은 스키마 `core` 를 공유한다 — 채용공고 5개 테이블과
-  `market_aggregate` 는 `collector` 가 쓰고, 사용자 도메인·지수 테이블은 `core-api` 가 쓴다
-  ([Spring Cloud 아키텍처](spring-cloud-architecture.md))
-- 파이프라인/수집: collector 서비스 (관리자 화면 직접 API 구동 및 Spring Scheduler 고려)
-- 테스트: JUnit 5 (DB 를 쓰는 테스트는 두지 않는다)
-- 배포: Oracle Cloud Infrastructure (기존 계획 유지)
-
-### 3.2 모듈 구성
-
-```text
-auth-service (Spring Boot)
- `- Auth (계정 가입·로그인, 세션 검증·폐기)
-
-core-api (Spring Boot)
- |- Profile / Income / Expense / Skill
- |- Market Data 조회 (market_aggregate)
- |- Index Engine (구매력, 스킬 수요, 연봉 격차)
- |- Decision Engine
- |- Scenario
- `- Index Snapshot Engine (Job 4 사용자 지수 스냅샷 갱신/재계산)
-
-collector (Spring Boot - 관리자 직접 구동 및 Spring Scheduler 고려)
- |- KOSIS CPI 수집
- |- 잡코리아 공고 수집
- |- 사람인 공고 수집
- |- 임금통계 수집 (wage_stat_observation)
- |- 스킬 정규화 + 원천 간 중복 매칭
- `- 월별 시장 집계 (원천별 market_aggregate 적재)
-```
-
-Spring Cloud (Gateway, Config Server, Eureka) 기반의 서비스 분리 구조를 취하며 메시지 큐는 도입하지 않는다.
-
-### 3.3 데이터 모델
-
-| 엔터티 | 역할 | 소유 스키마 |
-| --- | --- | --- |
-| Users, Session | 사용자 인증, 세션 관리 | `auth` (auth-service, Flyway) |
-| RawIngest | 원천별 원문 보존 (JSONB, first/last_seen_month) | `core` (collector, DDL) |
-| JobPosting, JobPostingSkill | 채용공고 및 스킬 정규화 | `core` (collector, DDL) |
-| Skill, SkillAlias | 스킬 사전 및 별칭 관리 | `core` (collector/core-api 공유) |
-| MarketAggregate | 원천별/동료집단별 시장 통계 사전 집계 | `core` (collector 쓰기, core-api 읽기) |
-| CareerProfile, IncomeHistory, ExpenseHistory, UserSkill | 사용자 프로필·소득·소비·스킬 이력 | `core` (core-api 쓰기) |
-| CpiObservation, WageStatObservation | CPI 및 임금통계 공식 관측치 | `core` (collector 쓰기) |
-| IndexSnapshot, CareerScenario | 지수 스냅샷 및 시뮬레이션 결과 | `core` (core-api 쓰기) |
-
-- 통합 지수는 저장하지 않고 Index Engine이 원천별 집계에서 계산 시점에
-  도출한다. 이중 진실을 만들지 않는다.
-- WageStatObservation은 `(직종, 경력구간, 지역, 기준기간)` 유니크로 upsert하고
-  통계 개정 시 `stat_vintage`로 발표 시점을 구분한다.
-- 계정 비밀번호는 argon2 또는 bcrypt로 해시한다. 시드 값은 환경변수나 CLI로
-  주입하며 저장소에 커밋하지 않는다. 스키마 시드(auth 는 Flyway, core 는 DDL)에 평문을 넣지 않는다.
 
 ## 4. 선행 검증 잔여
 
@@ -220,7 +154,7 @@ Spring Cloud (Gateway, Config Server, Eureka) 기반의 서비스 분리 구조�
   때 GiST·`pg_trgm` 도입을 판단하므로 [아키텍처 로드맵](architecture-roadmap.md)의 확장안이
   여기에 걸려 있다.
 - **상여 포함 여부 미결.** 임금통계의 임금 정의에 상여가 어떻게 들어가는지 확인한 뒤
-  §2.4 의 상여 포함 여부 입력을 추가할지 정한다.
+  §2.2 의 상여 포함 여부 입력을 추가할지 정한다.
 
 검증 결과는 `verification/` 에 기록한다. 측정값과
 판단 근거를 남겨 이후 설정값(최소 표본, 가중치)의 출처로 삼는다.

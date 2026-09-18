@@ -319,8 +319,7 @@ CONFIG_SERVER_URL=http://144.24.90.88:8890 EUREKA_URL=http://144.24.90.88:8761/e
 
 - **core-api 는 `core` 스키마에 붙는다** — 사용자 도메인(프로필·소득·소비·스킬)과 지수·스냅샷·
   시나리오가 모두 JPA 로 매핑돼 있어 `spring.datasource.*` 가 필요하다.
-  `market_aggregate` 읽기는 JPA 가 아니라 `JdbcClient` 읽기 전용으로 들이기로 했다
-  (`specs/data-architecture.md` §3.1).
+  `market_aggregate` 읽기는 JPA 가 아니라 `JdbcClient` 읽기 전용으로 들이기로 했다.
 - core-api 에는 Flyway 의존성이 없다. `core` 스키마 DDL 은 `collector` 와 `core-api` 가
   공유하며 파일로 직접 적용한다 — 절차는 §3.2 를 따른다.
 - 수집·정규화는 `collector` 모듈이다. `application.yml`이 `spring.cloud.config.fail-fast:
