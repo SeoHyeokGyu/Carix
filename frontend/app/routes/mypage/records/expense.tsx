@@ -47,6 +47,36 @@ const STATUS_TONE: Record<ExpenseItemStatus, Tone> = {
   DEFAULT_CPI: "warning",
 };
 
+/**
+ * 카테고리 상태 뱃지에 붙일 카테고리 라벨. 여섯 칩이 전부 같은 상태 문구만
+ * 달면 어느 칸이 보간됐는지 구분이 안 된다 — `EXPENSE_CATEGORIES` 로 이름을
+ * 붙인다. 정본에 없는 값이 오면(서버 확장 등) enum 값 자체를 그대로 쓴다.
+ */
+const EXPENSE_CATEGORY_LABEL: Record<string, string> = Object.fromEntries(
+  EXPENSE_CATEGORIES.map((category) => [category.value, category.label]),
+);
+
+/**
+ * 월 단위 종합 상태(`weightStatus`)는 카테고리별 `status` 와 별개로 서버가
+ * 계산해 내려준다(`ExpenseService.computeOverallStatus`). `PARTIALLY_ESTIMATED`
+ * 는 카테고리별 상태가 섞였을 때, `PROPAGATED` 는 과거 수정의 미래 전파용으로
+ * 값 목록에는 있지만 PPI 엔진 미착수라 실제로는 안 내려온다(명세 §3.3).
+ * 타입이 `string` 이라 표에 없는 값도 올 수 있어 라벨·톤 둘 다 폴백을 둔다.
+ */
+const WEIGHT_STATUS_LABEL: Record<string, string> = {
+  USER_DEFINED: "직접 입력",
+  DEFAULT_CPI: "통계청 평균 기준",
+  PARTIALLY_ESTIMATED: "일부 보간",
+  PROPAGATED: "이전 수정 반영",
+};
+
+const WEIGHT_STATUS_TONE: Record<string, Tone> = {
+  USER_DEFINED: "muted",
+  DEFAULT_CPI: "warning",
+  PARTIALLY_ESTIMATED: "warning",
+  PROPAGATED: "info",
+};
+
 export async function clientLoader() {
   try {
     // 두 콜은 서로 독립이다 — 직렬로 기다리면 화면이 두 배 늦는다.
@@ -100,6 +130,20 @@ export async function clientAction({ request }: { request: Request }) {
       { category: category.value, amount: Number(raw.replace(/,/g, "")) },
     ];
   });
+
+  // I1: 아직 목록에 없는 월(신규 기준월)을 전부 빈칸으로 저장하면 items=[] 가
+  // 스키마를 그대로 통과해 PUT 된다 — 서버가 여섯 카테고리를 전부 DEFAULT_CPI 로
+  // 채운 "기준월"을 만든다. D2 상 월 삭제 API 가 없으므로 이건 영구 통계전용
+  // 월이 된다. 반면 이미 목록에 있는 월은 전부 기본값으로 되돌리는 것 자체가
+  // 정당한 사용자 행동(D2)이라 items=[] 를 막으면 안 된다 — isNew 로만 가른다.
+  const isNew = formData.get("isNew") === "true";
+  if (isNew && items.length === 0) {
+    return {
+      errors: {
+        _form: "새 기준월은 최소 한 카테고리 이상 입력해야 합니다.",
+      },
+    } satisfies ActionData;
+  }
 
   // 메시지 맵을 items 길이만큼 동적으로 만든다 — items 는 실제로 값이 있는
   // 카테고리만 순서대로 담으므로 "몇 번째가 제출됐는지"는 매번 다르다
@@ -186,6 +230,9 @@ export default function RecordsExpense() {
     setEditing(wire);
   };
 
+  const isNewMonth =
+    editing !== null && !months.some((m) => m.baseYearMonth === editing);
+
   const total = Object.values(amounts).reduce(
     (sum, value) => sum + (Number(value.replace(/,/g, "")) || 0),
     0,
@@ -216,6 +263,7 @@ export default function RecordsExpense() {
           <thead className="text-carix-text/70">
             <tr>
               <th className="px-3 py-2 font-medium">기준월</th>
+              <th className="px-3 py-2 font-medium">월 상태</th>
               <th className="px-3 py-2 font-medium">카테고리 상태</th>
               <th className="px-3 py-2 font-medium">작업</th>
             </tr>
@@ -230,13 +278,22 @@ export default function RecordsExpense() {
                   {formatYearMonth(month.baseYearMonth)}
                 </td>
                 <td className="px-3 py-2">
+                  <ToneBadge
+                    tone={WEIGHT_STATUS_TONE[month.weightStatus] ?? "muted"}
+                  >
+                    {WEIGHT_STATUS_LABEL[month.weightStatus] ??
+                      month.weightStatus}
+                  </ToneBadge>
+                </td>
+                <td className="px-3 py-2">
                   <div className="flex flex-wrap gap-1">
                     {month.items.map((item) => (
                       <ToneBadge
                         key={item.category}
                         tone={STATUS_TONE[item.status]}
                       >
-                        {STATUS_LABEL[item.status]}
+                        {EXPENSE_CATEGORY_LABEL[item.category] ?? item.category}{" "}
+                        · {STATUS_LABEL[item.status]}
                       </ToneBadge>
                     ))}
                   </div>
@@ -292,6 +349,11 @@ export default function RecordsExpense() {
           className="flex flex-col gap-4 rounded-xl border border-carix-border bg-carix-surface p-6"
         >
           <input type="hidden" name="baseYearMonth" value={editing} />
+          <input
+            type="hidden"
+            name="isNew"
+            value={isNewMonth ? "true" : "false"}
+          />
           <h2 className="text-lg font-bold text-carix-text">
             {formatYearMonth(editing)} 소비
           </h2>
