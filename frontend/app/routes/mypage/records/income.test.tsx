@@ -44,6 +44,10 @@ describe("소득 탭 (S-12)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(incomeApi.listIncome).mockResolvedValue(rows);
+    // M3: jsdom 은 window.confirm 을 구현하지 않는다 — 부르면 "Not implemented" 를
+    // 찍고 undefined(falsy) 를 돌려줘 실제 확인 다이얼로그 없이도 삭제가 항상
+    // 취소된 것처럼 보인다. skills.test.tsx·onboarding/skills.test.tsx 와 같은 스텁.
+    vi.spyOn(window, "confirm").mockReturnValue(true);
   });
 
   it("유효 시작일 내림차순으로 그린다", async () => {
@@ -183,5 +187,37 @@ describe("소득 탭 (S-12)", () => {
     // 행별 삭제 실패가 목록 전체를 비우지 않는다 — 두 행 모두 남아 있다.
     expect(screen.getByText("2024-01-01")).toBeInTheDocument();
     expect(screen.getByText("2023-01-01")).toBeInTheDocument();
+  });
+
+  it("삭제 요청에 id 가 없으면 성공을 가장하지 않고 _form 오류를 돌려준다", async () => {
+    // M5: hidden input 이 항상 id 를 실어 보내 화면에서는 닿지 않는 경로지만,
+    // clientAction 자체는 id 없이 불려도 조용히 null(성공)을 돌려주면 안 된다.
+    const formData = new FormData();
+    formData.set("intent", "delete");
+    const request = new Request("http://test/mypage/records", {
+      method: "POST",
+      body: formData,
+    });
+
+    const result = await clientAction({ request });
+
+    expect(result).toEqual({
+      errors: { _form: "삭제할 항목을 찾을 수 없습니다." },
+    });
+    expect(incomeApi.deleteIncome).not.toHaveBeenCalled();
+  });
+
+  it("확인을 취소하면 삭제 API 를 부르지 않는다", async () => {
+    // M3 가 실제로 확인을 거치는지 — 스텁만 있고 취소 경로를 검증하지 않으면
+    // onSubmit 이 confirm 을 아예 안 불러도 그린으로 남는다.
+    vi.spyOn(window, "confirm").mockReturnValue(false);
+    renderTab();
+    const user = userEvent.setup();
+
+    const buttons = await screen.findAllByRole("button", { name: "삭제" });
+    await user.click(buttons[0]);
+
+    expect(incomeApi.deleteIncome).not.toHaveBeenCalled();
+    expect(screen.getByText("2024-01-01")).toBeInTheDocument();
   });
 });

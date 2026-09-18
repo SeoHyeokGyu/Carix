@@ -49,8 +49,17 @@ export async function clientAction({ request }: { request: Request }) {
 
   if (intent === "delete") {
     const id = formData.get("id");
+    // M5: id 가 없거나 문자열이 아니면 전에는 아무것도 안 하고 null(성공)을
+    // 돌려줘 폼이 성공한 것처럼 닫혔다. 지금은 hidden input 이 항상 id 를
+    // 실어 보내 실전에서는 닿지 않는 경로지만, 그렇다고 조용히 성공을 가장할
+    // 이유는 없다 — 정직하게 _form 오류로 돌려준다.
+    if (typeof id !== "string" || !id) {
+      return {
+        errors: { _form: "삭제할 항목을 찾을 수 없습니다." },
+      } satisfies ActionData;
+    }
     try {
-      if (typeof id === "string" && id) await deleteIncome(id);
+      await deleteIncome(id);
       return null;
     } catch (error) {
       if (error instanceof UnauthorizedError) throw redirect(LOGIN_PATH);
@@ -121,7 +130,21 @@ function IncomeRow({ income, onEdit }: IncomeRowProps) {
             >
               수정
             </Button>
-            <deleteFetcher.Form method="post" className="inline">
+            <deleteFetcher.Form
+              method="post"
+              className="inline"
+              onSubmit={(e) => {
+                // M3: skills 탭·onboarding/skills.tsx 와 같은 확인 절차 — 삭제는
+                // 되돌릴 수 없다.
+                if (
+                  !window.confirm(
+                    `${income.effectiveDate} 소득 이력을 삭제하시겠습니까?`,
+                  )
+                ) {
+                  e.preventDefault();
+                }
+              }}
+            >
               <input type="hidden" name="intent" value="delete" />
               <input type="hidden" name="id" value={income.id} />
               <Button
