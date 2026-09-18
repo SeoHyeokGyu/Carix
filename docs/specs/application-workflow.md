@@ -11,7 +11,7 @@
 ```mermaid
 flowchart TD
     %% 관리자 트리거 (Top Left)
-    Admin[("관리자 (Admin)")] -->|관리자 화면(S-16)/내부 API 호출| Collector
+    Admin[("관리자 (Admin)")] -->|"관리자 화면(S-16) / 내부 API 호출"| AdminTrigger
 
     %% 1. 외부 데이터 및 수집 (Top Right)
     subgraph External ["외부 원천"]
@@ -23,22 +23,22 @@ flowchart TD
 
     %% 2. 수집 및 집계 파이프라인 프로세서 (Down 1)
     subgraph Collector ["collector 모듈 (수집 & 집계 파이프라인 - 관리자 직접 구동)"]
+        AdminTrigger["파이프라인 진입점 (/internal/pipeline/*)"]
         Job1["CPI 수집 Job (/internal/pipeline/crawl)"]
         Job2["구인공고 수집 & 스킬 파싱 Job - 잡코리아/사람인"]
         Job2b["임금통계 수집 Job (/internal/pipeline/wage-stat)"]
         Job3["시장 데이터 통계 집계 Job (/internal/pipeline/aggregate)"]
     end
 
-    %% 3. 데이터베이스 (Down 2)
-    subgraph DB ["PostgreSQL 데이터베이스: carix"]
-        subgraph AuthSchema ["auth 스키마"]
-            AuthDB[("인증/세션: users, session, token")]
-        end
-        subgraph CoreSchema ["core 스키마"]
-            RawDB[("수집 원천: raw_ingest, cpi, job_posting, wage_stat_observation")]
-            AggDB[("시장 집계: market_aggregate")]
-            UsersDB[("사용자 도메인: profile, income, expense, scenario, index_snapshot")]
-        end
+    %% 3. 데이터베이스 (Down 2) - 중첩 서브그래프를 분리하여 호환성 확보
+    subgraph DB_Auth ["PostgreSQL: auth 스키마"]
+        AuthDB[("인증/세션: users, session, token")]
+    end
+
+    subgraph DB_Core ["PostgreSQL: core 스키마"]
+        RawDB[("수집 원천: raw_ingest, cpi, job_posting, wage_stat_observation")]
+        AggDB[("시장 집계: market_aggregate")]
+        UsersDB[("사용자 도메인: profile, income, expense, scenario, index_snapshot")]
     end
 
     %% 4. API 서버 (Down 3) — Gateway가 경로별로 auth-service/core-api에 라우팅한다
@@ -61,42 +61,50 @@ flowchart TD
         Sim["12개월 시뮬레이터 UI"]
     end
 
+    %% 관리자 -> 개별 Job 트리거
+    AdminTrigger --> Job1
+    AdminTrigger --> Job2
+    AdminTrigger --> Job2b
+    AdminTrigger --> Job3
+
     %% 외부 -> 수집 연동
-    Kosis -->|데이터 응답| Job1
-    JobKorea -->|본문 텍스트 응답| Job2
-    Saramin -->|공고 응답| Job2
-    WageStat -->|임금통계 응답| Job2b
-    Job1 -->|API 호출| Kosis
-    Job2 -->|스크래핑| JobKorea
-    Job2 -->|스크래핑| Saramin
-    Job2b -->|API 호출| WageStat
-    Job2b -->|정규화 적재| RawDB
+    Kosis -->|"데이터 응답"| Job1
+    JobKorea -->|"본문 텍스트 응답"| Job2
+    Saramin -->|"공고 응답"| Job2
+    WageStat -->|"임금통계 응답"| Job2b
+    Job1 -->|"API 호출"| Kosis
+    Job2 -->|"스크래핑"| JobKorea
+    Job2 -->|"스크래핑"| Saramin
+    Job2b -->|"API 호출"| WageStat
+    Job2b -->|"정규화 적재"| RawDB
 
     %% 수집/집계 -> DB 및 core-api 연동
-    Job1 -->|raw CPI 저장| RawDB
-    Job2 -->|정규화 스킬 저장| RawDB
-    RawDB -->|데이터 조회| Job3
-    Job3 -->|통계 적재| AggDB
-    Job3 -.->|집계 완료 후 스냅샷 갱신 호출| Job4
-    AggDB & UsersDB -->|지수 계산 & snap 저장| Job4
-    Job4 -->|snap 저장| UsersDB
+    Job1 -->|"raw CPI 저장"| RawDB
+    Job2 -->|"정규화 스킬 저장"| RawDB
+    RawDB -->|"데이터 조회"| Job3
+    Job3 -->|"통계 적재"| AggDB
+    Job3 -.->|"집계 완료 후 스냅샷 갱신 호출"| Job4
+    AggDB -->|"지수 계산 & snap 저장"| Job4
+    UsersDB -->|"지수 계산 & snap 저장"| Job4
+    Job4 -->|"snap 저장"| UsersDB
 
     %% 사용자 입력 -> Gateway -> API -> DB 연동
-    UI -->|1. 이메일 로그인| GW
-    GW -->|/api/v1/auth/** 라우팅| AC
-    AC -->|인증/토큰 저장| AuthDB
-    GW -.->|세션 검증| AC
-    UI -->|2. 소득/소비/스킬 입력| GW
-    GW -->|/api/v1/** 라우팅| PC
-    PC -->|3. 민감 데이터 암호화| Encrypt
-    Encrypt -->|4. 데이터 저장| UsersDB
+    UI -->|"1. 이메일 로그인"| GW
+    GW -->|"/api/v1/auth/** 라우팅"| AC
+    AC -->|"인증/토큰 저장"| AuthDB
+    GW -.->|"세션 검증"| AC
+    UI -->|"2. 소득/소비/스킬 입력"| GW
+    GW -->|"/api/v1/** 라우팅"| PC
+    PC -->|"3. 민감 데이터 암호화"| Encrypt
+    Encrypt -->|"4. 데이터 저장"| UsersDB
 
     %% API -> 프런트엔드 서빙 연동
-    UsersDB & AggDB -->|지표 가공| DecEng
-    DecEng -->|결정 신호 반환| DC
-    DC -->|결과 렌더링| UI
-    UI -->|시뮬레이션 인풋| SC
-    SC -->|세전 비교 결과 반환| Sim
+    UsersDB -->|"지표 가공"| DecEng
+    AggDB -->|"지표 가공"| DecEng
+    DecEng -->|"결정 신호 반환"| DC
+    DC -->|"결과 렌더링"| UI
+    UI -->|"시뮬레이션 인풋"| SC
+    SC -->|"세전 비교 결과 반환"| Sim
 ```
 
 ---

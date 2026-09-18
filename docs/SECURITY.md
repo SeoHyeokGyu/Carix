@@ -63,13 +63,23 @@ Carix는 연봉·실수령액·소비 금액 등 민감한 개인 재무 정보�
 - 애플리케이션 레이어(Spring Data JPA `AttributeConverter`)에서 적재 시 암호화,
   조회 시 복호화한다. 평문은 DB 버퍼·파일시스템에 그대로 남기지 않는다.
 
-### 3.2 키 관리 (구현 시 확정)
+### 3.2 키 관리 및 로테이션 (확정)
 
-- 키는 `CARIX_ENCRYPTION_KEY` 환경변수로 주입한다. 저장소·로그에 커밋하지 않는다.
-- 배치 워커도 스냅샷 계산 시 사용자별 연봉을 복호화한다. 배치 프로세스의 키 접근
-  범위와 복호화 시점을 최소화한다.
-- **미확정(구현 단계 처리):** 키 로테이션 절차와 로테이션 시 기존 암호문
-  재암호화 전략. 배치 복호화 성능·키 접근 감사.
+- **키 주입 및 키 링(Key Ring)**: 키는 환경변수로 주입하며 저장소·로그에 절대 커밋하지 않는다.
+  - 단일 키: `CARIX_ENCRYPTION_KEY` (자동으로 식별자 `v1` 할당).
+  - 다중 키(로테이션): `CARIX_ENCRYPTION_KEYS=v1:<key1>,v2:<key2>` 및 `CARIX_ENCRYPTION_ACTIVE_KEY_ID=v2`.
+- **암호문 포맷 및 버전 관리**:
+  - 신규 암호문: `{keyId}:{Base64(IV + Ciphertext + Tag)}` (예: `v2:...`).
+  - 하위 호환: 콜론(`:`) 접두사가 없는 레거시 암호문은 레거시 키(`v1`)로 자동 복호화.
+- **무중단 키 로테이션 및 재암호화 절차**:
+  1. `CARIX_ENCRYPTION_KEYS`에 신규 키를 추가하고 `CARIX_ENCRYPTION_ACTIVE_KEY_ID`를 신규 키로 지정해 배포한다 (신규 쓰기는 즉시 신규 키로 암호화, 구 암호문은 이전 키로 정상 복호화).
+  2. `SensitiveDataRekeyingService`(`rekeyAll()`)를 실행하여 `income_history`, `expense_item`, `career_scenario`의 구 암호문을 활성 키로 일괄 재암호화한다.
+  3. `checkStatus()`로 잔여 구 암호문이 0건임을 확인한 후 구 키를 환경변수에서 폐기한다.
+- **스냅샷 복호화 경계 (Decryption Boundary)**:
+  - 연봉 복호화는 오직 소득 도메인(`CurrentSalaryProvider` - `IncomeCurrentSalaryProvider`) 내부에서만 격리 수행된다.
+  - 스냅샷 엔진(`SnapshotRecalculationService`)은 암호화 컬럼에 직접 접근하지 않으며, 전달받은 `CurrentSalary`는 루프 내에서 결정 신호 판정에만 사용되고 즉시 메모리에서 폐기된다.
+  - `index_snapshot` 테이블 및 `rationale` JSONB에는 평문 연봉이나 역산 가능한 연속형 격차 비율을 일절 저장하지 않으며, 오직 `SalaryGapBucket` 구간명만 영속화한다 (`SnapshotDecryptionBoundarySecurityTest`로 누출 방지 불변식 보증).
+  - `CurrentSalary.toString()`은 금액을 마스킹(`grossSalary=***`)하여 로그 출력을 원천 방어한다.
 
 > **세션 검증 필터링**: 세션 검증은 Spring Cloud Gateway 필터가 수행하며, 하류 서비스는 `X-User-Id` 헤더를 신뢰합니다 ([Spring Cloud 아키텍처](specs/spring-cloud-architecture.md) 참조).
 > 헤더를 신뢰하는 구조이므로 게이트웨이는 인바운드 `X-User-Id` 를 전 라우트에서 무조건 벗깁니다 — 세션 검증 플래그가 꺼져 있어도 동작하며, 그래야 플래그가 꺼진 기간에 임의 UUID 로 다른 사용자를 사칭할 수 없습니다.
