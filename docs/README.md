@@ -53,6 +53,12 @@
 | [배포 워크플로우](../.github/workflows/deploy.yml) | main 푸시 — ARM 러너 빌드 → GHCR → SSH → 헬스체크 및 실패 시 자동 롤백 |
 | [롤백 워크플로우](../.github/workflows/rollback.yml) | 수동 롤백 — GitHub Actions UI에서 특정 SHA 또는 직전 배포본으로 1-클릭 복구 |
 
+## 결정 기록 (Decisions)
+
+| 문서 | 내용 |
+| --- | --- |
+| [결정 기록 (ADR)](decisions/README.md) | 되돌리기 어렵거나 한 번 뒤집힌 결정 여덟. 본문은 결과를, 여기는 근거와 검토한 대안을 갖는다 |
+
 ## 계획 (Plans)
 
 | 문서 | 내용 |
