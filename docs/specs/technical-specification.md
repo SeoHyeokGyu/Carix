@@ -343,7 +343,7 @@ CREATE TABLE career_scenario (
 *   **소득 격차 비율 ($SalaryGapRatio$):**
     $$SalaryGapRatio = \frac{\text{공식 임금통계 기준 연봉 중앙값} - \text{현재 사용자 연봉}}{\text{현재 사용자 연봉}}$$
     *(사용자 연봉이 기준 중앙값보다 낮을 때 양수가 됨. 기준선은 `wage_stat_observation`의 직종×경력구간×지역 중앙값을 사용하며, 공고 공개연봉은 결측률이 높아 참고 표시 전용)*
-*   **현재 사용자 연봉:** `core.income_history`의 암호화 컬럼이 원천이며, 기준월 시점에 유효한(가장 늦은 `effective_date` $\le$ 기준월 말일) 세전 연봉이다. 결정 엔진은 이 컬럼을 직접 읽지 않고 `CurrentSalaryProvider`(구현체: `IncomeCurrentSalaryProvider`) 계약으로 받는다 — 복호화 경계를 소득 도메인 안에 둔다([API 규격 §5.1](../plans/carix-dev-plan.md)).
+*   **현재 사용자 연봉:** `core.income_history`의 암호화 컬럼이 원천이며, 기준월 시점에 유효한(가장 늦은 `effective_date` $\le$ 기준월 말일) 세전 연봉이다. 결정 엔진은 이 컬럼을 직접 읽지 않고 `CurrentSalaryProvider`(구현체: `IncomeCurrentSalaryProvider`) 계약으로 받는다 — 복호화 경계를 소득 도메인 안에 둔다([API 규격 §5.1](api-specification.md)).
 *   **시장가치 지수 ($MVI_{recent}$):** 스킬 수요율 변화량 기준 (100점 기준값, 구현체: `MarketValueIndexServiceImpl`)
 *   **구매력 지수 ($PPI$):** 실질 구매력 수치 (100점 기준값, 구현체: `DefaultPurchasingPowerIndexProvider`). 품목별 CPI 연동 전까지 소득 등록 사용자의 최초 소득월(=100.0) 대비 소득 변동 비율을 기반으로 지수를 도출하여 스냅샷 결측을 방지한다.
 *   **최소 표본 조건 ($MinSampleSize$):** 유효 공고 수 $\ge 10$개 (확정값). OCI 운영 DB 실측 결과 4,356건의 공고와 12,568행의 사전 집계가 적재되어 있어 동료집단 셀(예: DEVELOPER 직무 100~200건 이상)에서 기준을 충족한다. **적용 지점:** 원천별 × 스킬별 × 기간 창별(최근 3개월 / 이전 12개월 각각)로 판정한다. 기준을 통과한 원천만 지수 결합에 포함하고, 모든 원천이 미달인 스킬은 `표본 부족`으로 제외한다. 연봉 분포·전체 공고 수(스킬 무관 행)도 동일 기준을 따른다.

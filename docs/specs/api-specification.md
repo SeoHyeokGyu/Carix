@@ -266,7 +266,7 @@
 *   **계산 불가 표현.** `value`·`changeFromLastMonth`·`status`는 nullable 이고, 값이 없는 이유는
     `indexStatus`가 담는다 — `OK` / `INSUFFICIENT_SAMPLE` / `UPDATE_DELAYED` /
     `INSUFFICIENT_HISTORY` / `NOT_AVAILABLE` (`com.carix.index.enums.IndexStatus`).
-    **0 이나 100 으로 채우지 않는다** ([API 규격 §5.1](../plans/carix-dev-plan.md),
+    **0 이나 100 으로 채우지 않는다** ([API 규격 §5.1](api-specification.md),
     `index_snapshot.purchasing_power_index` DDL 주석). 위 예시는 PPI 는 산출됐고 MVI 는 표본이
     부족한 경우다. 화면은 `indexStatus`로 카드별 뱃지를 그린다 ([기능 명세 §5](functional-specification.md)).
 
@@ -680,7 +680,7 @@
     `core-api` 의 두 엔드포인트는 받은 값을 그대로 되돌려줄 뿐 아무것도 쓰지 않는 스텁이었다.
     세션 조회 응답도 `auth-service` 가 만들므로 갱신과 재조회가 한 서비스에 모인다. 단계
     진행만 갱신하며 `REVIEW` → `COMPLETED` 전환에서 별도로 첫 지수 계산을 트리거하지 않는다 —
-    소득·소비·스킬·프로필 저장마다 걸린 스냅샷 재계산 트리거([기술 명세 §1.3](../plans/carix-dev-plan.md))가
+    소득·소비·스킬·프로필 저장마다 걸린 스냅샷 재계산 트리거([기술 명세 §1.3](technical-specification.md))가
     이미 8곳에 있어 검토 단계에 닿을 때는 스냅샷이 먼저 나와 있다.
     *   **역방향 전환 방어:** 클라이언트 버그 등으로 이전 단계로 역행하는 요청은 `400 Bad Request`(`ONBOARDING_STEP_REGRESSION`)로 거부한다.
 *   **`POST /api/v1/auth/onboarding/reset`**(`auth-service` 소유).
