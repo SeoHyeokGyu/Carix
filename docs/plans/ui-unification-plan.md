@@ -141,9 +141,8 @@ tr '}' '\n' < build/client/assets/root-*.css | grep ...
 
 ### P4 — 규범 반영과 회귀 방지
 
-- `docs/specs/ui-ux-design.md` 에 컴포넌트 계약·상태 표현 규칙 반영.
-  같은 기회에 §4.2 표류를 고친다 — 문서는 Range Bar / Box Plot 을 적고 있는데 실제 화면은
-  인체 실루엣 차트다
+- `docs/specs/ui-ux-design.md` 에 컴포넌트 계약·상태 표현 규칙 반영. §4.2 연봉 분포
+  표류는 먼저 해소했다
 - eslint 규칙으로 회귀를 막는다
   - 토큰 밖 Tailwind 팔레트 클래스 금지 (`bg-blue-500` 등)
   - 허용 목록 밖 raw `<button>` 금지
