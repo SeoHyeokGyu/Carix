@@ -39,6 +39,10 @@ describe("스킬 탭 (S-12)", () => {
     vi.clearAllMocks();
     vi.mocked(skillApi.fetchUserSkills).mockResolvedValue(skills);
     vi.mocked(skillApi.searchSkills).mockResolvedValue([]);
+    // M3: jsdom 은 window.confirm 을 구현하지 않는다 — 부르면 "Not implemented" 를
+    // 찍고 undefined(falsy) 를 돌려줘 실제 확인 다이얼로그 없이도 삭제가 항상
+    // 취소된 것처럼 보인다. onboarding/skills.test.tsx 와 같은 스텁.
+    vi.spyOn(window, "confirm").mockReturnValue(true);
   });
 
   it("보유 스킬을 그린다", async () => {
@@ -155,5 +159,120 @@ describe("스킬 탭 (S-12)", () => {
         lastUsedDate: "2026-08-01",
       }),
     );
+  });
+
+  it("확인을 취소하면 삭제 API 를 부르지 않는다", async () => {
+    // M3 가 실제로 확인을 거치는지 — 스텁만 있고 취소 경로를 검증하지 않으면
+    // handleDelete 가 confirm 을 아예 안 불러도 그린으로 남는다.
+    vi.spyOn(window, "confirm").mockReturnValue(false);
+    renderTab();
+    const user = userEvent.setup();
+
+    await user.click(
+      await screen.findByRole("button", { name: "Spring Boot 삭제" }),
+    );
+
+    expect(skillApi.deleteUserSkill).not.toHaveBeenCalled();
+    expect(screen.getByText("Spring Boot")).toBeInTheDocument();
+  });
+
+  it("삭제가 실패하면 그 행 옆에 오류를 보여주고 목록은 그대로 둔다", async () => {
+    // M4: formError(추가 폼 밑)가 아니라 실패한 행 옆에 붙어야 한다.
+    vi.mocked(skillApi.deleteUserSkill).mockRejectedValue({
+      code: "UNKNOWN",
+      message: "삭제하지 못했습니다.",
+      status: 500,
+    });
+    renderTab();
+    const user = userEvent.setup();
+
+    await user.click(
+      await screen.findByRole("button", { name: "Spring Boot 삭제" }),
+    );
+
+    expect(await screen.findByText("삭제하지 못했습니다.")).toBeInTheDocument();
+    expect(screen.getByText("Spring Boot")).toBeInTheDocument();
+    // 추가 폼의 실무 사용 기간 필드에는 오류가 붙지 않는다.
+    expect(document.getElementById("monthsOfExperience-error")).toBeNull();
+  });
+
+  it("사전에 없는 검색어면 직접 추가 컨트롤이 나타나고 고르면 분류 선택이 열린다", async () => {
+    // I2: searchSkills 가 빈 배열을 주는 경우(사전 미등록)만 이 컨트롤이 떠야 한다.
+    vi.mocked(skillApi.searchSkills).mockResolvedValue([]);
+    renderTab();
+    const user = userEvent.setup();
+
+    await user.type(await screen.findByLabelText("스킬 검색"), "Zig");
+    await waitFor(() =>
+      expect(skillApi.searchSkills).toHaveBeenCalledWith("Zig"),
+    );
+
+    const addCustomButton = await screen.findByRole("button", {
+      name: "+ 'Zig'를 사전에 없는 스킬로 직접 추가하기",
+    });
+    await user.click(addCustomButton);
+
+    expect(await screen.findByLabelText("스킬 분류")).toBeInTheDocument();
+  });
+
+  it("직접 추가한 스킬은 category 를 붙여 생성한다", async () => {
+    vi.mocked(skillApi.searchSkills).mockResolvedValue([]);
+    vi.mocked(skillApi.createUserSkill).mockResolvedValue({
+      id: "us-2",
+      skillId: "s-2",
+      standardName: "Zig",
+      isCustom: true,
+      monthsOfExperience: 12,
+      lastUsedDate: "2026-08-01",
+    });
+    renderTab();
+    const user = userEvent.setup();
+
+    await user.type(await screen.findByLabelText("스킬 검색"), "Zig");
+    await user.click(
+      await screen.findByRole("button", {
+        name: "+ 'Zig'를 사전에 없는 스킬로 직접 추가하기",
+      }),
+    );
+
+    const categorySelect = await screen.findByLabelText("스킬 분류");
+    await user.selectOptions(categorySelect, "DEVOPS");
+    await user.type(screen.getByLabelText(/실무 사용 기간/), "12");
+    await user.type(screen.getByLabelText(/마지막 사용일/), "2026-08-01");
+    await user.click(screen.getByRole("button", { name: "스킬 추가" }));
+
+    await waitFor(() =>
+      expect(skillApi.createUserSkill).toHaveBeenCalledWith({
+        standardName: "Zig",
+        monthsOfExperience: 12,
+        lastUsedDate: "2026-08-01",
+        category: "DEVOPS",
+      }),
+    );
+  });
+
+  it("검색이 실패하면 오류를 보여주고 낡은 결과를 지운다", async () => {
+    // M6: 조용히 삼키면 드롭다운이 실패 이전 결과를 최신인 것처럼 계속 보여준다.
+    vi.mocked(skillApi.searchSkills)
+      .mockResolvedValueOnce([
+        { id: "s-2", standardName: "TypeScript", isCustom: false },
+      ])
+      .mockRejectedValueOnce({
+        code: "UNKNOWN",
+        message: "검색하지 못했습니다.",
+        status: 500,
+      });
+    renderTab();
+    const user = userEvent.setup();
+
+    const input = await screen.findByLabelText("스킬 검색");
+    await user.type(input, "type");
+    expect(await screen.findByText("TypeScript")).toBeInTheDocument();
+
+    await user.clear(input);
+    await user.type(input, "typex");
+
+    expect(await screen.findByText("검색하지 못했습니다.")).toBeInTheDocument();
+    expect(screen.queryByText("TypeScript")).not.toBeInTheDocument();
   });
 });

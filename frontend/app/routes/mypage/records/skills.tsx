@@ -60,6 +60,7 @@ interface SkillRowProps {
   editMonths: string;
   editDate: string;
   editError: string | null;
+  deleteError: string | null;
   onStartEdit: (skill: UserSkill) => void;
   onCancelEdit: () => void;
   onEditMonthsChange: (value: string) => void;
@@ -75,6 +76,7 @@ function SkillRow({
   editMonths,
   editDate,
   editError,
+  deleteError,
   onStartEdit,
   onCancelEdit,
   onEditMonthsChange,
@@ -151,27 +153,34 @@ function SkillRow({
       <td className="px-3 py-2">{skill.monthsOfExperience}개월</td>
       <td className="px-3 py-2">{skill.lastUsedDate}</td>
       <td className="px-3 py-2">
-        <div className="flex gap-2">
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            disabled={busy}
-            aria-label={`${skill.standardName} 수정`}
-            onClick={() => onStartEdit(skill)}
-          >
-            수정
-          </Button>
-          <Button
-            type="button"
-            variant="destructive"
-            size="sm"
-            disabled={busy}
-            aria-label={`${skill.standardName} 삭제`}
-            onClick={() => onDelete(skill)}
-          >
-            삭제
-          </Button>
+        <div className="flex flex-col gap-1">
+          <div className="flex gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={busy}
+              aria-label={`${skill.standardName} 수정`}
+              onClick={() => onStartEdit(skill)}
+            >
+              수정
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              size="sm"
+              disabled={busy}
+              aria-label={`${skill.standardName} 삭제`}
+              onClick={() => onDelete(skill)}
+            >
+              삭제
+            </Button>
+          </div>
+          {deleteError && (
+            <p role="alert" className="text-xs text-destructive">
+              {deleteError}
+            </p>
+          )}
         </div>
       </td>
     </tr>
@@ -184,36 +193,73 @@ export default function RecordsSkills() {
   const [skills, setSkills] = useState<UserSkill[]>(initial);
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<SkillSearchItem[]>([]);
-  const [selected, setSelected] = useState<SkillSearchItem | null>(null);
+  // I2: 검색 결과에서 고른 표준 스킬과, "사전에 없는 스킬로 직접 추가하기"로
+  // 만든 커스텀 스킬을 같은 상태로 다룬다. 커스텀 쪽은 서버 id 가 없으므로
+  // (검색 결과가 아니다) SkillSearchItem 대신 onboarding/skills.tsx 의
+  // selectedSkill 과 같은 최소 모양을 쓴다 — 여기서 쓰지 않는 id 를 지어내지 않는다.
+  const [selected, setSelected] = useState<{
+    standardName: string;
+    isCustom: boolean;
+  } | null>(null);
   const [category, setCategory] = useState("BACKEND");
   const [months, setMonths] = useState("");
   const [lastUsedDate, setLastUsedDate] = useState("");
   const [formError, setFormError] = useState<string | null>(null);
   const [searchError, setSearchError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  // 검색이 실제로 끝난 뒤에만 "결과 없음" 을 판단한다 — 디바운스 대기 중에는
+  // results 가 이전 상태(빈 배열 포함)라 그 사이에 직접 추가 컨트롤이 잠깐
+  // 깜빡이며 나타난다(onboarding/skills.tsx 의 showDropdown 과 같은 이유).
+  const [hasSearched, setHasSearched] = useState(false);
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editMonths, setEditMonths] = useState("");
   const [editDate, setEditDate] = useState("");
   const [editError, setEditError] = useState<string | null>(null);
+  const [deleteErrors, setDeleteErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
     const trimmed = query.trim();
     if (!trimmed) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setResults([]);
+      setHasSearched(false);
       return;
     }
     // 입력마다 즉시 부르면 글자 수만큼 요청이 나간다 — 250ms 쉬면 한 번으로 줄어든다.
     const timer = setTimeout(() => {
       searchSkills(trimmed)
-        .then(setResults)
+        .then((items) => {
+          setResults(items);
+          setHasSearched(true);
+          setSearchError(null);
+        })
         .catch((error) => {
-          if (error instanceof UnauthorizedError) navigate(LOGIN_PATH);
+          if (error instanceof UnauthorizedError) {
+            navigate(LOGIN_PATH);
+            return;
+          }
+          // M6: 실패를 조용히 삼키면 드롭다운이 낡은 결과를 최신인 것처럼 계속
+          // 보여준다. 결과를 비우고 오류를 보여준다 — 단, hasSearched 는 그대로
+          // 두어 "사전에 없는 스킬" 직접 추가 컨트롤이 검색 실패를 사전 미등록으로
+          // 오해해 잘못 뜨지 않게 한다.
+          setResults([]);
+          setSearchError(toUserMessage(error));
         });
     }, 250);
     return () => clearTimeout(timer);
   }, [query, navigate]);
+
+  // 사전에 없는 검색어를 그대로 커스텀 스킬로 선택한다 — 표준화 사전 검색이
+  // 빈 결과를 줬을 때만 노출되는 경로다(명세 §3.4: "사전에 없으면 커스텀
+  // 생성이며 이때 category 가 필수다"). onboarding/skills.tsx 의
+  // handleCustomSkillStart 와 같은 흐름이다.
+  const handleCustomSkillStart = () => {
+    const trimmed = query.trim();
+    if (!trimmed) return;
+    setSelected({ standardName: trimmed, isCustom: true });
+    setResults([]);
+    setSearchError(null);
+  };
 
   const handleCreate = async () => {
     if (!selected) {
@@ -255,7 +301,17 @@ export default function RecordsSkills() {
   };
 
   const handleDelete = async (skill: UserSkill) => {
+    // M3: onboarding/skills.tsx 와 같은 확인 절차 — 삭제는 되돌릴 수 없다.
+    if (!window.confirm(`'${skill.standardName}' 스킬을 삭제하시겠습니까?`)) {
+      return;
+    }
     setBusy(true);
+    // M4: 실패해도 다른 행의 오류를 지우지 않는다 — 행별로 붙인다.
+    setDeleteErrors((prev) => {
+      const next = { ...prev };
+      delete next[skill.id];
+      return next;
+    });
     try {
       await deleteUserSkill(skill.id);
       setSkills((prev) => prev.filter((s) => s.id !== skill.id));
@@ -264,7 +320,12 @@ export default function RecordsSkills() {
         navigate(LOGIN_PATH);
         return;
       }
-      setFormError(toUserMessage(error));
+      // M4: 추가 폼의 formError 가 아니라 실패한 행 옆에 붙인다 — income.tsx
+      // IncomeRow 의 행별 오류와 같은 자리다.
+      setDeleteErrors((prev) => ({
+        ...prev,
+        [skill.id]: toUserMessage(error),
+      }));
     } finally {
       setBusy(false);
     }
@@ -340,6 +401,7 @@ export default function RecordsSkills() {
                 onEditDateChange={setEditDate}
                 onSaveEdit={handleSaveEdit}
                 onDelete={handleDelete}
+                deleteError={deleteErrors[skill.id] ?? null}
               />
             ))}
           </tbody>
@@ -361,6 +423,7 @@ export default function RecordsSkills() {
               value={selected?.standardName ?? query}
               onChange={(e) => {
                 setSelected(null);
+                setHasSearched(false);
                 setQuery(e.target.value);
               }}
             />
@@ -387,6 +450,21 @@ export default function RecordsSkills() {
               </li>
             ))}
           </ul>
+        )}
+
+        {/* I2: 사전 검색이 끝났는데 결과가 없으면 직접 추가할 길이 없었다 — 이
+          카테고리 셀렉트(selected?.isCustom 아래)는 이 경로로만 열린다. */}
+        {hasSearched && results.length === 0 && query.trim() && !selected && (
+          <div className="rounded-md border border-carix-border/60 px-3 py-2 text-sm text-carix-text/70">
+            <p>&apos;{query.trim()}&apos;에 대한 검색 결과가 없습니다.</p>
+            <button
+              type="button"
+              className="mt-2 text-xs font-medium text-carix-info hover:underline"
+              onClick={handleCustomSkillStart}
+            >
+              + &apos;{query.trim()}&apos;를 사전에 없는 스킬로 직접 추가하기
+            </button>
+          </div>
         )}
 
         {selected?.isCustom && (
