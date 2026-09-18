@@ -125,7 +125,7 @@ Spring Cloud Gateway(WebFlux/reactive). `carix_caddy(:80)`의 업스트림으로
 
 **플래그를 되돌릴 때는 `.env` 롤백으로 부족합니다** — `config/spring/gateway.yml` 을 직접
 되돌리고 게이트웨이 `/actuator/refresh` 를 다시 호출합니다. 켜고 끄는 시점과 순서는
-[OCI 서버 구성·배포 「배포 전 실행 순서」](../docs/plans/oci-server-provisioning-plan.md)가 갖습니다.
+[문서 맵 「배포 전 실행 순서」](../docs/README.md#남은-것)가 갖습니다.
 
 인바운드 `X-User-Id` 는 `UserIdHeaderStripGlobalFilter` 가 플래그와 무관하게 전 라우트에서
 벗깁니다. 하류는 이 헤더를 인증된 사용자로 신뢰하므로 출처가 게이트웨이여야 합니다.

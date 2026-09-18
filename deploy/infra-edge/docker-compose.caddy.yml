@@ -1,0 +1,33 @@
+# 참조용 사본. 정본은 서버 `~/infra/docker-compose.yml` 의 caddy 서비스이고
+# 이 저장소는 배포하지 않는다. `~/infra` 스택은 Carix 와 asset-pulse 가 공유한다.
+#
+# `~/infra/.env` 에 `PULSE_HOST=pulse.144.24.90.88.sslip.io` 가 있다.
+# 인증서 볼륨은 asset-pulse 가 만든 것을 재사용한다 — 재발급은 Let's Encrypt rate limit 을 소모한다.
+services:
+  caddy:
+    image: caddy:2-alpine
+    container_name: infra_caddy
+    environment:
+      PULSE_HOST: ${PULSE_HOST}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - /home/opc/carix:/etc/carix-repo:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    networks: [default, edge]
+    restart: unless-stopped
+
+networks:
+  edge:
+    external: true
+
+volumes:
+  caddy_data:
+    external: true
+    name: asset_pulse_caddy_data
+  caddy_config:
+    external: true
+    name: asset_pulse_caddy_config

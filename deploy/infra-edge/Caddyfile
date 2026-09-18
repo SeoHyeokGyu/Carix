@@ -1,0 +1,9 @@
+# 참조용 사본. 정본은 서버 `~/infra/caddy/Caddyfile` 이고 이 저장소는 배포하지 않는다.
+# `~/infra` 스택은 Carix 와 asset-pulse 가 공유하므로 여기를 고쳐도 서버에 반영되지 않는다.
+# 라우터는 TLS 종료와 호스트명 분기만 하고, 애플리케이션 라우팅은 각 프로젝트 Caddy가 맡는다.
+{$PULSE_HOST} {
+    encode zstd gzip
+    reverse_proxy asset_pulse_caddy:80
+}
+
+import /etc/carix-repo/deploy/caddy/*.caddy

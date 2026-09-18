@@ -62,15 +62,16 @@
 
 | 문서 | 내용 |
 | --- | --- |
-| [OCI 서버 구성·배포](plans/oci-server-provisioning-plan.md) | 정본. 디스크·엣지·서버 준비·CD 워크플로·첫 배포 실측과 장애 기록 |
+| [개발 계획](plans/carix-dev-plan.md) | 3인 레인 분담, 주차 로드맵과 간트, 레인 간 인터페이스 계약, MVP 범위 판정 |
+| [UI 일관성 통일 계획](plans/ui-unification-plan.md) | 결정 신호 단일화·토큰·공용 프리미티브 P0~P4 단계와 마이그레이션 계약 |
 
 ## 진행 상태
 
-이 절이 프로젝트 마일스톤 진행 상태(무엇이 끝났고 무엇이 남았나)를 다룬다. 기술별
-도입 여부는 [`README.md`의 "기술 구성" 표](../README.md#기술-구성)가, 모듈별 구현
-상태는 [`backend/README.md`](../backend/README.md)가, 배포 실행 현황은
-[OCI 서버 구성·배포 "실행 현황"](plans/oci-server-provisioning-plan.md#실행-현황)이
-각각 다룬다. 주제 문서는 현재 사실만 서술하고 상태를 적지 않는다.
+이 절이 프로젝트 마일스톤 진행 상태(무엇이 끝났고 무엇이 남았나)를 다룬다. **배포 실행
+현황도 여기 「되어 있는 것」이 갖는다.** 기술별 도입 여부는 [`README.md`의 "기술 구성"
+표](../README.md#기술-구성)가, 모듈별 구현 상태는
+[`backend/README.md`](../backend/README.md)가 각각 다룬다. 주제 문서는 현재 사실만
+서술하고 상태를 적지 않는다.
 
 ### 되어 있는 것
 
@@ -110,6 +111,18 @@
 | 광역 지역 어휘 두 벌 | `core-api` `PeerGroupFallbackResolver#extractBroadRegion` 은 `서울특별시` 를 만들고 collector `RegionRollup` 은 `서울` 을 만든다. 동료집단 완화 Level 3 의 광역 조회가 `region = 'ALL'` 행으로 떨어져 증상이 가려져 있다. 값 규약 정본은 시/도 17개 한글([API 규격 §3.1](specs/api-specification.md), [기술 명세](specs/technical-specification.md)). 소관 B (동료집단) |
 | Gateway 세션 검증 필터 | `carix.gateway.session-validation.enabled` 활성화 — 기본값 `false`. **`/api/health` 는 필터가 붙지 않는 `core-health` 라우트(`order: -15`)로 이미 분리돼 있어** 배포 헬스체크는 401 을 받지 않는다. 남은 주의점은 되돌릴 때다 — 플래그가 `config/spring/gateway.yml` 에 있어 `.env`(이미지 태그) 롤백으로는 안 꺼진다. 전환·롤백 절차는 [`backend/README.md` 게이트웨이](../backend/README.md). 프런트엔드 잔여 소비자는 `dashboardMarketApi.ts`(S-11 스냅샷 이력, S-14 추이분석)다 — `skillApi.ts` 가 갈아탄 `coreApi` 기반이 아니라 원시 `fetch` 라 `UnauthorizedError` 를 던지지 않고, 401 을 로그인 리다이렉트가 아니라 문자열 오류로 받는다 |
 | 임금통계 연도 시계열 | 출처 컬럼(`source`)과 **쓰기 경로가 섰다** — 수집이 연도별로 출처를 기록하고, 실측만 기존 행을 덮으며, 폴백 vintage 를 고정해 벽시계 드리프트를 막았다. 고정 이전에 쌓인 `base_period=2025` 드리프트 72행은 삭제했다([ERD 운영 스키마 적용 이력](specs/erd.md)). 운영 288행은 컬럼 도입 이전 적재분이라 재수집 전까지 `UNKNOWN` 이다. 잔여 구현은 **읽기 경로**다 — `findSeries`·구간 상승률, `findLatestBaseline` 의 출처 우선순위. 지표 넷은 내 상승률 vs 시장(`a9`), 임금 vs 개인물가(`a10`), 출처 노출(`b13`), 경력 사다리 연도 축(`b14`) — 일정은 [개발 계획 §2](plans/carix-dev-plan.md) |
+| 운영 감시 | 컨테이너 헬스체크 감시를 이 호스트의 Dozzle(8888)·Dockge(3001)에 붙이는 것과 디스크 사용률 알림이 미착수다. 루트 사용률은 정리 후 81% 이고, 공유 호스트라 스왑 4GB 가 이미 소진된 상태에서 Carix 가 올라가 있다 |
+
+**배포 전 실행 순서.** 위 표의 셋은 순서가 근거를 갖는다 — 「개방창 지수(OWI)」의
+`index_snapshot` 컬럼 확장(`c6`) → `CARIX_ENCRYPTION_KEY` 를 서버 `.env` 밖으로 백업 →
+「검증」의 스냅샷 쓰기 운영 Postgres 검증 → 「Gateway 세션 검증 필터」 활성화.
+
+- **컬럼이 먼저다.** 운영 스냅샷에 행이 쌓인 뒤에는 `index_snapshot` 확장에 마이그레이션이
+  붙고, `core` 는 Flyway 이력이 없어([ERD 운영 스키마 적용 이력](specs/erd.md)) 더 비싸다.
+- **키 백업이 먼저다.** 스냅샷 쓰기 검증이 **첫 운영 쓰기**라 그 뒤로는 키 분실이 복구
+  불가다. 키는 서버 `/home/opc/carix/.env` 에만 있다. 컬럼 확장과 키 백업 사이에는 순서가 없다.
+- **쓰기 검증이 필터보다 먼저다.** 플래그를 켜 놓고 돌리면 실패가 401 로 왔을 때 게이트 설정
+  탓인지 `jsonb`·자문 잠금 탓인지 갈리지 않는다. 연성 제약이라 뒤집어도 되지만 원인이 섞인다.
 
 ---
 
