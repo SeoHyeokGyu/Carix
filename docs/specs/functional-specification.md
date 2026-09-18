@@ -430,7 +430,7 @@ OWI         = 동료집단 중앙 개방일수 ÷ 전체시장 중앙 개방일�
 | 임금통계 기준선 데이터 확보 | **확정** | KOSIS 24구간 누적분포 보간 모델 채택 완료 — [외부 API 연동 명세 §3.3](external-api-integration.md) 참조 |
 | 최소 표본 기준 N≥10, 이상치 클램프 [25,400] | **확정** | 값은 그대로 채택. 현재 위치는 코드 상수(`PeerGroupFallbackResolver.MIN_SAMPLE_SIZE`, `SkillDemandCalculator.MIN_CLAMP`·`MAX_CLAMP`)이며 Config Server 외부화는 [개발 계획 §2](../plans/carix-dev-plan.md) `b8` 블록 |
 | 기본 소비 가중치 6개 값 | **확정** | `config/default-expense-weights.yml` — KOSIS 가계동향조사 `DT_1L9U101`, 2025년 기준, 2026-07-25 검증 |
-| 암호화 연봉의 배치 복호화 키 관리·로테이션 | 미설계 | 구현 단계. [보안 문서 §3.2](../SECURITY.md) 참조 |
+| 스킬 수요 `overallStatus` 가 표본 부족을 감춘다 | 미결 | `MarketValueIndexServiceImpl#buildSkillDemandDetails` 의 `overallStatus` 는 `"OK"` 로 시작해 `NEW_OBSERVATION` 일 때만 바뀐다. `SkillDemandCalculator` 가 계산한 `INSUFFICIENT_SAMPLE`·`NO_RECENT_DEMAND` 는 집계에서 버려지고, 해당 스킬은 `status:"OK"` 에 정상 `demandIndex` 를 달고 나간다 — 표본이 모자란 스킬이 화면에서 정상 추세로 보인다. 이 목록은 제외 스킬을 거르지 않고 보유 스킬 전체를 순회하므로 회피 경로도 없다. 표시 규칙이 바뀌는 제품 판단이라 UI 통일 축에서 처리하지 않았다. 고쳐서 두 상태가 실제로 내려오기 시작하면 `SkillDemandSection` 의 가중치 셀이 `CUSTOM_SKILL_NO_STATS` 만 걸러 "-" 를 그리므로 그 행들은 숫자 분기로 흘러간다 — `weight` 에 무엇이 들어오는지 같이 확인한다 |
 | percentile 근사 표시 캐비앗 | 5수치 요약 보간 | 표시 시 `근사` 라벨 |
 | § 링크 앵커(한글 헤더) | 마크다운 미지원 | 파일 단위 링크 유지 |
 
