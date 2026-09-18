@@ -150,7 +150,7 @@
   결론이 나 있다 (`verification/notes/source-availability.md`) — 남은 것은 스크래핑
   쪽이다.
 - **스킬 사전 매칭 재현율 미측정.** 표본 공고로 정밀도·재현율을 재어 별칭 사전과 규칙을
-  보정하는 일이 남았다 ([기술 명세 §3.2](technical-specification.md)). 이 수치가 부족할
+  보정하는 일이 남았다 ([도메인 정의서 §7.2](domain-logic.md)). 이 수치가 부족할
   때 GiST·`pg_trgm` 도입을 판단하므로 [아키텍처 로드맵](../plans/architecture-roadmap.md)의 확장안이
   여기에 걸려 있다.
 - **상여 포함 여부 미결.** 임금통계의 임금 정의에 상여가 어떻게 들어가는지 확인한 뒤

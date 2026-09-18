@@ -3,7 +3,7 @@
 | 항목 | 내용 |
 | --- | --- |
 | 대상 독자 | 수집기(collector) 어댑터 구현자 |
-| 상위 문서 | [데이터 아키텍처](data-architecture.md), [상세 기술 명세](technical-specification.md) |
+| 상위 문서 | [데이터 아키텍처](data-architecture.md), [도메인 정의서](domain-logic.md) |
 
 ## 목적과 범위
 
@@ -260,7 +260,7 @@ Carix 6 카테고리는 CPI 12대 분류의 N:1 합성이다. 합성은 **변화
 
 문서 규격만 검토했고 키 미발급으로 호출 실측은 하지 않았다. API 의 `keyword`
 응답 필드에 기대던 스킬 추출 설계도 함께 폐기됐다 — 본문 텍스트에서
-[상세 기술 명세 §3.2](technical-specification.md)의 토큰 경계 매칭으로 스킬을
+[도메인 정의서 §7.2](domain-logic.md)의 토큰 경계 매칭으로 스킬을
 뽑는다.
 
 #### 결론: 사람인 어댑터는 API 로 구현하지 않는다

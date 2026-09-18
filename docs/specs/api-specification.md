@@ -180,12 +180,12 @@
 ### 5.1 대시보드 지표 요약 (Summary)
 *   **Endpoint:** `GET /api/v1/dashboard/summary`
 *   구현: `com.carix.dashboard.service.DashboardSummaryService`. `index_snapshot` 의 그 달 유효 행을 읽는다.
-*   `metadata` 의 원천별 커버리지는 `index_snapshot.rationale.sourceCoverages` 에서 온다 ([기술 명세 §1.3](technical-specification.md)). 완화 결과는 당시 프로필에 의존해 나중에 재계산하면 같은 값이 안 나오므로 저장분을 그대로 읽는다. `salaryMissingRate` 는 원천별 결측률을 **표본 수로 가중 평균**한 값이고, `peerGroup` 은 표본이 가장 큰 원천의 안착 조건이다. 완화에 성공한 원천이 없으면 네 필드 모두 `null`·빈 배열이다.
+*   `metadata` 의 원천별 커버리지는 `index_snapshot.rationale.sourceCoverages` 에서 온다 ([도메인 정의서 §5](domain-logic.md)). 완화 결과는 당시 프로필에 의존해 나중에 재계산하면 같은 값이 안 나오므로 저장분을 그대로 읽는다. `salaryMissingRate` 는 원천별 결측률을 **표본 수로 가중 평균**한 값이고, `peerGroup` 은 표본이 가장 큰 원천의 안착 조건이다. 완화에 성공한 원천이 없으면 네 필드 모두 `null`·빈 배열이다.
 *   `openingWindowIndex` 는 동료집단 공고의 중앙 모집기간을 전체시장 대비 100 기준으로 환산한 값이다 ([기능 명세 §4.5](functional-specification.md)). 근거 3종은 `metadata.openingWindow` 에 담는다 — `medianWindowDays`(일), `openEndedRate`(상시채용 비율 %), `deadlineSampleSize`(마감일 보유 표본 수). **마감일 보유 표본이 최소 기준 미달이면 `indexStatus` 가 `INSUFFICIENT_SAMPLE` 이고 `value` 는 `null` 이며 `openEndedRate` 만 채워진다.** 계획된 모집 기간이지 충원 소요가 아니므로 화면 문구는 US-D5 의 경계를 따른다.
 *   **`metadata.wageStat` 은 축 둘을 따로 싣는다.** `basis` 는 **기준선의 성격**이다 — `AGE_BAND_PROXY` 는 KOSIS 연령대를 경력구간으로 옮긴 값이라는 뜻이고, 오늘은 모든 행이 여기 해당해 컬럼 없이 상수로 낸다(경력별 실측 원천이 생기면 그때 축이 살아난다). `source` 는 **그 행의 출처 종류다** — `core.wage_stat_observation.source` 컬럼을 그대로 싣는다 — `KOSIS`(24계층 누적분포 보간 실측), `FALLBACK`(하드코딩 상수), `UNKNOWN`(출처 컬럼 도입 이전 적재분). 화면은 이 기준선으로 낸 격차·신호에 두 값을 함께 표시한다 — 프록시 위의 판정도, 상수 위의 판정도 출처 없이 내보내지 않는다 (개발 계획 §2 `b12`).
 *   `negotiationTargets` 는 결정 신호가 `NEGOTIATE`·`SEEK_JOB` 일 때 화면이 쓰는 목표 인상률 셋이다 ([기능 명세 US-D7·§4.8](functional-specification.md)). 기준선을 못 잡거나 현재 연봉이 없으면 그 항목이 `null` 이고, 이미 넘어섰으면 `status` 가 `ABOVE` 이며 `raiseRatePercent` 는 `null` 이다. `toPurchasingPowerRecovery` 는 품목별 PPI 본 엔진 착수 전까지 `null` 이다. **이 값은 `index_snapshot.rationale` 에 저장하지 않는다** — 같은 응답의 기준선 금액과 조인하면 연봉이 원 단위로 복원되며, 저장은 §1.3 소득 격차가 막은 것과 같은 경로를 연다.
 *   `metadata.topPriceDriver` 는 그 사용자의 물가 상승에 가장 크게 기여한 6대 카테고리 중 1위다 ([기능 명세 US-D1·§4.3](functional-specification.md)). **원자료 CPI 가 아니라 `카테고리 가중치 × 품목 CPI 변화` 로 계산된 값**이라 사용자 가중치를 아는 PPI 엔진만 만들 수 있다. 산출 불가면 `null` 이고 화면은 뱃지를 생략한다. `estimated` 는 그 카테고리 가중치가 `DEFAULT_CPI` 로 채워졌는지다.
-*   `decisionSignal.rationale` 은 격차 **구간** 문구다 — 비율을 그대로 실으면 임금통계 중앙값과 조인해 연봉이 원 단위로 복원된다 ([기술 명세 §1.3](technical-specification.md)).
+*   `decisionSignal.rationale` 은 격차 **구간** 문구다 — 비율을 그대로 실으면 임금통계 중앙값과 조인해 연봉이 원 단위로 복원된다 ([도메인 정의서 §5](domain-logic.md)).
 *   **Query Parameters (모두 선택, 가상 프로필 탐색용) — `MVP 범위 밖`:** 대응 스토리·화면이 없어 파라미터만 MVP 에서 제외한다 ([개발 계획 §4](../plans/carix-dev-plan.md)). 엔드포인트 자체는 MVP 포함이다.
     *   `jobFamily` (String, optional): 가상 탐색용 주 직무
     *   `yearsOfExperience` (Integer, optional): 가상 탐색용 경력 년수
@@ -680,7 +680,7 @@
     `core-api` 의 두 엔드포인트는 받은 값을 그대로 되돌려줄 뿐 아무것도 쓰지 않는 스텁이었다.
     세션 조회 응답도 `auth-service` 가 만들므로 갱신과 재조회가 한 서비스에 모인다. 단계
     진행만 갱신하며 `REVIEW` → `COMPLETED` 전환에서 별도로 첫 지수 계산을 트리거하지 않는다 —
-    소득·소비·스킬·프로필 저장마다 걸린 스냅샷 재계산 트리거([기술 명세 §1.3](technical-specification.md))가
+    소득·소비·스킬·프로필 저장마다 걸린 스냅샷 재계산 트리거([도메인 정의서 §5](domain-logic.md))가
     이미 8곳에 있어 검토 단계에 닿을 때는 스냅샷이 먼저 나와 있다.
     *   **역방향 전환 방어:** 클라이언트 버그 등으로 이전 단계로 역행하는 요청은 `400 Bad Request`(`ONBOARDING_STEP_REGRESSION`)로 거부한다.
 *   **`POST /api/v1/auth/onboarding/reset`**(`auth-service` 소유).

@@ -4,7 +4,7 @@ Carix는 연봉·실수령액·소비 금액 등 민감한 개인 재무 정보�
 데이터 보호, 개인정보 수명주기 정책을 한곳에 모은다. 세부 규격은 각 설계 문서를
 참조하되, 정책 기준은 이 문서를 따른다.
 
-관련: [상세 기술 명세](specs/technical-specification.md),
+관련: [ERD](specs/erd.md), [도메인 정의서](specs/domain-logic.md),
 [기능 명세서](specs/functional-specification.md).
 
 ## 1. 인증
