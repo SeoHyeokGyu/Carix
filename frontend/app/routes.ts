@@ -40,7 +40,14 @@ export default [
     layout(
       "routes/mypage/layout.tsx",
       prefix("mypage", [
-        route("records", "routes/mypage/records.tsx"),
+        layout(
+          "routes/mypage/records/layout.tsx",
+          prefix("records", [
+            index("routes/mypage/records/income.tsx"),
+            route("expense", "routes/mypage/records/expense.tsx"),
+            route("skills", "routes/mypage/records/skills.tsx"),
+          ]),
+        ),
         route("profile", "routes/mypage/profile.tsx"),
       ]),
     ),

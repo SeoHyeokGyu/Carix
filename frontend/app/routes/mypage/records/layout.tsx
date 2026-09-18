@@ -1,0 +1,55 @@
+import { NavLink, Outlet } from "react-router";
+import type { NavItem } from "../../../components/layout/AppShell";
+
+/**
+ * 탭 라벨의 정본. 테스트와 E2E 가 여기서 읽는다.
+ *
+ * NOTE: (cjkang) 세션 가드는 상위 `routes/mypage/layout.tsx` 가 이미 건다. 여기에
+ * `clientLoader` 를 두지 않는 이유 — 탭 네비게이션은 데이터가 필요 없고, 가드를 두
+ * 겹으로 두면 어느 쪽이 튕겼는지 추적이 어려워진다.
+ */
+export const RECORDS_TAB_ITEMS: NavItem[] = [
+  { to: "/mypage/records", label: "소득", end: true },
+  { to: "/mypage/records/expense", label: "소비" },
+  { to: "/mypage/records/skills", label: "스킬" },
+];
+
+export default function RecordsLayout() {
+  return (
+    <section className="mx-auto w-full max-w-3xl px-6 py-8 sm:py-12">
+      <header className="mb-6">
+        <h1 className="font-display text-2xl font-extrabold tracking-tight text-carix-text">
+          이력 관리
+        </h1>
+        <p className="mt-1 text-sm text-carix-text/70">
+          소득·소비·스킬 이력을 고치면 그 시점 이후 지수가 다시 계산됩니다.
+        </p>
+      </header>
+
+      <nav
+        aria-label="이력 종류"
+        className="mb-6 flex items-center gap-1 border-b border-carix-border"
+      >
+        {RECORDS_TAB_ITEMS.map((item) => (
+          <NavLink
+            key={item.to}
+            to={item.to}
+            end={item.end}
+            className={({ isActive }) =>
+              [
+                "-mb-px whitespace-nowrap border-b-2 px-4 py-2 text-sm font-medium transition-colors",
+                isActive
+                  ? "border-carix-info text-carix-info font-semibold"
+                  : "border-transparent text-carix-text/70 hover:text-carix-text",
+              ].join(" ")
+            }
+          >
+            {item.label}
+          </NavLink>
+        ))}
+      </nav>
+
+      <Outlet />
+    </section>
+  );
+}

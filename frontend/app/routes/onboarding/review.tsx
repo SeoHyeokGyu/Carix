@@ -18,7 +18,7 @@ import { toUserMessage } from "../../lib/apiError";
 import { getProfile, type ProfileResponse } from "../../lib/api/profile";
 import { listIncome, type IncomeResponse } from "../../lib/api/income";
 import { listExpenses } from "../../lib/api/expense";
-import { listUserSkills } from "../../lib/api/userSkills";
+import { fetchUserSkills } from "../../lib/skillApi";
 import { UnauthorizedError } from "../../lib/coreApi";
 import type { FieldErrors } from "../../lib/fieldErrors";
 import { advanceOnboarding, resetOnboarding } from "../../lib/onboardingApi";
@@ -113,7 +113,7 @@ export async function clientLoader() {
       getProfile(),
       listIncome(),
       listExpenses(),
-      listUserSkills(),
+      fetchUserSkills(),
       requireSession(),
     ]);
     const isCompleted =

@@ -6,7 +6,6 @@ import * as onboardingApi from "../../lib/onboardingApi";
 import { resetSession, setSession } from "../../lib/session";
 import MypageLayout, { clientLoader as mypageLayoutLoader } from "./layout";
 import MypageProfile, { clientAction as mypageProfileAction } from "./profile";
-import MypageRecords from "./records";
 
 describe("마이페이지 라우트 및 레이아웃 (Mypage)", () => {
   beforeEach(() => {
@@ -71,14 +70,6 @@ describe("마이페이지 라우트 및 레이아웃 (Mypage)", () => {
 
       expect(resetSpy).toHaveBeenCalledTimes(1);
       expect(await screen.findByText("프로필 화면")).toBeInTheDocument();
-    });
-
-    it("MypageRecords(이력 관리) 화면을 정상 렌더링한다", () => {
-      render(<MypageRecords />);
-      expect(screen.getByText("S-12")).toBeInTheDocument();
-      expect(
-        screen.getByRole("heading", { name: "이력 관리" }),
-      ).toBeInTheDocument();
     });
   });
 

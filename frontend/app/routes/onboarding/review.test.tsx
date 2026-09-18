@@ -12,7 +12,7 @@ import * as profileApi from "../../lib/api/profile";
 import type { ProfileResponse } from "../../lib/api/profile";
 import * as incomeApi from "../../lib/api/income";
 import * as expenseApi from "../../lib/api/expense";
-import * as userSkillsApi from "../../lib/api/userSkills";
+import * as skillApi from "../../lib/skillApi";
 import * as onboardingApi from "../../lib/onboardingApi";
 
 // baseYearMonth 는 항상 "당월"이다(expense.tsx 와 같은 이유 — 화면에 월 선택 UI 가 없다).
@@ -141,7 +141,7 @@ describe("S-09 검토 화면", () => {
     vi.spyOn(profileApi, "getProfile").mockResolvedValue(COMPLETE_PROFILE);
     vi.spyOn(incomeApi, "listIncome").mockResolvedValue(ONE_INCOME);
     vi.spyOn(expenseApi, "listExpenses").mockResolvedValue(PARTIAL_EXPENSE);
-    vi.spyOn(userSkillsApi, "listUserSkills").mockResolvedValue(TWO_SKILLS);
+    vi.spyOn(skillApi, "fetchUserSkills").mockResolvedValue(TWO_SKILLS);
   });
 
   function renderScreen() {

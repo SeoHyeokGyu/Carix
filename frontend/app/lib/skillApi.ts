@@ -1,3 +1,5 @@
+import { coreGet, coreSend } from "./coreApi";
+
 export interface SkillSearchItem {
   id: string;
   standardName: string;
@@ -25,101 +27,26 @@ export interface UpdateUserSkillInput {
   lastUsedDate: string;
 }
 
-export interface ApiError {
-  code?: string;
-  message: string;
-}
-
-interface ApiResponse<T> {
-  success: boolean;
-  data: T;
-  message: string;
-}
-
-const JSON_HEADERS = { "Content-Type": "application/json" };
-
-async function handleResponse<T>(res: Response): Promise<T> {
-  if (!res.ok) {
-    try {
-      const errJson = (await res.json()) as Partial<ApiError>;
-      if (errJson.message) {
-        throw new Error(errJson.message);
-      }
-    } catch (e) {
-      if (e instanceof Error && e.message !== "Failed to fetch") {
-        throw e;
-      }
-    }
-    throw new Error(`요청 처리에 실패했습니다. (상태 코드: ${res.status})`);
-  }
-  const body = (await res.json()) as ApiResponse<T>;
-  return body.data;
-}
-
 /**
- * 표준 스킬 사전 검색 (자동완성)
+ * NOTE: (cjkang) 전에는 이 모듈이 자체 `fetch` 와 `handleResponse` 로 평범한 `Error` 를
+ * 던졌다. 게이트웨이 세션 검증 플래그를 켜면 세션 없는 호출이 전부 401 이 되는데,
+ * 그때 이 경로만 로그인으로 못 보냈다. 401 처리는 `coreApi` 한 곳에 모은다.
  */
 export async function searchSkills(query: string): Promise<SkillSearchItem[]> {
   const trimmed = query.trim();
   if (!trimmed) return [];
-
-  const res = await fetch(
-    `/api/v1/skills/search?q=${encodeURIComponent(trimmed)}`,
-    {
-      credentials: "include",
-    },
+  return coreGet<SkillSearchItem[]>(
+    `/v1/skills/search?q=${encodeURIComponent(trimmed)}`,
   );
-  return handleResponse<SkillSearchItem[]>(res);
 }
 
-/**
- * 사용자의 보유 스킬 목록 조회
- */
-export async function fetchUserSkills(): Promise<UserSkill[]> {
-  const res = await fetch("/api/v1/user-skills", {
-    credentials: "include",
-  });
-  return handleResponse<UserSkill[]>(res);
-}
+export const fetchUserSkills = () => coreGet<UserSkill[]>("/v1/user-skills");
 
-/**
- * 사용자 보유 스킬 등록
- */
-export async function createUserSkill(
-  input: CreateUserSkillInput,
-): Promise<UserSkill> {
-  const res = await fetch("/api/v1/user-skills", {
-    method: "POST",
-    headers: JSON_HEADERS,
-    credentials: "include",
-    body: JSON.stringify(input),
-  });
-  return handleResponse<UserSkill>(res);
-}
+export const createUserSkill = (input: CreateUserSkillInput) =>
+  coreSend<UserSkill>("POST", "/v1/user-skills", input);
 
-/**
- * 사용자 보유 스킬 수정
- */
-export async function updateUserSkill(
-  id: string,
-  input: UpdateUserSkillInput,
-): Promise<UserSkill> {
-  const res = await fetch(`/api/v1/user-skills/${id}`, {
-    method: "PUT",
-    headers: JSON_HEADERS,
-    credentials: "include",
-    body: JSON.stringify(input),
-  });
-  return handleResponse<UserSkill>(res);
-}
+export const updateUserSkill = (id: string, input: UpdateUserSkillInput) =>
+  coreSend<UserSkill>("PUT", `/v1/user-skills/${id}`, input);
 
-/**
- * 사용자 보유 스킬 삭제
- */
-export async function deleteUserSkill(id: string): Promise<void> {
-  const res = await fetch(`/api/v1/user-skills/${id}`, {
-    method: "DELETE",
-    credentials: "include",
-  });
-  await handleResponse<void>(res);
-}
+export const deleteUserSkill = (id: string): Promise<void> =>
+  coreSend<null>("DELETE", `/v1/user-skills/${id}`).then(() => undefined);

@@ -9,6 +9,10 @@ import {
   type UserSkill,
   type SkillSearchItem,
 } from "../../lib/skillApi";
+import { SKILL_FIELD_MESSAGES, userSkillSchema } from "../../lib/schemas/skill";
+import { toUserMessage } from "../../lib/apiError";
+import { UnauthorizedError } from "../../lib/coreApi";
+import { LOGIN_PATH } from "../../lib/routeGuards";
 
 const CATEGORY_OPTIONS = [
   { value: "BACKEND", label: "백엔드 (Backend)" },
@@ -79,12 +83,16 @@ export default function Skills() {
       setIsLoading(true);
       const data = await fetchUserSkills();
       setUserSkills(data);
-    } catch {
+    } catch (err) {
+      if (err instanceof UnauthorizedError) {
+        navigate(LOGIN_PATH);
+        return;
+      }
       setErrorMessage("스킬 목록을 불러오는 중 오류가 발생했습니다.");
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [navigate]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -120,7 +128,11 @@ export default function Skills() {
         const results = await searchSkills(searchQuery);
         setSearchResults(results);
         setShowDropdown(true);
-      } catch {
+      } catch (err) {
+        if (err instanceof UnauthorizedError) {
+          navigate(LOGIN_PATH);
+          return;
+        }
         // 검색 실패 무시
       } finally {
         setIsSearching(false);
@@ -128,7 +140,7 @@ export default function Skills() {
     }, 300);
 
     return () => clearTimeout(timer);
-  }, [searchQuery]);
+  }, [searchQuery, navigate]);
 
   // 알림 메시지 자동 제거
   useEffect(() => {
@@ -188,18 +200,18 @@ export default function Skills() {
       return;
     }
 
-    // 개월 수 검증
     const numMonths =
       typeof months === "number" ? months : parseInt(months, 10);
-    if (isNaN(numMonths) || numMonths < 1 || numMonths > 600) {
-      setErrorMessage("실무 사용 기간은 1개월에서 600개월 사이여야 합니다.");
-      return;
-    }
-
-    // 날짜 검증 (미래 거부)
-    const today = getCurrentYearMonthDay();
-    if (lastUsedDate > today) {
-      setErrorMessage("마지막 사용일은 과거 또는 현재 날짜여야 합니다.");
+    const parsed = userSkillSchema.safeParse({
+      monthsOfExperience: numMonths,
+      lastUsedDate,
+    });
+    if (!parsed.success) {
+      setErrorMessage(
+        parsed.error.issues[0]?.path[0] === "lastUsedDate"
+          ? SKILL_FIELD_MESSAGES.lastUsedDate
+          : SKILL_FIELD_MESSAGES.monthsOfExperience,
+      );
       return;
     }
 
@@ -220,9 +232,11 @@ export default function Skills() {
       setMonths("");
       setLastUsedDate(getCurrentYearMonthDay());
     } catch (err) {
-      setErrorMessage(
-        err instanceof Error ? err.message : "스킬 등록에 실패했습니다.",
-      );
+      if (err instanceof UnauthorizedError) {
+        navigate(LOGIN_PATH);
+        return;
+      }
+      setErrorMessage(toUserMessage(err));
     } finally {
       setActionLoading(false);
     }
@@ -239,9 +253,11 @@ export default function Skills() {
       setUserSkills((prev) => prev.filter((s) => s.id !== id));
       setSuccessMessage(`'${name}' 스킬이 삭제되었습니다.`);
     } catch (err) {
-      setErrorMessage(
-        err instanceof Error ? err.message : "스킬 삭제에 실패했습니다.",
-      );
+      if (err instanceof UnauthorizedError) {
+        navigate(LOGIN_PATH);
+        return;
+      }
+      setErrorMessage(toUserMessage(err));
     } finally {
       setActionLoading(false);
     }
@@ -259,14 +275,16 @@ export default function Skills() {
   const handleSaveEdit = async (id: string) => {
     const numMonths =
       typeof editMonths === "number" ? editMonths : parseInt(editMonths, 10);
-    if (isNaN(numMonths) || numMonths < 1 || numMonths > 600) {
-      setErrorMessage("실무 사용 기간은 1개월에서 600개월 사이여야 합니다.");
-      return;
-    }
-
-    const today = getCurrentYearMonthDay();
-    if (editDate > today) {
-      setErrorMessage("마지막 사용일은 과거 또는 현재 날짜여야 합니다.");
+    const parsed = userSkillSchema.safeParse({
+      monthsOfExperience: numMonths,
+      lastUsedDate: editDate,
+    });
+    if (!parsed.success) {
+      setErrorMessage(
+        parsed.error.issues[0]?.path[0] === "lastUsedDate"
+          ? SKILL_FIELD_MESSAGES.lastUsedDate
+          : SKILL_FIELD_MESSAGES.monthsOfExperience,
+      );
       return;
     }
 
@@ -281,9 +299,11 @@ export default function Skills() {
       setEditingId(null);
       setSuccessMessage("스킬 정보가 수정되었습니다.");
     } catch (err) {
-      setErrorMessage(
-        err instanceof Error ? err.message : "스킬 수정에 실패했습니다.",
-      );
+      if (err instanceof UnauthorizedError) {
+        navigate(LOGIN_PATH);
+        return;
+      }
+      setErrorMessage(toUserMessage(err));
     } finally {
       setActionLoading(false);
     }
