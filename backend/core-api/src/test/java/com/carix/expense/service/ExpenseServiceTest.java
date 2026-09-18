@@ -43,8 +43,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InOrder;
 
 /**
- *
- * <p>저장 경로(upsert)는 "사용자가 입력한 카테고리만 행으로 존재"하는 것을 검증한다. 6개 채우기·상태 도출은 ExpenseWeightResolver 몫이라 여기서는
+ * 저장 경로(upsert)는 "사용자가 입력한 카테고리만 행으로 존재"하는 것을 검증한다. 6개 채우기·상태 도출은 ExpenseWeightResolver 몫이라 여기서는
  * mock 으로 대체하고, 그 결과가 응답 DTO 로 옮겨지는지만 본다. Step 1~4 로직 자체는 ExpenseWeightResolverTest 에서 검증한다.
  */
 class ExpenseServiceTest {
