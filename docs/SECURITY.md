@@ -5,7 +5,7 @@ Carix는 연봉·실수령액·소비 금액 등 민감한 개인 재무 정보�
 참조하되, 정책 기준은 이 문서를 따른다.
 
 관련: [상세 기술 명세](specs/technical-specification.md),
-[MVP 설계](specs/mvp-requirements.md).
+[기능 명세서](specs/functional-specification.md).
 
 ## 1. 인증
 
