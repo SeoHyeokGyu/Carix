@@ -261,28 +261,27 @@ flowchart TD
 
 ## 기술 구성
 
-목표 스택과 현재 반영 여부를 함께 적습니다. 프런트엔드는 랜딩·로그인·회원가입과 온보딩
-4화면·대시보드·시뮬레이터까지, 백엔드는 인증(auth-service)과 채용공고 수집·영속화까지 실제
-구현이 있고, 나머지 도메인은 스텁 또는 미착수 단계입니다.
+목표 스택과 현재 반영 여부를 함께 적습니다. MVP 화면(`S-01`~`S-16`)과 백엔드 도메인은
+모두 실제 구현이 있고 실데이터로 동작합니다. 남은 미도입은 Node SSR 과 Spring Batch 입니다.
 
 | 계층 | 기술 | 책임 | 현재 |
 | --- | --- | --- | --- |
-| 프런트엔드 | Vite, React, TypeScript, React Router Framework Mode | UI, 라우팅, SSR·사전 렌더링 | 도입 — 랜딩·로그인·회원가입과 온보딩 4화면(`S-05`·`S-06`·`S-07`·`S-09`)·대시보드 메인(`S-10`)·시뮬레이터(`S-15`)가 실제로 동작합니다. 스킬 입력(`S-08`)과 스냅샷 이력·마이페이지·추이분석(`S-11`~`S-14`)은 라우트와 가드만 있고 화면은 플레이스홀더입니다. `ssr: false` + `/` 사전 렌더링 구성이라 SSR은 아직 꺼져 있고, 가드는 클라이언트에서 돕니다 |
+| 프런트엔드 | Vite, React, TypeScript, React Router Framework Mode | UI, 라우팅, SSR·사전 렌더링 | 도입 — `S-01`~`S-16` 전 화면이 실제 API 에 연결돼 동작합니다. `ssr: false` + `/` 사전 렌더링 구성이라 SSR 은 꺼져 있고 가드는 클라이언트에서 돕니다 |
 | Node SSR | Node.js 24 LTS, Express, `@react-router/express` | HTML 렌더링, SEO metadata, 공개 콘텐츠 | 미도입 — `frontend/server.js`는 `node:http` 정적 파일 서버입니다. 사전 렌더링된 `/` 는 그대로 주고, 나머지 앱 경로는 SPA 셸(`__spa-fallback.html`)로 넘겨 클라이언트가 라우팅합니다 (아래 §렌더링 전략 주석 참조) |
 | 클라이언트 데이터 | React Router 7 `clientLoader`·`clientAction`, Zod | API 상태, 입력 폼, 검증 | 도입 — 프레임워크 loader·action 이 서버 상태를, Zod 스키마가 검증을 맡습니다. TanStack Query·React Hook Form 은 역할이 겹쳐 채택하지 않았습니다 ([프런트엔드 설계 §기술 구성](docs/specs/frontend-design.md)) |
-| UI·시각화 | Tailwind CSS, shadcn/ui, Recharts | 컴포넌트, 스타일, 지수 차트 | 부분 도입 — Tailwind CSS 4(`@tailwindcss/vite`)·shadcn/ui(Button·Input·Card 등, `@/` 경로 별칭 배선 포함) 도입. Recharts는 미도입 — 소비 화면 도넛은 CSS `conic-gradient` 로 만들었다 |
-| 백엔드 | Java 25, Spring Boot 4.1, Gradle 멀티모듈 | 인증, 도메인 로직, REST API, 데이터 접근 | 도입 (인증은 auth-service에 구현·배포 배선 완료. core-api는 DB를 쓰지 않는다 — 채용공고 도메인은 `collector`로 이동했고, 대시보드·소득·소비·스킬·시나리오·프로필·참조 도메인은 REST 컨트롤러와 DTO만 있는 고정 응답 스텁 — 서비스·리포지터리 미연결) |
+| UI·시각화 | Tailwind CSS, shadcn/ui, 손수 SVG | 컴포넌트, 스타일, 지수 차트 | 도입 — Tailwind CSS 4(`@tailwindcss/vite`)·shadcn/ui(Button·Input·Card 등, `@/` 경로 별칭 배선 포함). **차트 라이브러리는 쓰지 않습니다** — `S-14` 차트 3종은 손수 SVG 이고 소비 도넛은 CSS `conic-gradient` 입니다 |
+| 백엔드 | Java 25, Spring Boot 4.1, Gradle 멀티모듈 | 인증, 도메인 로직, REST API, 데이터 접근 | 도입 — auth-service(인증), core-api(프로필·소득·소비·스킬·지수·스냅샷·시나리오·대시보드), collector(수집·정규화·집계)가 모두 실데이터로 동작합니다. 고정 응답 스텁은 전부 철거했습니다 |
 | API 문서 | springdoc-openapi | OpenAPI 문서, Swagger UI | 도입 |
-| 데이터 접근 | Spring Data JPA, Flyway | 영속화, 스키마 마이그레이션 | 모듈별로 다름 — auth-service(`auth` 스키마)는 Flyway로 관리. collector(`core` 스키마)는 **Flyway를 쓰지 않고 DDL을 직접 적용**한다(정본은 [상세 기술 명세](docs/specs/technical-specification.md), 절차는 [DEVELOPMENT.md §3.2](docs/DEVELOPMENT.md)). 채용공고 도메인이 JPA로 매핑돼 있다. core-api는 DB를 쓰지 않아 JPA·Flyway 둘 다 미도입 |
-| 데이터 수집 | Spring Batch | 외부 원천 수집·집계 | 미도입 |
-| 데이터베이스 | PostgreSQL 16 | 영속화 | 도입 (auth·채용공고 스키마·데이터 존재, 그 외 도메인 스키마 없음) |
+| 데이터 접근 | Spring Data JPA, Flyway | 영속화, 스키마 마이그레이션 | 모듈별로 다름 — auth-service(`auth` 스키마)는 Flyway 로 관리. `core` 스키마는 collector 와 core-api 가 공유하며 **Flyway 를 쓰지 않고 DDL 을 직접 적용**한다(정본은 [상세 기술 명세](docs/specs/technical-specification.md), 절차는 [DEVELOPMENT.md §3.2](docs/DEVELOPMENT.md)). 셋 다 JPA 로 매핑돼 있다 |
+| 데이터 수집 | Spring Batch | 외부 원천 수집·집계 | 미도입 — collector 가 관리자 콘솔(`S-16`)과 내부 API(`/internal/pipeline/**`)로 직접 구동합니다. 재시도·청크·잡 이력이 실제로 필요해질 때 도입합니다 |
+| 데이터베이스 | PostgreSQL 16 | 영속화 | 도입 — `auth` 스키마 3테이블, `core` 스키마에 채용공고·시장집계·사용자 도메인·지수·시나리오까지 전부 존재 |
 | 엣지 — 라우터 | Caddy 2 (`infra_caddy`) | 80/443 소유, TLS 종료·자동 발급, 호스트명 분기 | 도입 — **이 저장소 밖**(`~/infra`, 타 프로젝트와 공유) |
 | 엣지 — 앱 라우팅 | Caddy 2 (`carix_caddy`) | `gateway:8080`으로 균일 전달(경로 분기는 Gateway가 수행), 압축, 캐시 헤더 | 도입 |
 | 빌드·배포 | GitHub Actions (ARM 러너), GHCR, Docker Compose, OCI | 이미지 빌드·레지스트리·컨테이너 운영 | 도입 |
 | 팀 DB 접근 | OCI Security List IP 허용목록 + Postgres TLS | 팀원 로컬에서 운영 DB에 직접 연결 | 도입 — [DEVELOPMENT.md §3](docs/DEVELOPMENT.md) |
 | 설정 관리 | Spring Cloud Config | 설정 외부화, 런타임 갱신 | 도입 — native(파일시스템) 백엔드 |
 | 서비스 디스커버리 | Eureka | 서비스 등록·조회 | 도입 |
-| API 게이트웨이 | Spring Cloud Gateway | 라우팅, 세션 검증 필터, 상관관계 ID | 도입 — 세션 검증 필터는 기본 비활성(auth-service 배포 배선은 완료, 실제 서버 배포·Eureka 등록 확인 전이라 비활성, 계획 C) |
+| API 게이트웨이 | Spring Cloud Gateway | 라우팅, 세션 검증 필터, 상관관계 ID | 도입 — 세션 검증 필터만 기본 비활성입니다. 전환 순서는 [문서 맵 「배포 전 실행 순서」](docs/README.md#남은-것) |
 
 엣지는 2단입니다. 서버의 라우터 Caddy가 80/443과 TLS를 소유하고 호스트명으로 분기하면,
 프로젝트 전용 Caddy가 애플리케이션 라우팅을 맡습니다. 두 계층의 소유권이 다릅니다 — 라우터는
@@ -299,7 +298,7 @@ flowchart TD
 | Node SSR (Express) | 공개 랜딩·콘텐츠의 SEO와 로그인 후 대시보드의 상호작용성을 한 앱에서 지원하기 위해 |
 | React Router 7 `clientLoader`·`clientAction` (TanStack Query 대체) | 프레임워크가 조회·제출·재검증을 이미 갖고 있어 별도 서버 상태 캐시를 얹으면 역할이 겹칩니다 |
 | Zod (React Hook Form 없이) | 입력 검증을 프런트·백엔드 양쪽에서 하되, 프런트 스키마를 한 곳에 둡니다. `clientAction`이 제출을 받고 Zod가 파싱하면 React Hook Form이 더할 역할이 제어 컴포넌트 상태 관리뿐이라 넣지 않았습니다 |
-| Recharts | 지수·트렌드 차트가 핵심 화면이며 React 컴포넌트 모델과 맞물립니다 |
+| 차트 라이브러리 없음 | 지수·트렌드 차트가 핵심 화면이지만 필요한 표현(인체 실루엣 분포, 누적 막대)이 범용 차트 라이브러리의 기본형과 맞지 않아 손수 SVG 로 그립니다. 번들도 늘지 않습니다 |
 | Java 25 | 최신 LTS. Spring Boot 4.x의 하한(17)보다 높고 가상 스레드·AOT 캐시(Java 25+ 전용) 등 최신 LTS 기능을 씁니다 |
 | Spring Boot 4.1 | 스캐폴드 시점의 최신 GA. Spring Initializr 기본값이며 3.x는 더 이상 제공되지 않습니다 |
 | springdoc-openapi 3.0.3 | Boot 4 대응 라인입니다. 2.x는 Boot 3용이라 호환되지 않습니다 |
@@ -400,15 +399,16 @@ Carix/
 │   ├── caddy/router.caddy     라우터 Caddy가 import하는 호스트명 분기
 │   ├── postgres/pg_hba.conf   Postgres 접속 인증 정본
 │   ├── postgres/schema/       core 스키마 DDL 실행 정본 (Flyway 미사용)
+│   ├── infra-edge/            라우터 Caddy·infra compose 참조용 사본 (정본은 서버 ~/infra)
 ├── config/                    CPI 분류 매핑, 기본 지출 가중치
 ├── verification/              데이터 원천 선행 검증 스크립트와 실측 노트
-├── frontend/                  React Router 7 + Vite + Tailwind (랜딩·인증 동작, 그 외 플레이스홀더 — SSR 미도입)
+├── frontend/                  React Router 7 + Vite + Tailwind (S-01~S-16 전 화면 동작 — SSR 미도입)
 ├── backend/                   Gradle 멀티모듈 — config-server, eureka, gateway, auth-service, core-api, collector
-│                               (core-api 도메인 API 는 고정 응답 스텁 — Batch 미도입)
+│                               (Spring Batch 미도입 — collector 는 관리자 콘솔·내부 API 로 구동)
 ├── docs/
 │   ├── README.md             문서 맵 (주제별 인덱스 — 여기서 시작)
 │   ├── specs/                설계 문서 정본 (MVP, API, DB, UI/UX 등)
-│   ├── plans/                계획 문서 정본 (데이터 검증, OCI 배포)
+│   ├── plans/                진행 중인 계획 (개발 계획, UI 통일, 아키텍처 로드맵)
 │   ├── SECURITY.md           보안·개인정보 처리
 │   └── DEVELOPMENT.md        로컬 개발 가이드
 ├── .github/workflows/         Deploy (main 푸시), PR Check (PR 검증 CI), Rollback (수동 1-클릭 롤백)

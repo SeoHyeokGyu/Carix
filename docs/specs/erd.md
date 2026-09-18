@@ -31,6 +31,13 @@ erDiagram
         timestamp updated_at
     }
 
+    rate_limit_bucket {
+        uuid id PK
+        varchar bucket_key "IP 또는 이메일 기준"
+        timestamp window_start
+        int request_count
+    }
+
     session {
         uuid id PK
         uuid user_id FK

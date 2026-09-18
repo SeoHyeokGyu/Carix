@@ -278,8 +278,9 @@ pnpm install
 pnpm dev              # Vite dev server (기본 5173)
 ```
 
-- `/api` 프록시는 아직 구성돼 있지 않다 — 프론트가 백엔드를 호출하는 시점에
-  `vite.config.ts`에 추가한다.
+- `/api` 프록시는 `vite.config.ts` 가 갖는다. 기본 대상은 운영 게이트웨이이고,
+  `pnpm dev:local`(로컬 게이트웨이 8080)·`pnpm dev:collector`(로컬 collector 8083)로
+  대상을 바꾼다. `CARIX_API_TARGET` 을 직접 주면 core-api 단독(8082)에도 붙는다.
 - Docker 불필요.
 
 ## 5. 백엔드 개발
