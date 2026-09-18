@@ -143,6 +143,11 @@ tr '}' '\n' < build/client/assets/root-*.css | grep ...
 
 - `docs/specs/ui-ux-design.md` 에 컴포넌트 계약·상태 표현 규칙 반영. §4.2 연봉 분포
   표류는 먼저 해소했다
+- **와이어프레임 `trends.html` 의 연봉 분포도 같은 표류다** — 최소·25%·중앙값·75%·최대
+  5수치 스펙트럼을 그리는데 실제 화면은 백분위 인체 실루엣이고, 그 5수치는
+  [개발 계획 §2](carix-dev-plan.md) `b11` 로 `market_aggregate` 에서 제거될 값이다.
+  `.html` 을 고치면 `screenshots/trends.png` 도 다시 떠서 같이 커밋해야 한다
+  ([와이어프레임 README](../specs/wireframes/README.md)) — `b11` 이후에 한 번에 한다
 - eslint 규칙으로 회귀를 막는다
   - 토큰 밖 Tailwind 팔레트 클래스 금지 (`bg-blue-500` 등)
   - 허용 목록 밖 raw `<button>` 금지
