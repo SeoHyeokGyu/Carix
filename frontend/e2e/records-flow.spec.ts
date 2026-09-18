@@ -15,7 +15,12 @@ const PROTECTED = [
 ];
 
 for (const path of PROTECTED) {
-  test(`세션 없이 ${path} 를 열면 랜딩으로 돌아온다`, async ({ page }) => {
+  // "이력 관리 —" 접두어: `--grep "이력 관리"` 가 게이트 안 describe 뿐 아니라 이
+  // 상시 가드 루프도 선택하게 한다. 접두어 없이는 계정 없는 일반 체크아웃에서
+  // 이 검증 명령이 상시 커버리지를 하나도 실행하지 않는 채로 조용히 통과해버린다.
+  test(`이력 관리 — 세션 없이 ${path} 를 열면 랜딩으로 돌아온다`, async ({
+    page,
+  }) => {
     await page.goto(path);
     await expect(page).toHaveURL("/");
   });
