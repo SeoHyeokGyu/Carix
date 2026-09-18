@@ -13,22 +13,21 @@
 *   **알고리즘:** **AES-256-GCM** (또는 보안 강도가 검증된 AES-256-CBC)
 *   **구현 방식:** 애플리케이션 레이어(Spring Boot)에서 **Spring Data JPA Converter**(`AttributeConverter`)를 구현하여 DB 적재 시 자동 암호화하고, 조회 시 복호화합니다. 평문 데이터는 DB 버퍼나 파일시스템에 그대로 기록되지 않도록 차단합니다.
 
-### 1.2 DDL 스펙
+### 1.2 스키마 설계 주석
 
-> **실행 정본은 [`deploy/postgres/schema/`](../../deploy/postgres/schema/)의 `.sql` 파일이다.**
-> 아래 DDL은 설계 의도를 서술한 것이고, 실제 적용은 그 파일들로 한다
-> (절차는 [DEVELOPMENT.md §3.2](../DEVELOPMENT.md)). 아래와 실물이 다른 지점이 있으니
-> 새 테이블을 설계할 때 참고한다.
+> **실행 정본은 [`deploy/postgres/schema/`](../../deploy/postgres/schema/)의 `.sql` 파일이고,
+> 테이블·컬럼 목록은 [ERD](erd.md)가 갖는다**(적용 절차는 [DEVELOPMENT.md §3.2](../DEVELOPMENT.md)).
+> 이 절은 둘 중 어느 쪽에도 안 남는 것만 적는다 — 설계 의도, 실물과 갈린 지점, 수집되지만
+> 아무도 안 읽는 컬럼.
 >
 > **`users` 외래키는 걸지 않는다.** `users`는 auth-service가 `auth` 스키마에 소유하고,
 > `core` 테이블은 core-api가 소유한다. 스키마를 가로지르는 외래키는 두 서비스의 배포를
 > 묶어 버리므로 `user_id UUID NOT NULL`만 두고 참조 무결성은 애플리케이션이 지킨다.
-> 아래 `REFERENCES users(id)`는 서비스 분리 이전에 쓰인 표기다.
 >
-> **채용공고 수집 5개 테이블은 아래 서술과 다르다.** 크롤링 실측에 맞춰 완화된 상태로
+> **채용공고 수집 5개 테이블은 원 설계와 다르다.** 크롤링 실측에 맞춰 완화된 상태로
 > 운영 중이며, 정확한 정의는 [`01_job_posting.sql`](../../deploy/postgres/schema/01_job_posting.sql)에 있다.
 >
-> | 테이블 | 아래 서술 | 실제 |
+> | 테이블 | 원 설계 | 실물 |
 > | --- | --- | --- |
 > | `job_posting` | `title VARCHAR(255)`, `company_name`·`region`·`experience_min`·`employment_type`·`company_size`·`job_family` 전부 NOT NULL | `title VARCHAR(500)`, 해당 컬럼 전부 NULL 허용. `company_badge`·`position_level` 컬럼 추가 |
 > | `job_posting.salary_*` | 원 단위 | **원 단위로 저장한다.** 원천 표기가 만원이라 적재 경로가 변환한다 — `JobKoreaListingEnricher`·`JobKoreaPayParser` 가 `값 < 1,000,000` 이면 `× 10,000`. 옛 만원 단위 행은 `06_fix_salary_units.sql` 이 같은 기준으로 올렸다. **읽을 때 다시 환산하지 않는다.** 휴리스틱이라 연 100만원 미만 실제 금액은 잘못 곱해지지만 채용공고 연봉에는 그런 값이 없다 |
@@ -65,249 +64,10 @@
 > `ALL` 이다. 연봉 격차 판정의 기준선으로는 채택된 값이지만, **이 값을 분모로 비율을 만들면 그
 > 비율이 시장이 아니라 프록시 정합도를 절반쯤 잰다.**
 
-```sql
--- 1. 인증 및 사용자 영역
-CREATE TABLE users (
-    id UUID PRIMARY KEY,
-    email VARCHAR(255) NOT NULL UNIQUE,
-    password_hash VARCHAR(100) NOT NULL,  -- BCrypt 60자. 알고리즘 교체 여지를 두고 100
-    onboarding_step VARCHAR(20) NOT NULL DEFAULT 'PROFILE', -- 'PROFILE', 'INCOME', 'EXPENSE', 'SKILLS', 'REVIEW', 'COMPLETED'
-    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT users_credentials_pair_chk
-        CHECK ((email IS NULL AND password_hash IS NULL)
-            OR (email IS NOT NULL AND password_hash IS NOT NULL))
-);
--- 사용자 생성 시점: 회원가입 시 한 번. 계정 없이 만들어지는 사용자 행은 없다.
--- 이메일 소유를 증명하지 않으므로 확인 상태 컬럼도 두지 않는다 (확인 메일을 보낼 경로가 없다).
 
-CREATE TABLE session (
-    id UUID PRIMARY KEY,
-    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    token_hash VARCHAR(255) NOT NULL UNIQUE,  -- SHA-256 hex. 원본 토큰은 저장하지 않는다
-    expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
-    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
-);
--- 세션은 30일짜리 자격증명이라 DB 유출 시 피해가 가장 크다. 해시만 저장하고,
--- 조회는 제시된 토큰을 해싱해 대조한다.
--- 만료 행은 일 1회 스케줄러가 정리한다 (auth-service 단일 인스턴스 전제).
-
-CREATE TABLE rate_limit_bucket (
-    id UUID PRIMARY KEY,
-    bucket_key VARCHAR(255) NOT NULL, -- '{scope}:{key}' 형식, 예: 'email:user@x.com', 'ip:1.2.3.4'
-    window_start TIMESTAMP WITH TIME ZONE NOT NULL, -- 시 단위로 truncate된 고정 윈도 시작 시각
-    request_count INT NOT NULL DEFAULT 1,
-    UNIQUE (bucket_key, window_start)
-);
--- 가입·로그인 속도 제한(SECURITY.md §2)에 사용하는 고정 윈도 카운터.
--- 윈도가 지난 행은 세션 정리와 같은 스케줄러가 함께 지운다.
-
--- 2. 사용자 프로필 및 이력 데이터 영역
-CREATE TABLE career_profile (
-    id UUID PRIMARY KEY,
-    user_id UUID NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
-    job_family VARCHAR(100), -- 'DEVELOPER', 'DATA', 'AI'
-    years_of_experience INT,
-    region VARCHAR(100), -- 시/도 17개 한글 어휘. 예: '서울', '경기' (collector RegionRollup.SIDO 와 동일, API 규격 §3.1)
-    employment_type VARCHAR(50), -- 'FULL_TIME', 'CONTRACT'
-    company_size VARCHAR(50) -- 'LARGE', 'MEDIUM', 'STARTUP' (선택값)
-);
--- 온보딩 자동 저장(부분 필드)을 허용하기 위해 컬럼은 NULL 허용이다.
--- 필수 필드(job_family, years_of_experience, region, employment_type)의 완비 검증은
--- 온보딩 완료 제출(REVIEW → COMPLETED) 시 애플리케이션 레벨에서 수행한다.
-
-CREATE TABLE income_history (
-    id UUID PRIMARY KEY,
-    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    gross_salary_encrypted VARCHAR(512) NOT NULL, -- 세전연봉 (암호화)
-    net_salary_encrypted VARCHAR(512),            -- 월 실수령액 (선택적, 암호화)
-    effective_date DATE NOT NULL,
-    change_reason VARCHAR(20), -- 'INITIAL'|'RAISE'|'JOB_CHANGE'. **계획, 미적용** — 실행 정본 02_user_domain.sql 과 ERD 에는 아직 없다. 적용은 개발 계획 a4 블록
-    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE (user_id, effective_date)
-);
--- change_reason 은 NULL 을 허용한다. 기본값을 주면 사용자가 고르지 않은 것이 고른 것으로 기록돼
--- 검증 표본이 오염된다. 그 사용자의 첫 행만 서버가 INITIAL 로 확정한다 (기능 명세 US-O3).
--- 금액이 아니라 평문이며 §1.1 암호화 경로를 열지 않는다.
-
-CREATE TABLE expense_history (
-    id UUID PRIMARY KEY,
-    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    base_year_month VARCHAR(6) NOT NULL, -- 'YYYYMM' 형식
-    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE (user_id, base_year_month)
-);
-
-CREATE TABLE expense_item (
-    id UUID PRIMARY KEY,
-    expense_history_id UUID NOT NULL REFERENCES expense_history(id) ON DELETE CASCADE,
-    category VARCHAR(50) NOT NULL, -- 'HOUSING', 'FOOD', 'TRANSPORT', 'MEDICAL', 'EDUCATION', 'LEISURE'
-    amount_encrypted VARCHAR(512) NOT NULL, -- 월 소비액 (암호화)
-    UNIQUE (expense_history_id, category)
-);
--- 카테고리별 상태(USER_DEFINED/DEFAULT_CPI)는 저장하지 않는다. 사용자가 입력한 카테고리만 행으로 존재하며,
--- 상태·보간값·월 요약 라벨은 계산 시 행 존재 여부로부터 도출한다 (도메인 정의서 §1.1).
-
--- 3. 스킬 및 사용자 스킬 데이터 영역
-CREATE TABLE skill (
-    id UUID PRIMARY KEY,
-    standard_name VARCHAR(100) NOT NULL UNIQUE,
-    category VARCHAR(50) NOT NULL, -- 'BACKEND', 'FRONTEND', 'DEVOPS', 'DATA', 'AI_ML', 'ETC' (커스텀 스킬은 생성 시 필수 입력)
-    is_custom BOOLEAN NOT NULL DEFAULT false, -- 사용자 정의 스킬 여부
-    created_by UUID REFERENCES users(id) ON DELETE SET NULL -- 사용자 정의 스킬 생성자 (표준 스킬은 NULL)
-);
--- 사용자 정의 스킬(is_custom = true)은 시장 집계·지수 계산에서 제외하고 `통계 미제공`으로 표시한다.
--- 커스텀 스킬 정리: 해당 스킬을 참조하는 마지막 user_skill 삭제 또는 생성자 사용자 삭제 시,
--- 애플리케이션 레벨 트랜잭션으로 skill 행을 함께 삭제한다. created_by의 ON DELETE SET NULL은
--- 커스텀 스킬이 표준 사전으로 승격(is_custom = false)된 경우에만 의미를 가진다.
-
-CREATE TABLE skill_alias (
-    id UUID PRIMARY KEY,
-    skill_id UUID NOT NULL REFERENCES skill(id) ON DELETE CASCADE,
-    alias_name VARCHAR(100) NOT NULL UNIQUE
-);
-
-CREATE TABLE user_skill (
-    id UUID PRIMARY KEY,
-    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    skill_id UUID NOT NULL REFERENCES skill(id) ON DELETE CASCADE,
-    months_of_experience INT NOT NULL CHECK (months_of_experience BETWEEN 1 AND 600),
-    last_used_date DATE NOT NULL,
-    UNIQUE (user_id, skill_id)
-);
-
--- 4. 외부 수집 및 집계 영역
-CREATE TABLE raw_ingest (
-    id UUID PRIMARY KEY,
-    source VARCHAR(50) NOT NULL, -- 'KOSIS_CPI', 'JOBKOREA', 'SARAMIN', 'WAGE_STAT'
-    source_item_id VARCHAR(100) NOT NULL, -- 원천 내 원문 식별자
-    first_seen_month VARCHAR(6) NOT NULL,
-    last_seen_month VARCHAR(6) NOT NULL,
-    collected_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE (source, source_item_id)
-);
-
-CREATE TABLE cpi_observation (
-    id UUID PRIMARY KEY,
-    base_year_month VARCHAR(6) NOT NULL,
-    category VARCHAR(50) NOT NULL,
-    cpi_value DECIMAL(5,2) NOT NULL,
-    UNIQUE (base_year_month, category)
-);
-
-CREATE TABLE wage_stat_observation (
-    id UUID PRIMARY KEY,
-    job_family VARCHAR(100) NOT NULL,
-    experience_bracket VARCHAR(50) NOT NULL,
-    region VARCHAR(100) NOT NULL,
-    wage_definition VARCHAR(100) NOT NULL, -- 임금 정의 메타데이터 ('ANNUAL_GROSS_MEDIAN': 연간 세전 중위임금)
-    wage_median BIGINT NOT NULL, -- 연간 세전 중앙값 (원)
-    base_period VARCHAR(6) NOT NULL, -- 통계 기준기간 'YYYY' (연 단위 공시)
-    stat_vintage VARCHAR(6) NOT NULL, -- 발표 시점 (통계 개정 구분)
-    source VARCHAR(20) NOT NULL DEFAULT 'UNKNOWN', -- 'KOSIS'(실측) | 'FALLBACK'(하드코딩 상수) | 'UNKNOWN'(컬럼 도입 이전)
-    UNIQUE (job_family, experience_bracket, region, wage_definition, base_period, stat_vintage)
-);
--- 같은 기준기간의 개정판은 stat_vintage로 공존한다. 조회는 base_period별 최신 stat_vintage를 사용한다.
--- source 가 FALLBACK 인 행은 실측이 아니다. 연도 시계열 계산은 KOSIS 행만 쓴다.
-
-CREATE TABLE job_posting (
-    id UUID PRIMARY KEY,
-    source VARCHAR(50) NOT NULL, -- 'JOBKOREA', 'SARAMIN'
-    external_id VARCHAR(100) NOT NULL, -- 원천 공고 ID
-    dedup_group_id UUID, -- 원천 간 중복 공고 그룹 (회사명+제목+게시기간 휴리스틱)
-    dedup_rule_version VARCHAR(20), -- 중복 매칭 규칙 버전
-    title VARCHAR(255) NOT NULL,
-    company_name VARCHAR(255) NOT NULL,
-    salary_min BIGINT, -- 정규화된 연간 세전최소 (원 단위, 결측 가능)
-    salary_max BIGINT, -- 정규화된 연간 세전최대 (원 단위, 결측 가능)
-    region VARCHAR(100) NOT NULL,
-    experience_min INT NOT NULL DEFAULT 0,
-    experience_max INT DEFAULT 99,
-    employment_type VARCHAR(50) NOT NULL DEFAULT 'UNKNOWN', -- 'FULL_TIME', 'CONTRACT', 원천 미상은 'UNKNOWN'
-    company_size VARCHAR(50) NOT NULL DEFAULT 'UNKNOWN', -- 'LARGE', 'MEDIUM', 'STARTUP', 원천 미상은 'UNKNOWN'
-    job_family VARCHAR(100) NOT NULL,
-    posted_start_date DATE, -- 게시 시작일 (dedup 휴리스틱·월 귀속용)
-    posted_end_date DATE, -- 게시 종료일 (결측 시 last_seen 기반 추정)
-    first_seen_month VARCHAR(6) NOT NULL, -- 수집에서 처음 관측된 월
-    last_seen_month VARCHAR(6) NOT NULL, -- 마지막 관측 월
-    collected_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE (source, external_id)
-);
--- 월별 집계 귀속: 게시기간(posted_start_date~posted_end_date)이 해당 월과 겹치는 공고를 그 월에 귀속한다.
--- 게시일 결측 시 first_seen_month~last_seen_month로 대체한다. 두 달에 걸친 공고는 각 월에 1회씩 귀속되고 월 내 이중 집계는 없다.
-
-CREATE TABLE job_posting_skill (
-    id UUID PRIMARY KEY,
-    job_posting_id UUID NOT NULL REFERENCES job_posting(id) ON DELETE CASCADE,
-    skill_id UUID NOT NULL REFERENCES skill(id) ON DELETE CASCADE,
-    UNIQUE (job_posting_id, skill_id)
-);
-
-CREATE TABLE market_aggregate (
-    id UUID PRIMARY KEY,
-    source VARCHAR(50) NOT NULL, -- 'JOBKOREA', 'SARAMIN' — 원천별 행만 저장, 통합 지수는 계산 시점 도출
-    base_year_month VARCHAR(6) NOT NULL,
-    job_family VARCHAR(100) NOT NULL,
-    region VARCHAR(100) NOT NULL,
-    experience_bracket VARCHAR(50) NOT NULL, -- 'JUNIOR'(0~3), 'MID'(4~7), 'SENIOR'(8+)
-    employment_type VARCHAR(50), -- NULL = 전체 롤업 (완화 Level 5 대응). 원천 미상 공고는 'UNKNOWN' 버킷으로 구분 — NULL과 혼용 금지
-    company_size VARCHAR(50), -- NULL = 전체 롤업 (완화 Level 2 대응). 원천 미상은 'UNKNOWN' 버킷
-    skill_id UUID REFERENCES skill(id) ON DELETE CASCADE, -- NULL = 스킬 무관 동료집단 전체 행 (연봉 분포·전체 공고 수 용)
-    posting_count INT NOT NULL DEFAULT 0,
-    total_aggregate_postings INT NOT NULL DEFAULT 0, -- 비교군 전체 공고 수
-    demand_rate DECIMAL(5,4) NOT NULL DEFAULT 0.0000, -- 수요율 (posting_count / total_aggregate_postings)
-    salary_min BIGINT, -- 해당 스킬 공고의 공개연봉 분포 (참고 병기용)
-    salary_p25 BIGINT,
-    salary_median BIGINT,
-    salary_p75 BIGINT,
-    salary_max BIGINT,
-    salary_missing_rate DECIMAL(5,2) NOT NULL DEFAULT 100.00, -- 연봉 결측률 (%)
-    UNIQUE NULLS NOT DISTINCT (source, base_year_month, job_family, region, experience_bracket, employment_type, company_size, skill_id)
-);
--- NULLS NOT DISTINCT (PostgreSQL 15+): NULL 차원(완화 그룹·스킬 무관 행)을 동일 값으로 취급해
--- 재실행 시 upsert 멱등성을 보장한다. NULL을 구분하는 일반 UNIQUE로는 완화 그룹 행이 중복 적재된다.
--- 공고 공개연봉 분포는 참고 표시 전용이다. 연봉 격차 판정 기준선은 wage_stat_observation의 공식 임금통계 중앙값을 사용한다.
-
--- 5. 지수 스냅샷 및 시나리오 영역
-CREATE TABLE index_snapshot (
-    id UUID PRIMARY KEY,
-    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    base_year_month VARCHAR(6) NOT NULL, -- 'YYYYMM'
-    data_version VARCHAR(50) NOT NULL,   -- 사용자 입력 + 외부 데이터 상태를 식별하는 버전
-    rule_version VARCHAR(50) NOT NULL,   -- 결정 신호 규칙표 버전
-    purchasing_power_index DECIMAL(6,2), -- 계산 불가 시 NULL (표본 부족 등)
-    market_value_index DECIMAL(6,2),
-    opening_window_index DECIMAL(6,2), -- 개방창 지수(기능 명세 §4.5). **계획, 미적용** — 실행 정본 04_snapshot_and_scenario.sql 과 ERD 에는 아직 없다. 적용은 개발 계획 c6 블록
-    decision_signal VARCHAR(50) NOT NULL, -- 'NEGOTIATE', 'SEEK_JOB', 'STAY', 'UPSKILL', 'INSUFFICIENT_DATA'
-    rationale JSONB NOT NULL, -- 적용 규칙, 근거, 제외 데이터 사유, 원천 기준일
-    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE (user_id, base_year_month, data_version, rule_version)
-);
-
-CREATE TABLE career_scenario (
-    id UUID PRIMARY KEY,
-    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    scenario_name VARCHAR(100),
-    current_gross_salary_encrypted VARCHAR(512) NOT NULL, -- AES-256-GCM
-    stay_expected_raise_rate DECIMAL(5,2) NOT NULL,
-    move_target_gross_salary_encrypted VARCHAR(512) NOT NULL,
-    move_one_time_cost BIGINT NOT NULL, -- 사용자 입력 부대비용. 연봉 복원에 쓰이지 않아 평문
-    expected_unemployment_months INT NOT NULL DEFAULT 0, -- 0~6
-    is_eligible_for_unemployment_benefit BOOLEAN NOT NULL DEFAULT true, -- 실업급여 수급 요건 충족 가정 (false면 급여 0으로 계산)
-    stay_compensation_12m_encrypted VARCHAR(512) NOT NULL,
-    move_compensation_12m_encrypted VARCHAR(512) NOT NULL,
-    estimated_unemployment_benefit_encrypted VARCHAR(512) NOT NULL,
-    difference_encrypted VARCHAR(512) NOT NULL,
-    feasibility_status VARCHAR(30) NOT NULL,
-    feasibility_percentile INT, -- 표본 부족이면 NULL
-    feasibility_sample_size INT,
-    calculated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
-);
-```
-
-금액 컬럼은 `income_history` 와 같은 AES-256-GCM 으로 저장한다. 평문이면
-`stay_compensation_12m` 을 `stay_expected_raise_rate` 로 나눠 현재 연봉이 원 단위까지
-복원되어, 연봉을 암호화한 이유가 이 테이블에서 사라진다. 금액으로 조회·정렬하는 인덱스가
+**`career_scenario` 의 금액 컬럼**은 `income_history` 와 같은 AES-256-GCM 으로 저장한다.
+평문이면 `stay_compensation_12m` 을 `stay_expected_raise_rate` 로 나눠 현재 연봉이 원
+단위까지 복원되어, 연봉을 암호화한 이유가 이 테이블에서 사라진다. 금액으로 조회·정렬하는 인덱스가
 없어 질의 비용은 없다.
 
 실현 가능성은 재계산하지 않고 저장한다. 동료집단 분포는 그 시점의 공고에 의존해 나중에 다시
@@ -374,28 +134,15 @@ CREATE TABLE career_scenario (
 
 비정형 채용 공고 텍스트에서 스킬을 균일하게 정규화하여 시장 수요를 매핑하기 위한 Seed 데이터와 가공 규칙입니다.
 
-### 3.1 분야별 표준 스킬 Seed 리스트 (개발자/데이터/AI)
+### 3.1 표준 스킬 사전
 
-*   **백엔드(Backend):**
-    *   `Java` (별칭: `java`, `자바`)
-    *   `Spring Boot` (별칭: `spring boot`, `springboot`, `스프링 부트`, `스프링부트`) — 단독 `spring`·`스프링`은 §3.2 충돌 정책에 따라 `Spring Boot`로 매핑하지 않음
-    *   `Python` (별칭: `python`, `파이썬`)
-    *   `Go` (별칭: `go`, `golang`, `고랭`)
-    *   `Node.js` (별칭: `node`, `nodejs`, `노드`)
-*   **프론트엔드(Frontend):**
-    *   `TypeScript` (별칭: `typescript`, `ts`, `타입스크립트`)
-    *   `React` (별칭: `react`, `react.js`, `리액트`)
-    *   `Next.js` (별칭: `nextjs`, `next.js`)
-*   **데이터 & 인프라(Data & Infra):**
-    *   `PostgreSQL` (별칭: `postgresql`, `postgres`)
-    *   `MySQL` (별칭: `mysql`)
-    *   `AWS` (별칭: `amazon web service`, `aws`)
-    *   `Kubernetes` (별칭: `k8s`, `kubernetes`, `쿠버네티스`)
-    *   `Apache Airflow` (별칭: `airflow`, `에어플로우`)
-*   **인공지능 & 머신러닝(AI & ML):**
-    *   `PyTorch` (별칭: `pytorch`, `파이토치`)
-    *   `TensorFlow` (별칭: `tensorflow`, `텐서플로우`)
-    *   `LLM` (별칭: `large language model`, `gpt`, `llm`, `거대언어모델`)
+**시드 정본은 [`deploy/postgres/schema/05_standard_skills_seed.sql`](../../deploy/postgres/schema/05_standard_skills_seed.sql)이다** — 100+ 스킬과 별칭이 거기 있고, 여기 목록을 두면 사본이 갈린다.
+
+분류 체계만 여기 둔다. `core.skill.category` 는 `BACKEND`·`FRONTEND`·`MOBILE`·`DEVOPS`·`DATABASE`·`AI_ML`·`DATA_ENG`·`TOOLS` 여덟이다.
+
+> **`skill.category` 의 실물은 이 여덟이 아닐 수 있다.** §1.2 의 차이표가 적듯 수집 태그의
+> 성격 구분(`SKILL`·`JOB_CATEGORY`·`INDUSTRY`)이 같은 컬럼에 들어와 있다. 시드가 쓰는 값과
+> 크롤러가 쓰는 값이 한 컬럼을 공유한다.
 
 ### 3.2 에일리어싱(Aliasing) 매칭 알고리즘
 
