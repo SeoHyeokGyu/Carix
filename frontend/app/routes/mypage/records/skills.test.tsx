@@ -109,9 +109,12 @@ describe("스킬 탭 (S-12)", () => {
     await user.type(screen.getByLabelText(/마지막 사용일/), "2026-08-01");
     await user.click(screen.getByRole("button", { name: "스킬 추가" }));
 
-    expect(
-      await screen.findByText("이미 등록된 스킬입니다."),
-    ).toBeInTheDocument();
+    // 폼 전체(`_form`)가 아니라 검색 필드(`skillSearch`)에 붙어야 한다 —
+    // 단순히 메시지가 어딘가에 떠 있다는 것만으로는 formError 로 잘못
+    // 세팅돼도 통과해 버린다. `Field` 가 오류 문단에 다는 id(`${id}-error`,
+    // app/components/onboarding/Field.tsx)로 착지 필드를 구분한다.
+    const message = await screen.findByText("이미 등록된 스킬입니다.");
+    expect(message).toHaveAttribute("id", "skillSearch-error");
   });
 
   it("삭제하면 해당 id 로 서버를 부르고 목록에서 뺀다", async () => {
