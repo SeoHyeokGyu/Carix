@@ -14,7 +14,7 @@ GitHub는 `.html`을 인라인 렌더하지 않으므로, `screenshots/`에 각 
 python3 autocrop.py screenshots/<name>.png
 ```
 
-라우트 ID(S-01~S-15)는 [functional-specification.md §1 화면 맵과 라우트](../functional-specification.md)를 따름. 화면별 빈/열화 상태는 같은 문서 §5 기준.
+라우트 ID(S-01~S-16)는 [functional-specification.md §1 화면 맵과 라우트](../functional-specification.md)를 따름. 화면별 빈/열화 상태는 같은 문서 §5 기준.
 
 ### [홈](home.html) — S-01 `/`
 
@@ -27,7 +27,8 @@ python3 autocrop.py screenshots/<name>.png
 S-01 랜딩에서 가입 또는 로그인으로 들어온다. 계정 없이 접근할 수 있는 화면은
 이 둘과 랜딩뿐이다.
 
-> 스크린샷 없음 — 인증 방식 변경으로 옛 이미지를 걷었다. 화면 구현 시 다시 만든다.
+> 스크린샷 없음 — 인증 방식 변경으로 옛 이미지를 걷었고 아직 다시 뜨지 않았다.
+> 화면 자체는 구현돼 동작한다.
 
 ### 온보딩 — S-05~S-09
 
