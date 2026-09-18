@@ -144,8 +144,8 @@ OCI VM에서 다음 컨테이너를 Docker Compose로 운영한다.
 > 초안은 `nginx`였으나 `carix-caddy`로 대체됐다. 이 호스트는 여러 프로젝트를 함께 돌리는데,
 > 80/443은 한 컨테이너만 바인딩할 수 있고 Let's Encrypt는 그 두 포트로만 검증하러 온다.
 > 포트를 나누면 한쪽이 정상 인증서를 못 받으므로, 라우터(`infra_caddy`)를 한 단 두고 각 프로젝트는
-> 자기 Caddy에서 애플리케이션 라우팅만 소유한다. 상세는
-> [`../plans/oci-server-provisioning-plan.md`](../plans/oci-server-provisioning-plan.md) Phase 3.
+> 자기 Caddy에서 애플리케이션 라우팅만 소유한다. 채택 사유는
+> [`README.md` 「채택 사유」](../../README.md#채택-사유).
 
 `frontend-node`는 Vite가 만든 client assets와 React Router server bundle을
 포함한다. 컨테이너는 non-root 사용자로 실행하고 health check를 제공해야 한다 —
