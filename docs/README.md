@@ -17,7 +17,6 @@
 | 문서 | 내용 |
 | --- | --- |
 | [기능 명세서](specs/functional-specification.md) | 화면 맵, 사용자 스토리·인수 조건, 입력 검증, 계산 경계, 추적 매트릭스 |
-| [UI/UX 레이아웃 설계](specs/ui-ux-design.md) | 비주얼 테마, 대시보드·온보딩 레이아웃, 컴포넌트 |
 | [와이어프레임 인덱스](specs/wireframes/README.md) | HTML 와이어프레임 맵 및 UI 화면 스크린샷 인덱스 |
 
 ## 아키텍처 (Architecture)
@@ -29,7 +28,7 @@
 | [애플리케이션 워크플로우](specs/application-workflow.md) | E2E 데이터 흐름, 관리자 직접 구동 및 Spring Scheduler 수집/집계 파이프라인, 시퀀스 |
 | [상세 기술 명세](specs/technical-specification.md) | DB 스키마(DDL), 결정 규칙표, 스킬 사전 |
 | [도메인 계산 정의](specs/domain-logic.md) | 지수·시나리오 계산 공식, 가중치 전파, 완화 알고리즘 |
-| [프런트엔드 설계](specs/frontend-design.md) | Vite·React·Node SSR 구성, 렌더링 전략, 배포 단위 |
+| [프런트엔드 설계](specs/frontend-design.md) | Vite·React·Node SSR 구성, 렌더링 전략, 배포 단위, 비주얼 테마·레이아웃·시각화 컴포넌트 |
 | [Spring Cloud 아키텍처](specs/spring-cloud-architecture.md) | Gateway·Config·Eureka 기반 재설계. 서비스 경계, 설정 관리, 로컬 개발 |
 
 ## API
