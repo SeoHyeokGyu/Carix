@@ -5,7 +5,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.carix.expense.domain.ExpenseCategoryEnum;
 import com.carix.expense.domain.ExpenseHistory;
 import com.carix.expense.domain.ExpenseItemEntity;
-import com.carix.expense.domain.WeightStatusEnum;
 import com.carix.income.domain.IncomeHistory;
 import com.carix.scenario.domain.CareerScenario;
 import java.math.BigDecimal;
@@ -72,13 +71,12 @@ class SensitiveDataRekeyingServiceTest {
     em.persistAndFlush(expenseHistory);
     UUID expenseItemId = UUID.randomUUID();
     jdbcTemplate.update(
-        "INSERT INTO core.expense_item (id, expense_history_id, category, amount_encrypted, weight_status) "
-            + "VALUES (?, ?, ?, ?, ?)",
+        "INSERT INTO core.expense_item (id, expense_history_id, category, amount_encrypted) "
+            + "VALUES (?, ?, ?, ?)",
         expenseItemId,
         expenseHistory.getId(),
         ExpenseCategoryEnum.FOOD.name(),
-        rawLegacyCiphertext,
-        WeightStatusEnum.DEFAULT_CPI.name());
+        rawLegacyCiphertext);
 
     // 3. career_scenario 에 레거시 암호문 INSERT
     UUID scenarioId = UUID.randomUUID();

@@ -31,23 +31,16 @@ public class ExpenseItemEntity {
   @Column(name = "amount_encrypted", nullable = false, length = 512)
   private Long amount;
 
-  @Enumerated(EnumType.STRING)
-  @Column(name = "weight_status", nullable = false, length = 20)
-  private WeightStatusEnum weightStatus;
-
-  public ExpenseItemEntity(
-      ExpenseCategoryEnum category, Long amount, WeightStatusEnum weightStatus) {
+  public ExpenseItemEntity(ExpenseCategoryEnum category, Long amount) {
     this.category = category;
     this.amount = amount;
-    this.weightStatus = weightStatus;
   }
 
   public void assignTo(ExpenseHistory parent) {
     this.expenseHistory = parent;
   }
 
-  public void update(Long amount, WeightStatusEnum weightStatus) {
+  public void update(Long amount) {
     this.amount = amount;
-    this.weightStatus = weightStatus;
   }
 }
