@@ -22,9 +22,8 @@
 
 | 문서 | 내용 |
 | --- | --- |
-| [파이프라인 재설계](specs/data-architecture.md) | 데이터 아키텍처: 원천 4개, RawIngest, dedup, 임금통계 기준선 |
+| [데이터 아키텍처와 실행 흐름](specs/data-architecture.md) | 원천 4개·RawIngest·dedup·임금통계 기준선, 서비스 흐름도와 Job 1~4 구성 |
 | [데이터베이스 ERD](specs/erd.md) | 엔티티 관계도(Mermaid), 스키마 설계 주석, 운영 적용 이력 |
-| [애플리케이션 워크플로우](specs/application-workflow.md) | E2E 데이터 흐름, 관리자 직접 구동 및 Spring Scheduler 수집/집계 파이프라인, 시퀀스 |
 | [도메인 계산 정의](specs/domain-logic.md) | 지수·시나리오 계산 공식, 가중치 전파, 완화 알고리즘 |
 | [프런트엔드 설계](specs/frontend-design.md) | Vite·React·Node SSR 구성, 렌더링 전략, 배포 단위, 비주얼 테마·레이아웃·시각화 컴포넌트 |
 | [Spring Cloud 아키텍처](specs/spring-cloud-architecture.md) | Gateway·Config·Eureka 기반 재설계. 서비스 경계, 설정 관리, 로컬 개발 |
@@ -99,7 +98,7 @@
 | 영역 | 남은 작업 |
 | --- | --- |
 | 구매력 지수(PPI) | 품목별 CPI 기반 본 엔진과 소비 가중치 전파(`PROPAGATED`)가 잔여. 최초 소득월 100 기준의 기본 산출기(`DefaultPurchasingPowerIndexProvider`)가 배선돼 있어 스냅샷 결측은 나지 않는다 |
-| collector | 없음. 임금통계 적재의 출처 기록·승격 규칙·폴백 단일 연도화까지 들어왔다. 관리자 콘솔(`S-16`) UI 연동까지 완료했다. `@Scheduled` 정기 실행은 도입하지 않기로 확정했다 ([애플리케이션 워크플로 §2](specs/application-workflow.md)) |
+| collector | 없음. 임금통계 적재의 출처 기록·승격 규칙·폴백 단일 연도화까지 들어왔다. 관리자 콘솔(`S-16`) UI 연동까지 완료했다. `@Scheduled` 정기 실행은 도입하지 않기로 확정했다 ([데이터 아키텍처 §6](specs/data-architecture.md)) |
 | 프런트엔드 | UI 일관성 통일 P3~P4 가 잔여 |
 | 소득 변경 사유 | `income_history.change_reason` 컬럼·API(`a4`)가 미착수다. 컬럼이 서면 `S-12` 소득 탭에 선택 컨트롤 한 개를 붙이는 후속 작업이 남는다. 정의는 [기능 명세 US-R1](specs/functional-specification.md) |
 | 검증 | 스냅샷 쓰기 경로의 운영 Postgres 검증([도메인 정의서 §5](specs/domain-logic.md)), MVI 표본부족(`N<10`) 엣지케이스 검증, 민감 금액 로깅 마스킹 점검, E2E 통합과 완료 기준 10항목 점검 |
