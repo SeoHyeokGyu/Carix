@@ -272,8 +272,6 @@ Carix 6 카테고리는 CPI 12대 분류의 N:1 합성이다. 합성은 **변화
 
 ### 3.3 임금통계 — **KOSIS 24계층 보간 채택**
 
-> 후보 탈락 사유와 이 결정이 한 번 뒤집혔던 이력은 [ADR-0006](../decisions/0006-wage-baseline-kosis-interpolation.md).
-
 > **결론: KOSIS 근로실태조사(`DT_118N_PAYM39`)의 임금계층 24구간에 누적분포 보간을
 > 적용해 `core.wage_stat_observation` 기준선으로 쓴다.**
 > 후보 B(한국고용정보원 직업별 임금정보)는 개발자 직군이 데이터에 없어 탈락했다.
