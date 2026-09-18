@@ -38,15 +38,10 @@ P3·P4 가 다룬다.
 
 ---
 
-## 3. 갈림길과 선택
+## 3. 대가
 
-| | **제자리 재정의 (채택)** | variant 추가 (기각) |
-| :--- | :--- | :--- |
-| 방식 | `Card`·`Button`·`Badge` **기본값**을 B 시각 언어로 교체 | B 스타일 variant 를 새로 달고 기존 기본값 유지 |
-| C 화면 7개 | 한 커밋에 같이 바뀜 | 안 바뀜 (opt-in) |
-| DRY | 해소 | 두 시각 언어가 공존 — **통일이 아님** |
-
-제자리 재정의를 택한다. "B 방향으로 통일"의 문자 그대로다.
+`Card`·`Button`·`Badge` **기본값 자체를** B 시각 언어로 바꾼다. variant 추가안을 왜 접었는지는
+[ADR-0008](../decisions/0008-primitive-redefinition-in-place.md).
 
 **대가를 명시한다.** `Button` 기본값이 `h-9 px-4 py-2 rounded-md text-sm` 에서
 `rounded-lg px-4 py-1.5 text-xs` 로 가면 `dashboard/index`·`simulator`·`onboarding/profile`

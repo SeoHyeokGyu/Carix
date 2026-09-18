@@ -9,6 +9,8 @@ Carix는 연봉·실수령액·소비 금액 등 민감한 개인 재무 정보�
 
 ## 1. 인증
 
+> 서버 세션을 택한 근거와 접은 대안은 [ADR-0001](decisions/0001-server-session-auth.md).
+
 초기 API 규격은 HTTP-only 쿠키, bearer `Authorization` 헤더, 상태ful `session` 테이블을
 동시에 언급하며 우선순위·포맷을 정하지 않아 클라이언트·서버 구현이 갈릴 위험이 있었다.
 **서버 세션 단일 방식**으로 통일해 정리했다.

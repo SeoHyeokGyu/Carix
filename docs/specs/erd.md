@@ -279,6 +279,9 @@ erDiagram
 
 ## 운영 스키마 적용 이력
 
+> `core` 가 Flyway 를 안 쓰는 이유와 그 대가는 [ADR-0003](../decisions/0003-core-schema-without-flyway.md).
+
+
 `core` 스키마는 Flyway 를 쓰지 않아 적용 이력이 자동으로 남지 않는다
 ([DEVELOPMENT.md §3.2](../DEVELOPMENT.md)). 운영 DB 에 무엇을 적용했는지 여기 남긴다.
 
