@@ -30,7 +30,6 @@
 | [상세 기술 명세](specs/technical-specification.md) | DB 스키마(DDL), 결정 규칙표, 스킬 사전 |
 | [도메인 계산 정의](specs/domain-logic.md) | 지수·시나리오 계산 공식, 가중치 전파, 완화 알고리즘 |
 | [프런트엔드 설계](specs/frontend-design.md) | Vite·React·Node SSR 구성, 렌더링 전략, 배포 단위 |
-| [아키텍처 고도화(로드맵)](specs/architecture-roadmap.md) | MVP 이후: 캐싱, NLP 추출, 서킷 브레이커, 비동기 이벤트 |
 | [Spring Cloud 아키텍처](specs/spring-cloud-architecture.md) | Gateway·Config·Eureka 기반 재설계. 서비스 경계, 설정 관리, 로컬 개발 |
 
 ## API
@@ -64,6 +63,7 @@
 | --- | --- |
 | [개발 계획](plans/carix-dev-plan.md) | 3인 레인 분담, 주차 로드맵과 간트, 레인 간 인터페이스 계약, MVP 범위 판정 |
 | [UI 일관성 통일 계획](plans/ui-unification-plan.md) | 결정 신호 단일화·토큰·공용 프리미티브 P0~P4 단계와 마이그레이션 계약 |
+| [아키텍처 고도화(로드맵)](plans/architecture-roadmap.md) | MVP 이후: 캐싱, NLP 추출, 서킷 브레이커, 비동기 이벤트. 어느 것도 착수하지 않았다 |
 
 ## 진행 상태
 
