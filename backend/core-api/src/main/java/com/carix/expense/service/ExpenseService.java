@@ -16,12 +16,15 @@ public class ExpenseService {
 
   private final ExpenseHistoryRepository repository;
   private final SnapshotRecalculationService snapshotRecalculationService;
+  private final ExpenseWeightResolver weightResolver;
 
   public ExpenseService(
       ExpenseHistoryRepository repository,
-      SnapshotRecalculationService snapshotRecalculationService) {
+      SnapshotRecalculationService snapshotRecalculationService,
+      ExpenseWeightResolver weightResolver) {
     this.repository = repository;
     this.snapshotRecalculationService = snapshotRecalculationService;
+    this.weightResolver = weightResolver;
   }
 
   public List<ExpenseHistoryResponse> getHistory(UUID userId) {
@@ -33,23 +36,10 @@ public class ExpenseService {
   @Transactional
   public ExpenseHistoryResponse upsert(
       UUID userId, String baseYearMonth, ExpenseUpdateRequest request) {
-    Map<ExpenseCategoryEnum, Long> submitted = new LinkedHashMap<>();
+    List<ExpenseItemEntity> items = new ArrayList<>();
     for (var item : request.items()) {
       ExpenseCategoryEnum category = parseCategory(item.category());
-      submitted.put(category, item.amount());
-    }
-
-    List<ExpenseItemEntity> items = new ArrayList<>();
-    for (ExpenseCategoryEnum category : ExpenseCategoryEnum.values()) {
-      if (submitted.containsKey(category)) {
-        items.add(
-            new ExpenseItemEntity(
-                category, submitted.get(category), WeightStatusEnum.USER_DEFINED));
-      } else {
-        items.add(
-            new ExpenseItemEntity(
-                category, defaultAmountFor(category), WeightStatusEnum.DEFAULT_CPI));
-      }
+      items.add(new ExpenseItemEntity(category, item.amount()));
     }
 
     ExpenseHistory history =
@@ -71,33 +61,21 @@ public class ExpenseService {
     }
   }
 
-  // TODO: config/default-expense-weights.yml 로 교체. 지금은 플레이스홀더.
-  private Long defaultAmountFor(ExpenseCategoryEnum category) {
-    return 0L;
-  }
-
   private ExpenseHistoryResponse toResponse(ExpenseHistory history) {
-    List<ExpenseItem> items =
-        history.getItems().stream()
-            .map(
-                e ->
-                    new ExpenseItem(
-                        e.getCategory().name(),
-                        e.getAmount() != null ? e.getAmount() : 0L,
-                        e.getWeightStatus().name()))
-            .toList();
-    return new ExpenseHistoryResponse(
-        history.getBaseYearMonth(), items, computeOverallStatus(history));
-  }
+    List<ExpenseWeightResolver.ResolvedCategory> resolved = weightResolver.resolve(history);
 
-  private String computeOverallStatus(ExpenseHistory history) {
+    List<ExpenseItem> items =
+        resolved.stream()
+            .map(r -> new ExpenseItem(r.category().name(), r.amount(), r.status().name()))
+            .toList();
+
     Set<WeightStatusEnum> statuses =
-        history.getItems().stream()
-            .map(ExpenseItemEntity::getWeightStatus)
+        resolved.stream()
+            .map(ExpenseWeightResolver.ResolvedCategory::status)
             .collect(java.util.stream.Collectors.toSet());
-    if (statuses.size() == 1) {
-      return statuses.iterator().next().name();
-    }
-    return "PARTIALLY_ESTIMATED";
+    String overallStatus =
+        statuses.size() == 1 ? statuses.iterator().next().name() : "PARTIALLY_ESTIMATED";
+
+    return new ExpenseHistoryResponse(history.getBaseYearMonth(), items, overallStatus);
   }
 }

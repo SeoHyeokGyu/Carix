@@ -10,6 +10,7 @@ import com.carix.expense.domain.ExpenseHistory;
 import com.carix.expense.dto.ExpenseUpdateRequest;
 import com.carix.expense.repository.ExpenseHistoryRepository;
 import com.carix.expense.service.ExpenseService;
+import com.carix.expense.service.ExpenseWeightResolver;
 import com.carix.income.domain.IncomeHistory;
 import com.carix.income.dto.IncomeRequest;
 import com.carix.income.repository.IncomeHistoryRepository;
@@ -106,8 +107,8 @@ class SnapshotTriggerWiringTest {
     given(repository.findByUserIdAndBaseYearMonth(any(), any())).willReturn(Optional.empty());
     given(repository.save(any(ExpenseHistory.class)))
         .willAnswer(invocation -> invocation.getArgument(0));
-    ExpenseService service = new ExpenseService(repository, recalculation);
-
+    ExpenseService service =
+        new ExpenseService(repository, recalculation, mock(ExpenseWeightResolver.class));
     service.upsert(USER_ID, "202605", new ExpenseUpdateRequest(List.of()));
 
     verify(recalculation).recalculateSnapshot(USER_ID, "202605");
