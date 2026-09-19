@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { createRoutesStub } from "react-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -133,15 +133,7 @@ describe("대시보드 라우트 및 레이아웃 (Dashboard)", () => {
             ...EMPTY_INDEX,
             indexStatus: "INSUFFICIENT_SAMPLE",
           },
-          // OWI 는 이 테스트의 관심사가 아니다 — NOT_AVAILABLE 로 두면 PPI 카드와
-          // "계산 대기" 뱃지가 중복돼 getByText 가 깨진다. 정상 계산된 값으로 둬
-          // "지수 하나만 계산 전" 이라는 시나리오 의도를 그대로 지킨다.
-          openingWindowIndex: {
-            value: 100.0,
-            changeFromLastMonth: 0,
-            status: "STABLE",
-            indexStatus: "OK",
-          },
+          openingWindowIndex: EMPTY_INDEX,
           decisionSignal: null,
           metadata: { baseDate: "2026-09-01", updateDelayed: false },
         },
@@ -150,7 +142,12 @@ describe("대시보드 라우트 및 레이아웃 (Dashboard)", () => {
       renderScreen();
 
       expect(await screen.findByText("표본 부족")).toBeInTheDocument();
-      expect(screen.getByText("계산 대기")).toBeInTheDocument();
+      // OWI 카드도 스텁상 NOT_AVAILABLE 이라 "계산 대기" 가 PPI·OWI 두 카드에 겹친다 —
+      // 이 테스트의 주장은 PPI 카드 하나에 대한 것이므로 그 카드로 좁혀 확인한다.
+      const ppiCard = screen
+        .getByText("구매력 지수")
+        .closest('[data-slot="card"]') as HTMLElement;
+      expect(within(ppiCard).getByText("계산 대기")).toBeInTheDocument();
       expect(
         screen.queryByText("첫 지수를 계산하고 있습니다"),
       ).not.toBeInTheDocument();
@@ -493,6 +490,35 @@ describe("대시보드 라우트 및 레이아웃 (Dashboard)", () => {
       expect(
         await screen.findByText("첫 지수를 계산하고 있습니다"),
       ).toBeInTheDocument();
+    });
+
+    // OWI 절 자체를 조준한다 — PPI·MVI 만으로는 이미 이 케이스를 "첫 계산 전 아님"으로
+    // 가르므로, OWI 절을 지워도 이 하나만으로는 안 잡힌다. OWI 를 다른 열화(표본 부족)로
+    // 둬 게이트의 OWI 조건이 실제로 살아있는지(값 0/100 근사가 아니라 indexStatus 를
+    // 보는지) 확인한다.
+    it("개방창 지수만 표본 부족이어도 첫 계산 전 화면이 아니다", async () => {
+      vi.spyOn(dashboardApi, "fetchSummary").mockResolvedValue({
+        ok: true,
+        data: {
+          purchasingPowerIndex: notAvailable,
+          marketValueIndex: notAvailable,
+          openingWindowIndex: {
+            value: null,
+            changeFromLastMonth: null,
+            status: null,
+            indexStatus: "INSUFFICIENT_SAMPLE",
+          },
+          decisionSignal: null,
+          metadata: { baseDate: "2026-09-01", updateDelayed: false },
+        },
+      } as never);
+
+      renderScreen();
+
+      expect(await screen.findByText("개방창 지수")).toBeInTheDocument();
+      expect(
+        screen.queryByText("첫 지수를 계산하고 있습니다"),
+      ).not.toBeInTheDocument();
     });
   });
 
