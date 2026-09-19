@@ -7,7 +7,8 @@ import java.util.List;
 public record TrendListResponse(
     List<TrendPoint> trends,
     @Schema(description = "구매력 지수 계열 산출 상태", example = "OK") String purchasingPowerStatus,
-    @Schema(description = "시장가치 지수 계열 산출 상태", example = "OK") String marketValueStatus) {
+    @Schema(description = "시장가치 지수 계열 산출 상태", example = "OK") String marketValueStatus,
+    @Schema(description = "개방창 지수 계열 산출 상태", example = "OK") String openingWindowStatus) {
 
   /**
    * 한 달의 지수 점. 그 달을 계산하지 못했으면 값이 {@code null} 이고 차트는 선을 잇지 않고 갭으로 그린다 (기능 명세 §5 — {@code 일부 월 누락 시
@@ -17,6 +18,7 @@ public record TrendListResponse(
       String yearMonth,
       @Schema(nullable = true) Double purchasingPowerIndex,
       @Schema(nullable = true) Double marketValueIndex,
+      @Schema(nullable = true) Double openingWindowIndex,
       @Schema(nullable = true) Double incomeIndex,
       @Schema(nullable = true) Double personalPriceIndex,
       @Schema(nullable = true) Long nominalIncome,

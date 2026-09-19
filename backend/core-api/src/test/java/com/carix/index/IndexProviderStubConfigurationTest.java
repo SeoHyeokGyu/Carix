@@ -3,6 +3,7 @@ package com.carix.index;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.carix.index.dto.MviResult;
+import com.carix.index.dto.OwiResult;
 import com.carix.index.dto.PpiResult;
 import com.carix.index.dto.SourceCoverage;
 import com.carix.index.dto.WageBaseline;
@@ -11,6 +12,7 @@ import com.carix.index.enums.IndexStatus;
 import com.carix.index.stub.IndexProviderStubConfiguration;
 import com.carix.index.stub.StubCurrentSalaryProvider;
 import com.carix.index.stub.StubMarketValueIndexProvider;
+import com.carix.index.stub.StubOpeningWindowIndexProvider;
 import com.carix.index.stub.StubPurchasingPowerIndexProvider;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -36,6 +38,8 @@ class IndexProviderStubConfigurationTest {
               .isInstanceOf(StubPurchasingPowerIndexProvider.class);
           assertThat(context.getBean(MarketValueIndexProvider.class))
               .isInstanceOf(StubMarketValueIndexProvider.class);
+          assertThat(context.getBean(OpeningWindowIndexProvider.class))
+              .isInstanceOf(StubOpeningWindowIndexProvider.class);
         });
   }
 
@@ -49,6 +53,8 @@ class IndexProviderStubConfigurationTest {
                   .isNotInstanceOf(StubPurchasingPowerIndexProvider.class);
               assertThat(context.getBean(MarketValueIndexProvider.class))
                   .isNotInstanceOf(StubMarketValueIndexProvider.class);
+              assertThat(context.getBean(OpeningWindowIndexProvider.class))
+                  .isNotInstanceOf(StubOpeningWindowIndexProvider.class);
             });
   }
 
@@ -83,6 +89,22 @@ class IndexProviderStubConfigurationTest {
               new WageBaseline(72_000_000L, "초과급여 제외, 상여 포함", "202606"),
               LocalDate.of(2026, 7, 1));
     }
+
+    @Bean
+    OpeningWindowIndexProvider realOwi() {
+      return (userId, baseYearMonth) ->
+          new OwiResult(
+              baseYearMonth,
+              new BigDecimal("118.40"),
+              IndexStatus.OK,
+              124,
+              86,
+              34,
+              new BigDecimal("21.50"),
+              3,
+              "서울 전체 / 경력 MID / 회사규모 무관",
+              29);
+    }
   }
 
   @Test
@@ -97,6 +119,17 @@ class IndexProviderStubConfigurationTest {
           assertThat(context.getBean(MarketValueIndexProvider.class).calculate(userId, "202608"))
               .extracting(MviResult::value, MviResult::status)
               .containsExactly(null, IndexStatus.NOT_AVAILABLE);
+        });
+  }
+
+  @Test
+  void 개방창_스텁도_숫자를_지어내지_않는다() {
+    runner.run(
+        context -> {
+          UUID userId = UUID.randomUUID();
+          assertThat(context.getBean(OpeningWindowIndexProvider.class).calculate(userId, "202608"))
+              .extracting(OwiResult::value, OwiResult::status, OwiResult::openEndedRatePercent)
+              .containsExactly(null, IndexStatus.NOT_AVAILABLE, null);
         });
   }
 

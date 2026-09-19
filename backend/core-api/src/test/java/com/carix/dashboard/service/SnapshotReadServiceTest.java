@@ -171,6 +171,111 @@ class SnapshotReadServiceTest {
     assertThat(rationale).doesNotContain("%%");
   }
 
+  /** D3 — 값이 있으면 저장된 상태가 무엇이든 OK 다. 프런트 계약이 "OK 가 아니면 value 는 null" 이다. */
+  @Test
+  @DisplayName("summary - 값이 있으면 저장된 상태가 UPDATE_DELAYED 여도 OK 로 나간다")
+  void summary_값이있으면_상태는_OK() {
+    given(repository.findByUserIdOrderByBaseYearMonthDesc(USER_ID))
+        .willReturn(
+            List.of(
+                snapshotWith(
+                    new BigDecimal("94.20"),
+                    null,
+                    null,
+                    new SnapshotRationale.IndexStatuses(
+                        IndexStatus.UPDATE_DELAYED, IndexStatus.OK, IndexStatus.OK),
+                    null)));
+
+    DashboardSummaryResponse response = summaryService.resolve(USER_ID, "202607");
+
+    assertThat(response.purchasingPowerIndex().indexStatus()).isEqualTo(IndexStatus.OK.name());
+  }
+
+  /** D2 — 표본 부족을 계산 대기로 뭉개지 않는다. */
+  @Test
+  @DisplayName("summary - 값이 없으면 저장된 상태가 그대로 나온다")
+  void summary_값이없으면_저장된_상태() {
+    given(repository.findByUserIdOrderByBaseYearMonthDesc(USER_ID))
+        .willReturn(
+            List.of(
+                snapshotWith(
+                    null,
+                    null,
+                    null,
+                    new SnapshotRationale.IndexStatuses(
+                        IndexStatus.NOT_AVAILABLE, IndexStatus.INSUFFICIENT_SAMPLE, null),
+                    null)));
+
+    DashboardSummaryResponse response = summaryService.resolve(USER_ID, "202607");
+
+    assertThat(response.marketValueIndex().indexStatus())
+        .isEqualTo(IndexStatus.INSUFFICIENT_SAMPLE.name());
+  }
+
+  @Test
+  @DisplayName("summary - 상태를 저장하지 않은 옛 행은 계산 대기로 읽힌다")
+  void summary_옛행은_계산대기() {
+    given(repository.findByUserIdOrderByBaseYearMonthDesc(USER_ID))
+        .willReturn(
+            List.of(
+                snapshotWith(null, null, null, SnapshotRationale.IndexStatuses.unknown(), null)));
+
+    DashboardSummaryResponse response = summaryService.resolve(USER_ID, "202607");
+
+    assertThat(response.purchasingPowerIndex().indexStatus())
+        .isEqualTo(IndexStatus.NOT_AVAILABLE.name());
+  }
+
+  @Test
+  @DisplayName("summary - 개방창 근거 셋이 메타데이터에 실린다")
+  void summary_개방창_근거() {
+    given(repository.findByUserIdOrderByBaseYearMonthDesc(USER_ID))
+        .willReturn(
+            List.of(
+                snapshotWith(
+                    null,
+                    null,
+                    new BigDecimal("118.40"),
+                    new SnapshotRationale.IndexStatuses(null, null, IndexStatus.OK),
+                    new SnapshotRationale.OpeningWindowEvidence(
+                        124, 86, 34, new BigDecimal("21.50"), 3, "서울 전체 / MID", 29))));
+
+    DashboardSummaryResponse response = summaryService.resolve(USER_ID, "202607");
+
+    assertThat(response.openingWindowIndex().value()).isEqualTo(118.4);
+    assertThat(response.metadata().openingWindow())
+        .isEqualTo(new DashboardSummaryResponse.OpeningWindowSummary(34, 21.5, 86));
+  }
+
+  @Test
+  @DisplayName("summary - 개방창 근거가 없으면 메타데이터도 비운다")
+  void summary_개방창_근거없음() {
+    given(repository.findByUserIdOrderByBaseYearMonthDesc(USER_ID))
+        .willReturn(
+            List.of(
+                snapshotWith(null, null, null, SnapshotRationale.IndexStatuses.unknown(), null)));
+
+    DashboardSummaryResponse response = summaryService.resolve(USER_ID, "202607");
+
+    assertThat(response.metadata().openingWindow()).isNull();
+  }
+
+  /** 스냅샷이 아예 없는 사용자. 지수 셋이 다 NOT_AVAILABLE 이어야 S-10 빈 상태가 뜬다. */
+  @Test
+  @DisplayName("summary - 스냅샷이 없으면 지수 셋이 모두 계산 대기다")
+  void summary_스냅샷없음_지수셋() {
+    given(repository.findByUserIdOrderByBaseYearMonthDesc(USER_ID)).willReturn(List.of());
+
+    DashboardSummaryResponse response = summaryService.resolve(USER_ID, "202607");
+
+    assertThat(response.purchasingPowerIndex().indexStatus())
+        .isEqualTo(IndexStatus.NOT_AVAILABLE.name());
+    assertThat(response.marketValueIndex().indexStatus())
+        .isEqualTo(IndexStatus.NOT_AVAILABLE.name());
+    assertThat(response.openingWindowIndex().indexStatus())
+        .isEqualTo(IndexStatus.NOT_AVAILABLE.name());
+  }
+
   // --- /dashboard/history ---
 
   @Test
@@ -272,7 +377,94 @@ class SnapshotReadServiceTest {
     assertThat(point.realIncome()).isNull();
   }
 
+  @Test
+  @DisplayName("trends - 개방창 계열과 계열 상태를 싣는다")
+  void trends_개방창_계열() {
+    given(repository.findByUserIdOrderByBaseYearMonthDesc(USER_ID))
+        .willReturn(
+            List.of(
+                snapshotWith(
+                    null,
+                    null,
+                    new BigDecimal("118.40"),
+                    new SnapshotRationale.IndexStatuses(null, null, IndexStatus.OK),
+                    null)));
+
+    TrendListResponse response = seriesService.trends(USER_ID, "202607", 12);
+
+    assertThat(response.trends())
+        .extracting(TrendListResponse.TrendPoint::openingWindowIndex)
+        .containsExactly(118.4);
+    assertThat(response.openingWindowStatus()).isEqualTo(IndexStatus.OK.name());
+  }
+
+  /** 계열에 값이 하나도 없으면 화면이 이유를 알아야 한다. */
+  @Test
+  @DisplayName("trends - 개방창 값이 한 달도 없으면 계열 상태가 계산 대기다")
+  void trends_개방창_전부결측() {
+    given(repository.findByUserIdOrderByBaseYearMonthDesc(USER_ID))
+        .willReturn(
+            List.of(
+                snapshotWith(null, null, null, SnapshotRationale.IndexStatuses.unknown(), null)));
+
+    TrendListResponse response = seriesService.trends(USER_ID, "202607", 12);
+
+    assertThat(response.openingWindowStatus()).isEqualTo(IndexStatus.NOT_AVAILABLE.name());
+  }
+
+  @Test
+  @DisplayName("history - 개방창 지수를 싣는다")
+  void history_개방창_지수() {
+    given(repository.findByUserIdOrderByBaseYearMonthDesc(USER_ID))
+        .willReturn(
+            List.of(
+                snapshotWith(
+                    null,
+                    null,
+                    new BigDecimal("118.40"),
+                    new SnapshotRationale.IndexStatuses(null, null, IndexStatus.OK),
+                    null)));
+
+    SnapshotHistoryResponse response = seriesService.history(USER_ID);
+
+    assertThat(response.snapshots())
+        .extracting(SnapshotHistoryResponse.SnapshotPoint::openingWindowIndex)
+        .containsExactly(118.4);
+  }
+
   // --- fixtures ---
+
+  /** 기존 {@code snapshot(...)} 은 지수 둘만 받는다. 상태·근거까지 꽂아야 하는 테스트만 이쪽을 쓴다. */
+  private IndexSnapshot snapshotWith(
+      BigDecimal ppi,
+      BigDecimal mvi,
+      BigDecimal owi,
+      SnapshotRationale.IndexStatuses statuses,
+      SnapshotRationale.OpeningWindowEvidence evidence) {
+    return IndexSnapshot.builder()
+        .userId(USER_ID)
+        .baseYearMonth("202607")
+        .dataVersion("20260701093000-000")
+        .ruleVersion("1.2.0")
+        .purchasingPowerIndex(ppi)
+        .marketValueIndex(mvi)
+        .openingWindowIndex(owi)
+        .decisionSignal(DecisionSignalCode.SEEK_JOB)
+        .rationale(
+            new SnapshotRationale(
+                List.of(),
+                null,
+                List.of(),
+                List.of(),
+                List.of(),
+                LocalDate.of(2026, 7, 1),
+                LocalDate.of(2026, 7, 1),
+                "202606",
+                "20260701093000-000",
+                statuses,
+                evidence))
+        .build();
+  }
 
   private IndexSnapshot snapshot(String ym, String ppi, String mvi, DecisionSignalCode signal) {
     return IndexSnapshot.builder()
@@ -321,7 +513,9 @@ class SnapshotReadServiceTest {
                 LocalDate.of(2026, 7, 1),
                 LocalDate.of(2026, 7, 1),
                 "202606",
-                "20260701093000-000"))
+                "20260701093000-000",
+                null,
+                null))
         .build();
   }
 
@@ -346,7 +540,9 @@ class SnapshotReadServiceTest {
                 LocalDate.of(2026, 7, 1),
                 LocalDate.of(2026, 7, 1),
                 "202606",
-                "20260701093000-000"))
+                "20260701093000-000",
+                null,
+                null))
         .build();
   }
 
@@ -369,6 +565,8 @@ class SnapshotReadServiceTest {
         LocalDate.of(2026, 7, 1),
         LocalDate.of(2026, 7, 1),
         "202606",
-        "20260701093000-000");
+        "20260701093000-000",
+        null,
+        null);
   }
 }

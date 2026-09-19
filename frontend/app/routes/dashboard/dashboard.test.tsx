@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { createRoutesStub } from "react-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -80,6 +80,7 @@ describe("대시보드 라우트 및 레이아웃 (Dashboard)", () => {
             status: "INCREASED",
             indexStatus: "OK",
           },
+          openingWindowIndex: EMPTY_INDEX,
           decisionSignal: {
             code: "SEEK_JOB",
             label: "이직 탐색",
@@ -107,6 +108,7 @@ describe("대시보드 라우트 및 레이아웃 (Dashboard)", () => {
         data: {
           purchasingPowerIndex: EMPTY_INDEX,
           marketValueIndex: EMPTY_INDEX,
+          openingWindowIndex: EMPTY_INDEX,
           decisionSignal: null,
           metadata: { baseDate: "2026-09-01", updateDelayed: false },
         },
@@ -131,6 +133,7 @@ describe("대시보드 라우트 및 레이아웃 (Dashboard)", () => {
             ...EMPTY_INDEX,
             indexStatus: "INSUFFICIENT_SAMPLE",
           },
+          openingWindowIndex: EMPTY_INDEX,
           decisionSignal: null,
           metadata: { baseDate: "2026-09-01", updateDelayed: false },
         },
@@ -139,7 +142,12 @@ describe("대시보드 라우트 및 레이아웃 (Dashboard)", () => {
       renderScreen();
 
       expect(await screen.findByText("표본 부족")).toBeInTheDocument();
-      expect(screen.getByText("계산 대기")).toBeInTheDocument();
+      // OWI 카드도 스텁상 NOT_AVAILABLE 이라 "계산 대기" 가 PPI·OWI 두 카드에 겹친다 —
+      // 이 테스트의 주장은 PPI 카드 하나에 대한 것이므로 그 카드로 좁혀 확인한다.
+      const ppiCard = screen
+        .getByText("구매력 지수")
+        .closest('[data-slot="card"]') as HTMLElement;
+      expect(within(ppiCard).getByText("계산 대기")).toBeInTheDocument();
       expect(
         screen.queryByText("첫 지수를 계산하고 있습니다"),
       ).not.toBeInTheDocument();
@@ -205,6 +213,7 @@ describe("대시보드 라우트 및 레이아웃 (Dashboard)", () => {
             indexStatus: "OK",
           },
           marketValueIndex: EMPTY_INDEX,
+          openingWindowIndex: EMPTY_INDEX,
           decisionSignal: null,
           metadata: { baseDate: "2026-09-01", updateDelayed: false },
         },
@@ -272,6 +281,7 @@ describe("대시보드 라우트 및 레이아웃 (Dashboard)", () => {
         data: {
           purchasingPowerIndex: EMPTY_INDEX,
           marketValueIndex: { ...EMPTY_INDEX, value: 117.5, indexStatus: "OK" },
+          openingWindowIndex: EMPTY_INDEX,
           decisionSignal: {
             code: "SEEK_JOB",
             label: "이직 탐색",
@@ -311,6 +321,7 @@ describe("대시보드 라우트 및 레이아웃 (Dashboard)", () => {
             indexStatus: "OK",
           },
           marketValueIndex: EMPTY_INDEX,
+          openingWindowIndex: EMPTY_INDEX,
           decisionSignal: {
             code: "STAY",
             label: "잔류",
@@ -341,6 +352,7 @@ describe("대시보드 라우트 및 레이아웃 (Dashboard)", () => {
         data: {
           purchasingPowerIndex: EMPTY_INDEX,
           marketValueIndex: EMPTY_INDEX,
+          openingWindowIndex: EMPTY_INDEX,
           decisionSignal: null,
           metadata: { baseDate: "2026-09-01", updateDelayed: false },
         },
@@ -361,6 +373,145 @@ describe("대시보드 라우트 및 레이아웃 (Dashboard)", () => {
       renderScreen();
 
       expect(await screen.findByText("로그인 화면")).toBeInTheDocument();
+    });
+
+    it("개방창 지수 카드에 값과 근거 뱃지 둘을 그린다", async () => {
+      vi.spyOn(dashboardApi, "fetchSummary").mockResolvedValue({
+        ok: true,
+        data: {
+          purchasingPowerIndex: EMPTY_INDEX,
+          marketValueIndex: EMPTY_INDEX,
+          openingWindowIndex: {
+            value: 118.4,
+            changeFromLastMonth: 3.1,
+            status: "INCREASED",
+            indexStatus: "OK",
+          },
+          decisionSignal: null,
+          metadata: {
+            baseDate: "2026-09-01",
+            updateDelayed: false,
+            openingWindow: {
+              medianWindowDays: 34,
+              openEndedRate: 21.5,
+              deadlineSampleSize: 86,
+            },
+          },
+        },
+      } as never);
+
+      renderScreen();
+
+      expect(await screen.findByText("개방창 지수")).toBeInTheDocument();
+      expect(screen.getByText("118.4")).toBeInTheDocument();
+      expect(screen.getByText("중앙 34일")).toBeInTheDocument();
+      expect(screen.getByText("상시 21.5%")).toBeInTheDocument();
+    });
+
+    it("개방창 표본이 부족하면 수치 대신 표본 부족을 두고 상시 뱃지만 남긴다", async () => {
+      vi.spyOn(dashboardApi, "fetchSummary").mockResolvedValue({
+        ok: true,
+        data: {
+          purchasingPowerIndex: EMPTY_INDEX,
+          marketValueIndex: EMPTY_INDEX,
+          openingWindowIndex: {
+            value: null,
+            changeFromLastMonth: null,
+            status: null,
+            indexStatus: "INSUFFICIENT_SAMPLE",
+          },
+          decisionSignal: null,
+          metadata: {
+            baseDate: "2026-09-01",
+            updateDelayed: false,
+            openingWindow: {
+              medianWindowDays: null,
+              openEndedRate: 18.0,
+              deadlineSampleSize: 4,
+            },
+          },
+        },
+      } as never);
+
+      renderScreen();
+
+      expect(await screen.findByText("표본 부족")).toBeInTheDocument();
+      expect(screen.getByText("상시 18.0%")).toBeInTheDocument();
+      expect(screen.queryByText(/중앙 .*일/)).not.toBeInTheDocument();
+    });
+
+    /** D4 회귀 — 부분 열화를 첫 계산 전으로 오판하지 않는다. */
+    it("시장가치가 표본 부족이면 첫 계산 전 화면이 아니다", async () => {
+      vi.spyOn(dashboardApi, "fetchSummary").mockResolvedValue({
+        ok: true,
+        data: {
+          purchasingPowerIndex: EMPTY_INDEX,
+          marketValueIndex: {
+            value: null,
+            changeFromLastMonth: null,
+            status: null,
+            indexStatus: "INSUFFICIENT_SAMPLE",
+          },
+          openingWindowIndex: EMPTY_INDEX,
+          decisionSignal: null,
+          metadata: { baseDate: "2026-09-01", updateDelayed: false },
+        },
+      } as never);
+
+      renderScreen();
+
+      expect(await screen.findByText("시장가치 지수")).toBeInTheDocument();
+      expect(
+        screen.queryByText("첫 지수를 계산하고 있습니다"),
+      ).not.toBeInTheDocument();
+    });
+
+    it("지수 셋이 모두 계산 대기면 첫 계산 전 화면을 그린다", async () => {
+      vi.spyOn(dashboardApi, "fetchSummary").mockResolvedValue({
+        ok: true,
+        data: {
+          purchasingPowerIndex: EMPTY_INDEX,
+          marketValueIndex: EMPTY_INDEX,
+          openingWindowIndex: EMPTY_INDEX,
+          decisionSignal: null,
+          metadata: { baseDate: "2026-09-01", updateDelayed: false },
+        },
+      } as never);
+
+      renderScreen();
+
+      expect(
+        await screen.findByText("첫 지수를 계산하고 있습니다"),
+      ).toBeInTheDocument();
+    });
+
+    // OWI 절 자체를 조준한다 — PPI·MVI 만으로는 이미 이 케이스를 "첫 계산 전 아님"으로
+    // 가르므로, OWI 절을 지워도 이 하나만으로는 안 잡힌다. OWI 를 다른 열화(표본 부족)로
+    // 둬 게이트의 OWI 조건이 실제로 살아있는지(값 0/100 근사가 아니라 indexStatus 를
+    // 보는지) 확인한다.
+    it("개방창 지수만 표본 부족이어도 첫 계산 전 화면이 아니다", async () => {
+      vi.spyOn(dashboardApi, "fetchSummary").mockResolvedValue({
+        ok: true,
+        data: {
+          purchasingPowerIndex: EMPTY_INDEX,
+          marketValueIndex: EMPTY_INDEX,
+          openingWindowIndex: {
+            value: null,
+            changeFromLastMonth: null,
+            status: null,
+            indexStatus: "INSUFFICIENT_SAMPLE",
+          },
+          decisionSignal: null,
+          metadata: { baseDate: "2026-09-01", updateDelayed: false },
+        },
+      } as never);
+
+      renderScreen();
+
+      expect(await screen.findByText("개방창 지수")).toBeInTheDocument();
+      expect(
+        screen.queryByText("첫 지수를 계산하고 있습니다"),
+      ).not.toBeInTheDocument();
     });
   });
 

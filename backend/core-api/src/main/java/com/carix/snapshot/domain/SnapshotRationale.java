@@ -2,6 +2,8 @@ package com.carix.snapshot.domain;
 
 import com.carix.index.dto.SkillContribution;
 import com.carix.index.dto.SourceCoverage;
+import com.carix.index.enums.IndexStatus;
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 
@@ -24,6 +26,9 @@ import java.util.List;
  * @param aggregateAsOf 사용한 시장 집계의 기준일
  * @param wageStatVintage 임금통계 개정판 {@code YYYYMM}
  * @param runId 이 행을 만든 계산 실행 ID. 발급된 {@code data_version} 과 같다
+ * @param indexStatuses 지수별 산출 상태. 절대 {@code null} 이 아니다 — 이 필드 도입 전 행은 {@link
+ *     IndexStatuses#unknown()} 으로 접힌다
+ * @param openingWindow 개방창 지수의 산출 근거. 근거가 하나도 없으면 {@code null}
  */
 public record SnapshotRationale(
     List<String> rulesApplied,
@@ -34,12 +39,55 @@ public record SnapshotRationale(
     LocalDate cpiAsOf,
     LocalDate aggregateAsOf,
     String wageStatVintage,
-    String runId) {
+    String runId,
+    IndexStatuses indexStatuses,
+    OpeningWindowEvidence openingWindow) {
 
   public SnapshotRationale {
     rulesApplied = rulesApplied == null ? List.of() : List.copyOf(rulesApplied);
     excludedSkills = excludedSkills == null ? List.of() : List.copyOf(excludedSkills);
     sourceCoverages = sourceCoverages == null ? List.of() : List.copyOf(sourceCoverages);
     skillContributions = skillContributions == null ? List.of() : List.copyOf(skillContributions);
+    // jsonb 라 이 필드 도입 전에 쓰인 행은 null 로 역직렬화된다. 여기서 접어 두면 읽기 경로가
+    // 널 체크를 하지 않는다. 세 지수가 모두 null 인 인스턴스는 `value == null` 과 만나
+    // NOT_AVAILABLE 로 접히므로(§3.3) 결과가 도입 전 동작과 같다.
+    indexStatuses = indexStatuses == null ? IndexStatuses.unknown() : indexStatuses;
   }
+
+  /**
+   * 지수별 산출 상태. 값을 {@code null} 로 저장하는 것만으로는 "표본이 부족했다"와 "산출기가 없었다"가 구분되지 않아 화면이 사유를 말하지 못한다.
+   *
+   * @param ppi 구매력 지수 상태
+   * @param mvi 시장가치 지수 상태
+   * @param owi 개방창 지수 상태
+   */
+  public record IndexStatuses(IndexStatus ppi, IndexStatus mvi, IndexStatus owi) {
+
+    /** 이 필드 도입 이전에 저장된 행. 세 지수 모두 사유를 모른다. */
+    public static IndexStatuses unknown() {
+      return new IndexStatuses(null, null, null);
+    }
+  }
+
+  /**
+   * 개방창 지수의 산출 근거 (기능 명세 §4.5). 일수·비율·표본 수뿐이라 금액 제약에 걸리지 않는다.
+   *
+   * <p>화면에 나가는 것은 API 규격 §5.1 의 셋뿐이지만 일곱을 다 저장한다 — 완화 결과는 당시 프로필에 의존해 나중에 재계산하면 같은 값이 안 나온다.
+   *
+   * @param peerSampleSize 동료집단 표본 수
+   * @param deadlineSampleSize 마감일 보유 표본 수
+   * @param medianWindowDays 동료집단 중앙 개방일수. 표본 부족이면 {@code null}
+   * @param openEndedRatePercent 상시채용 비율(%). 표본 부족이어도 남는다
+   * @param fallbackLevel 안착한 완화 단계. MVI 완화와 독립이다
+   * @param appliedConditions 안착 조건 문구
+   * @param marketMedianWindowDays 기준 모수 중앙 개방일수
+   */
+  public record OpeningWindowEvidence(
+      Integer peerSampleSize,
+      Integer deadlineSampleSize,
+      Integer medianWindowDays,
+      BigDecimal openEndedRatePercent,
+      Integer fallbackLevel,
+      String appliedConditions,
+      Integer marketMedianWindowDays) {}
 }

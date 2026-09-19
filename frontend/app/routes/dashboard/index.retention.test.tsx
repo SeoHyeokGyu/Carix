@@ -57,6 +57,12 @@ const OK_SUMMARY = {
       status: null,
       indexStatus: "NOT_AVAILABLE" as const,
     },
+    openingWindowIndex: {
+      value: null,
+      changeFromLastMonth: null,
+      status: null,
+      indexStatus: "NOT_AVAILABLE" as const,
+    },
     decisionSignal: null,
     metadata: { baseDate: "2026-09-01", updateDelayed: false },
   },

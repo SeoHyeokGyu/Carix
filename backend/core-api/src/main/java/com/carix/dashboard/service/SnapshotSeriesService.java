@@ -10,6 +10,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
+import java.util.function.Function;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -65,13 +66,18 @@ public class SnapshotSeriesService {
               snapshot.getBaseYearMonth(),
               toDouble(snapshot.getPurchasingPowerIndex()),
               toDouble(snapshot.getMarketValueIndex()),
+              toDouble(snapshot.getOpeningWindowIndex()),
               null,
               null,
               null,
               null));
     }
 
-    return new TrendListResponse(points, seriesStatus(points, true), seriesStatus(points, false));
+    return new TrendListResponse(
+        points,
+        seriesStatus(points, TrendListResponse.TrendPoint::purchasingPowerIndex),
+        seriesStatus(points, TrendListResponse.TrendPoint::marketValueIndex),
+        seriesStatus(points, TrendListResponse.TrendPoint::openingWindowIndex));
   }
 
   // --- 매핑 ---
@@ -83,6 +89,7 @@ public class SnapshotSeriesService {
         snapshot.getBaseYearMonth(),
         toDouble(snapshot.getPurchasingPowerIndex()),
         toDouble(snapshot.getMarketValueIndex()),
+        toDouble(snapshot.getOpeningWindowIndex()),
         snapshot.getDecisionSignal().name(),
         snapshot.getDecisionSignal().label(),
         snapshot.getDataVersion(),
@@ -94,13 +101,10 @@ public class SnapshotSeriesService {
   }
 
   /** 계열에 값이 하나도 없으면 화면이 이유를 알아야 한다. 한 달이라도 있으면 {@code OK} 이고 결측월은 점의 {@code null} 이 말한다. */
-  private String seriesStatus(List<TrendListResponse.TrendPoint> points, boolean purchasingPower) {
-    boolean anyValue =
-        points.stream()
-            .anyMatch(
-                point ->
-                    (purchasingPower ? point.purchasingPowerIndex() : point.marketValueIndex())
-                        != null);
+  private String seriesStatus(
+      List<TrendListResponse.TrendPoint> points,
+      Function<TrendListResponse.TrendPoint, Double> series) {
+    boolean anyValue = points.stream().anyMatch(point -> series.apply(point) != null);
     return anyValue ? IndexStatus.OK.name() : IndexStatus.NOT_AVAILABLE.name();
   }
 

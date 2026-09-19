@@ -65,10 +65,11 @@ class DashboardControllerTest {
             new DashboardSummaryResponse(
                 unavailable,
                 unavailable,
+                unavailable,
                 new DashboardSummaryResponse.DecisionSignal(
                     "INSUFFICIENT_DATA", "데이터 부족", List.of(), null),
                 new DashboardSummaryResponse.SummaryMetadata(
-                    null, null, null, false, List.of(), null, null, null, null, null)));
+                    null, null, null, false, List.of(), null, null, null, null, null, null)));
 
     mockMvc
         .perform(
@@ -78,6 +79,8 @@ class DashboardControllerTest {
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.data.purchasingPowerIndex.value").value(nullValue()))
         .andExpect(jsonPath("$.data.purchasingPowerIndex.indexStatus").value("NOT_AVAILABLE"))
+        .andExpect(jsonPath("$.data.openingWindowIndex.indexStatus").value("NOT_AVAILABLE"))
+        .andExpect(jsonPath("$.data.metadata.openingWindow").value(nullValue()))
         .andExpect(jsonPath("$.data.decisionSignal.code").value("INSUFFICIENT_DATA"));
   }
 
@@ -187,7 +190,8 @@ class DashboardControllerTest {
   @DisplayName("GET /v1/dashboard/trends - 계열 상태를 함께 싣는다")
   void getTrends() throws Exception {
     given(snapshotSeriesService.trends(eq(USER_ID), eq("202601"), eq(6)))
-        .willReturn(new TrendListResponse(List.of(), "NOT_AVAILABLE", "NOT_AVAILABLE"));
+        .willReturn(
+            new TrendListResponse(List.of(), "NOT_AVAILABLE", "NOT_AVAILABLE", "NOT_AVAILABLE"));
 
     mockMvc
         .perform(

@@ -51,24 +51,45 @@ public class DashboardSummaryService {
 
     IndexSnapshot snapshot = current.get();
     Optional<IndexSnapshot> previous = snapshotQueryService.previousOf(months, baseYearMonth);
+    SnapshotRationale.IndexStatuses statuses = statusesOf(snapshot);
 
     return new DashboardSummaryResponse(
         detail(
             snapshot.getPurchasingPowerIndex(),
-            previous.map(IndexSnapshot::getPurchasingPowerIndex).orElse(null)),
+            previous.map(IndexSnapshot::getPurchasingPowerIndex).orElse(null),
+            statuses.ppi()),
         detail(
             snapshot.getMarketValueIndex(),
-            previous.map(IndexSnapshot::getMarketValueIndex).orElse(null)),
+            previous.map(IndexSnapshot::getMarketValueIndex).orElse(null),
+            statuses.mvi()),
+        detail(
+            snapshot.getOpeningWindowIndex(),
+            previous.map(IndexSnapshot::getOpeningWindowIndex).orElse(null),
+            statuses.owi()),
         decisionSignal(snapshot),
         metadata(snapshot));
   }
 
   // --- 지수 ---
 
-  private IndexDetail detail(BigDecimal value, BigDecimal previousValue) {
+  /** {@code rationale} 자체가 없는 행이 있다. 컴팩트 생성자가 보장하는 것은 rationale 이 있을 때뿐이다. */
+  private static SnapshotRationale.IndexStatuses statusesOf(IndexSnapshot snapshot) {
+    SnapshotRationale rationale = snapshot.getRationale();
+    return rationale == null
+        ? SnapshotRationale.IndexStatuses.unknown()
+        : rationale.indexStatuses();
+  }
+
+  /**
+   * 지수 한 건.
+   *
+   * <p><b>값이 있으면 상태는 항상 {@code OK} 다.</b> 저장된 상태를 그대로 실으면 {@code UPDATE_DELAYED} + 값 있음이 도달 가능해지는데,
+   * 프런트 {@code lib/api/dashboard.ts} 가 "{@code OK} 가 아니면 값은 항상 {@code null}" 을 계약으로 문서화했다.
+   */
+  private IndexDetail detail(BigDecimal value, BigDecimal previousValue, IndexStatus storedStatus) {
     if (value == null) {
-      // 그 달에 계산이 불가했다. 사유를 더 좁히려면 rationale 에 상태가 남아야 한다 (기술 명세 §1.3).
-      return new IndexDetail(null, null, null, IndexStatus.NOT_AVAILABLE.name(), null);
+      IndexStatus status = storedStatus == null ? IndexStatus.NOT_AVAILABLE : storedStatus;
+      return new IndexDetail(null, null, null, status.name(), null);
     }
     Double change =
         previousValue == null
@@ -137,6 +158,7 @@ public class DashboardSummaryService {
           null,
           null,
           null,
+          null,
           null);
     }
 
@@ -161,7 +183,8 @@ public class DashboardSummaryService {
         weightedMissingRate(successful),
         peerGroup(successful, rationale),
         new WageStatInfo(null, rationale.wageStatVintage()),
-        null);
+        null,
+        openingWindow(rationale));
   }
 
   /**
@@ -202,6 +225,25 @@ public class DashboardSummaryService {
         representative.get().fallbackLevel(), representative.get().appliedConditions(), excluded);
   }
 
+  /**
+   * 저장된 근거 일곱 중 화면이 쓰는 셋만 낸다 (API 규격 §5.1). 나머지 넷(동료집단 표본 수, 완화 단계, 조건 문구, 기준 모수 개방일수)은 저장만 하고 소비자가
+   * 생길 때 연다.
+   *
+   * <p>OWI 완화는 MVI 완화와 별개라 {@code metadata.peerGroup} 에 섞지 않는다 — 섞으면 어느 지수의 조건인지 화면이 구분하지 못한다.
+   */
+  private DashboardSummaryResponse.OpeningWindowSummary openingWindow(SnapshotRationale rationale) {
+    SnapshotRationale.OpeningWindowEvidence evidence = rationale.openingWindow();
+    if (evidence == null) {
+      return null;
+    }
+    return new DashboardSummaryResponse.OpeningWindowSummary(
+        evidence.medianWindowDays(),
+        evidence.openEndedRatePercent() == null
+            ? null
+            : evidence.openEndedRatePercent().doubleValue(),
+        evidence.deadlineSampleSize());
+  }
+
   private DashboardSummaryResponse empty() {
     IndexDetail unavailable =
         new IndexDetail(null, null, null, IndexStatus.NOT_AVAILABLE.name(), null);
@@ -209,11 +251,13 @@ public class DashboardSummaryService {
     return new DashboardSummaryResponse(
         unavailable,
         unavailable,
+        unavailable,
         new DecisionSignal(
             DecisionSignalCode.INSUFFICIENT_DATA.name(),
             DecisionSignalCode.INSUFFICIENT_DATA.label(),
             List.of(),
             null),
-        new SummaryMetadata(null, null, null, false, List.of(), null, null, null, null, null));
+        new SummaryMetadata(
+            null, null, null, false, List.of(), null, null, null, null, null, null));
   }
 }

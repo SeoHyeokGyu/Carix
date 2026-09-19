@@ -89,4 +89,21 @@ describe("IndexCard", () => {
     );
     expect(screen.getByText("계산 대기")).toBeInTheDocument();
   });
+
+  it("footer 슬롯을 카드 하단에 렌더한다", () => {
+    render(
+      <IndexCard
+        title="개방창 지수"
+        index={{
+          value: 118.4,
+          changeFromLastMonth: 3.1,
+          status: "INCREASED",
+          indexStatus: "OK",
+        }}
+        footer={<span>중앙 34일</span>}
+      />,
+    );
+
+    expect(screen.getByText("중앙 34일")).toBeInTheDocument();
+  });
 });

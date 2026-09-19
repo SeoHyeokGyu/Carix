@@ -365,6 +365,7 @@
           "yearMonth": "2026-03",
           "purchasingPowerIndex": null,
           "marketValueIndex": 103.1,
+          "openingWindowIndex": null,
           "incomeIndex": null,
           "personalPriceIndex": null,
           "nominalIncome": null,
@@ -372,13 +373,14 @@
         }
       ],
       "purchasingPowerStatus": "UPDATE_DELAYED",
-      "marketValueStatus": "OK"
+      "marketValueStatus": "OK",
+      "openingWindowStatus": "OK"
     }
     ```
 *   **결측월 표현.** `trends[]`의 지수·금액 필드는 모두 nullable 이다. 그 달을 계산하지 못했으면
     `null` 로 두고 **차트는 선을 잇지 않고 갭으로 그린다** ([기능 명세 §5](functional-specification.md) —
     `일부 월 누락 시 갭 표시(선 연결 금지)`). 계열 단위 사유는 응답 최상위의
-    `purchasingPowerStatus`·`marketValueStatus`(`IndexStatus`)가 담는다.
+    `purchasingPowerStatus`·`marketValueStatus`·`openingWindowStatus`(`IndexStatus`)가 담는다.
     *(소득 vs 물가 차트는 `incomeIndex`와 `personalPriceIndex` 두 지수 계열(기준월 100)로 그린다. 원화 금액과 지수를 같은 축에 겹치지 않는다. `purchasingPowerIndex = incomeIndex ÷ personalPriceIndex × 100`. 파생 금액(`realIncome` 등)은 원 단위로 계산 후 천 원 단위 반올림해 표시한다)*
 
 ### 5.4 월별 스냅샷 이력
@@ -393,6 +395,7 @@
           "baseYearMonth": "202607",
           "purchasingPowerIndex": 94.2,
           "marketValueIndex": 117.5,
+          "openingWindowIndex": 118.4,
           "decisionSignal": "SEEK_JOB",
           "label": "이직 탐색",
           "dataVersion": "20260701093000-000",
@@ -403,6 +406,7 @@
           "baseYearMonth": "202606",
           "purchasingPowerIndex": null,
           "marketValueIndex": 115.0,
+          "openingWindowIndex": null,
           "decisionSignal": "INSUFFICIENT_DATA",
           "label": "데이터 부족",
           "dataVersion": "20260601093000-000",
@@ -412,7 +416,7 @@
       ]
     }
     ```
-*   `purchasingPowerIndex`·`marketValueIndex`는 nullable 이다. 그 달에 계산이 불가했으면 행은
+*   `purchasingPowerIndex`·`marketValueIndex`·`openingWindowIndex` 는 모두 nullable 이다. 그 달에 계산이 불가했으면 행은
     남기되 지수를 `null` 로 둔다 (`index_snapshot` DDL 주석 — 0 이나 100 으로 채우지 않는다).
 
 ### 5.5 스킬별 수요 상세

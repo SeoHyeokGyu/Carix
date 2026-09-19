@@ -63,6 +63,7 @@ export interface TrendPoint {
   yearMonth: string;
   purchasingPowerIndex: number | null;
   marketValueIndex: number | null;
+  openingWindowIndex?: number | null;
   incomeIndex: number | null;
   personalPriceIndex: number | null;
   nominalIncome: number | null;
@@ -73,6 +74,7 @@ export interface TrendListResponse {
   trends: TrendPoint[];
   purchasingPowerStatus: string;
   marketValueStatus: string;
+  openingWindowStatus?: string;
 }
 
 export interface SnapshotRationale {
@@ -85,6 +87,7 @@ export interface SnapshotPoint {
   baseYearMonth: string;
   purchasingPowerIndex: number | null;
   marketValueIndex: number | null;
+  openingWindowIndex?: number | null;
   decisionSignal: string;
   label: string;
   dataVersion: string;

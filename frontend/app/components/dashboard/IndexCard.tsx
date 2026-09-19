@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ToneBadge } from "@/components/ui/tone-badge";
@@ -12,9 +13,11 @@ function formatChange(change: number): string {
 export function IndexCard({
   title,
   index,
+  footer,
 }: {
   title: string;
   index: IndexValue;
+  footer?: ReactNode;
 }) {
   const { value, changeFromLastMonth, indexStatus } = index;
   const status = resolveIndexStatus(indexStatus);
@@ -43,6 +46,7 @@ export function IndexCard({
           </div>
         )}
         {status && <ToneBadge tone={status.tone}>{status.label}</ToneBadge>}
+        {footer}
       </CardContent>
     </Card>
   );

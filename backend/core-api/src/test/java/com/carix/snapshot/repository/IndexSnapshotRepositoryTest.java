@@ -34,7 +34,9 @@ class IndexSnapshotRepositoryTest {
         LocalDate.of(2026, 7, 1),
         LocalDate.of(2026, 7, 1),
         "202606",
-        "20260701093000-000");
+        "20260701093000-000",
+        null,
+        null);
   }
 
   @Test
@@ -50,6 +52,7 @@ class IndexSnapshotRepositoryTest {
             "1.0.0",
             new BigDecimal("94.20"),
             new BigDecimal("117.50"),
+            null,
             DecisionSignalCode.SEEK_JOB,
             original));
 
@@ -91,6 +94,7 @@ class IndexSnapshotRepositoryTest {
             "1.0.0",
             null,
             null,
+            null,
             DecisionSignalCode.INSUFFICIENT_DATA,
             new SnapshotRationale(
                 List.of("현재 연봉 미확보"),
@@ -101,7 +105,9 @@ class IndexSnapshotRepositoryTest {
                 null,
                 null,
                 null,
-                "20260701093000-000")));
+                "20260701093000-000",
+                null,
+                null)));
 
     IndexSnapshot found =
         indexSnapshotRepository
@@ -127,6 +133,7 @@ class IndexSnapshotRepositoryTest {
                 "1.0.0",
                 new BigDecimal("94.20"),
                 new BigDecimal("117.50"),
+                null,
                 DecisionSignalCode.SEEK_JOB,
                 rationale()));
 
@@ -138,6 +145,7 @@ class IndexSnapshotRepositoryTest {
         .replaceWith(
             new BigDecimal("91.00"),
             new BigDecimal("120.00"),
+            null,
             DecisionSignalCode.NEGOTIATE,
             rationale());
     indexSnapshotRepository.flush();
@@ -179,6 +187,7 @@ class IndexSnapshotRepositoryTest {
         ruleVersion,
         new BigDecimal("94.20"),
         new BigDecimal("117.50"),
+        null,
         signal,
         rationale());
   }

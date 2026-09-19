@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Link, redirect, useLoaderData, useRevalidator } from "react-router";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { IndexCard } from "../../components/dashboard/IndexCard";
@@ -21,16 +22,21 @@ export async function clientLoader() {
 }
 
 /**
- * 「첫 계산 전」 판정 (설계 §7.5) — PPI 와 MVI 가 **둘 다** 값이 없고 `NOT_AVAILABLE` 이어야
- * 한다. "값이 둘 다 없다"만으로 근사하면 한쪽이 표본 부족 등 다른 열화일 때도 이 상태로
+ * 「첫 계산 전」 판정 (설계 §7.5) — 지수 셋이 **모두** 값이 없고 `NOT_AVAILABLE` 이어야
+ * 한다. "값이 다 없다"만으로 근사하면 한쪽이 표본 부족 등 다른 열화일 때도 이 상태로
  * 오판한다 — 그래서 indexStatus 조건을 값 조건과 함께 명시적으로 본다.
+ *
+ * 서버가 지수별 상태를 스냅샷에 저장하기 전에는 `value === null` 이면 항상
+ * `NOT_AVAILABLE` 이 와서 이 조건이 공회전했다. 이제는 실제로 걸러낸다.
  */
 function isFirstCalculation(data: DashboardSummary): boolean {
   return (
     data.purchasingPowerIndex.value === null &&
     data.purchasingPowerIndex.indexStatus === "NOT_AVAILABLE" &&
     data.marketValueIndex.value === null &&
-    data.marketValueIndex.indexStatus === "NOT_AVAILABLE"
+    data.marketValueIndex.indexStatus === "NOT_AVAILABLE" &&
+    data.openingWindowIndex.value === null &&
+    data.openingWindowIndex.indexStatus === "NOT_AVAILABLE"
   );
 }
 
@@ -113,7 +119,7 @@ export default function DashboardHome() {
       )}
 
       {data && !firstCalculation && (
-        <div className="mt-6 grid gap-4 sm:grid-cols-3">
+        <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <IndexCard title="구매력 지수" index={data.purchasingPowerIndex} />
           <IndexCard title="시장가치 지수" index={data.marketValueIndex} />
 
@@ -166,8 +172,41 @@ export default function DashboardHome() {
               </CardContent>
             </Card>
           )}
+
+          <IndexCard
+            title="개방창 지수"
+            index={data.openingWindowIndex}
+            footer={<OpeningWindowBadges meta={data.metadata.openingWindow} />}
+          />
         </div>
       )}
     </section>
+  );
+}
+
+/**
+ * 개방창 지수 카드의 미니 뱃지 둘 (프런트엔드 설계 Card 4).
+ *
+ * 문구는 **모집 기간**으로만 쓴다. 원천이 게시한 계획된 마감일이라 "충원 난이도"나
+ * "자리가 비어 있다"로 해석하면 안 된다 (기능 명세 §4.5·US-D5).
+ *
+ * 표본 부족이면 중앙 개방일수가 없고 상시채용 비율만 남는다.
+ */
+function OpeningWindowBadges({
+  meta,
+}: {
+  meta: DashboardSummary["metadata"]["openingWindow"];
+}) {
+  if (!meta) return null;
+
+  return (
+    <div className="flex flex-wrap gap-1.5">
+      {meta.medianWindowDays !== null && (
+        <Badge variant="secondary">중앙 {meta.medianWindowDays}일</Badge>
+      )}
+      {meta.openEndedRate !== null && (
+        <Badge variant="secondary">상시 {meta.openEndedRate.toFixed(1)}%</Badge>
+      )}
+    </div>
   );
 }

@@ -33,6 +33,13 @@ export interface PeerGroupMetadata {
   excluded?: { skill: string; reason: string }[];
 }
 
+export interface OpeningWindowMetadata {
+  medianWindowDays: number | null;
+  /** 상시채용 비율(%). 비율이 아니라 퍼센트다. */
+  openEndedRate: number | null;
+  deadlineSampleSize: number | null;
+}
+
 export interface DashboardMetadata {
   baseDate: string;
   dataVersion?: string;
@@ -44,11 +51,13 @@ export interface DashboardMetadata {
   peerGroup?: PeerGroupMetadata | null;
   wageStat?: { wageDefinition: string; statVintage: string } | null;
   expenseWeightStatus?: string | null;
+  openingWindow?: OpeningWindowMetadata | null;
 }
 
 export interface DashboardSummary {
   purchasingPowerIndex: IndexValue;
   marketValueIndex: IndexValue;
+  openingWindowIndex: IndexValue;
   decisionSignal: DecisionSignal | null;
   metadata: DashboardMetadata;
 }

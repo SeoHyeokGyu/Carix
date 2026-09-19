@@ -2,10 +2,12 @@ package com.carix.snapshot;
 
 import com.carix.index.CurrentSalaryProvider;
 import com.carix.index.MarketValueIndexProvider;
+import com.carix.index.OpeningWindowIndexProvider;
 import com.carix.index.PurchasingPowerIndexProvider;
 import com.carix.index.dto.CurrentSalary;
 import com.carix.index.dto.ExcludedSkill;
 import com.carix.index.dto.MviResult;
+import com.carix.index.dto.OwiResult;
 import com.carix.index.dto.PpiResult;
 import com.carix.index.enums.IndexStatus;
 import com.carix.snapshot.domain.IndexSnapshot;
@@ -39,6 +41,7 @@ public class SnapshotRecalculationService {
 
   private final PurchasingPowerIndexProvider ppiProvider;
   private final MarketValueIndexProvider mviProvider;
+  private final OpeningWindowIndexProvider owiProvider;
   private final CurrentSalaryProvider salaryProvider;
   private final DecisionSignalEngine decisionSignalEngine;
   private final DataVersionIssuer dataVersionIssuer;
@@ -49,6 +52,7 @@ public class SnapshotRecalculationService {
   public SnapshotRecalculationService(
       PurchasingPowerIndexProvider ppiProvider,
       MarketValueIndexProvider mviProvider,
+      OpeningWindowIndexProvider owiProvider,
       CurrentSalaryProvider salaryProvider,
       DecisionSignalEngine decisionSignalEngine,
       DataVersionIssuer dataVersionIssuer,
@@ -56,6 +60,7 @@ public class SnapshotRecalculationService {
     this(
         ppiProvider,
         mviProvider,
+        owiProvider,
         salaryProvider,
         decisionSignalEngine,
         dataVersionIssuer,
@@ -66,6 +71,7 @@ public class SnapshotRecalculationService {
   SnapshotRecalculationService(
       PurchasingPowerIndexProvider ppiProvider,
       MarketValueIndexProvider mviProvider,
+      OpeningWindowIndexProvider owiProvider,
       CurrentSalaryProvider salaryProvider,
       DecisionSignalEngine decisionSignalEngine,
       DataVersionIssuer dataVersionIssuer,
@@ -73,6 +79,7 @@ public class SnapshotRecalculationService {
       Supplier<String> currentYearMonth) {
     this.ppiProvider = ppiProvider;
     this.mviProvider = mviProvider;
+    this.owiProvider = owiProvider;
     this.salaryProvider = salaryProvider;
     this.decisionSignalEngine = decisionSignalEngine;
     this.dataVersionIssuer = dataVersionIssuer;
@@ -104,6 +111,7 @@ public class SnapshotRecalculationService {
       }
 
       MviResult mvi = mviProvider.calculate(userId, ym);
+      OwiResult owi = owiProvider.calculate(userId, ym);
       CurrentSalary salary = salaryProvider.currentGrossSalary(userId, ym).orElse(null);
       DecisionOutcome outcome = decisionSignalEngine.evaluate(ppi, mvi, salary);
 
@@ -117,9 +125,11 @@ public class SnapshotRecalculationService {
               ppi.cpiAsOf(),
               mvi.aggregateAsOf(),
               mvi.wageBaseline() == null ? null : mvi.wageBaseline().statVintage(),
-              dataVersion);
+              dataVersion,
+              new SnapshotRationale.IndexStatuses(ppi.status(), mvi.status(), owi.status()),
+              openingWindowEvidence(owi));
 
-      save(userId, ym, dataVersion, ruleVersion, ppi, mvi, outcome, rationale);
+      save(userId, ym, dataVersion, ruleVersion, ppi, mvi, owi, outcome, rationale);
       written++;
     }
     return written;
@@ -134,6 +144,27 @@ public class SnapshotRecalculationService {
     return bucket == null ? null : bucket.name();
   }
 
+  /** 근거를 하나도 못 받았으면 블록 자체를 만들지 않는다. 필드가 전부 {@code null} 인 블록은 "근거가 없다"와 "근거를 모른다"를 같은 모양으로 만든다. */
+  private static SnapshotRationale.OpeningWindowEvidence openingWindowEvidence(OwiResult owi) {
+    if (owi.peerSampleSize() == null
+        && owi.deadlineSampleSize() == null
+        && owi.medianWindowDays() == null
+        && owi.openEndedRatePercent() == null
+        && owi.fallbackLevel() == null
+        && owi.appliedConditions() == null
+        && owi.marketMedianWindowDays() == null) {
+      return null;
+    }
+    return new SnapshotRationale.OpeningWindowEvidence(
+        owi.peerSampleSize(),
+        owi.deadlineSampleSize(),
+        owi.medianWindowDays(),
+        owi.openEndedRatePercent(),
+        owi.fallbackLevel(),
+        owi.appliedConditions(),
+        owi.marketMedianWindowDays());
+  }
+
   private void save(
       UUID userId,
       String ym,
@@ -141,6 +172,7 @@ public class SnapshotRecalculationService {
       String ruleVersion,
       PpiResult ppi,
       MviResult mvi,
+      OwiResult owi,
       DecisionOutcome outcome,
       SnapshotRationale rationale) {
     Optional<IndexSnapshot> existing =
@@ -148,7 +180,7 @@ public class SnapshotRecalculationService {
             userId, ym, dataVersion, ruleVersion);
 
     if (existing.isPresent()) {
-      existing.get().replaceWith(ppi.value(), mvi.value(), outcome.code(), rationale);
+      existing.get().replaceWith(ppi.value(), mvi.value(), owi.value(), outcome.code(), rationale);
       return;
     }
     indexSnapshotRepository.save(
@@ -159,6 +191,7 @@ public class SnapshotRecalculationService {
             ruleVersion,
             ppi.value(),
             mvi.value(),
+            owi.value(),
             outcome.code(),
             rationale));
   }
