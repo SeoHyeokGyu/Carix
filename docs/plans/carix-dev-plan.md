@@ -20,9 +20,9 @@
 
 | 담당자 | 도메인 | 사용자 스토리 | 프론트엔드 (UI) | 백엔드 & 핵심 알고리즘 | 데이터 수집 & DB |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| **Member A** | **소득 & 구매력<br>(PPI & Cost of Living)** | `US-O3` 소득 입력(API 만)<br>`US-O4` 소비 입력(API 만)<br>`US-R1` 이력(API 만)<br>`US-D3` 소득vs물가(데이터만) | 없음 — 소득/소비 도메인의 화면은 C·B 가 낸다<br>_(근거는 아래 각주)_ | • **구매력 지수(PPI) 엔진** ([기능 명세 §4.3](../specs/functional-specification.md))<br>• 소비 가중치 전파 (`PROPAGATED`)<br>• 소득/소비 이력 CRUD API — `S-12` 탭이 쓴다<br>• ~~연봉 암호화 키·복호화 경계 ([SECURITY §3.2](../SECURITY.md))~~ — 완료 | • 통계청 CPI 수집 파이프라인<br>• `income_history` — `change_reason` 컬럼은 C<br>• `expense_history`, `expense_item`<br>• `cpi_observation` |
-| **Member B** | **스킬 & 시장가치<br>(MVI & Market Worth)** | `US-O5` 스킬 입력<br>`US-D2` 데이터 상태<br>`US-D3` 분포·수요 차트<br>`US-D4` `S-11` 화면<br>`US-D8` 상승률 비교<br>`US-C1~2` `S-13` 화면<br>`US-M1` `S-16` | • `S-08` 스킬 입력 & 자동완성<br>• `S-11`·`S-13` — C 레인 부하 분산분. 쓰는 API 는 C 소유<br>• `S-14` **차트 3종 컴포넌트** — 연봉분포·수요·**소득vs물가**. 셸은 C<br>• `S-14` **내 상승률 vs 시장 상승률 차트** (`US-D8`)<br>• `S-10` **개방창 지수(OWI) 카드** — 셸은 C. 카드 자체는 `c6` 에서 이미 섰고 산출기 `b6` 가 값을 채운다<br>• `S-10` 결정 신호 카드의 **근거 아코디언** — 스킬 보강 처방 노출. 셸은 C<br>• `S-16` 관리자 파이프라인 콘솔 | • **시장가치 지수(MVI) 엔진** ([§4.2](../specs/functional-specification.md))<br>• **스킬 수요 지수** 엔진 ([§4.1](../specs/functional-specification.md))<br>• 동료집단 완화 (N<10) 및 표본부족 엣지케이스 검증<br>• 스킬 검색/자동완성 API<br>• `GET /dashboard/salary-distribution` — 제시 연봉 추이·경력 사다리 포함 ([기능 명세 §4.6](../specs/functional-specification.md))<br>• 임금통계 출처 노출 & **연도 시계열 읽기 경로** (`US-D8`)<br>• **개방창 지수(OWI) 엔진** (`OpeningWindowIndexProvider`, [기능 명세 §4.5](../specs/functional-specification.md))<br>• `GET /skills/recommendations` — 스킬 보강 처방 (`US-D6`)<br>| • 채용공고 & KOSIS 임금 수집<br>• 표준 스킬 사전 정제<br>• `skill`, `skill_alias`, `user_skill`<br>• `wage_stat_observation`<br>• `market_aggregate` |
-| **Member C** | **인증 · 의사결정 · 시뮬레이터<br>(Auth, Decision & Action)** | `US-A1~2` 인증<br>`US-O1~2, 6` 온보딩<br>`US-D1` 대시보드<br>`US-D3` `S-14` 셸<br>`US-D8` 임금vs물가 API<br>`US-R1` `S-12` 화면<br>`US-S1` 시뮬레이터 | • `S-01~03` 랜딩·로그인·가입<br>• **온보딩 4화면** `S-05`·`S-06`·`S-07`·`S-09` (`S-08` 은 B)<br>• `S-10` **대시보드 메인** — 지표 카드 4종 중 셋과 결정 신호. **OWI 카드와 근거 아코디언은 B**<br>• `S-12` **이력 관리 화면 전체** (API 는 A·B)<br>• `S-14` **추이분석 셸** (A·B 차트 조립)<br>• `S-15` **12개월 시뮬레이터** | • **결정 신호(Rule Matrix) 엔진**<br>• 협상 목표 인상률 (`US-D7`)<br>• **12개월 잔류vs이직 시뮬레이터** (저장 목록 복원 포함, `US-S1`)<br>• **월별 스냅샷 멱등성 저장/재계산** (Job 4 전담, [§4.4](../specs/functional-specification.md))<br>• 회원가입·로그인, 계정 완전 삭제<br>• `GET /dashboard/summary`·`/trends`·`/history` — OWI 계열 확장 포함 ([API 규격 §5.1·§5.3·§5.4](../specs/api-specification.md))<br>• **임금 상승률 vs 개인물가 비교 로직 & API** (`US-D8`)<br>• `income_history.change_reason` 컬럼 & API — 잔류·이직 판별 (`US-O3`)<br>• 기본 소비 가중치 (`DEFAULT_CPI`) 및 `GET /reference/default-expenses` (`US-O6`)<br>• 물가 기여도 1위 품목 (`US-D1` 뱃지) | • `auth-service` 모듈<br>• **세션 게이트** ([`backend/README.md`](../../backend/README.md), 3레인 공통 선행)<br>• **auth 스키마**(Flyway): `users`, `session`, `rate_limit_bucket`<br>• **core 스키마**(직접 DDL): `career_profile`, `index_snapshot`(OWI 컬럼 포함), `career_scenario` |
+| **Member A** | **소득 & 구매력<br>(PPI & Cost of Living)** | `US-O3` 소득 입력(API 만)<br>`US-O4` 소비 입력(API 만)<br>`US-R1` 이력(API 만)<br>`US-D3` 소득vs물가(데이터만)<br>`US-D8` 상승률 엔진 | 없음 — 소득/소비 도메인의 화면은 C·B 가 낸다<br>_(근거는 아래 각주)_ | • **구매력 지수(PPI) 엔진** ([기능 명세 §4.3](../specs/functional-specification.md))<br>• 소비 가중치 전파 (`PROPAGATED`)<br>• 소득/소비 이력 CRUD API — `S-12` 탭이 쓴다<br>• **내 소득 상승률 산출 로직** (`US-D8`) — 차트는 B<br>• **임금 상승률 vs 개인물가 지표 엔진** (`US-D8`) — `a2` 확장<br>• 소비 전파 엣지케이스 & 복호화 경계 점검<br>• ~~연봉 암호화 키·복호화 경계 ([SECURITY §3.2](../SECURITY.md))~~ — 완료 | • 통계청 CPI 수집 파이프라인<br>• `income_history` — `change_reason` 컬럼은 C<br>• `expense_history`, `expense_item`<br>• `cpi_observation` |
+| **Member B** | **스킬 & 시장가치<br>(MVI & Market Worth)** | `US-O5` 스킬 입력<br>`US-D2` 데이터 상태<br>`US-D3` 분포·수요 차트<br>`US-D4` `S-11` 화면<br>`US-D8` 상승률 차트<br>`US-C1~2` `S-13` 화면<br>`US-M1` `S-16` | • `S-08` 스킬 입력 & 자동완성<br>• `S-11`·`S-13` — C 레인 부하 분산분. 쓰는 API 는 C 소유<br>• `S-14` **차트 3종 컴포넌트** — 연봉분포·수요·**소득vs물가**. 셸은 C<br>• `S-14` **내 상승률 vs 시장 상승률 차트** (`US-D8`)<br>• `S-10` **개방창 지수(OWI) 카드** — 셸은 C. 카드 자체는 `c6` 에서 이미 섰고 산출기 `b6` 가 값을 채운다<br>• `S-10` 결정 신호 카드의 **근거 아코디언** — 스킬 보강 처방 노출. 셸은 C<br>• `S-16` 관리자 파이프라인 콘솔 | • **시장가치 지수(MVI) 엔진** ([§4.2](../specs/functional-specification.md))<br>• **스킬 수요 지수** 엔진 ([§4.1](../specs/functional-specification.md))<br>• 동료집단 완화 (N<10) 및 표본부족 엣지케이스 검증<br>• 스킬 검색/자동완성 API<br>• `GET /dashboard/salary-distribution` — 제시 연봉 추이·경력 사다리 포함 ([기능 명세 §4.6](../specs/functional-specification.md))<br>• 임금통계 출처 노출 & **연도 시계열 읽기 경로** (`US-D8`)<br>• **개방창 지수(OWI) 엔진** (`OpeningWindowIndexProvider`, [기능 명세 §4.5](../specs/functional-specification.md))<br>• `GET /skills/recommendations` — 스킬 보강 처방 (`US-D6`)<br>| • 채용공고 & KOSIS 임금 수집<br>• 표준 스킬 사전 정제<br>• `skill`, `skill_alias`, `user_skill`<br>• `wage_stat_observation`<br>• `market_aggregate` |
+| **Member C** | **인증 · 의사결정 · 시뮬레이터<br>(Auth, Decision & Action)** | `US-A1~2` 인증<br>`US-O1~2, 6` 온보딩<br>`US-D1` 대시보드<br>`US-D3` `S-14` 셸<br>`US-D8` 트렌드 연동<br>`US-R1` `S-12` 화면<br>`US-S1` 시뮬레이터 | • `S-01~03` 랜딩·로그인·가입<br>• **온보딩 4화면** `S-05`·`S-06`·`S-07`·`S-09` (`S-08` 은 B)<br>• `S-10` **대시보드 메인** — 지표 카드 4종 중 셋과 결정 신호. **OWI 카드와 근거 아코디언은 B**<br>• `S-12` **이력 관리 화면 전체** (API 는 A·B)<br>• `S-14` **추이분석 셸** (A·B 차트 조립)<br>• `S-15` **12개월 시뮬레이터** | • **결정 신호(Rule Matrix) 엔진**<br>• 협상 목표 인상률 (`US-D7`)<br>• **12개월 잔류vs이직 시뮬레이터** (저장 목록 복원 포함, `US-S1`)<br>• **월별 스냅샷 멱등성 저장/재계산** (Job 4 전담, [§4.4](../specs/functional-specification.md))<br>• 회원가입·로그인, 계정 완전 삭제<br>• `GET /dashboard/summary`·`/trends`·`/history` — OWI 및 임금vs물가 확장 포함 ([API 규격 §5.1·§5.3·§5.4](../specs/api-specification.md))<br>• `income_history.change_reason` 컬럼 & API — 잔류·이직 판별 (`US-O3`)<br>• 기본 소비 가중치 (`DEFAULT_CPI`) 및 `GET /reference/default-expenses` (`US-O6`)<br>• 물가 기여도 1위 품목 (`US-D1` 뱃지) | • `auth-service` 모듈<br>• **세션 게이트** ([`backend/README.md`](../../backend/README.md), 3레인 공통 선행)<br>• **auth 스키마**(Flyway): `users`, `session`, `rate_limit_bucket`<br>• **core 스키마**(직접 DDL): `career_profile`, `index_snapshot`(OWI 컬럼 포함), `career_scenario` |
 
 > **화면 셸 소유는 하나다.** `S-12`(`routes/mypage/records/layout.tsx`)와
 > `S-14`(`routes/dashboard/trends.tsx`)는 셸 파일이 각각 하나이고
@@ -65,8 +65,8 @@
 
 > 결정 신호는 3변수 규칙표를 쓰고, 스냅샷 갱신(Job 4)은 `core-api` 가 전담한다. `S-12`·`S-14` 는 화면 셸을 C 로 단일화하고 A·B 는 탭·차트 컴포넌트만 낸다.
 >
-> `e2e` 선행은 `b17 c13` 둘이다. **실질 임계 경로는 `b17` — B 레인이다.** 종료 일차는
-> `b17` 66, `c13` 61, `a7` 33 이다. 임금통계 연도 시계열(`b13`·`b17`·`c13`·`b14`)의 인수 조건과 계산 정의는
+> `e2e` 선행은 `a12 b17 c9` 세 개다. **실질 임계 경로는 `b17` — B 레인이다.** 종료 일차는
+> `b17` 66, `c9` 59, `a12` 42 이다. 임금통계 연도 시계열(`b13`·`b17`·`a9`·`a10`·`b14`)의 인수 조건과 계산 정의는
 > [기능 명세 US-D8·§4.9](../specs/functional-specification.md)가 갖는다.
 >
 > **`ui3` 도 C 사슬 안이다.** 「UI 일관성 통일」은 로드맵 밖 계획이지만 담당은 C 하나라
@@ -74,13 +74,12 @@
 > 일이라 그대로 둔다.
 >
 > **레인마다 담당은 하나다.** 간트는 병렬로 그릴 수 있지만 한 사람이 두 블록을 동시에 못 돈다 —
-> 같은 레인의 블록은 전부 사슬로 잇는다. 과거 A 의 빈 구간을 메우기 위해 배정됐던 MVI 표본부족
+> 같은 레인의 블록은 전부 사슬로 잇는다. 과거 A 에 과도하게 잡혔던 MVI 표본부족
 > 검증(`b8a`)과 임금통계 읽기(`b13`), 상승률 차트(`b17`)를 도메인 및 컴포넌트 소유자인 B 로
-> 환원하고, 물가 비교 API(`c13`)를 C 로 이관했다. B 가 직접 수행하면서 MVI 검증 공수는 8d 에서 3d 로
-> 현실화됐다.
+> 환원했다. B 가 직접 수행하면서 MVI 검증 공수는 8d 에서 3d 로 현실화됐다.
 >
-> **A 의 5~6주차 이후 부담이 대폭 줄었다.** A 는 핵심인 PPI 엔진(`a2`)과 엣지케이스 및 민감 금액
-> 로깅 마스킹(`a7`)까지만 전담하여 33일차에 사슬을 마친다.
+> **A 는 7~9주차에 고유 도메인 중심의 가벼운 지표 및 안정화 과제를 전담한다.** 소득 상승률 산출(`a9`),
+> 임금 vs 물가 지표(`a10`), 소비 전파 엣지케이스 및 복호화 무결성 점검(`a12`)을 거쳐 42일차에 안정적으로 사슬을 마친다.
 >
 > **간트 블록은 쪼개지 않으면 부분 완료를 담지 못한다.** 한 블록의 일부만 끝났을 때는
 > 완료분을 `b3a`·`c4a` 처럼 별도 블록으로 떼어 `done` 을 붙이고 잔여를 원래 ID 로 남긴다.
@@ -100,6 +99,9 @@ gantt
     CPI 수집 파이프라인 & 소득/소비 CRUD API :done, a1, 12, 3s
     PPI 계산 엔진 & 가중치 전파 & 암호화 키 :a2, after a1, 14s
     PPI 엣지케이스 & 민감 금액 로깅 마스킹 점검 :a7, after a2, 4s
+    내 소득 상승률 산출 로직(US-D8) :a9, after a7, 3s
+    임금 상승률 vs 개인물가 지표 엔진 :a10, after a9, 3s
+    소비 전파 엣지케이스 & 복호화 경계 점검 :a12, after a10, 3s
     section Member B (스킬/MVI)
     공고/임금 수집 파이프라인 & 스킬사전 검색 API :done, b1, 2, 2s
     market_aggregate 사전집계 파이프라인 :done, b2a, 3, 1s
@@ -135,14 +137,13 @@ gantt
     물가 기여도 1위 품목(US-D1 뱃지) :c12, after c11, 1s
     협상 목표 인상률(US-D7) :c8, after ui3, 2s
     저장 시나리오 목록 & S-15 복원(US-S1) :c9, after c8, 2s
-    임금 상승률 vs 개인물가 비교 로직 및 API(US-D8) :c13, after c9, 2s
     section UI 일관성 통일 (C 레인)
     P0 — 결정신호 단일화 & 시각회귀 베이스라인 :done, ui0, 33, 2s
     P1 — 다크 변형(custom-variant) & carix-action 토큰 :done, ui1, after ui0, 2s
     P2 — 공용 표현 계층 & 어휘 계약 :done, ui2, after ui1, 2s
     P3~P4 — 프리미티브 재정의·규범 :ui3, after c12, 6s
     section 전원 통합 (10주차)
-    E2E 연동 테스트 & 비기능/완료기준 점검 :crit, e2e, after b17 c13, 5s
+    E2E 연동 테스트 & 비기능/완료기준 점검 :crit, e2e, after a12 b17 c9, 5s
 ```
 
 > **가로축은 달력이 아니라 착수 기준 일차(日次)다.** 눈금 `0`·`5`·`10` 은 첫 블록 착수로부터
@@ -155,15 +156,15 @@ gantt
 | **1~2주차<br>(인프라 & 파이프라인)** | ~~`a1` — CPI 수집 파이프라인, 소득/소비 CRUD API~~ 완료 | 완료 | 완료 |
 | **3~4주차<br>(핵심 계산 엔진)** | • **개인물가 & 구매력 지수(PPI) 계산 엔진**<br>• 소비 가중치 전파(`PROPAGATED`) 로직<br>• ~~**연봉 암호화 키 로테이션·스냅샷 복호화 경계** ([SECURITY §3.2](../SECURITY.md))~~ — 완료<br>_(`a2` 는 이 칸보다 앞선다)_ | • ~~동료집단 완화 알고리즘 (`N<10` 클램프)~~ — 완료<br>• ~~`S-08` 스킬 입력 & 자동완성 UI~~ — 완료<br>• ~~`S-14` **차트 3종** (연봉분포·수요·소득vs물가)~~ — 완료<br>• ~~`S-11` 월별 스냅샷 이력 UI~~ — 완료<br>• ~~`S-13` 설정·계정 삭제 UI (세션 관리 & 완전 삭제)~~ — 완료 | • ~~`S-05`·`S-06`·`S-07`·`S-09` **온보딩 4화면**~~ — 완료. `S-08` 은 B — 근거는 §1 각주<br>• ~~`S-10` **대시보드 메인**~~ — 완료<br>• ~~`S-15` **시뮬레이터 UI**~~ — 완료<br>• ~~`auth-service` 온보딩 단계 갱신(`PATCH /v1/auth/onboarding`)~~ — 완료. `c3` 의 18d 에 없던 작업이고 `S-08` 이 B 로 정리되며 회수한 구간에서 냈다 |
 | **5~6주차<br>(UI & 지표 확장 1)** | • **PPI 엣지케이스 & 민감 금액 로깅 마스킹 점검** (`a7`) — `a2` 바로 뒤다 | • **개방창 지수(OWI) 집계·완화·Provider** (`b6`)<br>• **집계월 분포 확인** — `b6` 착수 전 SQL 한 줄<br>• **경력 브래킷 6구간 정합 & 라우트 별칭 정리** (`b7`) | • ~~`S-12` **이력 관리 화면 전체** (`c4`)~~ — 완료<br>• ~~**OWI 스냅샷 컬럼 & 대시보드 3 API 확장** (`c6`)~~ — 완료. 산출기는 B `b6` |
-| **7주차<br>(지표 확장 2 · 검증 착수)** | • 잔여 없음 — A 는 33일차(`a7`)에 사슬 종료 후 도메인 안정화 | • **제시 연봉 추이** (`b10`)<br>• **`market_aggregate` 연봉 5수치 제거** (`b11`)<br>• **임금통계 출처 노출 & 연도 시계열 읽기 경로** (`b13`) — `wage_stat_observation` 테이블 소유권 원복 | • **스냅샷 쓰기 운영 Postgres 검증** (`c5`)<br>• **소득 변경 사유 컬럼 & API** (`c10`) — `S-12` 소득 탭 선택 컨트롤까지 이 블록이다 |
-| **8주차<br>(처방 · 정합)** | • 잔여 없음 | • **경력 사다리 & 기준선 출처 표기** (`b12`)<br>• **MVI 임계값 외부화 & 수집 우선순위 산출** (`b8`)<br>• **MVI 표본부족(`N<10`) 엣지케이스 검증** (`b8a`) — 도메인 소유자 B 로 원복<br>• **스킬 보강 추천 API & 동시출현 근거** (`b9`)<br>• `S-10` 근거 아코디언 — **스킬 보강 처방** (`b15`). 셸은 C | • **기본 소비 기준값 API** (`c11`)<br>• **물가 기여도 1위 품목 뱃지** (`c12`)<br>• **UI 일관성 통일** — P3~P4 (`ui3`). 계획은 [ui-unification-plan.md](ui-unification-plan.md) |
-| **9주차<br>(임금 시계열)** | • 잔여 없음 | • **경력 사다리 연도 축** (`b14`) — `b12` 확장<br>• **내 상승률 vs 시장 상승률 차트** (`b17`, `US-D8`) — `S-14` 차트 소유권 일치<br>• **KOSIS 커버리지·드리프트 정리 완료** — 2020~2025 여섯 해 실재 확인, 벽시계 드리프트 72행 삭제(§4) | • **협상 목표 인상률** (`c8`)<br>• **저장 시나리오 목록 & `S-15` 복원** (`c9`)<br>• **임금 상승률 vs 개인물가 비교 로직 & API** (`c13`, `US-D8`) — `trends` API 소유권 일치 |
+| **7주차<br>(지표 확장 2 · 검증 착수)** | • **내 소득 상승률 산출 로직** (`a9`, `US-D8`) — 소득 이력 기반 전년 대비 인상률 산출 | • **제시 연봉 추이** (`b10`)<br>• **`market_aggregate` 연봉 5수치 제거** (`b11`)<br>• **임금통계 출처 노출 & 연도 시계열 읽기 경로** (`b13`) — `wage_stat_observation` 테이블 소유권 원복 | • **스냅샷 쓰기 운영 Postgres 검증** (`c5`)<br>• **소득 변경 사유 컬럼 & API** (`c10`) — `S-12` 소득 탭 선택 컨트롤까지 이 블록이다 |
+| **8주차<br>(처방 · 정합)** | • **임금 상승률 vs 개인물가 지표 엔진** (`a10`, `US-D8`) — `a2` 확장, 개인물가 비교 산출 | • **경력 사다리 & 기준선 출처 표기** (`b12`)<br>• **MVI 임계값 외부화 & 수집 우선순위 산출** (`b8`)<br>• **MVI 표본부족(`N<10`) 엣지케이스 검증** (`b8a`) — 도메인 소유자 B 로 원복<br>• **스킬 보강 추천 API & 동시출현 근거** (`b9`)<br>• `S-10` 근거 아코디언 — **스킬 보강 처방** (`b15`). 셸은 C | • **기본 소비 기준값 API** (`c11`)<br>• **물가 기여도 1위 품목 뱃지** (`c12`)<br>• **UI 일관성 통일** — P3~P4 (`ui3`). 계획은 [ui-unification-plan.md](ui-unification-plan.md) |
+| **9주차<br>(임금 시계열)** | • **소비 전파 엣지케이스 & 복호화 경계 점검** (`a12`) — `PROPAGATED` 소급 전파 및 키 로테이션 실환경 점검 | • **경력 사다리 연도 축** (`b14`) — `b12` 확장<br>• **내 상승률 vs 시장 상승률 차트** (`b17`, `US-D8`) — `S-14` 차트 소유권 일치<br>• **KOSIS 커버리지·드리프트 정리 완료** — 2020~2025 여섯 해 실재 확인, 벽시계 드리프트 72행 삭제(§4) | • **협상 목표 인상률** (`c8`)<br>• **저장 시나리오 목록 & `S-15` 복원** (`c9`) |
 | **10주차<br>(E2E 통합 검증)** | • 실데이터 통합 점검 합류 | • 실데이터 파이프라인 통합 점검 | • 온보딩 → 대시보드 → 시뮬레이터 E2E 점검<br>• 계정 삭제 시 개인 데이터 완전 삭제 검증 |
 
 > **주차 배치는 최장 경로 기준이며, 실질 임계 경로는 Member B(`b17` 66일차)다.** 종료 일차는
-> `b17` 66, `c13` 61, `a7` 33일차이며, 10주차 `e2e` 통합 선행은 B·C 의 최종 블록인 `b17`·`c13` 이다.
+> `b17` 66, `c9` 59, `a12` 42일차이며, 10주차 `e2e` 통합 선행은 세 레인의 최종 블록(`a12`·`b17`·`c9`)이다.
 >
-> - **A 레인 부하 분산:** A 는 핵심인 PPI 본 엔진(`a2`) 및 엣지케이스·민감 금액 로깅 마스킹(`a7`)에 집중하여 33일차에 조기 종료한다. MVI 검증(`b8a`), 임금통계 읽기(`b13`), 상승률 차트(`b17`)는 도메인 소유자인 B 로 환원했고, 물가 비교 API(`c13`)는 대시보드 API 소유자인 C 로 이관했다.
+> - **A 레인 부하 분산과 역할 정합:** A 의 과중했던 MVI 검증(`b8a`), 임금통계 읽기(`b13`), 상승률 차트(`b17`)는 도메인/컴포넌트 소유자인 B 로 환원했다. A 는 7~9주차에 고유 도메인인 **내 소득 상승률 산출(`a9`)**, **임금 vs 개인물가 지표(`a10`)**, **소비 전파 엣지케이스 및 복호화 무결성 점검(`a12`)**을 각 3일 규모로 안정적으로 완수한다.
 > - **의존성 규약:** `b7`(브래킷 수정)은 차단이 아닌 배포 전 결정 항목이며, OWI 산출기(`b6`)는 이미 준비된 C 의 스냅샷 스키마(`c6`) 위에서 B 가 값을 공급한다. 정확한 선후와 기간은 간트를 따른다.
 
 > **완료 기준 10번(민감 금액 로그 미기록)은 전 레인 공통이다**
@@ -264,7 +265,7 @@ flowchart TD
 기준선의 성격을 밝혀 정직을 지킨다(`b12`).
 
 **`wage_stat_observation` 연도 시계열 — 판정 끝났다.** MVP 안으로 승격했고 인수 조건은
-[기능 명세 US-D8·§4.9](../specs/functional-specification.md), 일정은 §2 `b13`·`b17`·`c13`·`b14`
+[기능 명세 US-D8·§4.9](../specs/functional-specification.md), 일정은 §2 `b13`·`b17`·`a9`·`a10`·`b14`
 가 갖는다. **KOSIS 커버리지도 확인됐다** — 운영에 `base_period` 2020~2025 여섯 해가 실재하고
 값이 해마다 달라 24계층 보간 실측이다(상수였으면 연도마다 같았다). 실측 연도가 하나뿐일 때
 `b17`·`b14` 를 되돌린다는 조건은 **발생하지 않았다.** 벽시계 vintage 로 쌓였던 2025 드리프트
