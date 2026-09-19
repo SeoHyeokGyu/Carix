@@ -80,6 +80,7 @@ describe("대시보드 라우트 및 레이아웃 (Dashboard)", () => {
             status: "INCREASED",
             indexStatus: "OK",
           },
+          openingWindowIndex: EMPTY_INDEX,
           decisionSignal: {
             code: "SEEK_JOB",
             label: "이직 탐색",
@@ -107,6 +108,7 @@ describe("대시보드 라우트 및 레이아웃 (Dashboard)", () => {
         data: {
           purchasingPowerIndex: EMPTY_INDEX,
           marketValueIndex: EMPTY_INDEX,
+          openingWindowIndex: EMPTY_INDEX,
           decisionSignal: null,
           metadata: { baseDate: "2026-09-01", updateDelayed: false },
         },
@@ -131,6 +133,7 @@ describe("대시보드 라우트 및 레이아웃 (Dashboard)", () => {
             ...EMPTY_INDEX,
             indexStatus: "INSUFFICIENT_SAMPLE",
           },
+          openingWindowIndex: EMPTY_INDEX,
           decisionSignal: null,
           metadata: { baseDate: "2026-09-01", updateDelayed: false },
         },
@@ -205,6 +208,7 @@ describe("대시보드 라우트 및 레이아웃 (Dashboard)", () => {
             indexStatus: "OK",
           },
           marketValueIndex: EMPTY_INDEX,
+          openingWindowIndex: EMPTY_INDEX,
           decisionSignal: null,
           metadata: { baseDate: "2026-09-01", updateDelayed: false },
         },
@@ -272,6 +276,7 @@ describe("대시보드 라우트 및 레이아웃 (Dashboard)", () => {
         data: {
           purchasingPowerIndex: EMPTY_INDEX,
           marketValueIndex: { ...EMPTY_INDEX, value: 117.5, indexStatus: "OK" },
+          openingWindowIndex: EMPTY_INDEX,
           decisionSignal: {
             code: "SEEK_JOB",
             label: "이직 탐색",
@@ -311,6 +316,7 @@ describe("대시보드 라우트 및 레이아웃 (Dashboard)", () => {
             indexStatus: "OK",
           },
           marketValueIndex: EMPTY_INDEX,
+          openingWindowIndex: EMPTY_INDEX,
           decisionSignal: {
             code: "STAY",
             label: "잔류",
@@ -341,6 +347,7 @@ describe("대시보드 라우트 및 레이아웃 (Dashboard)", () => {
         data: {
           purchasingPowerIndex: EMPTY_INDEX,
           marketValueIndex: EMPTY_INDEX,
+          openingWindowIndex: EMPTY_INDEX,
           decisionSignal: null,
           metadata: { baseDate: "2026-09-01", updateDelayed: false },
         },
