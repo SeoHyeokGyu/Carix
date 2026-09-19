@@ -1,6 +1,7 @@
 package com.carix.expense.domain;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.tuple;
 
 import java.util.List;
 import java.util.UUID;
@@ -24,7 +25,6 @@ class ExpenseHistoryTest {
             .expenseHistory(history)
             .category(ExpenseCategoryEnum.FOOD)
             .amount(500000L)
-            .weightStatus(WeightStatusEnum.USER_DEFINED)
             .build();
 
     history.replaceItems(List.of(item1));
@@ -42,10 +42,8 @@ class ExpenseHistoryTest {
     UUID userId = UUID.randomUUID();
     ExpenseHistory history = new ExpenseHistory(userId, "202609");
 
-    ExpenseItemEntity initialFood =
-        new ExpenseItemEntity(ExpenseCategoryEnum.FOOD, 300000L, WeightStatusEnum.USER_DEFINED);
-    ExpenseItemEntity initialHousing =
-        new ExpenseItemEntity(ExpenseCategoryEnum.HOUSING, 500000L, WeightStatusEnum.USER_DEFINED);
+    ExpenseItemEntity initialFood = new ExpenseItemEntity(ExpenseCategoryEnum.FOOD, 300000L);
+    ExpenseItemEntity initialHousing = new ExpenseItemEntity(ExpenseCategoryEnum.HOUSING, 500000L);
 
     history.replaceItems(List.of(initialFood, initialHousing));
     assertThat(history.getItems()).hasSize(2);
@@ -56,14 +54,10 @@ class ExpenseHistoryTest {
             .findFirst()
             .orElseThrow();
 
-    // 두 번째 온보딩 저장 시뮬레이션: FOOD 금액 변경, HOUSING 유지, CLOTHING 신규 추가
-    ExpenseItemEntity updatedFood =
-        new ExpenseItemEntity(ExpenseCategoryEnum.FOOD, 450000L, WeightStatusEnum.USER_DEFINED);
-    ExpenseItemEntity updatedHousing =
-        new ExpenseItemEntity(ExpenseCategoryEnum.HOUSING, 500000L, WeightStatusEnum.USER_DEFINED);
-    ExpenseItemEntity newTransport =
-        new ExpenseItemEntity(
-            ExpenseCategoryEnum.TRANSPORT, 100000L, WeightStatusEnum.USER_DEFINED);
+    // 두 번째 온보딩 저장 시뮬레이션: FOOD 금액 변경, HOUSING 유지, TRANSPORT 신규 추가
+    ExpenseItemEntity updatedFood = new ExpenseItemEntity(ExpenseCategoryEnum.FOOD, 450000L);
+    ExpenseItemEntity updatedHousing = new ExpenseItemEntity(ExpenseCategoryEnum.HOUSING, 500000L);
+    ExpenseItemEntity newTransport = new ExpenseItemEntity(ExpenseCategoryEnum.TRANSPORT, 100000L);
 
     history.replaceItems(List.of(updatedFood, updatedHousing, newTransport));
 
@@ -78,5 +72,21 @@ class ExpenseHistoryTest {
 
     assertThat(currentFoodEntity).isSameAs(originalFoodEntity);
     assertThat(currentFoodEntity.getAmount()).isEqualTo(450000L);
+  }
+
+  @Test
+  @DisplayName("replaceItems 호출 시 요청에 없는 카테고리 행은 제거된다 (입력한 것만 존재)")
+  void testReplaceItemsRemovesCategoriesNotInRequest() {
+    ExpenseHistory history = new ExpenseHistory(UUID.randomUUID(), "202609");
+    history.replaceItems(
+        List.of(
+            new ExpenseItemEntity(ExpenseCategoryEnum.FOOD, 300000L),
+            new ExpenseItemEntity(ExpenseCategoryEnum.HOUSING, 500000L)));
+
+    history.replaceItems(List.of(new ExpenseItemEntity(ExpenseCategoryEnum.FOOD, 350000L)));
+
+    assertThat(history.getItems())
+        .extracting(ExpenseItemEntity::getCategory, ExpenseItemEntity::getAmount)
+        .containsExactly(tuple(ExpenseCategoryEnum.FOOD, 350000L));
   }
 }

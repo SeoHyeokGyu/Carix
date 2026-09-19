@@ -38,3 +38,16 @@ tasks.named('test') {
 	// EncryptedConverter 가 민감 컬럼 암/복호화에 사용하는 256비트(32바이트) Base64 키를 주입한다.
 	systemProperty 'carix.encryption-key', 'MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY='
 }
+
+// 기본 소비 가중치 정본은 저장소 루트 config/ 하나. 빌드 때 JAR 클래스패스(config/)로 복사한다.
+def defaultExpenseWeights = rootProject.file('../config/default-expense-weights.yml')
+
+tasks.named('processResources') {
+	duplicatesStrategy = DuplicatesStrategy.FAIL   // src/main/resources 에 복사본이 남아 있으면 빌드 실패
+	from(defaultExpenseWeights) { into 'config' }
+	doFirst {
+		if (!defaultExpenseWeights.exists()) {
+			throw new GradleException("정본 없음: ${defaultExpenseWeights}")
+		}
+	}
+}

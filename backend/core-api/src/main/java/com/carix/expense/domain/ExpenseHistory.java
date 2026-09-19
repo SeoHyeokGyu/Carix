@@ -72,7 +72,7 @@ public class ExpenseHistory {
 
       ExpenseItemEntity existing = existingByCategory.get(category);
       if (existing != null) {
-        existing.update(newItem.getAmount(), newItem.getWeightStatus());
+        existing.update(newItem.getAmount());
       } else {
         newItem.assignTo(this);
         this.items.add(newItem);
