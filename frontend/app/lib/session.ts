@@ -1,6 +1,6 @@
 import { fetchSession } from "./authApi";
 
-/** 백엔드 `users.onboarding_step` 과 같은 값이다 (상세 기술 명세 §1.2). */
+/** 백엔드 `users.onboarding_step` 과 같은 값이다 (API 규격 §7 온보딩 단계 갱신). */
 export type OnboardingStep =
   "PROFILE" | "INCOME" | "EXPENSE" | "SKILLS" | "REVIEW" | "COMPLETED";
 

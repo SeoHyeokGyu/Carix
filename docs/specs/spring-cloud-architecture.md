@@ -240,7 +240,7 @@ Config Server의 `{cipher}` 암호화는 쓰지 않는다. "설정 중앙화"를
 | 로그 레벨 | 가능 (`/actuator/loggers`는 refresh도 불필요) |
 | 기능 플래그 | 가능 |
 | Gateway 라우트 | 가능 (`/actuator/gateway/refresh`) |
-| 수집 파이프라인 설정 | 가능 (`@RefreshScope` + refresh 호출). 스케줄러는 도입하지 않았다 ([데이터 아키텍처 §6](data-architecture.md)) |
+| 수집 파이프라인 설정 | 가능 (`@RefreshScope` + refresh 호출). 스케줄러는 도입하지 않았다 ([데이터 아키텍처 §5](data-architecture.md)) |
 | DataSource·커넥션 풀 | **불가 — 재기동 필요** |
 
 지수 가중치 튜닝이 잦을 프로젝트이므로 이 범위만으로도 실익이 있다.
