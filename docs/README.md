@@ -102,7 +102,7 @@
 | 프런트엔드 | UI 일관성 통일 P3~P4 가 잔여 |
 | 소득 변경 사유 | `income_history.change_reason` 컬럼·API(`a4`)가 미착수다. 컬럼이 서면 `S-12` 소득 탭에 선택 컨트롤 한 개를 붙이는 후속 작업이 남는다. 정의는 [기능 명세 US-R1](specs/functional-specification.md) |
 | 검증 | 스냅샷 쓰기 경로의 운영 Postgres 검증([도메인 정의서 §5](specs/domain-logic.md)), MVI 표본부족(`N<10`) 엣지케이스 검증, 민감 금액 로깅 마스킹 점검, E2E 통합과 완료 기준 10항목 점검 |
-| 개방창 지수(OWI) | 네 번째 지표 카드 미착수. 공고 집계·완화·Provider(B)와 `index_snapshot` 컬럼·대시보드 3 API 확장(C)이 잔여다. 정의는 [기능 명세 §4.5](specs/functional-specification.md), 일정은 [개발 계획 §2](plans/carix-dev-plan.md) `b6`·`c6` |
+| 개방창 지수(OWI) | 공고 집계·완화·Provider(B `b6`)가 잔여다. `index_snapshot.opening_window_index` 컬럼(JPA 엔티티·H2 테스트 스키마)과 대시보드 3 API·`S-10` 네 번째 카드는 코드에 섰고, 산출기가 스텁인 동안 값은 `null`·상태는 `계산 대기`다. **운영 DB 컬럼 적용은 아직이다** ([개발 계획 §2](plans/carix-dev-plan.md) `c6`). 정의는 [기능 명세 §4.5](specs/functional-specification.md) |
 | 지출 카테고리 Swagger 문구 | `ExpenseItem` 의 `category` 설명이 `TRANSPORTATION`·`HEALTH`·`OTHER` 를 적고 있는데 정본 `ExpenseCategoryEnum` 은 `TRANSPORT`·`MEDICAL`·`LEISURE` 다 — 세 값 모두 실존하지 않는다. 코드 주석만의 문제라 동작은 멀쩡하고 공개 API 문서만 틀렸다. 소관 A (소비 API) |
 | 광역 지역 어휘 두 벌 | `core-api` `PeerGroupFallbackResolver#extractBroadRegion` 은 `서울특별시` 를 만들고 collector `RegionRollup` 은 `서울` 을 만든다. 동료집단 완화 Level 3 의 광역 조회가 `region = 'ALL'` 행으로 떨어져 증상이 가려져 있다. 값 규약 정본은 시/도 17개 한글([API 규격 §3.1](specs/api-specification.md), [ERD](specs/erd.md)). 소관 B (동료집단) |
 | Gateway 세션 검증 필터 | `carix.gateway.session-validation.enabled` 활성화 — 기본값 `false`. **`/api/health` 는 필터가 붙지 않는 `core-health` 라우트(`order: -15`)로 이미 분리돼 있어** 배포 헬스체크는 401 을 받지 않는다. 남은 주의점은 되돌릴 때다 — 플래그가 `config/spring/gateway.yml` 에 있어 `.env`(이미지 태그) 롤백으로는 안 꺼진다. 전환·롤백 절차는 [`backend/README.md` 게이트웨이](../backend/README.md). 프런트엔드 잔여 소비자는 `dashboardMarketApi.ts`(S-11 스냅샷 이력, S-14 추이분석)다 — `skillApi.ts` 가 갈아탄 `coreApi` 기반이 아니라 원시 `fetch` 라 `UnauthorizedError` 를 던지지 않고, 401 을 로그인 리다이렉트가 아니라 문자열 오류로 받는다 |
@@ -115,8 +115,10 @@
 
 - **컬럼이 먼저다.** 운영 스냅샷에 행이 쌓인 뒤에는 `index_snapshot` 확장에 마이그레이션이
   붙고, `core` 는 Flyway 이력이 없어([ERD 운영 스키마 적용 이력](specs/erd.md)) 더 비싸다.
-- **키 백업이 먼저다.** 스냅샷 쓰기 검증이 **첫 운영 쓰기**라 그 뒤로는 키 분실이 복구
-  불가다. 키는 서버 `/home/opc/carix/.env` 에만 있다. 컬럼 확장과 키 백업 사이에는 순서가 없다.
+- **키 백업은 여전히 필요하다.** 운영 `core.index_snapshot` 에는 이미 행이 있다 —
+  186행, 사용자 2명, 기준월 202201~202609, `data_version` 23종. 즉 스냅샷 쓰기 검증(`c5`)은
+  **첫 운영 쓰기가 아니다**. 키는 서버 `/home/opc/carix/.env` 에만 있고, 이미 쓰인 데이터도
+  키 분실 시 복구 불가하므로 백업은 계속 남은 작업이다. 컬럼 확장과 키 백업 사이에는 순서가 없다.
 - **쓰기 검증이 필터보다 먼저다.** 플래그를 켜 놓고 돌리면 실패가 401 로 왔을 때 게이트 설정
   탓인지 `jsonb`·자문 잠금 탓인지 갈리지 않는다. 연성 제약이라 뒤집어도 되지만 원인이 섞인다.
 
