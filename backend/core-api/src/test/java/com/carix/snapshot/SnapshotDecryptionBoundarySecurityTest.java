@@ -16,6 +16,7 @@ import com.carix.index.dto.SourceCoverage;
 import com.carix.index.dto.WageBaseline;
 import com.carix.index.enums.ExpenseWeightStatus;
 import com.carix.index.enums.IndexStatus;
+import com.carix.index.stub.StubOpeningWindowIndexProvider;
 import com.carix.snapshot.domain.IndexSnapshot;
 import com.carix.snapshot.domain.SnapshotRationale;
 import com.carix.snapshot.repository.IndexSnapshotRepository;
@@ -102,6 +103,7 @@ class SnapshotDecryptionBoundarySecurityTest {
         new SnapshotRecalculationService(
             ppiProvider,
             mviProvider,
+            new StubOpeningWindowIndexProvider(),
             salaryProvider,
             decisionSignalEngine,
             issuer,

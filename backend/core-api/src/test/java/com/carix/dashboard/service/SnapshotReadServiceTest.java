@@ -321,7 +321,9 @@ class SnapshotReadServiceTest {
                 LocalDate.of(2026, 7, 1),
                 LocalDate.of(2026, 7, 1),
                 "202606",
-                "20260701093000-000"))
+                "20260701093000-000",
+                null,
+                null))
         .build();
   }
 
@@ -346,7 +348,9 @@ class SnapshotReadServiceTest {
                 LocalDate.of(2026, 7, 1),
                 LocalDate.of(2026, 7, 1),
                 "202606",
-                "20260701093000-000"))
+                "20260701093000-000",
+                null,
+                null))
         .build();
   }
 
@@ -369,6 +373,8 @@ class SnapshotReadServiceTest {
         LocalDate.of(2026, 7, 1),
         LocalDate.of(2026, 7, 1),
         "202606",
-        "20260701093000-000");
+        "20260701093000-000",
+        null,
+        null);
   }
 }

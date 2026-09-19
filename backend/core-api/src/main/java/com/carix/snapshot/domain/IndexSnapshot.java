@@ -59,6 +59,9 @@ public class IndexSnapshot {
   @Column(name = "market_value_index", precision = 6, scale = 2)
   private BigDecimal marketValueIndex;
 
+  @Column(name = "opening_window_index", precision = 6, scale = 2)
+  private BigDecimal openingWindowIndex;
+
   @Enumerated(EnumType.STRING)
   @Column(name = "decision_signal", nullable = false, length = 50)
   private DecisionSignalCode decisionSignal;
@@ -77,6 +80,7 @@ public class IndexSnapshot {
       String ruleVersion,
       BigDecimal purchasingPowerIndex,
       BigDecimal marketValueIndex,
+      BigDecimal openingWindowIndex,
       DecisionSignalCode decisionSignal,
       SnapshotRationale rationale) {
     this.userId = userId;
@@ -85,6 +89,7 @@ public class IndexSnapshot {
     this.ruleVersion = ruleVersion;
     this.purchasingPowerIndex = purchasingPowerIndex;
     this.marketValueIndex = marketValueIndex;
+    this.openingWindowIndex = openingWindowIndex;
     this.decisionSignal = decisionSignal;
     this.rationale = rationale;
   }
@@ -93,10 +98,12 @@ public class IndexSnapshot {
   public void replaceWith(
       BigDecimal purchasingPowerIndex,
       BigDecimal marketValueIndex,
+      BigDecimal openingWindowIndex,
       DecisionSignalCode decisionSignal,
       SnapshotRationale rationale) {
     this.purchasingPowerIndex = purchasingPowerIndex;
     this.marketValueIndex = marketValueIndex;
+    this.openingWindowIndex = openingWindowIndex;
     this.decisionSignal = decisionSignal;
     this.rationale = rationale;
   }

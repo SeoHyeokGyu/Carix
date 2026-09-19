@@ -7,12 +7,15 @@ import com.carix.index.MarketValueIndexProvider;
 import com.carix.index.PurchasingPowerIndexProvider;
 import com.carix.index.dto.CurrentSalary;
 import com.carix.index.dto.MviResult;
+import com.carix.index.dto.OwiResult;
 import com.carix.index.dto.PpiResult;
 import com.carix.index.dto.SourceCoverage;
 import com.carix.index.dto.WageBaseline;
 import com.carix.index.enums.ExpenseWeightStatus;
 import com.carix.index.enums.IndexStatus;
+import com.carix.index.stub.StubOpeningWindowIndexProvider;
 import com.carix.snapshot.domain.IndexSnapshot;
+import com.carix.snapshot.domain.SnapshotRationale;
 import com.carix.snapshot.repository.IndexSnapshotRepository;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -49,6 +52,7 @@ class SnapshotRecalculationServiceTest {
         new SnapshotRecalculationService(
             providers,
             new StubMviProvider(),
+            new StubOpeningWindowIndexProvider(),
             providers,
             new DecisionSignalEngine(),
             issuer,
@@ -178,6 +182,140 @@ class SnapshotRecalculationServiceTest {
     assertThat(snapshot.getRationale().toString())
         .doesNotContain("72000000")
         .doesNotContain("60000000");
+  }
+
+  /** b6 전까지의 기본 상태. 값이 없어도 상태는 남아야 화면이 사유를 말할 수 있다. */
+  @Test
+  void OWI_스텁이면_컬럼은_비고_상태는_남는다() {
+    service.recalculateSnapshot(userId, CURRENT_YM);
+
+    IndexSnapshot saved =
+        indexSnapshotRepository.findByUserIdAndBaseYearMonth(userId, CURRENT_YM).getFirst();
+    assertThat(saved.getOpeningWindowIndex()).isNull();
+    assertThat(saved.getRationale().indexStatuses().owi()).isEqualTo(IndexStatus.NOT_AVAILABLE);
+    assertThat(saved.getRationale().openingWindow()).isNull();
+  }
+
+  @Test
+  void OWI_가_산출되면_값과_근거_일곱이_함께_저장된다() {
+    SnapshotRecalculationService withOwi = serviceWithOwi(okOwi());
+
+    withOwi.recalculateSnapshot(userId, CURRENT_YM);
+
+    IndexSnapshot saved =
+        indexSnapshotRepository.findByUserIdAndBaseYearMonth(userId, CURRENT_YM).getFirst();
+    assertThat(saved.getOpeningWindowIndex()).isEqualByComparingTo("118.40");
+    assertThat(saved.getRationale().indexStatuses().owi()).isEqualTo(IndexStatus.OK);
+    assertThat(saved.getRationale().openingWindow())
+        .isEqualTo(
+            new SnapshotRationale.OpeningWindowEvidence(
+                124, 86, 34, new BigDecimal("21.50"), 3, "서울 전체 / 경력 MID / 회사규모 무관", 29));
+  }
+
+  /** 표본 부족은 결측이 아니다 — 아는 사실(상시채용 비율·마감일 표본)은 남긴다 (기능 명세 §4.5). */
+  @Test
+  void OWI_표본부족이면_상시채용_비율과_마감일_표본은_남는다() {
+    SnapshotRecalculationService withOwi = serviceWithOwi(insufficientOwi());
+
+    withOwi.recalculateSnapshot(userId, CURRENT_YM);
+
+    IndexSnapshot saved =
+        indexSnapshotRepository.findByUserIdAndBaseYearMonth(userId, CURRENT_YM).getFirst();
+    assertThat(saved.getOpeningWindowIndex()).isNull();
+    assertThat(saved.getRationale().indexStatuses().owi())
+        .isEqualTo(IndexStatus.INSUFFICIENT_SAMPLE);
+    assertThat(saved.getRationale().openingWindow())
+        .extracting(
+            SnapshotRationale.OpeningWindowEvidence::openEndedRatePercent,
+            SnapshotRationale.OpeningWindowEvidence::deadlineSampleSize,
+            SnapshotRationale.OpeningWindowEvidence::medianWindowDays)
+        .containsExactly(new BigDecimal("18.00"), 4, null);
+  }
+
+  /** 세 지수 상태를 다 저장한다 — 읽기 경로가 value==null 에서 NOT_AVAILABLE 로 뭉개지 않게. */
+  @Test
+  void 세_지수_상태가_모두_저장된다() {
+    service.recalculateSnapshot(userId, CURRENT_YM);
+
+    SnapshotRationale.IndexStatuses statuses =
+        indexSnapshotRepository
+            .findByUserIdAndBaseYearMonth(userId, CURRENT_YM)
+            .getFirst()
+            .getRationale()
+            .indexStatuses();
+    assertThat(statuses.ppi()).isNotNull();
+    assertThat(statuses.mvi()).isNotNull();
+    assertThat(statuses.owi()).isNotNull();
+  }
+
+  /** OWI 는 결정 신호 규칙표에 안 들어간다. 규칙 버전이 흔들리면 옛 스냅샷의 판정 근거가 갈린다. */
+  @Test
+  void OWI_도입이_규칙_버전을_바꾸지_않는다() {
+    assertThat(DecisionSignalEngine.RULE_VERSION).isEqualTo("1.0.0");
+  }
+
+  /** indexStatuses 도입 전에 쓰인 jsonb 행은 그 필드가 null 로 역직렬화된다. */
+  @Test
+  void 옛_rationale_은_상태가_비어도_읽힌다() {
+    SnapshotRationale old =
+        new SnapshotRationale(
+            List.of("규칙"),
+            null,
+            List.of(),
+            List.of(),
+            List.of(),
+            null,
+            null,
+            null,
+            "run-1",
+            null,
+            null);
+
+    assertThat(old.indexStatuses()).isEqualTo(SnapshotRationale.IndexStatuses.unknown());
+    assertThat(old.indexStatuses().owi()).isNull();
+    assertThat(old.openingWindow()).isNull();
+  }
+
+  // --- 픽스처 ---
+
+  private SnapshotRecalculationService serviceWithOwi(OwiResult owi) {
+    return new SnapshotRecalculationService(
+        providers,
+        new StubMviProvider(),
+        (userId, ym) -> owi,
+        providers,
+        new DecisionSignalEngine(),
+        issuer,
+        indexSnapshotRepository,
+        () -> CURRENT_YM);
+  }
+
+  private static OwiResult okOwi() {
+    return new OwiResult(
+        CURRENT_YM,
+        new BigDecimal("118.40"),
+        IndexStatus.OK,
+        124,
+        86,
+        34,
+        new BigDecimal("21.50"),
+        3,
+        "서울 전체 / 경력 MID / 회사규모 무관",
+        29);
+  }
+
+  private static OwiResult insufficientOwi() {
+    return new OwiResult(
+        CURRENT_YM,
+        null,
+        IndexStatus.INSUFFICIENT_SAMPLE,
+        31,
+        4,
+        null,
+        new BigDecimal("18.00"),
+        5,
+        "전국 / 경력 무관",
+        29);
   }
 
   /**

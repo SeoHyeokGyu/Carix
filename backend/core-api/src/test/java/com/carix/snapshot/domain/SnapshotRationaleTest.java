@@ -13,7 +13,7 @@ class SnapshotRationaleTest {
   @DisplayName("SnapshotRationale null 안전 불변 리스트 복사 및 기본값 처리")
   void testNullSafety() {
     SnapshotRationale rationaleNull =
-        new SnapshotRationale(null, null, null, null, null, null, null, null, null);
+        new SnapshotRationale(null, null, null, null, null, null, null, null, null, null, null);
 
     assertThat(rationaleNull.rulesApplied()).isEmpty();
     assertThat(rationaleNull.excludedSkills()).isEmpty();
@@ -28,7 +28,9 @@ class SnapshotRationaleTest {
             LocalDate.now(),
             LocalDate.now(),
             "202607",
-            "run-1");
+            "run-1",
+            null,
+            null);
 
     assertThat(rationaleWithValues.rulesApplied()).containsExactly("Rule1");
     assertThat(rationaleWithValues.excludedSkills()).containsExactly("SkillA");
