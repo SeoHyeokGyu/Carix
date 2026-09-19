@@ -102,19 +102,16 @@
 | 프런트엔드 | UI 일관성 통일 P3~P4 가 잔여 |
 | 소득 변경 사유 | `income_history.change_reason` 컬럼·API(`a4`)가 미착수다. 컬럼이 서면 `S-12` 소득 탭에 선택 컨트롤 한 개를 붙이는 후속 작업이 남는다. 정의는 [기능 명세 US-R1](specs/functional-specification.md) |
 | 검증 | 스냅샷 쓰기 경로의 운영 Postgres 검증([도메인 정의서 §5](specs/domain-logic.md)), MVI 표본부족(`N<10`) 엣지케이스 검증, 민감 금액 로깅 마스킹 점검, E2E 통합과 완료 기준 10항목 점검 |
-| 개방창 지수(OWI) | 공고 집계·완화·Provider(B `b6`)가 잔여다. `index_snapshot.opening_window_index` 컬럼(JPA 엔티티·H2 테스트 스키마)과 대시보드 3 API·`S-10` 네 번째 카드는 코드에 섰고, 산출기가 스텁인 동안 값은 `null`·상태는 `계산 대기`다. **운영 DB 컬럼 적용은 아직이다** ([개발 계획 §2](plans/carix-dev-plan.md) `c6`). 정의는 [기능 명세 §4.5](specs/functional-specification.md) |
+| 개방창 지수(OWI) | 공고 집계·완화·Provider(B `b6`)가 잔여다. `index_snapshot.opening_window_index` 컬럼과 대시보드 3 API·`S-10` 네 번째 카드는 섰고 운영 스키마에도 적용했다([ERD 운영 스키마 적용 이력](specs/erd.md)). 산출기가 스텁인 동안 값은 `null`·상태는 `계산 대기`다. 정의는 [기능 명세 §4.5](specs/functional-specification.md) |
 | 지출 카테고리 Swagger 문구 | `ExpenseItem` 의 `category` 설명이 `TRANSPORTATION`·`HEALTH`·`OTHER` 를 적고 있는데 정본 `ExpenseCategoryEnum` 은 `TRANSPORT`·`MEDICAL`·`LEISURE` 다 — 세 값 모두 실존하지 않는다. 코드 주석만의 문제라 동작은 멀쩡하고 공개 API 문서만 틀렸다. 소관 A (소비 API) |
 | 광역 지역 어휘 두 벌 | `core-api` `PeerGroupFallbackResolver#extractBroadRegion` 은 `서울특별시` 를 만들고 collector `RegionRollup` 은 `서울` 을 만든다. 동료집단 완화 Level 3 의 광역 조회가 `region = 'ALL'` 행으로 떨어져 증상이 가려져 있다. 값 규약 정본은 시/도 17개 한글([API 규격 §3.1](specs/api-specification.md), [ERD](specs/erd.md)). 소관 B (동료집단) |
 | Gateway 세션 검증 필터 | `carix.gateway.session-validation.enabled` 활성화 — 기본값 `false`. **`/api/health` 는 필터가 붙지 않는 `core-health` 라우트(`order: -15`)로 이미 분리돼 있어** 배포 헬스체크는 401 을 받지 않는다. 남은 주의점은 되돌릴 때다 — 플래그가 `config/spring/gateway.yml` 에 있어 `.env`(이미지 태그) 롤백으로는 안 꺼진다. 전환·롤백 절차는 [`backend/README.md` 게이트웨이](../backend/README.md). 프런트엔드 잔여 소비자는 `dashboardMarketApi.ts`(S-11 스냅샷 이력, S-14 추이분석)다 — `skillApi.ts` 가 갈아탄 `coreApi` 기반이 아니라 원시 `fetch` 라 `UnauthorizedError` 를 던지지 않고, 401 을 로그인 리다이렉트가 아니라 문자열 오류로 받는다 |
 | 임금통계 연도 시계열 | 출처 컬럼(`source`)과 **쓰기 경로가 섰다** — 수집이 연도별로 출처를 기록하고, 실측만 기존 행을 덮으며, 폴백 vintage 를 고정해 벽시계 드리프트를 막았다. 고정 이전에 쌓인 `base_period=2025` 드리프트 72행은 삭제했다([ERD 운영 스키마 적용 이력](specs/erd.md)). 운영 288행은 컬럼 도입 이전 적재분이라 재수집 전까지 `UNKNOWN` 이다. 잔여 구현은 **읽기 경로**다 — `findSeries`·구간 상승률, `findLatestBaseline` 의 출처 우선순위. 지표 넷은 내 상승률 vs 시장(`a9`), 임금 vs 개인물가(`a10`), 출처 노출(`b13`), 경력 사다리 연도 축(`b14`) — 일정은 [개발 계획 §2](plans/carix-dev-plan.md) |
 | 운영 감시 | 컨테이너 헬스체크 감시를 이 호스트의 Dozzle(8888)·Dockge(3001)에 붙이는 것과 디스크 사용률 알림이 미착수다. 루트 사용률은 정리 후 81% 이고, 공유 호스트라 스왑 4GB 가 이미 소진된 상태에서 Carix 가 올라가 있다 |
 
-**배포 전 실행 순서.** 아래 둘은 순서가 근거를 갖는다 — 「개방창 지수(OWI)」의
-`index_snapshot` 컬럼 확장(`c6`) → 「검증」의 스냅샷 쓰기 운영 Postgres 검증 →
-「Gateway 세션 검증 필터」 활성화.
+**배포 전 실행 순서.** 「검증」의 스냅샷 쓰기 운영 Postgres 검증 → 「Gateway 세션 검증 필터」
+활성화, 이 하나에 순서 근거가 있다.
 
-- **컬럼이 먼저다.** 운영 스냅샷에 행이 쌓인 뒤에는 `index_snapshot` 확장에 마이그레이션이
-  붙고, `core` 는 Flyway 이력이 없어([ERD 운영 스키마 적용 이력](specs/erd.md)) 더 비싸다.
 - **쓰기 검증이 필터보다 먼저다.** 플래그를 켜 놓고 돌리면 실패가 401 로 왔을 때 게이트 설정
   탓인지 `jsonb`·자문 잠금 탓인지 갈리지 않는다. 연성 제약이라 뒤집어도 되지만 원인이 섞인다.
 
