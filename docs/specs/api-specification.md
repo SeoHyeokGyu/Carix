@@ -321,7 +321,7 @@
       ]
     }
     ```
-    *(공고 분포는 참고 표시 전용, 판정 기준선은 `baseline` — 상세 기술 명세 §2.1 규약)*
+    *(공고 분포는 참고 표시 전용, 판정 기준선은 `baseline` — [기능 명세 §6](functional-specification.md) 규약)*
 *   **`careerLadder` 는 같은 직군의 경력 구간별 임금 곡선이다** ([기능 명세 §4.7](functional-specification.md)). `wage_stat_observation` 을 자기 자신과 비교하므로 연령 프록시가 구간 간 비율에서 상쇄된다 — 공고 중앙값과 빼는 비교(모수가 다르다)와 다르다. `source` 는 `core.wage_stat_observation.source` 를 그대로 싣는다 — `FALLBACK` 은 그 구간이 KOSIS 실측 보간이 아니라 하드코딩 상수로 적재됐다는 뜻이고, `UNKNOWN` 은 출처 컬럼 도입 이전 적재분이라 어느 쪽인지 모른다는 뜻이다. 화면은 `KOSIS` 아닌 구간을 실측과 섞어 한 곡선으로 그리지 않는다 — 불리언으로는 `UNKNOWN` 을 담지 못해 `wageStat` 과 같은 세 값 축을 쓴다. `userBracket` 은 현재 3구간 매핑의 결과라 신입·13년차가 양 끝에 못 선다(개발 계획 §2 `b7`). `region` 은 항상 `ALL` 이다.
 *   **`trend` 는 같은 동료집단의 등록월별 중앙 제시 연봉이다** ([기능 명세 §4.6](functional-specification.md)). 버킷 키는 `job_posting.posted_start_date` 의 등록월이라 수집 회차와 무관하다. **완화는 현재 시점 조건으로 한 번만 안착시키고 그 조건으로 월별 집계한다** — 월마다 다시 완화하면 비교 대상이 달라져 계열이 이어지지 않는다. 그 달 공개연봉 표본이 부족하면 `median` 이 `null` 이고 화면은 선을 잇지 않는다. 금액이므로 지수로 환산하지 않는다.
 *   **두 `sampleSize` 는 다르다.** 최상위는 중복 제거 후 동료집단 공고 수, `postingReference.sampleSize` 는
