@@ -8,6 +8,7 @@ import java.util.List;
 public record DashboardSummaryResponse(
     IndexDetail purchasingPowerIndex,
     IndexDetail marketValueIndex,
+    IndexDetail openingWindowIndex,
     DecisionSignal decisionSignal,
     SummaryMetadata metadata) {
 
@@ -57,7 +58,9 @@ public record DashboardSummaryResponse(
           Double salaryMissingRate,
       @Schema(description = "표본이 가장 큰 원천의 안착 조건. 없으면 null", nullable = true) PeerGroup peerGroup,
       @Schema(nullable = true) WageStatInfo wageStat,
-      @Schema(nullable = true) String expenseWeightStatus) {}
+      @Schema(nullable = true) String expenseWeightStatus,
+      @Schema(description = "개방창 지수 근거 셋. 근거가 없으면 null", nullable = true)
+          OpeningWindowSummary openingWindow) {}
 
   public record DataLimitSource(String source, int sampleSize) {}
 
@@ -69,4 +72,15 @@ public record DashboardSummaryResponse(
   public record ExcludedSkill(String skill, String reason) {}
 
   public record WageStatInfo(String wageDefinition, String statVintage) {}
+
+  /**
+   * 개방창 지수의 화면용 근거 (API 규격 §5.1). 저장된 근거 일곱 중 셋만 나간다 — 나머지 넷은 쓰는 화면이 아직 없다.
+   *
+   * <p>{@code openEndedRate} 는 퍼센트다. 내부 {@code OpeningWindowEvidence.openEndedRatePercent} 와 같은 값이고
+   * 이름만 규격을 따른다.
+   */
+  public record OpeningWindowSummary(
+      @Schema(example = "34", nullable = true) Integer medianWindowDays,
+      @Schema(description = "상시채용 비율(%)", example = "21.5", nullable = true) Double openEndedRate,
+      @Schema(example = "86", nullable = true) Integer deadlineSampleSize) {}
 }
