@@ -375,19 +375,12 @@ describe("대시보드 라우트 및 레이아웃 (Dashboard)", () => {
       expect(await screen.findByText("로그인 화면")).toBeInTheDocument();
     });
 
-    const notAvailable = {
-      value: null,
-      changeFromLastMonth: null,
-      status: null,
-      indexStatus: "NOT_AVAILABLE",
-    } as const;
-
     it("개방창 지수 카드에 값과 근거 뱃지 둘을 그린다", async () => {
       vi.spyOn(dashboardApi, "fetchSummary").mockResolvedValue({
         ok: true,
         data: {
-          purchasingPowerIndex: notAvailable,
-          marketValueIndex: notAvailable,
+          purchasingPowerIndex: EMPTY_INDEX,
+          marketValueIndex: EMPTY_INDEX,
           openingWindowIndex: {
             value: 118.4,
             changeFromLastMonth: 3.1,
@@ -419,8 +412,8 @@ describe("대시보드 라우트 및 레이아웃 (Dashboard)", () => {
       vi.spyOn(dashboardApi, "fetchSummary").mockResolvedValue({
         ok: true,
         data: {
-          purchasingPowerIndex: notAvailable,
-          marketValueIndex: notAvailable,
+          purchasingPowerIndex: EMPTY_INDEX,
+          marketValueIndex: EMPTY_INDEX,
           openingWindowIndex: {
             value: null,
             changeFromLastMonth: null,
@@ -452,14 +445,14 @@ describe("대시보드 라우트 및 레이아웃 (Dashboard)", () => {
       vi.spyOn(dashboardApi, "fetchSummary").mockResolvedValue({
         ok: true,
         data: {
-          purchasingPowerIndex: notAvailable,
+          purchasingPowerIndex: EMPTY_INDEX,
           marketValueIndex: {
             value: null,
             changeFromLastMonth: null,
             status: null,
             indexStatus: "INSUFFICIENT_SAMPLE",
           },
-          openingWindowIndex: notAvailable,
+          openingWindowIndex: EMPTY_INDEX,
           decisionSignal: null,
           metadata: { baseDate: "2026-09-01", updateDelayed: false },
         },
@@ -477,9 +470,9 @@ describe("대시보드 라우트 및 레이아웃 (Dashboard)", () => {
       vi.spyOn(dashboardApi, "fetchSummary").mockResolvedValue({
         ok: true,
         data: {
-          purchasingPowerIndex: notAvailable,
-          marketValueIndex: notAvailable,
-          openingWindowIndex: notAvailable,
+          purchasingPowerIndex: EMPTY_INDEX,
+          marketValueIndex: EMPTY_INDEX,
+          openingWindowIndex: EMPTY_INDEX,
           decisionSignal: null,
           metadata: { baseDate: "2026-09-01", updateDelayed: false },
         },
@@ -500,8 +493,8 @@ describe("대시보드 라우트 및 레이아웃 (Dashboard)", () => {
       vi.spyOn(dashboardApi, "fetchSummary").mockResolvedValue({
         ok: true,
         data: {
-          purchasingPowerIndex: notAvailable,
-          marketValueIndex: notAvailable,
+          purchasingPowerIndex: EMPTY_INDEX,
+          marketValueIndex: EMPTY_INDEX,
           openingWindowIndex: {
             value: null,
             changeFromLastMonth: null,

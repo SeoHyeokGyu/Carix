@@ -149,7 +149,10 @@ public class SnapshotRecalculationService {
     if (owi.peerSampleSize() == null
         && owi.deadlineSampleSize() == null
         && owi.medianWindowDays() == null
-        && owi.openEndedRatePercent() == null) {
+        && owi.openEndedRatePercent() == null
+        && owi.fallbackLevel() == null
+        && owi.appliedConditions() == null
+        && owi.marketMedianWindowDays() == null) {
       return null;
     }
     return new SnapshotRationale.OpeningWindowEvidence(

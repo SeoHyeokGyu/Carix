@@ -232,6 +232,36 @@ class SnapshotRecalculationServiceTest {
         .containsExactly(new BigDecimal("18.00"), 4, null);
   }
 
+  /**
+   * 표본 수치 넷이 전부 없어도 완화 이력 셋({@code fallbackLevel}·{@code appliedConditions}·{@code
+   * marketMedianWindowDays})만 있으면 근거 블록을 만든다. 넷만 보던 옛 가드는 이 모양에서 블록째 버려 D1 이 지키려는 완화 이력이 사라졌다.
+   */
+  @Test
+  void 완화_이력만_있어도_근거_블록이_만들어진다() {
+    OwiResult relaxationOnlyOwi =
+        new OwiResult(
+            CURRENT_YM,
+            null,
+            IndexStatus.INSUFFICIENT_SAMPLE,
+            null,
+            null,
+            null,
+            null,
+            5,
+            "전국 / 경력 무관",
+            29);
+    SnapshotRecalculationService withOwi = serviceWithOwi(relaxationOnlyOwi);
+
+    withOwi.recalculateSnapshot(userId, CURRENT_YM);
+
+    IndexSnapshot saved =
+        indexSnapshotRepository.findByUserIdAndBaseYearMonth(userId, CURRENT_YM).getFirst();
+    assertThat(saved.getRationale().openingWindow())
+        .isEqualTo(
+            new SnapshotRationale.OpeningWindowEvidence(
+                null, null, null, null, 5, "전국 / 경력 무관", 29));
+  }
+
   /** 세 지수 상태를 다 저장한다 — 읽기 경로가 value==null 에서 NOT_AVAILABLE 로 뭉개지 않게. */
   @Test
   void 세_지수_상태가_모두_저장된다() {
