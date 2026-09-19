@@ -133,7 +133,15 @@ describe("대시보드 라우트 및 레이아웃 (Dashboard)", () => {
             ...EMPTY_INDEX,
             indexStatus: "INSUFFICIENT_SAMPLE",
           },
-          openingWindowIndex: EMPTY_INDEX,
+          // OWI 는 이 테스트의 관심사가 아니다 — NOT_AVAILABLE 로 두면 PPI 카드와
+          // "계산 대기" 뱃지가 중복돼 getByText 가 깨진다. 정상 계산된 값으로 둬
+          // "지수 하나만 계산 전" 이라는 시나리오 의도를 그대로 지킨다.
+          openingWindowIndex: {
+            value: 100.0,
+            changeFromLastMonth: 0,
+            status: "STABLE",
+            indexStatus: "OK",
+          },
           decisionSignal: null,
           metadata: { baseDate: "2026-09-01", updateDelayed: false },
         },
@@ -368,6 +376,123 @@ describe("대시보드 라우트 및 레이아웃 (Dashboard)", () => {
       renderScreen();
 
       expect(await screen.findByText("로그인 화면")).toBeInTheDocument();
+    });
+
+    const notAvailable = {
+      value: null,
+      changeFromLastMonth: null,
+      status: null,
+      indexStatus: "NOT_AVAILABLE",
+    } as const;
+
+    it("개방창 지수 카드에 값과 근거 뱃지 둘을 그린다", async () => {
+      vi.spyOn(dashboardApi, "fetchSummary").mockResolvedValue({
+        ok: true,
+        data: {
+          purchasingPowerIndex: notAvailable,
+          marketValueIndex: notAvailable,
+          openingWindowIndex: {
+            value: 118.4,
+            changeFromLastMonth: 3.1,
+            status: "INCREASED",
+            indexStatus: "OK",
+          },
+          decisionSignal: null,
+          metadata: {
+            baseDate: "2026-09-01",
+            updateDelayed: false,
+            openingWindow: {
+              medianWindowDays: 34,
+              openEndedRate: 21.5,
+              deadlineSampleSize: 86,
+            },
+          },
+        },
+      } as never);
+
+      renderScreen();
+
+      expect(await screen.findByText("개방창 지수")).toBeInTheDocument();
+      expect(screen.getByText("118.4")).toBeInTheDocument();
+      expect(screen.getByText("중앙 34일")).toBeInTheDocument();
+      expect(screen.getByText("상시 21.5%")).toBeInTheDocument();
+    });
+
+    it("개방창 표본이 부족하면 수치 대신 표본 부족을 두고 상시 뱃지만 남긴다", async () => {
+      vi.spyOn(dashboardApi, "fetchSummary").mockResolvedValue({
+        ok: true,
+        data: {
+          purchasingPowerIndex: notAvailable,
+          marketValueIndex: notAvailable,
+          openingWindowIndex: {
+            value: null,
+            changeFromLastMonth: null,
+            status: null,
+            indexStatus: "INSUFFICIENT_SAMPLE",
+          },
+          decisionSignal: null,
+          metadata: {
+            baseDate: "2026-09-01",
+            updateDelayed: false,
+            openingWindow: {
+              medianWindowDays: null,
+              openEndedRate: 18.0,
+              deadlineSampleSize: 4,
+            },
+          },
+        },
+      } as never);
+
+      renderScreen();
+
+      expect(await screen.findByText("표본 부족")).toBeInTheDocument();
+      expect(screen.getByText("상시 18.0%")).toBeInTheDocument();
+      expect(screen.queryByText(/중앙 .*일/)).not.toBeInTheDocument();
+    });
+
+    /** D4 회귀 — 부분 열화를 첫 계산 전으로 오판하지 않는다. */
+    it("시장가치가 표본 부족이면 첫 계산 전 화면이 아니다", async () => {
+      vi.spyOn(dashboardApi, "fetchSummary").mockResolvedValue({
+        ok: true,
+        data: {
+          purchasingPowerIndex: notAvailable,
+          marketValueIndex: {
+            value: null,
+            changeFromLastMonth: null,
+            status: null,
+            indexStatus: "INSUFFICIENT_SAMPLE",
+          },
+          openingWindowIndex: notAvailable,
+          decisionSignal: null,
+          metadata: { baseDate: "2026-09-01", updateDelayed: false },
+        },
+      } as never);
+
+      renderScreen();
+
+      expect(await screen.findByText("시장가치 지수")).toBeInTheDocument();
+      expect(
+        screen.queryByText("첫 지수를 계산하고 있습니다"),
+      ).not.toBeInTheDocument();
+    });
+
+    it("지수 셋이 모두 계산 대기면 첫 계산 전 화면을 그린다", async () => {
+      vi.spyOn(dashboardApi, "fetchSummary").mockResolvedValue({
+        ok: true,
+        data: {
+          purchasingPowerIndex: notAvailable,
+          marketValueIndex: notAvailable,
+          openingWindowIndex: notAvailable,
+          decisionSignal: null,
+          metadata: { baseDate: "2026-09-01", updateDelayed: false },
+        },
+      } as never);
+
+      renderScreen();
+
+      expect(
+        await screen.findByText("첫 지수를 계산하고 있습니다"),
+      ).toBeInTheDocument();
     });
   });
 
