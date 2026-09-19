@@ -50,11 +50,12 @@ class IndexNullabilityTest {
   @DisplayName("TrendPoint - 결측월은 지수와 금액이 모두 null 이라 차트가 갭으로 그린다")
   void trendPoint_결측월() throws Exception {
     TrendListResponse.TrendPoint point =
-        new TrendListResponse.TrendPoint("2026-03", null, null, null, null, null, null);
+        new TrendListResponse.TrendPoint("2026-03", null, null, null, null, null, null, null);
 
     String json = objectMapper.writeValueAsString(point);
 
     assertThat(json).contains("\"purchasingPowerIndex\":null");
+    assertThat(json).contains("\"openingWindowIndex\":null");
     assertThat(json).contains("\"nominalIncome\":null");
     assertThat(json).doesNotContain(":0.0");
     assertThat(json).doesNotContain(":0,");
@@ -65,12 +66,16 @@ class IndexNullabilityTest {
   void trendList_계열별상태() throws Exception {
     TrendListResponse response =
         new TrendListResponse(
-            List.of(), IndexStatus.NOT_AVAILABLE.name(), IndexStatus.INSUFFICIENT_SAMPLE.name());
+            List.of(),
+            IndexStatus.NOT_AVAILABLE.name(),
+            IndexStatus.INSUFFICIENT_SAMPLE.name(),
+            IndexStatus.OK.name());
 
     String json = objectMapper.writeValueAsString(response);
 
     assertThat(json).contains("\"purchasingPowerStatus\":\"NOT_AVAILABLE\"");
     assertThat(json).contains("\"marketValueStatus\":\"INSUFFICIENT_SAMPLE\"");
+    assertThat(json).contains("\"openingWindowStatus\":\"OK\"");
   }
 
   @Test
@@ -79,6 +84,7 @@ class IndexNullabilityTest {
     SnapshotHistoryResponse.SnapshotPoint point =
         new SnapshotHistoryResponse.SnapshotPoint(
             "202603",
+            null,
             null,
             null,
             "INSUFFICIENT_DATA",
@@ -92,6 +98,7 @@ class IndexNullabilityTest {
 
     assertThat(json).contains("\"purchasingPowerIndex\":null");
     assertThat(json).contains("\"marketValueIndex\":null");
+    assertThat(json).contains("\"openingWindowIndex\":null");
     assertThat(json).doesNotContain(":0.0");
   }
 }

@@ -377,6 +377,61 @@ class SnapshotReadServiceTest {
     assertThat(point.realIncome()).isNull();
   }
 
+  @Test
+  @DisplayName("trends - 개방창 계열과 계열 상태를 싣는다")
+  void trends_개방창_계열() {
+    given(repository.findByUserIdOrderByBaseYearMonthDesc(USER_ID))
+        .willReturn(
+            List.of(
+                snapshotWith(
+                    null,
+                    null,
+                    new BigDecimal("118.40"),
+                    new SnapshotRationale.IndexStatuses(null, null, IndexStatus.OK),
+                    null)));
+
+    TrendListResponse response = seriesService.trends(USER_ID, "202607", 12);
+
+    assertThat(response.trends())
+        .extracting(TrendListResponse.TrendPoint::openingWindowIndex)
+        .containsExactly(118.4);
+    assertThat(response.openingWindowStatus()).isEqualTo(IndexStatus.OK.name());
+  }
+
+  /** 계열에 값이 하나도 없으면 화면이 이유를 알아야 한다. */
+  @Test
+  @DisplayName("trends - 개방창 값이 한 달도 없으면 계열 상태가 계산 대기다")
+  void trends_개방창_전부결측() {
+    given(repository.findByUserIdOrderByBaseYearMonthDesc(USER_ID))
+        .willReturn(
+            List.of(
+                snapshotWith(null, null, null, SnapshotRationale.IndexStatuses.unknown(), null)));
+
+    TrendListResponse response = seriesService.trends(USER_ID, "202607", 12);
+
+    assertThat(response.openingWindowStatus()).isEqualTo(IndexStatus.NOT_AVAILABLE.name());
+  }
+
+  @Test
+  @DisplayName("history - 개방창 지수를 싣는다")
+  void history_개방창_지수() {
+    given(repository.findByUserIdOrderByBaseYearMonthDesc(USER_ID))
+        .willReturn(
+            List.of(
+                snapshotWith(
+                    null,
+                    null,
+                    new BigDecimal("118.40"),
+                    new SnapshotRationale.IndexStatuses(null, null, IndexStatus.OK),
+                    null)));
+
+    SnapshotHistoryResponse response = seriesService.history(USER_ID);
+
+    assertThat(response.snapshots())
+        .extracting(SnapshotHistoryResponse.SnapshotPoint::openingWindowIndex)
+        .containsExactly(118.4);
+  }
+
   // --- fixtures ---
 
   /** 기존 {@code snapshot(...)} 은 지수 둘만 받는다. 상태·근거까지 꽂아야 하는 테스트만 이쪽을 쓴다. */

@@ -190,7 +190,8 @@ class DashboardControllerTest {
   @DisplayName("GET /v1/dashboard/trends - 계열 상태를 함께 싣는다")
   void getTrends() throws Exception {
     given(snapshotSeriesService.trends(eq(USER_ID), eq("202601"), eq(6)))
-        .willReturn(new TrendListResponse(List.of(), "NOT_AVAILABLE", "NOT_AVAILABLE"));
+        .willReturn(
+            new TrendListResponse(List.of(), "NOT_AVAILABLE", "NOT_AVAILABLE", "NOT_AVAILABLE"));
 
     mockMvc
         .perform(

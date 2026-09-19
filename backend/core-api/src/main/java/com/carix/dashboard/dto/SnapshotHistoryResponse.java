@@ -12,6 +12,7 @@ public record SnapshotHistoryResponse(List<SnapshotPoint> snapshots) {
       String baseYearMonth,
       @Schema(nullable = true) Double purchasingPowerIndex,
       @Schema(nullable = true) Double marketValueIndex,
+      @Schema(nullable = true) Double openingWindowIndex,
       String decisionSignal,
       @Schema(example = "스킬 보강 우선") String label,
       String dataVersion,
