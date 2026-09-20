@@ -1,12 +1,17 @@
 import { useState } from "react";
 import { Link, redirect, useLoaderData, useRevalidator } from "react-router";
+import { RotateCw } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { IndexCard } from "../../components/dashboard/IndexCard";
 import { SignalBadge } from "../../components/dashboard/SignalBadge";
 import { toUserMessage } from "../../lib/apiError";
-import { fetchSummary, type DashboardSummary } from "../../lib/api/dashboard";
+import {
+  fetchSummary,
+  recalculateDashboard,
+  type DashboardSummary,
+} from "../../lib/api/dashboard";
 import { UnauthorizedError } from "../../lib/coreApi";
 import { LOGIN_PATH } from "../../lib/routeGuards";
 
@@ -52,15 +57,46 @@ export default function DashboardHome() {
   const [lastGood, setLastGood] = useState<DashboardSummary | null>(
     summary.ok ? summary.data : null,
   );
+  const [recalculatedSummary, setRecalculatedSummary] =
+    useState<DashboardSummary | null>(null);
   const [prevSummary, setPrevSummary] = useState(summary);
   if (summary !== prevSummary) {
     setPrevSummary(summary);
-    if (summary.ok) setLastGood(summary.data);
+    if (summary.ok) {
+      setLastGood(summary.data);
+      setRecalculatedSummary(null);
+    }
   }
 
   const [isRationaleOpen, setIsRationaleOpen] = useState(false);
+  const [isRecalculating, setIsRecalculating] = useState(false);
+  const [recalculateMessage, setRecalculateMessage] = useState<string | null>(
+    null,
+  );
 
-  const data = summary.ok ? summary.data : lastGood;
+  const handleRecalculate = async () => {
+    setIsRecalculating(true);
+    setRecalculateMessage(null);
+    try {
+      const res = await recalculateDashboard();
+      if (res.ok) {
+        setRecalculatedSummary(res.data.summary);
+        setLastGood(res.data.summary);
+        setRecalculateMessage(
+          `${res.data.recalculatedMonths}개월치 지수가 최신 정보로 재계산되었습니다.`,
+        );
+        revalidator.revalidate();
+      } else {
+        setRecalculateMessage(toUserMessage(res.error));
+      }
+    } catch {
+      setRecalculateMessage("재계산 요청 중 오류가 발생했습니다.");
+    } finally {
+      setIsRecalculating(false);
+    }
+  };
+
+  const data = recalculatedSummary ?? (summary.ok ? summary.data : lastGood);
   const firstCalculation = data !== null && isFirstCalculation(data);
 
   return (
@@ -85,11 +121,39 @@ export default function DashboardHome() {
         </div>
       </div>
 
-      <div className="mt-6 flex items-center justify-between gap-3">
+      <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
         <h2 className="font-display text-2xl font-bold text-carix-text">
           핵심 지표
         </h2>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          disabled={isRecalculating || revalidator.state === "loading"}
+          onClick={handleRecalculate}
+          className="flex items-center gap-1.5"
+          aria-label="지표 재계산"
+        >
+          <RotateCw
+            className={`h-3.5 w-3.5 ${isRecalculating ? "animate-spin" : ""}`}
+          />
+          {isRecalculating ? "재계산 중..." : "지표 재계산"}
+        </Button>
       </div>
+
+      {recalculateMessage && (
+        <div className="mt-2.5 flex items-center justify-between rounded-md bg-carix-surface px-3 py-2 text-xs text-carix-info border border-carix-border">
+          <span>{recalculateMessage}</span>
+          <button
+            type="button"
+            onClick={() => setRecalculateMessage(null)}
+            className="ml-2 text-carix-text/50 hover:text-carix-text"
+            aria-label="알림 닫기"
+          >
+            ✕
+          </button>
+        </div>
+      )}
 
       {!summary.ok && (
         <div className="mt-3 flex flex-wrap items-center gap-3">

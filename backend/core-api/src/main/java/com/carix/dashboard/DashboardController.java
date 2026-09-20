@@ -3,6 +3,7 @@ package com.carix.dashboard;
 import com.carix.common.ApiResult;
 import com.carix.common.ErrorResponse;
 import com.carix.common.usercontext.CurrentUserId;
+import com.carix.dashboard.dto.DashboardRecalculateResponse;
 import com.carix.dashboard.dto.DashboardSummaryResponse;
 import com.carix.dashboard.dto.SalaryDistributionResponse;
 import com.carix.dashboard.dto.SkillDemandListResponse;
@@ -13,8 +14,12 @@ import com.carix.dashboard.dto.TrendListResponse;
 import com.carix.dashboard.service.DashboardSummaryService;
 import com.carix.dashboard.service.SalaryDistributionService;
 import com.carix.dashboard.service.SnapshotSeriesService;
+import com.carix.income.domain.IncomeHistory;
+import com.carix.income.repository.IncomeHistoryRepository;
 import com.carix.index.mvi.MarketValueIndexServiceImpl;
 import com.carix.index.mvi.MarketValueIndexServiceImpl.SkillDemandDetailData;
+import com.carix.snapshot.SnapshotRecalculationService;
+import com.carix.snapshot.YearMonths;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -27,6 +32,7 @@ import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -51,6 +57,8 @@ public class DashboardController {
   private final SalaryDistributionService salaryDistributionService;
   private final DashboardSummaryService dashboardSummaryService;
   private final SnapshotSeriesService snapshotSeriesService;
+  private final SnapshotRecalculationService snapshotRecalculationService;
+  private final IncomeHistoryRepository incomeHistoryRepository;
 
   // =========================================================================
   // 1. [Member C 소유] 대시보드 지표 요약 (S-10)
@@ -184,6 +192,45 @@ public class DashboardController {
   public ResponseEntity<ApiResult<SnapshotHistoryResponse>> getSnapshotHistory(
       @CurrentUserId UUID userId) {
     return ResponseEntity.ok(ApiResult.success(snapshotSeriesService.history(userId)));
+  }
+
+  // =========================================================================
+  // 6. [Member C 소유] 대시보드 스냅샷 재계산 (트리거)
+  // =========================================================================
+  @Operation(
+      summary = "스냅샷 재계산 트리거",
+      description = "지정된 기준월(또는 최초 소득 등록월)부터 현재월까지의 스냅샷을 재계산하고 최신 요약 정보를 반환합니다.")
+  @ApiResponse(responseCode = "200", description = "재계산 및 요약 조회 성공")
+  @PostMapping("/recalculate")
+  public ResponseEntity<ApiResult<DashboardRecalculateResponse>> recalculate(
+      @CurrentUserId UUID userId,
+      @Parameter(description = "재계산 시작 기준월 (YYYYMM 또는 YYYY-MM, 미지정 시 최초 소득 등록월)")
+          @RequestParam(required = false)
+          String fromYearMonth) {
+
+    String targetFrom = resolveFromYearMonth(userId, fromYearMonth);
+    int recalculatedMonths = snapshotRecalculationService.recalculateSnapshot(userId, targetFrom);
+    DashboardSummaryResponse summary =
+        dashboardSummaryService.resolve(userId, normalizeYearMonth(null));
+
+    return ResponseEntity.ok(
+        ApiResult.success(
+            new DashboardRecalculateResponse(recalculatedMonths, targetFrom, summary)));
+  }
+
+  private String resolveFromYearMonth(UUID userId, String fromYearMonth) {
+    if (fromYearMonth != null && !fromYearMonth.isBlank()) {
+      return normalizeYearMonth(fromYearMonth);
+    }
+    List<IncomeHistory> incomes =
+        incomeHistoryRepository.findByUserIdOrderByEffectiveDateDesc(userId);
+    if (!incomes.isEmpty()) {
+      return incomes
+          .get(incomes.size() - 1)
+          .getEffectiveDate()
+          .format(java.time.format.DateTimeFormatter.ofPattern("yyyyMM"));
+    }
+    return YearMonths.current();
   }
 
   // =========================================================================
