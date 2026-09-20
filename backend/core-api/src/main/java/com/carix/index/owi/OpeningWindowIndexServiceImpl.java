@@ -21,6 +21,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -55,6 +58,9 @@ import org.springframework.transaction.annotation.Transactional;
  *   <li><b>상시채용 비율 산출:</b> 동료집단 전체 유효 표본 중 마감일이 없는 상시채용 공고({@code isOpenEnded()})의 비율(%)을 별도로 계산하여
  *       표본 부족 시에도 시장 인사이트를 보존합니다.
  *   <li><b>이상치 클램핑:</b> 극단값으로 인한 지수 왜곡을 방지하기 위해 산출 결과는 {@code [25.00, 400.00]} 범위로 제한합니다.
+ *   <li><b>성능 최적화:</b> Java 21+ Virtual Thread({@code var executor =
+ *       Executors.newVirtualThreadPerTaskExecutor()})를 통해 전체 시장 집계와 동료집단 완화 조회를 비동기 병렬로 처리하며, 월별 전체
+ *       시장 중앙값은 {@link ConcurrentHashMap}에 인메모리 캐싱하여 중복 DB I/O를 방지합니다.
  * </ol>
  */
 @Slf4j
@@ -70,6 +76,9 @@ public class OpeningWindowIndexServiceImpl implements OpeningWindowIndexProvider
 
   /** 기준년월 파싱 포맷터 (YYYYMM) */
   private static final DateTimeFormatter YM_FORMATTER = DateTimeFormatter.ofPattern("uuuuMM");
+
+  /** 기준년월(YYYYMM)별 전체 시장 중앙 개방일수 캐시 */
+  private final Map<String, Optional<Integer>> marketMedianCache = new ConcurrentHashMap<>();
 
   private final CareerProfileRepository careerProfileRepository;
   private final JobPostingRepository jobPostingRepository;
@@ -107,11 +116,23 @@ public class OpeningWindowIndexServiceImpl implements OpeningWindowIndexProvider
     LocalDate monthStart = ym.atDay(1);
     LocalDate monthEnd = ym.atEndOfMonth();
 
-    // 1. 전체 시장 (기준 모수) 중앙 개방일수 계산 (분모)
-    Integer marketMedianWindowDays = calculateMarketMedianWindowDays(monthStart, monthEnd);
+    Integer marketMedianWindowDays;
+    ResolvedPeerGroup peerGroup;
 
-    // 2. 동료집단 5단계 완화 사다리 탐색 및 최적 동료집단 확정
-    ResolvedPeerGroup peerGroup = resolvePeerGroup(profile, monthStart, monthEnd);
+    // 가상 스레드(Virtual Thread) 기반 비동기 병렬 I/O 처리
+    try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
+      var marketFuture =
+          executor.submit(() -> getOrComputeMarketMedian(normalizedYm, monthStart, monthEnd));
+      var peerGroupFuture = executor.submit(() -> resolvePeerGroup(profile, monthStart, monthEnd));
+
+      marketMedianWindowDays = marketFuture.get();
+      peerGroup = peerGroupFuture.get();
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throw new IllegalStateException("OWI calculation interrupted", e);
+    } catch (ExecutionException e) {
+      throw new IllegalStateException("OWI calculation failed in virtual thread", e.getCause());
+    }
 
     int peerSampleSize = peerGroup.peerSampleSize();
     int deadlineSampleSize = peerGroup.deadlineSampleSize();
@@ -153,6 +174,26 @@ public class OpeningWindowIndexServiceImpl implements OpeningWindowIndexProvider
         peerGroup.level(),
         peerGroup.appliedConditions(),
         marketMedianWindowDays);
+  }
+
+  /**
+   * 기준월의 전체 시장 중앙 개방일수를 캐시에서 조회하거나 계산합니다.
+   *
+   * <p>ConcurrentHashMap 에 캐시된 값이 없으면 가상 스레드 안에서 {@link #calculateMarketMedianWindowDays}를 수행하여
+   * 저장하고, 계산 불가인 경우 빈 Optional 을 캐싱하여 불필요한 재조회를 방지합니다.
+   */
+  private Integer getOrComputeMarketMedian(
+      String normalizedYm, LocalDate monthStart, LocalDate monthEnd) {
+    return marketMedianCache
+        .computeIfAbsent(
+            normalizedYm,
+            k -> Optional.ofNullable(calculateMarketMedianWindowDays(monthStart, monthEnd)))
+        .orElse(null);
+  }
+
+  /** 전체 시장 중앙 개방일수 캐시를 비웁니다. 공고 수집 배치가 완료되거나 테스트 격리가 필요한 경우 호출합니다. */
+  public void clearMarketMedianCache() {
+    marketMedianCache.clear();
   }
 
   // =========================================================================

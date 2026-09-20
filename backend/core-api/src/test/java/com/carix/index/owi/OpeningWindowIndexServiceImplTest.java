@@ -549,4 +549,48 @@ class OpeningWindowIndexServiceImplTest {
     assertThat(result.status()).isEqualTo(IndexStatus.OK);
     assertThat(result.appliedConditions()).contains("회사규모 무관");
   }
+
+  @Test
+  @DisplayName("전체시장 중앙값 캐싱: 동일 월 재계산 시 findAllByRegistrationMonth 를 중복 호출하지 않는다")
+  void marketMedianWindowDays_caching() {
+    CareerProfile profile = createProfile();
+    given(careerProfileRepository.findByUserId(USER_ID)).willReturn(Optional.of(profile));
+
+    List<JobPosting> marketPostings =
+        List.of(createPosting(null, MONTH_START, MONTH_START.plusDays(20), "DEVELOPER", "서울"));
+    given(jobPostingRepository.findAllByRegistrationMonth(MONTH_START, MONTH_END))
+        .willReturn(marketPostings);
+
+    List<JobPosting> peerPostings = new ArrayList<>();
+    for (int i = 0; i < 10; i++) {
+      peerPostings.add(
+          createPosting(null, MONTH_START, MONTH_START.plusDays(20), "DEVELOPER", "서울 강남구"));
+    }
+    given(
+            jobPostingRepository.findPeerGroupCandidatesByRegistrationMonth(
+                anyString(),
+                any(),
+                any(),
+                any(),
+                anyInt(),
+                anyInt(),
+                eq(MONTH_START),
+                eq(MONTH_END)))
+        .willReturn(peerPostings);
+
+    // 첫 번째 호출 -> DB 조회
+    service.calculate(USER_ID, BASE_YM);
+    // 두 번째 호출 -> 캐시 사용
+    service.calculate(USER_ID, BASE_YM);
+
+    // 전체 시장 조회가 단 1회만 일어났는지 검증
+    org.mockito.Mockito.verify(jobPostingRepository, org.mockito.Mockito.times(1))
+        .findAllByRegistrationMonth(MONTH_START, MONTH_END);
+
+    // 캐시 삭제 후 다시 호출 -> 다시 DB 조회 1회 추가 발생 (총 2회)
+    service.clearMarketMedianCache();
+    service.calculate(USER_ID, BASE_YM);
+    org.mockito.Mockito.verify(jobPostingRepository, org.mockito.Mockito.times(2))
+        .findAllByRegistrationMonth(MONTH_START, MONTH_END);
+  }
 }
