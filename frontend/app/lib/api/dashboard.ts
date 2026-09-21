@@ -1,4 +1,9 @@
-import { coreGet, UnauthorizedError, type ApiError } from "../coreApi";
+import {
+  coreGet,
+  coreSend,
+  UnauthorizedError,
+  type ApiError,
+} from "../coreApi";
 
 /**
  * `com.carix.index.enums.IndexStatus` 와 같은 값이다 (API 규격 §5.1).
@@ -65,6 +70,16 @@ export interface DashboardSummary {
 export type FetchSummaryResult =
   { ok: true; data: DashboardSummary } | { ok: false; error: ApiError };
 
+export interface DashboardRecalculateResponse {
+  recalculatedMonths: number;
+  fromYearMonth: string;
+  summary: DashboardSummary;
+}
+
+export type RecalculateResult =
+  | { ok: true; data: DashboardRecalculateResponse }
+  | { ok: false; error: ApiError };
+
 /**
  * 열화가 정상 응답이다 (설계 §10) — 던지지 않는다. `UnauthorizedError` 만
  * 다시 던진다(가드가 로그인으로 보낸다). 그 밖의 실패는 `{ok:false, error}` 로
@@ -73,6 +88,28 @@ export type FetchSummaryResult =
 export async function fetchSummary(): Promise<FetchSummaryResult> {
   try {
     const data = await coreGet<DashboardSummary>("/v1/dashboard/summary");
+    return { ok: true, data };
+  } catch (error) {
+    if (error instanceof UnauthorizedError) throw error;
+    return { ok: false, error: error as ApiError };
+  }
+}
+
+/**
+ * 스냅샷 재계산을 트리거한다.
+ * 과거 데이터에 새로운 지수(OWI 등)를 소급 계산하거나 스킬·소득 변경 사항을 즉시 반영할 때 사용한다.
+ */
+export async function recalculateDashboard(
+  fromYearMonth?: string,
+): Promise<RecalculateResult> {
+  try {
+    const query = fromYearMonth
+      ? `?fromYearMonth=${encodeURIComponent(fromYearMonth)}`
+      : "";
+    const data = await coreSend<DashboardRecalculateResponse>(
+      "POST",
+      `/v1/dashboard/recalculate${query}`,
+    );
     return { ok: true, data };
   } catch (error) {
     if (error instanceof UnauthorizedError) throw error;
