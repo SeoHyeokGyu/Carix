@@ -204,6 +204,9 @@ class IncomeServiceTest {
         .willReturn(false);
     given(repository.existsByUserIdAndEffectiveDateBeforeAndIdNot(USER_ID, newDate, id))
         .willReturn(false);
+    // 비제외 메서드를 반대값으로 스텁한다. 이게 없으면 Mockito 기본값 false 때문에 서비스가
+    // 실수로 비제외 메서드를 불러도 결과가 같아, 이 테스트가 막으려는 회귀를 못 잡는다.
+    given(repository.existsByUserIdAndEffectiveDateBefore(USER_ID, newDate)).willReturn(true);
 
     IncomeResponse res =
         service.update(USER_ID, id, new IncomeRequest(60000000L, 4000000L, newDate, null));
