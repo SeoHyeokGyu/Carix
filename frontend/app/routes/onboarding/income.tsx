@@ -35,6 +35,7 @@ import { isForwardStep, LOGIN_PATH } from "../../lib/routeGuards";
 import {
   incomeSchema,
   INCOME_CHANGE_REASONS,
+  INCOME_CHANGE_REASON_HINT,
   INCOME_FIELD_MESSAGES,
   incomeChangeReasonLabel,
 } from "../../lib/schemas/income";
@@ -244,6 +245,11 @@ export default function Income() {
   const [effectiveDateInput, setEffectiveDateInput] = useState(
     editingIncome?.effectiveDate ?? "",
   );
+  // 표시값(changeReason)이 아니라 컬럼 원값을 채운다 — INITIAL 로 가려진
+  // 원값을 못 보면 저장 한 번에 그 값이 지워진다.
+  const [changeReasonInput, setChangeReasonInput] = useState(
+    editingIncome?.selectedChangeReason ?? "",
+  );
 
   const [prevEditingId, setPrevEditingId] = useState<string | null>(editingId);
   if (editingId !== prevEditingId) {
@@ -256,10 +262,12 @@ export default function Income() {
         Math.round(editingIncome.netSalary / 10_000).toLocaleString(),
       );
       setEffectiveDateInput(editingIncome.effectiveDate);
+      setChangeReasonInput(editingIncome.selectedChangeReason ?? "");
     } else {
       setGrossInput("");
       setNetInput("");
       setEffectiveDateInput("");
+      setChangeReasonInput("");
     }
   }
 
@@ -277,6 +285,7 @@ export default function Income() {
       setGrossInput("");
       setNetInput("");
       setEffectiveDateInput("");
+      setChangeReasonInput("");
     }
   }
 
@@ -304,6 +313,7 @@ export default function Income() {
     setGrossInput("");
     setNetInput("");
     setEffectiveDateInput("");
+    setChangeReasonInput("");
   };
 
   // 입력된 만원 단위를 원 단위로 계산해주는 헬퍼
@@ -412,21 +422,22 @@ export default function Income() {
             </Field>
 
             {/* 이력이 0건이면 그리지 않는다 — 그 행은 서버가 INITIAL 로 확정하고
-                사용자에게 묻지 않는다(기능 명세 US-O3). */}
+                사용자에게 묻지 않는다(기능 명세 US-O3). 컨트롤드 컴포넌트다 —
+                생성→생성 경로는 폼 key(editingId)가 안 바뀌어 리마운트가 없으므로,
+                defaultValue 로는 이전 선택이 다음 저장에 그대로 실린다. */}
             {income.length > 0 && (
               <Field
                 id="changeReason"
                 label="변경 사유"
-                hint="선택 사항입니다. 12개월 뒤 시나리오 예측을 실제 소득과 맞댈 때 잔류·이직 중 어느 쪽을 검증할지 가릅니다."
+                hint={INCOME_CHANGE_REASON_HINT}
                 error={errors?.changeReason}
               >
                 {(aria) => (
                   <NativeSelect
                     {...aria}
                     name="changeReason"
-                    // 표시값(changeReason)이 아니라 컬럼 원값을 채운다 — INITIAL 로
-                    // 가려진 원값을 못 보면 저장 한 번에 그 값이 지워진다.
-                    defaultValue={editingIncome?.selectedChangeReason ?? ""}
+                    value={changeReasonInput}
+                    onChange={(e) => setChangeReasonInput(e.target.value)}
                     placeholder="선택 안 함"
                     options={INCOME_CHANGE_REASONS}
                   />

@@ -28,6 +28,12 @@ export const INCOME_CHANGE_REASONS = [
 export type IncomeChangeReasonValue =
   (typeof INCOME_CHANGE_REASONS)[number]["value"];
 
+/** 변경 사유 필드의 힌트 문구. 두 화면(mypage/records/income.tsx, onboarding/income.tsx)이
+ * 그대로 나눠 쓴다 — 표·셀렉트가 같은 값을 다른 말로 적는 것을 막으려고 선택지 라벨을
+ * 공유하는 것과 같은 이유다. */
+export const INCOME_CHANGE_REASON_HINT =
+  "선택 사항입니다. 12개월 뒤 시나리오 예측을 실제 소득과 맞댈 때 잔류·이직 중 어느 쪽을 검증할지 가릅니다.";
+
 /** 응답이 싣는 셋. 표시용 `changeReason` 만 `INITIAL` 을 가질 수 있다. */
 export type IncomeChangeReason = "INITIAL" | IncomeChangeReasonValue;
 
