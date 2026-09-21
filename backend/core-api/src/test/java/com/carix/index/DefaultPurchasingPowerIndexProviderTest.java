@@ -58,7 +58,7 @@ class DefaultPurchasingPowerIndexProviderTest {
   @DisplayName("소득 이력이 1건인 초기 상태에서는 기준월 100.0 및 INSUFFICIENT_HISTORY 반환")
   void singleIncomeHistory_returnsBase100AndInsufficientHistory() {
     IncomeHistory income =
-        new IncomeHistory(userId, 60_000_000L, 48_000_000L, LocalDate.of(2026, 7, 1));
+        new IncomeHistory(userId, 60_000_000L, 48_000_000L, LocalDate.of(2026, 7, 1), null);
 
     given(incomeHistoryRepository.findByUserIdOrderByEffectiveDateDesc(userId))
         .willReturn(List.of(income));
@@ -77,7 +77,7 @@ class DefaultPurchasingPowerIndexProviderTest {
   @DisplayName("소비 내역이 등록되어 있으면 USER_DEFINED 반환")
   void hasExpenseHistory_returnsUserDefined() {
     IncomeHistory income =
-        new IncomeHistory(userId, 60_000_000L, 48_000_000L, LocalDate.of(2026, 7, 1));
+        new IncomeHistory(userId, 60_000_000L, 48_000_000L, LocalDate.of(2026, 7, 1), null);
     ExpenseHistory expense = new ExpenseHistory(userId, "202607");
 
     given(incomeHistoryRepository.findByUserIdOrderByEffectiveDateDesc(userId))
@@ -94,9 +94,9 @@ class DefaultPurchasingPowerIndexProviderTest {
   @DisplayName("12개월 이상 경과 후 연봉 상승 시 변동 지수 및 OK 상태 반환")
   void salaryIncreasedOver12Months_returnsCalculatedPpiAndOk() {
     IncomeHistory base =
-        new IncomeHistory(userId, 50_000_000L, 40_000_000L, LocalDate.of(2025, 1, 1));
+        new IncomeHistory(userId, 50_000_000L, 40_000_000L, LocalDate.of(2025, 1, 1), null);
     IncomeHistory current =
-        new IncomeHistory(userId, 60_000_000L, 48_000_000L, LocalDate.of(2026, 7, 1));
+        new IncomeHistory(userId, 60_000_000L, 48_000_000L, LocalDate.of(2026, 7, 1), null);
 
     given(incomeHistoryRepository.findByUserIdOrderByEffectiveDateDesc(userId))
         .willReturn(List.of(current, base));

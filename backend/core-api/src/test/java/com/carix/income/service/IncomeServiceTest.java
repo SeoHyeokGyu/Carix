@@ -7,6 +7,7 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
+import com.carix.income.domain.IncomeChangeReasonEnum;
 import com.carix.income.domain.IncomeHistory;
 import com.carix.income.dto.IncomeRequest;
 import com.carix.income.dto.IncomeResponse;
@@ -39,7 +40,7 @@ class IncomeServiceTest {
   @DisplayName("getHistory - 유저의 소득 목록 조회 및 변환")
   void getHistory() {
     IncomeHistory history =
-        new IncomeHistory(USER_ID, 60000000L, 4500000L, LocalDate.of(2026, 1, 1));
+        new IncomeHistory(USER_ID, 60000000L, 4500000L, LocalDate.of(2026, 1, 1), null);
     given(repository.findByUserIdOrderByEffectiveDateDesc(USER_ID)).willReturn(List.of(history));
 
     List<IncomeResponse> result = service.getHistory(USER_ID);
@@ -53,7 +54,7 @@ class IncomeServiceTest {
   @DisplayName("create - 성공적으로 저장")
   void create_success() {
     LocalDate date = LocalDate.of(2026, 7, 1);
-    IncomeRequest req = new IncomeRequest(65000000L, 4800000L, date);
+    IncomeRequest req = new IncomeRequest(65000000L, 4800000L, date, null);
 
     given(repository.existsByUserIdAndEffectiveDate(USER_ID, date)).willReturn(false);
     given(repository.save(any(IncomeHistory.class))).willAnswer(i -> i.getArgument(0));
@@ -69,7 +70,7 @@ class IncomeServiceTest {
   @DisplayName("create - 동일 시작일 중복 시 DuplicateEffectiveDateException")
   void create_duplicate() {
     LocalDate date = LocalDate.of(2026, 7, 1);
-    IncomeRequest req = new IncomeRequest(65000000L, 4800000L, date);
+    IncomeRequest req = new IncomeRequest(65000000L, 4800000L, date, null);
 
     given(repository.existsByUserIdAndEffectiveDate(USER_ID, date)).willReturn(true);
 
@@ -83,13 +84,13 @@ class IncomeServiceTest {
     UUID id = UUID.randomUUID();
     LocalDate oldDate = LocalDate.of(2026, 1, 1);
     LocalDate newDate = LocalDate.of(2026, 2, 1);
-    IncomeHistory history = new IncomeHistory(USER_ID, 60000000L, 4500000L, oldDate);
+    IncomeHistory history = new IncomeHistory(USER_ID, 60000000L, 4500000L, oldDate, null);
 
     given(repository.findById(id)).willReturn(Optional.of(history));
     given(repository.existsByUserIdAndEffectiveDateAndIdNot(USER_ID, newDate, id))
         .willReturn(false);
 
-    IncomeRequest req = new IncomeRequest(70000000L, 5000000L, newDate);
+    IncomeRequest req = new IncomeRequest(70000000L, 5000000L, newDate, null);
     IncomeResponse res = service.update(USER_ID, id, req);
 
     assertThat(res.grossSalary()).isEqualTo(70000000L);
@@ -103,7 +104,7 @@ class IncomeServiceTest {
     UUID id = UUID.randomUUID();
     given(repository.findById(id)).willReturn(Optional.empty());
 
-    IncomeRequest req = new IncomeRequest(70000000L, 5000000L, LocalDate.now());
+    IncomeRequest req = new IncomeRequest(70000000L, 5000000L, LocalDate.now(), null);
 
     assertThatThrownBy(() -> service.update(USER_ID, id, req))
         .isInstanceOf(IncomeNotFoundException.class);
@@ -115,12 +116,12 @@ class IncomeServiceTest {
     UUID id = UUID.randomUUID();
     LocalDate newDate = LocalDate.of(2026, 2, 1);
     IncomeHistory history =
-        new IncomeHistory(USER_ID, 60000000L, 4500000L, LocalDate.of(2026, 1, 1));
+        new IncomeHistory(USER_ID, 60000000L, 4500000L, LocalDate.of(2026, 1, 1), null);
 
     given(repository.findById(id)).willReturn(Optional.of(history));
     given(repository.existsByUserIdAndEffectiveDateAndIdNot(USER_ID, newDate, id)).willReturn(true);
 
-    IncomeRequest req = new IncomeRequest(70000000L, 5000000L, newDate);
+    IncomeRequest req = new IncomeRequest(70000000L, 5000000L, newDate, null);
 
     assertThatThrownBy(() -> service.update(USER_ID, id, req))
         .isInstanceOf(DuplicateEffectiveDateException.class);
@@ -131,7 +132,7 @@ class IncomeServiceTest {
   void delete_success() {
     UUID id = UUID.randomUUID();
     IncomeHistory history =
-        new IncomeHistory(USER_ID, 60000000L, 4500000L, LocalDate.of(2026, 1, 1));
+        new IncomeHistory(USER_ID, 60000000L, 4500000L, LocalDate.of(2026, 1, 1), null);
 
     given(repository.findById(id)).willReturn(Optional.of(history));
 
@@ -148,5 +149,50 @@ class IncomeServiceTest {
 
     assertThatThrownBy(() -> service.delete(USER_ID, id))
         .isInstanceOf(IncomeNotFoundException.class);
+  }
+
+  @Test
+  @DisplayName("create - changeReason 이 INITIAL 이면 IllegalArgumentException")
+  void create_rejectsInitial() {
+    IncomeRequest req =
+        new IncomeRequest(
+            65000000L, 4800000L, LocalDate.of(2026, 7, 1), IncomeChangeReasonEnum.INITIAL);
+
+    assertThatThrownBy(() -> service.create(USER_ID, req))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessageContaining("INITIAL");
+  }
+
+  @Test
+  @DisplayName("create - 고른 changeReason 을 그대로 저장한다")
+  void create_storesChangeReason() {
+    LocalDate date = LocalDate.of(2026, 7, 1);
+    IncomeRequest req =
+        new IncomeRequest(65000000L, 4800000L, date, IncomeChangeReasonEnum.JOB_CHANGE);
+
+    given(repository.existsByUserIdAndEffectiveDate(USER_ID, date)).willReturn(false);
+    given(repository.save(any(IncomeHistory.class))).willAnswer(i -> i.getArgument(0));
+
+    IncomeResponse res = service.create(USER_ID, req);
+
+    assertThat(res.selectedChangeReason()).isEqualTo(IncomeChangeReasonEnum.JOB_CHANGE);
+  }
+
+  @Test
+  @DisplayName("update - changeReason 미지정이면 기존 값을 지운다 (PUT 은 전체 교체다)")
+  void update_clearsChangeReason() {
+    UUID id = UUID.randomUUID();
+    LocalDate date = LocalDate.of(2026, 1, 1);
+    IncomeHistory history =
+        new IncomeHistory(USER_ID, 60000000L, 4500000L, date, IncomeChangeReasonEnum.JOB_CHANGE);
+
+    given(repository.findById(id)).willReturn(Optional.of(history));
+    given(repository.existsByUserIdAndEffectiveDateAndIdNot(USER_ID, date, id)).willReturn(false);
+
+    IncomeResponse res =
+        service.update(USER_ID, id, new IncomeRequest(70000000L, 5000000L, date, null));
+
+    assertThat(res.selectedChangeReason()).isNull();
+    assertThat(history.getChangeReason()).isNull();
   }
 }

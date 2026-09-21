@@ -42,7 +42,8 @@ class IncomeControllerTest {
   @DisplayName("GET /v1/income - 소득 이력 전체 조회 성공")
   void getIncomeHistory() throws Exception {
     UUID id = UUID.randomUUID();
-    IncomeResponse res = new IncomeResponse(id, 60000000L, 4500000L, LocalDate.of(2026, 1, 1));
+    IncomeResponse res =
+        new IncomeResponse(id, 60000000L, 4500000L, LocalDate.of(2026, 1, 1), null, null);
     given(incomeService.getHistory(USER_ID)).willReturn(List.of(res));
 
     mockMvc
@@ -57,7 +58,7 @@ class IncomeControllerTest {
   void createIncome() throws Exception {
     UUID id = UUID.randomUUID();
     LocalDate date = LocalDate.of(2026, 7, 1);
-    IncomeResponse res = new IncomeResponse(id, 65000000L, 4800000L, date);
+    IncomeResponse res = new IncomeResponse(id, 65000000L, 4800000L, date, null, null);
     given(incomeService.create(eq(USER_ID), any(IncomeRequest.class))).willReturn(res);
 
     mockMvc
@@ -83,7 +84,7 @@ class IncomeControllerTest {
   void updateIncome() throws Exception {
     UUID id = UUID.randomUUID();
     LocalDate date = LocalDate.of(2026, 7, 1);
-    IncomeResponse res = new IncomeResponse(id, 70000000L, 5000000L, date);
+    IncomeResponse res = new IncomeResponse(id, 70000000L, 5000000L, date, null, null);
     given(incomeService.update(eq(USER_ID), eq(id), any(IncomeRequest.class))).willReturn(res);
 
     mockMvc

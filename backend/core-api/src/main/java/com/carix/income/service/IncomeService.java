@@ -1,5 +1,6 @@
 package com.carix.income.service;
 
+import com.carix.income.domain.IncomeChangeReasonEnum;
 import com.carix.income.domain.IncomeHistory;
 import com.carix.income.dto.IncomeRequest;
 import com.carix.income.dto.IncomeResponse;
@@ -34,13 +35,18 @@ public class IncomeService {
 
   @Transactional
   public IncomeResponse create(UUID userId, IncomeRequest request) {
+    rejectInitial(request);
     if (repository.existsByUserIdAndEffectiveDate(userId, request.effectiveDate())) {
       throw new DuplicateEffectiveDateException(request.effectiveDate());
     }
     var saved =
         repository.save(
             new IncomeHistory(
-                userId, request.grossSalary(), request.netSalary(), request.effectiveDate()));
+                userId,
+                request.grossSalary(),
+                request.netSalary(),
+                request.effectiveDate(),
+                request.changeReason()));
     snapshotRecalculationService.recalculateSnapshot(
         userId, YearMonths.of(request.effectiveDate()));
     return toResponse(saved);
@@ -48,6 +54,7 @@ public class IncomeService {
 
   @Transactional
   public IncomeResponse update(UUID userId, UUID id, IncomeRequest request) {
+    rejectInitial(request);
     var entity =
         repository
             .findById(id)
@@ -60,7 +67,11 @@ public class IncomeService {
     String fromYearMonth =
         YearMonths.earlier(
             YearMonths.of(entity.getEffectiveDate()), YearMonths.of(request.effectiveDate()));
-    entity.update(request.grossSalary(), request.netSalary(), request.effectiveDate());
+    entity.update(
+        request.grossSalary(),
+        request.netSalary(),
+        request.effectiveDate(),
+        request.changeReason());
     snapshotRecalculationService.recalculateSnapshot(userId, fromYearMonth);
     return toResponse(entity);
   }
@@ -77,11 +88,24 @@ public class IncomeService {
     snapshotRecalculationService.recalculateSnapshot(userId, fromYearMonth);
   }
 
+  /**
+   * {@code INITIAL} 은 저장값이 아니라 서버가 가장 이른 행에 얹는 표시값이다. 요청으로 받으면 사용자가 고른 것처럼 컬럼에 남으므로 거절한다 (기능 명세
+   * US-O3 — "첫 소득 행은 사용자에게 묻지 않는다").
+   */
+  private static void rejectInitial(IncomeRequest request) {
+    if (request.changeReason() == IncomeChangeReasonEnum.INITIAL) {
+      throw new IllegalArgumentException(
+          "changeReason 에 INITIAL 을 지정할 수 없습니다. 최초 소득 행은 서버가 판정합니다.");
+    }
+  }
+
   private IncomeResponse toResponse(IncomeHistory e) {
     return new IncomeResponse(
         e.getId(),
         e.getGrossSalary(),
         e.getNetSalary() != null ? e.getNetSalary() : 0L,
-        e.getEffectiveDate());
+        e.getEffectiveDate(),
+        e.getChangeReason(),
+        e.getChangeReason());
   }
 }

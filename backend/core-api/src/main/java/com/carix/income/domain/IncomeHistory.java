@@ -35,19 +35,35 @@ public class IncomeHistory {
   @Column(name = "effective_date", nullable = false)
   private LocalDate effectiveDate;
 
+  /** 사용자가 고른 값만 담는다. {@code INITIAL} 은 여기 들어오지 않는다 — enum 주석 참조. */
+  @Enumerated(EnumType.STRING)
+  @Column(name = "change_reason", length = 20)
+  private IncomeChangeReasonEnum changeReason;
+
   @Column(name = "created_at", insertable = false, updatable = false)
   private OffsetDateTime createdAt;
 
-  public IncomeHistory(UUID userId, Long grossSalary, Long netSalary, LocalDate effectiveDate) {
+  public IncomeHistory(
+      UUID userId,
+      Long grossSalary,
+      Long netSalary,
+      LocalDate effectiveDate,
+      IncomeChangeReasonEnum changeReason) {
     this.userId = userId;
     this.grossSalary = grossSalary;
     this.netSalary = netSalary;
     this.effectiveDate = effectiveDate;
+    this.changeReason = changeReason;
   }
 
-  public void update(Long grossSalary, Long netSalary, LocalDate effectiveDate) {
+  public void update(
+      Long grossSalary,
+      Long netSalary,
+      LocalDate effectiveDate,
+      IncomeChangeReasonEnum changeReason) {
     this.grossSalary = grossSalary;
     this.netSalary = netSalary;
     this.effectiveDate = effectiveDate;
+    this.changeReason = changeReason;
   }
 }
