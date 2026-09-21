@@ -369,4 +369,23 @@ describe("소득 탭 (S-12)", () => {
     expect(within(table).getByText("연봉 인상")).toBeInTheDocument();
     expect(within(table).getByText("—")).toBeInTheDocument();
   });
+
+  it("최소 유효일 행에 고른 값이 있으면 표가 둘 다 낸다", async () => {
+    // 가장 이른 행이라 표시는 INITIAL 이지만 컬럼에는 JOB_CHANGE 가 있다. 파생값만
+    // 내면 사용자가 고른 값이 화면 어디에도 안 남는다 — 수정 화면에 들어가야만 보인다.
+    vi.mocked(incomeApi.listIncome).mockResolvedValue([
+      {
+        ...rows[0],
+        changeReason: "INITIAL",
+        selectedChangeReason: "JOB_CHANGE",
+      },
+      rows[1],
+    ]);
+    renderTab();
+
+    const table = await screen.findByRole("table");
+    expect(within(table).getByText("최초 입력 · 이직")).toBeInTheDocument();
+    // 고른 값이 없는 최소 유효일 행은 그대로 "최초 입력" 하나만 낸다.
+    expect(within(table).queryByText("최초 입력")).toBeNull();
+  });
 });

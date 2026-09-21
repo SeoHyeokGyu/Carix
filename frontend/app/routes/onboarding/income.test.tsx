@@ -710,4 +710,23 @@ describe("S-06 소득 화면", () => {
     const table = await screen.findByRole("table");
     expect(within(table).getByText("최초 입력")).toBeInTheDocument();
   });
+
+  it("최소 유효일 행에 고른 값이 있으면 표가 둘 다 낸다", async () => {
+    // 가장 이른 행이라 표시는 INITIAL 이지만 컬럼에는 JOB_CHANGE 가 있다. 파생값만
+    // 내면 사용자가 고른 값이 화면 어디에도 안 남는다.
+    vi.spyOn(incomeApi, "listIncome").mockResolvedValue([
+      {
+        id: "i-old",
+        grossSalary: 58_000_000,
+        netSalary: 3_800_000,
+        effectiveDate: "2023-01-01",
+        changeReason: "INITIAL",
+        selectedChangeReason: "JOB_CHANGE",
+      },
+    ]);
+    renderScreen();
+
+    const table = await screen.findByRole("table");
+    expect(within(table).getByText("최초 입력 · 이직")).toBeInTheDocument();
+  });
 });

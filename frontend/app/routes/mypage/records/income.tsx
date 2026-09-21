@@ -22,7 +22,7 @@ import {
   INCOME_CHANGE_REASONS,
   INCOME_CHANGE_REASON_HINT,
   INCOME_FIELD_MESSAGES,
-  incomeChangeReasonLabel,
+  incomeChangeReasonCell,
 } from "../../../lib/schemas/income";
 
 type ActionData = { errors: FieldErrors } | null;
@@ -127,9 +127,13 @@ function IncomeRow({ income, onEdit }: IncomeRowProps) {
       <td className="px-3 py-2">{income.effectiveDate}</td>
       <td className="px-3 py-2">{income.grossSalary.toLocaleString()}원</td>
       <td className="px-3 py-2">{income.netSalary.toLocaleString()}원</td>
-      {/* 표는 표시값(changeReason)을 쓴다 — 폼이 쓰는 selectedChangeReason 과 다른 필드다. */}
+      {/* 두 필드가 갈리는 것은 최소 유효일 행뿐이고, 그때는 둘 다 낸다 — 폼은
+          selectedChangeReason 하나만 쓴다. */}
       <td className="px-3 py-2">
-        {incomeChangeReasonLabel(income.changeReason)}
+        {incomeChangeReasonCell(
+          income.changeReason,
+          income.selectedChangeReason,
+        )}
       </td>
       <td className="px-3 py-2">
         <div className="flex flex-col gap-1">

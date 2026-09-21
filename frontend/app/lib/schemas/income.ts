@@ -37,13 +37,28 @@ export const INCOME_CHANGE_REASON_HINT =
 /** 응답이 싣는 셋. 표시용 `changeReason` 만 `INITIAL` 을 가질 수 있다. */
 export type IncomeChangeReason = "INITIAL" | IncomeChangeReasonValue;
 
-/** 목록 표가 쓰는 문구. 선택지 라벨을 재사용해 표와 셀렉트가 갈라지지 않게 한다. */
+/** 값 하나를 문구로 바꾼다. 선택지 라벨을 재사용해 표와 셀렉트가 갈라지지 않게 한다. */
 export function incomeChangeReasonLabel(
   reason: IncomeChangeReason | null,
 ): string {
   if (reason === "INITIAL") return "최초 입력";
   const option = INCOME_CHANGE_REASONS.find((o) => o.value === reason);
   return option ? option.label : "—";
+}
+
+/**
+ * 목록 표 셀의 문구. 두 필드가 갈리는 것은 최소 유효일 행뿐이고, 그때 파생값만 내면
+ * 사용자가 고른 값이 화면 어디에도 안 남는다 — 12개월 검증이 쓸 바로 그 값이다.
+ * 둘 다 있으면 둘 다 낸다.
+ */
+export function incomeChangeReasonCell(
+  changeReason: IncomeChangeReason | null,
+  selectedChangeReason: IncomeChangeReasonValue | null,
+): string {
+  if (changeReason === "INITIAL" && selectedChangeReason !== null) {
+    return `${incomeChangeReasonLabel("INITIAL")} · ${incomeChangeReasonLabel(selectedChangeReason)}`;
+  }
+  return incomeChangeReasonLabel(changeReason);
 }
 
 export const incomeSchema = z.object({
