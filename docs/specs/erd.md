@@ -62,6 +62,7 @@ erDiagram
         varchar gross_salary_encrypted
         varchar net_salary_encrypted
         date effective_date
+        varchar change_reason
         timestamp created_at
     }
 
@@ -277,6 +278,17 @@ erDiagram
 
 실현 가능성은 재계산하지 않고 저장한다. 동료집단 분포는 그 시점의 공고에 의존해 나중에 다시
 구하면 사용자가 실제로 본 판단이 나오지 않는다.
+
+**`income_history.change_reason` 에 `INITIAL` 이 없다.** 컬럼은 사용자가 고른
+`RAISE`·`JOB_CHANGE` 와 고르지 않은 `NULL` 만 담고, 최초 소득 행이라는 사실은
+`IncomeService` 가 읽기 시점에 `min(effective_date)` 로 판정해 응답에 얹는다. 저장하면
+사용자가 나중에 더 이른 과거 이력을 넣을 때마다 `INITIAL` 을 행 사이로 옮겨야 하고, 그
+`UPDATE` 가 이미 그 행에 있던 사용자 선택값을 덮는다. `CHECK` 제약이 그 값이 컬럼에
+들어오는 경로를 DB 에서 막는다.
+
+파생이 원값을 가리지 않도록 응답은 필드를 둘 싣는다 — 표시용 `changeReason`(파생,
+`INITIAL` 포함)과 편집 폼이 쓰는 `selectedChangeReason`(컬럼 원값). 하나만 실으면 최초 행을
+수정 저장할 때 `PUT` 전체 교체가 컬럼의 값을 지운다.
 
 ## 운영 스키마 적용 이력
 

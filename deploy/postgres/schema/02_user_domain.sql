@@ -32,9 +32,13 @@ CREATE TABLE core.income_history (
     gross_salary_encrypted character varying(512) NOT NULL,
     net_salary_encrypted   character varying(512),
     effective_date         date NOT NULL,
+    change_reason          character varying(20)
+        CHECK (change_reason IN ('RAISE', 'JOB_CHANGE')),
     created_at             timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
     UNIQUE (user_id, effective_date)
 );
+COMMENT ON COLUMN core.income_history.change_reason IS
+    '사용자가 고른 값만 담는다. INITIAL 은 저장하지 않고 읽기 시점에 min(effective_date) 행에 얹는다 — 저장하면 더 이른 과거 이력이 들어올 때 행 사이를 옮겨 다녀야 하고 그 갱신이 이미 그 행에 있던 선택값을 덮는다. 기본값을 두지 않는 것도 같은 이유다: 고르지 않은 것이 고른 것으로 기록된다.';
 
 CREATE TABLE core.expense_history (
     id              uuid PRIMARY KEY,
