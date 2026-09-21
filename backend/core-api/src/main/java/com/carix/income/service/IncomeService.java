@@ -9,8 +9,10 @@ import com.carix.income.exception.IncomeNotFoundException;
 import com.carix.income.repository.IncomeHistoryRepository;
 import com.carix.snapshot.SnapshotRecalculationService;
 import com.carix.snapshot.YearMonths;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
+import java.util.stream.IntStream;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -28,8 +30,11 @@ public class IncomeService {
   }
 
   public List<IncomeResponse> getHistory(UUID userId) {
-    return repository.findByUserIdOrderByEffectiveDateDesc(userId).stream()
-        .map(this::toResponse)
+    List<IncomeHistory> rows = repository.findByUserIdOrderByEffectiveDateDesc(userId);
+    // 정렬이 effective_date DESC 라 마지막 원소가 최소 유효일이다 — 파생에 쿼리를 더 쓰지 않는다.
+    // 인덱스로 고르는 것은 단위 테스트의 엔티티가 아직 id 를 갖지 않기 때문이기도 하다.
+    return IntStream.range(0, rows.size())
+        .mapToObj(i -> toResponse(rows.get(i), i == rows.size() - 1))
         .toList();
   }
 
@@ -49,7 +54,7 @@ public class IncomeService {
                 request.changeReason()));
     snapshotRecalculationService.recalculateSnapshot(
         userId, YearMonths.of(request.effectiveDate()));
-    return toResponse(saved);
+    return toResponse(saved, isEarliest(userId, request.effectiveDate()));
   }
 
   @Transactional
@@ -73,7 +78,7 @@ public class IncomeService {
         request.effectiveDate(),
         request.changeReason());
     snapshotRecalculationService.recalculateSnapshot(userId, fromYearMonth);
-    return toResponse(entity);
+    return toResponse(entity, isEarliestExcluding(userId, request.effectiveDate(), id));
   }
 
   @Transactional
@@ -99,13 +104,27 @@ public class IncomeService {
     }
   }
 
-  private IncomeResponse toResponse(IncomeHistory e) {
+  /** UNIQUE (user_id, effective_date) 가 동률을 막아 최소 유효일 행은 항상 하나다. */
+  private boolean isEarliest(UUID userId, LocalDate effectiveDate) {
+    return !repository.existsByUserIdAndEffectiveDateBefore(userId, effectiveDate);
+  }
+
+  /** 수정 경로는 자기 행을 뺀다 — 저장소 주석 참조. */
+  private boolean isEarliestExcluding(UUID userId, LocalDate effectiveDate, UUID id) {
+    return !repository.existsByUserIdAndEffectiveDateBeforeAndIdNot(userId, effectiveDate, id);
+  }
+
+  /**
+   * {@code changeReason} 만 컬럼값과 갈린다 — 최소 유효일 행이면 {@code INITIAL} 을 얹는다. {@code
+   * selectedChangeReason} 은 컬럼 원값 그대로라 편집 폼이 그것을 채우고 되돌려 보낼 수 있다.
+   */
+  private IncomeResponse toResponse(IncomeHistory e, boolean isEarliest) {
     return new IncomeResponse(
         e.getId(),
         e.getGrossSalary(),
         e.getNetSalary() != null ? e.getNetSalary() : 0L,
         e.getEffectiveDate(),
-        e.getChangeReason(),
+        isEarliest ? IncomeChangeReasonEnum.INITIAL : e.getChangeReason(),
         e.getChangeReason());
   }
 }

@@ -51,6 +51,70 @@ class IncomeServiceTest {
   }
 
   @Test
+  @DisplayName("getHistory - 가장 이른 유효일 행의 changeReason 이 INITIAL 로 파생되고 원값은 남는다")
+  void getHistory_derivesInitial() {
+    IncomeHistory newer =
+        new IncomeHistory(
+            USER_ID, 65000000L, 4500000L, LocalDate.of(2025, 1, 1), IncomeChangeReasonEnum.RAISE);
+    IncomeHistory oldest =
+        new IncomeHistory(
+            USER_ID,
+            58000000L,
+            3800000L,
+            LocalDate.of(2024, 1, 1),
+            IncomeChangeReasonEnum.JOB_CHANGE);
+    // 저장소는 effective_date DESC 로 돌려준다 — 마지막 원소가 최소 유효일이다.
+    given(repository.findByUserIdOrderByEffectiveDateDesc(USER_ID))
+        .willReturn(List.of(newer, oldest));
+
+    List<IncomeResponse> result = service.getHistory(USER_ID);
+
+    assertThat(result.get(0).changeReason()).isEqualTo(IncomeChangeReasonEnum.RAISE);
+    assertThat(result.get(1).changeReason()).isEqualTo(IncomeChangeReasonEnum.INITIAL);
+    // D7 — 파생이 원값을 가리면 편집 폼이 그것을 지운다.
+    assertThat(result.get(1).selectedChangeReason()).isEqualTo(IncomeChangeReasonEnum.JOB_CHANGE);
+  }
+
+  @Test
+  @DisplayName("getHistory - 이력이 없으면 빈 목록이다")
+  void getHistory_empty() {
+    given(repository.findByUserIdOrderByEffectiveDateDesc(USER_ID)).willReturn(List.of());
+
+    assertThat(service.getHistory(USER_ID)).isEmpty();
+  }
+
+  @Test
+  @DisplayName("create - 더 이른 행이 없으면 단건 응답이 INITIAL 이다")
+  void create_derivesInitialWhenEarliest() {
+    LocalDate date = LocalDate.of(2024, 1, 1);
+    IncomeRequest req = new IncomeRequest(58000000L, 3800000L, date, null);
+
+    given(repository.existsByUserIdAndEffectiveDate(USER_ID, date)).willReturn(false);
+    given(repository.existsByUserIdAndEffectiveDateBefore(USER_ID, date)).willReturn(false);
+    given(repository.save(any(IncomeHistory.class))).willAnswer(i -> i.getArgument(0));
+
+    IncomeResponse res = service.create(USER_ID, req);
+
+    assertThat(res.changeReason()).isEqualTo(IncomeChangeReasonEnum.INITIAL);
+    assertThat(res.selectedChangeReason()).isNull();
+  }
+
+  @Test
+  @DisplayName("create - 더 이른 행이 있으면 단건 응답이 고른 값 그대로다")
+  void create_keepsReasonWhenNotEarliest() {
+    LocalDate date = LocalDate.of(2026, 7, 1);
+    IncomeRequest req = new IncomeRequest(65000000L, 4800000L, date, IncomeChangeReasonEnum.RAISE);
+
+    given(repository.existsByUserIdAndEffectiveDate(USER_ID, date)).willReturn(false);
+    given(repository.existsByUserIdAndEffectiveDateBefore(USER_ID, date)).willReturn(true);
+    given(repository.save(any(IncomeHistory.class))).willAnswer(i -> i.getArgument(0));
+
+    IncomeResponse res = service.create(USER_ID, req);
+
+    assertThat(res.changeReason()).isEqualTo(IncomeChangeReasonEnum.RAISE);
+  }
+
+  @Test
   @DisplayName("create - 성공적으로 저장")
   void create_success() {
     LocalDate date = LocalDate.of(2026, 7, 1);
@@ -128,6 +192,26 @@ class IncomeServiceTest {
   }
 
   @Test
+  @DisplayName("update - 자기 행을 뺀 판정이라 유효일을 미뤄도 파생이 뒤집히지 않는다")
+  void update_derivesExcludingSelf() {
+    UUID id = UUID.randomUUID();
+    LocalDate oldDate = LocalDate.of(2024, 1, 1);
+    LocalDate newDate = LocalDate.of(2024, 6, 1);
+    IncomeHistory history = new IncomeHistory(USER_ID, 58000000L, 3800000L, oldDate, null);
+
+    given(repository.findById(id)).willReturn(Optional.of(history));
+    given(repository.existsByUserIdAndEffectiveDateAndIdNot(USER_ID, newDate, id))
+        .willReturn(false);
+    given(repository.existsByUserIdAndEffectiveDateBeforeAndIdNot(USER_ID, newDate, id))
+        .willReturn(false);
+
+    IncomeResponse res =
+        service.update(USER_ID, id, new IncomeRequest(60000000L, 4000000L, newDate, null));
+
+    assertThat(res.changeReason()).isEqualTo(IncomeChangeReasonEnum.INITIAL);
+  }
+
+  @Test
   @DisplayName("delete - 성공적으로 삭제")
   void delete_success() {
     UUID id = UUID.randomUUID();
@@ -171,6 +255,7 @@ class IncomeServiceTest {
         new IncomeRequest(65000000L, 4800000L, date, IncomeChangeReasonEnum.JOB_CHANGE);
 
     given(repository.existsByUserIdAndEffectiveDate(USER_ID, date)).willReturn(false);
+    given(repository.existsByUserIdAndEffectiveDateBefore(USER_ID, date)).willReturn(true);
     given(repository.save(any(IncomeHistory.class))).willAnswer(i -> i.getArgument(0));
 
     IncomeResponse res = service.create(USER_ID, req);
@@ -188,6 +273,9 @@ class IncomeServiceTest {
 
     given(repository.findById(id)).willReturn(Optional.of(history));
     given(repository.existsByUserIdAndEffectiveDateAndIdNot(USER_ID, date, id)).willReturn(false);
+    // 더 이른 행이 있으므로 이 행은 최소 유효일 행이 아니다 — changeReason() 이 INITIAL 로 파생되지 않는다.
+    given(repository.existsByUserIdAndEffectiveDateBeforeAndIdNot(USER_ID, date, id))
+        .willReturn(true);
 
     IncomeResponse res =
         service.update(USER_ID, id, new IncomeRequest(70000000L, 5000000L, date, null));
