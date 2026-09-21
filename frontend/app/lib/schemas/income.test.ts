@@ -1,5 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { incomeSchema } from "./income";
+import {
+  INCOME_CHANGE_REASONS,
+  incomeChangeReasonCell,
+  incomeChangeReasonLabel,
+  incomeSchema,
+} from "./income";
 
 describe("incomeSchema", () => {
   const valid = {
@@ -78,5 +83,63 @@ describe("incomeSchema", () => {
     expect(
       incomeSchema.safeParse({ ...valid, effectiveDate: "2026/09/10" }).success,
     ).toBe(false);
+  });
+});
+
+describe("changeReason", () => {
+  const base = {
+    grossSalary: 50_000_000,
+    netSalary: 3_500_000,
+    effectiveDate: "2024-01-01",
+  };
+
+  it("미지정을 허용한다", () => {
+    expect(incomeSchema.safeParse(base).success).toBe(true);
+  });
+
+  it("RAISE 와 JOB_CHANGE 를 허용한다", () => {
+    expect(
+      incomeSchema.safeParse({ ...base, changeReason: "RAISE" }).success,
+    ).toBe(true);
+    expect(
+      incomeSchema.safeParse({ ...base, changeReason: "JOB_CHANGE" }).success,
+    ).toBe(true);
+  });
+
+  it("INITIAL 은 거부한다 - 서버가 판정하는 값이라 폼이 보낼 수 없다", () => {
+    expect(
+      incomeSchema.safeParse({ ...base, changeReason: "INITIAL" }).success,
+    ).toBe(false);
+  });
+
+  it("표시 라벨은 값 목록과 같은 문구를 쓴다", () => {
+    expect(incomeChangeReasonLabel("INITIAL")).toBe("최초 입력");
+    expect(incomeChangeReasonLabel("RAISE")).toBe(
+      INCOME_CHANGE_REASONS[0].label,
+    );
+    expect(incomeChangeReasonLabel(null)).toBe("—");
+  });
+
+  describe("incomeChangeReasonCell", () => {
+    it("최소 유효일 행에 고른 값이 있으면 둘 다 낸다", () => {
+      // INITIAL 은 파생 표시값이고 JOB_CHANGE 는 사용자가 실제로 고른 값이다.
+      // 파생값만 내면 사용자 선택이 화면 어디에도 안 남는다.
+      expect(incomeChangeReasonCell("INITIAL", "JOB_CHANGE")).toBe(
+        "최초 입력 · 이직",
+      );
+    });
+
+    it("최소 유효일 행이어도 고른 값이 없으면 최초 입력만 낸다", () => {
+      expect(incomeChangeReasonCell("INITIAL", null)).toBe("최초 입력");
+    });
+
+    it("최소 유효일 행이 아니면 고른 값 하나만 낸다", () => {
+      // 이 경우 두 필드는 같은 값이라 붙일 것이 없다.
+      expect(incomeChangeReasonCell("RAISE", "RAISE")).toBe("연봉 인상");
+    });
+
+    it("아무것도 안 골랐으면 대시를 낸다", () => {
+      expect(incomeChangeReasonCell(null, null)).toBe("—");
+    });
   });
 });

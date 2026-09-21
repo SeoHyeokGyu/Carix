@@ -270,9 +270,9 @@ class DashboardControllerTest {
   @DisplayName("POST /v1/dashboard/recalculate - 기준월 미지정 시 소득 이력의 가장 이른 월부터 재계산한다")
   void recalculate_withEarliestIncomeHistory() throws Exception {
     IncomeHistory recent =
-        new IncomeHistory(USER_ID, 60000000L, 48000000L, LocalDate.of(2026, 1, 1));
+        new IncomeHistory(USER_ID, 60000000L, 48000000L, LocalDate.of(2026, 1, 1), null);
     IncomeHistory earliest =
-        new IncomeHistory(USER_ID, 50000000L, 40000000L, LocalDate.of(2025, 3, 15));
+        new IncomeHistory(USER_ID, 50000000L, 40000000L, LocalDate.of(2025, 3, 15), null);
     given(incomeHistoryRepository.findByUserIdOrderByEffectiveDateDesc(USER_ID))
         .willReturn(List.of(recent, earliest));
     given(snapshotRecalculationService.recalculateSnapshot(USER_ID, "202503")).willReturn(17);

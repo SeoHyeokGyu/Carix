@@ -4,6 +4,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -31,6 +32,19 @@ public class GlobalExceptionHandler {
   public ResponseEntity<ErrorResponse> handleIllegalArgument(IllegalArgumentException e) {
     return ResponseEntity.status(HttpStatus.BAD_REQUEST)
         .body(ErrorResponse.of("INVALID_INPUT", e.getMessage(), null));
+  }
+
+  /**
+   * 요청 본문을 읽지 못한 경우 — 깨진 JSON, enum 에 없는 값, 타입이 안 맞는 필드 등. Bean Validation 전에 Jackson 이 던지므로 {@link
+   * MethodArgumentNotValidException} 경로를 타지 않는다.
+   *
+   * <p>예외와 그 메시지를 싣지도 남기지도 않는다. Jackson 메시지는 클래스명과 JSON 경로를 드러내고, 읽다 만 본문 조각이 함께 붙어 연봉이 응답이나 로그로 새어
+   * 나간다 (완료 기준 10번, 민감 금액 미기록). 어느 필드가 문제였는지는 알려줄 수 없지만, 그 대가로 금액이 새지 않는다.
+   */
+  @ExceptionHandler(HttpMessageNotReadableException.class)
+  public ResponseEntity<ErrorResponse> handleUnreadableBody() {
+    return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+        .body(ErrorResponse.of("INVALID_INPUT", "요청 본문을 읽을 수 없습니다.", null));
   }
 
   @ExceptionHandler(com.carix.skill.exception.InvalidSkillCategoryException.class)

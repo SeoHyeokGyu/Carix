@@ -62,7 +62,8 @@ class SnapshotTriggerWiringTest {
         .willAnswer(invocation -> invocation.getArgument(0));
     IncomeService service = new IncomeService(repository, recalculation);
 
-    service.create(USER_ID, new IncomeRequest(60_000_000L, 4_000_000L, LocalDate.of(2026, 3, 15)));
+    service.create(
+        USER_ID, new IncomeRequest(60_000_000L, 4_000_000L, LocalDate.of(2026, 3, 15), null));
 
     verify(recalculation).recalculateSnapshot(USER_ID, "202603");
   }
@@ -72,7 +73,7 @@ class SnapshotTriggerWiringTest {
   void 소득_수정() {
     IncomeHistoryRepository repository = mock(IncomeHistoryRepository.class);
     IncomeHistory entity =
-        new IncomeHistory(USER_ID, 60_000_000L, 4_000_000L, LocalDate.of(2026, 5, 1));
+        new IncomeHistory(USER_ID, 60_000_000L, 4_000_000L, LocalDate.of(2026, 5, 1), null);
     given(repository.findById(any())).willReturn(Optional.of(entity));
     given(repository.existsByUserIdAndEffectiveDateAndIdNot(any(), any(), any())).willReturn(false);
     IncomeService service = new IncomeService(repository, recalculation);
@@ -80,7 +81,7 @@ class SnapshotTriggerWiringTest {
     service.update(
         USER_ID,
         entity.getId(),
-        new IncomeRequest(70_000_000L, 4_600_000L, LocalDate.of(2026, 2, 1)));
+        new IncomeRequest(70_000_000L, 4_600_000L, LocalDate.of(2026, 2, 1), null));
 
     // 5월 → 2월로 당겼으면 2월부터 다시 계산해야 한다. 새 값만 보면 3~4월이 옛 연봉으로 남는다.
     verify(recalculation).recalculateSnapshot(USER_ID, "202602");
@@ -91,7 +92,7 @@ class SnapshotTriggerWiringTest {
   void 소득_삭제() {
     IncomeHistoryRepository repository = mock(IncomeHistoryRepository.class);
     IncomeHistory entity =
-        new IncomeHistory(USER_ID, 60_000_000L, 4_000_000L, LocalDate.of(2026, 4, 1));
+        new IncomeHistory(USER_ID, 60_000_000L, 4_000_000L, LocalDate.of(2026, 4, 1), null);
     given(repository.findById(any())).willReturn(Optional.of(entity));
     IncomeService service = new IncomeService(repository, recalculation);
 

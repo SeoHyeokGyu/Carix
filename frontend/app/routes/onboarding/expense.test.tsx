@@ -163,6 +163,8 @@ describe("S-07 소비 화면", () => {
         grossSalary: 50_000_000,
         netSalary: 3_000_000,
         effectiveDate: "2024-01-01",
+        changeReason: "INITIAL",
+        selectedChangeReason: null,
       },
     ]);
     vi.spyOn(expenseApi, "listExpenses").mockResolvedValue([]);

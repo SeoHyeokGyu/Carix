@@ -116,7 +116,7 @@ class SnapshotDecryptionBoundarySecurityTest {
   void decryptionBoundary_doesNotLeakPlaintextSalaryToStorage() throws Exception {
     // 1. 소득 이력 저장 (JPA Converter를 통해 AES-256-GCM 암호화되어 저장됨)
     IncomeHistory income =
-        new IncomeHistory(userId, SENSITIVE_SALARY, 60_000_000L, LocalDate.of(2026, 1, 1));
+        new IncomeHistory(userId, SENSITIVE_SALARY, 60_000_000L, LocalDate.of(2026, 1, 1), null);
     incomeHistoryRepository.saveAndFlush(income);
 
     // DB 원천 컬럼 확인: 평문이 아님

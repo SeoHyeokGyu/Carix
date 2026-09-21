@@ -62,6 +62,7 @@ erDiagram
         varchar gross_salary_encrypted
         varchar net_salary_encrypted
         date effective_date
+        varchar change_reason
         timestamp created_at
     }
 
@@ -278,6 +279,17 @@ erDiagram
 실현 가능성은 재계산하지 않고 저장한다. 동료집단 분포는 그 시점의 공고에 의존해 나중에 다시
 구하면 사용자가 실제로 본 판단이 나오지 않는다.
 
+**`income_history.change_reason` 에 `INITIAL` 이 없다.** 컬럼은 사용자가 고른
+`RAISE`·`JOB_CHANGE` 와 고르지 않은 `NULL` 만 담고, 최초 소득 행이라는 사실은
+`IncomeService` 가 읽기 시점에 `min(effective_date)` 로 판정해 응답에 얹는다. 저장하면
+사용자가 나중에 더 이른 과거 이력을 넣을 때마다 `INITIAL` 을 행 사이로 옮겨야 하고, 그
+`UPDATE` 가 이미 그 행에 있던 사용자 선택값을 덮는다. `CHECK` 제약이 그 값이 컬럼에
+들어오는 경로를 DB 에서 막는다.
+
+파생이 원값을 가리지 않도록 응답은 필드를 둘 싣는다 — 표시용 `changeReason`(파생,
+`INITIAL` 포함)과 편집 폼이 쓰는 `selectedChangeReason`(컬럼 원값). 하나만 실으면 최초 행을
+수정 저장할 때 `PUT` 전체 교체가 컬럼의 값을 지운다.
+
 ## 운영 스키마 적용 이력
 
 `core` 스키마는 Flyway 를 쓰지 않아 적용 이력이 자동으로 남지 않는다
@@ -289,6 +301,7 @@ erDiagram
 | 2026-09-15 | `core.wage_stat_observation` | 출처 컬럼 `source varchar(20) NOT NULL DEFAULT 'UNKNOWN'` 을 더했다. 기존 360행은 기본값으로 `UNKNOWN` 이 됐다 — 컬럼 도입 이전 적재분이라 KOSIS 실측인지 폴백 상수인지 알 수 없다 |
 | 2026-09-17 | `core.wage_stat_observation` | 벽시계 vintage 로 쌓인 `base_period=2025` 의 `202608`(24행)·`202609`(48행)을 삭제했다. `202609` 는 폴백 상수였고 `stat_vintage DESC` 정렬에서 실측 `202508` 을 이겨 2025 기준선을 상수로 만들고 있었다 |
 | 2026-09-19 | `core.index_snapshot` | 개방창 지수 컬럼 `opening_window_index numeric(6,2)` 를 더했다. nullable·기본값 없음이라 카탈로그만 바뀌고 테이블 재작성이 없었다. 기존 186행은 새 컬럼이 `NULL` 이고 다른 컬럼·인덱스·제약은 건드리지 않았다. 신규 환경용 실행 정본(`deploy/postgres/schema/04_snapshot_and_scenario.sql`)에도 같은 컬럼을 넣었다 |
+| 2026-09-21 | `core.income_history` | 변경 사유 컬럼 `change_reason varchar(20)` 과 `CHECK (change_reason IN ('RAISE', 'JOB_CHANGE'))`, 컬럼 주석을 더했다. nullable·기본값 없음이라 카탈로그만 바뀌고 테이블 재작성이 없었다. 기존 2행은 새 컬럼이 `NULL` 이고 인덱스 셋(`income_history_pkey`·`income_history_user_effective_idx`·`income_history_user_id_effective_date_key`)은 그대로다. 제약 이름은 `income_history_change_reason_check`. 신규 환경용 실행 정본(`deploy/postgres/schema/02_user_domain.sql`)에도 같은 컬럼을 넣었다 |
 
 > **`core.wage_stat_observation.source` 는 쓰기 경로까지 들어왔다.** 수집이 연도별로 출처를
 > 기록하고, KOSIS 실측만 기존 행을 덮는다 — 폴백 상수는 기존 행을 건드리지 않는다. 컬럼 도입

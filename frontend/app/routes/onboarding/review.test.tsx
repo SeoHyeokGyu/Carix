@@ -84,12 +84,14 @@ const PROFILE_GATE_CASES: {
   },
 ];
 
-const ONE_INCOME = [
+const ONE_INCOME: incomeApi.IncomeResponse[] = [
   {
     id: "i-1",
     grossSalary: 65_000_000,
     netSalary: 4_200_000,
     effectiveDate: "2026-01-01",
+    changeReason: "INITIAL",
+    selectedChangeReason: null,
   },
 ];
 

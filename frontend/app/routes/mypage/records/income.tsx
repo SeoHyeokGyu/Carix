@@ -4,6 +4,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Field } from "../../../components/onboarding/Field";
+import { NativeSelect } from "../../../components/onboarding/NativeSelect";
 import { isApiError, toUserMessage } from "../../../lib/apiError";
 import {
   createIncome,
@@ -18,7 +19,10 @@ import { focusFirstInvalidField } from "../../../lib/focusFirstInvalidField";
 import { LOGIN_PATH } from "../../../lib/routeGuards";
 import {
   incomeSchema,
+  INCOME_CHANGE_REASONS,
+  INCOME_CHANGE_REASON_HINT,
   INCOME_FIELD_MESSAGES,
+  incomeChangeReasonCell,
 } from "../../../lib/schemas/income";
 
 type ActionData = { errors: FieldErrors } | null;
@@ -75,11 +79,15 @@ export async function clientAction({ request }: { request: Request }) {
     .replace(/,/g, "")
     .trim();
   const effectiveDate = String(formData.get("effectiveDate") ?? "").trim();
+  const changeReasonRaw = String(formData.get("changeReason") ?? "").trim();
 
   const result = incomeSchema.safeParse({
     grossSalary: grossRaw === "" ? NaN : Number(grossRaw) * 10_000,
     netSalary: netRaw === "" ? NaN : Number(netRaw) * 10_000,
     effectiveDate,
+    // 빈 문자열은 "고르지 않음" 이다 — undefined 로 보내야 서버가 null 로 저장한다.
+    // "" 를 그대로 실으면 enum 검증에서 떨어진다.
+    changeReason: changeReasonRaw === "" ? undefined : changeReasonRaw,
   });
   if (!result.success) {
     return {
@@ -119,6 +127,14 @@ function IncomeRow({ income, onEdit }: IncomeRowProps) {
       <td className="px-3 py-2">{income.effectiveDate}</td>
       <td className="px-3 py-2">{income.grossSalary.toLocaleString()}원</td>
       <td className="px-3 py-2">{income.netSalary.toLocaleString()}원</td>
+      {/* 두 필드가 갈리는 것은 최소 유효일 행뿐이고, 그때는 둘 다 낸다 — 폼은
+          selectedChangeReason 하나만 쓴다. */}
+      <td className="px-3 py-2">
+        {incomeChangeReasonCell(
+          income.changeReason,
+          income.selectedChangeReason,
+        )}
+      </td>
       <td className="px-3 py-2">
         <div className="flex flex-col gap-1">
           <div className="flex gap-2">
@@ -176,6 +192,7 @@ export default function RecordsIncome() {
   const [grossInput, setGrossInput] = useState("");
   const [netInput, setNetInput] = useState("");
   const [dateInput, setDateInput] = useState("");
+  const [changeReasonInput, setChangeReasonInput] = useState("");
 
   const errors = formFetcher.data?.errors;
   const isSubmitting = formFetcher.state !== "idle";
@@ -194,6 +211,7 @@ export default function RecordsIncome() {
       setGrossInput("");
       setNetInput("");
       setDateInput("");
+      setChangeReasonInput("");
     }
   }
 
@@ -204,6 +222,9 @@ export default function RecordsIncome() {
     setGrossInput(Math.round(target.grossSalary / 10_000).toLocaleString());
     setNetInput(Math.round(target.netSalary / 10_000).toLocaleString());
     setDateInput(target.effectiveDate);
+    // 표시값(changeReason)이 아니라 컬럼 원값을 채운다 — INITIAL 로 가려진
+    // 원값을 못 보면 저장 한 번에 그 값이 지워진다.
+    setChangeReasonInput(target.selectedChangeReason ?? "");
   };
 
   const formatDigits = (value: string) => {
@@ -226,6 +247,7 @@ export default function RecordsIncome() {
               <th className="px-3 py-2 font-medium">유효 시작일</th>
               <th className="px-3 py-2 font-medium">세전 연봉</th>
               <th className="px-3 py-2 font-medium">월 실수령액</th>
+              <th className="px-3 py-2 font-medium">변경 사유</th>
               <th className="px-3 py-2 font-medium">작업</th>
             </tr>
           </thead>
@@ -306,6 +328,30 @@ export default function RecordsIncome() {
           )}
         </Field>
 
+        {/* 이력이 0건이면 그리지 않는다 — 그 행은 서버가 INITIAL 로 확정하고
+            사용자에게 묻지 않는다(기능 명세 US-O3). 컨트롤드 컴포넌트다 — 생성→
+            생성 경로는 폼 key(editingId)가 안 바뀌어 리마운트가 없으므로,
+            defaultValue 로는 이전 선택이 다음 저장에 그대로 실린다. */}
+        {income.length > 0 && (
+          <Field
+            id="changeReason"
+            label="변경 사유"
+            hint={INCOME_CHANGE_REASON_HINT}
+            error={errors?.changeReason}
+          >
+            {(aria) => (
+              <NativeSelect
+                {...aria}
+                name="changeReason"
+                value={changeReasonInput}
+                onChange={(e) => setChangeReasonInput(e.target.value)}
+                placeholder="선택 안 함"
+                options={INCOME_CHANGE_REASONS}
+              />
+            )}
+          </Field>
+        )}
+
         {errors?._form && (
           <p role="alert" className="text-sm text-destructive">
             {errors._form}
@@ -325,6 +371,7 @@ export default function RecordsIncome() {
                 setGrossInput("");
                 setNetInput("");
                 setDateInput("");
+                setChangeReasonInput("");
               }}
             >
               취소

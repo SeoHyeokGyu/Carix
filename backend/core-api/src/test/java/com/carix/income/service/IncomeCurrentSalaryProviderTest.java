@@ -50,11 +50,11 @@ class IncomeCurrentSalaryProviderTest {
   @DisplayName("기준월 말일 이전의 가장 최근 연봉을 반환한다")
   void returnsMostRecentSalaryBeforeEndOfMonth() {
     IncomeHistory recent =
-        new IncomeHistory(userId, 60_000_000L, 48_000_000L, LocalDate.of(2026, 6, 1));
+        new IncomeHistory(userId, 60_000_000L, 48_000_000L, LocalDate.of(2026, 6, 1), null);
     IncomeHistory old =
-        new IncomeHistory(userId, 50_000_000L, 40_000_000L, LocalDate.of(2025, 1, 1));
+        new IncomeHistory(userId, 50_000_000L, 40_000_000L, LocalDate.of(2025, 1, 1), null);
     IncomeHistory future =
-        new IncomeHistory(userId, 70_000_000L, 56_000_000L, LocalDate.of(2026, 8, 1));
+        new IncomeHistory(userId, 70_000_000L, 56_000_000L, LocalDate.of(2026, 8, 1), null);
 
     // repository 는 effective_date DESC 정렬
     given(repository.findByUserIdOrderByEffectiveDateDesc(userId))
@@ -71,7 +71,7 @@ class IncomeCurrentSalaryProviderTest {
   @DisplayName("모든 연봉 이력이 기준월보다 미래이면 empty 반환")
   void allHistoriesInFuture_returnsEmpty() {
     IncomeHistory future =
-        new IncomeHistory(userId, 60_000_000L, 48_000_000L, LocalDate.of(2026, 8, 1));
+        new IncomeHistory(userId, 60_000_000L, 48_000_000L, LocalDate.of(2026, 8, 1), null);
 
     given(repository.findByUserIdOrderByEffectiveDateDesc(userId)).willReturn(List.of(future));
 
@@ -81,7 +81,7 @@ class IncomeCurrentSalaryProviderTest {
   @Test
   @DisplayName("연봉이 0 이하이면 empty 반환 (분모 0 방지)")
   void zeroOrNegativeSalary_returnsEmpty() {
-    IncomeHistory zero = new IncomeHistory(userId, 0L, 0L, LocalDate.of(2026, 1, 1));
+    IncomeHistory zero = new IncomeHistory(userId, 0L, 0L, LocalDate.of(2026, 1, 1), null);
 
     given(repository.findByUserIdOrderByEffectiveDateDesc(userId)).willReturn(List.of(zero));
 
