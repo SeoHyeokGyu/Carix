@@ -1,5 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { incomeSchema } from "./income";
+import {
+  INCOME_CHANGE_REASONS,
+  incomeChangeReasonLabel,
+  incomeSchema,
+} from "./income";
 
 describe("incomeSchema", () => {
   const valid = {
@@ -78,5 +82,40 @@ describe("incomeSchema", () => {
     expect(
       incomeSchema.safeParse({ ...valid, effectiveDate: "2026/09/10" }).success,
     ).toBe(false);
+  });
+});
+
+describe("changeReason", () => {
+  const base = {
+    grossSalary: 50_000_000,
+    netSalary: 3_500_000,
+    effectiveDate: "2024-01-01",
+  };
+
+  it("미지정을 허용한다", () => {
+    expect(incomeSchema.safeParse(base).success).toBe(true);
+  });
+
+  it("RAISE 와 JOB_CHANGE 를 허용한다", () => {
+    expect(
+      incomeSchema.safeParse({ ...base, changeReason: "RAISE" }).success,
+    ).toBe(true);
+    expect(
+      incomeSchema.safeParse({ ...base, changeReason: "JOB_CHANGE" }).success,
+    ).toBe(true);
+  });
+
+  it("INITIAL 은 거부한다 - 서버가 판정하는 값이라 폼이 보낼 수 없다", () => {
+    expect(
+      incomeSchema.safeParse({ ...base, changeReason: "INITIAL" }).success,
+    ).toBe(false);
+  });
+
+  it("표시 라벨은 값 목록과 같은 문구를 쓴다", () => {
+    expect(incomeChangeReasonLabel("INITIAL")).toBe("최초 입력");
+    expect(incomeChangeReasonLabel("RAISE")).toBe(
+      INCOME_CHANGE_REASONS[0].label,
+    );
+    expect(incomeChangeReasonLabel(null)).toBe("—");
   });
 });

@@ -45,12 +45,16 @@ describe("S-06 소득 화면", () => {
         grossSalary: 58_000_000,
         netSalary: 3_800_000,
         effectiveDate: "2023-01-01",
+        changeReason: "INITIAL",
+        selectedChangeReason: null,
       },
       {
         id: "i-2",
         grossSalary: 65_000_000,
         netSalary: 4_200_000,
         effectiveDate: "2024-01-01",
+        changeReason: "RAISE",
+        selectedChangeReason: "RAISE",
       },
     ]);
 
@@ -71,6 +75,8 @@ describe("S-06 소득 화면", () => {
           grossSalary: 50_000_000,
           netSalary: 3_500_000,
           effectiveDate: "2024-01-01",
+          changeReason: "INITIAL",
+          selectedChangeReason: null,
         },
       ]);
     const create = vi.spyOn(incomeApi, "createIncome").mockResolvedValue({
@@ -78,6 +84,8 @@ describe("S-06 소득 화면", () => {
       grossSalary: 50_000_000,
       netSalary: 3_500_000,
       effectiveDate: "2024-01-01",
+      changeReason: null,
+      selectedChangeReason: null,
     });
 
     renderScreen();
@@ -103,6 +111,8 @@ describe("S-06 소득 화면", () => {
         grossSalary: 50_000_000,
         netSalary: 3_500_000,
         effectiveDate: "2024-01-01",
+        changeReason: "INITIAL",
+        selectedChangeReason: null,
       },
     ]);
     vi.spyOn(incomeApi, "createIncome").mockRejectedValue({
@@ -147,6 +157,8 @@ describe("S-06 소득 화면", () => {
         grossSalary: 50_000_000,
         netSalary: 3_500_000,
         effectiveDate: "2024-01-01",
+        changeReason: "INITIAL",
+        selectedChangeReason: null,
       },
     ]);
     const advance = vi
@@ -206,6 +218,8 @@ describe("S-06 소득 화면", () => {
         grossSalary: 50_000_000,
         netSalary: 3_500_000,
         effectiveDate: "2024-01-01",
+        changeReason: "INITIAL",
+        selectedChangeReason: null,
       },
     ]);
     const advance = vi.spyOn(onboardingApi, "advanceOnboarding");
@@ -234,6 +248,8 @@ describe("S-06 소득 화면", () => {
           grossSalary: 50_000_000,
           netSalary: 3_500_000,
           effectiveDate: "2024-01-01",
+          changeReason: "INITIAL",
+          selectedChangeReason: null,
         },
       ])
       .mockResolvedValueOnce([]);
@@ -257,6 +273,8 @@ describe("S-06 소득 화면", () => {
           grossSalary: 50_000_000,
           netSalary: 3_500_000,
           effectiveDate: "2024-01-01",
+          changeReason: "INITIAL",
+          selectedChangeReason: null,
         },
       ])
       .mockResolvedValueOnce([
@@ -265,6 +283,8 @@ describe("S-06 소득 화면", () => {
           grossSalary: 55_000_000,
           netSalary: 3_500_000,
           effectiveDate: "2024-01-01",
+          changeReason: "INITIAL",
+          selectedChangeReason: null,
         },
       ]);
     const update = vi.spyOn(incomeApi, "updateIncome").mockResolvedValue({
@@ -272,6 +292,8 @@ describe("S-06 소득 화면", () => {
       grossSalary: 55_000_000,
       netSalary: 3_500_000,
       effectiveDate: "2024-01-01",
+      changeReason: null,
+      selectedChangeReason: null,
     });
 
     renderScreen();
@@ -312,6 +334,8 @@ describe("S-06 소득 화면", () => {
           grossSalary: 50_000_000,
           netSalary: 3_500_000,
           effectiveDate: "2024-01-01",
+          changeReason: "INITIAL",
+          selectedChangeReason: null,
         },
       ])
       .mockResolvedValueOnce([
@@ -320,6 +344,8 @@ describe("S-06 소득 화면", () => {
           grossSalary: 55_000_000,
           netSalary: 3_500_000,
           effectiveDate: "2024-01-01",
+          changeReason: "INITIAL",
+          selectedChangeReason: null,
         },
       ])
       .mockResolvedValueOnce([]);
@@ -328,6 +354,8 @@ describe("S-06 소득 화면", () => {
       grossSalary: 55_000_000,
       netSalary: 3_500_000,
       effectiveDate: "2024-01-01",
+      changeReason: null,
+      selectedChangeReason: null,
     });
     const del = vi.spyOn(incomeApi, "deleteIncome").mockResolvedValue(null);
 
@@ -364,6 +392,8 @@ describe("S-06 소득 화면", () => {
         grossSalary: 50_000_000,
         netSalary: 3_500_000,
         effectiveDate: "2024-01-01",
+        changeReason: "INITIAL",
+        selectedChangeReason: null,
       },
     ]);
     const update = vi.spyOn(incomeApi, "updateIncome").mockRejectedValue({
@@ -461,6 +491,8 @@ describe("S-06 소득 화면", () => {
         grossSalary: 50_000_000,
         netSalary: 3_500_000,
         effectiveDate: "2024-01-01",
+        changeReason: "INITIAL",
+        selectedChangeReason: null,
       },
     ]);
     vi.spyOn(incomeApi, "deleteIncome").mockRejectedValue({

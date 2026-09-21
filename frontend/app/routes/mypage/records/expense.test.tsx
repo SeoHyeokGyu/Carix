@@ -54,6 +54,8 @@ describe("소비 탭 (S-12)", () => {
         grossSalary: 65_000_000,
         netSalary: 4_200_000,
         effectiveDate: "2024-01-01",
+        changeReason: "INITIAL",
+        selectedChangeReason: null,
       },
     ]);
   });

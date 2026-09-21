@@ -13,12 +13,16 @@ const rows: incomeApi.IncomeResponse[] = [
     grossSalary: 58_000_000,
     netSalary: 3_800_000,
     effectiveDate: "2023-01-01",
+    changeReason: "INITIAL",
+    selectedChangeReason: null,
   },
   {
     id: "i-new",
     grossSalary: 65_000_000,
     netSalary: 4_200_000,
     effectiveDate: "2024-01-01",
+    changeReason: "RAISE",
+    selectedChangeReason: "RAISE",
   },
 ];
 
