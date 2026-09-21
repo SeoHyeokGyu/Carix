@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { createRoutesStub } from "react-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -513,5 +513,102 @@ describe("S-06 소득 화면", () => {
     );
     // 행이 그대로 남아 있다 — 삭제되지 않았다.
     expect(screen.getByText("2024-01-01")).toBeInTheDocument();
+  });
+
+  it("이력이 없으면 변경 사유 셀렉트를 그리지 않는다", async () => {
+    // US-O3: 그 사용자의 첫 소득 행은 서버가 INITIAL 로 확정하고 사용자에게 묻지
+    // 않는다. 화면이 아는 정보(이력 0건)만으로 그 조항을 지킨다.
+    vi.spyOn(incomeApi, "listIncome").mockResolvedValue([]);
+    renderScreen();
+
+    await screen.findByText("등록된 이력이 없습니다.");
+    expect(screen.queryByLabelText("변경 사유")).toBeNull();
+  });
+
+  it("이력이 있으면 고른 변경 사유가 createIncome 인자에 실린다", async () => {
+    // 온보딩도 두 번째 이후 행을 만든다 — 여기 컨트롤이 없으면 그 행이 묻지도
+    // 않고 null 이 되는데, 그것이 US-O3 이 막으려던 상황이다.
+    vi.spyOn(incomeApi, "listIncome").mockResolvedValue([
+      {
+        id: "i-old",
+        grossSalary: 58_000_000,
+        netSalary: 3_800_000,
+        effectiveDate: "2023-01-01",
+        changeReason: "INITIAL",
+        selectedChangeReason: null,
+      },
+    ]);
+    const create = vi.spyOn(incomeApi, "createIncome").mockResolvedValue({
+      id: "i-new",
+      grossSalary: 65_000_000,
+      netSalary: 4_200_000,
+      effectiveDate: "2024-01-01",
+      changeReason: "RAISE",
+      selectedChangeReason: "RAISE",
+    });
+    renderScreen();
+    const user = userEvent.setup();
+
+    await user.type(await screen.findByLabelText(/세전 연봉/), "6500");
+    await user.type(screen.getByLabelText(/월 실수령액/), "420");
+    await user.type(screen.getByLabelText(/연봉 적용 시작일/), "2024-01-01");
+    await user.selectOptions(screen.getByLabelText("변경 사유"), "RAISE");
+    await user.click(screen.getByRole("button", { name: "추가" }));
+
+    await vi.waitFor(() =>
+      expect(create).toHaveBeenCalledWith({
+        grossSalary: 65_000_000,
+        netSalary: 4_200_000,
+        effectiveDate: "2024-01-01",
+        changeReason: "RAISE",
+      }),
+    );
+  });
+
+  it("표시값이 INITIAL 인 행을 수정해도 저장된 원값이 그대로 실려 간다", async () => {
+    // 가장 이른 행이라 표시는 INITIAL 이지만 컬럼에는 JOB_CHANGE 가 있다. 폼이
+    // 표시값만 보면 셀렉트가 비고, PUT 이 전체 교체라 그 JOB_CHANGE 가 지워진다.
+    const row = {
+      id: "i-old",
+      grossSalary: 58_000_000,
+      netSalary: 3_800_000,
+      effectiveDate: "2023-01-01",
+      changeReason: "INITIAL" as const,
+      selectedChangeReason: "JOB_CHANGE" as const,
+    };
+    vi.spyOn(incomeApi, "listIncome").mockResolvedValue([row]);
+    const update = vi.spyOn(incomeApi, "updateIncome").mockResolvedValue(row);
+    renderScreen();
+    const user = userEvent.setup();
+
+    await user.click(await screen.findByRole("button", { name: "수정" }));
+    expect(screen.getByLabelText("변경 사유")).toHaveValue("JOB_CHANGE");
+
+    await user.click(screen.getByRole("button", { name: "저장" }));
+
+    await vi.waitFor(() =>
+      expect(update).toHaveBeenCalledWith(
+        "i-old",
+        expect.objectContaining({ changeReason: "JOB_CHANGE" }),
+      ),
+    );
+  });
+
+  it("과거 연봉 이력 표가 변경 사유를 문구로 낸다", async () => {
+    vi.spyOn(incomeApi, "listIncome").mockResolvedValue([
+      {
+        id: "i-old",
+        grossSalary: 58_000_000,
+        netSalary: 3_800_000,
+        effectiveDate: "2023-01-01",
+        changeReason: "INITIAL",
+        selectedChangeReason: null,
+      },
+    ]);
+    renderScreen();
+
+    // 표로 좁힌다 — 라벨 문구는 셀렉트의 <option> 에도 있다.
+    const table = await screen.findByRole("table");
+    expect(within(table).getByText("최초 입력")).toBeInTheDocument();
   });
 });

@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Field } from "../../components/onboarding/Field";
+import { NativeSelect } from "../../components/onboarding/NativeSelect";
 import { isApiError, toUserMessage } from "../../lib/apiError";
 import {
   createIncome,
@@ -31,7 +32,12 @@ import { toFieldErrors, type FieldErrors } from "../../lib/fieldErrors";
 import { focusFirstInvalidField } from "../../lib/focusFirstInvalidField";
 import { advanceOnboarding } from "../../lib/onboardingApi";
 import { isForwardStep, LOGIN_PATH } from "../../lib/routeGuards";
-import { incomeSchema, INCOME_FIELD_MESSAGES } from "../../lib/schemas/income";
+import {
+  incomeSchema,
+  INCOME_CHANGE_REASONS,
+  INCOME_FIELD_MESSAGES,
+  incomeChangeReasonLabel,
+} from "../../lib/schemas/income";
 import { requireSession, setSession } from "../../lib/session";
 
 type ActionData = { errors: FieldErrors } | null;
@@ -110,6 +116,7 @@ export async function clientAction({ request }: { request: Request }) {
     .replace(/,/g, "")
     .trim();
   const effectiveDate = String(formData.get("effectiveDate") ?? "").trim();
+  const changeReasonRaw = String(formData.get("changeReason") ?? "").trim();
 
   const grossSalary = grossRaw === "" ? NaN : Number(grossRaw) * 10_000;
   const netSalary = netRaw === "" ? NaN : Number(netRaw) * 10_000;
@@ -118,6 +125,8 @@ export async function clientAction({ request }: { request: Request }) {
     grossSalary,
     netSalary,
     effectiveDate,
+    // 빈 문자열은 "고르지 않음" 이다 — undefined 로 보내야 서버가 null 로 저장한다.
+    changeReason: changeReasonRaw === "" ? undefined : changeReasonRaw,
   });
   if (!result.success) {
     return {
@@ -166,6 +175,10 @@ function IncomeRow({ income, isEditing, onEdit }: IncomeRowProps) {
       <td className="px-3 py-2">{income.effectiveDate}</td>
       <td className="px-3 py-2">{grossInTenThousand}만 원</td>
       <td className="px-3 py-2">{netInTenThousand}만 원</td>
+      {/* 표는 표시값(changeReason)을 쓴다 — 폼이 쓰는 selectedChangeReason 과 다른 필드다. */}
+      <td className="px-3 py-2">
+        {incomeChangeReasonLabel(income.changeReason)}
+      </td>
       <td className="px-3 py-2">
         <div className="flex flex-col gap-1">
           <div className="flex gap-2">
@@ -398,6 +411,29 @@ export default function Income() {
               )}
             </Field>
 
+            {/* 이력이 0건이면 그리지 않는다 — 그 행은 서버가 INITIAL 로 확정하고
+                사용자에게 묻지 않는다(기능 명세 US-O3). */}
+            {income.length > 0 && (
+              <Field
+                id="changeReason"
+                label="변경 사유"
+                hint="선택 사항입니다. 12개월 뒤 시나리오 예측을 실제 소득과 맞댈 때 잔류·이직 중 어느 쪽을 검증할지 가릅니다."
+                error={errors?.changeReason}
+              >
+                {(aria) => (
+                  <NativeSelect
+                    {...aria}
+                    name="changeReason"
+                    // 표시값(changeReason)이 아니라 컬럼 원값을 채운다 — INITIAL 로
+                    // 가려진 원값을 못 보면 저장 한 번에 그 값이 지워진다.
+                    defaultValue={editingIncome?.selectedChangeReason ?? ""}
+                    placeholder="선택 안 함"
+                    options={INCOME_CHANGE_REASONS}
+                  />
+                )}
+              </Field>
+            )}
+
             {errors?._form && (
               <p role="alert" className="text-sm text-destructive">
                 {errors._form}
@@ -440,6 +476,7 @@ export default function Income() {
                     <th className="px-3 py-2 font-medium">연봉 적용 시작일</th>
                     <th className="px-3 py-2 font-medium">세전 연봉</th>
                     <th className="px-3 py-2 font-medium">월 실수령액</th>
+                    <th className="px-3 py-2 font-medium">변경 사유</th>
                     <th className="px-3 py-2 font-medium">작업</th>
                   </tr>
                 </thead>
