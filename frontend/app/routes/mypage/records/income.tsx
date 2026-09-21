@@ -241,22 +241,27 @@ export default function RecordsIncome() {
           description="아래에서 세전 연봉과 월 실수령액, 적용 시작일을 입력해 첫 이력을 추가하세요."
         />
       ) : (
-        <table className="w-full text-left text-sm">
-          <thead className="text-carix-text/70">
-            <tr>
-              <th className="px-3 py-2 font-medium">유효 시작일</th>
-              <th className="px-3 py-2 font-medium">세전 연봉</th>
-              <th className="px-3 py-2 font-medium">월 실수령액</th>
-              <th className="px-3 py-2 font-medium">변경 사유</th>
-              <th className="px-3 py-2 font-medium">작업</th>
-            </tr>
-          </thead>
-          <tbody>
-            {income.map((item) => (
-              <IncomeRow key={item.id} income={item} onEdit={handleEdit} />
-            ))}
-          </tbody>
-        </table>
+        // 열이 다섯이라 좁은 폭에서는 넘친다. 래퍼가 없으면 브라우저가 가로 스크롤
+        // 대신 열을 최소 폭까지 짜부라뜨려 한글이 글자 단위로 쪼개진다(375px 에서
+        // "변/경/사/유"). onboarding/income.tsx 의 같은 표가 쓰는 처리와 맞춘다.
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-sm">
+            <thead className="text-carix-text/70">
+              <tr>
+                <th className="px-3 py-2 font-medium">유효 시작일</th>
+                <th className="px-3 py-2 font-medium">세전 연봉</th>
+                <th className="px-3 py-2 font-medium">월 실수령액</th>
+                <th className="px-3 py-2 font-medium">변경 사유</th>
+                <th className="px-3 py-2 font-medium">작업</th>
+              </tr>
+            </thead>
+            <tbody>
+              {income.map((item) => (
+                <IncomeRow key={item.id} income={item} onEdit={handleEdit} />
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
 
       <formFetcher.Form
