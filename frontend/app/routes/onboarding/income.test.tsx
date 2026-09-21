@@ -565,6 +565,105 @@ describe("S-06 소득 화면", () => {
     );
   });
 
+  it("선택 안 함이면 changeReason 없이 보낸다", async () => {
+    // 기본값을 채우면 고르지 않은 것이 고른 것으로 기록된다 (API 규격 §4.2).
+    // 빈 문자열도 보내면 안 된다 — enum 검증에서 떨어진다. S-12 와 같은 경로를
+    // 온보딩에서도 확인한다.
+    vi.spyOn(incomeApi, "listIncome").mockResolvedValue([
+      {
+        id: "i-old",
+        grossSalary: 58_000_000,
+        netSalary: 3_800_000,
+        effectiveDate: "2023-01-01",
+        changeReason: "INITIAL",
+        selectedChangeReason: null,
+      },
+    ]);
+    const create = vi.spyOn(incomeApi, "createIncome").mockResolvedValue({
+      id: "i-new",
+      grossSalary: 70_000_000,
+      netSalary: 4_500_000,
+      effectiveDate: "2025-01-01",
+      changeReason: null,
+      selectedChangeReason: null,
+    });
+    renderScreen();
+    const user = userEvent.setup();
+
+    await user.type(await screen.findByLabelText(/세전 연봉/), "7000");
+    await user.type(screen.getByLabelText(/월 실수령액/), "450");
+    await user.type(screen.getByLabelText(/연봉 적용 시작일/), "2025-01-01");
+    await user.click(screen.getByRole("button", { name: "추가" }));
+
+    await vi.waitFor(() =>
+      expect(create).toHaveBeenCalledWith({
+        grossSalary: 70_000_000,
+        netSalary: 4_500_000,
+        effectiveDate: "2025-01-01",
+      }),
+    );
+  });
+
+  it("생성이 성공해도 변경 사유 셀렉트가 이전 선택을 유지하지 않는다 (회귀)", async () => {
+    // Important #1(최종 리뷰): 셀렉트가 uncontrolled(defaultValue)라 폼 key 가
+    // 안 바뀌는 생성→생성 경로에서 리마운트가 없다 — 이직을 고르고 저장한 뒤
+    // 셀렉트를 건드리지 않고 다시 저장하면 두 번째 행에도 이직이 실린다. 온보딩은
+    // 한 자리에서 과거 행을 여러 개 채우는 화면이라 이 경로가 특히 자주 밟힌다.
+    vi.spyOn(incomeApi, "listIncome").mockResolvedValue([
+      {
+        id: "i-old",
+        grossSalary: 58_000_000,
+        netSalary: 3_800_000,
+        effectiveDate: "2023-01-01",
+        changeReason: "INITIAL",
+        selectedChangeReason: null,
+      },
+    ]);
+    const create = vi.spyOn(incomeApi, "createIncome").mockResolvedValue({
+      id: "i-new",
+      grossSalary: 60_000_000,
+      netSalary: 4_000_000,
+      effectiveDate: "2024-06-01",
+      changeReason: "JOB_CHANGE",
+      selectedChangeReason: "JOB_CHANGE",
+    });
+    renderScreen();
+    const user = userEvent.setup();
+
+    await user.type(await screen.findByLabelText(/세전 연봉/), "6000");
+    await user.type(screen.getByLabelText(/월 실수령액/), "400");
+    await user.type(screen.getByLabelText(/연봉 적용 시작일/), "2024-06-01");
+    await user.selectOptions(screen.getByLabelText("변경 사유"), "JOB_CHANGE");
+    await user.click(screen.getByRole("button", { name: "추가" }));
+
+    await vi.waitFor(() =>
+      expect(create).toHaveBeenNthCalledWith(1, {
+        grossSalary: 60_000_000,
+        netSalary: 4_000_000,
+        effectiveDate: "2024-06-01",
+        changeReason: "JOB_CHANGE",
+      }),
+    );
+
+    // 폼이 성공 후 리셋됐는지 확인하고서 다음 입력을 시작한다.
+    await vi.waitFor(() =>
+      expect(screen.getByLabelText(/세전 연봉/)).toHaveValue(""),
+    );
+
+    await user.type(screen.getByLabelText(/세전 연봉/), "7000");
+    await user.type(screen.getByLabelText(/월 실수령액/), "450");
+    await user.type(screen.getByLabelText(/연봉 적용 시작일/), "2025-01-01");
+    await user.click(screen.getByRole("button", { name: "추가" }));
+
+    await vi.waitFor(() =>
+      expect(create).toHaveBeenNthCalledWith(2, {
+        grossSalary: 70_000_000,
+        netSalary: 4_500_000,
+        effectiveDate: "2025-01-01",
+      }),
+    );
+  });
+
   it("표시값이 INITIAL 인 행을 수정해도 저장된 원값이 그대로 실려 간다", async () => {
     // 가장 이른 행이라 표시는 INITIAL 이지만 컬럼에는 JOB_CHANGE 가 있다. 폼이
     // 표시값만 보면 셀렉트가 비고, PUT 이 전체 교체라 그 JOB_CHANGE 가 지워진다.

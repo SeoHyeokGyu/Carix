@@ -277,6 +277,48 @@ describe("소득 탭 (S-12)", () => {
     );
   });
 
+  it("생성이 성공해도 변경 사유 셀렉트가 이전 선택을 유지하지 않는다 (회귀)", async () => {
+    // Important #1(최종 리뷰): 셀렉트가 uncontrolled(defaultValue)라 폼 key 가
+    // 안 바뀌는 생성→생성 경로에서 리마운트가 없다 — 이직을 고르고 저장한 뒤
+    // 셀렉트를 건드리지 않고 다시 저장하면 두 번째 행에도 이직이 실린다.
+    vi.mocked(incomeApi.createIncome).mockResolvedValue(rows[1]);
+    renderTab();
+    const user = userEvent.setup();
+
+    await user.type(await screen.findByLabelText(/세전 연봉/), "6000");
+    await user.type(screen.getByLabelText(/월 실수령액/), "400");
+    await user.type(screen.getByLabelText(/연봉 적용 시작일/), "2024-06-01");
+    await user.selectOptions(screen.getByLabelText("변경 사유"), "JOB_CHANGE");
+    await user.click(screen.getByRole("button", { name: "저장" }));
+
+    await waitFor(() =>
+      expect(incomeApi.createIncome).toHaveBeenNthCalledWith(1, {
+        grossSalary: 60_000_000,
+        netSalary: 4_000_000,
+        effectiveDate: "2024-06-01",
+        changeReason: "JOB_CHANGE",
+      }),
+    );
+
+    // 폼이 성공 후 리셋됐는지 확인하고서 다음 입력을 시작한다.
+    await waitFor(() =>
+      expect(screen.getByLabelText(/세전 연봉/)).toHaveValue(""),
+    );
+
+    await user.type(screen.getByLabelText(/세전 연봉/), "7000");
+    await user.type(screen.getByLabelText(/월 실수령액/), "450");
+    await user.type(screen.getByLabelText(/연봉 적용 시작일/), "2025-01-01");
+    await user.click(screen.getByRole("button", { name: "저장" }));
+
+    await waitFor(() =>
+      expect(incomeApi.createIncome).toHaveBeenNthCalledWith(2, {
+        grossSalary: 70_000_000,
+        netSalary: 4_500_000,
+        effectiveDate: "2025-01-01",
+      }),
+    );
+  });
+
   it("표시값이 INITIAL 인 행을 수정해도 저장된 원값이 그대로 실려 간다", async () => {
     // 가장 이른 행이라 표시는 INITIAL 이지만 컬럼에는 JOB_CHANGE 가 있다. 폼이
     // 표시값만 보면 셀렉트가 비고, PUT 이 전체 교체라 그 JOB_CHANGE 가 지워진다.
@@ -305,6 +347,19 @@ describe("소득 탭 (S-12)", () => {
   });
 
   it("목록 표가 변경 사유를 문구로 낸다", async () => {
+    // 명세 §7 — 표는 최초 입력·라벨·— 셋을 모두 낼 수 있어야 한다. changeReason
+    // 이 null 인 행(과거 회차 혼재 데이터 등)까지 포함해 세 갈래를 함께 본다.
+    vi.mocked(incomeApi.listIncome).mockResolvedValue([
+      ...rows,
+      {
+        id: "i-null",
+        grossSalary: 70_000_000,
+        netSalary: 4_500_000,
+        effectiveDate: "2025-01-01",
+        changeReason: null,
+        selectedChangeReason: null,
+      },
+    ]);
     renderTab();
 
     // 표로 좁힌다 — "연봉 인상" 은 셀렉트의 <option> 에도 있어서 화면 전체로
@@ -312,5 +367,6 @@ describe("소득 탭 (S-12)", () => {
     const table = await screen.findByRole("table");
     expect(within(table).getByText("최초 입력")).toBeInTheDocument();
     expect(within(table).getByText("연봉 인상")).toBeInTheDocument();
+    expect(within(table).getByText("—")).toBeInTheDocument();
   });
 });
