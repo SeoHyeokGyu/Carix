@@ -142,14 +142,16 @@
         "grossSalary": 60000000,
         "netSalary": 4200000,
         "effectiveDate": "2026-01-01",
-        "changeReason": "JOB_CHANGE"
+        "changeReason": "JOB_CHANGE",
+        "selectedChangeReason": "JOB_CHANGE"
       },
       {
         "id": "fa91b5c4-2dfb-402a-bf39-44ef8c91361c",
         "grossSalary": 55000000,
         "netSalary": 3900000,
         "effectiveDate": "2025-01-01",
-        "changeReason": "INITIAL"
+        "changeReason": "INITIAL",
+        "selectedChangeReason": null
       }
     ]
     ```
@@ -171,6 +173,8 @@
     *   `effectiveDate` (String, YYYY-MM-DD): 소득 적용 기준일. 화면에서는 사용자가 직관적으로 이해할 수 있도록 **"연봉 적용 시작일"**로 표기한다.
     *   `changeReason` (String, 선택): `INITIAL` · `RAISE` · `JOB_CHANGE`. **그 사용자의 첫 소득 행은 서버가 `INITIAL` 로 확정하고 요청값을 무시한다.** 두 번째 이후 행에서만 의미가 있고, 미지정은 `null` 로 저장한다 — 기본값을 채우면 고르지 않은 것이 고른 것으로 기록된다 ([기능 명세 US-O3](functional-specification.md)).
     *   `JOB_CHANGE` 는 12개월 뒤 시나리오 예측을 실제 소득과 맞댈 때 **잔류 예측과 이직 예측 중 어느 쪽을 검증할지**를 가른다. 자기 신고값이며 그 한계는 검증 결과에 함께 표기한다.
+    *   **`INITIAL` 은 저장값이 아니다.** 컬럼(`income_history.change_reason`)에는 `RAISE`·`JOB_CHANGE`·`null` 만 들어가고, 응답의 `changeReason` 은 그 사용자의 `min(effectiveDate)` 행일 때 서버가 `INITIAL` 을 얹은 표시값이다. 요청에 `INITIAL` 을 실으면 `400 INVALID_INPUT` 이다. 저장하면 사용자가 더 이른 과거 이력을 넣을 때마다 값을 행 사이로 옮겨야 하고, 그 갱신이 이미 그 행에 있던 선택값을 덮는다 ([ERD 스키마 설계 주석](erd.md)).
+    *   `selectedChangeReason` (String, 응답 전용): 컬럼 원값 그대로(`RAISE`·`JOB_CHANGE`·`null`). 편집 화면이 이것으로 선택 컨트롤을 채운다. `changeReason` 만 내려주면 `INITIAL` 로 가려진 원값을 폼이 볼 수 없어, `PUT` 이 전체 교체인 탓에 다른 필드만 고쳐 저장해도 사용자가 골랐던 값이 지워진다.
 *   **Response (201 Created):** 등록 완료된 단건 반환
 
 ---
