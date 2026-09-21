@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { createRoutesStub } from "react-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -223,5 +223,94 @@ describe("소득 탭 (S-12)", () => {
 
     expect(incomeApi.deleteIncome).not.toHaveBeenCalled();
     expect(screen.getByText("2024-01-01")).toBeInTheDocument();
+  });
+
+  it("이력이 없으면 변경 사유 셀렉트를 그리지 않는다", async () => {
+    // US-O3: 그 사용자의 첫 소득 행은 서버가 INITIAL 로 확정하고 사용자에게 묻지
+    // 않는다. 화면이 아는 정보(이력 0건)만으로 그 조항을 지킨다.
+    vi.mocked(incomeApi.listIncome).mockResolvedValue([]);
+    renderTab();
+
+    await screen.findByText("등록된 연봉 이력이 없습니다");
+    expect(screen.queryByLabelText("변경 사유")).toBeNull();
+  });
+
+  it("고른 변경 사유가 createIncome 인자에 실린다", async () => {
+    vi.mocked(incomeApi.createIncome).mockResolvedValue(rows[1]);
+    renderTab();
+    const user = userEvent.setup();
+
+    await user.type(await screen.findByLabelText(/세전 연봉/), "7000");
+    await user.type(screen.getByLabelText(/월 실수령액/), "450");
+    await user.type(screen.getByLabelText(/연봉 적용 시작일/), "2025-01-01");
+    await user.selectOptions(screen.getByLabelText("변경 사유"), "JOB_CHANGE");
+    await user.click(screen.getByRole("button", { name: "저장" }));
+
+    await waitFor(() =>
+      expect(incomeApi.createIncome).toHaveBeenCalledWith({
+        grossSalary: 70_000_000,
+        netSalary: 4_500_000,
+        effectiveDate: "2025-01-01",
+        changeReason: "JOB_CHANGE",
+      }),
+    );
+  });
+
+  it("선택 안 함이면 changeReason 없이 보낸다", async () => {
+    // 기본값을 채우면 고르지 않은 것이 고른 것으로 기록된다 (API 규격 §4.2).
+    // 빈 문자열도 보내면 안 된다 — enum 검증에서 떨어진다.
+    vi.mocked(incomeApi.createIncome).mockResolvedValue(rows[1]);
+    renderTab();
+    const user = userEvent.setup();
+
+    await user.type(await screen.findByLabelText(/세전 연봉/), "7000");
+    await user.type(screen.getByLabelText(/월 실수령액/), "450");
+    await user.type(screen.getByLabelText(/연봉 적용 시작일/), "2025-01-01");
+    await user.click(screen.getByRole("button", { name: "저장" }));
+
+    await waitFor(() =>
+      expect(incomeApi.createIncome).toHaveBeenCalledWith({
+        grossSalary: 70_000_000,
+        netSalary: 4_500_000,
+        effectiveDate: "2025-01-01",
+      }),
+    );
+  });
+
+  it("표시값이 INITIAL 인 행을 수정해도 저장된 원값이 그대로 실려 간다", async () => {
+    // 가장 이른 행이라 표시는 INITIAL 이지만 컬럼에는 JOB_CHANGE 가 있다. 폼이
+    // 표시값만 보면 셀렉트가 비고, PUT 이 전체 교체라 그 JOB_CHANGE 가 지워진다.
+    vi.mocked(incomeApi.listIncome).mockResolvedValue([
+      {
+        ...rows[0],
+        changeReason: "INITIAL",
+        selectedChangeReason: "JOB_CHANGE",
+      },
+    ]);
+    vi.mocked(incomeApi.updateIncome).mockResolvedValue(rows[0]);
+    renderTab();
+    const user = userEvent.setup();
+
+    await user.click(await screen.findByRole("button", { name: "수정" }));
+    expect(screen.getByLabelText("변경 사유")).toHaveValue("JOB_CHANGE");
+
+    await user.click(screen.getByRole("button", { name: "저장" }));
+
+    await waitFor(() =>
+      expect(incomeApi.updateIncome).toHaveBeenCalledWith(
+        "i-old",
+        expect.objectContaining({ changeReason: "JOB_CHANGE" }),
+      ),
+    );
+  });
+
+  it("목록 표가 변경 사유를 문구로 낸다", async () => {
+    renderTab();
+
+    // 표로 좁힌다 — "연봉 인상" 은 셀렉트의 <option> 에도 있어서 화면 전체로
+    // 찾으면 둘이 잡힌다. 여기서 보려는 것은 표가 그리는 쪽이다.
+    const table = await screen.findByRole("table");
+    expect(within(table).getByText("최초 입력")).toBeInTheDocument();
+    expect(within(table).getByText("연봉 인상")).toBeInTheDocument();
   });
 });
