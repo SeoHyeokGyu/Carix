@@ -12,6 +12,8 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.carix.common.GlobalExceptionHandler;
+import com.carix.income.domain.IncomeChangeReasonEnum;
 import com.carix.income.dto.IncomeRequest;
 import com.carix.income.dto.IncomeResponse;
 import com.carix.income.service.IncomeService;
@@ -35,7 +37,12 @@ class IncomeControllerTest {
   @BeforeEach
   void setUp() {
     incomeService = mock(IncomeService.class);
-    mockMvc = MockMvcBuilders.standaloneSetup(new IncomeController(incomeService)).build();
+    // standaloneSetup 은 @RestControllerAdvice 를 자동으로 줍지 않는다 — 400/404/409 계약을
+    // 컨트롤러 테스트에서 확인하려면 직접 붙여야 한다.
+    mockMvc =
+        MockMvcBuilders.standaloneSetup(new IncomeController(incomeService))
+            .setControllerAdvice(new GlobalExceptionHandler())
+            .build();
   }
 
   @Test
@@ -116,5 +123,51 @@ class IncomeControllerTest {
         .andExpect(jsonPath("$.success").value(true));
 
     verify(incomeService).delete(USER_ID, id);
+  }
+
+  @Test
+  @DisplayName("POST /v1/income - changeReason 이 INITIAL 이면 400")
+  void createIncome_rejectsInitial() throws Exception {
+    given(incomeService.create(eq(USER_ID), any(IncomeRequest.class)))
+        .willThrow(
+            new IllegalArgumentException(
+                "changeReason 에 INITIAL 을 지정할 수 없습니다. 최초 소득 행은 서버가 판정합니다."));
+
+    mockMvc
+        .perform(
+            post("/v1/income")
+                .header("X-User-Id", USER_ID.toString())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    """
+                    {
+                      "grossSalary": 65000000,
+                      "netSalary": 4800000,
+                      "effectiveDate": "2026-07-01",
+                      "changeReason": "INITIAL"
+                    }
+                    """))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.code").value("INVALID_INPUT"));
+  }
+
+  @Test
+  @DisplayName("GET /v1/income - changeReason 과 selectedChangeReason 을 함께 싣는다")
+  void getIncomeHistory_carriesBothReasons() throws Exception {
+    IncomeResponse res =
+        new IncomeResponse(
+            UUID.randomUUID(),
+            58000000L,
+            3800000L,
+            LocalDate.of(2024, 1, 1),
+            IncomeChangeReasonEnum.INITIAL,
+            IncomeChangeReasonEnum.JOB_CHANGE);
+    given(incomeService.getHistory(USER_ID)).willReturn(List.of(res));
+
+    mockMvc
+        .perform(get("/v1/income").header("X-User-Id", USER_ID.toString()))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.data[0].changeReason").value("INITIAL"))
+        .andExpect(jsonPath("$.data[0].selectedChangeReason").value("JOB_CHANGE"));
   }
 }
