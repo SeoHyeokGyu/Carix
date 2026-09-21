@@ -48,6 +48,9 @@ class IncomeServiceTest {
     assertThat(result).hasSize(1);
     assertThat(result.get(0).grossSalary()).isEqualTo(60000000L);
     assertThat(result.get(0).netSalary()).isEqualTo(4500000L);
+    // 행이 하나뿐이면 그 행이 곧 최소 유효일 행이다 — 가장 흔한 실사용 상태인데도
+    // 경계(size == 1)에서 파생 분기가 실제로 도는지 여태 아무 테스트도 안 봤다.
+    assertThat(result.get(0).changeReason()).isEqualTo(IncomeChangeReasonEnum.INITIAL);
   }
 
   @Test
@@ -283,6 +286,7 @@ class IncomeServiceTest {
     IncomeResponse res =
         service.update(USER_ID, id, new IncomeRequest(70000000L, 5000000L, date, null));
 
+    assertThat(res.changeReason()).isNull();
     assertThat(res.selectedChangeReason()).isNull();
     assertThat(history.getChangeReason()).isNull();
   }
