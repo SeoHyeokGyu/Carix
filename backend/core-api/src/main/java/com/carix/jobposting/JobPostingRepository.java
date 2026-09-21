@@ -1,5 +1,6 @@
 package com.carix.jobposting;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -38,4 +39,35 @@ public interface JobPostingRepository extends JpaRepository<JobPosting, UUID> {
       @Param("companySize") String companySize,
       @Param("minYears") int minYears,
       @Param("maxYears") int maxYears);
+
+  /** 등록월(postedStartDate) 기준 동료집단 조건에 걸리는 원 공고를 모은다 (OWI 산출 및 등록월별 추이용). */
+  @Query(
+      """
+      SELECT p FROM JobPosting p
+      WHERE p.postedStartDate >= :monthStart AND p.postedStartDate <= :monthEnd
+        AND p.jobFamily = :jobFamily
+        AND (:regionPrefix IS NULL OR p.region LIKE CONCAT(:regionPrefix, '%'))
+        AND (:employmentType IS NULL OR p.employmentType = :employmentType)
+        AND (:companySize IS NULL OR p.companySize = :companySize)
+        AND (p.experienceMin IS NULL OR p.experienceMin <= :maxYears)
+        AND (p.experienceMax IS NULL OR p.experienceMax >= :minYears)
+      """)
+  List<JobPosting> findPeerGroupCandidatesByRegistrationMonth(
+      @Param("jobFamily") String jobFamily,
+      @Param("regionPrefix") String regionPrefix,
+      @Param("employmentType") String employmentType,
+      @Param("companySize") String companySize,
+      @Param("minYears") int minYears,
+      @Param("maxYears") int maxYears,
+      @Param("monthStart") LocalDate monthStart,
+      @Param("monthEnd") LocalDate monthEnd);
+
+  /** 등록월(postedStartDate) 기준 전체시장 원 공고를 모은다 (OWI 분모 기준 모수 산출용). */
+  @Query(
+      """
+      SELECT p FROM JobPosting p
+      WHERE p.postedStartDate >= :monthStart AND p.postedStartDate <= :monthEnd
+      """)
+  List<JobPosting> findAllByRegistrationMonth(
+      @Param("monthStart") LocalDate monthStart, @Param("monthEnd") LocalDate monthEnd);
 }

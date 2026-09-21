@@ -6,6 +6,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -17,9 +18,14 @@ import com.carix.dashboard.dto.TrendListResponse;
 import com.carix.dashboard.service.DashboardSummaryService;
 import com.carix.dashboard.service.SalaryDistributionService;
 import com.carix.dashboard.service.SnapshotSeriesService;
+import com.carix.income.domain.IncomeHistory;
+import com.carix.income.repository.IncomeHistoryRepository;
 import com.carix.index.mvi.MarketValueIndexServiceImpl;
 import com.carix.index.mvi.MarketValueIndexServiceImpl.SkillDemandDetailData;
 import com.carix.index.mvi.MarketValueIndexServiceImpl.SkillSourceStatData;
+import com.carix.snapshot.SnapshotRecalculationService;
+import com.carix.snapshot.YearMonths;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
@@ -37,6 +43,8 @@ class DashboardControllerTest {
   private SalaryDistributionService salaryDistributionService;
   private DashboardSummaryService dashboardSummaryService;
   private SnapshotSeriesService snapshotSeriesService;
+  private SnapshotRecalculationService snapshotRecalculationService;
+  private IncomeHistoryRepository incomeHistoryRepository;
 
   @BeforeEach
   void setUp() {
@@ -44,13 +52,17 @@ class DashboardControllerTest {
     salaryDistributionService = mock(SalaryDistributionService.class);
     dashboardSummaryService = mock(DashboardSummaryService.class);
     snapshotSeriesService = mock(SnapshotSeriesService.class);
+    snapshotRecalculationService = mock(SnapshotRecalculationService.class);
+    incomeHistoryRepository = mock(IncomeHistoryRepository.class);
     mockMvc =
         MockMvcBuilders.standaloneSetup(
                 new DashboardController(
                     marketValueIndexService,
                     salaryDistributionService,
                     dashboardSummaryService,
-                    snapshotSeriesService))
+                    snapshotSeriesService,
+                    snapshotRecalculationService,
+                    incomeHistoryRepository))
             .setCustomArgumentResolvers(new UserContextArgumentResolver())
             .build();
   }
@@ -215,5 +227,117 @@ class DashboardControllerTest {
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.data.snapshots").isArray())
         .andExpect(jsonPath("$.data.snapshots").isEmpty());
+  }
+
+  @Test
+  @DisplayName("POST /v1/dashboard/recalculate - 명시적 기준월이 주어지면 해당 월부터 재계산한다")
+  void recalculate_withExplicitFromYearMonth() throws Exception {
+    given(snapshotRecalculationService.recalculateSnapshot(USER_ID, "202603")).willReturn(5);
+    DashboardSummaryResponse.IndexDetail detail =
+        new DashboardSummaryResponse.IndexDetail(105.0, 5.0, "INCREASED", "OK", null);
+    DashboardSummaryResponse summary =
+        new DashboardSummaryResponse(
+            detail,
+            detail,
+            detail,
+            new DashboardSummaryResponse.DecisionSignal("SIGNAL_BUY", "매수 신호", List.of(), "2.0.0"),
+            new DashboardSummaryResponse.SummaryMetadata(
+                LocalDate.of(2026, 7, 31),
+                "2026-07-31T00:00:00Z",
+                "v1",
+                true,
+                List.of(),
+                100,
+                50000000.0,
+                null,
+                null,
+                null,
+                null));
+    given(dashboardSummaryService.resolve(eq(USER_ID), any())).willReturn(summary);
+
+    mockMvc
+        .perform(
+            post("/v1/dashboard/recalculate")
+                .header("X-User-Id", USER_ID.toString())
+                .param("fromYearMonth", "2026-03"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.data.recalculatedMonths").value(5))
+        .andExpect(jsonPath("$.data.fromYearMonth").value("202603"))
+        .andExpect(jsonPath("$.data.summary.decisionSignal.code").value("SIGNAL_BUY"));
+  }
+
+  @Test
+  @DisplayName("POST /v1/dashboard/recalculate - 기준월 미지정 시 소득 이력의 가장 이른 월부터 재계산한다")
+  void recalculate_withEarliestIncomeHistory() throws Exception {
+    IncomeHistory recent =
+        new IncomeHistory(USER_ID, 60000000L, 48000000L, LocalDate.of(2026, 1, 1), null);
+    IncomeHistory earliest =
+        new IncomeHistory(USER_ID, 50000000L, 40000000L, LocalDate.of(2025, 3, 15), null);
+    given(incomeHistoryRepository.findByUserIdOrderByEffectiveDateDesc(USER_ID))
+        .willReturn(List.of(recent, earliest));
+    given(snapshotRecalculationService.recalculateSnapshot(USER_ID, "202503")).willReturn(17);
+    DashboardSummaryResponse.IndexDetail detail =
+        new DashboardSummaryResponse.IndexDetail(100.0, 0.0, "SAME", "OK", null);
+    given(dashboardSummaryService.resolve(eq(USER_ID), any()))
+        .willReturn(
+            new DashboardSummaryResponse(
+                detail,
+                detail,
+                detail,
+                new DashboardSummaryResponse.DecisionSignal("HOLD", "유지 신호", List.of(), "2.0.0"),
+                new DashboardSummaryResponse.SummaryMetadata(
+                    LocalDate.of(2026, 7, 31),
+                    "2026-07-31T00:00:00Z",
+                    "v1",
+                    true,
+                    List.of(),
+                    100,
+                    50000000.0,
+                    null,
+                    null,
+                    null,
+                    null)));
+
+    mockMvc
+        .perform(post("/v1/dashboard/recalculate").header("X-User-Id", USER_ID.toString()))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.data.recalculatedMonths").value(17))
+        .andExpect(jsonPath("$.data.fromYearMonth").value("202503"));
+  }
+
+  @Test
+  @DisplayName("POST /v1/dashboard/recalculate - 기준월 미지정 및 소득 이력 없을 시 현재월로 재계산한다")
+  void recalculate_noIncomeHistory_defaultsToCurrent() throws Exception {
+    given(incomeHistoryRepository.findByUserIdOrderByEffectiveDateDesc(USER_ID))
+        .willReturn(List.of());
+    String currentYm = YearMonths.current();
+    given(snapshotRecalculationService.recalculateSnapshot(USER_ID, currentYm)).willReturn(1);
+    DashboardSummaryResponse.IndexDetail detail =
+        new DashboardSummaryResponse.IndexDetail(100.0, 0.0, "SAME", "OK", null);
+    given(dashboardSummaryService.resolve(eq(USER_ID), any()))
+        .willReturn(
+            new DashboardSummaryResponse(
+                detail,
+                detail,
+                detail,
+                new DashboardSummaryResponse.DecisionSignal("HOLD", "유지 신호", List.of(), "2.0.0"),
+                new DashboardSummaryResponse.SummaryMetadata(
+                    LocalDate.now(),
+                    "2026-07-31T00:00:00Z",
+                    "v1",
+                    true,
+                    List.of(),
+                    100,
+                    50000000.0,
+                    null,
+                    null,
+                    null,
+                    null)));
+
+    mockMvc
+        .perform(post("/v1/dashboard/recalculate").header("X-User-Id", USER_ID.toString()))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.data.recalculatedMonths").value(1))
+        .andExpect(jsonPath("$.data.fromYearMonth").value(currentYm));
   }
 }

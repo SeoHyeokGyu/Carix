@@ -4,6 +4,8 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import java.time.LocalDate;
+import java.time.temporal.ChronoUnit;
 import java.util.UUID;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
@@ -58,6 +60,36 @@ public class JobPosting {
 
   @Column(name = "job_family", length = 100)
   private String jobFamily;
+
+  @Column(name = "posted_start_date")
+  private LocalDate postedStartDate;
+
+  @Column(name = "posted_end_date")
+  private LocalDate postedEndDate;
+
+  /**
+   * 모집 개방 기간 (일수). {@code posted_end_date - posted_start_date} (기능 명세 §4.5).
+   *
+   * @return 시작일 또는 마감일이 없거나, 마감일이 시작일보다 앞선 역전 공고이면 {@code null}
+   */
+  public Integer windowDays() {
+    if (postedStartDate == null || postedEndDate == null || isReversed()) {
+      return null;
+    }
+    return (int) ChronoUnit.DAYS.between(postedStartDate, postedEndDate);
+  }
+
+  /** 역전 공고 여부 (posted_end_date < posted_start_date). 원천 오류로 표본에서 제외된다. */
+  public boolean isReversed() {
+    return postedStartDate != null
+        && postedEndDate != null
+        && postedEndDate.isBefore(postedStartDate);
+  }
+
+  /** 마감일 없음(상시채용·채용시 등). */
+  public boolean isOpenEnded() {
+    return postedStartDate != null && postedEndDate == null;
+  }
 
   /**
    * 유효 공개연봉의 대표값. 상·하한의 중간값이다 (collector {@code MarketAggregateService.calculateSalaryStats} 와 같은

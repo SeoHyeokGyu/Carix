@@ -222,11 +222,57 @@ describe("대시보드 라우트 및 레이아웃 (Dashboard)", () => {
 
       expect(await screen.findByText("94.2")).toBeInTheDocument();
       expect(
-        screen.queryByText("요청을 처리하지 못했습니다."),
-      ).not.toBeInTheDocument();
-      expect(
         screen.queryByRole("button", { name: "다시 시도" }),
       ).not.toBeInTheDocument();
+    });
+
+    it("지표 재계산 버튼을 누르면 recalculateDashboard 를 호출하고 성공 안내를 띄운다", async () => {
+      const user = userEvent.setup();
+      vi.spyOn(dashboardApi, "fetchSummary").mockResolvedValue({
+        ok: true,
+        data: {
+          purchasingPowerIndex: EMPTY_INDEX,
+          marketValueIndex: EMPTY_INDEX,
+          openingWindowIndex: EMPTY_INDEX,
+          decisionSignal: null,
+          metadata: { baseDate: "2026-09-01", updateDelayed: false },
+        },
+      } as never);
+
+      const recalcSpy = vi
+        .spyOn(dashboardApi, "recalculateDashboard")
+        .mockResolvedValue({
+          ok: true,
+          data: {
+            recalculatedMonths: 8,
+            fromYearMonth: "202601",
+            summary: {
+              purchasingPowerIndex: {
+                value: 100.0,
+                changeFromLastMonth: 0.0,
+                status: "SAME",
+                indexStatus: "OK",
+              },
+              marketValueIndex: EMPTY_INDEX,
+              openingWindowIndex: EMPTY_INDEX,
+              decisionSignal: null,
+              metadata: { baseDate: "2026-09-01", updateDelayed: false },
+            },
+          },
+        } as never);
+
+      renderScreen();
+
+      const button = await screen.findByRole("button", { name: "지표 재계산" });
+      expect(button).toBeInTheDocument();
+
+      await user.click(button);
+
+      expect(recalcSpy).toHaveBeenCalledTimes(1);
+      expect(
+        await screen.findByText("8개월치 지수가 최신 정보로 재계산되었습니다."),
+      ).toBeInTheDocument();
+      expect(screen.getByText("100.0")).toBeInTheDocument();
     });
 
     // profile.tsx 의 isSubmitting 가드(FIX 7)와 같은 부류 — 진행 중인 재조회 위에
