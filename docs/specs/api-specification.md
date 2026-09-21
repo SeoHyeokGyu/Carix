@@ -480,6 +480,23 @@
     }
     ```
 
+### 5.7 지표 소급 재계산 (Recalculate Snapshot History)
+*   **Endpoint:** `POST /api/v1/dashboard/recalculate`
+*   구현: `com.carix.dashboard.controller.DashboardController.recalculateSnapshot()`, `com.carix.snapshot.SnapshotRecalculationService.recalculateSnapshot(userId, fromYearMonth)`.
+*   **용도:** 온보딩 이후 축적된 소득·소비·스킬 데이터와 최신 지표 알고리즘(개방창 지수 OWI 산출기 포함)을 바탕으로, 사용자의 최초 유효월부터 현재 기준월까지의 모든 과거 월 스냅샷을 멱등하게 소급 재계산한다.
+*   **호출 시점:** 대시보드 메인(`S-10`) 헤더의 **[지표 재계산]** 버튼 클릭 시 호출.
+*   **Request Body:** 없음 (인증 세션의 `userId` 기준으로 소득 유효월을 자동 탐색)
+*   **Response (200 OK):**
+    ```json
+    {
+      "recalculatedCount": 3,
+      "fromYearMonth": "202604",
+      "toYearMonth": "202606"
+    }
+    ```
+    *(`recalculatedCount`: 신규 계산 및 갱신된 스냅샷 월 수, `fromYearMonth`: 재계산 시작월(최초 유효월), `toYearMonth`: 재계산 종료월(현재 기준월))*
+*   **오류:** 세션 없음 `401 UNAUTHORIZED` / 소득 이력이 전혀 없어 시작월을 알 수 없음 `400 INVALID_INPUT`
+
 ---
 
 ## 6. 시나리오 시뮬레이터 API
