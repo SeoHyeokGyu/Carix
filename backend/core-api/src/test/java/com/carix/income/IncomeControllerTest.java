@@ -1,5 +1,6 @@
 package com.carix.income;
 
+import static org.hamcrest.Matchers.containsString;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
@@ -9,6 +10,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -169,5 +171,53 @@ class IncomeControllerTest {
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.data[0].changeReason").value("INITIAL"))
         .andExpect(jsonPath("$.data[0].selectedChangeReason").value("JOB_CHANGE"));
+  }
+
+  @Test
+  @DisplayName("POST /v1/income - enum 에 없는 changeReason 도 공통 오류 봉투로 400 을 낸다")
+  void createIncome_rejectsUnknownChangeReason() throws Exception {
+    // 잘못된 enum 값은 Bean Validation 이 아니라 Jackson 이 HttpMessageNotReadableException 으로
+    // 던진다 — 전용 핸들러가 없으면 Spring 기본 본문으로 나가 공통 봉투를 벗어난다.
+    mockMvc
+        .perform(
+            post("/v1/income")
+                .header("X-User-Id", USER_ID.toString())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    """
+                    {
+                      "grossSalary": 65000000,
+                      "netSalary": 4800000,
+                      "effectiveDate": "2026-07-01",
+                      "changeReason": "FOO"
+                    }
+                    """))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.code").value("INVALID_INPUT"))
+        .andExpect(jsonPath("$.message").value("요청 본문을 읽을 수 없습니다."));
+  }
+
+  @Test
+  @DisplayName("POST /v1/income - 본문을 읽지 못해도 요청 값이 응답에 새지 않는다")
+  void createIncome_unreadableBodyDoesNotEchoRequest() throws Exception {
+    // 완료 기준 10번(민감 금액 미기록)의 응답 쪽 대응 — Jackson 예외 메시지를 그대로 실으면
+    // 본문 조각과 함께 연봉이 따라 나간다.
+    mockMvc
+        .perform(
+            post("/v1/income")
+                .header("X-User-Id", USER_ID.toString())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    """
+                    {
+                      "grossSalary": 123456789,
+                      "netSalary": 4800000,
+                      "effectiveDate": "2026-07-01",
+                      "changeReason": "FOO"
+                    }
+                    """))
+        .andExpect(status().isBadRequest())
+        .andExpect(content().string(org.hamcrest.Matchers.not(containsString("123456789"))))
+        .andExpect(content().string(org.hamcrest.Matchers.not(containsString("FOO"))));
   }
 }
