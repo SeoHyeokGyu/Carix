@@ -4,6 +4,7 @@ import { RotateCw } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { HelpTooltip } from "../../components/common/HelpTooltip";
 import { IndexCard } from "../../components/dashboard/IndexCard";
 import { SignalBadge } from "../../components/dashboard/SignalBadge";
 import { toUserMessage } from "../../lib/apiError";
@@ -107,8 +108,14 @@ export default function DashboardHome() {
         </p>
         <div className="flex flex-wrap items-center gap-4">
           <Link
+            to="/dashboard/guide"
+            className="text-sm font-medium text-carix-info hover:underline flex items-center gap-1"
+          >
+            지표 가이드
+          </Link>
+          <Link
             to="/dashboard/history"
-            className="text-sm text-carix-info underline"
+            className="text-sm text-carix-text/70 hover:text-carix-text underline"
           >
             월별 스냅샷 이력 보기
           </Link>
@@ -184,15 +191,96 @@ export default function DashboardHome() {
 
       {data && !firstCalculation && (
         <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <IndexCard title="구매력 지수" index={data.purchasingPowerIndex} />
-          <IndexCard title="시장가치 지수" index={data.marketValueIndex} />
+          <IndexCard
+            title="구매력 지수"
+            index={data.purchasingPowerIndex}
+            baselineHint="기준 100: 물가와 동일한 소득 변화"
+            helpContent={
+              <HelpTooltip label="구매력 지수">
+                <div className="flex flex-col gap-1.5">
+                  <p className="font-semibold text-carix-text">
+                    구매력 지수 (PPI)
+                  </p>
+                  <p className="text-carix-text/80">
+                    내 소득 상승률과 소비자물가지수(CPI)를 비교하여 실질 소득의
+                    구매력 변화를 측정합니다.
+                  </p>
+                  <ul className="text-carix-text/70 space-y-1 mt-1">
+                    <li className="flex items-start gap-1.5">
+                      <span className="shrink-0 px-1.5 py-0.5 rounded bg-carix-positive/10 text-carix-positive font-semibold text-[10px]">
+                        100 초과
+                      </span>
+                      <span>물가보다 소득이 더 올라 실질 구매력 증가</span>
+                    </li>
+                    <li className="flex items-start gap-1.5">
+                      <span className="shrink-0 px-1.5 py-0.5 rounded bg-carix-warning/10 text-carix-warning font-semibold text-[10px]">
+                        100 미만
+                      </span>
+                      <span>물가 상승률에 못 미쳐 실질 소득 감소</span>
+                    </li>
+                  </ul>
+                </div>
+              </HelpTooltip>
+            }
+          />
+          <IndexCard
+            title="시장가치 지수"
+            index={data.marketValueIndex}
+            baselineHint="기준 100: 동료집단 임금 중앙값"
+            helpContent={
+              <HelpTooltip label="시장가치 지수">
+                <div className="flex flex-col gap-1.5">
+                  <p className="font-semibold text-carix-text">
+                    시장가치 지수 (MVI)
+                  </p>
+                  <p className="text-carix-text/80">
+                    보유 스킬과 경력 조건의 시장 가치를 고용노동부 공식 임금
+                    통계와 비교합니다.
+                  </p>
+                  <ul className="text-carix-text/70 space-y-1 mt-1">
+                    <li className="flex items-start gap-1.5">
+                      <span className="shrink-0 px-1.5 py-0.5 rounded bg-carix-positive/10 text-carix-positive font-semibold text-[10px]">
+                        100 초과
+                      </span>
+                      <span>
+                        보유 스킬 수요가 높아 시장 평균 대비 높은 가치 형성
+                      </span>
+                    </li>
+                    <li className="flex items-start gap-1.5">
+                      <span className="shrink-0 px-1.5 py-0.5 rounded bg-carix-info/10 text-carix-info font-semibold text-[10px]">
+                        100 기준
+                      </span>
+                      <span>
+                        동료집단(동일 연차·직무) 공식 임금 중앙값 수준
+                      </span>
+                    </li>
+                  </ul>
+                </div>
+              </HelpTooltip>
+            }
+          />
 
           {data.decisionSignal && (
             <Card className="p-5 gap-3 transition-transform hover:-translate-y-0.5 duration-200">
-              <CardHeader className="p-0">
+              <CardHeader className="p-0 flex flex-row items-center justify-between gap-1">
                 <CardTitle className="text-xs font-medium text-carix-text/70">
                   결정 신호
                 </CardTitle>
+                <HelpTooltip label="결정 신호" align="right">
+                  <div className="flex flex-col gap-1.5">
+                    <p className="font-semibold text-carix-text">
+                      결정 신호 (Decision Signal)
+                    </p>
+                    <p className="text-carix-text/80">
+                      구매력, 시장가치, 개방창 지수와 연봉 격차를 종합 분석하여
+                      도출된 행동 가이드입니다.
+                    </p>
+                    <p className="text-carix-text/70 mt-0.5">
+                      이직 탐색, 연봉 협상, 스킬 강화, 현재 유지 등의 신호를
+                      제공합니다.
+                    </p>
+                  </div>
+                </HelpTooltip>
               </CardHeader>
               <CardContent className="p-0 flex flex-col gap-3">
                 <SignalBadge
@@ -240,6 +328,38 @@ export default function DashboardHome() {
           <IndexCard
             title="개방창 지수"
             index={data.openingWindowIndex}
+            baselineHint="기준 100: 전체 시장 중앙 모집 기간"
+            helpContent={
+              <HelpTooltip label="개방창 지수" align="right">
+                <div className="flex flex-col gap-1.5">
+                  <p className="font-semibold text-carix-text">
+                    개방창 지수 (OWI)
+                  </p>
+                  <p className="text-carix-text/80">
+                    동료집단 채용 공고의 평균 모집 기간을 전체 채용 시장과
+                    비교한 속도 지표입니다.
+                  </p>
+                  <ul className="text-carix-text/70 space-y-1 mt-1">
+                    <li className="flex items-start gap-1.5">
+                      <span className="shrink-0 px-1.5 py-0.5 rounded bg-carix-info/10 text-carix-info font-semibold text-[10px]">
+                        100 초과
+                      </span>
+                      <span>
+                        모집 기간이 길어 지원 기회가 여유롭거나 상시채용 성향
+                      </span>
+                    </li>
+                    <li className="flex items-start gap-1.5">
+                      <span className="shrink-0 px-1.5 py-0.5 rounded bg-carix-warning/10 text-carix-warning font-semibold text-[10px]">
+                        100 미만
+                      </span>
+                      <span>
+                        조기 마감 등 마감이 빠른 집중 채용 경향 (빠른 지원 필요)
+                      </span>
+                    </li>
+                  </ul>
+                </div>
+              </HelpTooltip>
+            }
             footer={<OpeningWindowBadges meta={data.metadata.openingWindow} />}
           />
         </div>

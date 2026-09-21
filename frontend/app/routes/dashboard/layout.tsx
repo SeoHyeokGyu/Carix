@@ -12,6 +12,7 @@ export const MAIN_NAV_ITEMS: NavItem[] = [
 ];
 
 export const MAIN_UTILITY_ITEMS: NavItem[] = [
+  { to: "/dashboard/guide", label: "도움말", icon: "❓" },
   { to: "/mypage/profile", label: "설정", icon: "⚙️" },
 ];
 

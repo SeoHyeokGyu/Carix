@@ -34,6 +34,7 @@ export default [
         route("history", "routes/dashboard/history.tsx"),
         route("trends", "routes/dashboard/trends.tsx"),
         route("simulator", "routes/dashboard/simulator.tsx"),
+        route("guide", "routes/dashboard/guide.tsx"),
       ]),
     ),
 
