@@ -251,7 +251,7 @@ class MarketValueIndexServiceTest {
 
     // 최근 창에 동료집단 집계가 없어 두 원천 모두 판정 불가다 (운영 202604 형태).
     when(skillDemandCalculator.calculateDemandIndex(any(), eq(onlySkill.getId()), any(), eq(ym)))
-        .thenReturn(demand(onlySkill.getId(), 0.0, SkillDemandStatus.INSUFFICIENT_SAMPLE));
+        .thenReturn(demand(onlySkill.getId(), 0.0, SkillDemandStatus.NO_RECENT_COVERAGE));
 
     when(skillWeightCalculator.calculateWeights(any(), any(), any()))
         .thenReturn(Map.of(onlySkill.getId(), BigDecimal.valueOf(1.0)));
@@ -263,6 +263,53 @@ class MarketValueIndexServiceTest {
     assertThat(result.value()).isNull();
     assertThat(result.status()).isEqualTo(IndexStatus.INSUFFICIENT_SAMPLE);
     assertThat(result.zeroDemandSkills()).isEmpty();
+    // 사유가 표본 부족이면 화면이 "스킬을 더 넣으라" 고 안내한다. 수집 공백은 그렇게 해소되지 않는다.
+    assertThat(result.excludedSkills())
+        .singleElement()
+        .satisfies(
+            excluded ->
+                assertThat(excluded.reason()).isEqualTo(SkillExclusionReason.NO_RECENT_COVERAGE));
+  }
+
+  @Test
+  @DisplayName("한 원천은 집계 공백이고 다른 원천은 표본 미달이면 제외 사유는 표본 부족이다")
+  void testMixedDropReasonsPrefersInsufficientSample() {
+    UUID userId = UUID.randomUUID();
+    String ym = "202604";
+
+    CareerProfile profile = new CareerProfile(userId);
+    profile.patch("DEVELOPER", 5, "서울 강남구", "FULL_TIME", "MEDIUM");
+
+    Skill onlySkill =
+        Skill.builder().id(UUID.randomUUID()).standardName("Spring Boot").isCustom(false).build();
+
+    when(careerProfileRepository.findByUserId(userId)).thenReturn(Optional.of(profile));
+    when(userSkillRepository.findByUserId(userId)).thenReturn(List.of(userSkillOf(onlySkill)));
+    when(peerGroupFallbackResolver.resolveForSource(eq("JOBKOREA"), any(), any()))
+        .thenReturn(resolvedGroup("JOBKOREA", 50));
+    when(peerGroupFallbackResolver.resolveForSource(eq("SARAMIN"), any(), any()))
+        .thenReturn(resolvedGroup("SARAMIN", 50));
+
+    when(skillDemandCalculator.calculateDemandIndex(
+            eq("JOBKOREA"), eq(onlySkill.getId()), any(), eq(ym)))
+        .thenReturn(demand(onlySkill.getId(), 0.0, SkillDemandStatus.NO_RECENT_COVERAGE));
+    when(skillDemandCalculator.calculateDemandIndex(
+            eq("SARAMIN"), eq(onlySkill.getId()), any(), eq(ym)))
+        .thenReturn(demand(onlySkill.getId(), 0.0, SkillDemandStatus.INSUFFICIENT_SAMPLE));
+
+    when(skillWeightCalculator.calculateWeights(any(), any(), any()))
+        .thenReturn(Map.of(onlySkill.getId(), BigDecimal.valueOf(1.0)));
+    when(wageBaselineResolver.resolveBaseline(any()))
+        .thenReturn(new WageBaseline(65000000L, "초과급여 제외", "202603"));
+
+    MviResult result = service.calculate(userId, ym);
+
+    // 집계가 있던 원천에서 표본이 모자랐다는 뜻이라 그쪽이 더 정확한 설명이다.
+    assertThat(result.excludedSkills())
+        .singleElement()
+        .satisfies(
+            excluded ->
+                assertThat(excluded.reason()).isEqualTo(SkillExclusionReason.INSUFFICIENT_SAMPLE));
   }
 
   @Test

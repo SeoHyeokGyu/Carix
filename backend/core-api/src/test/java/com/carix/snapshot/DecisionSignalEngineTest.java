@@ -3,12 +3,14 @@ package com.carix.snapshot;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.carix.index.dto.CurrentSalary;
+import com.carix.index.dto.ExcludedSkill;
 import com.carix.index.dto.MviResult;
 import com.carix.index.dto.PpiResult;
 import com.carix.index.dto.SourceCoverage;
 import com.carix.index.dto.WageBaseline;
 import com.carix.index.enums.ExpenseWeightStatus;
 import com.carix.index.enums.IndexStatus;
+import com.carix.index.enums.SkillExclusionReason;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
@@ -50,6 +52,49 @@ class DecisionSignalEngineTest {
 
   private static CurrentSalary salary() {
     return new CurrentSalary(SALARY, LocalDate.of(2026, 1, 1));
+  }
+
+  /** MVI 가 비어 있고 제외 사유가 주어진 결과. 사유에 따라 근거 문구가 갈리는지 본다. */
+  private static MviResult mviNull(SkillExclusionReason... reasons) {
+    return new MviResult(
+        YM,
+        null,
+        IndexStatus.INSUFFICIENT_SAMPLE,
+        List.of(
+            new SourceCoverage(
+                "SARAMIN", 1, 40, true, "서울 전체 / 경력 4~7년", BigDecimal.valueOf(42.5))),
+        java.util.Arrays.stream(reasons)
+            .map(r -> new ExcludedSkill(java.util.UUID.randomUUID(), "Spring Boot", r))
+            .toList(),
+        List.of(),
+        List.of(),
+        new WageBaseline(60_000_000L, "초과급여 제외", "202606"),
+        LocalDate.of(2026, 7, 1));
+  }
+
+  @Test
+  @DisplayName("제외 사유가 전부 집계 공백이면 근거는 수집 공백을 가리킨다 — 입력 부족이라고 하지 않는다")
+  void insufficientData_coverageGap_reportsCollectionGap() {
+    DecisionOutcome outcome =
+        engine.evaluate(ppi(100.0), mviNull(SkillExclusionReason.NO_RECENT_COVERAGE), salary());
+
+    assertThat(outcome.code()).isEqualTo(DecisionSignalCode.INSUFFICIENT_DATA);
+    assertThat(outcome.rulesApplied())
+        .containsExactly(DecisionSignalEngine.MARKET_COVERAGE_GAP)
+        .doesNotContain("시장가치 지수 산출 불가");
+  }
+
+  @Test
+  @DisplayName("제외 사유에 표본 부족이 섞이면 근거는 기존 산출 불가 문구다")
+  void insufficientData_mixedReasons_keepsGenericReason() {
+    DecisionOutcome outcome =
+        engine.evaluate(
+            ppi(100.0),
+            mviNull(
+                SkillExclusionReason.NO_RECENT_COVERAGE, SkillExclusionReason.INSUFFICIENT_SAMPLE),
+            salary());
+
+    assertThat(outcome.rulesApplied()).containsExactly("시장가치 지수 산출 불가");
   }
 
   // ---------- 규칙 2: 이직 탐색 ----------

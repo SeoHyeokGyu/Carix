@@ -10,6 +10,7 @@ import java.util.Optional;
  *   <li>{@link #NEW_OBSERVATION}: 분모 0 (이전 12개월 관측 없음, 신규 관측 스킬 -> 가중합 제외)
  *   <li>{@link #INSUFFICIENT_SAMPLE}: 스킬 행 표본 수 미달 (가중합 제외)
  *   <li>{@link #NO_RECENT_DEMAND}: 분자 0 (최근 3개월 관측 없음, 지수 0으로 가중합 반영)
+ *   <li>{@link #NO_RECENT_COVERAGE}: 분모·분자 모두 0 (최근 3개월 집계 자체가 없음 -> 가중합 제외)
  * </ul>
  */
 public enum SkillDemandStatus {
@@ -23,7 +24,10 @@ public enum SkillDemandStatus {
   INSUFFICIENT_SAMPLE(SkillExclusionReason.INSUFFICIENT_SAMPLE),
 
   /** 최근 3개월 관측이 없다. 지수 0으로 가중합에 반영하되 화면에서 구분한다 (§4.1). */
-  NO_RECENT_DEMAND(SkillExclusionReason.NO_RECENT_DEMAND);
+  NO_RECENT_DEMAND(SkillExclusionReason.NO_RECENT_DEMAND),
+
+  /** 최근 3개월 창에 동료집단 집계가 없어 수요율이 0/0 이다. 판정 불가라 가중합에서 제외한다. */
+  NO_RECENT_COVERAGE(SkillExclusionReason.NO_RECENT_COVERAGE);
 
   private final SkillExclusionReason exclusionReason;
 

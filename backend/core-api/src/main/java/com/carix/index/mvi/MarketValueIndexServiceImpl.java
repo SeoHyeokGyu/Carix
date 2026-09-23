@@ -531,6 +531,7 @@ public class MarketValueIndexServiceImpl implements MarketValueIndexProvider {
     Map<UUID, SkillExclusionReason> excludedSkillMap = new HashMap<>();
     Set<UUID> zeroDemandSkillIds = new HashSet<>();
     Set<UUID> underSampledSkillIds = new HashSet<>();
+    Set<UUID> noCoverageSkillIds = new HashSet<>();
     Map<String, Map<UUID, Double>> sourceSkillDemandIndices = new HashMap<>();
     for (String source : SUPPORTED_SOURCES) {
       sourceSkillDemandIndices.put(source, new HashMap<>());
@@ -566,6 +567,12 @@ public class MarketValueIndexServiceImpl implements MarketValueIndexProvider {
           underSampledSkillIds.add(skillId);
           continue;
         }
+        if (demandStatus == SkillDemandStatus.NO_RECENT_COVERAGE) {
+          // 이 원천의 최근 창에 집계가 없다. 빠지는 방식은 표본 미달과 같지만 사유가 다르다 —
+          // 사용자 입력으로 해소되지 않아 화면이 입력 유도를 띄우면 안 된다.
+          noCoverageSkillIds.add(skillId);
+          continue;
+        }
         if (demandStatus == SkillDemandStatus.NO_RECENT_DEMAND) {
           // 분자 0 -> 지수 0 으로 가중합에 반영하되 화면에서 구분한다 (기능 명세 §4.1)
           zeroDemandSkillIds.add(skillId);
@@ -574,13 +581,22 @@ public class MarketValueIndexServiceImpl implements MarketValueIndexProvider {
       }
     }
 
-    // 모든 원천에서 미달인 스킬만 제외한다 — 한 원천이라도 지수를 냈으면 그 원천으로 결합한다 (기술 명세 §2.1).
-    for (UUID underSampled : underSampledSkillIds) {
+    // 모든 원천에서 빠진 스킬만 제외한다 — 한 원천이라도 지수를 냈으면 그 원천으로 결합한다 (기술 명세 §2.1).
+    // 두 사유가 섞였으면 표본 부족이 이긴다. 집계가 있던 원천에서 표본이 모자랐다는 뜻이라, 그쪽이
+    // 사용자에게 더 정확한 설명이다.
+    Set<UUID> droppedSkillIds = new HashSet<>(underSampledSkillIds);
+    droppedSkillIds.addAll(noCoverageSkillIds);
+    for (UUID dropped : droppedSkillIds) {
       boolean usableInAnySource =
-          sourceSkillDemandIndices.values().stream().anyMatch(m -> m.containsKey(underSampled));
-      if (!usableInAnySource && !excludedSkillMap.containsKey(underSampled)) {
-        excludedSkillMap.put(underSampled, SkillExclusionReason.INSUFFICIENT_SAMPLE);
+          sourceSkillDemandIndices.values().stream().anyMatch(m -> m.containsKey(dropped));
+      if (usableInAnySource || excludedSkillMap.containsKey(dropped)) {
+        continue;
       }
+      excludedSkillMap.put(
+          dropped,
+          underSampledSkillIds.contains(dropped)
+              ? SkillExclusionReason.INSUFFICIENT_SAMPLE
+              : SkillExclusionReason.NO_RECENT_COVERAGE);
     }
 
     // 제외 스킬 목록 DTO 구성

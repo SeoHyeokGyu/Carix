@@ -19,5 +19,13 @@ public enum SkillExclusionReason {
   NEW_OBSERVATION,
 
   /** 최근 3개월 관측이 없다. 지수 0이 아니라 별도 상태이고 가중합에는 0으로 들어간다 (§4.1). */
-  NO_RECENT_DEMAND
+  NO_RECENT_DEMAND,
+
+  /**
+   * 최근 3개월 창에 동료집단 공고 집계 자체가 없다. 수요율이 0/0 이라 판정이 불가능하다. 화면 표기는 `집계 없음`.
+   *
+   * <p>{@link #INSUFFICIENT_SAMPLE} 과 갈라 둔 이유는 해소 주체가 다르기 때문이다 — 표본 부족은 사용자가 스킬을 보강하면 달라질 수 있지만,
+   * 이쪽은 시장 집계가 수집되기 전까지 사용자가 무엇을 입력해도 달라지지 않는다. 화면이 입력 유도를 띄우면 안 되는 구간이다.
+   */
+  NO_RECENT_COVERAGE
 }
