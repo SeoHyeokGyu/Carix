@@ -170,6 +170,37 @@ class SkillDemandCalculatorTest {
   }
 
   @Test
+  @DisplayName("최근 창에 동료집단 집계 자체가 없으면 최근 수요 없음이 아니라 표본 부족이다 — 수요 0 이라고 단정하지 않는다")
+  void testEmptyRecentWindowIsNotZeroDemand() {
+    UUID skillId = UUID.randomUUID();
+    String source = "JOBKOREA";
+
+    PeerGroupFallbackResolver.ResolvedPeerGroup peerGroup =
+        PeerGroupFallbackResolver.ResolvedPeerGroup.builder()
+            .source(source)
+            .jobFamily("DEVELOPER")
+            .region("서울특별시")
+            .brackets(List.of("MID"))
+            .build();
+
+    // 운영 202604 실측: 최근 창(202601~202603)에 그 동료집단 집계가 한 행도 없다.
+    when(marketAggregateRepository.findSkillAggregates(
+            any(), any(), any(), any(), any(), any(), any(), eq(skillId)))
+        .thenReturn(List.of())
+        .thenReturn(List.of(MarketAggregate.builder().postingCount(120).build()));
+    when(marketAggregateRepository.findTotalPostingAggregates(
+            any(), any(), any(), any(), any(), any(), any()))
+        .thenReturn(List.of())
+        .thenReturn(List.of(MarketAggregate.builder().postingCount(1440).build()));
+
+    SkillDemandCalculator.SkillDemandResult result =
+        calculator.calculateDemandIndex(source, skillId, peerGroup, "202604");
+
+    assertThat(result.getRecentTotalPostings()).isZero();
+    assertThat(result.getStatus()).isEqualTo(SkillDemandStatus.INSUFFICIENT_SAMPLE);
+  }
+
+  @Test
   @DisplayName("두 창 모두 기준을 넘기면 정상 산출이다 — 경계값 포함")
   void testBothWindowsAtThresholdAreSufficient() {
     SkillDemandCalculator.SkillDemandResult result =

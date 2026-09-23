@@ -32,10 +32,13 @@ import org.springframework.stereotype.Component;
  *   <li><b>분모 0 (이전 12개월 창 관측 없음):</b> 신규로 시장에 등장한 스킬이므로 {@code NEW_OBSERVATION}(신규 관측) 상태로 처리하며,
  *       MVI 가중합 산출에서 제외합니다.
  *   <li><b>분자 0 (최근 3개월 관측 없음):</b> 최근 채용 시장에서 수요가 없는 스킬이므로 {@code NO_RECENT_DEMAND}(최근 수요 없음) 상태로
- *       표시하고, 수요 지수를 0으로 하여 MVI 가중합에 그대로 반영합니다.
+ *       표시하고, 수요 지수를 0으로 하여 MVI 가중합에 그대로 반영합니다. 이 판정은 최근 창의 <b>모수가 0보다 클 때만</b> 내립니다 — 모수가 0이면 수요가
+ *       없는 것이 아니라 집계가 없는 것입니다.
+ *   <li><b>최근 창 모수 0 (집계 공백):</b> 동료집단 공고 자체가 한 건도 없어 수요율이 정의되지 않으므로 {@code INSUFFICIENT_SAMPLE}(표본
+ *       부족)로 처리하고 해당 원천의 가중합에서 제외합니다. 모든 원천이 이 상태면 MVI 는 0 이 아니라 {@code NULL} 입니다.
  *   <li><b>스킬 행 표본 미달:</b> 기간 창의 스킬 공고 수가 {@link #MIN_SKILL_SAMPLE_SIZE} 미만이면 {@code
- *       INSUFFICIENT_SAMPLE}(표본 부족)로 처리하고 MVI 가중합에서 제외합니다 (기술 명세 §2.1). 최근 창의 0 은 여기 해당하지 않습니다 —
- *       기준선 표본이 충분한데 최근이 0 이면 표본 문제가 아니라 수요가 사라진 신호입니다.
+ *       INSUFFICIENT_SAMPLE}(표본 부족)로 처리하고 MVI 가중합에서 제외합니다 (기술 명세 §2.1). 최근 창의 스킬 공고 0 은 여기 해당하지
+ *       않습니다 — 기준선 표본이 충분하고 최근 창에 모수가 있는데 스킬만 0 이면, 표본 문제가 아니라 수요가 사라진 신호입니다.
  *   <li><b>이상치 클램프:</b> 지수값이 지나치게 튀는 현상을 방지하기 위해 계산 결과를 [25.0, 400.0] 범위로 제한(Clamp)합니다.
  * </ul>
  */
@@ -217,11 +220,15 @@ public class SkillDemandCalculator {
     }
 
     // (1-1) 스킬 행 표본 미달 -> 표본 부족 (기술 명세 §2.1)
-    // 최근 창의 0 은 여기서 걸러내지 않는다. 기준선 표본이 충분한데 최근이 0 이면 표본 문제가 아니라
+    // 최근 창의 스킬 0 은 여기서 걸러내지 않는다. 기준선 표본이 충분한데 최근이 0 이면 표본 문제가 아니라
     // "수요가 사라졌다" 는 신호이고, 기능 명세 §4.1 이 그 경우를 별도 상태로 규정한다.
+    // 단 그 추론은 최근 창에 동료집단 공고가 존재할 때만 성립한다. 모수가 0 이면 수요율이 0/0 이라
+    // 판정 자체가 불가능하므로, "수요 없음" 으로 단정하지 않고 표본 부족으로 빼서 원천별 가중합에서
+    // 제외한다 — 집계 공백을 수요 0 으로 읽으면 MVI 가 거짓 0 이 된다.
     boolean baselineUnderSampled = baselineSkillPostings < MIN_SKILL_SAMPLE_SIZE;
     boolean recentUnderSampled =
-        recentSkillPostings > 0 && recentSkillPostings < MIN_SKILL_SAMPLE_SIZE;
+        recentTotalPostings == 0
+            || (recentSkillPostings > 0 && recentSkillPostings < MIN_SKILL_SAMPLE_SIZE);
     if (baselineUnderSampled || recentUnderSampled) {
       return SkillDemandResult.builder()
           .skillId(skillId)
