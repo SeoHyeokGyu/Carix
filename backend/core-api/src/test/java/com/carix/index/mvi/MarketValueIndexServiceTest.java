@@ -233,6 +233,39 @@ class MarketValueIndexServiceTest {
   }
 
   @Test
+  @DisplayName("유효 가중치가 있어도 모든 원천이 산출 불가면 MVI 는 0 이 아니라 null 이다")
+  void testEverySourceUncomputableYieldsNullNotZero() {
+    UUID userId = UUID.randomUUID();
+    String ym = "202604";
+
+    CareerProfile profile = new CareerProfile(userId);
+    profile.patch("DEVELOPER", 5, "서울 강남구", "FULL_TIME", "MEDIUM");
+
+    Skill onlySkill =
+        Skill.builder().id(UUID.randomUUID()).standardName("Spring Boot").isCustom(false).build();
+
+    when(careerProfileRepository.findByUserId(userId)).thenReturn(Optional.of(profile));
+    when(userSkillRepository.findByUserId(userId)).thenReturn(List.of(userSkillOf(onlySkill)));
+    when(peerGroupFallbackResolver.resolveForSource(any(), any(), any()))
+        .thenReturn(resolvedGroup("JOBKOREA", 50));
+
+    // 최근 창에 동료집단 집계가 없어 두 원천 모두 판정 불가다 (운영 202604 형태).
+    when(skillDemandCalculator.calculateDemandIndex(any(), eq(onlySkill.getId()), any(), eq(ym)))
+        .thenReturn(demand(onlySkill.getId(), 0.0, SkillDemandStatus.INSUFFICIENT_SAMPLE));
+
+    when(skillWeightCalculator.calculateWeights(any(), any(), any()))
+        .thenReturn(Map.of(onlySkill.getId(), BigDecimal.valueOf(1.0)));
+    when(wageBaselineResolver.resolveBaseline(any()))
+        .thenReturn(new WageBaseline(65000000L, "초과급여 제외", "202603"));
+
+    MviResult result = service.calculate(userId, ym);
+
+    assertThat(result.value()).isNull();
+    assertThat(result.status()).isEqualTo(IndexStatus.INSUFFICIENT_SAMPLE);
+    assertThat(result.zeroDemandSkills()).isEmpty();
+  }
+
+  @Test
   @DisplayName("한 원천에서만 표본이 미달이면 제외하지 않고 그 원천의 가중치만 재정규화한다")
   void testSkillUnderSampledInOneSourceIsKept() {
     UUID userId = UUID.randomUUID();
