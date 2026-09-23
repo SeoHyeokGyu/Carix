@@ -4,6 +4,7 @@ import com.carix.index.dto.CurrentSalary;
 import com.carix.index.dto.MviResult;
 import com.carix.index.dto.PpiResult;
 import com.carix.index.dto.SourceCoverage;
+import com.carix.index.enums.SkillExclusionReason;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.List;
@@ -68,13 +69,26 @@ public class DecisionSignalEngine {
    * 데이터 부족 발동 조건 5개 (기술 명세 §2.2). 지수 값이 {@code null} 인데 상태가 부족을 가리키지 않는 경우도 조건 2·3 의 일반화로 함께 막는다 —
    * 값 없이 비교하면 NPE 다.
    */
+  /**
+   * 시장 집계가 수집되지 않은 구간이라 지수를 낼 수 없다는 규칙 문구. 화면이 입력 유도를 띄울지 판단하는 근거라 프런트가 이 문자열을 그대로 집어 본다 — 바꾸면
+   * {@code frontend/app/lib/insufficientDataCause.ts} 와 어휘 계약 테스트를 함께 고쳐야 한다.
+   */
+  public static final String MARKET_COVERAGE_GAP = "시장 집계 미수집 구간";
+
+  /** 제외 스킬이 있고 그 사유가 모두 집계 공백이면, MVI 가 비어 있는 원인은 사용자 입력이 아니라 수집 공백이다. */
+  private static boolean isMarketCoverageGap(MviResult mvi) {
+    return !mvi.excludedSkills().isEmpty()
+        && mvi.excludedSkills().stream()
+            .allMatch(s -> s.reason() == SkillExclusionReason.NO_RECENT_COVERAGE);
+  }
+
   private static List<String> insufficientDataReasons(
       PpiResult ppi, MviResult mvi, CurrentSalary salary) {
     if (totalSampleCount(mvi.sources()) < MIN_SAMPLE_SIZE) {
       return List.of("동료집단 표본 수가 통계 기준치 미만");
     }
     if (mvi.value() == null) {
-      return List.of("시장가치 지수 산출 불가");
+      return List.of(isMarketCoverageGap(mvi) ? MARKET_COVERAGE_GAP : "시장가치 지수 산출 불가");
     }
     if (ppi.value() == null) {
       return List.of("구매력 지수 산출 불가");

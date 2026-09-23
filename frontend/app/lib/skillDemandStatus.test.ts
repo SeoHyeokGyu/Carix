@@ -30,14 +30,15 @@ describe("resolveSkillDemandStatus", () => {
   });
 
   // 서버 IndexContractVocabularyTest 의 프런트 대응물.
-  // SkillDemandStatus enum 4종 + CUSTOM_SKILL_NO_STATS 리터럴 = 5종을 덮어야 한다.
-  it("서버 어휘 5종을 빠짐없이 덮는다", () => {
+  // SkillDemandStatus enum 5종 + CUSTOM_SKILL_NO_STATS 리터럴 = 6종을 덮어야 한다.
+  it("서버 어휘 6종을 빠짐없이 덮는다", () => {
     expect([...SKILL_DEMAND_STATUS_CODES].sort()).toEqual(
       [
         "OK",
         "NEW_OBSERVATION",
         "INSUFFICIENT_SAMPLE",
         "NO_RECENT_DEMAND",
+        "NO_RECENT_COVERAGE",
         "CUSTOM_SKILL_NO_STATS",
       ].sort(),
     );

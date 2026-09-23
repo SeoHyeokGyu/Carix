@@ -8,6 +8,7 @@ import {
   type SnapshotHistoryResponse,
   type SnapshotPoint,
 } from "../../lib/dashboardMarketApi";
+import { isUserActionable } from "../../lib/insufficientDataCause";
 
 export function meta() {
   return [
@@ -305,32 +306,53 @@ export default function DashboardHistory() {
                   </div>
                 </div>
 
-                {/* 데이터 부족 시 입력 화면 유도 (US-D4) */}
-                {selectedSnapshot.decisionSignal === "INSUFFICIENT_DATA" && (
-                  <div className="mt-4 rounded-lg border border-carix-danger/30 bg-carix-danger/5 p-4 text-xs">
-                    <div className="font-bold text-carix-danger">
-                      ⚠️ 입력 데이터가 부족하여 지수를 정상 판정하지 못했습니다.
+                {/* 데이터 부족 시 입력 화면 유도 (US-D4). 단 수집 공백이 원인이면 유도하지 않는다 —
+                    사용자가 무엇을 입력해도 그 달은 달라지지 않는다. */}
+                {selectedSnapshot.decisionSignal === "INSUFFICIENT_DATA" &&
+                  !isUserActionable(
+                    selectedSnapshot.rationale?.rulesApplied,
+                  ) && (
+                    <div className="mt-4 rounded-lg border border-carix-warning/30 bg-carix-warning/5 p-4 text-xs">
+                      <div className="font-bold text-carix-warning">
+                        ⚠️ 이 달은 시장 집계가 수집되지 않아 지수를 낼 수
+                        없습니다.
+                      </div>
+                      <p className="mt-1 text-carix-text/70">
+                        보유 스킬이나 소득 정보와 무관한 구간입니다. 해당 월
+                        집계가 채워지면 다시 계산됩니다.
+                      </p>
                     </div>
-                    <p className="mt-1 text-carix-text/70">
-                      소득 내역 또는 보유 스킬 정보를 보강하시면 다음 스냅샷에서
-                      정상적인 지표를 확인하실 수 있습니다.
-                    </p>
-                    <div className="mt-3 flex gap-2">
-                      <Link
-                        to="/onboarding/income"
-                        className="rounded border border-carix-danger/40 bg-carix-surface px-3 py-1.5 font-medium text-carix-danger hover:bg-carix-danger/10"
-                      >
-                        소득 정보 입력하기
-                      </Link>
-                      <Link
-                        to="/onboarding/skills"
-                        className="rounded border border-carix-danger/40 bg-carix-surface px-3 py-1.5 font-medium text-carix-danger hover:bg-carix-danger/10"
-                      >
-                        보유 스킬 입력하기
-                      </Link>
+                  )}
+
+                {selectedSnapshot.decisionSignal === "INSUFFICIENT_DATA" &&
+                  isUserActionable(
+                    selectedSnapshot.rationale?.rulesApplied,
+                  ) && (
+                    <div className="mt-4 rounded-lg border border-carix-danger/30 bg-carix-danger/5 p-4 text-xs">
+                      <div className="font-bold text-carix-danger">
+                        ⚠️ 입력 데이터가 부족하여 지수를 정상 판정하지
+                        못했습니다.
+                      </div>
+                      <p className="mt-1 text-carix-text/70">
+                        소득 내역 또는 보유 스킬 정보를 보강하시면 다음
+                        스냅샷에서 정상적인 지표를 확인하실 수 있습니다.
+                      </p>
+                      <div className="mt-3 flex gap-2">
+                        <Link
+                          to="/onboarding/income"
+                          className="rounded border border-carix-danger/40 bg-carix-surface px-3 py-1.5 font-medium text-carix-danger hover:bg-carix-danger/10"
+                        >
+                          소득 정보 입력하기
+                        </Link>
+                        <Link
+                          to="/onboarding/skills"
+                          className="rounded border border-carix-danger/40 bg-carix-surface px-3 py-1.5 font-medium text-carix-danger hover:bg-carix-danger/10"
+                        >
+                          보유 스킬 입력하기
+                        </Link>
+                      </div>
                     </div>
-                  </div>
-                )}
+                  )}
 
                 {/* 버전 메타데이터 */}
                 <div className="mt-4 flex flex-wrap gap-4 text-[11px] text-carix-text/50 border-t border-carix-border/50 pt-3">

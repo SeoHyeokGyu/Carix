@@ -170,7 +170,7 @@ class SkillDemandCalculatorTest {
   }
 
   @Test
-  @DisplayName("최근 창에 동료집단 집계 자체가 없으면 최근 수요 없음이 아니라 표본 부족이다 — 수요 0 이라고 단정하지 않는다")
+  @DisplayName("최근 창에 동료집단 집계 자체가 없으면 최근 수요 없음이 아니라 집계 없음이다 — 수요 0 이라고 단정하지 않는다")
   void testEmptyRecentWindowIsNotZeroDemand() {
     UUID skillId = UUID.randomUUID();
     String source = "JOBKOREA";
@@ -197,7 +197,7 @@ class SkillDemandCalculatorTest {
         calculator.calculateDemandIndex(source, skillId, peerGroup, "202604");
 
     assertThat(result.getRecentTotalPostings()).isZero();
-    assertThat(result.getStatus()).isEqualTo(SkillDemandStatus.INSUFFICIENT_SAMPLE);
+    assertThat(result.getStatus()).isEqualTo(SkillDemandStatus.NO_RECENT_COVERAGE);
   }
 
   @Test

@@ -152,6 +152,70 @@ describe("S-11 DashboardHistory 라우트", () => {
     });
   });
 
+  it("수집 공백이 원인인 달에는 입력 유도 대신 집계 안내를 띄운다", async () => {
+    vi.mocked(dashboardMarketApi.fetchSnapshotHistory).mockResolvedValue({
+      snapshots: [
+        {
+          baseYearMonth: "202604",
+          purchasingPowerIndex: 100,
+          marketValueIndex: null,
+          decisionSignal: "INSUFFICIENT_DATA",
+          label: "데이터 부족",
+          dataVersion: "v1.0",
+          ruleVersion: "v1.0",
+          rationale: {
+            rulesApplied: ["시장 집계 미수집 구간"],
+            excluded: ["Spring Boot"],
+            baseDate: "2026-04-30",
+          },
+        },
+        {
+          baseYearMonth: "202603",
+          purchasingPowerIndex: 100,
+          marketValueIndex: 100,
+          decisionSignal: "STAY",
+          label: "현 상태 유지",
+          dataVersion: "v1.0",
+          ruleVersion: "v1.0",
+          rationale: {
+            rulesApplied: ["스킬 수요 안정"],
+            excluded: [],
+            baseDate: "2025-12-31",
+          },
+        },
+      ],
+    });
+
+    render(
+      <MemoryRouter>
+        <DashboardHistory />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText("2026-04")).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByText("2026-04"));
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(/시장 집계가 수집되지 않아 지수를 낼 수 없습니다/),
+      ).toBeInTheDocument();
+    });
+
+    // 스킬이나 소득을 넣어도 해소되지 않는 구간이라 유도 링크를 띄우면 안 된다.
+    expect(
+      screen.queryByRole("link", { name: "소득 정보 입력하기" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("link", { name: "보유 스킬 입력하기" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(/입력 데이터가 부족하여/),
+    ).not.toBeInTheDocument();
+  });
+
   it("API 호출 실패 시 에러 알림을 표시하고 '다시 시도' 클릭 시 재호출한다", async () => {
     vi.mocked(dashboardMarketApi.fetchSnapshotHistory)
       .mockRejectedValueOnce(new Error("서버 에러 발생"))

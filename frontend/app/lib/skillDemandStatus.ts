@@ -19,6 +19,7 @@ export const SKILL_DEMAND_STATUS_CODES = [
   "NEW_OBSERVATION",
   "INSUFFICIENT_SAMPLE",
   "NO_RECENT_DEMAND",
+  "NO_RECENT_COVERAGE",
   "CUSTOM_SKILL_NO_STATS",
 ] as const;
 
@@ -33,6 +34,8 @@ const STATUS: Record<
   // `indexStatus.ts` 의 같은 문구와 톤을 맞춘다 — 같은 라벨이면 같은 색이다.
   INSUFFICIENT_SAMPLE: { label: "표본 부족", tone: "warning" },
   NO_RECENT_DEMAND: { label: "최근 수요 없음", tone: "muted" },
+  // 표본 부족과 갈라 둔다 — 사용자가 스킬을 보강해도 해소되지 않는 구간이다.
+  NO_RECENT_COVERAGE: { label: "집계 없음", tone: "warning" },
 };
 
 /** `OK` 만 `null` 이다 — 그 자리에는 수요 추세 뱃지가 들어간다. */

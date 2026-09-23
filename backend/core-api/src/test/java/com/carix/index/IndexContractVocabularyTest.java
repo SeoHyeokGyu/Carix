@@ -23,10 +23,14 @@ class IndexContractVocabularyTest {
   }
 
   @Test
-  void 스킬_제외_사유는_기능_명세의_네_가지다() {
+  void 스킬_제외_사유는_기능_명세의_다섯_가지다() {
     assertThat(Arrays.stream(SkillExclusionReason.values()).map(Enum::name))
         .containsExactlyInAnyOrder(
-            "CUSTOM_SKILL_NO_STATS", "INSUFFICIENT_SAMPLE", "NEW_OBSERVATION", "NO_RECENT_DEMAND");
+            "CUSTOM_SKILL_NO_STATS",
+            "INSUFFICIENT_SAMPLE",
+            "NEW_OBSERVATION",
+            "NO_RECENT_DEMAND",
+            "NO_RECENT_COVERAGE");
   }
 
   @Test
@@ -37,9 +41,13 @@ class IndexContractVocabularyTest {
   }
 
   @Test
-  void 스킬_수요_지수_산출_상태는_4종이다() {
+  void 스킬_수요_지수_산출_상태는_5종이다() {
     assertThat(Arrays.stream(com.carix.index.enums.SkillDemandStatus.values()).map(Enum::name))
         .containsExactlyInAnyOrder(
-            "OK", "NEW_OBSERVATION", "INSUFFICIENT_SAMPLE", "NO_RECENT_DEMAND");
+            "OK",
+            "NEW_OBSERVATION",
+            "INSUFFICIENT_SAMPLE",
+            "NO_RECENT_DEMAND",
+            "NO_RECENT_COVERAGE");
   }
 }
