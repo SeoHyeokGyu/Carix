@@ -100,26 +100,26 @@
 | 구매력 지수(PPI) | 품목별 CPI 기반 본 엔진과 소비 가중치 전파(`PROPAGATED`)가 잔여. 최초 소득월 100 기준의 기본 산출기(`DefaultPurchasingPowerIndexProvider`)가 배선돼 있어 스냅샷 결측은 나지 않는다 |
 | collector | 없음. 임금통계 적재의 출처 기록·승격 규칙·폴백 단일 연도화까지 들어왔다. 관리자 콘솔(`S-16`) UI 연동까지 완료했다. `@Scheduled` 정기 실행은 도입하지 않기로 확정했다 ([데이터 아키텍처 §5](specs/data-architecture.md)) |
 | 프런트엔드 | UI 일관성 통일 P3~P4 가 잔여 |
-| 검증 | 스냅샷 쓰기 경로의 운영 Postgres 검증([도메인 정의서 §5](specs/domain-logic.md)), MVI 표본부족(`N<10`) 엣지케이스 검증, 민감 금액 로깅 마스킹 점검, E2E 통합과 완료 기준 10항목 점검 |
+| 검증 | **스냅샷 쓰기 잔여 점검** — `jsonb` 바인딩·`data_version` issuer 형식·멱등성·`MANDATORY` 전파는 운영 583행으로 입증됐다(중복 0, 형식 위반 0). 남은 것은 동시 쓰기 하의 `pg_advisory_xact_lock` 하나다([도메인 정의서 §5](specs/domain-logic.md)). MVI 표본부족(`N<10`) 엣지케이스 검증, 민감 금액 로깅 마스킹 점검, E2E 통합과 완료 기준 10항목 점검 |
+| 스냅샷 데이터 결함 | `core.index_snapshot` 의 `market_value_index = 0` 이 **22행**이다. 기준 100 인 지수에서 0 은 도메인 정의서가 금지한 "임의 수치"다. 그중 16행은 `rationale.indexStatuses.mvi` 가 `OK` 라 표본 부족(`b8a`)이 아니라 **산출기가 정상 판정하고 0 을 넘긴 것**이다. 원인 규명·수정·소급 정리가 필요하다 (`c5`) |
 | 개방창 지수(OWI) | 없음. 공고 직접 집계·동료집단 완화·상시채용 비율 및 OWI Provider(B `b6`) 구현 완료 ([기능 명세 §4.5](specs/functional-specification.md)) |
 | 지출 카테고리 Swagger 문구 | `ExpenseItem` 의 `category` 설명이 `TRANSPORTATION`·`HEALTH`·`OTHER` 를 적고 있는데 정본 `ExpenseCategoryEnum` 은 `TRANSPORT`·`MEDICAL`·`LEISURE` 다 — 세 값 모두 실존하지 않는다. 코드 주석만의 문제라 동작은 멀쩡하고 공개 API 문서만 틀렸다. 소관 A (소비 API) |
 | 광역 지역 어휘 두 벌 | `core-api` `PeerGroupFallbackResolver#extractBroadRegion` 은 `서울특별시` 를 만들고 collector `RegionRollup` 은 `서울` 을 만든다. 동료집단 완화 Level 3 의 광역 조회가 `region = 'ALL'` 행으로 떨어져 증상이 가려져 있다. 값 규약 정본은 시/도 17개 한글([API 규격 §3.1](specs/api-specification.md), [ERD](specs/erd.md)). 소관 B (동료집단) |
-| Gateway 세션 검증 필터 | `carix.gateway.session-validation.enabled` 활성화 — 기본값 `false`. **`/api/health` 는 필터가 붙지 않는 `core-health` 라우트(`order: -15`)로 이미 분리돼 있어** 배포 헬스체크는 401 을 받지 않는다. 남은 주의점은 되돌릴 때다 — 플래그가 `config/spring/gateway.yml` 에 있어 `.env`(이미지 태그) 롤백으로는 안 꺼진다. 전환·롤백 절차는 [`backend/README.md` 게이트웨이](../backend/README.md). 프런트엔드 잔여 소비자는 `dashboardMarketApi.ts`(S-11 스냅샷 이력, S-14 추이분석)다 — `skillApi.ts` 가 갈아탄 `coreApi` 기반이 아니라 원시 `fetch` 라 `UnauthorizedError` 를 던지지 않고, 401 을 로그인 리다이렉트가 아니라 문자열 오류로 받는다 |
+| Gateway 세션 검증 필터 | **활성화는 끝났다** — `carix.gateway.session-validation.enabled: true` 가 저장소와 서버 체크아웃 양쪽에 있다(`a37fa47`). 남은 주의점은 되돌릴 때다 — 플래그가 `config/spring/gateway.yml` 에 있어 `.env`(이미지 태그) 롤백으로는 안 꺼진다. 전환·롤백 절차는 [`backend/README.md` 게이트웨이](../backend/README.md). 잔여는 프런트엔드 소비자 하나다 — `dashboardMarketApi.ts`(S-11 스냅샷 이력, S-14 추이분석)가 `skillApi.ts` 가 갈아탄 `coreApi` 기반이 아니라 원시 `fetch` 라 `UnauthorizedError` 를 던지지 않고, 401 을 로그인 리다이렉트가 아니라 문자열 오류로 받는다 |
 | 임금통계 연도 시계열 | 출처 컬럼(`source`)과 **쓰기 경로가 섰다** — 수집이 연도별로 출처를 기록하고, 실측만 기존 행을 덮으며, 폴백 vintage 를 고정해 벽시계 드리프트를 막았다. 고정 이전에 쌓인 `base_period=2025` 드리프트 72행은 삭제했다([ERD 운영 스키마 적용 이력](specs/erd.md)). 운영 288행은 컬럼 도입 이전 적재분이라 재수집 전까지 `UNKNOWN` 이다. 잔여 구현은 **읽기 경로**다 — `findSeries`·구간 상승률, `findLatestBaseline` 의 출처 우선순위. 지표 넷은 출처 노출·연도 시계열 읽기 경로(`b13`), 내 상승률 vs 시장(`a9`·`c14`), 임금 vs 개인물가(`a10`), 경력 사다리 연도 축(`b14`) — 일정은 [개발 계획 §2](plans/carix-dev-plan.md) |
 | 운영 감시 | 컨테이너 헬스체크 감시를 이 호스트의 Dozzle(8888)·Dockge(3001)에 붙이는 것과 디스크 사용률 알림이 미착수다. 루트 사용률은 정리 후 81% 이고, 공유 호스트라 스왑 4GB 가 이미 소진된 상태에서 Carix 가 올라가 있다 |
 
-**배포 전 실행 순서.** 「검증」의 스냅샷 쓰기 운영 Postgres 검증 → 「Gateway 세션 검증 필터」
-활성화, 이 하나에 순서 근거가 있다.
+**배포 전 실행 순서는 더 없다.** 이 절이 지키던 사슬은 「검증」의 쓰기 검증 → 「Gateway 세션
+검증 필터」 활성화였고, 근거는 *"플래그를 켜 놓고 돌리면 실패가 401 로 왔을 때 게이트 탓인지
+`jsonb`·자문 잠금 탓인지 갈리지 않는다"* 였다. **양쪽 끝이 모두 지났다** — 필터는 `a37fa47`
+로 켜졌고 서버 체크아웃도 `true` 다. 쓰기 경로는 운영 583행으로 이미 돌았다.
 
-- **쓰기 검증이 필터보다 먼저다.** 플래그를 켜 놓고 돌리면 실패가 401 로 왔을 때 게이트 설정
-  탓인지 `jsonb`·자문 잠금 탓인지 갈리지 않는다. 연성 제약이라 뒤집어도 되지만 원인이 섞인다.
+남은 항목들은 서로 순서 제약이 없다. 각자 소관 블록에서 친다.
 
-**`CARIX_ENCRYPTION_KEY` 백업은 이 사슬과 무관하게 지금 해야 한다.** 원래 근거는 `c5`
-(스냅샷 쓰기 검증)가 **첫 운영 쓰기**라 그 전에 백업을 마쳐야 키 분실이 복구 불가해지는
-시점을 피한다는 것이었다. 그 근거는 이미 지났다 — 운영 `core.index_snapshot` 에는 이미
-행이 있다(186행, 사용자 2명, 기준월 202201~202609, `data_version` 23종), 즉 `c5` 는 첫
-운영 쓰기가 아니다. 백업이 사슬의 어느 자리에 있어야 할 근거는 더 없고, 그냥 밀린 작업이다.
-키는 서버 `/home/opc/carix/.env` 에만 있다.
+**`CARIX_ENCRYPTION_KEY` 백업은 그냥 밀린 작업이다.** 원래 근거는 `c5` 가 **첫 운영 쓰기**라
+그 전에 백업을 마쳐야 한다는 것이었는데, 운영 `core.index_snapshot` 에 이미 583행이 쌓여
+있어(사용자 2명, 기준월 202101~202609, `data_version` 34종) 그 근거는 지났다. 키는 서버
+`/home/opc/carix/.env` 에만 있다.
 
 ---
 

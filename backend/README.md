@@ -124,8 +124,8 @@ Spring Cloud Gateway(WebFlux/reactive). `carix_caddy(:80)`의 업스트림으로
 열리고, 쿠키 없는 접근에는 API 표면이 닫힙니다.
 
 **플래그를 되돌릴 때는 `.env` 롤백으로 부족합니다** — `config/spring/gateway.yml` 을 직접
-되돌리고 게이트웨이 `/actuator/refresh` 를 다시 호출합니다. 켜고 끄는 시점과 순서는
-[문서 맵 「배포 전 실행 순서」](../docs/README.md#남은-것)가 갖습니다.
+되돌리고 게이트웨이 `/actuator/refresh` 를 다시 호출합니다. 플래그는 이미 켜져 있고
+([문서 맵 「남은 것」](../docs/README.md#남은-것)), 켜는 순서를 지키던 사슬은 끝났습니다.
 
 인바운드 `X-User-Id` 는 `UserIdHeaderStripGlobalFilter` 가 플래그와 무관하게 전 라우트에서
 벗깁니다. 하류는 이 헤더를 인증된 사용자로 신뢰하므로 출처가 게이트웨이여야 합니다.
