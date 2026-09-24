@@ -53,6 +53,15 @@ class RouteConfigurationTest {
                     .isGreaterThan(new UserIdHeaderStripGlobalFilter().getOrder()));
   }
 
+  @Test
+  void 콜렉터_관리자_라우트가_필터를_가지고_lb_collector로_향한다() {
+    List<Route> routes = routeLocator.getRoutes().collectList().block();
+    Route collectorAdmin = routeById(routes, "collector-admin");
+
+    assertThat(collectorAdmin.getUri().toString()).isEqualTo("lb://collector");
+    assertThat(collectorAdmin.getFilters()).isNotEmpty();
+  }
+
   private static Route routeById(List<Route> routes, String id) {
     return routes.stream()
         .filter(route -> id.equals(route.getId()))

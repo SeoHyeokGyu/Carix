@@ -41,6 +41,15 @@ export default defineConfig(({ mode }) => {
                     "/internal/pipeline",
                   ),
               },
+              "/api/v1/admin/pipeline": {
+                target: COLLECTOR_TARGET,
+                changeOrigin: true,
+                rewrite: (path: string) =>
+                  path.replace(
+                    /^\/api\/v1\/admin\/pipeline/,
+                    "/internal/pipeline",
+                  ),
+              },
             }
           : {}),
         "/api": {

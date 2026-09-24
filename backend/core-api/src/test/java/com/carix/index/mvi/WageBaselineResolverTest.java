@@ -41,7 +41,7 @@ class WageBaselineResolverTest {
     CareerProfile profile = new CareerProfile(UUID.randomUUID());
     profile.patch("DEVELOPER", 5, "서울 강남구", "FULL_TIME", "MEDIUM");
 
-    given(fallbackResolver.mapExperienceBracket(5)).willReturn("MID");
+    given(fallbackResolver.mapExperienceBracket6(5)).willReturn("MID");
     given(fallbackResolver.extractBroadRegion("서울 강남구")).willReturn("서울특별시");
 
     WageStatObservation obs =
@@ -62,12 +62,60 @@ class WageBaselineResolverTest {
   }
 
   @Test
+  @DisplayName("resolveBaseline - 신입(0년) ENTRY 브래킷 기준선 조회 성공")
+  void resolveBaseline_entryBracket() {
+    CareerProfile profile = new CareerProfile(UUID.randomUUID());
+    profile.patch("DEVELOPER", 0, "서울 강남구", "FULL_TIME", "MEDIUM");
+
+    given(fallbackResolver.mapExperienceBracket6(0)).willReturn("ENTRY");
+    given(fallbackResolver.extractBroadRegion("서울 강남구")).willReturn("서울특별시");
+
+    WageStatObservation obs =
+        WageStatObservation.builder()
+            .wageMedian(31200000L)
+            .wageDefinition("ANNUAL_GROSS_MEDIAN")
+            .statVintage("202508")
+            .build();
+
+    given(repository.findLatestBaseline("DEVELOPER", "ENTRY", "ALL")).willReturn(Optional.of(obs));
+
+    WageBaseline baseline = resolver.resolveBaseline(profile);
+
+    assertThat(baseline).isNotNull();
+    assertThat(baseline.medianGrossSalary()).isEqualTo(31200000L);
+  }
+
+  @Test
+  @DisplayName("resolveBaseline - 13년차 LEAD 브래킷 기준선 조회 성공")
+  void resolveBaseline_leadBracket() {
+    CareerProfile profile = new CareerProfile(UUID.randomUUID());
+    profile.patch("DEVELOPER", 13, "서울 강남구", "FULL_TIME", "LARGE");
+
+    given(fallbackResolver.mapExperienceBracket6(13)).willReturn("LEAD");
+    given(fallbackResolver.extractBroadRegion("서울 강남구")).willReturn("서울특별시");
+
+    WageStatObservation obs =
+        WageStatObservation.builder()
+            .wageMedian(74400000L)
+            .wageDefinition("ANNUAL_GROSS_MEDIAN")
+            .statVintage("202508")
+            .build();
+
+    given(repository.findLatestBaseline("DEVELOPER", "LEAD", "ALL")).willReturn(Optional.of(obs));
+
+    WageBaseline baseline = resolver.resolveBaseline(profile);
+
+    assertThat(baseline).isNotNull();
+    assertThat(baseline.medianGrossSalary()).isEqualTo(74400000L);
+  }
+
+  @Test
   @DisplayName("resolveBaseline - 광역 지역 없으면 전국 기준 조회 성공")
   void resolveBaseline_fallbackToNational() {
     CareerProfile profile = new CareerProfile(UUID.randomUUID());
     profile.patch(null, null, null, null, null);
 
-    given(fallbackResolver.mapExperienceBracket(3)).willReturn("JUNIOR");
+    given(fallbackResolver.mapExperienceBracket6(3)).willReturn("JUNIOR");
     given(fallbackResolver.extractBroadRegion(null)).willReturn("서울특별시");
 
     given(repository.findLatestBaseline("DEVELOPER", "JUNIOR", "서울특별시"))
@@ -94,7 +142,7 @@ class WageBaselineResolverTest {
     CareerProfile profile = new CareerProfile(UUID.randomUUID());
     profile.patch("DEVELOPER", 5, "서울 강남구", "FULL_TIME", "LARGE");
 
-    given(fallbackResolver.mapExperienceBracket(5)).willReturn("MID");
+    given(fallbackResolver.mapExperienceBracket6(5)).willReturn("MID");
     given(fallbackResolver.extractBroadRegion("서울 강남구")).willReturn("서울특별시");
 
     given(repository.findLatestBaseline("DEVELOPER", "MID", "서울특별시")).willReturn(Optional.empty());
@@ -120,7 +168,7 @@ class WageBaselineResolverTest {
   @DisplayName("resolveBaseline - 전국 기준도 없으면 null 반환")
   void resolveBaseline_notFound() {
     CareerProfile profile = new CareerProfile(UUID.randomUUID());
-    given(fallbackResolver.mapExperienceBracket(anyInt())).willReturn("JUNIOR");
+    given(fallbackResolver.mapExperienceBracket6(anyInt())).willReturn("JUNIOR");
     given(fallbackResolver.extractBroadRegion(anyString())).willReturn("서울특별시");
 
     given(repository.findLatestBaseline(anyString(), anyString(), anyString()))
