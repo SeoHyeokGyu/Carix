@@ -39,9 +39,9 @@ spring:
             - id: collector-admin
               uri: lb://collector
               predicates:
-                - Path=/api/v1/admin/collector/**
+                - Path=/api/v1/admin/collector/**,/api/v1/admin/pipeline/**
               filters:
-                - RewritePath=/api/v1/admin/collector/(?<segment>.*), /internal/pipeline/${segment}
+                - RewritePath=/api/v1/admin/(collector|pipeline)/(?<segment>.*), /internal/pipeline/${segment}
               order: -12
             - id: core
               uri: lb://core-api
