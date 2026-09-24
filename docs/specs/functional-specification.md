@@ -342,7 +342,7 @@ OWI         = 동료집단 중앙 개방일수 ÷ 전체시장 중앙 개방일�
 - **같은 `job_family` 의 6구간(`ENTRY`·`JUNIOR`·`MID`·`SENIOR`·`LEAD`, `ALL` 제외)을 한 곡선으로 낸다.** 각 구간의 `wage_stat_observation.wage_median` 과 직전 구간 대비 인상률이다.
 - **`wage_stat_observation` 을 자기 자신과 비교하므로 연령 프록시가 상쇄된다.** 프록시는 모든 구간에 일관되게 걸려 구간 *간* 비율에는 영향이 적다 — 공고 중앙값과 빼는 비교(모수가 다르다)와 다른 점이다.
 - **실측이 아닌 적재분은 섞지 않는다.** `source` 가 `KOSIS` 가 아닌 구간 — KOSIS 호출 실패로 `FALLBACK_MEDIAN_BY_BRACKET` 하드코딩 상수가 들어간 `FALLBACK`, 출처 컬럼 도입 이전 적재분인 `UNKNOWN` — 은 `추정`으로 구분해 표시한다. 구분 없이 한 곡선이면 상수를 실측으로 읽게 된다.
-- **사용자 구간 표시는 6구간 매핑에 의존한다.** 현재 `PeerGroupFallbackResolver.mapExperienceBracket` 은 3구간만 내므로 신입·13년차가 사다리 양 끝에 못 선다 (개발 계획 §2 `b7`).
+- **사용자 구간 표시는 6구간 매핑에 의존한다.** `PeerGroupFallbackResolver.mapExperienceBracket6` 이 `ENTRY`~`LEAD` 6구간을 도출하여 신입·13년차가 사다리 양 끝에 정상 정합된다 (개발 계획 §2 `b7`).
 - `region` 은 항상 `ALL` 이라 지역 차이를 말하지 않는다. 화면 문구가 지역별 차이를 암시하면 안 된다.
 - 마지막 구간(`LEAD`)은 다음이 없어 인상률을 내지 않는다.
 
