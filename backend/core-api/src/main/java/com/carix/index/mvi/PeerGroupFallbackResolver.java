@@ -41,8 +41,20 @@ public class PeerGroupFallbackResolver {
   // TODO: [Member B] 운영 피드백 및 데이터 희소성에 따라 IndexThresholdProperties 연동 검토 (도메인 정의서 §2.3)
   public static final int MIN_SAMPLE_SIZE = 10;
 
-  /** 경력 브래킷의 낮은 쪽부터의 순서. 인접 판정과 화면 문구가 이 순서를 쓴다. */
-  private static final List<String> BRACKET_ORDER = List.of("JUNIOR", "MID", "SENIOR");
+  public static final String BRACKET_ENTRY = "ENTRY";
+  public static final String BRACKET_JUNIOR = "JUNIOR";
+  public static final String BRACKET_MID = "MID";
+  public static final String BRACKET_SENIOR = "SENIOR";
+  public static final String BRACKET_LEAD = "LEAD";
+  public static final String BRACKET_ALL = "ALL";
+
+  /** 6구간 순서 (ENTRY ~ LEAD). 공식 임금통계(wage_stat_observation) 및 경력 사다리(careerLadder)에서 사용한다. */
+  public static final List<String> BRACKET_6_ORDER =
+      List.of(BRACKET_ENTRY, BRACKET_JUNIOR, BRACKET_MID, BRACKET_SENIOR, BRACKET_LEAD);
+
+  /** 경력 3구간 순서 (채용공고 시장 집계와 동료집단 완화가 이 순서를 쓴다). */
+  public static final List<String> BRACKET_ORDER =
+      List.of(BRACKET_JUNIOR, BRACKET_MID, BRACKET_SENIOR);
 
   private final MarketAggregateRepository marketAggregateRepository;
 
@@ -232,12 +244,19 @@ public class PeerGroupFallbackResolver {
    * 비교군을 본 것처럼 말하게 됩니다.
    */
   private String formatBracketText(Collection<String> brackets) {
-    List<String> ordered = BRACKET_ORDER.stream().filter(brackets::contains).toList();
-    if (ordered.size() >= BRACKET_ORDER.size()) {
+    if (brackets == null || brackets.isEmpty()) {
       return "경력 전체 구간";
     }
-    if (ordered.size() == 1) {
-      return ordered.get(0) + " (" + formatBracketYears(ordered.get(0)) + ")";
+    if (brackets.size() == 1) {
+      String b = brackets.iterator().next();
+      return b + " (" + formatBracketYears(b) + ")";
+    }
+    List<String> ordered = BRACKET_6_ORDER.stream().filter(brackets::contains).toList();
+    if (ordered.size() >= BRACKET_6_ORDER.size() || ordered.containsAll(BRACKET_ORDER)) {
+      return "경력 전체 구간";
+    }
+    if (ordered.isEmpty()) {
+      return String.join("·", brackets);
     }
     return String.join("·", ordered) + " (" + formatBracketRange(ordered) + ")";
   }
@@ -245,35 +264,78 @@ public class PeerGroupFallbackResolver {
   /** 인접 확장으로 묶인 구간의 연차 범위. 첫 브래킷의 하한과 마지막 브래킷의 상한을 잇습니다. */
   private String formatBracketRange(List<String> ordered) {
     String lowerBound =
-        switch (ordered.get(0)) {
-          case "JUNIOR" -> "0";
-          case "MID" -> "4";
-          default -> "8";
+        switch (ordered.getFirst()) {
+          case BRACKET_ENTRY, BRACKET_JUNIOR -> "0";
+          case BRACKET_MID -> "4";
+          case BRACKET_SENIOR -> "8";
+          default -> "12";
         };
-    return switch (ordered.get(ordered.size() - 1)) {
-      case "JUNIOR" -> lowerBound + "~3년";
-      case "MID" -> lowerBound + "~7년";
+    return switch (ordered.getLast()) {
+      case BRACKET_JUNIOR -> lowerBound + "~3년";
+      case BRACKET_MID -> lowerBound + "~7년";
       default -> lowerBound + "년+";
     };
   }
 
   private String formatBracketYears(String bracket) {
     return switch (bracket) {
-      case "JUNIOR" -> "0~3년";
-      case "MID" -> "4~7년";
-      case "SENIOR" -> "8년+";
+      case BRACKET_ENTRY -> "0~1년";
+      case BRACKET_JUNIOR -> "0~3년";
+      case BRACKET_MID -> "4~7년";
+      case BRACKET_SENIOR -> "8년+";
+      case BRACKET_LEAD -> "12년+";
       default -> bracket;
     };
   }
 
-  /** 총 경력 년수를 JUNIOR, MID, SENIOR 브래킷으로 매핑합니다. */
+  /**
+   * 총 경력 년수를 6구간 브래킷(ENTRY, JUNIOR, MID, SENIOR, LEAD)으로 매핑합니다.
+   *
+   * <p>KOSIS 공식 임금통계 기준선(wage_stat_observation) 및 경력 사다리(careerLadder)에서 사용됩니다.
+   */
+  public String mapExperienceBracket6(int yearsOfExperience) {
+    if (yearsOfExperience <= 1) {
+      return BRACKET_ENTRY;
+    } else if (yearsOfExperience <= 3) {
+      return BRACKET_JUNIOR;
+    } else if (yearsOfExperience <= 7) {
+      return BRACKET_MID;
+    } else if (yearsOfExperience <= 11) {
+      return BRACKET_SENIOR;
+    } else {
+      return BRACKET_LEAD;
+    }
+  }
+
+  /**
+   * 6구간 브래킷을 채용공고 동료집단 완화용 3구간 브래킷(JUNIOR, MID, SENIOR)으로 롤업합니다.
+   *
+   * <p>ENTRY -> JUNIOR, LEAD -> SENIOR 로 매핑하여 기존 market_aggregate 집계 행과 100% 호환됩니다.
+   */
+  public String to3TierBracket(String bracket6) {
+    if (bracket6 == null) {
+      return BRACKET_JUNIOR;
+    }
+    return switch (bracket6) {
+      case BRACKET_ENTRY, BRACKET_JUNIOR -> BRACKET_JUNIOR;
+      case BRACKET_MID -> BRACKET_MID;
+      case BRACKET_SENIOR, BRACKET_LEAD -> BRACKET_SENIOR;
+      default -> bracket6;
+    };
+  }
+
+  /**
+   * 총 경력 년수를 JUNIOR, MID, SENIOR 3구간 브래킷으로 매핑합니다.
+   *
+   * <p>채용공고 시장 사전 집계(market_aggregate) 및 동료집단 완화 알고리즘에서 사용됩니다.
+   */
   public String mapExperienceBracket(int yearsOfExperience) {
     if (yearsOfExperience <= 3) {
-      return "JUNIOR";
+      return BRACKET_JUNIOR;
     } else if (yearsOfExperience <= 7) {
-      return "MID";
+      return BRACKET_MID;
     } else {
-      return "SENIOR";
+      return BRACKET_SENIOR;
     }
   }
 

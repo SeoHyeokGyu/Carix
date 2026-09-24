@@ -33,7 +33,7 @@ public class WageBaselineResolver {
 
     String jobFamily = profile.getJobFamily() != null ? profile.getJobFamily() : "DEVELOPER";
     int years = profile.getYearsOfExperience() != null ? profile.getYearsOfExperience() : 3;
-    String bracket = peerGroupFallbackResolver.mapExperienceBracket(years);
+    String bracket = peerGroupFallbackResolver.mapExperienceBracket6(years);
     String broadRegion = peerGroupFallbackResolver.extractBroadRegion(profile.getRegion());
 
     Optional<WageStatObservation> obsOpt =

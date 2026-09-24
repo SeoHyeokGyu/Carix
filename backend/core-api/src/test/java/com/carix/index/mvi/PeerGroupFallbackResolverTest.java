@@ -277,13 +277,40 @@ class PeerGroupFallbackResolverTest {
   }
 
   @Test
-  @DisplayName("mapExperienceBracket 연차 매핑")
+  @DisplayName("mapExperienceBracket 연차 매핑 (기존 3구간 호환)")
   void testMapExperienceBracket() {
     assertThat(resolver.mapExperienceBracket(0)).isEqualTo("JUNIOR");
     assertThat(resolver.mapExperienceBracket(3)).isEqualTo("JUNIOR");
     assertThat(resolver.mapExperienceBracket(4)).isEqualTo("MID");
     assertThat(resolver.mapExperienceBracket(7)).isEqualTo("MID");
     assertThat(resolver.mapExperienceBracket(8)).isEqualTo("SENIOR");
+  }
+
+  @Test
+  @DisplayName("mapExperienceBracket6 6구간 연차 매핑")
+  void testMapExperienceBracket6() {
+    assertThat(resolver.mapExperienceBracket6(0)).isEqualTo("ENTRY");
+    assertThat(resolver.mapExperienceBracket6(1)).isEqualTo("ENTRY");
+    assertThat(resolver.mapExperienceBracket6(2)).isEqualTo("JUNIOR");
+    assertThat(resolver.mapExperienceBracket6(3)).isEqualTo("JUNIOR");
+    assertThat(resolver.mapExperienceBracket6(4)).isEqualTo("MID");
+    assertThat(resolver.mapExperienceBracket6(7)).isEqualTo("MID");
+    assertThat(resolver.mapExperienceBracket6(8)).isEqualTo("SENIOR");
+    assertThat(resolver.mapExperienceBracket6(11)).isEqualTo("SENIOR");
+    assertThat(resolver.mapExperienceBracket6(12)).isEqualTo("LEAD");
+    assertThat(resolver.mapExperienceBracket6(15)).isEqualTo("LEAD");
+  }
+
+  @Test
+  @DisplayName("to3TierBracket 3구간 롤업 매핑")
+  void testTo3TierBracket() {
+    assertThat(resolver.to3TierBracket("ENTRY")).isEqualTo("JUNIOR");
+    assertThat(resolver.to3TierBracket("JUNIOR")).isEqualTo("JUNIOR");
+    assertThat(resolver.to3TierBracket("MID")).isEqualTo("MID");
+    assertThat(resolver.to3TierBracket("SENIOR")).isEqualTo("SENIOR");
+    assertThat(resolver.to3TierBracket("LEAD")).isEqualTo("SENIOR");
+    assertThat(resolver.to3TierBracket(null)).isEqualTo("JUNIOR");
+    assertThat(resolver.to3TierBracket("UNKNOWN")).isEqualTo("UNKNOWN");
   }
 
   @Test
@@ -309,5 +336,44 @@ class PeerGroupFallbackResolverTest {
     // 2개 구간 (MID - SENIOR)
     String t3 = resolver.formatConditionText("서울 강남구", List.of("MID", "SENIOR"), "PART_TIME", null);
     assertThat(t3).contains("MID·SENIOR (4년+)");
+
+    // 단일 구간 ENTRY, SENIOR, LEAD, 기타 문자열
+    assertThat(resolver.formatConditionText("서울 강남구", List.of("ENTRY"), null, null))
+        .contains("ENTRY (0~1년)");
+    assertThat(resolver.formatConditionText("서울 강남구", List.of("SENIOR"), null, null))
+        .contains("SENIOR (8년+)");
+    assertThat(resolver.formatConditionText("서울 강남구", List.of("LEAD"), null, null))
+        .contains("LEAD (12년+)");
+    assertThat(resolver.formatConditionText("서울 강남구", List.of("OTHER"), null, null))
+        .contains("OTHER (OTHER)");
+
+    // 인접 브래킷 범위 포맷팅 분기 커버리지
+    assertThat(resolver.formatConditionText("서울 강남구", List.of("ENTRY", "JUNIOR"), null, null))
+        .contains("ENTRY·JUNIOR (0~3년)");
+    assertThat(resolver.formatConditionText("서울 강남구", List.of("ENTRY", "MID"), null, null))
+        .contains("ENTRY·MID (0~7년)");
+    assertThat(resolver.formatConditionText("서울 강남구", List.of("SENIOR", "LEAD"), null, null))
+        .contains("SENIOR·LEAD (8년+)");
+    assertThat(resolver.formatConditionText("서울 강남구", List.of("LEAD", "UNKNOWN"), null, null))
+        .contains("LEAD (12년+)");
+    assertThat(resolver.formatConditionText("서울 강남구", null, null, null)).contains("경력 전체 구간");
+    assertThat(resolver.formatConditionText("서울 강남구", List.of(), null, null)).contains("경력 전체 구간");
+    assertThat(resolver.formatConditionText("서울 강남구", List.of("CUSTOM1", "CUSTOM2"), null, null))
+        .contains("CUSTOM1·CUSTOM2");
+  }
+
+  @Test
+  @DisplayName("resolveForSource - 프로필 필드가 null이거나 빈 문자열일 때 기본값 정상 처리")
+  void testResolveForSource_defaultStringAndBlankFields() {
+    CareerProfile profile = new CareerProfile(UUID.randomUUID());
+    profile.patch("", null, "", "", "   ");
+
+    PeerGroupFallbackResolver.ResolvedPeerGroup result =
+        resolver.resolveForSource("JOBKOREA", profile, "202608");
+
+    assertThat(result).isNotNull();
+    assertThat(result.getJobFamily()).isEqualTo("DEVELOPER");
+    assertThat(result.getRegion()).isEqualTo("서울특별시");
+    assertThat(result.getBrackets()).contains("JUNIOR");
   }
 }
