@@ -49,6 +49,7 @@ class WageBaselineResolverTest {
             .wageMedian(60000000L)
             .wageDefinition("ANNUAL_BASE_MEDIAN")
             .statVintage("202607")
+            .source(com.carix.wagestat.WageStatSource.KOSIS)
             .build();
 
     given(repository.findLatestBaseline("DEVELOPER", "MID", "서울특별시")).willReturn(Optional.of(obs));
@@ -59,6 +60,7 @@ class WageBaselineResolverTest {
     assertThat(baseline.medianGrossSalary()).isEqualTo(60000000L);
     assertThat(baseline.wageDefinition()).isEqualTo("ANNUAL_BASE_MEDIAN");
     assertThat(baseline.statVintage()).isEqualTo("202607");
+    assertThat(baseline.source()).isEqualTo(com.carix.wagestat.WageStatSource.KOSIS);
   }
 
   @Test

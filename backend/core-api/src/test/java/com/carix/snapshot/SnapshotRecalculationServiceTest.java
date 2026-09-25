@@ -179,6 +179,7 @@ class SnapshotRecalculationServiceTest {
         indexSnapshotRepository.findByUserIdOrderByBaseYearMonthDesc(userId).get(0);
     assertThat(snapshot.getRationale().salaryGapBucket()).isNotNull();
     assertThat(snapshot.getRationale().wageStatVintage()).isEqualTo("202606");
+    assertThat(snapshot.getRationale().wageStatSource()).isEqualTo("KOSIS");
     assertThat(snapshot.getRationale().toString())
         .doesNotContain("72000000")
         .doesNotContain("60000000");
@@ -414,7 +415,8 @@ class SnapshotRecalculationServiceTest {
           List.of(),
           List.of(),
           List.of(),
-          new WageBaseline(72_000_000L, "초과급여 제외, 상여 포함", "202606"),
+          new WageBaseline(
+              72_000_000L, "초과급여 제외, 상여 포함", "202606", com.carix.wagestat.WageStatSource.KOSIS),
           LocalDate.of(2026, 7, 1));
     }
   }

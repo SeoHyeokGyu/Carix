@@ -182,7 +182,13 @@ public class DashboardSummaryService {
         sampleSize,
         weightedMissingRate(successful),
         peerGroup(successful, rationale),
-        new WageStatInfo(null, rationale.wageStatVintage()),
+        rationale.wageStatVintage() == null
+            ? new WageStatInfo(null, null, "AGE_BAND_PROXY", "UNKNOWN")
+            : new WageStatInfo(
+                "ANNUAL_GROSS_MEDIAN",
+                rationale.wageStatVintage(),
+                "AGE_BAND_PROXY",
+                rationale.wageStatSource() != null ? rationale.wageStatSource() : "UNKNOWN"),
         null,
         openingWindow(rationale));
   }

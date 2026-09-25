@@ -54,7 +54,12 @@ export interface DashboardMetadata {
   sampleSize?: number;
   salaryMissingRate?: number | null;
   peerGroup?: PeerGroupMetadata | null;
-  wageStat?: { wageDefinition: string; statVintage: string } | null;
+  wageStat?: {
+    wageDefinition?: string | null;
+    statVintage?: string | null;
+    basis?: string | null;
+    source?: string | null;
+  } | null;
   expenseWeightStatus?: string | null;
   openingWindow?: OpeningWindowMetadata | null;
 }

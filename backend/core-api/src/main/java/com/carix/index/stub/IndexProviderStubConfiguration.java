@@ -4,6 +4,7 @@ import com.carix.index.CurrentSalaryProvider;
 import com.carix.index.MarketValueIndexProvider;
 import com.carix.index.OpeningWindowIndexProvider;
 import com.carix.index.PurchasingPowerIndexProvider;
+import com.carix.index.WageStatSeriesProvider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
@@ -47,5 +48,12 @@ public class IndexProviderStubConfiguration {
   CurrentSalaryProvider stubCurrentSalaryProvider() {
     log.info("[지수계약] 현재 연봉 제공자가 아직 스텁입니다. 모든 요청이 빈 결과를 돌려줍니다.");
     return new StubCurrentSalaryProvider();
+  }
+
+  @Bean
+  @ConditionalOnMissingBean(WageStatSeriesProvider.class)
+  WageStatSeriesProvider stubWageStatSeriesProvider() {
+    log.info("[지수계약] 공식 임금통계 연도 시계열 제공자가 아직 스텁입니다.");
+    return new StubWageStatSeriesProvider();
   }
 }

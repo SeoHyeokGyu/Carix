@@ -2,6 +2,8 @@ package com.carix.wagestat;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import java.util.UUID;
@@ -53,4 +55,10 @@ public class WageStatObservation {
   /** 통계 개정판 (YYYYMM) */
   @Column(name = "stat_vintage", nullable = false, length = 6)
   private String statVintage;
+
+  /** 관측치 출처. KOSIS 실측, FALLBACK 상수, UNKNOWN 이전 적재분. */
+  @Enumerated(EnumType.STRING)
+  @Column(name = "source", nullable = false, length = 20)
+  @Builder.Default
+  private WageStatSource source = WageStatSource.UNKNOWN;
 }

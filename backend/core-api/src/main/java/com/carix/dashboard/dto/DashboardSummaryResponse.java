@@ -71,7 +71,16 @@ public record DashboardSummaryResponse(
 
   public record ExcludedSkill(String skill, String reason) {}
 
-  public record WageStatInfo(String wageDefinition, String statVintage) {}
+  public record WageStatInfo(
+      @Schema(example = "ANNUAL_GROSS_MEDIAN") String wageDefinition,
+      @Schema(example = "202606") String statVintage,
+      @Schema(example = "AGE_BAND_PROXY") String basis,
+      @Schema(example = "KOSIS") String source) {
+
+    public WageStatInfo(String wageDefinition, String statVintage) {
+      this(wageDefinition, statVintage, "AGE_BAND_PROXY", "UNKNOWN");
+    }
+  }
 
   /**
    * 개방창 지수의 화면용 근거 (API 규격 §5.1). 저장된 근거 일곱 중 셋만 나간다 — 나머지 넷은 쓰는 화면이 아직 없다.
