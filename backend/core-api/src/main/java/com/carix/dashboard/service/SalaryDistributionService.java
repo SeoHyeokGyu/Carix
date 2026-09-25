@@ -10,6 +10,7 @@ import com.carix.peergroup.PeerSalaryDistribution;
 import com.carix.peergroup.PeerSalaryDistributionResolver;
 import com.carix.profile.domain.CareerProfile;
 import com.carix.profile.repository.CareerProfileRepository;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -60,6 +61,7 @@ public class SalaryDistributionService {
     List<Long> disclosed = distribution.disclosedSalaries();
     SalaryDistributionResponse.PostingReference reference =
         buildReference(disclosed, distribution.peerSampleSize());
+    List<SalaryDistributionResponse.SalaryTrendPoint> trend = toTrendDtos(distribution.trend());
 
     return new SalaryDistributionResponse(
         STATUS_OK,
@@ -69,7 +71,25 @@ public class SalaryDistributionService {
         reference,
         buildUserPosition(userId, baseYearMonth, distribution),
         new SalaryDistributionResponse.DistributionPeerGroup(
-            distribution.fallbackLevel(), distribution.appliedConditions()));
+            distribution.fallbackLevel(), distribution.appliedConditions()),
+        trend);
+  }
+
+  private List<SalaryDistributionResponse.SalaryTrendPoint> toTrendDtos(
+      List<PeerSalaryDistribution.TrendPoint> trend) {
+    if (trend == null || trend.isEmpty()) {
+      return Collections.emptyList();
+    }
+    return trend.stream()
+        .map(
+            t ->
+                new SalaryDistributionResponse.SalaryTrendPoint(
+                    t.yearMonth(),
+                    t.median(),
+                    t.sampleSize(),
+                    t.disclosedSampleSize(),
+                    t.missingRate()))
+        .toList();
   }
 
   /**

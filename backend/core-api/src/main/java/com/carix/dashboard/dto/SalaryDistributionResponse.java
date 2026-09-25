@@ -1,6 +1,8 @@
 package com.carix.dashboard.dto;
 
 import io.swagger.v3.oas.annotations.media.Schema;
+import java.util.Collections;
+import java.util.List;
 
 /**
  * 동료집단 연봉 분포 응답 (API 규격 §5.2).
@@ -20,7 +22,34 @@ public record SalaryDistributionResponse(
     @Schema(nullable = true) WageBaseline baseline,
     @Schema(description = "표본 부족 시 null", nullable = true) PostingReference postingReference,
     @Schema(description = "연봉 이력이 없으면 null", nullable = true) UserPosition userPosition,
-    @Schema(nullable = true) DistributionPeerGroup peerGroup) {
+    @Schema(nullable = true) DistributionPeerGroup peerGroup,
+    @Schema(description = "등록월별 제시 연봉 추이 (기능 명세 §4.6)") List<SalaryTrendPoint> trend) {
+
+  public SalaryDistributionResponse(
+      String status,
+      Integer sampleSize,
+      Integer minRequired,
+      WageBaseline baseline,
+      PostingReference postingReference,
+      UserPosition userPosition,
+      DistributionPeerGroup peerGroup) {
+    this(
+        status,
+        sampleSize,
+        minRequired,
+        baseline,
+        postingReference,
+        userPosition,
+        peerGroup,
+        Collections.emptyList());
+  }
+
+  public record SalaryTrendPoint(
+      String yearMonth,
+      @Schema(description = "공개연봉 표본 부족(<10) 시 null", nullable = true) Long median,
+      int sampleSize,
+      int disclosedSampleSize,
+      double missingRate) {}
 
   public record WageBaseline(
       String source, @Schema(nullable = true) Long median, String wageDefinition) {}

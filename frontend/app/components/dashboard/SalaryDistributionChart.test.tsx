@@ -158,4 +158,54 @@ describe("SalaryDistributionChart", () => {
       screen.queryByTestId("salary-distribution-chart"),
     ).not.toBeInTheDocument();
   });
+
+  it("trend 데이터가 존재하면 등록월별 중앙 제시 연봉 추이 테이블을 렌더링한다", () => {
+    const dataWithTrend: SalaryDistributionResponse = {
+      status: "OK",
+      sampleSize: 150,
+      baseline: {
+        source: "KOSIS",
+        median: 65_000_000,
+        wageDefinition: "임금직무정보시스템 500인 이상",
+      },
+      postingReference: {
+        min: 40_000_000,
+        p25: 52_000_000,
+        median: 68_000_000,
+        p75: 85_000_000,
+        max: 120_000_000,
+        sampleSize: 50,
+        missingRate: 66.7,
+      },
+      userPosition: null,
+      peerGroup: {
+        fallbackLevel: 1,
+        appliedConditions: "서울 / 경력 MID / 회사규모 무관",
+      },
+      trend: [
+        {
+          yearMonth: "2026-05",
+          median: 62_000_000,
+          sampleSize: 18,
+          disclosedSampleSize: 11,
+          missingRate: 38.9,
+        },
+        {
+          yearMonth: "2026-06",
+          median: null,
+          sampleSize: 6,
+          disclosedSampleSize: 2,
+          missingRate: 66.7,
+        },
+      ],
+    };
+
+    render(<SalaryDistributionChart data={dataWithTrend} />);
+
+    expect(screen.getByTestId("salary-trend-section")).toBeInTheDocument();
+    expect(screen.getByText("2026-05")).toBeInTheDocument();
+    expect(screen.getByText("6,200만 원")).toBeInTheDocument();
+    expect(screen.getByText("2026-06")).toBeInTheDocument();
+    expect(screen.getByText("표본 부족 (미산출)")).toBeInTheDocument();
+  });
 });
