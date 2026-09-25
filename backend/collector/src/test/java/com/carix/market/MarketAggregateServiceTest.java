@@ -1,6 +1,7 @@
 package com.carix.market;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -90,8 +91,55 @@ class MarketAggregateServiceTest {
             .orElseThrow();
 
     assertThat(backendJunior.getPostingCount()).isEqualTo(2);
-    assertThat(backendJunior.getSalaryMedian())
-        .isEqualTo(60_000_000L); // (50,000,000 + 60,000,000) p50
+    assertThat(backendJunior.getSalaryMissingRatePercent()).isEqualByComparingTo("0.00");
+  }
+
+  @Test
+  @DisplayName("공개연봉이 부분 결측인 경우 결측률이 올바르게 계산된다")
+  void aggregateMarketData_partialSalaryMissing() {
+    JobPosting p1 =
+        JobPosting.builder()
+            .source("JOBKOREA")
+            .externalId("jk-1")
+            .jobFamily("BACKEND")
+            .experienceMin(1)
+            .salaryMin(50_000_000L)
+            .salaryMax(60_000_000L)
+            .firstSeenMonth("202601")
+            .lastSeenMonth("202601")
+            .collectedAt(Instant.now())
+            .build();
+    JobPosting p2 =
+        JobPosting.builder()
+            .source("JOBKOREA")
+            .externalId("jk-2")
+            .jobFamily("BACKEND")
+            .experienceMin(2)
+            .firstSeenMonth("202601")
+            .lastSeenMonth("202601")
+            .collectedAt(Instant.now())
+            .build();
+    when(jobPostingRepository.findAll()).thenReturn(List.of(p1, p2));
+
+    marketAggregateService.aggregateMarketDataForMonth("202601");
+
+    ArgumentCaptor<List<MarketAggregate>> captor = ArgumentCaptor.forClass(List.class);
+    verify(marketAggregateRepository, atLeastOnce()).saveAll(captor.capture());
+    List<MarketAggregate> saved = captor.getValue();
+
+    MarketAggregate backendJunior =
+        saved.stream()
+            .filter(
+                m ->
+                    "ALL".equals(m.getSource())
+                        && "BACKEND".equals(m.getJobFamily())
+                        && "JUNIOR".equals(m.getExperienceBracket())
+                        && m.getSkillId() == null)
+            .findFirst()
+            .orElseThrow();
+
+    assertThat(backendJunior.getPostingCount()).isEqualTo(2);
+    assertThat(backendJunior.getSalaryMissingRatePercent()).isEqualByComparingTo("50.00");
   }
 
   @Test

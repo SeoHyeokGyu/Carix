@@ -56,21 +56,6 @@ public class MarketAggregate {
   @Column(name = "demand_rate", nullable = false, precision = 5, scale = 4)
   private BigDecimal demandRate;
 
-  @Column(name = "salary_min")
-  private Long salaryMin;
-
-  @Column(name = "salary_p25")
-  private Long salaryP25;
-
-  @Column(name = "salary_median")
-  private Long salaryMedian;
-
-  @Column(name = "salary_p75")
-  private Long salaryP75;
-
-  @Column(name = "salary_max")
-  private Long salaryMax;
-
   /** 연봉 결측률. 단위는 퍼센트다 (0.00 ~ 100.00) — 비율이 아니다. 같은 표의 demandRate 는 비율이므로 혼동하지 않는다. */
   @Column(name = "salary_missing_rate", nullable = false, precision = 5, scale = 2)
   private BigDecimal salaryMissingRatePercent;

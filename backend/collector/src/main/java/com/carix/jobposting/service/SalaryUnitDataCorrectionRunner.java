@@ -1,7 +1,6 @@
 package com.carix.jobposting.service;
 
 import com.carix.jobposting.JobPostingRepository;
-import com.carix.market.MarketAggregateRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
@@ -16,7 +15,6 @@ import org.springframework.transaction.annotation.Transactional;
 public class SalaryUnitDataCorrectionRunner {
 
   private final JobPostingRepository jobPostingRepository;
-  private final MarketAggregateRepository marketAggregateRepository;
 
   @EventListener(ApplicationReadyEvent.class)
   @Transactional
@@ -29,10 +27,6 @@ public class SalaryUnitDataCorrectionRunner {
             "[SalaryUnitCorrection] job_posting 연봉 단위 원(KRW) 보정 완료 (min: {}건, max: {}건)",
             minUpdated,
             maxUpdated);
-      }
-      int aggUpdated = marketAggregateRepository.normalizeSalaryUnits();
-      if (aggUpdated > 0) {
-        log.info("[SalaryUnitCorrection] market_aggregate 연봉 단위 원(KRW) 보정 완료 ({}건)", aggUpdated);
       }
     } catch (Exception e) {
       log.warn("[SalaryUnitCorrection] 연봉 단위 보정 중 알림 (테이블 미존재 또는 제약조건 등): {}", e.getMessage());
