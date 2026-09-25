@@ -8,7 +8,6 @@ import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -275,8 +274,10 @@ public class MarketAggregateService {
 
         int totalPostingsInSlice = slice.size();
 
-        // 1) 직군/경력 슬라이스의 연봉 통계 및 전체 메트릭 (skill_id = null)
-        SalaryStats salaryStats = calculateSalaryStats(slice);
+        // 1) 직군/경력 슬라이스의 전체 메트릭 (skill_id = null)
+        int sliceDisclosed = countDisclosedPostings(slice);
+        BigDecimal sliceMissingRate =
+            calculateSalaryMissingRate(sliceDisclosed, totalPostingsInSlice);
         results.add(
             MarketAggregate.builder()
                 .source(source)
@@ -290,17 +291,12 @@ public class MarketAggregateService {
                 .postingCount(totalPostingsInSlice)
                 .totalAggregatePostings(totalPostingsInSlice)
                 .demandRate(BigDecimal.ONE.setScale(4, RoundingMode.HALF_UP))
-                .salaryMin(salaryStats.min())
-                .salaryP25(salaryStats.p25())
-                .salaryMedian(salaryStats.median())
-                .salaryP75(salaryStats.p75())
-                .salaryMax(salaryStats.max())
-                .salaryMissingRatePercent(salaryStats.missingRatePercent())
+                .salaryMissingRatePercent(sliceMissingRate)
                 .build());
 
         // 2) 슬라이스 내 개별 스킬별 수요 지수 계산
         Map<UUID, Integer> skillPostingCounts = new HashMap<>();
-        Map<UUID, List<Long>> skillSalaries = new HashMap<>();
+        Map<UUID, Integer> skillDisclosedCounts = new HashMap<>();
 
         for (JobPosting p : slice) {
           Set<UUID> uniqueSkillsInPosting = new HashSet<>();
@@ -312,11 +308,11 @@ public class MarketAggregateService {
             }
           }
 
+          boolean hasSalary = p.getSalaryMin() != null && p.getSalaryMax() != null;
           for (UUID skillId : uniqueSkillsInPosting) {
             skillPostingCounts.put(skillId, skillPostingCounts.getOrDefault(skillId, 0) + 1);
-            if (p.getSalaryMin() != null && p.getSalaryMax() != null) {
-              long avgSalary = (p.getSalaryMin() + p.getSalaryMax()) / 2;
-              skillSalaries.computeIfAbsent(skillId, k -> new ArrayList<>()).add(avgSalary);
+            if (hasSalary) {
+              skillDisclosedCounts.put(skillId, skillDisclosedCounts.getOrDefault(skillId, 0) + 1);
             }
           }
         }
@@ -328,8 +324,8 @@ public class MarketAggregateService {
               BigDecimal.valueOf((double) skillCount / totalPostingsInSlice)
                   .setScale(4, RoundingMode.HALF_UP);
 
-          SalaryStats skillSalaryStats =
-              calculateSalaryStatsFromValues(skillSalaries.get(skillId), skillCount);
+          int disclosedCount = skillDisclosedCounts.getOrDefault(skillId, 0);
+          BigDecimal skillMissingRate = calculateSalaryMissingRate(disclosedCount, skillCount);
 
           results.add(
               MarketAggregate.builder()
@@ -344,12 +340,7 @@ public class MarketAggregateService {
                   .postingCount(skillCount)
                   .totalAggregatePostings(totalPostingsInSlice)
                   .demandRate(demandRate)
-                  .salaryMin(skillSalaryStats.min())
-                  .salaryP25(skillSalaryStats.p25())
-                  .salaryMedian(skillSalaryStats.median())
-                  .salaryP75(skillSalaryStats.p75())
-                  .salaryMax(skillSalaryStats.max())
-                  .salaryMissingRatePercent(skillSalaryStats.missingRatePercent())
+                  .salaryMissingRatePercent(skillMissingRate)
                   .build());
         }
       }
@@ -378,36 +369,21 @@ public class MarketAggregateService {
     };
   }
 
-  private SalaryStats calculateSalaryStats(List<JobPosting> postings) {
-    List<Long> values = new ArrayList<>();
+  private int countDisclosedPostings(List<JobPosting> postings) {
+    int count = 0;
     for (JobPosting p : postings) {
       if (p.getSalaryMin() != null && p.getSalaryMax() != null) {
-        values.add((p.getSalaryMin() + p.getSalaryMax()) / 2);
+        count++;
       }
     }
-    return calculateSalaryStatsFromValues(values, postings.size());
+    return count;
   }
 
-  private SalaryStats calculateSalaryStatsFromValues(List<Long> values, int totalPostings) {
-    if (values == null || values.isEmpty() || totalPostings == 0) {
-      return new SalaryStats(null, null, null, null, null, HUNDRED_PERCENT);
+  private BigDecimal calculateSalaryMissingRate(int disclosedCount, int totalPostings) {
+    if (totalPostings == 0 || disclosedCount == 0) {
+      return HUNDRED_PERCENT;
     }
-
-    Collections.sort(values);
-    int n = values.size();
-    Long min = values.get(0);
-    Long p25 = values.get((int) Math.floor(n * 0.25));
-    Long median = values.get((int) Math.floor(n * 0.50));
-    Long p75 = values.get(Math.min(n - 1, (int) Math.floor(n * 0.75)));
-    Long max = values.get(n - 1);
-
-    double missingRatio = (double) (totalPostings - n) / totalPostings;
-    BigDecimal missingRatePercent =
-        BigDecimal.valueOf(missingRatio * 100).setScale(2, RoundingMode.HALF_UP);
-
-    return new SalaryStats(min, p25, median, p75, max, missingRatePercent);
+    double missingRatio = (double) (totalPostings - disclosedCount) / totalPostings;
+    return BigDecimal.valueOf(missingRatio * 100).setScale(2, RoundingMode.HALF_UP);
   }
-
-  private record SalaryStats(
-      Long min, Long p25, Long median, Long p75, Long max, BigDecimal missingRatePercent) {}
 }

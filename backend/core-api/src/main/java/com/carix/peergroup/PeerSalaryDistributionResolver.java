@@ -81,12 +81,58 @@ public class PeerSalaryDistributionResolver {
     return toDistribution(ladder.get(ladder.size() - 1));
   }
 
+  private static final java.time.format.DateTimeFormatter TREND_YM_FORMATTER =
+      java.time.format.DateTimeFormatter.ofPattern("uuuu-MM");
+
   private PeerSalaryDistribution toDistribution(Resolved resolved) {
     return new PeerSalaryDistribution(
         disclosedSalaries(resolved.postings()),
         resolved.postings().size(),
         resolved.level(),
-        resolved.appliedConditions());
+        resolved.appliedConditions(),
+        calculateTrend(resolved.postings()));
+  }
+
+  /**
+   * 동료집단 공고의 등록월(posted_start_date)별 중앙 제시 연봉 추이를 집계한다 (기능 명세 §4.6).
+   *
+   * <p>완화는 현재 시점 조건으로 한 번만 안착시키고 그 조건으로 월별 집계한다. 월별 공개연봉 표본이 10건 미만이면 중앙값을 null 로 비워 화면이 선을 잇지 않게
+   * 한다.
+   */
+  private List<PeerSalaryDistribution.TrendPoint> calculateTrend(List<JobPosting> postings) {
+    if (postings == null || postings.isEmpty()) {
+      return Collections.emptyList();
+    }
+
+    Map<String, List<JobPosting>> byMonth = new java.util.TreeMap<>();
+    for (JobPosting posting : postings) {
+      if (posting.getPostedStartDate() == null || posting.isReversed()) {
+        continue;
+      }
+      String ym = posting.getPostedStartDate().format(TREND_YM_FORMATTER);
+      byMonth.computeIfAbsent(ym, k -> new ArrayList<>()).add(posting);
+    }
+
+    List<PeerSalaryDistribution.TrendPoint> result = new ArrayList<>();
+    for (Map.Entry<String, List<JobPosting>> entry : byMonth.entrySet()) {
+      String ym = entry.getKey();
+      List<JobPosting> monthPostings = entry.getValue();
+      int sampleSize = monthPostings.size();
+      List<Long> salaries = disclosedSalaries(monthPostings);
+      int disclosedSampleSize = salaries.size();
+      double missingRate =
+          Math.round((double) (sampleSize - disclosedSampleSize) / sampleSize * 1000.0) / 10.0;
+
+      Long median = null;
+      if (disclosedSampleSize >= PeerGroupFallbackResolver.MIN_SAMPLE_SIZE) {
+        median = salaries.get((int) Math.floor(disclosedSampleSize * 0.50));
+      }
+
+      result.add(
+          new PeerSalaryDistribution.TrendPoint(
+              ym, median, sampleSize, disclosedSampleSize, missingRate));
+    }
+    return result;
   }
 
   private Resolved attempt(

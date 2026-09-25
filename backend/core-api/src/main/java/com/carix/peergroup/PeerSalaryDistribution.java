@@ -1,6 +1,7 @@
 package com.carix.peergroup;
 
 import com.carix.index.mvi.PeerGroupFallbackResolver;
+import java.util.Collections;
 import java.util.List;
 
 /**
@@ -13,9 +14,30 @@ import java.util.List;
  * @param peerSampleSize 중복 제거 후 동료집단 공고 수. 공개연봉 건수가 아니다
  * @param fallbackLevel 안착한 완화 단계 (1~5)
  * @param appliedConditions 화면에 그대로 쓸 비교 조건 문구
+ * @param trend 등록월(posted_start_date)별 제시 연봉 추이 (기능 명세 §4.6)
  */
 public record PeerSalaryDistribution(
-    List<Long> disclosedSalaries, int peerSampleSize, int fallbackLevel, String appliedConditions) {
+    List<Long> disclosedSalaries,
+    int peerSampleSize,
+    int fallbackLevel,
+    String appliedConditions,
+    List<TrendPoint> trend) {
+
+  public record TrendPoint(
+      String yearMonth, Long median, int sampleSize, int disclosedSampleSize, double missingRate) {}
+
+  public PeerSalaryDistribution(
+      List<Long> disclosedSalaries,
+      int peerSampleSize,
+      int fallbackLevel,
+      String appliedConditions) {
+    this(
+        disclosedSalaries,
+        peerSampleSize,
+        fallbackLevel,
+        appliedConditions,
+        Collections.emptyList());
+  }
 
   /** 동료집단이 최소 표본을 채웠는가. 공개연봉 건수는 따로 본다. */
   public boolean hasSufficientPeers() {

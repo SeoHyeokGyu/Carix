@@ -100,6 +100,99 @@ class SalaryDistributionServiceTest {
     assertThat(response.postingReference().median()).isEqualTo(80_000_000L);
     assertThat(response.postingReference().sampleSize()).isEqualTo(10);
     assertThat(response.postingReference().missingRate()).isZero();
+    assertThat(response.trend()).isNotEmpty();
+    assertThat(response.trend().get(0).yearMonth()).isEqualTo("2026-05");
+    assertThat(response.trend().get(0).median()).isEqualTo(80_000_000L);
+  }
+
+  @Test
+  @DisplayName("정상_5수치 응답에 등록월별 제시 연봉 추이(trend)가 포함된다")
+  void 정상_추이_포함() {
+    List<JobPosting> candidates = new ArrayList<>();
+    for (int i = 0; i < 10; i++) {
+      candidates.add(
+          JobPosting.builder()
+              .id(UUID.randomUUID())
+              .salaryMin(60_000_000L)
+              .salaryMax(60_000_000L)
+              .jobFamily("DEVELOPER")
+              .region("서울 강남구")
+              .experienceMin(3)
+              .experienceMax(7)
+              .companySize("MEDIUM")
+              .employmentType("FULL_TIME")
+              .postedStartDate(java.time.LocalDate.of(2026, 5, 10 + i))
+              .postedEndDate(java.time.LocalDate.of(2026, 5, 30))
+              .build());
+    }
+    givenCandidates(candidates);
+
+    SalaryDistributionResponse response = service.resolve(USER_ID, BASE_YM);
+
+    assertThat(response.trend()).isNotEmpty();
+    assertThat(response.trend().get(0).yearMonth()).isEqualTo("2026-05");
+    assertThat(response.trend().get(0).median()).isEqualTo(60_000_000L);
+    assertThat(response.trend().get(0).sampleSize()).isEqualTo(10);
+    assertThat(response.trend().get(0).disclosedSampleSize()).isEqualTo(10);
+    assertThat(response.trend().get(0).missingRate()).isZero();
+  }
+
+  @Test
+  @DisplayName("공고의 등록일(postedStartDate)이 없어서 trend가 비어있으면 빈 trend 리스트를 반환한다")
+  void 등록일_부재시_빈_추이_반환() {
+    List<JobPosting> candidates = new ArrayList<>();
+    for (int i = 0; i < 10; i++) {
+      candidates.add(
+          JobPosting.builder()
+              .id(UUID.randomUUID())
+              .salaryMin(60_000_000L)
+              .salaryMax(60_000_000L)
+              .jobFamily("DEVELOPER")
+              .region("서울 강남구")
+              .experienceMin(3)
+              .experienceMax(7)
+              .companySize("MEDIUM")
+              .employmentType("FULL_TIME")
+              .build());
+    }
+    givenCandidates(candidates);
+
+    SalaryDistributionResponse response = service.resolve(USER_ID, BASE_YM);
+
+    assertThat(response.status()).isEqualTo("OK");
+    assertThat(response.trend()).isEmpty();
+  }
+
+  @Test
+  @DisplayName("공개연봉이 전건 결측이면 5수치는 null이고 missingRate는 100%이다")
+  void 전건_연봉_미공개() {
+    List<JobPosting> candidates = new ArrayList<>();
+    for (int i = 0; i < 10; i++) {
+      candidates.add(posting(UUID.randomUUID(), null, null, null));
+    }
+    givenCandidates(candidates);
+
+    SalaryDistributionResponse response = service.resolve(USER_ID, BASE_YM);
+
+    assertThat(response.status()).isEqualTo("OK");
+    assertThat(response.postingReference().sampleSize()).isZero();
+    assertThat(response.postingReference().missingRate()).isEqualTo(100.0);
+    assertThat(response.postingReference().median()).isNull();
+  }
+
+  @Test
+  @DisplayName("온보딩 미완료(커리어 프로필 없음)면 sampleSize 0이고 peerGroup과 baseline이 null이다")
+  void 프로필_미존재_온보딩미완료() {
+    UUID unknownUser = UUID.randomUUID();
+    given(careerProfileRepository.findByUserId(unknownUser)).willReturn(Optional.empty());
+
+    SalaryDistributionResponse response = service.resolve(unknownUser, BASE_YM);
+
+    assertThat(response.status()).isEqualTo("INSUFFICIENT_SAMPLE");
+    assertThat(response.sampleSize()).isZero();
+    assertThat(response.peerGroup()).isNull();
+    assertThat(response.baseline()).isNull();
+    assertThat(response.trend()).isEmpty();
   }
 
   @Test
@@ -225,6 +318,7 @@ class SalaryDistributionServiceTest {
         .experienceMax(7)
         .companySize("MEDIUM")
         .employmentType("FULL_TIME")
+        .postedStartDate(java.time.LocalDate.of(2026, 5, 1))
         .build();
   }
 

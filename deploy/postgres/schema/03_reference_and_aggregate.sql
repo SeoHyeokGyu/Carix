@@ -46,11 +46,6 @@ CREATE TABLE core.market_aggregate (
     posting_count           integer NOT NULL DEFAULT 0,
     total_aggregate_postings integer NOT NULL DEFAULT 0,
     demand_rate             numeric(5,4) NOT NULL DEFAULT 0.0000,
-    salary_min              bigint,
-    salary_p25              bigint,
-    salary_median           bigint,
-    salary_p75              bigint,
-    salary_max              bigint,
     salary_missing_rate     numeric(5,2) NOT NULL DEFAULT 100.00,
     -- 이름을 명시한다. 자동 생성 이름은 63자를 넘겨 잘리고, 그러면 COMMENT 로 참조할 수 없다.
     CONSTRAINT market_aggregate_dimension_key UNIQUE NULLS NOT DISTINCT

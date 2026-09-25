@@ -176,11 +176,6 @@ erDiagram
         int posting_count
         int total_aggregate_postings
         decimal demand_rate
-        bigint salary_min
-        bigint salary_p25
-        bigint salary_median
-        bigint salary_p75
-        bigint salary_max
         decimal salary_missing_rate
     }
 

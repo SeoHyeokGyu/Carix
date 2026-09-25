@@ -165,7 +165,13 @@ class DashboardControllerTest {
                 new SalaryDistributionResponse.PostingReference(
                     45_000_000L, 58_000_000L, 65_000_000L, 74_000_000L, 95_000_000L, 41, 42.5),
                 new SalaryDistributionResponse.UserPosition(60_000_000L, 35),
-                new SalaryDistributionResponse.DistributionPeerGroup(3, "서울 / 경력 MID / 회사규모 무관")));
+                new SalaryDistributionResponse.DistributionPeerGroup(3, "서울 / 경력 MID / 회사규모 무관"),
+                List.of(
+                    new SalaryDistributionResponse.SalaryTrendPoint(
+                        "2026-05", 62_000_000L, 18, 11, 38.9),
+                    new SalaryDistributionResponse.SalaryTrendPoint("2026-06", null, 6, 2, 66.7),
+                    new SalaryDistributionResponse.SalaryTrendPoint(
+                        "2026-07", 64_000_000L, 22, 14, 36.4))));
 
     mockMvc
         .perform(
@@ -175,7 +181,11 @@ class DashboardControllerTest {
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.data.status").value("OK"))
         .andExpect(jsonPath("$.data.postingReference.median").value(65000000L))
-        .andExpect(jsonPath("$.data.peerGroup.fallbackLevel").value(3));
+        .andExpect(jsonPath("$.data.peerGroup.fallbackLevel").value(3))
+        .andExpect(jsonPath("$.data.trend[0].yearMonth").value("2026-05"))
+        .andExpect(jsonPath("$.data.trend[0].median").value(62000000L))
+        .andExpect(jsonPath("$.data.trend[1].yearMonth").value("2026-06"))
+        .andExpect(jsonPath("$.data.trend[1].median").isEmpty());
   }
 
   @Test

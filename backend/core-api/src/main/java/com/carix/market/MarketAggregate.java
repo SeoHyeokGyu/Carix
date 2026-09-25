@@ -74,26 +74,6 @@ public class MarketAggregate {
   @Column(name = "demand_rate", nullable = false, precision = 5, scale = 4)
   private BigDecimal demandRate;
 
-  /** 공개연봉 최소값 (원 단위) */
-  @Column(name = "salary_min")
-  private Long salaryMin;
-
-  /** 공개연봉 25백분위수 (원 단위) */
-  @Column(name = "salary_p25")
-  private Long salaryP25;
-
-  /** 공개연봉 중앙값 (원 단위) */
-  @Column(name = "salary_median")
-  private Long salaryMedian;
-
-  /** 공개연봉 75백분위수 (원 단위) */
-  @Column(name = "salary_p75")
-  private Long salaryP75;
-
-  /** 공개연봉 최대값 (원 단위) */
-  @Column(name = "salary_max")
-  private Long salaryMax;
-
   /** 공개연봉 결측률 (단위: %, 0.00 ~ 100.00). 전체 공고 중 연봉이 명시되지 않은 공고의 백분율. */
   @Column(name = "salary_missing_rate", nullable = false, precision = 5, scale = 2)
   private BigDecimal salaryMissingRatePercent;

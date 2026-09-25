@@ -706,6 +706,65 @@ export function SalaryDistributionChart({
               </div>
             </div>
           </div>
+
+          {/* 제시 연봉 추이 (기능 명세 §4.6, US-D3) */}
+          {data.trend && data.trend.length > 0 && (
+            <div className="mt-8" data-testid="salary-trend-section">
+              <div className="mb-2.5 flex items-center justify-between text-xs text-carix-text/70">
+                <span className="font-semibold text-carix-text/90">
+                  📈 동료집단 등록월별 중앙 제시 연봉 추이
+                </span>
+                <span className="text-[11px] text-carix-text/50">
+                  공고 등록일(posted_start_date) 기준
+                </span>
+              </div>
+              <div className="overflow-x-auto rounded-lg border border-carix-border bg-carix-surface/60">
+                <table className="w-full text-left text-xs">
+                  <thead className="border-b border-carix-border bg-carix-bg/60 text-[11px] text-carix-text/70">
+                    <tr>
+                      <th className="px-3 py-2">등록월</th>
+                      <th className="px-3 py-2">중앙 제시 연봉</th>
+                      <th className="px-3 py-2 text-right">전체 공고</th>
+                      <th className="px-3 py-2 text-right">공개 표본</th>
+                      <th className="px-3 py-2 text-right">결측률</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-carix-border/60">
+                    {data.trend.map((point) => (
+                      <tr
+                        key={point.yearMonth}
+                        className="hover:bg-carix-bg/30"
+                      >
+                        <td className="px-3 py-2 font-medium text-carix-text">
+                          {point.yearMonth}
+                        </td>
+                        <td className="px-3 py-2 font-semibold">
+                          {point.median != null ? (
+                            <span className="text-carix-info">
+                              {formatKoreanSalary(point.median)}
+                            </span>
+                          ) : (
+                            <span className="text-carix-text/40 italic">
+                              표본 부족 (미산출)
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-3 py-2 text-right text-carix-text/80">
+                          {point.sampleSize}건
+                        </td>
+                        <td className="px-3 py-2 text-right text-carix-text/80">
+                          {point.disclosedSampleSize}건
+                        </td>
+                        <td className="px-3 py-2 text-right text-carix-text/60">
+                          {point.missingRate.toFixed(1)}%
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
         </>
       )}
 

@@ -49,6 +49,14 @@ export interface DistributionPeerGroup {
   appliedConditions: string;
 }
 
+export interface SalaryTrendPoint {
+  yearMonth: string;
+  median: number | null;
+  sampleSize: number;
+  disclosedSampleSize: number;
+  missingRate: number;
+}
+
 export interface SalaryDistributionResponse {
   status: "OK" | "INSUFFICIENT_SAMPLE" | string;
   sampleSize: number;
@@ -57,6 +65,7 @@ export interface SalaryDistributionResponse {
   postingReference?: PostingReference | null;
   userPosition?: UserPosition | null;
   peerGroup?: DistributionPeerGroup | null;
+  trend?: SalaryTrendPoint[] | null;
 }
 
 export interface TrendPoint {
