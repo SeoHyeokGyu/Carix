@@ -4,6 +4,7 @@ import com.carix.index.dto.WageBaseline;
 import com.carix.profile.domain.CareerProfile;
 import com.carix.wagestat.WageStatObservation;
 import com.carix.wagestat.WageStatObservationRepository;
+import com.carix.wagestat.WageStatSource;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -53,7 +54,10 @@ public class WageBaselineResolver {
         .map(
             obs ->
                 new WageBaseline(
-                    obs.getWageMedian(), obs.getWageDefinition(), obs.getStatVintage()))
+                    obs.getWageMedian(),
+                    obs.getWageDefinition(),
+                    obs.getStatVintage(),
+                    obs.getSource() != null ? obs.getSource() : WageStatSource.UNKNOWN))
         .orElse(null);
   }
 }

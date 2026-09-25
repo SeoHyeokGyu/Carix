@@ -127,7 +127,10 @@ public class SnapshotRecalculationService {
               mvi.wageBaseline() == null ? null : mvi.wageBaseline().statVintage(),
               dataVersion,
               new SnapshotRationale.IndexStatuses(ppi.status(), mvi.status(), owi.status()),
-              openingWindowEvidence(owi));
+              openingWindowEvidence(owi),
+              mvi.wageBaseline() == null || mvi.wageBaseline().source() == null
+                  ? null
+                  : mvi.wageBaseline().source().name());
 
       save(userId, ym, dataVersion, ruleVersion, ppi, mvi, owi, outcome, rationale);
       written++;

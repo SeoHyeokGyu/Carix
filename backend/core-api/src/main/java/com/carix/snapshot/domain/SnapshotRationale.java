@@ -27,8 +27,10 @@ import java.util.List;
  * @param wageStatVintage 임금통계 개정판 {@code YYYYMM}
  * @param runId 이 행을 만든 계산 실행 ID. 발급된 {@code data_version} 과 같다
  * @param indexStatuses 지수별 산출 상태. 절대 {@code null} 이 아니다 — 이 필드 도입 전 행은 {@link
+ * @param indexStatuses 지수별 산출 상태. 절대 {@code null} 이 아니다 — 이 필드 도입 전 행은 {@link
  *     IndexStatuses#unknown()} 으로 접힌다
  * @param openingWindow 개방창 지수의 산출 근거. 근거가 하나도 없으면 {@code null}
+ * @param wageStatSource 임금통계 기준선 출처. {@code KOSIS}, {@code FALLBACK}, {@code UNKNOWN}
  */
 public record SnapshotRationale(
     List<String> rulesApplied,
@@ -41,7 +43,35 @@ public record SnapshotRationale(
     String wageStatVintage,
     String runId,
     IndexStatuses indexStatuses,
-    OpeningWindowEvidence openingWindow) {
+    OpeningWindowEvidence openingWindow,
+    String wageStatSource) {
+
+  public SnapshotRationale(
+      List<String> rulesApplied,
+      String salaryGapBucket,
+      List<SourceCoverage> sourceCoverages,
+      List<SkillContribution> skillContributions,
+      List<String> excludedSkills,
+      LocalDate cpiAsOf,
+      LocalDate aggregateAsOf,
+      String wageStatVintage,
+      String runId,
+      IndexStatuses indexStatuses,
+      OpeningWindowEvidence openingWindow) {
+    this(
+        rulesApplied,
+        salaryGapBucket,
+        sourceCoverages,
+        skillContributions,
+        excludedSkills,
+        cpiAsOf,
+        aggregateAsOf,
+        wageStatVintage,
+        runId,
+        indexStatuses,
+        openingWindow,
+        null);
+  }
 
   public SnapshotRationale {
     rulesApplied = rulesApplied == null ? List.of() : List.copyOf(rulesApplied);

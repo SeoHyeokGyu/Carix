@@ -27,6 +27,12 @@ class SensitiveAmountToStringTest {
     assertThat(baseline.toString())
         .doesNotContain("72000000")
         .contains("초과급여 제외, 상여 포함")
-        .contains("202606");
+        .contains("202606")
+        .contains("source=UNKNOWN");
+
+    WageBaseline kosisBaseline =
+        new WageBaseline(
+            72_000_000L, "초과급여 제외, 상여 포함", "202606", com.carix.wagestat.WageStatSource.KOSIS);
+    assertThat(kosisBaseline.toString()).doesNotContain("72000000").contains("source=KOSIS");
   }
 }
