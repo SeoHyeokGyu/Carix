@@ -13,6 +13,24 @@ spring:
   threads:
     virtual:
       enabled: true
+  datasource:
+    # 접속 정보는 SPRING_DATASOURCE_* 로 주입된다. 여기는 풀 크기만 정한다.
+    hikari:
+      # 기본값 10 으로는 모자란다. 지수 산출기들이 조회를 가상 스레드로 띄우는데, 그 스레드는 호출자
+      # 트랜잭션 밖이라(트랜잭션이 스레드 바인딩) 리포지토리 호출마다 커넥션을 따로 빌린다.
+      #   - OWI: 호출당 2개 (시장 중앙값 + 동료집단 완화). 상한 없음
+      #   - MVI: 세마포어로 앱 전역 8개 (MarketValueIndexServiceImpl.DEFAULT_MAX_CONCURRENT_DB_TASKS)
+      # 스냅샷 재계산은 두 산출기를 월마다 순차로 부르므로 한 건이 최대 3개(트랜잭션 1 + 자식 2)를 쓴다.
+      #
+      # 위험한 지점은 `pg_advisory_xact_lock` 이다 — 대기자가 대기 중에도 트랜잭션 커넥션을 물고 있어,
+      # 풀이 마르면 잠금 홀더가 자식 커넥션을 받지 못하고 connectionTimeout(30초)으로 죽는다. 그래서
+      # 상한은 `3 × 목표 동시 재계산 수` 를 넘겨야 한다. 30 이면 10건이다.
+      #
+      # 팬아웃을 읽기 전용 전용 풀로 옮기면 이 결합이 끊긴다. 산출기 소관이라 여기서는 상한만 올렸다.
+      maximum-pool-size: 30
+      # 공유 호스트의 Postgres 는 max_connections 100 에 예약 3 이고 서비스 셋이 붙는다. 기본값은
+      # minimum-idle = maximum-pool-size 라 유휴 30개를 계속 잡으므로 줄여 둔다.
+      minimum-idle: 5
   cloud:
     config:
       fail-fast: true
