@@ -2,6 +2,14 @@ import { useEffect, useRef, useState } from "react";
 import { redirect, useFetcher, useLoaderData } from "react-router";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Button } from "@/components/ui/button";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Field } from "../../../components/onboarding/Field";
 import { NativeSelect } from "../../../components/onboarding/NativeSelect";
@@ -123,19 +131,19 @@ function IncomeRow({ income, onEdit }: IncomeRowProps) {
   const deleteError = deleteFetcher.data?.errors?._form;
 
   return (
-    <tr className="border-b border-carix-border/60">
-      <td className="px-3 py-2">{income.effectiveDate}</td>
-      <td className="px-3 py-2">{income.grossSalary.toLocaleString()}원</td>
-      <td className="px-3 py-2">{income.netSalary.toLocaleString()}원</td>
+    <TableRow>
+      <TableCell>{income.effectiveDate}</TableCell>
+      <TableCell>{income.grossSalary.toLocaleString()}원</TableCell>
+      <TableCell>{income.netSalary.toLocaleString()}원</TableCell>
       {/* 두 필드가 갈리는 것은 최소 유효일 행뿐이고, 그때는 둘 다 낸다 — 폼은
           selectedChangeReason 하나만 쓴다. */}
-      <td className="px-3 py-2">
+      <TableCell>
         {incomeChangeReasonCell(
           income.changeReason,
           income.selectedChangeReason,
         )}
-      </td>
-      <td className="px-3 py-2">
+      </TableCell>
+      <TableCell>
         <div className="flex flex-col gap-1">
           <div className="flex gap-2">
             <Button
@@ -179,8 +187,8 @@ function IncomeRow({ income, onEdit }: IncomeRowProps) {
             </p>
           )}
         </div>
-      </td>
-    </tr>
+      </TableCell>
+    </TableRow>
   );
 }
 
@@ -241,27 +249,23 @@ export default function RecordsIncome() {
           description="아래에서 세전 연봉과 월 실수령액, 적용 시작일을 입력해 첫 이력을 추가하세요."
         />
       ) : (
-        // 열이 다섯이라 좁은 폭에서는 넘친다. 래퍼가 없으면 브라우저가 가로 스크롤
-        // 대신 열을 최소 폭까지 짜부라뜨려 한글이 글자 단위로 쪼개진다(375px 에서
-        // "변/경/사/유"). onboarding/income.tsx 의 같은 표가 쓰는 처리와 맞춘다.
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm">
-            <thead className="text-carix-text/70">
-              <tr>
-                <th className="px-3 py-2 font-medium">유효 시작일</th>
-                <th className="px-3 py-2 font-medium">세전 연봉</th>
-                <th className="px-3 py-2 font-medium">월 실수령액</th>
-                <th className="px-3 py-2 font-medium">변경 사유</th>
-                <th className="px-3 py-2 font-medium">작업</th>
-              </tr>
-            </thead>
-            <tbody>
-              {income.map((item) => (
-                <IncomeRow key={item.id} income={item} onEdit={handleEdit} />
-              ))}
-            </tbody>
-          </table>
-        </div>
+        // 가로 스크롤은 Table 이 갖는다(c13)
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>유효 시작일</TableHead>
+              <TableHead>세전 연봉</TableHead>
+              <TableHead>월 실수령액</TableHead>
+              <TableHead>변경 사유</TableHead>
+              <TableHead>작업</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {income.map((item) => (
+              <IncomeRow key={item.id} income={item} onEdit={handleEdit} />
+            ))}
+          </TableBody>
+        </Table>
       )}
 
       <formFetcher.Form

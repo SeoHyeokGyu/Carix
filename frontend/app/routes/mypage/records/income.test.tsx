@@ -370,6 +370,15 @@ describe("소득 탭 (S-12)", () => {
     expect(within(table).getByText("—")).toBeInTheDocument();
   });
 
+  it("열이 다섯인 표를 가로 스크롤 래퍼 안에 둔다 (c13)", async () => {
+    // 래퍼가 없으면 375px 에서 한글이 글자 단위로 쪼개진다("변/경/사/유").
+    vi.mocked(incomeApi.listIncome).mockResolvedValue(rows);
+    renderTab();
+
+    const table = await screen.findByRole("table");
+    expect(table.parentElement).toHaveClass("overflow-x-auto");
+  });
+
   it("최소 유효일 행에 고른 값이 있으면 표가 둘 다 낸다", async () => {
     // 가장 이른 행이라 표시는 INITIAL 이지만 컬럼에는 JOB_CHANGE 가 있다. 파생값만
     // 내면 사용자가 고른 값이 화면 어디에도 안 남는다 — 수정 화면에 들어가야만 보인다.
