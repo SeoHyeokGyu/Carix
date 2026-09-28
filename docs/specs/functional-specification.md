@@ -126,7 +126,8 @@ DB 스키마는 [ERD](erd.md), REST 계약은 [API 규격](api-specification.md)
 **US-O6. 검토와 완료 (S-09)**
 
 - Given 검토 단계 / When 진입 / Then 입력 요약, 기본값으로 대체된 항목 목록, 계산 제한 사항(추정 라벨 예정 항목)을 표시한다.
-- Given 기본값으로 대체된 소비 카테고리 / When 검토 화면 표시 / Then 그 카테고리에 **실제로 적용된 통계청 평균 금액**을 함께 보여준다(`GET /reference/default-expenses`). 목록만으로는 어떤 수치로 지수가 계산되는지 알 수 없다.
+- Given 기본값으로 대체된 소비 카테고리 / When 검토 화면 표시 / Then 그 카테고리에 **실제로 적용된 금액**을 함께 보여준다(`GET /expenses/applied`). 목록만으로는 어떤 수치로 지수가 계산되는지 알 수 없다. 적용된 금액은 통계청 평균 그 자체가 아니라 사용자 입력 합계로 보간된 값이거나 과거 완전 입력 월에서 전파된 값이다.
+- Given 입력도 전파할 과거 월도 없어 절대 금액 기준이 없는 사용자 / When 검토 화면 표시 / Then 금액 대신 **적용된 가중치**를 보여주고 금액 기준이 없다는 사실을 밝힌다. 0원이나 통계청 평균 금액을 임의로 채워 보여주지 않는다.
 - Given 소비 입력 화면(`S-07`) / When 카테고리 입력 / Then 평균 금액을 **미리 보여주지 않는다.** 입력 전 노출은 앵커링을 만든다 — 공개는 입력을 마친 검토 단계에서 한다.
 - Given 검토 화면 / When 항목별 `수정` 선택 / Then 해당 단계로 이동하고 완료 후 검토로 복귀한다.
 - Given 검토 확인 / When 완료 제출 / Then 온보딩 완료 상태가 저장되고 첫 지수 계산이 요청되며 `/dashboard`로 이동한다.
@@ -475,7 +476,7 @@ OWI         = 동료집단 중앙 개방일수 ÷ 전체시장 중앙 개방일�
 | S-06 소득 | US-O3 | `POST /income`, `PUT /income/{id}` | `income_history` |
 | S-07 소비 | US-O4 | `PUT /expenses/{ym}` | `expense_history`, `expense_item` |
 | S-08 스킬 | US-O5 | `GET /skills/search`, `POST /user-skills` | `skill`, `skill_alias`, `user_skill` |
-| S-09 검토·완료 | US-O6 | `PATCH /auth/onboarding`(`auth-service`), `GET /reference/default-expenses` | `users`(onboarding_step), `config/default-expense-weights.yml` |
+| S-09 검토·완료 | US-O6 | `PATCH /auth/onboarding`(`auth-service`), `GET /expenses/applied` | `users`(onboarding_step), `config/default-expense-weights.yml` |
 | S-10 대시보드 | US-D1~D2, US-D5~D6 | `GET /dashboard/summary`, `GET /skills/recommendations` | `index_snapshot`, `market_aggregate`, `job_posting`(OWI), `user_skill` |
 | S-11 이력 | US-D4 | `GET /dashboard/history` | `index_snapshot` |
 | S-14 추이분석 | US-D3, US-D8 | `GET /trends`, `/salary-distribution`, `/skills`, `/wage-growth` | `market_aggregate`, `wage_stat_observation`, `income_history` |

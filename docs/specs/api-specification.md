@@ -728,25 +728,32 @@
 *   `POST /api/v1/auth/logout-all` — 전체 세션 폐기
 *   `DELETE /api/v1/users` — 사용자·개인 데이터 삭제. 쿼리 스트링으로 확인용 `?email=...` 필수 (일부 네트워크 환경에서 HTTP DELETE Body 유실 문제 방지), 이메일 불일치 시 `400`
 
-### 7.6 공통 기준 데이터 조회 (Reference Data)
-*   **MVP 포함.** `S-09` 검토 화면이 이미 "기본값으로 대체된 항목 목록"을 약속하는데(`US-O6`) **금액이 없어** 사용자가 어떤 수치로 지수가 계산됐는지 모른 채 넘어간다. 그 빈칸을 메운다 ([기능 명세 US-O6](functional-specification.md)).
+### 7.6 적용된 소비 금액·가중치 조회
+
+*   **MVP 포함.** `S-09` 검토 화면이 "기본값으로 대체된 항목 목록"을 약속하는데 **금액이 없어** 사용자가 어떤 수치로 지수가 계산됐는지 모른 채 넘어간다. 그 빈칸을 메운다 ([기능 명세 US-O6](functional-specification.md)).
+*   **통계청 평균을 그대로 내려주는 API 가 아니다.** 물어야 할 것은 "무엇이 실제로 적용됐나" 이고, 그 답은 `ExpenseWeightResolver` 가 입력·전파·보간 중 무엇을 썼는지에 달려 있다. `amountBasis` 가 그것을 말한다.
+    *   `USER_INPUT` — 사용자 입력이 금액 기준이다. 미입력 카테고리는 `기본가중치 × 입력합계 ÷ 입력분 가중치합` 으로 보간된 금액이 **실제로 적용**된다 (도메인 정의서 §1.1 Step 1·4).
+    *   `PROPAGATED` — 과거 완전 입력 월의 금액이 전파됐다 (Step 2).
+    *   `NONE` — **절대 금액 기준이 없다.** 입력도 전파할 과거 월도 없어 지수가 가중치만으로 계산된 경우다 (Step 3). 이때 `amount` 는 전부 `null` 이다.
+*   **`NONE` 에서 금액을 0 으로 내리지 않는다.** 0 은 "한 달 주거비 0원" 이라는 거짓이고 도메인 정의서가 금지한 임의 수치다. 그 경우 화면이 보여줄 수 있는 "적용된 것" 은 `weight` 뿐이므로 응답이 가중치를 항상 함께 싣는다.
 *   **`S-07` 입력 화면에서는 쓰지 않는다.** 입력 전에 평균 금액을 보여주면 사용자가 거기 끌려가 앵커링이 걸린다. `S-09` 는 입력을 마친 뒤라 그 위험이 없고 투명성만 남는다. 이것이 이 API 의 배치 조건이다.
-*   **카테고리 코드는 `ExpenseCategoryEnum` 과 같아야 한다** — `HOUSING`·`FOOD`·`TRANSPORT`·`MEDICAL`·`EDUCATION`·`LEISURE`. 정본은 `config/default-expense-weights.yml` 이다. 아래 예시가 쓰던 `TRANSPORTATION`·`HEALTH`·`OTHER` 는 **오기이며 `OTHER` 는 분할 자체가 달랐다**(0.405 잔여 버킷). 응답은 정본 여섯 코드로 낸다.
-*   `GET /api/v1/reference/default-expenses` — 통계청 기준 지출 가중치 및 금액 기본값 조회 (사용자가 지출을 입력하지 않은 카테고리의 대체 기본 정보를 화면에 보여주기 위해 프론트엔드가 호출).
+*   **카테고리 코드는 `ExpenseCategoryEnum` 과 같다** — `HOUSING`·`FOOD`·`TRANSPORT`·`MEDICAL`·`EDUCATION`·`LEISURE`. 가중치 정본은 `config/default-expense-weights.yml` 이고 응답의 `weightVersion`·`weightBasePeriod` 가 그 출처를 밝힌다.
+*   `GET /api/v1/expenses/applied?baseYearMonth=YYYYMM` — 기준월 생략 시 최신 소비 이력 월, 그마저 없으면 현재월.
     *   **Response (200 OK):**
         ```json
         {
-          "version": 1,
+          "baseYearMonth": "202609",
+          "weightVersion": 1,
+          "weightBasePeriod": "2025",
+          "amountBasis": "USER_INPUT",
           "categories": [
-            { "category": "HOUSING", "weight": 0.174, "averageAmount": 511000 },
-            { "category": "FOOD", "weight": 0.142, "averageAmount": 417000 },
-            { "category": "TRANSPORT", "weight": 0.123, "averageAmount": 361000 },
-            { "category": "MEDICAL", "weight": 0.081, "averageAmount": 238000 },
-            { "category": "EDUCATION", "weight": 0.075, "averageAmount": 220000 },
-            { "category": "LEISURE", "weight": 0.405, "averageAmount": 1192000 }
+            { "category": "HOUSING", "amount": 511000, "weight": 0.1795, "weightStatus": "USER_DEFINED" },
+            { "category": "FOOD", "amount": 886000, "weight": 0.3112, "weightStatus": "DEFAULT_CPI" }
           ]
         }
         ```
+    *   `amountBasis` 가 `NONE` 이면 모든 `amount` 가 `null` 이고 `weightStatus` 는 전부 `DEFAULT_CPI` 다.
+*   **폐기.** `GET /reference/default-expenses` 는 서지 않았다. 정본 yml 에 없는 고정 금액(`averageAmount`)을 약속했고, 그 금액은 어느 분기에서도 실제로 적용되지 않는다.
 
 ### 7.7 소비자물가지수(CPI) 기준 데이터 조회
 *   **`MVP 범위 밖`** — 화면이 필요로 하는 것은 **원자료 CPI 가 아니라 계산된 기여도**다. `S-10` 구매력 카드의 1위 품목 뱃지는 사용자 가중치가 곱해진 값이라 `GET /dashboard/summary` 의 `metadata.topPriceDriver` 로 나가고(`US-D1`), `S-14` 소득vs물가는 `incomeIndex`·`personalPriceIndex` 2계열만 쓴다. 원자료를 그대로 노출할 화면이 없다 ([API 규격 §5.1](api-specification.md)). `core-api` 에 구현이 없다 — 고정값을 돌려주던 스텁은 철거했다. 아래 규격은 재도입 시의 계약으로만 남긴다.
