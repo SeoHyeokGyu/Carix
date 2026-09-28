@@ -446,15 +446,16 @@ export default function RecordsSkills() {
           >
             {results.map((item) => (
               <li key={item.id}>
-                <button
+                <Button
                   type="button"
+                  variant="ghost"
                   role="option"
                   aria-selected="false"
-                  className="w-full rounded-md px-3 py-2 text-left text-sm hover:bg-carix-border/40"
+                  className="w-full justify-start"
                   onClick={() => setSelected(item)}
                 >
                   {item.standardName}
-                </button>
+                </Button>
               </li>
             ))}
           </ul>
@@ -465,13 +466,15 @@ export default function RecordsSkills() {
         {hasSearched && results.length === 0 && query.trim() && !selected && (
           <div className="rounded-md border border-carix-border/60 px-3 py-2 text-sm text-carix-text/70">
             <p>&apos;{query.trim()}&apos;에 대한 검색 결과가 없습니다.</p>
-            <button
+            <Button
               type="button"
-              className="mt-2 text-xs font-medium text-carix-info hover:underline"
+              variant="link"
+              size="xs"
+              className="mt-2 h-auto px-0"
               onClick={handleCustomSkillStart}
             >
               + &apos;{query.trim()}&apos;를 사전에 없는 스킬로 직접 추가하기
-            </button>
+            </Button>
           </div>
         )}
 

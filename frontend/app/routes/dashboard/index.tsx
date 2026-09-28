@@ -151,14 +151,16 @@ export default function DashboardHome() {
       {recalculateMessage && (
         <div className="mt-2.5 flex items-center justify-between rounded-md bg-carix-surface px-3 py-2 text-xs text-carix-info border border-carix-border">
           <span>{recalculateMessage}</span>
-          <button
+          <Button
             type="button"
+            variant="ghost"
+            size="icon-xs"
             onClick={() => setRecalculateMessage(null)}
             className="ml-2 text-carix-text/50 hover:text-carix-text"
             aria-label="알림 닫기"
           >
             ✕
-          </button>
+          </Button>
         </div>
       )}
 

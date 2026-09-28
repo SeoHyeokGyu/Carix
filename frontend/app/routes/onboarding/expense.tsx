@@ -289,10 +289,7 @@ export default function Expense() {
             })}
 
             {overBudget && (
-              <p
-                role="status"
-                className="text-sm text-amber-600 dark:text-amber-400"
-              >
+              <p role="status" className="text-sm text-carix-warning">
                 입력한 합계가 월 실수령액을 초과했습니다. 그래도 저장할 수
                 있습니다.
               </p>
