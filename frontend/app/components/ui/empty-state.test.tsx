@@ -57,4 +57,18 @@ describe("EmptyState", () => {
     expect(screen.getByTestId("gallery-empty")).toBeInTheDocument();
     expect(screen.queryByTestId("empty-state")).not.toBeInTheDocument();
   });
+
+  it("headingLevel 을 주면 그 태그로 제목을 그린다", () => {
+    render(<EmptyState title="이력이 없습니다" headingLevel="h2" />);
+    expect(
+      screen.getByRole("heading", { level: 2, name: "이력이 없습니다" }),
+    ).toBeInTheDocument();
+  });
+
+  it("headingLevel 이 없으면 h4 다", () => {
+    render(<EmptyState title="이력이 없습니다" />);
+    expect(
+      screen.getByRole("heading", { level: 4, name: "이력이 없습니다" }),
+    ).toBeInTheDocument();
+  });
 });
