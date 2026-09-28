@@ -104,6 +104,12 @@ public class DefaultPurchasingPowerIndexProvider implements PurchasingPowerIndex
       ppiValue = BigDecimal.valueOf(ratio).setScale(1, RoundingMode.HALF_UP);
     }
 
+    // 기준 연봉이 현재 연봉의 2000배를 넘으면 비율이 setScale(1) 에서 0.0 으로 접힌다. 기준 100 지수에서 0 은
+    // 도메인 정의서가 금지한 임의 수치라 값으로 내지 않는다 (MVI 가중합 0 과 같은 처리).
+    if (ppiValue.signum() <= 0) {
+      return PpiResult.notAvailable(baseYearMonth);
+    }
+
     return new PpiResult(
         baseYearMonth, ppiValue, status, weightStatus, indexBaseYm, LocalDate.now());
   }

@@ -100,8 +100,8 @@
 | 구매력 지수(PPI) | 품목별 CPI 기반 본 엔진과 소비 가중치 전파(`PROPAGATED`)가 잔여. 최초 소득월 100 기준의 기본 산출기(`DefaultPurchasingPowerIndexProvider`)가 배선돼 있어 스냅샷 결측은 나지 않는다 |
 | collector | 없음. 임금통계 적재의 출처 기록·승격 규칙·폴백 단일 연도화까지 들어왔다. 관리자 콘솔(`S-16`) UI 연동까지 완료했다. `@Scheduled` 정기 실행은 도입하지 않기로 확정했다 ([데이터 아키텍처 §5](specs/data-architecture.md)) |
 | 프런트엔드 | UI 일관성 통일 P3~P4 가 잔여 |
-| 검증 | **스냅샷 쓰기 잔여 점검** — `jsonb` 바인딩·`data_version` issuer 형식·멱등성·`MANDATORY` 전파는 운영 583행으로 입증됐다(중복 0, 형식 위반 0). 남은 것은 동시 쓰기 하의 `pg_advisory_xact_lock` 하나다([도메인 정의서 §5](specs/domain-logic.md)). MVI 표본부족(`N<10`) 엣지케이스 검증, 민감 금액 로깅 마스킹 점검, E2E 통합과 완료 기준 10항목 점검 |
-| 스냅샷 데이터 결함 | `core.index_snapshot` 의 `market_value_index = 0` 이 **22행**이다. 기준 100 인 지수에서 0 은 도메인 정의서가 금지한 "임의 수치"다. 그중 16행은 `rationale.indexStatuses.mvi` 가 `OK` 라 표본 부족(`b8a`)이 아니라 **산출기가 정상 판정하고 0 을 넘긴 것**이다. 원인 규명·수정·소급 정리가 필요하다 (`c5`) |
+| 검증 | **스냅샷 쓰기 잔여 점검** — `jsonb` 바인딩·`data_version` issuer 형식·멱등성·`MANDATORY` 전파는 운영 770행으로 입증됐다(중복 0, 형식 위반 0). 자문 잠금은 격리 수준까지 봤다 — 코드·설정·DB·롤 어디에도 오버라이드가 없어 `read committed` 이고, 그 조건에서 대기자의 `max(data_version)` 이 홀더의 커밋을 본다. 남은 것은 경험 검증 하나다 — 운영 39회 실행이 전부 `-000` 이라 한 초 안의 두 번째 발급(`-001`) 경로가 한 번도 안 돌았다([도메인 정의서 §5](specs/domain-logic.md)). 커넥션 풀 상한을 30·유휴 5로 명시했다(기본값 10). 지수 산출기들이 조회를 가상 스레드로 띄우고 그 스레드는 호출자 트랜잭션 밖이라 커넥션을 따로 빌린다 — OWI 가 호출당 2개, MVI 가 세마포어로 전역 8개다. 재계산 한 건이 최대 3개를 쓰고, `pg_advisory_xact_lock` 대기자는 대기 중에도 커넥션을 물고 있어 풀이 마르면 잠금 홀더가 `connectionTimeout` 으로 죽는다. 상한은 `3 × 목표 동시 재계산 수` 를 넘겨야 한다. **결합 자체를 끊으려면** 팬아웃을 읽기 전용 전용 풀로 옮겨야 한다 — 산출기 소관이라 B 레인 `b17` 로 잡혀 있다([개발 계획 §2](plans/carix-dev-plan.md)). MVI 표본부족(`N<10`) 엣지케이스 검증, 민감 금액 로깅 마스킹 점검, E2E 통합과 완료 기준 10항목 점검 |
+| 스냅샷 데이터 결함 | 없음. `market_value_index = 0` 22행은 전부 밀려난 행이고, 월별 최신 `data_version` 만 읽는 유효행에는 0 이 없다 — 원인(최근 3개월 창의 모수 0 을 수요 0 으로 읽던 것)을 고친 뒤의 실행들이 덮었다. `opening_window_index` 가 `NULL` 인데 `rationale.indexStatuses.owi` 는 `OK` 이고 근거는 다 들어있는 행 35개(유효 3)가 남아 있다 — 어느 빌드가 만들었는지 규명하지 못했고 현재 코드 경로로는 재현되지 않는다. 값-상태 불변식(`IndexValueContract`)이 산출기 계약과 쓰기 경계 두 층에서 그 모양을 막고, 읽기 경로는 옛 행을 `계산 대기`로 접는다 |
 | 개방창 지수(OWI) | 없음. 공고 직접 집계·동료집단 완화·상시채용 비율 및 OWI Provider(B `b6`) 구현 완료 ([기능 명세 §4.5](specs/functional-specification.md)) |
 | 지출 카테고리 Swagger 문구 | `ExpenseItem` 의 `category` 설명이 `TRANSPORTATION`·`HEALTH`·`OTHER` 를 적고 있는데 정본 `ExpenseCategoryEnum` 은 `TRANSPORT`·`MEDICAL`·`LEISURE` 다 — 세 값 모두 실존하지 않는다. 코드 주석만의 문제라 동작은 멀쩡하고 공개 API 문서만 틀렸다. 소관 A (소비 API) |
 | 광역 지역 어휘 두 벌 | `core-api` `PeerGroupFallbackResolver#extractBroadRegion` 은 `서울특별시` 를 만들고 collector `RegionRollup` 은 `서울` 을 만든다. 동료집단 완화 Level 3 의 광역 조회가 `region = 'ALL'` 행으로 떨어져 증상이 가려져 있다. 값 규약 정본은 시/도 17개 한글([API 규격 §3.1](specs/api-specification.md), [ERD](specs/erd.md)). 소관 B (동료집단) |
@@ -112,13 +112,13 @@
 **배포 전 실행 순서는 더 없다.** 이 절이 지키던 사슬은 「검증」의 쓰기 검증 → 「Gateway 세션
 검증 필터」 활성화였고, 근거는 *"플래그를 켜 놓고 돌리면 실패가 401 로 왔을 때 게이트 탓인지
 `jsonb`·자문 잠금 탓인지 갈리지 않는다"* 였다. **양쪽 끝이 모두 지났다** — 필터는 `a37fa47`
-로 켜졌고 서버 체크아웃도 `true` 다. 쓰기 경로는 운영 583행으로 이미 돌았다.
+로 켜졌고 서버 체크아웃도 `true` 다. 쓰기 경로는 운영 770행으로 이미 돌았다.
 
 남은 항목들은 서로 순서 제약이 없다. 각자 소관 블록에서 친다.
 
 **`CARIX_ENCRYPTION_KEY` 백업은 그냥 밀린 작업이다.** 원래 근거는 `c5` 가 **첫 운영 쓰기**라
-그 전에 백업을 마쳐야 한다는 것이었는데, 운영 `core.index_snapshot` 에 이미 583행이 쌓여
-있어(사용자 2명, 기준월 202101~202609, `data_version` 34종) 그 근거는 지났다. 키는 서버
+그 전에 백업을 마쳐야 한다는 것이었는데, 운영 `core.index_snapshot` 에 이미 770행이 쌓여
+있어(사용자 2명, 기준월 202101~202609, `data_version` 39종) 그 근거는 지났다. 키는 서버
 `/home/opc/carix/.env` 에만 있다.
 
 ---

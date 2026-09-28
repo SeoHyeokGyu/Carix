@@ -25,6 +25,10 @@ public record PpiResult(
     String indexBaseYearMonth,
     LocalDate cpiAsOf) {
 
+  public PpiResult {
+    IndexValueContract.PPI.requireArgument(baseYearMonth, value, status);
+  }
+
   /** 입력이 없거나 산출기가 준비되지 않은 상태. */
   public static PpiResult notAvailable(String baseYearMonth) {
     return new PpiResult(

@@ -110,4 +110,24 @@ class DefaultPurchasingPowerIndexProviderTest {
     assertThat(result.value()).isEqualTo(new BigDecimal("120.0"));
     assertThat(result.indexBaseYearMonth()).isEqualTo("202501");
   }
+
+  @Test
+  @DisplayName("비율이 소수점 첫째 자리에서 0.0 으로 접히면 값이 아니라 NOT_AVAILABLE 이다")
+  void ratioRoundingToZero_returnsNotAvailable() {
+    // 기준 1억, 현재 1원. @PositiveOrZero 라 입력으로 도달 가능하다. setScale(1, HALF_UP) 이 0.0 을 만드는데
+    // 기준 100 지수에서 0 은 값이 아니다 — 값으로 내면 IndexValueContract 가 쓰기를 막아 소득 저장이 500 이 된다.
+    IncomeHistory base =
+        new IncomeHistory(userId, 100_000_000L, 40_000_000L, LocalDate.of(2025, 1, 1), null);
+    IncomeHistory current = new IncomeHistory(userId, 1L, 1L, LocalDate.of(2026, 7, 1), null);
+
+    given(incomeHistoryRepository.findByUserIdOrderByEffectiveDateDesc(userId))
+        .willReturn(List.of(current, base));
+    given(expenseHistoryRepository.findByUserIdOrderByBaseYearMonthDesc(userId))
+        .willReturn(Collections.emptyList());
+
+    PpiResult result = provider.calculate(userId, "202607");
+
+    assertThat(result.value()).isNull();
+    assertThat(result.status()).isEqualTo(IndexStatus.NOT_AVAILABLE);
+  }
 }
