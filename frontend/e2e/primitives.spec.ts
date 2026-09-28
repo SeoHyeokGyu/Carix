@@ -195,9 +195,7 @@ const STYLE_EXPECTATIONS: StyleExpectation[] = [
     name: "Button outline 테두리",
     selector: BUTTON("outline"),
     property: "border-top-color",
-    // 라이트는 테두리 색 유틸이 없어 Tailwind v4 기본값 currentColor 로 떨어진다 — 글자색 테두리다.
-    // 의도한 값이 아니라 현재 동작이다. P3 가 `border-border` 로 고정할 자리.
-    value: "currentColor",
+    value: "var(--color-border)",
     themes: ["light"],
   },
   {
@@ -236,13 +234,13 @@ const STYLE_EXPECTATIONS: StyleExpectation[] = [
     name: "Button 모서리",
     selector: BUTTON("default"),
     property: "border-top-left-radius",
-    value: "var(--radius-md)",
+    value: "var(--radius-lg)",
   },
   {
     name: "Button 글자 크기",
     selector: BUTTON("default"),
     property: "font-size",
-    value: "var(--text-sm)",
+    value: "var(--text-xs)",
   },
   {
     name: "Button 좌우 여백",
@@ -254,7 +252,7 @@ const STYLE_EXPECTATIONS: StyleExpectation[] = [
     name: "Button 높이",
     selector: BUTTON("default"),
     property: "height",
-    value: "calc(var(--spacing) * 9)",
+    value: "calc(var(--spacing) * 8)",
   },
   {
     name: "Button disabled 불투명도",
@@ -263,36 +261,42 @@ const STYLE_EXPECTATIONS: StyleExpectation[] = [
     property: "opacity",
     value: "0.5",
   },
-  // Badge
+  // Badge — 중립 칩 전용. 상태·의미 색은 ToneBadge
   {
     name: "Badge default 배경",
     selector: BADGE("default"),
     property: "background-color",
-    value: "var(--color-primary)",
+    value: "color-mix(in oklab, var(--color-carix-info) 10%, transparent)",
   },
   {
     name: "Badge default 글자",
     selector: BADGE("default"),
     property: "color",
-    value: "var(--color-primary-foreground)",
+    value: "var(--color-carix-info)",
+  },
+  {
+    name: "Badge secondary 배경",
+    selector: BADGE("secondary"),
+    property: "background-color",
+    value: "color-mix(in oklab, var(--color-carix-border) 30%, transparent)",
   },
   {
     name: "Badge outline 테두리",
     selector: BADGE("outline"),
     property: "border-top-color",
-    value: "var(--color-border)",
-  },
-  {
-    name: "Badge outline 글자",
-    selector: BADGE("outline"),
-    property: "color",
-    value: "var(--color-foreground)",
+    value: "var(--color-carix-border)",
   },
   {
     name: "Badge 모서리",
     selector: BADGE("default"),
     property: "border-top-left-radius",
     value: "calc(infinity * 1px)",
+  },
+  {
+    name: "Badge 글자 크기",
+    selector: BADGE("default"),
+    property: "font-size",
+    value: "11px",
   },
   // Card
   {
@@ -323,13 +327,13 @@ const STYLE_EXPECTATIONS: StyleExpectation[] = [
     name: "Card 좌 여백",
     selector: COMPOSED_CARD,
     property: "padding-left",
-    value: "0px",
+    value: "calc(var(--spacing) * 6)",
   },
   {
     name: "Card 자식 간격",
     selector: COMPOSED_CARD,
     property: "row-gap",
-    value: "calc(var(--spacing) * 6)",
+    value: "calc(var(--spacing) * 4)",
   },
   // Table
   {
@@ -343,6 +347,18 @@ const STYLE_EXPECTATIONS: StyleExpectation[] = [
     selector: TABLE_HEAD,
     property: "font-size",
     value: "var(--text-xs)",
+  },
+  {
+    name: "Table 틀 모서리",
+    selector: '[data-testid="primitives-table"] [data-slot="table-container"]',
+    property: "border-top-left-radius",
+    value: "var(--radius-xl)",
+  },
+  {
+    name: "Table 칸 여백",
+    selector: '[data-testid="primitives-table"] [data-slot="table-cell"]',
+    property: "padding-left",
+    value: "calc(var(--spacing) * 4)",
   },
   // Input
   {
@@ -363,6 +379,12 @@ const STYLE_EXPECTATIONS: StyleExpectation[] = [
     selector: INPUT,
     property: "border-top-left-radius",
     value: "var(--radius-md)",
+  },
+  {
+    name: "CardContent 좌 여백 없음",
+    selector: '[data-testid="primitives-composed"] [data-slot="card-content"]',
+    property: "padding-left",
+    value: "0px",
   },
 ];
 

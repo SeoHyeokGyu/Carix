@@ -12,19 +12,18 @@
 
 | 항목 | 실측 |
 | :--- | :--- |
-| 죽은 프리미티브 | `ui/alert.tsx`·`ui/select.tsx`·`ui/table.tsx` — import 0 |
-| raw `<table>` | 11곳. `ui/table.tsx` 는 아무도 안 씀 |
-| raw `<button>` | 34개 / 서로 다른 className 문자열 10종 |
+| raw `<table>` | 6곳 — 전부 B·박지수 소유. C 소유는 `Table` 로 옮겼다 |
+| raw `<button>` | 29개 — 전부 B·박지수 소유 |
 | 포커스 링 | 두 벌 — 프리미티브는 `focus-visible:ring-[3px] ring-ring/50`, raw 는 UA 기본 아웃라인 |
 | 오류 표현 | 두 계열 — `text-destructive` 인라인 vs `carix-danger` 박스 배너 |
 | 카드 | `<Card>` vs 동일 클래스 문자열 인라인 복제 |
-| 팔레트 누출 | admin 4파일, `routes/onboarding/expense.tsx` |
+| 팔레트 누출 | admin 4파일 |
 
 차트 색은 누출이 아니다. `IncomeVsPriceChart` 의 stroke/fill 은 전부
 `var(--color-carix-*)` 토큰을 쓴다.
 
-**결정 신호 분기·토큰 공백·로딩 표현은 P0~P2 가 해소했다.** 남은 것은 이 층뿐이고
-P3·P4 가 다룬다.
+**결정 신호 분기·토큰 공백·로딩 표현은 P0~P2 가, 프리미티브 재정의와 C 소유 교체는 P3 이
+해소했다.** 남은 것은 B·박지수 화면의 교체(§5)와 회귀 방지(P4)다.
 
 ---
 
@@ -54,13 +53,14 @@ P3·P4 가 다룬다.
 
 ## 4. 단계
 
-### 완료 — P0·P1·P2
+### 완료 — P0~P3
 
 | 단계 | 납품 | PR |
 | :--- | :--- | :--- |
 | P0 | 결정 신호 단일 출처(`lib/decisionSignal.ts`)와 서버 `label` 폴백, `GET /dashboard/history` 응답의 `label`, `dev/primitives` 갤러리 시각 회귀 베이스라인 | #161 |
 | P1 | 다섯 번째 의미 색상 `--carix-action`(라이트/다크 쌍), `@custom-variant dark` — 이것이 없어 `dark:` 22곳이 토글 경로에서 무효였다 | #162 |
 | P2 | `ToneBadge`·`EmptyState`·`LoadingState` 표현 계층, 도메인별 해석 모듈(`lib/indexStatus.ts`·`lib/skillDemandStatus.ts`), `SkillDemandDetail.status` 와이어 타입 좁히기 | #164 |
+| P3 | `Button`(rounded-lg·text-xs, 전 크기 재조정)·`Card`(p-6·gap-4)·`Badge`(중립 칩 전용)·`Table`(B 틀 + `plain`) 제자리 재정의, `alert`·`select` 삭제, `EmptyState` `headingLevel`, C 소유 raw 표 4·버튼 5 교체 | `feat/ui3-p3-primitives` (로컬 머지) |
 
 **`StatusBadge` 는 결번이다.** `IndexStatus`(5종)와 `SkillDemandStatus`(4종)를 "둘로 갈린
 하나"로 본 전제가 틀렸다 — 서로 다른 도메인 어휘라 합치면 없는 상태값을 노출한다. 합칠 수
@@ -70,19 +70,6 @@ P3·P4 가 다룬다.
 `CARIX_E2E_EMAIL`/`CARIX_E2E_PASSWORD` 게이트 뒤에 있어 갤러리로 대신했다. 갤러리는
 `Card` 의 `gap` 변경이 화면 내부를 재배치하는 것을 못 잡는다. 계정·시드·CI 시크릿이
 설 때 화면 베이스라인을 붙인다.
-
-### P3 — 프리미티브 제자리 재정의
-
-- `Card` — `py-6` + 자식 `px-6` 구조를 B 의 `p-6` 단일로. `gap-6` 기본값은 B 카드가
-  자식 간격을 `gap` 이 아니라 개별 여백(`mt-1`·`mb-6`·`pb-5`)으로 잡고 있어 그대로 옮길
-  값이 없다 — P0 베이스라인 스크린샷 대조로 정한다
-- `Button` — `rounded-lg px-4 py-1.5 text-xs font-medium`, hover `opacity-90`,
-  disabled `opacity-50`. **단 `focus-visible:ring` 은 남긴다.** B 의 raw button 30개에 없던
-  것이고, 이 항목만 C 쪽을 지킨다. `outline` 의 라이트 테두리는 지금 색 유틸이 없어 `currentColor`
-  (글자색)다 — 이 저장소엔 `border-border` 기본 레이어가 없다. 여기서 토큰으로 고정한다
-- `Badge` — B 의 두 종류(상태 `rounded` / 칩 `rounded-full`)를 variant 로
-- `Table` — 죽은 `ui/table.tsx` 를 B 의 `thead` 스타일로 되살림
-- `alert`·`select` — import 0. 삭제하고 역할은 `EmptyState` 가 흡수
 
 **수동 다크모드 확인 시 주의.** `/dev/trends`·`/dev/skills`·`/dev/primitives` 는
 `routes.ts` 에서 `AppShell` 밖에 매핑돼 `ThemeToggle` 이 마운트되지 않는다 — devtools
@@ -98,8 +85,7 @@ P3·P4 가 다룬다.
 
 | 항목 | 내용 |
 | :--- | :--- |
-| `EmptyState` 의 제목 태그 | `h4` 로 고정돼 있어 `history.tsx` 에서 `h1 → h4` 로 한 단계를 건너뛴다. 공용 프리미티브에 박혀 있어 호출부가 늘면 같이 번진다. `headingLevel` prop 을 받되 기본값은 현행 유지 |
-| 손수 뱃지 잔여 | `SalaryDistributionChart` 는 P3 — 열화 상태 3종이 본문에 표본 수·완화 조건을 엮고 있어 프리미티브 재정의와 같이 간다. `admin/JobHistoryTable`·`admin/CollectorStatusBanner`·`hero/Hero`·`onboarding/skills` 넷은 P4 |
+| 손수 뱃지 잔여 | `SalaryDistributionChart` 는 B 몫이다(§5). `admin/JobHistoryTable`·`admin/CollectorStatusBanner`·`hero/Hero`·`onboarding/skills` 넷은 P4 |
 | `history.tsx` 로딩 분기 | 기계 검증이 0인 유일한 자리다. 모든 테스트가 `fetchSnapshotHistory` 를 즉시 resolve 해서 `isLoading` 을 안 탄다 |
 | 시각 커버리지 없는 호출부 | `IndexCard` 의 뱃지, `SkillDemandSection` 의 `variant="plain"` 빈 상태 — 갤러리엔 합성 카드만 있다 |
 
@@ -109,8 +95,7 @@ P3·P4 가 다룬다.
 CI 에서 돌지 않고 베이스라인은 darwin 것만 있다.
 
 - **computed-style 단언.** `Button`·`Badge`·`Card`·`Table` thead·`Input` 이 어느 토큰을
-  쓰는지 라이트·다크로 잰다. `Table` 행은 아직 갤러리의 손수 `<table>` 을 잰다 —
-  `ui/table` 을 import 하는 곳이 없어서다. 기대값은 탐침 요소에 같은 CSS 값을 칠해 얻어 rgb 를 박지
+  쓰는지 라이트·다크로 잰다. 기대값은 탐침 요소에 같은 CSS 값을 칠해 얻어 rgb 를 박지
   않는다. **P3 는 이 표(`STYLE_EXPECTATIONS`)를 고쳐 쓰는 것으로 무엇을 바꿨는지 적는다.**
   `--update-snapshots` 후 png diff 가 없다는 것은 "색 변화 없음" 의 증거가 아니다
 - **스크린샷.** `threshold: 0.05`(컷오프 88.04 — 0.1 의 352.15 는 재색상화 YIQ 델타
@@ -150,9 +135,9 @@ C 는 공용 계층만 낸다. 화면 교체는 소유자 몫이므로 **이 표
 
 | 소유 | 파일 | 교체 |
 | :--- | :--- | :--- |
-| B | `SalaryDistributionChart`·`SkillDemandSection`·`IncomeVsPriceChart`·`routes/dashboard/history`·`trends`·`routes/onboarding/skills` | raw 카드 6 → `Card`, raw button 10종 → `Button`, raw table 3 → `Table`, 열화 박스 → `EmptyState`, 상태 span → `ToneBadge`, `getSignalBadge` → `SignalBadge` |
+| B | `SalaryDistributionChart`·`SkillDemandSection`·`IncomeVsPriceChart`·`routes/dashboard/history`·`trends`·`routes/onboarding/skills` | raw 카드 6 → `Card`, raw button 10종 → `Button`, raw table 3 → `Table`, 열화 박스 → `EmptyState`, 상태 span → `ToneBadge`, `getSignalBadge` → `SignalBadge`, `SalaryDistributionChart` 손수 배지 → `ToneBadge` |
 | 박지수 | `components/admin/` 6파일 + `routes/admin/collector.tsx` | 팔레트 누출 → 토큰, raw button → `Button`, `animate-pulse` → `LoadingState`, `collector.tsx` 상태 뱃지 `-300` → 테이블과 동일한 `-400`(P4 로 이연) |
-| C | 온보딩 4화면·대시보드·시뮬레이터·`mypage/profile` | P3 으로 자동 반영. `routes/onboarding/expense.tsx` 의 amber 누출만 수동 |
+| C | 온보딩 4화면·대시보드·가이드·시뮬레이터·`S-12`·`mypage/profile`·`AuthForm` | 완료(P3). 프리미티브를 import 하는 파일은 전부 C 소유라 P3 재정의가 닿는 것도 C 화면뿐이다 |
 
 **실패 모드.** 교체 PR 이 들어오지 않으면 공용 계층과 raw 복제본이 영구 공존한다. 통일이
 아니라 계층이 하나 더 생기는 것으로 끝난다. P4 의 eslint 규칙이 그걸 막는 유일한 장치이므로

@@ -1,6 +1,14 @@
 import { useEffect, useState } from "react";
 import { redirect, useLoaderData, useNavigate } from "react-router";
 import { Button } from "@/components/ui/button";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
 import { Field } from "../../../components/onboarding/Field";
@@ -86,9 +94,9 @@ function SkillRow({
 }: SkillRowProps) {
   if (isEditing) {
     return (
-      <tr className="border-b border-carix-border/60">
-        <td className="px-3 py-2">{skill.standardName}</td>
-        <td className="px-3 py-2">
+      <TableRow>
+        <TableCell>{skill.standardName}</TableCell>
+        <TableCell>
           <Field
             id={`editMonths-${skill.id}`}
             label={`${skill.standardName} 실무 사용 기간`}
@@ -105,8 +113,8 @@ function SkillRow({
               />
             )}
           </Field>
-        </td>
-        <td className="px-3 py-2">
+        </TableCell>
+        <TableCell>
           <Field
             id={`editDate-${skill.id}`}
             label={`${skill.standardName} 마지막 사용일`}
@@ -120,8 +128,8 @@ function SkillRow({
               />
             )}
           </Field>
-        </td>
-        <td className="px-3 py-2">
+        </TableCell>
+        <TableCell>
           <div className="flex gap-2">
             <Button
               type="button"
@@ -142,17 +150,17 @@ function SkillRow({
               취소
             </Button>
           </div>
-        </td>
-      </tr>
+        </TableCell>
+      </TableRow>
     );
   }
 
   return (
-    <tr className="border-b border-carix-border/60">
-      <td className="px-3 py-2">{skill.standardName}</td>
-      <td className="px-3 py-2">{skill.monthsOfExperience}개월</td>
-      <td className="px-3 py-2">{skill.lastUsedDate}</td>
-      <td className="px-3 py-2">
+    <TableRow>
+      <TableCell>{skill.standardName}</TableCell>
+      <TableCell>{skill.monthsOfExperience}개월</TableCell>
+      <TableCell>{skill.lastUsedDate}</TableCell>
+      <TableCell>
         <div className="flex flex-col gap-1">
           <div className="flex gap-2">
             <Button
@@ -182,8 +190,8 @@ function SkillRow({
             </p>
           )}
         </div>
-      </td>
-    </tr>
+      </TableCell>
+    </TableRow>
   );
 }
 
@@ -376,16 +384,16 @@ export default function RecordsSkills() {
           description="아래에서 스킬을 검색해 추가하면 시장가치 지수 계산에 반영됩니다."
         />
       ) : (
-        <table className="w-full text-left text-sm">
-          <thead className="text-carix-text/70">
-            <tr>
-              <th className="px-3 py-2 font-medium">스킬</th>
-              <th className="px-3 py-2 font-medium">실무 사용 기간</th>
-              <th className="px-3 py-2 font-medium">마지막 사용일</th>
-              <th className="px-3 py-2 font-medium">작업</th>
-            </tr>
-          </thead>
-          <tbody>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>스킬</TableHead>
+              <TableHead>실무 사용 기간</TableHead>
+              <TableHead>마지막 사용일</TableHead>
+              <TableHead>작업</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
             {skills.map((skill) => (
               <SkillRow
                 key={skill.id}
@@ -404,8 +412,8 @@ export default function RecordsSkills() {
                 deleteError={deleteErrors[skill.id] ?? null}
               />
             ))}
-          </tbody>
-        </table>
+          </TableBody>
+        </Table>
       )}
 
       <div className="flex flex-col gap-4 rounded-xl border border-carix-border bg-carix-surface p-6">
@@ -438,15 +446,16 @@ export default function RecordsSkills() {
           >
             {results.map((item) => (
               <li key={item.id}>
-                <button
+                <Button
                   type="button"
+                  variant="ghost"
                   role="option"
                   aria-selected="false"
-                  className="w-full rounded-md px-3 py-2 text-left text-sm hover:bg-carix-border/40"
+                  className="h-auto min-h-8 w-full justify-start py-1.5 text-left whitespace-normal"
                   onClick={() => setSelected(item)}
                 >
                   {item.standardName}
-                </button>
+                </Button>
               </li>
             ))}
           </ul>
@@ -457,13 +466,15 @@ export default function RecordsSkills() {
         {hasSearched && results.length === 0 && query.trim() && !selected && (
           <div className="rounded-md border border-carix-border/60 px-3 py-2 text-sm text-carix-text/70">
             <p>&apos;{query.trim()}&apos;에 대한 검색 결과가 없습니다.</p>
-            <button
+            <Button
               type="button"
-              className="mt-2 text-xs font-medium text-carix-info hover:underline"
+              variant="link"
+              size="xs"
+              className="mt-2 h-auto px-0 text-left whitespace-normal"
               onClick={handleCustomSkillStart}
             >
               + &apos;{query.trim()}&apos;를 사전에 없는 스킬로 직접 추가하기
-            </button>
+            </Button>
           </div>
         )}
 

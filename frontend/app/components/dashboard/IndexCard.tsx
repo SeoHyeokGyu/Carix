@@ -1,5 +1,4 @@
 import type { ReactNode } from "react";
-import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ToneBadge } from "@/components/ui/tone-badge";
 import type { IndexValue } from "../../lib/api/dashboard";
@@ -43,13 +42,9 @@ export function IndexCard({
                 {value.toFixed(1)}
               </span>
               {changeFromLastMonth !== null && (
-                <Badge
-                  variant={
-                    changeFromLastMonth < 0 ? "destructive" : "secondary"
-                  }
-                >
+                <ToneBadge tone={changeFromLastMonth < 0 ? "danger" : "muted"}>
                   {formatChange(changeFromLastMonth)}
-                </Badge>
+                </ToneBadge>
               )}
             </div>
             {baselineHint && (

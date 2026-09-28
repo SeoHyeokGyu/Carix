@@ -2,6 +2,14 @@ import { useEffect, useRef, useState } from "react";
 import { redirect, useFetcher, useLoaderData } from "react-router";
 import { ToneBadge, type Tone } from "@/components/ui/tone-badge";
 import { Button } from "@/components/ui/button";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
 import { Field } from "../../../components/onboarding/Field";
@@ -259,33 +267,28 @@ export default function RecordsExpense() {
           description="아래에서 기준월을 고르면 6개 카테고리를 입력할 수 있습니다. 기준월은 삭제할 수 없습니다 — 금액만 고치거나 기본값으로 되돌릴 수 있습니다."
         />
       ) : (
-        <table className="w-full text-left text-sm">
-          <thead className="text-carix-text/70">
-            <tr>
-              <th className="px-3 py-2 font-medium">기준월</th>
-              <th className="px-3 py-2 font-medium">월 상태</th>
-              <th className="px-3 py-2 font-medium">카테고리 상태</th>
-              <th className="px-3 py-2 font-medium">작업</th>
-            </tr>
-          </thead>
-          <tbody>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>기준월</TableHead>
+              <TableHead>월 상태</TableHead>
+              <TableHead>카테고리 상태</TableHead>
+              <TableHead>작업</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
             {months.map((month) => (
-              <tr
-                key={month.baseYearMonth}
-                className="border-b border-carix-border/60"
-              >
-                <td className="px-3 py-2">
-                  {formatYearMonth(month.baseYearMonth)}
-                </td>
-                <td className="px-3 py-2">
+              <TableRow key={month.baseYearMonth}>
+                <TableCell>{formatYearMonth(month.baseYearMonth)}</TableCell>
+                <TableCell>
                   <ToneBadge
                     tone={WEIGHT_STATUS_TONE[month.weightStatus] ?? "muted"}
                   >
                     {WEIGHT_STATUS_LABEL[month.weightStatus] ??
                       month.weightStatus}
                   </ToneBadge>
-                </td>
-                <td className="px-3 py-2">
+                </TableCell>
+                <TableCell>
                   <div className="flex flex-wrap gap-1">
                     {month.items.map((item) => (
                       <ToneBadge
@@ -297,8 +300,8 @@ export default function RecordsExpense() {
                       </ToneBadge>
                     ))}
                   </div>
-                </td>
-                <td className="px-3 py-2">
+                </TableCell>
+                <TableCell>
                   <Button
                     type="button"
                     variant="outline"
@@ -307,11 +310,11 @@ export default function RecordsExpense() {
                   >
                     편집
                   </Button>
-                </td>
-              </tr>
+                </TableCell>
+              </TableRow>
             ))}
-          </tbody>
-        </table>
+          </TableBody>
+        </Table>
       )}
 
       <div className="flex flex-col gap-2 rounded-xl border border-carix-border bg-carix-surface p-6">

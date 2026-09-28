@@ -1,5 +1,6 @@
 import { useState, type FormEvent, type ReactNode } from "react";
 import type { ApiError } from "../../lib/authApi";
+import { Button } from "@/components/ui/button";
 
 interface AuthFormProps {
   screenId: string;
@@ -100,13 +101,14 @@ export function AuthForm({
             </p>
           ) : null}
 
-          <button
+          <Button
             type="submit"
+            size="lg"
             disabled={submitting}
-            className="mt-2 rounded-lg bg-carix-info px-4 py-2.5 font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+            className="mt-2"
           >
             {submitting ? "처리 중…" : submitLabel}
-          </button>
+          </Button>
         </form>
 
         <p className="mt-6 text-sm text-carix-text/70">{footer}</p>

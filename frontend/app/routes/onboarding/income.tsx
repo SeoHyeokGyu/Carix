@@ -10,6 +10,14 @@ import {
 } from "react-router";
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
   Card,
   CardContent,
   CardDescription,
@@ -172,19 +180,19 @@ function IncomeRow({ income, isEditing, onEdit }: IncomeRowProps) {
   ).toLocaleString();
 
   return (
-    <tr aria-current={isEditing ? "true" : undefined}>
-      <td className="px-3 py-2">{income.effectiveDate}</td>
-      <td className="px-3 py-2">{grossInTenThousand}만 원</td>
-      <td className="px-3 py-2">{netInTenThousand}만 원</td>
+    <TableRow aria-current={isEditing ? "true" : undefined}>
+      <TableCell>{income.effectiveDate}</TableCell>
+      <TableCell>{grossInTenThousand}만 원</TableCell>
+      <TableCell>{netInTenThousand}만 원</TableCell>
       {/* 두 필드가 갈리는 것은 최소 유효일 행뿐이고, 그때는 둘 다 낸다 — 폼은
           selectedChangeReason 하나만 쓴다. */}
-      <td className="px-3 py-2">
+      <TableCell>
         {incomeChangeReasonCell(
           income.changeReason,
           income.selectedChangeReason,
         )}
-      </td>
-      <td className="px-3 py-2">
+      </TableCell>
+      <TableCell>
         <div className="flex flex-col gap-1">
           <div className="flex gap-2">
             <Button
@@ -214,8 +222,8 @@ function IncomeRow({ income, isEditing, onEdit }: IncomeRowProps) {
             </p>
           )}
         </div>
-      </td>
-    </tr>
+      </TableCell>
+    </TableRow>
   );
 }
 
@@ -484,29 +492,27 @@ export default function Income() {
               등록된 이력이 없습니다.
             </p>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-sm">
-                <thead>
-                  <tr className="border-b">
-                    <th className="px-3 py-2 font-medium">연봉 적용 시작일</th>
-                    <th className="px-3 py-2 font-medium">세전 연봉</th>
-                    <th className="px-3 py-2 font-medium">월 실수령액</th>
-                    <th className="px-3 py-2 font-medium">변경 사유</th>
-                    <th className="px-3 py-2 font-medium">작업</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {income.map((item) => (
-                    <IncomeRow
-                      key={item.id}
-                      income={item}
-                      isEditing={item.id === editingId}
-                      onEdit={setEditingId}
-                    />
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <Table variant="plain">
+              <TableHeader>
+                <TableRow>
+                  <TableHead>연봉 적용 시작일</TableHead>
+                  <TableHead>세전 연봉</TableHead>
+                  <TableHead>월 실수령액</TableHead>
+                  <TableHead>변경 사유</TableHead>
+                  <TableHead>작업</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {income.map((item) => (
+                  <IncomeRow
+                    key={item.id}
+                    income={item}
+                    isEditing={item.id === editingId}
+                    onEdit={setEditingId}
+                  />
+                ))}
+              </TableBody>
+            </Table>
           )}
         </CardContent>
       </Card>

@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, type ReactNode } from "react";
 import { HelpCircle } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 interface HelpTooltipProps {
   label: string;
@@ -88,15 +89,17 @@ export function HelpTooltip({
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
     >
-      <button
+      <Button
         type="button"
+        variant="ghost"
+        size="icon-xs"
         aria-label={`${label} 도움말`}
         aria-expanded={showTooltip}
         onClick={handleClick}
-        className="text-carix-text/40 hover:text-carix-text focus-visible:text-carix-text p-0.5 rounded-sm outline-none focus-visible:ring-1 focus-visible:ring-ring transition-colors"
+        className="size-5 text-carix-text/40 hover:bg-transparent hover:text-carix-text focus-visible:text-carix-text dark:hover:bg-transparent"
       >
-        <HelpCircle className="h-3.5 w-3.5" />
-      </button>
+        <HelpCircle className="size-3.5" />
+      </Button>
 
       {showTooltip && (
         <div
