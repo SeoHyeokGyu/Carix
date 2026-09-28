@@ -17,10 +17,16 @@ import {
 import { toUserMessage } from "../../lib/apiError";
 import { getProfile, type ProfileResponse } from "../../lib/api/profile";
 import { listIncome, type IncomeResponse } from "../../lib/api/income";
-import { listExpenses } from "../../lib/api/expense";
+import {
+  getAppliedExpenses,
+  listExpenses,
+  type AppliedExpenseCategory,
+  type AppliedExpenseResponse,
+} from "../../lib/api/expense";
 import { fetchUserSkills } from "../../lib/skillApi";
 import { UnauthorizedError } from "../../lib/coreApi";
 import type { FieldErrors } from "../../lib/fieldErrors";
+import type { ReactNode } from "react";
 import { advanceOnboarding, resetOnboarding } from "../../lib/onboardingApi";
 import { LOGIN_PATH } from "../../lib/routeGuards";
 import {
@@ -107,19 +113,92 @@ const REVIEW_REQUIREMENTS: ReviewRequirement[] = [
 const GATE_REFUSAL_MESSAGE =
   "입력하신 정보가 변경되어 필수 항목이 비어 있습니다. 아래 안내에 따라 다시 완료한 뒤 제출해 주세요.";
 
+/**
+ * 적용 금액은 투명성용 부가 정보다. 이 화면은 온보딩의 유일한 완비 게이트라, 이 조회가
+ * 실패했다고 ErrorBoundary 로 넘겨 제출까지 막으면 안 된다 — 401 만 올려 보낸다.
+ */
+async function loadAppliedExpenses(): Promise<AppliedExpenseResponse | null> {
+  try {
+    return await getAppliedExpenses(currentYearMonth());
+  } catch (error) {
+    if (error instanceof UnauthorizedError) throw error;
+    return null;
+  }
+}
+
+function describeAmounts(categories: AppliedExpenseCategory[]): string {
+  return categories
+    .map((item) => {
+      const label = labelFor(EXPENSE_CATEGORIES, item.category);
+      return item.amount === null
+        ? label
+        : `${label} ${item.amount.toLocaleString()}원`;
+    })
+    .join(", ");
+}
+
+/**
+ * US-O6 — 기본값으로 대체된 항목에 실제로 적용된 수치를 붙인다. `amountBasis` 세 갈래가
+ * 각자 다른 문장이다. `weight` 는 `NONE` 에서만 읽는다: 서버는 늘 기본 가중치를 싣지만,
+ * 금액 기준이 있으면 실제로 적용되는 비중은 금액 ÷ 합계라 기본 가중치가 아니다. 정본이 소수
+ * 넷째 자리라 백분율은 둘째 자리까지 그대로 보인다 — 한 자리로 줄이면 반올림이 어긋난다.
+ */
+function appliedExpenseNote(applied: AppliedExpenseResponse | null): ReactNode {
+  if (applied === null) {
+    return <p>적용 금액을 불러오지 못했습니다. 제출에는 영향이 없습니다.</p>;
+  }
+
+  if (applied.amountBasis === "NONE") {
+    const weights = applied.categories
+      .map(
+        (item) =>
+          `${labelFor(EXPENSE_CATEGORIES, item.category)} ${(item.weight * 100).toFixed(2)}%`,
+      )
+      .join(", ");
+    return (
+      <p>
+        <strong>적용된 소비 비중:</strong> 소비 금액 기준이 없어 통계청 평균
+        비중({applied.weightBasePeriod}년 기준)만으로 계산합니다 — {weights}
+      </p>
+    );
+  }
+
+  if (applied.amountBasis === "PROPAGATED") {
+    return (
+      <p>
+        <strong>적용된 소비 금액:</strong> 이전에 입력하신 소비 금액이 이번 달에
+        그대로 적용됩니다 — {describeAmounts(applied.categories)}
+      </p>
+    );
+  }
+
+  const substituted = applied.categories.filter(
+    (item) => item.weightStatus === "DEFAULT_CPI",
+  );
+  if (substituted.length === 0) return null;
+  return (
+    <p>
+      <strong>기본값으로 대체된 항목:</strong> {describeAmounts(substituted)}{" "}
+      (입력하신 금액 합계에 맞춰 채운 값)
+    </p>
+  );
+}
+
 export async function clientLoader() {
   try {
-    const [profile, income, expenses, skills, session] = await Promise.all([
-      getProfile(),
-      listIncome(),
-      listExpenses(),
-      fetchUserSkills(),
-      requireSession(),
-    ]);
+    const [profile, income, expenses, skills, session, applied] =
+      await Promise.all([
+        getProfile(),
+        listIncome(),
+        listExpenses(),
+        fetchUserSkills(),
+        requireSession(),
+        loadAppliedExpenses(),
+      ]);
     const isCompleted =
       session.status === "authenticated" &&
       session.onboardingStep === "COMPLETED";
-    return { profile, income, expenses, skills, isCompleted };
+    return { profile, income, expenses, skills, applied, isCompleted };
   } catch (error) {
     if (error instanceof UnauthorizedError) throw redirect(LOGIN_PATH);
     // 조회 실패는 이 화면에 그릴 자리가 없다 — ErrorBoundary 몫이다(다른 온보딩 화면과 동일 판단).
@@ -177,7 +256,7 @@ export async function clientAction({ request }: { request: Request }) {
 }
 
 export default function Review() {
-  const { profile, income, expenses, skills, isCompleted } =
+  const { profile, income, expenses, skills, applied, isCompleted } =
     useLoaderData<typeof clientLoader>();
   const actionData = useActionData<typeof clientAction>();
   const navigation = useNavigation();
@@ -210,9 +289,6 @@ export default function Review() {
   const currentExpense = expenses.find(
     (row) => row.baseYearMonth === currentYearMonth(),
   );
-  const defaultCpiLabels = (currentExpense?.items ?? [])
-    .filter((item) => item.status === "DEFAULT_CPI")
-    .map((item) => labelFor(EXPENSE_CATEGORIES, item.category));
 
   // 부분 저장을 허용한 대가(§3.2)로 이 화면이 완비를 검증한다. 미완인 항목은
   // 제출 버튼 대신 해당 단계로 가는 안내로 대체한다 — 아무 것도 누를 수 없는
@@ -344,12 +420,7 @@ export default function Review() {
       </div>
 
       <div className="mt-6 flex flex-col gap-2 rounded-lg border border-carix-border bg-carix-surface px-5 py-4 text-sm text-carix-text/80">
-        {defaultCpiLabels.length > 0 && (
-          <p>
-            <strong>기본값으로 대체된 항목:</strong>{" "}
-            {defaultCpiLabels.join(", ")} (통계청 평균 소비지출 비중 사용)
-          </p>
-        )}
+        {appliedExpenseNote(applied)}
         <p>
           <strong>계산 제한 사항:</strong> 세금, 성과급, 주식보상, 퇴직금은
           추정하지 않으며 결과에 포함되지 않습니다.

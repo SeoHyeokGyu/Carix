@@ -111,6 +111,54 @@ const PARTIAL_EXPENSE = [
   },
 ];
 
+// 가중치는 config/default-expense-weights.yml 실값(소수 넷째 자리)이다.
+// 리졸버는 여섯 카테고리를 전부 돌려준다 — 입력한 주거만 USER_DEFINED 이고
+// 나머지는 입력 합계로 보간된 DEFAULT_CPI 다.
+const APPLIED_USER_INPUT: expenseApi.AppliedExpenseResponse = {
+  baseYearMonth: currentYearMonth(),
+  weightVersion: 1,
+  weightBasePeriod: "2025",
+  amountBasis: "USER_INPUT",
+  categories: [
+    {
+      category: "HOUSING",
+      amount: 750_000,
+      weight: 0.1795,
+      weightStatus: "USER_DEFINED",
+    },
+    {
+      category: "FOOD",
+      amount: 1_300_000,
+      weight: 0.3112,
+      weightStatus: "DEFAULT_CPI",
+    },
+    {
+      category: "TRANSPORT",
+      amount: 120_000,
+      weight: 0.1146,
+      weightStatus: "DEFAULT_CPI",
+    },
+    {
+      category: "MEDICAL",
+      amount: 80_000,
+      weight: 0.0774,
+      weightStatus: "DEFAULT_CPI",
+    },
+    {
+      category: "EDUCATION",
+      amount: 60_000,
+      weight: 0.071,
+      weightStatus: "DEFAULT_CPI",
+    },
+    {
+      category: "LEISURE",
+      amount: 400_000,
+      weight: 0.2463,
+      weightStatus: "DEFAULT_CPI",
+    },
+  ],
+};
+
 const TWO_SKILLS = [
   {
     id: "us-1",
@@ -144,6 +192,9 @@ describe("S-09 검토 화면", () => {
     vi.spyOn(incomeApi, "listIncome").mockResolvedValue(ONE_INCOME);
     vi.spyOn(expenseApi, "listExpenses").mockResolvedValue(PARTIAL_EXPENSE);
     vi.spyOn(skillApi, "fetchUserSkills").mockResolvedValue(TWO_SKILLS);
+    vi.spyOn(expenseApi, "getAppliedExpenses").mockResolvedValue(
+      APPLIED_USER_INPUT,
+    );
   });
 
   function renderScreen() {
@@ -181,31 +232,41 @@ describe("S-09 검토 화면", () => {
     ).toBeInTheDocument();
   });
 
-  // 브리프 2 — status: DEFAULT_CPI 인 카테고리 이름이 「기본값으로 대체된 항목」에 나온다.
-  // 문구를 하드코딩하지 않는다 — 서버가 돌려준 status 로만 만든다.
-  it("DEFAULT_CPI 카테고리 이름이 기본값으로 대체된 항목에 나온다", async () => {
+  // 브리프 2 — 대체 항목은 목록 조회가 아니라 GET /expenses/applied 로 그린다(US-O6).
+  // 이름만으로는 어떤 수치로 지수가 계산되는지 모른다 — 실제로 적용된 금액을 붙인다.
+  it("적용 금액은 당월을 명시해 조회한다", async () => {
     renderScreen();
 
     await screen.findByText(/세전 연봉/);
-    const defaultSection = screen
-      .getByText(/기본값으로 대체된 항목/)
-      .closest("p");
-    expect(defaultSection).toHaveTextContent("교통");
-    expect(defaultSection).toHaveTextContent("의료");
-    // USER_DEFINED(주거·공공요금)는 이 목록에 없어야 한다.
-    expect(defaultSection).not.toHaveTextContent("주거·공공요금");
+    // 생략하면 서버가 최신 이력 월로 대체한다 — 지난달 값이 이번 달 검토에 뜨면 안 된다.
+    expect(expenseApi.getAppliedExpenses).toHaveBeenCalledWith(
+      currentYearMonth(),
+    );
   });
 
-  it("DEFAULT_CPI 카테고리가 없으면 기본값으로 대체된 항목 문구가 뜨지 않는다", async () => {
-    vi.spyOn(expenseApi, "listExpenses").mockResolvedValue([
-      {
-        baseYearMonth: currentYearMonth(),
-        items: [
-          { category: "HOUSING", amount: 750_000, status: "USER_DEFINED" },
-        ],
-        weightStatus: "OK",
-      },
-    ]);
+  it("USER_INPUT — 보간된 카테고리만 적용 금액과 함께 나온다", async () => {
+    renderScreen();
+
+    const section = (await screen.findByText(/기본값으로 대체된 항목/)).closest(
+      "p",
+    );
+    expect(section).toHaveTextContent("교통 120,000원");
+    expect(section).toHaveTextContent("의료 80,000원");
+    expect(section).toHaveTextContent("입력하신 금액 합계에 맞춰 채운 값");
+    // 입력한 주거·공공요금은 대체 항목이 아니다.
+    expect(section).not.toHaveTextContent("주거·공공요금");
+    // 보간 금액은 통계청 평균 그 자체가 아니다.
+    expect(section).not.toHaveTextContent("통계청 평균");
+  });
+
+  it("USER_INPUT — 대체된 카테고리가 없으면 대체 항목 문구가 뜨지 않는다", async () => {
+    vi.spyOn(expenseApi, "getAppliedExpenses").mockResolvedValue({
+      ...APPLIED_USER_INPUT,
+      categories: APPLIED_USER_INPUT.categories.map((category) => ({
+        ...category,
+        weightStatus: "USER_DEFINED",
+      })),
+    });
 
     renderScreen();
 
@@ -217,6 +278,76 @@ describe("S-09 검토 화면", () => {
     expect(
       screen.getByText(/세금, 성과급, 주식보상, 퇴직금은 추정하지 않으며/),
     ).toBeInTheDocument();
+  });
+
+  it("PROPAGATED — 이전 입력 금액이 그대로 적용된다고 밝히고 여섯 금액을 보여준다", async () => {
+    vi.spyOn(expenseApi, "getAppliedExpenses").mockResolvedValue({
+      ...APPLIED_USER_INPUT,
+      amountBasis: "PROPAGATED",
+      categories: APPLIED_USER_INPUT.categories.map((category) => ({
+        ...category,
+        weightStatus: "PROPAGATED",
+      })),
+    });
+
+    renderScreen();
+
+    const section = (
+      await screen.findByText(/이전에 입력하신 소비 금액이 이번 달에 그대로/)
+    ).closest("p");
+    expect(section).toHaveTextContent("주거·공공요금 750,000원");
+    expect(section).toHaveTextContent("여가·기타 400,000원");
+    expect(
+      screen.queryByText(/기본값으로 대체된 항목/),
+    ).not.toBeInTheDocument();
+  });
+
+  it("NONE — 금액 없이 적용된 비중과 기준 연도만 보여준다", async () => {
+    vi.spyOn(expenseApi, "getAppliedExpenses").mockResolvedValue({
+      ...APPLIED_USER_INPUT,
+      amountBasis: "NONE",
+      categories: APPLIED_USER_INPUT.categories.map((category) => ({
+        ...category,
+        amount: null,
+        weightStatus: "DEFAULT_CPI",
+      })),
+    });
+
+    renderScreen();
+
+    const section = (await screen.findByText(/소비 금액 기준이 없어/)).closest(
+      "p",
+    );
+    expect(section).toHaveTextContent("2025년");
+    expect(section).toHaveTextContent("주거·공공요금 17.95%");
+    expect(section).toHaveTextContent("식비 31.12%");
+    // 0원이나 평균 금액을 임의로 채우지 않는다 — 금액 표기가 하나도 없어야 한다.
+    expect(section).not.toHaveTextContent(/\d원/);
+  });
+
+  it("적용 금액 조회가 실패해도 안내만 띄우고 제출은 막지 않는다", async () => {
+    vi.spyOn(expenseApi, "getAppliedExpenses").mockRejectedValue(
+      new Error("boom"),
+    );
+
+    renderScreen();
+
+    expect(
+      await screen.findByText(/적용 금액을 불러오지 못했습니다/),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "제출하고 대시보드로" }),
+    ).toBeInTheDocument();
+  });
+
+  it("적용 금액 조회가 401 이면 로그인 화면으로 보낸다", async () => {
+    vi.spyOn(expenseApi, "getAppliedExpenses").mockRejectedValue(
+      new UnauthorizedError(),
+    );
+
+    renderScreen();
+
+    expect(await screen.findByText("로그인 화면")).toBeInTheDocument();
   });
 
   // 브리프 3 — 필수 프로필 필드가 비어 있으면 제출 버튼 대신 해당 단계로 가는
