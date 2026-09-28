@@ -60,7 +60,7 @@
 | P0 | 결정 신호 단일 출처(`lib/decisionSignal.ts`)와 서버 `label` 폴백, `GET /dashboard/history` 응답의 `label`, `dev/primitives` 갤러리 시각 회귀 베이스라인 | #161 |
 | P1 | 다섯 번째 의미 색상 `--carix-action`(라이트/다크 쌍), `@custom-variant dark` — 이것이 없어 `dark:` 22곳이 토글 경로에서 무효였다 | #162 |
 | P2 | `ToneBadge`·`EmptyState`·`LoadingState` 표현 계층, 도메인별 해석 모듈(`lib/indexStatus.ts`·`lib/skillDemandStatus.ts`), `SkillDemandDetail.status` 와이어 타입 좁히기 | #164 |
-| P3 | `Button`(rounded-lg·text-xs, 전 크기 재조정)·`Card`(p-6·gap-4)·`Badge`(중립 칩 전용)·`Table`(B 틀 + `plain`) 제자리 재정의, `alert`·`select` 삭제, `EmptyState` `headingLevel`, C 소유 raw 표 4·버튼 5 교체 | #221 |
+| P3 | `Button`(rounded-lg·text-xs, 전 크기 재조정)·`Card`(p-6·gap-4)·`Badge`(중립 칩 전용)·`Table`(B 틀 + `plain`) 제자리 재정의, `alert`·`select` 삭제, `EmptyState` `headingLevel`, C 소유 raw 표 4·버튼 5 교체 | `feat/ui3-p3-primitives` (로컬 머지) |
 
 **`StatusBadge` 는 결번이다.** `IndexStatus`(5종)와 `SkillDemandStatus`(4종)를 "둘로 갈린
 하나"로 본 전제가 틀렸다 — 서로 다른 도메인 어휘라 합치면 없는 상태값을 노출한다. 합칠 수
