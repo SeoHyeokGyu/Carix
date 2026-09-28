@@ -8,9 +8,13 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
+import { Input } from "@/components/ui/input";
 import { LoadingState } from "@/components/ui/loading-state";
 import { ToneBadge, TONE_CLASS } from "@/components/ui/tone-badge";
 import { SignalBadge } from "../../components/dashboard/SignalBadge";
+import { SalaryDistributionChart } from "../../components/dashboard/SalaryDistributionChart";
+import { NativeSelect } from "../../components/onboarding/NativeSelect";
+import type { SalaryDistributionResponse } from "../../lib/dashboardMarketApi";
 
 /**
  * 프리미티브 갤러리 — 세션 가드 없이 여는 개발 프리뷰 (`dev/skills`·`dev/trends` 와 같은 자리).
@@ -46,6 +50,41 @@ const SIGNAL_CODES = [
 ] as const;
 
 const TONES = Object.keys(TONE_CLASS) as (keyof typeof TONE_CLASS)[];
+
+const SELECT_OPTIONS = [
+  { value: "a", label: "선택지 A" },
+  { value: "b", label: "선택지 B" },
+] as const;
+
+/**
+ * 마커 셋(공식 중앙값·공고 중앙값·사용자)이 모두 그려지는 모양. `dark:ring-carix-surface` 는
+ * `AppShell` 밖인 이 화면에서 육안으로는 확인되지 않는다 — 스펙이 클래스를 직접 토글해서 잰다.
+ */
+const SALARY_FIXTURE: SalaryDistributionResponse = {
+  status: "OK",
+  sampleSize: 50,
+  minRequired: 10,
+  baseline: {
+    source: "KOSIS",
+    median: 65_000_000,
+    wageDefinition: "임금직무정보시스템 500인 이상",
+  },
+  postingReference: {
+    min: 40_000_000,
+    p25: 52_000_000,
+    median: 68_000_000,
+    p75: 85_000_000,
+    max: 120_000_000,
+    sampleSize: 50,
+    missingRate: 66.7,
+  },
+  userPosition: { grossSalary: 72_000_000, percentile: 65 },
+  peerGroup: {
+    fallbackLevel: 1,
+    appliedConditions: "서울 전체 / 경력 4~7년(MID) / 회사규모 무관",
+  },
+  trend: null,
+};
 
 function Section({
   id,
@@ -235,6 +274,30 @@ function Gallery() {
             </tbody>
           </table>
         </div>
+      </Section>
+
+      {/* 새 절은 맨 끝에 붙인다 — 앞에 끼우면 뒤 절들의 y 좌표가 소수로 밀려 캡처 높이가
+          1px 반올림되고, 아무것도 안 바뀐 절의 베이스라인이 깨진다. */}
+      <Section id="gallery-inputs" title="Input / NativeSelect">
+        <div className="grid max-w-md gap-3">
+          <Input data-testid="input-default" placeholder="기본 입력" />
+          <Input data-testid="input-disabled" placeholder="비활성" disabled />
+          <Input
+            data-testid="input-invalid"
+            placeholder="오류 상태"
+            aria-invalid
+          />
+          <NativeSelect
+            data-testid="native-select"
+            options={SELECT_OPTIONS}
+            placeholder="선택하세요"
+            defaultValue=""
+          />
+        </div>
+      </Section>
+
+      <Section id="gallery-chart-marker" title="연봉 분포 마커 링">
+        <SalaryDistributionChart data={SALARY_FIXTURE} />
       </Section>
     </div>
   );
