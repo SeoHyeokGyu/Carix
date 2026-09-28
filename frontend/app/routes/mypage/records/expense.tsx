@@ -279,8 +279,11 @@ export default function RecordsExpense() {
           <TableBody>
             {months.map((month) => (
               <TableRow key={month.baseYearMonth}>
-                <TableCell>{formatYearMonth(month.baseYearMonth)}</TableCell>
-                <TableCell>
+                {/* 짧은 고정 길이 값이다. 카테고리 뱃지 묶음이 폭을 가져가도 꺾지 않는다. */}
+                <TableCell className="whitespace-nowrap">
+                  {formatYearMonth(month.baseYearMonth)}
+                </TableCell>
+                <TableCell className="whitespace-nowrap">
                   <ToneBadge
                     tone={WEIGHT_STATUS_TONE[month.weightStatus] ?? "muted"}
                   >

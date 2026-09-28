@@ -84,6 +84,16 @@ describe("소비 탭 (S-12)", () => {
     expect(screen.getByText("직접 입력")).toBeInTheDocument();
   });
 
+  // 카테고리 뱃지 여섯 묶음이 표 폭을 거의 다 가져가면 앞 두 칸이 최소 폭으로 눌려
+  // "2026-/07", "직접/입력" 으로 꺾였다(운영 데스크톱 폭에서 확인). 둘 다 짧은 고정 길이 값이다.
+  it("기준월·월 상태 칸은 줄을 꺾지 않는다", async () => {
+    renderTab();
+    const monthCell = (await screen.findByText("2026-07")).closest("td");
+    expect(monthCell).toHaveClass("whitespace-nowrap");
+    const statusCell = screen.getByText("일부 보간").closest("td");
+    expect(statusCell).toHaveClass("whitespace-nowrap");
+  });
+
   it("월을 고르면 6 카테고리 전부를 폼으로 연다", async () => {
     renderTab();
     const user = userEvent.setup();
