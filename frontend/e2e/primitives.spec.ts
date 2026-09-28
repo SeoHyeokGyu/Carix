@@ -348,6 +348,18 @@ const STYLE_EXPECTATIONS: StyleExpectation[] = [
     property: "font-size",
     value: "var(--text-xs)",
   },
+  {
+    name: "Table 틀 모서리",
+    selector: '[data-testid="primitives-table"] [data-slot="table-container"]',
+    property: "border-top-left-radius",
+    value: "var(--radius-xl)",
+  },
+  {
+    name: "Table 칸 여백",
+    selector: '[data-testid="primitives-table"] [data-slot="table-cell"]',
+    property: "padding-left",
+    value: "calc(var(--spacing) * 4)",
+  },
   // Input
   {
     name: "Input 테두리",

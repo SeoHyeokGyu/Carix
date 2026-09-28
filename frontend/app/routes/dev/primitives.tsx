@@ -8,6 +8,14 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { LoadingState } from "@/components/ui/loading-state";
 import { ToneBadge, TONE_CLASS } from "@/components/ui/tone-badge";
@@ -234,39 +242,35 @@ function Gallery() {
       </Section>
 
       <Section id="primitives-table" title="Table">
-        <div className="overflow-hidden rounded-xl border border-carix-border bg-carix-surface shadow-xs">
-          <table className="w-full text-left text-sm text-carix-text">
-            <thead className="border-b border-carix-border bg-carix-bg/60 text-xs font-medium text-carix-text/70">
-              <tr>
-                <th scope="col" className="px-4 py-3">
-                  기준월
-                </th>
-                <th scope="col" className="px-4 py-3 text-center">
-                  구매력 지수
-                </th>
-                <th scope="col" className="px-4 py-3 text-center">
-                  결정 신호
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr className="border-b border-carix-border/60">
-                <td className="px-4 py-3">2026-09</td>
-                <td className="px-4 py-3 text-center">102.4</td>
-                <td className="px-4 py-3 text-center">
-                  <SignalBadge code="STAY" />
-                </td>
-              </tr>
-              <tr>
-                <td className="px-4 py-3">2026-08</td>
-                <td className="px-4 py-3 text-center">-</td>
-                <td className="px-4 py-3 text-center">
-                  <SignalBadge code="INSUFFICIENT_DATA" />
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead scope="col">기준월</TableHead>
+              <TableHead scope="col" className="text-center">
+                구매력 지수
+              </TableHead>
+              <TableHead scope="col" className="text-center">
+                결정 신호
+              </TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            <TableRow>
+              <TableCell>2026-09</TableCell>
+              <TableCell className="text-center">102.4</TableCell>
+              <TableCell className="text-center">
+                <SignalBadge code="STAY" />
+              </TableCell>
+            </TableRow>
+            <TableRow>
+              <TableCell>2026-08</TableCell>
+              <TableCell className="text-center">-</TableCell>
+              <TableCell className="text-center">
+                <SignalBadge code="INSUFFICIENT_DATA" />
+              </TableCell>
+            </TableRow>
+          </TableBody>
+        </Table>
       </Section>
 
       {/* 새 절은 맨 끝에 붙인다 — 앞에 끼우면 뒤 절들의 y 좌표가 소수로 밀려 캡처 높이가
