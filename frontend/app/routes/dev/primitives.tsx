@@ -31,14 +31,7 @@ const BUTTON_VARIANTS = [
   "link",
 ] as const;
 
-const BADGE_VARIANTS = [
-  "default",
-  "secondary",
-  "destructive",
-  "outline",
-  "ghost",
-  "link",
-] as const;
+const BADGE_VARIANTS = ["default", "secondary", "outline"] as const;
 
 const SIGNAL_CODES = [
   "SEEK_JOB",
