@@ -1,3 +1,4 @@
+import { coreGet } from "./coreApi";
 import type { SkillDemandStatusCode } from "./skillDemandStatus";
 
 export interface SkillDemandSource {
@@ -108,19 +109,11 @@ export interface SnapshotHistoryResponse {
   snapshots: SnapshotPoint[];
 }
 
-interface ApiResponse<T> {
-  success: boolean;
-  data: T;
-  message: string;
-}
-
-async function handleResponse<T>(res: Response): Promise<T> {
-  if (!res.ok) {
-    throw new Error(`요청 처리에 실패했습니다. (상태 코드: ${res.status})`);
-  }
-  const body = (await res.json()) as ApiResponse<T>;
-  return body.data;
-}
+/**
+ * NOTE: (cjkang) 전에는 이 모듈이 자체 `fetch` 와 `handleResponse` 로 평범한 `Error` 를
+ * 던졌다. 게이트웨이 세션 검증 플래그가 켜진 뒤로 세션 없는 호출은 전부 401 인데, 그때 이
+ * 경로만 로그인으로 못 보내고 문자열 오류로 접혔다. 401 처리는 `coreApi` 한 곳에 모은다.
+ */
 
 /**
  * 보유 스킬별 상세 수요 정보 조회 (S-14 스킬수요 탭)
@@ -131,10 +124,7 @@ export async function fetchSkillDemands(
   const query = baseYearMonth
     ? `?baseYearMonth=${encodeURIComponent(baseYearMonth)}`
     : "";
-  const res = await fetch(`/api/v1/dashboard/skills${query}`, {
-    credentials: "include",
-  });
-  return handleResponse<SkillDemandResponse>(res);
+  return coreGet<SkillDemandResponse>(`/v1/dashboard/skills${query}`);
 }
 
 /**
@@ -146,10 +136,9 @@ export async function fetchSalaryDistribution(
   const query = baseYearMonth
     ? `?baseYearMonth=${encodeURIComponent(baseYearMonth)}`
     : "";
-  const res = await fetch(`/api/v1/dashboard/salary-distribution${query}`, {
-    credentials: "include",
-  });
-  return handleResponse<SalaryDistributionResponse>(res);
+  return coreGet<SalaryDistributionResponse>(
+    `/v1/dashboard/salary-distribution${query}`,
+  );
 }
 
 /**
@@ -165,18 +154,14 @@ export async function fetchTrends(
   }
   params.set("durationMonths", String(durationMonths));
 
-  const res = await fetch(`/api/v1/dashboard/trends?${params.toString()}`, {
-    credentials: "include",
-  });
-  return handleResponse<TrendListResponse>(res);
+  return coreGet<TrendListResponse>(
+    `/v1/dashboard/trends?${params.toString()}`,
+  );
 }
 
 /**
  * 월별 스냅샷 이력 조회 (S-11 월별 스냅샷 이력 화면)
  */
 export async function fetchSnapshotHistory(): Promise<SnapshotHistoryResponse> {
-  const res = await fetch("/api/v1/dashboard/history", {
-    credentials: "include",
-  });
-  return handleResponse<SnapshotHistoryResponse>(res);
+  return coreGet<SnapshotHistoryResponse>("/v1/dashboard/history");
 }

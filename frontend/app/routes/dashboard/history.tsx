@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { Link } from "react-router";
+import { Link, useNavigate } from "react-router";
 import { SignalBadge } from "../../components/dashboard/SignalBadge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { LoadingState } from "@/components/ui/loading-state";
@@ -9,6 +9,8 @@ import {
   type SnapshotPoint,
 } from "../../lib/dashboardMarketApi";
 import { isUserActionable } from "../../lib/insufficientDataCause";
+import { UnauthorizedError } from "../../lib/coreApi";
+import { LOGIN_PATH } from "../../lib/routeGuards";
 
 export function meta() {
   return [
@@ -32,6 +34,7 @@ function formatYearMonth(ym: string): string {
 }
 
 export default function DashboardHistory() {
+  const navigate = useNavigate();
   const [historyData, setHistoryData] =
     useState<SnapshotHistoryResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -45,12 +48,17 @@ export default function DashboardHistory() {
     try {
       const data = await fetchSnapshotHistory();
       setHistoryData(data);
-    } catch {
+    } catch (error) {
+      // 세션이 없으면 다시 시도해도 401 이다. 문자열 오류로 접으면 로그인으로 돌아갈 길이 없다.
+      if (error instanceof UnauthorizedError) {
+        void navigate(LOGIN_PATH, { replace: true });
+        return;
+      }
       setErrorMessage("월별 스냅샷 이력을 불러오는 데 실패했습니다.");
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [navigate]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect

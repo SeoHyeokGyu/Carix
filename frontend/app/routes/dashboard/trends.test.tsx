@@ -3,6 +3,17 @@ import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router";
 import DashboardTrends from "./trends";
 import * as dashboardMarketApi from "../../lib/dashboardMarketApi";
+import { UnauthorizedError } from "../../lib/coreApi";
+
+const mockNavigate = vi.fn();
+
+vi.mock("react-router", async () => {
+  const actual = await vi.importActual("react-router");
+  return {
+    ...actual,
+    useNavigate: () => mockNavigate,
+  };
+});
 
 vi.mock("../../lib/dashboardMarketApi", () => ({
   fetchSalaryDistribution: vi.fn(),
@@ -194,5 +205,51 @@ describe("S-14 DashboardTrends 라우트", () => {
         screen.getByText("소득 대 물가 추이 데이터를 불러오지 못했습니다."),
       ).toBeInTheDocument();
     });
+  });
+
+  // 세션이 죽으면 세 호출이 동시에 401 이다. 부분 성공 렌더링과 갈라 둬야 한다 —
+  // 한 API 만 죽은 경우에 멀쩡한 화면을 로그인으로 내쫓으면 안 된다.
+  it("세션이 만료되면 로그인으로 보낸다", async () => {
+    vi.mocked(dashboardMarketApi.fetchSalaryDistribution).mockRejectedValue(
+      new UnauthorizedError(),
+    );
+    vi.mocked(dashboardMarketApi.fetchSkillDemands).mockRejectedValue(
+      new UnauthorizedError(),
+    );
+    vi.mocked(dashboardMarketApi.fetchTrends).mockRejectedValue(
+      new UnauthorizedError(),
+    );
+
+    render(
+      <MemoryRouter>
+        <DashboardTrends />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(mockNavigate).toHaveBeenCalledWith("/login", { replace: true });
+    });
+  });
+
+  it("한 원천만 실패하면 로그인으로 보내지 않고 나머지를 그린다", async () => {
+    vi.mocked(dashboardMarketApi.fetchTrends).mockRejectedValue({
+      code: "UNKNOWN",
+      message: "서버 오류",
+      status: 500,
+    });
+
+    render(
+      <MemoryRouter>
+        <DashboardTrends />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(dashboardMarketApi.fetchSalaryDistribution).toHaveBeenCalled();
+    });
+    expect(mockNavigate).not.toHaveBeenCalled();
+    expect(
+      screen.queryByText("시장 분석 데이터를 불러오는 데 실패했습니다."),
+    ).not.toBeInTheDocument();
   });
 });

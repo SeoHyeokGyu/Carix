@@ -1,6 +1,6 @@
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { createRoutesStub } from "react-router";
+import { createRoutesStub, MemoryRouter } from "react-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as dashboardApi from "../../lib/api/dashboard";
 import { UnauthorizedError } from "../../lib/coreApi";
@@ -28,8 +28,14 @@ describe("대시보드 라우트 및 레이아웃 (Dashboard)", () => {
   });
 
   describe("개별 화면 (Pages)", () => {
+    // 두 화면은 세션 만료 시 `useNavigate` 로 로그인으로 보낸다 — 라우터 문맥이 없으면
+    // 훅 자체가 던진다.
     it("DashboardHistory(월별 이력) 화면을 정상 렌더링한다", () => {
-      render(<DashboardHistory />);
+      render(
+        <MemoryRouter>
+          <DashboardHistory />
+        </MemoryRouter>,
+      );
       expect(screen.getByText("S-11")).toBeInTheDocument();
       expect(
         screen.getByRole("heading", { name: /월별 (스냅샷 )?이력/ }),
@@ -37,7 +43,11 @@ describe("대시보드 라우트 및 레이아웃 (Dashboard)", () => {
     });
 
     it("DashboardTrends(추이 분석) 화면을 정상 렌더링한다", () => {
-      render(<DashboardTrends />);
+      render(
+        <MemoryRouter>
+          <DashboardTrends />
+        </MemoryRouter>,
+      );
       expect(screen.getByText("S-14")).toBeInTheDocument();
       expect(
         screen.getByRole("heading", { name: "추이 분석" }),

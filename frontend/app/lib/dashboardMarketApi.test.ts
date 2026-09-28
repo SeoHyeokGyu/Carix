@@ -1,7 +1,10 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
+import { UnauthorizedError } from "./coreApi";
 import {
   fetchSkillDemands,
   fetchSalaryDistribution,
+  fetchTrends,
+  fetchSnapshotHistory,
 } from "./dashboardMarketApi";
 
 describe("dashboardMarketApi", () => {
@@ -105,6 +108,21 @@ describe("dashboardMarketApi", () => {
         "/api/v1/dashboard/salary-distribution?baseYearMonth=202608",
         expect.objectContaining({ credentials: "include" }),
       );
+    });
+  });
+
+  // 세션 게이트가 켜진 뒤로 세션 없는 호출은 전부 401 이다. 평범한 Error 를 던지면 화면이
+  // 로그인으로 보내지 못하고 문자열 오류만 띄운다 — 401 판별은 coreApi 한 곳에 모은다.
+  describe("세션 만료", () => {
+    it.each([
+      ["fetchSkillDemands", () => fetchSkillDemands()],
+      ["fetchSalaryDistribution", () => fetchSalaryDistribution()],
+      ["fetchTrends", () => fetchTrends()],
+      ["fetchSnapshotHistory", () => fetchSnapshotHistory()],
+    ])("%s 는 401 에 UnauthorizedError 를 던진다", async (_name, call) => {
+      global.fetch = vi.fn().mockResolvedValue({ ok: false, status: 401 });
+
+      await expect(call()).rejects.toBeInstanceOf(UnauthorizedError);
     });
   });
 });
