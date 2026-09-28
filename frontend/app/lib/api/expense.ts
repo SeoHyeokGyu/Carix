@@ -33,3 +33,31 @@ export const putExpenses = (
   coreSend<ExpenseHistoryResponse>("PUT", `/v1/expenses/${baseYearMonth}`, {
     items,
   });
+
+/**
+ * 금액의 출처. `NONE` 은 입력도 전파할 과거 월도 없어 절대 금액 기준이 없다는 뜻이다 —
+ * 그때 `amount` 는 전부 `null` 이고 지수는 가중치만으로 계산된다(API 규격 §7.6).
+ */
+export type AmountBasis = "USER_INPUT" | "PROPAGATED" | "NONE";
+
+export interface AppliedExpenseCategory {
+  category: string;
+  amount: number | null;
+  /** 기본 가중치 정본 값이다. 실제로 "적용된" 비중인 것은 `NONE` 일 때뿐이다. */
+  weight: number;
+  weightStatus: "USER_DEFINED" | "DEFAULT_CPI" | "PROPAGATED";
+}
+
+export interface AppliedExpenseResponse {
+  baseYearMonth: string;
+  weightVersion: number;
+  weightBasePeriod: string;
+  amountBasis: AmountBasis;
+  categories: AppliedExpenseCategory[];
+}
+
+/** 기준월을 생략하면 서버가 최신 이력 월로 대체한다 — 검토 화면은 늘 당월을 넘긴다. */
+export const getAppliedExpenses = (baseYearMonth: string) =>
+  coreGet<AppliedExpenseResponse>(
+    `/v1/expenses/applied?baseYearMonth=${baseYearMonth}`,
+  );
