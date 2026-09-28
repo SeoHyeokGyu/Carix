@@ -1,0 +1,203 @@
+package com.carix.expense.service;
+
+import static com.carix.expense.domain.ExpenseCategoryEnum.FOOD;
+import static com.carix.expense.domain.ExpenseCategoryEnum.HOUSING;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.mock;
+
+import com.carix.expense.config.DefaultExpenseWeightProvider;
+import com.carix.expense.domain.ExpenseCategoryEnum;
+import com.carix.expense.domain.ExpenseHistory;
+import com.carix.expense.domain.ExpenseItemEntity;
+import com.carix.expense.dto.AppliedExpenseResponse;
+import com.carix.expense.repository.ExpenseHistoryRepository;
+import java.math.BigDecimal;
+import java.util.EnumMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.UUID;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+
+/**
+ * `US-O6` 검토 화면이 묻는 것은 "무엇이 실제로 적용됐나" 다. 통계청 평균을 그대로 보여주는 응답이 아니라, 리졸버가 입력·전파·보간 중 무엇을 썼는지에 따라 답이
+ * 달라진다.
+ *
+ * <p>기본 가중치는 검산이 눈으로 되도록 HOUSING 0.30 / FOOD 0.30 / 나머지 넷 0.10 (합 1.0) 으로 고정한다 — {@code
+ * ExpenseWeightResolverTest} 와 같은 방식이다.
+ */
+class AppliedExpenseServiceTest {
+
+  private static final String YM = "202609";
+
+  private ExpenseHistoryRepository repository;
+  private DefaultExpenseWeightProvider weightProvider;
+  private AppliedExpenseService service;
+  private UUID userId;
+
+  @BeforeEach
+  void setUp() {
+    userId = UUID.randomUUID();
+    repository = mock(ExpenseHistoryRepository.class);
+    weightProvider = mock(DefaultExpenseWeightProvider.class);
+
+    given(weightProvider.getDefaultWeights()).willReturn(fixedWeights());
+    given(weightProvider.getVersion()).willReturn(7);
+    given(weightProvider.getBasePeriod()).willReturn("2025");
+    given(repository.findByUserIdOrderByBaseYearMonthDesc(any())).willReturn(List.of());
+
+    service =
+        new AppliedExpenseService(
+            repository, new ExpenseWeightResolver(repository, weightProvider), weightProvider);
+  }
+
+  @Test
+  @DisplayName("여섯 개 전부 입력하면 입력값이 적용된 금액이다")
+  void 전부_입력() {
+    givenMonth(YM, fullMonth(500_000L));
+
+    AppliedExpenseResponse response = service.resolve(userId, YM);
+
+    assertThat(response.amountBasis()).isEqualTo("USER_INPUT");
+    assertThat(response.categories())
+        .hasSize(6)
+        .allSatisfy(
+            category -> {
+              assertThat(category.amount()).isEqualTo(500_000L);
+              assertThat(category.weightStatus()).isEqualTo("USER_DEFINED");
+            });
+  }
+
+  @Test
+  @DisplayName("일부만 입력하면 빠진 카테고리에 보간 금액이 적용되고 상태로 갈린다")
+  void 부분_입력() {
+    givenMonth(YM, List.of(new ExpenseItemEntity(HOUSING, 300_000L)));
+
+    AppliedExpenseResponse response = service.resolve(userId, YM);
+
+    assertThat(response.amountBasis()).isEqualTo("USER_INPUT");
+    assertThat(categoryOf(response, HOUSING).amount()).isEqualTo(300_000L);
+    assertThat(categoryOf(response, HOUSING).weightStatus()).isEqualTo("USER_DEFINED");
+    // 0.30 × 300,000 ÷ 0.30 = 300,000
+    assertThat(categoryOf(response, FOOD).amount()).isEqualTo(300_000L);
+    assertThat(categoryOf(response, FOOD).weightStatus()).isEqualTo("DEFAULT_CPI");
+  }
+
+  @Test
+  @DisplayName("과거 완전 입력 월이 있으면 그 금액이 전파된 것으로 적용된다")
+  void 전파() {
+    ExpenseHistory past = new ExpenseHistory(userId, "202608");
+    past.replaceItems(fullMonth(400_000L));
+    given(repository.findByUserIdOrderByBaseYearMonthDesc(userId)).willReturn(List.of(past));
+    givenMonth(YM, List.of());
+
+    AppliedExpenseResponse response = service.resolve(userId, YM);
+
+    assertThat(response.amountBasis()).isEqualTo("PROPAGATED");
+    assertThat(response.categories())
+        .allSatisfy(
+            category -> {
+              assertThat(category.amount()).isEqualTo(400_000L);
+              assertThat(category.weightStatus()).isEqualTo("PROPAGATED");
+            });
+  }
+
+  /** 이 케이스가 이 API 의 존재 이유다 — 0 을 내보내면 "한 달 주거비 0원" 이라는 거짓이 된다. */
+  @Test
+  @DisplayName("절대 금액 기준이 없으면 금액은 null 이고 가중치만 적용된 것이다")
+  void 금액_기준_없음() {
+    givenMonth(YM, List.of());
+
+    AppliedExpenseResponse response = service.resolve(userId, YM);
+
+    assertThat(response.amountBasis()).isEqualTo("NONE");
+    assertThat(response.categories())
+        .hasSize(6)
+        .allSatisfy(
+            category -> {
+              assertThat(category.amount()).isNull();
+              assertThat(category.weight()).isNotNull();
+              assertThat(category.weight()).isGreaterThan(BigDecimal.ZERO);
+              assertThat(category.weightStatus()).isEqualTo("DEFAULT_CPI");
+            });
+  }
+
+  @Test
+  @DisplayName("그 달 이력 행이 아예 없어도 같은 모양으로 답한다")
+  void 이력_없음() {
+    given(repository.findByUserIdAndBaseYearMonth(userId, YM)).willReturn(Optional.empty());
+
+    AppliedExpenseResponse response = service.resolve(userId, YM);
+
+    assertThat(response.baseYearMonth()).isEqualTo(YM);
+    assertThat(response.amountBasis()).isEqualTo("NONE");
+    assertThat(response.categories()).hasSize(6);
+  }
+
+  @Test
+  @DisplayName("기준월을 주지 않으면 최신 소비 이력 월로 답한다")
+  void 기준월_생략() {
+    ExpenseHistory latest = new ExpenseHistory(userId, "202608");
+    latest.replaceItems(fullMonth(400_000L));
+    ExpenseHistory older = new ExpenseHistory(userId, "202607");
+    older.replaceItems(fullMonth(300_000L));
+    given(repository.findByUserIdOrderByBaseYearMonthDesc(userId))
+        .willReturn(List.of(latest, older));
+    given(repository.findByUserIdAndBaseYearMonth(userId, "202608"))
+        .willReturn(Optional.of(latest));
+
+    AppliedExpenseResponse response = service.resolve(userId, null);
+
+    assertThat(response.baseYearMonth()).isEqualTo("202608");
+    assertThat(response.amountBasis()).isEqualTo("USER_INPUT");
+  }
+
+  @Test
+  @DisplayName("가중치 정본의 버전과 기준연도를 함께 낸다 — 어느 기준으로 계산됐는지 화면이 말해야 한다")
+  void 가중치_출처() {
+    givenMonth(YM, List.of());
+
+    AppliedExpenseResponse response = service.resolve(userId, YM);
+
+    assertThat(response.weightVersion()).isEqualTo(7);
+    assertThat(response.weightBasePeriod()).isEqualTo("2025");
+  }
+
+  // --- 픽스처 ---
+
+  private void givenMonth(String yearMonth, List<ExpenseItemEntity> items) {
+    ExpenseHistory history = new ExpenseHistory(userId, yearMonth);
+    history.replaceItems(items);
+    given(repository.findByUserIdAndBaseYearMonth(userId, yearMonth))
+        .willReturn(Optional.of(history));
+  }
+
+  private static List<ExpenseItemEntity> fullMonth(long amount) {
+    return java.util.Arrays.stream(ExpenseCategoryEnum.values())
+        .map(category -> new ExpenseItemEntity(category, amount))
+        .toList();
+  }
+
+  private static Map<ExpenseCategoryEnum, BigDecimal> fixedWeights() {
+    Map<ExpenseCategoryEnum, BigDecimal> weights = new EnumMap<>(ExpenseCategoryEnum.class);
+    weights.put(ExpenseCategoryEnum.HOUSING, new BigDecimal("0.30"));
+    weights.put(ExpenseCategoryEnum.FOOD, new BigDecimal("0.30"));
+    weights.put(ExpenseCategoryEnum.TRANSPORT, new BigDecimal("0.10"));
+    weights.put(ExpenseCategoryEnum.MEDICAL, new BigDecimal("0.10"));
+    weights.put(ExpenseCategoryEnum.EDUCATION, new BigDecimal("0.10"));
+    weights.put(ExpenseCategoryEnum.LEISURE, new BigDecimal("0.10"));
+    return weights;
+  }
+
+  private AppliedExpenseResponse.Category categoryOf(
+      AppliedExpenseResponse response, ExpenseCategoryEnum category) {
+    return response.categories().stream()
+        .filter(item -> item.category().equals(category.name()))
+        .findFirst()
+        .orElseThrow();
+  }
+}
