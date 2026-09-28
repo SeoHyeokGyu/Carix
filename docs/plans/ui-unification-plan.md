@@ -78,7 +78,8 @@ P3·P4 가 다룬다.
   값이 없다 — P0 베이스라인 스크린샷 대조로 정한다
 - `Button` — `rounded-lg px-4 py-1.5 text-xs font-medium`, hover `opacity-90`,
   disabled `opacity-50`. **단 `focus-visible:ring` 은 남긴다.** B 의 raw button 30개에 없던
-  것이고, 이 항목만 C 쪽을 지킨다
+  것이고, 이 항목만 C 쪽을 지킨다. `outline` 의 라이트 테두리는 지금 색 유틸이 없어 `currentColor`
+  (글자색)다 — 이 저장소엔 `border-border` 기본 레이어가 없다. 여기서 토큰으로 고정한다
 - `Badge` — B 의 두 종류(상태 `rounded` / 칩 `rounded-full`)를 variant 로
 - `Table` — 죽은 `ui/table.tsx` 를 B 의 `thead` 스타일로 되살림
 - `alert`·`select` — import 0. 삭제하고 역할은 `EmptyState` 가 흡수
@@ -102,38 +103,27 @@ P3·P4 가 다룬다.
 | `history.tsx` 로딩 분기 | 기계 검증이 0인 유일한 자리다. 모든 테스트가 `fetchSnapshotHistory` 를 즉시 resolve 해서 `isLoading` 을 안 탄다 |
 | 시각 커버리지 없는 호출부 | `IndexCard` 의 뱃지, `SkillDemandSection` 의 `variant="plain"` 빈 상태 — 갤러리엔 합성 카드만 있다 |
 
-### P3 착수 전 — 시각 회귀 그물 보강
+### P3 의 그물 — 시각 회귀
 
-P3 착수 전에 시각 회귀 그물을 아래 순서로 보강한다.
+`e2e/primitives.spec.ts` 가 `/dev/primitives` 갤러리를 두 겹으로 잰다. 로컬 전용이다 —
+CI 에서 돌지 않고 베이스라인은 darwin 것만 있다.
 
-1. **갤러리부터 넓힌다.** `routes/dev/primitives.tsx` 는 `Button`·`Badge`·`Card`·
-   `Table` 과 합성 카드까지만 덮는다. `Input`·`Select`·`NativeSelect`, 차트 마커
-   링은 갤러리에 없다 — 그 상태로 computed-style 단언(2번)을 추가해도 이미
-   픽셀이 덮는 것만 다시 덮는다. 갤러리를 미커버 컴포넌트로 넓히는 것이 2번의
-   전제 조건이다.
-2. **`getComputedStyle` 기반 단언을 1급 테스트로 추가한다** — 톤·프리미티브
-   색상별로. 허용오차에 흔들리지 않고, 재색상화를 직접 재는 유일한 계측기다.
-   스크린샷은 이 종류의 변경에는 애초에 맞지 않는 도구다.
-3. **`expect.toHaveScreenshot.threshold` 를 0.05 이하로 좁히고 1회
-   재베이스라인한다.** AA·폰트 힌팅 노이즈를 관찰할 것. 0.1 이 아니라 0.05 인
-   이유: Playwright pixelmatch 컷오프는 `35215 × threshold²` 다. 0.1 은 352.15 로,
-   이 결함을 드러낸 YIQ 델타 268.43 / 102.67 보다 커서 정작 잡아야 할 변경에
-   대해 무효(no-op)다. 0.05 는 88.04 로 둘 다 잡지만, 다크 쪽 델타는 그 문턱을
-   약 17% 차이로 겨우 넘는다.
-4. **P3 브리프에 "`--update-snapshots` 후 `*.png` diff 없음"이 "색 변화 없음"의
-   증거가 아니라고 명시한다.** `--update-snapshots` 기본 모드 `changed` 는
-   허용오차 안의 렌더는 파일을 바이트 단위로 그대로 둔다. computed-style
-   확인은 선택이 아닌 필수 단계여야 한다.
-5. **`maxDiffPixels`/`maxDiffPixelRatio` 는 "조이는" 용도로 건드리지 않는다.**
-   설치된 Playwright 에서 미설정 값은 이미 0(가장 엄격한 값)으로 해석되고,
-   비교는 `count > maxDiffPixels` 일 때만 실패한다. 0 이 아닌 값을 넣으면
-   그물을 조이는 것이 아니라 **느슨하게 만들 수만 있다** — 예를 들어 500×300
-   캡처에 `maxDiffPixelRatio: 0.01` 을 걸면 약 1500 픽셀의 차이를 공짜로
-   허용하게 된다. 3번이 노이즈로 불안정하다고 판명될 때만, 관측된 노이즈
-   크기에 맞춰 flake 허용 노브로 쓴다.
+- **computed-style 단언.** `Button`·`Badge`·`Card`·`Table` thead·`Input` 이 어느 토큰을
+  쓰는지 라이트·다크로 잰다. `Table` 행은 아직 갤러리의 손수 `<table>` 을 잰다 —
+  `ui/table` 을 import 하는 곳이 없어서다. 기대값은 탐침 요소에 같은 CSS 값을 칠해 얻어 rgb 를 박지
+  않는다. **P3 는 이 표(`STYLE_EXPECTATIONS`)를 고쳐 쓰는 것으로 무엇을 바꿨는지 적는다.**
+  `--update-snapshots` 후 png diff 가 없다는 것은 "색 변화 없음" 의 증거가 아니다
+- **스크린샷.** `threshold: 0.05`(컷오프 88.04 — 0.1 의 352.15 는 재색상화 YIQ 델타
+  268.43 / 102.67 보다 커서 무효), `maxDiffPixels: 100`(라틴 글자 안티에일리어싱 잡음 최대
+  63px 위, 이 그물이 처음 잡은 `NEGOTIATE` 뱃지 표류 261px 아래). 그 표류는 P1 이 `action`
+  톤을 토큰으로 옮긴 뒤 베이스라인이 따라가지 못한 것으로, 기본값 0.2 가 가리고 있었다
+- **새 절은 갤러리 맨 끝에 붙인다.** 앞에 끼우면 뒤 절의 y 가 소수로 밀려 캡처 높이가 1px
+  반올림되고 안 바뀐 절이 깨진다
+- **남은 흔들림.** 660회에 1회 "waiting for fonts to load" 로 단언 타임아웃 5초를 넘긴다.
+  `document.fonts.ready` 를 먼저 기다려도 안 막힌다. Google Fonts 서브셋을 글리프가 그려질 때
+  네트워크로 받는 탓으로 보인다
 
-미니파이된 CSS 를 검증할 때 쓴 형태도 재도출을 두 번 겪었으므로 여기 남긴다 —
-단일행 빌드 산출물을 grep 가능하게 바꾸는 형태다.
+미니파이된 CSS 를 검증할 때는 단일행 빌드 산출물을 grep 가능하게 바꾼다.
 
 ```sh
 tr '}' '\n' < build/client/assets/root-*.css | grep ...
