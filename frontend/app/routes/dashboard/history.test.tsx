@@ -3,6 +3,17 @@ import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router";
 import DashboardHistory from "./history";
 import * as dashboardMarketApi from "../../lib/dashboardMarketApi";
+import { UnauthorizedError } from "../../lib/coreApi";
+
+const mockNavigate = vi.fn();
+
+vi.mock("react-router", async () => {
+  const actual = await vi.importActual("react-router");
+  return {
+    ...actual,
+    useNavigate: () => mockNavigate,
+  };
+});
 
 vi.mock("../../lib/dashboardMarketApi", () => ({
   fetchSnapshotHistory: vi.fn(),
@@ -301,5 +312,47 @@ describe("S-11 DashboardHistory 라우트", () => {
     await waitFor(() => {
       expect(screen.getByText("기록된 적용 규칙 없음")).toBeInTheDocument();
     });
+  });
+
+  // 세션 게이트가 켜진 뒤로 401 이 올 수 있다. 문자열 오류로 접으면 사용자는 다시 시도만
+  // 누르게 되고 로그인으로 돌아갈 길이 없다.
+  it("세션이 만료되면 로그인으로 보낸다", async () => {
+    vi.mocked(dashboardMarketApi.fetchSnapshotHistory).mockRejectedValue(
+      new UnauthorizedError(),
+    );
+
+    render(
+      <MemoryRouter>
+        <DashboardHistory />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(mockNavigate).toHaveBeenCalledWith("/login", { replace: true });
+    });
+    expect(
+      screen.queryByText("월별 스냅샷 이력을 불러오는 데 실패했습니다."),
+    ).not.toBeInTheDocument();
+  });
+
+  it("세션과 무관한 실패는 로그인으로 보내지 않고 오류 문구를 띄운다", async () => {
+    vi.mocked(dashboardMarketApi.fetchSnapshotHistory).mockRejectedValue({
+      code: "UNKNOWN",
+      message: "서버 오류",
+      status: 500,
+    });
+
+    render(
+      <MemoryRouter>
+        <DashboardHistory />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(
+        screen.getByText("월별 스냅샷 이력을 불러오는 데 실패했습니다."),
+      ).toBeInTheDocument();
+    });
+    expect(mockNavigate).not.toHaveBeenCalled();
   });
 });

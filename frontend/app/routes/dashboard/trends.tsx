@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { useNavigate } from "react-router";
 import {
   fetchSalaryDistribution,
   fetchSkillDemands,
@@ -10,8 +11,19 @@ import {
 import { SalaryDistributionChart } from "../../components/dashboard/SalaryDistributionChart";
 import { SkillDemandSection } from "../../components/dashboard/SkillDemandSection";
 import { IncomeVsPriceChart } from "../../components/dashboard/IncomeVsPriceChart";
+import { UnauthorizedError } from "../../lib/coreApi";
+import { LOGIN_PATH } from "../../lib/routeGuards";
 
 type TrendsTab = "INCOME_VS_PRICE" | "SKILL_DEMAND" | "SALARY_DISTRIBUTION";
+
+/** 거절된 것 중 하나라도 세션 만료면 참. 순수 함수다. */
+function hasUnauthorized(results: PromiseSettledResult<unknown>[]): boolean {
+  return results.some(
+    (result) =>
+      result.status === "rejected" &&
+      result.reason instanceof UnauthorizedError,
+  );
+}
 
 export function meta() {
   return [
@@ -25,6 +37,8 @@ export function meta() {
 
 export default function DashboardTrends() {
   const [activeTab, setActiveTab] = useState<TrendsTab>("SKILL_DEMAND");
+
+  const navigate = useNavigate();
 
   // 데이터 상태
   const [salaryData, setSalaryData] =
@@ -43,6 +57,13 @@ export default function DashboardTrends() {
         fetchSkillDemands(),
         fetchTrends(),
       ]);
+
+      // 세션이 죽으면 셋이 동시에 401 이다. 부분 성공 렌더링과 갈라 둔다 — 한 원천만 죽은
+      // 경우에 멀쩡한 화면을 로그인으로 내쫓으면 안 된다.
+      if (hasUnauthorized([salaryRes, skillRes, trendRes])) {
+        void navigate(LOGIN_PATH, { replace: true });
+        return;
+      }
 
       if (salaryRes.status === "fulfilled") {
         setSalaryData(salaryRes.value);
@@ -66,7 +87,7 @@ export default function DashboardTrends() {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [navigate]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
