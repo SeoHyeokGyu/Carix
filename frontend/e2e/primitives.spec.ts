@@ -195,9 +195,7 @@ const STYLE_EXPECTATIONS: StyleExpectation[] = [
     name: "Button outline 테두리",
     selector: BUTTON("outline"),
     property: "border-top-color",
-    // 라이트는 테두리 색 유틸이 없어 Tailwind v4 기본값 currentColor 로 떨어진다 — 글자색 테두리다.
-    // 의도한 값이 아니라 현재 동작이다. P3 가 `border-border` 로 고정할 자리.
-    value: "currentColor",
+    value: "var(--color-border)",
     themes: ["light"],
   },
   {
@@ -236,13 +234,13 @@ const STYLE_EXPECTATIONS: StyleExpectation[] = [
     name: "Button 모서리",
     selector: BUTTON("default"),
     property: "border-top-left-radius",
-    value: "var(--radius-md)",
+    value: "var(--radius-lg)",
   },
   {
     name: "Button 글자 크기",
     selector: BUTTON("default"),
     property: "font-size",
-    value: "var(--text-sm)",
+    value: "var(--text-xs)",
   },
   {
     name: "Button 좌우 여백",
@@ -254,7 +252,7 @@ const STYLE_EXPECTATIONS: StyleExpectation[] = [
     name: "Button 높이",
     selector: BUTTON("default"),
     property: "height",
-    value: "calc(var(--spacing) * 9)",
+    value: "calc(var(--spacing) * 8)",
   },
   {
     name: "Button disabled 불투명도",
