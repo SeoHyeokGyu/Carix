@@ -321,13 +321,13 @@ const STYLE_EXPECTATIONS: StyleExpectation[] = [
     name: "Card 좌 여백",
     selector: COMPOSED_CARD,
     property: "padding-left",
-    value: "0px",
+    value: "calc(var(--spacing) * 6)",
   },
   {
     name: "Card 자식 간격",
     selector: COMPOSED_CARD,
     property: "row-gap",
-    value: "calc(var(--spacing) * 6)",
+    value: "calc(var(--spacing) * 4)",
   },
   // Table
   {
@@ -361,6 +361,12 @@ const STYLE_EXPECTATIONS: StyleExpectation[] = [
     selector: INPUT,
     property: "border-top-left-radius",
     value: "var(--radius-md)",
+  },
+  {
+    name: "CardContent 좌 여백 없음",
+    selector: '[data-testid="primitives-composed"] [data-slot="card-content"]',
+    property: "padding-left",
+    value: "0px",
   },
 ];
 
