@@ -23,7 +23,7 @@
 `var(--color-carix-*)` 토큰을 쓴다.
 
 **결정 신호 분기·토큰 공백·로딩 표현은 P0~P2 가, 프리미티브 재정의와 C 소유 교체는 P3 이
-해소했다.** 남은 것은 B·박지수 화면의 교체(§5)와 회귀 방지(P4)다.
+해소했다.** 남은 것은 B·박지수 화면의 교체(§5)뿐이고, P4 의 eslint 예외 목록이 그 남은 일을 센다.
 
 ---
 
@@ -53,7 +53,7 @@
 
 ## 4. 단계
 
-### 완료 — P0~P3
+### 완료 — P0~P4
 
 | 단계 | 납품 | PR |
 | :--- | :--- | :--- |
@@ -61,6 +61,7 @@
 | P1 | 다섯 번째 의미 색상 `--carix-action`(라이트/다크 쌍), `@custom-variant dark` — 이것이 없어 `dark:` 22곳이 토글 경로에서 무효였다 | #162 |
 | P2 | `ToneBadge`·`EmptyState`·`LoadingState` 표현 계층, 도메인별 해석 모듈(`lib/indexStatus.ts`·`lib/skillDemandStatus.ts`), `SkillDemandDetail.status` 와이어 타입 좁히기 | #164 |
 | P3 | `Button`(rounded-lg·text-xs, 전 크기 재조정)·`Card`(p-6·gap-4)·`Badge`(중립 칩 전용)·`Table`(B 틀 + `plain`) 제자리 재정의, `alert`·`select` 삭제, `EmptyState` `headingLevel`, C 소유 raw 표 4·버튼 5 교체 | `feat/ui3-p3-primitives` (로컬 머지) |
+| P4 | eslint 로 raw `<button>`·토큰 밖 팔레트를 `error` 로 막고 현재 위반 11파일을 소유자별 예외 목록으로, `frontend-design.md` 컴포넌트 계약, `trends.html` 연봉 분포 표류 정리 | #222 |
 
 **`StatusBadge` 는 결번이다.** `IndexStatus`(5종)와 `SkillDemandStatus`(4종)를 "둘로 갈린
 하나"로 본 전제가 틀렸다 — 서로 다른 도메인 어휘라 합치면 없는 상태값을 노출한다. 합칠 수
@@ -85,7 +86,7 @@
 
 | 항목 | 내용 |
 | :--- | :--- |
-| 손수 뱃지 잔여 | `SalaryDistributionChart` 는 B 몫이다(§5). `admin/JobHistoryTable`·`admin/CollectorStatusBanner`·`hero/Hero`·`onboarding/skills` 넷은 P4 |
+| 손수 뱃지 잔여 | `SalaryDistributionChart` 는 B 몫이다(§5). `admin/JobHistoryTable`·`admin/CollectorStatusBanner`·`onboarding/skills` 는 소유자 몫(§5). `hero/Hero` 의 알약은 랜딩 제목 위 장식 문구라 배지 계약 대상이 아니다 |
 | `history.tsx` 로딩 분기 | 기계 검증이 0인 유일한 자리다. 모든 테스트가 `fetchSnapshotHistory` 를 즉시 resolve 해서 `isLoading` 을 안 탄다 |
 | 시각 커버리지 없는 호출부 | `IndexCard` 의 뱃지, `SkillDemandSection` 의 `variant="plain"` 빈 상태 — 갤러리엔 합성 카드만 있다 |
 
@@ -114,19 +115,6 @@ CI 에서 돌지 않고 베이스라인은 darwin 것만 있다.
 tr '}' '\n' < build/client/assets/root-*.css | grep ...
 ```
 
-### P4 — 규범 반영과 회귀 방지
-
-- `docs/specs/frontend-design.md` 에 컴포넌트 계약·상태 표현 규칙 반영. 연봉 분포
-  표류는 먼저 해소했다
-- **와이어프레임 `trends.html` 의 연봉 분포도 같은 표류다** — 최소·25%·중앙값·75%·최대
-  5수치 스펙트럼을 그리는데 실제 화면은 백분위 인체 실루엣이고, 그 5수치는
-  [개발 계획 §2](carix-dev-plan.md) `b11` 로 `market_aggregate` 에서 제거될 값이다.
-  `.html` 을 고치면 `screenshots/trends.png` 도 다시 떠서 같이 커밋해야 한다
-  ([와이어프레임 README](../specs/wireframes/README.md)) — `b11` 이후에 한 번에 한다
-- eslint 규칙으로 회귀를 막는다
-  - 토큰 밖 Tailwind 팔레트 클래스 금지 (`bg-blue-500` 등)
-  - 허용 목록 밖 raw `<button>` 금지
-
 ---
 
 ## 5. 마이그레이션 계약
@@ -136,12 +124,12 @@ C 는 공용 계층만 낸다. 화면 교체는 소유자 몫이므로 **이 표
 | 소유 | 파일 | 교체 |
 | :--- | :--- | :--- |
 | B | `SalaryDistributionChart`·`SkillDemandSection`·`IncomeVsPriceChart`·`routes/dashboard/history`·`trends`·`routes/onboarding/skills` | raw 카드 6 → `Card`, raw button 10종 → `Button`, raw table 3 → `Table`, 열화 박스 → `EmptyState`, 상태 span → `ToneBadge`, `getSignalBadge` → `SignalBadge`, `SalaryDistributionChart` 손수 배지 → `ToneBadge` |
-| 박지수 | `components/admin/` 6파일 + `routes/admin/collector.tsx` | 팔레트 누출 → 토큰, raw button → `Button`, `animate-pulse` → `LoadingState`, `collector.tsx` 상태 뱃지 `-300` → 테이블과 동일한 `-400`(P4 로 이연) |
+| 박지수 | `components/admin/` 6파일 + `routes/admin/collector.tsx` | 팔레트 누출 → 토큰, raw button → `Button`, `animate-pulse` → `LoadingState`, `collector.tsx` 상태 뱃지 `-300` → 테이블과 동일한 `-400` |
 | C | 온보딩 4화면·대시보드·가이드·시뮬레이터·`S-12`·`mypage/profile`·`AuthForm` | 완료(P3). 프리미티브를 import 하는 파일은 전부 C 소유라 P3 재정의가 닿는 것도 C 화면뿐이다 |
 
-**실패 모드.** 교체 PR 이 들어오지 않으면 공용 계층과 raw 복제본이 영구 공존한다. 통일이
-아니라 계층이 하나 더 생기는 것으로 끝난다. P4 의 eslint 규칙이 그걸 막는 유일한 장치이므로
-**P4 를 뒤로 미루면 안 된다.**
+**남은 일을 세는 곳은 `frontend/eslint.config.js` 의 예외 목록이다.** raw `<button>`·토큰 밖
+팔레트는 `error` 이고, 아직 교체하지 않은 B·박지수 11파일만 소유자 주석과 함께 예외로 남았다.
+교체하면 목록에서 한 줄씩 지운다. 새 파일은 목록에 넣지 않는다 — 넣는 순간 공존이 굳는다.
 
 ## 6. 범위 밖
 
