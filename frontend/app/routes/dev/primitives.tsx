@@ -188,9 +188,9 @@ function Gallery() {
             title="톤 알약 아이콘"
             description="tone 을 주면 알약이 됩니다."
           >
-            <button type="button" className="text-sm text-carix-info underline">
+            <Button type="button" variant="link" size="sm">
               행동 슬롯
-            </button>
+            </Button>
           </EmptyState>
           <div className="rounded-xl border border-carix-border bg-carix-surface p-6">
             <EmptyState

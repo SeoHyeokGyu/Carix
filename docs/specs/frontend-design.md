@@ -182,6 +182,28 @@ OCI VM에서 다음 컨테이너를 Docker Compose로 운영한다.
 *   **Layout:** 복잡한 사이드바를 제거하고, 모바일에서는 **단일 컬럼 피드(Single-column Feed)**, 데스크톱/태블릿에서는 한눈에 보기 편한 **반응형 가로 그리드(Grid) 및 프로세스 플로우** 배치 채택.
 *   **Visual Elements:** 카테고리별 직관적인 이모지 사용(💰, 📈, ⚖️, 🧭, 🔄, ✨) 및 딱딱한 수치 나열 대신 둥근 프로그레스 바 적용.
 
+### 컴포넌트 계약
+
+화면은 `app/components/ui/` 프리미티브로만 그린다. 모양은 프리미티브 기본값이 정하고 호출부는 배치만 덧붙인다.
+
+| 프리미티브 | 쓰는 자리 |
+| :--- | :--- |
+| `Button` | 모든 버튼. 크기 `xs`·`sm`·`default`(h-8, text-xs)·`lg`, 아이콘 `icon-*`. 링크처럼 보여야 하면 `variant="link"`, 링크 요소에 버튼 모양이 필요하면 `buttonVariants` |
+| `Card` | 내용 묶음. 여백 `p-6`, 자식 간격 16px |
+| `Badge` | **중립 칩**(라벨·보조 지표). `default`·`secondary`·`outline` 뿐이다 |
+| `ToneBadge` | **상태·의미 색.** 톤 여섯(`positive`·`warning`·`danger`·`info`·`action`·`muted`) |
+| `Table` | 표. 기본은 틀이 있고, 이미 `Card` 안이면 `variant="plain"`. 좁은 폭은 가로 스크롤 |
+| `EmptyState` | 빈 상태·열화 상태. 카드 안이면 `variant="plain"`, 제목 계층은 `headingLevel` |
+| `LoadingState` | 불러오는 중 |
+| `NativeSelect` | 선택 필드 (Radix `Select` 는 쓰지 않는다) |
+
+**상태 표현 규칙**
+*   열화 상태(표본 부족·산출 불가 등)는 `EmptyState` 로 그린다. 흐린 문단 하나로 두지 않는다 — "로딩이 덜 끝났나" 로 읽힌다.
+*   상태 색은 도메인별 해석 모듈(`lib/decisionSignal.ts`·`lib/indexStatus.ts`·`lib/skillDemandStatus.ts`)이 톤을 정하고 `ToneBadge` 가 그린다. 화면이 색을 고르지 않는다.
+*   값이 없으면 비워 두고 이유를 밝힌다. 0 이나 평균으로 채우지 않는다.
+
+**금지 — eslint 가 막는다.** raw `<button>` 과 토큰 밖 Tailwind 팔레트 색(`bg-blue-500` 등)은 `error` 다. 색은 carix 토큰(`bg-carix-*`·`text-carix-*`)만 쓴다. 아직 교체 전인 파일은 `frontend/eslint.config.js` 의 예외 목록에 소유자와 함께 있고, 교체하면 목록에서 지운다. 새 파일은 목록에 넣지 않는다.
+
 ---
 
 ## 온보딩 위저드 흐름
