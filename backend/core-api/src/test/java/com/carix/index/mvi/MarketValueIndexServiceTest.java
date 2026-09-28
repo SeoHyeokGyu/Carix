@@ -189,6 +189,53 @@ class MarketValueIndexServiceTest {
   }
 
   @Test
+  @DisplayName("스킬이 전부 최근 수요 없음이면 가중합 0 을 값으로 내지 않는다")
+  void testAllSkillsZeroDemandYieldsNoValue() {
+    // 기준 100 지수에서 0 은 도메인 정의서가 금지한 임의 수치다. 운영 스냅샷에 OK + 0.00 이 22행 남은 계열이다.
+    UUID userId = UUID.randomUUID();
+    String baseYearMonth = "202607";
+
+    CareerProfile profile = new CareerProfile(userId);
+    profile.patch("DEVELOPER", 5, "서울 강남구", "FULL_TIME", "MEDIUM");
+
+    Skill stale =
+        Skill.builder().id(UUID.randomUUID()).standardName("COBOL").isCustom(false).build();
+
+    when(careerProfileRepository.findByUserId(userId)).thenReturn(Optional.of(profile));
+    when(userSkillRepository.findByUserId(userId)).thenReturn(List.of(userSkillOf(stale)));
+
+    when(peerGroupFallbackResolver.resolveForSource(any(), any(), any()))
+        .thenReturn(
+            PeerGroupFallbackResolver.ResolvedPeerGroup.builder()
+                .source("JOBKOREA")
+                .successful(true)
+                .sampleCount(50)
+                .fallbackLevel(1)
+                .coverage(new SourceCoverage("JOBKOREA", 1, 50, true, "조건", BigDecimal.ZERO))
+                .build());
+
+    when(skillDemandCalculator.calculateDemandIndex(
+            any(), eq(stale.getId()), any(), eq(baseYearMonth)))
+        .thenReturn(
+            SkillDemandCalculator.SkillDemandResult.builder()
+                .skillId(stale.getId())
+                .demandIndex(0.0)
+                .status(SkillDemandStatus.NO_RECENT_DEMAND)
+                .build());
+
+    when(skillWeightCalculator.calculateWeights(any(), any(), any()))
+        .thenReturn(Map.of(stale.getId(), BigDecimal.ONE));
+    when(wageBaselineResolver.resolveBaseline(any()))
+        .thenReturn(new WageBaseline(65000000L, "초과급여 제외", "202606"));
+
+    MviResult result = service.calculate(userId, baseYearMonth);
+
+    assertThat(result.value()).isNull();
+    assertThat(result.status()).isEqualTo(IndexStatus.INSUFFICIENT_SAMPLE);
+    assertThat(result.zeroDemandSkills()).singleElement().isNotNull();
+  }
+
+  @Test
   @DisplayName("모든 원천에서 표본이 미달인 스킬은 표본 부족으로 제외된다")
   void testSkillUnderSampledInEverySourceIsExcluded() {
     UUID userId = UUID.randomUUID();

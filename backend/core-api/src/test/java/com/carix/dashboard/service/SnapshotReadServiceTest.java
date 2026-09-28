@@ -212,6 +212,37 @@ class SnapshotReadServiceTest {
         .isEqualTo(IndexStatus.INSUFFICIENT_SAMPLE.name());
   }
 
+  /**
+   * 운영에 {@code opening_window_index} 가 {@code NULL} 인데 상태는 {@code OK} 인 옛 행이 남아 있다(경위 미규명). 그대로 실으면
+   * 화면이 "산출됨, 숫자 없음"을 그리고 프런트 {@code lib/api/dashboard.ts} 가 문서화한 계약이 뒤집힌다.
+   */
+  @Test
+  @DisplayName("summary - 값을 요구하는 상태인데 값이 없는 옛 행은 계산 대기로 접는다")
+  void summary_값없는_OK_는_접힌다() {
+    given(repository.findByUserIdOrderByBaseYearMonthDesc(USER_ID))
+        .willReturn(
+            List.of(
+                snapshotWith(
+                    null,
+                    null,
+                    null,
+                    new SnapshotRationale.IndexStatuses(
+                        IndexStatus.INSUFFICIENT_HISTORY,
+                        IndexStatus.INSUFFICIENT_SAMPLE,
+                        IndexStatus.OK),
+                    null)));
+
+    DashboardSummaryResponse response = summaryService.resolve(USER_ID, "202607");
+
+    assertThat(response.openingWindowIndex().value()).isNull();
+    assertThat(response.openingWindowIndex().indexStatus())
+        .isEqualTo(IndexStatus.NOT_AVAILABLE.name());
+    assertThat(response.purchasingPowerIndex().indexStatus())
+        .isEqualTo(IndexStatus.NOT_AVAILABLE.name());
+    assertThat(response.marketValueIndex().indexStatus())
+        .isEqualTo(IndexStatus.INSUFFICIENT_SAMPLE.name());
+  }
+
   @Test
   @DisplayName("summary - 상태를 저장하지 않은 옛 행은 계산 대기로 읽힌다")
   void summary_옛행은_계산대기() {

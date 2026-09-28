@@ -31,6 +31,7 @@ public record MviResult(
     LocalDate aggregateAsOf) {
 
   public MviResult {
+    IndexValueContract.MVI.requireArgument(baseYearMonth, value, status);
     sources = sources == null ? List.of() : List.copyOf(sources);
     excludedSkills = excludedSkills == null ? List.of() : List.copyOf(excludedSkills);
     zeroDemandSkills = zeroDemandSkills == null ? List.of() : List.copyOf(zeroDemandSkills);

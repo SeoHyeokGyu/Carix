@@ -8,6 +8,7 @@ import com.carix.dashboard.dto.DashboardSummaryResponse.IndexDetail;
 import com.carix.dashboard.dto.DashboardSummaryResponse.PeerGroup;
 import com.carix.dashboard.dto.DashboardSummaryResponse.SummaryMetadata;
 import com.carix.dashboard.dto.DashboardSummaryResponse.WageStatInfo;
+import com.carix.index.dto.IndexValueContract;
 import com.carix.index.dto.SourceCoverage;
 import com.carix.index.enums.IndexStatus;
 import com.carix.snapshot.DecisionSignalCode;
@@ -88,7 +89,12 @@ public class DashboardSummaryService {
    */
   private IndexDetail detail(BigDecimal value, BigDecimal previousValue, IndexStatus storedStatus) {
     if (value == null) {
-      IndexStatus status = storedStatus == null ? IndexStatus.NOT_AVAILABLE : storedStatus;
+      // 값을 요구하는 상태를 값 없이 실으면 프런트 계약이 뒤집힌다. 운영에 OWI 가 `OK` 인데 값이 NULL 인
+      // 옛 행이 남아 있어(경위 미규명) 읽을 때 접는다. 새로 쓰는 행은 IndexValueContract 가 막는다.
+      IndexStatus status =
+          storedStatus == null || IndexValueContract.impliesValue(storedStatus)
+              ? IndexStatus.NOT_AVAILABLE
+              : storedStatus;
       return new IndexDetail(null, null, null, status.name(), null);
     }
     Double change =

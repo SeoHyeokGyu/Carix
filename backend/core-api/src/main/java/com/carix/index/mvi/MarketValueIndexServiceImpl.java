@@ -749,11 +749,14 @@ public class MarketValueIndexServiceImpl implements MarketValueIndexProvider {
       List<SkillContribution> skillContributions,
       WageBaseline wageBaseline,
       LocalDate aggregateAsOf) {
-    IndexStatus status = (finalMviValue != null) ? IndexStatus.OK : IndexStatus.INSUFFICIENT_SAMPLE;
+    // 0 은 값이 아니다. 사용자의 스킬이 전부 NO_RECENT_DEMAND 면(수요 지수 0 으로 가중합에 반영, 기능 명세 §4.1)
+    // 가중합이 0 이 되는데, 기준 100 지수에서 0 은 도메인 정의서가 금지한 임의 수치다. 값 없음으로 낸다.
+    boolean hasValue = finalMviValue != null && finalMviValue.signum() > 0;
+    IndexStatus status = hasValue ? IndexStatus.OK : IndexStatus.INSUFFICIENT_SAMPLE;
 
     return new MviResult(
         baseYearMonth,
-        finalMviValue,
+        hasValue ? finalMviValue : null,
         status,
         coverages,
         classification.excludedSkills(),

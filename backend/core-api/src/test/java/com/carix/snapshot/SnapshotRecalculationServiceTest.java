@@ -1,6 +1,8 @@
 package com.carix.snapshot;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.carix.index.CurrentSalaryProvider;
 import com.carix.index.MarketValueIndexProvider;
@@ -283,6 +285,81 @@ class SnapshotRecalculationServiceTest {
   @Test
   void OWI_도입이_규칙_버전을_바꾸지_않는다() {
     assertThat(DecisionSignalEngine.RULE_VERSION).isEqualTo("1.0.0");
+  }
+
+  /**
+   * 산출기 계약({@link com.carix.index.dto.IndexValueContract})이 결과를 하나씩 볼 때 못 잡는 것은 값 셋을 서로 바꿔 넣는 배선
+   * 사고다. 결과가 전부 합법이어도 행은 뒤집히므로 쓰기 경계가 엔티티를 다시 본다. 운영에 남은 35행이 이 모양이었다.
+   */
+  @Test
+  @DisplayName("쓰기 경계 - 상태가 OK 인데 값이 없는 행은 저장되지 않는다")
+  void 쓰기_경계는_값없는_OK_를_막는다() {
+    IndexSnapshot broken =
+        snapshotWithStatuses(
+            null,
+            new SnapshotRationale.IndexStatuses(
+                IndexStatus.NOT_AVAILABLE, IndexStatus.INSUFFICIENT_SAMPLE, IndexStatus.OK));
+
+    assertThatThrownBy(() -> SnapshotRecalculationService.verifyPersistable(broken))
+        .isInstanceOf(IllegalStateException.class)
+        .hasMessageContaining("OWI")
+        .hasMessageContaining("baseYearMonth=202607");
+  }
+
+  @Test
+  @DisplayName("쓰기 경계 - 값이 0 인 행은 저장되지 않는다")
+  void 쓰기_경계는_0_을_막는다() {
+    IndexSnapshot broken =
+        snapshotWithStatuses(
+            BigDecimal.ZERO,
+            new SnapshotRationale.IndexStatuses(
+                IndexStatus.NOT_AVAILABLE, IndexStatus.OK, IndexStatus.NOT_AVAILABLE));
+
+    assertThatThrownBy(() -> SnapshotRecalculationService.verifyPersistable(broken))
+        .isInstanceOf(IllegalStateException.class)
+        .hasMessageContaining("MVI");
+  }
+
+  @Test
+  @DisplayName("쓰기 경계 - 값-상태가 맞는 행은 통과한다")
+  void 쓰기_경계는_합법_행을_통과시킨다() {
+    IndexSnapshot valid =
+        snapshotWithStatuses(
+            new BigDecimal("104.60"),
+            new SnapshotRationale.IndexStatuses(
+                IndexStatus.INSUFFICIENT_HISTORY, IndexStatus.OK, IndexStatus.INSUFFICIENT_SAMPLE));
+
+    assertThatCode(() -> SnapshotRecalculationService.verifyPersistable(valid))
+        .doesNotThrowAnyException();
+  }
+
+  /** PPI 는 값 100 단일점({@code INSUFFICIENT_HISTORY}), MVI 는 {@code mvi}, OWI 는 값 없음이다. */
+  private static IndexSnapshot snapshotWithStatuses(
+      BigDecimal mvi, SnapshotRationale.IndexStatuses statuses) {
+    return IndexSnapshot.builder()
+        .userId(UUID.randomUUID())
+        .baseYearMonth("202607")
+        .dataVersion("20260701093000-000")
+        .ruleVersion(DecisionSignalEngine.RULE_VERSION)
+        .purchasingPowerIndex(
+            statuses.ppi() == IndexStatus.INSUFFICIENT_HISTORY ? new BigDecimal("100.00") : null)
+        .marketValueIndex(mvi)
+        .openingWindowIndex(null)
+        .decisionSignal(DecisionSignalCode.STAY)
+        .rationale(
+            new SnapshotRationale(
+                List.of(),
+                null,
+                List.of(),
+                List.of(),
+                List.of(),
+                null,
+                null,
+                null,
+                "20260701093000-000",
+                statuses,
+                null))
+        .build();
   }
 
   /** indexStatuses 도입 전에 쓰인 jsonb 행은 그 필드가 null 로 역직렬화된다. */

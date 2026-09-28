@@ -6,6 +6,7 @@ import com.carix.index.OpeningWindowIndexProvider;
 import com.carix.index.PurchasingPowerIndexProvider;
 import com.carix.index.dto.CurrentSalary;
 import com.carix.index.dto.ExcludedSkill;
+import com.carix.index.dto.IndexValueContract;
 import com.carix.index.dto.MviResult;
 import com.carix.index.dto.OwiResult;
 import com.carix.index.dto.PpiResult;
@@ -183,10 +184,12 @@ public class SnapshotRecalculationService {
             userId, ym, dataVersion, ruleVersion);
 
     if (existing.isPresent()) {
-      existing.get().replaceWith(ppi.value(), mvi.value(), owi.value(), outcome.code(), rationale);
+      IndexSnapshot snapshot = existing.get();
+      snapshot.replaceWith(ppi.value(), mvi.value(), owi.value(), outcome.code(), rationale);
+      verifyPersistable(snapshot);
       return;
     }
-    indexSnapshotRepository.save(
+    IndexSnapshot snapshot =
         new IndexSnapshot(
             userId,
             ym,
@@ -196,7 +199,28 @@ public class SnapshotRecalculationService {
             mvi.value(),
             owi.value(),
             outcome.code(),
-            rationale));
+            rationale);
+    verifyPersistable(snapshot);
+    indexSnapshotRepository.save(snapshot);
+  }
+
+  /**
+   * 저장 직전 행이 값-상태 대응을 지키는지 다시 본다 ({@link IndexValueContract}).
+   *
+   * <p>산출기 계약이 이미 같은 불변식을 걸지만 그 층은 각 결과를 따로 볼 뿐이다. 세 값을 서로 바꿔 넣는 배선 사고는 결과 셋이 전부 합법이어도 행을 뒤집으므로 여기서
+   * 엔티티를 읽어 {@code rationale} 의 상태와 맞춰 본다. 운영에 {@code opening_window_index} 가 {@code NULL} 인데 상태는
+   * {@code OK} 인 행 35개가 남은 경위를 규명하지 못했다 — 원인을 지목할 수 없으므로 층을 둘 둔다.
+   */
+  static void verifyPersistable(IndexSnapshot snapshot) {
+    SnapshotRationale.IndexStatuses statuses = snapshot.getRationale().indexStatuses();
+    String where =
+        "userId=%s, baseYearMonth=%s, dataVersion=%s"
+            .formatted(
+                snapshot.getUserId(), snapshot.getBaseYearMonth(), snapshot.getDataVersion());
+
+    IndexValueContract.PPI.requireState(where, snapshot.getPurchasingPowerIndex(), statuses.ppi());
+    IndexValueContract.MVI.requireState(where, snapshot.getMarketValueIndex(), statuses.mvi());
+    IndexValueContract.OWI.requireState(where, snapshot.getOpeningWindowIndex(), statuses.owi());
   }
 
   private List<String> monthsFrom(String fromYearMonth, String toYearMonth) {
