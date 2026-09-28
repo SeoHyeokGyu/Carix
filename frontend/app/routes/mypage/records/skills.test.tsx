@@ -275,4 +275,32 @@ describe("스킬 탭 (S-12)", () => {
     expect(await screen.findByText("검색하지 못했습니다.")).toBeInTheDocument();
     expect(screen.queryByText("TypeScript")).not.toBeInTheDocument();
   });
+
+  // 라벨에 사용자 입력이 그대로 들어간다 — 줄바꿈이 막히면 375px 에서 입력 박스를 넘고,
+  // 긴 검색어는 문서 폭을 늘려 페이지가 가로로 스크롤된다.
+  it("직접 추가 링크는 긴 검색어에서 줄바꿈된다", async () => {
+    vi.mocked(skillApi.searchSkills).mockResolvedValue([]);
+    renderTab();
+    const user = userEvent.setup();
+
+    await user.type(await screen.findByLabelText("스킬 검색"), "Zig");
+    const addCustomButton = await screen.findByRole("button", {
+      name: "+ 'Zig'를 사전에 없는 스킬로 직접 추가하기",
+    });
+    expect(addCustomButton).toHaveClass("whitespace-normal");
+    expect(addCustomButton).not.toHaveClass("whitespace-nowrap");
+  });
+
+  it("검색 결과 항목은 긴 스킬명에서 줄바꿈된다", async () => {
+    vi.mocked(skillApi.searchSkills).mockResolvedValue([
+      { id: "s-2", standardName: "TypeScript", isCustom: false },
+    ]);
+    renderTab();
+    const user = userEvent.setup();
+
+    await user.type(await screen.findByLabelText("스킬 검색"), "type");
+    const option = await screen.findByRole("option", { name: "TypeScript" });
+    expect(option).toHaveClass("whitespace-normal", "h-auto");
+    expect(option).not.toHaveClass("whitespace-nowrap");
+  });
 });

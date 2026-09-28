@@ -451,7 +451,7 @@ export default function RecordsSkills() {
                   variant="ghost"
                   role="option"
                   aria-selected="false"
-                  className="w-full justify-start"
+                  className="h-auto min-h-8 w-full justify-start py-1.5 text-left whitespace-normal"
                   onClick={() => setSelected(item)}
                 >
                   {item.standardName}
@@ -470,7 +470,7 @@ export default function RecordsSkills() {
               type="button"
               variant="link"
               size="xs"
-              className="mt-2 h-auto px-0"
+              className="mt-2 h-auto px-0 text-left whitespace-normal"
               onClick={handleCustomSkillStart}
             >
               + &apos;{query.trim()}&apos;를 사전에 없는 스킬로 직접 추가하기

@@ -76,4 +76,17 @@ describe("HelpTooltip", () => {
     await user.keyboard("{Escape}");
     expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
   });
+
+  // Button 의 icon-xs 기본값이 아이콘을 12px 로 줄이고 다크 hover 에 배경을 깔았다.
+  it("아이콘 크기를 지키고 다크 모드에서도 hover 배경을 깔지 않는다", () => {
+    render(
+      <HelpTooltip label="테스트 지표">
+        <p>내용</p>
+      </HelpTooltip>,
+    );
+    const button = screen.getByRole("button", { name: "테스트 지표 도움말" });
+    expect(button).toHaveClass("dark:hover:bg-transparent");
+    expect(button).not.toHaveClass("dark:hover:bg-accent/50");
+    expect(button.querySelector("svg")).toHaveClass("size-3.5");
+  });
 });

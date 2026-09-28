@@ -5,8 +5,11 @@ import { cn } from "@/lib/utils";
  * B 시각 언어의 표. 틀(`framed`)이 기본이고, 이미 `Card` 안에 놓인 표는 `plain` 으로
  * 틀을 벗는다 — `EmptyState` 의 `variant="plain"` 과 같은 규약이다.
  *
- * 가로 스크롤 래퍼는 두 variant 모두 유지한다. 없으면 열이 많은 표가 좁은 폭에서
- * 한글을 글자 단위로 쪼갠다(`S-12` 소득 탭, 375px 에서 "변/경/사/유").
+ * 좁은 폭(`S-12` 소득 탭, 375px)에서 한글이 "변/경/사/유" 로 쌓이지 않게 하는 것은 칸의
+ * `break-keep` 이다 — 표가 폭에 안 들어가면 열이 최소 폭으로 줄고, 한글은 음절 사이 어디서나
+ * 끊긴다. 가로 스크롤 래퍼는 그렇게 넓어진 표를 받아내는 쪽이라 두 variant 모두 유지한다.
+ * `whitespace-nowrap` 은 쓰지 않는다 — 여러 줄이 필요한 칸(사유·뱃지 묶음)까지 한 줄로 묶어
+ * 표를 크게 넓힌다.
  */
 const FRAME_CLASS = {
   framed:
@@ -85,7 +88,7 @@ function TableHead({ className, ...props }: React.ComponentProps<"th">) {
   return (
     <th
       data-slot="table-head"
-      className={cn("px-4 py-3 align-middle font-medium", className)}
+      className={cn("px-4 py-3 align-middle font-medium break-keep", className)}
       {...props}
     />
   );
@@ -95,7 +98,7 @@ function TableCell({ className, ...props }: React.ComponentProps<"td">) {
   return (
     <td
       data-slot="table-cell"
-      className={cn("px-4 py-3 align-middle", className)}
+      className={cn("px-4 py-3 align-middle break-keep", className)}
       {...props}
     />
   );

@@ -96,9 +96,9 @@ export function HelpTooltip({
         aria-label={`${label} 도움말`}
         aria-expanded={showTooltip}
         onClick={handleClick}
-        className="size-5 text-carix-text/40 hover:bg-transparent hover:text-carix-text"
+        className="size-5 text-carix-text/40 hover:bg-transparent hover:text-carix-text focus-visible:text-carix-text dark:hover:bg-transparent"
       >
-        <HelpCircle className="h-3.5 w-3.5" />
+        <HelpCircle className="size-3.5" />
       </Button>
 
       {showTooltip && (

@@ -52,4 +52,12 @@ describe("Table", () => {
       "overflow-x-auto",
     );
   });
+
+  // c13 — 스크롤 래퍼만으로는 모자란다. 표가 좁은 폭에 안 들어가면 열이 최소 폭으로
+  // 줄고, 한글은 음절 사이 어디서나 끊겨 "변/경/사/유" 로 쌓인다. 어절 단위로만 끊는다.
+  it("제목·본문 칸은 한글을 음절 단위로 끊지 않는다", () => {
+    render(<Sample />);
+    expect(screen.getByRole("columnheader")).toHaveClass("break-keep");
+    expect(screen.getByRole("cell")).toHaveClass("break-keep");
+  });
 });
