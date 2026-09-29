@@ -9,6 +9,39 @@ function formatChange(change: number): string {
   return `${arrow} ${Math.abs(change).toFixed(1)}p`;
 }
 
+/** 눈금 한쪽 폭이 나타내는 지수 포인트. 50~150 이 막대 전체다. */
+export const BASELINE_SPAN = 50;
+const BASELINE = 100;
+
+/** 기준 100 을 가운데(50%)에 두고 값까지의 막대. 범위를 넘으면 끝에 붙인다. */
+export function toBaselineBar(value: number): { start: number; width: number } {
+  const clamped = Math.min(
+    Math.max(value, BASELINE - BASELINE_SPAN),
+    BASELINE + BASELINE_SPAN,
+  );
+  const offset = ((clamped - BASELINE) / BASELINE_SPAN) * 50;
+  return offset >= 0
+    ? { start: 50, width: offset }
+    : { start: 50 + offset, width: -offset };
+}
+
+function BaselineScale({ value }: { value: number }) {
+  const { start, width } = toBaselineBar(value);
+  return (
+    <div
+      aria-hidden="true"
+      data-testid="baseline-scale"
+      className="relative h-1.5 w-full rounded-full bg-carix-border"
+    >
+      <span className="absolute -top-1 -bottom-1 left-1/2 w-px bg-carix-text/60" />
+      <span
+        className="absolute inset-y-0 rounded-full bg-carix-info"
+        style={{ left: `${start}%`, width: `${width}%` }}
+      />
+    </div>
+  );
+}
+
 export function IndexCard({
   title,
   index,
@@ -29,7 +62,7 @@ export function IndexCard({
     <Card className="p-5 gap-3 transition-transform hover:-translate-y-0.5 duration-200">
       <CardHeader className="p-0 flex flex-row items-center justify-between gap-1">
         <CardTitle className="text-xs font-medium text-carix-text/70">
-          {title}
+          <h4 className="text-xs font-medium">{title}</h4>
         </CardTitle>
         {helpContent}
       </CardHeader>
@@ -47,6 +80,7 @@ export function IndexCard({
                 </ToneBadge>
               )}
             </div>
+            <BaselineScale value={value} />
             {baselineHint && (
               <p className="text-[11px] text-carix-text/50">{baselineHint}</p>
             )}

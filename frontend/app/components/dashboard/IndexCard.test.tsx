@@ -1,6 +1,6 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
-import { IndexCard } from "./IndexCard";
+import { IndexCard, toBaselineBar } from "./IndexCard";
 
 describe("IndexCard", () => {
   it("OK 면 값과 전월 대비 포인트를 보여준다", () => {
@@ -105,5 +105,77 @@ describe("IndexCard", () => {
     );
 
     expect(screen.getByText("중앙 34일")).toBeInTheDocument();
+  });
+});
+
+describe("IndexCard — 판정 우선 개편", () => {
+  it("카드 제목이 h4 헤딩이다", () => {
+    render(
+      <IndexCard
+        title="구매력 지수"
+        index={{
+          value: 100,
+          changeFromLastMonth: null,
+          status: null,
+          indexStatus: "OK",
+        }}
+      />,
+    );
+    expect(
+      screen.getByRole("heading", { level: 4, name: "구매력 지수" }),
+    ).toBeInTheDocument();
+  });
+
+  it("값이 있으면 기준선 눈금을 그린다", () => {
+    render(
+      <IndexCard
+        title="시장가치 지수"
+        index={{
+          value: 104.6,
+          changeFromLastMonth: null,
+          status: null,
+          indexStatus: "OK",
+        }}
+      />,
+    );
+    expect(screen.getByTestId("baseline-scale")).toBeInTheDocument();
+  });
+
+  it("값이 없으면 눈금도 그리지 않는다", () => {
+    render(
+      <IndexCard
+        title="시장가치 지수"
+        index={{
+          value: null,
+          changeFromLastMonth: null,
+          status: null,
+          indexStatus: "INSUFFICIENT_SAMPLE",
+        }}
+      />,
+    );
+    expect(screen.queryByTestId("baseline-scale")).not.toBeInTheDocument();
+  });
+});
+
+describe("toBaselineBar", () => {
+  it("100 보다 크면 가운데에서 오른쪽으로 뻗는다", () => {
+    const bar = toBaselineBar(104.6);
+    expect(bar.start).toBe(50);
+    expect(bar.width).toBeCloseTo(4.6);
+  });
+
+  it("100 보다 작으면 값에서 가운데까지", () => {
+    const bar = toBaselineBar(94.2);
+    expect(bar.start).toBeCloseTo(44.2);
+    expect(bar.width).toBeCloseTo(5.8);
+  });
+
+  it("범위를 넘으면 끝에 붙인다", () => {
+    expect(toBaselineBar(180)).toEqual({ start: 50, width: 50 });
+    expect(toBaselineBar(20)).toEqual({ start: 0, width: 50 });
+  });
+
+  it("정확히 100 이면 막대 폭이 0", () => {
+    expect(toBaselineBar(100)).toEqual({ start: 50, width: 0 });
   });
 });
