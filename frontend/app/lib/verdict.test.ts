@@ -123,6 +123,28 @@ describe("toSparklineSeries", () => {
     const history = Array.from({ length: 15 }, (_, i) =>
       point(`2026${String(15 - i).padStart(2, "0")}`, "STAY", 100 + i),
     );
-    expect(toSparklineSeries(history, 12).slots).toBe(12);
+    const series = toSparklineSeries(history, 12);
+    expect(series.slots).toBe(12);
+    // 보존된 값들은 최신 12개월이다 (202615-202604, values 100-111)
+    const lastSegment = series.segments[series.segments.length - 1];
+    expect(lastSegment[lastSegment.length - 1].value).toBe(100);
+  });
+
+  it("달력상 빈 달을 인덱스 간격으로 감지한다", () => {
+    const series = toSparklineSeries([
+      point("202608", "STAY", 104),
+      point("202606", "STAY", 102),
+    ]);
+    expect(series.slots).toBe(3);
+    expect(series.segments).toEqual([
+      [{ index: 0, value: 102 }],
+      [{ index: 2, value: 104 }],
+    ]);
+  });
+
+  it("빈 snapshots 는 빈 결과를 반환한다", () => {
+    const series = toSparklineSeries([]);
+    expect(series.slots).toBe(0);
+    expect(series.segments).toEqual([]);
   });
 });

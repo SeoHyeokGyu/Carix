@@ -56,26 +56,83 @@ export function countSignalStreak(
   return count;
 }
 
+/** Convert YYYYMM string to month number for calendar arithmetic. */
+function monthNumber(wire: string): number {
+  const year = Number(wire.slice(0, 4));
+  const month = Number(wire.slice(4));
+  return year * 12 + month;
+}
+
+interface PointWithOffset {
+  value: number;
+  offset: number;
+}
+
 /**
  * 시장가치 지수의 최근 `months` 개월. `null` 과 0 이하는 값이 아니다 — 기준 100 인
- * 지수에서 0 은 만들어진 숫자다(설계 §9). 그 달에서 선을 끊는다.
+ * 지수에서 0 은 만들어진 숫자다(설계 §9). 달력상 빈 달도 선을 끊는다.
+ * 각 점은 최신 달으로부터의 오프셋으로 배치된다.
  */
 export function toSparklineSeries(
   snapshots: readonly SnapshotPoint[],
   months: number = SPARKLINE_MONTHS,
 ): SparklineSeries {
-  const window = snapshots.slice(0, months).reverse();
+  if (snapshots.length === 0) {
+    return { slots: 0, segments: [] };
+  }
+
+  const newestMonth = monthNumber(snapshots[0].baseYearMonth);
+
+  // First pass: collect valid points with offsets and find max offset
+  const points: PointWithOffset[] = [];
+  let maxOffset = 0;
+
+  for (const snap of snapshots) {
+    const offset = newestMonth - monthNumber(snap.baseYearMonth);
+    if (offset >= months) break;
+
+    const value = snap.marketValueIndex;
+    const hasValue = value !== null && value > 0;
+
+    if (hasValue) {
+      points.push({ value, offset });
+      maxOffset = offset;
+    } else {
+      points.push({ value: 0, offset }); // Marker for gap
+    }
+  }
+
+  const slots = maxOffset === 0 && points.length === 0 ? 0 : maxOffset + 1;
+
+  // Second pass: build segments using correct slots
   const segments: SparklinePoint[][] = [];
   let current: SparklinePoint[] = [];
-  window.forEach((point, index) => {
-    const value = point.marketValueIndex;
-    if (value === null || value <= 0) {
-      if (current.length > 0) segments.push(current);
+
+  for (let i = 0; i < points.length; i++) {
+    const point = points[i];
+    const isGap = point.value === 0;
+
+    if (isGap || point.offset > (i > 0 ? points[i - 1].offset : -1) + 1) {
+      // Gap or missing month
+      if (current.length > 0) {
+        // Sort by index (oldest to newest)
+        segments.push(current.sort((a, b) => a.index - b.index));
+      }
       current = [];
-      return;
     }
-    current = [...current, { index, value }];
-  });
-  if (current.length > 0) segments.push(current);
-  return { slots: window.length, segments };
+
+    if (!isGap) {
+      const index = slots - 1 - point.offset;
+      current = [...current, { index, value: point.value }];
+    }
+  }
+
+  if (current.length > 0) {
+    segments.push(current.sort((a, b) => a.index - b.index));
+  }
+
+  // Reverse segments since we built them newest-to-oldest
+  segments.reverse();
+
+  return { slots, segments };
 }
