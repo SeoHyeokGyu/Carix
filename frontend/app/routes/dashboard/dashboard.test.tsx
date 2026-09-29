@@ -3,7 +3,9 @@ import userEvent from "@testing-library/user-event";
 import { createRoutesStub, MemoryRouter } from "react-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as dashboardApi from "../../lib/api/dashboard";
+import * as profileApi from "../../lib/api/profile";
 import { UnauthorizedError } from "../../lib/coreApi";
+import * as dashboardMarketApi from "../../lib/dashboardMarketApi";
 import { resetSession, setSession } from "../../lib/session";
 import DashboardHistory from "./history";
 import DashboardHome, { clientLoader } from "./index";
@@ -56,6 +58,19 @@ describe("대시보드 라우트 및 레이아웃 (Dashboard)", () => {
   });
 
   describe("DashboardHome (지표 메인)", () => {
+    beforeEach(() => {
+      vi.spyOn(dashboardMarketApi, "fetchSnapshotHistory").mockResolvedValue({
+        snapshots: [],
+      });
+      vi.spyOn(profileApi, "getProfile").mockResolvedValue({
+        jobFamily: "DEVELOPER",
+        yearsOfExperience: 5,
+        region: "서울",
+        employmentType: "FULL_TIME",
+        companySize: "LARGE",
+      });
+    });
+
     function renderScreen() {
       const Stub = createRoutesStub([
         {
@@ -73,8 +88,8 @@ describe("대시보드 라우트 및 레이아웃 (Dashboard)", () => {
       return render(<Stub initialEntries={["/dashboard"]} />);
     }
 
-    // 브리프 시나리오 1 — 지수 둘과 결정 신호 카드를 그린다.
-    it("지수 둘과 결정 신호 카드를 그린다", async () => {
+    // 브리프 시나리오 1 — 지수 둘과 판정 히어로를 그린다.
+    it("지수 둘과 판정 히어로를 그린다", async () => {
       vi.spyOn(dashboardApi, "fetchSummary").mockResolvedValue({
         ok: true,
         data: {
@@ -109,6 +124,12 @@ describe("대시보드 라우트 및 레이아웃 (Dashboard)", () => {
       expect(
         screen.getByRole("link", { name: "온보딩 검토 및 재시작" }),
       ).toHaveAttribute("href", "/onboarding/review");
+      expect(
+        screen.getByRole("heading", {
+          level: 2,
+          name: "연봉 격차가 크고 스킬 수요도 올라 있습니다. 적극적인 이직 탐색 구간입니다.",
+        }),
+      ).toBeInTheDocument();
     });
 
     // 브리프 시나리오 2 — 둘 다 계산 전이면 첫 계산 안내를 띄운다.
@@ -183,7 +204,7 @@ describe("대시보드 라우트 및 레이아웃 (Dashboard)", () => {
         screen.getByText("요청을 처리하지 못했습니다."),
       ).toBeInTheDocument();
       expect(
-        screen.getByRole("heading", { name: "핵심 지표" }),
+        screen.getByRole("heading", { level: 1, name: "내 커리어 판정" }),
       ).toBeInTheDocument();
       // code·status 는 절대 화면에 노출하지 않는다.
       expect(screen.queryByText(/502/)).not.toBeInTheDocument();
@@ -330,8 +351,8 @@ describe("대시보드 라우트 및 레이아웃 (Dashboard)", () => {
       await waitFor(() => expect(retryButton).not.toBeDisabled());
     });
 
-    // 브리프 시나리오 4 — 근거를 펼치면 적용 규칙과 동료집단 조건이 보인다.
-    it("근거를 펼치면 적용 규칙과 동료집단 조건이 보인다", async () => {
+    // 브리프 시나리오 4 — 근거 층에 적용 규칙과 넓힌 비교 조건이 보인다.
+    it("근거 층에 적용 규칙과 넓힌 비교 조건이 보인다", async () => {
       vi.spyOn(dashboardApi, "fetchSummary").mockResolvedValue({
         ok: true,
         data: {
@@ -356,18 +377,16 @@ describe("대시보드 라우트 및 레이아웃 (Dashboard)", () => {
       } as never);
 
       renderScreen();
-      await userEvent
-        .setup()
-        .click(await screen.findByRole("button", { name: "근거 보기" }));
 
-      expect(screen.getByText("연봉 격차 15% 이상")).toBeInTheDocument();
+      expect(await screen.findByText("연봉 격차 15% 이상")).toBeInTheDocument();
       expect(
         screen.getByText("서울 전체 / 경력 MID / 회사규모 무관"),
       ).toBeInTheDocument();
+      expect(screen.getByText("조건을 넓혀 비교했습니다")).toBeInTheDocument();
     });
 
     // 기능 명세 US-D1 두 번째 bullet — 근거에는 규칙 버전도 함께 노출해야 한다.
-    it("근거를 펼치면 규칙 버전도 함께 보인다", async () => {
+    it("신뢰 층에 규칙 버전이 보인다", async () => {
       vi.spyOn(dashboardApi, "fetchSummary").mockResolvedValue({
         ok: true,
         data: {
@@ -393,11 +412,8 @@ describe("대시보드 라우트 및 레이아웃 (Dashboard)", () => {
       } as never);
 
       renderScreen();
-      await userEvent
-        .setup()
-        .click(await screen.findByRole("button", { name: "근거 보기" }));
 
-      expect(screen.getByText(/1\.2\.0/)).toBeInTheDocument();
+      expect(await screen.findByText(/1\.2\.0/)).toBeInTheDocument();
     });
 
     // 스킬 수요율 펼치기(GET /dashboard/skills, B 소관) 대신 S-11 링크로 대체하기로 한
@@ -568,6 +584,130 @@ describe("대시보드 라우트 및 레이아웃 (Dashboard)", () => {
       expect(
         screen.queryByText("첫 지수를 계산하고 있습니다"),
       ).not.toBeInTheDocument();
+    });
+
+    const OK_DATA = {
+      purchasingPowerIndex: {
+        ...EMPTY_INDEX,
+        value: 100,
+        indexStatus: "OK" as const,
+      },
+      marketValueIndex: {
+        ...EMPTY_INDEX,
+        value: 104.6,
+        indexStatus: "OK" as const,
+      },
+      openingWindowIndex: {
+        ...EMPTY_INDEX,
+        value: 103.5,
+        indexStatus: "OK" as const,
+      },
+      decisionSignal: {
+        code: "STAY",
+        label: "잔류",
+        rulesApplied: ["연봉이 시장 수준에 근접"],
+        rationale: "공식 임금통계 중앙값과 비슷한 수준입니다.",
+      },
+      metadata: {
+        baseDate: "2026-08-01",
+        updateDelayed: false,
+        peerGroup: {
+          fallbackLevel: 1,
+          appliedConditions: "서울 전체 / MID (4~7년) / LARGE / FULL_TIME",
+        },
+      },
+    };
+
+    it("헤딩이 h1 하나에서 시작해 단계를 건너뛰지 않는다", async () => {
+      vi.spyOn(dashboardApi, "fetchSummary").mockResolvedValue({
+        ok: true,
+        data: OK_DATA,
+      } as never);
+      renderScreen();
+      await screen.findByRole("heading", { level: 2 });
+
+      const levels = screen
+        .getAllByRole("heading")
+        .map((heading) => Number(heading.tagName.slice(1)));
+      expect(levels.filter((level) => level === 1)).toHaveLength(1);
+      expect(levels[0]).toBe(1);
+      levels.slice(1).forEach((level, i) => {
+        expect(level - levels[i]).toBeLessThanOrEqual(1);
+      });
+      expect(
+        screen.getByRole("heading", {
+          level: 1,
+          name: "2026년 8월 기준 · 내 커리어 판정",
+        }),
+      ).toBeInTheDocument();
+    });
+
+    it("완화가 없으면 비교 조건을 프로필 한글 칩으로 보인다", async () => {
+      vi.spyOn(dashboardApi, "fetchSummary").mockResolvedValue({
+        ok: true,
+        data: OK_DATA,
+      } as never);
+      renderScreen();
+      const chips = await screen.findByRole("list", { name: "비교 조건" });
+      expect(within(chips).getByText("대기업")).toBeInTheDocument();
+      expect(screen.queryByText(/FULL_TIME/)).not.toBeInTheDocument();
+    });
+
+    it("이력·프로필 조회가 실패해도 지수와 판정은 뜨고 비교 조건은 서버 문자열로 물러난다", async () => {
+      vi.spyOn(dashboardApi, "fetchSummary").mockResolvedValue({
+        ok: true,
+        data: OK_DATA,
+      } as never);
+      vi.spyOn(dashboardMarketApi, "fetchSnapshotHistory").mockRejectedValue(
+        new Error("500"),
+      );
+      vi.spyOn(profileApi, "getProfile").mockRejectedValue(new Error("500"));
+      renderScreen();
+
+      expect(await screen.findByText("104.6")).toBeInTheDocument();
+      expect(screen.getByRole("heading", { level: 2 })).toBeInTheDocument();
+      expect(
+        screen.getByText("서울 전체 / MID (4~7년) / LARGE / FULL_TIME"),
+      ).toBeInTheDocument();
+      expect(
+        screen.queryByText("조건을 넓혀 비교했습니다"),
+      ).not.toBeInTheDocument();
+      expect(
+        screen.queryByText("이 판정이 이어진 기간"),
+      ).not.toBeInTheDocument();
+    });
+
+    it("이력 조회가 401 이면 로그인 화면으로 보낸다", async () => {
+      vi.spyOn(dashboardApi, "fetchSummary").mockResolvedValue({
+        ok: true,
+        data: OK_DATA,
+      } as never);
+      vi.spyOn(dashboardMarketApi, "fetchSnapshotHistory").mockRejectedValue(
+        new UnauthorizedError(),
+      );
+      renderScreen();
+      expect(await screen.findByText("로그인 화면")).toBeInTheDocument();
+    });
+
+    it("이력이 있으면 같은 판정이 이어진 개월 수를 보인다", async () => {
+      vi.spyOn(dashboardApi, "fetchSummary").mockResolvedValue({
+        ok: true,
+        data: OK_DATA,
+      } as never);
+      vi.spyOn(dashboardMarketApi, "fetchSnapshotHistory").mockResolvedValue({
+        snapshots: ["202608", "202607"].map((baseYearMonth) => ({
+          baseYearMonth,
+          purchasingPowerIndex: 100,
+          marketValueIndex: 104,
+          decisionSignal: "STAY",
+          label: "현 상태 유지",
+          dataVersion: "v1",
+          ruleVersion: "1.2.0",
+          rationale: null,
+        })),
+      });
+      renderScreen();
+      expect(await screen.findByText("2개월째")).toBeInTheDocument();
     });
   });
 

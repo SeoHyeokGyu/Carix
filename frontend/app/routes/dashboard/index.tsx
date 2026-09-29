@@ -3,25 +3,52 @@ import { Link, redirect, useLoaderData, useRevalidator } from "react-router";
 import { RotateCw } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { HelpTooltip } from "../../components/common/HelpTooltip";
 import { IndexCard } from "../../components/dashboard/IndexCard";
-import { SignalBadge } from "../../components/dashboard/SignalBadge";
+import {
+  OpeningWindowHelp,
+  MarketValueHelp,
+  PurchasingPowerHelp,
+} from "../../components/dashboard/IndexHelp";
+import { TrustPanel } from "../../components/dashboard/TrustPanel";
+import { VerdictHero } from "../../components/dashboard/VerdictHero";
+import { useIsNarrowViewport } from "../../hooks/useIsNarrowViewport";
 import { toUserMessage } from "../../lib/apiError";
+import { getProfile } from "../../lib/api/profile";
 import {
   fetchSummary,
   recalculateDashboard,
   type DashboardSummary,
 } from "../../lib/api/dashboard";
 import { UnauthorizedError } from "../../lib/coreApi";
+import { fetchSnapshotHistory } from "../../lib/dashboardMarketApi";
+import { resolvePeerConditions } from "../../lib/peerConditions";
 import { LOGIN_PATH } from "../../lib/routeGuards";
+import { formatVerdictHeading } from "../../lib/verdict";
+
+/**
+ * 1층 프리뷰와 3층 비교 조건의 재료. 없어도 판정은 선다 — 실패하면 그 요소만 사라지고
+ * 화면은 남는다. 401 만은 다른 화면과 같이 로그인으로 보낸다.
+ */
+async function loadOptional<T>(load: () => Promise<T>): Promise<T | null> {
+  try {
+    return await load();
+  } catch (error) {
+    if (error instanceof UnauthorizedError) throw error;
+    return null;
+  }
+}
 
 export async function clientLoader() {
   try {
-    return { summary: await fetchSummary() };
+    const [summary, history, profile] = await Promise.all([
+      fetchSummary(),
+      loadOptional(fetchSnapshotHistory),
+      loadOptional(getProfile),
+    ]);
+    return { summary, history: history?.snapshots ?? null, profile };
   } catch (error) {
     // fetchSummary 는 UnauthorizedError 만 다시 던진다(설계 §10) — 다른 화면과 같은 판단으로
-    // 로그인으로 보낸다. 그 밖의 경로는 애초에 fetchSummary 가 던지지 않으므로 여기 오지 않는다.
+    // 로그인으로 보낸다. 부가 조회 둘도 401 만 여기까지 올라온다.
     if (error instanceof UnauthorizedError) throw redirect(LOGIN_PATH);
     throw error;
   }
@@ -47,7 +74,12 @@ function isFirstCalculation(data: DashboardSummary): boolean {
 }
 
 export default function DashboardHome() {
-  const { summary } = useLoaderData<typeof clientLoader>();
+  const loaderData = useLoaderData<typeof clientLoader>();
+  const { summary } = loaderData;
+  // 재검증 사이 loaderData 가 summary 만 가진 모양으로 올 수 있다(retention 테스트) — 없으면 없는 대로 그린다.
+  const history = loaderData.history ?? null;
+  const profile = loaderData.profile ?? null;
+  const isNarrow = useIsNarrowViewport();
   const revalidator = useRevalidator();
   // loader 는 실패를 예외가 아니라 {ok:false} 로 돌려준다(설계 §10) — 하지만 React Router 는
   // 재검증마다 loaderData 를 통째로 새 값으로 바꾼다. 재조회가 실패하면 이전 성공 데이터가
@@ -69,7 +101,6 @@ export default function DashboardHome() {
     }
   }
 
-  const [isRationaleOpen, setIsRationaleOpen] = useState(false);
   const [isRecalculating, setIsRecalculating] = useState(false);
   const [recalculateMessage, setRecalculateMessage] = useState<string | null>(
     null,
@@ -101,37 +132,35 @@ export default function DashboardHome() {
   const firstCalculation = data !== null && isFirstCalculation(data);
 
   return (
-    <section className="mx-auto w-full max-w-4xl px-6 py-10">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-sm text-carix-text/70">
-          기준일: {data?.metadata.baseDate ?? "-"}
-        </p>
-        <div className="flex flex-wrap items-center gap-4">
-          <Link
-            to="/dashboard/guide"
-            className="text-sm font-medium text-carix-info hover:underline flex items-center gap-1"
-          >
-            지표 가이드
-          </Link>
-          <Link
-            to="/dashboard/history"
-            className="text-sm text-carix-text/70 hover:text-carix-text underline"
-          >
-            월별 스냅샷 이력 보기
-          </Link>
-          <Link
-            to="/onboarding/review"
-            className="text-sm text-carix-text/70 hover:text-carix-text underline"
-          >
-            온보딩 검토 및 재시작
-          </Link>
-        </div>
-      </div>
+    <section className="mx-auto w-full max-w-5xl px-6 py-10">
+      <nav
+        aria-label="대시보드 바로가기"
+        className="flex flex-wrap justify-end gap-4"
+      >
+        <Link
+          to="/dashboard/guide"
+          className="text-sm font-medium text-carix-info hover:underline flex items-center gap-1"
+        >
+          지표 가이드
+        </Link>
+        <Link
+          to="/dashboard/history"
+          className="text-sm text-carix-text/70 hover:text-carix-text underline"
+        >
+          월별 스냅샷 이력 보기
+        </Link>
+        <Link
+          to="/onboarding/review"
+          className="text-sm text-carix-text/70 hover:text-carix-text underline"
+        >
+          온보딩 검토 및 재시작
+        </Link>
+      </nav>
 
-      <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
-        <h2 className="font-display text-2xl font-bold text-carix-text">
-          핵심 지표
-        </h2>
+      <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+        <h1 className="font-display text-xl font-bold text-carix-text">
+          {formatVerdictHeading(data?.metadata.baseDate)}
+        </h1>
         <Button
           type="button"
           variant="outline"
@@ -192,177 +221,56 @@ export default function DashboardHome() {
       )}
 
       {data && !firstCalculation && (
-        <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <IndexCard
-            title="구매력 지수"
-            index={data.purchasingPowerIndex}
-            baselineHint="기준 100: 물가와 동일한 소득 변화"
-            helpContent={
-              <HelpTooltip label="구매력 지수">
-                <div className="flex flex-col gap-1.5">
-                  <p className="font-semibold text-carix-text">
-                    구매력 지수 (PPI)
-                  </p>
-                  <p className="text-carix-text/80">
-                    내 소득 상승률과 소비자물가지수(CPI)를 비교하여 실질 소득의
-                    구매력 변화를 측정합니다.
-                  </p>
-                  <ul className="text-carix-text/70 space-y-1 mt-1">
-                    <li className="flex items-start gap-1.5">
-                      <span className="shrink-0 px-1.5 py-0.5 rounded bg-carix-positive/10 text-carix-positive font-semibold text-[10px]">
-                        100 초과
-                      </span>
-                      <span>물가보다 소득이 더 올라 실질 구매력 증가</span>
-                    </li>
-                    <li className="flex items-start gap-1.5">
-                      <span className="shrink-0 px-1.5 py-0.5 rounded bg-carix-warning/10 text-carix-warning font-semibold text-[10px]">
-                        100 미만
-                      </span>
-                      <span>물가 상승률에 못 미쳐 실질 소득 감소</span>
-                    </li>
-                  </ul>
-                </div>
-              </HelpTooltip>
-            }
-          />
-          <IndexCard
-            title="시장가치 지수"
-            index={data.marketValueIndex}
-            baselineHint="기준 100: 동료집단 임금 중앙값"
-            helpContent={
-              <HelpTooltip label="시장가치 지수">
-                <div className="flex flex-col gap-1.5">
-                  <p className="font-semibold text-carix-text">
-                    시장가치 지수 (MVI)
-                  </p>
-                  <p className="text-carix-text/80">
-                    보유 스킬과 경력 조건의 시장 가치를 고용노동부 공식 임금
-                    통계와 비교합니다.
-                  </p>
-                  <ul className="text-carix-text/70 space-y-1 mt-1">
-                    <li className="flex items-start gap-1.5">
-                      <span className="shrink-0 px-1.5 py-0.5 rounded bg-carix-positive/10 text-carix-positive font-semibold text-[10px]">
-                        100 초과
-                      </span>
-                      <span>
-                        보유 스킬 수요가 높아 시장 평균 대비 높은 가치 형성
-                      </span>
-                    </li>
-                    <li className="flex items-start gap-1.5">
-                      <span className="shrink-0 px-1.5 py-0.5 rounded bg-carix-info/10 text-carix-info font-semibold text-[10px]">
-                        100 기준
-                      </span>
-                      <span>
-                        동료집단(동일 연차·직무) 공식 임금 중앙값 수준
-                      </span>
-                    </li>
-                  </ul>
-                </div>
-              </HelpTooltip>
-            }
+        <div className="mt-6 flex flex-col gap-8">
+          <VerdictHero
+            signal={data.decisionSignal}
+            history={history}
+            isNarrow={isNarrow}
           />
 
-          {data.decisionSignal && (
-            <Card className="p-5 gap-3 transition-transform hover:-translate-y-0.5 duration-200">
-              <CardHeader className="p-0 flex flex-row items-center justify-between gap-1">
-                <CardTitle className="text-xs font-medium text-carix-text/70">
-                  결정 신호
-                </CardTitle>
-                <HelpTooltip label="결정 신호" align="right">
-                  <div className="flex flex-col gap-1.5">
-                    <p className="font-semibold text-carix-text">
-                      결정 신호 (Decision Signal)
-                    </p>
-                    <p className="text-carix-text/80">
-                      구매력, 시장가치, 개방창 지수와 연봉 격차를 종합 분석하여
-                      도출된 행동 가이드입니다.
-                    </p>
-                    <p className="text-carix-text/70 mt-0.5">
-                      이직 탐색, 연봉 협상, 스킬 강화, 현재 유지 등의 신호를
-                      제공합니다.
-                    </p>
-                  </div>
-                </HelpTooltip>
-              </CardHeader>
-              <CardContent className="p-0 flex flex-col gap-3">
-                <SignalBadge
-                  code={data.decisionSignal.code}
-                  serverLabel={data.decisionSignal.label}
-                  className="self-start"
-                />
+          <section
+            aria-labelledby="evidence-title"
+            className="flex flex-col gap-3"
+          >
+            <h3
+              id="evidence-title"
+              className="text-sm font-semibold text-carix-text/80"
+            >
+              이 판정을 만든 지표
+            </h3>
+            <div className="grid gap-4 md:grid-cols-3">
+              <IndexCard
+                title="구매력 지수"
+                index={data.purchasingPowerIndex}
+                baselineHint="기준 100: 물가와 동일한 소득 변화"
+                helpContent={<PurchasingPowerHelp />}
+              />
+              <IndexCard
+                title="시장가치 지수"
+                index={data.marketValueIndex}
+                baselineHint="기준 100: 동료집단 임금 중앙값"
+                helpContent={<MarketValueHelp />}
+              />
+              <IndexCard
+                title="개방창 지수"
+                index={data.openingWindowIndex}
+                baselineHint="기준 100: 전체 시장 중앙 모집 기간"
+                helpContent={<OpeningWindowHelp />}
+                footer={
+                  <OpeningWindowBadges meta={data.metadata.openingWindow} />
+                }
+              />
+            </div>
+          </section>
 
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  aria-expanded={isRationaleOpen}
-                  onClick={() => setIsRationaleOpen((open) => !open)}
-                  className="self-start"
-                >
-                  근거 보기
-                </Button>
-
-                {isRationaleOpen && (
-                  <div className="flex flex-col gap-2 text-sm text-carix-text/80">
-                    <p>{data.decisionSignal.rationale}</p>
-                    <ul className="flex flex-col gap-1">
-                      {data.decisionSignal.rulesApplied.map((rule) => (
-                        <li key={rule}>{rule}</li>
-                      ))}
-                    </ul>
-                    {data.metadata.peerGroup && (
-                      <p>
-                        적용 비교 조건:{" "}
-                        <span>{data.metadata.peerGroup.appliedConditions}</span>
-                      </p>
-                    )}
-                    {data.metadata.ruleVersion && (
-                      <p>
-                        규칙 버전: <span>{data.metadata.ruleVersion}</span>
-                      </p>
-                    )}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          )}
-
-          <IndexCard
-            title="개방창 지수"
-            index={data.openingWindowIndex}
-            baselineHint="기준 100: 전체 시장 중앙 모집 기간"
-            helpContent={
-              <HelpTooltip label="개방창 지수" align="right">
-                <div className="flex flex-col gap-1.5">
-                  <p className="font-semibold text-carix-text">
-                    개방창 지수 (OWI)
-                  </p>
-                  <p className="text-carix-text/80">
-                    동료집단 채용 공고의 평균 모집 기간을 전체 채용 시장과
-                    비교한 속도 지표입니다.
-                  </p>
-                  <ul className="text-carix-text/70 space-y-1 mt-1">
-                    <li className="flex items-start gap-1.5">
-                      <span className="shrink-0 px-1.5 py-0.5 rounded bg-carix-info/10 text-carix-info font-semibold text-[10px]">
-                        100 초과
-                      </span>
-                      <span>
-                        모집 기간이 길어 지원 기회가 여유롭거나 상시채용 성향
-                      </span>
-                    </li>
-                    <li className="flex items-start gap-1.5">
-                      <span className="shrink-0 px-1.5 py-0.5 rounded bg-carix-warning/10 text-carix-warning font-semibold text-[10px]">
-                        100 미만
-                      </span>
-                      <span>
-                        조기 마감 등 마감이 빠른 집중 채용 경향 (빠른 지원 필요)
-                      </span>
-                    </li>
-                  </ul>
-                </div>
-              </HelpTooltip>
-            }
-            footer={<OpeningWindowBadges meta={data.metadata.openingWindow} />}
+          <TrustPanel
+            metadata={data.metadata}
+            rationale={data.decisionSignal?.rationale ?? null}
+            peerConditions={resolvePeerConditions(
+              data.metadata.peerGroup,
+              profile,
+            )}
+            isNarrow={isNarrow}
           />
         </div>
       )}
