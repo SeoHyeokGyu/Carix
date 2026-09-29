@@ -10,6 +10,13 @@ const STAY = {
   rationale: "공식 임금통계 중앙값과 비슷한 수준입니다.",
 };
 
+const SEEK_JOB = {
+  code: "SEEK_JOB",
+  label: "이직 탐색",
+  rulesApplied: ["연봉 격차가 큼", "스킬 수요 상승"],
+  rationale: "연봉 격차가 크고 스킬 수요도 올라 있습니다.",
+};
+
 function point(
   baseYearMonth: string,
   decisionSignal: string,
@@ -94,6 +101,23 @@ describe("VerdictHero", () => {
     );
     expect(container.querySelector("svg[data-testid='sparkline']")).toBeNull();
     expect(screen.getByText("3개월째")).toBeInTheDocument();
+  });
+
+  it("경고 신호(이직 탐색)의 연속 개월 점은 경고 톤이지 긍정 톤이 아니다", () => {
+    const seekJobHistory = [point("202608", "SEEK_JOB", 104.6)];
+    render(
+      <VerdictHero
+        signal={SEEK_JOB}
+        history={seekJobHistory}
+        isNarrow={false}
+      />,
+    );
+    const dots = screen.getAllByTestId("streak-dot");
+    expect(dots.length).toBeGreaterThan(0);
+    for (const dot of dots) {
+      expect(dot).toHaveClass("bg-carix-warning");
+      expect(dot).not.toHaveClass("bg-carix-positive");
+    }
   });
 
   it("판정이 없어도 h2 가 있다", () => {

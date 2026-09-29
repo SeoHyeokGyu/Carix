@@ -1,5 +1,6 @@
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
+import type { Tone } from "@/components/ui/tone-badge";
 import type { DecisionSignal } from "../../lib/api/dashboard";
 import type { SnapshotPoint } from "../../lib/dashboardMarketApi";
 import { resolveDecisionSignal } from "../../lib/decisionSignal";
@@ -11,6 +12,19 @@ import { Sparkline } from "./Sparkline";
 /** 점이 이보다 많으면 점은 여기서 멈추고 숫자가 나머지를 말한다. */
 export const STREAK_DOT_LIMIT = 12;
 const MIN_SPARKLINE_POINTS = 2;
+
+/**
+ * 톤 → 점 색. Tailwind 는 동적 클래스명을 못 보므로 정적 문자열 표로 둔다
+ * ([UI_RULES] `eslint.config.js`, carix 토큰만 사용).
+ */
+const STREAK_DOT_TONE_CLASS: Record<Tone, string> = {
+  positive: "bg-carix-positive",
+  warning: "bg-carix-warning",
+  danger: "bg-carix-danger",
+  info: "bg-carix-info",
+  action: "bg-carix-action",
+  muted: "bg-carix-text/40",
+};
 
 interface VerdictHeroProps {
   signal: DecisionSignal | null;
@@ -55,6 +69,7 @@ export function VerdictHero({ signal, history, isNarrow }: VerdictHeroProps) {
         {signal && history && (
           <VerdictPreview
             code={signal.code}
+            tone={view.tone}
             history={history}
             isNarrow={isNarrow}
           />
@@ -66,10 +81,12 @@ export function VerdictHero({ signal, history, isNarrow }: VerdictHeroProps) {
 
 function VerdictPreview({
   code,
+  tone,
   history,
   isNarrow,
 }: {
   code: string;
+  tone: Tone;
   history: readonly SnapshotPoint[];
   isNarrow: boolean;
 }) {
@@ -91,7 +108,8 @@ function VerdictPreview({
                 (_, i) => (
                   <span
                     key={i}
-                    className="size-2 rounded-full bg-carix-positive"
+                    data-testid="streak-dot"
+                    className={`size-2 rounded-full ${STREAK_DOT_TONE_CLASS[tone]}`}
                   />
                 ),
               )}
