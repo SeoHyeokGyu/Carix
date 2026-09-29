@@ -120,4 +120,32 @@ describe("resolvePeerConditions", () => {
     expect(resolvePeerConditions(null, PROFILE)).toBeNull();
     expect(resolvePeerConditions(undefined, PROFILE)).toBeNull();
   });
+
+  it('빈 회사규모는 null과 같이 2단계에서 "회사규모 무관"을 만든다', () => {
+    expect(
+      resolvePeerConditions(
+        { fallbackLevel: 2, appliedConditions: SERVER_TEXT },
+        { ...PROFILE, companySize: "" },
+      ),
+    ).toEqual({
+      kind: "chips",
+      chips: ["서울 전체", "4~7년", "회사규모 무관", "정규직"],
+    });
+  });
+
+  it("빈 지역이나 고용형태는 서버 문자열로 물러난다", () => {
+    expect(
+      resolvePeerConditions(
+        { fallbackLevel: 1, appliedConditions: SERVER_TEXT },
+        { ...PROFILE, region: "" },
+      ),
+    ).toEqual({ kind: "server", text: SERVER_TEXT, widened: false });
+
+    expect(
+      resolvePeerConditions(
+        { fallbackLevel: 1, appliedConditions: SERVER_TEXT },
+        { ...PROFILE, employmentType: "  " },
+      ),
+    ).toEqual({ kind: "server", text: SERVER_TEXT, widened: false });
+  });
 });

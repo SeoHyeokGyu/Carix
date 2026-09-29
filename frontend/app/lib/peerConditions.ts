@@ -26,6 +26,10 @@ export function experienceBracketLabel(years: number): string {
   return "8년+";
 }
 
+function isBlank(value: string | null | undefined): boolean {
+  return value === null || value === undefined || value.trim() === "";
+}
+
 function labelOf(options: readonly Option[], value: string): string | null {
   return options.find((option) => option.value === value)?.label ?? null;
 }
@@ -38,27 +42,27 @@ function isExactMatch(
   if (fallbackLevel === EXACT_LEVEL) return true;
   return (
     fallbackLevel === COMPANY_SIZE_RELEASED_LEVEL &&
-    profile.companySize === null
+    isBlank(profile.companySize)
   );
 }
 
 function buildChips(profile: ProfileResponse): string[] | null {
   const { region, yearsOfExperience, employmentType, companySize } = profile;
   if (
-    region === null ||
+    isBlank(region) ||
     yearsOfExperience === null ||
-    employmentType === null
+    isBlank(employmentType)
   ) {
     return null;
   }
-  const employment = labelOf(EMPLOYMENT_TYPES, employmentType);
-  const size =
-    companySize === null
-      ? ANY_COMPANY_SIZE
-      : labelOf(COMPANY_SIZES, companySize);
+  const employment = labelOf(EMPLOYMENT_TYPES, employmentType as string);
+  const size = isBlank(companySize)
+    ? ANY_COMPANY_SIZE
+    : labelOf(COMPANY_SIZES, companySize as string);
   if (employment === null || size === null) return null;
 
-  const regionChip = region.includes("구") ? region : `${region} 전체`;
+  const regionStr = region as string;
+  const regionChip = regionStr.includes("구") ? regionStr : `${regionStr} 전체`;
   return [
     regionChip,
     experienceBracketLabel(yearsOfExperience),
