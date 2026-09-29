@@ -59,7 +59,7 @@ export function MarketValueHelp() {
 
 export function DecisionSignalHelp() {
   return (
-    <HelpTooltip label="결정 신호" align="right">
+    <HelpTooltip label="결정 신호">
       <div className="flex flex-col gap-1.5">
         <p className="font-semibold text-carix-text">
           결정 신호 (Decision Signal)
