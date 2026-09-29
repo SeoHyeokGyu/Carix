@@ -1,4 +1,4 @@
-import { useSyncExternalStore } from "react";
+import { useCallback, useSyncExternalStore } from "react";
 
 function subscribe(query: string, callback: () => void) {
   const mediaQueryList = window.matchMedia(query);
@@ -15,9 +15,15 @@ function getServerSnapshot() {
 }
 
 export function useMediaQuery(query: string): boolean {
+  const subscribeToQuery = useCallback(
+    (callback: () => void) => subscribe(query, callback),
+    [query],
+  );
+  const getQuerySnapshot = useCallback(() => getSnapshot(query), [query]);
+
   return useSyncExternalStore(
-    (callback) => subscribe(query, callback),
-    () => getSnapshot(query),
+    subscribeToQuery,
+    getQuerySnapshot,
     getServerSnapshot,
   );
 }
