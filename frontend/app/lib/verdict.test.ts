@@ -147,4 +147,34 @@ describe("toSparklineSeries", () => {
     expect(series.slots).toBe(0);
     expect(series.segments).toEqual([]);
   });
+
+  it("오래된 달이 null이면 slots은 여전히 모든 포함된 달을 센다", () => {
+    const series = toSparklineSeries([
+      point("202608", "STAY", 104),
+      point("202607", "STAY", 102),
+      point("202606", "STAY", null),
+    ]);
+    expect(series.slots).toBe(3);
+    expect(series.segments).toEqual([
+      [
+        { index: 1, value: 102 },
+        { index: 2, value: 104 },
+      ],
+    ]);
+  });
+
+  it("오래된 달이 0이면 slots은 여전히 모든 포함된 달을 센다", () => {
+    const series = toSparklineSeries([
+      point("202608", "STAY", 104),
+      point("202607", "STAY", 102),
+      point("202606", "STAY", 0),
+    ]);
+    expect(series.slots).toBe(3);
+    expect(series.segments).toEqual([
+      [
+        { index: 1, value: 102 },
+        { index: 2, value: 104 },
+      ],
+    ]);
+  });
 });

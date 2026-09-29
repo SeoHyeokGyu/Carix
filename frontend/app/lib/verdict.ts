@@ -85,7 +85,7 @@ export function toSparklineSeries(
 
   // First pass: collect valid points with offsets and find max offset
   const points: PointWithOffset[] = [];
-  let maxOffset = 0;
+  let maxOffset = -1;
 
   for (const snap of snapshots) {
     const offset = newestMonth - monthNumber(snap.baseYearMonth);
@@ -96,13 +96,14 @@ export function toSparklineSeries(
 
     if (hasValue) {
       points.push({ value, offset });
-      maxOffset = offset;
     } else {
       points.push({ value: 0, offset }); // Marker for gap
     }
+    // Update maxOffset for ALL included snapshots, not just valid ones
+    maxOffset = offset;
   }
 
-  const slots = maxOffset === 0 && points.length === 0 ? 0 : maxOffset + 1;
+  const slots = maxOffset === -1 ? 0 : maxOffset + 1;
 
   // Second pass: build segments using correct slots
   const segments: SparklinePoint[][] = [];
