@@ -45,6 +45,18 @@ export interface OpeningWindowMetadata {
   deadlineSampleSize: number | null;
 }
 
+/**
+ * 그 사용자의 물가 상승에 가장 크게 기여한 카테고리 (API 규격 §5.1). 서버가 조립한 라벨을 그대로 쓴다.
+ * `estimated` 는 그 카테고리 가중치가 기본값으로 채워졌는지다.
+ */
+export interface TopPriceDriver {
+  category: string;
+  label: string;
+  estimated: boolean;
+  /** 사용한 CPI 기준월 `YYYYMM`. */
+  cpiMonth: string;
+}
+
 export interface DashboardMetadata {
   baseDate: string;
   dataVersion?: string;
@@ -62,6 +74,7 @@ export interface DashboardMetadata {
   } | null;
   expenseWeightStatus?: string | null;
   openingWindow?: OpeningWindowMetadata | null;
+  topPriceDriver?: TopPriceDriver | null;
 }
 
 export interface DashboardSummary {

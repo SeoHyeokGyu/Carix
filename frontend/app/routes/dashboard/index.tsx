@@ -9,6 +9,7 @@ import {
   MarketValueHelp,
   PurchasingPowerHelp,
 } from "../../components/dashboard/IndexHelp";
+import { PriceDriverBadge } from "../../components/dashboard/PriceDriverBadge";
 import { TrustPanel } from "../../components/dashboard/TrustPanel";
 import { VerdictHero } from "../../components/dashboard/VerdictHero";
 import { useIsNarrowViewport } from "../../hooks/useIsNarrowViewport";
@@ -244,6 +245,9 @@ export default function DashboardHome() {
                 index={data.purchasingPowerIndex}
                 baselineHint="기준 100: 물가와 동일한 소득 변화"
                 helpContent={<PurchasingPowerHelp />}
+                footer={
+                  <PriceDriverBadge driver={data.metadata.topPriceDriver} />
+                }
               />
               <IndexCard
                 title="시장가치 지수"
