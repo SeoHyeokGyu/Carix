@@ -9,6 +9,7 @@ import com.carix.dashboard.dto.SnapshotHistoryResponse;
 import com.carix.dashboard.dto.TrendListResponse;
 import com.carix.index.dto.SkillContribution;
 import com.carix.index.dto.SourceCoverage;
+import com.carix.index.dto.TopPriceDriver;
 import com.carix.index.enums.IndexStatus;
 import com.carix.snapshot.DecisionSignalCode;
 import com.carix.snapshot.domain.IndexSnapshot;
@@ -305,6 +306,58 @@ class SnapshotReadServiceTest {
         .isEqualTo(IndexStatus.NOT_AVAILABLE.name());
     assertThat(response.openingWindowIndex().indexStatus())
         .isEqualTo(IndexStatus.NOT_AVAILABLE.name());
+  }
+
+  @Test
+  @DisplayName("summary - 저장된 물가 기여도 1위를 기여도 값만 빼고 메타데이터에 싣는다")
+  void summary_물가기여도() {
+    var driver =
+        new TopPriceDriver("TRANSPORT", "교통 부담률 최대 상승", true, "202606", new BigDecimal("0.005"));
+    given(repository.findByUserIdOrderByBaseYearMonthDesc(USER_ID))
+        .willReturn(List.of(snapshotWithDriver(driver)));
+
+    DashboardSummaryResponse response = summaryService.resolve(USER_ID, "202607");
+
+    assertThat(response.metadata().topPriceDriver())
+        .isEqualTo(
+            new DashboardSummaryResponse.PriceDriver("TRANSPORT", "교통 부담률 최대 상승", true, "202606"));
+  }
+
+  @Test
+  @DisplayName("summary - 근거에 물가 기여도가 없으면(옛 행 포함) 메타데이터도 비운다")
+  void summary_물가기여도없음() {
+    given(repository.findByUserIdOrderByBaseYearMonthDesc(USER_ID))
+        .willReturn(List.of(snapshotWithDriver(null)));
+
+    DashboardSummaryResponse response = summaryService.resolve(USER_ID, "202607");
+
+    assertThat(response.metadata().topPriceDriver()).isNull();
+  }
+
+  private IndexSnapshot snapshotWithDriver(TopPriceDriver driver) {
+    return IndexSnapshot.builder()
+        .userId(USER_ID)
+        .baseYearMonth("202607")
+        .dataVersion("20260701093000-000")
+        .ruleVersion("1.2.0")
+        .purchasingPowerIndex(new BigDecimal("100.00"))
+        .decisionSignal(DecisionSignalCode.STAY)
+        .rationale(
+            new SnapshotRationale(
+                List.of(),
+                null,
+                List.of(),
+                List.of(),
+                List.of(),
+                LocalDate.of(2026, 7, 1),
+                LocalDate.of(2026, 7, 1),
+                "202606",
+                "20260701093000-000",
+                SnapshotRationale.IndexStatuses.unknown(),
+                null,
+                null,
+                driver))
+        .build();
   }
 
   // --- /dashboard/history ---

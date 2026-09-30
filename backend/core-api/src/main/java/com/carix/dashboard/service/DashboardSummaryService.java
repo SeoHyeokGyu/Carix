@@ -6,10 +6,12 @@ import com.carix.dashboard.dto.DashboardSummaryResponse.DecisionSignal;
 import com.carix.dashboard.dto.DashboardSummaryResponse.ExcludedSkill;
 import com.carix.dashboard.dto.DashboardSummaryResponse.IndexDetail;
 import com.carix.dashboard.dto.DashboardSummaryResponse.PeerGroup;
+import com.carix.dashboard.dto.DashboardSummaryResponse.PriceDriver;
 import com.carix.dashboard.dto.DashboardSummaryResponse.SummaryMetadata;
 import com.carix.dashboard.dto.DashboardSummaryResponse.WageStatInfo;
 import com.carix.index.dto.IndexValueContract;
 import com.carix.index.dto.SourceCoverage;
+import com.carix.index.dto.TopPriceDriver;
 import com.carix.index.enums.IndexStatus;
 import com.carix.snapshot.DecisionSignalCode;
 import com.carix.snapshot.SalaryGapBucket;
@@ -165,6 +167,7 @@ public class DashboardSummaryService {
           null,
           null,
           null,
+          null,
           null);
     }
 
@@ -196,7 +199,18 @@ public class DashboardSummaryService {
                 "AGE_BAND_PROXY",
                 rationale.wageStatSource() != null ? rationale.wageStatSource() : "UNKNOWN"),
         null,
-        openingWindow(rationale));
+        openingWindow(rationale),
+        priceDriver(rationale));
+  }
+
+  /** 저장된 1위를 화면 계약으로 옮긴다. 기여도 값은 빠진다. */
+  private static PriceDriver priceDriver(SnapshotRationale rationale) {
+    TopPriceDriver driver = rationale.topPriceDriver();
+    if (driver == null) {
+      return null;
+    }
+    return new PriceDriver(
+        driver.category(), driver.label(), driver.estimated(), driver.cpiMonth());
   }
 
   /**
@@ -270,6 +284,6 @@ public class DashboardSummaryService {
             List.of(),
             null),
         new SummaryMetadata(
-            null, null, null, false, List.of(), null, null, null, null, null, null));
+            null, null, null, false, List.of(), null, null, null, null, null, null, null));
   }
 }

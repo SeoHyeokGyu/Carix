@@ -108,6 +108,7 @@ class SnapshotDecryptionBoundarySecurityTest {
             decisionSignalEngine,
             issuer,
             indexSnapshotRepository,
+            (u, ym) -> Optional.empty(),
             () -> BASE_YM);
   }
 

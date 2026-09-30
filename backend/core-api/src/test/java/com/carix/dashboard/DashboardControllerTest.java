@@ -81,7 +81,7 @@ class DashboardControllerTest {
                 new DashboardSummaryResponse.DecisionSignal(
                     "INSUFFICIENT_DATA", "데이터 부족", List.of(), null),
                 new DashboardSummaryResponse.SummaryMetadata(
-                    null, null, null, false, List.of(), null, null, null, null, null, null)));
+                    null, null, null, false, List.of(), null, null, null, null, null, null, null)));
 
     mockMvc
         .perform(
@@ -262,6 +262,7 @@ class DashboardControllerTest {
                 null,
                 null,
                 null,
+                null,
                 null));
     given(dashboardSummaryService.resolve(eq(USER_ID), any())).willReturn(summary);
 
@@ -306,6 +307,7 @@ class DashboardControllerTest {
                     null,
                     null,
                     null,
+                    null,
                     null)));
 
     mockMvc
@@ -339,6 +341,7 @@ class DashboardControllerTest {
                     List.of(),
                     100,
                     50000000.0,
+                    null,
                     null,
                     null,
                     null,

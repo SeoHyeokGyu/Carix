@@ -12,6 +12,7 @@ import com.carix.index.dto.MviResult;
 import com.carix.index.dto.OwiResult;
 import com.carix.index.dto.PpiResult;
 import com.carix.index.dto.SourceCoverage;
+import com.carix.index.dto.TopPriceDriver;
 import com.carix.index.dto.WageBaseline;
 import com.carix.index.enums.ExpenseWeightStatus;
 import com.carix.index.enums.IndexStatus;
@@ -44,6 +45,7 @@ class SnapshotRecalculationServiceTest {
   private StubProviders providers;
   private FixedIssuer issuer;
   private SnapshotRecalculationService service;
+  private Optional<TopPriceDriver> driver = Optional.empty();
 
   @BeforeEach
   void setUp() {
@@ -59,7 +61,33 @@ class SnapshotRecalculationServiceTest {
             new DecisionSignalEngine(),
             issuer,
             indexSnapshotRepository,
+            (u, ym) -> driver,
             () -> CURRENT_YM);
+  }
+
+  @Test
+  @DisplayName("물가 기여도 1위를 스냅샷 근거에 저장한다")
+  void recalculate_storesTopPriceDriver() {
+    driver =
+        Optional.of(
+            new TopPriceDriver("FOOD", "식비 부담률 최대 상승", false, "202606", new BigDecimal("0.004")));
+
+    service.recalculateSnapshot(userId, CURRENT_YM);
+
+    var saved = indexSnapshotRepository.findAll().getFirst();
+    assertThat(saved.getRationale().topPriceDriver().category()).isEqualTo("FOOD");
+  }
+
+  @Test
+  @DisplayName("물가 기여도를 못 구해도 스냅샷은 저장된다")
+  void recalculate_withoutDriver_stillWrites() {
+    driver = Optional.empty();
+
+    int written = service.recalculateSnapshot(userId, CURRENT_YM);
+
+    assertThat(written).isEqualTo(1);
+    assertThat(indexSnapshotRepository.findAll().getFirst().getRationale().topPriceDriver())
+        .isNull();
   }
 
   @Test
@@ -395,6 +423,7 @@ class SnapshotRecalculationServiceTest {
         new DecisionSignalEngine(),
         issuer,
         indexSnapshotRepository,
+        (u, ym) -> Optional.empty(),
         () -> CURRENT_YM);
   }
 
