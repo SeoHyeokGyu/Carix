@@ -103,17 +103,20 @@ class DefaultTopPriceDriverProviderTest {
   }
 
   @Test
-  @DisplayName("기본 가중치를 쓸 때는 다른 우승자가 나올 수 있다 — TRANSPORT 가중치가 높으면 우승")
+  @DisplayName("기본 가중치를 쓸 때는 다른 우승자가 나올 수 있다 — amountBasis 체크 검증")
   void noAmountBasis_usesDefaultWeightsAndEstimated() {
     when(rateService.yearOverYear("202609")).thenReturn(Optional.of(discriminatingRates()));
 
-    // NONE (금액 무시), 기본 가중치로:
-    // TRANSPORT 가중치 0.5, 기여도: 0.5 × 0.05 = 0.025
-    // FOOD 가중치 0.15, 기여도: 0.15 × 0.02 = 0.003
-    // TRANSPORT가 우승 (0.025 > 0.003) — 금액 경로와 다른 우승자
+    // amountBasis="NONE"이면 금액이 있어도 무시하고 가중치로 계산해야 한다. total > 0이지만
+    // amountBasis 체크를 빼먹은 뮤턴트를 잡기 위해 금액을 FOOD 9대1로 설정한다.
+    // 정상 코드: amountBasis != "NONE" 확인 → TRANSPORT 가중치 0.5 × 0.05 = 0.025 (우승)
+    // 뮤턴트: total > 0만 확인 → FOOD 비중 0.9 × 0.02 = 0.018 (우승)
     Map<ExpenseCategoryEnum, Long> amounts = new EnumMap<>(ExpenseCategoryEnum.class);
+    amounts.put(ExpenseCategoryEnum.FOOD, 900_000L);
     for (ExpenseCategoryEnum category : ExpenseCategoryEnum.values()) {
-      amounts.put(category, null); // 금액은 무시됨
+      if (category != ExpenseCategoryEnum.FOOD) {
+        amounts.put(category, 20_000L);
+      }
     }
 
     Map<ExpenseCategoryEnum, BigDecimal> weights = new EnumMap<>(ExpenseCategoryEnum.class);
