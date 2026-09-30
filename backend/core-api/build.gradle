@@ -42,12 +42,18 @@ tasks.named('test') {
 // 기본 소비 가중치 정본은 저장소 루트 config/ 하나. 빌드 때 JAR 클래스패스(config/)로 복사한다.
 def defaultExpenseWeights = rootProject.file('../config/default-expense-weights.yml')
 
+// 품목 CPI 12→6 매핑 정본도 저장소 루트 config/ 하나다 (c12).
+def cpiCategoryMap = rootProject.file('../config/cpi-category-map.yml')
+
 tasks.named('processResources') {
 	duplicatesStrategy = DuplicatesStrategy.FAIL   // src/main/resources 에 복사본이 남아 있으면 빌드 실패
 	from(defaultExpenseWeights) { into 'config' }
+	from(cpiCategoryMap) { into 'config' }
 	doFirst {
-		if (!defaultExpenseWeights.exists()) {
-			throw new GradleException("정본 없음: ${defaultExpenseWeights}")
+		[defaultExpenseWeights, cpiCategoryMap].each { f ->
+			if (!f.exists()) {
+				throw new GradleException("정본 없음: ${f}")
+			}
 		}
 	}
 }
