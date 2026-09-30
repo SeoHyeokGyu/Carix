@@ -15,6 +15,8 @@ import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
 
 /**
  * 물가 기여도 1위 (c12). 그 달에 <b>실제로 적용된</b> 소비 가중치를 쓴다 — 통계청 평균이 아니다. 가중치 해석은 A 소관 {@link
@@ -33,7 +35,11 @@ public class DefaultTopPriceDriverProvider implements TopPriceDriverProvider {
   private final CategoryCpiRateService rateService;
   private final CpiCategoryConfig config;
 
+  // caller(SnapshotRecalculationService)의 트랜잭션에 참여하면(REQUIRED/REQUIRES_NEW 둘 다) 하위에서
+  // 던진 예외가 그 트랜잭션을 rollback-only 로 표시해 버려, 여기서 잡아도 스냅샷 저장 커밋이
+  // UnexpectedRollbackException 으로 깨진다. NOT_SUPPORTED 로 caller 트랜잭션을 잠깐 미뤄 둔다.
   @Override
+  @Transactional(propagation = Propagation.NOT_SUPPORTED)
   public Optional<TopPriceDriver> find(UUID userId, String baseYearMonth) {
     try {
       Optional<CategoryCpiRates> rates = rateService.yearOverYear(baseYearMonth);
