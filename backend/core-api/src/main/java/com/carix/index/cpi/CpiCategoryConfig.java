@@ -45,6 +45,9 @@ public class CpiCategoryConfig {
     Map<?, ?> mapCategories = section(load(categoryMap), "categories", categoryMap);
     Map<?, ?> weightCategories = section(load(expenseWeights), "weights", expenseWeights);
 
+    validateCategorySetInMap(mapCategories);
+    validateCategorySetInWeights(weightCategories);
+
     Map<ExpenseCategoryEnum, CategoryDefinition> parsed = new EnumMap<>(ExpenseCategoryEnum.class);
     for (ExpenseCategoryEnum category : ExpenseCategoryEnum.values()) {
       parsed.put(category, definition(category, mapCategories, weightCategories));
@@ -119,6 +122,38 @@ public class CpiCategoryConfig {
       throw new IllegalStateException(
           "CPI 매핑 설정을 읽을 수 없음 (" + resource.getDescription() + ") — core-api/build.gradle 복사를 확인",
           e);
+    }
+  }
+
+  private static void validateCategorySetInMap(Map<?, ?> mapCategories) {
+    Set<String> enumNames = new TreeSet<>();
+    for (ExpenseCategoryEnum category : ExpenseCategoryEnum.values()) {
+      enumNames.add(category.name());
+    }
+    Set<String> unknownKeys = new TreeSet<>();
+    for (Object key : mapCategories.keySet()) {
+      if (!enumNames.contains(String.valueOf(key))) {
+        unknownKeys.add(String.valueOf(key));
+      }
+    }
+    if (!unknownKeys.isEmpty()) {
+      throw invalid("cpi-category-map.yml 에 알 수 없는 카테고리: " + unknownKeys);
+    }
+  }
+
+  private static void validateCategorySetInWeights(Map<?, ?> weightCategories) {
+    Set<String> enumNames = new TreeSet<>();
+    for (ExpenseCategoryEnum category : ExpenseCategoryEnum.values()) {
+      enumNames.add(category.name());
+    }
+    Set<String> unknownKeys = new TreeSet<>();
+    for (Object key : weightCategories.keySet()) {
+      if (!enumNames.contains(String.valueOf(key))) {
+        unknownKeys.add(String.valueOf(key));
+      }
+    }
+    if (!unknownKeys.isEmpty()) {
+      throw invalid("default-expense-weights.yml 에 알 수 없는 카테고리: " + unknownKeys);
     }
   }
 

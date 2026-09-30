@@ -94,4 +94,25 @@ class CpiCategoryConfigTest {
         .isInstanceOf(IllegalStateException.class)
         .hasMessageContaining("MEDICAL");
   }
+
+  @Test
+  @DisplayName("매핑 파일에 알 수 없는 카테고리가 있으면 기동을 거부한다")
+  void unknownCategory_rejects() {
+    String broken = MAP + "  OTHER:     { label: 기타, cpiCodes: [ { code: L } ] }\n";
+
+    assertThatThrownBy(() -> new CpiCategoryConfig(yaml(broken), yaml(WEIGHTS)))
+        .isInstanceOf(IllegalStateException.class)
+        .hasMessageContaining("OTHER");
+  }
+
+  @Test
+  @DisplayName("가중치 파일에 알 수 없는 카테고리가 있으면 기동을 거부한다")
+  void unknownCategoryInWeights_rejects() {
+    String broken =
+        WEIGHTS + "  TRANSPORTATION: { weight: 0.1, subWeights: [ { cpi: L, weight: 1.0 } ] }\n";
+
+    assertThatThrownBy(() -> new CpiCategoryConfig(yaml(MAP), yaml(broken)))
+        .isInstanceOf(IllegalStateException.class)
+        .hasMessageContaining("TRANSPORTATION");
+  }
 }
