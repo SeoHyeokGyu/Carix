@@ -39,45 +39,93 @@ class DefaultTopPriceDriverProviderTest {
     provider = new DefaultTopPriceDriverProvider(expenseService, rateService, config);
   }
 
-  /** TRANSPORT 전년비만 크고 나머지는 1%. */
-  private static CategoryCpiRates transportLeads() {
+  /** 차별화된 전년비: FOOD 0.02, TRANSPORT 0.05, 나머지 0.01. 이를 통해 금액 경로와 기본 가중치 경로가 다른 우승자를 낼 수 있다. */
+  private static CategoryCpiRates discriminatingRates() {
     Map<ExpenseCategoryEnum, BigDecimal> rates = new EnumMap<>(ExpenseCategoryEnum.class);
     for (ExpenseCategoryEnum category : ExpenseCategoryEnum.values()) {
-      rates.put(
-          category, new BigDecimal(category == ExpenseCategoryEnum.TRANSPORT ? "0.05" : "0.01"));
+      if (category == ExpenseCategoryEnum.TRANSPORT) {
+        rates.put(category, new BigDecimal("0.05"));
+      } else if (category == ExpenseCategoryEnum.FOOD) {
+        rates.put(category, new BigDecimal("0.02"));
+      } else {
+        rates.put(category, new BigDecimal("0.01"));
+      }
     }
     return new CategoryCpiRates("202609", rates);
   }
 
-  private static AppliedExpenseResponse applied(String amountBasis, Long amount, String status) {
+  /** 카테고리별 금액과 가중치를 설정한 응답. amountBasis가 "NONE"이 아니면 금액을 사용하고, "NONE"이면 가중치를 사용한다. */
+  private static AppliedExpenseResponse appliedWith(
+      String amountBasis,
+      Map<ExpenseCategoryEnum, Long> amounts,
+      Map<ExpenseCategoryEnum, BigDecimal> weights,
+      String status) {
     List<AppliedExpenseResponse.Category> categories =
         List.of(ExpenseCategoryEnum.values()).stream()
             .map(
                 c ->
                     new AppliedExpenseResponse.Category(
-                        c.name(), amount, new BigDecimal("0.1667"), status))
+                        c.name(), amounts.get(c), weights.get(c), status))
             .toList();
     return new AppliedExpenseResponse("202609", 1, "2025", amountBasis, categories);
   }
 
   @Test
-  @DisplayName("금액 근거가 있으면 금액 비중으로 가중한다")
+  @DisplayName("금액 근거가 있으면 금액 비중으로 가중한다 — FOOD가 금액 비중으로 우승")
   void amountBasis_usesAmountShares() {
-    when(rateService.yearOverYear("202609")).thenReturn(Optional.of(transportLeads()));
+    when(rateService.yearOverYear("202609")).thenReturn(Optional.of(discriminatingRates()));
+
+    // FOOD 900_000, 나머지 20_000씩 → 합계 1_000_000
+    // FOOD 비중: 0.9, 기여도: 0.9 × 0.02 = 0.018
+    // TRANSPORT 비중: 0.02, 기여도: 0.02 × 0.05 = 0.001
+    // FOOD가 우승 (0.018 > 0.001)
+    Map<ExpenseCategoryEnum, Long> amounts = new EnumMap<>(ExpenseCategoryEnum.class);
+    amounts.put(ExpenseCategoryEnum.FOOD, 900_000L);
+    for (ExpenseCategoryEnum category : ExpenseCategoryEnum.values()) {
+      if (category != ExpenseCategoryEnum.FOOD) {
+        amounts.put(category, 20_000L);
+      }
+    }
+
+    Map<ExpenseCategoryEnum, BigDecimal> weights = new EnumMap<>(ExpenseCategoryEnum.class);
+    for (ExpenseCategoryEnum category : ExpenseCategoryEnum.values()) {
+      weights.put(category, new BigDecimal("0.1667")); // 무시됨 (USER_INPUT)
+    }
+
     when(expenseService.resolve(USER, "202609"))
-        .thenReturn(applied("USER_INPUT", 100_000L, "USER_DEFINED"));
+        .thenReturn(appliedWith("USER_INPUT", amounts, weights, "USER_DEFINED"));
 
     var driver = provider.find(USER, "202609").orElseThrow();
 
-    assertThat(driver.category()).isEqualTo("TRANSPORT");
+    assertThat(driver.category()).isEqualTo("FOOD");
+    assertThat(driver.contribution()).isEqualByComparingTo("0.018000");
     assertThat(driver.estimated()).isFalse();
   }
 
   @Test
-  @DisplayName("소비를 입력한 적이 없으면(NONE) 기본 가중치로 계산하고 추정으로 표시한다")
+  @DisplayName("기본 가중치를 쓸 때는 다른 우승자가 나올 수 있다 — TRANSPORT 가중치가 높으면 우승")
   void noAmountBasis_usesDefaultWeightsAndEstimated() {
-    when(rateService.yearOverYear("202609")).thenReturn(Optional.of(transportLeads()));
-    when(expenseService.resolve(USER, "202609")).thenReturn(applied("NONE", null, "DEFAULT_CPI"));
+    when(rateService.yearOverYear("202609")).thenReturn(Optional.of(discriminatingRates()));
+
+    // NONE (금액 무시), 기본 가중치로:
+    // TRANSPORT 가중치 0.5, 기여도: 0.5 × 0.05 = 0.025
+    // FOOD 가중치 0.15, 기여도: 0.15 × 0.02 = 0.003
+    // TRANSPORT가 우승 (0.025 > 0.003) — 금액 경로와 다른 우승자
+    Map<ExpenseCategoryEnum, Long> amounts = new EnumMap<>(ExpenseCategoryEnum.class);
+    for (ExpenseCategoryEnum category : ExpenseCategoryEnum.values()) {
+      amounts.put(category, null); // 금액은 무시됨
+    }
+
+    Map<ExpenseCategoryEnum, BigDecimal> weights = new EnumMap<>(ExpenseCategoryEnum.class);
+    weights.put(ExpenseCategoryEnum.TRANSPORT, new BigDecimal("0.5"));
+    weights.put(ExpenseCategoryEnum.FOOD, new BigDecimal("0.15"));
+    weights.put(ExpenseCategoryEnum.HOUSING, new BigDecimal("0.1"));
+    weights.put(ExpenseCategoryEnum.MEDICAL, new BigDecimal("0.1"));
+    weights.put(ExpenseCategoryEnum.EDUCATION, new BigDecimal("0.1"));
+    weights.put(ExpenseCategoryEnum.LEISURE, new BigDecimal("0.05"));
+
+    when(expenseService.resolve(USER, "202609"))
+        .thenReturn(appliedWith("NONE", amounts, weights, "DEFAULT_CPI"));
 
     var driver = provider.find(USER, "202609").orElseThrow();
 
@@ -89,6 +137,15 @@ class DefaultTopPriceDriverProviderTest {
   @DisplayName("CPI 전년비를 못 구하면 빈 값")
   void noRates_empty() {
     when(rateService.yearOverYear("202609")).thenReturn(Optional.empty());
+
+    assertThat(provider.find(USER, "202609")).isEmpty();
+  }
+
+  @Test
+  @DisplayName("소비 조회 중 예외가 나도 던지지 않고 빈 값 — 스냅샷 저장을 막지 않는다")
+  void expenseResolveThrows_empty() {
+    when(rateService.yearOverYear("202609")).thenReturn(Optional.of(discriminatingRates()));
+    when(expenseService.resolve(USER, "202609")).thenThrow(new IllegalStateException("소비 조회 실패"));
 
     assertThat(provider.find(USER, "202609")).isEmpty();
   }
