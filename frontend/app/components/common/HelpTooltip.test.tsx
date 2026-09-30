@@ -1,6 +1,6 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { HelpTooltip } from "./HelpTooltip";
 
 describe("HelpTooltip", () => {
@@ -75,6 +75,67 @@ describe("HelpTooltip", () => {
 
     await user.keyboard("{Escape}");
     expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
+  });
+
+  describe("좁은 화면에서 화면 밖으로 나가지 않는다", () => {
+    function mockTooltipRect(left: number, width: number) {
+      vi.spyOn(
+        HTMLElement.prototype,
+        "getBoundingClientRect",
+      ).mockImplementation(function (this: HTMLElement) {
+        if (this.getAttribute("role") !== "tooltip") return new DOMRect();
+        return new DOMRect(left, 0, width, 100);
+      });
+    }
+
+    afterEach(() => {
+      vi.restoreAllMocks();
+      vi.unstubAllGlobals();
+    });
+
+    async function openTooltip() {
+      render(
+        <HelpTooltip label="테스트 지표">
+          <p>내용</p>
+        </HelpTooltip>,
+      );
+      await userEvent
+        .setup()
+        .click(screen.getByRole("button", { name: "테스트 지표 도움말" }));
+      return screen.getByRole("tooltip");
+    }
+
+    it("오른쪽으로 넘치면 넘친 만큼 왼쪽으로 민다", async () => {
+      vi.stubGlobal("innerWidth", 375);
+      mockTooltipRect(129, 256); // 오른쪽 끝 385 — 375 에서 여백 16 을 빼면 26 넘친다
+
+      const tooltip = await openTooltip();
+
+      expect(tooltip.style.translate).toBe("-26px 0");
+    });
+
+    it("왼쪽으로 넘치면 넘친 만큼 오른쪽으로 민다", async () => {
+      vi.stubGlobal("innerWidth", 1024);
+      mockTooltipRect(-40, 256);
+
+      const tooltip = await openTooltip();
+
+      expect(tooltip.style.translate).toBe("56px 0");
+    });
+
+    it("화면 안에 있으면 옮기지 않는다", async () => {
+      vi.stubGlobal("innerWidth", 1024);
+      mockTooltipRect(129, 256);
+
+      const tooltip = await openTooltip();
+
+      expect(tooltip.style.translate).toBe("");
+    });
+
+    it("화면보다 넓어지지 않게 최대 폭을 둔다", async () => {
+      const tooltip = await openTooltip();
+      expect(tooltip).toHaveClass("max-w-[calc(100vw-2rem)]");
+    });
   });
 
   // Button 의 icon-xs 기본값이 아이콘을 12px 로 줄이고 다크 hover 에 배경을 깔았다.

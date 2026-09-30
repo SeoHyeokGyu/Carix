@@ -2,6 +2,27 @@ import { useState, useRef, useEffect, type ReactNode } from "react";
 import { HelpCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
+/** 팝오버와 화면 가장자리 사이에 남길 여백(px). */
+const VIEWPORT_MARGIN = 16;
+
+/**
+ * 열린 팝오버가 화면 밖으로 나간 만큼 안쪽으로 민다. 폭이 고정이고 아이콘 기준으로
+ * 붙기 때문에, 아이콘이 화면 가운데 가까이 있으면 좁은 폰에서 한쪽이 잘린다.
+ * 상태가 아니라 DOM 에 바로 적는다 — 측정은 그려진 뒤에만 가능하고, 상태로 두면
+ * 한 번 더 렌더한다.
+ */
+function keepInViewport(tooltip: HTMLDivElement | null) {
+  if (!tooltip) return;
+  const { left, right } = tooltip.getBoundingClientRect();
+  const overflowRight = right - (window.innerWidth - VIEWPORT_MARGIN);
+  const overflowLeft = VIEWPORT_MARGIN - left;
+  if (overflowRight > 0) {
+    tooltip.style.translate = `${-overflowRight}px 0`;
+  } else if (overflowLeft > 0) {
+    tooltip.style.translate = `${overflowLeft}px 0`;
+  }
+}
+
 interface HelpTooltipProps {
   label: string;
   children: ReactNode;
@@ -103,8 +124,9 @@ export function HelpTooltip({
 
       {showTooltip && (
         <div
+          ref={keepInViewport}
           role="tooltip"
-          className={`absolute bottom-full mb-2 z-50 w-64 p-3 rounded-lg border border-carix-border bg-carix-surface/95 backdrop-blur-sm text-xs text-carix-text shadow-md animate-in fade-in-0 zoom-in-95 ${alignmentClasses}`}
+          className={`absolute bottom-full mb-2 z-50 w-64 max-w-[calc(100vw-2rem)] p-3 rounded-lg border border-carix-border bg-carix-surface/95 backdrop-blur-sm text-xs text-carix-text shadow-md animate-in fade-in-0 zoom-in-95 ${alignmentClasses}`}
         >
           {children}
         </div>
