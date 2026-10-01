@@ -73,7 +73,8 @@ jobs:
           # .md 는 뺀다. README 만 고쳐도 태그가 움직이면 내용이 같은 이미지를 새로
           # 만들게 되고, 서버에서도 태그 문자열이 달라져 컨테이너가 불필요하게 재생성된다.
           # paths 필터의 '!**/*.md' 와 같은 취지다.
-          TAG=$(git log -1 --format=%H -- backend/core-api/ backend/build.gradle backend/settings.gradle config/default-expense-weights.yml ':!*.md' .github/workflows/deploy.yml)          [ -n "$TAG" ] || TAG="$GITHUB_SHA"
+          TAG=$(git log -1 --format=%H -- backend/core-api/ backend/build.gradle backend/settings.gradle config/default-expense-weights.yml ':!*.md' .github/workflows/deploy.yml)
+          [ -n "$TAG" ] || TAG="$GITHUB_SHA"
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
 
           # 그 코드로 만든 이미지가 이미 있으면 다시 만들 것이 없다.
