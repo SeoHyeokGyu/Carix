@@ -100,7 +100,7 @@
 | 구매력 지수(PPI) | 품목별 CPI 기반 본 엔진과 소비 가중치 전파(`PROPAGATED`)가 잔여. 최초 소득월 100 기준의 기본 산출기(`DefaultPurchasingPowerIndexProvider`)가 배선돼 있어 스냅샷 결측은 나지 않는다 |
 | collector | 없음. 임금통계 적재의 출처 기록·승격 규칙·폴백 단일 연도화까지 들어왔다. 관리자 콘솔(`S-16`) UI 연동까지 완료했다. `@Scheduled` 정기 실행은 도입하지 않기로 확정했다 ([데이터 아키텍처 §5](specs/data-architecture.md)) |
 | 프런트엔드 | UI 일관성 통일 P3~P4 가 잔여 |
-| 검증 | **스냅샷 쓰기 잔여 점검** — `jsonb` 바인딩·`data_version` 형식·멱등성·`MANDATORY` 전파는 운영 770행으로 입증됐다([도메인 정의서 §5](specs/domain-logic.md)). 자문 잠금은 격리 수준까지 확인했다 — 오버라이드가 없어 `read committed` 다. 남은 것은 `-001` 발급 경로 경험 검증 하나다(운영 39회 실행이 전부 `-000`). 커넥션 풀 예산은 `b17` 소관이다. MVI 표본부족(`N<10`) 엣지케이스 검증, 민감 금액 로깅 마스킹 점검, E2E 통합과 완료 기준 10항목 점검 |
+| 검증 | 스냅샷 쓰기 경로는 자문 잠금까지 운영에서 입증됐다([도메인 정의서 §5](specs/domain-logic.md)). 커넥션 풀 예산은 `b17` 소관이다. MVI 표본부족(`N<10`) 엣지케이스 검증, 민감 금액 로깅 마스킹 점검, E2E 통합과 완료 기준 10항목 점검 |
 | 스냅샷 데이터 결함 | 없음. `market_value_index = 0` 22행은 전부 밀려난 행이고, 월별 최신 `data_version` 만 읽는 유효행에는 0 이 없다 — 원인(최근 3개월 창의 모수 0 을 수요 0 으로 읽던 것)을 고친 뒤의 실행들이 덮었다. `opening_window_index` 가 `NULL` 인데 `rationale.indexStatuses.owi` 는 `OK` 이고 근거는 다 들어있는 행 35개(유효 3)가 남아 있다 — 어느 빌드가 만들었는지 규명하지 못했고 현재 코드 경로로는 재현되지 않는다. 값-상태 불변식(`IndexValueContract`)이 산출기 계약과 쓰기 경계 두 층에서 그 모양을 막고, 읽기 경로는 옛 행을 `계산 대기`로 접는다 |
 | 개방창 지수(OWI) | 없음. 공고 직접 집계·동료집단 완화·상시채용 비율 및 OWI Provider(B `b6`) 구현 완료 ([기능 명세 §4.5](specs/functional-specification.md)) |
 | 지출 카테고리 Swagger 문구 | `ExpenseItem` 의 `category` 설명이 `TRANSPORTATION`·`HEALTH`·`OTHER` 를 적고 있는데 정본 `ExpenseCategoryEnum` 은 `TRANSPORT`·`MEDICAL`·`LEISURE` 다 — 세 값 모두 실존하지 않는다. 코드 주석만의 문제라 동작은 멀쩡하고 공개 API 문서만 틀렸다. 소관 A (소비 API) |
