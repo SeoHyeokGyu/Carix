@@ -2,6 +2,7 @@ package com.carix.snapshot.domain;
 
 import com.carix.index.dto.SkillContribution;
 import com.carix.index.dto.SourceCoverage;
+import com.carix.index.dto.TopPriceDriver;
 import com.carix.index.enums.IndexStatus;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -31,6 +32,7 @@ import java.util.List;
  *     IndexStatuses#unknown()} 으로 접힌다
  * @param openingWindow 개방창 지수의 산출 근거. 근거가 하나도 없으면 {@code null}
  * @param wageStatSource 임금통계 기준선 출처. {@code KOSIS}, {@code FALLBACK}, {@code UNKNOWN}
+ * @param topPriceDriver 물가 기여도 1위 카테고리 (c12). 산출 불가 또는 이 필드 도입 전 행은 {@code null}. 금액을 담지 않는다
  */
 public record SnapshotRationale(
     List<String> rulesApplied,
@@ -44,7 +46,37 @@ public record SnapshotRationale(
     String runId,
     IndexStatuses indexStatuses,
     OpeningWindowEvidence openingWindow,
-    String wageStatSource) {
+    String wageStatSource,
+    TopPriceDriver topPriceDriver) {
+
+  public SnapshotRationale(
+      List<String> rulesApplied,
+      String salaryGapBucket,
+      List<SourceCoverage> sourceCoverages,
+      List<SkillContribution> skillContributions,
+      List<String> excludedSkills,
+      LocalDate cpiAsOf,
+      LocalDate aggregateAsOf,
+      String wageStatVintage,
+      String runId,
+      IndexStatuses indexStatuses,
+      OpeningWindowEvidence openingWindow,
+      String wageStatSource) {
+    this(
+        rulesApplied,
+        salaryGapBucket,
+        sourceCoverages,
+        skillContributions,
+        excludedSkills,
+        cpiAsOf,
+        aggregateAsOf,
+        wageStatVintage,
+        runId,
+        indexStatuses,
+        openingWindow,
+        wageStatSource,
+        null);
+  }
 
   public SnapshotRationale(
       List<String> rulesApplied,

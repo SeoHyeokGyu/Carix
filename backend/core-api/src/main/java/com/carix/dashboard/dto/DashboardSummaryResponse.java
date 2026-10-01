@@ -60,7 +60,21 @@ public record DashboardSummaryResponse(
       @Schema(nullable = true) WageStatInfo wageStat,
       @Schema(nullable = true) String expenseWeightStatus,
       @Schema(description = "개방창 지수 근거 셋. 근거가 없으면 null", nullable = true)
-          OpeningWindowSummary openingWindow) {}
+          OpeningWindowSummary openingWindow,
+      @Schema(description = "물가 기여도 1위 카테고리 (US-D1). 산출 불가면 null", nullable = true)
+          PriceDriver topPriceDriver) {}
+
+  /**
+   * 그 사용자의 물가 상승에 가장 크게 기여한 카테고리 (API 규격 §5.1). 저장된 기여도 값은 내보내지 않는다 — 쓰는 화면이 없다.
+   *
+   * @param estimated 그 카테고리 가중치가 기본값으로 채워졌는지
+   * @param cpiMonth 사용한 CPI 기준월 {@code YYYYMM}
+   */
+  public record PriceDriver(
+      @Schema(example = "TRANSPORT") String category,
+      @Schema(example = "교통 부담률 최대 상승") String label,
+      boolean estimated,
+      @Schema(example = "202609") String cpiMonth) {}
 
   public record DataLimitSource(String source, int sampleSize) {}
 

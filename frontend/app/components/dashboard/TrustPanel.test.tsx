@@ -117,4 +117,24 @@ describe("TrustPanel", () => {
     );
     expect(screen.getByText("308건")).toBeVisible();
   });
+
+  it("물가 기여도 기준월을 기준 줄에 보인다", () => {
+    renderPanel({
+      metadata: {
+        ...METADATA,
+        topPriceDriver: {
+          category: "TRANSPORT",
+          label: "교통 부담률 최대 상승",
+          estimated: false,
+          cpiMonth: "202609",
+        },
+      },
+    });
+    expect(screen.getByText(/물가 2026-09/)).toBeInTheDocument();
+  });
+
+  it("물가 기여도가 없으면 물가 조각이 빠진다", () => {
+    renderPanel();
+    expect(screen.queryByText(/물가 \d/)).not.toBeInTheDocument();
+  });
 });

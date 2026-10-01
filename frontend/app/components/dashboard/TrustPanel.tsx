@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import type { DashboardMetadata } from "../../lib/api/dashboard";
 import type { PeerConditionView } from "../../lib/peerConditions";
+import { formatYearMonth } from "../../lib/yearMonth";
 import { toSampleCoverage } from "../../lib/sampleCoverage";
 
 const BODY_ID = "trust-panel-body";
@@ -96,6 +97,8 @@ export function TrustPanel({
               `기준일 ${metadata.baseDate}`,
               metadata.wageStat?.statVintage &&
                 `임금통계 ${metadata.wageStat.statVintage}`,
+              metadata.topPriceDriver &&
+                `물가 ${formatYearMonth(metadata.topPriceDriver.cpiMonth)}`,
               metadata.ruleVersion && `규칙 버전 ${metadata.ruleVersion}`,
             ]
               .filter(Boolean)

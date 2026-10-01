@@ -4,6 +4,7 @@ import com.carix.index.CurrentSalaryProvider;
 import com.carix.index.MarketValueIndexProvider;
 import com.carix.index.OpeningWindowIndexProvider;
 import com.carix.index.PurchasingPowerIndexProvider;
+import com.carix.index.TopPriceDriverProvider;
 import com.carix.index.dto.CurrentSalary;
 import com.carix.index.dto.ExcludedSkill;
 import com.carix.index.dto.IndexValueContract;
@@ -47,6 +48,7 @@ public class SnapshotRecalculationService {
   private final DecisionSignalEngine decisionSignalEngine;
   private final DataVersionIssuer dataVersionIssuer;
   private final IndexSnapshotRepository indexSnapshotRepository;
+  private final TopPriceDriverProvider topPriceDriverProvider;
   private final Supplier<String> currentYearMonth;
 
   @Autowired
@@ -57,7 +59,8 @@ public class SnapshotRecalculationService {
       CurrentSalaryProvider salaryProvider,
       DecisionSignalEngine decisionSignalEngine,
       DataVersionIssuer dataVersionIssuer,
-      IndexSnapshotRepository indexSnapshotRepository) {
+      IndexSnapshotRepository indexSnapshotRepository,
+      TopPriceDriverProvider topPriceDriverProvider) {
     this(
         ppiProvider,
         mviProvider,
@@ -66,6 +69,7 @@ public class SnapshotRecalculationService {
         decisionSignalEngine,
         dataVersionIssuer,
         indexSnapshotRepository,
+        topPriceDriverProvider,
         () -> YM.format(YearMonth.now(ZoneOffset.UTC)));
   }
 
@@ -77,6 +81,7 @@ public class SnapshotRecalculationService {
       DecisionSignalEngine decisionSignalEngine,
       DataVersionIssuer dataVersionIssuer,
       IndexSnapshotRepository indexSnapshotRepository,
+      TopPriceDriverProvider topPriceDriverProvider,
       Supplier<String> currentYearMonth) {
     this.ppiProvider = ppiProvider;
     this.mviProvider = mviProvider;
@@ -85,6 +90,7 @@ public class SnapshotRecalculationService {
     this.decisionSignalEngine = decisionSignalEngine;
     this.dataVersionIssuer = dataVersionIssuer;
     this.indexSnapshotRepository = indexSnapshotRepository;
+    this.topPriceDriverProvider = topPriceDriverProvider;
     this.currentYearMonth = currentYearMonth;
   }
 
@@ -131,7 +137,8 @@ public class SnapshotRecalculationService {
               openingWindowEvidence(owi),
               mvi.wageBaseline() == null || mvi.wageBaseline().source() == null
                   ? null
-                  : mvi.wageBaseline().source().name());
+                  : mvi.wageBaseline().source().name(),
+              topPriceDriverProvider.find(userId, ym).orElse(null));
 
       save(userId, ym, dataVersion, ruleVersion, ppi, mvi, owi, outcome, rationale);
       written++;

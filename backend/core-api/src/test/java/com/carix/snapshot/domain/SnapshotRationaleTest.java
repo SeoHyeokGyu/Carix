@@ -2,8 +2,10 @@ package com.carix.snapshot.domain;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.carix.index.dto.TopPriceDriver;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
@@ -67,5 +69,45 @@ class SnapshotRationaleTest {
 
     assertThat(rationale.indexStatuses()).isEqualTo(SnapshotRationale.IndexStatuses.unknown());
     assertThat(rationale.openingWindow()).isNull();
+  }
+
+  @Test
+  @DisplayName("topPriceDriver 가 없던 시절의 JSON 은 null 로 읽힌다")
+  void legacyJson_topPriceDriverIsNull() throws Exception {
+    ObjectMapper objectMapper = new ObjectMapper().registerModule(new JavaTimeModule());
+    String legacy =
+        "{\"rulesApplied\":[],\"indexStatuses\":{\"ppi\":\"OK\",\"mvi\":\"OK\",\"owi\":\"OK\"}}";
+
+    SnapshotRationale rationale = objectMapper.readValue(legacy, SnapshotRationale.class);
+
+    assertThat(rationale.topPriceDriver()).isNull();
+  }
+
+  @Test
+  @DisplayName("topPriceDriver 는 금액 없이 왕복 직렬화된다")
+  void topPriceDriver_roundTrips() throws Exception {
+    ObjectMapper objectMapper = new ObjectMapper().registerModule(new JavaTimeModule());
+    var driver =
+        new TopPriceDriver("TRANSPORT", "교통 부담률 최대 상승", true, "202609", new BigDecimal("0.005"));
+    var rationale =
+        new SnapshotRationale(
+            List.of(),
+            null,
+            List.of(),
+            List.of(),
+            List.of(),
+            null,
+            null,
+            null,
+            "run-1",
+            SnapshotRationale.IndexStatuses.unknown(),
+            null,
+            null,
+            driver);
+
+    String json = objectMapper.writeValueAsString(rationale);
+    SnapshotRationale read = objectMapper.readValue(json, SnapshotRationale.class);
+
+    assertThat(read.topPriceDriver()).isEqualTo(driver);
   }
 }
