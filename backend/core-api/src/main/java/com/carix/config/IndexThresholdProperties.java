@@ -21,6 +21,52 @@ public class IndexThresholdProperties {
 
   private double marketValueGapWarningThreshold;
 
+  private double skillDemandMinClamp = 25.0;
+  private double skillDemandMaxClamp = 400.0;
+  private int peerGroupMinSampleSize = 10;
+  private int skillMinSampleSize = 10;
+  private double coOccurrenceMinRate = 0.20;
+
+  public double getSkillDemandMinClamp() {
+    return skillDemandMinClamp;
+  }
+
+  public void setSkillDemandMinClamp(double value) {
+    this.skillDemandMinClamp = value;
+  }
+
+  public double getSkillDemandMaxClamp() {
+    return skillDemandMaxClamp;
+  }
+
+  public void setSkillDemandMaxClamp(double value) {
+    this.skillDemandMaxClamp = value;
+  }
+
+  public int getPeerGroupMinSampleSize() {
+    return peerGroupMinSampleSize;
+  }
+
+  public void setPeerGroupMinSampleSize(int value) {
+    this.peerGroupMinSampleSize = value;
+  }
+
+  public int getSkillMinSampleSize() {
+    return skillMinSampleSize;
+  }
+
+  public void setSkillMinSampleSize(int value) {
+    this.skillMinSampleSize = value;
+  }
+
+  public double getCoOccurrenceMinRate() {
+    return coOccurrenceMinRate;
+  }
+
+  public void setCoOccurrenceMinRate(double value) {
+    this.coOccurrenceMinRate = value;
+  }
+
   public double getPurchasingPowerWarningThreshold() {
     return this.purchasingPowerWarningThreshold;
   }

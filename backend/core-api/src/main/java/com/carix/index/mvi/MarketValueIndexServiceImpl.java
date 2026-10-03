@@ -1,5 +1,6 @@
 package com.carix.index.mvi;
 
+import com.carix.config.IndexThresholdProperties;
 import com.carix.index.MarketValueIndexProvider;
 import com.carix.index.dto.ExcludedSkill;
 import com.carix.index.dto.MviResult;
@@ -38,6 +39,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.Semaphore;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Primary;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -99,6 +101,15 @@ public class MarketValueIndexServiceImpl implements MarketValueIndexProvider {
   private final SkillWeightCalculator skillWeightCalculator;
   private final WageBaselineResolver wageBaselineResolver;
   private final MarketAggregateRepository marketAggregateRepository;
+
+  @Autowired(required = false)
+  private IndexThresholdProperties thresholds;
+
+  private int peerGroupMinSampleSize() {
+    return thresholds == null
+        ? PeerGroupFallbackResolver.MIN_SAMPLE_SIZE
+        : thresholds.getPeerGroupMinSampleSize();
+  }
 
   private static final DateTimeFormatter YM_FORMATTER = DateTimeFormatter.ofPattern("yyyyMM");
 
@@ -182,7 +193,7 @@ public class MarketValueIndexServiceImpl implements MarketValueIndexProvider {
       PeerGroupResolution peerGroupResolution =
           resolvePeerGroups(executor, profile, effectiveYearMonth);
 
-      // 모든 원천에서 표본이 부족한 경우 (N < 5)
+      // 모든 원천의 합산 표본이 기준 미달이면 수치를 만들지 않는다.
       if (!peerGroupResolution.hasSufficientSample()) {
         log.debug("Insufficient sample count across all sources for user {}", userId);
         return buildInsufficientSampleResult(
@@ -406,7 +417,8 @@ public class MarketValueIndexServiceImpl implements MarketValueIndexProvider {
       }
     }
 
-    return new PeerGroupResolution(resolvedPeerGroups, coverages, totalOverallSamples);
+    return new PeerGroupResolution(
+        resolvedPeerGroups, coverages, totalOverallSamples, peerGroupMinSampleSize());
   }
 
   /**
@@ -996,10 +1008,11 @@ public class MarketValueIndexServiceImpl implements MarketValueIndexProvider {
   private record PeerGroupResolution(
       Map<String, PeerGroupFallbackResolver.ResolvedPeerGroup> peerGroups,
       List<SourceCoverage> coverages,
-      int totalSampleCount) {
+      int totalSampleCount,
+      int minSampleSize) {
 
     boolean hasSufficientSample() {
-      return totalSampleCount >= PeerGroupFallbackResolver.MIN_SAMPLE_SIZE;
+      return totalSampleCount >= minSampleSize;
     }
   }
 

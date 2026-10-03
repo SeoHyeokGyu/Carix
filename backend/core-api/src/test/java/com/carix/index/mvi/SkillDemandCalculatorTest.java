@@ -6,6 +6,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.carix.config.IndexThresholdProperties;
 import com.carix.index.enums.SkillDemandStatus;
 import com.carix.market.MarketAggregate;
 import com.carix.market.MarketAggregateRepository;
@@ -17,6 +18,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.test.util.ReflectionTestUtils;
 
 @ExtendWith(MockitoExtension.class)
 class SkillDemandCalculatorTest {
@@ -209,6 +211,47 @@ class SkillDemandCalculatorTest {
             /* baselineSkillPostings= */ SkillDemandCalculator.MIN_SKILL_SAMPLE_SIZE);
 
     assertThat(result.getStatus()).isEqualTo(SkillDemandStatus.OK);
+  }
+
+  @Test
+  @DisplayName("MVI 최소 스킬 표본 수는 설정으로 조정된다")
+  void configuredSkillSampleThresholdIsApplied() {
+    IndexThresholdProperties thresholds = new IndexThresholdProperties();
+    thresholds.setSkillMinSampleSize(3);
+    ReflectionTestUtils.setField(calculator, "thresholds", thresholds);
+
+    SkillDemandCalculator.SkillDemandResult result =
+        calculateWith(/* recentSkillPostings= */ 4, /* baselineSkillPostings= */ 5);
+
+    assertThat(result.getStatus()).isEqualTo(SkillDemandStatus.OK);
+  }
+
+  @Test
+  @DisplayName("MVI 수요 지수 클램프 상한은 설정값을 적용한다")
+  void configuredDemandIndexClampIsApplied() {
+    IndexThresholdProperties thresholds = new IndexThresholdProperties();
+    thresholds.setSkillDemandMaxClamp(150.0);
+    ReflectionTestUtils.setField(calculator, "thresholds", thresholds);
+
+    SkillDemandCalculator.SkillDemandResult result =
+        calculateWith(/* recentSkillPostings= */ 100, /* baselineSkillPostings= */ 10);
+
+    assertThat(result.getDemandIndex()).isEqualTo(150.0);
+    assertThat(result.isClamped()).isTrue();
+  }
+
+  @Test
+  @DisplayName("MVI 수요 지수 클램프 하한은 설정값을 적용한다")
+  void configuredDemandIndexMinimumClampIsApplied() {
+    IndexThresholdProperties thresholds = new IndexThresholdProperties();
+    thresholds.setSkillDemandMinClamp(50.0);
+    ReflectionTestUtils.setField(calculator, "thresholds", thresholds);
+
+    SkillDemandCalculator.SkillDemandResult result =
+        calculateWith(/* recentSkillPostings= */ 10, /* baselineSkillPostings= */ 100);
+
+    assertThat(result.getDemandIndex()).isEqualTo(50.0);
+    assertThat(result.isClamped()).isTrue();
   }
 
   /** 최근 창과 기준선 창의 스킬 공고 수만 달리해 계산한다. 전체 공고 수는 두 창 모두 1000 으로 고정한다. */

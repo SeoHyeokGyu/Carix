@@ -3,6 +3,7 @@ package com.carix.index.mvi;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.when;
 
+import com.carix.config.IndexThresholdProperties;
 import com.carix.market.MarketAggregate;
 import com.carix.market.MarketAggregateRepository;
 import com.carix.profile.domain.CareerProfile;
@@ -16,6 +17,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.test.util.ReflectionTestUtils;
 
 @ExtendWith(MockitoExtension.class)
 class PeerGroupFallbackResolverTest {
@@ -56,6 +58,42 @@ class PeerGroupFallbackResolverTest {
     assertThat(result.getFallbackLevel()).isEqualTo(1);
     assertThat(result.getSampleCount()).isEqualTo(15);
     assertThat(result.getCoverage().source()).isEqualTo("JOBKOREA");
+  }
+
+  @Test
+  @DisplayName("동료집단 완화의 최소 표본 기준은 설정값을 적용한다")
+  void configuredPeerGroupSampleThresholdIsApplied() {
+    CareerProfile profile = new CareerProfile(UUID.randomUUID());
+    profile.patch("DEVELOPER", 5, "서울 강남구", "FULL_TIME", "MEDIUM");
+    IndexThresholdProperties thresholds = new IndexThresholdProperties();
+    thresholds.setPeerGroupMinSampleSize(20);
+    ReflectionTestUtils.setField(resolver, "thresholds", thresholds);
+
+    MarketAggregate l1 = MarketAggregate.builder().postingCount(15).build();
+    MarketAggregate l2 =
+        MarketAggregate.builder()
+            .source("JOBKOREA")
+            .jobFamily("DEVELOPER")
+            .region("서울 강남구")
+            .experienceBracket("MID")
+            .employmentType("FULL_TIME")
+            .postingCount(20)
+            .salaryMissingRatePercent(BigDecimal.valueOf(25.0))
+            .build();
+
+    when(marketAggregateRepository.findPeerGroupAggregate(
+            "JOBKOREA", "202607", "DEVELOPER", "서울 강남구", "MID", "FULL_TIME", "MEDIUM"))
+        .thenReturn(Optional.of(l1));
+    when(marketAggregateRepository.findPeerGroupAggregate(
+            "JOBKOREA", "202607", "DEVELOPER", "서울 강남구", "MID", "FULL_TIME", null))
+        .thenReturn(Optional.of(l2));
+
+    PeerGroupFallbackResolver.ResolvedPeerGroup result =
+        resolver.resolveForSource("JOBKOREA", profile, "202607");
+
+    assertThat(result.isSuccessful()).isTrue();
+    assertThat(result.getFallbackLevel()).isEqualTo(2);
+    assertThat(result.getSampleCount()).isEqualTo(20);
   }
 
   @Test
