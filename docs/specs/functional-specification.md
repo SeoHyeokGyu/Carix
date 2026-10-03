@@ -35,8 +35,8 @@ DB 스키마는 [ERD](erd.md), REST 계약은 [API 규격](api-specification.md)
 | S-08 | `/onboarding/skills` | 온보딩 4: 스킬 | SPA | 세션 |
 | S-09 | `/onboarding/review` | 온보딩 5: 검토 | SPA | 세션 |
 | S-10 | `/dashboard` | 대시보드 메인 (판정 히어로·근거 지표 카드·신뢰 3층) | SPA | 세션 + 온보딩 완료 |
-| S-11 | `/dashboard/history` | 월별 스냅샷 이력 | SPA | 세션 + 온보딩 완료 |
-| S-12 | `/mypage/records` | 소득·소비·스킬 이력 관리 | SPA | 세션 |
+| S-11 | `/dashboard/history` | 지수 기록 (월별 스냅샷 이력) | SPA | 세션 + 온보딩 완료 |
+| S-12 | `/mypage/records` | 입력 관리 (소득·소비·스킬 이력) | SPA | 세션 |
 | S-13 | `/mypage/profile` | 세션·사용자 정보 관리, 삭제 | SPA | 세션 |
 | S-14 | `/dashboard/trends` | 추이분석 (소득vs물가·스킬수요·연봉분포) | SPA | 세션 + 온보딩 완료 |
 | S-15 | `/dashboard/simulator` | 12개월 시뮬레이터 | SPA | 세션 + 온보딩 완료 |
@@ -151,7 +151,7 @@ DB 스키마는 [ERD](erd.md), REST 계약은 [API 규격](api-specification.md)
 - Given 품목별 CPI 결측 또는 기여도 산출 불가 / When 카드 표시 / Then 뱃지를 표시하지 않는다. 임의 품목을 고르지 않는다.
 - Given 소비 가중치 상태 / When 지수 표시 / Then `내 지출 기준`, `일부 추정 포함`, `이전 지출 기준`, `통계청 평균 기준` 중 해당 뱃지를 함께 표시한다 (enum 4종: `USER_DEFINED`/`PARTIALLY_ESTIMATED`/`PROPAGATED`/`DEFAULT_CPI`).
 - Given 대시보드 헤더 / When [지표 재계산] 버튼 클릭 / Then `POST /api/v1/dashboard/recalculate`를 비동기 호출하여 최초 유효월부터 현재까지의 스냅샷을 멱등하게 소급 재계산하고 대시보드 지표를 즉시 새로고침한다.
-- Given 대시보드 헤더 또는 상단 유틸리티 메뉴 / When '지표 가이드' 또는 '도움말' 클릭 / Then `/dashboard/guide` (S-17) 화면으로 진입하여 상세 산출 공식, 결정 신호 의미, FAQ를 확인한다.
+- Given 상단 유틸리티 메뉴 / When '도움말' 클릭 / Then `/dashboard/guide` (S-17) 화면으로 진입하여 상세 산출 공식, 결정 신호 의미, FAQ를 확인한다.
 
 **US-D2. 데이터 상태 구분**
 
@@ -220,7 +220,7 @@ DB 스키마는 [ERD](erd.md), REST 계약은 [API 규격](api-specification.md)
 - Given 저장된 시나리오가 1건 이하 / When 진입 / Then 선택 컨트롤을 감춘다.
 - Given 이름 없이 저장된 시나리오 / When 목록 표시 / Then 계산 시각으로 라벨을 만든다.
 
-### 2.5 이력 관리 (REC)
+### 2.5 입력 관리 (REC)
 
 **US-R1. 소득·소비·스킬 이력 CRUD (S-12)**
 
@@ -234,6 +234,7 @@ DB 스키마는 [ERD](erd.md), REST 계약은 [API 규격](api-specification.md)
 
 **US-C1. 세션 관리 (S-13)**
 
+- Given 로그인 상태 / When 상단 계정 메뉴에서 로그아웃 선택 / Then 현재 세션만 폐기되고 로그인 화면으로 이동한다. 다른 기기의 세션은 유지된다.
 - Given 로그인 상태 / When 모든 기기에서 로그아웃 선택 / Then 전체 세션이 폐기되고 로그인 화면으로 이동한다.
 
 **US-C2. 사용자 및 개인 데이터 삭제**
@@ -386,7 +387,7 @@ OWI         = 동료집단 중앙 개방일수 ÷ 전체시장 중앙 개방일�
 | --- | --- | --- | --- |
 | S-10 대시보드 | 첫 계산 전: `첫 지수를 계산하고 있습니다` + 예상 소요 안내 | `표본 부족`, `업데이트 지연`, `추정` 뱃지 카드별 표시 | 재시도 버튼 + 마지막 성공 데이터 유지 |
 | S-11 이력 | 스냅샷 1개 이하: `다음 달부터 변화를 볼 수 있습니다` | 일부 월 누락 시 갭 표시 (선 연결 금지) | 재시도 |
-| S-12 이력 관리 | 항목 없음: 추가 유도 | — | 저장 실패 시 입력 보존 |
+| S-12 입력 관리 | 항목 없음: 추가 유도 | — | 저장 실패 시 입력 보존 |
 | S-14 추이분석 | 12개월 미만 데이터: 차트 대신 안내 문구 | `표본 부족`(N<10), 업데이트 지연 시 마지막 성공 데이터 + 지연 배지 (US-D2 기준 동일 적용) | 재시도 버튼 + 마지막 성공 데이터 유지 |
 | S-15 시뮬레이터 | 미입력: 기본값 채움 없이 입력 유도 | 실업급여 조건 미충족 가정 시 안내 | 계산 실패 시 이전 결과 유지 + 오류 표시 |
 
@@ -482,7 +483,7 @@ OWI         = 동료집단 중앙 개방일수 ÷ 전체시장 중앙 개방일�
 | S-11 이력 | US-D4 | `GET /dashboard/history` | `index_snapshot` |
 | S-14 추이분석 | US-D3, US-D8 | `GET /trends`, `/salary-distribution`, `/skills`, `/wage-growth` | `market_aggregate`, `wage_stat_observation`, `income_history` |
 | S-15 시뮬레이터 | US-S1 | `POST /scenarios/simulate`, `GET /scenarios/latest`, `GET /scenarios` | `career_scenario` |
-| S-12 이력 관리 | US-R1 | `PUT`·`DELETE /income`·`/user-skills`, `PUT /expenses/{ym}` | `income_history`(`change_reason`), `expense_*`, `user_skill` |
+| S-12 입력 관리 | US-R1 | `PUT`·`DELETE /income`·`/user-skills`, `PUT /expenses/{ym}` | `income_history`(`change_reason`), `expense_*`, `user_skill` |
 | S-13 설정/탈퇴 | US-C1, US-C2 | `POST /auth/logout`·`/logout-all`, `DELETE /users` | `session`, 전 개인 테이블 |
 | S-16 파이프라인 콘솔 | US-M1 | `POST /internal/pipeline/*`, `GET /internal/pipeline/jobs`, `/stats` | `raw_ingest`, `job_posting`, `wage_stat_observation`, `market_aggregate` |
 
@@ -580,7 +581,7 @@ API 경로는 `/api/v1` 접두사를 생략했다. 상세는
 
 - 연봉, 소비, 스킬 이력 추가 및 수정
 - 월별 지수 스냅샷 조회
-- 모든 기기에서 로그아웃
+- 로그아웃(상단 계정 메뉴)·모든 기기에서 로그아웃
 - 사용자 정보 및 개인 데이터 삭제
 
 ---

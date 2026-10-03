@@ -166,10 +166,10 @@ flowchart TD
 | `/register` | 회원가입 (이메일·비밀번호) | 공개 |
 | `/onboarding/{profile,income,expense,skills,review}` | 온보딩 5단계 | 세션 |
 | `/dashboard` | 지표 카드 (OWI 도입 전까지 3종) | 세션 + 온보딩 완료 |
-| `/dashboard/history` | 월별 스냅샷 이력 | 세션 + 온보딩 완료 |
+| `/dashboard/history` | 지수 기록 (월별 스냅샷 이력) | 세션 + 온보딩 완료 |
 | `/dashboard/trends` | 추이분석 (소득vs물가·스킬수요·연봉분포) | 세션 + 온보딩 완료 |
 | `/dashboard/simulator` | 12개월 시뮬레이터 | 세션 + 온보딩 완료 |
-| `/mypage/records` | 소득·소비·스킬 이력 관리 | 세션 |
+| `/mypage/records` | 입력 관리 (소득·소비·스킬 이력) | 세션 |
 | `/mypage/profile` | 세션 관리·계정 삭제 | 세션 |
 | `/admin/collector` | 수집기 파이프라인 관리 콘솔 (별칭: `/admin/pipeline`) | 관리자 키 (`X-Admin-Key`) |
 
