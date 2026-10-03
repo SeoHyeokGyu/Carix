@@ -238,7 +238,7 @@ erDiagram
 > | `skill_alias` | `alias_name VARCHAR(100) UNIQUE` | `VARCHAR(255)`, UNIQUE 없음. `SkillService`·`SkillRepository` 가 자동완성 검색에서 읽는다(`US-O5`) |
 > | `raw_ingest` | 원문 보관 + 24개월 purge | **원문을 보관하지 않는다.** `payload`·`purged_at`·`schema_version` 컬럼 없음. 수집 이력만 남는다 |
 > | `job_posting.content` | 공고 상세 본문 텍스트 | **컬럼 없음.** 스킬 파싱은 `raw_ingest` 원문에서 직접 한다 |
-> | `job_posting.first_seen_month`·`last_seen_month` | 공고를 처음·마지막 본 월 | 크롤러가 처음 본 월로 채우고 재관측 시 `last_seen_month` 를 갱신한다. 다만 크롤러가 최근 등록순 몇 페이지만 훑어 재관측이 거의 없어 **두 값이 사실상 같다** — 관측 기간을 재는 데 쓸 수 없다. 등록·마감은 `posted_start_date`·`posted_end_date` 를 쓴다(원천이 공고마다 실어 준다) |
+> | `job_posting.first_seen_month`·`last_seen_month` | 공고를 처음·마지막 본 월 | 크롤러가 처음 본 월로 채우고 재관측 시 `last_seen_month` 를 갱신한다. 다만 크롤러가 최근 등록순 몇 페이지만 훑어 재관측이 거의 없어 **두 값이 사실상 같다** — 관측 기간을 재는 데 쓸 수 없다. 등록·마감은 `posted_start_date`·`posted_end_date` 를 쓴다. 등록일은 약 56% 가 비어 있다 — 원천이 싣지 않은 공고에 더해, 사람인 목록의 마감일을 등록일로 읽어 만들어진 값(마감일과 월일이 같은 365일 창)을 비웠기 때문이다. 사람인 등록일은 목록의 `.job_sector .job_day` 에서 읽는다 |
 >
 > **`market_aggregate.base_year_month` 는 그 달 신규 수집 공고(유량)의 집계 기준월이다.**
 > `MarketAggregateService` 가 활동월(`first_seen_month <= m <= last_seen_month`) 기준으로
