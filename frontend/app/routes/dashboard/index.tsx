@@ -147,18 +147,6 @@ export default function DashboardHome() {
         className="flex flex-wrap justify-end gap-4"
       >
         <Link
-          to="/dashboard/guide"
-          className="text-sm font-medium text-carix-info hover:underline flex items-center gap-1"
-        >
-          지표 가이드
-        </Link>
-        <Link
-          to="/dashboard/history"
-          className="text-sm text-carix-text/70 hover:text-carix-text underline"
-        >
-          월별 스냅샷 이력 보기
-        </Link>
-        <Link
           to="/onboarding/review"
           className="text-sm text-carix-text/70 hover:text-carix-text underline"
         >

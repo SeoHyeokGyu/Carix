@@ -19,7 +19,7 @@ export default function RecordsLayout() {
     <section className="mx-auto w-full max-w-3xl px-6 py-8 sm:py-12">
       <header className="mb-6">
         <h1 className="font-display text-2xl font-extrabold tracking-tight text-carix-text">
-          이력 관리
+          입력 관리
         </h1>
         <p className="mt-1 text-sm text-carix-text/70">
           소득·소비·스킬 이력을 고치면 그 시점 이후 지수가 다시 계산됩니다.
