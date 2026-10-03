@@ -85,7 +85,7 @@
 | Spring Cloud 전환 | 계획 A(멀티모듈·Config Server·Eureka) 구현·운영 검증 완료, 계획 B(Gateway 도입, 요청경로 편입) 구현 완료, 계획 C(auth-service 배포 배선) 구현 완료 |
 | core-api | 사용자 도메인(프로필·소득·소비·스킬)과 지수·스냅샷·시나리오가 JPA로 `core` 스키마 사용. `income_history` 는 변경 사유(`change_reason`)를 담고, 최초 소득 행 여부는 저장하지 않고 `min(effective_date)` 로 읽기 시점에 판정한다 ([ERD 스키마 설계 주석](specs/erd.md)). 고정 응답 스텁은 전부 철거했다 ([개발 계획 §4](plans/carix-dev-plan.md)). 인증은 Spring Security 대신 게이트웨이가 주입한 `X-User-Id` 를 신뢰하고 헤더가 없으면 401 이다. 지수 스냅샷 갱신(Job 4)은 core-api 가 전담 소유 |
 | 지수·스냅샷·시나리오 엔진 | 시장가치 지수(MVI)·스킬 수요 지수·개방창 지수(OWI)·동료집단 완화, 스냅샷 멱등 재계산과 결정 신호 판정, 시나리오 시뮬레이터 실데이터 산출이 모두 구현 완료. 소득·소비·스킬·프로필 변경 시 재계산 트리거가 여덟 경로에 배선돼 있다. 대시보드 `summary`·`trends`·`history`·`salary-distribution` 은 실데이터로 응답한다 |
-| UI 일관성 통일 | P0~P2 완료 — 결정 신호 표현 단일화, 다크 변형의 클래스 전환과 의미 색상 토큰, 공용 표현 계층(`ToneBadge`·`EmptyState`·`LoadingState`). 계획은 [ui-unification-plan.md](plans/ui-unification-plan.md) |
+| UI 일관성 통일 | P0~P4 완료 — 결정 신호 표현 단일화, 다크 변형의 클래스 전환과 의미 색상 토큰, 공용 표현 계층(`ToneBadge`·`EmptyState`·`LoadingState`), 프리미티브 재정의와 eslint 규범. 계획은 [ui-unification-plan.md](plans/ui-unification-plan.md) |
 | auth-service | 이메일·비밀번호 가입·로그인·세션 조회·로그아웃 구현 완료. 세션 토큰 해시 저장. 매직링크·초대·메일 코드와 설정 폐기 완료 |
 | collector | 모듈 추출 완료. 크롤러·중복제거·정규화·`market_aggregate` 집계·임금통계 수집과 파이프라인 내부 API(`/internal/pipeline/**`)까지 구현돼 있다 |
 | DB 스키마 소유권 | auth 스키마는 auth-service, core 스키마는 collector(채용공고 5개 테이블·market_aggregate)와 core-api(사용자 도메인 5개 테이블·지수/시나리오)가 공유 (DDL 직접 적용) |
@@ -98,16 +98,17 @@
 | 영역 | 남은 작업 |
 | --- | --- |
 | 구매력 지수(PPI) | 품목별 CPI 기반 본 엔진과 소비 가중치 전파(`PROPAGATED`)가 잔여. 최초 소득월 100 기준의 기본 산출기(`DefaultPurchasingPowerIndexProvider`)가 배선돼 있어 스냅샷 결측은 나지 않는다. 다만 이 산출기는 CPI 항 없이 명목소득 비율만 내므로 그동안 화면이 `명목소득 기준` 임을 밝혀야 한다 — `c18` |
+| A 레인 | `a2`·`a7`·`a9`·`a10`·`a12` 가 미착수다. `c14` 의 선행 `a9`·`a10` 이 `a2` 뒤에 있어 계획상 임계 경로(B·C)와 달리 **실제 임계는 A** 다. 완료 기준 10번(민감 금액 로그 미기록)도 `a7` 에 걸려 미검증이다 |
 | 시장가치 지수(MVI) 고정 | `market_aggregate` 집계에 기준월 필터가 없어 어느 달 행이든 전체 공고를 담는다. 최근 3개월·이전 12개월 창이 같은 모수를 나눠 집계가 있는 구간의 MVI 가 100.0 으로 고정된다 — `b18` |
 | collector | 없음. 임금통계 적재의 출처 기록·승격 규칙·폴백 단일 연도화까지 들어왔다. 관리자 콘솔(`S-16`) UI 연동까지 완료했다. `@Scheduled` 정기 실행은 도입하지 않기로 확정했다 ([데이터 아키텍처 §5](specs/data-architecture.md)) |
-| 프런트엔드 | UI 일관성 통일 P3~P4 가 잔여 |
+| 프런트엔드 | UI 일관성 통일의 B·박지수 화면 교체가 잔여. 남은 파일은 eslint 예외 목록이 센다([ui-unification-plan.md](plans/ui-unification-plan.md) §5) |
 | 검증 | 스냅샷 쓰기 경로는 자문 잠금까지 운영에서 입증됐다([도메인 정의서 §5](specs/domain-logic.md)). 커넥션 풀 예산은 `b17` 소관이다. MVI 표본부족(`N<10`) 엣지케이스 검증, 민감 금액 로깅 마스킹 점검, E2E 통합과 완료 기준 10항목 점검 |
 | 스냅샷 데이터 결함 | 없음. `market_value_index = 0` 22행은 전부 밀려난 행이고, 월별 최신 `data_version` 만 읽는 유효행에는 0 이 없다 — 원인(최근 3개월 창의 모수 0 을 수요 0 으로 읽던 것)을 고친 뒤의 실행들이 덮었다. `opening_window_index` 가 `NULL` 인데 `rationale.indexStatuses.owi` 는 `OK` 이고 근거는 다 들어있는 행 35개(유효 3)가 남아 있다 — 어느 빌드가 만들었는지 규명하지 못했고 현재 코드 경로로는 재현되지 않는다. 값-상태 불변식(`IndexValueContract`)이 산출기 계약과 쓰기 경계 두 층에서 그 모양을 막고, 읽기 경로는 옛 행을 `계산 대기`로 접는다 |
 | 개방창 지수(OWI) | 없음. 공고 직접 집계·동료집단 완화·상시채용 비율 및 OWI Provider(B `b6`) 구현 완료 ([기능 명세 §4.5](specs/functional-specification.md)) |
 | 지출 카테고리 Swagger 문구 | `ExpenseItem` 의 `category` 설명이 `TRANSPORTATION`·`HEALTH`·`OTHER` 를 적고 있는데 정본 `ExpenseCategoryEnum` 은 `TRANSPORT`·`MEDICAL`·`LEISURE` 다 — 세 값 모두 실존하지 않는다. 코드 주석만의 문제라 동작은 멀쩡하고 공개 API 문서만 틀렸다. 소관 A (소비 API) |
 | 광역 지역 어휘 두 벌 | `core-api` `PeerGroupFallbackResolver#extractBroadRegion` 은 `서울특별시` 를 만들고 collector `RegionRollup` 은 `서울` 을 만든다. 동료집단 완화 Level 3 의 광역 조회가 `region = 'ALL'` 행으로 떨어져 증상이 가려져 있다. 값 규약 정본은 시/도 17개 한글([API 규격 §3.1](specs/api-specification.md), [ERD](specs/erd.md)). 소관 B (동료집단) |
 | Gateway 세션 검증 필터 | **활성화는 끝났다** — `carix.gateway.session-validation.enabled: true` 가 저장소와 서버 체크아웃 양쪽에 있다(`a37fa47`). 남은 주의점은 되돌릴 때다 — 플래그가 `config/spring/gateway.yml` 에 있어 `.env`(이미지 태그) 롤백으로는 안 꺼진다. 전환·롤백 절차는 [`backend/README.md` 게이트웨이](../backend/README.md). 프런트엔드 소비자 전환도 끝났다(`c16`) — `dashboardMarketApi.ts`(S-11 스냅샷 이력, S-14 추이분석)가 `coreGet` 으로 갈아타 401 이 `UnauthorizedError` 로 오고, 두 화면이 `catch` 에서 `navigate(LOGIN_PATH, { replace: true })` 한다. 호출부가 loader 가 아니라 컴포넌트라 라이브러리 전환만으로는 안 됐다 |
-| 임금통계 연도 시계열 | 출처 컬럼(`source`)과 **쓰기 경로가 섰다** — 수집이 연도별로 출처를 기록하고, 실측만 기존 행을 덮으며, 폴백 vintage 를 고정해 벽시계 드리프트를 막았다. 고정 이전에 쌓인 `base_period=2025` 드리프트 72행은 삭제했다([ERD 운영 스키마 적용 이력](specs/erd.md)). 운영 288행은 컬럼 도입 이전 적재분이라 재수집 전까지 `UNKNOWN` 이다. 잔여 구현은 **읽기 경로**다 — `findSeries`·구간 상승률, `findLatestBaseline` 의 출처 우선순위. 지표 넷은 출처 노출·연도 시계열 읽기 경로(`b13`), 내 상승률 vs 시장(`a9`·`c14`), 임금 vs 개인물가(`a10`), 경력 사다리 연도 축(`b14`) — 일정은 [개발 계획 §2](plans/carix-dev-plan.md) |
+| 임금통계 연도 시계열 | 출처 컬럼(`source`)과 **쓰기 경로가 섰다** — 수집이 연도별로 출처를 기록하고, 실측만 기존 행을 덮으며, 폴백 vintage 를 고정해 벽시계 드리프트를 막았다. 고정 이전에 쌓인 `base_period=2025` 드리프트 72행은 삭제했다([ERD 운영 스키마 적용 이력](specs/erd.md)). 운영 288행은 컬럼 도입 이전 적재분이라 재수집 전까지 `UNKNOWN` 이다. 읽기 경로(`DefaultWageStatSeriesProvider`, `b13`)도 섰다. 잔여 지표는 내 상승률 vs 시장(`a9`·`c14`), 임금 vs 개인물가(`a10`), 경력 사다리 연도 축(`b14`) — 일정은 [개발 계획 §2](plans/carix-dev-plan.md) |
 | 운영 감시 | 컨테이너 헬스체크 감시를 이 호스트의 Dozzle(8888)·Dockge(3001)에 붙이는 것과 디스크 사용률 알림이 미착수다. 루트 사용률은 정리 후 81% 이고, 공유 호스트라 스왑 4GB 가 이미 소진된 상태에서 Carix 가 올라가 있다 |
 
 **배포 전 실행 순서는 더 없다.** 이 절이 지키던 사슬은 「검증」의 쓰기 검증 → 「Gateway 세션
@@ -120,7 +121,7 @@
 **`CARIX_ENCRYPTION_KEY` 백업은 그냥 밀린 작업이다.** 원래 근거는 `c5` 가 **첫 운영 쓰기**라
 그 전에 백업을 마쳐야 한다는 것이었는데, 운영 `core.index_snapshot` 에 이미 770행이 쌓여
 있어(사용자 2명, 기준월 202101~202609, `data_version` 39종) 그 근거는 지났다. 키는 서버
-`/home/opc/carix/.env` 에만 있다.
+`/home/opc/carix/.env` 에만 있다. KeyRing 이 다중 키라 백업 대상은 현행 키 하나가 아니라 **모든 `keyId`** 다 — 로테이션 전 키가 빠지면 그 접두사의 옛 암호문이 복호화되지 않는다. 백업본 검증은 값이 아니라 해시 대조로 한다.
 
 ---
 
