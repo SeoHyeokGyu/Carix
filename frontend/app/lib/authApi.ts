@@ -50,21 +50,33 @@ export function login(email: string, password: string) {
   return post("login", { email, password });
 }
 
+/**
+ * 세션 폐기 응답 확인. 실패를 삼키면 서버 세션은 살아 있는데 화면만 비로그인이 된다.
+ * 401 은 이미 세션이 없다는 뜻이라 폐기 성공과 같다.
+ */
+async function ensureRevoked(response: Response): Promise<void> {
+  if (!response.ok && response.status !== 401) {
+    throw await toApiError(response);
+  }
+}
+
 export async function logout(): Promise<void> {
-  await fetch("/api/v1/auth/logout", {
+  const response = await fetch("/api/v1/auth/logout", {
     method: "POST",
     credentials: "include",
   });
+  await ensureRevoked(response);
 }
 
 /**
  * 모든 기기에서 세션을 폐기하고 로그아웃 (US-C1)
  */
 export async function logoutAll(): Promise<void> {
-  await fetch("/api/v1/auth/logout-all", {
+  const response = await fetch("/api/v1/auth/logout-all", {
     method: "POST",
     credentials: "include",
   });
+  await ensureRevoked(response);
 }
 
 /**

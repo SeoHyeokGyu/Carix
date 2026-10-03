@@ -23,6 +23,7 @@ export default function MypageLayout() {
       navLabel="마이페이지"
       items={MAIN_NAV_ITEMS}
       utilityItems={MAIN_UTILITY_ITEMS}
+      accountMenu
     />
   );
 }

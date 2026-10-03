@@ -1,19 +1,23 @@
+import { CircleHelp } from "lucide-react";
 import { redirect } from "react-router";
 import { AppShell, type NavItem } from "../../components/layout/AppShell";
 import { guardOnboarded, LANDING_PATH } from "../../lib/routeGuards";
 import { requireSession } from "../../lib/session";
 
+/**
+ * 앞 넷은 보는 화면, 마지막은 입력하는 화면이다. 입력 관리는 스냅샷 재계산과 시나리오 사후
+ * 검증의 입구라 계정 메뉴로 내리지 않는다 — 설정·로그아웃만 `AccountMenu` 에 있다.
+ */
 export const MAIN_NAV_ITEMS: NavItem[] = [
-  { to: "/dashboard", label: "지표", end: true },
-  { to: "/dashboard/history", label: "이력" },
+  { to: "/dashboard", label: "판정", end: true },
   { to: "/dashboard/trends", label: "추이 분석" },
   { to: "/dashboard/simulator", label: "시뮬레이터" },
-  { to: "/mypage/records", label: "이력 관리" },
+  { to: "/dashboard/history", label: "지수 기록" },
+  { to: "/mypage/records", label: "입력 관리" },
 ];
 
 export const MAIN_UTILITY_ITEMS: NavItem[] = [
-  { to: "/dashboard/guide", label: "도움말", icon: "❓" },
-  { to: "/mypage/profile", label: "설정", icon: "⚙️" },
+  { to: "/dashboard/guide", label: "도움말", icon: CircleHelp },
 ];
 
 export async function clientLoader() {
@@ -34,6 +38,7 @@ export default function DashboardLayout() {
       navLabel="대시보드"
       items={MAIN_NAV_ITEMS}
       utilityItems={MAIN_UTILITY_ITEMS}
+      accountMenu
     />
   );
 }

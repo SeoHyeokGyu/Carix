@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { fetchSession, login, logout, register } from "./authApi";
+import { fetchSession, login, logout, logoutAll, register } from "./authApi";
 
 describe("authApi", () => {
   const originalFetch = globalThis.fetch;
@@ -148,6 +148,35 @@ describe("authApi", () => {
         method: "POST",
         credentials: "include",
       });
+    });
+
+    // 서버가 세션을 못 지웠는데 화면만 비로그인으로 바뀌면 공용 PC 에 세션이 남는다.
+    it.each([
+      ["logout", logout],
+      ["logoutAll", logoutAll],
+    ])("%s — 서버 실패 응답이면 ApiError 를 던진다", async (_, fn) => {
+      globalThis.fetch = vi.fn().mockResolvedValue({
+        ok: false,
+        status: 500,
+        json: () => Promise.resolve({ code: "INTERNAL", message: "서버 오류" }),
+      } as unknown as Response);
+
+      await expect(fn()).rejects.toEqual({
+        code: "INTERNAL",
+        message: "서버 오류",
+      });
+    });
+
+    it.each([
+      ["logout", logout],
+      ["logoutAll", logoutAll],
+    ])("%s — 401 은 이미 세션이 없다는 뜻이라 성공으로 본다", async (_, fn) => {
+      globalThis.fetch = vi.fn().mockResolvedValue({
+        ok: false,
+        status: 401,
+      } as unknown as Response);
+
+      await expect(fn()).resolves.toBeUndefined();
     });
   });
 

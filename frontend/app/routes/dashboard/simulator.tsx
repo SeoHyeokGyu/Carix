@@ -331,16 +331,13 @@ export default function DashboardSimulator() {
                 </p>
                 {missingIncome && (
                   // /onboarding/income(S-06)은 온보딩 완료 사용자를 guardOnboarding 이
-                  // 대시보드로 되돌려 보내 여기서는 죽은 링크다 — 대신 마이페이지 이력
-                  // 관리(S-12, mypage/records.tsx)로 보낸다. 그 화면은 아직
-                  // 플레이스홀더다 — 이 링크는 그 화면이 실제 소득 편집 폼이 되면
-                  // 유효해질 자리이지, 지금 이 링크가 동작한다는 뜻이 아니다. 그래서
-                  // 문구 자체가 링크 없이도 뜻이 통하도록 "무엇을 해야 하는지"까지
-                  // 문장 안에 적는다.
+                  // 대시보드로 되돌려 보내 여기서는 죽은 링크다 — 대신 입력 관리
+                  // (S-12, mypage/records)로 보낸다. 문구는 링크 없이도 뜻이 통하도록
+                  // "무엇을 해야 하는지"까지 문장 안에 적는다.
                   <p className="text-sm text-carix-text/70">
-                    소득 이력이 없으면 계산할 수 없습니다. 마이페이지의{" "}
+                    소득 이력이 없으면 계산할 수 없습니다.{" "}
                     <Link to="/mypage/records" className="underline">
-                      이력 관리
+                      입력 관리
                     </Link>
                     에서 소득을 추가한 뒤 다시 계산해 주세요.
                   </p>

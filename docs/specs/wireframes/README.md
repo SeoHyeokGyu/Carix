@@ -14,7 +14,7 @@ GitHub는 `.html`을 인라인 렌더하지 않으므로, `screenshots/`에 각 
 python3 autocrop.py screenshots/<name>.png
 ```
 
-라우트 ID(S-01~S-16)는 [functional-specification.md §1 화면 맵과 라우트](../functional-specification.md)를 따름. 화면별 빈/열화 상태는 같은 문서 §5 기준.
+라우트 ID 는 [functional-specification.md §1 화면 맵과 라우트](../functional-specification.md)를 따름. 화면별 빈/열화 상태는 같은 문서 §5 기준.
 
 ### [홈](home.html) — S-01 `/`
 
@@ -58,14 +58,14 @@ S-01 랜딩에서 가입 또는 로그인으로 들어온다. 계정 없이 접�
 
 <img src="screenshots/simulator.png" width="560" alt="simulator" />
 
-### [월별 스냅샷 이력](dashboard-history.html) — S-11 `/dashboard/history`
+### [지수 기록](dashboard-history.html) — S-11 `/dashboard/history`
 
-대시보드와 별도 화면. 이력 관리(S-12)와 혼동 주의 — 여긴 지수 스냅샷 조회 전용.
+월별 지수 스냅샷 조회 전용. 입력 관리(S-12)와 다른 화면이다.
 
 <img src="screenshots/dashboard-history.png" width="560" alt="dashboard-history" />
 
-### [마이페이지](mypage.html) — S-12·S-13 `/mypage/records`, `/mypage/profile`
+### [입력 관리 · 설정](mypage.html) — S-12·S-13 `/mypage/records`, `/mypage/profile`
 
-내부 탭 2개: 기록 관리(연봉·소비·스킬 이력 추가/수정, 지수 스냅샷은 여기 없음 — 위 S-11 참고) / 계정 설정(세션·데이터 삭제).
+두 화면을 한 장에 펼쳐 그렸다. 입력 관리(S-12, 주 메뉴)는 연봉·소비·스킬 이력 추가/수정이고 지수 스냅샷은 여기 없다 — 위 S-11 참고. 설정(S-13)은 계정 메뉴(아바타 ▾)에서 들어가며 세션·데이터 삭제를 다룬다. 실제 앱에서는 별개 화면이다.
 
 <img src="screenshots/mypage.png" width="560" alt="mypage" />

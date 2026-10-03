@@ -1,17 +1,21 @@
+import type { LucideIcon } from "lucide-react";
 import { Link, NavLink, Outlet } from "react-router";
 import { ThemeToggle } from "../ThemeToggle";
+import { AccountMenu } from "./AccountMenu";
 
 export interface NavItem {
   to: string;
   label: string;
   end?: boolean;
-  icon?: string;
+  icon?: LucideIcon;
 }
 
 interface AppShellProps {
   navLabel: string;
   items: NavItem[];
   utilityItems?: NavItem[];
+  /** 설정·로그아웃 계정 메뉴. 온보딩 껍데기는 끈다. */
+  accountMenu?: boolean;
   children?: React.ReactNode;
 }
 
@@ -20,6 +24,7 @@ export function AppShell({
   navLabel,
   items,
   utilityItems,
+  accountMenu = false,
   children,
 }: AppShellProps) {
   return (
@@ -63,7 +68,7 @@ export function AppShell({
             )}
           </div>
 
-          {/* 우측: 유틸리티 (설정) */}
+          {/* 우측: 유틸리티 (도움말) + 계정 메뉴 */}
           <div className="flex items-center gap-2 shrink-0">
             {utilityItems?.map((uItem) => (
               <NavLink
@@ -79,10 +84,11 @@ export function AppShell({
                   ].join(" ")
                 }
               >
-                {uItem.icon && <span className="text-base">{uItem.icon}</span>}
+                {uItem.icon && <uItem.icon aria-hidden className="size-4" />}
                 <span>{uItem.label}</span>
               </NavLink>
             ))}
+            {accountMenu && <AccountMenu />}
           </div>
         </div>
       </header>

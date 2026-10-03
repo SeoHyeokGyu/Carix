@@ -338,7 +338,7 @@ describe("S-15 시뮬레이터 화면", () => {
     expect(
       await screen.findByText("소득 이력이 없어 계산할 수 없습니다."),
     ).toBeInTheDocument();
-    const link = screen.getByRole("link", { name: "이력 관리" });
+    const link = screen.getByRole("link", { name: "입력 관리" });
     expect(link).toHaveAttribute("href", "/mypage/records");
   });
 

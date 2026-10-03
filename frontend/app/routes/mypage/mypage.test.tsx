@@ -2,8 +2,9 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { createRoutesStub } from "react-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import * as authApi from "../../lib/authApi";
 import * as onboardingApi from "../../lib/onboardingApi";
-import { resetSession, setSession } from "../../lib/session";
+import { getSession, resetSession, setSession } from "../../lib/session";
 import MypageLayout, { clientLoader as mypageLayoutLoader } from "./layout";
 import MypageProfile, { clientAction as mypageProfileAction } from "./profile";
 
@@ -71,6 +72,32 @@ describe("마이페이지 라우트 및 레이아웃 (Mypage)", () => {
       expect(resetSpy).toHaveBeenCalledTimes(1);
       expect(await screen.findByText("프로필 화면")).toBeInTheDocument();
     });
+
+    it("logout 의도는 현재 세션만 폐기하고 로그인 화면으로 보낸다", async () => {
+      setSession({
+        status: "authenticated",
+        userId: "user-1",
+        email: "user@carix.kr",
+        onboardingStep: "COMPLETED",
+      });
+      const logoutSpy = vi.spyOn(authApi, "logout").mockResolvedValue();
+      const logoutAllSpy = vi.spyOn(authApi, "logoutAll");
+      const form = new FormData();
+      form.set("intent", "logout");
+
+      const result = await mypageProfileAction({
+        request: new Request("http://localhost/mypage/profile", {
+          method: "POST",
+          body: form,
+        }),
+      });
+
+      expect(logoutSpy).toHaveBeenCalledTimes(1);
+      expect(logoutAllSpy).not.toHaveBeenCalled();
+      expect(getSession()).toEqual({ status: "anonymous" });
+      expect(result).toBeInstanceOf(Response);
+      expect((result as Response).headers.get("Location")).toBe("/login");
+    });
   });
 
   describe("MypageLayout (마이페이지 공통 레이아웃)", () => {
@@ -120,18 +147,20 @@ describe("마이페이지 라우트 및 레이아웃 (Mypage)", () => {
       expect(screen.getByText("설정 페이지 내용")).toBeInTheDocument();
 
       // 상단 메인 메뉴바의 항목들이 설정 화면에서도 변경되지 않고 그대로 유지되는지 검증
-      expect(screen.getByRole("link", { name: "지표" })).toBeInTheDocument();
-      expect(screen.getByRole("link", { name: "이력" })).toBeInTheDocument();
-      expect(
-        screen.getByRole("link", { name: "추이 분석" }),
-      ).toBeInTheDocument();
-      expect(
-        screen.getByRole("link", { name: "시뮬레이터" }),
-      ).toBeInTheDocument();
-      expect(
-        screen.getByRole("link", { name: "이력 관리" }),
-      ).toBeInTheDocument();
-      expect(screen.getByRole("link", { name: /설정/ })).toBeInTheDocument();
+      for (const name of [
+        "판정",
+        "추이 분석",
+        "시뮬레이터",
+        "지수 기록",
+        "입력 관리",
+      ]) {
+        expect(screen.getByRole("link", { name })).toBeInTheDocument();
+      }
+      expect(screen.getByRole("link", { name: "도움말" })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "내 정보" })).toHaveAttribute(
+        "data-active",
+        "true",
+      );
     });
   });
 });

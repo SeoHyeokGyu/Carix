@@ -417,9 +417,9 @@ describe("대시보드 라우트 및 레이아웃 (Dashboard)", () => {
       expect(await screen.findByText(/1\.2\.0/)).toBeInTheDocument();
     });
 
-    // 스킬 수요율 펼치기(GET /dashboard/skills, B 소관) 대신 S-11 링크로 대체하기로 한
-    // 팀 리드 지시를 배선으로 고정한다.
-    it("월별 스냅샷 이력 보기 링크가 S-11 로 이동한다", async () => {
+    // S-11·도움말은 상단 메뉴(지수 기록·도움말)가 갖는다. 화면 안 바로가기는 상단에 없는
+    // 온보딩 검토 하나만 남긴다.
+    it("화면 안 바로가기는 온보딩 검토 하나뿐이다", async () => {
       vi.spyOn(dashboardApi, "fetchSummary").mockResolvedValue({
         ok: true,
         data: {
@@ -433,9 +433,12 @@ describe("대시보드 라우트 및 레이아웃 (Dashboard)", () => {
 
       renderScreen();
 
-      expect(
-        await screen.findByRole("link", { name: "월별 스냅샷 이력 보기" }),
-      ).toHaveAttribute("href", "/dashboard/history");
+      const shortcuts = await screen.findByRole("navigation", {
+        name: "대시보드 바로가기",
+      });
+      const links = within(shortcuts).getAllByRole("link");
+      expect(links).toHaveLength(1);
+      expect(links[0]).toHaveAttribute("href", "/onboarding/review");
     });
 
     it("조회 중 401 을 받으면 로그인 화면으로 보낸다", async () => {

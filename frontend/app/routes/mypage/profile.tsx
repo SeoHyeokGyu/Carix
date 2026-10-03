@@ -11,7 +11,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toUserMessage } from "../../lib/apiError";
-import { deleteAccount, logoutAll } from "../../lib/authApi";
+import { deleteAccount, logout, logoutAll } from "../../lib/authApi";
 import { UnauthorizedError } from "../../lib/coreApi";
 import { resetOnboarding } from "../../lib/onboardingApi";
 import { LOGIN_PATH } from "../../lib/routeGuards";
@@ -40,6 +40,20 @@ export async function clientAction({ request }: { request: Request }) {
       return {
         error: toUserMessage(error),
         intent: "reset-onboarding",
+      } satisfies ActionData;
+    }
+  }
+
+  // 상단 계정 메뉴(AccountMenu)가 이 화면 action 으로 보낸다 — 현재 세션만 폐기한다.
+  if (intent === "logout") {
+    try {
+      await logout();
+      setSession({ status: "anonymous" });
+      return redirect(LOGIN_PATH);
+    } catch (error) {
+      return {
+        error: toUserMessage(error),
+        intent: "logout",
       } satisfies ActionData;
     }
   }
@@ -156,11 +170,13 @@ export default function MypageProfile() {
               안전하게 로그아웃할 수 있습니다.
             </p>
 
-            {actionData?.intent === "logout-all" && actionData.error && (
-              <p role="alert" className="text-sm text-destructive">
-                {actionData.error}
-              </p>
-            )}
+            {(actionData?.intent === "logout" ||
+              actionData?.intent === "logout-all") &&
+              actionData.error && (
+                <p role="alert" className="text-sm text-destructive">
+                  {actionData.error}
+                </p>
+              )}
 
             <Form method="post">
               <Button
