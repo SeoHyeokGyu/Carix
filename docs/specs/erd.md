@@ -240,13 +240,11 @@ erDiagram
 > | `job_posting.content` | 공고 상세 본문 텍스트 | **컬럼 없음.** 스킬 파싱은 `raw_ingest` 원문에서 직접 한다 |
 > | `job_posting.first_seen_month`·`last_seen_month` | 공고를 처음·마지막 본 월 | **상수다.** `SeedLoader` 가 `SEED_MONTH` 를 그대로 넣어 공고마다 같은 값이다. 관측 기간을 재는 데 쓸 수 없다 — 등록·마감은 `posted_start_date`·`posted_end_date` 를 쓴다(원천이 공고마다 실어 준다) |
 >
-> **`market_aggregate.base_year_month` 는 집계 실행 라벨이지 공고의 월이 아니다.**
-> `MarketAggregateService.aggregateMarketDataForMonth` 가 `jobPostingRepository.findAll()` 을
-> 월 필터 없이 집계하므로 그 라벨은 "그 달에 열려 있던 공고"를 뜻하지 않는다. 월별 시계열이
-> 필요한 값은 `job_posting.posted_start_date`(등록일)로 직접 버킷해야 한다(§4.5·§4.6).
-> **집계월이 하나뿐이면** `MarketValueIndexServiceImpl.resolveEffectiveYearMonth` 가 모든
-> 요청월을 그 달로 접어 MVI 가 전 기간 상수가 된다 — 실재 여부는
-> `SELECT DISTINCT base_year_month FROM core.market_aggregate ORDER BY 1;` 로 확인한다.
+> **`market_aggregate.base_year_month` 는 해당 월에 활동 중(게시 중)인 공고의 집계 기준월이다.**
+> `MarketAggregateService` 가 활동월(`first_seen_month <= m <= last_seen_month`) 기준으로
+> 공고를 필터링하여 월별 집계를 수행한다(개발 계획 `b18`). 전체 일괄 집계로 인한 MVI 100.0 고정
+> 결손이 해소되었으며, 집계월 시계열은 `SELECT DISTINCT base_year_month FROM core.market_aggregate ORDER BY 1;` 로
+> 확인한다. 원 공고의 일자 단위 직접 시계열 집계(OWI·연봉분포)는 기존과 같이 `job_posting.posted_start_date` 로 버킷한다(§4.5·§4.6).
 >
 > **수집하지만 `core-api` 가 읽지 않는 컬럼들.** 크롤러가 채우고 어느 화면도 쓰지 않는다 —
 > 지우자는 판단이 아니라, 새 기능을 설계할 때 **이미 있는 재료**임을 잃지 않으려고 적는다.

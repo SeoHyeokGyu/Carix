@@ -55,10 +55,11 @@
 ### 1.3 공고 생명주기와 멱등성
 
 - RawIngest 유니크 키는 `(source, source_item_id)`이며 `first_seen_month`,
-  `last_seen_month`를 갱신한다.
-- 월별 집계는 "해당 월에 게시 중"인 공고를 귀속한다. 두 달에 걸친 공고가
-  이중 집계되지 않고, 장기 게시 공고도 각 월에 정확히 반영된다.
-- 집계·스냅샷은 재실행 시 upsert로 동일 결과를 만든다.
+  `last_seen_month`를 갱신한다. `JobPosting` 역시 이후 월에 재수집될 때 `last_seen_month`를 갱신한다.
+- 월별 집계(`market_aggregate`, `b18`)는 활동월(`first_seen_month <= base_year_month <= last_seen_month`) 기준으로 해당 월에 게시 중인 공고만 귀속 집계한다.
+  - 시작월/종료월 결측 시 `posted_start_date`/`posted_end_date` 또는 `collected_at`으로 정규화 폴백한다.
+  - 두 달 이상에 걸친 장기 공고도 각 활동월에 중복 누락 없이 정확히 반영되며, 수집 이전 또는 활동 외 구간은 모수가 분리되어 MVI 100.0 고정 결손을 방지한다.
+- 집계·스냅샷은 재실행 시 기존 해당 월 데이터를 삭제 후 재생성(`deleteByBaseYearMonth`)하는 멱등 upsert로 동일 결과를 만든다.
 
 ### 1.4 원천 간 중복 제거 (Deduplication v1)
 
