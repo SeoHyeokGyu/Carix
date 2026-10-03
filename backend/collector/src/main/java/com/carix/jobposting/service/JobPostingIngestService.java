@@ -354,6 +354,7 @@ public class JobPostingIngestService {
     JobPosting posting;
     if (existingOpt.isPresent()) {
       posting = existingOpt.get();
+      posting.updateLastSeenMonth(currentMonth);
       posting.applyDisclosedSalary(salaryMin, salaryMax);
       posting.classifyAs(jobFamily);
       posting.classifyCompanySizeAs(companySize);
@@ -408,6 +409,7 @@ public class JobPostingIngestService {
     JobPosting posting;
     if (existingOpt.isPresent()) {
       posting = existingOpt.get();
+      posting.updateLastSeenMonth(currentMonth);
       posting.classifyAs(jobFamily);
       posting.classifyCompanySizeAs(CompanySizeClassifier.UNKNOWN);
       posting.applyExperienceRange(experience.min(), experience.max());

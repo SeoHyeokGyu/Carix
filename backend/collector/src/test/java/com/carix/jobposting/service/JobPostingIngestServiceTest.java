@@ -119,6 +119,7 @@ class JobPostingIngestServiceTest {
         now,
         "202608");
 
+    assertThat(existing.getLastSeenMonth()).isEqualTo("202608");
     verify(jobPostingRepository, atLeastOnce()).save(existing);
   }
 
@@ -161,6 +162,7 @@ class JobPostingIngestServiceTest {
     service.ingestSaraminPosting(
         "2002", "데이터 엔지니어", "라인", "전국", ExperienceRange.parse("무관"), null, fields, now, "202608");
 
+    assertThat(existing.getLastSeenMonth()).isEqualTo("202608");
     verify(jobPostingRepository, atLeastOnce()).save(existing);
   }
 
