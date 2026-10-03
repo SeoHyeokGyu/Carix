@@ -56,9 +56,20 @@
 
 - RawIngest 유니크 키는 `(source, source_item_id)`이며 `first_seen_month`,
   `last_seen_month`를 갱신한다. `JobPosting` 역시 이후 월에 재수집될 때 `last_seen_month`를 갱신한다.
-- 월별 집계(`market_aggregate`, `b18`)는 활동월(`first_seen_month <= base_year_month <= last_seen_month`) 기준으로 해당 월에 게시 중인 공고만 귀속 집계한다.
+- 월별 집계(`market_aggregate`, `b18`)는 활동월(`first_seen_month <= base_year_month <= last_seen_month`) 기준으로 공고를 귀속한다.
   - 시작월/종료월 결측 시 `posted_start_date`/`posted_end_date` 또는 `collected_at`으로 정규화 폴백한다.
-  - 두 달 이상에 걸친 장기 공고도 각 활동월에 중복 누락 없이 정확히 반영되며, 수집 이전 또는 활동 외 구간은 모수가 분리되어 MVI 100.0 고정 결손을 방지한다.
+  - 수집 이전 구간은 모수가 0 이라 값이 아니라 표본 부족이다.
+- **월별 모수는 「그 달 신규 수집 공고」(유량)다.** 크롤러는 최근 등록순으로 원천마다 `maxPages`(기본 5,
+  40건/페이지)만 훑어 이미 본 공고를 다음 달에 다시 보지 않는다 — `last_seen_month` 가 사실상
+  `first_seen_month` 와 같다. 포털이 재게시 공고에 새 ID 를 주는 것도 같은 방향이다. 그래서 활동월 귀속은
+  「그 달 게시 중인 공고」(저량)가 아니라 「그 달 새로 들어온 공고」를 센다.
+  - **수요율 = 그 달 신규 수집 공고 중 그 스킬을 요구하는 공고의 비율**(원천별, 동료집단 안). 채용 수요의
+    유입을 재는 지표로 정의하고, 저량으로 해석하지 않는다.
+  - 유량이라 월별 모수가 크롤링 실행 규모를 그대로 따른다. **크롤링은 매월 같은 규모(같은 `maxPages`·같은
+    원천)로 돌린다** — 규모가 달마다 다르면 수요율은 같아도 표본 수와 표본 부족 판정이 흔들린다(`b21`).
+  - 저량(게시 중 공고)으로 바꾸려면 기존 공고를 매월 다시 관측(전수 순회)하거나 게시 기간
+    (`posted_start_date`~`posted_end_date`)으로 귀속해야 한다. 후자는 시작일 결측(약 43%)과
+    마감일 365 센티넬이 먼저 풀려야 한다.
 - 집계·스냅샷은 재실행 시 기존 해당 월 데이터를 삭제 후 재생성(`deleteByBaseYearMonth`)하는 멱등 upsert로 동일 결과를 만든다.
 
 ### 1.4 원천 간 중복 제거 (Deduplication v1)
