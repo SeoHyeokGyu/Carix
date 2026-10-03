@@ -8,14 +8,12 @@ import type { DecisionSignal } from "../../lib/api/dashboard";
 import type { SnapshotPoint } from "../../lib/dashboardMarketApi";
 import { resolveDecisionSignal } from "../../lib/decisionSignal";
 import type { SkillRecommendationsResponse } from "../../lib/skillApi";
-import { countSignalStreak, toSparklineSeries } from "../../lib/verdict";
+import { countSignalStreak } from "../../lib/verdict";
 import { DecisionSignalHelp } from "./IndexHelp";
 import { SignalBadge } from "./SignalBadge";
-import { Sparkline } from "./Sparkline";
 
 /** 점이 이보다 많으면 점은 여기서 멈추고 숫자가 나머지를 말한다. */
 export const STREAK_DOT_LIMIT = 12;
-const MIN_SPARKLINE_POINTS = 2;
 
 /**
  * 톤 → 점 색. Tailwind 는 동적 클래스명을 못 보므로 정적 문자열 표로 둔다
@@ -33,7 +31,6 @@ const STREAK_DOT_TONE_CLASS: Record<Tone, string> = {
 interface VerdictHeroProps {
   signal: DecisionSignal | null;
   history: readonly SnapshotPoint[] | null;
-  isNarrow: boolean;
   recommendations?: SkillRecommendationsResponse | null;
 }
 
@@ -44,7 +41,6 @@ interface VerdictHeroProps {
 export function VerdictHero({
   signal,
   history,
-  isNarrow,
   recommendations,
 }: VerdictHeroProps) {
   const view = resolveDecisionSignal(signal?.code ?? "", signal?.label);
@@ -87,7 +83,6 @@ export function VerdictHero({
             code={signal.code}
             tone={view.tone}
             history={history}
-            isNarrow={isNarrow}
           />
         )}
       </Card>
@@ -95,55 +90,41 @@ export function VerdictHero({
   );
 }
 
+/** 판정이 이어진 기간. 시장가치 추세는 판정의 근거라 2층 시장가치 카드가 갖는다. */
 function VerdictPreview({
   code,
   tone,
   history,
-  isNarrow,
 }: {
   code: string;
   tone: Tone;
   history: readonly SnapshotPoint[];
-  isNarrow: boolean;
 }) {
   const streak = countSignalStreak(history, code);
-  const series = toSparklineSeries(history);
-  const pointCount = series.segments.reduce((sum, s) => sum + s.length, 0);
-  const showSparkline = !isNarrow && pointCount >= MIN_SPARKLINE_POINTS;
-  if (streak === 0 && !showSparkline) return null;
+  if (streak === 0) return null;
 
   return (
     <aside className="flex shrink-0 flex-col gap-4 border-carix-border md:border-l md:pl-6">
-      {streak > 0 && (
-        <div className="flex flex-col gap-1.5">
-          <p className="text-xs text-carix-text/60">이 판정이 이어진 기간</p>
-          <div className="flex items-center gap-2">
-            <span aria-hidden="true" className="flex gap-1">
-              {Array.from(
-                { length: Math.min(streak, STREAK_DOT_LIMIT) },
-                (_, i) => (
-                  <span
-                    key={i}
-                    data-testid="streak-dot"
-                    className={`size-2 rounded-full ${STREAK_DOT_TONE_CLASS[tone]}`}
-                  />
-                ),
-              )}
-            </span>
-            <span className="text-sm font-semibold text-carix-text">
-              {streak}개월째
-            </span>
-          </div>
+      <div className="flex flex-col gap-1.5">
+        <p className="text-xs text-carix-text/60">이 판정이 이어진 기간</p>
+        <div className="flex items-center gap-2">
+          <span aria-hidden="true" className="flex gap-1">
+            {Array.from(
+              { length: Math.min(streak, STREAK_DOT_LIMIT) },
+              (_, i) => (
+                <span
+                  key={i}
+                  data-testid="streak-dot"
+                  className={`size-2 rounded-full ${STREAK_DOT_TONE_CLASS[tone]}`}
+                />
+              ),
+            )}
+          </span>
+          <span className="text-sm font-semibold text-carix-text">
+            {streak}개월째
+          </span>
         </div>
-      )}
-      {showSparkline && (
-        <div className="flex flex-col gap-1.5">
-          <p className="text-xs text-carix-text/60">
-            시장가치 {pointCount}개월
-          </p>
-          <Sparkline series={series} />
-        </div>
-      )}
+      </div>
     </aside>
   );
 }

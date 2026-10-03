@@ -44,7 +44,7 @@ const HISTORY = [
 
 describe("VerdictHero", () => {
   it("프런트 description 이 h2 제목이고 label 은 상태 뱃지다", () => {
-    render(<VerdictHero signal={STAY} history={[]} isNarrow={false} />);
+    render(<VerdictHero signal={STAY} history={[]} />);
     expect(
       screen.getByRole("heading", {
         level: 2,
@@ -57,62 +57,44 @@ describe("VerdictHero", () => {
   });
 
   it("적용 규칙을 칩으로 보인다", () => {
-    render(<VerdictHero signal={STAY} history={[]} isNarrow={false} />);
+    render(<VerdictHero signal={STAY} history={[]} />);
     const rules = screen.getByRole("list", { name: "적용 규칙" });
     expect(within(rules).getAllByRole("listitem")).toHaveLength(2);
   });
 
   it("서버 rationale 은 1층에 두지 않는다", () => {
-    render(<VerdictHero signal={STAY} history={[]} isNarrow={false} />);
+    render(<VerdictHero signal={STAY} history={[]} />);
     expect(screen.queryByText(STAY.rationale)).not.toBeInTheDocument();
   });
 
   it("같은 신호가 이어진 개월 수를 보인다", () => {
-    render(<VerdictHero signal={STAY} history={HISTORY} isNarrow={false} />);
+    render(<VerdictHero signal={STAY} history={HISTORY} />);
     expect(screen.getByText("3개월째")).toBeInTheDocument();
   });
 
   it("이력이 없으면 연속 개월 줄이 없다", () => {
-    render(<VerdictHero signal={STAY} history={[]} isNarrow={false} />);
+    render(<VerdictHero signal={STAY} history={[]} />);
     expect(screen.queryByText(/개월째/)).not.toBeInTheDocument();
   });
 
   it("이력을 못 받았으면 프리뷰 전체가 없다", () => {
-    render(<VerdictHero signal={STAY} history={null} isNarrow={false} />);
+    render(<VerdictHero signal={STAY} history={null} />);
     expect(screen.queryByText("이 판정이 이어진 기간")).not.toBeInTheDocument();
   });
 
-  it("스파크라인은 값이 없는 달에서 끊긴다", () => {
+  // 시장가치 추세는 판정의 근거라 2층 시장가치 카드(MarketValueTrend)가 갖는다.
+  it("판정 히어로에는 시장가치 추세 그래프가 없다", () => {
     const { container } = render(
-      <VerdictHero signal={STAY} history={HISTORY} isNarrow={false} />,
-    );
-    // 101.0 | null | 103.1 → 104.6 : 점 하나 + 선 하나
-    // 컨테이너 전체가 아니라 스파크라인 svg 안에서만 센다 — 결정 신호 도움말 아이콘
-    // (lucide HelpCircle)도 <circle> 을 그려서 컨테이너 전체를 세면 겹친다.
-    const sparkline = container.querySelector("svg[data-testid='sparkline']");
-    expect(sparkline).not.toBeNull();
-    expect(sparkline!.querySelectorAll("polyline")).toHaveLength(1);
-    expect(sparkline!.querySelectorAll("circle")).toHaveLength(1);
-    expect(screen.getByText("시장가치 3개월")).toBeInTheDocument();
-  });
-
-  it("모바일 폭에서는 스파크라인을 빼고 신호 점만 남긴다", () => {
-    const { container } = render(
-      <VerdictHero signal={STAY} history={HISTORY} isNarrow={true} />,
+      <VerdictHero signal={STAY} history={HISTORY} />,
     );
     expect(container.querySelector("svg[data-testid='sparkline']")).toBeNull();
+    expect(screen.queryByText(/시장가치 \d+개월/)).not.toBeInTheDocument();
     expect(screen.getByText("3개월째")).toBeInTheDocument();
   });
 
   it("경고 신호(이직 탐색)의 연속 개월 점은 경고 톤이지 긍정 톤이 아니다", () => {
     const seekJobHistory = [point("202608", "SEEK_JOB", 104.6)];
-    render(
-      <VerdictHero
-        signal={SEEK_JOB}
-        history={seekJobHistory}
-        isNarrow={false}
-      />,
-    );
+    render(<VerdictHero signal={SEEK_JOB} history={seekJobHistory} />);
     const dots = screen.getAllByTestId("streak-dot");
     expect(dots.length).toBeGreaterThan(0);
     for (const dot of dots) {
@@ -122,7 +104,7 @@ describe("VerdictHero", () => {
   });
 
   it("판정이 없어도 h2 가 있다", () => {
-    render(<VerdictHero signal={null} history={[]} isNarrow={false} />);
+    render(<VerdictHero signal={null} history={[]} />);
     expect(
       screen.getByRole("heading", { level: 2, name: "판정 대기" }),
     ).toBeInTheDocument();
@@ -133,7 +115,6 @@ describe("VerdictHero", () => {
       <VerdictHero
         signal={{ ...STAY, code: "NEW_CODE", label: "새 신호" }}
         history={[]}
-        isNarrow={false}
       />,
     );
     expect(
@@ -183,7 +164,7 @@ describe("VerdictHero", () => {
         <VerdictHero
           signal={UPSKILL}
           history={[]}
-          isNarrow={false}
+
           recommendations={RECOMMENDATIONS}
         />,
       );
@@ -211,7 +192,7 @@ describe("VerdictHero", () => {
         <VerdictHero
           signal={UPSKILL}
           history={[]}
-          isNarrow={false}
+
           recommendations={{
             peerGroup: { appliedConditions: "" },
             recommendations: [],
@@ -237,7 +218,7 @@ describe("VerdictHero", () => {
         <VerdictHero
           signal={STAY}
           history={[]}
-          isNarrow={false}
+
           recommendations={RECOMMENDATIONS}
         />,
       );
@@ -256,7 +237,7 @@ describe("VerdictHero", () => {
         <VerdictHero
           signal={SEEK_JOB}
           history={[]}
-          isNarrow={false}
+
           recommendations={RECOMMENDATIONS}
         />,
       );
@@ -269,7 +250,7 @@ describe("VerdictHero", () => {
         <VerdictHero
           signal={NEGOTIATE}
           history={[]}
-          isNarrow={false}
+
           recommendations={RECOMMENDATIONS}
         />,
       );
@@ -284,7 +265,7 @@ describe("VerdictHero", () => {
         <VerdictHero
           signal={STAY}
           history={[]}
-          isNarrow={false}
+
           recommendations={{
             peerGroup: { appliedConditions: "" },
             recommendations: [],
@@ -303,7 +284,7 @@ describe("VerdictHero", () => {
         <VerdictHero
           signal={STAY}
           history={[]}
-          isNarrow={false}
+
           recommendations={RECOMMENDATIONS}
         />,
       );

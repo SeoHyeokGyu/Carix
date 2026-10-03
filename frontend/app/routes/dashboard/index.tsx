@@ -12,6 +12,7 @@ import {
 import { PriceDriverBadge } from "../../components/dashboard/PriceDriverBadge";
 import { TrustPanel } from "../../components/dashboard/TrustPanel";
 import { trendsTabHref } from "../../lib/trendsTabs";
+import { MarketValueTrend } from "../../components/dashboard/MarketValueTrend";
 import { VerdictHero } from "../../components/dashboard/VerdictHero";
 import { useIsNarrowViewport } from "../../hooks/useIsNarrowViewport";
 import { toUserMessage } from "../../lib/apiError";
@@ -223,7 +224,6 @@ export default function DashboardHome() {
           <VerdictHero
             signal={data.decisionSignal}
             history={history}
-            isNarrow={isNarrow}
             recommendations={recommendations}
           />
 
@@ -254,6 +254,7 @@ export default function DashboardHome() {
                 baselineHint="기준 100: 동료집단 임금 중앙값"
                 helpContent={<MarketValueHelp />}
                 detailHref={trendsTabHref("skills")}
+                footer={history && <MarketValueTrend history={history} />}
               />
               <IndexCard
                 title="개방창 지수"
