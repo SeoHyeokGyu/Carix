@@ -228,3 +228,53 @@ export function triggerSeedLoad(
     body: JSON.stringify(req ?? {}),
   });
 }
+
+export type PriorityGrade = "CRITICAL" | "HIGH" | "MEDIUM" | "SUFFICIENT";
+
+export interface CollectionPriorityItem {
+  jobFamily: string;
+  region: string;
+  experienceBracket: string;
+  currentSampleCount: number;
+  requiredSampleSize: number;
+  sampleDeficit: number;
+  priorityGrade: PriorityGrade;
+  priorityReason: string;
+  searchKeywordHint: string;
+}
+
+export interface CollectionPriorityResponse {
+  baseYearMonth: string;
+  source: string;
+  minSampleSize: number;
+  totalEvaluatedCombinations: number;
+  underSampledCount: number;
+  priorities: CollectionPriorityItem[];
+}
+
+export interface CollectionPriorityQuery {
+  month?: string;
+  source?: string;
+  minSampleSize?: number;
+  underSampledOnly?: boolean;
+}
+
+export function fetchCollectionPriorities(
+  query: CollectionPriorityQuery = {},
+): Promise<CollectionPriorityResponse> {
+  const params = new URLSearchParams();
+  if (query.month) params.set("month", query.month);
+  if (query.source) params.set("source", query.source);
+  if (query.minSampleSize != null)
+    params.set("minSampleSize", String(query.minSampleSize));
+  if (query.underSampledOnly != null)
+    params.set("underSampledOnly", String(query.underSampledOnly));
+
+  const qs = params.toString();
+  return request<CollectionPriorityResponse>(
+    `/priorities${qs ? `?${qs}` : ""}`,
+    {
+      method: "GET",
+    },
+  );
+}

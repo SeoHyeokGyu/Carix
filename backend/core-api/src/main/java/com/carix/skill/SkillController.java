@@ -28,6 +28,19 @@ import org.springframework.web.bind.annotation.*;
 public class SkillController {
 
   private final SkillService skillService;
+  private final com.carix.skill.service.SkillRecommendationService skillRecommendationService;
+
+  @Operation(
+      summary = "동료집단 기반 스킬 보강 추천",
+      description =
+          "사용자의 동료집단 내에서 수요율이 높으나 아직 보유하지 않은 스킬 상위 3개를 추천하고, 보유 스킬과의 동시출현율(Co-occurrence) 근거를 함께 제공합니다.")
+  @ApiResponse(responseCode = "200", description = "추천 성공")
+  @GetMapping("/skills/recommendations")
+  public ResponseEntity<ApiResult<SkillRecommendationsResponse>> getSkillRecommendations(
+      @CurrentUserId UUID userId) {
+    SkillRecommendationsResponse response = skillRecommendationService.getRecommendations(userId);
+    return ResponseEntity.ok(ApiResult.success(response));
+  }
 
   @Operation(summary = "표준 스킬 사전 검색", description = "입력한 검색어 기반으로 스킬 표준 리스트(자동완성용)를 반환합니다.")
   @ApiResponse(

@@ -27,12 +27,16 @@ class CollectorPipelineControllerTest {
 
   private MockMvc mockMvc;
   private CollectorPipelineService pipelineService;
+  private com.carix.pipeline.service.MviCollectionPriorityService priorityService;
 
   @BeforeEach
   void setUp() {
     pipelineService = mock(CollectorPipelineService.class);
+    priorityService = mock(com.carix.pipeline.service.MviCollectionPriorityService.class);
     mockMvc =
-        MockMvcBuilders.standaloneSetup(new CollectorPipelineController(pipelineService)).build();
+        MockMvcBuilders.standaloneSetup(
+                new CollectorPipelineController(pipelineService, priorityService))
+            .build();
   }
 
   @Test
@@ -263,5 +267,23 @@ class CollectorPipelineControllerTest {
         .andExpect(jsonPath("$[0].source").value("JOBKOREA"))
         .andExpect(jsonPath("$[0].title").value("백엔드 개발자 채용"))
         .andExpect(jsonPath("$[0].skills[0]").value("Java"));
+  }
+
+  @Test
+  @DisplayName("GET /internal/pipeline/priorities - MVI 데이터 수집 우선순위 조회 시 200 OK 반환")
+  void getCollectionPrioritiesReturnsOk() throws Exception {
+    com.carix.pipeline.dto.CollectionPriorityResponse priorityResponse =
+        new com.carix.pipeline.dto.CollectionPriorityResponse("202604", "ALL", 10, 5, 2, List.of());
+    when(priorityService.calculatePriorities(any(), any(), any(Integer.class), any(Boolean.class)))
+        .thenReturn(priorityResponse);
+
+    mockMvc
+        .perform(get("/internal/pipeline/priorities"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.baseYearMonth").value("202604"))
+        .andExpect(jsonPath("$.source").value("ALL"))
+        .andExpect(jsonPath("$.minSampleSize").value(10))
+        .andExpect(jsonPath("$.totalEvaluatedCombinations").value(5))
+        .andExpect(jsonPath("$.underSampledCount").value(2));
   }
 }

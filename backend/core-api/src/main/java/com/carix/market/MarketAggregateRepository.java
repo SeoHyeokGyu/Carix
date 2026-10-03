@@ -137,4 +137,17 @@ public interface MarketAggregateRepository extends JpaRepository<MarketAggregate
       WHERE m.baseYearMonth >= :baseYearMonth
       """)
   Optional<String> findEarliestAvailableYearMonth(@Param("baseYearMonth") String baseYearMonth);
+
+  @Query("SELECT DISTINCT m.baseYearMonth FROM MarketAggregate m ORDER BY m.baseYearMonth DESC")
+  List<String> findDistinctBaseYearMonths();
+
+  @Query(
+      "SELECT m FROM MarketAggregate m WHERE m.baseYearMonth = :baseYearMonth AND m.skillId IS NULL")
+  List<MarketAggregate> findPeerGroupAggregatesByMonth(
+      @Param("baseYearMonth") String baseYearMonth);
+
+  @Query(
+      "SELECT m FROM MarketAggregate m WHERE m.baseYearMonth = :baseYearMonth AND m.source = :source AND m.skillId IS NULL")
+  List<MarketAggregate> findPeerGroupAggregatesByMonthAndSource(
+      @Param("baseYearMonth") String baseYearMonth, @Param("source") String source);
 }
