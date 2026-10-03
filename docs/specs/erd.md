@@ -238,11 +238,12 @@ erDiagram
 > | `skill_alias` | `alias_name VARCHAR(100) UNIQUE` | `VARCHAR(255)`, UNIQUE 없음. `SkillService`·`SkillRepository` 가 자동완성 검색에서 읽는다(`US-O5`) |
 > | `raw_ingest` | 원문 보관 + 24개월 purge | **원문을 보관하지 않는다.** `payload`·`purged_at`·`schema_version` 컬럼 없음. 수집 이력만 남는다 |
 > | `job_posting.content` | 공고 상세 본문 텍스트 | **컬럼 없음.** 스킬 파싱은 `raw_ingest` 원문에서 직접 한다 |
-> | `job_posting.first_seen_month`·`last_seen_month` | 공고를 처음·마지막 본 월 | **상수다.** `SeedLoader` 가 `SEED_MONTH` 를 그대로 넣어 공고마다 같은 값이다. 관측 기간을 재는 데 쓸 수 없다 — 등록·마감은 `posted_start_date`·`posted_end_date` 를 쓴다(원천이 공고마다 실어 준다) |
+> | `job_posting.first_seen_month`·`last_seen_month` | 공고를 처음·마지막 본 월 | 크롤러가 처음 본 월로 채우고 재관측 시 `last_seen_month` 를 갱신한다. 다만 크롤러가 최근 등록순 몇 페이지만 훑어 재관측이 거의 없어 **두 값이 사실상 같다** — 관측 기간을 재는 데 쓸 수 없다. 등록·마감은 `posted_start_date`·`posted_end_date` 를 쓴다(원천이 공고마다 실어 준다) |
 >
-> **`market_aggregate.base_year_month` 는 해당 월에 활동 중(게시 중)인 공고의 집계 기준월이다.**
+> **`market_aggregate.base_year_month` 는 그 달 신규 수집 공고(유량)의 집계 기준월이다.**
 > `MarketAggregateService` 가 활동월(`first_seen_month <= m <= last_seen_month`) 기준으로
-> 공고를 필터링하여 월별 집계를 수행한다(개발 계획 `b18`). 전체 일괄 집계로 인한 MVI 100.0 고정
+> 공고를 필터링하는데(개발 계획 `b18`), 위 행의 이유로 활동월이 곧 첫 수집월이라 결과는 유량이다 —
+> 정의는 [데이터 아키텍처 §1.3](data-architecture.md). 전체 일괄 집계로 인한 MVI 100.0 고정
 > 결손이 해소되었으며, 집계월 시계열은 `SELECT DISTINCT base_year_month FROM core.market_aggregate ORDER BY 1;` 로
 > 확인한다. 원 공고의 일자 단위 직접 시계열 집계(OWI·연봉분포)는 기존과 같이 `job_posting.posted_start_date` 로 버킷한다(§4.5·§4.6).
 >
@@ -298,8 +299,8 @@ erDiagram
 
 > **`core.wage_stat_observation.source` 는 쓰기 경로까지 들어왔다.** 수집이 연도별로 출처를
 > 기록하고, KOSIS 실측만 기존 행을 덮는다 — 폴백 상수는 기존 행을 건드리지 않는다. 컬럼 도입
-> 이전 적재분(2026-09-15 적용 당시 360행, 아래 정리 뒤 288행)은 **재수집 전까지 `UNKNOWN` 으로
-> 남는다.**
+> 이전 적재분(2026-09-15 적용 당시 360행, 아래 정리 뒤 288행)은 재수집으로 **전부 `KOSIS` 실측**이 됐다
+> — `UNKNOWN` 행은 남아 있지 않다.
 >
 > **벽시계 vintage 는 막았고 쌓인 행도 정리했다.** 폴백 경로가 `stat_vintage` 를 실행 시점의
 > `yyyyMM` 으로 쓰던 것을 KOSIS 경로와 같은 `base_period + "08"` 로 고정했다. 좌표가 안정돼
