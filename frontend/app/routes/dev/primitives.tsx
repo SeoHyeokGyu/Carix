@@ -66,6 +66,7 @@ const SALARY_FIXTURE: SalaryDistributionResponse = {
   sampleSize: 50,
   minRequired: 10,
   baseline: {
+    basis: "AGE_BAND_PROXY",
     source: "KOSIS",
     median: 65_000_000,
     wageDefinition: "임금직무정보시스템 500인 이상",

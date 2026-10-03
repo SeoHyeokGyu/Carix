@@ -286,10 +286,21 @@
       "status": "INSUFFICIENT_SAMPLE",
       "sampleSize": 4,
       "minRequired": 10,
-      "baseline": { "source": "WAGE_STAT", "median": 72000000, "wageDefinition": "초과급여 제외, 상여 포함" },
+      "baseline": { "basis": "AGE_BAND_PROXY", "source": "KOSIS", "median": 72000000, "wageDefinition": "초과급여 제외, 상여 포함" },
       "postingReference": null,
       "userPosition": null,
-      "peerGroup": { "fallbackLevel": null, "appliedConditions": "서울 / 경력 MID±1 / 회사규모 무관" }
+      "peerGroup": { "fallbackLevel": null, "appliedConditions": "서울 / 경력 MID±1 / 회사규모 무관" },
+      "careerLadder": {
+        "userBracket": "MID",
+        "steps": [
+          { "bracket": "ENTRY", "median": 31200000, "raiseFromPrevious": null, "source": "FALLBACK" },
+          { "bracket": "JUNIOR", "median": 39600000, "raiseFromPrevious": 26.9, "source": "KOSIS" },
+          { "bracket": "MID", "median": 51600000, "raiseFromPrevious": 30.3, "source": "KOSIS" },
+          { "bracket": "SENIOR", "median": 62400000, "raiseFromPrevious": 20.9, "source": "KOSIS" },
+          { "bracket": "LEAD", "median": 74400000, "raiseFromPrevious": 19.2, "source": "KOSIS" }
+        ]
+      },
+      "trend": []
     }
     ```
 *   **Response (200 OK):**
@@ -298,7 +309,7 @@
       "status": "OK",
       "sampleSize": 71,
       "minRequired": null,
-      "baseline": { "source": "WAGE_STAT", "median": 72000000, "wageDefinition": "ANNUAL_GROSS_MEDIAN" },
+      "baseline": { "basis": "AGE_BAND_PROXY", "source": "KOSIS", "median": 72000000, "wageDefinition": "ANNUAL_GROSS_MEDIAN" },
       "postingReference": {
         "min": 45000000, "p25": 58000000, "median": 65000000, "p75": 74000000, "max": 95000000,
         "sampleSize": 41, "missingRate": 42.5
@@ -326,7 +337,8 @@
     }
     ```
     *(공고 분포는 참고 표시 전용, 판정 기준선은 `baseline` — [기능 명세 §6](functional-specification.md) 규약)*
-*   **`careerLadder` 는 같은 직군의 경력 구간별 임금 곡선이다** ([기능 명세 §4.7](functional-specification.md)). `wage_stat_observation` 을 자기 자신과 비교하므로 연령 프록시가 구간 간 비율에서 상쇄된다 — 공고 중앙값과 빼는 비교(모수가 다르다)와 다르다. `source` 는 `core.wage_stat_observation.source` 를 그대로 싣는다 — `FALLBACK` 은 그 구간이 KOSIS 실측 보간이 아니라 하드코딩 상수로 적재됐다는 뜻이고, `UNKNOWN` 은 출처 컬럼 도입 이전 적재분이라 어느 쪽인지 모른다는 뜻이다. 화면은 `KOSIS` 아닌 구간을 실측과 섞어 한 곡선으로 그리지 않는다 — 불리언으로는 `UNKNOWN` 을 담지 못해 `wageStat` 과 같은 세 값 축을 쓴다. `userBracket` 은 6구간 매핑(`PeerGroupFallbackResolver.mapExperienceBracket6`)으로 산출되어 신입(ENTRY)과 리드(LEAD)가 양 끝에 정상 정합된다(개발 계획 §2 `b7`). `region` 은 항상 `ALL` 이다.
+*   **`baseline` 은 임금 기준선의 성격과 적재 출처를 각각 싣는다.** `basis: "AGE_BAND_PROXY"` 는 KOSIS 연령 구간 임금값을 경력 구간으로 옮긴 기준이라는 뜻이며, `source` 는 실제 관측치의 `core.wage_stat_observation.source` 다. 화면은 두 값을 모두 `판정 기준선`에 표시한다. 기준선을 찾지 못하면 `baseline` 은 `null` 이다.
+*   **`careerLadder` 는 같은 직군의 경력 구간별 임금 사다리다** ([기능 명세 §4.7](functional-specification.md)). `wage_stat_observation` 에서 각 구간의 기준선을 읽으며, 같은 표 안의 인접 구간 상승률을 계산한다. `source` 는 `core.wage_stat_observation.source` 를 그대로 싣는다 — `FALLBACK` 은 KOSIS 실측 보간이 아닌 하드코딩 상수, `UNKNOWN` 은 출처를 확인할 수 없는 적재분이다. 화면은 구간별 카드로 보여주며 `KOSIS` 값은 실측 보간, 그 외 출처는 `추정`으로 구분한다. 관측치가 없으면 해당 `median` 과 `raiseFromPrevious` 는 `null`, `source` 는 `UNKNOWN` 이다. `userBracket` 은 경력 매핑(`PeerGroupFallbackResolver.mapExperienceBracket6`) 결과다. `region` 은 항상 `ALL` 이며 사다리는 프로필이 있으면 동료집단 표본 부족 응답에도 포함된다.
 *   **`trend` 는 같은 동료집단의 등록월별 중앙 제시 연봉이다** ([기능 명세 §4.6](functional-specification.md)). 버킷 키는 `job_posting.posted_start_date` 의 등록월이라 수집 회차와 무관하다. **완화는 현재 시점 조건으로 한 번만 안착시키고 그 조건으로 월별 집계한다** — 월마다 다시 완화하면 비교 대상이 달라져 계열이 이어지지 않는다. 그 달 공개연봉 표본이 부족하면 `median` 이 `null` 이고 화면은 선을 잇지 않는다. 금액이므로 지수로 환산하지 않는다.
 *   **두 `sampleSize` 는 다르다.** 최상위는 중복 제거 후 동료집단 공고 수, `postingReference.sampleSize` 는
     그중 **연봉이 공개된** 건수다. `minRequired` 는 최상위에만 걸린다 — 동료집단이 10건이어도 공개연봉이

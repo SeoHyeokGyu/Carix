@@ -117,6 +117,62 @@ export function percentileToBodyY(pct: number): number {
   return 72 + ((clamped - 75) / 25) * 21; // 72% (어깨) ~ 93% (정수리)
 }
 
+function CareerLadderView({
+  ladder,
+}: {
+  ladder: SalaryDistributionResponse["careerLadder"];
+}) {
+  if (!ladder?.steps?.length) return null;
+  return (
+    <section
+      className="mt-6 rounded-xl border border-carix-border bg-carix-bg/40 p-4"
+      aria-label="경력 사다리"
+    >
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <h4 className="font-semibold text-carix-text">경력 사다리</h4>
+        <p className="text-xs text-carix-text/60">
+          같은 직군의 경력 구간별 공식 임금통계 · 지역 전체
+        </p>
+      </div>
+      <ol className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-5">
+        {ladder.steps.map((step) => {
+          const estimated = step.source !== "KOSIS";
+          return (
+            <li
+              key={step.bracket}
+              className={`rounded-lg border p-3 ${step.bracket === ladder.userBracket ? "border-carix-primary bg-carix-primary/5" : "border-carix-border bg-carix-surface"}`}
+            >
+              <div className="flex items-center justify-between gap-1">
+                <span className="text-xs font-semibold text-carix-text">
+                  {step.bracket}
+                </span>
+                {step.bracket === ladder.userBracket && (
+                  <span className="text-[10px] font-semibold text-carix-primary">
+                    내 구간
+                  </span>
+                )}
+              </div>
+              <div className="mt-2 text-sm font-bold text-carix-text">
+                {formatKoreanSalary(step.median)}
+              </div>
+              <div className="mt-1 text-[11px] text-carix-text/60">
+                {step.raiseFromPrevious == null
+                  ? "직전 구간 대비 —"
+                  : `직전 구간 대비 +${step.raiseFromPrevious}%`}
+              </div>
+              <div
+                className={`mt-2 text-[10px] font-medium ${estimated ? "text-carix-warning" : "text-carix-positive"}`}
+              >
+                {estimated ? `추정 · ${step.source}` : "KOSIS 실측 보간"}
+              </div>
+            </li>
+          );
+        })}
+      </ol>
+    </section>
+  );
+}
+
 export function SalaryDistributionChart({
   data,
 }: SalaryDistributionChartProps) {
@@ -143,6 +199,7 @@ export function SalaryDistributionChart({
             적용된 비교 조건: {data.peerGroup.appliedConditions}
           </p>
         )}
+        <CareerLadderView ladder={data.careerLadder} />
       </div>
     );
   }
@@ -554,7 +611,7 @@ export function SalaryDistributionChart({
                       <div className="flex items-center justify-between rounded bg-carix-warning/5 px-2 py-1 border border-carix-warning/20">
                         <span className="flex items-center gap-1 text-[11px] font-medium text-carix-warning">
                           <span className="inline-block h-2 w-2 rounded-full bg-carix-warning" />
-                          공식 기준선 (KOSIS)
+                          공식 기준선 ({baseline?.source ?? "UNKNOWN"})
                         </span>
                         <span className="font-bold text-carix-warning">
                           {formatKoreanSalary(officialMedian)}
@@ -773,7 +830,8 @@ export function SalaryDistributionChart({
         <p className="flex items-center gap-1.5">
           <span className="font-semibold text-carix-text">📌 판정 기준선:</span>
           <span>
-            {baseline?.source ?? "국가통계"} (
+            {baseline?.basis ?? "AGE_BAND_PROXY"} ·{" "}
+            {baseline?.source ?? "UNKNOWN"} (
             {baseline?.wageDefinition ?? "공식 임금통계"}) — 중앙값{" "}
             {formatKoreanSalary(baseline?.median)}
           </span>
@@ -793,6 +851,7 @@ export function SalaryDistributionChart({
           결정 신호 판정은 국가 공식 임금통계 중앙값을 기준으로 이루어집니다.
         </p>
       </div>
+      <CareerLadderView ladder={data.careerLadder} />
     </div>
   );
 }
