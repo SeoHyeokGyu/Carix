@@ -1,4 +1,7 @@
+import { useState } from "react";
+import { ChevronDown, ChevronUp } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { ToneBadge, type Tone } from "@/components/ui/tone-badge";
 import type { DecisionSignal } from "../../lib/api/dashboard";
@@ -46,7 +49,6 @@ export function VerdictHero({
 }: VerdictHeroProps) {
   const view = resolveDecisionSignal(signal?.code ?? "", signal?.label);
   const title = view.description ?? view.label;
-  const isUpskill = signal?.code === "UPSKILL";
 
   return (
     <section aria-labelledby="verdict-title">
@@ -73,8 +75,11 @@ export function VerdictHero({
               ))}
             </ul>
           )}
-          {isUpskill && (
-            <SkillPrescriptionBlock recommendations={recommendations} />
+          {signal && (
+            <SkillPrescriptionBlock
+              signalCode={signal.code}
+              recommendations={recommendations}
+            />
           )}
         </div>
         {signal && history && (
@@ -143,55 +148,134 @@ function VerdictPreview({
   );
 }
 
+interface PrescriptionHeaderConfig {
+  badgeText: string;
+  badgeTone: Tone;
+  title: string;
+}
+
+function getPrescriptionHeader(
+  signalCode: string | undefined,
+): PrescriptionHeaderConfig {
+  switch (signalCode) {
+    case "UPSKILL":
+      return {
+        badgeText: "처방",
+        badgeTone: "info",
+        title: "시장가치 개선을 위한 우선 보강 스킬",
+      };
+    case "SEEK_JOB":
+      return {
+        badgeText: "이직 대비",
+        badgeTone: "warning",
+        title: "동료집단 공고에서 자주 요구하는 스킬",
+      };
+    case "NEGOTIATE":
+      return {
+        badgeText: "협상력 강화",
+        badgeTone: "action",
+        title: "동료집단에서 가치를 높여주는 추천 스킬",
+      };
+    case "STAY":
+      return {
+        badgeText: "성장 가이드",
+        badgeTone: "positive",
+        title: "다음 도약을 위한 동료집단 추천 스킬",
+      };
+    default:
+      return {
+        badgeText: "추천",
+        badgeTone: "muted",
+        title: "동료집단 수요 추천 스킬",
+      };
+  }
+}
+
 function SkillPrescriptionBlock({
+  signalCode,
   recommendations,
 }: {
+  signalCode?: string;
   recommendations?: SkillRecommendationsResponse | null;
 }) {
+  const [isCollapsed, setIsCollapsed] = useState(false);
   const items = recommendations?.recommendations ?? [];
   const isInsufficient = items.length === 0;
+  const isUpskill = signalCode === "UPSKILL";
+
+  // UPSKILL 이 아닌 신호(STAY, SEEK_JOB 등)에서는 추천 스킬이 비어있으면 블록 자체를 숨긴다 (불필요한 표본 부족 경고 노출 방지)
+  if (!isUpskill && isInsufficient) {
+    return null;
+  }
+
+  const { badgeText, badgeTone, title } = getPrescriptionHeader(signalCode);
 
   return (
     <div
       data-testid="skill-prescription-block"
-      aria-label="스킬 보강 처방"
+      aria-label="스킬 보강 처방 및 추천"
       className="mt-1 flex flex-col gap-2.5 rounded-lg border border-carix-border bg-carix-surface/60 p-3.5"
     >
-      <div className="flex items-center justify-between">
-        <span className="text-xs font-semibold text-carix-text/80">
-          처방: 동료집단 수요 추천 스킬
-        </span>
-        {isInsufficient && <ToneBadge tone="warning">표본 부족</ToneBadge>}
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <ToneBadge tone={badgeTone}>{badgeText}</ToneBadge>
+          <span className="text-xs font-semibold text-carix-text/80">
+            {title}
+          </span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          {isInsufficient && <ToneBadge tone="warning">표본 부족</ToneBadge>}
+          {!isInsufficient && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-xs"
+              onClick={() => setIsCollapsed(!isCollapsed)}
+              aria-label={isCollapsed ? "추천 스킬 펼치기" : "추천 스킬 접기"}
+              className="text-carix-text/50 hover:text-carix-text"
+            >
+              {isCollapsed ? (
+                <ChevronDown className="size-3.5" />
+              ) : (
+                <ChevronUp className="size-3.5" />
+              )}
+            </Button>
+          )}
+        </div>
       </div>
 
-      {isInsufficient ? (
-        <p className="text-xs text-carix-text/60">
-          동료집단 공고 표본이 부족하여 추천 스킬을 산출할 수 없습니다.
-        </p>
-      ) : (
-        <ul aria-label="추천 스킬 목록" className="flex flex-col gap-2">
-          {items.map((item) => (
-            <li
-              key={item.standardName}
-              className="flex flex-col gap-1 rounded border border-carix-border/60 bg-carix-surface/80 p-2.5"
-            >
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="text-sm font-semibold text-carix-text">
-                  {item.standardName}
-                </span>
-                {item.demandRate !== null && (
-                  <Badge variant="secondary">
-                    수요율 {(item.demandRate * 100).toFixed(1)}%
-                  </Badge>
-                )}
-                <GrowthTrendBadge trend={item.growthTrend} />
-              </div>
-              {item.reason && (
-                <p className="text-xs text-carix-text/70">{item.reason}</p>
-              )}
-            </li>
-          ))}
-        </ul>
+      {!isCollapsed && (
+        <>
+          {isInsufficient ? (
+            <p className="text-xs text-carix-text/60">
+              동료집단 공고 표본이 부족하여 추천 스킬을 산출할 수 없습니다.
+            </p>
+          ) : (
+            <ul aria-label="추천 스킬 목록" className="flex flex-col gap-2">
+              {items.map((item) => (
+                <li
+                  key={item.standardName}
+                  className="flex flex-col gap-1 rounded border border-carix-border/60 bg-carix-surface/80 p-2.5"
+                >
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-sm font-semibold text-carix-text">
+                      {item.standardName}
+                    </span>
+                    {item.demandRate !== null && (
+                      <Badge variant="secondary">
+                        수요율 {(item.demandRate * 100).toFixed(1)}%
+                      </Badge>
+                    )}
+                    <GrowthTrendBadge trend={item.growthTrend} />
+                  </div>
+                  {item.reason && (
+                    <p className="text-xs text-carix-text/70">{item.reason}</p>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
+        </>
       )}
     </div>
   );
