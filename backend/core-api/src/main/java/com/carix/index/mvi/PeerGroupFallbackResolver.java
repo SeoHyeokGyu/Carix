@@ -1,5 +1,6 @@
 package com.carix.index.mvi;
 
+import com.carix.config.IndexThresholdProperties;
 import com.carix.index.dto.SourceCoverage;
 import com.carix.market.MarketAggregate;
 import com.carix.market.MarketAggregateRepository;
@@ -12,6 +13,7 @@ import java.util.Optional;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 /**
@@ -58,6 +60,13 @@ public class PeerGroupFallbackResolver {
 
   private final MarketAggregateRepository marketAggregateRepository;
 
+  @Autowired(required = false)
+  private IndexThresholdProperties thresholds;
+
+  private int minSampleSize() {
+    return thresholds == null ? MIN_SAMPLE_SIZE : thresholds.getPeerGroupMinSampleSize();
+  }
+
   /**
    * 단일 원천에 대해 5단계 완화 알고리즘을 수행하여 최적의 동료집단 집계 행 및 커버리지 정보를 도출합니다.
    *
@@ -76,13 +85,14 @@ public class PeerGroupFallbackResolver {
     String broadRegion = extractBroadRegion(detailRegion);
     String employmentType = defaultString(profile.getEmploymentType(), "FULL_TIME");
     String companySize = profile.getCompanySize(); // null 가능
+    int minSampleSize = minSampleSize();
 
     // Level 1: 완전 일치 (직무 + 상세구 + 경력구간 + 고용형태 + 회사규모)
     if (companySize != null && !companySize.isBlank()) {
       Optional<MarketAggregate> l1Agg =
           marketAggregateRepository.findPeerGroupAggregate(
               source, baseYearMonth, jobFamily, detailRegion, bracket, employmentType, companySize);
-      if (l1Agg.isPresent() && l1Agg.get().getPostingCount() >= MIN_SAMPLE_SIZE) {
+      if (l1Agg.isPresent() && l1Agg.get().getPostingCount() >= minSampleSize) {
         return buildResolvedResult(
             source, 1, l1Agg.get(), detailRegion, List.of(bracket), employmentType, companySize);
       }
@@ -92,7 +102,7 @@ public class PeerGroupFallbackResolver {
     Optional<MarketAggregate> l2Agg =
         marketAggregateRepository.findPeerGroupAggregate(
             source, baseYearMonth, jobFamily, detailRegion, bracket, employmentType, null);
-    if (l2Agg.isPresent() && l2Agg.get().getPostingCount() >= MIN_SAMPLE_SIZE) {
+    if (l2Agg.isPresent() && l2Agg.get().getPostingCount() >= minSampleSize) {
       return buildResolvedResult(
           source, 2, l2Agg.get(), detailRegion, List.of(bracket), employmentType, null);
     }
@@ -101,7 +111,7 @@ public class PeerGroupFallbackResolver {
     Optional<MarketAggregate> l3Agg =
         marketAggregateRepository.findPeerGroupAggregate(
             source, baseYearMonth, jobFamily, broadRegion, bracket, employmentType, null);
-    if (l3Agg.isPresent() && l3Agg.get().getPostingCount() >= MIN_SAMPLE_SIZE) {
+    if (l3Agg.isPresent() && l3Agg.get().getPostingCount() >= minSampleSize) {
       return buildResolvedResult(
           source, 3, l3Agg.get(), broadRegion, List.of(bracket), employmentType, null);
     }
@@ -112,7 +122,7 @@ public class PeerGroupFallbackResolver {
         marketAggregateRepository.findPeerGroupAggregatesByBrackets(
             source, baseYearMonth, jobFamily, broadRegion, expandedBrackets, employmentType, null);
     int l4TotalCount = l4Aggs.stream().mapToInt(MarketAggregate::getPostingCount).sum();
-    if (!l4Aggs.isEmpty() && l4TotalCount >= MIN_SAMPLE_SIZE) {
+    if (!l4Aggs.isEmpty() && l4TotalCount >= minSampleSize) {
       return buildCompositeResolvedResult(
           source, 4, l4Aggs, broadRegion, expandedBrackets, employmentType, null);
     }
@@ -122,7 +132,7 @@ public class PeerGroupFallbackResolver {
         marketAggregateRepository.findPeerGroupAggregatesByBrackets(
             source, baseYearMonth, jobFamily, broadRegion, expandedBrackets, null, null);
     int l5TotalCount = l5Aggs.stream().mapToInt(MarketAggregate::getPostingCount).sum();
-    if (!l5Aggs.isEmpty() && l5TotalCount >= MIN_SAMPLE_SIZE) {
+    if (!l5Aggs.isEmpty() && l5TotalCount >= minSampleSize) {
       return buildCompositeResolvedResult(
           source, 5, l5Aggs, broadRegion, expandedBrackets, null, null);
     }

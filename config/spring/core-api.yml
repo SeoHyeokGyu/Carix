@@ -5,3 +5,9 @@ carix:
     # @RefreshScope 빈에서 읽는다.
     purchasing-power-warning-threshold: 0.95
     market-value-gap-warning-threshold: 0.90
+    # MVI/스킬 수요 계산 기준. /actuator/refresh 로 재바인딩한다.
+    skill-demand-min-clamp: 25.0
+    skill-demand-max-clamp: 400.0
+    peer-group-min-sample-size: 10
+    skill-min-sample-size: 10
+    co-occurrence-min-rate: 0.20

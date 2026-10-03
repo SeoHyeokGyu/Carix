@@ -1,5 +1,6 @@
 package com.carix.index.mvi;
 
+import com.carix.config.IndexThresholdProperties;
 import com.carix.index.enums.SkillDemandStatus;
 import com.carix.market.MarketAggregate;
 import com.carix.market.MarketAggregateRepository;
@@ -11,6 +12,7 @@ import java.util.UUID;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 /**
@@ -68,6 +70,21 @@ public class SkillDemandCalculator {
   private static final DateTimeFormatter YM_FORMATTER = DateTimeFormatter.ofPattern("yyyyMM");
 
   private final MarketAggregateRepository marketAggregateRepository;
+
+  @Autowired(required = false)
+  private IndexThresholdProperties thresholds;
+
+  private double minClamp() {
+    return thresholds == null ? MIN_CLAMP : thresholds.getSkillDemandMinClamp();
+  }
+
+  private double maxClamp() {
+    return thresholds == null ? MAX_CLAMP : thresholds.getSkillDemandMaxClamp();
+  }
+
+  private int minSkillSampleSize() {
+    return thresholds == null ? MIN_SKILL_SAMPLE_SIZE : thresholds.getSkillMinSampleSize();
+  }
 
   /** 동료집단의 최근 3개월 및 이전 12개월 전체 공고 수 요약. */
   public record TotalPostings(int recentTotalPostings, int baselineTotalPostings) {}
@@ -241,9 +258,9 @@ public class SkillDemandCalculator {
     // 최근 창의 스킬 0 은 여기서 걸러내지 않는다. 기준선 표본이 충분한데 최근이 0 이면 표본 문제가 아니라
     // "수요가 사라졌다" 는 신호이고, 기능 명세 §4.1 이 그 경우를 별도 상태로 규정한다.
     // 그 추론은 최근 창에 모수가 있을 때만 성립하는데, 모수 0 은 위 (1-0) 에서 이미 빠졌다.
-    boolean baselineUnderSampled = baselineSkillPostings < MIN_SKILL_SAMPLE_SIZE;
-    boolean recentUnderSampled =
-        recentSkillPostings > 0 && recentSkillPostings < MIN_SKILL_SAMPLE_SIZE;
+    int minSampleSize = minSkillSampleSize();
+    boolean baselineUnderSampled = baselineSkillPostings < minSampleSize;
+    boolean recentUnderSampled = recentSkillPostings > 0 && recentSkillPostings < minSampleSize;
     if (baselineUnderSampled || recentUnderSampled) {
       return SkillDemandResult.builder()
           .skillId(skillId)
@@ -277,7 +294,7 @@ public class SkillDemandCalculator {
     double rawIndex = (recentDemandRate / baselineDemandRate) * 100.0;
 
     // (4) 이상치 클램프 [25.0, 400.0]
-    double clampedIndex = Math.min(MAX_CLAMP, Math.max(MIN_CLAMP, rawIndex));
+    double clampedIndex = Math.min(maxClamp(), Math.max(minClamp(), rawIndex));
     boolean isClamped = (rawIndex != clampedIndex);
 
     return SkillDemandResult.builder()
