@@ -67,43 +67,41 @@ Member A의 품목별 CPI 산출 엔진 배포 전까지, 스냅샷 재계산 �
 
 공개 채용 공고 데이터를 특정 세부 필터(직무 + 지역 + 경력 + 고용형태 + 회사규모)로 묶었을 때 표본 수가 최소 기준($N \ge 10$) 미만으로 떨어지는 **데이터 희소성 문제**를 해결하기 위한 단계적 쿼리 완화 전략입니다. 여기서 $N$은 **동료집단 셀의 공고 수**(집계 분모)를 가리킵니다. 스킬 행의 `posting_count`에는 같은 값을 쓰되 판정 단위가 다릅니다 — 원천별 × 스킬별 × 기간 창별로 봅니다(§6.1). 그 기준이 실제로 무엇을 걸러내는지는 §2.3.
 
+**시장가치 지수(MVI) 경로가 실제로 쓰는 차원은 직무 × 경력뿐이다.** collector 가 `market_aggregate` 를 직무 × 경력
+구간으로만 나누고 지역·고용형태·회사규모는 `ALL` 로 집계한다. 그래서 MVI 동료집단은 그 세 차원을 `ALL` 로 명시 조회하고,
+완화는 경력 축 하나로만 한다. 지역·규모·고용형태를 실제로 거르는 경로는 원 공고(`job_posting`)를 직접 집계하는
+연봉 분포·개방창 지수다(기능 명세 §4.5·§4.6) — 같은 화면에서 비교 조건이 경로마다 다를 수 있고, 각 경로는 자기 조건을 그대로 밝힌다.
+
 ```mermaid
 flowchart TD
-    Start([검색 시도]) --> L1{Level 1: 완전 일치<br>직무+지역구+경력년수+고용형태+회사규모}
+    Start([검색 시도]) --> L1{Level 1: 본인 경력 구간<br>직무 + 경력 · 지역/규모/고용형태 ALL}
     L1 -->|N >= 10| Success1([성공: 반환])
-    L1 -->|아니오| L2{Level 2: 회사 규모 조건 해제<br>직무+지역구+경력년수+고용형태}
+    L1 -->|아니오| L2{Level 2: 인접 경력 구간까지 확장}
     L2 -->|N >= 10| Success2([성공: 반환])
-    L2 -->|아니오| L3{Level 3: 지역 범위 확장<br>지역구 -> 시/도}
-    L3 -->|N >= 10| Success3([성공: 반환])
-    L3 -->|아니오| L4{Level 4: 경력 구간 확장<br>정확한 년수 -> 인접 경력구간 ±1년}
-    L4 -->|N >= 10| Success4([성공: 반환])
-    L4 -->|아니오| L5{Level 5: 고용 형태 조건 해제<br>정규직/계약직 전체 통합}
-    L5 -->|N >= 10| Success5([성공: 반환])
-    L5 -->|아니오| Fail([최종: 데이터 부족 반환])
+    L2 -->|아니오| Fail([최종: 표본 부족 반환])
 ```
 
 ### 2.1 완화 단계별 쿼리 정책
 
-완화는 사전 집계 테이블(`market_aggregate`)의 경력 브래킷(`JUNIOR` 0~3 / `MID` 4~7 / `SENIOR` 8+) 단위로 수행합니다. 사용자 년차는 먼저 브래킷으로 변환합니다.
+사용자 년차는 3구간(`JUNIOR` 0~3 / `MID` 4~7 / `SENIOR` 8+)으로 판정하고, collector 6구간 행을 합산한다 — `JUNIOR` =
+`ENTRY`(0년)+`JUNIOR`(1~3년), `MID` = `MID`, `SENIOR` = `SENIOR`(8~12년)+`LEAD`(13년+). 6구간은 임금통계·경력 사다리와
+맞춰 둔 것이라 collector 쪽 경계를 바꾸지 않는다.
 
-1.  **Level 1 (Exact Match):**
+1.  **Level 1 (본인 구간):**
     ```sql
-    WHERE job_family = :job AND region = :region_detail AND experience_bracket = :bracket AND company_size = :size AND employment_type = :type
+    WHERE job_family = :job AND experience_bracket IN (:collector_brackets)
+      AND region = 'ALL' AND employment_type = 'ALL' AND company_size = 'ALL'
     ```
-2.  **Level 2 (Drop Company Size):**
-    ```sql
-    WHERE job_family = :job AND region = :region_detail AND experience_bracket = :bracket AND company_size IS NULL AND employment_type = :type
-    ```
-    조건을 단순 생략하면 롤업 행과 세분 행이 함께 잡혀 집계가 중복된다. 완화된 차원은 반드시 `IS NULL`(전체 롤업 행)로 **명시 선택**한다.
-3.  **Level 3 (Expand Region):**
-    `region_detail` (예: 서울 강남구) ➡️ `region_broad` (예: 서울특별시 전체)로 넓혀 쿼리합니다.
-4.  **Level 4 (Expand Experience Bracket):**
-    사용자 브래킷에 **인접 브래킷을 추가**해 조회합니다 (예: `MID` ➡️ `experience_bracket IN ('JUNIOR', 'MID', 'SENIOR')` 중 인접 구간). 사용자 년차가 브래킷 경계 ±1년이면 Level 4 이전에도 인접 브래킷을 병기 표시합니다.
-5.  **Level 5 (All Employment Types):**
-    `employment_type IS NULL`인 전체 롤업 행을 선택합니다 (조건 제거가 아님 — Level 2와 동일한 명시 선택 규칙).
+2.  **Level 2 (인접 구간):** 3구간 기준 양옆 한 칸까지 넓힌다(`JUNIOR` → `JUNIOR`·`MID`, `MID` → 세 구간, `SENIOR` →
+    `MID`·`SENIOR`). `JUNIOR` 에 `SENIOR` 를 섞지 않는다 — 0~3년 동료집단에 8년+ 공고가 들어오면 수요율이 왜곡된다.
+
+collector 가 지역·규모·고용형태 행을 만들기 시작하면 쿼리는 해당 값과 `ALL` 을 **동시에** 잡지 않도록 정확 일치로
+바꿔야 한다 — 함께 잡으면 같은 공고가 두 번 합산된다(개발 계획 `b25`).
 
 ### 2.2 메타데이터 반환 규격
-지표 API 응답 시 실제 적용된 Fallback 단계를 함께 반환하여, 프론트엔드가 대시보드 하단에 **"비교군: 서울 전체 / 경력 4~7년(MID) 기준 (회사규모 무관)"**과 같이 저장 브래킷 단위로 표기할 수 있도록 지원합니다.
+지표 API 응답에 실제 적용된 단계와 **실제 조회 조건** 문구를 함께 반환한다. 예: **"전국 / 4~7년 / 회사규모 무관 / 고용형태
+무관"**, 인접 확장 시 **"전국 / 0~7년 / …"**. 경력은 연차로만 쓰고 원시 enum 을 섞지 않는다. 화면은 이 문구를 그대로
+보이고 프로필 값으로 칩을 다시 만들지 않는다 — 다시 만들면 집계에 없는 조건을 비교한 것처럼 보인다.
 
 ### 2.3 표본 실측 제약
 

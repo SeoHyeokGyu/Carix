@@ -1,87 +1,26 @@
 /**
- * `S-10` 3층의 「나와 비교한 사람들」. 설계 §5.
+ * `S-10` 3층의 「나와 비교한 사람들」.
  *
- * 서버 `appliedConditions` 는 원시 enum 이 섞인 조립 문자열이라 쪼개 번역하지 않는다 —
- * 구분자에 기대면 서버 문구가 바뀔 때 조용히 깨진다. 완화가 없을 때만 프로필 값으로
- * 칩을 새로 조립하고, 완화가 걸렸거나 조립할 재료가 모자라면 서버 문자열을 그대로 쓴다.
+ * 서버 `appliedConditions` 가 실제 조회 조건이라 그대로 쓴다. 시장 집계는 직무 × 경력으로만 나뉘어
+ * 지역·회사규모·고용형태가 비교에 들어가지 않는다 — 프로필로 칩을 다시 만들면 집계에 없는 조건을
+ * 비교한 것처럼 보인다(기능 명세 §4.2).
  */
 import type { PeerGroupMetadata } from "./api/dashboard";
-import type { ProfileResponse } from "./api/profile";
-import { COMPANY_SIZES, EMPLOYMENT_TYPES } from "./schemas/profile";
-import type { Option } from "./schemas/options";
 
-export type PeerConditionView =
-  | { kind: "chips"; chips: string[] }
-  | { kind: "server"; text: string; widened: boolean };
-
-const EXACT_LEVEL = 1;
-const COMPANY_SIZE_RELEASED_LEVEL = 2;
-const ANY_COMPANY_SIZE = "회사규모 무관";
-
-// NOTE: (cjkang) 서버 PeerGroupFallbackResolver.mapExperienceBracket·formatBracketYears 와
-// 같은 경계다. 서버 구간이 바뀌면 여기도 바꿔야 한다.
-export function experienceBracketLabel(years: number): string {
-  if (years <= 3) return "0~3년";
-  if (years <= 7) return "4~7년";
-  return "8년+";
+export interface PeerConditionView {
+  text: string;
+  /** 본인 경력 구간에서 표본이 모자라 인접 구간까지 넓혔는가. 단계를 모르면 넓힌 것으로 본다. */
+  widened: boolean;
 }
 
-function isBlank(value: string | null | undefined): boolean {
-  return value === null || value === undefined || value.trim() === "";
-}
-
-function labelOf(options: readonly Option[], value: string): string | null {
-  return options.find((option) => option.value === value)?.label ?? null;
-}
-
-/** 서버가 프로필 조건을 하나도 풀지 않았는가. 회사규모가 없으면 1단계를 건너뛰어 2단계가 곧 완전 일치다. */
-function isExactMatch(
-  fallbackLevel: number | null,
-  profile: ProfileResponse,
-): boolean {
-  if (fallbackLevel === EXACT_LEVEL) return true;
-  return (
-    fallbackLevel === COMPANY_SIZE_RELEASED_LEVEL &&
-    isBlank(profile.companySize)
-  );
-}
-
-function buildChips(profile: ProfileResponse): string[] | null {
-  const { region, yearsOfExperience, employmentType, companySize } = profile;
-  if (
-    isBlank(region) ||
-    yearsOfExperience === null ||
-    isBlank(employmentType)
-  ) {
-    return null;
-  }
-  const employment = labelOf(EMPLOYMENT_TYPES, employmentType as string);
-  const size = isBlank(companySize)
-    ? ANY_COMPANY_SIZE
-    : labelOf(COMPANY_SIZES, companySize as string);
-  if (employment === null || size === null) return null;
-
-  const regionStr = region as string;
-  const regionChip = regionStr.includes("구") ? regionStr : `${regionStr} 전체`;
-  return [
-    regionChip,
-    experienceBracketLabel(yearsOfExperience),
-    size,
-    employment,
-  ];
-}
+const OWN_TIER_LEVEL = 1;
 
 export function resolvePeerConditions(
   peerGroup: PeerGroupMetadata | null | undefined,
-  profile: ProfileResponse | null,
 ): PeerConditionView | null {
   if (!peerGroup) return null;
-  const text = peerGroup.appliedConditions;
-  if (!profile) return { kind: "server", text, widened: false };
-  if (!isExactMatch(peerGroup.fallbackLevel, profile)) {
-    return { kind: "server", text, widened: true };
-  }
-  const chips = buildChips(profile);
-  if (!chips) return { kind: "server", text, widened: false };
-  return { kind: "chips", chips };
+  return {
+    text: peerGroup.appliedConditions,
+    widened: peerGroup.fallbackLevel !== OWN_TIER_LEVEL,
+  };
 }

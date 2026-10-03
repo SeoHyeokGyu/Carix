@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import type { DashboardMetadata } from "../../lib/api/dashboard";
@@ -139,17 +138,6 @@ function CoverageRow({
 }
 
 function PeerConditions({ view }: { view: PeerConditionView }) {
-  if (view.kind === "chips") {
-    return (
-      <ul aria-label="비교 조건" className="flex flex-wrap gap-1.5">
-        {view.chips.map((chip) => (
-          <li key={chip}>
-            <Badge variant="secondary">{chip}</Badge>
-          </li>
-        ))}
-      </ul>
-    );
-  }
   return (
     <div className="flex flex-col gap-1">
       <span className="text-carix-text">{view.text}</span>

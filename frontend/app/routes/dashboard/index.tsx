@@ -16,7 +16,6 @@ import { MarketValueTrend } from "../../components/dashboard/MarketValueTrend";
 import { VerdictHero } from "../../components/dashboard/VerdictHero";
 import { useIsNarrowViewport } from "../../hooks/useIsNarrowViewport";
 import { toUserMessage } from "../../lib/apiError";
-import { getProfile } from "../../lib/api/profile";
 import {
   fetchSummary,
   recalculateDashboard,
@@ -44,16 +43,14 @@ async function loadOptional<T>(load: () => Promise<T>): Promise<T | null> {
 
 export async function clientLoader() {
   try {
-    const [summary, history, profile, recommendations] = await Promise.all([
+    const [summary, history, recommendations] = await Promise.all([
       fetchSummary(),
       loadOptional(fetchSnapshotHistory),
-      loadOptional(getProfile),
       loadOptional(fetchSkillRecommendations),
     ]);
     return {
       summary,
       history: history?.snapshots ?? null,
-      profile,
       recommendations,
     };
   } catch (error) {
@@ -88,7 +85,6 @@ export default function DashboardHome() {
   const { summary } = loaderData;
   // 재검증 사이 loaderData 가 summary 만 가진 모양으로 올 수 있다(retention 테스트) — 없으면 없는 대로 그린다.
   const history = loaderData.history ?? null;
-  const profile = loaderData.profile ?? null;
   const recommendations = loaderData.recommendations ?? null;
   const isNarrow = useIsNarrowViewport();
   const revalidator = useRevalidator();
@@ -272,10 +268,7 @@ export default function DashboardHome() {
           <TrustPanel
             metadata={data.metadata}
             rationale={data.decisionSignal?.rationale ?? null}
-            peerConditions={resolvePeerConditions(
-              data.metadata.peerGroup,
-              profile,
-            )}
+            peerConditions={resolvePeerConditions(data.metadata.peerGroup)}
             isNarrow={isNarrow}
           />
         </div>

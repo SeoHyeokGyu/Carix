@@ -9,7 +9,6 @@ import com.carix.market.MarketAggregateRepository;
 import com.carix.profile.domain.CareerProfile;
 import java.math.BigDecimal;
 import java.util.List;
-import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -25,121 +24,6 @@ class PeerGroupFallbackResolverTest {
   @Mock private MarketAggregateRepository marketAggregateRepository;
 
   @InjectMocks private PeerGroupFallbackResolver resolver;
-
-  @Test
-  @DisplayName("Level 1 완전 일치 표본 수 >= 10이면 Level 1로 즉시 안착해야 한다")
-  void testLevel1ExactMatch() {
-    // Given
-    CareerProfile profile = new CareerProfile(UUID.randomUUID());
-    profile.patch("DEVELOPER", 5, "서울 강남구", "FULL_TIME", "MEDIUM");
-
-    MarketAggregate l1Aggregate =
-        MarketAggregate.builder()
-            .source("JOBKOREA")
-            .jobFamily("DEVELOPER")
-            .region("서울 강남구")
-            .experienceBracket("MID")
-            .employmentType("FULL_TIME")
-            .companySize("MEDIUM")
-            .postingCount(15) // >= 10
-            .salaryMissingRatePercent(BigDecimal.valueOf(30.0))
-            .build();
-
-    when(marketAggregateRepository.findPeerGroupAggregate(
-            "JOBKOREA", "202607", "DEVELOPER", "서울 강남구", "MID", "FULL_TIME", "MEDIUM"))
-        .thenReturn(Optional.of(l1Aggregate));
-
-    // When
-    PeerGroupFallbackResolver.ResolvedPeerGroup result =
-        resolver.resolveForSource("JOBKOREA", profile, "202607");
-
-    // Then
-    assertThat(result.isSuccessful()).isTrue();
-    assertThat(result.getFallbackLevel()).isEqualTo(1);
-    assertThat(result.getSampleCount()).isEqualTo(15);
-    assertThat(result.getCoverage().source()).isEqualTo("JOBKOREA");
-  }
-
-  @Test
-  @DisplayName("동료집단 완화의 최소 표본 기준은 설정값을 적용한다")
-  void configuredPeerGroupSampleThresholdIsApplied() {
-    CareerProfile profile = new CareerProfile(UUID.randomUUID());
-    profile.patch("DEVELOPER", 5, "서울 강남구", "FULL_TIME", "MEDIUM");
-    IndexThresholdProperties thresholds = new IndexThresholdProperties();
-    thresholds.setPeerGroupMinSampleSize(20);
-    ReflectionTestUtils.setField(resolver, "thresholds", thresholds);
-
-    MarketAggregate l1 = MarketAggregate.builder().postingCount(15).build();
-    MarketAggregate l2 =
-        MarketAggregate.builder()
-            .source("JOBKOREA")
-            .jobFamily("DEVELOPER")
-            .region("서울 강남구")
-            .experienceBracket("MID")
-            .employmentType("FULL_TIME")
-            .postingCount(20)
-            .salaryMissingRatePercent(BigDecimal.valueOf(25.0))
-            .build();
-
-    when(marketAggregateRepository.findPeerGroupAggregate(
-            "JOBKOREA", "202607", "DEVELOPER", "서울 강남구", "MID", "FULL_TIME", "MEDIUM"))
-        .thenReturn(Optional.of(l1));
-    when(marketAggregateRepository.findPeerGroupAggregate(
-            "JOBKOREA", "202607", "DEVELOPER", "서울 강남구", "MID", "FULL_TIME", null))
-        .thenReturn(Optional.of(l2));
-
-    PeerGroupFallbackResolver.ResolvedPeerGroup result =
-        resolver.resolveForSource("JOBKOREA", profile, "202607");
-
-    assertThat(result.isSuccessful()).isTrue();
-    assertThat(result.getFallbackLevel()).isEqualTo(2);
-    assertThat(result.getSampleCount()).isEqualTo(20);
-  }
-
-  @Test
-  @DisplayName("Level 1 표본 부족 시 Level 2(회사규모 IS NULL)로 완화되어야 한다")
-  void testLevel2Fallback() {
-    // Given
-    CareerProfile profile = new CareerProfile(UUID.randomUUID());
-    profile.patch("DEVELOPER", 5, "서울 강남구", "FULL_TIME", "MEDIUM");
-
-    // Level 1: 표본 3건 (< 10)
-    MarketAggregate l1Aggregate =
-        MarketAggregate.builder()
-            .source("JOBKOREA")
-            .postingCount(3)
-            .salaryMissingRatePercent(BigDecimal.valueOf(30.0))
-            .build();
-
-    // Level 2: 회사규모 IS NULL 롤업 행 표본 18건 (>= 10)
-    MarketAggregate l2Aggregate =
-        MarketAggregate.builder()
-            .source("JOBKOREA")
-            .jobFamily("DEVELOPER")
-            .region("서울 강남구")
-            .experienceBracket("MID")
-            .employmentType("FULL_TIME")
-            .postingCount(18)
-            .salaryMissingRatePercent(BigDecimal.valueOf(25.0))
-            .build();
-
-    when(marketAggregateRepository.findPeerGroupAggregate(
-            "JOBKOREA", "202607", "DEVELOPER", "서울 강남구", "MID", "FULL_TIME", "MEDIUM"))
-        .thenReturn(Optional.of(l1Aggregate));
-
-    when(marketAggregateRepository.findPeerGroupAggregate(
-            "JOBKOREA", "202607", "DEVELOPER", "서울 강남구", "MID", "FULL_TIME", null))
-        .thenReturn(Optional.of(l2Aggregate));
-
-    // When
-    PeerGroupFallbackResolver.ResolvedPeerGroup result =
-        resolver.resolveForSource("JOBKOREA", profile, "202607");
-
-    // Then
-    assertThat(result.isSuccessful()).isTrue();
-    assertThat(result.getFallbackLevel()).isEqualTo(2);
-    assertThat(result.getSampleCount()).isEqualTo(18);
-  }
 
   // ---------- Level 4 인접 브래킷 (도메인 정의서 §2.1) ----------
 
@@ -179,124 +63,6 @@ class PeerGroupFallbackResolverTest {
   void testConditionText_singleBracketUnchanged() {
     assertThat(resolver.formatConditionText("서울 강남구", List.of("MID"), "FULL_TIME", "MEDIUM"))
         .isEqualTo("서울 강남구 / MID (4~7년) / MEDIUM / FULL_TIME");
-  }
-
-  @Test
-  @DisplayName("Level 3 지역 범위 확장으로 완화 성공")
-  void testLevel3Fallback() {
-    CareerProfile profile = new CareerProfile(UUID.randomUUID());
-    profile.patch("DEVELOPER", 5, "경기 성남시", "FULL_TIME", null);
-
-    MarketAggregate l3 =
-        MarketAggregate.builder()
-            .source("JOBKOREA")
-            .jobFamily("DEVELOPER")
-            .postingCount(20)
-            .salaryMissingRatePercent(BigDecimal.valueOf(10.0))
-            .build();
-
-    when(marketAggregateRepository.findPeerGroupAggregate(
-            "JOBKOREA", "202607", "DEVELOPER", "경기 성남시", "MID", "FULL_TIME", null))
-        .thenReturn(Optional.empty());
-    when(marketAggregateRepository.findPeerGroupAggregate(
-            "JOBKOREA", "202607", "DEVELOPER", "경기도", "MID", "FULL_TIME", null))
-        .thenReturn(Optional.of(l3));
-
-    var result = resolver.resolveForSource("JOBKOREA", profile, "202607");
-
-    assertThat(result.isSuccessful()).isTrue();
-    assertThat(result.getFallbackLevel()).isEqualTo(3);
-    assertThat(result.getRegion()).isEqualTo("경기도");
-  }
-
-  @Test
-  @DisplayName("Level 4 경력 구간 확장으로 완화 성공")
-  void testLevel4Fallback() {
-    CareerProfile profile = new CareerProfile(UUID.randomUUID());
-    profile.patch("DEVELOPER", 2, "인천 남동구", "FULL_TIME", null);
-
-    MarketAggregate m1 =
-        MarketAggregate.builder()
-            .source("JOBKOREA")
-            .jobFamily("DEVELOPER")
-            .postingCount(6)
-            .salaryMissingRatePercent(BigDecimal.valueOf(10.0))
-            .build();
-    MarketAggregate m2 =
-        MarketAggregate.builder()
-            .source("JOBKOREA")
-            .jobFamily("DEVELOPER")
-            .postingCount(7)
-            .salaryMissingRatePercent(BigDecimal.valueOf(20.0))
-            .build();
-
-    when(marketAggregateRepository.findPeerGroupAggregate(
-            "JOBKOREA", "202607", "DEVELOPER", "인천 남동구", "JUNIOR", "FULL_TIME", null))
-        .thenReturn(Optional.empty());
-    when(marketAggregateRepository.findPeerGroupAggregate(
-            "JOBKOREA", "202607", "DEVELOPER", "인천광역시", "JUNIOR", "FULL_TIME", null))
-        .thenReturn(Optional.empty());
-    when(marketAggregateRepository.findPeerGroupAggregatesByBrackets(
-            "JOBKOREA",
-            "202607",
-            "DEVELOPER",
-            "인천광역시",
-            List.of("JUNIOR", "MID"),
-            "FULL_TIME",
-            null))
-        .thenReturn(List.of(m1, m2));
-
-    var result = resolver.resolveForSource("JOBKOREA", profile, "202607");
-
-    assertThat(result.isSuccessful()).isTrue();
-    assertThat(result.getFallbackLevel()).isEqualTo(4);
-    assertThat(result.getSampleCount()).isEqualTo(13);
-  }
-
-  @Test
-  @DisplayName("Level 5 고용 형태 해제로 완화 성공")
-  void testLevel5Fallback() {
-    CareerProfile profile = new CareerProfile(UUID.randomUUID());
-    profile.patch("DEVELOPER", 10, "부산 해운대구", "CONTRACT", null);
-
-    MarketAggregate m =
-        MarketAggregate.builder()
-            .source("SARAMIN")
-            .jobFamily("DEVELOPER")
-            .postingCount(12)
-            .salaryMissingRatePercent(BigDecimal.valueOf(15.0))
-            .build();
-
-    when(marketAggregateRepository.findPeerGroupAggregate(
-            "SARAMIN", "202607", "DEVELOPER", "부산 해운대구", "SENIOR", "CONTRACT", null))
-        .thenReturn(Optional.empty());
-    when(marketAggregateRepository.findPeerGroupAggregate(
-            "SARAMIN", "202607", "DEVELOPER", "부산광역시", "SENIOR", "CONTRACT", null))
-        .thenReturn(Optional.empty());
-    when(marketAggregateRepository.findPeerGroupAggregatesByBrackets(
-            "SARAMIN", "202607", "DEVELOPER", "부산광역시", List.of("MID", "SENIOR"), "CONTRACT", null))
-        .thenReturn(List.of());
-    when(marketAggregateRepository.findPeerGroupAggregatesByBrackets(
-            "SARAMIN", "202607", "DEVELOPER", "부산광역시", List.of("MID", "SENIOR"), null, null))
-        .thenReturn(List.of(m));
-
-    var result = resolver.resolveForSource("SARAMIN", profile, "202607");
-
-    assertThat(result.isSuccessful()).isTrue();
-    assertThat(result.getFallbackLevel()).isEqualTo(5);
-  }
-
-  @Test
-  @DisplayName("모든 레벨에서 표본 부족 시 완화 실패(successful=false)")
-  void testAllFallbackFailed() {
-    CareerProfile profile = new CareerProfile(UUID.randomUUID());
-    profile.patch("DEVELOPER", 5, "대구 수성구", "FULL_TIME", null);
-
-    var result = resolver.resolveForSource("JOBKOREA", profile, "202607");
-
-    assertThat(result.isSuccessful()).isFalse();
-    assertThat(result.getFallbackLevel()).isEqualTo(5);
-    assertThat(result.getSampleCount()).isEqualTo(0);
   }
 
   @Test
@@ -400,18 +166,152 @@ class PeerGroupFallbackResolverTest {
         .contains("CUSTOM1·CUSTOM2");
   }
 
+  // ---------- MVI 동료집단: 직무 × 경력만 실재한다 ----------
+  //
+  // market_aggregate 는 지역·고용형태·회사규모를 ALL 로만 집계한다. 해석기는 그 세 차원을 ALL 로
+  // 명시해 조회하고, 비교 조건 문구도 실제 조회 조건(전국 / 경력 / 무관 / 무관)으로 쓴다.
+
+  private static MarketAggregate row(String bracket, int count) {
+    return MarketAggregate.builder()
+        .source("JOBKOREA")
+        .jobFamily("DEVELOPER")
+        .region("ALL")
+        .experienceBracket(bracket)
+        .employmentType("ALL")
+        .companySize("ALL")
+        .postingCount(count)
+        .salaryMissingRatePercent(BigDecimal.valueOf(30.0))
+        .build();
+  }
+
+  private static CareerProfile profile(int years) {
+    CareerProfile profile = new CareerProfile(UUID.randomUUID());
+    profile.patch("DEVELOPER", years, "서울 강남구", "FULL_TIME", "LARGE");
+    return profile;
+  }
+
   @Test
-  @DisplayName("resolveForSource - 프로필 필드가 null이거나 빈 문자열일 때 기본값 정상 처리")
-  void testResolveForSource_defaultStringAndBlankFields() {
+  @DisplayName("본인 경력 구간 표본이 충분하면 1단계 — 지역·고용형태·규모는 ALL 로 조회한다")
+  void ownTierQueriesAllDimensions() {
+    when(marketAggregateRepository.findPeerGroupAggregatesByBrackets(
+            "JOBKOREA", "202607", "DEVELOPER", "ALL", List.of("MID"), "ALL", "ALL"))
+        .thenReturn(List.of(row("MID", 15)));
+
+    var result = resolver.resolveForSource("JOBKOREA", profile(5), "202607");
+
+    assertThat(result.isSuccessful()).isTrue();
+    assertThat(result.getFallbackLevel()).isEqualTo(1);
+    assertThat(result.getSampleCount()).isEqualTo(15);
+    assertThat(result.getRegion()).isEqualTo("ALL");
+    assertThat(result.getEmploymentType()).isEqualTo("ALL");
+    assertThat(result.getCompanySize()).isEqualTo("ALL");
+    assertThat(result.getBrackets()).containsExactly("MID");
+  }
+
+  @Test
+  @DisplayName("비교 조건 문구는 프로필이 아니라 실제 조회 조건이다")
+  void conditionTextIsActualQuery() {
+    when(marketAggregateRepository.findPeerGroupAggregatesByBrackets(
+            "JOBKOREA", "202607", "DEVELOPER", "ALL", List.of("MID"), "ALL", "ALL"))
+        .thenReturn(List.of(row("MID", 15)));
+
+    var result = resolver.resolveForSource("JOBKOREA", profile(5), "202607");
+
+    assertThat(result.getCoverage().appliedConditions()).isEqualTo("전국 / 4~7년 / 회사규모 무관 / 고용형태 무관");
+    assertThat(result.getCoverage().appliedConditions())
+        .doesNotContain("서울", "LARGE", "FULL_TIME", "MID");
+  }
+
+  @Test
+  @DisplayName("JUNIOR 는 수집 구간 ENTRY(0년)·JUNIOR(1~3년)를 합산한다")
+  void juniorSumsEntryAndJunior() {
+    when(marketAggregateRepository.findPeerGroupAggregatesByBrackets(
+            "JOBKOREA", "202607", "DEVELOPER", "ALL", List.of("ENTRY", "JUNIOR"), "ALL", "ALL"))
+        .thenReturn(List.of(row("ENTRY", 6), row("JUNIOR", 5)));
+
+    var result = resolver.resolveForSource("JOBKOREA", profile(2), "202607");
+
+    assertThat(result.isSuccessful()).isTrue();
+    assertThat(result.getFallbackLevel()).isEqualTo(1);
+    assertThat(result.getSampleCount()).isEqualTo(11);
+    assertThat(result.getBrackets()).containsExactly("ENTRY", "JUNIOR");
+    assertThat(result.getCoverage().appliedConditions()).contains("/ 0~3년 /");
+  }
+
+  @Test
+  @DisplayName("SENIOR 는 수집 구간 SENIOR(8~12년)·LEAD(13년+)를 합산한다")
+  void seniorSumsSeniorAndLead() {
+    when(marketAggregateRepository.findPeerGroupAggregatesByBrackets(
+            "JOBKOREA", "202607", "DEVELOPER", "ALL", List.of("SENIOR", "LEAD"), "ALL", "ALL"))
+        .thenReturn(List.of(row("SENIOR", 7), row("LEAD", 4)));
+
+    var result = resolver.resolveForSource("JOBKOREA", profile(10), "202607");
+
+    assertThat(result.getSampleCount()).isEqualTo(11);
+    assertThat(result.getBrackets()).containsExactly("SENIOR", "LEAD");
+  }
+
+  @Test
+  @DisplayName("본인 구간이 부족하면 2단계 — 인접 구간까지 넓히고 문구에 넓힌 범위를 쓴다")
+  void widensToAdjacentTiers() {
+    when(marketAggregateRepository.findPeerGroupAggregatesByBrackets(
+            "JOBKOREA", "202607", "DEVELOPER", "ALL", List.of("ENTRY", "JUNIOR"), "ALL", "ALL"))
+        .thenReturn(List.of(row("ENTRY", 2), row("JUNIOR", 3)));
+    when(marketAggregateRepository.findPeerGroupAggregatesByBrackets(
+            "JOBKOREA",
+            "202607",
+            "DEVELOPER",
+            "ALL",
+            List.of("ENTRY", "JUNIOR", "MID"),
+            "ALL",
+            "ALL"))
+        .thenReturn(List.of(row("ENTRY", 2), row("JUNIOR", 3), row("MID", 9)));
+
+    var result = resolver.resolveForSource("JOBKOREA", profile(2), "202607");
+
+    assertThat(result.isSuccessful()).isTrue();
+    assertThat(result.getFallbackLevel()).isEqualTo(2);
+    assertThat(result.getSampleCount()).isEqualTo(14);
+    assertThat(result.getCoverage().appliedConditions()).isEqualTo("전국 / 0~7년 / 회사규모 무관 / 고용형태 무관");
+  }
+
+  @Test
+  @DisplayName("넓혀도 부족하면 실패 — 단계는 2, 문구는 넓힌 조건")
+  void failsAfterWidening() {
+    var result = resolver.resolveForSource("JOBKOREA", profile(5), "202607");
+
+    assertThat(result.isSuccessful()).isFalse();
+    assertThat(result.getFallbackLevel()).isEqualTo(2);
+    assertThat(result.getSampleCount()).isZero();
+    assertThat(result.getCoverage().appliedConditions())
+        .isEqualTo("전국 / 경력 전체 / 회사규모 무관 / 고용형태 무관");
+  }
+
+  @Test
+  @DisplayName("최소 표본 기준은 설정값을 따른다")
+  void configuredThresholdApplies() {
+    IndexThresholdProperties thresholds = new IndexThresholdProperties();
+    thresholds.setPeerGroupMinSampleSize(20);
+    ReflectionTestUtils.setField(resolver, "thresholds", thresholds);
+    when(marketAggregateRepository.findPeerGroupAggregatesByBrackets(
+            "JOBKOREA", "202607", "DEVELOPER", "ALL", List.of("MID"), "ALL", "ALL"))
+        .thenReturn(List.of(row("MID", 15)));
+
+    var result = resolver.resolveForSource("JOBKOREA", profile(5), "202607");
+
+    assertThat(result.getFallbackLevel()).isEqualTo(2);
+  }
+
+  @Test
+  @DisplayName("프로필 값이 비어도 기본 직무·경력으로 조회한다")
+  void blankProfileUsesDefaults() {
     CareerProfile profile = new CareerProfile(UUID.randomUUID());
     profile.patch("", null, "", "", "   ");
 
-    PeerGroupFallbackResolver.ResolvedPeerGroup result =
-        resolver.resolveForSource("JOBKOREA", profile, "202608");
+    var result = resolver.resolveForSource("JOBKOREA", profile, "202608");
 
-    assertThat(result).isNotNull();
     assertThat(result.getJobFamily()).isEqualTo("DEVELOPER");
-    assertThat(result.getRegion()).isEqualTo("서울특별시");
-    assertThat(result.getBrackets()).contains("JUNIOR");
+    assertThat(result.getRegion()).isEqualTo("ALL");
+    assertThat(result.getBrackets()).contains("ENTRY", "JUNIOR");
   }
 }

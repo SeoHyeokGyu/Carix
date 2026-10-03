@@ -9,7 +9,6 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.Collection;
 import java.util.List;
-import java.util.Optional;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
@@ -17,23 +16,23 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 /**
- * 동료집단 완화 알고리즘 해석기 (Peer Group Fallback Resolver).
+ * 시장가치 지수(MVI) 동료집단 해석기.
  *
- * <p>[도메인 정의서 §2]에 정의된 5단계 완화 계층 구조(Fallback Hierarchy)를 구현합니다. 특정 세부 조건(직무 + 지역 + 경력 + 고용형태 +
- * 회사규모)에서 채용공고 표본 수(\(N\))가 최소 기준(\(N \ge 10\)) 미만으로 떨어질 때, 단계적으로 조건을 완화하여 충분한 표본을 확보합니다.
+ * <p><b>실재하는 차원은 직무 × 경력뿐이다.</b> collector 는 {@code market_aggregate} 를 직무 × 경력 구간으로만 나누고 지역·고용형태·
+ * 회사규모는 {@code ALL} 로 집계한다. 그래서 이 해석기는 세 차원을 {@code ALL} 로 명시해 조회하고, 비교 조건 문구도 프로필이 아니라 실제 조회
+ * 조건(「전국 / 경력 / 회사규모 무관 / 고용형태 무관」)으로 쓴다 — 기능 명세 §4.2, US-D1 「실제 적용된 비교 조건 명시」.
  *
- * <h3>완화 계층 구조</h3>
+ * <h3>완화 2단계</h3>
  *
  * <ul>
- *   <li><b>Level 1 (완전 일치):</b> 직무 + 상세구 + 경력구간 + 고용형태 + 회사규모
- *   <li><b>Level 2 (회사규모 해제):</b> 회사규모 조건 해제 ({@code company_size IS NULL} 전체 롤업 명시 선택)
- *   <li><b>Level 3 (지역 확장):</b> 상세구 \(\rightarrow\) 시/도 광역 단위로 확장 (예: 서울 강남구 \(\rightarrow\) 서울특별시)
- *   <li><b>Level 4 (경력구간 확장):</b> 인접 경력구간을 포괄 (예: MID \(\rightarrow\) JUNIOR, MID, SENIOR 전체)
- *   <li><b>Level 5 (고용형태 해제):</b> 고용형태 조건 해제 ({@code employment_type IS NULL} 전체 롤업 명시 선택)
+ *   <li><b>Level 1:</b> 본인 경력 구간
+ *   <li><b>Level 2:</b> 인접 경력 구간까지 확장
  * </ul>
  *
- * <p><b>원천별 독립 수행:</b> 시장 집계는 원천별(JOBKOREA, SARAMIN)로 저장되므로, 완화 또한 원천별로 독립적으로 수행되어 각기 다른 완화 레벨에 안착할
- * 수 있습니다.
+ * <p>경력은 3구간(JUNIOR 0~3·MID 4~7·SENIOR 8+)으로 판정하고 collector 6구간 행을 합산한다 — JUNIOR = ENTRY+JUNIOR,
+ * SENIOR = SENIOR+LEAD. 6구간은 임금통계·경력 사다리와 맞춰 둔 것이라 collector 쪽을 바꾸지 않는다.
+ *
+ * <p><b>원천별 독립 수행:</b> 시장 집계는 원천별(JOBKOREA, SARAMIN)로 저장되므로 완화도 원천별로 따로 안착한다.
  */
 @Component
 @RequiredArgsConstructor
@@ -80,143 +79,106 @@ public class PeerGroupFallbackResolver {
     return resolveForSource(source, profile, baseYearMonth);
   }
 
+  /** 집계 차원 중 collector 가 나누지 않는 것(지역·고용형태·회사규모)의 값. */
+  public static final String DIMENSION_ALL = "ALL";
+
   /**
-   * 단일 원천에 대해 5단계 완화 알고리즘을 수행하여 최적의 동료집단 집계 행 및 커버리지 정보를 도출합니다.
+   * 단일 원천에 대해 2단계 완화를 수행한다 — 본인 경력 구간, 그다음 인접 구간.
    *
    * @param source 플랫폼 원천 (JOBKOREA, SARAMIN)
-   * @param profile 사용자 커리어 프로필
+   * @param profile 사용자 커리어 프로필 — 직무와 경력만 쓴다
    * @param baseYearMonth 기준년월 (YYYYMM)
-   * @return 완화 해석 결과 (성공 시 안착 레벨 및 집계 행 포함, 표본 부족 시 실패 상태)
+   * @return 완화 해석 결과 (성공 시 안착 레벨 및 집계 행, 표본 부족 시 실패 상태)
    */
   public ResolvedPeerGroup resolveForSource(
       String source, CareerProfile profile, String baseYearMonth) {
 
     String jobFamily = defaultString(profile.getJobFamily(), "DEVELOPER");
     int years = profile.getYearsOfExperience() != null ? profile.getYearsOfExperience() : 3;
-    String bracket = mapExperienceBracket(years);
-    String detailRegion = defaultString(profile.getRegion(), "서울 강남구");
-    String broadRegion = extractBroadRegion(detailRegion);
-    String employmentType = defaultString(profile.getEmploymentType(), "FULL_TIME");
-    String companySize = profile.getCompanySize(); // null 가능
+    String tier = mapExperienceBracket(years);
     int minSampleSize = minSampleSize();
 
-    // Level 1: 완전 일치 (직무 + 상세구 + 경력구간 + 고용형태 + 회사규모)
-    if (companySize != null && !companySize.isBlank()) {
-      Optional<MarketAggregate> l1Agg =
-          marketAggregateRepository.findPeerGroupAggregate(
-              source, baseYearMonth, jobFamily, detailRegion, bracket, employmentType, companySize);
-      if (l1Agg.isPresent() && l1Agg.get().getPostingCount() >= minSampleSize) {
-        return buildResolvedResult(
-            source, 1, l1Agg.get(), detailRegion, List.of(bracket), employmentType, companySize);
-      }
+    List<String> ownTiers = List.of(tier);
+    List<MarketAggregate> own = findAllDimensionRows(source, baseYearMonth, jobFamily, ownTiers);
+    if (sum(own) >= minSampleSize) {
+      return buildCompositeResolvedResult(source, 1, own, ownTiers);
     }
 
-    // Level 2: 회사 규모 조건 해제 (company_size IS NULL 롤업 행)
-    Optional<MarketAggregate> l2Agg =
-        marketAggregateRepository.findPeerGroupAggregate(
-            source, baseYearMonth, jobFamily, detailRegion, bracket, employmentType, null);
-    if (l2Agg.isPresent() && l2Agg.get().getPostingCount() >= minSampleSize) {
-      return buildResolvedResult(
-          source, 2, l2Agg.get(), detailRegion, List.of(bracket), employmentType, null);
+    List<String> widenedTiers = getAdjacentBrackets(tier);
+    List<MarketAggregate> widened =
+        findAllDimensionRows(source, baseYearMonth, jobFamily, widenedTiers);
+    if (sum(widened) >= minSampleSize) {
+      return buildCompositeResolvedResult(source, 2, widened, widenedTiers);
     }
 
-    // Level 3: 지역 범위 확장 (상세구 -> 시/도 광역)
-    Optional<MarketAggregate> l3Agg =
-        marketAggregateRepository.findPeerGroupAggregate(
-            source, baseYearMonth, jobFamily, broadRegion, bracket, employmentType, null);
-    if (l3Agg.isPresent() && l3Agg.get().getPostingCount() >= minSampleSize) {
-      return buildResolvedResult(
-          source, 3, l3Agg.get(), broadRegion, List.of(bracket), employmentType, null);
-    }
-
-    // Level 4: 경력 구간 확장 (인접 브래킷 추가)
-    List<String> expandedBrackets = getAdjacentBrackets(bracket);
-    List<MarketAggregate> l4Aggs =
-        marketAggregateRepository.findPeerGroupAggregatesByBrackets(
-            source, baseYearMonth, jobFamily, broadRegion, expandedBrackets, employmentType, null);
-    int l4TotalCount = l4Aggs.stream().mapToInt(MarketAggregate::getPostingCount).sum();
-    if (!l4Aggs.isEmpty() && l4TotalCount >= minSampleSize) {
-      return buildCompositeResolvedResult(
-          source, 4, l4Aggs, broadRegion, expandedBrackets, employmentType, null);
-    }
-
-    // Level 5: 고용 형태 조건 해제 (employment_type IS NULL 롤업 행)
-    List<MarketAggregate> l5Aggs =
-        marketAggregateRepository.findPeerGroupAggregatesByBrackets(
-            source, baseYearMonth, jobFamily, broadRegion, expandedBrackets, null, null);
-    int l5TotalCount = l5Aggs.stream().mapToInt(MarketAggregate::getPostingCount).sum();
-    if (!l5Aggs.isEmpty() && l5TotalCount >= minSampleSize) {
-      return buildCompositeResolvedResult(
-          source, 5, l5Aggs, broadRegion, expandedBrackets, null, null);
-    }
-
-    // 최종 완화 실패 (모든 단계에서 N < 10)
-    int fallbackSampleCount =
-        !l5Aggs.isEmpty() ? l5TotalCount : (!l4Aggs.isEmpty() ? l4TotalCount : 0);
+    int sampleCount = sum(widened);
     return ResolvedPeerGroup.builder()
         .source(source)
         .successful(false)
-        .fallbackLevel(5)
-        .sampleCount(fallbackSampleCount)
+        .fallbackLevel(2)
+        .sampleCount(sampleCount)
         .coverage(
             new SourceCoverage(
                 source,
-                5,
-                fallbackSampleCount,
+                2,
+                sampleCount,
                 false,
-                formatConditionText(broadRegion, expandedBrackets, null, null),
+                formatNationwideConditionText(widenedTiers),
                 BigDecimal.valueOf(100.00)))
         .jobFamily(jobFamily)
-        .region(broadRegion)
-        .brackets(expandedBrackets)
-        .employmentType(null)
-        .companySize(null)
+        .region(DIMENSION_ALL)
+        .brackets(toCollectorBrackets(widenedTiers))
+        .employmentType(DIMENSION_ALL)
+        .companySize(DIMENSION_ALL)
         .build();
   }
 
-  /** 단일 집계 행에 대한 성공적인 해석 결과 객체를 생성합니다. */
-  private ResolvedPeerGroup buildResolvedResult(
-      String source,
-      int level,
-      MarketAggregate aggregate,
-      String region,
-      List<String> brackets,
-      String employmentType,
-      String companySize) {
-
-    String conditionText = formatConditionText(region, brackets, employmentType, companySize);
-    SourceCoverage coverage =
-        new SourceCoverage(
-            source,
-            level,
-            aggregate.getPostingCount(),
-            true,
-            conditionText,
-            aggregate.getSalaryMissingRatePercent());
-
-    return ResolvedPeerGroup.builder()
-        .source(source)
-        .successful(true)
-        .fallbackLevel(level)
-        .sampleCount(aggregate.getPostingCount())
-        .coverage(coverage)
-        .jobFamily(aggregate.getJobFamily())
-        .region(region)
-        .brackets(brackets)
-        .employmentType(employmentType)
-        .companySize(companySize)
-        .build();
+  private List<MarketAggregate> findAllDimensionRows(
+      String source, String baseYearMonth, String jobFamily, List<String> tiers) {
+    return marketAggregateRepository.findPeerGroupAggregatesByBrackets(
+        source,
+        baseYearMonth,
+        jobFamily,
+        DIMENSION_ALL,
+        toCollectorBrackets(tiers),
+        DIMENSION_ALL,
+        DIMENSION_ALL);
   }
 
-  /** 복수 집계 행(Level 4, 5 브래킷 통합)에 대한 합성 해석 결과 객체를 생성합니다. */
+  private static int sum(List<MarketAggregate> rows) {
+    return rows.stream().mapToInt(MarketAggregate::getPostingCount).sum();
+  }
+
+  /**
+   * 3구간 경력을 collector 6구간 행으로 푼다. JUNIOR 는 ENTRY(0년)·JUNIOR(1~3년), SENIOR 는
+   * SENIOR(8~12년)·LEAD(13년+)를 합쳐야 「0~3년」「8년+」 문구와 표본이 맞는다.
+   */
+  public List<String> toCollectorBrackets(List<String> tiers) {
+    return BRACKET_6_ORDER.stream().filter(b -> tiers.contains(to3TierBracket(b))).toList();
+  }
+
+  /**
+   * MVI 동료집단 비교 조건 문구. 실제 조회 조건이라 지역·규모·고용형태는 늘 무관이다. 경력은 연차로만 쓴다 — 화면이 이 문구를 그대로 보이므로 {@code MID}
+   * 같은 원시 enum 을 섞지 않는다.
+   */
+  public String formatNationwideConditionText(List<String> tiers) {
+    return String.format("전국 / %s / 회사규모 무관 / 고용형태 무관", formatTierYears(tiers));
+  }
+
+  private String formatTierYears(List<String> tiers) {
+    List<String> ordered = BRACKET_ORDER.stream().filter(tiers::contains).toList();
+    if (ordered.isEmpty() || ordered.size() == BRACKET_ORDER.size()) {
+      return "경력 전체";
+    }
+    if (ordered.size() == 1) {
+      return formatBracketYears(ordered.getFirst());
+    }
+    return formatBracketRange(ordered);
+  }
+
+  /** 합산한 집계 행에 대한 해석 결과. 비교 조건과 차원 값은 실제 조회 조건 그대로다. */
   private ResolvedPeerGroup buildCompositeResolvedResult(
-      String source,
-      int level,
-      List<MarketAggregate> aggregates,
-      String region,
-      List<String> brackets,
-      String employmentType,
-      String companySize) {
+      String source, int level, List<MarketAggregate> aggregates, List<String> tiers) {
 
     int totalPostings = aggregates.stream().mapToInt(MarketAggregate::getPostingCount).sum();
 
@@ -232,9 +194,14 @@ public class PeerGroupFallbackResolver {
             ? weightedMissingSum.divide(BigDecimal.valueOf(totalPostings), 2, RoundingMode.HALF_UP)
             : BigDecimal.valueOf(100.00);
 
-    String conditionText = formatConditionText(region, brackets, employmentType, companySize);
     SourceCoverage coverage =
-        new SourceCoverage(source, level, totalPostings, true, conditionText, avgMissingRate);
+        new SourceCoverage(
+            source,
+            level,
+            totalPostings,
+            true,
+            formatNationwideConditionText(tiers),
+            avgMissingRate);
 
     return ResolvedPeerGroup.builder()
         .source(source)
@@ -243,10 +210,10 @@ public class PeerGroupFallbackResolver {
         .sampleCount(totalPostings)
         .coverage(coverage)
         .jobFamily(aggregates.get(0).getJobFamily())
-        .region(region)
-        .brackets(brackets)
-        .employmentType(employmentType)
-        .companySize(companySize)
+        .region(DIMENSION_ALL)
+        .brackets(toCollectorBrackets(tiers))
+        .employmentType(DIMENSION_ALL)
+        .companySize(DIMENSION_ALL)
         .build();
   }
 
