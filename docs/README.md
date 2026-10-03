@@ -102,7 +102,7 @@
 | 시장가치 지수(MVI) 고정 | 없음. 활동월(`first_seen_month` ~ `last_seen_month`) 기준 월별 귀속 필터링을 적용해 3개월/12개월 모수를 분리하고 MVI 100.0 고정 결손 해소 완료 (`b18`) |
 | collector | 없음. 임금통계 적재의 출처 기록·승격 규칙·폴백 단일 연도화까지 들어왔다. 관리자 콘솔(`S-16`) UI 연동까지 완료했다. `@Scheduled` 정기 실행은 도입하지 않기로 확정했다 ([데이터 아키텍처 §5](specs/data-architecture.md)) |
 | 프런트엔드 | UI 일관성 통일의 B·박지수 화면 교체가 잔여. 남은 파일은 eslint 예외 목록이 센다([ui-unification-plan.md](plans/ui-unification-plan.md) §5) |
-| 검증 | 스냅샷 쓰기 경로는 자문 잠금까지 운영에서 입증됐다([도메인 정의서 §5](specs/domain-logic.md)). 커넥션 풀 예산은 `b17` 소관이다. MVI 표본부족(`N<10`) 엣지케이스 검증, 민감 금액 로깅 마스킹 점검, E2E 통합과 완료 기준 10항목 점검 |
+| 검증 | 스냅샷 쓰기 경로는 자문 잠금까지 운영에서 입증됐다([도메인 정의서 §5](specs/domain-logic.md)). MVI `N<10` 표본 부족과 Config Server 임계값 변경은 단위 테스트로 검증했다. 커넥션 풀 예산은 `b17` 소관이다. 민감 금액 로깅 마스킹 점검, E2E 통합과 완료 기준 10항목 점검이 남았다 |
 | 스냅샷 데이터 결함 | 없음. `market_value_index = 0` 22행은 전부 밀려난 행이고, 월별 최신 `data_version` 만 읽는 유효행에는 0 이 없다 — 원인(최근 3개월 창의 모수 0 을 수요 0 으로 읽던 것)을 고친 뒤의 실행들이 덮었다. `opening_window_index` 가 `NULL` 인데 `rationale.indexStatuses.owi` 는 `OK` 이고 근거는 다 들어있는 행 35개(유효 3)가 남아 있다 — 어느 빌드가 만들었는지 규명하지 못했고 현재 코드 경로로는 재현되지 않는다. 값-상태 불변식(`IndexValueContract`)이 산출기 계약과 쓰기 경계 두 층에서 그 모양을 막고, 읽기 경로는 옛 행을 `계산 대기`로 접는다 |
 | 개방창 지수(OWI) | 없음. 공고 직접 집계·동료집단 완화·상시채용 비율 및 OWI Provider(B `b6`) 구현 완료 ([기능 명세 §4.5](specs/functional-specification.md)) |
 | 지출 카테고리 Swagger 문구 | `ExpenseItem` 의 `category` 설명이 `TRANSPORTATION`·`HEALTH`·`OTHER` 를 적고 있는데 정본 `ExpenseCategoryEnum` 은 `TRANSPORT`·`MEDICAL`·`LEISURE` 다 — 세 값 모두 실존하지 않는다. 코드 주석만의 문제라 동작은 멀쩡하고 공개 API 문서만 틀렸다. 소관 A (소비 API) |
