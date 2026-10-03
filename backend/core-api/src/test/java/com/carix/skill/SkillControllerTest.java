@@ -42,6 +42,9 @@ class SkillControllerTest {
 
   @MockitoBean private SkillService skillService;
 
+  @MockitoBean
+  private com.carix.skill.service.SkillRecommendationService skillRecommendationService;
+
   @Test
   @DisplayName("GET /v1/skills/search - 검색어에 따른 표준 스킬 목록을 반환한다")
   void searchSkills_returnsSkillList() throws Exception {
@@ -311,5 +314,42 @@ class SkillControllerTest {
                         futureDate)))
         .andExpect(status().isBadRequest())
         .andExpect(jsonPath("$.code").value("INVALID_INPUT"));
+  }
+
+  @Test
+  @DisplayName("GET /v1/skills/recommendations - 동료집단 기반 스킬 보강 추천 목록을 반환한다")
+  void getSkillRecommendations_returnsRecommendations() throws Exception {
+    UUID userId = UUID.randomUUID();
+    var peerGroup =
+        new com.carix.skill.dto.SkillRecommendationsResponse.PeerGroupInfo(
+            "서울 전체 / 경력 MID / 회사규모 무관");
+    var item =
+        new com.carix.skill.dto.SkillRecommendationsResponse.SkillRecommendationItem(
+            "Kubernetes",
+            "DEVOPS",
+            0.245,
+            "UP",
+            new com.carix.skill.dto.SkillRecommendationsResponse.CoOccurrenceInfo(
+                "Spring Boot", 0.62),
+            "보유하신 Spring Boot 공고의 62%가 함께 요구합니다.");
+    var response = new com.carix.skill.dto.SkillRecommendationsResponse(peerGroup, List.of(item));
+
+    given(skillRecommendationService.getRecommendations(userId)).willReturn(response);
+
+    mockMvc
+        .perform(get("/v1/skills/recommendations").header("X-User-Id", userId.toString()))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.success").value(true))
+        .andExpect(jsonPath("$.data.peerGroup.appliedConditions").value("서울 전체 / 경력 MID / 회사규모 무관"))
+        .andExpect(jsonPath("$.data.recommendations[0].standardName").value("Kubernetes"))
+        .andExpect(jsonPath("$.data.recommendations[0].category").value("DEVOPS"))
+        .andExpect(jsonPath("$.data.recommendations[0].demandRate").value(0.245))
+        .andExpect(jsonPath("$.data.recommendations[0].growthTrend").value("UP"))
+        .andExpect(
+            jsonPath("$.data.recommendations[0].coOccurrence.withSkill").value("Spring Boot"))
+        .andExpect(jsonPath("$.data.recommendations[0].coOccurrence.rate").value(0.62))
+        .andExpect(
+            jsonPath("$.data.recommendations[0].reason")
+                .value("보유하신 Spring Boot 공고의 62%가 함께 요구합니다."));
   }
 }

@@ -134,6 +134,18 @@ public class SkillDemandCalculator {
     return new TotalPostings(recentTotalPostings, baselineTotalPostings);
   }
 
+  /** 주어진 스킬의 수요 지수를 계산합니다 (동료집단 정보 기반 단일 호출 편의 메서드). */
+  public SkillDemandResult calculate(
+      UUID skillId, String baseYearMonth, PeerGroupFallbackResolver.ResolvedPeerGroup peerGroup) {
+    String source =
+        (peerGroup != null
+                && peerGroup.getSource() != null
+                && !"ALL".equalsIgnoreCase(peerGroup.getSource()))
+            ? peerGroup.getSource()
+            : "JOBKOREA";
+    return calculateDemandIndex(source, skillId, peerGroup, baseYearMonth);
+  }
+
   /**
    * 주어진 동료집단 완화 조건 및 기준월에 대해 특정 스킬의 수요 지수를 계산합니다.
    *

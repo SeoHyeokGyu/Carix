@@ -1,5 +1,6 @@
 package com.carix.peergroup;
 
+import com.carix.config.IndexThresholdProperties;
 import com.carix.index.mvi.PeerGroupFallbackResolver;
 import com.carix.jobposting.JobPosting;
 import com.carix.jobposting.JobPostingRepository;
@@ -11,6 +12,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -30,15 +32,15 @@ public class PeerSalaryDistributionResolver {
   private final JobPostingRepository jobPostingRepository;
   private final PeerGroupFallbackResolver peerGroupFallbackResolver;
 
-  /**
-   * 프로필의 동료집단 분포. 어느 단계에서도 최소 표본을 못 채우면 가장 넓은 단계의 결과를 그대로 돌려준다 — 호출자가 {@link
-   * PeerSalaryDistribution#hasSufficientPeers()} 로 판단한다.
-   *
-   * <p>지역은 {@code extractBroadRegion} 이 아니라 첫 토큰을 접두사로 쓴다. 그 메서드는 {@code market_aggregate.region} 의
-   * 정규화된 값({@code "서울특별시"})을 만드는데, 원 공고의 {@code region} 은 {@code "서울 강남구"} 형태라 접두사가 맞아야 걸린다.
-   */
+  @Autowired(required = false)
+  private IndexThresholdProperties thresholds;
+
+  public record ResolvedPeerPostings(
+      int level, List<JobPosting> postings, String appliedConditions) {}
+
+  /** 프로필의 동료집단 완화 결과 공고 목록을 반환한다 (스킬 추천 co-occurrence 및 연봉 분포 공용). */
   @Transactional(readOnly = true)
-  public PeerSalaryDistribution resolve(CareerProfile profile) {
+  public ResolvedPeerPostings resolvePostings(CareerProfile profile) {
     String jobFamily = orDefault(profile.getJobFamily(), "DEVELOPER");
     int years = profile.getYearsOfExperience() != null ? profile.getYearsOfExperience() : 3;
     String bracket = peerGroupFallbackResolver.mapExperienceBracket(years);
@@ -50,7 +52,7 @@ public class PeerSalaryDistributionResolver {
     int[] range = bracketYearRange(bracket);
     int[] widened = bracketYearRange(peerGroupFallbackResolver.getAdjacentBrackets(bracket));
 
-    List<Resolved> ladder = new ArrayList<>();
+    List<ResolvedPeerPostings> ladder = new ArrayList<>();
     if (companySize != null && !companySize.isBlank()) {
       ladder.add(
           attempt(
@@ -73,18 +75,31 @@ public class PeerSalaryDistributionResolver {
     ladder.add(
         attempt(5, jobFamily, broadPrefix, null, null, widened, broadPrefix, bracket + "±1"));
 
-    for (Resolved candidate : ladder) {
-      if (candidate.postings().size() >= PeerGroupFallbackResolver.MIN_SAMPLE_SIZE) {
-        return toDistribution(candidate);
+    int minSample =
+        thresholds != null
+            ? thresholds.getPeerGroupMinSampleSize()
+            : PeerGroupFallbackResolver.MIN_SAMPLE_SIZE;
+    for (ResolvedPeerPostings candidate : ladder) {
+      if (candidate.postings().size() >= minSample) {
+        return candidate;
       }
     }
-    return toDistribution(ladder.get(ladder.size() - 1));
+    return ladder.get(ladder.size() - 1);
+  }
+
+  /**
+   * 프로필의 동료집단 분포. 어느 단계에서도 최소 표본을 못 채우면 가장 넓은 단계의 결과를 그대로 돌려준다 — 호출자가 {@link
+   * PeerSalaryDistribution#hasSufficientPeers()} 로 판단한다.
+   */
+  @Transactional(readOnly = true)
+  public PeerSalaryDistribution resolve(CareerProfile profile) {
+    return toDistribution(resolvePostings(profile));
   }
 
   private static final java.time.format.DateTimeFormatter TREND_YM_FORMATTER =
       java.time.format.DateTimeFormatter.ofPattern("uuuu-MM");
 
-  private PeerSalaryDistribution toDistribution(Resolved resolved) {
+  private PeerSalaryDistribution toDistribution(ResolvedPeerPostings resolved) {
     return new PeerSalaryDistribution(
         disclosedSalaries(resolved.postings()),
         resolved.postings().size(),
@@ -93,12 +108,7 @@ public class PeerSalaryDistributionResolver {
         calculateTrend(resolved.postings()));
   }
 
-  /**
-   * 동료집단 공고의 등록월(posted_start_date)별 중앙 제시 연봉 추이를 집계한다 (기능 명세 §4.6).
-   *
-   * <p>완화는 현재 시점 조건으로 한 번만 안착시키고 그 조건으로 월별 집계한다. 월별 공개연봉 표본이 10건 미만이면 중앙값을 null 로 비워 화면이 선을 잇지 않게
-   * 한다.
-   */
+  /** 동료집단 공고의 등록월(posted_start_date)별 중앙 제시 연봉 추이를 집계한다 (기능 명세 §4.6). */
   private List<PeerSalaryDistribution.TrendPoint> calculateTrend(List<JobPosting> postings) {
     if (postings == null || postings.isEmpty()) {
       return Collections.emptyList();
@@ -124,7 +134,11 @@ public class PeerSalaryDistributionResolver {
           Math.round((double) (sampleSize - disclosedSampleSize) / sampleSize * 1000.0) / 10.0;
 
       Long median = null;
-      if (disclosedSampleSize >= PeerGroupFallbackResolver.MIN_SAMPLE_SIZE) {
+      int minSample =
+          thresholds != null
+              ? thresholds.getPeerGroupMinSampleSize()
+              : PeerGroupFallbackResolver.MIN_SAMPLE_SIZE;
+      if (disclosedSampleSize >= minSample) {
         median = salaries.get((int) Math.floor(disclosedSampleSize * 0.50));
       }
 
@@ -135,7 +149,7 @@ public class PeerSalaryDistributionResolver {
     return result;
   }
 
-  private Resolved attempt(
+  private ResolvedPeerPostings attempt(
       int level,
       String jobFamily,
       String regionPrefix,
@@ -149,7 +163,7 @@ public class PeerSalaryDistributionResolver {
         jobPostingRepository.findPeerGroupCandidates(
             jobFamily, regionPrefix, employmentType, companySize, yearRange[0], yearRange[1]);
 
-    return new Resolved(
+    return new ResolvedPeerPostings(
         level,
         dedupe(candidates),
         "%s / 경력 %s / %s".formatted(regionLabel, bracketLabel, companySizeLabel(companySize)));
@@ -209,6 +223,4 @@ public class PeerSalaryDistributionResolver {
   private String orDefault(String value, String fallback) {
     return (value != null && !value.isBlank()) ? value : fallback;
   }
-
-  private record Resolved(int level, List<JobPosting> postings, String appliedConditions) {}
 }

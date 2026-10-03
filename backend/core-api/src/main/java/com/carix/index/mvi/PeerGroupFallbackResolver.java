@@ -67,6 +67,19 @@ public class PeerGroupFallbackResolver {
     return thresholds == null ? MIN_SAMPLE_SIZE : thresholds.getPeerGroupMinSampleSize();
   }
 
+  /** 동료집단 완화 알고리즘을 수행합니다 (소스 미지정 또는 ALL 지정 시 JOBKOREA -> SARAMIN 순으로 탐색). */
+  public ResolvedPeerGroup resolve(String source, String baseYearMonth, CareerProfile profile) {
+    if (source == null || "ALL".equalsIgnoreCase(source)) {
+      ResolvedPeerGroup jk = resolveForSource("JOBKOREA", profile, baseYearMonth);
+      if (jk.isSuccessful()) {
+        return jk;
+      }
+      ResolvedPeerGroup saramin = resolveForSource("SARAMIN", profile, baseYearMonth);
+      return saramin.isSuccessful() ? saramin : jk;
+    }
+    return resolveForSource(source, profile, baseYearMonth);
+  }
+
   /**
    * 단일 원천에 대해 5단계 완화 알고리즘을 수행하여 최적의 동료집단 집계 행 및 커버리지 정보를 도출합니다.
    *
