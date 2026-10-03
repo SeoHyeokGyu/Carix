@@ -3,7 +3,6 @@ import userEvent from "@testing-library/user-event";
 import { createRoutesStub, MemoryRouter } from "react-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as dashboardApi from "../../lib/api/dashboard";
-import * as profileApi from "../../lib/api/profile";
 import { UnauthorizedError } from "../../lib/coreApi";
 import * as dashboardMarketApi from "../../lib/dashboardMarketApi";
 import { resetSession, setSession } from "../../lib/session";
@@ -69,13 +68,6 @@ describe("대시보드 라우트 및 레이아웃 (Dashboard)", () => {
     beforeEach(() => {
       vi.spyOn(dashboardMarketApi, "fetchSnapshotHistory").mockResolvedValue({
         snapshots: [],
-      });
-      vi.spyOn(profileApi, "getProfile").mockResolvedValue({
-        jobFamily: "DEVELOPER",
-        yearsOfExperience: 5,
-        region: "서울",
-        employmentType: "FULL_TIME",
-        companySize: "LARGE",
       });
     });
 
@@ -732,18 +724,22 @@ describe("대시보드 라우트 및 레이아웃 (Dashboard)", () => {
       ).toBeInTheDocument();
     });
 
-    it("완화가 없으면 비교 조건을 프로필 한글 칩으로 보인다", async () => {
+    // 프로필로 칩을 만들면 집계에 없는 지역·규모를 비교한 것처럼 보인다(서버 문구가 실제 조회 조건).
+    it("비교 조건은 프로필 칩이 아니라 서버 문구 그대로다", async () => {
       vi.spyOn(dashboardApi, "fetchSummary").mockResolvedValue({
         ok: true,
         data: OK_DATA,
       } as never);
       renderScreen();
-      const chips = await screen.findByRole("list", { name: "비교 조건" });
-      expect(within(chips).getByText("대기업")).toBeInTheDocument();
-      expect(screen.queryByText(/FULL_TIME/)).not.toBeInTheDocument();
+      expect(
+        await screen.findByText("서울 전체 / MID (4~7년) / LARGE / FULL_TIME"),
+      ).toBeInTheDocument();
+      expect(
+        screen.queryByRole("list", { name: "비교 조건" }),
+      ).not.toBeInTheDocument();
     });
 
-    it("이력·프로필 조회가 실패해도 지수와 판정은 뜨고 비교 조건은 서버 문자열로 물러난다", async () => {
+    it("이력 조회가 실패해도 지수와 판정과 비교 조건이 뜬다", async () => {
       vi.spyOn(dashboardApi, "fetchSummary").mockResolvedValue({
         ok: true,
         data: OK_DATA,
@@ -751,7 +747,6 @@ describe("대시보드 라우트 및 레이아웃 (Dashboard)", () => {
       vi.spyOn(dashboardMarketApi, "fetchSnapshotHistory").mockRejectedValue(
         new Error("500"),
       );
-      vi.spyOn(profileApi, "getProfile").mockRejectedValue(new Error("500"));
       renderScreen();
 
       expect(await screen.findByText("104.6")).toBeInTheDocument();

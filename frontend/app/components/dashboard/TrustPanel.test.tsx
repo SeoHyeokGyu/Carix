@@ -21,8 +21,8 @@ function renderPanel(
       metadata={METADATA}
       rationale="공식 임금통계 중앙값과 비슷한 수준입니다."
       peerConditions={{
-        kind: "chips",
-        chips: ["서울 전체", "4~7년", "대기업", "정규직"],
+        text: "전국 / 4~7년 / 회사규모 무관 / 고용형태 무관",
+        widened: false,
       }}
       isNarrow={false}
       {...overrides}
@@ -41,7 +41,9 @@ describe("TrustPanel", () => {
     ).toBeInTheDocument();
     expect(screen.getByText("308건")).toBeInTheDocument();
     expect(screen.getByText("93건 · 30%")).toBeInTheDocument();
-    expect(screen.getByText("대기업")).toBeInTheDocument();
+    expect(
+      screen.getByText("전국 / 4~7년 / 회사규모 무관 / 고용형태 무관"),
+    ).toBeInTheDocument();
     expect(
       screen.getByText("공식 임금통계 중앙값과 비슷한 수준입니다."),
     ).toBeInTheDocument();
@@ -49,15 +51,14 @@ describe("TrustPanel", () => {
     expect(screen.getByText(/2025/)).toBeInTheDocument();
   });
 
-  it("원시 enum 이 칩에 나오지 않는다", () => {
+  it("비교 조건에 원시 enum 이 나오지 않는다", () => {
     renderPanel();
-    expect(screen.queryByText(/LARGE|FULL_TIME/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/LARGE|FULL_TIME|MID/)).not.toBeInTheDocument();
   });
 
   it("완화가 걸렸으면 서버 문자열과 안내를 보인다", () => {
     renderPanel({
       peerConditions: {
-        kind: "server",
         text: "서울 전체 / MID (4~7년) / 회사규모 무관 / FULL_TIME",
         widened: true,
       },
@@ -71,7 +72,6 @@ describe("TrustPanel", () => {
   it("완화가 아니면 안내를 붙이지 않는다", () => {
     renderPanel({
       peerConditions: {
-        kind: "server",
         text: "서울 전체 / MID (4~7년) / LARGE / FULL_TIME",
         widened: false,
       },
