@@ -1,4 +1,5 @@
 import { render, screen, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 import type { SnapshotPoint } from "../../lib/dashboardMarketApi";
 import { VerdictHero } from "./VerdictHero";
@@ -140,12 +141,19 @@ describe("VerdictHero", () => {
     ).toBeInTheDocument();
   });
 
-  describe("처방 블록 (US-D6)", () => {
+  describe("처방 및 추천 블록 (US-D6 확장)", () => {
     const UPSKILL = {
       code: "UPSKILL",
       label: "스킬 보강 우선",
       rulesApplied: ["MVI < 95", "PPI < 95"],
       rationale: "시장가치와 구매력이 모두 낮습니다.",
+    };
+
+    const NEGOTIATE = {
+      code: "NEGOTIATE",
+      label: "협상 검토",
+      rulesApplied: ["MVI > 105"],
+      rationale: "시장가치가 높습니다.",
     };
 
     const RECOMMENDATIONS = {
@@ -170,7 +178,7 @@ describe("VerdictHero", () => {
       ],
     };
 
-    it("UPSKILL 신호에서 추천 스킬 목록과 수요율, 추세, 근거를 노출한다", () => {
+    it("UPSKILL 신호에서 처방 타이틀과 추천 스킬 목록을 노출한다", () => {
       render(
         <VerdictHero
           signal={UPSKILL}
@@ -182,8 +190,9 @@ describe("VerdictHero", () => {
 
       const block = screen.getByTestId("skill-prescription-block");
       expect(block).toBeInTheDocument();
+      expect(screen.getByText("처방")).toBeInTheDocument();
       expect(
-        screen.getByText("처방: 동료집단 수요 추천 스킬"),
+        screen.getByText("시장가치 개선을 위한 우선 보강 스킬"),
       ).toBeInTheDocument();
       expect(screen.getByText("Kubernetes")).toBeInTheDocument();
       expect(screen.getByText("수요율 24.5%")).toBeInTheDocument();
@@ -195,11 +204,6 @@ describe("VerdictHero", () => {
       expect(screen.getByText("Docker")).toBeInTheDocument();
       expect(screen.getByText("수요율 18.0%")).toBeInTheDocument();
       expect(screen.getByText("- 유지")).toBeInTheDocument();
-      expect(
-        screen.getByText(
-          "동료집단 내 공고의 18.0%에서 요구되는 핵심 스택입니다.",
-        ),
-      ).toBeInTheDocument();
     });
 
     it("UPSKILL 신호에서 추천 스킬이 비어있으면 표본 부족을 노출한다", () => {
@@ -228,7 +232,73 @@ describe("VerdictHero", () => {
       ).not.toBeInTheDocument();
     });
 
-    it("UPSKILL 신호가 아니면 recommendations 가 있어도 처방 블록을 렌더링하지 않는다", () => {
+    it("STAY 신호에서도 추천 스킬이 있으면 성장 가이드로 노출한다", () => {
+      render(
+        <VerdictHero
+          signal={STAY}
+          history={[]}
+          isNarrow={false}
+          recommendations={RECOMMENDATIONS}
+        />,
+      );
+
+      const block = screen.getByTestId("skill-prescription-block");
+      expect(block).toBeInTheDocument();
+      expect(screen.getByText("성장 가이드")).toBeInTheDocument();
+      expect(
+        screen.getByText("다음 도약을 위한 동료집단 추천 스킬"),
+      ).toBeInTheDocument();
+      expect(screen.getByText("Kubernetes")).toBeInTheDocument();
+    });
+
+    it("SEEK_JOB 및 NEGOTIATE 신호에서 상황에 맞는 타이틀로 노출한다", () => {
+      const { rerender } = render(
+        <VerdictHero
+          signal={SEEK_JOB}
+          history={[]}
+          isNarrow={false}
+          recommendations={RECOMMENDATIONS}
+        />,
+      );
+      expect(screen.getByText("이직 대비")).toBeInTheDocument();
+      expect(
+        screen.getByText("동료집단 공고에서 자주 요구하는 스킬"),
+      ).toBeInTheDocument();
+
+      rerender(
+        <VerdictHero
+          signal={NEGOTIATE}
+          history={[]}
+          isNarrow={false}
+          recommendations={RECOMMENDATIONS}
+        />,
+      );
+      expect(screen.getByText("협상력 강화")).toBeInTheDocument();
+      expect(
+        screen.getByText("동료집단에서 가치를 높여주는 추천 스킬"),
+      ).toBeInTheDocument();
+    });
+
+    it("STAY 신호에서 추천 스킬이 비어있으면 블록 자체를 숨긴다 (불필요한 표본 부족 경고 방지)", () => {
+      render(
+        <VerdictHero
+          signal={STAY}
+          history={[]}
+          isNarrow={false}
+          recommendations={{
+            peerGroup: { appliedConditions: "" },
+            recommendations: [],
+          }}
+        />,
+      );
+
+      expect(
+        screen.queryByTestId("skill-prescription-block"),
+      ).not.toBeInTheDocument();
+    });
+
+    it("추천 스킬 접기 및 펼치기 토글이 정상 작동한다", async () => {
+      const user = userEvent.setup();
       render(
         <VerdictHero
           signal={STAY}
@@ -239,8 +309,27 @@ describe("VerdictHero", () => {
       );
 
       expect(
-        screen.queryByTestId("skill-prescription-block"),
+        screen.getByRole("list", { name: "추천 스킬 목록" }),
+      ).toBeInTheDocument();
+
+      const toggleButton = screen.getByRole("button", {
+        name: "추천 스킬 접기",
+      });
+      await user.click(toggleButton);
+
+      expect(
+        screen.queryByRole("list", { name: "추천 스킬 목록" }),
       ).not.toBeInTheDocument();
+      expect(
+        screen.getByRole("button", { name: "추천 스킬 펼치기" }),
+      ).toBeInTheDocument();
+
+      await user.click(
+        screen.getByRole("button", { name: "추천 스킬 펼치기" }),
+      );
+      expect(
+        screen.getByRole("list", { name: "추천 스킬 목록" }),
+      ).toBeInTheDocument();
     });
   });
 });
