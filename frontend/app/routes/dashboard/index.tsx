@@ -11,6 +11,7 @@ import {
 } from "../../components/dashboard/IndexHelp";
 import { PriceDriverBadge } from "../../components/dashboard/PriceDriverBadge";
 import { TrustPanel } from "../../components/dashboard/TrustPanel";
+import { trendsTabHref } from "../../lib/trendsTabs";
 import { VerdictHero } from "../../components/dashboard/VerdictHero";
 import { useIsNarrowViewport } from "../../hooks/useIsNarrowViewport";
 import { toUserMessage } from "../../lib/apiError";
@@ -242,6 +243,7 @@ export default function DashboardHome() {
                 index={data.purchasingPowerIndex}
                 baselineHint="기준 100: 물가와 동일한 소득 변화"
                 helpContent={<PurchasingPowerHelp />}
+                detailHref={trendsTabHref("income")}
                 footer={
                   <PriceDriverBadge driver={data.metadata.topPriceDriver} />
                 }
@@ -251,12 +253,14 @@ export default function DashboardHome() {
                 index={data.marketValueIndex}
                 baselineHint="기준 100: 동료집단 임금 중앙값"
                 helpContent={<MarketValueHelp />}
+                detailHref={trendsTabHref("skills")}
               />
               <IndexCard
                 title="개방창 지수"
                 index={data.openingWindowIndex}
                 baselineHint="기준 100: 전체 시장 중앙 모집 기간"
                 helpContent={<OpeningWindowHelp />}
+                detailHref="/dashboard/history"
                 footer={
                   <OpeningWindowBadges meta={data.metadata.openingWindow} />
                 }

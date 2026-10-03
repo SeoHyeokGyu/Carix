@@ -1,4 +1,5 @@
 import { render, screen } from "@testing-library/react";
+import { MemoryRouter } from "react-router";
 import { describe, expect, it } from "vitest";
 import { IndexCard, toBaselineBar } from "./IndexCard";
 
@@ -105,6 +106,43 @@ describe("IndexCard", () => {
     );
 
     expect(screen.getByText("중앙 34일")).toBeInTheDocument();
+  });
+
+  it("detailHref 가 있으면 카드 이름을 담은 자세히 링크를 그린다", () => {
+    render(
+      <MemoryRouter>
+        <IndexCard
+          title="구매력 지수"
+          index={{
+            value: 101.2,
+            changeFromLastMonth: 0.4,
+            status: "INCREASED",
+            indexStatus: "OK",
+          }}
+          detailHref="/dashboard/trends?tab=income"
+        />
+      </MemoryRouter>,
+    );
+
+    expect(
+      screen.getByRole("link", { name: "구매력 지수 자세히 보기" }),
+    ).toHaveAttribute("href", "/dashboard/trends?tab=income");
+  });
+
+  it("detailHref 가 없으면 링크가 없다", () => {
+    render(
+      <IndexCard
+        title="구매력 지수"
+        index={{
+          value: 101.2,
+          changeFromLastMonth: 0.4,
+          status: "INCREASED",
+          indexStatus: "OK",
+        }}
+      />,
+    );
+
+    expect(screen.queryByRole("link")).not.toBeInTheDocument();
   });
 });
 

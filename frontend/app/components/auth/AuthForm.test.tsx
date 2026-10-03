@@ -16,7 +16,7 @@ describe("AuthForm", () => {
   it("화면 ID, 제목, 설명, 푸터 및 제출 버튼을 정상 렌더링한다", () => {
     render(<AuthForm {...defaultProps} />);
 
-    expect(screen.getByText("S-02")).toBeInTheDocument();
+    expect(screen.queryByText("S-02")).not.toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "로그인" })).toBeInTheDocument();
     expect(
       screen.getByText("계정이 있으면 이어서 봅니다."),

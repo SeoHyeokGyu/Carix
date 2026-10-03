@@ -321,13 +321,6 @@ export default function Skills() {
 
   return (
     <div className="mx-auto w-full max-w-3xl px-4 py-8 sm:px-6 sm:py-12">
-      {/* 1. 상단 메타 */}
-      <div className="mb-2 flex items-center gap-2">
-        <span className="font-display text-xs font-semibold tracking-widest text-carix-info">
-          S-08
-        </span>
-      </div>
-
       {/* 2. 타이틀 영역 */}
       <div className="mb-8 flex items-start justify-between">
         <div>

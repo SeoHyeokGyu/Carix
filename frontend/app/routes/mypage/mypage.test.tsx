@@ -25,8 +25,10 @@ describe("마이페이지 라우트 및 레이아웃 (Mypage)", () => {
         },
       ]);
       render(<Stub initialEntries={["/mypage/profile"]} />);
-      expect(await screen.findByText("S-13")).toBeInTheDocument();
-      expect(screen.getByRole("heading", { name: "설정" })).toBeInTheDocument();
+      expect(
+        await screen.findByRole("heading", { name: "설정" }),
+      ).toBeInTheDocument();
+      expect(screen.queryByText("S-13")).not.toBeInTheDocument();
       expect(screen.getByText("온보딩 재설정")).toBeInTheDocument();
       expect(
         screen.getByRole("button", { name: "온보딩 처음부터 다시 시작" }),

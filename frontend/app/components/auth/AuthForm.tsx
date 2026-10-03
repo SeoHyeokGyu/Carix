@@ -48,12 +48,9 @@ export function AuthForm({
         aria-labelledby={`${screenId}-heading`}
         className="w-full max-w-sm rounded-2xl border border-carix-border bg-carix-surface p-8 shadow-sm"
       >
-        <p className="font-display text-xs font-semibold tracking-widest text-carix-info">
-          {screenId}
-        </p>
         <h1
           id={`${screenId}-heading`}
-          className="mt-2 font-display text-2xl font-bold text-carix-text"
+          className="font-display text-2xl font-bold text-carix-text"
         >
           {title}
         </h1>

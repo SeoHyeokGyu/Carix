@@ -57,7 +57,7 @@ describe("S-13 MypageProfile 라우트", () => {
   it("설정 화면의 세 섹션(세션 관리, 온보딩 재설정, 회원 탈퇴)을 정상 렌더링한다", async () => {
     renderScreen();
 
-    expect(screen.getByText("S-13")).toBeInTheDocument();
+    expect(screen.queryByText("S-13")).not.toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "설정" })).toBeInTheDocument();
     expect(screen.getByText("세션 관리")).toBeInTheDocument();
     expect(screen.getByText("온보딩 재설정")).toBeInTheDocument();

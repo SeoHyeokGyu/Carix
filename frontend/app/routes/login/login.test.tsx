@@ -32,7 +32,7 @@ describe("로그인 라우트 (Login)", () => {
     );
 
     expect(screen.getByRole("heading", { name: "로그인" })).toBeInTheDocument();
-    expect(screen.getByText("S-02")).toBeInTheDocument();
+    expect(screen.queryByText("S-02")).not.toBeInTheDocument();
     const link = screen.getByRole("link", { name: "가입하기" });
     expect(link).toHaveAttribute("href", "/register");
   });

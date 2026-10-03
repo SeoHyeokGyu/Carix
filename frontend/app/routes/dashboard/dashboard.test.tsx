@@ -15,6 +15,13 @@ import DashboardLayout, {
 } from "./layout";
 import DashboardTrends from "./trends";
 
+const OK_INDEX = {
+  value: 101.2,
+  changeFromLastMonth: 0.4,
+  status: "INCREASED",
+  indexStatus: "OK" as const,
+};
+
 const EMPTY_INDEX = {
   value: null,
   changeFromLastMonth: null,
@@ -39,9 +46,9 @@ describe("대시보드 라우트 및 레이아웃 (Dashboard)", () => {
           <DashboardHistory />
         </MemoryRouter>,
       );
-      expect(screen.getByText("S-11")).toBeInTheDocument();
+      expect(screen.queryByText("S-11")).not.toBeInTheDocument();
       expect(
-        screen.getByRole("heading", { name: /월별 (스냅샷 )?이력/ }),
+        screen.getByRole("heading", { name: "지수 기록" }),
       ).toBeInTheDocument();
     });
 
@@ -51,7 +58,7 @@ describe("대시보드 라우트 및 레이아웃 (Dashboard)", () => {
           <DashboardTrends />
         </MemoryRouter>,
       );
-      expect(screen.getByText("S-14")).toBeInTheDocument();
+      expect(screen.queryByText("S-14")).not.toBeInTheDocument();
       expect(
         screen.getByRole("heading", { name: "추이 분석" }),
       ).toBeInTheDocument();
@@ -419,6 +426,31 @@ describe("대시보드 라우트 및 레이아웃 (Dashboard)", () => {
 
     // S-11·도움말은 상단 메뉴(지수 기록·도움말)가 갖는다. 화면 안 바로가기는 상단에 없는
     // 온보딩 검토 하나만 남긴다.
+    it("지표 카드 셋이 각자의 상세 화면으로 링크한다", async () => {
+      vi.spyOn(dashboardApi, "fetchSummary").mockResolvedValue({
+        ok: true,
+        data: {
+          purchasingPowerIndex: OK_INDEX,
+          marketValueIndex: OK_INDEX,
+          openingWindowIndex: OK_INDEX,
+          decisionSignal: null,
+          metadata: { baseDate: "2026-09-01", updateDelayed: false },
+        },
+      } as never);
+
+      renderScreen();
+
+      expect(
+        await screen.findByRole("link", { name: "구매력 지수 자세히 보기" }),
+      ).toHaveAttribute("href", "/dashboard/trends?tab=income");
+      expect(
+        screen.getByRole("link", { name: "시장가치 지수 자세히 보기" }),
+      ).toHaveAttribute("href", "/dashboard/trends?tab=skills");
+      expect(
+        screen.getByRole("link", { name: "개방창 지수 자세히 보기" }),
+      ).toHaveAttribute("href", "/dashboard/history");
+    });
+
     it("화면 안 바로가기는 온보딩 검토 하나뿐이다", async () => {
       vi.spyOn(dashboardApi, "fetchSummary").mockResolvedValue({
         ok: true,
