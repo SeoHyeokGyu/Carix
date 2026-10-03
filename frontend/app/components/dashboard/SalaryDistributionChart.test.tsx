@@ -36,6 +36,7 @@ describe("SalaryDistributionChart", () => {
       status: "OK",
       sampleSize: 150,
       baseline: {
+        basis: "AGE_BAND_PROXY",
         source: "KOSIS",
         median: 65_000_000,
         wageDefinition: "임금직무정보시스템 500인 이상",
@@ -56,6 +57,41 @@ describe("SalaryDistributionChart", () => {
       peerGroup: {
         fallbackLevel: 1,
         appliedConditions: "서울 전체 / 경력 4~7년(MID) / 회사규모 무관",
+      },
+      careerLadder: {
+        userBracket: "MID",
+        steps: [
+          {
+            bracket: "ENTRY",
+            median: 32_000_000,
+            raiseFromPrevious: null,
+            source: "FALLBACK",
+          },
+          {
+            bracket: "JUNIOR",
+            median: 40_000_000,
+            raiseFromPrevious: 25,
+            source: "KOSIS",
+          },
+          {
+            bracket: "MID",
+            median: 52_000_000,
+            raiseFromPrevious: 30,
+            source: "KOSIS",
+          },
+          {
+            bracket: "SENIOR",
+            median: 62_000_000,
+            raiseFromPrevious: 19.23,
+            source: "UNKNOWN",
+          },
+          {
+            bracket: "LEAD",
+            median: null,
+            raiseFromPrevious: null,
+            source: "UNKNOWN",
+          },
+        ],
       },
     };
 
@@ -90,6 +126,11 @@ describe("SalaryDistributionChart", () => {
     ).toBeInTheDocument();
     expect(screen.getByText("공고중앙")).toBeInTheDocument();
     expect(screen.getByText("공식기준")).toBeInTheDocument();
+    expect(screen.getByLabelText("경력 사다리")).toBeInTheDocument();
+    expect(screen.getByText("내 구간")).toBeInTheDocument();
+    expect(screen.getByText("추정 · FALLBACK")).toBeInTheDocument();
+    expect(screen.getAllByText("KOSIS 실측 보간")).toHaveLength(2);
+    expect(screen.getByText(/AGE_BAND_PROXY · KOSIS/)).toBeInTheDocument();
   });
 
   it("공고 표본은 충족하지만 공개된 연봉이 0건일 때 왜곡된 0원 차트 대신 안내 화면을 표시한다", () => {
@@ -97,6 +138,7 @@ describe("SalaryDistributionChart", () => {
       status: "OK",
       sampleSize: 20,
       baseline: {
+        basis: "AGE_BAND_PROXY",
         source: "KOSIS",
         median: 50_000_000,
         wageDefinition: "임금통계",
@@ -142,6 +184,17 @@ describe("SalaryDistributionChart", () => {
         fallbackLevel: 5,
         appliedConditions: "전국 / 전체 경력 / 회사규모 무관",
       },
+      careerLadder: {
+        userBracket: "ENTRY",
+        steps: [
+          {
+            bracket: "ENTRY",
+            median: null,
+            raiseFromPrevious: null,
+            source: "UNKNOWN",
+          },
+        ],
+      },
     };
 
     render(<SalaryDistributionChart data={insufficientData} />);
@@ -154,6 +207,7 @@ describe("SalaryDistributionChart", () => {
       ),
     ).toBeInTheDocument();
     expect(screen.getByText("6건")).toBeInTheDocument();
+    expect(screen.getByLabelText("경력 사다리")).toBeInTheDocument();
     expect(
       screen.queryByTestId("salary-distribution-chart"),
     ).not.toBeInTheDocument();
@@ -164,6 +218,7 @@ describe("SalaryDistributionChart", () => {
       status: "OK",
       sampleSize: 150,
       baseline: {
+        basis: "AGE_BAND_PROXY",
         source: "KOSIS",
         median: 65_000_000,
         wageDefinition: "임금직무정보시스템 500인 이상",

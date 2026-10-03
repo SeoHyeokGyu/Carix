@@ -29,6 +29,7 @@ describe("S-14 DashboardTrends 라우트", () => {
       status: "OK",
       sampleSize: 80,
       baseline: {
+        basis: "AGE_BAND_PROXY",
         source: "KOSIS",
         median: 60_000_000,
         wageDefinition: "임금통계",

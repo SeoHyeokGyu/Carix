@@ -19,6 +19,9 @@ import com.carix.market.MarketAggregateRepository;
 import com.carix.peergroup.PeerSalaryDistributionResolver;
 import com.carix.profile.domain.CareerProfile;
 import com.carix.profile.repository.CareerProfileRepository;
+import com.carix.wagestat.WageStatObservation;
+import com.carix.wagestat.WageStatObservationRepository;
+import com.carix.wagestat.WageStatSource;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -43,6 +46,7 @@ class SalaryDistributionServiceTest {
   private JobPostingRepository jobPostingRepository;
   private WageBaselineResolver wageBaselineResolver;
   private CurrentSalaryProvider currentSalaryProvider;
+  private WageStatObservationRepository wageStatObservationRepository;
   private SalaryDistributionService service;
 
   @BeforeEach
@@ -51,6 +55,7 @@ class SalaryDistributionServiceTest {
     jobPostingRepository = mock(JobPostingRepository.class);
     wageBaselineResolver = mock(WageBaselineResolver.class);
     currentSalaryProvider = mock(CurrentSalaryProvider.class);
+    wageStatObservationRepository = mock(WageStatObservationRepository.class);
 
     // 완화 사다리와 중복 제거는 PeerSalaryDistributionResolver 로 옮겼다. 시나리오 §6.1 도 같은 분포를
     // 읽기 때문이다. 여기서는 진짜 구현을 끼워 이 테스트가 검증하던 경로를 그대로 태운다.
@@ -61,7 +66,8 @@ class SalaryDistributionServiceTest {
             currentSalaryProvider,
             new PeerSalaryDistributionResolver(
                 jobPostingRepository,
-                new PeerGroupFallbackResolver(mock(MarketAggregateRepository.class))));
+                new PeerGroupFallbackResolver(mock(MarketAggregateRepository.class))),
+            wageStatObservationRepository);
 
     given(careerProfileRepository.findByUserId(USER_ID)).willReturn(Optional.of(profile()));
     given(wageBaselineResolver.resolveBaseline(any(CareerProfile.class)))
@@ -84,6 +90,57 @@ class SalaryDistributionServiceTest {
   }
 
   @Test
+  @DisplayName("경력 사다리는 다섯 구간의 중앙값·상승률·출처와 사용자 구간을 제공한다")
+  void 경력사다리_구간과_기준선출처() {
+    givenCandidates(postings(4, 50_000_000L));
+    given(wageBaselineResolver.resolveBaseline(any(CareerProfile.class)))
+        .willReturn(
+            new com.carix.index.dto.WageBaseline(
+                72_000_000L, "ANNUAL_GROSS_MEDIAN", "202606", WageStatSource.FALLBACK));
+    givenWageObservation("ENTRY", 30_000_000L, WageStatSource.FALLBACK);
+    givenWageObservation("JUNIOR", 40_000_000L, WageStatSource.KOSIS);
+    givenWageObservation("MID", 50_000_000L, WageStatSource.KOSIS);
+    givenWageObservation("SENIOR", 60_000_000L, WageStatSource.UNKNOWN);
+    given(wageStatObservationRepository.findLatestBaseline("DEVELOPER", "LEAD", "ALL"))
+        .willReturn(Optional.empty());
+    given(wageStatObservationRepository.findLatestBaseline("DEVELOPER", "LEAD", "전국"))
+        .willReturn(Optional.of(wageObservation("LEAD", 80_000_000L, WageStatSource.KOSIS)));
+
+    SalaryDistributionResponse response = service.resolve(USER_ID, BASE_YM);
+
+    assertThat(response.status()).isEqualTo("INSUFFICIENT_SAMPLE");
+    assertThat(response.baseline().basis()).isEqualTo("AGE_BAND_PROXY");
+    assertThat(response.baseline().source()).isEqualTo("FALLBACK");
+    assertThat(response.careerLadder().userBracket()).isEqualTo("MID");
+    assertThat(response.careerLadder().steps())
+        .extracting("bracket")
+        .containsExactly("ENTRY", "JUNIOR", "MID", "SENIOR", "LEAD");
+    assertThat(response.careerLadder().steps().get(0).raiseFromPrevious()).isNull();
+    assertThat(response.careerLadder().steps().get(1).raiseFromPrevious()).isEqualTo(33.33);
+    assertThat(response.careerLadder().steps().get(2).raiseFromPrevious()).isEqualTo(25.0);
+    assertThat(response.careerLadder().steps().get(3).source()).isEqualTo("UNKNOWN");
+    assertThat(response.careerLadder().steps().get(4).median()).isEqualTo(80_000_000L);
+    assertThat(response.careerLadder().steps().get(4).raiseFromPrevious()).isEqualTo(33.33);
+  }
+
+  @Test
+  @DisplayName("기준선과 사다리 관측치가 없으면 출처 UNKNOWN과 빈 중앙값을 돌려준다")
+  void 경력사다리_관측치없음() {
+    givenCandidates(postings(4, 50_000_000L));
+
+    SalaryDistributionResponse response = service.resolve(USER_ID, BASE_YM);
+
+    assertThat(response.careerLadder().steps()).hasSize(5);
+    assertThat(response.careerLadder().steps())
+        .allSatisfy(
+            step -> {
+              assertThat(step.median()).isNull();
+              assertThat(step.raiseFromPrevious()).isNull();
+              assertThat(step.source()).isEqualTo("UNKNOWN");
+            });
+  }
+
+  @Test
   @DisplayName("표본이 충분하면 유효 공개연봉의 5수치를 계산한다")
   void 정상_5수치() {
     List<JobPosting> candidates = new ArrayList<>();
@@ -95,6 +152,10 @@ class SalaryDistributionServiceTest {
     SalaryDistributionResponse response = service.resolve(USER_ID, BASE_YM);
 
     assertThat(response.status()).isEqualTo("OK");
+    assertThat(response.baseline().basis()).isEqualTo("AGE_BAND_PROXY");
+    assertThat(response.baseline().source()).isEqualTo("UNKNOWN");
+    assertThat(response.careerLadder().userBracket()).isEqualTo("MID");
+    assertThat(response.careerLadder().steps()).hasSize(5);
     assertThat(response.postingReference().min()).isEqualTo(30_000_000L);
     assertThat(response.postingReference().max()).isEqualTo(120_000_000L);
     assertThat(response.postingReference().median()).isEqualTo(80_000_000L);
@@ -330,6 +391,24 @@ class SalaryDistributionServiceTest {
         .region("서울 강남구")
         .employmentType("FULL_TIME")
         .companySize("MEDIUM")
+        .build();
+  }
+
+  private void givenWageObservation(String bracket, long median, WageStatSource source) {
+    given(wageStatObservationRepository.findLatestBaseline("DEVELOPER", bracket, "ALL"))
+        .willReturn(Optional.of(wageObservation(bracket, median, source)));
+  }
+
+  private WageStatObservation wageObservation(String bracket, long median, WageStatSource source) {
+    return WageStatObservation.builder()
+        .jobFamily("DEVELOPER")
+        .experienceBracket(bracket)
+        .region("ALL")
+        .wageDefinition("ANNUAL_GROSS_MEDIAN")
+        .wageMedian(median)
+        .basePeriod("202500")
+        .statVintage("202600")
+        .source(source)
         .build();
   }
 }

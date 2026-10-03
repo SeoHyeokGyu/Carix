@@ -10,11 +10,16 @@ import com.carix.peergroup.PeerSalaryDistribution;
 import com.carix.peergroup.PeerSalaryDistributionResolver;
 import com.carix.profile.domain.CareerProfile;
 import com.carix.profile.repository.CareerProfileRepository;
+import com.carix.wagestat.WageStatObservation;
+import com.carix.wagestat.WageStatObservationRepository;
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
-import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -28,25 +33,51 @@ import org.springframework.transaction.annotation.Transactional;
  * 수를 함께 보여줘야 하기 때문이다.
  */
 @Service
-@RequiredArgsConstructor
 public class SalaryDistributionService {
 
   static final String STATUS_OK = "OK";
   static final String STATUS_INSUFFICIENT_SAMPLE = "INSUFFICIENT_SAMPLE";
 
-  private static final String BASELINE_SOURCE = "WAGE_STAT";
-
   private final CareerProfileRepository careerProfileRepository;
   private final WageBaselineResolver wageBaselineResolver;
   private final CurrentSalaryProvider currentSalaryProvider;
   private final PeerSalaryDistributionResolver peerSalaryDistributionResolver;
+  private final WageStatObservationRepository wageStatObservationRepository;
+
+  @Autowired
+  public SalaryDistributionService(
+      CareerProfileRepository careerProfileRepository,
+      WageBaselineResolver wageBaselineResolver,
+      CurrentSalaryProvider currentSalaryProvider,
+      PeerSalaryDistributionResolver peerSalaryDistributionResolver,
+      WageStatObservationRepository wageStatObservationRepository) {
+    this.careerProfileRepository = careerProfileRepository;
+    this.wageBaselineResolver = wageBaselineResolver;
+    this.currentSalaryProvider = currentSalaryProvider;
+    this.peerSalaryDistributionResolver = peerSalaryDistributionResolver;
+    this.wageStatObservationRepository = wageStatObservationRepository;
+  }
+
+  /** Compatibility constructor for consumers that do not resolve wage observation data. */
+  public SalaryDistributionService(
+      CareerProfileRepository careerProfileRepository,
+      WageBaselineResolver wageBaselineResolver,
+      CurrentSalaryProvider currentSalaryProvider,
+      PeerSalaryDistributionResolver peerSalaryDistributionResolver) {
+    this(
+        careerProfileRepository,
+        wageBaselineResolver,
+        currentSalaryProvider,
+        peerSalaryDistributionResolver,
+        null);
+  }
 
   @Transactional(readOnly = true)
   public SalaryDistributionResponse resolve(UUID userId, String baseYearMonth) {
     Optional<CareerProfile> profile = careerProfileRepository.findByUserId(userId);
     if (profile.isEmpty()) {
       // 온보딩 미완료. 동료집단 조건 자체가 없어 표본이 0이다.
-      return insufficient(null, 0, null);
+      return insufficient(null, 0, null, null);
     }
 
     CareerProfile careerProfile = profile.get();
@@ -55,7 +86,10 @@ public class SalaryDistributionService {
 
     if (!distribution.hasSufficientPeers()) {
       return insufficient(
-          baseline, distribution.peerSampleSize(), distribution.appliedConditions());
+          baseline,
+          distribution.peerSampleSize(),
+          distribution.appliedConditions(),
+          buildCareerLadder(careerProfile));
     }
 
     List<Long> disclosed = distribution.disclosedSalaries();
@@ -72,7 +106,46 @@ public class SalaryDistributionService {
         buildUserPosition(userId, baseYearMonth, distribution),
         new SalaryDistributionResponse.DistributionPeerGroup(
             distribution.fallbackLevel(), distribution.appliedConditions()),
-        trend);
+        trend,
+        buildCareerLadder(careerProfile));
+  }
+
+  private SalaryDistributionResponse.CareerLadder buildCareerLadder(CareerProfile profile) {
+    String jobFamily = profile.getJobFamily() == null ? "DEVELOPER" : profile.getJobFamily();
+    Map<String, WageStatObservation> observations = new LinkedHashMap<>();
+    for (String bracket : PeerGroupFallbackResolver.BRACKET_6_ORDER) {
+      if (wageStatObservationRepository != null) {
+        wageStatObservationRepository
+            .findLatestBaseline(jobFamily, bracket, "ALL")
+            .or(() -> wageStatObservationRepository.findLatestBaseline(jobFamily, bracket, "전국"))
+            .ifPresent(observation -> observations.put(bracket, observation));
+      }
+    }
+    List<SalaryDistributionResponse.CareerLadderStep> steps = new ArrayList<>();
+    Long previous = null;
+    for (String bracket : PeerGroupFallbackResolver.BRACKET_6_ORDER) {
+      WageStatObservation observation = observations.get(bracket);
+      Long median = observation == null ? null : observation.getWageMedian();
+      Double raise =
+          previous == null || median == null || previous == 0
+              ? null
+              : round2((double) (median - previous) / previous * 100);
+      steps.add(
+          new SalaryDistributionResponse.CareerLadderStep(
+              bracket,
+              median,
+              raise,
+              observation == null || observation.getSource() == null
+                  ? "UNKNOWN"
+                  : observation.getSource().name()));
+      previous = median;
+    }
+    int years = profile.getYearsOfExperience() == null ? 3 : profile.getYearsOfExperience();
+    String userBracket =
+        years <= 1
+            ? "ENTRY"
+            : years <= 3 ? "JUNIOR" : years <= 7 ? "MID" : years <= 11 ? "SENIOR" : "LEAD";
+    return new SalaryDistributionResponse.CareerLadder(userBracket, List.copyOf(steps));
   }
 
   private List<SalaryDistributionResponse.SalaryTrendPoint> toTrendDtos(
@@ -136,7 +209,10 @@ public class SalaryDistributionService {
   // --- 헬퍼 ---
 
   private SalaryDistributionResponse insufficient(
-      WageBaseline baseline, int sampleSize, String appliedConditions) {
+      WageBaseline baseline,
+      int sampleSize,
+      String appliedConditions,
+      SalaryDistributionResponse.CareerLadder careerLadder) {
     return new SalaryDistributionResponse(
         STATUS_INSUFFICIENT_SAMPLE,
         sampleSize,
@@ -146,12 +222,17 @@ public class SalaryDistributionService {
         null,
         appliedConditions == null
             ? null
-            : new SalaryDistributionResponse.DistributionPeerGroup(null, appliedConditions));
+            : new SalaryDistributionResponse.DistributionPeerGroup(null, appliedConditions),
+        Collections.emptyList(),
+        careerLadder);
   }
 
   private SalaryDistributionResponse.WageBaseline toBaselineDto(WageBaseline baseline) {
     return new SalaryDistributionResponse.WageBaseline(
-        BASELINE_SOURCE, baseline.medianGrossSalary(), baseline.wageDefinition());
+        "AGE_BAND_PROXY",
+        baseline.source() == null ? "UNKNOWN" : baseline.source().name(),
+        baseline.medianGrossSalary(),
+        baseline.wageDefinition());
   }
 
   private double round2(double value) {

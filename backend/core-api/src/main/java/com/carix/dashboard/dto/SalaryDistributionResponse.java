@@ -23,7 +23,9 @@ public record SalaryDistributionResponse(
     @Schema(description = "표본 부족 시 null", nullable = true) PostingReference postingReference,
     @Schema(description = "연봉 이력이 없으면 null", nullable = true) UserPosition userPosition,
     @Schema(nullable = true) DistributionPeerGroup peerGroup,
-    @Schema(description = "등록월별 제시 연봉 추이 (기능 명세 §4.6)") List<SalaryTrendPoint> trend) {
+    @Schema(description = "등록월별 제시 연봉 추이 (기능 명세 §4.6)") List<SalaryTrendPoint> trend,
+    @Schema(description = "직군별 경력 구간 임금 사다리 (기능 명세 §4.7)", nullable = true)
+        CareerLadder careerLadder) {
 
   public SalaryDistributionResponse(
       String status,
@@ -41,8 +43,35 @@ public record SalaryDistributionResponse(
         postingReference,
         userPosition,
         peerGroup,
-        Collections.emptyList());
+        Collections.emptyList(),
+        null);
   }
+
+  public SalaryDistributionResponse(
+      String status,
+      Integer sampleSize,
+      Integer minRequired,
+      WageBaseline baseline,
+      PostingReference postingReference,
+      UserPosition userPosition,
+      DistributionPeerGroup peerGroup,
+      List<SalaryTrendPoint> trend) {
+    this(
+        status,
+        sampleSize,
+        minRequired,
+        baseline,
+        postingReference,
+        userPosition,
+        peerGroup,
+        trend,
+        null);
+  }
+
+  public record CareerLadder(String userBracket, List<CareerLadderStep> steps) {}
+
+  public record CareerLadderStep(
+      String bracket, Long median, Double raiseFromPrevious, String source) {}
 
   public record SalaryTrendPoint(
       String yearMonth,
@@ -52,7 +81,11 @@ public record SalaryDistributionResponse(
       double missingRate) {}
 
   public record WageBaseline(
-      String source, @Schema(nullable = true) Long median, String wageDefinition) {}
+      String basis, String source, @Schema(nullable = true) Long median, String wageDefinition) {
+    public WageBaseline(String source, Long median, String wageDefinition) {
+      this("AGE_BAND_PROXY", source, median, wageDefinition);
+    }
+  }
 
   /**
    * 유효 공개연봉만으로 낸 5수치.

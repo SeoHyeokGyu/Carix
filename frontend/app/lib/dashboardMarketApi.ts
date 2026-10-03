@@ -25,6 +25,7 @@ export interface SkillDemandResponse {
 }
 
 export interface WageBaseline {
+  basis: "AGE_BAND_PROXY" | string;
   source: string;
   median: number | null;
   wageDefinition: string;
@@ -67,6 +68,19 @@ export interface SalaryDistributionResponse {
   userPosition?: UserPosition | null;
   peerGroup?: DistributionPeerGroup | null;
   trend?: SalaryTrendPoint[] | null;
+  careerLadder?: CareerLadder | null;
+}
+
+export interface CareerLadder {
+  userBracket: string;
+  steps: CareerLadderStep[];
+}
+
+export interface CareerLadderStep {
+  bracket: string;
+  median: number | null;
+  raiseFromPrevious: number | null;
+  source: "KOSIS" | "FALLBACK" | "UNKNOWN" | string;
 }
 
 export interface TrendPoint {
