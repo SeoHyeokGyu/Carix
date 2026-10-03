@@ -309,10 +309,10 @@ class SnapshotRecalculationServiceTest {
     assertThat(statuses.owi()).isNotNull();
   }
 
-  /** OWI 는 결정 신호 규칙표에 안 들어간다. 규칙 버전이 흔들리면 옛 스냅샷의 판정 근거가 갈린다. */
+  /** 규칙표를 바꾸면 버전을 올린다 — 옛 스냅샷의 판정 근거와 갈라 읽기 위해서다. 1.1.0 은 시장가치 없는 부분 판정. */
   @Test
-  void OWI_도입이_규칙_버전을_바꾸지_않는다() {
-    assertThat(DecisionSignalEngine.RULE_VERSION).isEqualTo("1.0.0");
+  void 규칙_버전은_부분_판정_도입분이다() {
+    assertThat(DecisionSignalEngine.RULE_VERSION).isEqualTo("1.1.0");
   }
 
   /**

@@ -84,9 +84,83 @@ class DecisionSignalEngineTest {
         .doesNotContain("시장가치 지수 산출 불가");
   }
 
+  // ---------- 부분 판정: 시장가치 없이 연봉 격차만으로 ----------
+  //
+  // 시장가치는 이전 12개월 창이 비어 있으면(수집 이력 15개월 전) 계산되지 않는다. 그동안 다른 근거가
+  // 다 있으면 연봉 격차만으로 말할 수 있는 신호만 낸다 — 이직 탐색·스킬 보강은 시장가치가 있어야 한다.
+
+  /** 기준선 중앙값으로 격차를 정한 MVI 없음(수집 공백 아님) 결과. */
+  private static MviResult mviNullWithBaseline(long medianGrossSalary) {
+    return new MviResult(
+        YM,
+        null,
+        IndexStatus.INSUFFICIENT_SAMPLE,
+        List.of(
+            new SourceCoverage(
+                "SARAMIN", 1, 40, true, "전국 / 4~7년 / 회사규모 무관 / 고용형태 무관", BigDecimal.valueOf(42.5))),
+        List.of(
+            new ExcludedSkill(
+                java.util.UUID.randomUUID(),
+                "Spring Boot",
+                SkillExclusionReason.INSUFFICIENT_SAMPLE)),
+        List.of(),
+        List.of(),
+        new WageBaseline(medianGrossSalary, "초과급여 제외, 상여 포함", "202606"),
+        LocalDate.of(2026, 7, 1));
+  }
+
   @Test
-  @DisplayName("제외 사유에 표본 부족이 섞이면 근거는 기존 산출 불가 문구다")
-  void insufficientData_mixedReasons_keepsGenericReason() {
+  @DisplayName("부분 판정 - 격차 5~15% 면 협상 검토, 시장가치 미반영을 밝힌다")
+  void partial_gapNegotiateBand_negotiate() {
+    DecisionOutcome outcome = engine.evaluate(ppi(100), mviNullWithBaseline(66_000_000L), salary());
+
+    assertThat(outcome.code()).isEqualTo(DecisionSignalCode.NEGOTIATE);
+    assertThat(outcome.rulesApplied())
+        .containsExactly("연봉 격차 5~15% 구간", DecisionSignalEngine.MVI_NOT_REFLECTED);
+    assertThat(outcome.salaryGapRatio()).isNotNull();
+  }
+
+  @Test
+  @DisplayName("부분 판정 - 격차 15% 이상도 이직 탐색이 아니라 협상 검토다 — 이직 탐색은 시장가치가 필요하다")
+  void partial_largeGap_negotiateNotSeekJob() {
+    DecisionOutcome outcome = engine.evaluate(ppi(100), mviNullWithBaseline(72_000_000L), salary());
+
+    assertThat(outcome.code()).isEqualTo(DecisionSignalCode.NEGOTIATE);
+    assertThat(outcome.rulesApplied())
+        .containsExactly("연봉 격차 15% 이상", DecisionSignalEngine.MVI_NOT_REFLECTED);
+  }
+
+  @Test
+  @DisplayName("부분 판정 - 격차가 ±5% 안이면 현 상태 유지")
+  void partial_nearMarket_stay() {
+    DecisionOutcome outcome = engine.evaluate(ppi(100), mviNullWithBaseline(60_000_000L), salary());
+
+    assertThat(outcome.code()).isEqualTo(DecisionSignalCode.STAY);
+    assertThat(outcome.rulesApplied())
+        .containsExactly("연봉이 시장 수준에 근접", DecisionSignalEngine.MVI_NOT_REFLECTED);
+  }
+
+  @Test
+  @DisplayName("부분 판정 - 시장보다 5% 넘게 받으면 현 상태 유지")
+  void partial_aboveMarket_stay() {
+    DecisionOutcome outcome = engine.evaluate(ppi(100), mviNullWithBaseline(54_000_000L), salary());
+
+    assertThat(outcome.code()).isEqualTo(DecisionSignalCode.STAY);
+    assertThat(outcome.rulesApplied())
+        .containsExactly("뚜렷한 보상 격차 없음", DecisionSignalEngine.MVI_NOT_REFLECTED);
+  }
+
+  @Test
+  @DisplayName("부분 판정 - 구매력이 낮아도 스킬 보강 우선은 내지 않는다 — 시장가치 90 미만 조건을 볼 수 없다")
+  void partial_neverUpskill() {
+    DecisionOutcome outcome = engine.evaluate(ppi(80), mviNullWithBaseline(60_000_000L), salary());
+
+    assertThat(outcome.code()).isEqualTo(DecisionSignalCode.STAY);
+  }
+
+  @Test
+  @DisplayName("부분 판정 - 제외 사유에 집계 공백과 표본 부족이 섞이면 수집 공백이 아니라 부분 판정이다")
+  void partial_mixedExclusionReasons() {
     DecisionOutcome outcome =
         engine.evaluate(
             ppi(100.0),
@@ -94,7 +168,21 @@ class DecisionSignalEngineTest {
                 SkillExclusionReason.NO_RECENT_COVERAGE, SkillExclusionReason.INSUFFICIENT_SAMPLE),
             salary());
 
-    assertThat(outcome.rulesApplied()).containsExactly("시장가치 지수 산출 불가");
+    assertThat(outcome.code()).isEqualTo(DecisionSignalCode.STAY);
+    assertThat(outcome.rulesApplied())
+        .containsExactly("연봉이 시장 수준에 근접", DecisionSignalEngine.MVI_NOT_REFLECTED);
+  }
+
+  @Test
+  @DisplayName("부분 판정이어도 다른 근거가 빠지면 데이터 부족이다")
+  void partial_requiresOtherInputs() {
+    assertThat(
+            engine
+                .evaluate(PpiResult.notAvailable(YM), mviNullWithBaseline(66_000_000L), salary())
+                .code())
+        .isEqualTo(DecisionSignalCode.INSUFFICIENT_DATA);
+    assertThat(engine.evaluate(ppi(100), mviNullWithBaseline(66_000_000L), null).code())
+        .isEqualTo(DecisionSignalCode.INSUFFICIENT_DATA);
   }
 
   // ---------- 규칙 2: 이직 탐색 ----------
@@ -227,8 +315,8 @@ class DecisionSignalEngineTest {
   }
 
   @Test
-  @DisplayName("데이터 부족 2 - 계산 가능 스킬이 0개면 데이터 부족이다")
-  void insufficient2_noComputableSkill() {
+  @DisplayName("계산 가능 스킬이 0개여도 연봉 격차가 있으면 부분 판정이다")
+  void noComputableSkill_partialVerdict() {
     MviResult noSkill =
         new MviResult(
             YM,
@@ -241,8 +329,9 @@ class DecisionSignalEngineTest {
             new WageBaseline(72_000_000L, "초과급여 제외, 상여 포함", "202606"),
             LocalDate.of(2026, 7, 1));
 
-    assertThat(engine.evaluate(ppi(100), noSkill, salary()).code())
-        .isEqualTo(DecisionSignalCode.INSUFFICIENT_DATA);
+    DecisionOutcome outcome = engine.evaluate(ppi(100), noSkill, salary());
+    assertThat(outcome.code()).isEqualTo(DecisionSignalCode.NEGOTIATE);
+    assertThat(outcome.rulesApplied()).contains(DecisionSignalEngine.MVI_NOT_REFLECTED);
   }
 
   @Test

@@ -21,7 +21,7 @@ import org.springframework.stereotype.Component;
 public class DecisionSignalEngine {
 
   /** 결정표 버전. 규칙표를 바꿔 배포할 때 수동으로 올린다 (기술 명세 §1.3). */
-  public static final String RULE_VERSION = "1.0.0";
+  public static final String RULE_VERSION = "1.1.0";
 
   private static final int MIN_SAMPLE_SIZE = 10;
   private static final BigDecimal GAP_SEEK_JOB = new BigDecimal("0.15");
@@ -32,6 +32,12 @@ public class DecisionSignalEngine {
   private static final BigDecimal MVI_STABLE = new BigDecimal("90");
   private static final BigDecimal PPI_UPSKILL = new BigDecimal("95");
 
+  /**
+   * 부분 판정 근거 문구. 시장가치 지수 없이 연봉 격차만으로 낸 판정임을 화면 규칙 칩에 밝힌다 — 이직 탐색·스킬 보강 우선은 시장가치가 있어야 해서 이 경로에서 나오지
+   * 않는다.
+   */
+  public static final String MVI_NOT_REFLECTED = "시장가치 미반영";
+
   public DecisionOutcome evaluate(PpiResult ppi, MviResult mvi, CurrentSalary salary) {
     List<String> insufficient = insufficientDataReasons(ppi, mvi, salary);
     if (!insufficient.isEmpty()) {
@@ -39,6 +45,9 @@ public class DecisionSignalEngine {
     }
 
     BigDecimal gap = salaryGapRatio(mvi.wageBaseline().medianGrossSalary(), salary.grossSalary());
+    if (mvi.value() == null) {
+      return evaluateWithoutMvi(gap);
+    }
     BigDecimal mviValue = mvi.value();
     BigDecimal ppiValue = ppi.value();
 
@@ -66,6 +75,27 @@ public class DecisionSignalEngine {
   }
 
   /**
+   * 시장가치 없이 연봉 격차만으로 내는 부분 판정 (도메인 정의서 §6.2). 시장가치는 이전 12개월 창이 비면 계산되지 않는데, 그동안 판정을 통째로 비우지 않고 격차로
+   * 말할 수 있는 것만 말한다.
+   */
+  private static DecisionOutcome evaluateWithoutMvi(BigDecimal gap) {
+    if (gap.compareTo(GAP_SEEK_JOB) >= 0) {
+      return new DecisionOutcome(
+          DecisionSignalCode.NEGOTIATE, List.of("연봉 격차 15% 이상", MVI_NOT_REFLECTED), gap);
+    }
+    if (gap.compareTo(GAP_NEGOTIATE) >= 0) {
+      return new DecisionOutcome(
+          DecisionSignalCode.NEGOTIATE, List.of("연봉 격차 5~15% 구간", MVI_NOT_REFLECTED), gap);
+    }
+    if (gap.compareTo(GAP_STAY_LOWER) > 0) {
+      return new DecisionOutcome(
+          DecisionSignalCode.STAY, List.of("연봉이 시장 수준에 근접", MVI_NOT_REFLECTED), gap);
+    }
+    return new DecisionOutcome(
+        DecisionSignalCode.STAY, List.of("뚜렷한 보상 격차 없음", MVI_NOT_REFLECTED), gap);
+  }
+
+  /**
    * 데이터 부족 발동 조건 5개 (기술 명세 §2.2). 지수 값이 {@code null} 인데 상태가 부족을 가리키지 않는 경우도 조건 2·3 의 일반화로 함께 막는다 —
    * 값 없이 비교하면 NPE 다.
    */
@@ -87,8 +117,9 @@ public class DecisionSignalEngine {
     if (totalSampleCount(mvi.sources()) < MIN_SAMPLE_SIZE) {
       return List.of("동료집단 표본 수가 통계 기준치 미만");
     }
-    if (mvi.value() == null) {
-      return List.of(isMarketCoverageGap(mvi) ? MARKET_COVERAGE_GAP : "시장가치 지수 산출 불가");
+    // 시장가치가 비어도 수집 공백이 아니면 부분 판정으로 넘긴다(evaluateWithoutMvi). 수집 공백은 입력과 무관해 판정을 비워 두고 그 사실을 밝힌다.
+    if (mvi.value() == null && isMarketCoverageGap(mvi)) {
+      return List.of(MARKET_COVERAGE_GAP);
     }
     if (ppi.value() == null) {
       return List.of("구매력 지수 산출 불가");
