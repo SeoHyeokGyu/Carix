@@ -172,6 +172,13 @@ public class JobPosting {
     this.experienceMax = max;
   }
 
+  /** 공고가 계속 활성 상태로 수집될 때 마지막 관측월(lastSeenMonth)을 갱신합니다. */
+  public void updateLastSeenMonth(String currentMonth) {
+    if (currentMonth != null && currentMonth.matches("\\d{6}")) {
+      this.lastSeenMonth = currentMonth;
+    }
+  }
+
   /** 원천 직무명에서 판정한 MVP 직군 코드를 붙인다. */
   public void classifyAs(String jobFamily) {
     this.jobFamily = jobFamily;
