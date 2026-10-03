@@ -6,8 +6,12 @@ import com.carix.jobposting.JobPostingSkill;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
+import java.time.YearMonth;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -182,14 +186,22 @@ public class MarketAggregateService {
     // 1. 기존 해당 월 집계 데이터 삭제 후 재생성 (Idempotent Upsert)
     marketAggregateRepository.deleteByBaseYearMonth(baseYearMonth);
 
+    // 2. 활동월(firstSeenMonth ~ lastSeenMonth) 기준 월별 귀속 필터링 (b18)
+    List<JobPosting> activePostings = filterActivePostingsForMonth(allPostings, baseYearMonth);
+    if (activePostings.isEmpty()) {
+      log.info("[시장사전집계] 기준년월 {}에 해당하는 활동 공고가 없어 0건 적재 완료.", baseYearMonth);
+      return 0;
+    }
+
     List<MarketAggregate> aggregates = new ArrayList<>();
 
-    // 2. 통합 관점 ("ALL" source, dedup_group_id 기준) 집계
-    aggregates.addAll(buildAggregatesForSource("ALL", allPostings, baseYearMonth, true));
+    // 3. 통합 관점 ("ALL" source, dedup_group_id 기준) 집계
+    aggregates.addAll(buildAggregatesForSource("ALL", activePostings, baseYearMonth, true));
 
-    // 3. 개별 원천별 관점 ("JOBKOREA", "SARAMIN") 집계
+    // 4. 개별 원천별 관점 ("JOBKOREA", "SARAMIN") 집계
     Map<String, List<JobPosting>> bySource =
-        allPostings.stream().collect(Collectors.groupingBy(JobPosting::getSource));
+        activePostings.stream()
+            .collect(Collectors.groupingBy(p -> p.getSource() != null ? p.getSource() : "UNKNOWN"));
     for (Map.Entry<String, List<JobPosting>> entry : bySource.entrySet()) {
       aggregates.addAll(
           buildAggregatesForSource(entry.getKey(), entry.getValue(), baseYearMonth, false));
@@ -199,6 +211,68 @@ public class MarketAggregateService {
     log.info("[시장사전집계] 기준년월 {} 집계 완료 ({}건 적재).", baseYearMonth, aggregates.size());
 
     return aggregates.size();
+  }
+
+  /**
+   * 지정된 기준년월(baseYearMonth)에 활동 중인(게시 중인) 공고만 선별합니다.
+   *
+   * <p>귀속 기준: {@code firstSeenMonth <= baseYearMonth <= lastSeenMonth}
+   */
+  public List<JobPosting> filterActivePostingsForMonth(
+      List<JobPosting> postings, String baseYearMonth) {
+    if (postings == null || postings.isEmpty() || baseYearMonth == null) {
+      return Collections.emptyList();
+    }
+    String targetMonth = normalizeMonth(baseYearMonth);
+    return postings.stream()
+        .filter(p -> isPostingActiveInMonth(p, targetMonth))
+        .collect(Collectors.toList());
+  }
+
+  /** 특정 공고가 대상 월(targetMonth, YYYYMM)에 활동 중인지 판정합니다. */
+  public boolean isPostingActiveInMonth(JobPosting p, String targetMonth) {
+    if (p == null || targetMonth == null) {
+      return false;
+    }
+    String startMonth = resolveStartMonth(p);
+    if (startMonth == null) {
+      return false;
+    }
+    String endMonth = resolveEndMonth(p, startMonth);
+    if (startMonth.compareTo(endMonth) > 0) {
+      endMonth = startMonth;
+    }
+    return startMonth.compareTo(targetMonth) <= 0 && targetMonth.compareTo(endMonth) <= 0;
+  }
+
+  private String resolveStartMonth(JobPosting p) {
+    if (p.getFirstSeenMonth() != null) {
+      String cleaned = p.getFirstSeenMonth().replace("-", "").trim();
+      if (cleaned.matches("\\d{6}")) {
+        return cleaned;
+      }
+    }
+    if (p.getPostedStartDate() != null) {
+      return p.getPostedStartDate().format(DateTimeFormatter.ofPattern("yyyyMM"));
+    }
+    if (p.getCollectedAt() != null) {
+      return YearMonth.from(p.getCollectedAt().atZone(ZoneId.of("Asia/Seoul")))
+          .format(DateTimeFormatter.ofPattern("yyyyMM"));
+    }
+    return null;
+  }
+
+  private String resolveEndMonth(JobPosting p, String startMonth) {
+    if (p.getLastSeenMonth() != null) {
+      String cleaned = p.getLastSeenMonth().replace("-", "").trim();
+      if (cleaned.matches("\\d{6}")) {
+        return cleaned;
+      }
+    }
+    if (p.getPostedEndDate() != null) {
+      return p.getPostedEndDate().format(DateTimeFormatter.ofPattern("yyyyMM"));
+    }
+    return startMonth;
   }
 
   private String normalizeMonth(String month) {
@@ -218,15 +292,28 @@ public class MarketAggregateService {
     DateTimeFormatter yyyyMM = DateTimeFormatter.ofPattern("yyyyMM");
 
     for (JobPosting p : postings) {
-      if (p.getFirstSeenMonth() != null
-          && p.getFirstSeenMonth().replace("-", "").matches("\\d{6}")) {
-        months.add(p.getFirstSeenMonth().replace("-", ""));
-      }
-      if (p.getLastSeenMonth() != null && p.getLastSeenMonth().replace("-", "").matches("\\d{6}")) {
-        months.add(p.getLastSeenMonth().replace("-", ""));
-      }
-      if (p.getPostedStartDate() != null) {
-        months.add(p.getPostedStartDate().format(yyyyMM));
+      String start = resolveStartMonth(p);
+      if (start != null) {
+        String end = resolveEndMonth(p, start);
+        try {
+          YearMonth startYm = YearMonth.parse(start, yyyyMM);
+          YearMonth endYm = YearMonth.parse(end, yyyyMM);
+          if (startYm.isAfter(endYm)) {
+            endYm = startYm;
+          }
+          if (ChronoUnit.MONTHS.between(startYm, endYm) <= 36) {
+            YearMonth cur = startYm;
+            while (!cur.isAfter(endYm)) {
+              months.add(cur.format(yyyyMM));
+              cur = cur.plusMonths(1);
+            }
+          } else {
+            months.add(start);
+            months.add(end);
+          }
+        } catch (Exception e) {
+          months.add(start);
+        }
       }
     }
 

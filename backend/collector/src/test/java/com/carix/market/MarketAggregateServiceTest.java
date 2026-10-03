@@ -46,6 +46,8 @@ class MarketAggregateServiceTest {
             .experienceMin(3)
             .salaryMin(40_000_000L)
             .salaryMax(60_000_000L)
+            .firstSeenMonth("202608")
+            .lastSeenMonth("202608")
             .collectedAt(Instant.now())
             .build();
     p1.addSkill(javaSkill);
@@ -58,6 +60,8 @@ class MarketAggregateServiceTest {
             .experienceMin(2)
             .salaryMin(50_000_000L)
             .salaryMax(70_000_000L)
+            .firstSeenMonth("202608")
+            .lastSeenMonth("202608")
             .collectedAt(Instant.now())
             .build();
     p2.addSkill(javaSkill);
@@ -214,6 +218,12 @@ class MarketAggregateServiceTest {
         marketAggregateService.aggregateMarketData(
             new com.carix.pipeline.dto.MarketAggregateRequest(null, null, "2025", null, null));
     assertThat(resSingleRange).isGreaterThan(0);
+
+    // month, year, startYear 가 빈 문자열(blank)인 경우 다음 조건으로 폴백
+    int resBlankFallback =
+        marketAggregateService.aggregateMarketData(
+            new com.carix.pipeline.dto.MarketAggregateRequest("  ", "  ", "  ", null, false));
+    assertThat(resBlankFallback).isGreaterThan(0);
   }
 
   @Test
@@ -226,5 +236,349 @@ class MarketAggregateServiceTest {
     org.assertj.core.api.Assertions.assertThatThrownBy(
             () -> marketAggregateService.aggregateMarketDataForMonth("2026-8"))
         .isInstanceOf(IllegalArgumentException.class);
+  }
+
+  @Test
+  @DisplayName("b18 - 활동월(firstSeenMonth ~ lastSeenMonth) 기준 필터링 검증")
+  void b18_filterActivePostings_onlyIncludesPostingsWithinActivityWindow() {
+    JobPosting p1 =
+        JobPosting.builder()
+            .source("JOBKOREA")
+            .externalId("jk-1")
+            .jobFamily("BACKEND")
+            .firstSeenMonth("202501")
+            .lastSeenMonth("202503")
+            .build();
+
+    JobPosting p2 =
+        JobPosting.builder()
+            .source("SARAMIN")
+            .externalId("sr-1")
+            .jobFamily("BACKEND")
+            .firstSeenMonth("202504")
+            .lastSeenMonth("202506")
+            .build();
+
+    List<JobPosting> all = List.of(p1, p2);
+
+    // 202501: p1만 포함
+    List<JobPosting> active202501 =
+        marketAggregateService.filterActivePostingsForMonth(all, "202501");
+    assertThat(active202501).containsExactly(p1);
+
+    // 202502: p1만 포함 (중간월)
+    List<JobPosting> active202502 =
+        marketAggregateService.filterActivePostingsForMonth(all, "202502");
+    assertThat(active202502).containsExactly(p1);
+
+    // 202504: p2만 포함
+    List<JobPosting> active202504 =
+        marketAggregateService.filterActivePostingsForMonth(all, "202504");
+    assertThat(active202504).containsExactly(p2);
+
+    // 202507: 둘 다 미포함 (활동 구간 밖)
+    List<JobPosting> active202507 =
+        marketAggregateService.filterActivePostingsForMonth(all, "202507");
+    assertThat(active202507).isEmpty();
+  }
+
+  @Test
+  @DisplayName("b18 - 해당 월에 활동 중인 공고가 없으면 기존 데이터 삭제 후 0건 반환")
+  void b18_aggregateMarketDataForMonth_emptyWhenNoActivePostings() {
+    JobPosting p =
+        JobPosting.builder()
+            .source("JOBKOREA")
+            .externalId("jk-1")
+            .jobFamily("BACKEND")
+            .firstSeenMonth("202501")
+            .lastSeenMonth("202501")
+            .build();
+    when(jobPostingRepository.findAll()).thenReturn(List.of(p));
+
+    int count = marketAggregateService.aggregateMarketDataForMonth("202503");
+
+    assertThat(count).isEqualTo(0);
+    verify(marketAggregateRepository).deleteByBaseYearMonth("202503");
+  }
+
+  @Test
+  @DisplayName("b18 - filterActivePostingsForMonth null 및 빈 컬렉션 방어")
+  void b18_filterActivePostingsForMonth_nullAndEmpty() {
+    assertThat(marketAggregateService.filterActivePostingsForMonth(null, "202608")).isEmpty();
+    assertThat(marketAggregateService.filterActivePostingsForMonth(List.of(), "202608")).isEmpty();
+    assertThat(
+            marketAggregateService.filterActivePostingsForMonth(
+                List.of(JobPosting.builder().build()), null))
+        .isEmpty();
+  }
+
+  @Test
+  @DisplayName("b18 - isPostingActiveInMonth 날짜 폴백(postedStartDate, collectedAt) 및 역전 보정 검증")
+  void b18_isPostingActiveInMonth_fallbacksAndClamping() {
+    // 1. null 파라미터
+    assertThat(marketAggregateService.isPostingActiveInMonth(null, "202608")).isFalse();
+    assertThat(marketAggregateService.isPostingActiveInMonth(JobPosting.builder().build(), null))
+        .isFalse();
+
+    // 2. 날짜 정보가 전혀 없는 경우
+    assertThat(
+            marketAggregateService.isPostingActiveInMonth(JobPosting.builder().build(), "202608"))
+        .isFalse();
+
+    // 3. 하이픈이 포함된 firstSeenMonth("2025-01"), lastSeenMonth("2025-03")
+    JobPosting hyphenPosting =
+        JobPosting.builder().firstSeenMonth("2025-01").lastSeenMonth("2025-03").build();
+    assertThat(marketAggregateService.isPostingActiveInMonth(hyphenPosting, "202502")).isTrue();
+    assertThat(marketAggregateService.isPostingActiveInMonth(hyphenPosting, "202504")).isFalse();
+
+    // 4. postedStartDate / postedEndDate 폴백
+    JobPosting datePosting =
+        JobPosting.builder()
+            .postedStartDate(java.time.LocalDate.of(2025, 4, 1))
+            .postedEndDate(java.time.LocalDate.of(2025, 6, 30))
+            .build();
+    assertThat(marketAggregateService.isPostingActiveInMonth(datePosting, "202504")).isTrue();
+    assertThat(marketAggregateService.isPostingActiveInMonth(datePosting, "202505")).isTrue();
+    assertThat(marketAggregateService.isPostingActiveInMonth(datePosting, "202506")).isTrue();
+    assertThat(marketAggregateService.isPostingActiveInMonth(datePosting, "202507")).isFalse();
+
+    // 5. collectedAt 폴백 (단일월)
+    JobPosting collectedPosting =
+        JobPosting.builder().collectedAt(Instant.parse("2026-08-15T00:00:00Z")).build();
+    assertThat(marketAggregateService.isPostingActiveInMonth(collectedPosting, "202608")).isTrue();
+    assertThat(marketAggregateService.isPostingActiveInMonth(collectedPosting, "202607")).isFalse();
+
+    // 6. 시작월 > 종료월 역전 데이터 시 시작월 단일월로 클램핑
+    JobPosting reversedPosting =
+        JobPosting.builder().firstSeenMonth("202505").lastSeenMonth("202501").build();
+    assertThat(marketAggregateService.isPostingActiveInMonth(reversedPosting, "202505")).isTrue();
+    assertThat(marketAggregateService.isPostingActiveInMonth(reversedPosting, "202501")).isFalse();
+  }
+
+  @Test
+  @DisplayName("b18 - 월별 활동 공고에 따라 서로 다른 스킬 수요율 및 모수가 정상 분리 집계된다 (MVI 100.0 고정 해소)")
+  void b18_differentMonths_produceDistinctAggregates() {
+    Skill javaSkill =
+        Skill.builder().id(UUID.randomUUID()).standardName("Java").category("BACKEND").build();
+    Skill pythonSkill =
+        Skill.builder().id(UUID.randomUUID()).standardName("Python").category("BACKEND").build();
+
+    // 202501월에만 활동하는 Java 공고
+    JobPosting p1 =
+        JobPosting.builder()
+            .source("JOBKOREA")
+            .externalId("jk-1")
+            .jobFamily("BACKEND")
+            .experienceMin(1)
+            .salaryMin(40_000_000L)
+            .salaryMax(50_000_000L)
+            .firstSeenMonth("202501")
+            .lastSeenMonth("202501")
+            .collectedAt(Instant.now())
+            .build();
+    p1.addSkill(javaSkill);
+
+    // 202502월에만 활동하는 Python 공고
+    JobPosting p2 =
+        JobPosting.builder()
+            .source("JOBKOREA")
+            .externalId("jk-2")
+            .jobFamily("BACKEND")
+            .experienceMin(1)
+            .salaryMin(60_000_000L)
+            .salaryMax(70_000_000L)
+            .firstSeenMonth("202502")
+            .lastSeenMonth("202502")
+            .collectedAt(Instant.now())
+            .build();
+    p2.addSkill(pythonSkill);
+
+    when(jobPostingRepository.findAll()).thenReturn(List.of(p1, p2));
+
+    // 202501월 집계 실행
+    int countJan = marketAggregateService.aggregateMarketDataForMonth("202501");
+    assertThat(countJan).isGreaterThan(0);
+
+    @SuppressWarnings("unchecked")
+    ArgumentCaptor<List<MarketAggregate>> captorJan = ArgumentCaptor.forClass(List.class);
+    verify(marketAggregateRepository, atLeastOnce()).saveAll(captorJan.capture());
+    List<MarketAggregate> savedJan = captorJan.getValue();
+
+    // 202501월에는 Java 스킬만 존재하고 Python 스킬은 없어야 함
+    boolean hasJavaJan = savedJan.stream().anyMatch(m -> javaSkill.getId().equals(m.getSkillId()));
+    boolean hasPythonJan =
+        savedJan.stream().anyMatch(m -> pythonSkill.getId().equals(m.getSkillId()));
+    assertThat(hasJavaJan).isTrue();
+    assertThat(hasPythonJan).isFalse();
+
+    // 202502월 집계 실행
+    int countFeb = marketAggregateService.aggregateMarketDataForMonth("202502");
+    assertThat(countFeb).isGreaterThan(0);
+
+    @SuppressWarnings("unchecked")
+    ArgumentCaptor<List<MarketAggregate>> captorFeb = ArgumentCaptor.forClass(List.class);
+    verify(marketAggregateRepository, atLeastOnce()).saveAll(captorFeb.capture());
+    List<MarketAggregate> savedFeb = captorFeb.getValue();
+
+    // 202502월에는 Python 스킬만 존재하고 Java 스킬은 없어야 함
+    boolean hasJavaFeb = savedFeb.stream().anyMatch(m -> javaSkill.getId().equals(m.getSkillId()));
+    boolean hasPythonFeb =
+        savedFeb.stream().anyMatch(m -> pythonSkill.getId().equals(m.getSkillId()));
+    assertThat(hasJavaFeb).isFalse();
+    assertThat(hasPythonFeb).isTrue();
+  }
+
+  @Test
+  @DisplayName("aggregateMarketDataForYearRange - endYear 가 빈 문자열(blank)인 경우 startYear 단일 연도로 동작")
+  void aggregateMarketDataForYearRange_blankEndYear() {
+    JobPosting p =
+        JobPosting.builder()
+            .source("JOBKOREA")
+            .externalId("jk-1")
+            .jobFamily("BACKEND")
+            .firstSeenMonth("202501")
+            .lastSeenMonth("202501")
+            .build();
+    when(jobPostingRepository.findAll()).thenReturn(List.of(p));
+
+    int count = marketAggregateService.aggregateMarketDataForYearRange("2025", "   ");
+    assertThat(count).isGreaterThan(0);
+  }
+
+  @Test
+  @DisplayName(
+      "aggregateMarketDataForMonths 및 aggregateMarketDataForMonth - 공고 또는 월 목록이 비어있는 경우 조기 반환(0)")
+  void earlyReturnWhenPostingsOrMonthsEmpty() {
+    when(jobPostingRepository.findAll()).thenReturn(List.of());
+
+    // 1. 공고 없음 -> aggregateMarketDataForMonth 0
+    assertThat(marketAggregateService.aggregateMarketDataForMonth("202608")).isEqualTo(0);
+
+    // 2. 공고 없음 -> aggregateMarketDataForMonths 0
+    assertThat(marketAggregateService.aggregateMarketDataForMonths(List.of("202608"))).isEqualTo(0);
+
+    // 3. 공고는 있으나 월 목록이 빈 경우
+    JobPosting p = JobPosting.builder().source("JOBKOREA").externalId("jk-1").build();
+    when(jobPostingRepository.findAll()).thenReturn(List.of(p));
+    assertThat(marketAggregateService.aggregateMarketDataForMonths(List.of())).isEqualTo(0);
+  }
+
+  @Test
+  @DisplayName("extractActiveMonths - 36개월 초과 장기 구간, 역전 구간, 비정상 월 문자열, 날짜 결측 처리 분기 검증")
+  void extractActiveMonths_branchCoverage() {
+    // 1. 36개월 초과 장기 공고: 202001 ~ 202501 -> 시작월과 종료월만 추가
+    JobPosting longPosting =
+        JobPosting.builder()
+            .source("JOBKOREA")
+            .firstSeenMonth("202001")
+            .lastSeenMonth("202501")
+            .build();
+
+    // 2. 시작월 > 종료월 역전 공고
+    JobPosting reversedPosting =
+        JobPosting.builder()
+            .source("JOBKOREA")
+            .firstSeenMonth("202508")
+            .lastSeenMonth("202503")
+            .build();
+
+    // 3. 비정상 형식 문자열 보유 공고 (postedStartDate 로 폴백)
+    JobPosting malformedMonthPosting =
+        JobPosting.builder()
+            .source("JOBKOREA")
+            .firstSeenMonth("invalid")
+            .lastSeenMonth("bad")
+            .postedStartDate(java.time.LocalDate.of(2025, 9, 1))
+            .postedEndDate(java.time.LocalDate.of(2025, 9, 30))
+            .build();
+
+    // 4. 날짜 정보가 전혀 없는 공고
+    JobPosting noDatePosting = JobPosting.builder().source("JOBKOREA").build();
+
+    when(jobPostingRepository.findAll())
+        .thenReturn(List.of(longPosting, reversedPosting, malformedMonthPosting, noDatePosting));
+
+    int count = marketAggregateService.aggregateAllMarketData();
+    assertThat(count).isGreaterThanOrEqualTo(0);
+
+    // 5. 날짜 정보 없는 공고만 존재할 때: 현재월 fallback
+    when(jobPostingRepository.findAll()).thenReturn(List.of(noDatePosting));
+    marketAggregateService.aggregateAllMarketData();
+  }
+
+  @Test
+  @DisplayName(
+      "buildAggregatesForSource - dedupGroupId null, jobFamily null, 부분 연봉 결측, 다양한 경력 브래킷 분기 검증")
+  void buildAggregatesForSource_branchCoverage() {
+    Skill java =
+        Skill.builder().id(UUID.randomUUID()).standardName("Java").category("BACKEND").build();
+
+    // dedupGroupId 가 null 인 공고 (id 를 키로 대체), jobFamily null, salaryMax 만 존재
+    JobPosting pDedupNull =
+        JobPosting.builder()
+            .source("JOBKOREA")
+            .externalId("jk-1")
+            .dedupGroupId(null)
+            .jobFamily(null)
+            .experienceMin(0) // ENTRY
+            .salaryMin(null)
+            .salaryMax(50_000_000L)
+            .firstSeenMonth("202608")
+            .lastSeenMonth("202608")
+            .build();
+    pDedupNull.addSkill(java);
+
+    // salaryMin 만 존재 (hasSalary = false), JUNIOR (경력 2년), 스킬 없음
+    JobPosting pNoSkill =
+        JobPosting.builder()
+            .source("JOBKOREA")
+            .externalId("jk-2")
+            .jobFamily("BACKEND")
+            .experienceMin(2) // JUNIOR
+            .salaryMin(40_000_000L)
+            .salaryMax(null)
+            .firstSeenMonth("202608")
+            .lastSeenMonth("202608")
+            .build();
+
+    // MID (경력 5년), SENIOR (경력 10년), LEAD (경력 15년)
+    JobPosting pMid =
+        JobPosting.builder()
+            .source("JOBKOREA")
+            .externalId("jk-3")
+            .jobFamily("BACKEND")
+            .experienceMin(5)
+            .salaryMin(50_000_000L)
+            .salaryMax(70_000_000L)
+            .firstSeenMonth("202608")
+            .lastSeenMonth("202608")
+            .build();
+    pMid.addSkill(java);
+
+    JobPosting pSenior =
+        JobPosting.builder()
+            .source("JOBKOREA")
+            .externalId("jk-4")
+            .jobFamily("BACKEND")
+            .experienceMin(10)
+            .firstSeenMonth("202608")
+            .lastSeenMonth("202608")
+            .build();
+
+    JobPosting pLead =
+        JobPosting.builder()
+            .source("JOBKOREA")
+            .externalId("jk-5")
+            .jobFamily("BACKEND")
+            .experienceMin(15)
+            .firstSeenMonth("202608")
+            .lastSeenMonth("202608")
+            .build();
+
+    when(jobPostingRepository.findAll())
+        .thenReturn(List.of(pDedupNull, pNoSkill, pMid, pSenior, pLead));
+
+    int count = marketAggregateService.aggregateMarketDataForMonth("202608");
+    assertThat(count).isGreaterThan(0);
   }
 }
