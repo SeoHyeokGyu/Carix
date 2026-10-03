@@ -33,6 +33,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class CollectorPipelineController {
 
   private final CollectorPipelineService pipelineService;
+  private final com.carix.pipeline.service.MviCollectionPriorityService priorityService;
 
   /**
    * [POST /internal/pipeline/crawl] 외부 채용 포털 실시간 크롤링 비동기 실행.
@@ -191,5 +192,26 @@ public class CollectorPipelineController {
   public ResponseEntity<List<com.carix.pipeline.dto.RecentPostingResponse>> getRecentPostings(
       @RequestParam(value = "limit", defaultValue = "20") int limit) {
     return ResponseEntity.ok(pipelineService.getRecentPostings(limit));
+  }
+
+  /**
+   * [GET /internal/pipeline/priorities] MVI 시장 데이터 수집 우선순위 산출 결과 조회 (개발 계획 §2 b8b).
+   *
+   * @param month 기준 년월 (YYYYMM, null 시 최신 적재월 또는 당월)
+   * @param source 원천 플랫폼 (ALL, JOBKOREA, SARAMIN, 기본값 ALL)
+   * @param minSampleSize 최소 기준 표본수 (기본값 10)
+   * @param underSampledOnly 표본 부족(N &lt; minSampleSize) 항목만 반환할지 여부 (기본값 false)
+   * @return MVI 수집 우선순위 산출 결과
+   */
+  @GetMapping({"/priorities", "/collection-priorities"})
+  public ResponseEntity<com.carix.pipeline.dto.CollectionPriorityResponse> getCollectionPriorities(
+      @RequestParam(value = "month", required = false) String month,
+      @RequestParam(value = "source", required = false, defaultValue = "ALL") String source,
+      @RequestParam(value = "minSampleSize", required = false, defaultValue = "10")
+          int minSampleSize,
+      @RequestParam(value = "underSampledOnly", required = false, defaultValue = "false")
+          boolean underSampledOnly) {
+    return ResponseEntity.ok(
+        priorityService.calculatePriorities(month, source, minSampleSize, underSampledOnly));
   }
 }
