@@ -7,6 +7,7 @@ import * as profileApi from "../../lib/api/profile";
 import { UnauthorizedError } from "../../lib/coreApi";
 import * as dashboardMarketApi from "../../lib/dashboardMarketApi";
 import { resetSession, setSession } from "../../lib/session";
+import * as skillApi from "../../lib/skillApi";
 import DashboardHistory from "./history";
 import DashboardHome, { clientLoader } from "./index";
 import DashboardLayout, {
@@ -708,6 +709,42 @@ describe("대시보드 라우트 및 레이아웃 (Dashboard)", () => {
       });
       renderScreen();
       expect(await screen.findByText("2개월째")).toBeInTheDocument();
+    });
+
+    it("판정이 UPSKILL 이면 처방 블록을 로드하여 화면에 표시한다", async () => {
+      vi.spyOn(dashboardApi, "fetchSummary").mockResolvedValue({
+        ok: true,
+        data: {
+          ...OK_DATA,
+          decisionSignal: {
+            code: "UPSKILL",
+            label: "스킬 보강 우선",
+            rulesApplied: ["MVI < 95", "PPI < 95"],
+            rationale: "시장가치와 구매력이 모두 낮습니다.",
+          },
+        },
+      } as never);
+      vi.spyOn(skillApi, "fetchSkillRecommendations").mockResolvedValue({
+        peerGroup: { appliedConditions: "서울 전체 / MID" },
+        recommendations: [
+          {
+            standardName: "Kubernetes",
+            category: "DEVOPS",
+            demandRate: 0.245,
+            growthTrend: "UP",
+            coOccurrence: { withSkill: "Spring Boot", rate: 0.62 },
+            reason: "보유하신 Spring Boot 공고의 62%가 함께 요구합니다.",
+          },
+        ],
+      });
+
+      renderScreen();
+
+      expect(
+        await screen.findByTestId("skill-prescription-block"),
+      ).toBeInTheDocument();
+      expect(screen.getByText("Kubernetes")).toBeInTheDocument();
+      expect(screen.getByText("수요율 24.5%")).toBeInTheDocument();
     });
   });
 

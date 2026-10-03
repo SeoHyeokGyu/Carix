@@ -1,9 +1,10 @@
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
-import type { Tone } from "@/components/ui/tone-badge";
+import { ToneBadge, type Tone } from "@/components/ui/tone-badge";
 import type { DecisionSignal } from "../../lib/api/dashboard";
 import type { SnapshotPoint } from "../../lib/dashboardMarketApi";
 import { resolveDecisionSignal } from "../../lib/decisionSignal";
+import type { SkillRecommendationsResponse } from "../../lib/skillApi";
 import { countSignalStreak, toSparklineSeries } from "../../lib/verdict";
 import { DecisionSignalHelp } from "./IndexHelp";
 import { SignalBadge } from "./SignalBadge";
@@ -30,15 +31,22 @@ interface VerdictHeroProps {
   signal: DecisionSignal | null;
   history: readonly SnapshotPoint[] | null;
   isNarrow: boolean;
+  recommendations?: SkillRecommendationsResponse | null;
 }
 
 /**
  * `S-10` 1층. 제목은 `decisionSignal.ts` 의 description 이다 — 새 문구를 만들지 않는다(설계 D2).
  * 서버 rationale 은 3층으로 내렸다(D3).
  */
-export function VerdictHero({ signal, history, isNarrow }: VerdictHeroProps) {
+export function VerdictHero({
+  signal,
+  history,
+  isNarrow,
+  recommendations,
+}: VerdictHeroProps) {
   const view = resolveDecisionSignal(signal?.code ?? "", signal?.label);
   const title = view.description ?? view.label;
+  const isUpskill = signal?.code === "UPSKILL";
 
   return (
     <section aria-labelledby="verdict-title">
@@ -64,6 +72,9 @@ export function VerdictHero({ signal, history, isNarrow }: VerdictHeroProps) {
                 </li>
               ))}
             </ul>
+          )}
+          {isUpskill && (
+            <SkillPrescriptionBlock recommendations={recommendations} />
           )}
         </div>
         {signal && history && (
@@ -130,4 +141,72 @@ function VerdictPreview({
       )}
     </aside>
   );
+}
+
+function SkillPrescriptionBlock({
+  recommendations,
+}: {
+  recommendations?: SkillRecommendationsResponse | null;
+}) {
+  const items = recommendations?.recommendations ?? [];
+  const isInsufficient = items.length === 0;
+
+  return (
+    <div
+      data-testid="skill-prescription-block"
+      aria-label="스킬 보강 처방"
+      className="mt-1 flex flex-col gap-2.5 rounded-lg border border-carix-border bg-carix-surface/60 p-3.5"
+    >
+      <div className="flex items-center justify-between">
+        <span className="text-xs font-semibold text-carix-text/80">
+          처방: 동료집단 수요 추천 스킬
+        </span>
+        {isInsufficient && <ToneBadge tone="warning">표본 부족</ToneBadge>}
+      </div>
+
+      {isInsufficient ? (
+        <p className="text-xs text-carix-text/60">
+          동료집단 공고 표본이 부족하여 추천 스킬을 산출할 수 없습니다.
+        </p>
+      ) : (
+        <ul aria-label="추천 스킬 목록" className="flex flex-col gap-2">
+          {items.map((item) => (
+            <li
+              key={item.standardName}
+              className="flex flex-col gap-1 rounded border border-carix-border/60 bg-carix-surface/80 p-2.5"
+            >
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-sm font-semibold text-carix-text">
+                  {item.standardName}
+                </span>
+                {item.demandRate !== null && (
+                  <Badge variant="secondary">
+                    수요율 {(item.demandRate * 100).toFixed(1)}%
+                  </Badge>
+                )}
+                <GrowthTrendBadge trend={item.growthTrend} />
+              </div>
+              {item.reason && (
+                <p className="text-xs text-carix-text/70">{item.reason}</p>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+function GrowthTrendBadge({ trend }: { trend?: string | null }) {
+  if (!trend) return null;
+  if (trend === "UP") {
+    return <ToneBadge tone="positive">▲ 상승</ToneBadge>;
+  }
+  if (trend === "DOWN") {
+    return <ToneBadge tone="warning">▼ 하락</ToneBadge>;
+  }
+  if (trend === "STABLE") {
+    return <ToneBadge tone="muted">- 유지</ToneBadge>;
+  }
+  return null;
 }

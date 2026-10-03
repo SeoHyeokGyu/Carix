@@ -3,6 +3,7 @@ import { UnauthorizedError } from "./coreApi";
 import {
   createUserSkill,
   deleteUserSkill,
+  fetchSkillRecommendations,
   fetchUserSkills,
   searchSkills,
   updateUserSkill,
@@ -185,5 +186,33 @@ describe("skillApi 요청 형태", () => {
       "/api/v1/user-skills/u-1",
       expect.objectContaining({ method: "DELETE" }),
     );
+  });
+
+  it("fetchSkillRecommendations 는 GET /api/v1/skills/recommendations 를 호출하고 data 를 반환한다", async () => {
+    const mockData = {
+      peerGroup: { appliedConditions: "서울 전체 / 경력 MID / 회사규모 무관" },
+      recommendations: [
+        {
+          standardName: "Kubernetes",
+          category: "DEVOPS",
+          demandRate: 0.245,
+          growthTrend: "UP",
+          coOccurrence: { withSkill: "Spring Boot", rate: 0.62 },
+          reason: "보유하신 Spring Boot 공고의 62%가 함께 요구합니다.",
+        },
+      ],
+    };
+    const mockFetch = vi
+      .fn()
+      .mockResolvedValue(mockResponse(200, { success: true, data: mockData }));
+    vi.stubGlobal("fetch", mockFetch);
+
+    const result = await fetchSkillRecommendations();
+
+    expect(mockFetch).toHaveBeenCalledWith(
+      "/api/v1/skills/recommendations",
+      expect.objectContaining({ method: "GET" }),
+    );
+    expect(result).toEqual(mockData);
   });
 });

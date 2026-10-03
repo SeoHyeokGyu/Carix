@@ -24,6 +24,7 @@ import { UnauthorizedError } from "../../lib/coreApi";
 import { fetchSnapshotHistory } from "../../lib/dashboardMarketApi";
 import { resolvePeerConditions } from "../../lib/peerConditions";
 import { LOGIN_PATH } from "../../lib/routeGuards";
+import { fetchSkillRecommendations } from "../../lib/skillApi";
 import { formatVerdictHeading } from "../../lib/verdict";
 
 /**
@@ -41,12 +42,18 @@ async function loadOptional<T>(load: () => Promise<T>): Promise<T | null> {
 
 export async function clientLoader() {
   try {
-    const [summary, history, profile] = await Promise.all([
+    const [summary, history, profile, recommendations] = await Promise.all([
       fetchSummary(),
       loadOptional(fetchSnapshotHistory),
       loadOptional(getProfile),
+      loadOptional(fetchSkillRecommendations),
     ]);
-    return { summary, history: history?.snapshots ?? null, profile };
+    return {
+      summary,
+      history: history?.snapshots ?? null,
+      profile,
+      recommendations,
+    };
   } catch (error) {
     // fetchSummary 는 UnauthorizedError 만 다시 던진다(설계 §10) — 다른 화면과 같은 판단으로
     // 로그인으로 보낸다. 부가 조회 둘도 401 만 여기까지 올라온다.
@@ -80,6 +87,7 @@ export default function DashboardHome() {
   // 재검증 사이 loaderData 가 summary 만 가진 모양으로 올 수 있다(retention 테스트) — 없으면 없는 대로 그린다.
   const history = loaderData.history ?? null;
   const profile = loaderData.profile ?? null;
+  const recommendations = loaderData.recommendations ?? null;
   const isNarrow = useIsNarrowViewport();
   const revalidator = useRevalidator();
   // loader 는 실패를 예외가 아니라 {ok:false} 로 돌려준다(설계 §10) — 하지만 React Router 는
@@ -227,6 +235,7 @@ export default function DashboardHome() {
             signal={data.decisionSignal}
             history={history}
             isNarrow={isNarrow}
+            recommendations={recommendations}
           />
 
           <section
