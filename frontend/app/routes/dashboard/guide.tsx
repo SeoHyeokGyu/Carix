@@ -37,16 +37,16 @@ export default function DashboardGuide() {
           지표 해석 및 결정 신호 가이드
         </h1>
         <p className="mt-1 text-sm text-carix-text/70">
-          Carix가 제공하는 3대 핵심 지표와 결정 신호의 산출 배경 및 해석 방법을
+          Carix가 제공하는 지표 3종과 결정 신호의 산출 배경 및 해석 방법을
           안내합니다.
         </p>
       </div>
 
       <div className="mt-8 flex flex-col gap-8">
-        {/* 1. 핵심 지표 3종 상세 안내 */}
+        {/* 1. 지표 3종 상세 안내 */}
         <div>
           <h2 className="text-lg font-semibold text-carix-text mb-4">
-            📊 3대 핵심 지표 (기준선 100의 의미)
+            📊 지표 3종 (기준선 100의 의미)
           </h2>
           <div className="grid gap-4 md:grid-cols-3">
             {/* 구매력 지수 */}
