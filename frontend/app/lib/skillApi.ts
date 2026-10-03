@@ -50,3 +50,30 @@ export const updateUserSkill = (id: string, input: UpdateUserSkillInput) =>
 
 export const deleteUserSkill = (id: string): Promise<void> =>
   coreSend<null>("DELETE", `/v1/user-skills/${id}`).then(() => undefined);
+
+export interface SkillCoOccurrence {
+  withSkill: string;
+  rate: number;
+}
+
+export interface SkillRecommendationItem {
+  standardName: string;
+  category: string | null;
+  demandRate: number;
+  growthTrend: "UP" | "DOWN" | "STABLE" | string;
+  coOccurrence: SkillCoOccurrence | null;
+  reason: string;
+}
+
+export interface SkillRecommendationsResponse {
+  peerGroup: {
+    appliedConditions: string;
+  };
+  recommendations: SkillRecommendationItem[];
+}
+
+/**
+ * 동료집단 기반 스킬 보강 추천 목록을 조회합니다 (API 규격 §5.6, US-D6).
+ */
+export const fetchSkillRecommendations = () =>
+  coreGet<SkillRecommendationsResponse>("/v1/skills/recommendations");

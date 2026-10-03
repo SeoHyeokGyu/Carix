@@ -139,4 +139,108 @@ describe("VerdictHero", () => {
       screen.getByRole("heading", { level: 2, name: "새 신호" }),
     ).toBeInTheDocument();
   });
+
+  describe("처방 블록 (US-D6)", () => {
+    const UPSKILL = {
+      code: "UPSKILL",
+      label: "스킬 보강 우선",
+      rulesApplied: ["MVI < 95", "PPI < 95"],
+      rationale: "시장가치와 구매력이 모두 낮습니다.",
+    };
+
+    const RECOMMENDATIONS = {
+      peerGroup: { appliedConditions: "서울 전체 / 경력 MID" },
+      recommendations: [
+        {
+          standardName: "Kubernetes",
+          category: "DEVOPS",
+          demandRate: 0.245,
+          growthTrend: "UP",
+          coOccurrence: { withSkill: "Spring Boot", rate: 0.62 },
+          reason: "보유하신 Spring Boot 공고의 62%가 함께 요구합니다.",
+        },
+        {
+          standardName: "Docker",
+          category: "DEVOPS",
+          demandRate: 0.18,
+          growthTrend: "STABLE",
+          coOccurrence: null,
+          reason: "동료집단 내 공고의 18.0%에서 요구되는 핵심 스택입니다.",
+        },
+      ],
+    };
+
+    it("UPSKILL 신호에서 추천 스킬 목록과 수요율, 추세, 근거를 노출한다", () => {
+      render(
+        <VerdictHero
+          signal={UPSKILL}
+          history={[]}
+          isNarrow={false}
+          recommendations={RECOMMENDATIONS}
+        />,
+      );
+
+      const block = screen.getByTestId("skill-prescription-block");
+      expect(block).toBeInTheDocument();
+      expect(
+        screen.getByText("처방: 동료집단 수요 추천 스킬"),
+      ).toBeInTheDocument();
+      expect(screen.getByText("Kubernetes")).toBeInTheDocument();
+      expect(screen.getByText("수요율 24.5%")).toBeInTheDocument();
+      expect(screen.getByText("▲ 상승")).toBeInTheDocument();
+      expect(
+        screen.getByText("보유하신 Spring Boot 공고의 62%가 함께 요구합니다."),
+      ).toBeInTheDocument();
+
+      expect(screen.getByText("Docker")).toBeInTheDocument();
+      expect(screen.getByText("수요율 18.0%")).toBeInTheDocument();
+      expect(screen.getByText("- 유지")).toBeInTheDocument();
+      expect(
+        screen.getByText(
+          "동료집단 내 공고의 18.0%에서 요구되는 핵심 스택입니다.",
+        ),
+      ).toBeInTheDocument();
+    });
+
+    it("UPSKILL 신호에서 추천 스킬이 비어있으면 표본 부족을 노출한다", () => {
+      render(
+        <VerdictHero
+          signal={UPSKILL}
+          history={[]}
+          isNarrow={false}
+          recommendations={{
+            peerGroup: { appliedConditions: "" },
+            recommendations: [],
+          }}
+        />,
+      );
+
+      const block = screen.getByTestId("skill-prescription-block");
+      expect(block).toBeInTheDocument();
+      expect(screen.getByText("표본 부족")).toBeInTheDocument();
+      expect(
+        screen.getByText(
+          "동료집단 공고 표본이 부족하여 추천 스킬을 산출할 수 없습니다.",
+        ),
+      ).toBeInTheDocument();
+      expect(
+        screen.queryByRole("list", { name: "추천 스킬 목록" }),
+      ).not.toBeInTheDocument();
+    });
+
+    it("UPSKILL 신호가 아니면 recommendations 가 있어도 처방 블록을 렌더링하지 않는다", () => {
+      render(
+        <VerdictHero
+          signal={STAY}
+          history={[]}
+          isNarrow={false}
+          recommendations={RECOMMENDATIONS}
+        />,
+      );
+
+      expect(
+        screen.queryByTestId("skill-prescription-block"),
+      ).not.toBeInTheDocument();
+    });
+  });
 });
