@@ -426,6 +426,60 @@ describe("대시보드 라우트 및 레이아웃 (Dashboard)", () => {
 
     // S-11·도움말은 상단 메뉴(지수 기록·도움말)가 갖는다. 화면 안 바로가기는 상단에 없는
     // 온보딩 검토 하나만 남긴다.
+    it("시장가치 추세는 판정 히어로가 아니라 시장가치 카드 안에 있다", async () => {
+      vi.spyOn(dashboardApi, "fetchSummary").mockResolvedValue({
+        ok: true,
+        data: {
+          purchasingPowerIndex: OK_INDEX,
+          marketValueIndex: OK_INDEX,
+          openingWindowIndex: OK_INDEX,
+          // 판정이 있어야 히어로(VerdictPreview)가 그려진다 — 없으면 아래 단언이 공짜로 참이 된다.
+          decisionSignal: {
+            code: "STAY",
+            label: "현 상태 유지",
+            rulesApplied: ["연봉이 시장 수준에 근접"],
+            rationale: null,
+          },
+          metadata: { baseDate: "2026-09-01", updateDelayed: false },
+        },
+      } as never);
+      vi.spyOn(dashboardMarketApi, "fetchSnapshotHistory").mockResolvedValue({
+        snapshots: [
+          {
+            baseYearMonth: "202609",
+            purchasingPowerIndex: null,
+            marketValueIndex: 104.6,
+            decisionSignal: "STAY",
+            label: "",
+            dataVersion: "",
+            ruleVersion: "",
+            rationale: null,
+          },
+          {
+            baseYearMonth: "202608",
+            purchasingPowerIndex: null,
+            marketValueIndex: 100,
+            decisionSignal: "STAY",
+            label: "",
+            dataVersion: "",
+            ruleVersion: "",
+            rationale: null,
+          },
+        ],
+      });
+
+      renderScreen();
+
+      const card = (
+        await screen.findByRole("heading", { name: "시장가치 지수" })
+      ).closest("[data-slot='card']") as HTMLElement;
+      expect(within(card).getByText("100.0 → 104.6")).toBeInTheDocument();
+      expect(within(card).getByTestId("sparkline")).toBeInTheDocument();
+      expect(screen.getAllByTestId("sparkline")).toHaveLength(1);
+      // 히어로는 그려졌고(판정 지속 기간), 그래프는 거기 없다
+      expect(screen.getByText("2개월째")).toBeInTheDocument();
+    });
+
     it("지표 카드 셋이 각자의 상세 화면으로 링크한다", async () => {
       vi.spyOn(dashboardApi, "fetchSummary").mockResolvedValue({
         ok: true,
