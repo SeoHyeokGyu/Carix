@@ -2,6 +2,33 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { SignalBadge } from "../../components/dashboard/SignalBadge";
 
+/**
+ * 판정 기준 문구. 임계값은 `DecisionSignalEngine`(core-api) 규칙표와 같아야 한다 — 엔진을
+ * 바꾸면 여기도 고친다. 신호 이름·색은 `decisionSignal.ts` 가 정본이라 여기서 적지 않는다.
+ */
+const SIGNAL_RULES = [
+  {
+    code: "INSUFFICIENT_DATA",
+    rule: "가장 먼저 확인합니다. 소득·스킬 입력, 동료집단 표본(10건 미만), 임금 기준선 중 하나라도 없으면 이 신호입니다. 시장 집계가 아직 수집되지 않은 구간이면 입력과 무관하게 이 신호가 나옵니다. 수치를 지어내지 않고 무엇이 부족한지 보여줍니다.",
+  },
+  {
+    code: "SEEK_JOB",
+    rule: "연봉 격차 15% 이상이고 시장가치 지수 110 이상일 때. 내 연봉이 시장 중앙값보다 뚜렷이 낮고 보유 스킬 수요가 오르고 있습니다.",
+  },
+  {
+    code: "NEGOTIATE",
+    rule: "연봉 격차 5~15% 구간이고 시장가치 지수 105 이상일 때. 이직보다 현 직장에서의 연봉 협상을 먼저 검토할 시점입니다.",
+  },
+  {
+    code: "UPSKILL",
+    rule: "시장가치 지수 90 미만이고 구매력 지수 95 미만일 때. 보상보다 스킬 보강이 먼저입니다.",
+  },
+  {
+    code: "STAY",
+    rule: "위 조건에 하나도 해당하지 않을 때. 연봉이 시장 수준 근처이거나 뚜렷한 격차·상승 신호가 없습니다.",
+  },
+] as const;
+
 export default function DashboardGuide() {
   return (
     <section className="mx-auto w-full max-w-4xl px-6 py-10">
@@ -171,51 +198,24 @@ export default function DashboardGuide() {
           </h2>
           <Card className="p-5">
             <div className="text-xs text-carix-text/80 leading-relaxed mb-4">
-              결정 신호는 구매력 지수, 시장가치 지수, 개방창 지수 및 현재 내
-              실제 연봉과 시장 추정 연봉 간의 격차를 룰 엔진이 종합 분석하여
-              제시하는 행동 권고 신호입니다.
+              결정 신호는 구매력 지수, 시장가치 지수, 그리고 내 세전 연봉과 공식
+              임금통계 중앙값의 격차(연봉 격차)를 규칙표로 조합해 다음에 검토할
+              행동을 제시합니다. 위에서부터 차례로 맞춰 보고 처음 맞는 신호를
+              냅니다.
             </div>
 
             <div className="grid gap-3 sm:grid-cols-2">
-              <div className="rounded-lg border border-carix-border p-3 flex flex-col gap-1.5">
-                <div className="flex items-center gap-2">
-                  <SignalBadge code="SEEK_JOB" serverLabel="이직 탐색" />
+              {SIGNAL_RULES.map(({ code, rule }) => (
+                <div
+                  key={code}
+                  className="rounded-lg border border-carix-border p-3 flex flex-col gap-1.5"
+                >
+                  <div className="flex items-center gap-2">
+                    <SignalBadge code={code} />
+                  </div>
+                  <p className="text-xs text-carix-text/70 mt-1">{rule}</p>
                 </div>
-                <p className="text-xs text-carix-text/70 mt-1">
-                  내 시장가치가 현재 연봉보다 15% 이상 높거나, 구매력이
-                  지속적으로 저하되고 채용 시장 기회가 열려 있을 때 권장됩니다.
-                </p>
-              </div>
-
-              <div className="rounded-lg border border-carix-border p-3 flex flex-col gap-1.5">
-                <div className="flex items-center gap-2">
-                  <SignalBadge code="RENEGOTIATE" serverLabel="연봉 협상" />
-                </div>
-                <p className="text-xs text-carix-text/70 mt-1">
-                  시장가치는 충분히 높으나 이직보다는 현재 재직 기업에서의 연봉
-                  인상 또는 승진 협상이 더 유리한 시점에 권장됩니다.
-                </p>
-              </div>
-
-              <div className="rounded-lg border border-carix-border p-3 flex flex-col gap-1.5">
-                <div className="flex items-center gap-2">
-                  <SignalBadge code="SKILL_UP" serverLabel="스킬 강화" />
-                </div>
-                <p className="text-xs text-carix-text/70 mt-1">
-                  현재 보유 스킬의 시장 수요율이 정체되어 있거나, 시장가치를
-                  높이기 위해 최신 고수요 스킬 습득이 필요한 시점에 제안됩니다.
-                </p>
-              </div>
-
-              <div className="rounded-lg border border-carix-border p-3 flex flex-col gap-1.5">
-                <div className="flex items-center gap-2">
-                  <SignalBadge code="HOLD" serverLabel="현재 유지" />
-                </div>
-                <p className="text-xs text-carix-text/70 mt-1">
-                  현재 연봉과 시장가치가 균형을 이루고 있으며, 실질 구매력이
-                  안정적으로 유지되고 있는 상태입니다.
-                </p>
-              </div>
+              ))}
             </div>
           </Card>
         </div>

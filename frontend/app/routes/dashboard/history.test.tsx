@@ -1,5 +1,11 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import {
+  render,
+  screen,
+  fireEvent,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import { MemoryRouter } from "react-router";
 import DashboardHistory from "./history";
 import * as dashboardMarketApi from "../../lib/dashboardMarketApi";
@@ -35,9 +41,9 @@ describe("S-11 DashboardHistory 라우트", () => {
       </MemoryRouter>,
     );
 
-    expect(screen.getByText("S-11")).toBeInTheDocument();
+    expect(screen.queryByText("S-11")).not.toBeInTheDocument();
     expect(
-      screen.getByRole("heading", { name: "월별 스냅샷 이력" }),
+      screen.getByRole("heading", { name: "지수 기록" }),
     ).toBeInTheDocument();
 
     await waitFor(() => {
@@ -79,6 +85,49 @@ describe("S-11 DashboardHistory 라우트", () => {
       expect(screen.getByText("현 상태 유지")).toBeInTheDocument();
       expect(screen.getByText("2026-07")).toBeInTheDocument();
     });
+  });
+
+  // 대시보드는 지표 셋을 보인다 — 기록 화면도 같은 셋을 보여야 비교가 된다.
+  it("개방창 지수 열을 보이고 값이 없는 달은 데이터 없음으로 표시한다", async () => {
+    vi.mocked(dashboardMarketApi.fetchSnapshotHistory).mockResolvedValue({
+      snapshots: [
+        {
+          baseYearMonth: "202607",
+          purchasingPowerIndex: 94.2,
+          marketValueIndex: 117.5,
+          openingWindowIndex: 108.3,
+          decisionSignal: "SEEK_JOB",
+          label: "이직 탐색",
+          dataVersion: "v1.1",
+          ruleVersion: "v1.0",
+          rationale: null,
+        },
+        {
+          baseYearMonth: "202606",
+          purchasingPowerIndex: 93.0,
+          marketValueIndex: 116.0,
+          openingWindowIndex: null,
+          decisionSignal: "SEEK_JOB",
+          label: "이직 탐색",
+          dataVersion: "v1.0",
+          ruleVersion: "v1.0",
+          rationale: null,
+        },
+      ],
+    });
+
+    render(
+      <MemoryRouter>
+        <DashboardHistory />
+      </MemoryRouter>,
+    );
+
+    expect(
+      await screen.findByRole("columnheader", { name: "개방창 지수" }),
+    ).toBeInTheDocument();
+    const [, july, june] = screen.getAllByRole("row");
+    expect(within(july).getByText("108.3")).toBeInTheDocument();
+    expect(within(june).getByText("데이터 없음")).toBeInTheDocument();
   });
 
   it("스냅샷 목록(2건 이상)과 결측치 뱃지, 상세 패널 펼침을 정상 동작한다", async () => {

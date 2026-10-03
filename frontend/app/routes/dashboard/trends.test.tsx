@@ -1,6 +1,6 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
-import { MemoryRouter } from "react-router";
+import { MemoryRouter, Route, Routes, useLocation } from "react-router";
 import DashboardTrends from "./trends";
 import * as dashboardMarketApi from "../../lib/dashboardMarketApi";
 import { UnauthorizedError } from "../../lib/coreApi";
@@ -20,6 +20,28 @@ vi.mock("../../lib/dashboardMarketApi", () => ({
   fetchSkillDemands: vi.fn(),
   fetchTrends: vi.fn(),
 }));
+
+function LocationProbe() {
+  return <div data-testid="location-search">{useLocation().search}</div>;
+}
+
+function renderTrends(path = "/dashboard/trends") {
+  render(
+    <MemoryRouter initialEntries={[path]}>
+      <Routes>
+        <Route
+          path="/dashboard/trends"
+          element={
+            <>
+              <DashboardTrends />
+              <LocationProbe />
+            </>
+          }
+        />
+      </Routes>
+    </MemoryRouter>,
+  );
+}
 
 describe("S-14 DashboardTrends 라우트", () => {
   beforeEach(() => {
@@ -95,37 +117,49 @@ describe("S-14 DashboardTrends 라우트", () => {
     });
   });
 
-  it("S-14 화면 헤더 및 기본 탭(스킬 수요)을 정상 렌더링한다", async () => {
-    render(
-      <MemoryRouter>
-        <DashboardTrends />
-      </MemoryRouter>,
-    );
+  it("화면 헤더와 기본 탭(소득 vs 물가)을 렌더링하고 화면 ID 는 보이지 않는다", async () => {
+    renderTrends();
 
-    expect(screen.getByText("S-14")).toBeInTheDocument();
+    expect(screen.queryByText("S-14")).not.toBeInTheDocument();
     expect(
       screen.getByRole("heading", { name: "추이 분석" }),
     ).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "소득 vs 물가" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+    await waitFor(() => {
+      expect(screen.getByTestId("income-vs-price-chart")).toBeInTheDocument();
+    });
+  });
+
+  // 컨셉 질문 순서(구매력 → 시장가치)를 따른다.
+  it("탭 순서는 소득 vs 물가 · 스킬 수요 · 연봉 분포다", () => {
+    renderTrends();
+
+    expect(screen.getAllByRole("tab").map((tab) => tab.textContent)).toEqual([
+      "소득 vs 물가",
+      "스킬 수요",
+      "연봉 분포",
+    ]);
+    expect(screen.getByRole("tablist")).toBeInTheDocument();
+  });
+
+  it("?tab=skills 로 들어오면 스킬 수요 탭이 열린다", async () => {
+    renderTrends("/dashboard/trends?tab=skills");
 
     await waitFor(() => {
       expect(screen.getByText("Kotlin")).toBeInTheDocument();
       expect(screen.getByText(/▲ 상승/)).toBeInTheDocument();
     });
+    expect(screen.getByRole("tab", { name: "스킬 수요" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
   });
 
-  it("연봉 분포 탭 클릭 시 SalaryDistributionChart 컴포넌트가 마운트된다", async () => {
-    render(
-      <MemoryRouter>
-        <DashboardTrends />
-      </MemoryRouter>,
-    );
-
-    await waitFor(() => {
-      expect(screen.getByText("Kotlin")).toBeInTheDocument();
-    });
-
-    const salaryTabBtn = screen.getByRole("button", { name: "연봉 분포" });
-    fireEvent.click(salaryTabBtn);
+  it("?tab=salary 로 들어오면 연봉 분포 차트가 마운트된다", async () => {
+    renderTrends("/dashboard/trends?tab=salary");
 
     await waitFor(() => {
       expect(screen.getByText("동료집단 연봉 분포")).toBeInTheDocument();
@@ -134,27 +168,47 @@ describe("S-14 DashboardTrends 라우트", () => {
     });
   });
 
-  it("소득 vs 물가 탭 클릭 시 IncomeVsPriceChart 컴포넌트가 마운트된다", async () => {
-    render(
-      <MemoryRouter>
-        <DashboardTrends />
-      </MemoryRouter>,
-    );
+  it("모르는 tab 값이면 기본 탭(소득 vs 물가)으로 연다", () => {
+    renderTrends("/dashboard/trends?tab=unknown");
 
+    expect(screen.getByRole("tab", { name: "소득 vs 물가" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+  });
+
+  it("탭을 바꿔도 다른 쿼리 값은 남는다", () => {
+    renderTrends("/dashboard/trends?tab=income&from=dashboard");
+
+    fireEvent.click(screen.getByRole("tab", { name: "연봉 분포" }));
+
+    expect(screen.getByTestId("location-search")).toHaveTextContent(
+      "?tab=salary&from=dashboard",
+    );
+  });
+
+  it("로딩 중에도 탭이 가리키는 패널이 있다", () => {
+    renderTrends();
+
+    const tab = screen.getByRole("tab", { name: "소득 vs 물가" });
+    const panelId = tab.getAttribute("aria-controls");
+    expect(panelId).toBeTruthy();
+    expect(document.getElementById(panelId!)).toHaveAttribute(
+      "role",
+      "tabpanel",
+    );
+  });
+
+  it("탭을 누르면 URL 의 tab 값이 바뀐다", async () => {
+    renderTrends();
+
+    fireEvent.click(screen.getByRole("tab", { name: "스킬 수요" }));
+
+    expect(screen.getByTestId("location-search")).toHaveTextContent(
+      "?tab=skills",
+    );
     await waitFor(() => {
       expect(screen.getByText("Kotlin")).toBeInTheDocument();
-    });
-
-    const incomeVsPriceTabBtn = screen.getByRole("button", {
-      name: "소득 vs 물가",
-    });
-    fireEvent.click(incomeVsPriceTabBtn);
-
-    await waitFor(() => {
-      expect(screen.getByTestId("income-vs-price-chart")).toBeInTheDocument();
-      expect(
-        screen.getByText("소득 대 개인물가 지수 추이"),
-      ).toBeInTheDocument();
     });
   });
 
@@ -163,18 +217,7 @@ describe("S-14 DashboardTrends 라우트", () => {
       null as never,
     );
 
-    render(
-      <MemoryRouter>
-        <DashboardTrends />
-      </MemoryRouter>,
-    );
-
-    await waitFor(() => {
-      expect(screen.getByText("Kotlin")).toBeInTheDocument();
-    });
-
-    const salaryTabBtn = screen.getByRole("button", { name: "연봉 분포" });
-    fireEvent.click(salaryTabBtn);
+    renderTrends("/dashboard/trends?tab=salary");
 
     await waitFor(() => {
       expect(
@@ -186,20 +229,7 @@ describe("S-14 DashboardTrends 라우트", () => {
   it("소득 대 물가 데이터가 null일 때 안내 문구를 렌더링한다", async () => {
     vi.mocked(dashboardMarketApi.fetchTrends).mockResolvedValue(null as never);
 
-    render(
-      <MemoryRouter>
-        <DashboardTrends />
-      </MemoryRouter>,
-    );
-
-    await waitFor(() => {
-      expect(screen.getByText("Kotlin")).toBeInTheDocument();
-    });
-
-    const incomeVsPriceTabBtn = screen.getByRole("button", {
-      name: "소득 vs 물가",
-    });
-    fireEvent.click(incomeVsPriceTabBtn);
+    renderTrends();
 
     await waitFor(() => {
       expect(

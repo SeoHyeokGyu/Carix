@@ -134,9 +134,6 @@ export default function MypageProfile() {
   return (
     <section className="mx-auto w-full max-w-3xl px-6 py-10">
       <div className="flex items-center gap-2">
-        <span className="rounded bg-carix-info/10 px-2 py-0.5 text-xs font-semibold text-carix-info">
-          S-13
-        </span>
         <h1 className="font-display text-2xl font-bold text-carix-text sm:text-3xl">
           설정
         </h1>

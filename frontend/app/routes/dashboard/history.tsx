@@ -14,7 +14,7 @@ import { LOGIN_PATH } from "../../lib/routeGuards";
 
 export function meta() {
   return [
-    { title: "월별 스냅샷 이력 | Carix" },
+    { title: "지수 기록 | Carix" },
     {
       name: "description",
       content: "과거 월별 구매력 지수, 시장가치 지수 및 결정 신호 스냅샷 이력",
@@ -31,6 +31,21 @@ function formatYearMonth(ym: string): string {
     return `${clean.slice(0, 4)}-${clean.slice(4, 6)}`;
   }
   return ym;
+}
+
+/** 지수 셀. 값이 없는 달은 0 이나 100 으로 채우지 않고 「데이터 없음」이다. */
+function IndexCell({ value }: { value: number | null | undefined }) {
+  return (
+    <td className="px-4 py-3.5">
+      {value != null ? (
+        <span className="font-medium text-carix-text">{value.toFixed(1)}</span>
+      ) : (
+        <span className="inline-block rounded bg-carix-border/30 px-2 py-0.5 text-[11px] text-carix-text/60">
+          데이터 없음
+        </span>
+      )}
+    </td>
+  );
 }
 
 export default function DashboardHistory() {
@@ -73,11 +88,8 @@ export default function DashboardHistory() {
       {/* 1. 헤더 영역 */}
       <div className="mb-6 flex flex-wrap items-center justify-between gap-2 border-b border-carix-border pb-4">
         <div>
-          <span className="font-display text-xs font-semibold tracking-widest text-carix-info">
-            S-11
-          </span>
-          <h1 className="mt-1 font-display text-2xl font-bold text-carix-text sm:text-3xl">
-            월별 스냅샷 이력
+          <h1 className="font-display text-2xl font-bold text-carix-text sm:text-3xl">
+            지수 기록
           </h1>
           <p className="mt-1 text-sm text-carix-text/70">
             과거 월별 구매력 지수, 시장가치 지수 및 커리어 의사결정 신호
@@ -154,6 +166,7 @@ export default function DashboardHistory() {
                     <th className="px-4 py-3.5 sm:px-6">기준월</th>
                     <th className="px-4 py-3.5">구매력 지수</th>
                     <th className="px-4 py-3.5">시장가치 지수</th>
+                    <th className="px-4 py-3.5">개방창 지수</th>
                     <th className="px-4 py-3.5">결정 신호</th>
                     <th className="hidden px-4 py-3.5 sm:table-cell">
                       데이터 기준일
@@ -181,31 +194,9 @@ export default function DashboardHistory() {
                           {formatYearMonth(item.baseYearMonth)}
                         </td>
 
-                        {/* 구매력 지수 */}
-                        <td className="px-4 py-3.5">
-                          {item.purchasingPowerIndex != null ? (
-                            <span className="font-medium text-carix-text">
-                              {item.purchasingPowerIndex.toFixed(1)}
-                            </span>
-                          ) : (
-                            <span className="inline-block rounded bg-carix-border/30 px-2 py-0.5 text-[11px] text-carix-text/60">
-                              데이터 없음
-                            </span>
-                          )}
-                        </td>
-
-                        {/* 시장가치 지수 */}
-                        <td className="px-4 py-3.5">
-                          {item.marketValueIndex != null ? (
-                            <span className="font-medium text-carix-text">
-                              {item.marketValueIndex.toFixed(1)}
-                            </span>
-                          ) : (
-                            <span className="inline-block rounded bg-carix-border/30 px-2 py-0.5 text-[11px] text-carix-text/60">
-                              데이터 없음
-                            </span>
-                          )}
-                        </td>
+                        <IndexCell value={item.purchasingPowerIndex} />
+                        <IndexCell value={item.marketValueIndex} />
+                        <IndexCell value={item.openingWindowIndex} />
 
                         {/* 결정 신호 */}
                         <td className="px-4 py-3.5">

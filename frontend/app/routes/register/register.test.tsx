@@ -34,7 +34,7 @@ describe("회원가입 라우트 (Register)", () => {
     expect(
       screen.getByRole("heading", { name: "회원가입" }),
     ).toBeInTheDocument();
-    expect(screen.getByText("S-03")).toBeInTheDocument();
+    expect(screen.queryByText("S-03")).not.toBeInTheDocument();
     const link = screen.getByRole("link", { name: "로그인" });
     expect(link).toHaveAttribute("href", "/login");
   });

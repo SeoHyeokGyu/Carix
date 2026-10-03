@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { Link } from "react-router";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ToneBadge } from "@/components/ui/tone-badge";
 import type { IndexValue } from "../../lib/api/dashboard";
@@ -48,12 +49,15 @@ export function IndexCard({
   footer,
   helpContent,
   baselineHint,
+  detailHref,
 }: {
   title: string;
   index: IndexValue;
   footer?: ReactNode;
   helpContent?: ReactNode;
   baselineHint?: string;
+  /** 대시보드는 요약이다 — 이 지표를 자세히 보는 화면으로 보낸다. */
+  detailHref?: string;
 }) {
   const { value, changeFromLastMonth, indexStatus } = index;
   const status = resolveIndexStatus(indexStatus);
@@ -88,6 +92,15 @@ export function IndexCard({
         )}
         {status && <ToneBadge tone={status.tone}>{status.label}</ToneBadge>}
         {footer}
+        {detailHref && (
+          <Link
+            to={detailHref}
+            aria-label={`${title} 자세히 보기`}
+            className="self-start text-xs font-medium text-carix-info hover:underline"
+          >
+            자세히 보기 →
+          </Link>
+        )}
       </CardContent>
     </Card>
   );

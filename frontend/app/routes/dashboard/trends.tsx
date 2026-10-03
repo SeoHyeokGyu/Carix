@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
-import { useNavigate } from "react-router";
+import { useNavigate, useSearchParams } from "react-router";
+import { Button } from "@/components/ui/button";
 import {
   fetchSalaryDistribution,
   fetchSkillDemands,
@@ -13,8 +14,11 @@ import { SkillDemandSection } from "../../components/dashboard/SkillDemandSectio
 import { IncomeVsPriceChart } from "../../components/dashboard/IncomeVsPriceChart";
 import { UnauthorizedError } from "../../lib/coreApi";
 import { LOGIN_PATH } from "../../lib/routeGuards";
-
-type TrendsTab = "INCOME_VS_PRICE" | "SKILL_DEMAND" | "SALARY_DISTRIBUTION";
+import {
+  resolveTrendsTab,
+  TRENDS_TABS,
+  type TrendsTabKey,
+} from "../../lib/trendsTabs";
 
 /** 거절된 것 중 하나라도 세션 만료면 참. 순수 함수다. */
 function hasUnauthorized(results: PromiseSettledResult<unknown>[]): boolean {
@@ -36,7 +40,17 @@ export function meta() {
 }
 
 export default function DashboardTrends() {
-  const [activeTab, setActiveTab] = useState<TrendsTab>("SKILL_DEMAND");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const activeTab = resolveTrendsTab(searchParams.get("tab"));
+  const selectTab = (tab: TrendsTabKey) =>
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        next.set("tab", tab);
+        return next;
+      },
+      { replace: true },
+    );
 
   const navigate = useNavigate();
 
@@ -99,10 +113,7 @@ export default function DashboardTrends() {
       {/* 1. 헤더 영역 */}
       <div className="mb-6 flex flex-wrap items-center justify-between gap-2 border-b border-carix-border pb-4">
         <div>
-          <span className="font-display text-xs font-semibold tracking-widest text-carix-info">
-            S-14
-          </span>
-          <h1 className="mt-1 font-display text-2xl font-bold text-carix-text sm:text-3xl">
+          <h1 className="font-display text-2xl font-bold text-carix-text sm:text-3xl">
             추이 분석
           </h1>
           <p className="mt-1 text-sm text-carix-text/70">
@@ -120,41 +131,34 @@ export default function DashboardTrends() {
         </button>
       </div>
 
-      {/* 2. 탭 네비게이션 (와이어프레임 기준 3탭) */}
-      <div className="mb-6 flex gap-2 border-b border-carix-border">
-        <button
-          type="button"
-          onClick={() => setActiveTab("SKILL_DEMAND")}
-          className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
-            activeTab === "SKILL_DEMAND"
-              ? "border-carix-info text-carix-info font-bold"
-              : "border-transparent text-carix-text/60 hover:text-carix-text"
-          }`}
-        >
-          스킬 수요
-        </button>
-        <button
-          type="button"
-          onClick={() => setActiveTab("SALARY_DISTRIBUTION")}
-          className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
-            activeTab === "SALARY_DISTRIBUTION"
-              ? "border-carix-info text-carix-info font-bold"
-              : "border-transparent text-carix-text/60 hover:text-carix-text"
-          }`}
-        >
-          연봉 분포
-        </button>
-        <button
-          type="button"
-          onClick={() => setActiveTab("INCOME_VS_PRICE")}
-          className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
-            activeTab === "INCOME_VS_PRICE"
-              ? "border-carix-info text-carix-info font-bold"
-              : "border-transparent text-carix-text/60 hover:text-carix-text"
-          }`}
-        >
-          소득 vs 물가
-        </button>
+      {/* 2. 탭 — 선택은 URL ?tab= 이 갖는다(대시보드 카드가 특정 탭으로 보낸다) */}
+      <div
+        role="tablist"
+        aria-label="추이 분석 종류"
+        className="mb-6 flex gap-2 border-b border-carix-border"
+      >
+        {TRENDS_TABS.map((tab) => {
+          const selected = activeTab === tab.key;
+          return (
+            <Button
+              key={tab.key}
+              type="button"
+              variant="ghost"
+              role="tab"
+              id={`trends-tab-${tab.key}`}
+              aria-selected={selected}
+              aria-controls="trends-panel"
+              onClick={() => selectTab(tab.key)}
+              className={`h-auto rounded-none px-4 py-2.5 text-sm border-b-2 ${
+                selected
+                  ? "border-carix-info text-carix-info font-bold"
+                  : "border-transparent font-medium text-carix-text/60 hover:text-carix-text"
+              }`}
+            >
+              {tab.label}
+            </Button>
+          );
+        })}
       </div>
 
       {/* 3. 에러 알림 */}
@@ -175,52 +179,55 @@ export default function DashboardTrends() {
       )}
 
       {/* 4. 탭 콘텐츠 영역 */}
-      {isLoading ? (
-        <div className="rounded-xl border border-carix-border bg-carix-surface p-12 text-center text-sm text-carix-text/60">
-          시장 분석 데이터를 집계 및 분석하고 있습니다...
-        </div>
-      ) : (
-        <div>
-          {/* 탭 1: 스킬 수요 */}
-          {activeTab === "SKILL_DEMAND" && (
-            <div>
-              {skillData ? (
-                <SkillDemandSection data={skillData} />
-              ) : (
-                <div className="rounded-xl border border-carix-border bg-carix-surface p-8 text-center text-sm text-carix-text/60">
-                  스킬 수요 데이터를 불러오지 못했습니다.
-                </div>
-              )}
-            </div>
-          )}
+      <div
+        role="tabpanel"
+        id="trends-panel"
+        aria-labelledby={`trends-tab-${activeTab}`}
+      >
+        {isLoading ? (
+          <div className="rounded-xl border border-carix-border bg-carix-surface p-12 text-center text-sm text-carix-text/60">
+            시장 분석 데이터를 집계 및 분석하고 있습니다...
+          </div>
+        ) : (
+          <div>
+            {activeTab === "skills" && (
+              <div>
+                {skillData ? (
+                  <SkillDemandSection data={skillData} />
+                ) : (
+                  <div className="rounded-xl border border-carix-border bg-carix-surface p-8 text-center text-sm text-carix-text/60">
+                    스킬 수요 데이터를 불러오지 못했습니다.
+                  </div>
+                )}
+              </div>
+            )}
 
-          {/* 탭 2: 연봉 분포 */}
-          {activeTab === "SALARY_DISTRIBUTION" && (
-            <div>
-              {salaryData ? (
-                <SalaryDistributionChart data={salaryData} />
-              ) : (
-                <div className="rounded-xl border border-carix-border bg-carix-surface p-8 text-center text-sm text-carix-text/60">
-                  연봉 분포 데이터를 불러오지 못했습니다.
-                </div>
-              )}
-            </div>
-          )}
+            {activeTab === "salary" && (
+              <div>
+                {salaryData ? (
+                  <SalaryDistributionChart data={salaryData} />
+                ) : (
+                  <div className="rounded-xl border border-carix-border bg-carix-surface p-8 text-center text-sm text-carix-text/60">
+                    연봉 분포 데이터를 불러오지 못했습니다.
+                  </div>
+                )}
+              </div>
+            )}
 
-          {/* 탭 3: 소득 vs 물가 */}
-          {activeTab === "INCOME_VS_PRICE" && (
-            <div>
-              {trendData ? (
-                <IncomeVsPriceChart data={trendData} />
-              ) : (
-                <div className="rounded-xl border border-carix-border bg-carix-surface p-8 text-center text-sm text-carix-text/60">
-                  소득 대 물가 추이 데이터를 불러오지 못했습니다.
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      )}
+            {activeTab === "income" && (
+              <div>
+                {trendData ? (
+                  <IncomeVsPriceChart data={trendData} />
+                ) : (
+                  <div className="rounded-xl border border-carix-border bg-carix-surface p-8 text-center text-sm text-carix-text/60">
+                    소득 대 물가 추이 데이터를 불러오지 못했습니다.
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

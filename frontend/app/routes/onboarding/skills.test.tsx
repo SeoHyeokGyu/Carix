@@ -49,7 +49,7 @@ describe("S-08 Skills 온보딩 화면", () => {
       </MemoryRouter>,
     );
 
-    expect(screen.getByText("S-08")).toBeInTheDocument();
+    expect(screen.queryByText("S-08")).not.toBeInTheDocument();
     expect(
       screen.getByRole("heading", { name: "보유 스킬" }),
     ).toBeInTheDocument();
