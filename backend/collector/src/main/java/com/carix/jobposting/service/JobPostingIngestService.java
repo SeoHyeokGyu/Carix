@@ -288,8 +288,7 @@ public class JobPostingIngestService {
           String career = jobConditions.size() > 1 ? jobConditions.get(1).text().strip() : "무관";
           ExperienceRange experience = ExperienceRange.parse(career);
 
-          Element dateSpan = item.selectFirst("div.area_job div.job_date span.date");
-          String createdAtRaw = dateSpan != null ? dateSpan.text().strip() : "";
+          String createdAtRaw = saraminCreatedAtRaw(item);
 
           SaraminListingFields fields = saraminListingEnricher.extract(doc.outerHtml(), externalId);
 
@@ -389,6 +388,19 @@ public class JobPostingIngestService {
 
     applySkillsToPosting(posting, title, rawSkills);
     jobPostingRepository.save(posting);
+  }
+
+  /**
+   * 사람인 목록의 등록일 원문. {@code .job_date .date} 는 마감일이라 등록일로 쓰면 연도 보정이 등록일을 1년 전, 마감일을 올해로 갈라 365일 창을
+   * 만든다. 등록일은 {@code .job_sector .job_day}(「등록일 YY/MM/DD」)에서 읽는다 — {@code SaraminCrawler} 와 같은 규약.
+   * 없으면 빈 문자열이고 마감일로 대신하지 않는다.
+   */
+  static String saraminCreatedAtRaw(Element item) {
+    Element daySpan = item.selectFirst(".area_job .job_sector .job_day");
+    if (daySpan == null) {
+      return "";
+    }
+    return daySpan.text().replace("등록일", "").strip();
   }
 
   void ingestSaraminPosting(
