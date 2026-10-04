@@ -140,4 +140,59 @@ class CategoryCpiRateServiceTest {
 
     assertThat(service.yearOverYear("202609").orElseThrow().rates()).isEmpty();
   }
+
+  @Test
+  @DisplayName("전월 대비는 (from, to] 각 달을 직전 달과 비교한다")
+  void monthOverMonth_comparesEachMonthWithPrevious() {
+    month("202606", "100.00");
+    month("202607", "100.00");
+    month("202608", "100.00");
+    put("202607", "G", "102.00");
+    put("202608", "G", "102.00");
+
+    var rates = service.monthOverMonth("202606", "202608");
+
+    assertThat(rates).containsOnlyKeys("202607", "202608");
+    ExpenseCategoryEnum gCategory = categoryOf("G");
+    assertThat(rates.get("202607").get(gCategory)).isEqualByComparingTo("0.02");
+    assertThat(rates.get("202608").get(gCategory)).isEqualByComparingTo("0");
+  }
+
+  @Test
+  @DisplayName("전월 대비: CPI 행이 없는 달은 키가 없고, 하위 계열이 빠진 카테고리는 값이 없다")
+  void monthOverMonth_missingMonthAndSeries() {
+    month("202606", "100.00");
+    month("202607", "100.00");
+    repository.findAll().stream()
+        .filter(r -> r.getBaseYearMonth().equals("202607") && r.getCategory().equals("G"))
+        .forEach(repository::delete);
+
+    var rates = service.monthOverMonth("202606", "202608");
+
+    assertThat(rates).containsOnlyKeys("202607");
+    assertThat(rates.get("202607")).doesNotContainKey(categoryOf("G"));
+  }
+
+  @Test
+  @DisplayName("최신 CPI 월은 기준월 이하에서 가장 늦은 달이다")
+  void latestCpiMonth() {
+    month("202608", "100.00");
+    month("202609", "100.00");
+
+    assertThat(service.latestCpiMonth("202610")).contains("202609");
+    assertThat(service.latestCpiMonth("202607")).isEmpty();
+  }
+
+  /** 코드가 속한 카테고리. 매핑 파일이 바뀌어도 테스트가 따라가도록 설정에서 찾는다. */
+  private ExpenseCategoryEnum categoryOf(String code) {
+    CpiCategoryConfig config =
+        new CpiCategoryConfig(
+            new ClassPathResource("config/cpi-category-map.yml"),
+            new ClassPathResource("config/default-expense-weights.yml"));
+    return config.categories().entrySet().stream()
+        .filter(e -> e.getValue().subSeries().stream().anyMatch(s -> s.cpiCode().equals(code)))
+        .map(java.util.Map.Entry::getKey)
+        .findFirst()
+        .orElseThrow();
+  }
 }

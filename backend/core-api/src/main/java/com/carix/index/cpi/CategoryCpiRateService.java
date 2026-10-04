@@ -68,6 +68,51 @@ public class CategoryCpiRateService {
     return Optional.of(new CategoryCpiRates(current, rates));
   }
 
+  /** {@code onOrBeforeYearMonth} 이하에서 CPI 가 적재된 가장 늦은 달. */
+  @Transactional(readOnly = true)
+  public Optional<String> latestCpiMonth(String onOrBeforeYearMonth) {
+    return repository
+        .findFirstByBaseYearMonthLessThanEqualOrderByBaseYearMonthDesc(onOrBeforeYearMonth)
+        .map(CpiObservationRecord::getBaseYearMonth);
+  }
+
+  /**
+   * {@code (fromExclusive, toInclusive]} 각 달의 카테고리 전월 대비 변화율. 구매력 지수가 기준월부터 누적한다.
+   *
+   * <p>CPI 행이 없는 달은 키를 두지 않고, 하위 계열이 빠진 카테고리는 그 달 값에서 뺀다 — 재조정하지 않는다.
+   */
+  @Transactional(readOnly = true)
+  public Map<String, Map<ExpenseCategoryEnum, BigDecimal>> monthOverMonth(
+      String fromExclusive, String toInclusive) {
+    Map<String, Map<String, BigDecimal>> byMonth = new HashMap<>();
+    for (CpiObservationRecord row :
+        repository.findByBaseYearMonthBetween(fromExclusive, toInclusive)) {
+      byMonth
+          .computeIfAbsent(row.getBaseYearMonth(), k -> new HashMap<>())
+          .put(row.getCategory(), row.getCpiValue());
+    }
+
+    Map<String, Map<ExpenseCategoryEnum, BigDecimal>> result = new java.util.TreeMap<>();
+    YearMonth to = YearMonth.parse(toInclusive, YM);
+    for (YearMonth m = YearMonth.parse(fromExclusive, YM).plusMonths(1);
+        !m.isAfter(to);
+        m = m.plusMonths(1)) {
+      Map<String, BigDecimal> now = byMonth.get(YM.format(m));
+      Map<String, BigDecimal> before = byMonth.get(YM.format(m.minusMonths(1)));
+      if (now == null || before == null) {
+        continue;
+      }
+      Map<ExpenseCategoryEnum, BigDecimal> rates = new EnumMap<>(ExpenseCategoryEnum.class);
+      config
+          .categories()
+          .forEach(
+              (category, definition) ->
+                  rate(definition, now, before).ifPresent(r -> rates.put(category, r)));
+      result.put(YM.format(m), rates);
+    }
+    return result;
+  }
+
   /** 하위 계열 하나라도 두 시점 중 한쪽이 없으면 계산하지 않는다. 남은 가중치를 재조정하면 카테고리의 뜻이 조용히 바뀐다. */
   private static Optional<BigDecimal> rate(
       CpiCategoryConfig.CategoryDefinition definition,

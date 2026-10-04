@@ -13,4 +13,6 @@ public interface CpiObservationRecordRepository extends JpaRepository<CpiObserva
       String baseYearMonth);
 
   List<CpiObservationRecord> findByBaseYearMonthIn(Collection<String> baseYearMonths);
+
+  List<CpiObservationRecord> findByBaseYearMonthBetween(String from, String to);
 }
