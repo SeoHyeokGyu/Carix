@@ -1,6 +1,6 @@
 package com.carix.index.owi;
 
-import com.carix.config.datasource.ReadOnlyRoutingContext;
+import com.carix.datasource.ReadOnlyRoutingContext;
 import com.carix.index.OpeningWindowIndexProvider;
 import com.carix.index.dto.OwiResult;
 import com.carix.index.enums.IndexStatus;

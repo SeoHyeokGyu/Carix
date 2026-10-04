@@ -1,7 +1,7 @@
 package com.carix.index.mvi;
 
 import com.carix.config.IndexThresholdProperties;
-import com.carix.config.datasource.ReadOnlyRoutingContext;
+import com.carix.datasource.ReadOnlyRoutingContext;
 import com.carix.index.MarketValueIndexProvider;
 import com.carix.index.dto.ExcludedSkill;
 import com.carix.index.dto.MviResult;

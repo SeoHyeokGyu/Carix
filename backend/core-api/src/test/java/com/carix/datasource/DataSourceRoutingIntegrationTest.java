@@ -1,4 +1,4 @@
-package com.carix.config.datasource;
+package com.carix.datasource;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -17,7 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
 
 @SpringBootTest
-class DataSourceRoutingTest {
+class DataSourceRoutingIntegrationTest {
 
   @Autowired private DataSource dataSource;
 
@@ -109,5 +109,41 @@ class DataSourceRoutingTest {
     } finally {
       ReadOnlyRoutingContext.clear();
     }
+  }
+
+  @Test
+  @DisplayName("쓰기 트랜잭션 중 가상 스레드 팬아웃 시 부모는 CarixWritePool, 가상 스레드는 CarixReadOnlyPool을 사용한다")
+  void isolationBetweenWriteAndReadOnlyPools() {
+    HikariDataSource readOnlyHikari = (HikariDataSource) readOnlyDataSource;
+    HikariDataSource writeHikari = (HikariDataSource) writeDataSource;
+
+    transactionTemplate.execute(
+        status -> {
+          // 부모 트랜잭션에서 커넥션 획득 (쓰기 풀)
+          try (Connection writeConn = routingDataSource.getConnection()) {
+            assertThat(routingDataSource.determineCurrentLookupKey())
+                .isEqualTo(DataSourceType.WRITE);
+
+            // 가상 스레드 팬아웃 시뮬레이션
+            try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
+              Future<DataSourceType> fanoutFuture =
+                  executor.submit(
+                      ReadOnlyRoutingContext.withReadOnlyCallable(
+                          () -> {
+                            DataSourceType key =
+                                (DataSourceType) routingDataSource.determineCurrentLookupKey();
+                            try (Connection readConn = routingDataSource.getConnection()) {
+                              assertThat(readConn).isNotNull();
+                            }
+                            return key;
+                          }));
+
+              assertThat(fanoutFuture.get()).isEqualTo(DataSourceType.READ_ONLY);
+            }
+          } catch (Exception e) {
+            throw new RuntimeException(e);
+          }
+          return null;
+        });
   }
 }

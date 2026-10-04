@@ -1,10 +1,11 @@
-package com.carix.config.datasource;
+package com.carix.datasource;
 
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
 import java.util.HashMap;
 import java.util.Map;
 import javax.sql.DataSource;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.jdbc.autoconfigure.DataSourceProperties;
 import org.springframework.context.annotation.Bean;
@@ -77,10 +78,8 @@ public class DataSourceConfig {
 
   @Bean
   public RoutingDataSource routingDataSource(
-      @org.springframework.beans.factory.annotation.Qualifier("writeDataSource")
-          DataSource writeDataSource,
-      @org.springframework.beans.factory.annotation.Qualifier("readOnlyDataSource")
-          DataSource readOnlyDataSource) {
+      @Qualifier("writeDataSource") DataSource writeDataSource,
+      @Qualifier("readOnlyDataSource") DataSource readOnlyDataSource) {
     RoutingDataSource routingDataSource = new RoutingDataSource();
     Map<Object, Object> targetDataSources = new HashMap<>();
     targetDataSources.put(DataSourceType.WRITE, writeDataSource);

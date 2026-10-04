@@ -1,4 +1,4 @@
-package com.carix.config.datasource;
+package com.carix.datasource;
 
 import java.util.concurrent.Callable;
 

@@ -1,4 +1,4 @@
-package com.carix.config.datasource;
+package com.carix.datasource;
 
 import org.springframework.jdbc.datasource.lookup.AbstractRoutingDataSource;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
