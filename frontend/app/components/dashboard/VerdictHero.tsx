@@ -153,15 +153,15 @@ function getPrescriptionHeader(
       };
     case "NEGOTIATE":
       return {
-        badgeText: "협상력 강화",
+        badgeText: "시장 수요",
         badgeTone: "action",
-        title: "동료집단에서 가치를 높여주는 추천 스킬",
+        title: "동료집단 공고에서 자주 요구하는 스킬",
       };
     case "STAY":
       return {
         badgeText: "성장 가이드",
         badgeTone: "positive",
-        title: "다음 도약을 위한 동료집단 추천 스킬",
+        title: "동료집단 수요 기반 추천 스킬",
       };
     default:
       return {
