@@ -57,6 +57,21 @@ public class JobFamilyClassifier {
     return developer ? DEVELOPER : OTHER;
   }
 
+  /**
+   * 원천이 이미 IT 직무로 분류한 공고의 제목을 판정한다. 제목에 직무명이 없는 경우(`Software Engineer`, `JAVA SM`)가 흔해 기본값은
+   * DEVELOPER 이고, 제목은 AI·DATA 로 올리거나 소프트웨어가 아닌 공학 직무를 걸러내는 데만 쓴다.
+   */
+  public String classifyItCategoryTitle(String title) {
+    String token = title == null ? "" : title.strip();
+    if (containsAny(token, NON_SOFTWARE)) {
+      return OTHER;
+    }
+    if (containsAny(token, AI_KEYWORDS)) {
+      return AI;
+    }
+    return containsAny(token, DATA_KEYWORDS) ? DATA : DEVELOPER;
+  }
+
   private boolean containsAny(String token, List<String> keywords) {
     return keywords.stream().anyMatch(token::contains);
   }

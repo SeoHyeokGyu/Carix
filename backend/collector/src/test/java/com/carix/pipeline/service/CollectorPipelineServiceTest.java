@@ -10,10 +10,12 @@ import com.carix.cpi.CpiIngestService;
 import com.carix.jobposting.JobPostingRepository;
 import com.carix.jobposting.RawIngestRepository;
 import com.carix.jobposting.SkillRepository;
+import com.carix.jobposting.backfill.JobKoreaBackfillService;
 import com.carix.jobposting.dedup.JobPostingDeduplicator;
 import com.carix.jobposting.service.JobPostingIngestService;
 import com.carix.market.MarketAggregateRepository;
 import com.carix.market.MarketAggregateService;
+import com.carix.pipeline.dto.BackfillRequest;
 import com.carix.pipeline.dto.CrawlRequest;
 import com.carix.pipeline.dto.JobExecutionResponse;
 import com.carix.pipeline.dto.JobStatusResponse;
@@ -43,6 +45,7 @@ class CollectorPipelineServiceTest {
   private CpiIngestService cpiIngestService;
   private JobPostingDeduplicator jobPostingDeduplicator;
   private MarketAggregateService marketAggregateService;
+  private JobKoreaBackfillService jobKoreaBackfillService;
 
   private CollectorPipelineService service;
 
@@ -58,6 +61,7 @@ class CollectorPipelineServiceTest {
     cpiIngestService = mock(CpiIngestService.class);
     jobPostingDeduplicator = mock(JobPostingDeduplicator.class);
     marketAggregateService = mock(MarketAggregateService.class);
+    jobKoreaBackfillService = mock(JobKoreaBackfillService.class);
 
     service =
         new CollectorPipelineService(
@@ -70,7 +74,8 @@ class CollectorPipelineServiceTest {
             wageStatIngestService,
             cpiIngestService,
             jobPostingDeduplicator,
-            marketAggregateService);
+            marketAggregateService,
+            jobKoreaBackfillService);
   }
 
   @Test
@@ -90,6 +95,36 @@ class CollectorPipelineServiceTest {
     JobStatusResponse status = service.getJobStatus(response.jobId());
     assertThat(status.status()).isEqualTo("SUCCESS");
     assertThat(status.details()).containsEntry("ingestedJobPostings", 10);
+  }
+
+  @Test
+  @DisplayName("triggerBackfill - 비동기 백필 작업 수락 및 월별 요약 기록")
+  void triggerBackfill_success() throws Exception {
+    given(jobKoreaBackfillService.run(any())).willReturn(Map.of("202509", "ok"));
+
+    JobExecutionResponse response =
+        service.triggerBackfill(new BackfillRequest("202509", "202509", 10, 100, 0L, null, null));
+
+    assertThat(response.jobType()).isEqualTo("BACKFILL");
+    TimeUnit.MILLISECONDS.sleep(200);
+    JobStatusResponse status = service.getJobStatus(response.jobId());
+    assertThat(status.status()).isEqualTo("SUCCESS");
+    assertThat(status.details()).containsEntry("202509", "ok");
+  }
+
+  @Test
+  @DisplayName("triggerBackfill - 월 구간이 없으면 400 으로 거절하고 작업 잠금을 잡지 않는다")
+  void triggerBackfill_requiresMonths() {
+    assertThatThrownBy(() -> service.triggerBackfill(null))
+        .isInstanceOf(ResponseStatusException.class);
+    assertThatThrownBy(
+            () ->
+                service.triggerBackfill(
+                    new BackfillRequest("202509", null, null, null, null, null, null)))
+        .isInstanceOf(ResponseStatusException.class);
+
+    given(jobPostingIngestService.crawlAndIngest(any())).willReturn(1);
+    assertThat(service.triggerCrawl(null).status()).isEqualTo("ACCEPTED");
   }
 
   @Test

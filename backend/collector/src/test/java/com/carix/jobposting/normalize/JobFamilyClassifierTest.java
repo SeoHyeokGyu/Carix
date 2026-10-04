@@ -54,4 +54,14 @@ class JobFamilyClassifierTest {
     assertEquals("OTHER", classifier.classify("  "));
     assertEquals("OTHER", classifier.classifyTags(List.of()));
   }
+
+  @Test
+  void classifiesItCategoryTitlesDefaultingToDeveloper() {
+    assertEquals("DEVELOPER", classifier.classifyItCategoryTitle("[JNPMEDI] Software Engineer 직군"));
+    assertEquals("DEVELOPER", classifier.classifyItCategoryTitle("[JAVA SM 공덕역] 금융사 웹서비스 운영"));
+    assertEquals("DATA", classifier.classifyItCategoryTitle("데이터분석가"));
+    assertEquals("AI", classifier.classifyItCategoryTitle("AI 플랫폼 엔지니어"));
+    assertEquals("OTHER", classifier.classifyItCategoryTitle("LS사업부 경력사원 채용 - R&D(기계)"));
+    assertEquals("DEVELOPER", classifier.classifyItCategoryTitle(null));
+  }
 }
