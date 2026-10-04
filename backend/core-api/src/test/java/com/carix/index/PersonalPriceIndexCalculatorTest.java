@@ -66,6 +66,22 @@ class PersonalPriceIndexCalculatorTest {
   }
 
   @Test
+  @DisplayName("달마다 다른 가중치면 각 달 자기 가중치로 가중해 곱한다")
+  void differentWeightsPerMonth() {
+    Map<ExpenseCategoryEnum, BigDecimal> r = flat("0");
+    r.put(HOUSING, new BigDecimal("0.10"));
+    Map<String, MonthlyWeights> w = Map.of("202602", weights("0.3"), "202603", weights("0.5"));
+
+    BigDecimal index =
+        PersonalPriceIndexCalculator.accumulate(
+                "202601", "202603", Map.of("202602", r, "202603", r), w)
+            .orElseThrow();
+
+    // 1.03 × 1.05
+    assertThat(index).isEqualByComparingTo("1.0815");
+  }
+
+  @Test
   @DisplayName("물가가 내리면 1 보다 작다")
   void deflation() {
     BigDecimal index =
