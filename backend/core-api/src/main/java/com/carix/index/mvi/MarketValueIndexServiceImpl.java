@@ -1,6 +1,7 @@
 package com.carix.index.mvi;
 
 import com.carix.config.IndexThresholdProperties;
+import com.carix.datasource.ReadOnlyRoutingContext;
 import com.carix.index.MarketValueIndexProvider;
 import com.carix.index.dto.ExcludedSkill;
 import com.carix.index.dto.MviResult;
@@ -126,9 +127,11 @@ public class MarketValueIndexServiceImpl implements MarketValueIndexProvider {
   private <T> Callable<T> withDbPermit(Callable<T> task) {
     return () -> {
       dbConcurrencyLimiter.acquire();
+      ReadOnlyRoutingContext.setReadOnly(true);
       try {
         return task.call();
       } finally {
+        ReadOnlyRoutingContext.clear();
         dbConcurrencyLimiter.release();
       }
     };

@@ -739,8 +739,7 @@ public class JobPostingIngestService {
         .orElseGet(() -> skillRepository.save(new Skill(standardName, category, false)));
   }
 
-  /** 원문 HTML을 raw_ingest 테이블에 중복 없이 영구 보존합니다. */
-  /** 수집 이력을 raw_ingest 테이블에 중복 없이 기록합니다. */
+  /** 수집 이력을 raw_ingest 테이블에 중복 없이 기록 및 보존합니다. */
   private void persistRawIngestIfAbsent(
       String source, String sourceItemId, Instant collectedAt, String month) {
     if (rawIngestRepository.findBySourceAndSourceItemId(source, sourceItemId).isPresent()) {

@@ -1,5 +1,6 @@
 package com.carix.snapshot;
 
+import com.carix.datasource.ReadOnlyRoutingContext;
 import com.carix.index.CurrentSalaryProvider;
 import com.carix.index.MarketValueIndexProvider;
 import com.carix.index.OpeningWindowIndexProvider;
@@ -11,6 +12,7 @@ import com.carix.index.dto.IndexValueContract;
 import com.carix.index.dto.MviResult;
 import com.carix.index.dto.OwiResult;
 import com.carix.index.dto.PpiResult;
+import com.carix.index.dto.TopPriceDriver;
 import com.carix.index.enums.IndexStatus;
 import com.carix.snapshot.domain.IndexSnapshot;
 import com.carix.snapshot.domain.SnapshotRationale;
@@ -97,6 +99,9 @@ public class SnapshotRecalculationService {
   /**
    * {@code fromYearMonth} 부터 현재월까지 스냅샷을 새 데이터 버전으로 다시 계산해 저장한다.
    *
+   * <p>월별 지표 산출(PPI, MVI, OWI, 연봉, 물가기여도)은 가상 스레드와 {@link ReadOnlyRoutingContext}를 통해 읽기 전용
+   * 풀({@code CarixReadOnlyPool})에서 안전하게 병렬 처리되어, 메인 쓰기 트랜잭션의 커넥션 풀 점유 및 락 지속 시간을 최소화한다.
+   *
    * @return 실제로 기록한 월 수. CPI 최신월 발행 지연으로 건너뛴 월만 빠진다 — 과거월의 산출 불가는 행을 만들고 데이터 부족으로 기록한다
    */
   @Transactional
@@ -107,43 +112,90 @@ public class SnapshotRecalculationService {
     int written = 0;
 
     for (String ym : monthsFrom(fromYearMonth, latestYearMonth)) {
-      PpiResult ppi = ppiProvider.calculate(userId, ym);
-      if (ppi.status() == IndexStatus.UPDATE_DELAYED && ym.equals(latestYearMonth)) {
-        // CPI 최신월 결측은 보간하지 않고 그 월을 만들지 않는다 (기능 명세 §4.3, 기술 명세 §1.2).
-        // 화면은 마지막 계산월과 `업데이트 지연` 을 표시하고 선을 잇지 않는다.
-        // 과거월의 UPDATE_DELAYED 는 스킵하지 않는다 — 행을 만들고 지수를 NULL, decision_signal 을
-        // INSUFFICIENT_DATA 로 기록한다. 모든 산출 불가를 행 스킵으로 처리하면 §2.2 우선순위 1이 저장될
-        // 자리를 잃는다.
+      MonthCalculation calc;
+      try {
+        calc =
+            ReadOnlyRoutingContext.withReadOnlyCallable(
+                    () -> calculateMonth(userId, ym, latestYearMonth))
+                .call();
+      } catch (Exception e) {
+        if (e instanceof RuntimeException re) {
+          throw re;
+        }
+        throw new RuntimeException("월별 지표 산출 실패: " + ym, e);
+      }
+      if (calc.skipped()) {
         continue;
       }
-
-      MviResult mvi = mviProvider.calculate(userId, ym);
-      OwiResult owi = owiProvider.calculate(userId, ym);
-      CurrentSalary salary = salaryProvider.currentGrossSalary(userId, ym).orElse(null);
-      DecisionOutcome outcome = decisionSignalEngine.evaluate(ppi, mvi, salary);
-
-      SnapshotRationale rationale =
-          new SnapshotRationale(
-              outcome.rulesApplied(),
-              bucketName(outcome),
-              mvi.sources(),
-              mvi.skillContributions(),
-              mvi.excludedSkills().stream().map(ExcludedSkill::standardName).toList(),
-              ppi.cpiAsOf(),
-              mvi.aggregateAsOf(),
-              mvi.wageBaseline() == null ? null : mvi.wageBaseline().statVintage(),
-              dataVersion,
-              new SnapshotRationale.IndexStatuses(ppi.status(), mvi.status(), owi.status()),
-              openingWindowEvidence(owi),
-              mvi.wageBaseline() == null || mvi.wageBaseline().source() == null
-                  ? null
-                  : mvi.wageBaseline().source().name(),
-              topPriceDriverProvider.find(userId, ym).orElse(null));
-
-      save(userId, ym, dataVersion, ruleVersion, ppi, mvi, owi, outcome, rationale);
+      SnapshotRationale rationale = buildRationale(calc, dataVersion);
+      save(
+          userId,
+          calc.ym(),
+          dataVersion,
+          ruleVersion,
+          calc.ppi(),
+          calc.mvi(),
+          calc.owi(),
+          calc.outcome(),
+          rationale);
       written++;
     }
     return written;
+  }
+
+  private MonthCalculation calculateMonth(UUID userId, String ym, String latestYearMonth) {
+    PpiResult ppi = ppiProvider.calculate(userId, ym);
+    if (ppi.status() == IndexStatus.UPDATE_DELAYED && ym.equals(latestYearMonth)) {
+      // CPI 최신월 결측은 보간하지 않고 그 월을 만들지 않는다 (기능 명세 §4.3, 기술 명세 §1.2).
+      // 화면은 마지막 계산월과 `업데이트 지연` 을 표시하고 선을 잇지 않는다.
+      // 과거월의 UPDATE_DELAYED 는 스킵하지 않는다 — 행을 만들고 지수를 NULL, decision_signal 을
+      // INSUFFICIENT_DATA 로 기록한다. 모든 산출 불가를 행 스킵으로 처리하면 §2.2 우선순위 1이 저장될
+      // 자리를 잃는다.
+      return MonthCalculation.skipped(ym);
+    }
+
+    MviResult mvi = mviProvider.calculate(userId, ym);
+    OwiResult owi = owiProvider.calculate(userId, ym);
+    CurrentSalary salary = salaryProvider.currentGrossSalary(userId, ym).orElse(null);
+    DecisionOutcome outcome = decisionSignalEngine.evaluate(ppi, mvi, salary);
+    TopPriceDriver topPriceDriver = topPriceDriverProvider.find(userId, ym).orElse(null);
+
+    return new MonthCalculation(ym, ppi, mvi, owi, salary, outcome, topPriceDriver, false);
+  }
+
+  private SnapshotRationale buildRationale(MonthCalculation calc, String dataVersion) {
+    return new SnapshotRationale(
+        calc.outcome().rulesApplied(),
+        bucketName(calc.outcome()),
+        calc.mvi().sources(),
+        calc.mvi().skillContributions(),
+        calc.mvi().excludedSkills().stream().map(ExcludedSkill::standardName).toList(),
+        calc.ppi().cpiAsOf(),
+        calc.mvi().aggregateAsOf(),
+        calc.mvi().wageBaseline() == null ? null : calc.mvi().wageBaseline().statVintage(),
+        dataVersion,
+        new SnapshotRationale.IndexStatuses(
+            calc.ppi().status(), calc.mvi().status(), calc.owi().status()),
+        openingWindowEvidence(calc.owi()),
+        calc.mvi().wageBaseline() == null || calc.mvi().wageBaseline().source() == null
+            ? null
+            : calc.mvi().wageBaseline().source().name(),
+        calc.topPriceDriver());
+  }
+
+  private record MonthCalculation(
+      String ym,
+      PpiResult ppi,
+      MviResult mvi,
+      OwiResult owi,
+      CurrentSalary salary,
+      DecisionOutcome outcome,
+      TopPriceDriver topPriceDriver,
+      boolean skipped) {
+
+    static MonthCalculation skipped(String ym) {
+      return new MonthCalculation(ym, null, null, null, null, null, null, true);
+    }
   }
 
   /**

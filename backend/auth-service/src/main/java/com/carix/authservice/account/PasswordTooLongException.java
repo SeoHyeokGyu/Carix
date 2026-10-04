@@ -8,6 +8,8 @@ package com.carix.authservice.account;
  */
 public class PasswordTooLongException extends RuntimeException {
 
+  private static final long serialVersionUID = 1L;
+
   public PasswordTooLongException() {
     super("비밀번호는 UTF-8 기준 72바이트를 넘을 수 없습니다");
   }

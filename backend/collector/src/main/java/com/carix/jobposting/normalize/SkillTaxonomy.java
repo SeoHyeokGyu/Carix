@@ -89,7 +89,7 @@ public class SkillTaxonomy {
 
   /** DB의 core.skill 및 core.skill_alias 테이블로부터 별칭 사전을 메모리로 로딩/갱신한다. */
   @PostConstruct
-  public void reloadTaxonomy() {
+  public final void reloadTaxonomy() {
     Map<String, String> loaded = new HashMap<>();
 
     if (skillRepository != null && skillAliasRepository != null) {

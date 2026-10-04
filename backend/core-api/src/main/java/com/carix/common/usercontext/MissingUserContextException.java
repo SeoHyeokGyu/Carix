@@ -7,6 +7,8 @@ package com.carix.common.usercontext;
  */
 public class MissingUserContextException extends RuntimeException {
 
+  private static final long serialVersionUID = 1L;
+
   public MissingUserContextException(String message) {
     super(message);
   }

@@ -99,6 +99,7 @@ class MarketAggregateServiceTest {
   }
 
   @Test
+  @SuppressWarnings("unchecked")
   @DisplayName("공개연봉이 부분 결측인 경우 결측률이 올바르게 계산된다")
   void aggregateMarketData_partialSalaryMissing() {
     JobPosting p1 =

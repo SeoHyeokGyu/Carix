@@ -1,6 +1,8 @@
 package com.carix.dashboard.service;
 
 import com.carix.dashboard.dto.SalaryDistributionResponse;
+import com.carix.datasource.ReadOnlyRouting;
+import com.carix.datasource.ReadOnlyRoutingContext;
 import com.carix.index.CurrentSalaryProvider;
 import com.carix.index.dto.CurrentSalary;
 import com.carix.index.dto.WageBaseline;
@@ -19,6 +21,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -33,6 +38,7 @@ import org.springframework.transaction.annotation.Transactional;
  * 수를 함께 보여줘야 하기 때문이다.
  */
 @Service
+@ReadOnlyRouting
 public class SalaryDistributionService {
 
   static final String STATUS_OK = "OK";
@@ -81,8 +87,30 @@ public class SalaryDistributionService {
     }
 
     CareerProfile careerProfile = profile.get();
-    WageBaseline baseline = wageBaselineResolver.resolveBaseline(careerProfile);
-    PeerSalaryDistribution distribution = peerSalaryDistributionResolver.resolve(careerProfile);
+    WageBaseline baseline;
+    PeerSalaryDistribution distribution;
+    try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
+      Future<WageBaseline> baselineFuture =
+          executor.submit(
+              () ->
+                  ReadOnlyRoutingContext.withReadOnlyCallable(
+                          () -> wageBaselineResolver.resolveBaseline(careerProfile))
+                      .call());
+      Future<PeerSalaryDistribution> distFuture =
+          executor.submit(
+              () ->
+                  ReadOnlyRoutingContext.withReadOnlyCallable(
+                          () -> peerSalaryDistributionResolver.resolve(careerProfile))
+                      .call());
+
+      baseline = baselineFuture.get();
+      distribution = distFuture.get();
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throw new RuntimeException("동료집단 연봉 데이터 병렬 조회 중 인터럽트 발생", e);
+    } catch (ExecutionException e) {
+      throw new RuntimeException("동료집단 연봉 데이터 병렬 조회 실패", e.getCause());
+    }
 
     if (!distribution.hasSufficientPeers()) {
       return insufficient(
