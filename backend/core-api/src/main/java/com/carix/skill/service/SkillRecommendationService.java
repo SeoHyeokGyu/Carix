@@ -1,6 +1,8 @@
 package com.carix.skill.service;
 
 import com.carix.config.IndexThresholdProperties;
+import com.carix.datasource.ReadOnlyRouting;
+import com.carix.datasource.ReadOnlyRoutingContext;
 import com.carix.index.enums.SkillDemandStatus;
 import com.carix.index.mvi.PeerGroupFallbackResolver;
 import com.carix.index.mvi.SkillDemandCalculator;
@@ -33,6 +35,9 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -48,6 +53,7 @@ import org.springframework.transaction.annotation.Transactional;
  */
 @Slf4j
 @Service
+@ReadOnlyRouting
 @RequiredArgsConstructor
 public class SkillRecommendationService {
 
@@ -87,7 +93,32 @@ public class SkillRecommendationService {
     }
 
     CareerProfile profile = profileOpt.get();
-    ResolvedPeerPostings resolvedPeer = peerSalaryDistributionResolver.resolvePostings(profile);
+
+    List<UserSkill> userSkills;
+    ResolvedPeerPostings resolvedPeer;
+    try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
+      Future<List<UserSkill>> skillsFuture =
+          executor.submit(
+              () ->
+                  ReadOnlyRoutingContext.withReadOnlyCallable(
+                          () -> userSkillRepository.findByUserId(userId))
+                      .call());
+      Future<ResolvedPeerPostings> peerFuture =
+          executor.submit(
+              () ->
+                  ReadOnlyRoutingContext.withReadOnlyCallable(
+                          () -> peerSalaryDistributionResolver.resolvePostings(profile))
+                      .call());
+
+      userSkills = skillsFuture.get();
+      resolvedPeer = peerFuture.get();
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throw new RuntimeException("스킬 추천 기본 데이터 병렬 조회 중 인터럽트 발생", e);
+    } catch (ExecutionException e) {
+      throw new RuntimeException("스킬 추천 기본 데이터 병렬 조회 실패", e.getCause());
+    }
+
     List<JobPosting> peerPostings = resolvedPeer.postings();
 
     int minSample = minSampleSize();
@@ -98,7 +129,6 @@ public class SkillRecommendationService {
     }
 
     // 1. 사용자 보유 스킬 목록 (커스텀 스킬 제외)
-    List<UserSkill> userSkills = userSkillRepository.findByUserId(userId);
     Set<UUID> ownedSkillIds =
         userSkills.stream()
             .map(UserSkill::getSkill)
@@ -191,6 +221,31 @@ public class SkillRecommendationService {
     PeerGroupFallbackResolver.ResolvedPeerGroup resolvedPeerGroup =
         peerGroupFallbackResolver.resolve("ALL", baseYearMonth, profile);
 
+    Map<UUID, String> growthTrends;
+    try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
+      List<Map.Entry<UUID, Future<String>>> trendFutures = new ArrayList<>(rankedCandidates.size());
+      for (CandidateRanking candidate : rankedCandidates) {
+        UUID cId = candidate.skill().getId();
+        trendFutures.add(
+            Map.entry(
+                cId,
+                executor.submit(
+                    () ->
+                        ReadOnlyRoutingContext.withReadOnlyCallable(
+                                () -> evaluateGrowthTrend(cId, baseYearMonth, resolvedPeerGroup))
+                            .call())));
+      }
+      growthTrends = new HashMap<>();
+      for (var entry : trendFutures) {
+        growthTrends.put(entry.getKey(), entry.getValue().get());
+      }
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throw new RuntimeException("후보 스킬 트렌드 병렬 계산 중 인터럽트 발생", e);
+    } catch (ExecutionException e) {
+      throw new RuntimeException("후보 스킬 트렌드 병렬 계산 실패", e.getCause());
+    }
+
     List<SkillRecommendationItem> items = new ArrayList<>();
     double coOccurMinRate = minCoOccurrenceRate();
 
@@ -230,7 +285,7 @@ public class SkillRecommendationService {
             String.format("동료집단 내 공고의 %.1f%%에서 요구되는 핵심 스택입니다.", candidate.demandRate() * 100.0);
       }
 
-      String growthTrend = evaluateGrowthTrend(candSkill.getId(), baseYearMonth, resolvedPeerGroup);
+      String growthTrend = growthTrends.getOrDefault(candSkill.getId(), "STABLE");
 
       items.add(
           new SkillRecommendationItem(
