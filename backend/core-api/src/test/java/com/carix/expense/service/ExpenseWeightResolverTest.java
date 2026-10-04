@@ -202,6 +202,46 @@ class ExpenseWeightResolverTest {
     assertThat(result).hasSize(6).allSatisfy(r -> assertThat(r.status()).isEqualTo(DEFAULT_CPI));
   }
 
+  @Test
+  @DisplayName("resolveMonths: 기록 없는 달은 그보다 앞선 완전 입력 달을 상속하고, 그 전은 기본값이다")
+  void resolveMonths_monthWithoutRow_propagatesFromEarlierCompleteMonth() {
+    ExpenseHistory complete =
+        history(
+            "202603",
+            Map.of(
+                HOUSING, 500000L, FOOD, 300000L, TRANSPORT, 100000L, MEDICAL, 50000L, EDUCATION, 0L,
+                LEISURE, 50000L));
+    given(repository.findByUserIdOrderByBaseYearMonthDesc(USER_ID)).willReturn(List.of(complete));
+
+    Map<String, MonthlyWeights> result =
+        resolver.resolveMonths(USER_ID, List.of("202602", "202603", "202604"));
+
+    assertThat(result.get("202602").statuses().values()).containsOnly(DEFAULT_CPI);
+    assertThat(result.get("202602").weights().get(HOUSING)).isEqualByComparingTo("0.30");
+    assertThat(result.get("202603").statuses().values()).containsOnly(USER_DEFINED);
+    assertThat(result.get("202603").weights().get(HOUSING)).isEqualByComparingTo("0.5");
+    assertThat(result.get("202604").statuses().values()).containsOnly(PROPAGATED);
+    assertThat(result.get("202604").weights().get(HOUSING)).isEqualByComparingTo("0.5");
+  }
+
+  @Test
+  @DisplayName("resolveMonths: 가중치 합은 1 이고 저장소는 한 번만 읽는다")
+  void resolveMonths_weightsSumToOne_singleQuery() {
+    given(repository.findByUserIdOrderByBaseYearMonthDesc(USER_ID)).willReturn(List.of());
+
+    Map<String, MonthlyWeights> result =
+        resolver.resolveMonths(USER_ID, List.of("202601", "202602", "202603"));
+
+    result
+        .values()
+        .forEach(
+            w ->
+                assertThat(w.weights().values().stream().reduce(BigDecimal.ZERO, BigDecimal::add))
+                    .isEqualByComparingTo("1"));
+    org.mockito.Mockito.verify(repository, org.mockito.Mockito.times(1))
+        .findByUserIdOrderByBaseYearMonthDesc(USER_ID);
+  }
+
   // ---------------------------------------------------------------------------
 
   private static ExpenseHistory history(String yearMonth, Map<ExpenseCategoryEnum, Long> amounts) {

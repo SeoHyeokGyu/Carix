@@ -20,10 +20,54 @@ public class ExpenseWeightResolver {
     this.defaultWeightProvider = defaultWeightProvider;
   }
 
+  private static final int WEIGHT_SCALE = 10;
+
   record ResolvedCategory(ExpenseCategoryEnum category, long amount, WeightStatusEnum status) {}
+
+  /**
+   * 여러 달의 가중치를 한 번의 조회로 구한다. 기록 행이 없는 달은 행은 있는데 항목이 빈 달과 같다 — 앞선 완전 입력 달을 상속하고(§1.1 2단계), 그마저 없으면
+   * 기본 가중치다(3단계).
+   */
+  public Map<String, MonthlyWeights> resolveMonths(UUID userId, List<String> yearMonths) {
+    List<ExpenseHistory> historiesDesc = repository.findByUserIdOrderByBaseYearMonthDesc(userId);
+    Map<String, ExpenseHistory> byMonth = new HashMap<>();
+    historiesDesc.forEach(h -> byMonth.put(h.getBaseYearMonth(), h));
+
+    Map<String, MonthlyWeights> result = new LinkedHashMap<>();
+    for (String ym : yearMonths) {
+      ExpenseHistory row = byMonth.get(ym);
+      List<ResolvedCategory> resolved =
+          row != null ? resolve(row, historiesDesc) : propagateOrDefault(historiesDesc, ym);
+      result.put(ym, toWeights(resolved));
+    }
+    return result;
+  }
+
+  private MonthlyWeights toWeights(List<ResolvedCategory> resolved) {
+    long total = resolved.stream().mapToLong(ResolvedCategory::amount).sum();
+    Map<ExpenseCategoryEnum, BigDecimal> defaults = defaultWeightProvider.getDefaultWeights();
+    Map<ExpenseCategoryEnum, BigDecimal> weights = new EnumMap<>(ExpenseCategoryEnum.class);
+    Map<ExpenseCategoryEnum, WeightStatusEnum> statuses = new EnumMap<>(ExpenseCategoryEnum.class);
+    for (ResolvedCategory c : resolved) {
+      weights.put(
+          c.category(),
+          total > 0
+              ? BigDecimal.valueOf(c.amount())
+                  .divide(BigDecimal.valueOf(total), WEIGHT_SCALE, RoundingMode.HALF_UP)
+              : defaults.get(c.category()));
+      statuses.put(c.category(), c.status());
+    }
+    return new MonthlyWeights(weights, statuses);
+  }
 
   /** domain-logic.md §1.1 Step 1~4 를 순서대로 적용해 6개 카테고리 전부를 채운다. */
   List<ResolvedCategory> resolve(ExpenseHistory history) {
+    return resolve(history, null);
+  }
+
+  /** {@code historiesDesc} 가 {@code null} 이면 상속이 필요할 때 저장소를 읽는다. */
+  private List<ResolvedCategory> resolve(
+      ExpenseHistory history, List<ExpenseHistory> historiesDesc) {
     Map<ExpenseCategoryEnum, Long> entered = new EnumMap<>(ExpenseCategoryEnum.class);
     for (ExpenseItemEntity item : history.getItems()) {
       entered.put(item.getCategory(), item.getAmount());
@@ -39,7 +83,11 @@ public class ExpenseWeightResolver {
 
     // 입력이 아예 없거나(항목 0개) 입력 합계가 0원 — Step 2/3
     if (entered.isEmpty() || enteredSum == 0) {
-      return propagateOrDefault(history.getUserId(), history.getBaseYearMonth());
+      return propagateOrDefault(
+          historiesDesc != null
+              ? historiesDesc
+              : repository.findByUserIdOrderByBaseYearMonthDesc(history.getUserId()),
+          history.getBaseYearMonth());
     }
 
     // Step 4 — 부분 입력 혼합
@@ -72,9 +120,10 @@ public class ExpenseWeightResolver {
   }
 
   /** Step 2 — 과거 "완전 입력" 월 역탐색. Step 3 — 그마저 없으면 기본 가중치 전체 대체. */
-  private List<ResolvedCategory> propagateOrDefault(UUID userId, String baseYearMonth) {
+  private List<ResolvedCategory> propagateOrDefault(
+      List<ExpenseHistory> historiesDesc, String baseYearMonth) {
     Optional<ExpenseHistory> source =
-        repository.findByUserIdOrderByBaseYearMonthDesc(userId).stream()
+        historiesDesc.stream()
             .filter(h -> h.getBaseYearMonth().compareTo(baseYearMonth) < 0)
             .filter(h -> h.getItems().size() == ExpenseCategoryEnum.values().length)
             .filter(h -> sumOf(h) > 0)
