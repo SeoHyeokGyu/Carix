@@ -12,6 +12,7 @@ import com.carix.jobposting.normalize.CompanySizeClassifier;
 import com.carix.jobposting.normalize.EmploymentTypeClassifier;
 import com.carix.jobposting.normalize.ExperienceRange;
 import com.carix.jobposting.normalize.JobFamilyClassifier;
+import com.carix.jobposting.normalize.JobKoreaFamilyResolver;
 import com.carix.jobposting.normalize.JobKoreaPayParser;
 import com.carix.jobposting.normalize.SalaryRange;
 import com.carix.jobposting.normalize.SkillTaxonomy;
@@ -46,6 +47,7 @@ public class SeedLoader {
   private final JobKoreaDetailParser jobKoreaDetailParser = new JobKoreaDetailParser();
   private final JobKoreaPayParser jobKoreaPayParser = new JobKoreaPayParser();
   private final JobFamilyClassifier jobFamilyClassifier = new JobFamilyClassifier();
+  private final JobKoreaFamilyResolver jobKoreaFamilyResolver = JobKoreaFamilyResolver.bundled();
   private final CompanySizeClassifier companySizeClassifier = new CompanySizeClassifier();
   private final EmploymentTypeClassifier employmentTypeClassifier = new EmploymentTypeClassifier();
   private final SkillTaxonomy skillTaxonomy = new SkillTaxonomy();
@@ -130,10 +132,7 @@ public class SeedLoader {
     // 상세페이지가 있으면 그 급여 블록이 판정 권위다. 목록페이지 셀은 상세가 없을 때만 쓴다.
     Long salaryMin = detailHtml != null ? valueOf(salary, SalaryRange::min) : fields.salaryMin();
     Long salaryMax = detailHtml != null ? valueOf(salary, SalaryRange::max) : fields.salaryMax();
-    String jobFamily =
-        detailHtml == null
-            ? JobFamilyClassifier.OTHER
-            : jobFamilyClassifier.classify(jobKoreaDetailParser.extractJobTypeName(detailHtml));
+    String jobFamily = jobKoreaFamilyResolver.resolve(detailHtml, record.get("Title"));
     String companySize =
         detailHtml == null
             ? CompanySizeClassifier.UNKNOWN

@@ -6,6 +6,7 @@ import com.carix.jobposting.RawIngestRepository;
 import com.carix.jobposting.SkillRepository;
 import com.carix.jobposting.seed.SeedLoader;
 import com.carix.jobposting.service.JobPostingIngestService;
+import com.carix.pipeline.dto.BackfillRequest;
 import com.carix.pipeline.dto.CpiRequest;
 import com.carix.pipeline.dto.CrawlRequest;
 import com.carix.pipeline.dto.JobExecutionResponse;
@@ -57,6 +58,7 @@ public class CollectorPipelineService {
   private final CpiIngestService cpiIngestService;
   private final com.carix.jobposting.dedup.JobPostingDeduplicator jobPostingDeduplicator;
   private final com.carix.market.MarketAggregateService marketAggregateService;
+  private final com.carix.jobposting.backfill.JobKoreaBackfillService jobKoreaBackfillService;
 
   private final AtomicBoolean isJobRunning = new AtomicBoolean(false);
   private final Map<String, JobState> jobHistory =
@@ -101,6 +103,72 @@ public class CollectorPipelineService {
 
     return new JobExecutionResponse(
         jobId, "CRAWL", "ACCEPTED", "크롤링 작업이 수락되어 백그라운드에서 시작되었습니다.", now);
+  }
+
+  /**
+   * 기존 잡코리아 공고의 직무군을 상세페이지 기준으로 다시 매긴다.
+   *
+   * @return 비동기 작업 수락 응답
+   */
+  public JobExecutionResponse triggerJobKoreaReclassify(Long delayMs) {
+    ensureNoJobRunning();
+    String jobId = UUID.randomUUID().toString();
+    Instant now = Instant.now();
+    JobState state = new JobState(jobId, "RECLASSIFY", "RUNNING", now);
+    jobHistory.put(jobId, state);
+
+    CompletableFuture.runAsync(
+        () -> {
+          try {
+            Map<String, Object> summary = jobKoreaBackfillService.reclassifyExisting(delayMs);
+            state.complete(summary);
+            log.info("[작업:{}] 잡코리아 직무군 재분류 완료: {}", jobId, summary);
+          } catch (Exception e) {
+            log.error("[작업:{}] 잡코리아 직무군 재분류 실패: {}", jobId, e.getMessage(), e);
+            state.fail(e.getMessage());
+          } finally {
+            isJobRunning.set(false);
+          }
+        },
+        executor);
+
+    return new JobExecutionResponse(
+        jobId, "RECLASSIFY", "ACCEPTED", "재분류 작업이 수락되어 백그라운드에서 시작되었습니다.", now);
+  }
+
+  /**
+   * 수집 시작 전 달의 잡코리아 공고를 상세페이지 ID 표본으로 채운다. 요청 간격 때문에 수 시간 걸린다.
+   *
+   * @return 비동기 작업 수락 응답
+   */
+  public JobExecutionResponse triggerBackfill(BackfillRequest request) {
+    if (request == null || request.fromMonth() == null || request.toMonth() == null) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "fromMonth·toMonth 가 필요합니다");
+    }
+    ensureNoJobRunning();
+    String jobId = UUID.randomUUID().toString();
+    Instant now = Instant.now();
+    JobState state = new JobState(jobId, "BACKFILL", "RUNNING", now);
+    jobHistory.put(jobId, state);
+
+    CompletableFuture.runAsync(
+        () -> {
+          try {
+            log.info("[작업:{}] 과거 공고 표본 백필 시작: {}", jobId, request);
+            Map<String, Object> summary = jobKoreaBackfillService.run(request);
+            state.complete(summary);
+            log.info("[작업:{}] 과거 공고 표본 백필 완료: {}", jobId, summary);
+          } catch (Exception e) {
+            log.error("[작업:{}] 과거 공고 표본 백필 실패: {}", jobId, e.getMessage(), e);
+            state.fail(e.getMessage());
+          } finally {
+            isJobRunning.set(false);
+          }
+        },
+        executor);
+
+    return new JobExecutionResponse(
+        jobId, "BACKFILL", "ACCEPTED", "백필 작업이 수락되어 백그라운드에서 시작되었습니다.", now);
   }
 
   /**

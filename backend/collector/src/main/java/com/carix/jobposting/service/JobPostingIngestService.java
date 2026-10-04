@@ -10,11 +10,15 @@ import com.carix.jobposting.Skill;
 import com.carix.jobposting.SkillAliasRepository;
 import com.carix.jobposting.SkillRepository;
 import com.carix.jobposting.UserSkillRepository;
+import com.carix.jobposting.backfill.JobKoreaJsonLd;
+import com.carix.jobposting.backfill.JobKoreaOwnPostingParser;
+import com.carix.jobposting.backfill.JobKoreaPage;
 import com.carix.jobposting.crawler.JobKoreaDetailParser;
 import com.carix.jobposting.normalize.CompanySizeClassifier;
 import com.carix.jobposting.normalize.EmploymentTypeClassifier;
 import com.carix.jobposting.normalize.ExperienceRange;
 import com.carix.jobposting.normalize.JobFamilyClassifier;
+import com.carix.jobposting.normalize.JobKoreaFamilyResolver;
 import com.carix.jobposting.normalize.JobKoreaPayParser;
 import com.carix.jobposting.normalize.SalaryRange;
 import com.carix.jobposting.normalize.SkillTaxonomy;
@@ -68,8 +72,10 @@ public class JobPostingIngestService {
   private final JobKoreaListingEnricher jobKoreaListingEnricher = new JobKoreaListingEnricher();
   private final SaraminListingEnricher saraminListingEnricher = new SaraminListingEnricher();
   private final JobKoreaDetailParser jobKoreaDetailParser = new JobKoreaDetailParser();
+  private final JobKoreaOwnPostingParser jobKoreaOwnPostingParser = new JobKoreaOwnPostingParser();
   private final JobKoreaPayParser jobKoreaPayParser = new JobKoreaPayParser();
   private final JobFamilyClassifier jobFamilyClassifier = new JobFamilyClassifier();
+  private final JobKoreaFamilyResolver jobKoreaFamilyResolver = JobKoreaFamilyResolver.bundled();
   private final CompanySizeClassifier companySizeClassifier = new CompanySizeClassifier();
   private final EmploymentTypeClassifier employmentTypeClassifier = new EmploymentTypeClassifier();
 
@@ -335,10 +341,7 @@ public class JobPostingIngestService {
     Long salaryMin = salary != null ? salary.min() : fields.salaryMin();
     Long salaryMax = salary != null ? salary.max() : fields.salaryMax();
 
-    String jobFamily =
-        detailHtml != null
-            ? jobFamilyClassifier.classify(jobKoreaDetailParser.extractJobTypeName(detailHtml))
-            : JobFamilyClassifier.OTHER;
+    String jobFamily = jobKoreaFamilyResolver.resolve(detailHtml, title);
 
     String companySize =
         detailHtml != null
@@ -388,6 +391,87 @@ public class JobPostingIngestService {
 
     applySkillsToPosting(posting, title, rawSkills);
     jobPostingRepository.save(posting);
+  }
+
+  /**
+   * 백필 표본 한 건을 저장한다. 이미 있으면 건드리지 않는다 — 목록 크롤러가 본 공고의 관측 월을 과거로 되돌리지 않기 위해서다. 관측 월은 게시일이 속한 달이고 원천
+   * 항목 ID 는 {@code backfill-<id>} 로 남겨 정기 수집과 구분한다.
+   *
+   * @return 새로 저장했으면 true
+   */
+  @Transactional
+  public boolean ingestBackfilledJobKorea(JobKoreaPage page, String postedMonth, Instant now) {
+    if (jobPostingRepository.findBySourceAndExternalId("JOBKOREA", page.externalId()).isPresent()) {
+      return false;
+    }
+    JobKoreaJsonLd ld = page.jsonLd();
+    String html = page.html();
+    SalaryRange salary = jobKoreaPayParser.parse(jobKoreaDetailParser.extractSalaryRaw(html));
+    ExperienceRange experience = jobKoreaOwnPostingParser.extractExperience(html);
+
+    JobPosting posting =
+        new JobPosting(
+            "JOBKOREA",
+            page.externalId(),
+            ld.title(),
+            ld.companyName(),
+            salary != null ? salary.min() : null,
+            salary != null ? salary.max() : null,
+            ld.region(),
+            experience.min(),
+            experience.max(),
+            backfillEmploymentType(ld.employmentType()),
+            companySizeClassifier.classify(
+                jobKoreaDetailParser.extractEmployeeCount(html),
+                jobKoreaDetailParser.extractCompanyTypeName(html)),
+            null,
+            null,
+            page.jobFamily(),
+            ld.datePosted(),
+            ld.validThrough(),
+            postedMonth,
+            postedMonth,
+            now);
+
+    applySkillsToPosting(posting, ld.title(), jobKoreaDetailParser.extractSkills(html));
+    jobPostingRepository.save(posting);
+    persistRawIngestIfAbsent("JOBKOREA", "backfill-" + page.externalId(), now, postedMonth);
+    return true;
+  }
+
+  /**
+   * 기존 잡코리아 공고의 직무군을 다시 매긴다. 판정 규칙을 바꾼 뒤 정기 수집분을 백필분과 같은 규칙으로 맞추려는 것이다.
+   *
+   * @return 직무군이 바뀌었으면 true
+   */
+  @Transactional
+  public boolean reclassifyJobKoreaFamily(String externalId, String detailHtml) {
+    Optional<JobPosting> found =
+        jobPostingRepository.findBySourceAndExternalId("JOBKOREA", externalId);
+    if (found.isEmpty()) {
+      return false;
+    }
+    JobPosting posting = found.get();
+    String family = jobKoreaFamilyResolver.resolve(detailHtml, posting.getTitle());
+    if (family.equals(posting.getJobFamily())) {
+      return false;
+    }
+    posting.classifyAs(family);
+    jobPostingRepository.save(posting);
+    return true;
+  }
+
+  /** JSON-LD 는 schema.org 열거값(`FULL_TIME`)을 준다. 목록의 한글 표기 분류기는 이를 모르므로 먼저 옮기고, 아니면 한글로 판정한다. */
+  static String backfillEmploymentType(String raw) {
+    if (raw == null || raw.isBlank()) {
+      return EmploymentTypeClassifier.UNKNOWN;
+    }
+    return switch (raw.strip().toUpperCase()) {
+      case "FULL_TIME" -> EmploymentTypeClassifier.FULL_TIME;
+      case "CONTRACTOR", "TEMPORARY" -> EmploymentTypeClassifier.CONTRACT;
+      case "INTERN" -> EmploymentTypeClassifier.INTERN;
+      default -> new EmploymentTypeClassifier().classify(raw);
+    };
   }
 
   /**

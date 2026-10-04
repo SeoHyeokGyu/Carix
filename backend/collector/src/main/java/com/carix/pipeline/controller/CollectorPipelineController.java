@@ -1,5 +1,6 @@
 package com.carix.pipeline.controller;
 
+import com.carix.pipeline.dto.BackfillRequest;
 import com.carix.pipeline.dto.CpiRequest;
 import com.carix.pipeline.dto.CrawlRequest;
 import com.carix.pipeline.dto.JobExecutionResponse;
@@ -48,6 +49,34 @@ public class CollectorPipelineController {
   public ResponseEntity<JobExecutionResponse> triggerCrawl(
       @RequestBody(required = false) CrawlRequest request) {
     JobExecutionResponse response = pipelineService.triggerCrawl(request);
+    return ResponseEntity.status(HttpStatus.ACCEPTED).body(response);
+  }
+
+  /**
+   * [POST /internal/pipeline/reclassify-jobkorea] 기존 잡코리아 공고 직무군 재분류 비동기 실행.
+   *
+   * @param delayMs 상세페이지 요청 간격(ms, 빈 값은 기본값)
+   * @return 202 Accepted 및 비동기 작업 추적용 jobId
+   */
+  @PostMapping("/reclassify-jobkorea")
+  public ResponseEntity<JobExecutionResponse> triggerJobKoreaReclassify(
+      @RequestParam(required = false) Long delayMs) {
+    JobExecutionResponse response = pipelineService.triggerJobKoreaReclassify(delayMs);
+    return ResponseEntity.status(HttpStatus.ACCEPTED).body(response);
+  }
+
+  /**
+   * [POST /internal/pipeline/backfill] 과거 공고 표본 백필 비동기 실행.
+   *
+   * <p>잡코리아 상세페이지는 마감 뒤에도 ID 로 열리므로 월마다 ID 구간을 게시일로 찾아 무작위로 뽑고 IT 직무군만 저장합니다. 관측 월은 게시일이 속한 달입니다.
+   *
+   * @param request 대상 월 구간(yyyyMM)과 월별 목표·요청 상한·요청 간격 (빈 값은 기본값)
+   * @return 202 Accepted 및 비동기 작업 추적용 jobId
+   */
+  @PostMapping("/backfill")
+  public ResponseEntity<JobExecutionResponse> triggerBackfill(
+      @RequestBody(required = false) BackfillRequest request) {
+    JobExecutionResponse response = pipelineService.triggerBackfill(request);
     return ResponseEntity.status(HttpStatus.ACCEPTED).body(response);
   }
 
