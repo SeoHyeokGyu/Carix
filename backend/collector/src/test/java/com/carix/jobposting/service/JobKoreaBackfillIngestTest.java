@@ -106,8 +106,8 @@ class JobKoreaBackfillIngestTest {
   }
 
   @Test
-  @DisplayName("재분류는 자기 공고 직무 코드로 직무군을 다시 매기고, 같으면 저장하지 않는다")
-  void reclassifiesFromOwnCodes() {
+  @DisplayName("상세 재수집은 자기 공고 직무 코드로 직무군을 다시 매기고, 직무군이 같아도 스킬은 다시 뽑아 저장한다")
+  void refreshesFamilyAndSkillsFromDetail() {
     JobPosting posting = mock(JobPosting.class);
     given(posting.getTitle()).willReturn("Java 백엔드 개발자");
     given(posting.getJobFamily()).willReturn("OTHER");
@@ -116,10 +116,14 @@ class JobKoreaBackfillIngestTest {
     String itPage =
         "<script>self.__next_f.push([1,\"\\\"jobClassificationCodes\\\":[\\\"4010000167\\\"]\"])</script>";
 
-    assertThat(service.reclassifyJobKoreaFamily("1", itPage)).isTrue();
+    assertThat(service.refreshJobKoreaFromDetail("1", itPage)).isTrue();
     verify(posting).classifyAs("DEVELOPER");
 
     given(posting.getJobFamily()).willReturn("DEVELOPER");
-    assertThat(service.reclassifyJobKoreaFamily("1", itPage)).isFalse();
+    assertThat(service.refreshJobKoreaFromDetail("1", itPage)).isFalse();
+
+    // 직무군이 그대로여도 스킬은 두 번 다 다시 매기고 저장한다 — 정기 수집분을 백필과 같은 추출로 맞추는 게 목적이다.
+    verify(posting, org.mockito.Mockito.times(2)).replaceSkills(any());
+    verify(jobPostingRepository, org.mockito.Mockito.times(2)).save(posting);
   }
 }

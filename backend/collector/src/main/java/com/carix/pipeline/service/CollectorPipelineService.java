@@ -122,9 +122,9 @@ public class CollectorPipelineService {
           try {
             Map<String, Object> summary = jobKoreaBackfillService.reclassifyExisting(delayMs);
             state.complete(summary);
-            log.info("[작업:{}] 잡코리아 직무군 재분류 완료: {}", jobId, summary);
+            log.info("[작업:{}] 잡코리아 직무군·스킬 재수집 완료: {}", jobId, summary);
           } catch (Exception e) {
-            log.error("[작업:{}] 잡코리아 직무군 재분류 실패: {}", jobId, e.getMessage(), e);
+            log.error("[작업:{}] 잡코리아 직무군·스킬 재수집 실패: {}", jobId, e.getMessage(), e);
             state.fail(e.getMessage());
           } finally {
             isJobRunning.set(false);

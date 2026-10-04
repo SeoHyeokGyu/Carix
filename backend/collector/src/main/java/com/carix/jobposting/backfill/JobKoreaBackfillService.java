@@ -91,13 +91,17 @@ public class JobKoreaBackfillService {
     return summary;
   }
 
-  /** 기존 잡코리아 공고 전부를 상세페이지를 다시 열어 같은 직무군 규칙으로 매긴다. 원문을 보관하지 않아 다시 받는 수밖에 없다. 열리지 않는 공고는 그대로 둔다. */
+  /**
+   * 기존 잡코리아 공고 전부를 상세페이지를 다시 열어 백필과 같은 규칙으로 직무군·스킬을 다시 매긴다. 원문을 보관하지 않아 다시 받는 수밖에 없다. 열리지 않는 공고는
+   * 그대로 둔다.
+   */
   public Map<String, Object> reclassifyExisting(Long delayMs) {
     JobKoreaPageFetcher fetcher =
         new JobKoreaPageFetcher(delayMs != null ? delayMs : DEFAULT_DELAY_MS);
     List<String> externalIds =
         jobPostingRepository.findBySource(SOURCE).stream().map(JobPosting::getExternalId).toList();
     int changed = 0;
+    int refreshed = 0;
     int unreachable = 0;
     for (String externalId : externalIds) {
       Optional<String> html = fetcher.fetch(Long.parseLong(externalId));
@@ -105,12 +109,26 @@ public class JobKoreaBackfillService {
         unreachable++;
         continue;
       }
-      if (jobPostingIngestService.reclassifyJobKoreaFamily(externalId, html.get())) {
+      if (jobPostingIngestService.refreshJobKoreaFromDetail(externalId, html.get())) {
         changed++;
       }
+      refreshed++;
     }
-    log.info("[재분류] 대상 {} / 변경 {} / 열리지 않음 {}", externalIds.size(), changed, unreachable);
-    return Map.of("total", externalIds.size(), "changed", changed, "unreachable", unreachable);
+    log.info(
+        "[재분류] 대상 {} / 스킬 재추출 {} / 직무군 변경 {} / 열리지 않음 {}",
+        externalIds.size(),
+        refreshed,
+        changed,
+        unreachable);
+    return Map.of(
+        "total",
+        externalIds.size(),
+        "skillsRefreshed",
+        refreshed,
+        "changed",
+        changed,
+        "unreachable",
+        unreachable);
   }
 
   private static int orDefault(Integer value, int fallback) {
