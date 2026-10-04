@@ -2,7 +2,6 @@ package com.carix.profile.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
@@ -67,7 +66,9 @@ class ProfileServiceTest {
   @DisplayName("deleteUser - 등록 이메일과 일치하면 모든 개인 데이터 테이블을 삭제한다")
   void deleteUser_정상() {
     String email = "test@example.com";
-    given(jdbcTemplate.query(anyString(), any(RowMapper.class), eq(USER_ID)))
+    given(
+            jdbcTemplate.query(
+                anyString(), org.mockito.ArgumentMatchers.<RowMapper<String>>any(), eq(USER_ID)))
         .willReturn(List.of(email));
 
     profileService.deleteUser(USER_ID, email);
@@ -83,7 +84,9 @@ class ProfileServiceTest {
   @Test
   @DisplayName("deleteUser - 이메일이 불일치하면 예외가 발생하고 데이터는 삭제되지 않는다")
   void deleteUser_이메일_불일치() {
-    given(jdbcTemplate.query(anyString(), any(RowMapper.class), eq(USER_ID)))
+    given(
+            jdbcTemplate.query(
+                anyString(), org.mockito.ArgumentMatchers.<RowMapper<String>>any(), eq(USER_ID)))
         .willReturn(List.of("registered@example.com"));
 
     assertThatThrownBy(() -> profileService.deleteUser(USER_ID, "wrong@example.com"))

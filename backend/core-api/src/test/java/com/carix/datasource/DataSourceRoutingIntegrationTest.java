@@ -120,6 +120,7 @@ class DataSourceRoutingIntegrationTest {
 
     ReadOnlyRoutingContext.setReadOnly(true);
     try (Connection conn = routingDataSource.getConnection()) {
+      assertThat(conn).isNotNull();
       int writeActive = writeHikari.getHikariPoolMXBean().getActiveConnections();
       int readActive = readOnlyHikari.getHikariPoolMXBean().getActiveConnections();
 
@@ -140,6 +141,7 @@ class DataSourceRoutingIntegrationTest {
         status -> {
           // 부모 트랜잭션에서 커넥션 획득 (쓰기 풀)
           try (Connection writeConn = routingDataSource.getConnection()) {
+            assertThat(writeConn).isNotNull();
             assertThat(routingDataSource.determineCurrentLookupKey())
                 .isEqualTo(DataSourceType.WRITE);
 
@@ -178,6 +180,7 @@ class DataSourceRoutingIntegrationTest {
     transactionTemplate.execute(
         status -> {
           try (Connection conn = writeDataSource.getConnection()) {
+            assertThat(conn).isNotNull();
             topPriceDriverProvider.find(UUID.randomUUID(), "202607");
             return null;
           } catch (Exception e) {
