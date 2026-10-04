@@ -63,7 +63,7 @@ class DefaultPurchasingPowerIndexProviderTest {
     return new IncomeHistory(userId, gross, net, LocalDate.parse(date), null);
   }
 
-  /** {@code (from, to]} 매달 모든 카테고리 같은 변화율, 최신 CPI 월은 {@code to}. */
+  /** {@code (from, to]} 매달 모든 카테고리 같은 변화율, 첫 CPI 월은 {@code from}, 최신 CPI 월은 {@code to}. */
   private void givenCpi(String from, String to, String monthlyRate) {
     Map<String, Map<ExpenseCategoryEnum, BigDecimal>> rates = new TreeMap<>();
     for (YearMonth m = YearMonth.parse(from, YM).plusMonths(1);
@@ -75,6 +75,7 @@ class DefaultPurchasingPowerIndexProviderTest {
       }
       rates.put(YM.format(m), r);
     }
+    given(cpiRates.firstCpiMonth()).willReturn(Optional.of(from));
     given(cpiRates.latestCpiMonth(anyString())).willReturn(Optional.of(to));
     given(cpiRates.monthOverMonth(anyString(), anyString())).willReturn(rates);
   }
@@ -192,6 +193,45 @@ class DefaultPurchasingPowerIndexProviderTest {
 
     assertThat(r.value()).isEqualByComparingTo("100.0");
     assertThat(r.indexBaseYearMonth()).isEqualTo("202610");
+  }
+
+  @Test
+  @DisplayName("첫 연봉이 CPI 수집 이전이면 첫 CPI 월이 기준월이고 기준 소득은 그 달까지 유효한 마지막 연봉이다")
+  void incomeBeforeCpiCoverage_baseIsFirstCpiMonth() {
+    givenIncomes(
+        income("2019-06-01", 50_000_000L, null),
+        income("2019-11-01", 60_000_000L, null),
+        income("2020-03-01", 63_000_000L, null));
+    givenCpi("202001", "202003", "0.01");
+
+    PpiResult r = provider.calculate(userId, "202003");
+
+    // 기준 소득은 2019-11 의 6천만. 105 ÷ 1.0201 = 102.93
+    assertThat(r.indexBaseYearMonth()).isEqualTo("202001");
+    assertThat(r.value()).isEqualByComparingTo("102.9");
+    assertThat(r.status()).isEqualTo(IndexStatus.INSUFFICIENT_HISTORY);
+  }
+
+  @Test
+  @DisplayName("기준월 이전 달은 CPI 시차와 무관하게 NOT_AVAILABLE 이다")
+  void targetBeforeBaseMonth_notAvailable() {
+    givenIncomes(income("2019-06-01", 60_000_000L, null));
+    givenCpi("202001", "202609", "0.01");
+
+    PpiResult r = provider.calculate(userId, "201912");
+
+    assertThat(r.status()).isEqualTo(IndexStatus.NOT_AVAILABLE);
+    assertThat(r.value()).isNull();
+  }
+
+  @Test
+  @DisplayName("CPI 가 하나도 없으면 UPDATE_DELAYED")
+  void noCpi_updateDelayed() {
+    givenIncomes(income("2026-02-01", 60_000_000L, null));
+    given(cpiRates.firstCpiMonth()).willReturn(Optional.empty());
+    given(cpiRates.latestCpiMonth(anyString())).willReturn(Optional.empty());
+
+    assertThat(provider.calculate(userId, "202604").status()).isEqualTo(IndexStatus.UPDATE_DELAYED);
   }
 
   @Test

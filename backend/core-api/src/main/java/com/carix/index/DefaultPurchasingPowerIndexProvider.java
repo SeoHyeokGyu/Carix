@@ -13,6 +13,7 @@ import com.carix.snapshot.YearMonths;
 import java.math.BigDecimal;
 import java.math.MathContext;
 import java.math.RoundingMode;
+import java.time.LocalDate;
 import java.time.YearMonth;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
@@ -32,7 +33,8 @@ import org.springframework.transaction.annotation.Transactional;
  * 구매력 지수 = 소득지수 ÷ 개인물가 지수 × 100 (기능 명세 §12.2).
  *
  * <ul>
- *   <li>기준월: 연봉이 처음 있는 달. 소비 가중치는 기본값이 항상 있다.
+ *   <li>기준월: 연봉이 처음 있는 달과 CPI 가 처음 있는 달 중 늦은 달. 기준 소득은 그 달까지 유효한 마지막 연봉이다. 기준월 이전 달은 NOT_AVAILABLE
+ *       이다. 소비 가중치는 기본값이 항상 있다.
  *   <li>개인물가: 기준월부터 그 달 소비 가중치로 가중한 카테고리 전월 대비 CPI 변화율을 누적한다.
  *   <li>현재월 CPI 가 아직 없으면 허용 시차({@link CategoryCpiRateService#MAX_LAG_MONTHS}) 안의 마지막 CPI 월까지 누적하고
  *       {@code cpiAsOf} 로 밝힌다. 없는 달의 물가를 지어내지 않는다.
@@ -67,8 +69,16 @@ public class DefaultPurchasingPowerIndexProvider implements PurchasingPowerIndex
     if (current.isEmpty()) {
       return PpiResult.notAvailable(baseYearMonth);
     }
+    String baseYm = baseMonth(histories);
+    if (target.isBefore(YearMonth.parse(baseYm, YM))) {
+      return PpiResult.notAvailable(baseYearMonth);
+    }
+    LocalDate baseEnd = YearMonth.parse(baseYm, YM).atEndOfMonth();
     IncomeHistory base =
-        histories.stream().min(Comparator.comparing(IncomeHistory::getEffectiveDate)).orElseThrow();
+        histories.stream()
+            .filter(h -> !h.getEffectiveDate().isAfter(baseEnd))
+            .findFirst()
+            .orElseThrow();
     Optional<BigDecimal> incomeRatio = incomeRatio(base, current.get());
     if (incomeRatio.isEmpty()) {
       return PpiResult.notAvailable(baseYearMonth);
@@ -81,7 +91,6 @@ public class DefaultPurchasingPowerIndexProvider implements PurchasingPowerIndex
       return delayed(baseYearMonth);
     }
 
-    String baseYm = YearMonths.of(base.getEffectiveDate());
     String cpiEnd = min(latestCpi.get(), baseYearMonth);
     List<String> months = monthsBetween(baseYm, baseYearMonth);
     Map<String, MonthlyWeights> weights = expenseWeightResolver.resolveMonths(userId, months);
@@ -113,6 +122,23 @@ public class DefaultPurchasingPowerIndexProvider implements PurchasingPowerIndex
         rollup(weights.get(baseYearMonth)),
         baseYm,
         YearMonth.parse(min(cpiEnd, baseYearMonth), YM).atEndOfMonth());
+  }
+
+  /**
+   * 연봉이 처음 있는 달과 CPI 가 처음 있는 달 중 늦은 달. CPI 수집 이전 연봉을 기준으로 잡으면 그 사이 물가를 누적할 수 없어 어느 달도 값이 나오지 않는다.
+   * CPI 가 하나도 없으면 첫 연봉 달이다 — 시차 검사가 UPDATE_DELAYED 로 돌려보낸다.
+   */
+  private String baseMonth(List<IncomeHistory> histories) {
+    String firstIncome =
+        YearMonths.of(
+            histories.stream()
+                .map(IncomeHistory::getEffectiveDate)
+                .min(Comparator.naturalOrder())
+                .orElseThrow());
+    return categoryCpiRateService
+        .firstCpiMonth()
+        .map(firstCpi -> max(firstIncome, firstCpi))
+        .orElse(firstIncome);
   }
 
   /** 기준·현재 둘 다 실수령액이 있으면 실수령액, 아니면 둘 다 세전. 한쪽만 섞으면 세율 차이가 구매력 변화로 읽힌다. */
@@ -169,5 +195,9 @@ public class DefaultPurchasingPowerIndexProvider implements PurchasingPowerIndex
 
   private static String min(String a, String b) {
     return a.compareTo(b) <= 0 ? a : b;
+  }
+
+  private static String max(String a, String b) {
+    return a.compareTo(b) >= 0 ? a : b;
   }
 }

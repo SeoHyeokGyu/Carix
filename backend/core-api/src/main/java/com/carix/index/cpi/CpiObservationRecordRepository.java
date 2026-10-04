@@ -12,6 +12,8 @@ public interface CpiObservationRecordRepository extends JpaRepository<CpiObserva
   Optional<CpiObservationRecord> findFirstByBaseYearMonthLessThanEqualOrderByBaseYearMonthDesc(
       String baseYearMonth);
 
+  Optional<CpiObservationRecord> findFirstByOrderByBaseYearMonthAsc();
+
   List<CpiObservationRecord> findByBaseYearMonthIn(Collection<String> baseYearMonths);
 
   List<CpiObservationRecord> findByBaseYearMonthBetween(String from, String to);

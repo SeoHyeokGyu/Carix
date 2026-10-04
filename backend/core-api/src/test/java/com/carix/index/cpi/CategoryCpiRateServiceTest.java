@@ -183,6 +183,18 @@ class CategoryCpiRateServiceTest {
     assertThat(service.latestCpiMonth("202607")).isEmpty();
   }
 
+  @Test
+  @DisplayName("첫 CPI 월은 적재된 가장 이른 달이고, 없으면 빈 값이다")
+  void firstCpiMonth() {
+    assertThat(service.firstCpiMonth()).isEmpty();
+
+    month("202003", "100.00");
+    month("202001", "100.00");
+    month("202002", "100.00");
+
+    assertThat(service.firstCpiMonth()).contains("202001");
+  }
+
   /** 코드가 속한 카테고리. 매핑 파일이 바뀌어도 테스트가 따라가도록 설정에서 찾는다. */
   private ExpenseCategoryEnum categoryOf(String code) {
     CpiCategoryConfig config =

@@ -76,6 +76,14 @@ public class CategoryCpiRateService {
         .map(CpiObservationRecord::getBaseYearMonth);
   }
 
+  /** CPI 가 적재된 가장 이른 달. 구매력 지수 기준월의 하한이다. */
+  @Transactional(readOnly = true)
+  public Optional<String> firstCpiMonth() {
+    return repository
+        .findFirstByOrderByBaseYearMonthAsc()
+        .map(CpiObservationRecord::getBaseYearMonth);
+  }
+
   /**
    * {@code (fromExclusive, toInclusive]} 각 달의 카테고리 전월 대비 변화율. 구매력 지수가 기준월부터 누적한다.
    *
