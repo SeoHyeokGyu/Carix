@@ -172,9 +172,12 @@ class SnapshotReadServiceTest {
     assertThat(rationale).doesNotContain("%%");
   }
 
-  /** D3 — 값이 있으면 저장된 상태가 무엇이든 OK 다. 프런트 계약이 "OK 가 아니면 value 는 null" 이다. */
+  /**
+   * D3 — 값이 있으면 상태는 값을 갖는 상태({@code OK}·{@code INSUFFICIENT_HISTORY})다. 값을 갖지 않는 상태가 값과 함께 저장된 옛 행은
+   * {@code OK} 로 접는다. 프런트 계약이 "그 둘이 아니면 value 는 null" 이다.
+   */
   @Test
-  @DisplayName("summary - 값이 있으면 저장된 상태가 UPDATE_DELAYED 여도 OK 로 나간다")
+  @DisplayName("summary - 값이 있는데 저장된 상태가 값 없는 상태(UPDATE_DELAYED)면 OK 로 접힌다")
   void summary_값이있으면_상태는_OK() {
     given(repository.findByUserIdOrderByBaseYearMonthDesc(USER_ID))
         .willReturn(
@@ -190,6 +193,28 @@ class SnapshotReadServiceTest {
     DashboardSummaryResponse response = summaryService.resolve(USER_ID, "202607");
 
     assertThat(response.purchasingPowerIndex().indexStatus()).isEqualTo(IndexStatus.OK.name());
+  }
+
+  /** 구매력 지수가 기준월부터 12개월 미만이면 값과 함께 비교 기간 짧음을 그대로 보낸다 — 화면이 「비교 기간 짧음」을 그린다. */
+  @Test
+  @DisplayName("summary - 값이 있고 저장된 상태가 INSUFFICIENT_HISTORY 면 그대로 나간다")
+  void summary_비교기간짧음은_값과_함께_그대로() {
+    given(repository.findByUserIdOrderByBaseYearMonthDesc(USER_ID))
+        .willReturn(
+            List.of(
+                snapshotWith(
+                    new BigDecimal("98.00"),
+                    null,
+                    null,
+                    new SnapshotRationale.IndexStatuses(
+                        IndexStatus.INSUFFICIENT_HISTORY, IndexStatus.OK, IndexStatus.OK),
+                    null)));
+
+    DashboardSummaryResponse response = summaryService.resolve(USER_ID, "202607");
+
+    assertThat(response.purchasingPowerIndex().value()).isEqualTo(98.0);
+    assertThat(response.purchasingPowerIndex().indexStatus())
+        .isEqualTo(IndexStatus.INSUFFICIENT_HISTORY.name());
   }
 
   /** D2 — 표본 부족을 계산 대기로 뭉개지 않는다. */

@@ -7,8 +7,9 @@ import {
 
 /**
  * `com.carix.index.enums.IndexStatus` 와 같은 값이다 (API 규격 §5.1).
- * `OK` 가 아니면 `value`·`changeFromLastMonth`·`status` 는 항상 `null` 이다 —
+ * `OK`·`INSUFFICIENT_HISTORY` 가 아니면 `value`·`changeFromLastMonth`·`status` 는 항상 `null` 이다 —
  * 값이 없는 이유를 이 값이 담는다. 0 이나 100 으로 채우지 않는다.
+ * `INSUFFICIENT_HISTORY` 는 값이 있고 비교 기간(기준월부터 12개월)이 짧다는 뜻이다.
  */
 export type IndexStatus =
   | "OK"
