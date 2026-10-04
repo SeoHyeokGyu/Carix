@@ -227,7 +227,7 @@ describe("VerdictHero", () => {
       expect(block).toBeInTheDocument();
       expect(screen.getByText("성장 가이드")).toBeInTheDocument();
       expect(
-        screen.getByText("다음 도약을 위한 동료집단 추천 스킬"),
+        screen.getByText("동료집단 수요 기반 추천 스킬"),
       ).toBeInTheDocument();
       expect(screen.getByText("Kubernetes")).toBeInTheDocument();
     });
@@ -254,9 +254,9 @@ describe("VerdictHero", () => {
           recommendations={RECOMMENDATIONS}
         />,
       );
-      expect(screen.getByText("협상력 강화")).toBeInTheDocument();
+      expect(screen.getByText("시장 수요")).toBeInTheDocument();
       expect(
-        screen.getByText("동료집단에서 가치를 높여주는 추천 스킬"),
+        screen.getByText("동료집단 공고에서 자주 요구하는 스킬"),
       ).toBeInTheDocument();
     });
 
