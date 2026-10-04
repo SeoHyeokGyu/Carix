@@ -4,8 +4,8 @@ import type { IndexStatus } from "./api/dashboard";
 /**
  * 지수 열화 상태의 화면 표현 (설계 §7.5 표).
  *
- * `INSUFFICIENT_HISTORY` 와 `NOT_AVAILABLE` 은 사용자에게 같은 "계산 대기"로 묶인다 —
- * 원인은 다르지만 할 수 있는 일이 같아서다.
+ * `INSUFFICIENT_HISTORY` 는 값이 있고 기준월부터 12개월이 안 됐다는 뜻이라 "비교 기간 짧음"이다.
+ * 값이 없는 `NOT_AVAILABLE`("계산 대기")과 묶지 않는다.
  *
  * 스킬 수요 상태(`lib/skillDemandStatus.ts`)와 합치지 않는다. 서버에서 다른 enum 이고
  * 합치면 한쪽에 없는 상태값이 다른 쪽 화면에 노출된다.
@@ -16,7 +16,7 @@ const INDEX_STATUS: Record<
 > = {
   INSUFFICIENT_SAMPLE: { label: "표본 부족", tone: "warning" },
   UPDATE_DELAYED: { label: "업데이트 지연", tone: "info" },
-  INSUFFICIENT_HISTORY: { label: "계산 대기", tone: "muted" },
+  INSUFFICIENT_HISTORY: { label: "비교 기간 짧음", tone: "muted" },
   NOT_AVAILABLE: { label: "계산 대기", tone: "muted" },
 };
 

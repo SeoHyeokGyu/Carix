@@ -18,6 +18,37 @@ describe("IncomeVsPriceChart", () => {
     ).toBeInTheDocument();
   });
 
+  it("비교 기간이 짧은 구매력 지수는 지연이 아니라 비교 기간 짧음으로 표시한다", () => {
+    const data: TrendListResponse = {
+      trends: [
+        {
+          yearMonth: "202605",
+          incomeIndex: 100,
+          personalPriceIndex: 100,
+          purchasingPowerIndex: 100,
+          marketValueIndex: 100,
+          nominalIncome: null,
+          realIncome: null,
+        },
+        {
+          yearMonth: "202606",
+          incomeIndex: 100,
+          personalPriceIndex: 101,
+          purchasingPowerIndex: 99,
+          marketValueIndex: 100,
+          nominalIncome: null,
+          realIncome: null,
+        },
+      ],
+      purchasingPowerStatus: "INSUFFICIENT_HISTORY",
+      marketValueStatus: "OK",
+    };
+
+    render(<IncomeVsPriceChart data={data} />);
+    expect(screen.getByText("비교 기간 짧음")).toBeInTheDocument();
+    expect(screen.queryByText("일부 지연")).not.toBeInTheDocument();
+  });
+
   it("12개월 이상 정상 소득 및 개인물가 데이터가 주어지면 차트와 손실 구간을 렌더링한다", () => {
     const fullData: TrendListResponse = {
       trends: [

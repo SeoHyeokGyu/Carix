@@ -10,7 +10,9 @@ describe("resolveIndexStatus", () => {
   it("설계 §7.5 표의 문구를 그대로 돌려준다", () => {
     expect(resolveIndexStatus("INSUFFICIENT_SAMPLE")?.label).toBe("표본 부족");
     expect(resolveIndexStatus("UPDATE_DELAYED")?.label).toBe("업데이트 지연");
-    expect(resolveIndexStatus("INSUFFICIENT_HISTORY")?.label).toBe("계산 대기");
+    expect(resolveIndexStatus("INSUFFICIENT_HISTORY")?.label).toBe(
+      "비교 기간 짧음",
+    );
     expect(resolveIndexStatus("NOT_AVAILABLE")?.label).toBe("계산 대기");
   });
 
