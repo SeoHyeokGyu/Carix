@@ -309,10 +309,13 @@ class SnapshotRecalculationServiceTest {
     assertThat(statuses.owi()).isNotNull();
   }
 
-  /** 규칙표를 바꾸면 버전을 올린다 — 옛 스냅샷의 판정 근거와 갈라 읽기 위해서다. 1.1.0 은 시장가치 없는 부분 판정. */
+  /**
+   * 규칙표를 바꾸면 버전을 올린다 — 옛 스냅샷의 판정 근거와 갈라 읽기 위해서다. 1.1.0 은 시장가치 없는 부분 판정, 1.2.0 은 구매력 지수가 실제 물가를 보기
+   * 시작한 것(규칙표는 같고 `PPI < 95` 입력의 뜻이 바뀌었다).
+   */
   @Test
   void 규칙_버전은_부분_판정_도입분이다() {
-    assertThat(DecisionSignalEngine.RULE_VERSION).isEqualTo("1.1.0");
+    assertThat(DecisionSignalEngine.RULE_VERSION).isEqualTo("1.2.0");
   }
 
   /**
