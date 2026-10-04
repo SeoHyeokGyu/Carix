@@ -53,7 +53,8 @@ public class CollectorPipelineController {
   }
 
   /**
-   * [POST /internal/pipeline/reclassify-jobkorea] 기존 잡코리아 공고 직무군 재분류 비동기 실행.
+   * [POST /internal/pipeline/reclassify-jobkorea] 기존 잡코리아 공고를 상세페이지로 다시 매기는 비동기 실행 — 직무군과 스킬을 백필과
+   * 같은 규칙으로 맞춘다.
    *
    * @param delayMs 상세페이지 요청 간격(ms, 빈 값은 기본값)
    * @return 202 Accepted 및 비동기 작업 추적용 jobId

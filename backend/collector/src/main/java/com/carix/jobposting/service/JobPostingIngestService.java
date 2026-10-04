@@ -440,12 +440,15 @@ public class JobPostingIngestService {
   }
 
   /**
-   * 기존 잡코리아 공고의 직무군을 다시 매긴다. 판정 규칙을 바꾼 뒤 정기 수집분을 백필분과 같은 규칙으로 맞추려는 것이다.
+   * 기존 잡코리아 공고를 지금의 상세페이지로 다시 매긴다 — 직무군(자기 공고 직무 코드 + 제목)과 스킬(상세 스킬 + 제목, 현재 사전).
+   *
+   * <p>정기 수집분은 수집 당시의 파서·사전으로 스킬이 저장돼, 오늘의 추출로 저장되는 백필분과 같은 잣대가 아니다. 두 창의 수요율을 같은 추출로 맞추려고 직무군이
+   * 그대로여도 스킬은 늘 다시 뽑는다.
    *
    * @return 직무군이 바뀌었으면 true
    */
   @Transactional
-  public boolean reclassifyJobKoreaFamily(String externalId, String detailHtml) {
+  public boolean refreshJobKoreaFromDetail(String externalId, String detailHtml) {
     Optional<JobPosting> found =
         jobPostingRepository.findBySourceAndExternalId("JOBKOREA", externalId);
     if (found.isEmpty()) {
@@ -453,12 +456,14 @@ public class JobPostingIngestService {
     }
     JobPosting posting = found.get();
     String family = jobKoreaFamilyResolver.resolve(detailHtml, posting.getTitle());
-    if (family.equals(posting.getJobFamily())) {
-      return false;
+    boolean familyChanged = !family.equals(posting.getJobFamily());
+    if (familyChanged) {
+      posting.classifyAs(family);
     }
-    posting.classifyAs(family);
+    applySkillsToPosting(
+        posting, posting.getTitle(), jobKoreaDetailParser.extractSkills(detailHtml));
     jobPostingRepository.save(posting);
-    return true;
+    return familyChanged;
   }
 
   /** JSON-LD 는 schema.org 열거값(`FULL_TIME`)을 준다. 목록의 한글 표기 분류기는 이를 모르므로 먼저 옮기고, 아니면 한글로 판정한다. */
