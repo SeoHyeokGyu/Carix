@@ -5,6 +5,7 @@ import com.zaxxer.hikari.HikariDataSource;
 import java.util.HashMap;
 import java.util.Map;
 import javax.sql.DataSource;
+import org.jspecify.annotations.NonNull;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.jdbc.autoconfigure.DataSourceProperties;
@@ -53,6 +54,18 @@ public class DataSourceConfig {
   @Bean(name = "writeDataSource")
   public DataSource writeDataSource(
       DataSourceProperties properties, HikariConfig writeHikariConfig) {
+    return getDataSource(properties, writeHikariConfig);
+  }
+
+  @Bean(name = "readOnlyDataSource")
+  public DataSource readOnlyDataSource(
+      DataSourceProperties properties, HikariConfig readOnlyHikariConfig) {
+    return getDataSource(properties, readOnlyHikariConfig);
+  }
+
+  @NonNull
+  private DataSource getDataSource(
+      DataSourceProperties properties, HikariConfig writeHikariConfig) {
     writeHikariConfig.setJdbcUrl(properties.determineUrl());
     writeHikariConfig.setUsername(properties.determineUsername());
     writeHikariConfig.setPassword(properties.determinePassword());
@@ -61,19 +74,6 @@ public class DataSourceConfig {
       writeHikariConfig.setDriverClassName(driverClassName);
     }
     return new HikariDataSource(writeHikariConfig);
-  }
-
-  @Bean(name = "readOnlyDataSource")
-  public DataSource readOnlyDataSource(
-      DataSourceProperties properties, HikariConfig readOnlyHikariConfig) {
-    readOnlyHikariConfig.setJdbcUrl(properties.determineUrl());
-    readOnlyHikariConfig.setUsername(properties.determineUsername());
-    readOnlyHikariConfig.setPassword(properties.determinePassword());
-    String driverClassName = properties.determineDriverClassName();
-    if (driverClassName != null && !driverClassName.isBlank()) {
-      readOnlyHikariConfig.setDriverClassName(driverClassName);
-    }
-    return new HikariDataSource(readOnlyHikariConfig);
   }
 
   @Bean

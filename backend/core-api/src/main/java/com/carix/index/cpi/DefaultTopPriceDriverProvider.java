@@ -1,5 +1,6 @@
 package com.carix.index.cpi;
 
+import com.carix.datasource.ReadOnlyRouting;
 import com.carix.expense.domain.ExpenseCategoryEnum;
 import com.carix.expense.dto.AppliedExpenseResponse;
 import com.carix.expense.service.AppliedExpenseService;
@@ -38,7 +39,10 @@ public class DefaultTopPriceDriverProvider implements TopPriceDriverProvider {
   // caller(SnapshotRecalculationService)의 트랜잭션에 참여하면(REQUIRED/REQUIRES_NEW 둘 다) 하위에서
   // 던진 예외가 그 트랜잭션을 rollback-only 로 표시해 버려, 여기서 잡아도 스냅샷 저장 커밋이
   // UnexpectedRollbackException 으로 깨진다. NOT_SUPPORTED 로 caller 트랜잭션을 잠깐 미뤄 둔다.
+  // 또한 @ReadOnlyRouting을 통해 트랜잭션이 중단된 조회 구간에서 쓰기 풀 커넥션이 소모되는 것을 원천 차단하고
+  // CarixReadOnlyPool을 사용하도록 라우팅한다.
   @Override
+  @ReadOnlyRouting
   @Transactional(propagation = Propagation.NOT_SUPPORTED)
   public Optional<TopPriceDriver> find(UUID userId, String baseYearMonth) {
     try {

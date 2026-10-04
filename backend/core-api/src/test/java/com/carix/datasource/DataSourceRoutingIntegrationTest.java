@@ -2,8 +2,10 @@ package com.carix.datasource;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.carix.index.TopPriceDriverProvider;
 import com.zaxxer.hikari.HikariDataSource;
 import java.sql.Connection;
+import java.util.UUID;
 import java.util.concurrent.Callable;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -13,11 +15,24 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.context.TestComponent;
+import org.springframework.context.annotation.Import;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
 
 @SpringBootTest
+@Import(DataSourceRoutingIntegrationTest.AnnotatedTestService.class)
 class DataSourceRoutingIntegrationTest {
+
+  @TestComponent
+  static class AnnotatedTestService {
+    @Autowired private RoutingDataSource routingDataSource;
+
+    @ReadOnlyRouting
+    public DataSourceType lookupWithAnnotation() {
+      return (DataSourceType) routingDataSource.determineCurrentLookupKey();
+    }
+  }
 
   @Autowired private DataSource dataSource;
 
@@ -32,6 +47,10 @@ class DataSourceRoutingIntegrationTest {
   @Autowired private RoutingDataSource routingDataSource;
 
   @Autowired private TransactionTemplate transactionTemplate;
+
+  @Autowired private TopPriceDriverProvider topPriceDriverProvider;
+
+  @Autowired private AnnotatedTestService annotatedTestService;
 
   @Test
   @DisplayName("쓰기 풀과 읽기 전용 풀이 각각 올바른 풀 이름과 설정으로 초기화된다")
@@ -144,6 +163,26 @@ class DataSourceRoutingIntegrationTest {
             throw new RuntimeException(e);
           }
           return null;
+        });
+  }
+
+  @Test
+  @DisplayName("@ReadOnlyRouting 선언 메서드는 CarixReadOnlyPool로 라우팅된다")
+  void testAnnotatedServiceRoutesToReadOnly() {
+    assertThat(annotatedTestService.lookupWithAnnotation()).isEqualTo(DataSourceType.READ_ONLY);
+  }
+
+  @Test
+  @DisplayName("쓰기 트랜잭션 중 DefaultTopPriceDriverProvider.find 호출 시 @ReadOnlyRouting에 의해 정상 격리 실행된다")
+  void topPriceDriverProviderRoutesToReadOnlyPool() {
+    transactionTemplate.execute(
+        status -> {
+          try (Connection conn = writeDataSource.getConnection()) {
+            topPriceDriverProvider.find(UUID.randomUUID(), "202607");
+            return null;
+          } catch (Exception e) {
+            throw new RuntimeException(e);
+          }
         });
   }
 }
