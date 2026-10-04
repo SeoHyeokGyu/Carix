@@ -210,12 +210,13 @@ export function IncomeVsPriceChart({ data }: IncomeVsPriceChartProps) {
             {purchasingPowerStatus && (
               <span
                 className={`rounded px-2 py-0.5 text-[11px] font-medium ${
-                  purchasingPowerStatus === "OK"
+                  purchasingPowerStatus === "OK" ||
+                  purchasingPowerStatus === "INSUFFICIENT_HISTORY"
                     ? "bg-carix-info/10 text-carix-info"
                     : "bg-carix-warning/10 text-carix-warning"
                 }`}
               >
-                {purchasingPowerStatus === "OK" ? "정상 산출" : "일부 지연"}
+                {statusBadgeLabel(purchasingPowerStatus)}
               </span>
             )}
           </div>
@@ -516,4 +517,11 @@ export function IncomeVsPriceChart({ data }: IncomeVsPriceChartProps) {
       </div>
     </div>
   );
+}
+
+/** 비교 기간이 짧은 달도 값은 있다 — 지연으로 읽히지 않게 따로 부른다. */
+function statusBadgeLabel(status: string): string {
+  if (status === "OK") return "정상 산출";
+  if (status === "INSUFFICIENT_HISTORY") return "비교 기간 짧음";
+  return "일부 지연";
 }

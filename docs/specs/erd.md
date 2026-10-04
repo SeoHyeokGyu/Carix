@@ -256,7 +256,7 @@ erDiagram
 > | `job_posting.position_level` | 직급 문자열. **잡코리아 원천에만 있다** — 사람인 행은 `null` 이라 절반 모수다. 경력 브래킷과 별개의 세 번째 연차 신호이지만 반쪽이라 그대로는 못 쓴다 |
 > | `job_posting.company_badge` | 잡코리아 전용 배지. 사람인 `null` |
 > | `job_posting.dedup_rule_version` | 중복제거 규칙 버전. 규칙을 바꿔 재집계할 때 어느 행이 옛 규칙 산물인지 가리려던 컬럼인데 읽는 코드가 없다 |
-> | `cpi_observation` 전체 | `collector` 가 적재하고 **`core-api` 에 읽는 코드가 0건이다.** 품목별 CPI 기반 PPI 본 엔진이 미착수라서다(개발 계획 `a2`). 첫 소비자는 `c12` 의 1위 품목 뱃지(`US-D1`)로 잡혀 있다 |
+> | `cpi_observation` 전체 | `collector` 가 적재하고 `core-api` 의 물가 기여도 뱃지(`c12`)와 구매력 지수 엔진(`a2`)이 읽는다 |
 >
 > **`wage_stat_observation.wage_median` 은 경력별 실측이 아니다.** KOSIS 연령대를 경력구간으로
 > 프록시한 값이고(`25~29세 → JUNIOR`, `WageStatIngestService.AGE_CODE_TO_EXPERIENCE_BRACKET`),

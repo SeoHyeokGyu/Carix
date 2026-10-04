@@ -24,7 +24,7 @@ import java.util.Set;
  * 만들었는지 규명하지 못했고 현재 코드 경로로는 재현되지 않는다. 원인을 지목할 수 없으니 계약이 모양을 거부한다.
  */
 public enum IndexValueContract {
-  /** 구매력 지수. 비교 기간이 12개월 미만이면 값이 100 단일점이고 상태가 {@code INSUFFICIENT_HISTORY} 다 (기능 명세 §4.3). */
+  /** 구매력 지수. 기준월부터 12개월 미만이면 상태가 {@code INSUFFICIENT_HISTORY} 이고 값은 그대로 있다 (기능 명세 §4.3). */
   PPI(
       EnumSet.of(
           IndexStatus.OK,

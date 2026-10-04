@@ -26,8 +26,8 @@ dashboard·expense·income·profile·scenario·skill 도메인 컨트롤러를 R
 
 지수 산출 계약(`com.carix.index`)은 소득/구매력 도메인과 스킬/시장가치 도메인이 각각 구현하고
 스냅샷·결정신호 엔진이 호출한다. `MarketValueIndexServiceImpl`(MVI),
-`IncomeCurrentSalaryProvider`(기준월 세전 연봉), `DefaultPurchasingPowerIndexProvider`(최초
-소득월 100 기준의 잠정 PPI)가 배선돼 있다. **품목별 CPI 기반 PPI 본 엔진은 아직 없다.**
+`IncomeCurrentSalaryProvider`(기준월 세전 연봉), `DefaultPurchasingPowerIndexProvider`(소득지수
+÷ 개인물가 지수, 품목별 CPI × 소비 가중치)가 배선돼 있다.
 `com.carix.index.stub` 은 구현 빈이 없을 때만 `NOT_AVAILABLE` 을 돌려주는 폴백으로 남아 있고,
 기동 로그에 어느 산출기가 스텁인지 남는다.
 

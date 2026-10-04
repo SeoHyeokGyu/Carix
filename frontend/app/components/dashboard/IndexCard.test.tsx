@@ -73,22 +73,22 @@ describe("IndexCard", () => {
     expect(screen.getByText("계산 대기")).toBeInTheDocument();
   });
 
-  // NOT_AVAILABLE 과 같은 "계산 대기" 라벨로 묶이지만, 매핑 표의 별도 키다 — 따로
-  // 두지 않으면 이 키가 지워지거나 잘못된 문구로 바뀌어도 타입 체크만 통과하고
-  // 아무 테스트도 못 잡는다.
-  it("계산 이력이 부족하면 계산 대기로 표시한다", () => {
+  // 값이 있는 상태다 — NOT_AVAILABLE 처럼 값을 숨기거나 "계산 대기"로 읽히면 안 된다.
+  it("비교 기간이 짧으면 값을 그리고 비교 기간 짧음으로 표시한다", () => {
     render(
       <IndexCard
         title="구매력 지수"
         index={{
-          value: null,
+          value: 98.0,
           changeFromLastMonth: null,
           status: null,
           indexStatus: "INSUFFICIENT_HISTORY",
         }}
       />,
     );
-    expect(screen.getByText("계산 대기")).toBeInTheDocument();
+    expect(screen.getByText("98.0")).toBeInTheDocument();
+    expect(screen.getByText("비교 기간 짧음")).toBeInTheDocument();
+    expect(screen.queryByText("계산 대기")).not.toBeInTheDocument();
   });
 
   it("footer 슬롯을 카드 하단에 렌더한다", () => {
