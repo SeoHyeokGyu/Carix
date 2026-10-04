@@ -1,49 +1,55 @@
 package com.carix.index;
 
-import com.carix.expense.repository.ExpenseHistoryRepository;
+import com.carix.expense.domain.WeightStatusEnum;
+import com.carix.expense.service.ExpenseWeightResolver;
+import com.carix.expense.service.MonthlyWeights;
 import com.carix.income.domain.IncomeHistory;
 import com.carix.income.repository.IncomeHistoryRepository;
+import com.carix.index.cpi.CategoryCpiRateService;
 import com.carix.index.dto.PpiResult;
 import com.carix.index.enums.ExpenseWeightStatus;
 import com.carix.index.enums.IndexStatus;
 import com.carix.snapshot.YearMonths;
 import java.math.BigDecimal;
+import java.math.MathContext;
 import java.math.RoundingMode;
-import java.time.LocalDate;
 import java.time.YearMonth;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.EnumSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * 구매력 지수(PPI) 기본 산출기.
- *
- * <p>Member A의 지출목적별 CPI 산출 엔진 배포 전까지, 사용자가 등록한 소득 이력({@code core.income_history})과 소비 이력({@code
- * core.expense_history})을 바탕으로 기준월(=100.0) 대비 구매력 지수를 도출합니다.
+ * 구매력 지수 = 소득지수 ÷ 개인물가 지수 × 100 (기능 명세 §12.2).
  *
  * <ul>
- *   <li>소득 이력이 전혀 없는 경우: {@link PpiResult#notAvailable(String)}
- *   <li>소득 이력이 존재하는 경우: 최초 소득월을 지수 기준월({@code indexBaseYearMonth})로 삼고, 소득 변동 비율에 따라 지수를 산출합니다.
- *   <li>기준월이거나 이력이 12개월 미만인 경우: {@link IndexStatus#INSUFFICIENT_HISTORY} 상태와 함께 지수 100.0을 보존합니다.
+ *   <li>기준월: 연봉이 처음 있는 달. 소비 가중치는 기본값이 항상 있다.
+ *   <li>개인물가: 기준월부터 그 달 소비 가중치로 가중한 카테고리 전월 대비 CPI 변화율을 누적한다.
+ *   <li>현재월 CPI 가 아직 없으면 허용 시차({@link CategoryCpiRateService#MAX_LAG_MONTHS}) 안의 마지막 CPI 월까지 누적하고
+ *       {@code cpiAsOf} 로 밝힌다. 없는 달의 물가를 지어내지 않는다.
+ *   <li>연봉이 1건이어도 계산한다 — 연봉이 그대로면 물가만큼 내려간다. 12개월 미만은 값이 있고 상태가 비교 기간 짧음이다.
  * </ul>
  */
-@Slf4j
 @Service
 @RequiredArgsConstructor
 public class DefaultPurchasingPowerIndexProvider implements PurchasingPowerIndexProvider {
 
   private static final DateTimeFormatter YM = DateTimeFormatter.ofPattern("yyyyMM");
-  private static final BigDecimal BASE_INDEX = new BigDecimal("100.0");
+  private static final BigDecimal HUNDRED = new BigDecimal("100");
+  private static final int FULL_HISTORY_MONTHS = 12;
 
   private final IncomeHistoryRepository incomeHistoryRepository;
-  private final ExpenseHistoryRepository expenseHistoryRepository;
+  private final ExpenseWeightResolver expenseWeightResolver;
+  private final CategoryCpiRateService categoryCpiRateService;
 
   @Override
   @Transactional(readOnly = true)
@@ -51,66 +57,117 @@ public class DefaultPurchasingPowerIndexProvider implements PurchasingPowerIndex
     if (userId == null || baseYearMonth == null || baseYearMonth.length() != 6) {
       return PpiResult.notAvailable(baseYearMonth);
     }
-
+    YearMonth target = YearMonth.parse(baseYearMonth, YM);
     List<IncomeHistory> histories =
         incomeHistoryRepository.findByUserIdOrderByEffectiveDateDesc(userId);
-
-    if (histories.isEmpty()) {
-      return PpiResult.notAvailable(baseYearMonth);
-    }
-
-    YearMonth targetYm = YearMonth.parse(baseYearMonth, YM);
-    LocalDate endOfMonth = targetYm.atEndOfMonth();
-
-    // 기준월 시점 이전의 유효한 최근 연봉
-    Optional<IncomeHistory> currentOpt =
-        histories.stream().filter(h -> !h.getEffectiveDate().isAfter(endOfMonth)).findFirst();
-
-    if (currentOpt.isEmpty()
-        || currentOpt.get().getGrossSalary() == null
-        || currentOpt.get().getGrossSalary() <= 0) {
-      return PpiResult.notAvailable(baseYearMonth);
-    }
-
-    IncomeHistory currentIncome = currentOpt.get();
-
-    // 사용자의 가장 오래된(최초) 소득 이력을 기준월로 설정
-    IncomeHistory baseIncome =
+    Optional<IncomeHistory> current =
         histories.stream()
-            .min(Comparator.comparing(IncomeHistory::getEffectiveDate))
-            .orElse(currentIncome);
-
-    String indexBaseYm = YearMonths.of(baseIncome.getEffectiveDate());
-    YearMonth baseYm = YearMonth.parse(indexBaseYm, YM);
-
-    // 소비 가중치 출처 확인 (해당 사용자에게 등록된 소비 내역이 있으면 USER_DEFINED, 없으면 DEFAULT_CPI)
-    boolean hasCustomExpense =
-        !expenseHistoryRepository.findByUserIdOrderByBaseYearMonthDesc(userId).isEmpty();
-    ExpenseWeightStatus weightStatus =
-        hasCustomExpense ? ExpenseWeightStatus.USER_DEFINED : ExpenseWeightStatus.DEFAULT_CPI;
-
-    long monthsBetween = ChronoUnit.MONTHS.between(baseYm, targetYm);
-    IndexStatus status = monthsBetween >= 12 ? IndexStatus.OK : IndexStatus.INSUFFICIENT_HISTORY;
-
-    BigDecimal ppiValue;
-    if (baseIncome.getGrossSalary() == null
-        || baseIncome.getGrossSalary() <= 0
-        || baseYm.equals(targetYm)) {
-      ppiValue = BASE_INDEX;
-    } else {
-      // (현재 세전 연봉 / 기준 세전 연봉) * 100.0
-      double ratio =
-          ((double) currentIncome.getGrossSalary() / (double) baseIncome.getGrossSalary()) * 100.0;
-      ppiValue = BigDecimal.valueOf(ratio).setScale(1, RoundingMode.HALF_UP);
+            .filter(h -> !h.getEffectiveDate().isAfter(target.atEndOfMonth()))
+            .findFirst();
+    if (current.isEmpty()) {
+      return PpiResult.notAvailable(baseYearMonth);
     }
-
-    // 기준 연봉이 현재 연봉의 2000배를 넘으면 비율이 setScale(1) 에서 0.0 으로 접힌다. 기준 100 지수에서 0 은
-    // 도메인 정의서가 금지한 임의 수치라 값으로 내지 않는다 (MVI 가중합 0 과 같은 처리).
-    if (ppiValue.signum() <= 0) {
+    IncomeHistory base =
+        histories.stream().min(Comparator.comparing(IncomeHistory::getEffectiveDate)).orElseThrow();
+    Optional<BigDecimal> incomeRatio = incomeRatio(base, current.get());
+    if (incomeRatio.isEmpty()) {
       return PpiResult.notAvailable(baseYearMonth);
     }
 
+    Optional<String> latestCpi = categoryCpiRateService.latestCpiMonth(baseYearMonth);
+    if (latestCpi.isEmpty()
+        || YearMonth.parse(latestCpi.get(), YM)
+            .isBefore(target.minusMonths(CategoryCpiRateService.MAX_LAG_MONTHS))) {
+      return delayed(baseYearMonth);
+    }
+
+    String baseYm = YearMonths.of(base.getEffectiveDate());
+    String cpiEnd = min(latestCpi.get(), baseYearMonth);
+    List<String> months = monthsBetween(baseYm, baseYearMonth);
+    Map<String, MonthlyWeights> weights = expenseWeightResolver.resolveMonths(userId, months);
+    Optional<BigDecimal> priceIndex =
+        cpiEnd.compareTo(baseYm) <= 0
+            ? Optional.of(BigDecimal.ONE)
+            : PersonalPriceIndexCalculator.accumulate(
+                baseYm, cpiEnd, categoryCpiRateService.monthOverMonth(baseYm, cpiEnd), weights);
+    if (priceIndex.isEmpty()) {
+      return PpiResult.notAvailable(baseYearMonth);
+    }
+
+    BigDecimal value =
+        incomeRatio
+            .get()
+            .divide(priceIndex.get(), MathContext.DECIMAL64)
+            .multiply(HUNDRED)
+            .setScale(1, RoundingMode.HALF_UP);
+    if (value.signum() <= 0) {
+      return PpiResult.notAvailable(baseYearMonth);
+    }
+    long elapsed = ChronoUnit.MONTHS.between(YearMonth.parse(baseYm, YM), target);
+    IndexStatus status =
+        elapsed >= FULL_HISTORY_MONTHS ? IndexStatus.OK : IndexStatus.INSUFFICIENT_HISTORY;
     return new PpiResult(
-        baseYearMonth, ppiValue, status, weightStatus, indexBaseYm, LocalDate.now());
+        baseYearMonth,
+        value,
+        status,
+        rollup(weights.get(baseYearMonth)),
+        baseYm,
+        YearMonth.parse(min(cpiEnd, baseYearMonth), YM).atEndOfMonth());
+  }
+
+  /** 기준·현재 둘 다 실수령액이 있으면 실수령액, 아니면 둘 다 세전. 한쪽만 섞으면 세율 차이가 구매력 변화로 읽힌다. */
+  private static Optional<BigDecimal> incomeRatio(IncomeHistory base, IncomeHistory current) {
+    boolean net = positive(base.getNetSalary()) && positive(current.getNetSalary());
+    Long from = net ? base.getNetSalary() : base.getGrossSalary();
+    Long to = net ? current.getNetSalary() : current.getGrossSalary();
+    if (!positive(from) || !positive(to)) {
+      return Optional.empty();
+    }
+    return Optional.of(
+        BigDecimal.valueOf(to).divide(BigDecimal.valueOf(from), MathContext.DECIMAL64));
+  }
+
+  private static boolean positive(Long amount) {
+    return amount != null && amount > 0;
+  }
+
+  private static ExpenseWeightStatus rollup(MonthlyWeights weights) {
+    Set<WeightStatusEnum> statuses = EnumSet.noneOf(WeightStatusEnum.class);
+    statuses.addAll(weights.statuses().values());
+    if (statuses.size() != 1) {
+      return ExpenseWeightStatus.PARTIALLY_ESTIMATED;
+    }
+    return switch (statuses.iterator().next()) {
+      case USER_DEFINED -> ExpenseWeightStatus.USER_DEFINED;
+      case PROPAGATED -> ExpenseWeightStatus.PROPAGATED;
+      case DEFAULT_CPI -> ExpenseWeightStatus.DEFAULT_CPI;
+    };
+  }
+
+  private static PpiResult delayed(String baseYearMonth) {
+    return new PpiResult(
+        baseYearMonth,
+        null,
+        IndexStatus.UPDATE_DELAYED,
+        ExpenseWeightStatus.DEFAULT_CPI,
+        null,
+        null);
+  }
+
+  /** {@code [from, to]} 의 각 달. {@code to < from} 이면 {@code to} 하나. */
+  private static List<String> monthsBetween(String from, String to) {
+    List<String> months = new ArrayList<>();
+    YearMonth end = YearMonth.parse(to, YM);
+    for (YearMonth m = YearMonth.parse(from, YM); !m.isAfter(end); m = m.plusMonths(1)) {
+      months.add(YM.format(m));
+    }
+    if (months.isEmpty()) {
+      months.add(to);
+    }
+    return months;
+  }
+
+  private static String min(String a, String b) {
+    return a.compareTo(b) <= 0 ? a : b;
   }
 }

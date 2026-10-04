@@ -1,20 +1,32 @@
 package com.carix.index;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
 
-import com.carix.expense.domain.ExpenseHistory;
-import com.carix.expense.repository.ExpenseHistoryRepository;
+import com.carix.expense.domain.ExpenseCategoryEnum;
+import com.carix.expense.domain.WeightStatusEnum;
+import com.carix.expense.service.ExpenseWeightResolver;
+import com.carix.expense.service.MonthlyWeights;
 import com.carix.income.domain.IncomeHistory;
 import com.carix.income.repository.IncomeHistoryRepository;
+import com.carix.index.cpi.CategoryCpiRateService;
 import com.carix.index.dto.PpiResult;
 import com.carix.index.enums.ExpenseWeightStatus;
 import com.carix.index.enums.IndexStatus;
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.util.Collections;
+import java.time.YearMonth;
+import java.time.format.DateTimeFormatter;
+import java.util.EnumMap;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.TreeMap;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -22,112 +34,223 @@ import org.junit.jupiter.api.Test;
 
 class DefaultPurchasingPowerIndexProviderTest {
 
-  private IncomeHistoryRepository incomeHistoryRepository;
-  private ExpenseHistoryRepository expenseHistoryRepository;
-  private DefaultPurchasingPowerIndexProvider provider;
+  private static final DateTimeFormatter YM = DateTimeFormatter.ofPattern("yyyyMM");
   private final UUID userId = UUID.randomUUID();
+
+  private IncomeHistoryRepository incomeRepository;
+  private ExpenseWeightResolver weightResolver;
+  private CategoryCpiRateService cpiRates;
+  private DefaultPurchasingPowerIndexProvider provider;
 
   @BeforeEach
   void setUp() {
-    incomeHistoryRepository = mock(IncomeHistoryRepository.class);
-    expenseHistoryRepository = mock(ExpenseHistoryRepository.class);
-    provider =
-        new DefaultPurchasingPowerIndexProvider(incomeHistoryRepository, expenseHistoryRepository);
+    incomeRepository = mock(IncomeHistoryRepository.class);
+    weightResolver = mock(ExpenseWeightResolver.class);
+    cpiRates = mock(CategoryCpiRateService.class);
+    provider = new DefaultPurchasingPowerIndexProvider(incomeRepository, weightResolver, cpiRates);
+    givenWeights(WeightStatusEnum.DEFAULT_CPI);
+  }
+
+  private void givenIncomes(IncomeHistory... incomes) {
+    List<IncomeHistory> desc =
+        java.util.Arrays.stream(incomes)
+            .sorted((a, b) -> b.getEffectiveDate().compareTo(a.getEffectiveDate()))
+            .toList();
+    given(incomeRepository.findByUserIdOrderByEffectiveDateDesc(userId)).willReturn(desc);
+  }
+
+  private IncomeHistory income(String date, long gross, Long net) {
+    return new IncomeHistory(userId, gross, net, LocalDate.parse(date), null);
+  }
+
+  /** {@code (from, to]} 매달 모든 카테고리 같은 변화율, 최신 CPI 월은 {@code to}. */
+  private void givenCpi(String from, String to, String monthlyRate) {
+    Map<String, Map<ExpenseCategoryEnum, BigDecimal>> rates = new TreeMap<>();
+    for (YearMonth m = YearMonth.parse(from, YM).plusMonths(1);
+        !m.isAfter(YearMonth.parse(to, YM));
+        m = m.plusMonths(1)) {
+      Map<ExpenseCategoryEnum, BigDecimal> r = new EnumMap<>(ExpenseCategoryEnum.class);
+      for (ExpenseCategoryEnum c : ExpenseCategoryEnum.values()) {
+        r.put(c, new BigDecimal(monthlyRate));
+      }
+      rates.put(YM.format(m), r);
+    }
+    given(cpiRates.latestCpiMonth(anyString())).willReturn(Optional.of(to));
+    given(cpiRates.monthOverMonth(anyString(), anyString())).willReturn(rates);
+  }
+
+  /** 모든 달 같은 상태, 균등 가중치. */
+  private void givenWeights(WeightStatusEnum status) {
+    given(weightResolver.resolveMonths(any(), anyList()))
+        .willAnswer(
+            inv -> {
+              Map<String, MonthlyWeights> out = new LinkedHashMap<>();
+              for (String ym : inv.<List<String>>getArgument(1)) {
+                out.put(ym, uniform(status));
+              }
+              return out;
+            });
+  }
+
+  private static MonthlyWeights uniform(WeightStatusEnum status) {
+    Map<ExpenseCategoryEnum, BigDecimal> w = new EnumMap<>(ExpenseCategoryEnum.class);
+    Map<ExpenseCategoryEnum, WeightStatusEnum> s = new EnumMap<>(ExpenseCategoryEnum.class);
+    for (ExpenseCategoryEnum c : ExpenseCategoryEnum.values()) {
+      w.put(c, new BigDecimal("0.1666666667"));
+      s.put(c, status);
+    }
+    return new MonthlyWeights(w, s);
   }
 
   @Test
-  @DisplayName("userId 또는 baseYearMonth가 유효하지 않으면 NOT_AVAILABLE")
-  void invalidInput_returnsNotAvailable() {
+  @DisplayName("입력이 유효하지 않거나 연봉 이력이 없으면 NOT_AVAILABLE")
+  void notAvailable() {
     assertThat(provider.calculate(null, "202607").status()).isEqualTo(IndexStatus.NOT_AVAILABLE);
-    assertThat(provider.calculate(userId, null).status()).isEqualTo(IndexStatus.NOT_AVAILABLE);
     assertThat(provider.calculate(userId, "2026-07").status()).isEqualTo(IndexStatus.NOT_AVAILABLE);
+    givenIncomes();
+    assertThat(provider.calculate(userId, "202607").value()).isNull();
   }
 
   @Test
-  @DisplayName("소득 이력이 없으면 NOT_AVAILABLE 반환")
-  void noIncomeHistory_returnsNotAvailable() {
-    given(incomeHistoryRepository.findByUserIdOrderByEffectiveDateDesc(userId))
-        .willReturn(Collections.emptyList());
+  @DisplayName("기준월은 100.0 · INSUFFICIENT_HISTORY 이고 기준월이 첫 연봉 달이다")
+  void baseMonth() {
+    givenIncomes(income("2026-02-01", 60_000_000L, null));
+    givenCpi("202602", "202602", "0.01");
 
-    PpiResult result = provider.calculate(userId, "202607");
-    assertThat(result.status()).isEqualTo(IndexStatus.NOT_AVAILABLE);
-    assertThat(result.value()).isNull();
+    PpiResult r = provider.calculate(userId, "202602");
+
+    assertThat(r.value()).isEqualByComparingTo("100.0");
+    assertThat(r.status()).isEqualTo(IndexStatus.INSUFFICIENT_HISTORY);
+    assertThat(r.indexBaseYearMonth()).isEqualTo("202602");
   }
 
   @Test
-  @DisplayName("소득 이력이 1건인 초기 상태에서는 기준월 100.0 및 INSUFFICIENT_HISTORY 반환")
-  void singleIncomeHistory_returnsBase100AndInsufficientHistory() {
-    IncomeHistory income =
-        new IncomeHistory(userId, 60_000_000L, 48_000_000L, LocalDate.of(2026, 7, 1), null);
+  @DisplayName("연봉 1건이어도 물가가 오르면 100 아래다")
+  void singleIncome_pricesRise_valueBelow100() {
+    givenIncomes(income("2026-02-01", 60_000_000L, null));
+    givenCpi("202602", "202604", "0.01");
 
-    given(incomeHistoryRepository.findByUserIdOrderByEffectiveDateDesc(userId))
-        .willReturn(List.of(income));
-    given(expenseHistoryRepository.findByUserIdOrderByBaseYearMonthDesc(userId))
-        .willReturn(Collections.emptyList());
+    PpiResult r = provider.calculate(userId, "202604");
 
-    PpiResult result = provider.calculate(userId, "202607");
-
-    assertThat(result.status()).isEqualTo(IndexStatus.INSUFFICIENT_HISTORY);
-    assertThat(result.value()).isEqualTo(new BigDecimal("100.0"));
-    assertThat(result.weightStatus()).isEqualTo(ExpenseWeightStatus.DEFAULT_CPI);
-    assertThat(result.indexBaseYearMonth()).isEqualTo("202607");
+    // 100 ÷ 1.0201 = 98.03
+    assertThat(r.value()).isEqualByComparingTo("98.0");
+    assertThat(r.status()).isEqualTo(IndexStatus.INSUFFICIENT_HISTORY);
   }
 
   @Test
-  @DisplayName("소비 내역이 등록되어 있으면 USER_DEFINED 반환")
-  void hasExpenseHistory_returnsUserDefined() {
-    IncomeHistory income =
-        new IncomeHistory(userId, 60_000_000L, 48_000_000L, LocalDate.of(2026, 7, 1), null);
-    ExpenseHistory expense = new ExpenseHistory(userId, "202607");
+  @DisplayName("연봉이 물가보다 더 오르면 100 위다")
+  void raiseBeatsInflation() {
+    givenIncomes(income("2026-02-01", 60_000_000L, null), income("2026-04-01", 63_000_000L, null));
+    givenCpi("202602", "202604", "0.01");
 
-    given(incomeHistoryRepository.findByUserIdOrderByEffectiveDateDesc(userId))
-        .willReturn(List.of(income));
-    given(expenseHistoryRepository.findByUserIdOrderByBaseYearMonthDesc(userId))
-        .willReturn(List.of(expense));
-
-    PpiResult result = provider.calculate(userId, "202607");
-
-    assertThat(result.weightStatus()).isEqualTo(ExpenseWeightStatus.USER_DEFINED);
+    // 105 ÷ 1.0201 = 102.93
+    assertThat(provider.calculate(userId, "202604").value()).isEqualByComparingTo("102.9");
   }
 
   @Test
-  @DisplayName("12개월 이상 경과 후 연봉 상승 시 변동 지수 및 OK 상태 반환")
-  void salaryIncreasedOver12Months_returnsCalculatedPpiAndOk() {
-    IncomeHistory base =
-        new IncomeHistory(userId, 50_000_000L, 40_000_000L, LocalDate.of(2025, 1, 1), null);
-    IncomeHistory current =
-        new IncomeHistory(userId, 60_000_000L, 48_000_000L, LocalDate.of(2026, 7, 1), null);
+  @DisplayName("기준월부터 12개월이 지나면 OK")
+  void twelveMonths_ok() {
+    givenIncomes(income("2025-02-01", 60_000_000L, null));
+    givenCpi("202502", "202602", "0");
 
-    given(incomeHistoryRepository.findByUserIdOrderByEffectiveDateDesc(userId))
-        .willReturn(List.of(current, base));
-    given(expenseHistoryRepository.findByUserIdOrderByBaseYearMonthDesc(userId))
-        .willReturn(Collections.emptyList());
-
-    PpiResult result = provider.calculate(userId, "202607");
-
-    assertThat(result.status()).isEqualTo(IndexStatus.OK);
-    // (60,000,000 / 50,000,000) * 100.0 = 120.0
-    assertThat(result.value()).isEqualTo(new BigDecimal("120.0"));
-    assertThat(result.indexBaseYearMonth()).isEqualTo("202501");
+    assertThat(provider.calculate(userId, "202601").status())
+        .isEqualTo(IndexStatus.INSUFFICIENT_HISTORY);
+    assertThat(provider.calculate(userId, "202602").status()).isEqualTo(IndexStatus.OK);
   }
 
   @Test
-  @DisplayName("비율이 소수점 첫째 자리에서 0.0 으로 접히면 값이 아니라 NOT_AVAILABLE 이다")
-  void ratioRoundingToZero_returnsNotAvailable() {
-    // 기준 1억, 현재 1원. @PositiveOrZero 라 입력으로 도달 가능하다. setScale(1, HALF_UP) 이 0.0 을 만드는데
-    // 기준 100 지수에서 0 은 값이 아니다 — 값으로 내면 IndexValueContract 가 쓰기를 막아 소득 저장이 500 이 된다.
-    IncomeHistory base =
-        new IncomeHistory(userId, 100_000_000L, 40_000_000L, LocalDate.of(2025, 1, 1), null);
-    IncomeHistory current = new IncomeHistory(userId, 1L, 1L, LocalDate.of(2026, 7, 1), null);
+  @DisplayName("현재월 CPI 가 없으면 허용 시차 안의 마지막 CPI 월까지 누적하고 cpiAsOf 가 그 달 말일이다")
+  void currentMonthWithoutCpi_usesLastCpiMonth() {
+    givenIncomes(income("2026-02-01", 60_000_000L, null));
+    givenCpi("202602", "202609", "0");
 
-    given(incomeHistoryRepository.findByUserIdOrderByEffectiveDateDesc(userId))
-        .willReturn(List.of(current, base));
-    given(expenseHistoryRepository.findByUserIdOrderByBaseYearMonthDesc(userId))
-        .willReturn(Collections.emptyList());
+    PpiResult r = provider.calculate(userId, "202610");
 
-    PpiResult result = provider.calculate(userId, "202607");
+    assertThat(r.value()).isEqualByComparingTo("100.0");
+    assertThat(r.cpiAsOf()).isEqualTo(LocalDate.of(2026, 9, 30));
+  }
 
-    assertThat(result.value()).isNull();
-    assertThat(result.status()).isEqualTo(IndexStatus.NOT_AVAILABLE);
+  @Test
+  @DisplayName("CPI 가 허용 시차보다 늦으면 UPDATE_DELAYED, 값 없음")
+  void cpiTooOld_updateDelayed() {
+    givenIncomes(income("2026-02-01", 60_000_000L, null));
+    givenCpi("202602", "202607", "0");
+
+    PpiResult r = provider.calculate(userId, "202610");
+
+    assertThat(r.status()).isEqualTo(IndexStatus.UPDATE_DELAYED);
+    assertThat(r.value()).isNull();
+  }
+
+  @Test
+  @DisplayName("첫 연봉이 최신 CPI 월보다 뒤면 누적 구간이 비어 100 이다")
+  void baseAfterLastCpi_returns100() {
+    givenIncomes(income("2026-10-01", 60_000_000L, null));
+    givenCpi("202609", "202609", "0.01");
+
+    PpiResult r = provider.calculate(userId, "202610");
+
+    assertThat(r.value()).isEqualByComparingTo("100.0");
+    assertThat(r.indexBaseYearMonth()).isEqualTo("202610");
+  }
+
+  @Test
+  @DisplayName("구간 안 CPI 카테고리가 빠지면 NOT_AVAILABLE")
+  void missingCpiCategory_notAvailable() {
+    givenIncomes(income("2026-02-01", 60_000_000L, null));
+    given(cpiRates.latestCpiMonth(anyString())).willReturn(Optional.of("202604"));
+    given(cpiRates.monthOverMonth(anyString(), anyString())).willReturn(Map.of());
+
+    assertThat(provider.calculate(userId, "202604").status()).isEqualTo(IndexStatus.NOT_AVAILABLE);
+  }
+
+  @Test
+  @DisplayName("실수령액이 양쪽 다 있으면 실수령액으로 비교한다")
+  void netOnBothSides_usesNet() {
+    givenIncomes(
+        income("2026-02-01", 60_000_000L, 48_000_000L),
+        income("2026-03-01", 60_000_000L, 50_400_000L));
+    givenCpi("202602", "202603", "0");
+
+    assertThat(provider.calculate(userId, "202603").value()).isEqualByComparingTo("105.0");
+  }
+
+  @Test
+  @DisplayName("실수령액이 한쪽에만 있으면 둘 다 세전으로 비교한다")
+  void netOnlyOnOneSide_fallsBackToGross() {
+    givenIncomes(
+        income("2026-02-01", 60_000_000L, null), income("2026-03-01", 60_000_000L, 40_000_000L));
+    givenCpi("202602", "202603", "0");
+
+    assertThat(provider.calculate(userId, "202603").value()).isEqualByComparingTo("100.0");
+  }
+
+  @Test
+  @DisplayName("가중치 출처는 대상월 카테고리 상태의 롤업이다")
+  void weightStatusRollup() {
+    givenIncomes(income("2026-02-01", 60_000_000L, null));
+    givenCpi("202602", "202603", "0");
+
+    givenWeights(WeightStatusEnum.USER_DEFINED);
+    assertThat(provider.calculate(userId, "202603").weightStatus())
+        .isEqualTo(ExpenseWeightStatus.USER_DEFINED);
+    givenWeights(WeightStatusEnum.PROPAGATED);
+    assertThat(provider.calculate(userId, "202603").weightStatus())
+        .isEqualTo(ExpenseWeightStatus.PROPAGATED);
+
+    given(weightResolver.resolveMonths(any(), anyList()))
+        .willAnswer(
+            inv -> {
+              Map<String, MonthlyWeights> out = new LinkedHashMap<>();
+              for (String ym : inv.<List<String>>getArgument(1)) {
+                MonthlyWeights u = uniform(WeightStatusEnum.USER_DEFINED);
+                Map<ExpenseCategoryEnum, WeightStatusEnum> s = new EnumMap<>(u.statuses());
+                s.put(ExpenseCategoryEnum.LEISURE, WeightStatusEnum.DEFAULT_CPI);
+                out.put(ym, new MonthlyWeights(u.weights(), s));
+              }
+              return out;
+            });
+    assertThat(provider.calculate(userId, "202603").weightStatus())
+        .isEqualTo(ExpenseWeightStatus.PARTIALLY_ESTIMATED);
   }
 }
