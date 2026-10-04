@@ -272,7 +272,8 @@
     `INSUFFICIENT_HISTORY` / `NOT_AVAILABLE` (`com.carix.index.enums.IndexStatus`).
     **0 이나 100 으로 채우지 않는다** ([API 규격 §5.1](api-specification.md),
     `index_snapshot.purchasing_power_index` DDL 주석). 위 예시는 PPI 는 산출됐고 MVI 는 표본이
-    부족한 경우다. 화면은 `indexStatus`로 카드별 뱃지를 그린다 ([기능 명세 §5](functional-specification.md)).
+    부족한 경우다. 값이 있는 상태는 `OK` 와 `INSUFFICIENT_HISTORY`(구매력 지수 기준월부터 12개월 미만 —
+    값과 함께 실린다) 둘뿐이다. 화면은 `indexStatus`로 카드별 뱃지를 그린다 ([기능 명세 §5](functional-specification.md)).
 
 ### 5.2 동료집단 연봉 분포
 *   **Endpoint:** `GET /api/v1/dashboard/salary-distribution`

@@ -86,8 +86,9 @@ public class DashboardSummaryService {
   /**
    * 지수 한 건.
    *
-   * <p><b>값이 있으면 상태는 항상 {@code OK} 다.</b> 저장된 상태를 그대로 실으면 {@code UPDATE_DELAYED} + 값 있음이 도달 가능해지는데,
-   * 프런트 {@code lib/api/dashboard.ts} 가 "{@code OK} 가 아니면 값은 항상 {@code null}" 을 계약으로 문서화했다.
+   * <p><b>값이 있으면 상태는 값을 갖는 상태({@code OK}·{@code INSUFFICIENT_HISTORY})다.</b> 구매력 지수의 비교 기간 짧음은 값과
+   * 함께 실어 화면이 뱃지를 그리게 한다. 값을 갖지 않는 상태(예: {@code UPDATE_DELAYED})가 값과 함께 저장된 옛 행은 {@code OK} 로 접는다 —
+   * 프런트 {@code lib/api/dashboard.ts} 계약이 "그 둘이 아니면 값은 {@code null}" 이다.
    */
   private IndexDetail detail(BigDecimal value, BigDecimal previousValue, IndexStatus storedStatus) {
     if (value == null) {
@@ -104,8 +105,11 @@ public class DashboardSummaryService {
             ? null
             : value.subtract(previousValue).setScale(2, RoundingMode.HALF_UP).doubleValue();
 
-    return new IndexDetail(
-        value.doubleValue(), change, direction(change), IndexStatus.OK.name(), null);
+    IndexStatus status =
+        storedStatus != null && IndexValueContract.impliesValue(storedStatus)
+            ? storedStatus
+            : IndexStatus.OK;
+    return new IndexDetail(value.doubleValue(), change, direction(change), status.name(), null);
   }
 
   /** 전월이 없으면 방향도 없다. 0 을 넣으면 `변화 없음`으로 잘못 읽힌다. */

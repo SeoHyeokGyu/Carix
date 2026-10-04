@@ -71,7 +71,7 @@ export function IndexCard({
         {helpContent}
       </CardHeader>
       <CardContent className="p-0 flex flex-col gap-2">
-        {/* 값이 없으면(indexStatus !== "OK") 절대 0 이나 100 으로 채우지 않는다 — 아예 렌더링하지 않는다. */}
+        {/* 값이 없으면(OK·INSUFFICIENT_HISTORY 외) 절대 0 이나 100 으로 채우지 않는다 — 아예 렌더링하지 않는다. */}
         {value !== null && (
           <div className="flex flex-col gap-1">
             <div className="flex items-baseline gap-2">
