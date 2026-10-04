@@ -1,5 +1,6 @@
 package com.carix.index.owi;
 
+import com.carix.config.datasource.ReadOnlyRoutingContext;
 import com.carix.index.OpeningWindowIndexProvider;
 import com.carix.index.dto.OwiResult;
 import com.carix.index.enums.IndexStatus;
@@ -122,8 +123,13 @@ public class OpeningWindowIndexServiceImpl implements OpeningWindowIndexProvider
     // 가상 스레드(Virtual Thread) 기반 비동기 병렬 I/O 처리
     try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
       var marketFuture =
-          executor.submit(() -> getOrComputeMarketMedian(normalizedYm, monthStart, monthEnd));
-      var peerGroupFuture = executor.submit(() -> resolvePeerGroup(profile, monthStart, monthEnd));
+          executor.submit(
+              ReadOnlyRoutingContext.withReadOnlyCallable(
+                  () -> getOrComputeMarketMedian(normalizedYm, monthStart, monthEnd)));
+      var peerGroupFuture =
+          executor.submit(
+              ReadOnlyRoutingContext.withReadOnlyCallable(
+                  () -> resolvePeerGroup(profile, monthStart, monthEnd)));
 
       marketMedianWindowDays = marketFuture.get();
       peerGroup = peerGroupFuture.get();

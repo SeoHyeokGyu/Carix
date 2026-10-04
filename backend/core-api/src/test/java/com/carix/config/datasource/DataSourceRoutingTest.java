@@ -1,0 +1,113 @@
+package com.carix.config.datasource;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+import com.zaxxer.hikari.HikariDataSource;
+import java.sql.Connection;
+import java.util.concurrent.Callable;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import javax.sql.DataSource;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
+
+@SpringBootTest
+class DataSourceRoutingTest {
+
+  @Autowired private DataSource dataSource;
+
+  @Autowired
+  @Qualifier("writeDataSource")
+  private DataSource writeDataSource;
+
+  @Autowired
+  @Qualifier("readOnlyDataSource")
+  private DataSource readOnlyDataSource;
+
+  @Autowired private RoutingDataSource routingDataSource;
+
+  @Autowired private TransactionTemplate transactionTemplate;
+
+  @Test
+  @DisplayName("쓰기 풀과 읽기 전용 풀이 각각 올바른 풀 이름과 설정으로 초기화된다")
+  void verifyPoolProperties() {
+    assertThat(writeDataSource).isInstanceOf(HikariDataSource.class);
+    HikariDataSource writeHikari = (HikariDataSource) writeDataSource;
+    assertThat(writeHikari.getPoolName()).isEqualTo("CarixWritePool");
+    assertThat(writeHikari.isReadOnly()).isFalse();
+
+    assertThat(readOnlyDataSource).isInstanceOf(HikariDataSource.class);
+    HikariDataSource readOnlyHikari = (HikariDataSource) readOnlyDataSource;
+    assertThat(readOnlyHikari.getPoolName()).isEqualTo("CarixReadOnlyPool");
+    assertThat(readOnlyHikari.isReadOnly()).isTrue();
+  }
+
+  @Test
+  @DisplayName("ReadOnlyRoutingContext 설정 시 READ_ONLY 데이터소스로 라우팅된다")
+  void routesToReadOnlyWhenContextIsSet() {
+    ReadOnlyRoutingContext.setReadOnly(true);
+    try {
+      Object key = routingDataSource.determineCurrentLookupKey();
+      assertThat(key).isEqualTo(DataSourceType.READ_ONLY);
+    } finally {
+      ReadOnlyRoutingContext.clear();
+    }
+  }
+
+  @Test
+  @DisplayName("쓰기 트랜잭션에서는 WRITE 데이터소스로 라우팅된다")
+  void routesToWriteInWriteTransaction() {
+    transactionTemplate.execute(
+        status -> {
+          Object key = routingDataSource.determineCurrentLookupKey();
+          assertThat(key).isEqualTo(DataSourceType.WRITE);
+          return null;
+        });
+  }
+
+  @Test
+  @DisplayName("읽기 전용 트랜잭션에서는 READ_ONLY 데이터소스로 라우팅된다")
+  @Transactional(readOnly = true)
+  void routesToReadOnlyInReadOnlyTransaction() {
+    Object key = routingDataSource.determineCurrentLookupKey();
+    assertThat(key).isEqualTo(DataSourceType.READ_ONLY);
+  }
+
+  @Test
+  @DisplayName("가상 스레드에서 withReadOnlyCallable 실행 시 READ_ONLY 데이터소스로 라우팅된다")
+  void routesToReadOnlyInVirtualThreadWithContext() throws Exception {
+    try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
+      Callable<Object> task =
+          ReadOnlyRoutingContext.withReadOnlyCallable(
+              () -> routingDataSource.determineCurrentLookupKey());
+      Future<Object> future = executor.submit(task);
+      assertThat(future.get()).isEqualTo(DataSourceType.READ_ONLY);
+    }
+  }
+
+  @Test
+  @DisplayName("실제 연결 획득 시 읽기 전용 컨텍스트에서는 CarixReadOnlyPool 커넥션을 빌린다")
+  void obtainsConnectionFromReadOnlyPool() throws Exception {
+    HikariDataSource readOnlyHikari = (HikariDataSource) readOnlyDataSource;
+    HikariDataSource writeHikari = (HikariDataSource) writeDataSource;
+
+    int writeBefore = writeHikari.getHikariPoolMXBean().getActiveConnections();
+    int readBefore = readOnlyHikari.getHikariPoolMXBean().getActiveConnections();
+
+    ReadOnlyRoutingContext.setReadOnly(true);
+    try (Connection conn = routingDataSource.getConnection()) {
+      int writeActive = writeHikari.getHikariPoolMXBean().getActiveConnections();
+      int readActive = readOnlyHikari.getHikariPoolMXBean().getActiveConnections();
+
+      assertThat(writeActive).isEqualTo(writeBefore);
+      assertThat(readActive).isEqualTo(readBefore + 1);
+    } finally {
+      ReadOnlyRoutingContext.clear();
+    }
+  }
+}
