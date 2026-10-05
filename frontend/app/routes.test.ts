@@ -13,8 +13,8 @@ describe("라우트 설정 (routes)", () => {
     expect(routes.length).toBeGreaterThan(0);
 
     // home, login, register, protected 레이아웃(그 안에 onboarding/dashboard/mypage 3개가
-    // 중첩된다), 2개 관리자 라우트(admin/collector, admin/pipeline), 3개 개발 프리뷰 라우트
-    expect(routes).toHaveLength(9);
+    // 중첩된다), 4개 관리자 라우트(admin, admin/data-health, admin/collector, admin/pipeline), 3개 개발 프리뷰 라우트
+    expect(routes).toHaveLength(11);
   });
 
   it("관리자 콘솔 라우트와 별칭(admin/collector, admin/pipeline)이 동일한 화면 파일을 연결한다", () => {

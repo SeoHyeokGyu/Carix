@@ -940,3 +940,49 @@
           }
         ]
         ```
+
+### 8.8 데이터 상태 점검 조회
+*   `GET /internal/pipeline/health` — 세 질문(구매력·시장가치·결정 신호)에 온전히 답하는지와 고칠 곳을 판정하는 읽기 전용 점검 (관리자 콘솔 `/admin/data-health` 연동). 데이터를 바꾸지 않는다. 판정할 데이터가 없으면 정상이 아니라 `UNKNOWN`(판정 불가)이다.
+    *   **Response (200 OK):**
+        ```json
+        {
+          "evaluatedAt": "2026-10-05T18:00:00+09:00",
+          "referenceMonth": "202610",
+          "previousMonth": "202609",
+          "engineRuleVersion": "1.3.0",
+          "summary": {
+            "users": 3,
+            "fullyAnswered": 1,
+            "gaps": [ { "answer": "MVI", "reason": "INSUFFICIENT_SAMPLE", "users": 1 } ],
+            "verdictCounts": { "ERROR": 0, "WARN": 2, "OK": 9, "UNKNOWN": 0 }
+          },
+          "groups": [
+            {
+              "id": "PPI",
+              "title": "구매력 지수",
+              "question": "내 실질 구매력은?",
+              "checks": [
+                {
+                  "id": "CPI_LATEST",
+                  "title": "CPI 최신월",
+                  "verdict": "OK",
+                  "message": "최신 CPI 202609 (1개월 지연)",
+                  "impactUsers": 0,
+                  "action": null,
+                  "actionLink": null,
+                  "evidence": { "latestCpiMonth": "202609", "lagMonths": 1 }
+                }
+              ]
+            }
+          ]
+        }
+        ```
+    *   `groups[].id` 는 `PPI`·`MVI`·`DECISION`·`SUPPORT` 이고, `checks[].id` 는 `CPI_LATEST`·`CPI_GAP`·`SAMPLE_LAST_MONTH`·`SAMPLE_GAPS`·`AGGREGATE_STALE`·`PEER_SAMPLE_BY_FAMILY`·`WAGE_BASELINE`·`RULE_VERSION`·`SNAPSHOT_FRESHNESS`·`DECISION_QUALITY`·`CRAWL_FRESHNESS` 다. `verdict` 는 `OK`·`WARN`·`ERROR`·`UNKNOWN` 이다.
+    *   기준값은 collector 설정 `carix.collector.health.*`(`sample-target` 250, `sample-warn-ratio` 0.8, `cpi-max-lag-months` 2, `peer-min-sample` 10, `crawl-stale-days` 35)이다.
+
+### 8.9 엔진 규칙 버전 조회 (core-api)
+*   `GET /api/v1/meta/versions` — 결정 신호 엔진의 규칙 버전. 인증이 없고, collector 가 게이트웨이를 거치지 않고 서비스 간 호출로 읽어 8.8 의 `RULE_VERSION` 점검에 쓴다.
+    *   **Response (200 OK):**
+        ```json
+        { "ruleVersion": "1.3.0" }
+        ```

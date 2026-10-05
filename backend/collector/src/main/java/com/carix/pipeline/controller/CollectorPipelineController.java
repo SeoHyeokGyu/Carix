@@ -3,6 +3,7 @@ package com.carix.pipeline.controller;
 import com.carix.pipeline.dto.BackfillRequest;
 import com.carix.pipeline.dto.CpiRequest;
 import com.carix.pipeline.dto.CrawlRequest;
+import com.carix.pipeline.dto.DataHealthReport;
 import com.carix.pipeline.dto.JobExecutionResponse;
 import com.carix.pipeline.dto.JobStatusResponse;
 import com.carix.pipeline.dto.MarketAggregateRequest;
@@ -35,6 +36,17 @@ public class CollectorPipelineController {
 
   private final CollectorPipelineService pipelineService;
   private final com.carix.pipeline.service.MviCollectionPriorityService priorityService;
+  private final com.carix.pipeline.health.DataHealthService dataHealthService;
+
+  /**
+   * [GET /internal/pipeline/health] 데이터 상태 점검 — 세 질문(구매력·시장가치·결정 신호)에 온전히 답하고 있나. 읽기 전용.
+   *
+   * @return 그룹별 판정과 요약
+   */
+  @GetMapping("/health")
+  public ResponseEntity<DataHealthReport> health() {
+    return ResponseEntity.ok(dataHealthService.evaluate());
+  }
 
   /**
    * [POST /internal/pipeline/crawl] 외부 채용 포털 실시간 크롤링 비동기 실행.

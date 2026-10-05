@@ -35,7 +35,10 @@ class CollectorPipelineControllerTest {
     priorityService = mock(com.carix.pipeline.service.MviCollectionPriorityService.class);
     mockMvc =
         MockMvcBuilders.standaloneSetup(
-                new CollectorPipelineController(pipelineService, priorityService))
+                new CollectorPipelineController(
+                    pipelineService,
+                    priorityService,
+                    mock(com.carix.pipeline.health.DataHealthService.class)))
             .build();
   }
 

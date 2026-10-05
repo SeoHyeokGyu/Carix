@@ -278,3 +278,41 @@ export function fetchCollectionPriorities(
     },
   );
 }
+
+export type HealthVerdict = "OK" | "WARN" | "ERROR" | "UNKNOWN";
+
+export interface HealthCheck {
+  id: string;
+  title: string;
+  verdict: HealthVerdict;
+  message: string;
+  impactUsers: number | null;
+  action: string | null;
+  actionLink: string | null;
+  evidence: Record<string, unknown>;
+}
+
+export interface HealthGroup {
+  id: "PPI" | "MVI" | "DECISION" | "SUPPORT" | string;
+  title: string;
+  question: string;
+  checks: HealthCheck[];
+}
+
+export interface DataHealthReport {
+  evaluatedAt: string;
+  referenceMonth: string;
+  previousMonth: string;
+  engineRuleVersion: string | null;
+  summary: {
+    users: number;
+    fullyAnswered: number;
+    gaps: { answer: string; reason: string; users: number }[];
+    verdictCounts: Record<HealthVerdict, number>;
+  };
+  groups: HealthGroup[];
+}
+
+export function fetchDataHealth(): Promise<DataHealthReport> {
+  return request<DataHealthReport>("/health", { method: "GET" });
+}
