@@ -83,78 +83,59 @@ public class PeerGroupFallbackResolver {
   public static final String DIMENSION_ALL = "ALL";
 
   /**
-   * 단일 원천에 대해 2단계 완화를 수행한다 — 본인 경력 구간, 그다음 인접 구간.
+   * MVI 스킬 수요율의 동료집단 — 직무 × 경력 전체(지역·고용형태·규모 무관).
+   *
+   * <p>수요율은 경력 구간으로 나누지 않는다. 무작위 표본(잡코리아 월 250건)을 경력 넷으로 쪼개면 스킬별 건수가 한 자릿수로 떨어져 지수 잡음(±30~40%)이 판정
+   * 기준선 간격(5~20)을 넘는다. 「이 스킬의 수요가 늘었나」는 경력 구간마다 크게 다르지 않고, 경력이 갈라야 하는 건 연봉 기준선이다 — 그쪽은 {@link
+   * WageBaselineResolver} 가 경력 구간별로 잡는다.
    *
    * @param source 플랫폼 원천 (JOBKOREA, SARAMIN)
-   * @param profile 사용자 커리어 프로필 — 직무와 경력만 쓴다
+   * @param profile 사용자 커리어 프로필 — 직무만 쓴다
    * @param baseYearMonth 기준년월 (YYYYMM)
-   * @return 완화 해석 결과 (성공 시 안착 레벨 및 집계 행, 표본 부족 시 실패 상태)
+   * @return 해석 결과 (표본 부족 시 실패 상태)
    */
   public ResolvedPeerGroup resolveForSource(
       String source, CareerProfile profile, String baseYearMonth) {
 
     String jobFamily = defaultString(profile.getJobFamily(), "DEVELOPER");
-    int years = profile.getYearsOfExperience() != null ? profile.getYearsOfExperience() : 3;
-    String tier = mapExperienceBracket(years);
-    int minSampleSize = minSampleSize();
-
-    List<String> ownTiers = List.of(tier);
-    List<MarketAggregate> own = findAllDimensionRows(source, baseYearMonth, jobFamily, ownTiers);
-    if (sum(own) >= minSampleSize) {
-      return buildCompositeResolvedResult(source, 1, own, ownTiers);
+    List<String> allTiers = List.of(BRACKET_ALL);
+    List<MarketAggregate> rows =
+        marketAggregateRepository.findPeerGroupAggregatesByBrackets(
+            source,
+            baseYearMonth,
+            jobFamily,
+            DIMENSION_ALL,
+            allTiers,
+            DIMENSION_ALL,
+            DIMENSION_ALL);
+    if (sum(rows) >= minSampleSize()) {
+      return buildCompositeResolvedResult(source, 1, rows, allTiers);
     }
 
-    List<String> widenedTiers = getAdjacentBrackets(tier);
-    List<MarketAggregate> widened =
-        findAllDimensionRows(source, baseYearMonth, jobFamily, widenedTiers);
-    if (sum(widened) >= minSampleSize) {
-      return buildCompositeResolvedResult(source, 2, widened, widenedTiers);
-    }
-
-    int sampleCount = sum(widened);
+    int sampleCount = sum(rows);
     return ResolvedPeerGroup.builder()
         .source(source)
         .successful(false)
-        .fallbackLevel(2)
+        .fallbackLevel(1)
         .sampleCount(sampleCount)
         .coverage(
             new SourceCoverage(
                 source,
-                2,
+                1,
                 sampleCount,
                 false,
-                formatNationwideConditionText(widenedTiers),
+                formatNationwideConditionText(allTiers),
                 BigDecimal.valueOf(100.00)))
         .jobFamily(jobFamily)
         .region(DIMENSION_ALL)
-        .brackets(toCollectorBrackets(widenedTiers))
+        .brackets(allTiers)
         .employmentType(DIMENSION_ALL)
         .companySize(DIMENSION_ALL)
         .build();
   }
 
-  private List<MarketAggregate> findAllDimensionRows(
-      String source, String baseYearMonth, String jobFamily, List<String> tiers) {
-    return marketAggregateRepository.findPeerGroupAggregatesByBrackets(
-        source,
-        baseYearMonth,
-        jobFamily,
-        DIMENSION_ALL,
-        toCollectorBrackets(tiers),
-        DIMENSION_ALL,
-        DIMENSION_ALL);
-  }
-
   private static int sum(List<MarketAggregate> rows) {
     return rows.stream().mapToInt(MarketAggregate::getPostingCount).sum();
-  }
-
-  /**
-   * 3구간 경력을 collector 6구간 행으로 푼다. JUNIOR 는 ENTRY(0년)·JUNIOR(1~3년), SENIOR 는
-   * SENIOR(8~12년)·LEAD(13년+)를 합쳐야 「0~3년」「8년+」 문구와 표본이 맞는다.
-   */
-  public List<String> toCollectorBrackets(List<String> tiers) {
-    return BRACKET_6_ORDER.stream().filter(b -> tiers.contains(to3TierBracket(b))).toList();
   }
 
   /**
@@ -211,7 +192,7 @@ public class PeerGroupFallbackResolver {
         .coverage(coverage)
         .jobFamily(aggregates.get(0).getJobFamily())
         .region(DIMENSION_ALL)
-        .brackets(toCollectorBrackets(tiers))
+        .brackets(tiers)
         .employmentType(DIMENSION_ALL)
         .companySize(DIMENSION_ALL)
         .build();

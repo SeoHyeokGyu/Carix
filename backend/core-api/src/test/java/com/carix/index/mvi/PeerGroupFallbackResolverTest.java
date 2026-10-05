@@ -190,99 +190,63 @@ class PeerGroupFallbackResolverTest {
     return profile;
   }
 
-  @Test
-  @DisplayName("본인 경력 구간 표본이 충분하면 1단계 — 지역·고용형태·규모는 ALL 로 조회한다")
-  void ownTierQueriesAllDimensions() {
+  private void givenAllBracket(String month, int count) {
     when(marketAggregateRepository.findPeerGroupAggregatesByBrackets(
-            "JOBKOREA", "202607", "DEVELOPER", "ALL", List.of("MID"), "ALL", "ALL"))
-        .thenReturn(List.of(row("MID", 15)));
+            "JOBKOREA", month, "DEVELOPER", "ALL", List.of("ALL"), "ALL", "ALL"))
+        .thenReturn(List.of(row("ALL", count)));
+  }
+
+  @Test
+  @DisplayName("스킬 수요율은 직무 단위(경력 전체)로 잰다 — 지역·고용형태·규모도 ALL 이다")
+  void queriesJobFamilyAcrossAllBrackets() {
+    givenAllBracket("202607", 170);
 
     var result = resolver.resolveForSource("JOBKOREA", profile(5), "202607");
 
     assertThat(result.isSuccessful()).isTrue();
     assertThat(result.getFallbackLevel()).isEqualTo(1);
-    assertThat(result.getSampleCount()).isEqualTo(15);
+    assertThat(result.getSampleCount()).isEqualTo(170);
+    assertThat(result.getBrackets()).containsExactly("ALL");
     assertThat(result.getRegion()).isEqualTo("ALL");
     assertThat(result.getEmploymentType()).isEqualTo("ALL");
     assertThat(result.getCompanySize()).isEqualTo("ALL");
-    assertThat(result.getBrackets()).containsExactly("MID");
   }
 
   @Test
-  @DisplayName("비교 조건 문구는 프로필이 아니라 실제 조회 조건이다")
+  @DisplayName("비교 조건 문구는 실제 조회 조건이다 — 경력 전체")
   void conditionTextIsActualQuery() {
-    when(marketAggregateRepository.findPeerGroupAggregatesByBrackets(
-            "JOBKOREA", "202607", "DEVELOPER", "ALL", List.of("MID"), "ALL", "ALL"))
-        .thenReturn(List.of(row("MID", 15)));
+    givenAllBracket("202607", 170);
 
     var result = resolver.resolveForSource("JOBKOREA", profile(5), "202607");
 
-    assertThat(result.getCoverage().appliedConditions()).isEqualTo("전국 / 4~7년 / 회사규모 무관 / 고용형태 무관");
     assertThat(result.getCoverage().appliedConditions())
-        .doesNotContain("서울", "LARGE", "FULL_TIME", "MID");
+        .isEqualTo("전국 / 경력 전체 / 회사규모 무관 / 고용형태 무관");
+    assertThat(result.getCoverage().appliedConditions())
+        .doesNotContain("서울", "LARGE", "FULL_TIME", "MID", "4~7년");
   }
 
   @Test
-  @DisplayName("JUNIOR 는 수집 구간 ENTRY(0년)·JUNIOR(1~3년)를 합산한다")
-  void juniorSumsEntryAndJunior() {
-    when(marketAggregateRepository.findPeerGroupAggregatesByBrackets(
-            "JOBKOREA", "202607", "DEVELOPER", "ALL", List.of("ENTRY", "JUNIOR"), "ALL", "ALL"))
-        .thenReturn(List.of(row("ENTRY", 6), row("JUNIOR", 5)));
+  @DisplayName("경력이 달라도 같은 직무면 같은 동료집단이다")
+  void bracketDoesNotChangePeerGroup() {
+    givenAllBracket("202607", 170);
 
-    var result = resolver.resolveForSource("JOBKOREA", profile(2), "202607");
+    var junior = resolver.resolveForSource("JOBKOREA", profile(2), "202607");
+    var senior = resolver.resolveForSource("JOBKOREA", profile(10), "202607");
 
-    assertThat(result.isSuccessful()).isTrue();
-    assertThat(result.getFallbackLevel()).isEqualTo(1);
-    assertThat(result.getSampleCount()).isEqualTo(11);
-    assertThat(result.getBrackets()).containsExactly("ENTRY", "JUNIOR");
-    assertThat(result.getCoverage().appliedConditions()).contains("/ 0~3년 /");
+    assertThat(junior.getBrackets()).isEqualTo(senior.getBrackets()).containsExactly("ALL");
+    assertThat(junior.getSampleCount()).isEqualTo(senior.getSampleCount());
   }
 
   @Test
-  @DisplayName("SENIOR 는 수집 구간 SENIOR(8~12년)·LEAD(13년+)를 합산한다")
-  void seniorSumsSeniorAndLead() {
-    when(marketAggregateRepository.findPeerGroupAggregatesByBrackets(
-            "JOBKOREA", "202607", "DEVELOPER", "ALL", List.of("SENIOR", "LEAD"), "ALL", "ALL"))
-        .thenReturn(List.of(row("SENIOR", 7), row("LEAD", 4)));
+  @DisplayName("직무 전체도 표본이 부족하면 실패 — 단계는 1")
+  void failsWhenJobFamilyUnderSampled() {
+    givenAllBracket("202607", 4);
 
-    var result = resolver.resolveForSource("JOBKOREA", profile(10), "202607");
-
-    assertThat(result.getSampleCount()).isEqualTo(11);
-    assertThat(result.getBrackets()).containsExactly("SENIOR", "LEAD");
-  }
-
-  @Test
-  @DisplayName("본인 구간이 부족하면 2단계 — 인접 구간까지 넓히고 문구에 넓힌 범위를 쓴다")
-  void widensToAdjacentTiers() {
-    when(marketAggregateRepository.findPeerGroupAggregatesByBrackets(
-            "JOBKOREA", "202607", "DEVELOPER", "ALL", List.of("ENTRY", "JUNIOR"), "ALL", "ALL"))
-        .thenReturn(List.of(row("ENTRY", 2), row("JUNIOR", 3)));
-    when(marketAggregateRepository.findPeerGroupAggregatesByBrackets(
-            "JOBKOREA",
-            "202607",
-            "DEVELOPER",
-            "ALL",
-            List.of("ENTRY", "JUNIOR", "MID"),
-            "ALL",
-            "ALL"))
-        .thenReturn(List.of(row("ENTRY", 2), row("JUNIOR", 3), row("MID", 9)));
-
-    var result = resolver.resolveForSource("JOBKOREA", profile(2), "202607");
-
-    assertThat(result.isSuccessful()).isTrue();
-    assertThat(result.getFallbackLevel()).isEqualTo(2);
-    assertThat(result.getSampleCount()).isEqualTo(14);
-    assertThat(result.getCoverage().appliedConditions()).isEqualTo("전국 / 0~7년 / 회사규모 무관 / 고용형태 무관");
-  }
-
-  @Test
-  @DisplayName("넓혀도 부족하면 실패 — 단계는 2, 문구는 넓힌 조건")
-  void failsAfterWidening() {
     var result = resolver.resolveForSource("JOBKOREA", profile(5), "202607");
 
     assertThat(result.isSuccessful()).isFalse();
-    assertThat(result.getFallbackLevel()).isEqualTo(2);
-    assertThat(result.getSampleCount()).isZero();
+    assertThat(result.getFallbackLevel()).isEqualTo(1);
+    assertThat(result.getSampleCount()).isEqualTo(4);
     assertThat(result.getCoverage().appliedConditions())
         .isEqualTo("전국 / 경력 전체 / 회사규모 무관 / 고용형태 무관");
   }
@@ -291,19 +255,17 @@ class PeerGroupFallbackResolverTest {
   @DisplayName("최소 표본 기준은 설정값을 따른다")
   void configuredThresholdApplies() {
     IndexThresholdProperties thresholds = new IndexThresholdProperties();
-    thresholds.setPeerGroupMinSampleSize(20);
+    thresholds.setPeerGroupMinSampleSize(200);
     ReflectionTestUtils.setField(resolver, "thresholds", thresholds);
-    when(marketAggregateRepository.findPeerGroupAggregatesByBrackets(
-            "JOBKOREA", "202607", "DEVELOPER", "ALL", List.of("MID"), "ALL", "ALL"))
-        .thenReturn(List.of(row("MID", 15)));
+    givenAllBracket("202607", 170);
 
     var result = resolver.resolveForSource("JOBKOREA", profile(5), "202607");
 
-    assertThat(result.getFallbackLevel()).isEqualTo(2);
+    assertThat(result.isSuccessful()).isFalse();
   }
 
   @Test
-  @DisplayName("프로필 값이 비어도 기본 직무·경력으로 조회한다")
+  @DisplayName("프로필 직무가 비어도 기본 직무로 조회한다")
   void blankProfileUsesDefaults() {
     CareerProfile profile = new CareerProfile(UUID.randomUUID());
     profile.patch("", null, "", "", "   ");
@@ -312,6 +274,6 @@ class PeerGroupFallbackResolverTest {
 
     assertThat(result.getJobFamily()).isEqualTo("DEVELOPER");
     assertThat(result.getRegion()).isEqualTo("ALL");
-    assertThat(result.getBrackets()).contains("ENTRY", "JUNIOR");
+    assertThat(result.getBrackets()).containsExactly("ALL");
   }
 }
