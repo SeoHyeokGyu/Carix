@@ -61,6 +61,13 @@ public class ExploreQueries {
     return out;
   }
 
+  /** {첫 달, 마지막 달}. CPI 행이 없으면 둘 다 null. */
+  public String[] cpiBounds() {
+    return jdbc.queryForObject(
+        "SELECT MIN(base_year_month), MAX(base_year_month) FROM core.cpi_observation",
+        (rs, i) -> new String[] {rs.getString(1), rs.getString(2)});
+  }
+
   public String latestWagePeriod() {
     return jdbc.queryForObject(
         "SELECT MAX(base_period) FROM core.wage_stat_observation", String.class);
@@ -173,8 +180,12 @@ public class ExploreQueries {
       args.add(f.source());
     }
     if (f.family() != null) {
-      sb.append(" AND p.job_family = ?");
-      args.add(f.family());
+      if ("OTHER".equals(f.family())) {
+        sb.append(" AND (p.job_family IS NULL OR p.job_family NOT IN ('DEVELOPER','DATA','AI'))");
+      } else {
+        sb.append(" AND p.job_family = ?");
+        args.add(f.family());
+      }
     }
     if (f.company() != null) {
       sb.append(" AND LOWER(p.company_name) LIKE ? ESCAPE '\\'");

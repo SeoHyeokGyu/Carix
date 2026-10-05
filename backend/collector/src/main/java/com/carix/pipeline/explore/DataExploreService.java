@@ -132,15 +132,22 @@ public class DataExploreService {
         queries.cpiValues(YM.format(range[0]), YM.format(range[1]));
     List<CpiTable.Month> months = new ArrayList<>();
     List<CpiTable.Missing> missing = new ArrayList<>();
-    values.forEach(
-        (month, byCode) -> {
-          months.add(new CpiTable.Month(month, byCode));
-          List<String> absent =
-              CpiTable.CODES.stream().filter(c -> !byCode.containsKey(c)).toList();
-          if (!absent.isEmpty()) {
-            missing.add(new CpiTable.Missing(month, absent));
-          }
-        });
+    String[] bounds = queries.cpiBounds();
+    if (bounds[0] != null) {
+      YearMonth first = parse(bounds[0]);
+      YearMonth last = parse(bounds[1]);
+      YearMonth start = range[0].isAfter(first) ? range[0] : first;
+      YearMonth end = range[1].isBefore(last) ? range[1] : last;
+      for (YearMonth m = start; !m.isAfter(end); m = m.plusMonths(1)) {
+        String key = YM.format(m);
+        Map<String, BigDecimal> byCode = values.getOrDefault(key, Map.of());
+        months.add(new CpiTable.Month(key, byCode));
+        List<String> absent = CpiTable.CODES.stream().filter(c -> !byCode.containsKey(c)).toList();
+        if (!absent.isEmpty()) {
+          missing.add(new CpiTable.Missing(key, absent));
+        }
+      }
+    }
     return new CpiTable(CpiTable.CODES, months, missing);
   }
 

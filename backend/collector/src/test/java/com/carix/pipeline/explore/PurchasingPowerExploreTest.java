@@ -50,6 +50,26 @@ class PurchasingPowerExploreTest {
   }
 
   @Test
+  @DisplayName("행이 하나도 없는 달도 첫 달~마지막 달 안이면 빈 값과 전 품목 누락으로 나온다")
+  void cpi_zeroRowMonthInsideBounds() {
+    for (String c : CpiTable.CODES) {
+      cpi("202606", c, "110.00");
+      cpi("202608", c, "112.00");
+    }
+
+    CpiTable t = service.cpi("202601", "202612");
+
+    assertThat(t.months())
+        .extracting(CpiTable.Month::month)
+        .containsExactly("202606", "202607", "202608");
+    assertThat(t.months().get(0).values().get("A")).isEqualByComparingTo("110.00");
+    assertThat(t.months().get(1).values()).isEmpty();
+    assertThat(t.missing()).hasSize(1);
+    assertThat(t.missing().getFirst().month()).isEqualTo("202607");
+    assertThat(t.missing().getFirst().codes()).isEqualTo(CpiTable.CODES);
+  }
+
+  @Test
   @DisplayName("CPI 가 없으면 빈 표")
   void cpi_empty() {
     CpiTable t = service.cpi("201001", "201002");

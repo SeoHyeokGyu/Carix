@@ -91,9 +91,15 @@ class DataHealthServiceTest {
   void drillDownLinks() {
     assertThat(DataHealthService.drillDown("SAMPLE_LAST_MONTH", "202609"))
         .isEqualTo("/admin/data?tab=postings&month=202609&sampled=true");
-    assertThat(DataHealthService.drillDown("AGGREGATE_STALE", "202609"))
-        .isEqualTo("/admin/data?tab=monthly");
-    assertThat(DataHealthService.drillDown("CPI_GAP", "202609")).isEqualTo("/admin/data?tab=cpi");
+    String monthly = "/admin/data?tab=monthly&from=202310&to=202609";
+    for (String id :
+        List.of("SAMPLE_GAPS", "AGGREGATE_STALE", "PEER_SAMPLE_BY_FAMILY", "CRAWL_FRESHNESS")) {
+      assertThat(DataHealthService.drillDown(id, "202609")).isEqualTo(monthly);
+    }
+    String cpi = "/admin/data?tab=cpi&from=201610&to=202609";
+    for (String id : List.of("CPI_LATEST", "CPI_GAP")) {
+      assertThat(DataHealthService.drillDown(id, "202609")).isEqualTo(cpi);
+    }
     assertThat(DataHealthService.drillDown("WAGE_BASELINE", "202609"))
         .isEqualTo("/admin/data?tab=wage");
     assertThat(DataHealthService.drillDown("RULE_VERSION", "202609")).isNull();

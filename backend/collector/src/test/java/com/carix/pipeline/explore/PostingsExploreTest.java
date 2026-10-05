@@ -78,6 +78,26 @@ class PostingsExploreTest {
   }
 
   @Test
+  @DisplayName("OTHER 직무 필터는 직무가 비었거나 알 수 없는 공고까지 센다")
+  void postings_otherIncludesNullFamily() {
+    repository.saveAndFlush(
+        JobPosting.builder()
+            .source("SARAMIN")
+            .externalId("51000002")
+            .title("공고 51000002")
+            .companyName("무직무회사")
+            .firstSeenMonth("202609")
+            .lastSeenMonth("202609")
+            .collectedAt(Instant.now())
+            .build());
+
+    PostingPage other = service.postings("202609", null, null, "OTHER", null, null, null, null);
+    assertThat(other.items()).extracting(PostingPage.Item::externalId).containsExactly("51000002");
+    assertThat(service.postings("202609", null, null, "DEVELOPER", null, null, null, null).total())
+        .isEqualTo(3);
+  }
+
+  @Test
   @DisplayName("회사 필터의 % _ 는 글자 그대로 찾는다")
   void postings_companyFilterEscapesWildcards() {
     assertThat(service.postings("202609", null, null, null, "100%_", null, null, null).total())
