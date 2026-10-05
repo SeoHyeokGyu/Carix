@@ -25,6 +25,7 @@ export default function DataHealthPage() {
     } catch (err) {
       if ((err as { status?: number }).status === 403) {
         setIsKeyModalOpen(true);
+        return;
       }
       setFailed(true);
     } finally {
@@ -40,7 +41,10 @@ export default function DataHealthPage() {
   return (
     <div className="min-h-screen bg-carix-bg text-carix-text">
       <ThemeToggle />
-      <AdminHeader active="data-health" />
+      <AdminHeader
+        active="data-health"
+        onOpenKeyModal={() => setIsKeyModalOpen(true)}
+      />
       <main className="mx-auto max-w-7xl px-6 py-8 space-y-6">
         <div className="flex items-center justify-between">
           <h1 className="text-lg font-bold">데이터 상태</h1>

@@ -1,15 +1,18 @@
 import { Link, NavLink } from "react-router";
+import { Button } from "@/components/ui/button";
 
 const TABS = [
   { to: "/admin/data-health", label: "데이터 상태", id: "data-health" },
   { to: "/admin/collector", label: "수집 파이프라인", id: "collector" },
 ] as const;
 
-/** 관리자 두 페이지 공통 헤더 — 탭과 사용자 화면 링크. */
+/** 관리자 두 페이지 공통 헤더 — 탭, 관리자 키 진입, 사용자 화면 링크. */
 export function AdminHeader({
   active,
+  onOpenKeyModal,
 }: {
   active: "data-health" | "collector";
+  onOpenKeyModal?: () => void;
 }) {
   return (
     <header className="border-b border-carix-border bg-carix-surface/80 backdrop-blur-md sticky top-0 z-40">
@@ -37,12 +40,25 @@ export function AdminHeader({
             </NavLink>
           ))}
         </nav>
-        <Link
-          to="/dashboard"
-          className="rounded-md px-3 py-1.5 text-xs text-carix-text/70 hover:bg-carix-border/40"
-        >
-          사용자 대시보드
-        </Link>
+        <div className="flex items-center gap-2">
+          {onOpenKeyModal && (
+            <Button
+              type="button"
+              onClick={onOpenKeyModal}
+              variant="ghost"
+              size="sm"
+              className="text-carix-text/70"
+            >
+              관리자 키
+            </Button>
+          )}
+          <Link
+            to="/dashboard"
+            className="rounded-md px-3 py-1.5 text-xs text-carix-text/70 hover:bg-carix-border/40"
+          >
+            사용자 대시보드
+          </Link>
+        </div>
       </div>
     </header>
   );

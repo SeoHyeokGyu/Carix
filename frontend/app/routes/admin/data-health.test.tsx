@@ -138,4 +138,25 @@ describe("DataHealthPage", () => {
     ).toBeInTheDocument();
     expect(screen.getByText("1 / 3명")).toBeInTheDocument();
   });
+
+  it("403 이면 관리자 키 모달만 열고 실패 알림은 띄우지 않는다", async () => {
+    vi.mocked(api.fetchDataHealth).mockRejectedValue({
+      code: "FORBIDDEN",
+      message: "x",
+      status: 403,
+    });
+    renderPage();
+    expect(await screen.findByRole("dialog")).toBeInTheDocument();
+    expect(
+      screen.queryByText(/상태를 불러오지 못했습니다/),
+    ).not.toBeInTheDocument();
+  });
+
+  it("헤더의 관리자 키 버튼이 키 모달을 연다", async () => {
+    renderPage();
+    expect(await screen.findByText("1 / 3명")).toBeInTheDocument();
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "관리자 키" }));
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+  });
 });

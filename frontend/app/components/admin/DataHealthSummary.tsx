@@ -1,8 +1,18 @@
 import type { DataHealthReport } from "../../lib/collectorApi";
 import { GAP_REASON_LABEL, VERDICT_LABEL } from "../../lib/dataHealth";
 
+const FAILED_SUFFIX = "_FAILED";
+
+/** 점검 자체가 실패한 줄이 있으면 요약 수치는 데이터가 아니다. */
+function hasFailedCheck(report: DataHealthReport): boolean {
+  return report.groups.some((g) =>
+    g.checks.some((c) => c.id.endsWith(FAILED_SUFFIX)),
+  );
+}
+
 export function DataHealthSummary({ report }: { report: DataHealthReport }) {
   const { summary } = report;
+  const isUndeterminable = hasFailedCheck(report);
   return (
     <section
       aria-label="요약"
@@ -13,7 +23,9 @@ export function DataHealthSummary({ report }: { report: DataHealthReport }) {
           세 질문에 온전히 답하는 사용자
         </h2>
         <p className="text-2xl font-bold">
-          {summary.fullyAnswered} / {summary.users}명
+          {isUndeterminable
+            ? "판정 불가"
+            : `${summary.fullyAnswered} / ${summary.users}명`}
         </p>
       </div>
       {/* 점검 줄(listitem)과 섞이지 않게 목록 요소를 쓰지 않는다 */}
