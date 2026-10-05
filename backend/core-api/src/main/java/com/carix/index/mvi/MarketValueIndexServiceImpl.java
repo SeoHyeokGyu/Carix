@@ -76,6 +76,9 @@ public class MarketValueIndexServiceImpl implements MarketValueIndexProvider {
   /** 지원하는 채용공고 원천 플랫폼 목록 */
   public static final List<String> SUPPORTED_SOURCES = List.of("JOBKOREA", "SARAMIN");
 
+  /** 기준월을 정하는 원천. 이전 창까지 채운 무작위 표본이 이 원천에만 있다. */
+  static final String SAMPLED_SOURCE = "JOBKOREA";
+
   /**
    * DB 커넥션 풀 고갈(Connection Starvation) 방지를 위한 동시 DB I/O 제한 허가 수.
    *
@@ -792,23 +795,23 @@ public class MarketValueIndexServiceImpl implements MarketValueIndexProvider {
   }
 
   /**
-   * 주어진 기준월 이하(:baseYearMonth) 중 DB에 적재된 최신 시장 집계 기준월을 탐색합니다. 당월 데이터가 아직 마감/수집되지 않은 경우 직전 유효 월로
-   * fallback합니다.
+   * 시장가치 지수의 기준월. 요청 월 이하에서 <b>잡코리아 집계가 있는 최신 월</b>이다.
+   *
+   * <p>잡코리아 집계는 그 달 무작위 표본만 센다(데이터 아키텍처 §1.3). 표본은 달이 끝난 뒤 뽑으므로 당월에는 사람인·통합 집계만 있고 잡코리아는 비어 있다. 원천을
+   * 가리지 않고 고르면 당월이 잡혀 잡코리아 동료집단이 0건이 되고 지수가 사라진다. 이하 데이터가 없으면(과거 소급 미수집 구간) 가장 가까운 미래 월을 대신 쓴다.
    */
   private String resolveEffectiveYearMonth(String baseYearMonth) {
     if (baseYearMonth == null || baseYearMonth.length() != 6 || marketAggregateRepository == null) {
       return baseYearMonth;
     }
-    // 1. 요청 월 이하의 최신 집계월 조회 (당월 미마감 시 직전 유효월로 fallback)
     Optional<String> backward =
-        marketAggregateRepository.findLatestAvailableYearMonth(baseYearMonth);
+        marketAggregateRepository.findLatestAvailableYearMonthForSource(
+            SAMPLED_SOURCE, baseYearMonth);
     if (backward.isPresent()) {
       return backward.get();
     }
-    // 2. 이하 데이터가 없으면(과거 소급 미수집 구간) 가장 가까운 미래 데이터를 대신 사용
-    //    예: 202201 요청 시 최초 집계월인 202608을 proxy로 활용 → INSUFFICIENT_DATA 방지
     return marketAggregateRepository
-        .findEarliestAvailableYearMonth(baseYearMonth)
+        .findEarliestAvailableYearMonthForSource(SAMPLED_SOURCE, baseYearMonth)
         .orElse(baseYearMonth);
   }
 

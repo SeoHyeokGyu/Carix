@@ -127,6 +127,24 @@ public interface MarketAggregateRepository extends JpaRepository<MarketAggregate
       """)
   Optional<String> findLatestAvailableYearMonth(@Param("baseYearMonth") String baseYearMonth);
 
+  /** 한 원천의 집계가 있는 기준월 이하 최신 월. 시장가치 지수는 잡코리아 무작위 표본이 있는 달을 기준으로 삼는다. */
+  @Query(
+      """
+      SELECT MAX(m.baseYearMonth) FROM MarketAggregate m
+      WHERE m.source = :source AND m.baseYearMonth <= :baseYearMonth
+      """)
+  Optional<String> findLatestAvailableYearMonthForSource(
+      @Param("source") String source, @Param("baseYearMonth") String baseYearMonth);
+
+  /** 한 원천의 집계가 있는 기준월 이상 가장 이른 월. */
+  @Query(
+      """
+      SELECT MIN(m.baseYearMonth) FROM MarketAggregate m
+      WHERE m.source = :source AND m.baseYearMonth >= :baseYearMonth
+      """)
+  Optional<String> findEarliestAvailableYearMonthForSource(
+      @Param("source") String source, @Param("baseYearMonth") String baseYearMonth);
+
   /**
    * DB에 적재된 시장 집계 데이터 중 가장 오래된 기준월을 조회합니다. 요청 기준월보다 더 이전 데이터가 없을 때(과거 소급 미수집 구간) 가장 가까운 미래 데이터로 전방
    * 폴백(forward-fallback)하기 위해 사용됩니다.
