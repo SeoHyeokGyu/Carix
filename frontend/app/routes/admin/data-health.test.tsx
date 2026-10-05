@@ -121,4 +121,21 @@ describe("DataHealthPage", () => {
       screen.getByRole("button", { name: "다시 시도" }),
     ).toBeInTheDocument();
   });
+
+  it("다시 점검이 실패하면 이전 결과를 두고 알린다", async () => {
+    renderPage();
+    expect(await screen.findByText("1 / 3명")).toBeInTheDocument();
+    vi.mocked(api.fetchDataHealth).mockRejectedValue({
+      code: "X",
+      message: "x",
+      status: 500,
+    });
+    await userEvent.click(screen.getByRole("button", { name: "다시 점검" }));
+    expect(
+      await screen.findByText(
+        "상태를 불러오지 못했습니다 — 아래는 이전 점검 결과입니다",
+      ),
+    ).toBeInTheDocument();
+    expect(screen.getByText("1 / 3명")).toBeInTheDocument();
+  });
 });

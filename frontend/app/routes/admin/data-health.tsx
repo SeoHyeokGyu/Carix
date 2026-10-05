@@ -54,12 +54,16 @@ export default function DataHealthPage() {
             {isLoading ? "점검 중…" : "다시 점검"}
           </Button>
         </div>
-        {failed && !report && (
+        {failed && (
           <div
             role="alert"
             className="rounded-lg border border-carix-border p-4 text-xs space-y-2"
           >
-            <p>상태를 불러오지 못했습니다</p>
+            <p>
+              {report
+                ? "상태를 불러오지 못했습니다 — 아래는 이전 점검 결과입니다"
+                : "상태를 불러오지 못했습니다"}
+            </p>
             <Button
               type="button"
               onClick={() => void load()}

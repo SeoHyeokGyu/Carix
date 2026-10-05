@@ -38,6 +38,8 @@ function Row({ check }: { check: HealthCheck }) {
         {Object.keys(check.evidence).length > 0 && (
           <Button
             type="button"
+            aria-expanded={open}
+            aria-label={`${check.title} 근거`}
             onClick={() => setOpen((o) => !o)}
             variant="link"
             size="xs"
