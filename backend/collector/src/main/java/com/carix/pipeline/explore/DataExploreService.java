@@ -4,6 +4,7 @@ import com.carix.jobposting.JobPosting;
 import com.carix.jobposting.JobPostingRepository;
 import com.carix.market.MarketAggregateService;
 import com.carix.pipeline.dto.explore.MonthlyOverview;
+import com.carix.pipeline.dto.explore.PostingPage;
 import java.time.Clock;
 import java.time.YearMonth;
 import java.time.ZoneId;
@@ -114,5 +115,74 @@ public class DataExploreService {
 
   static ResponseStatusException badRequest(String message) {
     return new ResponseStatusException(HttpStatus.BAD_REQUEST, message);
+  }
+
+  private static final int POSTINGS_DEFAULT_SIZE = 50;
+  private static final int POSTINGS_MAX_SIZE = 100;
+
+  @Transactional(readOnly = true)
+  public PostingPage postings(
+      String month,
+      String source,
+      Boolean sampled,
+      String family,
+      String company,
+      String skill,
+      Integer page,
+      Integer size) {
+    if (month == null) {
+      throw badRequest("month 가 필요합니다");
+    }
+    parse(month);
+    int s = size == null || size <= 0 ? POSTINGS_DEFAULT_SIZE : Math.min(size, POSTINGS_MAX_SIZE);
+    int p = page == null || page < 0 ? 0 : page;
+    PostingFilter filter =
+        new PostingFilter(
+            month,
+            blankToNull(source),
+            sampled,
+            blankToNull(family),
+            blankToNull(company),
+            blankToNull(skill),
+            p,
+            s);
+    long total = queries.countPostings(filter);
+    List<ExploreQueries.PostingRow> rows = total == 0 ? List.of() : queries.findPostings(filter);
+    Map<java.util.UUID, List<String>> skills =
+        queries.skillsByPosting(rows.stream().map(ExploreQueries.PostingRow::id).toList());
+    List<PostingPage.Item> items =
+        rows.stream()
+            .map(
+                r ->
+                    new PostingPage.Item(
+                        r.source(),
+                        r.externalId(),
+                        sourceUrl(r.source(), r.externalId()),
+                        r.title(),
+                        r.companyName(),
+                        r.jobFamily(),
+                        r.experienceMin(),
+                        r.experienceMax(),
+                        r.employmentType(),
+                        r.region(),
+                        r.postedStartDate(),
+                        r.postedEndDate(),
+                        r.firstSeenMonth(),
+                        r.sampledMonth(),
+                        skills.getOrDefault(r.id(), List.of())))
+            .toList();
+    return new PostingPage(total, p, s, items);
+  }
+
+  static String sourceUrl(String source, String externalId) {
+    return switch (source) {
+      case "JOBKOREA" -> "https://www.jobkorea.co.kr/Recruit/GI_Read/" + externalId;
+      case "SARAMIN" -> "https://www.saramin.co.kr/zf_user/jobs/relay/view?rec_idx=" + externalId;
+      default -> null;
+    };
+  }
+
+  private static String blankToNull(String v) {
+    return v == null || v.isBlank() ? null : v.strip();
   }
 }

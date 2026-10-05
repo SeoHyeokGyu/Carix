@@ -1,7 +1,12 @@
 package com.carix.pipeline.explore;
 
+import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.UUID;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
@@ -39,5 +44,128 @@ public class ExploreQueries {
         from,
         to);
     return out;
+  }
+
+  /** 공고 한 행. 금액 컬럼은 고르지 않는다. */
+  public record PostingRow(
+      UUID id,
+      String source,
+      String externalId,
+      String title,
+      String companyName,
+      String jobFamily,
+      Integer experienceMin,
+      Integer experienceMax,
+      String employmentType,
+      String region,
+      LocalDate postedStartDate,
+      LocalDate postedEndDate,
+      String firstSeenMonth,
+      String sampledMonth) {}
+
+  private static final String POSTING_COLUMNS =
+      "p.id, p.source, p.external_id, p.title, p.company_name, p.job_family, p.experience_min,"
+          + " p.experience_max, p.employment_type, p.region, p.posted_start_date, p.posted_end_date,"
+          + " p.first_seen_month, p.sampled_month";
+
+  public long countPostings(PostingFilter f) {
+    List<Object> args = new ArrayList<>();
+    String where = where(f, args);
+    Long n =
+        jdbc.queryForObject(
+            "SELECT COUNT(*) FROM core.job_posting p" + where, Long.class, args.toArray());
+    return n == null ? 0 : n;
+  }
+
+  public List<PostingRow> findPostings(PostingFilter f) {
+    List<Object> args = new ArrayList<>();
+    String where = where(f, args);
+    args.add(f.size());
+    args.add((long) f.page() * f.size());
+    return jdbc.query(
+        "SELECT "
+            + POSTING_COLUMNS
+            + " FROM core.job_posting p"
+            + where
+            + " ORDER BY p.source, p.external_id LIMIT ? OFFSET ?",
+        (rs, i) ->
+            new PostingRow(
+                rs.getObject(1, UUID.class),
+                rs.getString(2),
+                rs.getString(3),
+                rs.getString(4),
+                rs.getString(5),
+                rs.getString(6),
+                (Integer) rs.getObject(7),
+                (Integer) rs.getObject(8),
+                rs.getString(9),
+                rs.getString(10),
+                toLocalDate(rs.getDate(11)),
+                toLocalDate(rs.getDate(12)),
+                rs.getString(13),
+                rs.getString(14)),
+        args.toArray());
+  }
+
+  public Map<UUID, List<String>> skillsByPosting(List<UUID> ids) {
+    Map<UUID, List<String>> out = new HashMap<>();
+    if (ids.isEmpty()) {
+      return out;
+    }
+    String placeholders = ids.stream().map(id -> "?").collect(Collectors.joining(","));
+    jdbc.query(
+        "SELECT jps.job_posting_id, s.standard_name FROM core.job_posting_skill jps"
+            + " JOIN core.skill s ON s.id = jps.skill_id WHERE jps.job_posting_id IN ("
+            + placeholders
+            + ")"
+            + " ORDER BY s.standard_name",
+        rs -> {
+          out.computeIfAbsent(rs.getObject(1, UUID.class), k -> new ArrayList<>())
+              .add(rs.getString(2));
+        },
+        ids.toArray());
+    return out;
+  }
+
+  private static String where(PostingFilter f, List<Object> args) {
+    StringBuilder sb = new StringBuilder(" WHERE ");
+    if (Boolean.TRUE.equals(f.sampled())) {
+      sb.append("p.sampled_month = ?");
+      args.add(f.month());
+    } else if (Boolean.FALSE.equals(f.sampled())) {
+      sb.append("p.sampled_month IS NULL AND p.first_seen_month = ?");
+      args.add(f.month());
+    } else {
+      sb.append("(p.sampled_month = ? OR (p.sampled_month IS NULL AND p.first_seen_month = ?))");
+      args.add(f.month());
+      args.add(f.month());
+    }
+    if (f.source() != null) {
+      sb.append(" AND p.source = ?");
+      args.add(f.source());
+    }
+    if (f.family() != null) {
+      sb.append(" AND p.job_family = ?");
+      args.add(f.family());
+    }
+    if (f.company() != null) {
+      sb.append(" AND LOWER(p.company_name) LIKE ? ESCAPE '\\'");
+      args.add("%" + escapeLike(f.company().toLowerCase()) + "%");
+    }
+    if (f.skill() != null) {
+      sb.append(
+          " AND EXISTS (SELECT 1 FROM core.job_posting_skill jps JOIN core.skill s ON s.id = jps.skill_id"
+              + " WHERE jps.job_posting_id = p.id AND s.standard_name = ?)");
+      args.add(f.skill());
+    }
+    return sb.toString();
+  }
+
+  static String escapeLike(String value) {
+    return value.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_");
+  }
+
+  private static LocalDate toLocalDate(java.sql.Date d) {
+    return d == null ? null : d.toLocalDate();
   }
 }
