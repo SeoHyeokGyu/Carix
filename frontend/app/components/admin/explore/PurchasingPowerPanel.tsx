@@ -46,7 +46,7 @@ function CpiView({ data }: { data: CpiTable }) {
                     data-missing={String(v === undefined)}
                     className={`px-2 py-1 text-right ${v === undefined ? MISSING_CELL : ""}`}
                   >
-                    {v === undefined ? "—" : v}
+                    {v === undefined ? "—" : v.toFixed(2)}
                   </td>
                 );
               })}
@@ -104,10 +104,14 @@ function WageView({ data }: { data: WageTable }) {
 /** CPI 월 × 품목 표, 임금통계 직무 × 경력 출처 표. 금액은 보이지 않는다. */
 export function PurchasingPowerPanel({
   tab,
+  from,
+  to,
   reloadKey: externalReloadKey = 0,
   onForbidden,
 }: {
   tab: PanelTab;
+  from?: string;
+  to?: string;
   reloadKey?: number;
   onForbidden?: () => void;
 }) {
@@ -127,7 +131,7 @@ export function PurchasingPowerPanel({
       try {
         const next: Loaded =
           tab === "cpi"
-            ? { kind: "cpi", data: await fetchCpi() }
+            ? { kind: "cpi", data: await fetchCpi(from, to) }
             : { kind: "wage", data: await fetchWage() };
         if (!cancelled) setLoaded(next);
       } catch (err) {
@@ -143,7 +147,7 @@ export function PurchasingPowerPanel({
     return () => {
       cancelled = true;
     };
-  }, [tab, retryKey, externalReloadKey]);
+  }, [tab, from, to, retryKey, externalReloadKey]);
 
   if (failed) {
     return (

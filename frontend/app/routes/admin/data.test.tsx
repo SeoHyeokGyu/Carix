@@ -78,6 +78,7 @@ function renderAt(url: string) {
 
 describe("DataExplorePage", () => {
   beforeEach(() => {
+    vi.clearAllMocks();
     vi.mocked(api.fetchMonthlyOverview).mockResolvedValue(monthly);
     vi.mocked(api.fetchPostings).mockResolvedValue(postings);
   });
@@ -96,6 +97,32 @@ describe("DataExplorePage", () => {
     expect(api.fetchPostings).toHaveBeenCalledWith(
       expect.objectContaining({ month: "202607", sampled: true, page: 0 }),
     );
+  });
+
+  it("URL 의 from·to 를 월별·CPI 조회에 그대로 넘긴다", async () => {
+    renderAt("/admin/data?tab=monthly&from=202310&to=202609");
+    await screen.findByText("150");
+    expect(api.fetchMonthlyOverview).toHaveBeenCalledWith("202310", "202609");
+  });
+
+  it("CPI 탭도 URL 의 from·to 를 넘긴다", async () => {
+    vi.mocked(api.fetchCpi).mockResolvedValue({
+      codes: ["A"],
+      months: [{ month: "202609", values: { A: 118.3 } }],
+      missing: [],
+    });
+    renderAt("/admin/data?tab=cpi&from=201610&to=202609");
+    await screen.findByText("118.30");
+    expect(api.fetchCpi).toHaveBeenCalledWith("201610", "202609");
+  });
+
+  it("월 형식이 틀리면 조회 없이 안내한다", async () => {
+    renderAt("/admin/data?tab=postings&month=2026-09");
+    expect(
+      await screen.findByText("월은 YYYYMM 형식입니다"),
+    ).toBeInTheDocument();
+    expect(api.fetchPostings).not.toHaveBeenCalled();
+    expect(screen.queryByText("불러오지 못했습니다")).not.toBeInTheDocument();
   });
 
   it("공고 행을 펼치면 원천 링크가 새 창·noopener 로 열린다", async () => {

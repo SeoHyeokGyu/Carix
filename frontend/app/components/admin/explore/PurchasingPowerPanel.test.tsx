@@ -14,7 +14,7 @@ describe("PurchasingPowerPanel", () => {
     vi.clearAllMocks();
     vi.mocked(api.fetchCpi).mockResolvedValue({
       codes: ["A", "B"],
-      months: [{ month: "202609", values: { A: 118.32 } }],
+      months: [{ month: "202609", values: { A: 118.3 } }],
       missing: [{ month: "202609", codes: ["B"] }],
     });
     vi.mocked(api.fetchWage).mockResolvedValue({
@@ -34,7 +34,7 @@ describe("PurchasingPowerPanel", () => {
 
   it("CPI 결측 칸을 강조한다", async () => {
     render(<PurchasingPowerPanel tab="cpi" />);
-    expect(await screen.findByText("118.32")).toBeInTheDocument();
+    expect(await screen.findByText("118.30")).toBeInTheDocument();
     expect(screen.getByTestId("cpi-202609-B")).toHaveAttribute(
       "data-missing",
       "true",
@@ -75,13 +75,13 @@ describe("PurchasingPowerPanel", () => {
       )
       .mockResolvedValueOnce({
         codes: ["A"],
-        months: [{ month: "202609", values: { A: 118.32 } }],
+        months: [{ month: "202609", values: { A: 118.3 } }],
         missing: [],
       });
     const { rerender } = render(<PurchasingPowerPanel tab="cpi" />);
     rerender(<PurchasingPowerPanel tab="wage" />);
     rerender(<PurchasingPowerPanel tab="cpi" />);
-    expect(await screen.findByText("118.32")).toBeInTheDocument();
+    expect(await screen.findByText("118.30")).toBeInTheDocument();
     await act(async () => {
       resolveStale({
         codes: ["A"],
@@ -89,7 +89,7 @@ describe("PurchasingPowerPanel", () => {
         missing: [],
       });
     });
-    expect(screen.getByText("118.32")).toBeInTheDocument();
+    expect(screen.getByText("118.30")).toBeInTheDocument();
     expect(screen.queryByTestId("cpi-202601-A")).not.toBeInTheDocument();
   });
 
@@ -105,7 +105,7 @@ describe("PurchasingPowerPanel", () => {
     const { rerender } = render(
       <PurchasingPowerPanel tab="cpi" reloadKey={0} />,
     );
-    await screen.findByText("118.32");
+    await screen.findByText("118.30");
     rerender(<PurchasingPowerPanel tab="cpi" reloadKey={1} />);
     await waitFor(() => expect(api.fetchCpi).toHaveBeenCalledTimes(2));
   });

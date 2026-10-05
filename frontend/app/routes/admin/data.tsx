@@ -41,6 +41,10 @@ export default function DataExplorePage() {
         : undefined;
   const page = Math.max(0, Math.trunc(Number(params.get("page") ?? "0") || 0));
 
+  const from = params.get("from") ?? undefined;
+  const to = params.get("to") ?? undefined;
+  const isMonthValid = /^\d{6}$/.test(month);
+
   const paramsKey = params.toString();
 
   useEffect(() => {
@@ -52,8 +56,11 @@ export default function DataExplorePage() {
       try {
         let next: Loaded | null = null;
         if (tab === "monthly") {
-          next = { kind: "monthly", data: await fetchMonthlyOverview() };
-        } else if (tab === "postings" && month) {
+          next = {
+            kind: "monthly",
+            data: await fetchMonthlyOverview(from, to),
+          };
+        } else if (tab === "postings" && month && isMonthValid) {
           next = {
             kind: "postings",
             data: await fetchPostings({
@@ -81,7 +88,7 @@ export default function DataExplorePage() {
     return () => {
       cancelled = true;
     };
-  }, [tab, month, sampled, page, paramsKey, reloadKey]);
+  }, [tab, month, isMonthValid, from, to, sampled, page, paramsKey, reloadKey]);
 
   const reload = () => setReloadKey((k) => k + 1);
 
@@ -207,6 +214,11 @@ export default function DataExplorePage() {
         {tab === "postings" && !month && (
           <p className="text-xs text-carix-text/60">월을 입력하세요</p>
         )}
+        {tab === "postings" && month && !isMonthValid && (
+          <p role="alert" className="text-xs text-carix-text/60">
+            월은 YYYYMM 형식입니다
+          </p>
+        )}
         {loaded?.kind === "monthly" && tab === "monthly" && (
           <MonthlyOverviewTable data={loaded.data} />
         )}
@@ -219,6 +231,8 @@ export default function DataExplorePage() {
         {(tab === "cpi" || tab === "wage") && (
           <PurchasingPowerPanel
             tab={tab}
+            from={from}
+            to={to}
             reloadKey={reloadKey}
             onForbidden={() => setIsKeyModalOpen(true)}
           />
