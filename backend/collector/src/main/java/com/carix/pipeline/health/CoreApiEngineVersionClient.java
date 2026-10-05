@@ -4,7 +4,6 @@ import java.time.Duration;
 import java.util.Map;
 import java.util.Optional;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.cloud.client.loadbalancer.LoadBalanced;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -19,12 +18,11 @@ public class CoreApiEngineVersionClient implements EngineVersionClient {
 
   private final RestClient restClient;
 
-  public CoreApiEngineVersionClient(
-      @Qualifier("loadBalancedRestClientBuilder") RestClient.Builder builder) {
+  public CoreApiEngineVersionClient(@LoadBalanced RestClient.Builder builder) {
     SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
     factory.setConnectTimeout(Duration.ofSeconds(2));
     factory.setReadTimeout(Duration.ofSeconds(2));
-    this.restClient = builder.baseUrl("http://core-api").requestFactory(factory).build();
+    this.restClient = builder.clone().baseUrl("http://core-api").requestFactory(factory).build();
   }
 
   @Override
@@ -40,9 +38,13 @@ public class CoreApiEngineVersionClient implements EngineVersionClient {
     }
   }
 
+  /**
+   * 기본 후보에서 빼 둔다. Eureka 클라이언트는 타입만으로 {@code RestClient.Builder} 를 찾아 자기 전송에 쓰는데, 로드밸런스 빌더를 집어 가면
+   * {@code http://eureka:8761} 을 서비스 id 로 풀려다 등록이 깨진다. {@code @LoadBalanced} 한정자를 단 주입 지점만 받는다.
+   */
   @Configuration
   static class LoadBalancedRestClientConfig {
-    @Bean
+    @Bean(defaultCandidate = false)
     @LoadBalanced
     RestClient.Builder loadBalancedRestClientBuilder() {
       return RestClient.builder();
