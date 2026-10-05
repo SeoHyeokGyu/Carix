@@ -91,20 +91,29 @@ public final class MviChecks {
     if (data.sampledByMonth().isEmpty()) {
       return PpiChecks.unknown("AGGREGATE_STALE", "재집계 누락", "표본이 하나도 없습니다");
     }
+    // Union of all three maps
+    TreeSet<String> allMonths = new TreeSet<>();
+    allMonths.addAll(data.sampledByMonth().keySet());
+    allMonths.addAll(data.cappedSampleByMonth().keySet());
+    allMonths.addAll(data.aggregatedSampleByMonth().keySet());
+
     List<Map<String, Object>> rows = new ArrayList<>();
     List<String> stale = new ArrayList<>();
-    for (String month : new TreeSet<>(data.cappedSampleByMonth().keySet())) {
-      int capped = data.cappedSampleByMonth().get(month);
+    for (String month : allMonths) {
+      Integer capped = data.cappedSampleByMonth().get(month);
+      if (capped == null) {
+        // Sampled but capped not calculated
+        return PpiChecks.unknown("AGGREGATE_STALE", "재집계 누락", "상한 적용 표본을 계산하지 못했습니다");
+      }
       Integer aggregated = data.aggregatedSampleByMonth().get(month);
-      rows.add(
-          Map.of(
-              "month",
-              month,
-              "capped",
-              capped,
-              "aggregated",
-              aggregated == null ? -1 : aggregated));
-      if (aggregated == null || aggregated != capped) {
+      var row = new LinkedHashMap<String, Object>();
+      row.put("month", month);
+      row.put("capped", capped);
+      if (aggregated != null) {
+        row.put("aggregated", aggregated);
+      }
+      rows.add(row);
+      if (aggregated == null || !aggregated.equals(capped)) {
         stale.add(month);
       }
     }

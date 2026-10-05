@@ -83,6 +83,27 @@ class MviChecksTest {
   }
 
   @Test
+  @DisplayName("상한 적용 표본이 없으면 재집계 누락 점검 판정 불가")
+  void aggregateStale_cappedMissing_returnsUnknown() {
+    var noCapped = check(Map.of("202609", 250), Map.of(), Map.of(), null, null, "AGGREGATE_STALE");
+    assertThat(noCapped.verdict()).isEqualTo(HealthVerdict.UNKNOWN);
+  }
+
+  @Test
+  @DisplayName("표본 달 중 상한 적용이 누락되면 판정 불가")
+  void aggregateStale_missingCappedForSampledMonth_returnsUnknown() {
+    var partialCapped =
+        check(
+            Map.of("202608", 250, "202609", 250),
+            Map.of("202609", 240),
+            Map.of("202609", 240),
+            null,
+            null,
+            "AGGREGATE_STALE");
+    assertThat(partialCapped.verdict()).isEqualTo(HealthVerdict.UNKNOWN);
+  }
+
+  @Test
   @DisplayName("직무 표본 10 미만이면 주의이고 그 직무 사용자를 영향으로 센다")
   void peerSampleByFamily_thinFamily() {
     var c =
