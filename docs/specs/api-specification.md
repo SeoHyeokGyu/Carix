@@ -970,7 +970,7 @@
                   "impactUsers": 0,
                   "action": null,
                   "actionLink": null,
-                  "drillDown": "/admin/data?tab=cpi",
+                  "drillDown": "/admin/data?tab=cpi&from=201610&to=202609",
                   "evidence": { "latestCpiMonth": "202609", "lagMonths": 1 }
                 }
               ]
@@ -980,7 +980,7 @@
         ```
     *   `groups[].id` 는 `PPI`·`MVI`·`DECISION`·`SUPPORT` 이고, `checks[].id` 는 `CPI_LATEST`·`CPI_GAP`·`SAMPLE_LAST_MONTH`·`SAMPLE_GAPS`·`AGGREGATE_STALE`·`PEER_SAMPLE_BY_FAMILY`·`WAGE_BASELINE`·`RULE_VERSION`·`SNAPSHOT_FRESHNESS`·`DECISION_QUALITY`·`CRAWL_FRESHNESS` 다. `verdict` 는 `OK`·`WARN`·`ERROR`·`UNKNOWN` 이다.
     *   기준값은 collector 설정 `carix.collector.health.*`(`sample-target` 250, `sample-warn-ratio` 0.8, `cpi-max-lag-months` 2, `peer-min-sample` 10, `crawl-stale-days` 35)이다.
-    *   `checks[].drillDown` 은 근거 원본을 여는 관리자 콘솔 경로(문자열, nullable)이며 판정과 무관하게 채운다. `SAMPLE_LAST_MONTH` 는 `/admin/data?tab=postings&month={지난달}&sampled=true`, `SAMPLE_GAPS`·`AGGREGATE_STALE`·`PEER_SAMPLE_BY_FAMILY`·`CRAWL_FRESHNESS` 는 `/admin/data?tab=monthly`, `CPI_LATEST`·`CPI_GAP` 는 `/admin/data?tab=cpi`, `WAGE_BASELINE` 은 `/admin/data?tab=wage` 이고 그 밖의 점검은 `null` 이다.
+    *   `checks[].drillDown` 은 근거 원본을 여는 관리자 콘솔 경로(문자열, nullable)이며 판정과 무관하게 채운다. `SAMPLE_LAST_MONTH` 는 `/admin/data?tab=postings&month={지난달}&sampled=true`, `SAMPLE_GAPS`·`AGGREGATE_STALE`·`PEER_SAMPLE_BY_FAMILY`·`CRAWL_FRESHNESS` 는 `/admin/data?tab=monthly&from={지난달−35개월}&to={지난달}`(36개월), `CPI_LATEST`·`CPI_GAP` 는 `/admin/data?tab=cpi&from={지난달−119개월}&to={지난달}`(120개월), `WAGE_BASELINE` 은 `/admin/data?tab=wage` 이고 그 밖의 점검은 `null` 이다.
 
 ### 8.9 엔진 규칙 버전 조회 (core-api)
 *   `GET /api/v1/meta/versions` — 결정 신호 엔진의 규칙 버전. 인증이 없고, collector 가 게이트웨이를 거치지 않고 서비스 간 호출로 읽어 8.8 의 `RULE_VERSION` 점검에 쓴다.
@@ -991,7 +991,7 @@
 
 ### 8.10 수집 데이터 월별 현황 조회
 *   `GET /internal/pipeline/explore/monthly?from={YYYYMM}&to={YYYYMM}` — 월별 표본·정기 수집 건수 조회 (관리자 콘솔 `/admin/data` 월별 현황 탭 연동). 8.10~8.13 은 모두 읽기 전용이며 데이터를 바꾸지 않고, 금액(공고 연봉 범위, 임금통계 중위값)은 응답에 싣지 않는다. 월 기준은 `Asia/Seoul` 이다.
-    *   `from`·`to` 는 모두 선택이다. 기본 범위는 이번 달까지 최근 13개월이고, 범위는 최대 36개월이다. 형식 오류, `from` 이 `to` 보다 늦은 경우, 36개월 초과는 `400 BAD_REQUEST` 다.
+    *   `from`·`to` 는 모두 선택이다. 기본 범위는 이번 달까지 최근 13개월이고, 범위는 최대 36개월이다. 관리자 콘솔은 URL 의 `from`·`to` 를 그대로 넘긴다. 형식 오류, `from` 이 `to` 보다 늦은 경우, 36개월 초과는 `400 BAD_REQUEST` 다.
     *   표본은 `sampled_month`, 정기 수집은 `first_seen_month` 로 월을 센다. `jobkoreaSampledCapped` 와 `sampledByFamily` 는 같은 회사 월 3건 상한을 적용한 표본 기준으로 시장가치 동료집단과 같은 모수다.
     *   **Response (200 OK):**
         ```json
@@ -1020,7 +1020,7 @@
         | `month` | 필수 | `YYYYMM`. 누락 또는 형식 오류는 `400 BAD_REQUEST` |
         | `source` | 선택 | `JOBKOREA`·`SARAMIN` |
         | `sampled` | 선택 | `true` 면 `sampled_month = month`, `false` 면 `sampled_month IS NULL` 이고 `first_seen_month = month`, 생략하면 둘의 합집합 |
-        | `family` | 선택 | 직무군 |
+        | `family` | 선택 | 직무군. `OTHER` 는 `DEVELOPER`·`DATA`·`AI` 가 아닌 모든 공고(직무군이 비어 있는 공고 포함)로, 월별 현황의 `OTHER` 집계와 같은 기준이다 |
         | `company` | 선택 | 회사명 부분 일치 |
         | `skill` | 선택 | 표준 스킬명 정확 일치 |
         | `page` | 선택 | 0부터. 기본 0 |
@@ -1057,8 +1057,8 @@
 
 ### 8.12 CPI 월 × 품목 조회
 *   `GET /internal/pipeline/explore/cpi?from={YYYYMM}&to={YYYYMM}` — 월별 CPI 지수를 품목 코드별로 조회하고 결측 칸을 알린다 (관리자 콘솔 `/admin/data` CPI 탭 연동).
-    *   `from`·`to` 는 모두 선택이다. 기본 범위는 이번 달까지 최근 24개월이고, 범위는 최대 120개월이다. 형식 오류, `from` 이 `to` 보다 늦은 경우, 초과는 `400 BAD_REQUEST` 다.
-    *   값이 없는 칸은 `values` 에 키를 두지 않는다. `missing` 은 12개 품목이 다 있지 않은 달과 빠진 코드다.
+    *   `from`·`to` 는 모두 선택이다. 기본 범위는 이번 달까지 최근 24개월이고, 범위는 최대 120개월이다. 관리자 콘솔은 URL 의 `from`·`to` 를 그대로 넘긴다. 형식 오류, `from` 이 `to` 보다 늦은 경우, 초과는 `400 BAD_REQUEST` 다.
+    *   값이 없는 칸은 `values` 에 키를 두지 않는다. `missing` 은 12개 품목이 다 있지 않은 달과 빠진 코드다. 행이 하나도 없는 달도 DB 의 첫 CPI 월부터 마지막 CPI 월 사이이고 요청 범위 안이면 `months` 에 빈 `values` 로 나오고 `missing` 에 12개 코드 전부로 오른다. 그 구간 밖의 달은 싣지 않는다(공표 지연은 `CPI_LATEST` 소관).
     *   **Response (200 OK):**
         ```json
         {
@@ -1069,7 +1069,7 @@
         ```
 
 ### 8.13 임금통계 칸별 출처 조회
-*   `GET /internal/pipeline/explore/wage` — 최신 기준 연도 임금통계의 직무 × 경력 칸별 출처와 빈 칸 조회 (관리자 콘솔 `/admin/data` 임금통계 탭 연동). 파라미터가 없고 중위 금액은 싣지 않으며 출처와 유무만 담는다.
+*   `GET /internal/pipeline/explore/wage` — 최신 기준 연도 임금통계의 직무 × 경력 칸별 출처와 빈 칸 조회 (관리자 콘솔 `/admin/data` 임금통계 탭 연동). 파라미터가 없고 중위 금액은 싣지 않으며 출처와 유무만 담는다. 임금통계가 없으면 `basePeriod` 는 `null` 이고 15칸이 모두 `missing` 이다.
     *   `families` 는 `DEVELOPER`·`DATA`·`AI`, `brackets` 는 `ENTRY`·`JUNIOR`·`MID`·`SENIOR`·`LEAD` 다. 값이 있는 칸은 `cells` 에, 없는 칸은 `missing` 에 `직무/경력` 으로 담는다.
     *   **Response (200 OK):**
         ```json
