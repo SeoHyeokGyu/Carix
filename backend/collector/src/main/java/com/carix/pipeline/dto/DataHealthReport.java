@@ -32,5 +32,20 @@ public record DataHealthReport(
       Integer impactUsers,
       String action,
       String actionLink,
-      Map<String, Object> evidence) {}
+      Map<String, Object> evidence,
+      String drillDown) {
+
+    /** 원본 링크를 모르는 점검. 서비스가 조립 뒤 {@code DataHealthService} 에서 채운다. */
+    public Check(
+        String id,
+        String title,
+        HealthVerdict verdict,
+        String message,
+        Integer impactUsers,
+        String action,
+        String actionLink,
+        Map<String, Object> evidence) {
+      this(id, title, verdict, message, impactUsers, action, actionLink, evidence, null);
+    }
+  }
 }

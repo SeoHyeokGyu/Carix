@@ -85,4 +85,43 @@ class DataHealthServiceTest {
                     .allSatisfy(c -> assertThat(c.verdict()).isEqualTo(HealthVerdict.UNKNOWN)));
     assertThat(r.engineRuleVersion()).isNull();
   }
+
+  @Test
+  @DisplayName("점검마다 원본 화면 링크를 판정과 무관하게 채운다")
+  void drillDownLinks() {
+    assertThat(DataHealthService.drillDown("SAMPLE_LAST_MONTH", "202609"))
+        .isEqualTo("/admin/data?tab=postings&month=202609&sampled=true");
+    assertThat(DataHealthService.drillDown("AGGREGATE_STALE", "202609"))
+        .isEqualTo("/admin/data?tab=monthly");
+    assertThat(DataHealthService.drillDown("CPI_GAP", "202609")).isEqualTo("/admin/data?tab=cpi");
+    assertThat(DataHealthService.drillDown("WAGE_BASELINE", "202609"))
+        .isEqualTo("/admin/data?tab=wage");
+    assertThat(DataHealthService.drillDown("RULE_VERSION", "202609")).isNull();
+
+    DataHealthReader reader =
+        prev ->
+            new DataHealthSnapshot(
+                Map.of("202609", 12),
+                Map.of("202609", 250),
+                null,
+                null,
+                null,
+                null,
+                null,
+                List.of(),
+                Map.of());
+    var service =
+        new DataHealthService(
+            reader,
+            () -> Optional.of("1.3.0"),
+            HealthThresholds.defaults(),
+            at("2026-10-05T00:00:00Z"));
+    var check =
+        service.evaluate().groups().stream()
+            .flatMap(g -> g.checks().stream())
+            .filter(c -> c.id().equals("SAMPLE_LAST_MONTH"))
+            .findFirst()
+            .orElseThrow();
+    assertThat(check.drillDown()).isEqualTo("/admin/data?tab=postings&month=202609&sampled=true");
+  }
 }
