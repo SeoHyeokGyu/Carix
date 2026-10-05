@@ -255,9 +255,17 @@ public class MarketValueIndexServiceImpl implements MarketValueIndexProvider {
               classification.sourceSkillDemandIndices(),
               peerGroupResolution.peerGroups());
 
+      BigDecimal standardError =
+          calculateMviStandardError(
+              normalizedWeights,
+              peerGroupResolution.peerGroups(),
+              classification.sourceSkillDemandIndices(),
+              demandResults);
+
       return buildFinalMviResult(
           baseYearMonth,
           finalMviValue,
+          standardError,
           peerGroupResolution.coverages(),
           classification,
           skillContributions,
@@ -772,6 +780,7 @@ public class MarketValueIndexServiceImpl implements MarketValueIndexProvider {
   private MviResult buildFinalMviResult(
       String baseYearMonth,
       BigDecimal finalMviValue,
+      BigDecimal standardError,
       List<SourceCoverage> coverages,
       SkillClassification classification,
       List<SkillContribution> skillContributions,
@@ -791,7 +800,74 @@ public class MarketValueIndexServiceImpl implements MarketValueIndexProvider {
         classification.zeroDemandSkills(),
         skillContributions,
         wageBaseline,
-        aggregateAsOf != null ? aggregateAsOf : LocalDate.now());
+        aggregateAsOf != null ? aggregateAsOf : LocalDate.now(),
+        hasValue ? standardError : null);
+  }
+
+  /**
+   * 시장가치 지수의 표준오차(지수 포인트). {@link #calculateCombinedMvi} 와 같은 방식으로 접는다.
+   *
+   * <p>스킬 수요 지수는 두 비율의 나눗셈이라 상대 분산이 근사적으로 {@code 1/최근 창 스킬 건수 + 1/이전 창 스킬 건수} 다(모수 건수는 훨씬 커서 뺀다).
+   * 원천 안에서는 재정규화한 가중치로, 원천 사이에서는 표본 수 비중으로 분산을 더한다 — 스킬·원천 사이는 독립으로 본다. 결정 신호는 이 폭 밖으로 기준선을 넘을 때만
+   * 시장가치를 근거로 쓴다(도메인 정의서 §6.2). 계산할 원천이 없으면 {@code null}.
+   */
+  private BigDecimal calculateMviStandardError(
+      Map<UUID, BigDecimal> normalizedWeights,
+      Map<String, PeerGroupFallbackResolver.ResolvedPeerGroup> resolvedPeerGroups,
+      Map<String, Map<UUID, Double>> sourceSkillDemandIndices,
+      Map<UUID, Map<String, SkillDemandCalculator.SkillDemandResult>> demandResults) {
+
+    double weightedVariance = 0.0;
+    int validSampleSum = 0;
+    Map<String, Double> sourceVariances = new HashMap<>();
+    Map<String, Integer> sourceSamples = new HashMap<>();
+
+    for (String source : SUPPORTED_SOURCES) {
+      PeerGroupFallbackResolver.ResolvedPeerGroup peerGroup = resolvedPeerGroups.get(source);
+      Map<UUID, Double> skillIndices = sourceSkillDemandIndices.get(source);
+      if (!peerGroup.isSuccessful() || peerGroup.getSampleCount() <= 0 || skillIndices == null) {
+        continue;
+      }
+      double availableWeight = 0.0;
+      for (Map.Entry<UUID, BigDecimal> entry : normalizedWeights.entrySet()) {
+        if (skillIndices.containsKey(entry.getKey())) {
+          availableWeight += entry.getValue().doubleValue();
+        }
+      }
+      if (availableWeight <= 0.0) {
+        continue;
+      }
+      double variance = 0.0;
+      for (Map.Entry<UUID, BigDecimal> entry : normalizedWeights.entrySet()) {
+        Double demandIndex = skillIndices.get(entry.getKey());
+        if (demandIndex == null) {
+          continue;
+        }
+        SkillDemandCalculator.SkillDemandResult result =
+            demandResults.getOrDefault(entry.getKey(), Map.of()).get(source);
+        if (result == null
+            || result.getRecentSkillPostings() <= 0
+            || result.getBaselineSkillPostings() <= 0) {
+          continue;
+        }
+        double share = entry.getValue().doubleValue() / availableWeight;
+        double relativeVariance =
+            1.0 / result.getRecentSkillPostings() + 1.0 / result.getBaselineSkillPostings();
+        variance += share * share * demandIndex * demandIndex * relativeVariance;
+      }
+      sourceVariances.put(source, variance);
+      sourceSamples.put(source, peerGroup.getSampleCount());
+      validSampleSum += peerGroup.getSampleCount();
+    }
+
+    if (validSampleSum <= 0) {
+      return null;
+    }
+    for (Map.Entry<String, Double> entry : sourceVariances.entrySet()) {
+      double sourceShare = (double) sourceSamples.get(entry.getKey()) / validSampleSum;
+      weightedVariance += sourceShare * sourceShare * entry.getValue();
+    }
+    return BigDecimal.valueOf(Math.sqrt(weightedVariance)).setScale(1, RoundingMode.HALF_UP);
   }
 
   /**

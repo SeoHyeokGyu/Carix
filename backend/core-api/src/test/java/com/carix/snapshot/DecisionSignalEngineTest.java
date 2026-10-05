@@ -55,6 +55,22 @@ class DecisionSignalEngineTest {
   }
 
   /** MVI 가 비어 있고 제외 사유가 주어진 결과. 사유에 따라 근거 문구가 갈리는지 본다. */
+  /** 표준오차(지수 포인트)가 있는 시장가치. 표본 건수로 계산한 잡음 폭이다. */
+  private static MviResult mviWithError(double value, double standardError, long median) {
+    MviResult base = mvi(value, median);
+    return new MviResult(
+        base.baseYearMonth(),
+        base.value(),
+        base.status(),
+        base.sources(),
+        base.excludedSkills(),
+        base.zeroDemandSkills(),
+        base.skillContributions(),
+        base.wageBaseline(),
+        base.aggregateAsOf(),
+        BigDecimal.valueOf(standardError));
+  }
+
   private static MviResult mviNull(SkillExclusionReason... reasons) {
     return new MviResult(
         YM,
@@ -395,6 +411,56 @@ class DecisionSignalEngineTest {
             LocalDate.of(2026, 7, 1));
 
     assertThat(engine.evaluate(singlePoint, mvi(120.0, 72_000_000L), salary()).code())
+        .isEqualTo(DecisionSignalCode.SEEK_JOB);
+  }
+
+  // ---------- 시장가치 신뢰 가드 (규칙 1.3.0) ----------
+
+  @Test
+  @DisplayName("시장가치가 오차를 빼도 110 이상이면 이직 탐색이다")
+  void seekJob_whenMviClearsThresholdBeyondError() {
+    DecisionOutcome outcome =
+        engine.evaluate(ppi(100), mviWithError(125, 10, 72_000_000L), salary());
+
+    assertThat(outcome.code()).isEqualTo(DecisionSignalCode.SEEK_JOB);
+  }
+
+  @Test
+  @DisplayName("시장가치 점추정은 110 이상이지만 오차를 빼면 못 넘으면 이직 탐색 대신 격차만으로 판정하고 「시장가치 불확실」을 단다")
+  void seekJob_uncertainMvi_fallsBackToGapOnly() {
+    DecisionOutcome outcome =
+        engine.evaluate(ppi(100), mviWithError(114, 10, 72_000_000L), salary());
+
+    assertThat(outcome.code()).isEqualTo(DecisionSignalCode.NEGOTIATE);
+    assertThat(outcome.rulesApplied())
+        .containsExactly("연봉 격차 15% 이상", DecisionSignalEngine.MVI_UNCERTAIN);
+  }
+
+  @Test
+  @DisplayName("협상 검토도 오차를 빼고 105 를 넘어야 시장가치 근거로 낸다")
+  void negotiate_uncertainMvi_fallsBackToGapOnly() {
+    DecisionOutcome outcome =
+        engine.evaluate(ppi(100), mviWithError(108, 5, 66_000_000L), salary());
+
+    assertThat(outcome.code()).isEqualTo(DecisionSignalCode.NEGOTIATE);
+    assertThat(outcome.rulesApplied()).contains(DecisionSignalEngine.MVI_UNCERTAIN);
+  }
+
+  @Test
+  @DisplayName("스킬 보강 우선은 오차를 더해도 90 미만일 때만 — 아니면 격차만으로 판정한다")
+  void upskill_uncertainMvi_fallsBackToGapOnly() {
+    DecisionOutcome uncertain = engine.evaluate(ppi(80), mviWithError(85, 10, SALARY), salary());
+    DecisionOutcome certain = engine.evaluate(ppi(80), mviWithError(70, 10, SALARY), salary());
+
+    assertThat(uncertain.code()).isEqualTo(DecisionSignalCode.STAY);
+    assertThat(uncertain.rulesApplied()).contains(DecisionSignalEngine.MVI_UNCERTAIN);
+    assertThat(certain.code()).isEqualTo(DecisionSignalCode.UPSKILL);
+  }
+
+  @Test
+  @DisplayName("오차를 모르면(표준오차 없음) 점추정으로 판정한다")
+  void unknownError_usesPointEstimate() {
+    assertThat(engine.evaluate(ppi(100), mvi(114, 72_000_000L), salary()).code())
         .isEqualTo(DecisionSignalCode.SEEK_JOB);
   }
 }

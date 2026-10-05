@@ -361,6 +361,42 @@ class MarketValueIndexServiceTest {
   }
 
   @Test
+  @DisplayName("표준오차는 스킬별 최근·이전 창 건수로 낸다 — 원천은 표본 수로 가중 결합한다")
+  void testStandardErrorFromSkillCounts() {
+    UUID userId = UUID.randomUUID();
+    String ym = "202609";
+
+    CareerProfile profile = new CareerProfile(userId);
+    profile.patch("DEVELOPER", 5, "서울 강남구", "FULL_TIME", "MEDIUM");
+    Skill java = Skill.builder().id(UUID.randomUUID()).standardName("Java").isCustom(false).build();
+
+    when(careerProfileRepository.findByUserId(userId)).thenReturn(Optional.of(profile));
+    when(userSkillRepository.findByUserId(userId)).thenReturn(List.of(userSkillOf(java)));
+    when(peerGroupFallbackResolver.resolveForSource(any(), any(), any()))
+        .thenReturn(resolvedGroup("JOBKOREA", 50));
+    when(skillDemandCalculator.calculateDemandIndex(any(), eq(java.getId()), any(), eq(ym)))
+        .thenReturn(
+            SkillDemandCalculator.SkillDemandResult.builder()
+                .skillId(java.getId())
+                .demandIndex(120.0)
+                .status(SkillDemandStatus.OK)
+                .recentSkillPostings(25)
+                .baselineSkillPostings(100)
+                .build());
+    when(skillWeightCalculator.calculateWeights(any(), any(), any()))
+        .thenReturn(Map.of(java.getId(), BigDecimal.ONE));
+    when(wageBaselineResolver.resolveBaseline(any()))
+        .thenReturn(new WageBaseline(65000000L, "초과급여 제외", "202606"));
+
+    MviResult result = service.calculate(userId, ym);
+
+    // 원천별 분산 = 120² × (1/25 + 1/100) = 720. 두 원천 표본이 같아 가중치 ½씩: 0.25×720 + 0.25×720 = 360 → √360 ≈
+    // 19.0
+    assertThat(result.value()).isEqualByComparingTo("120.0");
+    assertThat(result.standardError()).isEqualByComparingTo("19.0");
+  }
+
+  @Test
   @DisplayName("한 원천에서만 신규 관측이면 제외하지 않고 그 원천의 가중치만 재정규화한다")
   void testSkillNewInOneSourceIsKept() {
     UUID userId = UUID.randomUUID();

@@ -21,7 +21,7 @@ import org.springframework.stereotype.Component;
 public class DecisionSignalEngine {
 
   /** 결정표 버전. 규칙표를 바꿔 배포할 때 수동으로 올린다 (기술 명세 §1.3). */
-  public static final String RULE_VERSION = "1.2.0";
+  public static final String RULE_VERSION = "1.3.0";
 
   private static final int MIN_SAMPLE_SIZE = 10;
   private static final BigDecimal GAP_SEEK_JOB = new BigDecimal("0.15");
@@ -38,6 +38,15 @@ public class DecisionSignalEngine {
    */
   public static final String MVI_NOT_REFLECTED = "시장가치 미반영";
 
+  /**
+   * 시장가치 점추정은 기준선을 넘지만 표본 잡음 폭(표준오차 × {@link #MVI_ERROR_MULTIPLIER}) 안이라 시장가치를 근거로 쓰지 않았다는 근거 문구.
+   * 이때는 부분 판정과 같이 연봉 격차만으로 판정한다.
+   */
+  public static final String MVI_UNCERTAIN = "시장가치 불확실";
+
+  /** 기준선과 비교할 때 시장가치에서 빼거나 더하는 표준오차 배수. 1 이면 잡음 1σ 안의 차이는 근거로 쓰지 않는다. */
+  static final BigDecimal MVI_ERROR_MULTIPLIER = BigDecimal.ONE;
+
   public DecisionOutcome evaluate(PpiResult ppi, MviResult mvi, CurrentSalary salary) {
     List<String> insufficient = insufficientDataReasons(ppi, mvi, salary);
     if (!insufficient.isEmpty()) {
@@ -46,22 +55,37 @@ public class DecisionSignalEngine {
 
     BigDecimal gap = salaryGapRatio(mvi.wageBaseline().medianGrossSalary(), salary.grossSalary());
     if (mvi.value() == null) {
-      return evaluateWithoutMvi(gap);
+      return evaluateWithoutMvi(gap, MVI_NOT_REFLECTED);
     }
     BigDecimal mviValue = mvi.value();
     BigDecimal ppiValue = ppi.value();
+    BigDecimal margin =
+        mvi.standardError() == null
+            ? BigDecimal.ZERO
+            : mvi.standardError().multiply(MVI_ERROR_MULTIPLIER);
+    BigDecimal mviLower = mviValue.subtract(margin);
+    BigDecimal mviUpper = mviValue.add(margin);
 
     if (gap.compareTo(GAP_SEEK_JOB) >= 0 && mviValue.compareTo(MVI_SEEK_JOB) >= 0) {
+      if (mviLower.compareTo(MVI_SEEK_JOB) < 0) {
+        return evaluateWithoutMvi(gap, MVI_UNCERTAIN);
+      }
       return new DecisionOutcome(
           DecisionSignalCode.SEEK_JOB, List.of("연봉 격차 15% 이상", "보유 스킬 시장수요 상승세"), gap);
     }
     if (gap.compareTo(GAP_NEGOTIATE) >= 0
         && gap.compareTo(GAP_SEEK_JOB) < 0
         && mviValue.compareTo(MVI_NEGOTIATE) >= 0) {
+      if (mviLower.compareTo(MVI_NEGOTIATE) < 0) {
+        return evaluateWithoutMvi(gap, MVI_UNCERTAIN);
+      }
       return new DecisionOutcome(
           DecisionSignalCode.NEGOTIATE, List.of("연봉 격차 5~15% 구간", "스킬 가치 상승세"), gap);
     }
     if (mviValue.compareTo(MVI_STABLE) < 0 && ppiValue.compareTo(PPI_UPSKILL) < 0) {
+      if (mviUpper.compareTo(MVI_STABLE) >= 0) {
+        return evaluateWithoutMvi(gap, MVI_UNCERTAIN);
+      }
       return new DecisionOutcome(
           DecisionSignalCode.UPSKILL, List.of("구매력 지수 95 미만", "보유 스킬 채용수요 감소세"), gap);
     }
@@ -75,24 +99,22 @@ public class DecisionSignalEngine {
   }
 
   /**
-   * 시장가치 없이 연봉 격차만으로 내는 부분 판정 (도메인 정의서 §6.2). 시장가치는 이전 12개월 창이 비면 계산되지 않는데, 그동안 판정을 통째로 비우지 않고 격차로
-   * 말할 수 있는 것만 말한다.
+   * 시장가치 없이 연봉 격차만으로 내는 부분 판정 (도메인 정의서 §6.2). 시장가치가 없거나({@link #MVI_NOT_REFLECTED}) 잡음 폭 안이라 근거로 못
+   * 쓸 때({@link #MVI_UNCERTAIN}) 판정을 통째로 비우지 않고 격차로 말할 수 있는 것만 말한다.
    */
-  private static DecisionOutcome evaluateWithoutMvi(BigDecimal gap) {
+  private static DecisionOutcome evaluateWithoutMvi(BigDecimal gap, String mviReason) {
     if (gap.compareTo(GAP_SEEK_JOB) >= 0) {
       return new DecisionOutcome(
-          DecisionSignalCode.NEGOTIATE, List.of("연봉 격차 15% 이상", MVI_NOT_REFLECTED), gap);
+          DecisionSignalCode.NEGOTIATE, List.of("연봉 격차 15% 이상", mviReason), gap);
     }
     if (gap.compareTo(GAP_NEGOTIATE) >= 0) {
       return new DecisionOutcome(
-          DecisionSignalCode.NEGOTIATE, List.of("연봉 격차 5~15% 구간", MVI_NOT_REFLECTED), gap);
+          DecisionSignalCode.NEGOTIATE, List.of("연봉 격차 5~15% 구간", mviReason), gap);
     }
     if (gap.compareTo(GAP_STAY_LOWER) > 0) {
-      return new DecisionOutcome(
-          DecisionSignalCode.STAY, List.of("연봉이 시장 수준에 근접", MVI_NOT_REFLECTED), gap);
+      return new DecisionOutcome(DecisionSignalCode.STAY, List.of("연봉이 시장 수준에 근접", mviReason), gap);
     }
-    return new DecisionOutcome(
-        DecisionSignalCode.STAY, List.of("뚜렷한 보상 격차 없음", MVI_NOT_REFLECTED), gap);
+    return new DecisionOutcome(DecisionSignalCode.STAY, List.of("뚜렷한 보상 격차 없음", mviReason), gap);
   }
 
   /**
