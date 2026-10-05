@@ -22,8 +22,9 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * 점검 데이터를 읽는다. 모두 읽기 전용이고 금액 컬럼을 읽지 않는다. {@code index_snapshot} 은 core-api 소관이라 엔티티를 두지 않고 필요한 컬럼만
- * 읽는다.
+ * 점검 데이터를 읽는다. 모두 읽기 전용이다. 표본 상한 건수를 집계 서비스와 같은 규칙으로 세려고 공고 엔티티를 {@code findAll()} 로 통째로 올리므로 공개 공고
+ * 필드(공시 연봉 범위 포함)가 메모리에 실리지만, 건수만 쓰고 금액은 반환하거나 노출하지 않는다. {@code index_snapshot} 은 core-api 소관이라
+ * 엔티티를 두지 않고, rationale 에서도 지수 상태와 규칙 문구 조각만 읽는다.
  */
 @Component
 @RequiredArgsConstructor
@@ -110,7 +111,8 @@ public class JdbcDataHealthReader implements DataHealthReader {
   private List<UserSnapshot> snapshots() {
     List<UserSnapshot> out = new ArrayList<>();
     jdbc.query(
-        "SELECT s.user_id, s.base_year_month, s.rule_version, s.decision_signal, CAST(s.rationale AS VARCHAR)"
+        "SELECT s.user_id, s.base_year_month, s.rule_version, s.decision_signal, CAST(s.rationale->'indexStatuses' AS VARCHAR),"
+            + " CAST(s.rationale->'rulesApplied' AS VARCHAR)"
             + " FROM core.index_snapshot s"
             + " WHERE NOT EXISTS (SELECT 1 FROM core.index_snapshot t WHERE t.user_id = s.user_id"
             + "   AND (t.base_year_month > s.base_year_month"
@@ -123,6 +125,7 @@ public class JdbcDataHealthReader implements DataHealthReader {
                   rs.getString(3),
                   rs.getString(4),
                   rs.getString(5),
+                  rs.getString(6),
                   MAPPER));
         });
     return out;
@@ -138,28 +141,46 @@ public class JdbcDataHealthReader implements DataHealthReader {
     return out;
   }
 
-  /** rationale 에서 지수 상태와 규칙 문구만 꺼낸다. 깨졌거나 비어 있으면 상태 null. */
+  /**
+   * rationale 의 {@code indexStatuses}·{@code rulesApplied} 조각을 해석한다. 조각이 깨졌거나 비어 있으면 상태는 null, 규칙은
+   * 빈 목록이다.
+   */
   static UserSnapshot parseSnapshot(
       String userId,
       String month,
       String version,
       String signal,
-      String rationaleJson,
+      String statusesJson,
+      String rulesJson,
       ObjectMapper mapper) {
-    String ppi = null;
-    String mvi = null;
+    JsonNode statuses = readOrNull(statusesJson, mapper);
+    JsonNode rulesNode = readOrNull(rulesJson, mapper);
+    String ppi = textOrNull(statuses, "ppi");
+    String mvi = textOrNull(statuses, "mvi");
     List<String> rules = new ArrayList<>();
-    try {
-      JsonNode root = rationaleJson == null ? null : mapper.readTree(rationaleJson);
-      if (root != null) {
-        JsonNode st = root.path("indexStatuses");
-        ppi = st.path("ppi").isTextual() ? st.path("ppi").asText() : null;
-        mvi = st.path("mvi").isTextual() ? st.path("mvi").asText() : null;
-        root.path("rulesApplied").forEach(n -> rules.add(n.asText()));
-      }
-    } catch (Exception e) {
-      // 깨진 rationale 은 상태 없음으로 둔다 — 요약이 UNKNOWN_RATIONALE 로 센다.
+    if (rulesNode != null && rulesNode.isArray()) {
+      rulesNode.forEach(n -> rules.add(n.asText()));
     }
     return new UserSnapshot(userId, month, version, signal, ppi, mvi, rules);
+  }
+
+  private static JsonNode readOrNull(String json, ObjectMapper mapper) {
+    if (json == null) {
+      return null;
+    }
+    try {
+      return mapper.readTree(json);
+    } catch (Exception e) {
+      // 깨진 조각은 없음으로 둔다 — 요약이 UNKNOWN_RATIONALE 로 센다.
+      return null;
+    }
+  }
+
+  private static String textOrNull(JsonNode node, String field) {
+    if (node == null) {
+      return null;
+    }
+    JsonNode v = node.path(field);
+    return v.isTextual() ? v.asText() : null;
   }
 }

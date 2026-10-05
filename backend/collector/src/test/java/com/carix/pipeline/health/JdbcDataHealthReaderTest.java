@@ -11,23 +11,39 @@ class JdbcDataHealthReaderTest {
   private final ObjectMapper mapper = new ObjectMapper();
 
   @Test
-  @DisplayName("rationale 에서 지수 상태와 규칙 문구만 읽는다")
+  @DisplayName("지수 상태 조각과 규칙 문구 조각을 읽는다")
   void parsesStatusesAndRules() {
-    String json =
-        "{\"indexStatuses\":{\"ppi\":\"INSUFFICIENT_HISTORY\",\"mvi\":\"OK\",\"owi\":\"OK\"},\"rulesApplied\":[\"시장가치 불확실\"],\"salaryGapBucket\":\"NEAR_MARKET\"}";
     var s =
         JdbcDataHealthReader.parseSnapshot(
-            "6fa4914e-xxxx", "202610", "1.3.0", "STAY", json, mapper);
+            "6fa4914e-xxxx",
+            "202610",
+            "1.3.0",
+            "STAY",
+            "{\"ppi\":\"INSUFFICIENT_HISTORY\",\"mvi\":\"OK\"}",
+            "[\"시장가치 불확실\"]",
+            mapper);
     assertThat(s.ppiStatus()).isEqualTo("INSUFFICIENT_HISTORY");
     assertThat(s.mviStatus()).isEqualTo("OK");
     assertThat(s.rulesApplied()).containsExactly("시장가치 불확실");
   }
 
   @Test
-  @DisplayName("깨졌거나 비어 있는 rationale 은 상태 null 이다")
-  void brokenRationale() {
-    var s = JdbcDataHealthReader.parseSnapshot("u", "202610", "1.3.0", "STAY", "{oops", mapper);
+  @DisplayName("깨진 조각은 상태 null, 규칙 빈 목록이다")
+  void brokenFragments() {
+    var s =
+        JdbcDataHealthReader.parseSnapshot(
+            "u", "202610", "1.3.0", "STAY", "{oops", "[oops", mapper);
     assertThat(s.ppiStatus()).isNull();
+    assertThat(s.mviStatus()).isNull();
+    assertThat(s.rulesApplied()).isEmpty();
+  }
+
+  @Test
+  @DisplayName("비어 있는 조각은 상태 null, 규칙 빈 목록이다")
+  void nullFragments() {
+    var s = JdbcDataHealthReader.parseSnapshot("u", "202610", "1.3.0", "STAY", null, null, mapper);
+    assertThat(s.ppiStatus()).isNull();
+    assertThat(s.mviStatus()).isNull();
     assertThat(s.rulesApplied()).isEmpty();
   }
 }
