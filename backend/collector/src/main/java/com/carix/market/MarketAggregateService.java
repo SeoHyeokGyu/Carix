@@ -3,6 +3,7 @@ package com.carix.market;
 import com.carix.jobposting.JobPosting;
 import com.carix.jobposting.JobPostingRepository;
 import com.carix.jobposting.JobPostingSkill;
+import com.carix.jobposting.dedup.CompanyNormalizer;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
@@ -12,6 +13,7 @@ import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -37,6 +39,11 @@ public class MarketAggregateService {
 
   /** 연봉 공개 공고가 하나도 없을 때의 결측률. DDL 기본값과 같은 퍼센트 단위다. */
   private static final BigDecimal HUNDRED_PERCENT = new BigDecimal("100.00");
+
+  static final String SAMPLED_SOURCE = "JOBKOREA";
+  static final int SAMPLE_COMPANY_CAP_PER_MONTH = 3;
+
+  private final CompanyNormalizer companyNormalizer = new CompanyNormalizer();
 
   private final JobPostingRepository jobPostingRepository;
   private final MarketAggregateRepository marketAggregateRepository;
@@ -198,10 +205,15 @@ public class MarketAggregateService {
     // 3. 통합 관점 ("ALL" source, dedup_group_id 기준) 집계
     aggregates.addAll(buildAggregatesForSource("ALL", activePostings, baseYearMonth, true));
 
-    // 4. 개별 원천별 관점 ("JOBKOREA", "SARAMIN") 집계
+    // 4. 개별 원천별 관점 ("JOBKOREA", "SARAMIN") 집계. 잡코리아는 활동 공고가 아니라 그 달 무작위 표본만 센다.
     Map<String, List<JobPosting>> bySource =
         activePostings.stream()
+            .filter(p -> !SAMPLED_SOURCE.equals(p.getSource()))
             .collect(Collectors.groupingBy(p -> p.getSource() != null ? p.getSource() : "UNKNOWN"));
+    List<JobPosting> sample = sampledPostingsForMonth(allPostings, baseYearMonth);
+    if (!sample.isEmpty()) {
+      bySource.put(SAMPLED_SOURCE, sample);
+    }
     for (Map.Entry<String, List<JobPosting>> entry : bySource.entrySet()) {
       aggregates.addAll(
           buildAggregatesForSource(entry.getKey(), entry.getValue(), baseYearMonth, false));
@@ -211,6 +223,32 @@ public class MarketAggregateService {
     log.info("[시장사전집계] 기준년월 {} 집계 완료 ({}건 적재).", baseYearMonth, aggregates.size());
 
     return aggregates.size();
+  }
+
+  /**
+   * 잡코리아 무작위 표본 중 그 달({@code sampled_month}) 공고. 같은 회사는 외부 ID 순으로 앞의 {@link
+   * #SAMPLE_COMPANY_CAP_PER_MONTH} 건만 남긴다 — SI·파견 업체의 반복 등록이 수요율을 끌고 가지 않게 한다.
+   */
+  List<JobPosting> sampledPostingsForMonth(List<JobPosting> postings, String baseYearMonth) {
+    String targetMonth = normalizeMonth(baseYearMonth);
+    Map<String, Integer> perCompany = new HashMap<>();
+    return postings.stream()
+        .filter(p -> SAMPLED_SOURCE.equals(p.getSource()))
+        .filter(p -> targetMonth.equals(p.getSampledMonth()))
+        .sorted(Comparator.comparing(MarketAggregateService::externalIdOrder))
+        .filter(
+            p ->
+                perCompany.merge(companyNormalizer.normalize(p.getCompanyName()), 1, Integer::sum)
+                    <= SAMPLE_COMPANY_CAP_PER_MONTH)
+        .collect(Collectors.toList());
+  }
+
+  private static long externalIdOrder(JobPosting p) {
+    try {
+      return Long.parseLong(p.getExternalId());
+    } catch (NumberFormatException e) {
+      return Long.MAX_VALUE;
+    }
   }
 
   /**
@@ -292,6 +330,9 @@ public class MarketAggregateService {
     DateTimeFormatter yyyyMM = DateTimeFormatter.ofPattern("yyyyMM");
 
     for (JobPosting p : postings) {
+      if (p.getSampledMonth() != null) {
+        months.add(p.getSampledMonth());
+      }
       String start = resolveStartMonth(p);
       if (start != null) {
         String end = resolveEndMonth(p, start);

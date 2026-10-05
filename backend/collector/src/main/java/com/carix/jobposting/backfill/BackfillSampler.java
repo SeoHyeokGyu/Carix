@@ -10,13 +10,14 @@ import java.util.Set;
 /**
  * 한 달치 ID 구간에서 무작위로 ID 를 골라 목표 건수만큼 대상 공고를 모은다. 요청 상한에 닿거나 구간을 다 뽑으면 목표를 못 채워도 멈춘다.
  *
- * <p>이미 적재된 ID 는 요청하지 않는다. 게시일이 그 달이 아니면(경계 근사 오차) 저장하지 않는다.
+ * <p>이미 표본인 ID 는 요청하지 않는다. 정기 수집만 된 ID 는 다시 열어 표본으로 표시한다. 게시일이 그 달이 아니면(경계 근사 오차) 저장하지 않는다.
  */
 public class BackfillSampler {
 
   /** 표본기가 바깥 세계와 닿는 세 지점. 테스트는 가짜로 바꿔 끼운다. */
   public interface Pages {
-    boolean exists(long id);
+    /** 이미 표본으로 뽑힌 공고. 정기 수집만 된 공고는 여기 해당하지 않는다 — 표본에서 빼면 표본이 치우친다. */
+    boolean alreadySampled(long id);
 
     Optional<Candidate> fetch(long id);
 
@@ -31,7 +32,7 @@ public class BackfillSampler {
   }
 
   public record Result(
-      int requests, int saved, int existing, int empty, int otherMonth, int nonTarget) {}
+      int requests, int saved, int alreadySampled, int empty, int otherMonth, int nonTarget) {}
 
   private final Pages pages;
   private final Random random;
@@ -48,7 +49,7 @@ public class BackfillSampler {
     Set<Long> tried = new HashSet<>();
     int requests = 0;
     int saved = 0;
-    int existing = 0;
+    int alreadySampled = 0;
     int empty = 0;
     int otherMonth = 0;
     int nonTarget = 0;
@@ -58,8 +59,8 @@ public class BackfillSampler {
       if (!tried.add(id)) {
         continue;
       }
-      if (pages.exists(id)) {
-        existing++;
+      if (pages.alreadySampled(id)) {
+        alreadySampled++;
         continue;
       }
       requests++;
@@ -80,6 +81,6 @@ public class BackfillSampler {
       pages.save(candidate, month);
       saved++;
     }
-    return new Result(requests, saved, existing, empty, otherMonth, nonTarget);
+    return new Result(requests, saved, alreadySampled, empty, otherMonth, nonTarget);
   }
 }

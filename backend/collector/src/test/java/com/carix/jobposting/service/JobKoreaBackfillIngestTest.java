@@ -72,6 +72,7 @@ class JobKoreaBackfillIngestTest {
     verify(jobPostingRepository).save(posting.capture());
     JobPosting p = posting.getValue();
     assertThat(p.getFirstSeenMonth()).isEqualTo("202509");
+    assertThat(p.getSampledMonth()).isEqualTo("202509");
     assertThat(p.getLastSeenMonth()).isEqualTo("202509");
     assertThat(p.getPostedStartDate()).isEqualTo(LocalDate.of(2025, 9, 15));
     assertThat(p.getPostedEndDate()).isEqualTo(LocalDate.of(2025, 10, 15));
@@ -86,13 +87,18 @@ class JobKoreaBackfillIngestTest {
   }
 
   @Test
-  @DisplayName("이미 있는 공고는 건드리지 않는다 — 정기 수집의 관측 월을 과거로 되돌리지 않는다")
-  void skipsExisting() {
+  @DisplayName("이미 정기 수집된 공고가 표본에 뽑히면 관측 월은 그대로 두고 표본 월만 단다 — 표본에서 빠지면 표본이 치우친다")
+  void marksExistingAsSampled() {
+    JobPosting existing = mock(JobPosting.class);
+    given(existing.getTitle()).willReturn("Java 백엔드 개발자");
+    given(existing.getJobFamily()).willReturn("DEVELOPER");
     given(jobPostingRepository.findBySourceAndExternalId("JOBKOREA", "48000001"))
-        .willReturn(Optional.of(mock(JobPosting.class)));
+        .willReturn(Optional.of(existing));
 
-    assertThat(service.ingestBackfilledJobKorea(PAGE, "202509", Instant.now())).isFalse();
-    verify(jobPostingRepository, never()).save(any());
+    assertThat(service.ingestBackfilledJobKorea(PAGE, "202509", Instant.now())).isTrue();
+    verify(existing).markSampled("202509");
+    verify(existing, never()).updateLastSeenMonth(any());
+    verify(jobPostingRepository).save(existing);
   }
 
   @Test

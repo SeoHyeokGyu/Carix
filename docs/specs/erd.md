@@ -154,6 +154,7 @@ erDiagram
         date posted_end_date
         varchar first_seen_month
         varchar last_seen_month
+        varchar sampled_month
         timestamp collected_at
     }
 
@@ -239,6 +240,7 @@ erDiagram
 > | `raw_ingest` | 원문 보관 + 24개월 purge | **원문을 보관하지 않는다.** `payload`·`purged_at`·`schema_version` 컬럼 없음. 수집 이력만 남는다 |
 > | `job_posting.content` | 공고 상세 본문 텍스트 | **컬럼 없음.** 스킬 파싱은 `raw_ingest` 원문에서 직접 한다 |
 > | `job_posting.first_seen_month`·`last_seen_month` | 공고를 처음·마지막 본 월 | 크롤러가 처음 본 월로 채우고 재관측 시 `last_seen_month` 를 갱신한다. 다만 크롤러가 최근 등록순 몇 페이지만 훑어 재관측이 거의 없어 **두 값이 사실상 같다** — 관측 기간을 재는 데 쓸 수 없다. 등록·마감은 `posted_start_date`·`posted_end_date` 를 쓴다. 등록일은 약 56% 가 비어 있다 — 원천이 싣지 않은 공고에 더해, 사람인 목록의 마감일을 등록일로 읽어 만들어진 값(마감일과 월일이 같은 365일 창)을 비웠기 때문이다. 사람인 등록일은 목록의 `.job_sector .job_day` 에서 읽는다 |
+> | `job_posting.sampled_month` | 무작위 ID 표본으로 뽑힌 달(게시일 기준) | 잡코리아 시장 집계(`market_aggregate` 의 `JOBKOREA` 행)는 이 값이 그 달인 공고만 같은 회사 월 3건까지 센다. 정기 수집(목록 상단)과 무작위 표본은 모집단이 달라 섞으면 수요율이 수집 방식만으로 움직인다. 정기 수집으로 들어온 공고도 표본에 뽑히면 값을 단다. 표본이 아니면 `NULL` |
 >
 > **`market_aggregate.base_year_month` 는 그 달 신규 수집 공고(유량)의 집계 기준월이다.**
 > `MarketAggregateService` 가 활동월(`first_seen_month <= m <= last_seen_month`) 기준으로
@@ -296,6 +298,7 @@ erDiagram
 | 2026-09-17 | `core.wage_stat_observation` | 벽시계 vintage 로 쌓인 `base_period=2025` 의 `202608`(24행)·`202609`(48행)을 삭제했다. `202609` 는 폴백 상수였고 `stat_vintage DESC` 정렬에서 실측 `202508` 을 이겨 2025 기준선을 상수로 만들고 있었다 |
 | 2026-09-19 | `core.index_snapshot` | 개방창 지수 컬럼 `opening_window_index numeric(6,2)` 를 더했다. nullable·기본값 없음이라 카탈로그만 바뀌고 테이블 재작성이 없었다. 기존 186행은 새 컬럼이 `NULL` 이고 다른 컬럼·인덱스·제약은 건드리지 않았다. 신규 환경용 실행 정본(`deploy/postgres/schema/04_snapshot_and_scenario.sql`)에도 같은 컬럼을 넣었다 |
 | 2026-09-21 | `core.income_history` | 변경 사유 컬럼 `change_reason varchar(20)` 과 `CHECK (change_reason IN ('RAISE', 'JOB_CHANGE'))`, 컬럼 주석을 더했다. nullable·기본값 없음이라 카탈로그만 바뀌고 테이블 재작성이 없었다. 기존 2행은 새 컬럼이 `NULL` 이고 인덱스 셋(`income_history_pkey`·`income_history_user_effective_idx`·`income_history_user_id_effective_date_key`)은 그대로다. 제약 이름은 `income_history_change_reason_check`. 신규 환경용 실행 정본(`deploy/postgres/schema/02_user_domain.sql`)에도 같은 컬럼을 넣었다 |
+| 2026-10-05 | `core.job_posting` | 표본 월 컬럼 `sampled_month varchar(6)` 을 더했다. nullable·기본값 없음이라 카탈로그만 바뀌고 테이블 재작성이 없었다. 원천 항목 `backfill-<id>` 가 있는 백필분 2,010행에 `sampled_month = first_seen_month` 를 채웠고(202510~202607), 나머지 4,275행은 `NULL` 이다. 신규 환경용 실행 정본(`deploy/postgres/schema/01_job_posting.sql`)에도 같은 컬럼을 넣었다 |
 
 > **`core.wage_stat_observation.source` 는 쓰기 경로까지 들어왔다.** 수집이 연도별로 출처를
 > 기록하고, KOSIS 실측만 기존 행을 덮는다 — 폴백 상수는 기존 행을 건드리지 않는다. 컬럼 도입
