@@ -5,6 +5,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 
+import com.carix.index.dto.ExcludedSkill;
 import com.carix.index.dto.MviResult;
 import com.carix.index.dto.SourceCoverage;
 import com.carix.index.dto.WageBaseline;
@@ -357,6 +358,92 @@ class MarketValueIndexServiceTest {
         .satisfies(
             excluded ->
                 assertThat(excluded.reason()).isEqualTo(SkillExclusionReason.INSUFFICIENT_SAMPLE));
+  }
+
+  @Test
+  @DisplayName("한 원천에서만 신규 관측이면 제외하지 않고 그 원천의 가중치만 재정규화한다")
+  void testSkillNewInOneSourceIsKept() {
+    UUID userId = UUID.randomUUID();
+    String ym = "202610";
+
+    CareerProfile profile = new CareerProfile(userId);
+    profile.patch("DEVELOPER", 5, "서울 강남구", "FULL_TIME", "MEDIUM");
+
+    Skill active =
+        Skill.builder().id(UUID.randomUUID()).standardName("Java").isCustom(false).build();
+    Skill partial =
+        Skill.builder().id(UUID.randomUUID()).standardName("Spring Boot").isCustom(false).build();
+
+    when(careerProfileRepository.findByUserId(userId)).thenReturn(Optional.of(profile));
+    when(userSkillRepository.findByUserId(userId))
+        .thenReturn(List.of(userSkillOf(active), userSkillOf(partial)));
+    when(peerGroupFallbackResolver.resolveForSource(any(), any(), any()))
+        .thenReturn(resolvedGroup("JOBKOREA", 50));
+
+    when(skillDemandCalculator.calculateDemandIndex(any(), eq(active.getId()), any(), eq(ym)))
+        .thenReturn(demand(active.getId(), 120.0, SkillDemandStatus.OK));
+    when(skillDemandCalculator.calculateDemandIndex(
+            eq("JOBKOREA"), eq(partial.getId()), any(), eq(ym)))
+        .thenReturn(demand(partial.getId(), 80.0, SkillDemandStatus.OK));
+    // 이전 창을 과거 표본으로 채운 원천(잡코리아)과 채우지 않은 원천(사람인)이 갈린다.
+    when(skillDemandCalculator.calculateDemandIndex(
+            eq("SARAMIN"), eq(partial.getId()), any(), eq(ym)))
+        .thenReturn(demand(partial.getId(), 0.0, SkillDemandStatus.NEW_OBSERVATION));
+
+    when(skillWeightCalculator.calculateWeights(any(), any(), any()))
+        .thenReturn(
+            Map.of(
+                active.getId(), BigDecimal.valueOf(0.5),
+                partial.getId(), BigDecimal.valueOf(0.5)));
+    when(wageBaselineResolver.resolveBaseline(any()))
+        .thenReturn(new WageBaseline(65000000L, "초과급여 제외", "202606"));
+
+    MviResult result = service.calculate(userId, ym);
+
+    // 표본 미달과 같은 결합: JOBKOREA 100, SARAMIN 은 Spring Boot 가 빠져 120 으로 재정규화 → 110.
+    assertThat(result.excludedSkills()).isEmpty();
+    assertThat(result.value()).isEqualByComparingTo("110.0");
+  }
+
+  @Test
+  @DisplayName("모든 원천에서 신규 관측인 스킬은 신규 관측으로 제외된다")
+  void testSkillNewInAllSourcesIsExcluded() {
+    UUID userId = UUID.randomUUID();
+    String ym = "202610";
+
+    CareerProfile profile = new CareerProfile(userId);
+    profile.patch("DEVELOPER", 5, "서울 강남구", "FULL_TIME", "MEDIUM");
+
+    Skill active =
+        Skill.builder().id(UUID.randomUUID()).standardName("Java").isCustom(false).build();
+    Skill fresh =
+        Skill.builder().id(UUID.randomUUID()).standardName("Spring Boot").isCustom(false).build();
+
+    when(careerProfileRepository.findByUserId(userId)).thenReturn(Optional.of(profile));
+    when(userSkillRepository.findByUserId(userId))
+        .thenReturn(List.of(userSkillOf(active), userSkillOf(fresh)));
+    when(peerGroupFallbackResolver.resolveForSource(any(), any(), any()))
+        .thenReturn(resolvedGroup("JOBKOREA", 50));
+
+    when(skillDemandCalculator.calculateDemandIndex(any(), eq(active.getId()), any(), eq(ym)))
+        .thenReturn(demand(active.getId(), 120.0, SkillDemandStatus.OK));
+    when(skillDemandCalculator.calculateDemandIndex(any(), eq(fresh.getId()), any(), eq(ym)))
+        .thenReturn(demand(fresh.getId(), 0.0, SkillDemandStatus.NEW_OBSERVATION));
+
+    when(skillWeightCalculator.calculateWeights(any(), any(), any()))
+        .thenReturn(
+            Map.of(
+                active.getId(), BigDecimal.valueOf(0.5),
+                fresh.getId(), BigDecimal.valueOf(0.5)));
+    when(wageBaselineResolver.resolveBaseline(any()))
+        .thenReturn(new WageBaseline(65000000L, "초과급여 제외", "202606"));
+
+    MviResult result = service.calculate(userId, ym);
+
+    assertThat(result.excludedSkills())
+        .extracting(ExcludedSkill::reason)
+        .containsExactly(SkillExclusionReason.NEW_OBSERVATION);
+    assertThat(result.value()).isEqualByComparingTo("120.0");
   }
 
   @Test
