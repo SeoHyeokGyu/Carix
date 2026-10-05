@@ -217,7 +217,11 @@ export default function DataExplorePage() {
           />
         )}
         {(tab === "cpi" || tab === "wage") && (
-          <PurchasingPowerPanel tab={tab} />
+          <PurchasingPowerPanel
+            tab={tab}
+            reloadKey={reloadKey}
+            onForbidden={() => setIsKeyModalOpen(true)}
+          />
         )}
       </main>
       <AdminKeyModal

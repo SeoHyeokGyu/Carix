@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   fetchCpi,
   fetchWage,
@@ -102,10 +102,22 @@ function WageView({ data }: { data: WageTable }) {
 }
 
 /** CPI 월 × 품목 표, 임금통계 직무 × 경력 출처 표. 금액은 보이지 않는다. */
-export function PurchasingPowerPanel({ tab }: { tab: PanelTab }) {
+export function PurchasingPowerPanel({
+  tab,
+  reloadKey: externalReloadKey = 0,
+  onForbidden,
+}: {
+  tab: PanelTab;
+  reloadKey?: number;
+  onForbidden?: () => void;
+}) {
+  const onForbiddenRef = useRef(onForbidden);
+  useEffect(() => {
+    onForbiddenRef.current = onForbidden;
+  });
   const [loaded, setLoaded] = useState<Loaded | null>(null);
   const [failed, setFailed] = useState(false);
-  const [reloadKey, setReloadKey] = useState(0);
+  const [retryKey, setRetryKey] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -118,16 +130,20 @@ export function PurchasingPowerPanel({ tab }: { tab: PanelTab }) {
             ? { kind: "cpi", data: await fetchCpi() }
             : { kind: "wage", data: await fetchWage() };
         if (!cancelled) setLoaded(next);
-      } catch {
-        // NOTE: 403 은 키 모달을 이 패널이 열 수 없어 실패 상태로 둔다
-        if (!cancelled) setFailed(true);
+      } catch (err) {
+        if (cancelled) return;
+        if ((err as { status?: number }).status === 403) {
+          onForbiddenRef.current?.();
+          return;
+        }
+        setFailed(true);
       }
     };
     void run();
     return () => {
       cancelled = true;
     };
-  }, [tab, reloadKey]);
+  }, [tab, retryKey, externalReloadKey]);
 
   if (failed) {
     return (
@@ -139,7 +155,7 @@ export function PurchasingPowerPanel({ tab }: { tab: PanelTab }) {
         <Button
           variant="link"
           size="sm"
-          onClick={() => setReloadKey((k) => k + 1)}
+          onClick={() => setRetryKey((k) => k + 1)}
         >
           다시 시도
         </Button>

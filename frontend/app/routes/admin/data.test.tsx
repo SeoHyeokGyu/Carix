@@ -9,6 +9,7 @@ vi.mock("../../lib/collectorApi", async (orig) => ({
   ...(await orig<typeof import("../../lib/collectorApi")>()),
   fetchMonthlyOverview: vi.fn(),
   fetchPostings: vi.fn(),
+  fetchCpi: vi.fn(),
 }));
 
 const monthly: api.MonthlyOverview = {
@@ -198,5 +199,21 @@ describe("DataExplorePage", () => {
     renderAt("/admin/data");
     expect(await screen.findByRole("dialog")).toBeInTheDocument();
     expect(screen.queryByText("불러오지 못했습니다")).not.toBeInTheDocument();
+  });
+
+  it("CPI 탭 403 이면 키 모달을 열고, 키 저장 뒤 다시 불러온다", async () => {
+    vi.mocked(api.fetchCpi)
+      .mockRejectedValueOnce({ code: "FORBIDDEN", message: "x", status: 403 })
+      .mockResolvedValueOnce({
+        codes: ["A"],
+        months: [{ month: "202609", values: { A: 118.32 } }],
+        missing: [],
+      });
+    renderAt("/admin/data?tab=cpi");
+    expect(await screen.findByRole("dialog")).toBeInTheDocument();
+    expect(screen.queryByText("불러오지 못했습니다")).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "저장하기" }));
+    expect(await screen.findByText("118.32")).toBeInTheDocument();
+    expect(api.fetchCpi).toHaveBeenCalledTimes(2);
   });
 });

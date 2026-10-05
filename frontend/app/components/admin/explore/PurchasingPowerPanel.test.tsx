@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { PurchasingPowerPanel } from "./PurchasingPowerPanel";
 import * as api from "../../../lib/collectorApi";
@@ -11,6 +11,7 @@ vi.mock("../../../lib/collectorApi", async (orig) => ({
 
 describe("PurchasingPowerPanel", () => {
   beforeEach(() => {
+    vi.clearAllMocks();
     vi.mocked(api.fetchCpi).mockResolvedValue({
       codes: ["A", "B"],
       months: [{ month: "202609", values: { A: 118.32 } }],
@@ -64,24 +65,61 @@ describe("PurchasingPowerPanel", () => {
     ).toBeInTheDocument();
   });
 
-  it("탭이 바뀐 뒤 늦게 도착한 이전 탭 응답은 무시한다", async () => {
-    let resolveCpi: (v: api.CpiTable) => void = () => {};
-    vi.mocked(api.fetchCpi).mockReturnValue(
-      new Promise((r) => {
-        resolveCpi = r;
-      }),
-    );
+  it("늦게 도착한 이전 요청 응답이 최신 응답을 덮어쓰지 않는다", async () => {
+    let resolveStale: (v: api.CpiTable) => void = () => {};
+    vi.mocked(api.fetchCpi)
+      .mockReturnValueOnce(
+        new Promise((r) => {
+          resolveStale = r;
+        }),
+      )
+      .mockResolvedValueOnce({
+        codes: ["A"],
+        months: [{ month: "202609", values: { A: 118.32 } }],
+        missing: [],
+      });
     const { rerender } = render(<PurchasingPowerPanel tab="cpi" />);
     rerender(<PurchasingPowerPanel tab="wage" />);
-    expect(await screen.findByText("KOSIS")).toBeInTheDocument();
-    resolveCpi({
-      codes: ["A"],
-      months: [{ month: "202601", values: { A: 1 } }],
+    rerender(<PurchasingPowerPanel tab="cpi" />);
+    expect(await screen.findByText("118.32")).toBeInTheDocument();
+    await act(async () => {
+      resolveStale({
+        codes: ["A"],
+        months: [{ month: "202601", values: { A: 1 } }],
+        missing: [],
+      });
+    });
+    expect(screen.getByText("118.32")).toBeInTheDocument();
+    expect(screen.queryByTestId("cpi-202601-A")).not.toBeInTheDocument();
+  });
+
+  it("403 이면 콜백을 부르고 실패 알림은 보이지 않는다", async () => {
+    vi.mocked(api.fetchCpi).mockRejectedValue({ status: 403 });
+    const onForbidden = vi.fn();
+    render(<PurchasingPowerPanel tab="cpi" onForbidden={onForbidden} />);
+    await waitFor(() => expect(onForbidden).toHaveBeenCalledTimes(1));
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  it("reloadKey 가 바뀌면 다시 불러온다", async () => {
+    const { rerender } = render(
+      <PurchasingPowerPanel tab="cpi" reloadKey={0} />,
+    );
+    await screen.findByText("118.32");
+    rerender(<PurchasingPowerPanel tab="cpi" reloadKey={1} />);
+    await waitFor(() => expect(api.fetchCpi).toHaveBeenCalledTimes(2));
+  });
+
+  it("CPI 데이터가 없으면 안내한다", async () => {
+    vi.mocked(api.fetchCpi).mockResolvedValue({
+      codes: [],
+      months: [],
       missing: [],
     });
-    await Promise.resolve();
-    expect(screen.queryByTestId("cpi-202601-A")).not.toBeInTheDocument();
-    expect(screen.getByText("KOSIS")).toBeInTheDocument();
+    render(<PurchasingPowerPanel tab="cpi" />);
+    expect(
+      await screen.findByText("해당 조건의 데이터가 없습니다"),
+    ).toBeInTheDocument();
   });
 
   it("실패하면 다시 시도를 보인다", async () => {
