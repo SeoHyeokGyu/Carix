@@ -35,6 +35,15 @@ function Row({ check }: { check: HealthCheck }) {
           ) : (
             <span className="text-carix-info">{check.action}</span>
           ))}
+        {check.drillDown && (
+          <Link
+            to={check.drillDown}
+            aria-label={`${check.title} 원본 보기`}
+            className="text-carix-text/70 underline"
+          >
+            원본 보기
+          </Link>
+        )}
         {Object.keys(check.evidence).length > 0 && (
           <Button
             type="button"

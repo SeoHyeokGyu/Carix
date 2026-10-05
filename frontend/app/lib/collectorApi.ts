@@ -289,6 +289,7 @@ export interface HealthCheck {
   impactUsers: number | null;
   action: string | null;
   actionLink: string | null;
+  drillDown: string | null;
   evidence: Record<string, unknown>;
 }
 
@@ -389,4 +390,28 @@ export function fetchPostings(q: PostingQuery): Promise<PostingPage> {
   return request<PostingPage>(`/explore/postings${qs({ ...q })}`, {
     method: "GET",
   });
+}
+
+export interface CpiTable {
+  codes: string[];
+  months: { month: string; values: Record<string, number> }[];
+  missing: { month: string; codes: string[] }[];
+}
+
+export interface WageTable {
+  basePeriod: string | null;
+  families: string[];
+  brackets: string[];
+  cells: { jobFamily: string; experienceBracket: string; sources: string[] }[];
+  missing: string[];
+}
+
+export function fetchCpi(from?: string, to?: string): Promise<CpiTable> {
+  return request<CpiTable>(`/explore/cpi${qs({ from, to })}`, {
+    method: "GET",
+  });
+}
+
+export function fetchWage(): Promise<WageTable> {
+  return request<WageTable>("/explore/wage", { method: "GET" });
 }

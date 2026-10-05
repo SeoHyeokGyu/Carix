@@ -36,6 +36,7 @@ const report: api.DataHealthReport = {
           impactUsers: 0,
           action: null,
           actionLink: null,
+          drillDown: null,
           evidence: {},
         },
         {
@@ -46,6 +47,7 @@ const report: api.DataHealthReport = {
           impactUsers: 2,
           action: "결측 월 CPI 재적재",
           actionLink: "/admin/collector",
+          drillDown: "/admin/data?tab=cpi",
           evidence: { incompleteMonths: ["202403"] },
         },
         {
@@ -56,6 +58,7 @@ const report: api.DataHealthReport = {
           impactUsers: null,
           action: null,
           actionLink: null,
+          drillDown: null,
           evidence: {},
         },
       ],
@@ -73,6 +76,13 @@ function renderPage() {
 describe("DataHealthPage", () => {
   beforeEach(() => {
     vi.mocked(api.fetchDataHealth).mockResolvedValue(report);
+  });
+
+  it("원본 링크가 있는 점검은 「원본 보기」로 간다", async () => {
+    renderPage();
+    expect(
+      await screen.findByRole("link", { name: "CPI 중간 결측 원본 보기" }),
+    ).toHaveAttribute("href", "/admin/data?tab=cpi");
   });
 
   it("세 질문에 온전히 답하는 사용자 수를 보인다", async () => {

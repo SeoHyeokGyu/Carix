@@ -10,6 +10,7 @@ const c = (id: string, verdict: HealthCheck["verdict"]): HealthCheck => ({
   impactUsers: null,
   action: null,
   actionLink: null,
+  drillDown: null,
   evidence: {},
 });
 

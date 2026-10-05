@@ -12,6 +12,7 @@ function check(id: string): HealthCheck {
     impactUsers: null,
     action: null,
     actionLink: null,
+    drillDown: null,
     evidence: {},
   };
 }
