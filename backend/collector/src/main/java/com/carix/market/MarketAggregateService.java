@@ -229,7 +229,7 @@ public class MarketAggregateService {
    * 잡코리아 무작위 표본 중 그 달({@code sampled_month}) 공고. 같은 회사는 외부 ID 순으로 앞의 {@link
    * #SAMPLE_COMPANY_CAP_PER_MONTH} 건만 남긴다 — SI·파견 업체의 반복 등록이 수요율을 끌고 가지 않게 한다.
    */
-  List<JobPosting> sampledPostingsForMonth(List<JobPosting> postings, String baseYearMonth) {
+  public List<JobPosting> sampledPostingsForMonth(List<JobPosting> postings, String baseYearMonth) {
     String targetMonth = normalizeMonth(baseYearMonth);
     Map<String, Integer> perCompany = new HashMap<>();
     return postings.stream()
