@@ -832,13 +832,14 @@ class MarketValueIndexServiceTest {
   }
 
   @Test
-  @DisplayName("당월 데이터가 없을 때 직전 유효 월로 fallback하여 MVI를 정상 산출해야 한다")
+  @DisplayName("기준월은 잡코리아 표본 집계가 있는 최신 월이다 — 다른 원천 집계만 있는 당월로 잡지 않는다")
   void testFallbackToLatestAvailableYearMonth() {
     UUID userId = UUID.randomUUID();
     String requestedYm = "202609";
     String latestAvailableYm = "202608";
 
-    when(marketAggregateRepository.findLatestAvailableYearMonth(requestedYm))
+    // 당월은 사람인·통합 집계만 있고 잡코리아 표본은 아직 없다 — 원천 무관 최신 월(당월)은 조회하지 않는다.
+    when(marketAggregateRepository.findLatestAvailableYearMonthForSource("JOBKOREA", requestedYm))
         .thenReturn(Optional.of(latestAvailableYm));
 
     CareerProfile profile = new CareerProfile(userId);
