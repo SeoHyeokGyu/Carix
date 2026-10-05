@@ -1,10 +1,12 @@
 package com.carix.pipeline.explore;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.TreeMap;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
@@ -44,6 +46,32 @@ public class ExploreQueries {
         from,
         to);
     return out;
+  }
+
+  public Map<String, Map<String, BigDecimal>> cpiValues(String from, String to) {
+    Map<String, Map<String, BigDecimal>> out = new TreeMap<>();
+    jdbc.query(
+        "SELECT base_year_month, category, cpi_value FROM core.cpi_observation WHERE base_year_month BETWEEN ? AND ?",
+        rs -> {
+          out.computeIfAbsent(rs.getString(1), k -> new TreeMap<>())
+              .put(rs.getString(2), rs.getBigDecimal(3));
+        },
+        from,
+        to);
+    return out;
+  }
+
+  public String latestWagePeriod() {
+    return jdbc.queryForObject(
+        "SELECT MAX(base_period) FROM core.wage_stat_observation", String.class);
+  }
+
+  /** {family, bracket, source}. 금액 컬럼은 고르지 않는다. */
+  public List<String[]> wageCells(String basePeriod) {
+    return jdbc.query(
+        "SELECT DISTINCT job_family, experience_bracket, source FROM core.wage_stat_observation WHERE base_period = ?",
+        (rs, i) -> new String[] {rs.getString(1), rs.getString(2), rs.getString(3)},
+        basePeriod);
   }
 
   /** 공고 한 행. 금액 컬럼은 고르지 않는다. */

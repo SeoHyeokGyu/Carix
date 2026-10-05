@@ -1,7 +1,9 @@
 package com.carix.pipeline.explore;
 
+import com.carix.pipeline.dto.explore.CpiTable;
 import com.carix.pipeline.dto.explore.MonthlyOverview;
 import com.carix.pipeline.dto.explore.PostingPage;
+import com.carix.pipeline.dto.explore.WageTable;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -33,5 +35,16 @@ public class DataExploreController {
       @RequestParam(required = false) Integer page,
       @RequestParam(required = false) Integer size) {
     return service.postings(month, source, sampled, family, company, skill, page, size);
+  }
+
+  @GetMapping("/cpi")
+  public CpiTable cpi(
+      @RequestParam(required = false) String from, @RequestParam(required = false) String to) {
+    return service.cpi(from, to);
+  }
+
+  @GetMapping("/wage")
+  public WageTable wage() {
+    return service.wage();
   }
 }

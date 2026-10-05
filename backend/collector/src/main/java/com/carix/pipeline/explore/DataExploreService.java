@@ -3,8 +3,11 @@ package com.carix.pipeline.explore;
 import com.carix.jobposting.JobPosting;
 import com.carix.jobposting.JobPostingRepository;
 import com.carix.market.MarketAggregateService;
+import com.carix.pipeline.dto.explore.CpiTable;
 import com.carix.pipeline.dto.explore.MonthlyOverview;
 import com.carix.pipeline.dto.explore.PostingPage;
+import com.carix.pipeline.dto.explore.WageTable;
+import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.YearMonth;
 import java.time.ZoneId;
@@ -15,6 +18,8 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.TreeMap;
+import java.util.TreeSet;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -115,6 +120,54 @@ public class DataExploreService {
 
   static ResponseStatusException badRequest(String message) {
     return new ResponseStatusException(HttpStatus.BAD_REQUEST, message);
+  }
+
+  private static final int CPI_DEFAULT = 24;
+  private static final int CPI_MAX = 120;
+
+  @Transactional(readOnly = true)
+  public CpiTable cpi(String from, String to) {
+    YearMonth[] range = range(from, to, CPI_DEFAULT, CPI_MAX);
+    Map<String, Map<String, BigDecimal>> values =
+        queries.cpiValues(YM.format(range[0]), YM.format(range[1]));
+    List<CpiTable.Month> months = new ArrayList<>();
+    List<CpiTable.Missing> missing = new ArrayList<>();
+    values.forEach(
+        (month, byCode) -> {
+          months.add(new CpiTable.Month(month, byCode));
+          List<String> absent =
+              CpiTable.CODES.stream().filter(c -> !byCode.containsKey(c)).toList();
+          if (!absent.isEmpty()) {
+            missing.add(new CpiTable.Missing(month, absent));
+          }
+        });
+    return new CpiTable(CpiTable.CODES, months, missing);
+  }
+
+  @Transactional(readOnly = true)
+  public WageTable wage() {
+    String period = queries.latestWagePeriod();
+    Map<String, TreeSet<String>> sources = new TreeMap<>();
+    if (period != null) {
+      for (String[] row : queries.wageCells(period)) {
+        if (WageTable.FAMILIES.contains(row[0]) && WageTable.BRACKETS.contains(row[1])) {
+          sources.computeIfAbsent(row[0] + "/" + row[1], k -> new TreeSet<>()).add(row[2]);
+        }
+      }
+    }
+    List<WageTable.Cell> cells = new ArrayList<>();
+    List<String> missing = new ArrayList<>();
+    for (String f : WageTable.FAMILIES) {
+      for (String b : WageTable.BRACKETS) {
+        TreeSet<String> s = sources.get(f + "/" + b);
+        if (s == null) {
+          missing.add(f + "/" + b);
+        } else {
+          cells.add(new WageTable.Cell(f, b, List.copyOf(s)));
+        }
+      }
+    }
+    return new WageTable(period, WageTable.FAMILIES, WageTable.BRACKETS, cells, missing);
   }
 
   private static final int POSTINGS_DEFAULT_SIZE = 50;
