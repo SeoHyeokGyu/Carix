@@ -289,6 +289,7 @@ export interface HealthCheck {
   impactUsers: number | null;
   action: string | null;
   actionLink: string | null;
+  drillDown: string | null;
   evidence: Record<string, unknown>;
 }
 
@@ -315,4 +316,102 @@ export interface DataHealthReport {
 
 export function fetchDataHealth(): Promise<DataHealthReport> {
   return request<DataHealthReport>("/health", { method: "GET" });
+}
+
+export interface MonthlyOverview {
+  from: string;
+  to: string;
+  months: {
+    month: string;
+    jobkoreaSampled: number;
+    jobkoreaSampledCapped: number;
+    jobkoreaCrawled: number;
+    saraminCrawled: number;
+    sampledByFamily: Record<string, number>;
+  }[];
+}
+
+export interface PostingItem {
+  source: string;
+  externalId: string;
+  url: string | null;
+  title: string;
+  companyName: string | null;
+  jobFamily: string | null;
+  experienceMin: number | null;
+  experienceMax: number | null;
+  employmentType: string | null;
+  region: string | null;
+  postedStartDate: string | null;
+  postedEndDate: string | null;
+  firstSeenMonth: string | null;
+  sampledMonth: string | null;
+  skills: string[];
+}
+
+export interface PostingPage {
+  total: number;
+  page: number;
+  size: number;
+  items: PostingItem[];
+}
+
+export interface PostingQuery {
+  month: string;
+  source?: string;
+  sampled?: boolean;
+  family?: string;
+  company?: string;
+  skill?: string;
+  page: number;
+}
+
+function qs(
+  params: Record<string, string | number | boolean | undefined>,
+): string {
+  const sp = new URLSearchParams();
+  Object.entries(params).forEach(([k, v]) => {
+    if (v !== undefined && v !== "") sp.set(k, String(v));
+  });
+  const s = sp.toString();
+  return s ? `?${s}` : "";
+}
+
+export function fetchMonthlyOverview(
+  from?: string,
+  to?: string,
+): Promise<MonthlyOverview> {
+  return request<MonthlyOverview>(`/explore/monthly${qs({ from, to })}`, {
+    method: "GET",
+  });
+}
+
+export function fetchPostings(q: PostingQuery): Promise<PostingPage> {
+  return request<PostingPage>(`/explore/postings${qs({ ...q })}`, {
+    method: "GET",
+  });
+}
+
+export interface CpiTable {
+  codes: string[];
+  months: { month: string; values: Record<string, number> }[];
+  missing: { month: string; codes: string[] }[];
+}
+
+export interface WageTable {
+  basePeriod: string | null;
+  families: string[];
+  brackets: string[];
+  cells: { jobFamily: string; experienceBracket: string; sources: string[] }[];
+  missing: string[];
+}
+
+export function fetchCpi(from?: string, to?: string): Promise<CpiTable> {
+  return request<CpiTable>(`/explore/cpi${qs({ from, to })}`, {
+    method: "GET",
+  });
+}
+
+export function fetchWage(): Promise<WageTable> {
+  return request<WageTable>("/explore/wage", { method: "GET" });
 }

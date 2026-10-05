@@ -97,13 +97,64 @@ public class DataHealthService {
         read != null
             ? read
             : new DataHealthSnapshot(null, null, null, null, null, null, null, null, null);
+    String previousMonth = YM.format(previous);
+    List<DataHealthReport.Group> linked =
+        groups.stream()
+            .map(
+                g ->
+                    new DataHealthReport.Group(
+                        g.id(),
+                        g.title(),
+                        g.question(),
+                        g.checks().stream()
+                            .map(
+                                c ->
+                                    new DataHealthReport.Check(
+                                        c.id(),
+                                        c.title(),
+                                        c.verdict(),
+                                        c.message(),
+                                        c.impactUsers(),
+                                        c.action(),
+                                        c.actionLink(),
+                                        c.evidence(),
+                                        drillDown(c.id(), previousMonth)))
+                            .toList()))
+            .toList();
     return new DataHealthReport(
         OffsetDateTime.now(clock.withZone(SEOUL)),
         YM.format(reference),
-        YM.format(previous),
+        previousMonth,
         engine,
-        SummaryCalculator.summarize(forSummary, groups),
-        groups);
+        SummaryCalculator.summarize(forSummary, linked),
+        linked);
+  }
+
+  private static final int MONTHLY_DRILL_MONTHS = 36;
+  private static final int CPI_DRILL_MONTHS = 120;
+
+  /** 직전 달 포함 {@code months} 개월 범위를 붙인 링크. */
+  private static String rangedLink(String tab, String previousMonth, int months) {
+    YearMonth to = YearMonth.parse(previousMonth, YM);
+    return "/admin/data?tab="
+        + tab
+        + "&from="
+        + YM.format(to.minusMonths(months - 1L))
+        + "&to="
+        + previousMonth;
+  }
+
+  /** 점검 → 관리자 「수집 데이터」 원본 화면. 판정과 무관하게 채운다(설계 §7). */
+  static String drillDown(String checkId, String previousMonth) {
+    return switch (checkId) {
+      case "SAMPLE_LAST_MONTH" ->
+          "/admin/data?tab=postings&month=" + previousMonth + "&sampled=true";
+      case "SAMPLE_GAPS", "AGGREGATE_STALE", "PEER_SAMPLE_BY_FAMILY", "CRAWL_FRESHNESS" ->
+          rangedLink("monthly", previousMonth, MONTHLY_DRILL_MONTHS);
+      case "CPI_LATEST", "CPI_GAP" -> rangedLink("cpi", previousMonth, CPI_DRILL_MONTHS);
+      case "WAGE_BASELINE" -> "/admin/data?tab=wage";
+      default -> null;
+    };
   }
 
   private static DataHealthReport.Group safe(
