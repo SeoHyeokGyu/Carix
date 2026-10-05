@@ -522,6 +522,16 @@ public class MarketValueIndexServiceImpl implements MarketValueIndexProvider {
   // 4. 도메인 분류 및 계산 로직
   // =========================================================================
 
+  private static SkillExclusionReason droppedReason(
+      UUID skillId, Set<UUID> underSampledSkillIds, Set<UUID> newObservationSkillIds) {
+    if (underSampledSkillIds.contains(skillId)) {
+      return SkillExclusionReason.INSUFFICIENT_SAMPLE;
+    }
+    return newObservationSkillIds.contains(skillId)
+        ? SkillExclusionReason.NEW_OBSERVATION
+        : SkillExclusionReason.NO_RECENT_COVERAGE;
+  }
+
   /**
    * 스킬 수요 산출 결과에 비즈니스 도메인 규칙을 적용하여 상태(제외/0수요/정상)를 분류합니다.
    *
@@ -529,7 +539,8 @@ public class MarketValueIndexServiceImpl implements MarketValueIndexProvider {
    *
    * <ul>
    *   <li><b>커스텀 스킬:</b> {@code CUSTOM_SKILL_NO_STATS}로 제외
-   *   <li><b>신규 관측 스킬:</b> 분모가 0인 경우 {@code NEW_OBSERVATION}으로 원천 무관 제외
+   *   <li><b>신규 관측 스킬:</b> 분모가 0인 원천에서만 빠지고, 모든 원천에서 지수를 못 냈을 때 {@code NEW_OBSERVATION}으로 최종 제외 —
+   *       이전 창을 과거 표본으로 채운 원천과 채우지 않은 원천이 갈릴 수 있다
    *   <li><b>표본 미달 스킬:</b> 모든 원천에서 표본이 미달인 경우에만 {@code INSUFFICIENT_SAMPLE}로 최종 제외 (한 원천이라도 유효하면 해당
    *       원천으로 결합 유지)
    *   <li><b>최근 수요 없음:</b> 분자가 0인 경우 지수 0으로 가중합에 반영하되 별도 표시
@@ -547,6 +558,7 @@ public class MarketValueIndexServiceImpl implements MarketValueIndexProvider {
     Set<UUID> zeroDemandSkillIds = new HashSet<>();
     Set<UUID> underSampledSkillIds = new HashSet<>();
     Set<UUID> noCoverageSkillIds = new HashSet<>();
+    Set<UUID> newObservationSkillIds = new HashSet<>();
     Map<String, Map<UUID, Double>> sourceSkillDemandIndices = new HashMap<>();
     for (String source : SUPPORTED_SOURCES) {
       sourceSkillDemandIndices.put(source, new HashMap<>());
@@ -573,8 +585,8 @@ public class MarketValueIndexServiceImpl implements MarketValueIndexProvider {
 
         SkillDemandStatus demandStatus = demandResult.getStatus();
         if (demandStatus == SkillDemandStatus.NEW_OBSERVATION) {
-          // 분모 0인 신규 관측 스킬 -> 가중합 제외 (기능 명세 §4.1)
-          excludedSkillMap.put(skillId, SkillExclusionReason.NEW_OBSERVATION);
+          // 이 원천의 이전 창이 비었다(분모 0). 표본 미달처럼 이 원천의 가중합에서만 빠진다 (기능 명세 §4.1).
+          newObservationSkillIds.add(skillId);
           continue;
         }
         if (demandStatus == SkillDemandStatus.INSUFFICIENT_SAMPLE) {
@@ -597,9 +609,10 @@ public class MarketValueIndexServiceImpl implements MarketValueIndexProvider {
     }
 
     // 모든 원천에서 빠진 스킬만 제외한다 — 한 원천이라도 지수를 냈으면 그 원천으로 결합한다 (기술 명세 §2.1).
-    // 두 사유가 섞였으면 표본 부족이 이긴다. 집계가 있던 원천에서 표본이 모자랐다는 뜻이라, 그쪽이
-    // 사용자에게 더 정확한 설명이다.
+    // 사유가 섞였으면 표본 부족 > 신규 관측 > 집계 공백 순으로 고른다. 집계가 있던 원천에서 표본이
+    // 모자랐다는 쪽이 사용자에게 가장 구체적인 설명이다.
     Set<UUID> droppedSkillIds = new HashSet<>(underSampledSkillIds);
+    droppedSkillIds.addAll(newObservationSkillIds);
     droppedSkillIds.addAll(noCoverageSkillIds);
     for (UUID dropped : droppedSkillIds) {
       boolean usableInAnySource =
@@ -608,10 +621,7 @@ public class MarketValueIndexServiceImpl implements MarketValueIndexProvider {
         continue;
       }
       excludedSkillMap.put(
-          dropped,
-          underSampledSkillIds.contains(dropped)
-              ? SkillExclusionReason.INSUFFICIENT_SAMPLE
-              : SkillExclusionReason.NO_RECENT_COVERAGE);
+          dropped, droppedReason(dropped, underSampledSkillIds, newObservationSkillIds));
     }
 
     // 제외 스킬 목록 DTO 구성
