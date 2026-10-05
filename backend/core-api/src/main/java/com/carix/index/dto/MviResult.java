@@ -18,6 +18,8 @@ import java.util.List;
  *     거짓이 된다. 가중치는 그대로 배분받으므로 다른 스킬의 비중을 끌어내린다
  * @param wageBaseline 연봉 격차 기준선. 기준선을 못 구하면 {@code null}
  * @param aggregateAsOf 사용한 시장 집계의 기준일. {@code index_snapshot.rationale} 의 `원천 기준일` 이 된다
+ * @param standardError 지수의 표준오차(지수 포인트). 스킬별 최근·이전 창 건수로 계산한 잡음 폭이다 — 결정 신호가 기준선을 오차 밖으로 넘을 때만
+ *     시장가치를 근거로 쓴다(도메인 정의서 §6.2). 모르면 {@code null} 이고 점추정으로 판정한다
  */
 public record MviResult(
     String baseYearMonth,
@@ -28,7 +30,8 @@ public record MviResult(
     List<ExcludedSkill> zeroDemandSkills,
     List<SkillContribution> skillContributions,
     WageBaseline wageBaseline,
-    LocalDate aggregateAsOf) {
+    LocalDate aggregateAsOf,
+    BigDecimal standardError) {
 
   public MviResult {
     IndexValueContract.MVI.requireArgument(baseYearMonth, value, status);
@@ -36,6 +39,30 @@ public record MviResult(
     excludedSkills = excludedSkills == null ? List.of() : List.copyOf(excludedSkills);
     zeroDemandSkills = zeroDemandSkills == null ? List.of() : List.copyOf(zeroDemandSkills);
     skillContributions = skillContributions == null ? List.of() : List.copyOf(skillContributions);
+  }
+
+  /** 표준오차를 모르는 결과. */
+  public MviResult(
+      String baseYearMonth,
+      BigDecimal value,
+      IndexStatus status,
+      List<SourceCoverage> sources,
+      List<ExcludedSkill> excludedSkills,
+      List<ExcludedSkill> zeroDemandSkills,
+      List<SkillContribution> skillContributions,
+      WageBaseline wageBaseline,
+      LocalDate aggregateAsOf) {
+    this(
+        baseYearMonth,
+        value,
+        status,
+        sources,
+        excludedSkills,
+        zeroDemandSkills,
+        skillContributions,
+        wageBaseline,
+        aggregateAsOf,
+        null);
   }
 
   /** 입력이 없거나 산출기가 준비되지 않은 상태. */
