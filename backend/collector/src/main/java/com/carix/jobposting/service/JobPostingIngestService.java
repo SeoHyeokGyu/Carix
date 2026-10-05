@@ -394,15 +394,25 @@ public class JobPostingIngestService {
   }
 
   /**
-   * 백필 표본 한 건을 저장한다. 이미 있으면 건드리지 않는다 — 목록 크롤러가 본 공고의 관측 월을 과거로 되돌리지 않기 위해서다. 관측 월은 게시일이 속한 달이고 원천
-   * 항목 ID 는 {@code backfill-<id>} 로 남겨 정기 수집과 구분한다.
+   * 백필 표본 한 건을 저장한다. 이미 정기 수집된 공고면 관측 월은 그대로 두고 표본 월만 단다 — 관측 월을 과거로 되돌리지 않으면서 표본에서도 빠지지 않게 한다. 관측
+   * 월은 게시일이 속한 달이고 원천 항목 ID 는 {@code backfill-<id>} 로 남겨 정기 수집과 구분한다.
    *
    * @return 새로 저장했으면 true
    */
   @Transactional
   public boolean ingestBackfilledJobKorea(JobKoreaPage page, String postedMonth, Instant now) {
-    if (jobPostingRepository.findBySourceAndExternalId("JOBKOREA", page.externalId()).isPresent()) {
-      return false;
+    Optional<JobPosting> existing =
+        jobPostingRepository.findBySourceAndExternalId("JOBKOREA", page.externalId());
+    if (existing.isPresent()) {
+      // 정기 수집으로 이미 들어온 공고. 관측 월은 그대로 두고 표본 월만 단다 — 직무군·스킬은 같은 상세페이지로 맞춘다.
+      JobPosting posting = existing.get();
+      posting.markSampled(postedMonth);
+      posting.classifyAs(page.jobFamily());
+      applySkillsToPosting(
+          posting, posting.getTitle(), jobKoreaDetailParser.extractSkills(page.html()));
+      jobPostingRepository.save(posting);
+      persistRawIngestIfAbsent("JOBKOREA", "backfill-" + page.externalId(), now, postedMonth);
+      return true;
     }
     JobKoreaJsonLd ld = page.jsonLd();
     String html = page.html();
@@ -433,6 +443,7 @@ public class JobPostingIngestService {
             postedMonth,
             now);
 
+    posting.markSampled(postedMonth);
     applySkillsToPosting(posting, ld.title(), jobKoreaDetailParser.extractSkills(html));
     jobPostingRepository.save(posting);
     persistRawIngestIfAbsent("JOBKOREA", "backfill-" + page.externalId(), now, postedMonth);

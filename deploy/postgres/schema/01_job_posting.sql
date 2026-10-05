@@ -31,6 +31,7 @@ CREATE TABLE core.job_posting (
     posted_end_date date,
     first_seen_month character varying(6),
     last_seen_month character varying(6),
+    sampled_month character varying(6),
     collected_at timestamp with time zone NOT NULL
 );
 

@@ -582,4 +582,82 @@ class MarketAggregateServiceTest {
     int count = marketAggregateService.aggregateMarketDataForMonth("202608");
     assertThat(count).isGreaterThan(0);
   }
+
+  /** 잡코리아 공고 하나. 표본이면 {@code sampledMonth} 를 단다. */
+  private static JobPosting jobkorea(
+      String externalId, String company, String seenMonth, String sampledMonth, Skill skill) {
+    JobPosting p =
+        JobPosting.builder()
+            .source("JOBKOREA")
+            .externalId(externalId)
+            .companyName(company)
+            .jobFamily("DEVELOPER")
+            .experienceMin(5)
+            .firstSeenMonth(seenMonth)
+            .lastSeenMonth(seenMonth)
+            .sampledMonth(sampledMonth)
+            .collectedAt(Instant.now())
+            .build();
+    if (skill != null) {
+      p.addSkill(skill);
+    }
+    return p;
+  }
+
+  private List<MarketAggregate> aggregate(String month, List<JobPosting> postings) {
+    when(jobPostingRepository.findAll()).thenReturn(postings);
+    marketAggregateService.aggregateMarketDataForMonth(month);
+    @SuppressWarnings("unchecked")
+    ArgumentCaptor<List<MarketAggregate>> captor = ArgumentCaptor.forClass(List.class);
+    verify(marketAggregateRepository).saveAll(captor.capture());
+    return captor.getValue();
+  }
+
+  private static MarketAggregate total(List<MarketAggregate> saved, String source) {
+    return saved.stream()
+        .filter(
+            m ->
+                source.equals(m.getSource())
+                    && "DEVELOPER".equals(m.getJobFamily())
+                    && "MID".equals(m.getExperienceBracket())
+                    && "ALL".equals(m.getRegion())
+                    && "ALL".equals(m.getEmploymentType())
+                    && "ALL".equals(m.getCompanySize())
+                    && m.getSkillId() == null)
+        .findFirst()
+        .orElseThrow();
+  }
+
+  @Test
+  @DisplayName("잡코리아 원천 집계는 그 달 무작위 표본만 센다 — 정기 수집분은 통합(ALL) 집계에만 들어간다")
+  void jobkoreaSourceCountsOnlySampledPostingsOfMonth() {
+    Skill java = Skill.builder().id(UUID.randomUUID()).standardName("Java").build();
+    List<JobPosting> postings =
+        List.of(
+            jobkorea("1", "가", "202608", "202608", java),
+            jobkorea("2", "나", "202608", "202608", null),
+            jobkorea("3", "다", "202608", null, java), // 정기 수집만
+            jobkorea("4", "라", "202609", "202608", java)); // 다음 달에 처음 본 공고를 표본이 202608 로 뽑음
+
+    List<MarketAggregate> saved = aggregate("202608", postings);
+
+    assertThat(total(saved, "JOBKOREA").getPostingCount()).isEqualTo(3);
+    assertThat(total(saved, "ALL").getPostingCount()).isEqualTo(3);
+  }
+
+  @Test
+  @DisplayName("잡코리아 표본은 같은 회사를 월 3건까지만 센다 — 반복 등록이 수요율을 끌고 가지 않게")
+  void jobkoreaSampleCapsPostingsPerCompanyPerMonth() {
+    List<JobPosting> postings =
+        List.of(
+            jobkorea("10", "㈜조인아이티", "202608", "202608", null),
+            jobkorea("11", "조인아이티", "202608", "202608", null),
+            jobkorea("12", "(주)조인아이티", "202608", "202608", null),
+            jobkorea("13", "조인아이티", "202608", "202608", null),
+            jobkorea("14", "카릭스", "202608", "202608", null));
+
+    List<MarketAggregate> saved = aggregate("202608", postings);
+
+    assertThat(total(saved, "JOBKOREA").getPostingCount()).isEqualTo(4);
+  }
 }

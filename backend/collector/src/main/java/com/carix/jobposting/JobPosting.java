@@ -84,6 +84,13 @@ public class JobPosting {
   @Column(name = "last_seen_month", length = 6)
   private String lastSeenMonth;
 
+  /**
+   * 무작위 ID 표본으로 뽑힌 달(게시일 기준). 잡코리아 시장 집계는 이 표본만 센다 — 정기 수집(목록 상단)과 표본은 모집단이 달라 섞으면 수요율이 수집 방식만으로
+   * 움직인다. 표본이 아니면 {@code null}.
+   */
+  @Column(name = "sampled_month", length = 6)
+  private String sampledMonth;
+
   @Column(name = "collected_at", nullable = false)
   private Instant collectedAt;
 
@@ -176,6 +183,13 @@ public class JobPosting {
   public void updateLastSeenMonth(String currentMonth) {
     if (currentMonth != null && currentMonth.matches("\\d{6}")) {
       this.lastSeenMonth = currentMonth;
+    }
+  }
+
+  /** 무작위 표본에 뽑혔음을 표시한다. 이미 정기 수집으로 들어온 공고도 표본에 뽑히면 표시해 표본에서 빠지지 않게 한다. */
+  public void markSampled(String yearMonth) {
+    if (yearMonth != null && yearMonth.matches("\\d{6}")) {
+      this.sampledMonth = yearMonth;
     }
   }
 

@@ -37,7 +37,7 @@ public class JobKoreaBackfillService {
       Set.of(JobFamilyClassifier.AI, JobFamilyClassifier.DATA, JobFamilyClassifier.DEVELOPER);
 
   private static final DateTimeFormatter YM = DateTimeFormatter.ofPattern("yyyyMM");
-  private static final int DEFAULT_TARGET = 200;
+  private static final int DEFAULT_TARGET = 250;
   private static final int DEFAULT_MAX_REQUESTS = 5_000;
   private static final long DEFAULT_DELAY_MS = 500;
   private static final long DEFAULT_MIN_ID = 47_600_000L;
@@ -143,8 +143,11 @@ public class JobKoreaBackfillService {
     }
 
     @Override
-    public boolean exists(long id) {
-      return jobPostingRepository.findBySourceAndExternalId(SOURCE, String.valueOf(id)).isPresent();
+    public boolean alreadySampled(long id) {
+      return jobPostingRepository
+          .findBySourceAndExternalId(SOURCE, String.valueOf(id))
+          .map(posting -> posting.getSampledMonth() != null)
+          .orElse(false);
     }
 
     @Override

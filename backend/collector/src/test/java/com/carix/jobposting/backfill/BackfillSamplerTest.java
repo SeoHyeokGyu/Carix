@@ -26,7 +26,7 @@ class BackfillSamplerTest {
     }
 
     @Override
-    public boolean exists(long id) {
+    public boolean alreadySampled(long id) {
       return existing.contains(id);
     }
 
@@ -69,7 +69,7 @@ class BackfillSamplerTest {
   }
 
   @Test
-  @DisplayName("이미 있는 ID 와 같은 ID 는 다시 요청하지 않는다")
+  @DisplayName("이미 표본인 ID 와 같은 ID 는 다시 요청하지 않는다")
   void skipsExistingAndDuplicates() {
     FakePages pages = new FakePages(Set.of(2L, 4L, 6L, 8L));
     BackfillSampler sampler = new BackfillSampler(pages, new Random(1));
