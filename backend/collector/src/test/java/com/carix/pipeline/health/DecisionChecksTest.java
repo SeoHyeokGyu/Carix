@@ -98,4 +98,28 @@ class DecisionChecksTest {
     assertThat(c.verdict()).isEqualTo(HealthVerdict.OK);
     assertThat(c.evidence()).containsKey("byReason");
   }
+
+  @Test
+  @DisplayName("스냅샷이 없으면 규칙 버전·최신성 점검을 판정 불가로 낸다")
+  void emptySnapshots() {
+    assertThat(check(List.of(), List.of(), "1.3.0", "RULE_VERSION").verdict())
+        .isEqualTo(HealthVerdict.UNKNOWN);
+    assertThat(check(List.of(), List.of(), "1.3.0", "SNAPSHOT_FRESHNESS").verdict())
+        .isEqualTo(HealthVerdict.UNKNOWN);
+  }
+
+  @Test
+  @DisplayName("사용자 ID 8자 초과는 첫 8자까지만 근거에 담는다")
+  void userIdPrefix() {
+    var c =
+        check(
+            List.of(),
+            List.of(snap("6fa4914e-8cf1-4917", "202610", "1.2.0")),
+            "1.3.0",
+            "RULE_VERSION");
+    assertThat(c.verdict()).isEqualTo(HealthVerdict.WARN);
+    @SuppressWarnings("unchecked")
+    List<String> users = (List<String>) c.evidence().get("users");
+    assertThat(users).contains("6fa4914e");
+  }
 }

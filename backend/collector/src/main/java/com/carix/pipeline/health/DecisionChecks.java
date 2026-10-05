@@ -71,6 +71,9 @@ public final class DecisionChecks {
     if (engine == null) {
       return PpiChecks.unknown("RULE_VERSION", "규칙 버전", "엔진 규칙 버전을 받지 못했습니다");
     }
+    if (data.snapshots().isEmpty()) {
+      return PpiChecks.unknown("RULE_VERSION", "규칙 버전", "사용자 스냅샷이 없습니다");
+    }
     List<String> behind = new ArrayList<>();
     data.snapshots().stream()
         .filter(s -> s.ruleVersion() == null || compareVersions(s.ruleVersion(), engine) < 0)
@@ -89,6 +92,9 @@ public final class DecisionChecks {
 
   private static DataHealthReport.Check freshness(
       DataHealthSnapshot data, YearMonth referenceMonth) {
+    if (data.snapshots().isEmpty()) {
+      return PpiChecks.unknown("SNAPSHOT_FRESHNESS", "스냅샷 최신성", "사용자 스냅샷이 없습니다");
+    }
     String current = YM.format(referenceMonth);
     List<String> stale = new ArrayList<>();
     data.snapshots().stream()
