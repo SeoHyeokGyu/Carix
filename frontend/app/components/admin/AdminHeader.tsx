@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 
 const TABS = [
   { to: "/admin/data-health", label: "데이터 상태", id: "data-health" },
+  { to: "/admin/data", label: "수집 데이터", id: "data" },
   { to: "/admin/collector", label: "수집 파이프라인", id: "collector" },
 ] as const;
 
@@ -11,7 +12,7 @@ export function AdminHeader({
   active,
   onOpenKeyModal,
 }: {
-  active: "data-health" | "collector";
+  active: "data-health" | "data" | "collector";
   onOpenKeyModal?: () => void;
 }) {
   return (

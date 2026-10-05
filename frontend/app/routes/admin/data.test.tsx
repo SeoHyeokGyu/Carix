@@ -1,0 +1,138 @@
+import { render, screen, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { createRoutesStub } from "react-router";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import DataExplorePage from "./data";
+import * as api from "../../lib/collectorApi";
+
+vi.mock("../../lib/collectorApi", async (orig) => ({
+  ...(await orig<typeof import("../../lib/collectorApi")>()),
+  fetchMonthlyOverview: vi.fn(),
+  fetchPostings: vi.fn(),
+}));
+
+const monthly: api.MonthlyOverview = {
+  from: "202608",
+  to: "202609",
+  months: [
+    {
+      month: "202608",
+      jobkoreaSampled: 250,
+      jobkoreaSampledCapped: 244,
+      jobkoreaCrawled: 1804,
+      saraminCrawled: 400,
+      sampledByFamily: { DEVELOPER: 200, DATA: 9, AI: 35, OTHER: 0 },
+    },
+    {
+      month: "202609",
+      jobkoreaSampled: 150,
+      jobkoreaSampledCapped: 148,
+      jobkoreaCrawled: 1248,
+      saraminCrawled: 410,
+      sampledByFamily: { DEVELOPER: 120, DATA: 10, AI: 18, OTHER: 0 },
+    },
+  ],
+};
+
+const postings: api.PostingPage = {
+  total: 1,
+  page: 0,
+  size: 50,
+  items: [
+    {
+      source: "JOBKOREA",
+      externalId: "49500742",
+      url: "https://www.jobkorea.co.kr/Recruit/GI_Read/49500742",
+      title: "QA 채용",
+      companyName: "(주)평화이즈",
+      jobFamily: "DEVELOPER",
+      experienceMin: 3,
+      experienceMax: null,
+      employmentType: "FULL_TIME",
+      region: "서울 서초구",
+      postedStartDate: "2026-07-02",
+      postedEndDate: "2026-07-12",
+      firstSeenMonth: "202607",
+      sampledMonth: "202607",
+      skills: ["QA"],
+    },
+  ],
+};
+
+function renderAt(url: string) {
+  const Stub = createRoutesStub([
+    { path: "/admin/data", Component: DataExplorePage },
+  ]);
+  render(<Stub initialEntries={[url]} />);
+}
+
+describe("DataExplorePage", () => {
+  beforeEach(() => {
+    vi.mocked(api.fetchMonthlyOverview).mockResolvedValue(monthly);
+    vi.mocked(api.fetchPostings).mockResolvedValue(postings);
+  });
+
+  it("기본 탭은 월별 현황이고 얇은 칸을 강조한다", async () => {
+    renderAt("/admin/data");
+    const thin = await screen.findByText("150");
+    expect(thin).toHaveAttribute("data-thin", "true");
+    expect(screen.getByText("9")).toHaveAttribute("data-thin", "true");
+    expect(screen.getByText("10")).toHaveAttribute("data-thin", "false");
+  });
+
+  it("URL 의 tab·month·sampled 로 공고 탭을 연다", async () => {
+    renderAt("/admin/data?tab=postings&month=202607&sampled=true");
+    expect(await screen.findByText("QA 채용")).toBeInTheDocument();
+    expect(api.fetchPostings).toHaveBeenCalledWith(
+      expect.objectContaining({ month: "202607", sampled: true, page: 0 }),
+    );
+  });
+
+  it("공고 행을 펼치면 원천 링크가 새 창·noopener 로 열린다", async () => {
+    renderAt("/admin/data?tab=postings&month=202607");
+    await userEvent.click(
+      await screen.findByRole("button", { name: "QA 채용 상세" }),
+    );
+    const link = screen.getByRole("link", { name: "원천 공고" });
+    expect(link).toHaveAttribute("href", postings.items[0].url);
+    expect(link).toHaveAttribute("target", "_blank");
+    expect(link).toHaveAttribute("rel", "noopener noreferrer");
+  });
+
+  it("postings tab shows empty message", async () => {
+    vi.mocked(api.fetchPostings).mockResolvedValue({
+      total: 0,
+      page: 0,
+      size: 50,
+      items: [],
+    });
+    renderAt("/admin/data?tab=postings&month=202001");
+    expect(
+      await screen.findByText("해당 조건의 데이터가 없습니다"),
+    ).toBeInTheDocument();
+  });
+
+  it("불러오지 못하면 재시도를 보인다", async () => {
+    vi.mocked(api.fetchMonthlyOverview).mockRejectedValue({
+      code: "X",
+      message: "x",
+      status: 500,
+    });
+    renderAt("/admin/data");
+    expect(await screen.findByText("불러오지 못했습니다")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "다시 시도" }),
+    ).toBeInTheDocument();
+  });
+
+  it("월별 현황의 월을 누르면 그 달 공고 탭으로 간다", async () => {
+    renderAt("/admin/data");
+    await userEvent.click(await screen.findByRole("link", { name: "202608" }));
+    expect(api.fetchPostings).toHaveBeenCalledWith(
+      expect.objectContaining({ month: "202608" }),
+    );
+    expect(
+      within(screen.getByRole("tablist")).getByRole("tab", { name: "공고" }),
+    ).toHaveAttribute("aria-selected", "true");
+  });
+});

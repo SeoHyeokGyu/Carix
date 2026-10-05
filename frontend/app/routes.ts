@@ -57,6 +57,7 @@ export default [
   // 관리자 — 데이터 상태 · 수집 파이프라인
   route("admin", "routes/admin/index.tsx"),
   route("admin/data-health", "routes/admin/data-health.tsx"),
+  route("admin/data", "routes/admin/data.tsx"),
   route("admin/collector", "routes/admin/collector.tsx"),
   route("admin/pipeline", "routes/admin/collector.tsx", {
     id: "admin-pipeline",
