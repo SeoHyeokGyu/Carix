@@ -954,7 +954,7 @@
             "users": 3,
             "fullyAnswered": 1,
             "gaps": [ { "answer": "MVI", "reason": "INSUFFICIENT_SAMPLE", "users": 1 } ],
-            "verdictCounts": { "ERROR": 0, "WARN": 2, "OK": 8, "UNKNOWN": 0 }
+            "verdictCounts": { "ERROR": 0, "WARN": 2, "OK": 9, "UNKNOWN": 0 }
           },
           "groups": [
             {
