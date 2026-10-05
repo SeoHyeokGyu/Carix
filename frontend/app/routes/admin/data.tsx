@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router";
 import { ThemeToggle } from "../../components/ThemeToggle";
 import { AdminHeader } from "../../components/admin/AdminHeader";
@@ -29,6 +29,7 @@ export default function DataExplorePage() {
   const [loaded, setLoaded] = useState<Loaded | null>(null);
   const [failed, setFailed] = useState(false);
   const [isKeyModalOpen, setIsKeyModalOpen] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
 
   const month = params.get("month") ?? "";
   const sampledParam = params.get("sampled");
@@ -38,41 +39,51 @@ export default function DataExplorePage() {
       : sampledParam === "false"
         ? false
         : undefined;
-  const page = Number(params.get("page") ?? "0") || 0;
+  const page = Math.max(0, Math.trunc(Number(params.get("page") ?? "0") || 0));
 
-  const load = useCallback(async () => {
-    setFailed(false);
-    setLoaded(null);
-    try {
-      if (tab === "monthly") {
-        setLoaded({ kind: "monthly", data: await fetchMonthlyOverview() });
-      } else if (tab === "postings" && month) {
-        setLoaded({
-          kind: "postings",
-          data: await fetchPostings({
-            month,
-            sampled,
-            source: params.get("source") ?? undefined,
-            family: params.get("family") ?? undefined,
-            company: params.get("company") ?? undefined,
-            skill: params.get("skill") ?? undefined,
-            page,
-          }),
-        });
-      }
-    } catch (err) {
-      if ((err as { status?: number }).status === 403) {
-        setIsKeyModalOpen(true);
-        return;
-      }
-      setFailed(true);
-    }
-  }, [tab, month, sampled, page, params]);
+  const paramsKey = params.toString();
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    void load();
-  }, [load]);
+    let cancelled = false;
+    const q = new URLSearchParams(paramsKey);
+    const run = async () => {
+      setFailed(false);
+      setLoaded(null);
+      try {
+        let next: Loaded | null = null;
+        if (tab === "monthly") {
+          next = { kind: "monthly", data: await fetchMonthlyOverview() };
+        } else if (tab === "postings" && month) {
+          next = {
+            kind: "postings",
+            data: await fetchPostings({
+              month,
+              sampled,
+              source: q.get("source") ?? undefined,
+              family: q.get("family") ?? undefined,
+              company: q.get("company") ?? undefined,
+              skill: q.get("skill") ?? undefined,
+              page,
+            }),
+          };
+        }
+        if (!cancelled) setLoaded(next);
+      } catch (err) {
+        if (cancelled) return;
+        if ((err as { status?: number }).status === 403) {
+          setIsKeyModalOpen(true);
+          return;
+        }
+        setFailed(true);
+      }
+    };
+    void run();
+    return () => {
+      cancelled = true;
+    };
+  }, [tab, month, sampled, page, paramsKey, reloadKey]);
+
+  const reload = () => setReloadKey((k) => k + 1);
 
   const update = (next: Record<string, string | undefined>) => {
     const sp = new URLSearchParams(params);
@@ -106,6 +117,7 @@ export default function DataExplorePage() {
 
         {tab === "postings" && (
           <form
+            key={paramsKey}
             className="flex flex-wrap gap-2 text-xs"
             onSubmit={(e) => {
               e.preventDefault();
@@ -186,7 +198,7 @@ export default function DataExplorePage() {
             className="rounded-lg border border-carix-border p-4 text-xs space-y-2"
           >
             <p>불러오지 못했습니다</p>
-            <Button variant="link" size="sm" onClick={() => void load()}>
+            <Button variant="link" size="sm" onClick={() => reload()}>
               다시 시도
             </Button>
           </div>
@@ -211,7 +223,7 @@ export default function DataExplorePage() {
       <AdminKeyModal
         isOpen={isKeyModalOpen}
         onClose={() => setIsKeyModalOpen(false)}
-        onKeyUpdated={() => void load()}
+        onKeyUpdated={() => reload()}
       />
     </div>
   );

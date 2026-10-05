@@ -17,6 +17,13 @@ function Cell({ value, thin }: { value: number; thin: boolean }) {
 
 /** 월 × 원천·직무 표. 표본 200 미만·직무 표본 10 미만을 강조한다. */
 export function MonthlyOverviewTable({ data }: { data: MonthlyOverview }) {
+  if (data.months.length === 0) {
+    return (
+      <p className="text-xs text-carix-text/60">
+        해당 조건의 데이터가 없습니다
+      </p>
+    );
+  }
   return (
     <div className="overflow-x-auto">
       <table className="w-full text-xs">

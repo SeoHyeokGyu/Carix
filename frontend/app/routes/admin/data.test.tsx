@@ -1,4 +1,4 @@
-import { render, screen, within } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { createRoutesStub } from "react-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -134,5 +134,56 @@ describe("DataExplorePage", () => {
     expect(
       within(screen.getByRole("tablist")).getByRole("tab", { name: "공고" }),
     ).toHaveAttribute("aria-selected", "true");
+  });
+
+  it("늦게 도착한 월별 응답이 공고 탭을 덮어쓰지 않는다", async () => {
+    let resolveMonthly!: (v: api.MonthlyOverview) => void;
+    vi.mocked(api.fetchMonthlyOverview).mockReturnValue(
+      new Promise((r) => {
+        resolveMonthly = r;
+      }),
+    );
+    renderAt("/admin/data?tab=postings&month=202607");
+    expect(await screen.findByText("QA 채용")).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("tab", { name: "월별 현황" }));
+    await userEvent.click(screen.getByRole("tab", { name: "공고" }));
+    resolveMonthly(monthly);
+    await Promise.resolve();
+    expect(screen.queryByText("202608")).not.toBeInTheDocument();
+  });
+
+  it("필터 제출이 URL 파라미터로 fetchPostings 를 부른다", async () => {
+    renderAt("/admin/data?tab=postings&month=202607");
+    await screen.findByText("QA 채용");
+    await userEvent.type(screen.getByLabelText("회사"), "평화");
+    await userEvent.click(screen.getByRole("button", { name: "조회" }));
+    await waitFor(() =>
+      expect(api.fetchPostings).toHaveBeenLastCalledWith(
+        expect.objectContaining({ month: "202607", company: "평화", page: 0 }),
+      ),
+    );
+  });
+
+  it("월별 결과가 비어 있으면 빈 메시지를 보인다", async () => {
+    vi.mocked(api.fetchMonthlyOverview).mockResolvedValue({
+      from: "202608",
+      to: "202609",
+      months: [],
+    });
+    renderAt("/admin/data");
+    expect(
+      await screen.findByText("해당 조건의 데이터가 없습니다"),
+    ).toBeInTheDocument();
+  });
+
+  it("403 이면 관리자 키 모달을 열고 실패 알림은 띄우지 않는다", async () => {
+    vi.mocked(api.fetchMonthlyOverview).mockRejectedValue({
+      code: "FORBIDDEN",
+      message: "x",
+      status: 403,
+    });
+    renderAt("/admin/data");
+    expect(await screen.findByRole("dialog")).toBeInTheDocument();
+    expect(screen.queryByText("불러오지 못했습니다")).not.toBeInTheDocument();
   });
 });
