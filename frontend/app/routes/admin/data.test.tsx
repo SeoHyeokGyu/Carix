@@ -1,6 +1,6 @@
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { createRoutesStub } from "react-router";
+import { createRoutesStub, Link } from "react-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import DataExplorePage from "./data";
 import * as api from "../../lib/collectorApi";
@@ -59,9 +59,18 @@ const postings: api.PostingPage = {
   ],
 };
 
+function PageWithBackLink() {
+  return (
+    <>
+      <Link to="/admin/data?tab=postings&month=202607">공고로 돌아가기</Link>
+      <DataExplorePage />
+    </>
+  );
+}
+
 function renderAt(url: string) {
   const Stub = createRoutesStub([
-    { path: "/admin/data", Component: DataExplorePage },
+    { path: "/admin/data", Component: PageWithBackLink },
   ]);
   render(<Stub initialEntries={[url]} />);
 }
@@ -146,10 +155,14 @@ describe("DataExplorePage", () => {
     renderAt("/admin/data?tab=postings&month=202607");
     expect(await screen.findByText("QA 채용")).toBeInTheDocument();
     await userEvent.click(screen.getByRole("tab", { name: "월별 현황" }));
-    await userEvent.click(screen.getByRole("tab", { name: "공고" }));
-    resolveMonthly(monthly);
-    await Promise.resolve();
-    expect(screen.queryByText("202608")).not.toBeInTheDocument();
+    await userEvent.click(
+      screen.getByRole("link", { name: "공고로 돌아가기" }),
+    );
+    expect(await screen.findByText("QA 채용")).toBeInTheDocument();
+    await act(async () => {
+      resolveMonthly(monthly);
+    });
+    expect(screen.getByText("QA 채용")).toBeInTheDocument();
   });
 
   it("필터 제출이 URL 파라미터로 fetchPostings 를 부른다", async () => {
