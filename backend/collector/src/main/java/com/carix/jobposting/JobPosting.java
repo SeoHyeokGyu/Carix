@@ -170,12 +170,6 @@ public class JobPosting {
     }
   }
 
-  /** 원천이 공개한 세전 연봉 범위(원 단위). 만원 단위로 전달될 경우 원 단위로 보정한다. */
-  public void applyDisclosedSalary(Long min, Long max) {
-    this.salaryMin = normalizeSalary(min);
-    this.salaryMax = normalizeSalary(max);
-  }
-
   /** 급여 판정 결과를 반영한다. 공개 연봉과 비공개 구간은 함께 갖지 않는다. */
   public void applySalary(com.carix.jobposting.normalize.PostingSalary salary) {
     this.salaryMin = salary.min();

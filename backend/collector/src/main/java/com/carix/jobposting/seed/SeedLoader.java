@@ -13,8 +13,8 @@ import com.carix.jobposting.normalize.EmploymentTypeClassifier;
 import com.carix.jobposting.normalize.ExperienceRange;
 import com.carix.jobposting.normalize.JobFamilyClassifier;
 import com.carix.jobposting.normalize.JobKoreaFamilyResolver;
-import com.carix.jobposting.normalize.JobKoreaPayParser;
-import com.carix.jobposting.normalize.SalaryRange;
+import com.carix.jobposting.normalize.PostingSalary;
+import com.carix.jobposting.normalize.PostingSalaryClassifier;
 import com.carix.jobposting.normalize.SkillTaxonomy;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -45,7 +45,7 @@ public class SeedLoader {
   private final JobKoreaListingEnricher jobKoreaListingEnricher = new JobKoreaListingEnricher();
   private final SaraminListingEnricher saraminListingEnricher = new SaraminListingEnricher();
   private final JobKoreaDetailParser jobKoreaDetailParser = new JobKoreaDetailParser();
-  private final JobKoreaPayParser jobKoreaPayParser = new JobKoreaPayParser();
+  private final PostingSalaryClassifier salaryClassifier = new PostingSalaryClassifier();
   private final JobFamilyClassifier jobFamilyClassifier = new JobFamilyClassifier();
   private final JobKoreaFamilyResolver jobKoreaFamilyResolver = JobKoreaFamilyResolver.bundled();
   private final CompanySizeClassifier companySizeClassifier = new CompanySizeClassifier();
@@ -124,14 +124,10 @@ public class SeedLoader {
             ? jobKoreaListingEnricher.extract(listingHtml, externalId)
             : new JobKoreaListingFields(null, null, null, null, null, null);
 
-    // 상세페이지 급여 블록이 목록페이지 셀보다 커버리지가 훨씬 넓다(실측 400건 중 317 대 36).
-    SalaryRange salary =
-        detailHtml == null
-            ? null
-            : jobKoreaPayParser.parse(jobKoreaDetailParser.extractSalaryRaw(detailHtml));
-    // 상세페이지가 있으면 그 급여 블록이 판정 권위다. 목록페이지 셀은 상세가 없을 때만 쓴다.
-    Long salaryMin = detailHtml != null ? valueOf(salary, SalaryRange::min) : fields.salaryMin();
-    Long salaryMax = detailHtml != null ? valueOf(salary, SalaryRange::max) : fields.salaryMax();
+    // 상세페이지가 있으면 급여 문구가 판정 권위다. 목록페이지 셀은 판정 불가일 때만 쓴다.
+    PostingSalary salary =
+        PostingSalaryClassifier.withListingFallback(
+            salaryClassifier.classifyJobKorea(detailHtml), fields.salaryMin(), fields.salaryMax());
     String jobFamily = jobKoreaFamilyResolver.resolve(detailHtml, record.get("Title"));
     String companySize =
         detailHtml == null
@@ -149,8 +145,8 @@ public class SeedLoader {
             externalId,
             record.get("Title"),
             record.get("Company"),
-            salaryMin,
-            salaryMax,
+            null,
+            null,
             record.get("Location"),
             experience.min(),
             experience.max(),
@@ -164,6 +160,7 @@ public class SeedLoader {
             SEED_MONTH,
             SEED_MONTH,
             collectedAt);
+    posting.applySalary(salary);
 
     // CSV 의 Skills 열에는 스킬 유형이 없어 인성 역량을 걸러낼 수 없다. 상세페이지가 있으면
     // 거기서 직무 역량만 뽑고, 없을 때만 CSV 로 물러선다.
@@ -266,10 +263,6 @@ public class SeedLoader {
    */
   private List<String> distinct(List<String> values) {
     return values.stream().distinct().toList();
-  }
-
-  private Long valueOf(SalaryRange salary, java.util.function.Function<SalaryRange, Long> field) {
-    return salary == null ? null : field.apply(salary);
   }
 
   private Integer parseIntOrNull(String value) {
