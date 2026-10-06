@@ -225,7 +225,7 @@ class SalaryDistributionServiceTest {
   }
 
   @Test
-  @DisplayName("공개연봉이 전건 결측이면 5수치는 null이고 missingRate는 100%이다")
+  @DisplayName("공개연봉이 전건 결측이면 표본 부족이고 공개 연봉 0건·missingRate 100% 만 싣는다")
   void 전건_연봉_미공개() {
     List<JobPosting> candidates = new ArrayList<>();
     for (int i = 0; i < 10; i++) {
@@ -235,7 +235,7 @@ class SalaryDistributionServiceTest {
 
     SalaryDistributionResponse response = service.resolve(USER_ID, BASE_YM);
 
-    assertThat(response.status()).isEqualTo("OK");
+    assertThat(response.status()).isEqualTo("INSUFFICIENT_SAMPLE");
     assertThat(response.postingReference().sampleSize()).isZero();
     assertThat(response.postingReference().missingRate()).isEqualTo(100.0);
     assertThat(response.postingReference().median()).isNull();
@@ -276,7 +276,8 @@ class SalaryDistributionServiceTest {
   @Test
   @DisplayName("연봉 미공개 공고는 5수치에서 빠지고 missingRate 에 반영된다")
   void 공개연봉_결측() {
-    List<JobPosting> candidates = new ArrayList<>(postings(8, 60_000_000L));
+    List<JobPosting> candidates = new ArrayList<>(postings(12, 60_000_000L));
+    candidates.add(posting(UUID.randomUUID(), null, null, null));
     candidates.add(posting(UUID.randomUUID(), null, null, null));
     candidates.add(posting(UUID.randomUUID(), null, null, null));
     givenCandidates(candidates);
@@ -284,12 +285,12 @@ class SalaryDistributionServiceTest {
     SalaryDistributionResponse response = service.resolve(USER_ID, BASE_YM);
 
     assertThat(response.status()).isEqualTo("OK");
-    assertThat(response.postingReference().sampleSize()).isEqualTo(8);
+    assertThat(response.postingReference().sampleSize()).isEqualTo(12);
     assertThat(response.postingReference().missingRate()).isEqualTo(20.0);
   }
 
   @Test
-  @DisplayName("동료집단 표본은 충분한데 공개연봉이 1건뿐이면 OK 지만 5수치가 한 점으로 뭉친다")
+  @DisplayName("동료집단 표본은 충분한데 공개연봉이 1건뿐이면 표본 부족이고 5수치를 내지 않는다")
   void 공개연봉_1건() {
     List<JobPosting> candidates = new ArrayList<>();
     candidates.add(posting(UUID.randomUUID(), null, 60_000_000L, 60_000_000L));
@@ -300,15 +301,32 @@ class SalaryDistributionServiceTest {
 
     SalaryDistributionResponse response = service.resolve(USER_ID, BASE_YM);
 
-    // minRequired 는 동료집단 표본(10)에 걸리지 공개연봉 부분집합에 걸리지 않는다 (API 규격 §5.2).
-    // 분포는 참고 표시 전용이고, 신뢰도는 missingRate 와 postingReference.sampleSize 로 판단한다.
-    assertThat(response.status()).isEqualTo("OK");
+    // 5수치·백분위는 공개연봉 위에서 매기므로 공개연봉도 최소 표본(10)을 채워야 한다.
+    assertThat(response.status()).isEqualTo("INSUFFICIENT_SAMPLE");
     assertThat(response.sampleSize()).isEqualTo(10);
     assertThat(response.postingReference().sampleSize()).isEqualTo(1);
     assertThat(response.postingReference().missingRate()).isEqualTo(90.0);
-    assertThat(response.postingReference().min())
-        .isEqualTo(response.postingReference().max())
-        .isEqualTo(60_000_000L);
+    assertThat(response.postingReference().min()).isNull();
+  }
+
+  @Test
+  @DisplayName("동료 공고는 충분해도 공개 연봉이 10건 미만이면 표본 부족이고 공개 연봉 수·결측률만 낸다")
+  void 공개연봉_10건미만_표본부족() {
+    List<JobPosting> candidates = new ArrayList<>(postings(5, 50_000_000L));
+    for (int i = 0; i < 195; i++) {
+      candidates.add(posting(UUID.randomUUID(), null, null, null));
+    }
+    givenCandidates(candidates);
+
+    SalaryDistributionResponse response = service.resolve(USER_ID, BASE_YM);
+
+    assertThat(response.status()).isEqualTo("INSUFFICIENT_SAMPLE");
+    assertThat(response.sampleSize()).isEqualTo(200);
+    assertThat(response.minRequired()).isEqualTo(10);
+    assertThat(response.userPosition()).isNull();
+    assertThat(response.postingReference().sampleSize()).isEqualTo(5);
+    assertThat(response.postingReference().median()).isNull();
+    assertThat(response.postingReference().missingRate()).isEqualTo(97.5);
   }
 
   @Test

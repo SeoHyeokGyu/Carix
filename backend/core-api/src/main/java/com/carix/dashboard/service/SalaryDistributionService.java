@@ -83,7 +83,7 @@ public class SalaryDistributionService {
     Optional<CareerProfile> profile = careerProfileRepository.findByUserId(userId);
     if (profile.isEmpty()) {
       // 온보딩 미완료. 동료집단 조건 자체가 없어 표본이 0이다.
-      return insufficient(null, 0, null, null);
+      return insufficient(null, 0, null, null, null);
     }
 
     CareerProfile careerProfile = profile.get();
@@ -116,6 +116,16 @@ public class SalaryDistributionService {
       return insufficient(
           baseline,
           distribution.peerSampleSize(),
+          null,
+          distribution.appliedConditions(),
+          buildCareerLadder(careerProfile));
+    }
+    if (!distribution.hasSufficientSalaries()) {
+      // 공고는 충분한데 공개연봉이 모자라다 — 5수치·사용자 위치는 내지 않고, 화면이 「공고 N건 중 공개 연봉 M건」을 보이게 수와 결측률만 싣는다.
+      return insufficient(
+          baseline,
+          distribution.peerSampleSize(),
+          countsOnly(distribution.disclosedSampleSize(), distribution.peerSampleSize()),
           distribution.appliedConditions(),
           buildCareerLadder(careerProfile));
     }
@@ -197,6 +207,16 @@ public class SalaryDistributionService {
    * 정렬된 값에서 5수치를 뽑는다. {@code percentile_cont} 대신 nearest-rank 를 쓴다 — collector 의 집계와 같은 방식이라야 두 경로의
    * 숫자가 어긋나지 않고, H2 와 Postgres 의 분위수 함수 차이도 타지 않는다.
    */
+  /** 공개연봉 부족 표본 부족 응답용 — 5수치 없이 공개연봉 수와 결측률만. */
+  private SalaryDistributionResponse.PostingReference countsOnly(int disclosed, int totalPostings) {
+    double missingRate =
+        totalPostings == 0
+            ? 100.0
+            : round2((double) (totalPostings - disclosed) / totalPostings * 100);
+    return new SalaryDistributionResponse.PostingReference(
+        null, null, null, null, null, disclosed, missingRate);
+  }
+
   private SalaryDistributionResponse.PostingReference buildReference(
       List<Long> sorted, int totalPostings) {
 
@@ -239,6 +259,7 @@ public class SalaryDistributionService {
   private SalaryDistributionResponse insufficient(
       WageBaseline baseline,
       int sampleSize,
+      SalaryDistributionResponse.PostingReference postingReference,
       String appliedConditions,
       SalaryDistributionResponse.CareerLadder careerLadder) {
     return new SalaryDistributionResponse(
@@ -246,7 +267,7 @@ public class SalaryDistributionService {
         sampleSize,
         PeerGroupFallbackResolver.MIN_SAMPLE_SIZE,
         baseline == null ? null : toBaselineDto(baseline),
-        null,
+        postingReference,
         null,
         appliedConditions == null
             ? null
