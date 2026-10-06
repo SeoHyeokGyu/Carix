@@ -289,4 +289,15 @@ class CollectorPipelineControllerTest {
         .andExpect(jsonPath("$.totalEvaluatedCombinations").value(5))
         .andExpect(jsonPath("$.underSampledCount").value(2));
   }
+
+  @Test
+  @DisplayName("급여 재판정·잡코리아 재분류에 음수 delayMs 를 주면 400")
+  void negativeDelayIsBadRequest() throws Exception {
+    mockMvc
+        .perform(post("/internal/pipeline/salary-reclassify").param("delayMs", "-1"))
+        .andExpect(status().isBadRequest());
+    mockMvc
+        .perform(post("/internal/pipeline/reclassify-jobkorea").param("delayMs", "-5"))
+        .andExpect(status().isBadRequest());
+  }
 }

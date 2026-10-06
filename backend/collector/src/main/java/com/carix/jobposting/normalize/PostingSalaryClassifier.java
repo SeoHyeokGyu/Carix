@@ -7,7 +7,10 @@ import java.util.regex.Pattern;
 /** 상세페이지에서 공고 급여를 판정한다. 설계 §5.1 — 금액이 보이면 공개, 회사내규·협의만이면 비공개 구간, 그 밖은 없음. */
 public class PostingSalaryClassifier {
 
-  private static final Pattern NON_DISCLOSED = Pattern.compile("회사\\s?내규|면접\\s?후|협의");
+  private static final Pattern PAY_KEYWORD = Pattern.compile("연봉|월급");
+  private static final Pattern DIGIT = Pattern.compile("\\d");
+  private static final long MIN_ANNUAL = 10_000_000L;
+  private static final long MAX_ANNUAL = 1_000_000_000L;
 
   private final JobKoreaDetailParser detailParser = new JobKoreaDetailParser();
   private final JobKoreaPayParser payParser = new JobKoreaPayParser();
@@ -36,7 +39,12 @@ public class PostingSalaryClassifier {
     if (!undecided || listingMin == null || listingMax == null) {
       return fromDetail;
     }
-    return PostingSalary.publicRange(toWon(listingMin), toWon(listingMax));
+    long min = toWon(listingMin);
+    long max = toWon(listingMax);
+    if (min > max || min < MIN_ANNUAL || max > MAX_ANNUAL) {
+      return fromDetail;
+    }
+    return PostingSalary.publicRange(min, max);
   }
 
   static PostingSalary classify(String text, SalaryRange band) {
@@ -50,10 +58,12 @@ public class PostingSalaryClassifier {
     if (disclosed.isPresent()) {
       return PostingSalary.publicRange(disclosed.get().min(), disclosed.get().max());
     }
-    if (NON_DISCLOSED.matcher(text).find() && band != null) {
-      return PostingSalary.band(band);
+    // 금액처럼 보이는데 못 읽었다 — 없다고 단정하지 않고 판정 보류로 둬 기존 값을 지킨다.
+    if (PAY_KEYWORD.matcher(text).find() && DIGIT.matcher(text).find()) {
+      return PostingSalary.unknown();
     }
-    return PostingSalary.none();
+    // 공개 금액이 없는데 회사 구간이 있으면 비공개 구간이다.
+    return band != null ? PostingSalary.band(band) : PostingSalary.none();
   }
 
   private static long toWon(long value) {

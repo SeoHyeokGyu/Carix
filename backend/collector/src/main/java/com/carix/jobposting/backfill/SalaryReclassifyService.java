@@ -57,54 +57,74 @@ public class SalaryReclassifyService {
 
   public Map<String, Object> run(boolean dryRun, Long delayMs) {
     DetailPages fetcher =
-        pages != null ? pages : realPages(delayMs != null ? delayMs : DEFAULT_DELAY_MS);
+        pages != null
+            ? pages
+            : realPages(delayMs != null ? Math.max(0L, delayMs) : DEFAULT_DELAY_MS);
     Map<String, Map<String, Integer>> bySource = new TreeMap<>();
     Map<String, Map<String, Integer>> peers = new TreeMap<>();
     int total = 0;
     int unreachable = 0;
+    int errors = 0;
     List<JobPosting> postings = new ArrayList<>();
     SOURCES.forEach(s -> postings.addAll(repository.findBySource(s)));
     for (JobPosting posting : postings) {
       total++;
-      boolean hadSalary = posting.getSalaryMin() != null && posting.getSalaryMax() != null;
-      Optional<String> html = fetcher.fetch(posting.getSource(), posting.getExternalId());
-      PostingSalary salary =
-          html.map(h -> classify(posting.getSource(), h)).orElse(PostingSalary.unknown());
-      // 받았어도 판정 불가(차단·캡차 등)면 받지 못한 것과 같다 — 진짜 판정을 UNKNOWN 으로 덮으며 값을 잃지 않는다.
-      boolean isUnreachable = salary.disclosure() == SalaryDisclosure.UNKNOWN;
-      if (isUnreachable) {
-        unreachable++;
-      }
-      bySource
-          .computeIfAbsent(posting.getSource(), k -> new TreeMap<>())
-          .merge(salary.disclosure().name(), 1, Integer::sum);
-      String peerKey = peerKey(posting);
-      if (peerKey != null) {
-        Map<String, Integer> counts =
-            peers.computeIfAbsent(peerKey, k -> new TreeMap<>(Map.of("before", 0, "after", 0)));
-        if (hadSalary) {
-          counts.merge("before", 1, Integer::sum);
+      try {
+        boolean hadSalary = posting.getSalaryMin() != null && posting.getSalaryMax() != null;
+        Optional<String> html = fetcher.fetch(posting.getSource(), posting.getExternalId());
+        PostingSalary salary =
+            html.map(h -> classify(posting.getSource(), h)).orElse(PostingSalary.unknown());
+        // 받았어도 판정 불가(차단·캡차 등)면 받지 못한 것과 같다 — 진짜 판정을 UNKNOWN 으로 덮으며 값을 잃지 않는다.
+        boolean isUnreachable = salary.disclosure() == SalaryDisclosure.UNKNOWN;
+        if (isUnreachable) {
+          unreachable++;
         }
-        if (salary.disclosure() == SalaryDisclosure.PUBLIC) {
-          counts.merge("after", 1, Integer::sum);
+        bySource
+            .computeIfAbsent(posting.getSource(), k -> new TreeMap<>())
+            .merge(salary.disclosure().name(), 1, Integer::sum);
+        String peerKey = peerKey(posting);
+        if (peerKey != null) {
+          Map<String, Integer> counts =
+              peers.computeIfAbsent(peerKey, k -> new TreeMap<>(Map.of("before", 0, "after", 0)));
+          if (hadSalary) {
+            counts.merge("before", 1, Integer::sum);
+          }
+          if (salary.disclosure() == SalaryDisclosure.PUBLIC) {
+            counts.merge("after", 1, Integer::sum);
+          }
         }
-      }
-      if (!dryRun) {
-        if (!isUnreachable) {
-          posting.applySalary(salary);
-          repository.save(posting);
-        } else if (isUnjudged(posting)) {
-          posting.markSalaryUnreachable();
-          repository.save(posting);
+        if (!dryRun) {
+          if (!isUnreachable) {
+            posting.applySalary(salary);
+            repository.save(posting);
+          } else if (isUnjudged(posting)) {
+            posting.markSalaryUnreachable();
+            repository.save(posting);
+          }
+          // 이미 판정된 공고는 일시 실패로 UNKNOWN 으로 내리지 않고 그대로 둔다.
         }
-        // 이미 판정된 공고는 일시 실패로 UNKNOWN 으로 내리지 않고 그대로 둔다.
+
+      } catch (RuntimeException e) {
+        errors++;
+        log.warn(
+            "[급여 재판정] {} {} 처리 실패 — 건너뜀: {}",
+            posting.getSource(),
+            posting.getExternalId(),
+            e.toString());
       }
     }
-    log.info("[급여 재판정] dryRun={} 대상 {} / 받지 못함 {} / {}", dryRun, total, unreachable, bySource);
+    log.info(
+        "[급여 재판정] dryRun={} 대상 {} / 받지 못함 {} / 오류 {} / {}",
+        dryRun,
+        total,
+        unreachable,
+        errors,
+        bySource);
     Map<String, Object> summary = new LinkedHashMap<>();
     summary.put("dryRun", dryRun);
     summary.put("total", total);
     summary.put("unreachable", unreachable);
+    summary.put("errors", errors);
     summary.put("bySource", bySource);
     summary.put("publicPeers", peers);
     return summary;
@@ -122,7 +142,8 @@ public class SalaryReclassifyService {
 
   /** 서울·정규직·세 직무에 한해 「직무/경력구간」 키. 경력 범위 겹침은 core-api 동료집단 조회와 같은 규칙. 여러 구간에 걸치면 처음 맞는 구간 하나. */
   private static String peerKey(JobPosting p) {
-    if (!FAMILIES.contains(p.getJobFamily())
+    if (p.getJobFamily() == null
+        || !FAMILIES.contains(p.getJobFamily())
         || p.getRegion() == null
         || !p.getRegion().startsWith("서울")
         || !"FULL_TIME".equals(p.getEmploymentType())) {

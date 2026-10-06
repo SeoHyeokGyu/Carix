@@ -118,4 +118,36 @@ class PostingSalaryClassifierTest {
     assertThat(classifier.classifySaramin("<html></html>").disclosure())
         .isEqualTo(SalaryDisclosure.UNKNOWN);
   }
+
+  @Test
+  void undisclosedTextWithBandIsBand() {
+    PostingSalary s =
+        classifier.classifyJobKorea(
+            jobKoreaHtml(
+                "추후 결정",
+                "{\"payType\":\"ANNUALLY_SALARY\",\"payRange\":{\"from\":3000,\"to\":5001,\"fromInclusive\":true,\"toInclusive\":false}}"));
+
+    assertThat(s.disclosure()).isEqualTo(SalaryDisclosure.BAND);
+    assertThat(s.bandMin()).isEqualTo(30_000_000L);
+  }
+
+  @Test
+  void payKeywordWithDigitsButUnparsedIsUnknownEvenWithBand() {
+    PostingSalary s =
+        classifier.classifyJobKorea(
+            jobKoreaHtml(
+                "연봉 3000~4000",
+                "{\"payType\":\"ANNUALLY_SALARY\",\"payRange\":{\"from\":3000,\"to\":5001,\"fromInclusive\":true,\"toInclusive\":false}}"));
+
+    assertThat(s.disclosure()).isEqualTo(SalaryDisclosure.UNKNOWN);
+  }
+
+  @Test
+  void listingFallbackIgnoresOutOfRangeValues() {
+    PostingSalary none = PostingSalary.none();
+
+    assertThat(PostingSalaryClassifier.withListingFallback(none, 5L, 6L)).isEqualTo(none);
+    assertThat(PostingSalaryClassifier.withListingFallback(none, 4000L, 900_000L)).isEqualTo(none);
+    assertThat(PostingSalaryClassifier.withListingFallback(none, 6000L, 4000L)).isEqualTo(none);
+  }
 }

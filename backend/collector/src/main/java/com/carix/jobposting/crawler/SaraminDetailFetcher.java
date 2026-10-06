@@ -19,7 +19,7 @@ public class SaraminDetailFetcher {
   private final long delayMs;
 
   public SaraminDetailFetcher(long delayMs) {
-    this.delayMs = delayMs;
+    this.delayMs = Math.max(0L, delayMs);
   }
 
   public Optional<String> fetch(String externalId) {

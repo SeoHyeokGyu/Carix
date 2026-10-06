@@ -150,4 +150,47 @@ class SalaryReclassifyServiceTest {
     assertThat(after.getSalaryDisclosure()).isEqualTo("BAND");
     assertThat(after.getSalaryBandMin()).isEqualTo(40_000_000L);
   }
+
+  @Test
+  @DisplayName("jobFamily 가 null 인 공고도 죽지 않고 센다")
+  void nullJobFamilyDoesNotCrash() {
+    repository.save(
+        JobPosting.builder()
+            .source("JOBKOREA")
+            .externalId("7")
+            .title("t")
+            .region("서울 강남구")
+            .employmentType("FULL_TIME")
+            .collectedAt(Instant.now())
+            .build());
+    repository.flush();
+
+    Map<String, Object> summary = service().run(true, 0L);
+
+    assertThat(summary).containsEntry("total", 4).containsEntry("errors", 0);
+  }
+
+  @Test
+  @DisplayName("가져오기가 예외를 던진 공고는 errors 로 세고 나머지는 계속 적용한다")
+  void fetcherExceptionCountedAndOthersApplied() {
+    SalaryReclassifyService service =
+        new SalaryReclassifyService(
+            repository,
+            (source, id) -> {
+              if ("1".equals(id)) {
+                throw new IllegalStateException("boom");
+              }
+              return "2".equals(id) ? Optional.of(PUBLIC_HTML) : Optional.empty();
+            });
+
+    Map<String, Object> summary = service.run(false, 0L);
+    repository.flush();
+
+    assertThat(summary).containsEntry("errors", 1).containsEntry("total", 3);
+    JobPosting failed = repository.findBySourceAndExternalId("JOBKOREA", "1").orElseThrow();
+    assertThat(failed.getSalaryMin()).isEqualTo(40_000_000L);
+    assertThat(failed.getSalaryDisclosure()).isEqualTo("UNKNOWN");
+    JobPosting ok = repository.findBySourceAndExternalId("JOBKOREA", "2").orElseThrow();
+    assertThat(ok.getSalaryDisclosure()).isEqualTo("PUBLIC");
+  }
 }

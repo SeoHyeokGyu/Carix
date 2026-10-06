@@ -76,4 +76,24 @@ class SalaryTextParserTest {
   void notPublicWhenOnlyNumbersInNotes() {
     assertThat(p("회사내규 (2024년 만근 시)")).isNull();
   }
+
+  @Test
+  void parsesCheonUnits() {
+    assertThat(p("연봉 4천만원")).isEqualTo(new SalaryRange(40_000_000L, 40_000_000L));
+    assertThat(p("연봉 1억 2천만원")).isEqualTo(new SalaryRange(120_000_000L, 120_000_000L));
+    assertThat(p("연봉 3천~4천만원")).isEqualTo(new SalaryRange(30_000_000L, 40_000_000L));
+    assertThat(p("연봉 1억 2천 500만원")).isEqualTo(new SalaryRange(125_000_000L, 125_000_000L));
+  }
+
+  @Test
+  void rejectsPartialEokMatch() {
+    assertThat(p("연봉 1억 2백만원")).isNull();
+    assertThat(p("연봉 1억 5000")).isNull();
+  }
+
+  @Test
+  void overlongDigitsAreUnparseableWithoutException() {
+    assertThat(p("연봉 12345678901234567890만원")).isNull();
+    assertThat(p("연봉 99999999999999999999억")).isNull();
+  }
 }
