@@ -131,8 +131,7 @@ public class ScenarioService {
     }
 
     PeerSalaryDistribution distribution = peerSalaryDistributionResolver.resolve(profile.get());
-    if (!distribution.hasSufficientPeers()
-        || distribution.disclosedSampleSize() < PeerGroupFallbackResolver.MIN_SAMPLE_SIZE) {
+    if (!distribution.hasSufficientPeers() || !distribution.hasSufficientSalaries()) {
       return Feasibility.insufficient(distribution.disclosedSampleSize());
     }
 

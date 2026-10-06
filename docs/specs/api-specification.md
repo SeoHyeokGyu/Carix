@@ -279,9 +279,10 @@
 *   **Endpoint:** `GET /api/v1/dashboard/salary-distribution`
 *   구현: `com.carix.dashboard.service.SalaryDistributionService`. 완화 5단계를 원 공고 위에서 돌리고 백분위는 nearest-rank 로 낸다 — collector 의 `MarketAggregateService` 와 같은 방식이라야 두 경로의 숫자가 어긋나지 않고 H2/Postgres 분위수 함수 차이도 타지 않는다.
 *   **Query Parameters (모두 선택, 가상 프로필 탐색용) — `MVP 범위 밖`:** `jobFamily`, `yearsOfExperience`, `region`, `companySize` — 의미와 동작은 §5.1과 동일. 파라미터만 MVP 에서 제외한다 ([개발 계획 §4](../plans/carix-dev-plan.md)).
-*   결합 분포와 percentile은 원천별 5수치 요약으로 재구성할 수 없으므로, **동료집단 조건의 원 공고(`job_posting`)를 직접 집계**해 계산한다: `dedup_group_id` 단위로 원천 간 중복을 제거하고 유효 공개연봉 행만 사용. `market_aggregate` 에는 연봉 5수치를 두지 않는다 — 원천별 행은 중복 미제거라 이 응답과 모수가 다르고, 사람인은 연봉을 주지 않아 값 자체가 없다. **연봉 숫자의 정본은 이 경로 하나다**(개발 계획 `b11`). `salary_missing_rate` 는 `demand_rate` 신뢰도 지표라 집계에 남는다. 이 응답의 산출원이 아니다.
-*   표본 부족 시에도 `200 OK`로 상태와 표본 수를 반환한다 (204 금지 — 화면은 `표본 부족`과 표본 수를 표시해야 함).
-    이때 `postingReference`·`userPosition` 은 `null` 이다:
+*   결합 분포와 percentile은 원천별 5수치 요약으로 재구성할 수 없으므로, **동료집단 조건의 원 공고(`job_posting`)를 직접 집계**해 계산한다: `dedup_group_id` 단위로 원천 간 중복을 제거하고 유효 공개연봉 행만 사용. `market_aggregate` 에는 연봉 5수치를 두지 않는다 — 원천별 행은 중복 미제거라 이 응답과 모수가 다르다. **연봉 숫자의 정본은 이 경로 하나다**(개발 계획 `b11`). `salary_missing_rate` 는 `demand_rate` 신뢰도 지표라 집계에 남는다. 이 응답의 산출원이 아니다.
+*   표본 부족은 동료집단 공고 < 10 **또는** 그중 공개연봉 < 10 이다. 완화 사다리는 두 수가 모두 10건을 채우는 단계에 안착하고, 공고만 채우면 한 단계 더 넓힌다(스킬 추천의 동료집단은 공고 수만 본다).
+*   표본 부족 시에도 `200 OK`로 상태와 표본 수를 반환한다 (204 금지 — 화면은 `표본 부족`과 표본 수를 표시해야 함). `sampleSize` 는 동료집단 공고 수다.
+    `userPosition` 은 `null` 이다. `postingReference` 는 공고가 모자라면 `null`, 공고는 충분한데 공개연봉이 모자라면 5수치가 모두 `null` 이고 `sampleSize`(공개연봉 수)·`missingRate` 만 있는 객체다(예: `{ "min": null, "p25": null, "median": null, "p75": null, "max": null, "sampleSize": 5, "missingRate": 97.5 }`). 공고가 모자란 경우의 예:
     ```json
     {
       "status": "INSUFFICIENT_SAMPLE",
@@ -342,9 +343,9 @@
 *   **`careerLadder` 는 같은 직군의 경력 구간별 임금 사다리다** ([기능 명세 §4.7](functional-specification.md)). `wage_stat_observation` 에서 각 구간의 기준선을 읽으며, `region = ALL` 을 우선 조회하고 없으면 `전국`으로 대체한다. `findLatestBaseline` 의 출처 우선순위는 `KOSIS` > `UNKNOWN` > `FALLBACK` 이며, 선택된 관측치의 `source` 를 그대로 싣는다. `FALLBACK` 은 KOSIS 실측 보간이 아닌 하드코딩 상수, `UNKNOWN` 은 출처를 확인할 수 없는 적재분이다. 화면은 구간별 카드로 보여주며 `KOSIS` 값은 실측 보간, 그 외 출처는 `추정`으로 구분한다. `raiseFromPrevious` 는 직전 구간과의 임금 차이를 직전 구간 중앙값으로 나눈 백분율(소수점 둘째 자리 반올림)이다. 첫 구간, 중앙값 결측, 직전 중앙값이 0이면 `null` 이다. 관측치가 없으면 해당 `median` 과 `raiseFromPrevious` 는 `null`, `source` 는 `UNKNOWN` 이다. `userBracket` 은 경력 매핑(`PeerGroupFallbackResolver.mapExperienceBracket6`) 결과다. 사다리는 프로필이 있으면 동료집단 표본 부족 응답에도 포함된다.
 *   **`trend` 는 같은 동료집단의 등록월별 중앙 제시 연봉이다** ([기능 명세 §4.6](functional-specification.md)). 버킷 키는 `job_posting.posted_start_date` 의 등록월이라 수집 회차와 무관하다. **완화는 현재 시점 조건으로 한 번만 안착시키고 그 조건으로 월별 집계한다** — 월마다 다시 완화하면 비교 대상이 달라져 계열이 이어지지 않는다. 그 달 공개연봉 표본이 부족하면 `median` 이 `null` 이고 화면은 선을 잇지 않는다. 금액이므로 지수로 환산하지 않는다.
 *   **두 `sampleSize` 는 다르다.** 최상위는 중복 제거 후 동료집단 공고 수, `postingReference.sampleSize` 는
-    그중 **연봉이 공개된** 건수다. `minRequired` 는 최상위에만 걸린다 — 동료집단이 10건이어도 공개연봉이
-    1건이면 5수치가 한 점으로 뭉친 채 `status: "OK"` 로 나간다. 화면은 `missingRate` 와
-    `postingReference.sampleSize` 로 분포의 신뢰도를 따로 판단한다.
+    그중 **연봉이 공개된** 건수다. `minRequired` 는 두 수에 모두 걸린다 — 동료집단이 10건이어도 공개연봉이
+    10건 미만이면 `INSUFFICIENT_SAMPLE` 이고 `postingReference` 에는 공개연봉 수와 `missingRate` 만 실린다.
+    `OK` 일 때도 화면은 `missingRate` 로 분포가 공고 중 얼마에서 나왔는지 함께 보인다.
 *   **온보딩 미완료**(커리어 프로필 없음)면 동료집단 조건 자체가 없어 `sampleSize: 0` 이고
     `baseline`·`peerGroup` 까지 `null` 이다. 위 표본 부족 예시는 프로필은 있고 표본만 모자란 경우다.
 
@@ -569,7 +570,7 @@
     *(`unemploymentBenefitNote`: 실업급여 상·하한이 법정 공시값이 아닌 가정치이므로 기준 시점과 함께 알린다([도메인 정의서 §4.1](domain-logic.md)). 수급 자격이 없으면 `실업급여 미반영`)*
     *(`feasibility`: 이직 목표 연봉이 §5.2 동료집단 공고 분포에서 몇 번째 백분위(`targetPercentile`)에 해당하는지로 실현 난이도를 계산해 함께 반환한다. `difficultyGrade`는 `EASY`/`REALISTIC`/`CHALLENGING`/`VERY_HIGH_CHALLENGE` 중 하나)*
     *(`feasibility.status`: 표본이 모자라면 `INSUFFICIENT_SAMPLE` 이고 `feasibilityScore`·`targetPercentile`·`difficultyGrade`·`feedbackMessage` 가 전부 `null` 이다. 백분위를 임의 분포로 지어내지 않는다. `sampleSize` 는 백분위를 매긴 **공개연봉** 표본 수이고, `minRequired` 는 표본 부족일 때만 채운다)*
-    *(산출 조건: 동료집단 공고 수와 그중 공개연봉 건수가 **둘 다** `minRequired` 이상이어야 한다. §5.2 의 최소 표본은 동료집단에만 걸리지만, 그쪽 5수치는 참고 표시 전용인 반면 백분위는 분포 모양에 대한 주장이라 공개연봉 표본에도 같은 기준을 건다)*
+    *(산출 조건: 동료집단 공고 수와 그중 공개연봉 건수가 **둘 다** `minRequired` 이상이어야 한다. §5.2 연봉 분포와 같은 기준이며, 동료집단 완화도 공개연봉이 모자라면 한 단계 더 넓힌다)*
 *   **결과 타입 매핑 (고정):**
 
 | 조건 | `type` | `typeLabel` |

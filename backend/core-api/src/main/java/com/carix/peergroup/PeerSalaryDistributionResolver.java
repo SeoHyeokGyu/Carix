@@ -11,6 +11,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.function.Predicate;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -38,9 +39,15 @@ public class PeerSalaryDistributionResolver {
   public record ResolvedPeerPostings(
       int level, List<JobPosting> postings, String appliedConditions) {}
 
-  /** 프로필의 동료집단 완화 결과 공고 목록을 반환한다 (스킬 추천 co-occurrence 및 연봉 분포 공용). */
+  /** 프로필의 동료집단 완화 결과 공고 목록을 반환한다 (스킬 추천 co-occurrence 용 — 공고 수만 본다). */
   @Transactional(readOnly = true)
   public ResolvedPeerPostings resolvePostings(CareerProfile profile) {
+    int minSample = minSample();
+    return settle(ladder(profile), candidate -> candidate.postings().size() >= minSample);
+  }
+
+  /** 완화 단계 1~5 의 후보. 회사규모가 없으면 1단계를 건너뛴다. */
+  private List<ResolvedPeerPostings> ladder(CareerProfile profile) {
     String jobFamily = orDefault(profile.getJobFamily(), "DEVELOPER");
     int years = profile.getYearsOfExperience() != null ? profile.getYearsOfExperience() : 3;
     String bracket = peerGroupFallbackResolver.mapExperienceBracket(years);
@@ -74,13 +81,20 @@ public class PeerSalaryDistributionResolver {
             4, jobFamily, broadPrefix, employmentType, null, widened, broadPrefix, bracket + "±1"));
     ladder.add(
         attempt(5, jobFamily, broadPrefix, null, null, widened, broadPrefix, bracket + "±1"));
+    return ladder;
+  }
 
-    int minSample =
-        thresholds != null
-            ? thresholds.getPeerGroupMinSampleSize()
-            : PeerGroupFallbackResolver.MIN_SAMPLE_SIZE;
+  private int minSample() {
+    return thresholds != null
+        ? thresholds.getPeerGroupMinSampleSize()
+        : PeerGroupFallbackResolver.MIN_SAMPLE_SIZE;
+  }
+
+  /** 기준을 채우는 첫 단계. 어느 단계도 못 채우면 가장 넓은 단계. */
+  private static ResolvedPeerPostings settle(
+      List<ResolvedPeerPostings> ladder, Predicate<ResolvedPeerPostings> sufficient) {
     for (ResolvedPeerPostings candidate : ladder) {
-      if (candidate.postings().size() >= minSample) {
+      if (sufficient.test(candidate)) {
         return candidate;
       }
     }
@@ -88,12 +102,19 @@ public class PeerSalaryDistributionResolver {
   }
 
   /**
-   * 프로필의 동료집단 분포. 어느 단계에서도 최소 표본을 못 채우면 가장 넓은 단계의 결과를 그대로 돌려준다 — 호출자가 {@link
-   * PeerSalaryDistribution#hasSufficientPeers()} 로 판단한다.
+   * 프로필의 동료집단 분포. 공고 수와 공개연봉 수가 둘 다 최소 표본을 채우는 단계에 안착한다 — 공고만 넘고 공개연봉이 모자라면 한 단계 더 넓힌다. 어느 단계에서도 못
+   * 채우면 가장 넓은 단계의 결과를 그대로 돌려준다 — 호출자가 {@link PeerSalaryDistribution#hasSufficientPeers()}·{@link
+   * PeerSalaryDistribution#hasSufficientSalaries()} 로 판단한다.
    */
   @Transactional(readOnly = true)
   public PeerSalaryDistribution resolve(CareerProfile profile) {
-    return toDistribution(resolvePostings(profile));
+    int minSample = minSample();
+    return toDistribution(
+        settle(
+            ladder(profile),
+            candidate ->
+                candidate.postings().size() >= minSample
+                    && disclosedSalaries(candidate.postings()).size() >= minSample));
   }
 
   private static final java.time.format.DateTimeFormatter TREND_YM_FORMATTER =
