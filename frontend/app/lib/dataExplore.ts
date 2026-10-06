@@ -76,8 +76,13 @@ export function formatSalaryCell(p: SalaryFields): {
       muted: true,
     };
   }
-  return {
-    text: p.salaryDisclosure === "NONE" ? "미공개" : "판정 전",
-    muted: true,
-  };
+  if (p.salaryDisclosure === "NONE") return { text: "미공개", muted: true };
+  // 판정 전이어도 저장된 값(기존 공고의 연봉 또는 구간)이 있으면 함께 보인다.
+  const stored =
+    p.salaryMin != null || p.salaryMax != null
+      ? formatSalaryRange(p.salaryMin, p.salaryMax)
+      : p.salaryBandMin != null || p.salaryBandMax != null
+        ? formatSalaryRange(p.salaryBandMin, p.salaryBandMax)
+        : null;
+  return { text: stored ? `판정 전 (${stored})` : "판정 전", muted: true };
 }

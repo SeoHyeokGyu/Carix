@@ -70,6 +70,22 @@ describe("formatSalaryCell", () => {
       text: "판정 전",
       muted: true,
     });
+    expect(
+      formatSalaryCell({
+        ...none,
+        salaryMin: 50_000_000,
+        salaryMax: 60_000_000,
+        salaryDisclosure: "UNKNOWN",
+      }).text,
+    ).toBe("판정 전 (5,000만원~6,000만원)");
+    expect(
+      formatSalaryCell({
+        ...none,
+        salaryBandMin: 40_000_000,
+        salaryBandMax: 70_000_000,
+        salaryDisclosure: "UNKNOWN",
+      }).text,
+    ).toBe("판정 전 (4,000만원~7,000만원)");
   });
 
   it("1억 이상 금액 표기", () => {
