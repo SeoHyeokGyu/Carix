@@ -1106,11 +1106,11 @@
         | 파라미터 | 필수 | 설명 |
         | --- | --- | --- |
         | `dryRun` | 선택 | 기본 `true`. `true` 면 DB 를 쓰지 않고 측정만 한다. `false` 면 판정을 저장한다 |
-        | `delayMs` | 선택 | 공고 사이 대기(ms). 생략하면 서버 기본 간격 |
+        | `delayMs` | 선택 | 공고 사이 대기(ms). 기본 1000 |
 
     *   `dryRun=false` 에서 상세페이지를 못 열었거나 급여를 못 읽은 공고는, 한 번도 판정되지 않은 공고에 한해 `UNKNOWN` 으로 두고 기존 연봉 값을 `salary_band_*` 로 옮긴다. 이미 판정된 공고는 건드리지 않는다.
     *   **Response (202 Accepted):** 작업 ID 를 돌려준다(§8.1 과 같은 형식).
-    *   **작업 요약 (`JobExecution.summary`):**
+    *   **작업 요약 (작업 상태 조회 §8.5 응답의 `details`):**
         ```json
         {
           "dryRun": true,
@@ -1125,4 +1125,4 @@
           }
         }
         ```
-        `publicPeers` 는 직무 × 경력(`JUNIOR`·`MID`·`SENIOR`) × 서울·정규직 칸의 공개 연봉 표본 수 전후다.
+        `unreachable` 은 판정이 `UNKNOWN` 인 공고 수다(상세페이지를 못 열었거나, 열었지만 description 이나 급여 항목이 없는 경우). `publicPeers` 는 직무 × 경력(`JUNIOR`·`MID`·`SENIOR`) × 서울·정규직 칸의 표본 수로, `before` 는 지금 `salary_min`·`salary_max` 가 둘 다 저장된 공고 수(공개 구분과 무관), `after` 는 판정이 `PUBLIC` 인 공고 수다.
