@@ -94,4 +94,28 @@ class PostingSalaryClassifierTest {
         .isEqualTo(PostingSalary.unknown());
     assertThat(PostingSalaryClassifier.withListingFallback(band, 4000L, 6000L)).isEqualTo(band);
   }
+
+  @Test
+  void jobKoreaSalaryAsLastField() {
+    String html = "<meta name=\"description\" content=\"경력 : 경력무관, 급여 : 연봉 4,000~6,000만원\"/>";
+
+    PostingSalary s = classifier.classifyJobKorea(html);
+
+    assertThat(s.disclosure()).isEqualTo(SalaryDisclosure.PUBLIC);
+    assertThat(s.min()).isEqualTo(40_000_000L);
+    assertThat(s.max()).isEqualTo(60_000_000L);
+  }
+
+  @Test
+  void missingDescriptionOrSalaryFieldIsUnknown() {
+    assertThat(classifier.classifyJobKorea("<html><body>blocked</body></html>").disclosure())
+        .isEqualTo(SalaryDisclosure.UNKNOWN);
+    assertThat(
+            classifier
+                .classifyJobKorea("<meta name=\"description\" content=\"경력 : 경력무관\"/>")
+                .disclosure())
+        .isEqualTo(SalaryDisclosure.UNKNOWN);
+    assertThat(classifier.classifySaramin("<html></html>").disclosure())
+        .isEqualTo(SalaryDisclosure.UNKNOWN);
+  }
 }

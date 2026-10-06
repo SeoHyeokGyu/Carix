@@ -54,4 +54,26 @@ class SalaryTextParserTest {
     assertThat(p("연봉 4")).isNull(); // 1,000만원 미만은 잡음
     assertThat(p(null)).isNull();
   }
+
+  @Test
+  void ignoresTrailingParentheticalsAndNotes() {
+    assertThat(p("연봉 3,600만원 (월 300만원)")).isEqualTo(new SalaryRange(36_000_000L, 36_000_000L));
+    assertThat(p("연봉 4,000만원 (주 5일)")).isEqualTo(new SalaryRange(40_000_000L, 40_000_000L));
+    assertThat(p("연봉 4,000만원, 성과급 300%")).isEqualTo(new SalaryRange(40_000_000L, 40_000_000L));
+    assertThat(p("월급 300만원 (연 3,600만원)")).isEqualTo(new SalaryRange(36_000_000L, 36_000_000L));
+    assertThat(p("연봉 45,000,000원 (만 3년 이상)")).isEqualTo(new SalaryRange(45_000_000L, 45_000_000L));
+  }
+
+  @Test
+  void rangesAndOneSidedBounds() {
+    assertThat(p("연봉 1억~1억 5,000만원")).isEqualTo(new SalaryRange(100_000_000L, 150_000_000L));
+    assertThat(p("월급 300만원 이상")).isEqualTo(new SalaryRange(36_000_000L, 36_000_000L));
+    assertThat(p("연봉 3,600만원 이하")).isEqualTo(new SalaryRange(36_000_000L, 36_000_000L));
+    assertThat(p("연봉 3,000만원~4,000만원")).isEqualTo(new SalaryRange(30_000_000L, 40_000_000L));
+  }
+
+  @Test
+  void notPublicWhenOnlyNumbersInNotes() {
+    assertThat(p("회사내규 (2024년 만근 시)")).isNull();
+  }
 }

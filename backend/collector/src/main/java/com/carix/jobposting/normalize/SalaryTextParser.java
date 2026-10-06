@@ -1,7 +1,5 @@
 package com.carix.jobposting.normalize;
 
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -16,50 +14,84 @@ import java.util.regex.Pattern;
 public final class SalaryTextParser {
 
   private static final long MANWON = 10_000L;
+  private static final long EOK_IN_MANWON = 10_000L;
   private static final long MIN_ANNUAL = 10_000_000L;
   private static final long MAX_ANNUAL = 1_000_000_000L;
   private static final int MONTHS = 12;
-  private static final Pattern EOK = Pattern.compile("(\\d+)\\s*억(?:\\s*(\\d[\\d,]*)\\s*만)?");
-  private static final Pattern NUMBER = Pattern.compile("\\d[\\d,]*");
+  private static final String AMOUNT =
+      "(?:(\\d+)\\s*억(?:\\s*(\\d[\\d,]*)\\s*만)?|(\\d[\\d,]*)\\s*(만)?)\\s*(원)?";
+  private static final Pattern GROUP =
+      Pattern.compile(AMOUNT + "(?:\\s*[~∼\\-–]\\s*" + AMOUNT + ")?");
+  private static final Pattern KEYWORD = Pattern.compile("(연봉|월급)\\s*:?\\s*");
   private static final Pattern NON_ANNUAL = Pattern.compile("시급|일급|주급");
 
   private SalaryTextParser() {}
 
+  /** 금액 한 덩이. {@code unit} 이 null 이면 단위 표기가 없다. */
+  private record Amount(long value, Unit unit) {}
+
+  private enum Unit {
+    WON,
+    MANWON,
+    RESOLVED
+  }
+
   public static Optional<SalaryRange> parseAnnual(String text) {
-    if (text == null || text.isBlank() || NON_ANNUAL.matcher(text).find()) {
+    if (text == null || text.isBlank()) {
       return Optional.empty();
     }
-    boolean monthly = text.contains("월급");
-    String normalized = expandEok(text);
-    boolean manwon = normalized.contains("만");
-    List<Long> values = new ArrayList<>();
-    Matcher m = NUMBER.matcher(normalized);
-    while (m.find() && values.size() < 2) {
-      long raw = Long.parseLong(m.group().replace(",", ""));
-      long won = manwon ? raw * MANWON : raw;
-      values.add(monthly ? won * MONTHS : won);
+    Matcher k = KEYWORD.matcher(text);
+    while (k.find()) {
+      Matcher g = GROUP.matcher(text).region(k.end(), text.length());
+      if (g.lookingAt()) {
+        return toRange(g, "월급".equals(k.group(1)), false);
+      }
     }
-    if (values.isEmpty()) {
+    String stripped = text.strip();
+    if (NON_ANNUAL.matcher(stripped).find()) {
       return Optional.empty();
     }
-    long min = values.get(0);
-    long max = values.size() > 1 ? values.get(1) : min;
+    Matcher g = GROUP.matcher(stripped);
+    return g.lookingAt() ? toRange(g, false, true) : Optional.empty();
+  }
+
+  private static Optional<SalaryRange> toRange(Matcher g, boolean monthly, boolean needUnit) {
+    Amount first = amount(g, 1);
+    Amount second = g.group(6) != null || g.group(8) != null ? amount(g, 6) : null;
+    Unit fallback = first.unit() != null ? first.unit() : second == null ? null : second.unit();
+    if (needUnit && fallback == null) {
+      return Optional.empty();
+    }
+    long min = won(first, fallback);
+    long max = second == null ? min : won(second, fallback);
+    if (monthly) {
+      min *= MONTHS;
+      max *= MONTHS;
+    }
     if (min > max || min < MIN_ANNUAL || max > MAX_ANNUAL) {
       return Optional.empty();
     }
     return Optional.of(new SalaryRange(min, max));
   }
 
-  /** 「1억 2,000만」 → 「12000만」, 「1억」 → 「10000만」. */
-  private static String expandEok(String text) {
-    Matcher m = EOK.matcher(text);
-    StringBuilder sb = new StringBuilder();
-    while (m.find()) {
-      long eok = Long.parseLong(m.group(1));
-      long man = m.group(2) == null ? 0 : Long.parseLong(m.group(2).replace(",", ""));
-      m.appendReplacement(sb, (eok * 10_000 + man) + "만");
+  /** {@code base} 는 그룹 번호 시작점 — 억 / 억 뒤 만 / 숫자 / 만 / 원 순서로 5개 그룹이 이어진다. */
+  private static Amount amount(Matcher g, int base) {
+    if (g.group(base) != null) {
+      long man = g.group(base + 1) == null ? 0 : number(g.group(base + 1));
+      long won = (Long.parseLong(g.group(base)) * EOK_IN_MANWON + man) * MANWON;
+      return new Amount(won, Unit.RESOLVED);
     }
-    m.appendTail(sb);
-    return sb.toString();
+    Unit unit =
+        g.group(base + 3) != null ? Unit.MANWON : g.group(base + 4) != null ? Unit.WON : null;
+    return new Amount(number(g.group(base + 2)), unit);
+  }
+
+  private static long won(Amount a, Unit fallback) {
+    Unit unit = a.unit() != null ? a.unit() : fallback;
+    return unit == Unit.MANWON ? a.value() * MANWON : a.value();
+  }
+
+  private static long number(String digits) {
+    return Long.parseLong(digits.replace(",", ""));
   }
 }

@@ -40,7 +40,10 @@ public class PostingSalaryClassifier {
   }
 
   static PostingSalary classify(String text, SalaryRange band) {
-    if (text == null || text.isBlank()) {
+    if (text == null) {
+      return PostingSalary.unknown();
+    }
+    if (text.isBlank()) {
       return PostingSalary.none();
     }
     Optional<SalaryRange> disclosed = SalaryTextParser.parseAnnual(text);
