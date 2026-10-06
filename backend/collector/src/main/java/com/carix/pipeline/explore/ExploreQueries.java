@@ -13,7 +13,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 
-/** 관리자 수집 데이터 열람 쿼리. 읽기 전용이고 금액 컬럼을 고르지 않는다. H2(테스트)와 PostgreSQL(운영) 공통 문법만 쓴다. */
+/** 관리자 수집 데이터 열람 쿼리. 읽기 전용이고 사용자 소득은 고르지 않는다. H2(테스트)와 PostgreSQL(운영) 공통 문법만 쓴다. */
 @Repository
 @RequiredArgsConstructor
 public class ExploreQueries {
