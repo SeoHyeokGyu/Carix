@@ -26,6 +26,20 @@ describe("PurchasingPowerPanel", () => {
           jobFamily: "DEVELOPER",
           experienceBracket: "MID",
           sources: ["KOSIS"],
+          values: [
+            {
+              wageDefinition: "ANNUAL_GROSS_MEDIAN",
+              source: "KOSIS",
+              statVintage: "202508",
+              wageMedian: 61_234_567,
+            },
+            {
+              wageDefinition: "ANNUAL_BASE_MEDIAN",
+              source: "KOSIS",
+              statVintage: "202508",
+              wageMedian: 51_130_000,
+            },
+          ],
         },
       ],
       missing: ["DATA/MID"],
@@ -41,9 +55,12 @@ describe("PurchasingPowerPanel", () => {
     );
   });
 
-  it("임금통계는 출처와 빈 칸만 보인다", async () => {
+  it("임금통계는 세전 총액 중위값·정액급여 중위값·출처와 빈 칸을 보인다", async () => {
     render(<PurchasingPowerPanel tab="wage" />);
-    expect(await screen.findByText("KOSIS")).toBeInTheDocument();
+    const cell = await screen.findByTestId("wage-DEVELOPER-MID");
+    expect(cell).toHaveTextContent("6,123만원");
+    expect(cell).toHaveTextContent("정액 5,113만원");
+    expect(cell).toHaveTextContent("KOSIS 202508");
     expect(screen.getByTestId("wage-DATA-MID")).toHaveAttribute(
       "data-missing",
       "true",

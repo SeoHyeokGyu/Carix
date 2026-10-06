@@ -1,5 +1,6 @@
 import { useState } from "react";
 import type { PostingItem, PostingPage } from "../../../lib/collectorApi";
+import { formatSalaryRange } from "../../../lib/dataExplore";
 import { Button } from "@/components/ui/button";
 
 function experience(p: PostingItem): string {
@@ -27,12 +28,15 @@ function Row({ p }: { p: PostingItem }) {
         <td className="px-2 py-1">{p.companyName}</td>
         <td className="px-2 py-1">{p.jobFamily}</td>
         <td className="px-2 py-1">{experience(p)}</td>
+        <td className="px-2 py-1">
+          {formatSalaryRange(p.salaryMin, p.salaryMax)}
+        </td>
         <td className="px-2 py-1">{p.postedStartDate ?? "-"}</td>
         <td className="px-2 py-1">{p.sampledMonth ?? "-"}</td>
       </tr>
       {open && (
         <tr>
-          <td colSpan={7} className="px-4 py-2 text-[11px] text-carix-text/80">
+          <td colSpan={8} className="px-4 py-2 text-[11px] text-carix-text/80">
             <p>스킬: {p.skills.length > 0 ? p.skills.join(", ") : "없음"}</p>
             <p>
               고용형태 {p.employmentType ?? "-"} · 지역 {p.region ?? "-"} · 마감{" "}
@@ -83,6 +87,7 @@ export function PostingsExplorer({
               <th className="px-2 py-1">회사</th>
               <th className="px-2 py-1">직무</th>
               <th className="px-2 py-1">경력</th>
+              <th className="px-2 py-1">제시 연봉</th>
               <th className="px-2 py-1">게시일</th>
               <th className="px-2 py-1">표본월</th>
             </tr>

@@ -3,7 +3,7 @@ package com.carix.pipeline.dto.explore;
 import java.time.LocalDate;
 import java.util.List;
 
-/** 관리자 수집 데이터 — 공고 목록. 연봉 범위는 싣지 않는다. 설계 §5.2. */
+/** 관리자 수집 데이터 — 공고 목록. 설계 §5.2. */
 public record PostingPage(long total, int page, int size, List<Item> items) {
 
   public record Item(
@@ -21,5 +21,7 @@ public record PostingPage(long total, int page, int size, List<Item> items) {
       LocalDate postedEndDate,
       String firstSeenMonth,
       String sampledMonth,
+      Long salaryMin,
+      Long salaryMax,
       List<String> skills) {}
 }

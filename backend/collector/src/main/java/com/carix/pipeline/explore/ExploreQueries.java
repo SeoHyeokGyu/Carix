@@ -73,15 +73,37 @@ public class ExploreQueries {
         "SELECT MAX(base_period) FROM core.wage_stat_observation", String.class);
   }
 
-  /** {family, bracket, source}. 금액 컬럼은 고르지 않는다. */
-  public List<String[]> wageCells(String basePeriod) {
+  /** 임금통계 한 칸의 정의·출처별 최신 회차 행(전국). */
+  public record WageRow(
+      String jobFamily,
+      String experienceBracket,
+      String wageDefinition,
+      String source,
+      String statVintage,
+      long wageMedian) {}
+
+  /** 기준 연도의 전국 행 중 (직무, 경력, 정의, 출처)마다 가장 늦은 회차만. */
+  public List<WageRow> wageCells(String basePeriod) {
     return jdbc.query(
-        "SELECT DISTINCT job_family, experience_bracket, source FROM core.wage_stat_observation WHERE base_period = ?",
-        (rs, i) -> new String[] {rs.getString(1), rs.getString(2), rs.getString(3)},
+        "SELECT w.job_family, w.experience_bracket, w.wage_definition, w.source, w.stat_vintage,"
+            + " w.wage_median FROM core.wage_stat_observation w"
+            + " WHERE w.base_period = ? AND w.region = 'ALL' AND w.stat_vintage = ("
+            + " SELECT MAX(v.stat_vintage) FROM core.wage_stat_observation v"
+            + " WHERE v.base_period = w.base_period AND v.region = w.region"
+            + " AND v.job_family = w.job_family AND v.experience_bracket = w.experience_bracket"
+            + " AND v.wage_definition = w.wage_definition AND v.source = w.source)",
+        (rs, i) ->
+            new WageRow(
+                rs.getString(1),
+                rs.getString(2),
+                rs.getString(3),
+                rs.getString(4),
+                rs.getString(5),
+                rs.getLong(6)),
         basePeriod);
   }
 
-  /** 공고 한 행. 금액 컬럼은 고르지 않는다. */
+  /** 공고 한 행. */
   public record PostingRow(
       UUID id,
       String source,
@@ -96,12 +118,14 @@ public class ExploreQueries {
       LocalDate postedStartDate,
       LocalDate postedEndDate,
       String firstSeenMonth,
-      String sampledMonth) {}
+      String sampledMonth,
+      Long salaryMin,
+      Long salaryMax) {}
 
   private static final String POSTING_COLUMNS =
       "p.id, p.source, p.external_id, p.title, p.company_name, p.job_family, p.experience_min,"
           + " p.experience_max, p.employment_type, p.region, p.posted_start_date, p.posted_end_date,"
-          + " p.first_seen_month, p.sampled_month";
+          + " p.first_seen_month, p.sampled_month, p.salary_min, p.salary_max";
 
   public long countPostings(PostingFilter f) {
     List<Object> args = new ArrayList<>();
@@ -138,7 +162,9 @@ public class ExploreQueries {
                 toLocalDate(rs.getDate(11)),
                 toLocalDate(rs.getDate(12)),
                 rs.getString(13),
-                rs.getString(14)),
+                rs.getString(14),
+                (Long) rs.getObject(15),
+                (Long) rs.getObject(16)),
         args.toArray());
   }
 

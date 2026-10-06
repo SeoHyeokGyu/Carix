@@ -4,8 +4,9 @@ import {
   fetchWage,
   type CpiTable,
   type WageTable,
+  type WageValue,
 } from "../../../lib/collectorApi";
-import type { ExploreTab } from "../../../lib/dataExplore";
+import { formatManwon, type ExploreTab } from "../../../lib/dataExplore";
 import { Button } from "@/components/ui/button";
 
 type PanelTab = Extract<ExploreTab, "cpi" | "wage">;
@@ -58,6 +59,31 @@ function CpiView({ data }: { data: CpiTable }) {
   );
 }
 
+const GROSS = "ANNUAL_GROSS_MEDIAN";
+const BASE = "ANNUAL_BASE_MEDIAN";
+
+/** 세전 총액 중위값(엔진 기본 기준선)을 크게, 정액급여 중위값과 출처·회차를 작게. */
+function WageCellBody({ values }: { values: WageValue[] }) {
+  const gross = values.find((v) => v.wageDefinition === GROSS);
+  const base = values.find((v) => v.wageDefinition === BASE);
+  const origins = [
+    ...new Set(values.map((v) => `${v.source} ${v.statVintage}`)),
+  ];
+  return (
+    <div className="space-y-0.5">
+      <p className="font-semibold">
+        {gross ? formatManwon(gross.wageMedian) : "—"}
+      </p>
+      {base && (
+        <p className="text-[11px] text-carix-text/60">
+          정액 {formatManwon(base.wageMedian)}
+        </p>
+      )}
+      <p className="text-[10px] text-carix-text/50">{origins.join(" · ")}</p>
+    </div>
+  );
+}
+
 function WageView({ data }: { data: WageTable }) {
   if (!data.basePeriod) return EMPTY;
   const cell = (f: string, b: string) =>
@@ -89,7 +115,7 @@ function WageView({ data }: { data: WageTable }) {
                     data-missing={String(!c)}
                     className={`px-2 py-1 text-center ${!c ? MISSING_CELL : ""}`}
                   >
-                    {c ? c.sources.join("·") : "빈 칸"}
+                    {c ? <WageCellBody values={c.values} /> : "빈 칸"}
                   </td>
                 );
               })}
@@ -101,7 +127,7 @@ function WageView({ data }: { data: WageTable }) {
   );
 }
 
-/** CPI 월 × 품목 표, 임금통계 직무 × 경력 출처 표. 금액은 보이지 않는다. */
+/** CPI 월 × 품목 표, 임금통계 직무 × 경력 중위값·출처 표. */
 export function PurchasingPowerPanel({
   tab,
   from,

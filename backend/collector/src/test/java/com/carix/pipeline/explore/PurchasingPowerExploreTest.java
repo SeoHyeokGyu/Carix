@@ -1,12 +1,12 @@
 package com.carix.pipeline.explore;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.tuple;
 
 import com.carix.cpi.CpiObservation;
 import com.carix.cpi.CpiObservationRepository;
 import com.carix.pipeline.dto.explore.CpiTable;
 import com.carix.pipeline.dto.explore.WageTable;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import java.math.BigDecimal;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -77,18 +77,52 @@ class PurchasingPowerExploreTest {
   }
 
   @Test
-  @DisplayName("임금통계는 최신 기준 연도의 칸별 출처와 빈 칸만 — 금액 없음")
-  void wage_table() throws Exception {
-    jdbc.update(
-        "INSERT INTO core.wage_stat_observation (id, job_family, experience_bracket, region, wage_definition, wage_median, base_period, stat_vintage, source)"
-            + " VALUES (RANDOM_UUID(), 'DEVELOPER', 'MID', 'ALL', 'ANNUAL_GROSS_MEDIAN', 61234567, '2025', '202508', 'KOSIS')");
+  @DisplayName("임금통계는 최신 기준 연도의 칸별 출처·정의별 최신 회차 중위값과 빈 칸")
+  void wage_table() {
+    wage("DEVELOPER", "MID", "ALL", "ANNUAL_GROSS_MEDIAN", 61_234_567, "2025", "202508", "KOSIS");
+    wage("DEVELOPER", "MID", "ALL", "ANNUAL_GROSS_MEDIAN", 60_000_000, "2025", "202408", "KOSIS");
+    wage("DEVELOPER", "MID", "ALL", "ANNUAL_BASE_MEDIAN", 51_130_000, "2025", "202508", "KOSIS");
+    wage("DEVELOPER", "MID", "서울", "ANNUAL_GROSS_MEDIAN", 70_000_000, "2025", "202508", "KOSIS");
+    wage("DEVELOPER", "MID", "ALL", "ANNUAL_GROSS_MEDIAN", 59_000_000, "2024", "202408", "KOSIS");
 
     WageTable t = service.wage();
 
     assertThat(t.basePeriod()).isEqualTo("2025");
     assertThat(t.cells()).extracting(WageTable.Cell::jobFamily).containsExactly("DEVELOPER");
     assertThat(t.missing()).hasSize(14).contains("DATA/LEAD");
-    assertThat(new ObjectMapper().writeValueAsString(t)).doesNotContain("61234567");
+    WageTable.Cell cell = t.cells().getFirst();
+    assertThat(cell.sources()).containsExactly("KOSIS");
+    assertThat(cell.values())
+        .extracting(
+            WageTable.Value::wageDefinition,
+            WageTable.Value::statVintage,
+            WageTable.Value::wageMedian)
+        .containsExactly(
+            tuple("ANNUAL_GROSS_MEDIAN", "202508", 61_234_567L),
+            tuple("ANNUAL_BASE_MEDIAN", "202508", 51_130_000L));
+  }
+
+  private void wage(
+      String family,
+      String bracket,
+      String region,
+      String definition,
+      long median,
+      String basePeriod,
+      String vintage,
+      String source) {
+    jdbc.update(
+        "INSERT INTO core.wage_stat_observation (id, job_family, experience_bracket, region,"
+            + " wage_definition, wage_median, base_period, stat_vintage, source)"
+            + " VALUES (RANDOM_UUID(), ?, ?, ?, ?, ?, ?, ?, ?)",
+        family,
+        bracket,
+        region,
+        definition,
+        median,
+        basePeriod,
+        vintage,
+        source);
   }
 
   @Test

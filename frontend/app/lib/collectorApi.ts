@@ -346,6 +346,8 @@ export interface PostingItem {
   postedEndDate: string | null;
   firstSeenMonth: string | null;
   sampledMonth: string | null;
+  salaryMin: number | null;
+  salaryMax: number | null;
   skills: string[];
 }
 
@@ -398,11 +400,24 @@ export interface CpiTable {
   missing: { month: string; codes: string[] }[];
 }
 
+/** 정의·출처별 최신 회차 중위값(연간, 원). */
+export interface WageValue {
+  wageDefinition: string;
+  source: string;
+  statVintage: string;
+  wageMedian: number;
+}
+
 export interface WageTable {
   basePeriod: string | null;
   families: string[];
   brackets: string[];
-  cells: { jobFamily: string; experienceBracket: string; sources: string[] }[];
+  cells: {
+    jobFamily: string;
+    experienceBracket: string;
+    sources: string[];
+    values: WageValue[];
+  }[];
   missing: string[];
 }
 

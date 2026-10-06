@@ -18,3 +18,26 @@ export function parseTab(value: string | null): ExploreTab {
 
 export const isThinSample = (n: number) => n < SAMPLE_WARN_BELOW;
 export const isThinFamily = (n: number) => n < FAMILY_MIN_SAMPLE;
+
+const WON_PER_MANWON = 10_000;
+
+/** 원 단위 금액 → 「6,123만원」(만원 미만 버림). */
+export function formatManwon(won: number): string {
+  return `${Math.floor(won / WON_PER_MANWON).toLocaleString("ko-KR")}만원`;
+}
+
+/** 공고 제시 연봉 범위. 있는 쪽만 보이고 둘 다 없으면 「미공개」. */
+export function formatSalaryRange(
+  min: number | null,
+  max: number | null,
+): string {
+  if (min == null && max == null) return "미공개";
+  if (min != null && max != null) {
+    return min === max
+      ? formatManwon(min)
+      : `${formatManwon(min)}~${formatManwon(max)}`;
+  }
+  return min != null
+    ? `${formatManwon(min)}~`
+    : `~${formatManwon(max as number)}`;
+}

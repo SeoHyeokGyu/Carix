@@ -7,6 +7,7 @@ import com.carix.pipeline.dto.explore.CpiTable;
 import com.carix.pipeline.dto.explore.MonthlyOverview;
 import com.carix.pipeline.dto.explore.PostingPage;
 import com.carix.pipeline.dto.explore.WageTable;
+import com.carix.wagestat.WageDefinition;
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.YearMonth;
@@ -15,11 +16,11 @@ import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
-import java.util.TreeSet;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -154,11 +155,15 @@ public class DataExploreService {
   @Transactional(readOnly = true)
   public WageTable wage() {
     String period = queries.latestWagePeriod();
-    Map<String, TreeSet<String>> sources = new TreeMap<>();
+    Map<String, List<ExploreQueries.WageRow>> byCell = new TreeMap<>();
     if (period != null) {
-      for (String[] row : queries.wageCells(period)) {
-        if (WageTable.FAMILIES.contains(row[0]) && WageTable.BRACKETS.contains(row[1])) {
-          sources.computeIfAbsent(row[0] + "/" + row[1], k -> new TreeSet<>()).add(row[2]);
+      for (ExploreQueries.WageRow row : queries.wageCells(period)) {
+        if (WageTable.FAMILIES.contains(row.jobFamily())
+            && WageTable.BRACKETS.contains(row.experienceBracket())) {
+          byCell
+              .computeIfAbsent(
+                  row.jobFamily() + "/" + row.experienceBracket(), k -> new ArrayList<>())
+              .add(row);
         }
       }
     }
@@ -166,15 +171,41 @@ public class DataExploreService {
     List<String> missing = new ArrayList<>();
     for (String f : WageTable.FAMILIES) {
       for (String b : WageTable.BRACKETS) {
-        TreeSet<String> s = sources.get(f + "/" + b);
-        if (s == null) {
+        List<ExploreQueries.WageRow> rows = byCell.get(f + "/" + b);
+        if (rows == null) {
           missing.add(f + "/" + b);
         } else {
-          cells.add(new WageTable.Cell(f, b, List.copyOf(s)));
+          cells.add(wageCell(f, b, rows));
         }
       }
     }
     return new WageTable(period, WageTable.FAMILIES, WageTable.BRACKETS, cells, missing);
+  }
+
+  /** 기본 기준선(세전 총액)이 먼저 오도록 정의 선언 순, 그다음 출처 순. */
+  private static WageTable.Cell wageCell(
+      String family, String bracket, List<ExploreQueries.WageRow> rows) {
+    List<WageTable.Value> values =
+        rows.stream()
+            .sorted(
+                Comparator.comparingInt((ExploreQueries.WageRow r) -> definitionOrder(r))
+                    .thenComparing(ExploreQueries.WageRow::source))
+            .map(
+                r ->
+                    new WageTable.Value(
+                        r.wageDefinition(), r.source(), r.statVintage(), r.wageMedian()))
+            .toList();
+    List<String> sources =
+        rows.stream().map(ExploreQueries.WageRow::source).distinct().sorted().toList();
+    return new WageTable.Cell(family, bracket, sources, values);
+  }
+
+  private static int definitionOrder(ExploreQueries.WageRow row) {
+    try {
+      return WageDefinition.valueOf(row.wageDefinition()).ordinal();
+    } catch (IllegalArgumentException e) {
+      return Integer.MAX_VALUE;
+    }
   }
 
   private static final int POSTINGS_DEFAULT_SIZE = 50;
@@ -229,6 +260,8 @@ public class DataExploreService {
                         r.postedEndDate(),
                         r.firstSeenMonth(),
                         r.sampledMonth(),
+                        r.salaryMin(),
+                        r.salaryMax(),
                         skills.getOrDefault(r.id(), List.of())))
             .toList();
     return new PostingPage(total, p, s, items);
