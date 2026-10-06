@@ -42,6 +42,8 @@ DB 스키마는 [ERD](erd.md), REST 계약은 [API 규격](api-specification.md)
 | S-15 | `/dashboard/simulator` | 12개월 시뮬레이터 | SPA | 세션 + 온보딩 완료 |
 | S-16 | `/admin/collector` | 관리자 파이프라인 콘솔 (수집·집계 제어/모니터링) | SPA | 관리자 키 (`X-Admin-Key`) |
 | S-17 | `/dashboard/guide` | 지표 가이드 및 도움말 (지표 3종·결정 신호·FAQ) | SPA | 세션 + 온보딩 완료 |
+| S-19 | `/admin/data-health` | 관리자 데이터 상태 (세 질문 답변 가능 여부·점검 판정). `/admin` 진입 시 이 화면으로 | SPA | 관리자 키 (`X-Admin-Key`) |
+| S-20 | `/admin/data` | 관리자 수집 데이터 (월별 현황·공고·CPI·임금통계 열람) | SPA | 관리자 키 (`X-Admin-Key`) |
 
 렌더링 열은 MVP 현행 구성이다 — `/` 만 빌드 시 사전 렌더링하고 나머지는 SPA 셸에서
 클라이언트가 렌더링한다(`ssr: false`). 화면별 Node SSR·SSR shell 적용은 MVP 이후로
@@ -250,6 +252,20 @@ DB 스키마는 [ERD](erd.md), REST 계약은 [API 규격](api-specification.md)
 - Given 관리자 권한 / When S-16에서 원천별 수집(잡코리아/사람인 크롤링, 시드 로드, KOSIS 임금통계, 중복제거, 시장 집계)을 실행 / Then 비동기 작업(`JobExecution`)을 트리거하고 즉시 작업 ID(`jobId`)와 상태(`RUNNING`)를 반환받아 화면에 표시한다.
 - Given 진행 중인 작업 / When 상태 폴링 또는 목록 새로고침 / Then 현재 처리 단계, 처리 건수(수집 공고 수, 보간 임금통계 수 등), 소요 시간 및 최종 완료(`COMPLETED`)·실패(`FAILED`) 상태를 조회한다.
 - Given 파이프라인 콘솔 진입 / When 통계 요약 조회 / Then 원천별 총 공고 수(`rawCount`), 정제 공고 수(`cleanedCount`), 중복 제거 공고 수(`dedupedCount`), 임금통계 관측치 수(`totalWageStats`)를 요약 카드로 확인한다.
+
+**US-M2. 데이터 상태 점검**
+> 운영 관리자로서, 매달 운영 뒤 사용자 세 질문(구매력·시장가치·결정 신호)에 온전히 답하는지와 고칠 곳을 DB 를 조회하지 않고 알고 싶다.
+
+- Given 관리자 권한 / When S-19 진입 / Then 「세 질문에 온전히 답하는 사용자 X/N」과 질문별 점검 판정(`OK`·`WARN`·`ERROR`·`UNKNOWN`)·영향 사용자 수·조치를 본다. 판정할 데이터가 없으면 정상이 아니라 판정 불가다.
+- Given 점검 줄 / When 「원본 보기」 / Then S-20 의 해당 탭·기간으로 근거 원본을 연다.
+
+**US-M3. 수집 데이터 열람**
+> 운영 관리자로서, 판정의 근거와 시장 흐름을 원본 데이터로 확인하고 싶다.
+
+- Given 관리자 권한 / When S-20 월별 현황 / Then 월별 잡코리아 표본·상한 적용 표본·정기 수집 건수와 직무별 표본을 보고, 표본 200 미만·직무 표본 10 미만 칸이 강조된다.
+- Given S-20 공고 / When 월·원천·표본 여부·직무·회사·스킬로 거른다 / Then 공고 목록(제시 연봉 범위 포함)과 원천 링크를 본다.
+- Given S-20 CPI·임금통계 / When 탭 진입 / Then CPI 월 × 품목 결측 칸, 임금통계 직무 × 경력 칸별 중위값·출처와 빈 칸이 강조된다.
+- 공개 원천의 금액(공고 제시 연봉, 임금통계 중위값)은 보이고 사용자 소득은 보이지 않는다. 열람만 하고 데이터를 바꾸지 않는다.
 
 ---
 
@@ -488,6 +504,8 @@ OWI         = 동료집단 중앙 개방일수 ÷ 전체시장 중앙 개방일�
 | S-12 입력 관리 | US-R1 | `PUT`·`DELETE /income`·`/user-skills`, `PUT /expenses/{ym}` | `income_history`(`change_reason`), `expense_*`, `user_skill` |
 | S-13 설정/탈퇴 | US-C1, US-C2 | `POST /auth/logout`·`/logout-all`, `DELETE /users` | `session`, 전 개인 테이블 |
 | S-16 파이프라인 콘솔 | US-M1 | `POST /internal/pipeline/*`, `GET /internal/pipeline/jobs`, `/stats` | `raw_ingest`, `job_posting`, `wage_stat_observation`, `market_aggregate` |
+| S-19 데이터 상태 | US-M2 | `GET /internal/pipeline/health`, `GET /meta/versions`(core-api) | `job_posting`, `cpi_observation`, `wage_stat_observation`, `market_aggregate`, `index_snapshot`, `career_profile` |
+| S-20 수집 데이터 | US-M3 | `GET /internal/pipeline/explore/monthly`·`/postings`·`/cpi`·`/wage` | `job_posting`, `job_posting_skill`, `skill`, `cpi_observation`, `wage_stat_observation` |
 
 API 경로는 `/api/v1` 접두사를 생략했다. 상세는
 [API 규격](api-specification.md), 테이블은 [ERD](erd.md)를 따른다.
