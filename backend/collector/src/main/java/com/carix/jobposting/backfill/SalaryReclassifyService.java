@@ -90,12 +90,14 @@ public class SalaryReclassifyService {
         }
       }
       if (!dryRun) {
-        if (isUnreachable) {
-          posting.markSalaryUnreachable();
-        } else {
+        if (!isUnreachable) {
           posting.applySalary(salary);
+          repository.save(posting);
+        } else if (isUnjudged(posting)) {
+          posting.markSalaryUnreachable();
+          repository.save(posting);
         }
-        repository.save(posting);
+        // 이미 판정된 공고는 일시 실패로 UNKNOWN 으로 내리지 않고 그대로 둔다.
       }
     }
     log.info("[급여 재판정] dryRun={} 대상 {} / 받지 못함 {} / {}", dryRun, total, unreachable, bySource);
@@ -106,6 +108,10 @@ public class SalaryReclassifyService {
     summary.put("bySource", bySource);
     summary.put("publicPeers", peers);
     return summary;
+  }
+
+  private static boolean isUnjudged(JobPosting p) {
+    return p.getSalaryDisclosure() == null || "UNKNOWN".equals(p.getSalaryDisclosure());
   }
 
   private PostingSalary classify(String source, String html) {

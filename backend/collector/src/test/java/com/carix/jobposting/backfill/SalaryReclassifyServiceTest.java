@@ -4,6 +4,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.carix.jobposting.JobPosting;
 import com.carix.jobposting.JobPostingRepository;
+import com.carix.jobposting.normalize.PostingSalary;
+import com.carix.jobposting.normalize.SalaryRange;
 import java.time.Instant;
 import java.util.Map;
 import java.util.Optional;
@@ -115,5 +117,37 @@ class SalaryReclassifyServiceTest {
     assertThat(blocked.getSalaryMin()).isNull();
     assertThat(blocked.getSalaryBandMin()).isEqualTo(60_000_000L);
     assertThat(summary).containsEntry("total", 4).containsEntry("unreachable", 4);
+  }
+
+  @Test
+  @DisplayName("이미 PUBLIC 으로 판정된 공고는 재수집 실패로 UNKNOWN 이 되지 않는다")
+  void apply_unreachableKeepsJudgedPublic() {
+    save("JOBKOREA", "5", null, null);
+    JobPosting posting = repository.findBySourceAndExternalId("JOBKOREA", "5").orElseThrow();
+    posting.applySalary(PostingSalary.publicRange(50_000_000L, 60_000_000L));
+    repository.flush();
+
+    new SalaryReclassifyService(repository, (source, id) -> Optional.empty()).run(false, 0L);
+    repository.flush();
+
+    JobPosting after = repository.findBySourceAndExternalId("JOBKOREA", "5").orElseThrow();
+    assertThat(after.getSalaryDisclosure()).isEqualTo("PUBLIC");
+    assertThat(after.getSalaryMin()).isEqualTo(50_000_000L);
+  }
+
+  @Test
+  @DisplayName("이미 BAND 로 판정된 공고는 재수집 실패로 UNKNOWN 이 되지 않는다")
+  void apply_unreachableKeepsJudgedBand() {
+    save("JOBKOREA", "6", null, null);
+    JobPosting posting = repository.findBySourceAndExternalId("JOBKOREA", "6").orElseThrow();
+    posting.applySalary(PostingSalary.band(new SalaryRange(40_000_000L, 70_000_000L)));
+    repository.flush();
+
+    new SalaryReclassifyService(repository, (source, id) -> Optional.empty()).run(false, 0L);
+    repository.flush();
+
+    JobPosting after = repository.findBySourceAndExternalId("JOBKOREA", "6").orElseThrow();
+    assertThat(after.getSalaryDisclosure()).isEqualTo("BAND");
+    assertThat(after.getSalaryBandMin()).isEqualTo(40_000_000L);
   }
 }
