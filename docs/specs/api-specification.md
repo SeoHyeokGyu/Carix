@@ -1049,6 +1049,8 @@
               "postedEndDate": "2026-07-12",
               "firstSeenMonth": "202607",
               "sampledMonth": "202607",
+              "salaryMin": 50000000,
+              "salaryMax": null,
               "skills": ["QA"]
             }
           ]
@@ -1069,7 +1071,7 @@
         ```
 
 ### 8.13 임금통계 칸별 출처 조회
-*   `GET /internal/pipeline/explore/wage` — 최신 기준 연도 임금통계의 직무 × 경력 칸별 중위값·출처와 빈 칸 조회 (관리자 콘솔 `/admin/data` 임금통계 탭 연동). 파라미터가 없다. 칸마다 `values` 에 전국(`region = ALL`) 행의 정의 × 출처별 최신 회차(`statVintage`) 중위값(연간, 원)을 세전 총액(`ANNUAL_GROSS_MEDIAN`, 엔진 기본 기준선) → 정액급여(`ANNUAL_BASE_MEDIAN`) 순으로 담는다. 임금통계가 없으면 `basePeriod` 는 `null` 이고 15칸이 모두 `missing` 이다.
+*   `GET /internal/pipeline/explore/wage` — 최신 기준 연도 임금통계의 직무 × 경력 칸별 중위값·출처와 빈 칸 조회 (관리자 콘솔 `/admin/data` 임금통계 탭 연동). 파라미터가 없다. 칸마다 `values` 에 전국(`region = ALL`) 행의 정의 × 출처별 최신 회차(`statVintage`) 중위값(연간, 원)을 세전 총액(`ANNUAL_GROSS_MEDIAN`, 엔진 기본 기준선) → 정액급여(`ANNUAL_BASE_MEDIAN`) 순으로 담는다. `engineBaselines` 는 칸마다 core-api 가 전국 경로(`전국` → `ALL`)에서 실제로 고르는 기준선이다 — 출처(KOSIS → UNKNOWN → 그 밖) → 세전 총액 → 최신 연도 → 최신 회차 순이라 연도를 가리지 않으며, 최신 기준 연도 칸에 없거나 값이 다를 수 있다. 임금통계가 없으면 `basePeriod` 는 `null` 이고 15칸이 모두 `missing`, `engineBaselines` 는 빈 배열이다.
     *   `families` 는 `DEVELOPER`·`DATA`·`AI`, `brackets` 는 `ENTRY`·`JUNIOR`·`MID`·`SENIOR`·`LEAD` 다. 값이 있는 칸은 `cells` 에, 없는 칸은 `missing` 에 `직무/경력` 으로 담는다.
     *   **Response (200 OK):**
         ```json
@@ -1077,7 +1079,18 @@
           "basePeriod": "2025",
           "families": ["DEVELOPER", "DATA", "AI"],
           "brackets": ["ENTRY", "JUNIOR", "MID", "SENIOR", "LEAD"],
-          "cells": [ { "jobFamily": "DEVELOPER", "experienceBracket": "MID", "sources": ["KOSIS"] } ],
-          "missing": ["DATA/LEAD"]
+          "cells": [
+            {
+              "jobFamily": "DEVELOPER", "experienceBracket": "MID", "sources": ["KOSIS"],
+              "values": [
+                { "wageDefinition": "ANNUAL_GROSS_MEDIAN", "source": "KOSIS", "statVintage": "202508", "wageMedian": 61234567 },
+                { "wageDefinition": "ANNUAL_BASE_MEDIAN", "source": "KOSIS", "statVintage": "202508", "wageMedian": 51130000 }
+              ]
+            }
+          ],
+          "missing": ["DATA/LEAD"],
+          "engineBaselines": [
+            { "jobFamily": "DEVELOPER", "experienceBracket": "MID", "region": "ALL", "basePeriod": "2025", "wageDefinition": "ANNUAL_GROSS_MEDIAN", "source": "KOSIS", "statVintage": "202508", "wageMedian": 61234567 }
+          ]
         }
         ```
