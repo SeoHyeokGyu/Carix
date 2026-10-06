@@ -57,6 +57,9 @@ const postings: api.PostingPage = {
       sampledMonth: "202607",
       salaryMin: 50_000_000,
       salaryMax: null,
+      salaryBandMin: null,
+      salaryBandMax: null,
+      salaryDisclosure: "PUBLIC",
       skills: ["QA"],
     },
   ],
@@ -116,6 +119,14 @@ describe("DataExplorePage", () => {
     renderAt("/admin/data?tab=cpi&from=201610&to=202609");
     await screen.findByText("118.30");
     expect(api.fetchCpi).toHaveBeenCalledWith("201610", "202609");
+  });
+
+  it("공개 구분 필터를 URL 로 넘긴다", async () => {
+    renderAt("/admin/data?tab=postings&month=202607&disclosure=BAND");
+    await screen.findByText("QA 채용");
+    expect(api.fetchPostings).toHaveBeenCalledWith(
+      expect.objectContaining({ disclosure: "BAND" }),
+    );
   });
 
   it("월 형식이 틀리면 조회 없이 안내한다", async () => {

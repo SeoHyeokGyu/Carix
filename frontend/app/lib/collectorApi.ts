@@ -348,6 +348,9 @@ export interface PostingItem {
   sampledMonth: string | null;
   salaryMin: number | null;
   salaryMax: number | null;
+  salaryBandMin: number | null;
+  salaryBandMax: number | null;
+  salaryDisclosure: "PUBLIC" | "BAND" | "NONE" | "UNKNOWN";
   skills: string[];
 }
 
@@ -365,6 +368,7 @@ export interface PostingQuery {
   family?: string;
   company?: string;
   skill?: string;
+  disclosure?: string;
   page: number;
 }
 

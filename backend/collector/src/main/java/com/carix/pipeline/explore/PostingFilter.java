@@ -8,5 +8,6 @@ public record PostingFilter(
     String family,
     String company,
     String skill,
+    String disclosure,
     int page,
     int size) {}

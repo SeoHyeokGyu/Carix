@@ -23,5 +23,8 @@ public record PostingPage(long total, int page, int size, List<Item> items) {
       String sampledMonth,
       Long salaryMin,
       Long salaryMax,
+      Long salaryBandMin,
+      Long salaryBandMax,
+      String salaryDisclosure,
       List<String> skills) {}
 }

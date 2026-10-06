@@ -70,6 +70,7 @@ export default function DataExplorePage() {
               family: q.get("family") ?? undefined,
               company: q.get("company") ?? undefined,
               skill: q.get("skill") ?? undefined,
+              disclosure: q.get("disclosure") ?? undefined,
               page,
             }),
           };
@@ -136,6 +137,7 @@ export default function DataExplorePage() {
                 family: String(fd.get("family") ?? ""),
                 company: String(fd.get("company") ?? ""),
                 skill: String(fd.get("skill") ?? ""),
+                disclosure: String(fd.get("disclosure") ?? ""),
                 page: undefined,
               });
             }}
@@ -193,6 +195,18 @@ export default function DataExplorePage() {
               aria-label="스킬"
               className="rounded border border-carix-border px-2 py-1"
             />
+            <select
+              name="disclosure"
+              defaultValue={params.get("disclosure") ?? ""}
+              aria-label="공개 구분"
+              className="rounded border border-carix-border px-2 py-1"
+            >
+              <option value="">전체 공개 구분</option>
+              <option value="PUBLIC">공개</option>
+              <option value="BAND">비공개 구간</option>
+              <option value="NONE">없음</option>
+              <option value="UNKNOWN">판정 전</option>
+            </select>
             <Button type="submit" size="sm">
               조회
             </Button>

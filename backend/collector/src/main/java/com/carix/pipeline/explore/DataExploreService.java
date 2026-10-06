@@ -260,6 +260,8 @@ public class DataExploreService {
 
   private static final int POSTINGS_DEFAULT_SIZE = 50;
   private static final int POSTINGS_MAX_SIZE = 100;
+  private static final java.util.Set<String> DISCLOSURES =
+      java.util.Set.of("PUBLIC", "BAND", "NONE", "UNKNOWN");
 
   @Transactional(readOnly = true)
   public PostingPage postings(
@@ -269,12 +271,17 @@ public class DataExploreService {
       String family,
       String company,
       String skill,
+      String disclosure,
       Integer page,
       Integer size) {
     if (month == null) {
       throw badRequest("month 가 필요합니다");
     }
     parse(month);
+    String disclosureFilter = blankToNull(disclosure);
+    if (disclosureFilter != null && !DISCLOSURES.contains(disclosureFilter)) {
+      throw badRequest("disclosure 는 PUBLIC|BAND|NONE|UNKNOWN 중 하나입니다: " + disclosureFilter);
+    }
     int s = size == null || size <= 0 ? POSTINGS_DEFAULT_SIZE : Math.min(size, POSTINGS_MAX_SIZE);
     int p = page == null || page < 0 ? 0 : page;
     PostingFilter filter =
@@ -285,6 +292,7 @@ public class DataExploreService {
             blankToNull(family),
             blankToNull(company),
             blankToNull(skill),
+            disclosureFilter,
             p,
             s);
     long total = queries.countPostings(filter);
@@ -312,6 +320,9 @@ public class DataExploreService {
                         r.sampledMonth(),
                         r.salaryMin(),
                         r.salaryMax(),
+                        r.salaryBandMin(),
+                        r.salaryBandMax(),
+                        r.salaryDisclosure(),
                         skills.getOrDefault(r.id(), List.of())))
             .toList();
     return new PostingPage(total, p, s, items);
