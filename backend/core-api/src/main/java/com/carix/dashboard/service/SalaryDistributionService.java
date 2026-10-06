@@ -203,10 +203,6 @@ public class SalaryDistributionService {
         .toList();
   }
 
-  /**
-   * 정렬된 값에서 5수치를 뽑는다. {@code percentile_cont} 대신 nearest-rank 를 쓴다 — collector 의 집계와 같은 방식이라야 두 경로의
-   * 숫자가 어긋나지 않고, H2 와 Postgres 의 분위수 함수 차이도 타지 않는다.
-   */
   /** 공개연봉 부족 표본 부족 응답용 — 5수치 없이 공개연봉 수와 결측률만. */
   private SalaryDistributionResponse.PostingReference countsOnly(int disclosed, int totalPostings) {
     double missingRate =
@@ -217,6 +213,10 @@ public class SalaryDistributionService {
         null, null, null, null, null, disclosed, missingRate);
   }
 
+  /**
+   * 정렬된 값에서 5수치를 뽑는다. {@code percentile_cont} 대신 nearest-rank 를 쓴다 — collector 의 집계와 같은 방식이라야 두 경로의
+   * 숫자가 어긋나지 않고, H2 와 Postgres 의 분위수 함수 차이도 타지 않는다.
+   */
   private SalaryDistributionResponse.PostingReference buildReference(
       List<Long> sorted, int totalPostings) {
 
