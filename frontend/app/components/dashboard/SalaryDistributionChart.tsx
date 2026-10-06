@@ -178,6 +178,10 @@ export function SalaryDistributionChart({
 }: SalaryDistributionChartProps) {
   // 1. 표본 부족 열화 상태 (US-D2, US-D3)
   if (data.status === "INSUFFICIENT_SAMPLE" || data.sampleSize < 10) {
+    const minRequired = data.minRequired ?? 10;
+    // 공고는 충분한데 공개 연봉이 모자란 경우 — 서버가 공개 연봉 수·결측률만 담은 postingReference 를 싣는다.
+    const salaryShort =
+      data.postingReference != null && data.sampleSize >= minRequired;
     return (
       <div
         data-testid="insufficient-sample-state"
@@ -187,12 +191,28 @@ export function SalaryDistributionChart({
           ⚠️ 표본 부족
         </div>
         <h4 className="text-base font-bold text-carix-text">
-          동료집단 표본 수가 부족하여 연봉 분포를 산출할 수 없습니다.
+          {salaryShort
+            ? "공개 연봉이 부족하여 연봉 분포를 산출할 수 없습니다."
+            : "동료집단 표본 수가 부족하여 연봉 분포를 산출할 수 없습니다."}
         </h4>
         <p className="mt-2 text-sm text-carix-text/70">
-          현재 동료집단 공고 수:{" "}
-          <strong className="text-carix-warning">{data.sampleSize}건</strong>{" "}
-          (최소 기준: {data.minRequired ?? 10}건 이상 필요)
+          {salaryShort ? (
+            <>
+              동료집단 공고 {data.sampleSize}건 중 공개 연봉{" "}
+              <strong className="text-carix-warning">
+                {data.postingReference?.sampleSize ?? 0}건
+              </strong>{" "}
+              (최소 기준: {minRequired}건 이상 필요)
+            </>
+          ) : (
+            <>
+              현재 동료집단 공고 수:{" "}
+              <strong className="text-carix-warning">
+                {data.sampleSize}건
+              </strong>{" "}
+              (최소 기준: {minRequired}건 이상 필요)
+            </>
+          )}
         </p>
         {data.peerGroup?.appliedConditions && (
           <p className="mt-3 text-xs text-carix-text/60 bg-carix-surface rounded-lg p-2 border border-carix-border inline-block shadow-xs">

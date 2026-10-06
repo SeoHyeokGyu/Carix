@@ -172,6 +172,38 @@ describe("SalaryDistributionChart", () => {
     expect(screen.queryByText("0만 원")).not.toBeInTheDocument();
   });
 
+  it("공고는 충분하고 공개 연봉이 모자라면 공고 수와 공개 연봉 수를 함께 보인다", () => {
+    const data: SalaryDistributionResponse = {
+      status: "INSUFFICIENT_SAMPLE",
+      sampleSize: 200,
+      minRequired: 10,
+      baseline: null,
+      postingReference: {
+        min: null,
+        p25: null,
+        median: null,
+        p75: null,
+        max: null,
+        sampleSize: 5,
+        missingRate: 97.5,
+      },
+      userPosition: null,
+      peerGroup: {
+        fallbackLevel: null,
+        appliedConditions: "서울 / 경력 MID±1 / 회사규모 무관",
+      },
+      trend: [],
+      careerLadder: null,
+    };
+
+    render(<SalaryDistributionChart data={data} />);
+
+    const state = screen.getByTestId("insufficient-sample-state");
+    expect(state).toHaveTextContent("공개 연봉이 부족하여");
+    expect(state).toHaveTextContent("동료집단 공고 200건 중 공개 연봉 5건");
+    expect(state).toHaveTextContent("최소 기준: 10건 이상 필요");
+  });
+
   it("표본 부족(INSUFFICIENT_SAMPLE) 상태일 때 경고 화면을 표시하고 임의 수치를 그리지 않는다", () => {
     const insufficientData: SalaryDistributionResponse = {
       status: "INSUFFICIENT_SAMPLE",
