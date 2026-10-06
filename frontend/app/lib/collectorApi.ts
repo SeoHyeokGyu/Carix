@@ -346,6 +346,8 @@ export interface PostingItem {
   postedEndDate: string | null;
   firstSeenMonth: string | null;
   sampledMonth: string | null;
+  salaryMin: number | null;
+  salaryMax: number | null;
   skills: string[];
 }
 
@@ -398,12 +400,38 @@ export interface CpiTable {
   missing: { month: string; codes: string[] }[];
 }
 
+/** 정의·출처별 최신 회차 중위값(연간, 원). */
+export interface WageValue {
+  wageDefinition: string;
+  source: string;
+  statVintage: string;
+  wageMedian: number;
+}
+
+/** 엔진(core-api)이 전국 경로에서 실제로 고르는 기준선. 연도를 가리지 않는다. */
+export interface WageBaseline {
+  jobFamily: string;
+  experienceBracket: string;
+  region: string;
+  basePeriod: string;
+  wageDefinition: string;
+  source: string;
+  statVintage: string;
+  wageMedian: number;
+}
+
 export interface WageTable {
   basePeriod: string | null;
   families: string[];
   brackets: string[];
-  cells: { jobFamily: string; experienceBracket: string; sources: string[] }[];
+  cells: {
+    jobFamily: string;
+    experienceBracket: string;
+    sources: string[];
+    values: WageValue[];
+  }[];
   missing: string[];
+  engineBaselines: WageBaseline[];
 }
 
 export function fetchCpi(from?: string, to?: string): Promise<CpiTable> {

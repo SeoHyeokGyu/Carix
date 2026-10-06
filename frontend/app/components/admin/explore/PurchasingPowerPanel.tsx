@@ -4,8 +4,10 @@ import {
   fetchWage,
   type CpiTable,
   type WageTable,
+  type WageBaseline,
+  type WageValue,
 } from "../../../lib/collectorApi";
-import type { ExploreTab } from "../../../lib/dataExplore";
+import { formatManwon, type ExploreTab } from "../../../lib/dataExplore";
 import { Button } from "@/components/ui/button";
 
 type PanelTab = Extract<ExploreTab, "cpi" | "wage">;
@@ -58,10 +60,68 @@ function CpiView({ data }: { data: CpiTable }) {
   );
 }
 
+const GROSS = "ANNUAL_GROSS_MEDIAN";
+const BASE = "ANNUAL_BASE_MEDIAN";
+
+/** 세전 총액 중위값(엔진 기본 기준선)을 크게, 정액급여 중위값과 출처·회차를 작게. */
+function WageCellBody({ values }: { values: WageValue[] }) {
+  const gross = values.find((v) => v.wageDefinition === GROSS);
+  const base = values.find((v) => v.wageDefinition === BASE);
+  const origins = [
+    ...new Set(values.map((v) => `${v.source} ${v.statVintage}`)),
+  ];
+  return (
+    <div className="space-y-0.5">
+      <p className="font-semibold">
+        {gross ? formatManwon(gross.wageMedian) : "—"}
+      </p>
+      {base && (
+        <p className="text-[11px] text-carix-text/60">
+          정액 {formatManwon(base.wageMedian)}
+        </p>
+      )}
+      <p className="text-[10px] text-carix-text/50">{origins.join(" · ")}</p>
+    </div>
+  );
+}
+
+/** 엔진 기준선이 최신 기준 연도 칸의 세전 총액 값과 같은 행인지. 다르면 화면 값과 엔진이 쓰는 값이 갈린다. */
+function engineMatches(
+  baseline: WageBaseline,
+  basePeriod: string,
+  values: WageValue[],
+): boolean {
+  return (
+    baseline.basePeriod === basePeriod &&
+    values.some(
+      (v) =>
+        v.wageDefinition === baseline.wageDefinition &&
+        v.source === baseline.source &&
+        v.statVintage === baseline.statVintage &&
+        v.wageMedian === baseline.wageMedian,
+    )
+  );
+}
+
+function EngineBaselineNote({ baseline }: { baseline: WageBaseline }) {
+  const definition = baseline.wageDefinition === BASE ? " 정액" : "";
+  return (
+    <p className="text-[10px] font-semibold text-carix-warning">
+      엔진 기준선 {formatManwon(baseline.wageMedian)}
+      {definition} ({baseline.basePeriod} {baseline.source})
+    </p>
+  );
+}
+
 function WageView({ data }: { data: WageTable }) {
   if (!data.basePeriod) return EMPTY;
+  const basePeriod = data.basePeriod;
   const cell = (f: string, b: string) =>
     data.cells.find((c) => c.jobFamily === f && c.experienceBracket === b);
+  const engine = (f: string, b: string) =>
+    data.engineBaselines.find(
+      (e) => e.jobFamily === f && e.experienceBracket === b,
+    );
   return (
     <div className="space-y-2">
       <p className="text-xs text-carix-text/60">기준 연도 {data.basePeriod}</p>
@@ -82,14 +142,20 @@ function WageView({ data }: { data: WageTable }) {
               <td className="px-2 py-1">{f}</td>
               {data.brackets.map((b) => {
                 const c = cell(f, b);
+                const e = engine(f, b);
+                const differs =
+                  e !== undefined &&
+                  !engineMatches(e, basePeriod, c?.values ?? []);
                 return (
                   <td
                     key={b}
                     data-testid={`wage-${f}-${b}`}
                     data-missing={String(!c)}
+                    data-engine-differs={String(differs)}
                     className={`px-2 py-1 text-center ${!c ? MISSING_CELL : ""}`}
                   >
-                    {c ? c.sources.join("·") : "빈 칸"}
+                    {c ? <WageCellBody values={c.values} /> : "빈 칸"}
+                    {differs && e && <EngineBaselineNote baseline={e} />}
                   </td>
                 );
               })}
@@ -101,7 +167,7 @@ function WageView({ data }: { data: WageTable }) {
   );
 }
 
-/** CPI 월 × 품목 표, 임금통계 직무 × 경력 출처 표. 금액은 보이지 않는다. */
+/** CPI 월 × 품목 표, 임금통계 직무 × 경력 중위값·출처 표. */
 export function PurchasingPowerPanel({
   tab,
   from,

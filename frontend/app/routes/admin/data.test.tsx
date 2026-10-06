@@ -55,6 +55,8 @@ const postings: api.PostingPage = {
       postedEndDate: "2026-07-12",
       firstSeenMonth: "202607",
       sampledMonth: "202607",
+      salaryMin: 50_000_000,
+      salaryMax: null,
       skills: ["QA"],
     },
   ],
@@ -130,6 +132,7 @@ describe("DataExplorePage", () => {
     await userEvent.click(
       await screen.findByRole("button", { name: "QA 채용 상세" }),
     );
+    expect(screen.getByText("5,000만원~")).toBeInTheDocument();
     const link = screen.getByRole("link", { name: "원천 공고" });
     expect(link).toHaveAttribute("href", postings.items[0].url);
     expect(link).toHaveAttribute("target", "_blank");

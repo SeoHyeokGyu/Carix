@@ -8,7 +8,6 @@ import com.carix.jobposting.JobPostingRepository;
 import com.carix.jobposting.Skill;
 import com.carix.jobposting.SkillRepository;
 import com.carix.pipeline.dto.explore.PostingPage;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.Instant;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -55,17 +54,16 @@ class PostingsExploreTest {
   }
 
   @Test
-  @DisplayName("표본 필터와 원천 링크, 스킬 목록, 연봉 필드 없음")
-  void postings_sampled() throws Exception {
+  @DisplayName("표본 필터와 원천 링크, 스킬 목록, 제시 연봉 범위")
+  void postings_sampled() {
     PostingPage page = service.postings("202609", null, true, null, null, null, null, null);
 
     assertThat(page.total()).isEqualTo(1);
     PostingPage.Item item = page.items().getFirst();
     assertThat(item.url()).isEqualTo("https://www.jobkorea.co.kr/Recruit/GI_Read/49500742");
     assertThat(item.skills()).containsExactly("Java");
-    assertThat(new ObjectMapper().findAndRegisterModules().writeValueAsString(page))
-        .doesNotContain("salary")
-        .doesNotContain("50000000");
+    assertThat(item.salaryMin()).isEqualTo(50_000_000L);
+    assertThat(item.salaryMax()).isNull();
   }
 
   @Test

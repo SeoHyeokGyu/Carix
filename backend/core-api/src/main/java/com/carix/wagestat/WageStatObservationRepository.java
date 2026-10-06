@@ -18,6 +18,9 @@ public interface WageStatObservationRepository extends JpaRepository<WageStatObs
    * <p>출처 우선순위(KOSIS 실측 > UNKNOWN 이전 적재 > FALLBACK 상수)를 최우선으로 적용하고, 최신 연도({@code basePeriod DESC})
    * 및 최신 개정판({@code statVintage DESC}) 순으로 정렬합니다.
    *
+   * <p>NOTE: (cjkang) collector {@code DataExploreService.ENGINE_BASELINE_ORDER} 가 관리자 화면의 「엔진
+   * 기준선」을 이 순서로 재현한다. 순서를 바꾸면 함께 고친다.
+   *
    * @param jobFamily 직무 카테고리
    * @param experienceBracket 경력 구간 브래킷
    * @param region 지역명
