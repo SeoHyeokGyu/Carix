@@ -1125,4 +1125,4 @@
           }
         }
         ```
-        `unreachable` 은 판정이 `UNKNOWN` 인 공고 수다(상세페이지를 못 열었거나, 열었지만 description 이나 급여 항목이 없는 경우). `publicPeers` 는 직무 × 경력(`JUNIOR`·`MID`·`SENIOR`) × 서울·정규직 칸의 표본 수로, `before` 는 지금 `salary_min`·`salary_max` 가 둘 다 저장된 공고 수(공개 구분과 무관), `after` 는 판정이 `PUBLIC` 인 공고 수다. 이 수는 원문 공고를 그대로 센다 — 중복제거도 기업 규모 필터도 거치지 않으므로 core-api 가 실제로 쓰는 표본 크기의 근사치다. `errors` 는 처리 중 예외가 나 건너뛴 공고 수이며(해당 공고는 바꾸지 않는다), 그 공고는 `total` 에는 들어가고 `bySource`·`publicPeers` 에는 들어가지 않는다.
+        `unreachable` 은 판정이 `UNKNOWN` 인 공고 수다(상세페이지를 못 열었거나, 열었지만 description 이나 급여 항목이 없는 경우). `publicPeers` 는 직무 × 경력(`JUNIOR`·`MID`·`SENIOR`) × 서울·정규직 칸의 표본 수로, `before` 는 지금 `salary_min`·`salary_max` 가 둘 다 저장된 공고 수(공개 구분과 무관), `after` 는 판정이 `PUBLIC` 인 공고 수다. 이 수는 원문 공고를 그대로 센다 — 중복제거도 기업 규모 필터도 거치지 않으므로 core-api 가 실제로 쓰는 표본 크기의 근사치다. `errors` 는 처리 중 예외가 나 건너뛴 공고 수이며(해당 공고는 바꾸지 않는다).
