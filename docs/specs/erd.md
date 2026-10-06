@@ -141,6 +141,9 @@ erDiagram
         varchar company_name
         bigint salary_min
         bigint salary_max
+        bigint salary_band_min
+        bigint salary_band_max
+        varchar salary_disclosure
         varchar region
         int experience_min
         int experience_max
