@@ -102,6 +102,34 @@ class PurchasingPowerExploreTest {
             tuple("ANNUAL_BASE_MEDIAN", "202508", 51_130_000L));
   }
 
+  @Test
+  @DisplayName("엔진 기준선은 core-api 와 같은 규칙 — 전국 우선, 출처(KOSIS 먼저) → 세전 총액 → 최신 연도 → 최신 회차")
+  void wage_engineBaseline() {
+    wage(
+        "DEVELOPER", "MID", "ALL", "ANNUAL_GROSS_MEDIAN", 70_000_000, "2025", "202610", "FALLBACK");
+    wage("DEVELOPER", "MID", "ALL", "ANNUAL_GROSS_MEDIAN", 60_000_000, "2024", "202408", "KOSIS");
+    wage("DEVELOPER", "MID", "ALL", "ANNUAL_BASE_MEDIAN", 55_000_000, "2025", "202508", "KOSIS");
+    wage("DATA", "MID", "ALL", "ANNUAL_GROSS_MEDIAN", 50_000_000, "2025", "202508", "KOSIS");
+    wage("DATA", "MID", "전국", "ANNUAL_GROSS_MEDIAN", 49_000_000, "2024", "202408", "KOSIS");
+    wage("AI", "LEAD", "ALL", "ANNUAL_GROSS_MEDIAN", 80_000_000, "2024", "202408", "KOSIS");
+
+    WageTable t = service.wage();
+
+    assertThat(t.engineBaselines())
+        .extracting(
+            WageTable.Baseline::jobFamily,
+            WageTable.Baseline::experienceBracket,
+            WageTable.Baseline::region,
+            WageTable.Baseline::basePeriod,
+            WageTable.Baseline::source,
+            WageTable.Baseline::wageMedian)
+        .containsExactly(
+            tuple("DEVELOPER", "MID", "ALL", "2024", "KOSIS", 60_000_000L),
+            tuple("DATA", "MID", "전국", "2024", "KOSIS", 49_000_000L),
+            tuple("AI", "LEAD", "ALL", "2024", "KOSIS", 80_000_000L));
+    assertThat(t.missing()).contains("AI/LEAD");
+  }
+
   private void wage(
       String family,
       String bracket,
@@ -132,5 +160,6 @@ class PurchasingPowerExploreTest {
     assertThat(t.basePeriod()).isNull();
     assertThat(t.cells()).isEmpty();
     assertThat(t.missing()).hasSize(15);
+    assertThat(t.engineBaselines()).isEmpty();
   }
 }

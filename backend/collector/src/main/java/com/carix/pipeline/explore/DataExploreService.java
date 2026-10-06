@@ -179,7 +179,57 @@ public class DataExploreService {
         }
       }
     }
-    return new WageTable(period, WageTable.FAMILIES, WageTable.BRACKETS, cells, missing);
+    return new WageTable(
+        period, WageTable.FAMILIES, WageTable.BRACKETS, cells, missing, engineBaselines());
+  }
+
+  /**
+   * core-api {@code WageStatObservationRepository.findLatestBaseline} 과 같은 순서: 출처(KOSIS → UNKNOWN →
+   * 그 밖) → 세전 총액 먼저 → 최신 연도 → 최신 회차. 지역은 resolver 의 전국 경로대로 {@code 전국} 을 먼저, 없으면 {@code ALL}. 한쪽을
+   * 바꾸면 함께 고친다.
+   */
+  private static final Comparator<ExploreQueries.BaselineRow> ENGINE_BASELINE_ORDER =
+      Comparator.comparingInt((ExploreQueries.BaselineRow r) -> "전국".equals(r.region()) ? 0 : 1)
+          .thenComparingInt(r -> sourceRank(r.source()))
+          .thenComparingInt(r -> "ANNUAL_GROSS_MEDIAN".equals(r.wageDefinition()) ? 0 : 1)
+          .thenComparing(ExploreQueries.BaselineRow::basePeriod, Comparator.reverseOrder())
+          .thenComparing(ExploreQueries.BaselineRow::statVintage, Comparator.reverseOrder());
+
+  private static int sourceRank(String source) {
+    return switch (source) {
+      case "KOSIS" -> 0;
+      case "UNKNOWN" -> 1;
+      default -> 2;
+    };
+  }
+
+  private List<WageTable.Baseline> engineBaselines() {
+    Map<String, ExploreQueries.BaselineRow> best = new TreeMap<>();
+    for (ExploreQueries.BaselineRow r : queries.wageBaselineCandidates()) {
+      best.merge(
+          r.jobFamily() + "/" + r.experienceBracket(),
+          r,
+          (a, b) -> ENGINE_BASELINE_ORDER.compare(a, b) <= 0 ? a : b);
+    }
+    List<WageTable.Baseline> out = new ArrayList<>();
+    for (String f : WageTable.FAMILIES) {
+      for (String b : WageTable.BRACKETS) {
+        ExploreQueries.BaselineRow r = best.get(f + "/" + b);
+        if (r != null) {
+          out.add(
+              new WageTable.Baseline(
+                  f,
+                  b,
+                  r.region(),
+                  r.basePeriod(),
+                  r.wageDefinition(),
+                  r.source(),
+                  r.statVintage(),
+                  r.wageMedian()));
+        }
+      }
+    }
+    return out;
   }
 
   /** 기본 기준선(세전 총액)이 먼저 오도록 정의 선언 순, 그다음 출처 순. */

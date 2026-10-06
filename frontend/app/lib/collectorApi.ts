@@ -408,6 +408,18 @@ export interface WageValue {
   wageMedian: number;
 }
 
+/** 엔진(core-api)이 전국 경로에서 실제로 고르는 기준선. 연도를 가리지 않는다. */
+export interface WageBaseline {
+  jobFamily: string;
+  experienceBracket: string;
+  region: string;
+  basePeriod: string;
+  wageDefinition: string;
+  source: string;
+  statVintage: string;
+  wageMedian: number;
+}
+
 export interface WageTable {
   basePeriod: string | null;
   families: string[];
@@ -419,6 +431,7 @@ export interface WageTable {
     values: WageValue[];
   }[];
   missing: string[];
+  engineBaselines: WageBaseline[];
 }
 
 export function fetchCpi(from?: string, to?: string): Promise<CpiTable> {

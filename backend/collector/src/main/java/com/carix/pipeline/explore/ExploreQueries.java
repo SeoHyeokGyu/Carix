@@ -103,6 +103,35 @@ public class ExploreQueries {
         basePeriod);
   }
 
+  /** 기준선 후보 한 행(전 연도, {@code 전국}·{@code ALL}). */
+  public record BaselineRow(
+      String jobFamily,
+      String experienceBracket,
+      String region,
+      String basePeriod,
+      String wageDefinition,
+      String source,
+      String statVintage,
+      long wageMedian) {}
+
+  /** 엔진 기준선 후보. 고르는 순서는 서비스가 core-api 와 같게 맞춘다. */
+  public List<BaselineRow> wageBaselineCandidates() {
+    return jdbc.query(
+        "SELECT job_family, experience_bracket, region, base_period, wage_definition, source,"
+            + " stat_vintage, wage_median FROM core.wage_stat_observation"
+            + " WHERE region IN ('전국', 'ALL')",
+        (rs, i) ->
+            new BaselineRow(
+                rs.getString(1),
+                rs.getString(2),
+                rs.getString(3),
+                rs.getString(4),
+                rs.getString(5),
+                rs.getString(6),
+                rs.getString(7),
+                rs.getLong(8)));
+  }
+
   /** 공고 한 행. */
   public record PostingRow(
       UUID id,

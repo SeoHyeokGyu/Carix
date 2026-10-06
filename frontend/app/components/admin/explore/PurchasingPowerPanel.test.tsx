@@ -43,6 +43,28 @@ describe("PurchasingPowerPanel", () => {
         },
       ],
       missing: ["DATA/MID"],
+      engineBaselines: [
+        {
+          jobFamily: "DEVELOPER",
+          experienceBracket: "MID",
+          region: "ALL",
+          basePeriod: "2025",
+          wageDefinition: "ANNUAL_GROSS_MEDIAN",
+          source: "KOSIS",
+          statVintage: "202508",
+          wageMedian: 61_234_567,
+        },
+        {
+          jobFamily: "DATA",
+          experienceBracket: "MID",
+          region: "ALL",
+          basePeriod: "2024",
+          wageDefinition: "ANNUAL_GROSS_MEDIAN",
+          source: "KOSIS",
+          statVintage: "202408",
+          wageMedian: 48_000_000,
+        },
+      ],
     });
   });
 
@@ -61,6 +83,14 @@ describe("PurchasingPowerPanel", () => {
     expect(cell).toHaveTextContent("6,123만원");
     expect(cell).toHaveTextContent("정액 5,113만원");
     expect(cell).toHaveTextContent("KOSIS 202508");
+    expect(cell).toHaveAttribute("data-engine-differs", "false");
+  });
+
+  it("엔진 기준선이 최신 연도 값과 다르면 그 값을 보이고 강조한다", async () => {
+    render(<PurchasingPowerPanel tab="wage" />);
+    const cell = await screen.findByTestId("wage-DATA-MID");
+    expect(cell).toHaveTextContent("엔진 기준선 4,800만원 (2024 KOSIS)");
+    expect(cell).toHaveAttribute("data-engine-differs", "true");
     expect(screen.getByTestId("wage-DATA-MID")).toHaveAttribute(
       "data-missing",
       "true",
@@ -75,6 +105,7 @@ describe("PurchasingPowerPanel", () => {
       brackets: [],
       cells: [],
       missing: [],
+      engineBaselines: [],
     });
     render(<PurchasingPowerPanel tab="wage" />);
     expect(
