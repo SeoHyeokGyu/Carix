@@ -990,7 +990,7 @@
         ```
 
 ### 8.10 수집 데이터 월별 현황 조회
-*   `GET /internal/pipeline/explore/monthly?from={YYYYMM}&to={YYYYMM}` — 월별 표본·정기 수집 건수 조회 (관리자 콘솔 `/admin/data` 월별 현황 탭 연동). 8.10~8.13 은 모두 읽기 전용이며 데이터를 바꾸지 않고, 금액(공고 연봉 범위, 임금통계 중위값)은 응답에 싣지 않는다. 월 기준은 `Asia/Seoul` 이다.
+*   `GET /internal/pipeline/explore/monthly?from={YYYYMM}&to={YYYYMM}` — 월별 표본·정기 수집 건수 조회 (관리자 콘솔 `/admin/data` 월별 현황 탭 연동). 8.10~8.13 은 모두 읽기 전용이며 데이터를 바꾸지 않는다. 공개 원천의 금액(공고 제시 연봉 범위, 임금통계 중위값)은 싣고, 사용자 소득은 싣지 않는다. 월 기준은 `Asia/Seoul` 이다.
     *   `from`·`to` 는 모두 선택이다. 기본 범위는 이번 달까지 최근 13개월이고, 범위는 최대 36개월이다. 관리자 콘솔은 URL 의 `from`·`to` 를 그대로 넘긴다. 형식 오류, `from` 이 `to` 보다 늦은 경우, 36개월 초과는 `400 BAD_REQUEST` 다.
     *   표본은 `sampled_month`, 정기 수집은 `first_seen_month` 로 월을 센다. `jobkoreaSampledCapped` 와 `sampledByFamily` 는 같은 회사 월 3건 상한을 적용한 표본 기준으로 시장가치 동료집단과 같은 모수다.
     *   **Response (200 OK):**
@@ -1012,7 +1012,7 @@
         ```
 
 ### 8.11 수집 공고 목록 조회
-*   `GET /internal/pipeline/explore/postings?month={YYYYMM}` — 한 달의 수집 공고를 필터·페이지로 조회 (관리자 콘솔 `/admin/data` 공고 탭 연동). 연봉 범위는 싣지 않는다.
+*   `GET /internal/pipeline/explore/postings?month={YYYYMM}` — 한 달의 수집 공고를 필터·페이지로 조회 (관리자 콘솔 `/admin/data` 공고 탭 연동). 제시 연봉 범위 `salaryMin`·`salaryMax`(연간, 원)는 공고에 없으면 `null` 이다.
     *   **Query Parameters:**
 
         | 파라미터 | 필수 | 설명 |
@@ -1069,7 +1069,7 @@
         ```
 
 ### 8.13 임금통계 칸별 출처 조회
-*   `GET /internal/pipeline/explore/wage` — 최신 기준 연도 임금통계의 직무 × 경력 칸별 출처와 빈 칸 조회 (관리자 콘솔 `/admin/data` 임금통계 탭 연동). 파라미터가 없고 중위 금액은 싣지 않으며 출처와 유무만 담는다. 임금통계가 없으면 `basePeriod` 는 `null` 이고 15칸이 모두 `missing` 이다.
+*   `GET /internal/pipeline/explore/wage` — 최신 기준 연도 임금통계의 직무 × 경력 칸별 중위값·출처와 빈 칸 조회 (관리자 콘솔 `/admin/data` 임금통계 탭 연동). 파라미터가 없다. 칸마다 `values` 에 전국(`region = ALL`) 행의 정의 × 출처별 최신 회차(`statVintage`) 중위값(연간, 원)을 세전 총액(`ANNUAL_GROSS_MEDIAN`, 엔진 기본 기준선) → 정액급여(`ANNUAL_BASE_MEDIAN`) 순으로 담는다. 임금통계가 없으면 `basePeriod` 는 `null` 이고 15칸이 모두 `missing` 이다.
     *   `families` 는 `DEVELOPER`·`DATA`·`AI`, `brackets` 는 `ENTRY`·`JUNIOR`·`MID`·`SENIOR`·`LEAD` 다. 값이 있는 칸은 `cells` 에, 없는 칸은 `missing` 에 `직무/경력` 으로 담는다.
     *   **Response (200 OK):**
         ```json
