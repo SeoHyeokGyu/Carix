@@ -255,4 +255,82 @@ class PeerSalaryDistributionResolverTest {
         .postedEndDate(end)
         .build();
   }
+
+  private List<JobPosting> createPostingsWithoutSalary(int count) {
+    List<JobPosting> list = new ArrayList<>();
+    for (int i = 0; i < count; i++) {
+      list.add(
+          JobPosting.builder()
+              .id(UUID.randomUUID())
+              .region("서울 강남구")
+              .employmentType("FULL_TIME")
+              .dedupGroupId(UUID.randomUUID())
+              .postedStartDate(java.time.LocalDate.of(2026, 5, 1))
+              .postedEndDate(java.time.LocalDate.of(2026, 5, 31))
+              .build());
+    }
+    return list;
+  }
+
+  private static List<JobPosting> concat(List<JobPosting> a, List<JobPosting> b) {
+    List<JobPosting> all = new ArrayList<>(a);
+    all.addAll(b);
+    return all;
+  }
+
+  @Test
+  @DisplayName("resolve - 공고는 충분해도 공개 연봉이 모자라면 공개 연봉 10건이 되는 단계까지 넓힌다")
+  void resolve_settlesAtLevelWithEnoughSalaries() {
+    CareerProfile profile = new CareerProfile(UUID.randomUUID());
+    profile.patch("DEVELOPER", 5, "서울 강남구", "FULL_TIME", null);
+    given(
+            jobPostingRepository.findPeerGroupCandidates(
+                eq("DEVELOPER"), eq("서울 강남구"), eq("FULL_TIME"), isNull(), eq(4), eq(7)))
+        .willReturn(concat(createPostings(4, 60_000_000L), createPostingsWithoutSalary(8)));
+    given(
+            jobPostingRepository.findPeerGroupCandidates(
+                eq("DEVELOPER"), eq("서울"), eq("FULL_TIME"), isNull(), eq(4), eq(7)))
+        .willReturn(concat(createPostings(11, 60_000_000L), createPostingsWithoutSalary(29)));
+
+    PeerSalaryDistribution distribution = resolver.resolve(profile);
+
+    assertThat(distribution.fallbackLevel()).isEqualTo(3);
+    assertThat(distribution.disclosedSampleSize()).isEqualTo(11);
+    assertThat(distribution.hasSufficientSalaries()).isTrue();
+  }
+
+  @Test
+  @DisplayName("resolve - 어느 단계도 공개 연봉 10건을 못 채우면 가장 넓은 단계에서 공개 연봉 부족")
+  void resolve_widensWhenSalariesShort() {
+    CareerProfile profile = new CareerProfile(UUID.randomUUID());
+    profile.patch("DATA", 5, "서울 강남구", "FULL_TIME", null);
+    given(
+            jobPostingRepository.findPeerGroupCandidates(
+                anyString(), anyString(), any(), any(), anyInt(), anyInt()))
+        .willReturn(concat(createPostings(5, 50_000_000L), createPostingsWithoutSalary(195)));
+
+    PeerSalaryDistribution distribution = resolver.resolve(profile);
+
+    assertThat(distribution.fallbackLevel()).isEqualTo(5);
+    assertThat(distribution.hasSufficientPeers()).isTrue();
+    assertThat(distribution.hasSufficientSalaries()).isFalse();
+    assertThat(distribution.disclosedSampleSize()).isEqualTo(5);
+  }
+
+  @Test
+  @DisplayName("resolvePostings - 스킬 추천 사다리는 공개 연봉을 보지 않고 공고 10건에서 멈춘다")
+  void resolvePostings_ignoresSalaries() {
+    CareerProfile profile = new CareerProfile(UUID.randomUUID());
+    profile.patch("DEVELOPER", 5, "서울 강남구", "FULL_TIME", null);
+    given(
+            jobPostingRepository.findPeerGroupCandidates(
+                eq("DEVELOPER"), eq("서울 강남구"), eq("FULL_TIME"), isNull(), eq(4), eq(7)))
+        .willReturn(concat(createPostings(4, 60_000_000L), createPostingsWithoutSalary(8)));
+    given(
+            jobPostingRepository.findPeerGroupCandidates(
+                eq("DEVELOPER"), eq("서울"), eq("FULL_TIME"), isNull(), eq(4), eq(7)))
+        .willReturn(concat(createPostings(11, 60_000_000L), createPostingsWithoutSalary(29)));
+
+    assertThat(resolver.resolvePostings(profile).level()).isEqualTo(2);
+  }
 }

@@ -44,6 +44,11 @@ public record PeerSalaryDistribution(
     return peerSampleSize >= PeerGroupFallbackResolver.MIN_SAMPLE_SIZE;
   }
 
+  /** 공개연봉이 최소 표본을 채웠는가. 5수치·백분위는 이 표본 위에서 매기므로 연봉 분포·실현 가능성은 이것까지 본다. */
+  public boolean hasSufficientSalaries() {
+    return disclosedSalaries.size() >= PeerGroupFallbackResolver.MIN_SAMPLE_SIZE;
+  }
+
   /** 연봉이 공개된 공고 수. 백분위는 이 표본 위에서 매겨진다. */
   public int disclosedSampleSize() {
     return disclosedSalaries.size();
