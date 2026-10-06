@@ -59,6 +59,7 @@ public class CollectorPipelineService {
   private final com.carix.jobposting.dedup.JobPostingDeduplicator jobPostingDeduplicator;
   private final com.carix.market.MarketAggregateService marketAggregateService;
   private final com.carix.jobposting.backfill.JobKoreaBackfillService jobKoreaBackfillService;
+  private final com.carix.jobposting.backfill.SalaryReclassifyService salaryReclassifyService;
 
   private final AtomicBoolean isJobRunning = new AtomicBoolean(false);
   private final Map<String, JobState> jobHistory =
@@ -134,6 +135,41 @@ public class CollectorPipelineService {
 
     return new JobExecutionResponse(
         jobId, "RECLASSIFY", "ACCEPTED", "재분류 작업이 수락되어 백그라운드에서 시작되었습니다.", now);
+  }
+
+  /**
+   * 잡코리아·사람인 공고 급여를 상세페이지로 다시 판정한다. {@code dryRun} 이면 저장 없이 분포만 낸다.
+   *
+   * @return 비동기 작업 수락 응답
+   */
+  public JobExecutionResponse triggerSalaryReclassify(boolean dryRun, Long delayMs) {
+    ensureNoJobRunning();
+    String jobId = UUID.randomUUID().toString();
+    Instant now = Instant.now();
+    JobState state = new JobState(jobId, "SALARY_RECLASSIFY", "RUNNING", now);
+    jobHistory.put(jobId, state);
+
+    CompletableFuture.runAsync(
+        () -> {
+          try {
+            Map<String, Object> summary = salaryReclassifyService.run(dryRun, delayMs);
+            state.complete(summary);
+            log.info("[작업:{}] 급여 재판정 완료: {}", jobId, summary);
+          } catch (Exception e) {
+            log.error("[작업:{}] 급여 재판정 실패: {}", jobId, e.getMessage(), e);
+            state.fail(e.getMessage());
+          } finally {
+            isJobRunning.set(false);
+          }
+        },
+        executor);
+
+    return new JobExecutionResponse(
+        jobId,
+        "SALARY_RECLASSIFY",
+        "ACCEPTED",
+        dryRun ? "급여 재판정 측정이 시작되었습니다." : "급여 재판정 적용이 시작되었습니다.",
+        now);
   }
 
   /**
