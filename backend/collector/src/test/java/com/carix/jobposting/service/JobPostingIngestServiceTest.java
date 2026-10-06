@@ -14,6 +14,7 @@ import com.carix.jobposting.RawIngestRepository;
 import com.carix.jobposting.Skill;
 import com.carix.jobposting.SkillRepository;
 import com.carix.jobposting.normalize.ExperienceRange;
+import com.carix.jobposting.normalize.PostingSalary;
 import com.carix.jobposting.seed.JobKoreaListingFields;
 import com.carix.jobposting.seed.SaraminListingFields;
 import com.carix.pipeline.dto.CrawlRequest;
@@ -24,6 +25,7 @@ import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 
 class JobPostingIngestServiceTest {
 
@@ -124,6 +126,108 @@ class JobPostingIngestServiceTest {
   }
 
   @Test
+  @DisplayName("ingestJobKoreaPosting - 회사내규 공고는 비공개 구간으로, 공개 연봉은 비운다")
+  void ingestJobKoreaPosting_bandIsNotPublic() {
+    given(jobPostingRepository.findBySourceAndExternalId("JOBKOREA", "1003"))
+        .willReturn(Optional.empty());
+    ArgumentCaptor<JobPosting> saved = ArgumentCaptor.forClass(JobPosting.class);
+    String detailHtml =
+        "<html><head><meta name=\"description\" content=\"경력 : 경력 5년이상, 급여 : 회사 내규에 따름(면접 후 결정), 마감일 : 2026.09.30\"/></head>"
+            + "<body><script>self.__next_f.push([1,\"{\\\"pay\\\":{\\\"payType\\\":\\\"ANNUALLY_SALARY\\\",\\\"payRange\\\":{\\\"from\\\":2590,\\\"to\\\":10001,\\\"fromInclusive\\\":true,\\\"toInclusive\\\":false}},\\\"benefitCodes\\\":[]}\"])</script></body></html>";
+
+    service.ingestJobKoreaPosting(
+        "1003",
+        "백엔드",
+        "회사",
+        "서울 강남구",
+        ExperienceRange.parse("경력 3~5년"),
+        "3일 전",
+        new JobKoreaListingFields("정규직", null, null, null, null, null),
+        detailHtml,
+        Instant.now(),
+        "202610");
+
+    verify(jobPostingRepository, atLeastOnce()).save(saved.capture());
+    JobPosting p = saved.getValue();
+    assertThat(p.getSalaryMin()).isNull();
+    assertThat(p.getSalaryBandMin()).isEqualTo(25_900_000L);
+    assertThat(p.getSalaryDisclosure()).isEqualTo("BAND");
+  }
+
+  @Test
+  @DisplayName("ingestJobKoreaPosting - 기존 공고를 상세페이지 없이 다시 봐도 앞서 판정한 급여를 지우지 않는다")
+  void ingestJobKoreaPosting_existingKeepsVerdictWithoutDetail() {
+    JobPosting existing = JobPosting.builder().source("JOBKOREA").externalId("1004").build();
+    existing.applySalary(PostingSalary.publicRange(50_000_000L, 70_000_000L));
+    given(jobPostingRepository.findBySourceAndExternalId("JOBKOREA", "1004"))
+        .willReturn(Optional.of(existing));
+
+    service.ingestJobKoreaPosting(
+        "1004",
+        "백엔드",
+        "회사",
+        "서울",
+        ExperienceRange.parse("신입"),
+        "오늘",
+        new JobKoreaListingFields("정규직", null, null, null, null, null),
+        null,
+        Instant.now(),
+        "202610");
+
+    assertThat(existing.getSalaryMin()).isEqualTo(50_000_000L);
+    assertThat(existing.getSalaryMax()).isEqualTo(70_000_000L);
+    assertThat(existing.getSalaryDisclosure()).isEqualTo("PUBLIC");
+  }
+
+  @Test
+  @DisplayName("ingestSaraminPosting - 신규 공고에 상세페이지 판정 결과를 넣는다")
+  void ingestSaraminPosting_appliesSalaryForNew() {
+    given(jobPostingRepository.findBySourceAndExternalId("SARAMIN", "2004"))
+        .willReturn(Optional.empty());
+    ArgumentCaptor<JobPosting> saved = ArgumentCaptor.forClass(JobPosting.class);
+
+    service.ingestSaraminPosting(
+        "2004",
+        "하드웨어 개발자",
+        "옵티시스",
+        "경기 성남시",
+        ExperienceRange.parse("경력무관"),
+        "26/10/01",
+        new SaraminListingFields("정규직", "경력무관", "~ 11/14(금)", List.of(), List.of()),
+        Instant.now(),
+        "202610",
+        PostingSalary.publicRange(41_000_000L, 41_000_000L));
+
+    verify(jobPostingRepository, atLeastOnce()).save(saved.capture());
+    assertThat(saved.getValue().getSalaryMin()).isEqualTo(41_000_000L);
+    assertThat(saved.getValue().getSalaryDisclosure()).isEqualTo("PUBLIC");
+  }
+
+  @Test
+  @DisplayName("ingestSaraminPosting - 기존 공고는 salaryForNew 가 null 이면 급여를 건드리지 않는다")
+  void ingestSaraminPosting_existingSalaryUntouched() {
+    JobPosting existing = JobPosting.builder().source("SARAMIN").externalId("2005").build();
+    existing.applySalary(PostingSalary.publicRange(41_000_000L, 41_000_000L));
+    given(jobPostingRepository.findBySourceAndExternalId("SARAMIN", "2005"))
+        .willReturn(Optional.of(existing));
+
+    service.ingestSaraminPosting(
+        "2005",
+        "개발자",
+        "회사",
+        "서울",
+        ExperienceRange.parse("무관"),
+        null,
+        new SaraminListingFields("정규직", "무관", null, List.of(), List.of()),
+        Instant.now(),
+        "202610",
+        null);
+
+    assertThat(existing.getSalaryMin()).isEqualTo(41_000_000L);
+    assertThat(existing.getSalaryDisclosure()).isEqualTo("PUBLIC");
+  }
+
+  @Test
   @DisplayName("ingestSaraminPosting - 사람인 신규 공고 적재 및 스킬/산업 태그 저장")
   void ingestSaraminPosting_new() {
     Instant now = Instant.now();
@@ -143,7 +247,8 @@ class JobPostingIngestServiceTest {
         "26/08/01",
         fields,
         now,
-        "202608");
+        "202608",
+        null);
 
     verify(jobPostingRepository, atLeastOnce()).save(any(JobPosting.class));
     verify(skillRepository, atLeastOnce()).save(any(Skill.class));
@@ -160,7 +265,16 @@ class JobPostingIngestServiceTest {
     SaraminListingFields fields = new SaraminListingFields("계약직", "무관", null, List.of(), List.of());
 
     service.ingestSaraminPosting(
-        "2002", "데이터 엔지니어", "라인", "전국", ExperienceRange.parse("무관"), null, fields, now, "202608");
+        "2002",
+        "데이터 엔지니어",
+        "라인",
+        "전국",
+        ExperienceRange.parse("무관"),
+        null,
+        fields,
+        now,
+        "202608",
+        null);
 
     assertThat(existing.getLastSeenMonth()).isEqualTo("202608");
     verify(jobPostingRepository, atLeastOnce()).save(existing);
@@ -178,7 +292,16 @@ class JobPostingIngestServiceTest {
         new SaraminListingFields("정규직", "신입", null, List.of("Java"), List.of("IT"));
 
     service.ingestSaraminPosting(
-        "2003", "자바 주니어", "당근", "서울 서초구", ExperienceRange.parse("신입"), null, fields, now, "202608");
+        "2003",
+        "자바 주니어",
+        "당근",
+        "서울 서초구",
+        ExperienceRange.parse("신입"),
+        null,
+        fields,
+        now,
+        "202608",
+        null);
 
     verify(jobPostingRepository, atLeastOnce()).save(any(JobPosting.class));
   }

@@ -18,7 +18,7 @@ public class JobKoreaPageFetcher {
   private final long delayMs;
 
   public JobKoreaPageFetcher(long delayMs) {
-    this.delayMs = delayMs;
+    this.delayMs = Math.max(0L, delayMs);
   }
 
   public Optional<String> fetch(long id) {

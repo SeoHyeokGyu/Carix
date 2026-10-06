@@ -68,13 +68,35 @@ public class CollectorPipelineController {
    * [POST /internal/pipeline/reclassify-jobkorea] 기존 잡코리아 공고를 상세페이지로 다시 매기는 비동기 실행 — 직무군과 스킬을 백필과
    * 같은 규칙으로 맞춘다.
    *
-   * @param delayMs 상세페이지 요청 간격(ms, 빈 값은 기본값)
-   * @return 202 Accepted 및 비동기 작업 추적용 jobId
+   * @param delayMs 상세페이지 요청 간격(ms, 빈 값은 기본값, 음수는 400)
+   * @return 202 Accepted(음수 간격은 400) 및 비동기 작업 추적용 jobId
    */
   @PostMapping("/reclassify-jobkorea")
   public ResponseEntity<JobExecutionResponse> triggerJobKoreaReclassify(
       @RequestParam(required = false) Long delayMs) {
+    if (delayMs != null && delayMs < 0) {
+      return ResponseEntity.badRequest().build();
+    }
     JobExecutionResponse response = pipelineService.triggerJobKoreaReclassify(delayMs);
+    return ResponseEntity.status(HttpStatus.ACCEPTED).body(response);
+  }
+
+  /**
+   * [POST /internal/pipeline/salary-reclassify] 잡코리아·사람인 공고 급여를 상세페이지로 다시 판정한다. {@code dryRun=true}
+   * 면 판정 분포와 공개 연봉 동료 수만 낸다(기본값 — 실수로 적용하지 않게).
+   *
+   * @param dryRun true 면 저장하지 않는다
+   * @param delayMs 상세페이지 요청 간격(ms, 빈 값은 기본값, 음수는 400)
+   * @return 202 Accepted(음수 간격은 400) 및 비동기 작업 추적용 jobId
+   */
+  @PostMapping("/salary-reclassify")
+  public ResponseEntity<JobExecutionResponse> triggerSalaryReclassify(
+      @RequestParam(defaultValue = "true") boolean dryRun,
+      @RequestParam(required = false) Long delayMs) {
+    if (delayMs != null && delayMs < 0) {
+      return ResponseEntity.badRequest().build();
+    }
+    JobExecutionResponse response = pipelineService.triggerSalaryReclassify(dryRun, delayMs);
     return ResponseEntity.status(HttpStatus.ACCEPTED).body(response);
   }
 

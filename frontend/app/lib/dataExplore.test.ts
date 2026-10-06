@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   formatManwon,
+  formatSalaryCell,
   formatSalaryRange,
   isThinFamily,
   isThinSample,
@@ -34,5 +35,60 @@ describe("dataExplore", () => {
     expect(formatSalaryRange(null, 70_000_000)).toBe("~7,000만원");
     expect(formatSalaryRange(60_000_000, 60_000_000)).toBe("6,000만원");
     expect(formatSalaryRange(null, null)).toBe("미공개");
+  });
+});
+
+describe("formatSalaryCell", () => {
+  const none = {
+    salaryMin: null,
+    salaryMax: null,
+    salaryBandMin: null,
+    salaryBandMax: null,
+  };
+  it("공개 연봉은 그대로, 비공개 구간은 흐리게", () => {
+    expect(
+      formatSalaryCell({
+        ...none,
+        salaryMin: 50_000_000,
+        salaryMax: 70_000_000,
+        salaryDisclosure: "PUBLIC",
+      }),
+    ).toEqual({ text: "5,000만원~7,000만원", muted: false });
+    expect(
+      formatSalaryCell({
+        ...none,
+        salaryBandMin: 25_900_000,
+        salaryBandMax: 100_000_000,
+        salaryDisclosure: "BAND",
+      }),
+    ).toEqual({ text: "비공개 (2,590만원~1억원)", muted: true });
+    expect(formatSalaryCell({ ...none, salaryDisclosure: "NONE" })).toEqual({
+      text: "미공개",
+      muted: true,
+    });
+    expect(formatSalaryCell({ ...none, salaryDisclosure: "UNKNOWN" })).toEqual({
+      text: "판정 전",
+      muted: true,
+    });
+    expect(
+      formatSalaryCell({
+        ...none,
+        salaryMin: 50_000_000,
+        salaryMax: 60_000_000,
+        salaryDisclosure: "UNKNOWN",
+      }).text,
+    ).toBe("판정 전 (5,000만원~6,000만원)");
+    expect(
+      formatSalaryCell({
+        ...none,
+        salaryBandMin: 40_000_000,
+        salaryBandMax: 70_000_000,
+        salaryDisclosure: "UNKNOWN",
+      }).text,
+    ).toBe("판정 전 (4,000만원~7,000만원)");
+  });
+
+  it("1억 이상 금액 표기", () => {
+    expect(formatManwon(120_000_000)).toBe("1억 2,000만원");
   });
 });

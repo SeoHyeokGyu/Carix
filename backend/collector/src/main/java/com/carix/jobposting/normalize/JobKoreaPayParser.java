@@ -13,6 +13,8 @@ public class JobKoreaPayParser {
 
   private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
   private static final String ANNUAL_PAY_TYPE = "ANNUALLY_SALARY";
+  private static final String MONTHLY_PAY_TYPE = "MONTHLY_SALARY";
+  private static final int MONTHS = 12;
 
   /** 공개 연봉이 없거나 연봉 외 급여 형태(월급·시급)면 null 을 준다. */
   public SalaryRange parse(String payJson) {
@@ -42,5 +44,38 @@ public class JobKoreaPayParser {
     long maxMan = range.path("toInclusive").asBoolean(false) ? toMan : toMan - 1;
     long max = maxMan < 1_000_000 ? maxMan * 10_000L : maxMan;
     return new SalaryRange(min, Math.max(min, max));
+  }
+
+  /** 비공개 검색 구간. 연봉·월급을 연간 원으로 준다. 시급 등 다른 급여 형태나 구간이 없으면 null. */
+  public SalaryRange parseBand(String payJson) {
+    if (payJson == null || payJson.isBlank()) {
+      return null;
+    }
+    JsonNode pay;
+    try {
+      pay = OBJECT_MAPPER.readTree(payJson);
+    } catch (Exception e) {
+      return null;
+    }
+    String type = pay.path("payType").asText();
+    int multiplier;
+    if (ANNUAL_PAY_TYPE.equals(type)) {
+      multiplier = 1;
+    } else if (MONTHLY_PAY_TYPE.equals(type)) {
+      multiplier = MONTHS;
+    } else {
+      return null;
+    }
+    JsonNode range = pay.path("payRange");
+    if (!range.hasNonNull("from")) {
+      return null;
+    }
+    long min = range.path("from").asLong() * 10_000L * multiplier;
+    if (!range.hasNonNull("to")) {
+      return new SalaryRange(min, min);
+    }
+    long toMan = range.path("to").asLong();
+    long maxMan = range.path("toInclusive").asBoolean(false) ? toMan : toMan - 1;
+    return new SalaryRange(min, Math.max(min, maxMan * 10_000L * multiplier));
   }
 }

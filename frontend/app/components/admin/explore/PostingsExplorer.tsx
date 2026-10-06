@@ -1,6 +1,6 @@
 import { useState } from "react";
 import type { PostingItem, PostingPage } from "../../../lib/collectorApi";
-import { formatSalaryRange } from "../../../lib/dataExplore";
+import { formatSalaryCell } from "../../../lib/dataExplore";
 import { Button } from "@/components/ui/button";
 
 function experience(p: PostingItem): string {
@@ -10,6 +10,7 @@ function experience(p: PostingItem): string {
 
 function Row({ p }: { p: PostingItem }) {
   const [open, setOpen] = useState(false);
+  const cell = formatSalaryCell(p);
   return (
     <>
       <tr className="border-t border-carix-border">
@@ -28,8 +29,8 @@ function Row({ p }: { p: PostingItem }) {
         <td className="px-2 py-1">{p.companyName}</td>
         <td className="px-2 py-1">{p.jobFamily}</td>
         <td className="px-2 py-1">{experience(p)}</td>
-        <td className="px-2 py-1">
-          {formatSalaryRange(p.salaryMin, p.salaryMax)}
+        <td className={`px-2 py-1 ${cell.muted ? "text-carix-text/50" : ""}`}>
+          {cell.text}
         </td>
         <td className="px-2 py-1">{p.postedStartDate ?? "-"}</td>
         <td className="px-2 py-1">{p.sampledMonth ?? "-"}</td>

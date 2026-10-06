@@ -141,6 +141,9 @@ erDiagram
         varchar company_name
         bigint salary_min
         bigint salary_max
+        bigint salary_band_min
+        bigint salary_band_max
+        varchar salary_disclosure
         varchar region
         int experience_min
         int experience_max
@@ -299,6 +302,7 @@ erDiagram
 | 2026-09-19 | `core.index_snapshot` | 개방창 지수 컬럼 `opening_window_index numeric(6,2)` 를 더했다. nullable·기본값 없음이라 카탈로그만 바뀌고 테이블 재작성이 없었다. 기존 186행은 새 컬럼이 `NULL` 이고 다른 컬럼·인덱스·제약은 건드리지 않았다. 신규 환경용 실행 정본(`deploy/postgres/schema/04_snapshot_and_scenario.sql`)에도 같은 컬럼을 넣었다 |
 | 2026-09-21 | `core.income_history` | 변경 사유 컬럼 `change_reason varchar(20)` 과 `CHECK (change_reason IN ('RAISE', 'JOB_CHANGE'))`, 컬럼 주석을 더했다. nullable·기본값 없음이라 카탈로그만 바뀌고 테이블 재작성이 없었다. 기존 2행은 새 컬럼이 `NULL` 이고 인덱스 셋(`income_history_pkey`·`income_history_user_effective_idx`·`income_history_user_id_effective_date_key`)은 그대로다. 제약 이름은 `income_history_change_reason_check`. 신규 환경용 실행 정본(`deploy/postgres/schema/02_user_domain.sql`)에도 같은 컬럼을 넣었다 |
 | 2026-10-05 | `core.job_posting` | 표본 월 컬럼 `sampled_month varchar(6)` 을 더했다. nullable·기본값 없음이라 카탈로그만 바뀌고 테이블 재작성이 없었다. 원천 항목 `backfill-<id>` 가 있는 백필분 2,010행에 `sampled_month = first_seen_month` 를 채웠고(202510~202607), 나머지 4,275행은 `NULL` 이다. 신규 환경용 실행 정본(`deploy/postgres/schema/01_job_posting.sql`)에도 같은 컬럼을 넣었다 |
+| 2026-10-06 | `core.job_posting` | 비공개 연봉 구간 `salary_band_min`·`salary_band_max bigint`(nullable)와 공개 구분 `salary_disclosure varchar(16) NOT NULL DEFAULT 'UNKNOWN'` 을 더했다. 기존 8,753행은 `UNKNOWN` 이고 `salary_min`·`salary_max` 는 그대로다 — 급여 재판정(`POST /internal/pipeline/salary-reclassify`) 적용 전까지 판정 전 값이다. 새 코드 배포 전에 적용했다(기본값이 있어 기존 코드의 삽입도 그대로 된다). 신규 환경용 실행 정본(`deploy/postgres/schema/01_job_posting.sql`)에도 같은 컬럼을 넣었다 |
 
 > **`core.wage_stat_observation.source` 는 쓰기 경로까지 들어왔다.** 수집이 연도별로 출처를
 > 기록하고, KOSIS 실측만 기존 행을 덮는다 — 폴백 상수는 기존 행을 건드리지 않는다. 컬럼 도입

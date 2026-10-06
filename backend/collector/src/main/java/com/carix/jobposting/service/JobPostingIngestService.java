@@ -14,13 +14,15 @@ import com.carix.jobposting.backfill.JobKoreaJsonLd;
 import com.carix.jobposting.backfill.JobKoreaOwnPostingParser;
 import com.carix.jobposting.backfill.JobKoreaPage;
 import com.carix.jobposting.crawler.JobKoreaDetailParser;
+import com.carix.jobposting.crawler.SaraminDetailFetcher;
 import com.carix.jobposting.normalize.CompanySizeClassifier;
 import com.carix.jobposting.normalize.EmploymentTypeClassifier;
 import com.carix.jobposting.normalize.ExperienceRange;
 import com.carix.jobposting.normalize.JobFamilyClassifier;
 import com.carix.jobposting.normalize.JobKoreaFamilyResolver;
-import com.carix.jobposting.normalize.JobKoreaPayParser;
-import com.carix.jobposting.normalize.SalaryRange;
+import com.carix.jobposting.normalize.PostingSalary;
+import com.carix.jobposting.normalize.PostingSalaryClassifier;
+import com.carix.jobposting.normalize.SalaryDisclosure;
 import com.carix.jobposting.normalize.SkillTaxonomy;
 import com.carix.jobposting.seed.JobKoreaListingEnricher;
 import com.carix.jobposting.seed.JobKoreaListingFields;
@@ -57,6 +59,7 @@ public class JobPostingIngestService {
 
   private static final String JOBKOREA_LIST_ENDPOINT =
       "https://www.jobkorea.co.kr/Recruit/Home/_GI_List/";
+  private static final long SARAMIN_DETAIL_DELAY_MS = 1_000L;
   private static final String DUTY_CATEGORY_IT = "10031";
   private static final String JOBKOREA_LIST_REFERER =
       "https://www.jobkorea.co.kr/recruit/joblist?menucode=duty&dutyCtgr=" + DUTY_CATEGORY_IT;
@@ -73,7 +76,9 @@ public class JobPostingIngestService {
   private final SaraminListingEnricher saraminListingEnricher = new SaraminListingEnricher();
   private final JobKoreaDetailParser jobKoreaDetailParser = new JobKoreaDetailParser();
   private final JobKoreaOwnPostingParser jobKoreaOwnPostingParser = new JobKoreaOwnPostingParser();
-  private final JobKoreaPayParser jobKoreaPayParser = new JobKoreaPayParser();
+  private final PostingSalaryClassifier salaryClassifier = new PostingSalaryClassifier();
+  private final SaraminDetailFetcher saraminDetailFetcher =
+      new SaraminDetailFetcher(SARAMIN_DETAIL_DELAY_MS);
   private final JobFamilyClassifier jobFamilyClassifier = new JobFamilyClassifier();
   private final JobKoreaFamilyResolver jobKoreaFamilyResolver = JobKoreaFamilyResolver.bundled();
   private final CompanySizeClassifier companySizeClassifier = new CompanySizeClassifier();
@@ -298,6 +303,13 @@ public class JobPostingIngestService {
 
           SaraminListingFields fields = saraminListingEnricher.extract(doc.outerHtml(), externalId);
 
+          // 상세페이지는 아직 DB 에 없는 공고만 연다 — 기존 공고는 급여를 다시 판정하지 않는다.
+          PostingSalary salaryForNew =
+              jobPostingRepository.findBySourceAndExternalId("SARAMIN", externalId).isPresent()
+                  ? null
+                  : salaryClassifier.classifySaramin(
+                      saraminDetailFetcher.fetch(externalId).orElse(null));
+
           ingestSaraminPosting(
               externalId,
               title,
@@ -307,7 +319,8 @@ public class JobPostingIngestService {
               createdAtRaw,
               fields,
               now,
-              currentMonth);
+              currentMonth,
+              salaryForNew);
 
           ingestedCount++;
         }
@@ -333,13 +346,9 @@ public class JobPostingIngestService {
       String detailHtml,
       Instant now,
       String currentMonth) {
-    SalaryRange salary =
-        detailHtml != null
-            ? jobKoreaPayParser.parse(jobKoreaDetailParser.extractSalaryRaw(detailHtml))
-            : null;
-
-    Long salaryMin = salary != null ? salary.min() : fields.salaryMin();
-    Long salaryMax = salary != null ? salary.max() : fields.salaryMax();
+    PostingSalary salary =
+        PostingSalaryClassifier.withListingFallback(
+            salaryClassifier.classifyJobKorea(detailHtml), fields.salaryMin(), fields.salaryMax());
 
     String jobFamily = jobKoreaFamilyResolver.resolve(detailHtml, title);
 
@@ -357,7 +366,7 @@ public class JobPostingIngestService {
     if (existingOpt.isPresent()) {
       posting = existingOpt.get();
       posting.updateLastSeenMonth(currentMonth);
-      posting.applyDisclosedSalary(salaryMin, salaryMax);
+      applySalaryIfKnown(posting, salary);
       posting.classifyAs(jobFamily);
       posting.classifyCompanySizeAs(companySize);
       posting.applyExperienceRange(experience.min(), experience.max());
@@ -369,8 +378,8 @@ public class JobPostingIngestService {
               externalId,
               title,
               companyName,
-              salaryMin,
-              salaryMax,
+              null,
+              null,
               location,
               experience.min(),
               experience.max(),
@@ -384,6 +393,7 @@ public class JobPostingIngestService {
               currentMonth,
               currentMonth,
               now);
+      posting.applySalary(salary);
     }
 
     List<String> rawSkills =
@@ -407,6 +417,7 @@ public class JobPostingIngestService {
       // 정기 수집으로 이미 들어온 공고. 관측 월은 그대로 두고 표본 월만 단다 — 직무군·스킬은 같은 상세페이지로 맞춘다.
       JobPosting posting = existing.get();
       posting.markSampled(postedMonth);
+      applySalaryIfKnown(posting, salaryClassifier.classifyJobKorea(page.html()));
       posting.classifyAs(page.jobFamily());
       applySkillsToPosting(
           posting, posting.getTitle(), jobKoreaDetailParser.extractSkills(page.html()));
@@ -416,7 +427,6 @@ public class JobPostingIngestService {
     }
     JobKoreaJsonLd ld = page.jsonLd();
     String html = page.html();
-    SalaryRange salary = jobKoreaPayParser.parse(jobKoreaDetailParser.extractSalaryRaw(html));
     ExperienceRange experience = jobKoreaOwnPostingParser.extractExperience(html);
 
     JobPosting posting =
@@ -425,8 +435,8 @@ public class JobPostingIngestService {
             page.externalId(),
             ld.title(),
             ld.companyName(),
-            salary != null ? salary.min() : null,
-            salary != null ? salary.max() : null,
+            null,
+            null,
             ld.region(),
             experience.min(),
             experience.max(),
@@ -443,6 +453,7 @@ public class JobPostingIngestService {
             postedMonth,
             now);
 
+    posting.applySalary(salaryClassifier.classifyJobKorea(html));
     posting.markSampled(postedMonth);
     applySkillsToPosting(posting, ld.title(), jobKoreaDetailParser.extractSkills(html));
     jobPostingRepository.save(posting);
@@ -503,6 +514,13 @@ public class JobPostingIngestService {
     return daySpan.text().replace("등록일", "").strip();
   }
 
+  /** 기존 공고는 판정 불가(UNKNOWN)면 앞서 판정한 급여를 그대로 둔다 — 상세페이지를 못 받은 재수집이 급여를 지우지 않게. */
+  private static void applySalaryIfKnown(JobPosting posting, PostingSalary salary) {
+    if (salary.disclosure() != SalaryDisclosure.UNKNOWN) {
+      posting.applySalary(salary);
+    }
+  }
+
   void ingestSaraminPosting(
       String externalId,
       String title,
@@ -512,7 +530,8 @@ public class JobPostingIngestService {
       String createdAtRaw,
       SaraminListingFields fields,
       Instant now,
-      String currentMonth) {
+      String currentMonth,
+      PostingSalary salaryForNew) {
     String jobFamily = jobFamilyClassifier.classifyTags(fields.skillTags());
 
     Optional<JobPosting> existingOpt =
@@ -548,6 +567,9 @@ public class JobPostingIngestService {
               currentMonth,
               currentMonth,
               now);
+      if (salaryForNew != null) {
+        posting.applySalary(salaryForNew);
+      }
     }
 
     applySkillsToPosting(posting, title, fields.skillTags());

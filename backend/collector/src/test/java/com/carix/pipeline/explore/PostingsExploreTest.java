@@ -7,6 +7,8 @@ import com.carix.jobposting.JobPosting;
 import com.carix.jobposting.JobPostingRepository;
 import com.carix.jobposting.Skill;
 import com.carix.jobposting.SkillRepository;
+import com.carix.jobposting.normalize.PostingSalary;
+import com.carix.jobposting.normalize.SalaryRange;
 import com.carix.pipeline.dto.explore.PostingPage;
 import java.time.Instant;
 import org.junit.jupiter.api.BeforeEach;
@@ -56,7 +58,7 @@ class PostingsExploreTest {
   @Test
   @DisplayName("표본 필터와 원천 링크, 스킬 목록, 제시 연봉 범위")
   void postings_sampled() {
-    PostingPage page = service.postings("202609", null, true, null, null, null, null, null);
+    PostingPage page = service.postings("202609", null, true, null, null, null, null, null, null);
 
     assertThat(page.total()).isEqualTo(1);
     PostingPage.Item item = page.items().getFirst();
@@ -69,7 +71,8 @@ class PostingsExploreTest {
   @Test
   @DisplayName("정기 수집 필터는 sampled_month 가 비고 관측월이 그 달인 공고, 사람인 링크 형식")
   void postings_crawled() {
-    PostingPage page = service.postings("202609", "SARAMIN", false, null, null, null, null, null);
+    PostingPage page =
+        service.postings("202609", "SARAMIN", false, null, null, null, null, null, null);
     assertThat(page.items())
         .extracting(PostingPage.Item::url)
         .containsExactly("https://www.saramin.co.kr/zf_user/jobs/relay/view?rec_idx=51000001");
@@ -89,38 +92,68 @@ class PostingsExploreTest {
             .collectedAt(Instant.now())
             .build());
 
-    PostingPage other = service.postings("202609", null, null, "OTHER", null, null, null, null);
+    PostingPage other =
+        service.postings("202609", null, null, "OTHER", null, null, null, null, null);
     assertThat(other.items()).extracting(PostingPage.Item::externalId).containsExactly("51000002");
-    assertThat(service.postings("202609", null, null, "DEVELOPER", null, null, null, null).total())
+    assertThat(
+            service
+                .postings("202609", null, null, "DEVELOPER", null, null, null, null, null)
+                .total())
         .isEqualTo(3);
   }
 
   @Test
   @DisplayName("회사 필터의 % _ 는 글자 그대로 찾는다")
   void postings_companyFilterEscapesWildcards() {
-    assertThat(service.postings("202609", null, null, null, "100%_", null, null, null).total())
+    assertThat(
+            service.postings("202609", null, null, null, "100%_", null, null, null, null).total())
         .isEqualTo(1);
-    assertThat(service.postings("202609", null, null, null, "%", null, null, null).total())
+    assertThat(service.postings("202609", null, null, null, "%", null, null, null, null).total())
         .isEqualTo(1);
   }
 
   @Test
   @DisplayName("스킬 필터는 정확 일치, 스킬 없는 공고는 빈 목록")
   void postings_skillsEmptyList() {
-    assertThat(service.postings("202609", null, null, null, null, "Java", null, null).total())
+    assertThat(service.postings("202609", null, null, null, null, "Java", null, null, null).total())
         .isEqualTo(1);
-    PostingPage none = service.postings("202609", "SARAMIN", null, null, null, null, null, null);
+    PostingPage none =
+        service.postings("202609", "SARAMIN", null, null, null, null, null, null, null);
     assertThat(none.items().getFirst().skills()).isEmpty();
   }
 
   @Test
   @DisplayName("결과 없음은 빈 목록, size 는 100 으로 자르고 month 없으면 400")
   void postings_emptyResult() {
-    PostingPage empty = service.postings("202001", null, null, null, null, null, null, 500);
+    PostingPage empty = service.postings("202001", null, null, null, null, null, null, null, 500);
     assertThat(empty.total()).isZero();
     assertThat(empty.items()).isEmpty();
     assertThat(empty.size()).isEqualTo(100);
-    assertThatThrownBy(() -> service.postings(null, null, null, null, null, null, null, null))
+    assertThatThrownBy(() -> service.postings(null, null, null, null, null, null, null, null, null))
+        .isInstanceOf(ResponseStatusException.class);
+  }
+
+  @Test
+  @DisplayName("공개 구분 필터와 비공개 구간 필드")
+  void postings_disclosureFilter() {
+    JobPosting band = posting("JOBKOREA", "49500900", "내규회사", "202609", null);
+    band.applySalary(PostingSalary.band(new SalaryRange(25_900_000L, 100_000_000L)));
+    repository.saveAndFlush(band);
+
+    PostingPage page = service.postings("202609", null, null, null, null, null, "BAND", null, null);
+
+    assertThat(page.total()).isEqualTo(1);
+    PostingPage.Item item = page.items().getFirst();
+    assertThat(item.salaryMin()).isNull();
+    assertThat(item.salaryBandMin()).isEqualTo(25_900_000L);
+    assertThat(item.salaryDisclosure()).isEqualTo("BAND");
+  }
+
+  @Test
+  @DisplayName("알 수 없는 공개 구분은 400")
+  void postings_invalidDisclosure() {
+    assertThatThrownBy(
+            () -> service.postings("202609", null, null, null, null, null, "WRONG", null, null))
         .isInstanceOf(ResponseStatusException.class);
   }
 }

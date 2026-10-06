@@ -1012,7 +1012,7 @@
         ```
 
 ### 8.11 수집 공고 목록 조회
-*   `GET /internal/pipeline/explore/postings?month={YYYYMM}` — 한 달의 수집 공고를 필터·페이지로 조회 (관리자 콘솔 `/admin/data` 공고 탭 연동). 제시 연봉 범위 `salaryMin`·`salaryMax`(연간, 원)는 공고에 없으면 `null` 이다.
+*   `GET /internal/pipeline/explore/postings?month={YYYYMM}` — 한 달의 수집 공고를 필터·페이지로 조회 (관리자 콘솔 `/admin/data` 공고 탭 연동). 제시 연봉 범위 `salaryMin`·`salaryMax`(연간, 원)는 공고에 공개된 금액만이며 없으면 `null` 이다. 비공개 검색 구간은 `salaryBandMin`·`salaryBandMax` 에 따로 싣고(없으면 `null`), `salaryDisclosure` 는 `PUBLIC`·`BAND`·`NONE`·`UNKNOWN`(판정 전) 이다.
     *   **Query Parameters:**
 
         | 파라미터 | 필수 | 설명 |
@@ -1023,6 +1023,7 @@
         | `family` | 선택 | 직무군. `OTHER` 는 `DEVELOPER`·`DATA`·`AI` 가 아닌 모든 공고(직무군이 비어 있는 공고 포함)로, 월별 현황의 `OTHER` 집계와 같은 기준이다 |
         | `company` | 선택 | 회사명 부분 일치 |
         | `skill` | 선택 | 표준 스킬명 정확 일치 |
+        | `disclosure` | 선택 | 연봉 공개 구분 `PUBLIC`·`BAND`·`NONE`·`UNKNOWN`. 그 밖의 값은 `400 BAD_REQUEST` |
         | `page` | 선택 | 0부터. 기본 0 |
         | `size` | 선택 | 기본 50, 최대 100 (넘으면 100) |
 
@@ -1051,6 +1052,9 @@
               "sampledMonth": "202607",
               "salaryMin": 50000000,
               "salaryMax": null,
+              "salaryBandMin": null,
+              "salaryBandMax": null,
+              "salaryDisclosure": "PUBLIC",
               "skills": ["QA"]
             }
           ]
@@ -1094,3 +1098,31 @@
           ]
         }
         ```
+
+### 8.14 공고 급여 재판정 실행
+*   `POST /internal/pipeline/salary-reclassify` — 잡코리아·사람인 공고의 상세페이지를 다시 열어 급여 공개 구분(`salary_disclosure`)을 판정한다. 비동기로 실행하며 `JobExecution`(`SALARY_RECLASSIFY`)으로 진행을 본다(§8.5). 판정 규칙은 [데이터 아키텍처 §1.3](data-architecture.md)이 소관이다.
+    *   **Query Parameters:**
+
+        | 파라미터 | 필수 | 설명 |
+        | --- | --- | --- |
+        | `dryRun` | 선택 | 기본 `true`. `true` 면 DB 를 쓰지 않고 측정만 한다. `false` 면 판정을 저장한다 |
+        | `delayMs` | 선택 | 공고 사이 대기(ms). 기본 1000 |
+
+    *   `dryRun=false` 에서 상세페이지를 못 열었거나 급여를 못 읽은 공고는, 한 번도 판정되지 않은 공고에 한해 `UNKNOWN` 으로 두고 기존 연봉 값을 `salary_band_*` 로 옮긴다. 이미 판정된 공고는 건드리지 않는다.
+    *   **Response (202 Accepted):** 작업 ID 를 돌려준다(§8.1 과 같은 형식).
+    *   **작업 요약 (작업 상태 조회 §8.5 응답의 `details`):**
+        ```json
+        {
+          "dryRun": true,
+          "total": 8700,
+          "unreachable": 40,
+          "bySource": {
+            "JOBKOREA": { "PUBLIC": 800, "BAND": 4200, "NONE": 1500, "UNKNOWN": 30 },
+            "SARAMIN": { "PUBLIC": 300, "BAND": 0, "NONE": 1800, "UNKNOWN": 10 }
+          },
+          "publicPeers": {
+            "DEVELOPER/JUNIOR": { "before": 12, "after": 9 }
+          }
+        }
+        ```
+        `unreachable` 은 판정이 `UNKNOWN` 인 공고 수다(상세페이지를 못 열었거나, 열었지만 description 이나 급여 항목이 없는 경우). `publicPeers` 는 직무 × 경력(`JUNIOR`·`MID`·`SENIOR`) × 서울·정규직 칸의 표본 수로, `before` 는 지금 `salary_min`·`salary_max` 가 둘 다 저장된 공고 수(공개 구분과 무관), `after` 는 판정이 `PUBLIC` 인 공고 수다. 이 수는 원문 공고를 그대로 센다 — 중복제거도 기업 규모 필터도 거치지 않으므로 core-api 가 실제로 쓰는 표본 크기의 근사치다. `errors` 는 처리 중 예외가 나 건너뛴 공고 수이며(해당 공고는 바꾸지 않는다).

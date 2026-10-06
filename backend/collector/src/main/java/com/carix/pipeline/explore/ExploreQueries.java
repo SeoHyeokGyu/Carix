@@ -149,12 +149,16 @@ public class ExploreQueries {
       String firstSeenMonth,
       String sampledMonth,
       Long salaryMin,
-      Long salaryMax) {}
+      Long salaryMax,
+      Long salaryBandMin,
+      Long salaryBandMax,
+      String salaryDisclosure) {}
 
   private static final String POSTING_COLUMNS =
       "p.id, p.source, p.external_id, p.title, p.company_name, p.job_family, p.experience_min,"
           + " p.experience_max, p.employment_type, p.region, p.posted_start_date, p.posted_end_date,"
-          + " p.first_seen_month, p.sampled_month, p.salary_min, p.salary_max";
+          + " p.first_seen_month, p.sampled_month, p.salary_min, p.salary_max,"
+          + " p.salary_band_min, p.salary_band_max, p.salary_disclosure";
 
   public long countPostings(PostingFilter f) {
     List<Object> args = new ArrayList<>();
@@ -193,7 +197,10 @@ public class ExploreQueries {
                 rs.getString(13),
                 rs.getString(14),
                 (Long) rs.getObject(15),
-                (Long) rs.getObject(16)),
+                (Long) rs.getObject(16),
+                (Long) rs.getObject(17),
+                (Long) rs.getObject(18),
+                rs.getString(19)),
         args.toArray());
   }
 
@@ -245,6 +252,10 @@ public class ExploreQueries {
     if (f.company() != null) {
       sb.append(" AND LOWER(p.company_name) LIKE ? ESCAPE '\\'");
       args.add("%" + escapeLike(f.company().toLowerCase()) + "%");
+    }
+    if (f.disclosure() != null) {
+      sb.append(" AND p.salary_disclosure = ?");
+      args.add(f.disclosure());
     }
     if (f.skill() != null) {
       sb.append(

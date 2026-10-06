@@ -49,6 +49,18 @@ public class JobPosting {
   @Column(name = "salary_max")
   private Long salaryMax;
 
+  /** 회사가 검색용으로 넣은 비공개 구간(연간 원). 공개 연봉이 아니라 제시 연봉 통계에 쓰지 않는다. */
+  @Column(name = "salary_band_min")
+  private Long salaryBandMin;
+
+  @Column(name = "salary_band_max")
+  private Long salaryBandMax;
+
+  /** {@link com.carix.jobposting.normalize.SalaryDisclosure} 이름. */
+  @Column(name = "salary_disclosure", nullable = false, length = 16)
+  @Builder.Default
+  private String salaryDisclosure = "UNKNOWN";
+
   @Column private String region;
 
   @Column(name = "experience_min")
@@ -146,6 +158,7 @@ public class JobPosting {
     this.firstSeenMonth = firstSeenMonth;
     this.lastSeenMonth = lastSeenMonth;
     this.collectedAt = collectedAt;
+    this.salaryDisclosure = "UNKNOWN";
     this.dedupGroupId = UUID.randomUUID();
     this.dedupRuleVersion = "v0-none";
     this.jobPostingSkills = new ArrayList<>();
@@ -157,10 +170,24 @@ public class JobPosting {
     }
   }
 
-  /** 원천이 공개한 세전 연봉 범위(원 단위). 만원 단위로 전달될 경우 원 단위로 보정한다. */
-  public void applyDisclosedSalary(Long min, Long max) {
-    this.salaryMin = normalizeSalary(min);
-    this.salaryMax = normalizeSalary(max);
+  /** 급여 판정 결과를 반영한다. 공개 연봉과 비공개 구간은 함께 갖지 않는다. */
+  public void applySalary(com.carix.jobposting.normalize.PostingSalary salary) {
+    this.salaryMin = salary.min();
+    this.salaryMax = salary.max();
+    this.salaryBandMin = salary.bandMin();
+    this.salaryBandMax = salary.bandMax();
+    this.salaryDisclosure = salary.disclosure().name();
+  }
+
+  /** 재수집에 실패한 공고. 판정 전 값을 버리지 않고 비공개 구간 자리로 옮겨 둔다(설계 §5.2). */
+  public void markSalaryUnreachable() {
+    if (salaryMin != null || salaryMax != null) {
+      this.salaryBandMin = salaryMin;
+      this.salaryBandMax = salaryMax;
+    }
+    this.salaryMin = null;
+    this.salaryMax = null;
+    this.salaryDisclosure = "UNKNOWN";
   }
 
   private static Long normalizeSalary(Long value) {
