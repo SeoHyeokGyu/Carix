@@ -11,6 +11,7 @@ import com.carix.jobposting.UserSkillRepository;
 import com.carix.jobposting.normalize.SkillTaxonomy;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -88,7 +89,23 @@ public class PostingSkillService {
 
   /** 공고 스킬을 원천 재파싱 결과에 맞춘다. 점핏으로 보강된 공고는 점핏 기술 스택이 사람인 목록에 없으므로 더하기만 한다 — 바꾸면 점핏 스킬이 지워진다. */
   public void applySkillsToPosting(JobPosting posting, String title, List<String> rawSkills) {
-    List<Skill> targetSkills = resolveSkills(title, rawSkills);
+    applySkillsToPosting(posting, title, rawSkills, List.of());
+  }
+
+  /**
+   * 제목·태그에서 뽑은 스킬에 {@code extraSkills} 를 합쳐 맞춘다. 산업 태그처럼 제목·태그 추출로는 다시 나오지 않는 스킬을 지켜야 할 때 쓴다 — 바꾼
+   * 뒤에 따로 다시 붙이면 같은 플러시에서 삭제 대신 삽입이 먼저 나가 유니크 제약에 걸린다.
+   */
+  public void applySkillsToPosting(
+      JobPosting posting, String title, List<String> rawSkills, List<Skill> extraSkills) {
+    Map<UUID, Skill> merged = new LinkedHashMap<>();
+    for (Skill skill : resolveSkills(title, rawSkills)) {
+      merged.putIfAbsent(skill.getId(), skill);
+    }
+    for (Skill skill : extraSkills) {
+      merged.putIfAbsent(skill.getId(), skill);
+    }
+    List<Skill> targetSkills = List.copyOf(merged.values());
     if (posting.hasCollectedVia(CollectedVia.JUMPIT)) {
       posting.addSkillsIfAbsent(targetSkills);
     } else {
@@ -120,7 +137,9 @@ public class PostingSkillService {
       List<String> currentSkillNames =
           posting.getSkills().stream().map(Skill::getStandardName).toList();
 
-      applySkillsToPosting(posting, posting.getTitle(), currentSkillNames);
+      List<Skill> industrySkills =
+          posting.getSkills().stream().filter(s -> "INDUSTRY".equals(s.getCategory())).toList();
+      applySkillsToPosting(posting, posting.getTitle(), currentSkillNames, industrySkills);
       jobPostingRepository.save(posting);
 
       int count = posting.getSkills().size();

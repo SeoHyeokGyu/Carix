@@ -5,6 +5,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 import java.util.UUID;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
@@ -13,7 +14,12 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 @Entity
-@Table(name = "job_posting_skill")
+@Table(
+    name = "job_posting_skill",
+    uniqueConstraints =
+        @UniqueConstraint(
+            name = "job_posting_skill_job_posting_id_skill_id_key",
+            columnNames = {"job_posting_id", "skill_id"}))
 @Getter
 @Builder
 @NoArgsConstructor(access = AccessLevel.PROTECTED)

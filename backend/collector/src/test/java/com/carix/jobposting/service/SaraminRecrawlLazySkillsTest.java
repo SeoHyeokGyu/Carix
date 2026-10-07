@@ -155,4 +155,77 @@ class SaraminRecrawlLazySkillsTest {
     assertThat(posting.getJobFamily()).isEqualTo("DEVELOPER");
     assertThat(posting.getExperienceMin()).isEqualTo(3);
   }
+
+  private void seedWithIndustry(String industryName) {
+    new TransactionTemplate(transactionManager)
+        .executeWithoutResult(
+            s -> {
+              JobPosting posting =
+                  JobPosting.builder()
+                      .source("SARAMIN")
+                      .externalId(EXTERNAL_ID)
+                      .title("백엔드 엔지니어")
+                      .companyName("테스트사")
+                      .jobFamily("DEVELOPER")
+                      .firstSeenMonth("202610")
+                      .lastSeenMonth("202610")
+                      .collectedAt(Instant.now())
+                      .build();
+              posting.addSkill(skillService.upsertKnownSkill("Kafka"));
+              posting.addSkill(skillService.upsertSkill(industryName, "INDUSTRY"));
+              // 재수집이 새 스킬 행을 만들면 그 삽입이 보류 삭제를 먼저 플러시해 버그가 가려진다 — 미리 만들어 둔다.
+              skillService.upsertKnownSkill("Java");
+              posting.addCollectedVia(CollectedVia.SARAMIN_SEARCH);
+              postings.save(posting);
+            });
+  }
+
+  private List<String> industrySkillNames() {
+    return new TransactionTemplate(transactionManager)
+        .execute(
+            s ->
+                postings
+                    .findBySourceAndExternalId("SARAMIN", EXTERNAL_ID)
+                    .orElseThrow()
+                    .getSkills()
+                    .stream()
+                    .filter(k -> "INDUSTRY".equals(k.getCategory()))
+                    .map(Skill::getStandardName)
+                    .toList());
+  }
+
+  @Test
+  @DisplayName("산업 태그 스킬이 이미 붙은 기존 공고를 같은 산업 태그로 재수집해도 중복 키로 실패하지 않고 산업 연결을 유지한다")
+  void recrawlKeepsExistingIndustryLink() {
+    seedWithIndustry("보안");
+    var fields = new SaraminListingFields("경력 3년↑", "정규직", null, List.of("Java"), List.of("보안"));
+
+    assertThatCode(
+            () ->
+                service.ingestSaraminPosting(
+                    EXTERNAL_ID,
+                    "백엔드 엔지니어",
+                    "테스트사",
+                    "서울",
+                    ExperienceRange.parse("경력 3년↑"),
+                    null,
+                    fields,
+                    Instant.now(),
+                    "202610",
+                    null))
+        .doesNotThrowAnyException();
+
+    assertThat(industrySkillNames()).containsExactly("보안");
+    assertThat(skillNames()).contains("Java", "보안").doesNotContain("Kafka");
+  }
+
+  @Test
+  @DisplayName("스킬 재정제는 공고의 산업 태그 스킬 연결을 지우지 않는다")
+  void refineKeepsIndustryLinks() {
+    seedWithIndustry("반도체장비");
+
+    skillService.refineAllPostingSkills();
+
+    assertThat(industrySkillNames()).containsExactly("반도체장비");
+  }
 }

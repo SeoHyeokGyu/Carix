@@ -31,6 +31,7 @@ import com.carix.pipeline.dto.CrawlRequest;
 import java.time.Instant;
 import java.time.YearMonth;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -678,16 +679,14 @@ public class JobPostingIngestService {
       }
     }
 
-    postingSkills.applySkillsToPosting(posting, title, fields.skillTags());
+    List<Skill> industrySkills = new ArrayList<>();
     for (String industryName : distinct(fields.industryTags())) {
       String canonical = skillTaxonomy.canonicalName(industryName);
       if (canonical != null && !canonical.isBlank()) {
-        Skill indSkill = postingSkills.upsertSkill(canonical, "INDUSTRY");
-        if (posting.getSkills().stream().noneMatch(s -> s.getId().equals(indSkill.getId()))) {
-          posting.addSkill(indSkill);
-        }
+        industrySkills.add(postingSkills.upsertSkill(canonical, "INDUSTRY"));
       }
     }
+    postingSkills.applySkillsToPosting(posting, title, fields.skillTags(), industrySkills);
 
     posting.addCollectedVia(CollectedVia.SARAMIN_SEARCH);
     jobPostingRepository.save(posting);
