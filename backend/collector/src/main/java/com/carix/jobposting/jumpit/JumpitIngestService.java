@@ -118,7 +118,11 @@ public class JumpitIngestService {
           }
         } catch (RuntimeException e) {
           errors++;
-          log.warn("[점핏] 공고 {} 처리 실패: {}", position.id(), e.getMessage());
+          if (errors == 1) {
+            log.warn("[점핏] 공고 {} 처리 실패", position.id(), e);
+          } else {
+            log.warn("[점핏] 공고 {} 처리 실패: {}", position.id(), e.getMessage());
+          }
         }
       }
     }
@@ -140,7 +144,7 @@ public class JumpitIngestService {
     LocalDate published = null;
     PostingSalary salary = null;
     if (!alreadyKnown) {
-      published = client.fetchDetail(position.id()).flatMap(parser::parsePublishedAt).orElse(null);
+      published = publishedAt(position.id());
       salary = salaryClassifier.classifySaramin(saraminDetail.fetch(position.id()).orElse(null));
     }
     LocalDate publishedAt = published;
@@ -158,6 +162,16 @@ public class JumpitIngestService {
           postings.save(create(position, known, publishedAt, postingSalary, month));
           return Outcome.CREATED;
         });
+  }
+
+  /** 상세 응답을 못 읽으면 게시일만 비우고 계속한다. */
+  private LocalDate publishedAt(String id) {
+    try {
+      return client.fetchDetail(id).flatMap(parser::parsePublishedAt).orElse(null);
+    } catch (IllegalStateException e) {
+      log.warn("[점핏] 공고 {} 상세를 읽지 못해 게시일 없이 저장합니다: {}", id, e.getMessage());
+      return null;
+    }
   }
 
   private void enrich(

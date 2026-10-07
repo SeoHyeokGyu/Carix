@@ -99,6 +99,11 @@ public class CollectorPipelineService {
                     : "ALL";
             if ("JUMPIT".equals(portal)) {
               JumpitIngestSummary summary = jumpitIngestService.ingestAll();
+              if (summary.created() + summary.enriched() == 0 && summary.errors() > 0) {
+                state.fail("점핏 수집에서 모든 공고 처리에 실패했습니다 (errors=" + summary.errors() + ")");
+                log.error("[작업:{}] 점핏 수집 전부 실패: {}", jobId, summary);
+                return;
+              }
               state.complete(summary.toDetails());
               log.info("[작업:{}] 점핏 수집 완료: {}", jobId, summary);
               return;

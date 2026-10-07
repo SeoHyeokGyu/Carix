@@ -139,6 +139,22 @@ class JumpitIngestServiceTest {
   }
 
   @Test
+  @DisplayName("상세 응답이 JSON 이 아니면 게시일만 비우고 공고는 만든다")
+  void unparsableDetailKeepsPosting() {
+    given(postings.findBySourceAndExternalId(anyString(), anyString()))
+        .willReturn(Optional.empty());
+    client.detail = "<html>oops</html>";
+
+    JumpitIngestSummary summary = service.ingestAll();
+
+    ArgumentCaptor<JobPosting> saved = ArgumentCaptor.forClass(JobPosting.class);
+    verify(postings, org.mockito.Mockito.times(2)).save(saved.capture());
+    assertThat(saved.getAllValues()).allSatisfy(p -> assertThat(p.getPostedStartDate()).isNull());
+    assertThat(summary.created()).isEqualTo(2);
+    assertThat(summary.errors()).isZero();
+  }
+
+  @Test
   @DisplayName("같은 공고가 다음 페이지에 또 나와도 한 번만 처리한다")
   void processesEachIdOnce() {
     given(postings.findBySourceAndExternalId(anyString(), anyString()))

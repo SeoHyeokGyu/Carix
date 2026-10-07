@@ -16,6 +16,8 @@ public class JumpitParser {
   /** 날짜는 `2026-11-05T23:59:59`(목록) 또는 `2026-10-07 00:00:00`(상세) — 앞 10자가 날짜다. */
   private static final int DATE_LENGTH = 10;
 
+  private static final int PLACEHOLDER_YEAR = 9000;
+
   public record Page(List<JumpitPosition> positions, int skipped, boolean empty) {}
 
   public Page parsePage(String json) {
@@ -42,7 +44,7 @@ public class JumpitParser {
               intOrNull(p.path("maxCareer")),
               p.path("newcomer").asBoolean(false),
               strings(p.path("locations")).stream().findFirst().orElse(null),
-              date(p.path("closedAt"))));
+              closedAt(p)));
     }
     return new Page(out, skipped, positions.isEmpty());
   }
@@ -77,6 +79,15 @@ public class JumpitParser {
 
   private static Integer intOrNull(JsonNode n) {
     return n.isNumber() ? n.asInt() : null;
+  }
+
+  /** 상시 채용은 마감일이 없고, 9999-12-31 같은 먼 미래 값도 마감일이 아니다. */
+  private static LocalDate closedAt(JsonNode position) {
+    if (position.path("alwaysOpen").asBoolean(false)) {
+      return null;
+    }
+    LocalDate closed = date(position.path("closedAt"));
+    return closed != null && closed.getYear() >= PLACEHOLDER_YEAR ? null : closed;
   }
 
   private static LocalDate date(JsonNode n) {

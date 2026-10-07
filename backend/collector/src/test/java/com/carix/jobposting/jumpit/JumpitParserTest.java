@@ -47,6 +47,28 @@ class JumpitParserTest {
   }
 
   @Test
+  @DisplayName("상시 채용에 먼 미래 마감일이 실려 와도, 알 수 없는 먼 미래 연도여도 마감일은 비운다")
+  void farFutureClosedAtIsNull() {
+    String alwaysOpen = positionJson(true, "9999-12-31T23:59:59");
+    String sentinel = positionJson(false, "9999-12-31T23:59:59");
+    String normal = positionJson(false, "2026-11-05T23:59:59");
+
+    assertThat(parser.parsePage(alwaysOpen).positions().get(0).closedAt()).isNull();
+    assertThat(parser.parsePage(sentinel).positions().get(0).closedAt()).isNull();
+    assertThat(parser.parsePage(normal).positions().get(0).closedAt())
+        .isEqualTo(java.time.LocalDate.of(2026, 11, 5));
+  }
+
+  private static String positionJson(boolean alwaysOpen, String closedAt) {
+    return "{\"result\":{\"positions\":[{\"id\":1,\"title\":\"t\",\"companyName\":\"c\","
+        + "\"alwaysOpen\":"
+        + alwaysOpen
+        + ",\"closedAt\":\""
+        + closedAt
+        + "\"}]}}";
+  }
+
+  @Test
   @DisplayName("마지막 다음 페이지는 empty 다")
   void emptyPage() throws IOException {
     assertThat(parser.parsePage(fixture("positions-empty.json")).empty()).isTrue();
