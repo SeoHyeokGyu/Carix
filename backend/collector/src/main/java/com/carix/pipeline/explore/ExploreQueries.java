@@ -152,13 +152,16 @@ public class ExploreQueries {
       Long salaryMax,
       Long salaryBandMin,
       Long salaryBandMax,
-      String salaryDisclosure) {}
+      String salaryDisclosure,
+      String collectedVia,
+      String sourceJobTags) {}
 
   private static final String POSTING_COLUMNS =
       "p.id, p.source, p.external_id, p.title, p.company_name, p.job_family, p.experience_min,"
           + " p.experience_max, p.employment_type, p.region, p.posted_start_date, p.posted_end_date,"
           + " p.first_seen_month, p.sampled_month, p.salary_min, p.salary_max,"
-          + " p.salary_band_min, p.salary_band_max, p.salary_disclosure";
+          + " p.salary_band_min, p.salary_band_max, p.salary_disclosure,"
+          + " p.collected_via, p.source_job_tags";
 
   public long countPostings(PostingFilter f) {
     List<Object> args = new ArrayList<>();
@@ -200,7 +203,9 @@ public class ExploreQueries {
                 (Long) rs.getObject(16),
                 (Long) rs.getObject(17),
                 (Long) rs.getObject(18),
-                rs.getString(19)),
+                rs.getString(19),
+                rs.getString(20),
+                rs.getString(21)),
         args.toArray());
   }
 

@@ -1,5 +1,6 @@
 package com.carix.jobposting.seed;
 
+import com.carix.jobposting.CollectedVia;
 import com.carix.jobposting.JobPosting;
 import com.carix.jobposting.JobPostingRepository;
 import com.carix.jobposting.RawIngest;
@@ -170,6 +171,7 @@ public class SeedLoader {
             : splitSkills(record.get("Skills"));
     addSkills(posting, skillNames);
 
+    posting.addCollectedVia(CollectedVia.JOBKOREA_SEED);
     jobPostingRepository.save(posting);
     return true;
   }
@@ -216,6 +218,7 @@ public class SeedLoader {
       posting.addSkill(upsertSkill(skillTaxonomy.canonicalName(industryName), "INDUSTRY"));
     }
 
+    posting.addCollectedVia(CollectedVia.SARAMIN_SEARCH);
     jobPostingRepository.save(posting);
     return true;
   }

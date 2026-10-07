@@ -8,6 +8,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
+import com.carix.jobposting.CollectedVia;
 import com.carix.jobposting.JobPosting;
 import com.carix.jobposting.JobPostingRepository;
 import com.carix.jobposting.RawIngest;
@@ -80,6 +81,7 @@ class JobKoreaBackfillIngestTest {
     assertThat(p.getExperienceMin()).isEqualTo(3);
     assertThat(p.getJobFamily()).isEqualTo("DEVELOPER");
     assertThat(p.getRegion()).isEqualTo("서울 강남구");
+    assertThat(p.getCollectedVia()).isEqualTo(CollectedVia.JOBKOREA_BACKFILL);
 
     ArgumentCaptor<RawIngest> raw = ArgumentCaptor.forClass(RawIngest.class);
     verify(rawIngestRepository).save(raw.capture());
@@ -97,6 +99,7 @@ class JobKoreaBackfillIngestTest {
 
     assertThat(service.ingestBackfilledJobKorea(PAGE, "202509", Instant.now())).isTrue();
     verify(existing).markSampled("202509");
+    verify(existing).addCollectedVia(CollectedVia.JOBKOREA_BACKFILL);
     verify(existing, never()).updateLastSeenMonth(any());
     verify(jobPostingRepository).save(existing);
   }

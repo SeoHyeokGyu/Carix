@@ -156,4 +156,21 @@ class PostingsExploreTest {
             () -> service.postings("202609", null, null, null, null, null, "WRONG", null, null))
         .isInstanceOf(ResponseStatusException.class);
   }
+
+  @Test
+  @DisplayName("확인 경로와 원천 직군 태그를 내려 준다")
+  void postings_collectedViaAndSourceTags() {
+    JobPosting p = posting("SARAMIN", "51000009", "점핏회사", "202609", null);
+    p.addCollectedVia("SARAMIN_SEARCH");
+    p.addCollectedVia("JUMPIT");
+    p.recordSourceJobTags("서버/백엔드 개발자");
+    repository.saveAndFlush(p);
+
+    PostingPage page =
+        service.postings("202609", "SARAMIN", false, null, "점핏", null, null, null, null);
+
+    PostingPage.Item item = page.items().getFirst();
+    assertThat(item.collectedVia()).isEqualTo("SARAMIN_SEARCH,JUMPIT");
+    assertThat(item.sourceJobTags()).isEqualTo("서버/백엔드 개발자");
+  }
 }

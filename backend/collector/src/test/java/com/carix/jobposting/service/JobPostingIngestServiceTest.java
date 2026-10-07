@@ -8,6 +8,7 @@ import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
+import com.carix.jobposting.CollectedVia;
 import com.carix.jobposting.JobPosting;
 import com.carix.jobposting.JobPostingRepository;
 import com.carix.jobposting.RawIngestRepository;
@@ -20,12 +21,13 @@ import com.carix.jobposting.seed.SaraminListingFields;
 import com.carix.pipeline.dto.CrawlRequest;
 import java.time.Instant;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import org.springframework.test.util.ReflectionTestUtils;
 
 class JobPostingIngestServiceTest {
 
@@ -97,6 +99,29 @@ class JobPostingIngestServiceTest {
         "202608");
 
     verify(jobPostingRepository, atLeastOnce()).save(any(JobPosting.class));
+  }
+
+  @Test
+  @DisplayName("ingestJobKoreaPosting - 신규 공고는 확인 경로 JOBKOREA_LIST 를 단다")
+  void ingestJobKoreaPosting_marksListPath() {
+    given(jobPostingRepository.findBySourceAndExternalId("JOBKOREA", "1005"))
+        .willReturn(Optional.empty());
+    ArgumentCaptor<JobPosting> saved = ArgumentCaptor.forClass(JobPosting.class);
+
+    service.ingestJobKoreaPosting(
+        "1005",
+        "백엔드",
+        "회사",
+        "서울",
+        ExperienceRange.parse("신입"),
+        "오늘",
+        new JobKoreaListingFields("정규직", null, null, null, null, null),
+        null,
+        Instant.now(),
+        "202610");
+
+    verify(jobPostingRepository, atLeastOnce()).save(saved.capture());
+    assertThat(saved.getValue().getCollectedVia()).isEqualTo(CollectedVia.JOBKOREA_LIST);
   }
 
   @Test
@@ -307,58 +332,158 @@ class JobPostingIngestServiceTest {
   }
 
   @Test
-  @DisplayName("refineAllPostingSkills - 전체 공고 스킬 일괄 재정제 및 사전 캐시 자동 갱신 정상 수행")
-  void refineAllPostingSkills_success() {
-    Skill javaSkill = new Skill("Java", "LANGUAGE", false);
-    given(skillRepository.findAll()).willReturn(List.of(javaSkill));
-    given(skillRepository.findFirstByStandardNameIgnoreCase("Java"))
-        .willReturn(Optional.of(javaSkill));
-
-    JobPosting posting =
-        JobPosting.builder().source("JOBKOREA").externalId("1001").title("백엔드 Java 개발자 채용").build();
-    given(jobPostingRepository.findAll()).willReturn(List.of(posting));
-
-    Map<String, Object> stats = service.refineAllPostingSkills();
-
-    assertThat(stats).isNotNull();
-    assertThat(stats.get("totalPostings")).isEqualTo(1);
-    assertThat(stats.get("refinedPostings")).isEqualTo(1);
-    verify(jobPostingRepository, atLeastOnce()).save(posting);
+  @DisplayName("사람인 신규 공고는 확인 경로 SARAMIN_SEARCH 를 단다")
+  void saraminNewPostingMarksSearchPath() {
+    given(jobPostingRepository.findBySourceAndExternalId("SARAMIN", "501"))
+        .willReturn(Optional.empty());
+    service.ingestSaraminPosting(
+        "501",
+        "백엔드 개발자",
+        "회사",
+        "서울",
+        ExperienceRange.parse("경력 3년↑"),
+        null,
+        new SaraminListingFields("경력 3년↑", "정규직", null, List.of("Java"), List.of()),
+        Instant.now(),
+        "202610",
+        null);
+    ArgumentCaptor<JobPosting> saved = ArgumentCaptor.forClass(JobPosting.class);
+    verify(jobPostingRepository, atLeastOnce()).save(saved.capture());
+    assertThat(saved.getValue().getCollectedVia()).isEqualTo("SARAMIN_SEARCH");
   }
 
   @Test
-  @DisplayName("deduplicateSkills - 벌크 Repository가 제공될 때 중복 스킬 링크 재할당 및 삭제 정상 수행")
-  void deduplicateSkills_withBulkRepositories() {
-    com.carix.jobposting.JobPostingSkillRepository jpsRepo =
-        mock(com.carix.jobposting.JobPostingSkillRepository.class);
-    com.carix.jobposting.SkillAliasRepository saRepo =
-        mock(com.carix.jobposting.SkillAliasRepository.class);
-    com.carix.jobposting.UserSkillRepository usRepo =
-        mock(com.carix.jobposting.UserSkillRepository.class);
+  @DisplayName("점핏으로 보강된 사람인 공고는 사람인 재수집이 스킬을 지우지 않는다")
+  void saraminRecrawlKeepsJumpitSkills() {
+    JobPosting existing =
+        new JobPosting(
+            "SARAMIN",
+            "502",
+            "백엔드",
+            "회사",
+            null,
+            null,
+            "서울",
+            null,
+            null,
+            "UNKNOWN",
+            "UNKNOWN",
+            null,
+            null,
+            "DEVELOPER",
+            null,
+            null,
+            "202609",
+            "202609",
+            Instant.now());
+    Skill kafka = new Skill("Kafka", "SKILL", false);
+    ReflectionTestUtils.setField(kafka, "id", UUID.randomUUID());
+    existing.addSkill(kafka);
+    existing.addCollectedVia(CollectedVia.JUMPIT);
+    // 새로 만든 스킬도 연결할 수 있게 id 를 붙인다.
+    given(skillRepository.save(any(Skill.class)))
+        .willAnswer(
+            i -> {
+              Skill created = i.getArgument(0);
+              ReflectionTestUtils.setField(created, "id", UUID.randomUUID());
+              return created;
+            });
+    given(jobPostingRepository.findBySourceAndExternalId("SARAMIN", "502"))
+        .willReturn(Optional.of(existing));
 
-    Skill canonical = new Skill("React", "FRAMEWORK", false);
-    Skill duplicate = new Skill("React", "SKILL", false);
+    service.ingestSaraminPosting(
+        "502",
+        "백엔드",
+        "회사",
+        "서울",
+        ExperienceRange.parse("경력무관"),
+        null,
+        new SaraminListingFields("경력무관", "정규직", null, List.of("Java"), List.of()),
+        Instant.now(),
+        "202610",
+        null);
 
-    given(skillRepository.findAll()).willReturn(List.of(canonical, duplicate));
+    assertThat(existing.getSkills()).extracting(Skill::getStandardName).contains("Kafka", "Java");
+    assertThat(existing.getCollectedVia())
+        .isEqualTo(CollectedVia.JUMPIT + "," + CollectedVia.SARAMIN_SEARCH);
+  }
 
-    JobPostingIngestService bulkService =
-        new JobPostingIngestService(
-            jobPostingRepository,
-            skillRepository,
-            rawIngestRepository,
-            jpsRepo,
-            saRepo,
-            usRepo,
-            null);
+  @Test
+  @DisplayName("사람인 목록에서 한 공고의 적재가 실패해도 같은 페이지의 나머지는 저장한다")
+  void saraminItemFailureDoesNotSkipRestOfPage() {
+    for (String id : List.of("801", "802", "803")) {
+      given(jobPostingRepository.findBySourceAndExternalId("SARAMIN", id))
+          .willReturn(Optional.of(JobPosting.builder().source("SARAMIN").externalId(id).build()));
+    }
+    given(jobPostingRepository.save(any(JobPosting.class)))
+        .willAnswer(
+            i -> {
+              JobPosting p = i.getArgument(0);
+              if ("802".equals(p.getExternalId())) {
+                throw new IllegalStateException("boom");
+              }
+              return p;
+            });
+    var doc =
+        org.jsoup.Jsoup.parse(
+            """
+            <div class="item_recruit" value="801"><div class="area_job"><h2 class="job_tit"><a>A</a></h2></div></div>
+            <div class="item_recruit" value="802"><div class="area_job"><h2 class="job_tit"><a>B</a></h2></div></div>
+            <div class="item_recruit" value="803"><div class="area_job"><h2 class="job_tit"><a>C</a></h2></div></div>
+            """);
 
-    int deduped = bulkService.deduplicateSkills();
+    int ingested =
+        service.ingestSaraminItems(
+            doc,
+            doc.select("div.item_recruit"),
+            new java.util.HashSet<>(),
+            Instant.now(),
+            "202610");
 
-    assertThat(deduped).isEqualTo(1);
-    verify(jpsRepo).deleteDuplicateLinks(duplicate.getId(), canonical.getId());
-    verify(jpsRepo).reassignSkill(duplicate.getId(), canonical);
-    verify(saRepo).reassignSkill(duplicate.getId(), canonical);
-    verify(usRepo).deleteDuplicateLinks(duplicate.getId(), canonical.getId());
-    verify(usRepo).reassignSkill(duplicate.getId(), canonical);
-    verify(skillRepository).deleteSkillDirectly(duplicate.getId());
+    assertThat(ingested).isEqualTo(2);
+    ArgumentCaptor<JobPosting> saved = ArgumentCaptor.forClass(JobPosting.class);
+    verify(jobPostingRepository, org.mockito.Mockito.times(3)).save(saved.capture());
+    assertThat(saved.getAllValues())
+        .extracting(JobPosting::getExternalId)
+        .containsExactly("801", "802", "803");
+  }
+
+  @Test
+  @DisplayName("잡코리아 목록에서 한 공고의 적재가 실패해도 같은 페이지의 나머지는 저장한다")
+  void jobKoreaRowFailureDoesNotSkipRestOfPage() {
+    for (String id : List.of("901", "902", "903")) {
+      given(jobPostingRepository.findBySourceAndExternalId("JOBKOREA", id))
+          .willReturn(Optional.of(JobPosting.builder().source("JOBKOREA").externalId(id).build()));
+    }
+    given(jobPostingRepository.save(any(JobPosting.class)))
+        .willAnswer(
+            i -> {
+              JobPosting p = i.getArgument(0);
+              if ("902".equals(p.getExternalId())) {
+                throw new IllegalStateException("boom");
+              }
+              return p;
+            });
+    // href 가 접속할 수 없는 값이라 상세 수집은 실패해 null 로 넘어간다.
+    var doc =
+        org.jsoup.Jsoup.parse(
+            """
+            <table>
+            <tr class="devloopArea" data-gno="901"><td class="tplTit"><strong><a class="link" href="x://a">A</a></strong></td></tr>
+            <tr class="devloopArea" data-gno="902"><td class="tplTit"><strong><a class="link" href="x://b">B</a></strong></td></tr>
+            <tr class="devloopArea" data-gno="903"><td class="tplTit"><strong><a class="link" href="x://c">C</a></strong></td></tr>
+            </table>
+            """);
+
+    int ingested =
+        service.ingestJobKoreaRows(
+            doc, doc.select("tr.devloopArea"), new java.util.HashSet<>(), Instant.now(), "202610");
+
+    assertThat(ingested).isEqualTo(2);
+    ArgumentCaptor<JobPosting> saved = ArgumentCaptor.forClass(JobPosting.class);
+    verify(jobPostingRepository, org.mockito.Mockito.times(3)).save(saved.capture());
+    assertThat(saved.getAllValues())
+        .extracting(JobPosting::getExternalId)
+        .containsExactly("901", "902", "903");
   }
 }

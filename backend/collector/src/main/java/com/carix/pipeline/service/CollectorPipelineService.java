@@ -4,8 +4,11 @@ import com.carix.cpi.CpiIngestService;
 import com.carix.jobposting.JobPostingRepository;
 import com.carix.jobposting.RawIngestRepository;
 import com.carix.jobposting.SkillRepository;
+import com.carix.jobposting.jumpit.JumpitIngestService;
+import com.carix.jobposting.jumpit.JumpitIngestSummary;
 import com.carix.jobposting.seed.SeedLoader;
 import com.carix.jobposting.service.JobPostingIngestService;
+import com.carix.jobposting.service.PostingSkillService;
 import com.carix.pipeline.dto.BackfillRequest;
 import com.carix.pipeline.dto.CpiRequest;
 import com.carix.pipeline.dto.CrawlRequest;
@@ -54,12 +57,14 @@ public class CollectorPipelineService {
   private final WageStatObservationRepository wageStatObservationRepository;
   private final com.carix.market.MarketAggregateRepository marketAggregateRepository;
   private final JobPostingIngestService jobPostingIngestService;
+  private final PostingSkillService postingSkillService;
   private final WageStatIngestService wageStatIngestService;
   private final CpiIngestService cpiIngestService;
   private final com.carix.jobposting.dedup.JobPostingDeduplicator jobPostingDeduplicator;
   private final com.carix.market.MarketAggregateService marketAggregateService;
   private final com.carix.jobposting.backfill.JobKoreaBackfillService jobKoreaBackfillService;
   private final com.carix.jobposting.backfill.SalaryReclassifyService salaryReclassifyService;
+  private final JumpitIngestService jumpitIngestService;
 
   private final AtomicBoolean isJobRunning = new AtomicBoolean(false);
   private final Map<String, JobState> jobHistory =
@@ -90,6 +95,21 @@ public class CollectorPipelineService {
         () -> {
           try {
             log.info("[작업:{}] 채용공고 크롤링 및 DB 적재 작업을 시작합니다...", jobId);
+            String portal =
+                request != null && request.portal() != null
+                    ? request.portal().toUpperCase()
+                    : "ALL";
+            if ("JUMPIT".equals(portal)) {
+              JumpitIngestSummary summary = jumpitIngestService.ingestAll();
+              if (summary.created() + summary.enriched() == 0 && summary.errors() > 0) {
+                state.fail("점핏 수집에서 모든 공고 처리에 실패했습니다 (errors=" + summary.errors() + ")");
+                log.error("[작업:{}] 점핏 수집 전부 실패: {}", jobId, summary);
+                return;
+              }
+              state.complete(summary.toDetails());
+              log.info("[작업:{}] 점핏 수집 완료: {}", jobId, summary);
+              return;
+            }
             int ingested = jobPostingIngestService.crawlAndIngest(request);
             state.complete(Map.of("ingestedJobPostings", ingested));
             log.info("[작업:{}] 채용공고 크롤링 완료. 총 {}건의 공고가 DB에 적재되었습니다.", jobId, ingested);
@@ -225,7 +245,7 @@ public class CollectorPipelineService {
         () -> {
           try {
             log.info("[작업:{}] 채용공고 스킬 일괄 재정제 작업을 시작합니다...", jobId);
-            Map<String, Object> stats = jobPostingIngestService.refineAllPostingSkills();
+            Map<String, Object> stats = postingSkillService.refineAllPostingSkills();
             state.complete(stats);
             log.info("[작업:{}] 채용공고 스킬 재정제 완료: {}", jobId, stats);
           } catch (Exception e) {
