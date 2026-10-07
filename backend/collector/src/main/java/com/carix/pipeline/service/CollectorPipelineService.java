@@ -106,12 +106,14 @@ public class CollectorPipelineService {
                 log.error("[작업:{}] 점핏 수집 전부 실패: {}", jobId, summary);
                 return;
               }
-              state.complete(summary.toDetails());
+              Map<String, Object> details = new java.util.LinkedHashMap<>(summary.toDetails());
+              details.put("portal", portal);
+              state.complete(details);
               log.info("[작업:{}] 점핏 수집 완료: {}", jobId, summary);
               return;
             }
             int ingested = jobPostingIngestService.crawlAndIngest(request);
-            state.complete(Map.of("ingestedJobPostings", ingested));
+            state.complete(Map.of("ingestedJobPostings", ingested, "portal", portal));
             log.info("[작업:{}] 채용공고 크롤링 완료. 총 {}건의 공고가 DB에 적재되었습니다.", jobId, ingested);
           } catch (Exception e) {
             log.error("[작업:{}] 채용공고 크롤링 실패: {}", jobId, e.getMessage(), e);
