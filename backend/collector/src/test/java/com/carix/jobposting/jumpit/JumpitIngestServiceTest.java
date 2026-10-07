@@ -216,9 +216,70 @@ class JumpitIngestServiceTest {
   }
 
   @Test
+  @DisplayName("공고 한 건 처리가 실패해도 나머지를 계속 처리하고 errors 로 센다")
+  void failedPositionDoesNotAbortRun() {
+    given(postings.findBySourceAndExternalId(anyString(), anyString()))
+        .willReturn(Optional.empty());
+    given(postings.save(any(JobPosting.class)))
+        .willAnswer(
+            i -> {
+              JobPosting p = i.getArgument(0);
+              if ("55220506".equals(p.getExternalId())) {
+                throw new IllegalStateException("boom");
+              }
+              return p;
+            });
+
+    JumpitIngestSummary summary = service.ingestAll();
+
+    assertThat(summary.errors()).isEqualTo(1);
+    assertThat(summary.created()).isEqualTo(1);
+    assertThat(summary.fetched()).isEqualTo(2);
+  }
+
+  @Test
+  @DisplayName("사전 확인 뒤 행이 사라져 급여를 못 받았어도 급여 미상으로 새로 만든다")
+  void createsWithUnknownSalaryWhenRowVanishes() {
+    JobPosting ghost =
+        new JobPosting(
+            "SARAMIN",
+            "55220505",
+            "t",
+            "c",
+            null,
+            null,
+            "서울",
+            1,
+            3,
+            "UNKNOWN",
+            "UNKNOWN",
+            null,
+            null,
+            "DEVELOPER",
+            null,
+            null,
+            "202609",
+            "202609",
+            Instant.now());
+    given(postings.findBySourceAndExternalId(anyString(), anyString()))
+        .willReturn(Optional.empty());
+    given(postings.findBySourceAndExternalId("SARAMIN", "55220505"))
+        .willReturn(Optional.of(ghost), Optional.empty());
+
+    JumpitIngestSummary summary = service.ingestAll();
+
+    assertThat(summary.errors()).isZero();
+    assertThat(summary.created()).isEqualTo(2);
+  }
+
+  @Test
   @DisplayName("요약은 작업 details 맵으로 바뀐다")
   void summaryToDetails() {
-    Map<String, Object> d = new JumpitIngestSummary(2, 2, 1, 1, 0, Map.of("ESET", 1)).toDetails();
-    assertThat(d).containsEntry("created", 1).containsEntry("droppedSkills", Map.of("ESET", 1));
+    Map<String, Object> d =
+        new JumpitIngestSummary(2, 2, 1, 1, 0, 3, Map.of("ESET", 1)).toDetails();
+    assertThat(d)
+        .containsEntry("errors", 3)
+        .containsEntry("created", 1)
+        .containsEntry("droppedSkills", Map.of("ESET", 1));
   }
 }

@@ -89,6 +89,7 @@ public class JumpitIngestService {
     int created = 0;
     int enriched = 0;
     int skipped = 0;
+    int errors = 0;
 
     for (int page = 1; page <= MAX_PAGES; page++) {
       Optional<String> body = client.fetchListPage(page);
@@ -109,22 +110,27 @@ public class JumpitIngestService {
         if (!seen.add(position.id())) {
           continue;
         }
-        Outcome outcome = process(position, month, dropped);
-        if (outcome == Outcome.CREATED) {
-          created++;
-        } else {
-          enriched++;
+        try {
+          if (process(position, month, dropped) == Outcome.CREATED) {
+            created++;
+          } else {
+            enriched++;
+          }
+        } catch (RuntimeException e) {
+          errors++;
+          log.warn("[점핏] 공고 {} 처리 실패: {}", position.id(), e.getMessage());
         }
       }
     }
     log.info(
-        "[점핏] 수집 완료: 페이지 {} · 공고 {} · 신규 {} · 보강 {} · 건너뜀 {}",
+        "[점핏] 수집 완료: 페이지 {} · 공고 {} · 신규 {} · 보강 {} · 건너뜀 {} · 실패 {}",
         pages,
         seen.size(),
         created,
         enriched,
-        skipped);
-    return new JumpitIngestSummary(pages, seen.size(), created, enriched, skipped, dropped);
+        skipped,
+        errors);
+    return new JumpitIngestSummary(pages, seen.size(), created, enriched, skipped, errors, dropped);
   }
 
   private Outcome process(JumpitPosition position, String month, Map<String, Integer> dropped) {
@@ -138,7 +144,8 @@ public class JumpitIngestService {
       salary = salaryClassifier.classifySaramin(saraminDetail.fetch(position.id()).orElse(null));
     }
     LocalDate publishedAt = published;
-    PostingSalary postingSalary = salary;
+    // 사전 확인 뒤 행이 사라지면 급여를 받지 않았으므로 미상으로 둔다.
+    PostingSalary postingSalary = salary != null ? salary : salaryClassifier.classifySaramin(null);
     return tx.execute(
         status -> {
           Optional<JobPosting> existing =

@@ -10,6 +10,7 @@ public record JumpitIngestSummary(
     int created,
     int enriched,
     int skipped,
+    int errors,
     Map<String, Integer> droppedSkills) {
 
   public Map<String, Object> toDetails() {
@@ -19,6 +20,7 @@ public record JumpitIngestSummary(
     d.put("created", created);
     d.put("enriched", enriched);
     d.put("skipped", skipped);
+    d.put("errors", errors);
     d.put("droppedSkills", droppedSkills);
     return d;
   }
