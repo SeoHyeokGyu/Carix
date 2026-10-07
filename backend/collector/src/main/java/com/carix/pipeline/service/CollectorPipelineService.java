@@ -142,7 +142,8 @@ public class CollectorPipelineService {
    *
    * @return 비동기 작업 수락 응답
    */
-  public JobExecutionResponse triggerSalaryReclassify(boolean dryRun, Long delayMs) {
+  public JobExecutionResponse triggerSalaryReclassify(
+      boolean dryRun, Long delayMs, boolean onlyUnjudged) {
     ensureNoJobRunning();
     String jobId = UUID.randomUUID().toString();
     Instant now = Instant.now();
@@ -152,7 +153,8 @@ public class CollectorPipelineService {
     CompletableFuture.runAsync(
         () -> {
           try {
-            Map<String, Object> summary = salaryReclassifyService.run(dryRun, delayMs);
+            Map<String, Object> summary =
+                salaryReclassifyService.run(dryRun, delayMs, onlyUnjudged);
             state.complete(summary);
             log.info("[작업:{}] 급여 재판정 완료: {}", jobId, summary);
           } catch (Exception e) {

@@ -1108,6 +1108,7 @@
         | --- | --- | --- |
         | `dryRun` | 선택 | 기본 `true`. `true` 면 DB 를 쓰지 않고 측정만 한다. `false` 면 판정을 저장한다 |
         | `delayMs` | 선택 | 공고 사이 대기(ms). 기본 1000 |
+        | `onlyUnjudged` | 선택 | `true` 면 판정 전(`UNKNOWN`) 공고만 다시 받는다 — 일시 실패로 남은 공고만 다시 판정할 때. 기본 `false`. 요약에 `onlyUnjudged` 가 함께 실린다 |
 
     *   `dryRun=false` 에서 상세페이지를 못 열었거나 급여를 못 읽은 공고는, 한 번도 판정되지 않은 공고에 한해 `UNKNOWN` 으로 두고 기존 연봉 값을 `salary_band_*` 로 옮긴다. 이미 판정된 공고는 건드리지 않는다.
     *   **Response (202 Accepted):** 작업 ID 를 돌려준다(§8.1 과 같은 형식).
