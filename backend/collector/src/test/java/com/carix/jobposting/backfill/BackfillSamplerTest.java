@@ -17,7 +17,7 @@ class BackfillSamplerTest {
   private static final YearMonth MONTH = YearMonth.of(2026, 3);
 
   /** 짝수 ID 만 IT 공고, 3의 배수는 빈 페이지, 그 외는 비IT. 게시일은 모두 그 달. */
-  private static class FakePages implements BackfillSampler.Pages {
+  private static class FakePages implements BackfillSampler.Pages<Void> {
     final List<Long> saved = new ArrayList<>();
     final Set<Long> existing;
 
@@ -31,15 +31,15 @@ class BackfillSamplerTest {
     }
 
     @Override
-    public Optional<BackfillSampler.Candidate> fetch(long id) {
+    public Optional<BackfillSampler.Candidate<Void>> fetch(long id) {
       if (id % 3 == 0) {
         return Optional.empty();
       }
-      return Optional.of(new BackfillSampler.Candidate(id, MONTH.atDay(10), id % 2 == 0));
+      return Optional.of(new BackfillSampler.Candidate<>(id, MONTH.atDay(10), id % 2 == 0));
     }
 
     @Override
-    public void save(BackfillSampler.Candidate candidate, YearMonth month) {
+    public void save(BackfillSampler.Candidate<Void> candidate, YearMonth month) {
       saved.add(candidate.id());
     }
   }
@@ -83,11 +83,11 @@ class BackfillSamplerTest {
   @Test
   @DisplayName("게시일이 그 달이 아니면 저장하지 않는다")
   void rejectsOtherMonth() {
-    BackfillSampler.Pages outOfMonth =
+    BackfillSampler.Pages<Void> outOfMonth =
         new FakePages(Set.of()) {
           @Override
-          public Optional<BackfillSampler.Candidate> fetch(long id) {
-            return Optional.of(new BackfillSampler.Candidate(id, LocalDate.of(2026, 4, 1), true));
+          public Optional<BackfillSampler.Candidate<Void>> fetch(long id) {
+            return Optional.of(new BackfillSampler.Candidate<>(id, LocalDate.of(2026, 4, 1), true));
           }
         };
     BackfillSampler<Void> sampler = new BackfillSampler<>(outOfMonth, new Random(1));
