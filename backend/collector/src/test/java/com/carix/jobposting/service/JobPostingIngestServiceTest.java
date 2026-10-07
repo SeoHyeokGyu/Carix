@@ -407,4 +407,83 @@ class JobPostingIngestServiceTest {
     assertThat(existing.getCollectedVia())
         .isEqualTo(CollectedVia.JUMPIT + "," + CollectedVia.SARAMIN_SEARCH);
   }
+
+  @Test
+  @DisplayName("사람인 목록에서 한 공고의 적재가 실패해도 같은 페이지의 나머지는 저장한다")
+  void saraminItemFailureDoesNotSkipRestOfPage() {
+    for (String id : List.of("801", "802", "803")) {
+      given(jobPostingRepository.findBySourceAndExternalId("SARAMIN", id))
+          .willReturn(Optional.of(JobPosting.builder().source("SARAMIN").externalId(id).build()));
+    }
+    given(jobPostingRepository.save(any(JobPosting.class)))
+        .willAnswer(
+            i -> {
+              JobPosting p = i.getArgument(0);
+              if ("802".equals(p.getExternalId())) {
+                throw new IllegalStateException("boom");
+              }
+              return p;
+            });
+    var doc =
+        org.jsoup.Jsoup.parse(
+            """
+            <div class="item_recruit" value="801"><div class="area_job"><h2 class="job_tit"><a>A</a></h2></div></div>
+            <div class="item_recruit" value="802"><div class="area_job"><h2 class="job_tit"><a>B</a></h2></div></div>
+            <div class="item_recruit" value="803"><div class="area_job"><h2 class="job_tit"><a>C</a></h2></div></div>
+            """);
+
+    int ingested =
+        service.ingestSaraminItems(
+            doc,
+            doc.select("div.item_recruit"),
+            new java.util.HashSet<>(),
+            Instant.now(),
+            "202610");
+
+    assertThat(ingested).isEqualTo(2);
+    ArgumentCaptor<JobPosting> saved = ArgumentCaptor.forClass(JobPosting.class);
+    verify(jobPostingRepository, org.mockito.Mockito.times(3)).save(saved.capture());
+    assertThat(saved.getAllValues())
+        .extracting(JobPosting::getExternalId)
+        .containsExactly("801", "802", "803");
+  }
+
+  @Test
+  @DisplayName("잡코리아 목록에서 한 공고의 적재가 실패해도 같은 페이지의 나머지는 저장한다")
+  void jobKoreaRowFailureDoesNotSkipRestOfPage() {
+    for (String id : List.of("901", "902", "903")) {
+      given(jobPostingRepository.findBySourceAndExternalId("JOBKOREA", id))
+          .willReturn(Optional.of(JobPosting.builder().source("JOBKOREA").externalId(id).build()));
+    }
+    given(jobPostingRepository.save(any(JobPosting.class)))
+        .willAnswer(
+            i -> {
+              JobPosting p = i.getArgument(0);
+              if ("902".equals(p.getExternalId())) {
+                throw new IllegalStateException("boom");
+              }
+              return p;
+            });
+    // href 가 접속할 수 없는 값이라 상세 수집은 실패해 null 로 넘어간다.
+    var doc =
+        org.jsoup.Jsoup.parse(
+            """
+            <table>
+            <tr class="devloopArea" data-gno="901"><td class="tplTit"><strong><a class="link" href="x://a">A</a></strong></td></tr>
+            <tr class="devloopArea" data-gno="902"><td class="tplTit"><strong><a class="link" href="x://b">B</a></strong></td></tr>
+            <tr class="devloopArea" data-gno="903"><td class="tplTit"><strong><a class="link" href="x://c">C</a></strong></td></tr>
+            </table>
+            """);
+
+    int ingested =
+        service.ingestJobKoreaRows(
+            doc, doc.select("tr.devloopArea"), new java.util.HashSet<>(), Instant.now(), "202610");
+
+    assertThat(ingested).isEqualTo(2);
+    ArgumentCaptor<JobPosting> saved = ArgumentCaptor.forClass(JobPosting.class);
+    verify(jobPostingRepository, org.mockito.Mockito.times(3)).save(saved.capture());
+    assertThat(saved.getAllValues())
+        .extracting(JobPosting::getExternalId)
+        .containsExactly("901", "902", "903");
+  }
 }

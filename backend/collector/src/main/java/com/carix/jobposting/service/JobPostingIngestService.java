@@ -139,7 +139,6 @@ public class JobPostingIngestService {
   }
 
   /** 잡코리아 크롤링 & DB 실시간 직접 적재 */
-  @Transactional
   public int crawlAndIngestJobKorea(String keyword, int pageLimit) {
     String currentMonth = YearMonth.now().format(YM_FORMATTER);
     int ingestedCount = 0;
@@ -179,58 +178,7 @@ public class JobPostingIngestService {
           break;
         }
 
-        for (Element row : rows) {
-          String externalId = row.attr("data-gno").strip();
-          if (externalId.isEmpty() || !collectedIds.add(externalId)) {
-            continue;
-          }
-
-          String companyName = row.select(".tplCo a.link").text().strip();
-          Element titleLink = row.selectFirst(".tplTit strong a.link");
-          if (titleLink == null) {
-            continue;
-          }
-          String title = titleLink.text().strip();
-          String link = titleLink.attr("href").strip();
-          if (link.startsWith("/")) {
-            link = "https://www.jobkorea.co.kr" + link;
-          }
-
-          Elements cellSpans = row.select(".tplTit p.etc span.cell");
-          String careerType = cellSpans.size() > 0 ? cellSpans.get(0).text().strip() : "무관";
-          String location = cellSpans.size() > 2 ? cellSpans.get(2).text().strip() : "전국";
-          ExperienceRange experience = ExperienceRange.parse(careerType);
-
-          String createdAtRaw = "";
-          Element timeSpan = row.selectFirst("td.odd span.time");
-          if (timeSpan != null) {
-            createdAtRaw = timeSpan.text().strip();
-          }
-
-          // 상세 페이지 수집 및 DB 저장
-          String detailHtml = fetchDetailHtml(link);
-          if (detailHtml != null) {
-            persistRawIngestIfAbsent("JOBKOREA", "detail-" + externalId, now, currentMonth);
-          }
-
-          JobKoreaListingFields fields =
-              jobKoreaListingEnricher.extract(listDoc.outerHtml(), externalId);
-
-          ingestJobKoreaPosting(
-              externalId,
-              title,
-              companyName,
-              location,
-              experience,
-              createdAtRaw,
-              fields,
-              detailHtml,
-              now,
-              currentMonth);
-
-          ingestedCount++;
-          sleep(500);
-        }
+        ingestedCount += ingestJobKoreaRows(listDoc, rows, collectedIds, now, currentMonth);
 
         sleep(1000);
       } catch (Exception e) {
@@ -243,7 +191,6 @@ public class JobPostingIngestService {
   }
 
   /** 사람인 크롤링 & DB 실시간 직접 적재 */
-  @Transactional
   public int crawlAndIngestSaramin(int pageLimit) {
     String currentMonth = YearMonth.now().format(YM_FORMATTER);
     int ingestedCount = 0;
@@ -279,54 +226,7 @@ public class JobPostingIngestService {
           break;
         }
 
-        for (Element item : items) {
-          String externalId = item.attr("value");
-          if (externalId == null || externalId.trim().isEmpty()) {
-            externalId = item.attr("id");
-          }
-          if (externalId == null || externalId.trim().isEmpty() || !collectedIds.add(externalId)) {
-            continue;
-          }
-
-          Element corpLink = item.selectFirst("div.area_corp strong.corp_name a");
-          String companyName = corpLink != null ? corpLink.text().strip() : "";
-
-          Element titleLink = item.selectFirst("div.area_job h2.job_tit a");
-          if (titleLink == null) {
-            continue;
-          }
-          String title = titleLink.text().strip();
-
-          Elements jobConditions = item.select("div.area_job div.job_condition span");
-          String location = jobConditions.size() > 0 ? jobConditions.get(0).text().strip() : "전국";
-          String career = jobConditions.size() > 1 ? jobConditions.get(1).text().strip() : "무관";
-          ExperienceRange experience = ExperienceRange.parse(career);
-
-          String createdAtRaw = saraminCreatedAtRaw(item);
-
-          SaraminListingFields fields = saraminListingEnricher.extract(doc.outerHtml(), externalId);
-
-          // 상세페이지는 아직 DB 에 없는 공고만 연다 — 기존 공고는 급여를 다시 판정하지 않는다.
-          PostingSalary salaryForNew =
-              jobPostingRepository.findBySourceAndExternalId("SARAMIN", externalId).isPresent()
-                  ? null
-                  : salaryClassifier.classifySaramin(
-                      saraminDetailFetcher.fetch(externalId).orElse(null));
-
-          ingestSaraminPosting(
-              externalId,
-              title,
-              companyName,
-              location,
-              experience,
-              createdAtRaw,
-              fields,
-              now,
-              currentMonth,
-              salaryForNew);
-
-          ingestedCount++;
-        }
+        ingestedCount += ingestSaraminItems(doc, items, collectedIds, now, currentMonth);
 
         sleep(1000);
       } catch (Exception e) {
@@ -336,6 +236,142 @@ public class JobPostingIngestService {
 
     log.info("[Saramin] 크롤링 & DB 적재 완료: 총 {}건", ingestedCount);
     return ingestedCount;
+  }
+
+  /** 목록 한 페이지의 공고를 하나씩 적재한다. 한 공고가 실패해도 나머지는 계속한다. */
+  int ingestJobKoreaRows(
+      Document listDoc, Elements rows, Set<String> collectedIds, Instant now, String currentMonth) {
+    int ingested = 0;
+    for (Element row : rows) {
+      String rowId = row.attr("data-gno").strip();
+      try {
+        if (ingestJobKoreaRow(listDoc, row, collectedIds, now, currentMonth)) {
+          ingested++;
+        }
+      } catch (Exception e) {
+        log.warn("[JobKorea] 공고 {} 적재 실패: {}", rowId, e.getMessage(), e);
+      }
+    }
+    return ingested;
+  }
+
+  private boolean ingestJobKoreaRow(
+      Document listDoc, Element row, Set<String> collectedIds, Instant now, String currentMonth) {
+    String externalId = row.attr("data-gno").strip();
+    if (externalId.isEmpty() || !collectedIds.add(externalId)) {
+      return false;
+    }
+
+    String companyName = row.select(".tplCo a.link").text().strip();
+    Element titleLink = row.selectFirst(".tplTit strong a.link");
+    if (titleLink == null) {
+      return false;
+    }
+    String title = titleLink.text().strip();
+    String link = titleLink.attr("href").strip();
+    if (link.startsWith("/")) {
+      link = "https://www.jobkorea.co.kr" + link;
+    }
+
+    Elements cellSpans = row.select(".tplTit p.etc span.cell");
+    String careerType = cellSpans.size() > 0 ? cellSpans.get(0).text().strip() : "무관";
+    String location = cellSpans.size() > 2 ? cellSpans.get(2).text().strip() : "전국";
+    ExperienceRange experience = ExperienceRange.parse(careerType);
+
+    String createdAtRaw = "";
+    Element timeSpan = row.selectFirst("td.odd span.time");
+    if (timeSpan != null) {
+      createdAtRaw = timeSpan.text().strip();
+    }
+
+    // 상세 페이지 수집 및 DB 저장
+    String detailHtml = fetchDetailHtml(link);
+    if (detailHtml != null) {
+      persistRawIngestIfAbsent("JOBKOREA", "detail-" + externalId, now, currentMonth);
+    }
+
+    JobKoreaListingFields fields = jobKoreaListingEnricher.extract(listDoc.outerHtml(), externalId);
+
+    ingestJobKoreaPosting(
+        externalId,
+        title,
+        companyName,
+        location,
+        experience,
+        createdAtRaw,
+        fields,
+        detailHtml,
+        now,
+        currentMonth);
+
+    sleep(500);
+    return true;
+  }
+
+  /** 목록 한 페이지의 공고를 하나씩 적재한다. 한 공고가 실패해도 나머지는 계속한다. */
+  int ingestSaraminItems(
+      Document doc, Elements items, Set<String> collectedIds, Instant now, String currentMonth) {
+    int ingested = 0;
+    for (Element item : items) {
+      String itemId = item.attr("value");
+      try {
+        if (ingestSaraminItem(doc, item, collectedIds, now, currentMonth)) {
+          ingested++;
+        }
+      } catch (Exception e) {
+        log.warn("[Saramin] 공고 {} 적재 실패: {}", itemId, e.getMessage(), e);
+      }
+    }
+    return ingested;
+  }
+
+  private boolean ingestSaraminItem(
+      Document doc, Element item, Set<String> collectedIds, Instant now, String currentMonth) {
+    String externalId = item.attr("value");
+    if (externalId == null || externalId.trim().isEmpty()) {
+      externalId = item.attr("id");
+    }
+    if (externalId == null || externalId.trim().isEmpty() || !collectedIds.add(externalId)) {
+      return false;
+    }
+
+    Element corpLink = item.selectFirst("div.area_corp strong.corp_name a");
+    String companyName = corpLink != null ? corpLink.text().strip() : "";
+
+    Element titleLink = item.selectFirst("div.area_job h2.job_tit a");
+    if (titleLink == null) {
+      return false;
+    }
+    String title = titleLink.text().strip();
+
+    Elements jobConditions = item.select("div.area_job div.job_condition span");
+    String location = jobConditions.size() > 0 ? jobConditions.get(0).text().strip() : "전국";
+    String career = jobConditions.size() > 1 ? jobConditions.get(1).text().strip() : "무관";
+    ExperienceRange experience = ExperienceRange.parse(career);
+
+    String createdAtRaw = saraminCreatedAtRaw(item);
+
+    SaraminListingFields fields = saraminListingEnricher.extract(doc.outerHtml(), externalId);
+
+    // 상세페이지는 아직 DB 에 없는 공고만 연다 — 기존 공고는 급여를 다시 판정하지 않는다.
+    PostingSalary salaryForNew =
+        jobPostingRepository.findBySourceAndExternalId("SARAMIN", externalId).isPresent()
+            ? null
+            : salaryClassifier.classifySaramin(saraminDetailFetcher.fetch(externalId).orElse(null));
+
+    ingestSaraminPosting(
+        externalId,
+        title,
+        companyName,
+        location,
+        experience,
+        createdAtRaw,
+        fields,
+        now,
+        currentMonth,
+        salaryForNew);
+
+    return true;
   }
 
   /** 공고 하나의 조회·갱신·저장을 한 트랜잭션으로 묶는다. 목록 크롤링은 this 호출이라 호출 스레드에 트랜잭션이 없다. */
