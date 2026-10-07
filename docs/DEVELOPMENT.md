@@ -352,7 +352,6 @@ CONFIG_SERVER_URL=http://144.24.90.88:8890 EUREKA_URL=http://144.24.90.88:8761/e
 | `GET /internal/pipeline/jobs/{jobId}` | 특정 비동기 파이프라인 작업 상태 조회 | `curl http://localhost:8083/internal/pipeline/jobs/{jobId} -H "X-Admin-Key: carix-admin-secret-dev-key"` |
 | `GET /internal/pipeline/jobs` | 최근 실행된 파이프라인 작업 히스토리 목록 조회 | `curl http://localhost:8083/internal/pipeline/jobs -H "X-Admin-Key: carix-admin-secret-dev-key"` |
 | `GET /internal/pipeline/stats` | 수집 DB(`raw_ingest`, `job_posting`, `skill`, `wage_stat`) 건수 통계 | `curl http://localhost:8083/internal/pipeline/stats -H "X-Admin-Key: carix-admin-secret-dev-key"` |
-| `GET /internal/pipeline/recent-postings` | 최근 수집 및 정규화된 채용공고 및 스킬 매핑 결과 조회 | `curl "http://localhost:8083/internal/pipeline/recent-postings?limit=20" -H "X-Admin-Key: carix-admin-secret-dev-key"` |
 
 프로젝트 진행 상태는 [`README.md` 진행 상태](README.md#진행-상태)를 참조.
 

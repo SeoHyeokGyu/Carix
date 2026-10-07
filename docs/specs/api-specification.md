@@ -920,29 +920,6 @@
         }
         ```
 
-### 8.7 최근 수집 공고 미리보기 조회
-*   `GET /internal/pipeline/recent-postings?limit={limit}` — 가장 최근 수집 및 정규화된 채용공고 목록 및 스킬 매핑 결과 조회 (기본 20건, 최대 50건).
-    *   **Response (200 OK):**
-        ```json
-        [
-          {
-            "id": "c1a12345-6789-4abc-def0-123456789012",
-            "source": "JOBKOREA",
-            "externalId": "JK-42819012",
-            "title": "백엔드 스프링부트 시니어 개발자 채용",
-            "companyName": "카릭스랩",
-            "jobFamily": "BACKEND",
-            "salaryMin": 5000,
-            "salaryMax": 8000,
-            "region": "서울 강남구",
-            "experienceMin": 5,
-            "experienceMax": 10,
-            "skills": ["Java", "Spring Boot", "PostgreSQL", "Docker"],
-            "collectedAt": "2026-09-05T17:30:00Z"
-          }
-        ]
-        ```
-
 ### 8.8 데이터 상태 점검 조회
 *   `GET /internal/pipeline/health` — 세 질문(구매력·시장가치·결정 신호)에 온전히 답하는지와 고칠 곳을 판정하는 읽기 전용 점검 (관리자 콘솔 `/admin/data-health` 연동). 데이터를 바꾸지 않는다. 판정할 데이터가 없으면 정상이 아니라 `UNKNOWN`(판정 불가)이다.
     *   **Response (200 OK):**
@@ -1026,10 +1003,11 @@
         | `company` | 선택 | 회사명 부분 일치 |
         | `skill` | 선택 | 표준 스킬명 정확 일치 |
         | `disclosure` | 선택 | 연봉 공개 구분 `PUBLIC`·`BAND`·`NONE`·`UNKNOWN`. 그 밖의 값은 `400 BAD_REQUEST` |
+        | `sort` | 선택 | `recent`(기본, `collectedAt` 내림차순, 같으면 `source`·`externalId` 오름차순)·`source`(`source`, `externalId` 오름차순). 그 밖의 값은 `400 BAD_REQUEST` |
         | `page` | 선택 | 0부터. 기본 0 |
         | `size` | 선택 | 기본 50, 최대 100 (넘으면 100) |
 
-    *   `collectedVia` 는 공고를 확인한 수집 경로 목록(쉼표 구분: `JOBKOREA_LIST`·`JOBKOREA_BACKFILL`·`JOBKOREA_SEED`·`SARAMIN_SEARCH`·`JUMPIT`)이고 `sourceJobTags` 는 원천의 직군 태그 원본(점핏 `jobCategory`)이며 없으면 `null` 이다. 정렬은 `source`, `externalId` 오름차순이다. `url` 은 원천 공고 링크로, 잡코리아 `https://www.jobkorea.co.kr/Recruit/GI_Read/{externalId}`, 사람인 `https://www.saramin.co.kr/zf_user/jobs/relay/view?rec_idx={externalId}` 다.
+    *   `collectedVia` 는 공고를 확인한 수집 경로 목록(쉼표 구분: `JOBKOREA_LIST`·`JOBKOREA_BACKFILL`·`JOBKOREA_SEED`·`SARAMIN_SEARCH`·`JUMPIT`)이고 `sourceJobTags` 는 원천의 직군 태그 원본(점핏 `jobCategory`)이며 없으면 `null` 이다. `collectedAt` 은 공고를 수집한 시각(UTC)이다. `url` 은 원천 공고 링크로, 잡코리아 `https://www.jobkorea.co.kr/Recruit/GI_Read/{externalId}`, 사람인 `https://www.saramin.co.kr/zf_user/jobs/relay/view?rec_idx={externalId}` 다.
     *   **Response (200 OK):**
         ```json
         {
@@ -1054,6 +1032,7 @@
               "sampledMonth": "202607",
               "collectedVia": "JOBKOREA_LIST",
               "sourceJobTags": null,
+              "collectedAt": "2026-07-03T01:00:00Z",
               "salaryMin": 50000000,
               "salaryMax": null,
               "salaryBandMin": null,
