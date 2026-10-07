@@ -104,7 +104,9 @@ class CollectorPipelineServiceTest {
 
     JobStatusResponse status = service.getJobStatus(response.jobId());
     assertThat(status.status()).isEqualTo("SUCCESS");
-    assertThat(status.details()).containsEntry("ingestedJobPostings", 10);
+    assertThat(status.details())
+        .containsEntry("ingestedJobPostings", 10)
+        .containsEntry("portal", "JOBKOREA");
   }
 
   @Test
@@ -119,7 +121,10 @@ class CollectorPipelineServiceTest {
 
     JobStatusResponse status = service.getJobStatus(response.jobId());
     assertThat(status.status()).isEqualTo("SUCCESS");
-    assertThat(status.details()).containsEntry("created", 20).containsEntry("errors", 2);
+    assertThat(status.details())
+        .containsEntry("created", 20)
+        .containsEntry("errors", 2)
+        .containsEntry("portal", "JUMPIT");
   }
 
   @Test

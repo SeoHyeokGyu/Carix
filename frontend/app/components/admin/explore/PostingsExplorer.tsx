@@ -1,6 +1,9 @@
 import { useState } from "react";
 import type { PostingItem, PostingPage } from "../../../lib/collectorApi";
-import { formatSalaryCell } from "../../../lib/dataExplore";
+import {
+  formatCollectedDate,
+  formatSalaryCell,
+} from "../../../lib/dataExplore";
 import { Button } from "@/components/ui/button";
 
 const COLLECTED_VIA_LABEL: Record<string, string> = {
@@ -57,7 +60,8 @@ function Row({ p }: { p: PostingItem }) {
             <p>스킬: {p.skills.length > 0 ? p.skills.join(", ") : "없음"}</p>
             <p>
               고용형태 {p.employmentType ?? "-"} · 지역 {p.region ?? "-"} · 마감{" "}
-              {p.postedEndDate ?? "-"} · 관측월 {p.firstSeenMonth ?? "-"}
+              {p.postedEndDate ?? "-"} · 관측월 {p.firstSeenMonth ?? "-"} · 수집{" "}
+              {formatCollectedDate(p.collectedAt)}
             </p>
             <p>
               확인 경로 {formatCollectedVia(p)} · 원천 직군 태그{" "}

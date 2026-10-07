@@ -1,5 +1,6 @@
 package com.carix.pipeline.dto.explore;
 
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
 
@@ -28,5 +29,6 @@ public record PostingPage(long total, int page, int size, List<Item> items) {
       String salaryDisclosure,
       List<String> skills,
       String collectedVia,
-      String sourceJobTags) {}
+      String sourceJobTags,
+      Instant collectedAt) {}
 }

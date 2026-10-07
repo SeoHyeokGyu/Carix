@@ -244,35 +244,6 @@ class CollectorPipelineControllerTest {
   }
 
   @Test
-  @DisplayName("GET /internal/pipeline/recent-postings - 최근 수집 공고 목록 조회 시 200 OK 반환")
-  void getRecentPostingsReturnsOk() throws Exception {
-    com.carix.pipeline.dto.RecentPostingResponse posting =
-        new com.carix.pipeline.dto.RecentPostingResponse(
-            java.util.UUID.randomUUID(),
-            "JOBKOREA",
-            "JK-12345",
-            "백엔드 개발자 채용",
-            "테스트회사",
-            "BACKEND",
-            4000L,
-            6000L,
-            "서울",
-            3,
-            7,
-            List.of("Java", "Spring Boot"),
-            Instant.now());
-    when(pipelineService.getRecentPostings(20)).thenReturn(List.of(posting));
-
-    mockMvc
-        .perform(get("/internal/pipeline/recent-postings?limit=20"))
-        .andExpect(status().isOk())
-        .andExpect(jsonPath("$[0].externalId").value("JK-12345"))
-        .andExpect(jsonPath("$[0].source").value("JOBKOREA"))
-        .andExpect(jsonPath("$[0].title").value("백엔드 개발자 채용"))
-        .andExpect(jsonPath("$[0].skills[0]").value("Java"));
-  }
-
-  @Test
   @DisplayName("GET /internal/pipeline/priorities - MVI 데이터 수집 우선순위 조회 시 200 OK 반환")
   void getCollectionPrioritiesReturnsOk() throws Exception {
     com.carix.pipeline.dto.CollectionPriorityResponse priorityResponse =

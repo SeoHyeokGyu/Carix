@@ -33,9 +33,11 @@ public class DataExploreController {
       @RequestParam(required = false) String company,
       @RequestParam(required = false) String skill,
       @RequestParam(required = false) String disclosure,
+      @RequestParam(required = false) String sort,
       @RequestParam(required = false) Integer page,
       @RequestParam(required = false) Integer size) {
-    return service.postings(month, source, sampled, family, company, skill, disclosure, page, size);
+    return service.postings(
+        month, source, sampled, family, company, skill, disclosure, sort, page, size);
   }
 
   @GetMapping("/cpi")

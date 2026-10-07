@@ -27,6 +27,7 @@ const item: PostingItem = {
   skills: [],
   collectedVia: "SARAMIN_SEARCH,JUMPIT",
   sourceJobTags: "정보보안 담당자",
+  collectedAt: "2026-10-06T15:30:00Z",
 };
 
 describe("PostingsExplorer", () => {
@@ -46,6 +47,19 @@ describe("PostingsExplorer", () => {
     expect(
       screen.getByText(/원천 직군 태그 정보보안 담당자/),
     ).toBeInTheDocument();
+  });
+
+  it("상세 펼침에 수집 날짜를 보여 준다", async () => {
+    render(
+      <PostingsExplorer
+        data={{ total: 1, page: 0, size: 20, items: [item] }}
+        onPage={() => {}}
+      />,
+    );
+    await userEvent.click(
+      screen.getByRole("button", { name: "인프라보안 상세" }),
+    );
+    expect(screen.getByText(/수집 2026-10-07/)).toBeInTheDocument();
   });
 
   it("확인 경로가 없으면 '-' 로 보여 준다", async () => {

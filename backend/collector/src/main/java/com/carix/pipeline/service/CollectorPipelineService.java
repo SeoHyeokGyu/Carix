@@ -106,12 +106,14 @@ public class CollectorPipelineService {
                 log.error("[작업:{}] 점핏 수집 전부 실패: {}", jobId, summary);
                 return;
               }
-              state.complete(summary.toDetails());
+              Map<String, Object> details = new java.util.LinkedHashMap<>(summary.toDetails());
+              details.put("portal", portal);
+              state.complete(details);
               log.info("[작업:{}] 점핏 수집 완료: {}", jobId, summary);
               return;
             }
             int ingested = jobPostingIngestService.crawlAndIngest(request);
-            state.complete(Map.of("ingestedJobPostings", ingested));
+            state.complete(Map.of("ingestedJobPostings", ingested, "portal", portal));
             log.info("[작업:{}] 채용공고 크롤링 완료. 총 {}건의 공고가 DB에 적재되었습니다.", jobId, ingested);
           } catch (Exception e) {
             log.error("[작업:{}] 채용공고 크롤링 실패: {}", jobId, e.getMessage(), e);
@@ -536,39 +538,6 @@ public class CollectorPipelineService {
     }
 
     return new PipelineStatsResponse(rawCount, postingCount, skillCount, wageCount, bySource);
-  }
-
-  /**
-   * 최근 수집/정규화된 채용공고 목록을 최신순으로 조회합니다.
-   *
-   * @param limit 조회할 최대 건수 (최대 50건)
-   * @return 최근 공고 미리보기 DTO 목록
-   */
-  @org.springframework.transaction.annotation.Transactional(readOnly = true)
-  public List<com.carix.pipeline.dto.RecentPostingResponse> getRecentPostings(int limit) {
-    int safeLimit = Math.max(1, Math.min(limit, 50));
-    org.springframework.data.domain.Pageable pageable =
-        org.springframework.data.domain.PageRequest.of(0, safeLimit);
-    return jobPostingRepository.findAllByOrderByCollectedAtDesc(pageable).stream()
-        .map(
-            jp ->
-                new com.carix.pipeline.dto.RecentPostingResponse(
-                    jp.getId(),
-                    jp.getSource(),
-                    jp.getExternalId(),
-                    jp.getTitle(),
-                    jp.getCompanyName(),
-                    jp.getJobFamily(),
-                    jp.getSalaryMin(),
-                    jp.getSalaryMax(),
-                    jp.getRegion(),
-                    jp.getExperienceMin(),
-                    jp.getExperienceMax(),
-                    jp.getSkills().stream()
-                        .map(com.carix.jobposting.Skill::getStandardName)
-                        .toList(),
-                    jp.getCollectedAt()))
-        .toList();
   }
 
   private void ensureNoJobRunning() {

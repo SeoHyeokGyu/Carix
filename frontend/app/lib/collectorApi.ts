@@ -31,22 +31,6 @@ export interface JobExecutionResponse {
   startedAt: string;
 }
 
-export interface RecentPostingResponse {
-  id: string;
-  source: string;
-  externalId: string;
-  title: string;
-  companyName?: string;
-  jobFamily?: string;
-  salaryMin?: number;
-  salaryMax?: number;
-  region?: string;
-  experienceMin?: number;
-  experienceMax?: number;
-  skills: string[];
-  collectedAt: string;
-}
-
 export interface CrawlRequest {
   portal?: "JOBKOREA" | "SARAMIN" | "JUMPIT" | "ALL";
   maxPages?: number;
@@ -162,14 +146,6 @@ export function fetchRecentJobs(): Promise<JobStatusResponse[]> {
 
 export function fetchJobStatus(jobId: string): Promise<JobStatusResponse> {
   return request<JobStatusResponse>(`/jobs/${encodeURIComponent(jobId)}`, {
-    method: "GET",
-  });
-}
-
-export function fetchRecentPostings(
-  limit = 20,
-): Promise<RecentPostingResponse[]> {
-  return request<RecentPostingResponse[]>(`/recent-postings?limit=${limit}`, {
     method: "GET",
   });
 }
@@ -354,6 +330,7 @@ export interface PostingItem {
   skills: string[];
   collectedVia: string | null;
   sourceJobTags: string | null;
+  collectedAt: string;
 }
 
 export interface PostingPage {
@@ -371,6 +348,7 @@ export interface PostingQuery {
   company?: string;
   skill?: string;
   disclosure?: string;
+  sort?: "recent" | "source";
   page: number;
 }
 

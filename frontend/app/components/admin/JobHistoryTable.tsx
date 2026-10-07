@@ -1,5 +1,7 @@
 import { useState } from "react";
+import { Link } from "react-router";
 import type { JobStatusResponse } from "../../lib/collectorApi";
+import { crawlJobDataHref } from "../../lib/dataExplore";
 
 interface JobHistoryTableProps {
   jobs: JobStatusResponse[];
@@ -187,6 +189,7 @@ export function JobHistoryTable({ jobs, isLoading }: JobHistoryTableProps) {
             ) : (
               filteredJobs.map((job) => {
                 const typeInfo = getJobTypeLabel(job.jobType);
+                const href = crawlJobDataHref(job);
                 return (
                   <tr
                     key={job.jobId}
@@ -219,6 +222,14 @@ export function JobHistoryTable({ jobs, isLoading }: JobHistoryTableProps) {
                         </span>
                       ) : (
                         renderDetails(job.details)
+                      )}
+                      {href && (
+                        <Link
+                          to={href}
+                          className="mt-1 inline-block text-[11px] text-carix-info underline"
+                        >
+                          이 달 신규 공고 보기
+                        </Link>
                       )}
                     </td>
                   </tr>

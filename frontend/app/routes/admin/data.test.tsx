@@ -63,6 +63,7 @@ const postings: api.PostingPage = {
       skills: ["QA"],
       collectedVia: null,
       sourceJobTags: null,
+      collectedAt: "2026-07-03T01:00:00Z",
     },
   ],
 };
@@ -128,6 +129,36 @@ describe("DataExplorePage", () => {
     await screen.findByText("QA 채용");
     expect(api.fetchPostings).toHaveBeenCalledWith(
       expect.objectContaining({ disclosure: "BAND" }),
+    );
+  });
+
+  it("정렬 기본값은 최근 수집순이고 URL 의 sort 를 API 로 넘긴다", async () => {
+    renderAt("/admin/data?tab=postings&month=202607");
+    await screen.findByText("QA 채용");
+    expect(screen.getByLabelText("정렬")).toHaveValue("recent");
+    expect(api.fetchPostings).toHaveBeenCalledWith(
+      expect.objectContaining({ sort: "recent" }),
+    );
+  });
+
+  it("URL 의 sort=source 를 선택 상태와 API 에 반영한다", async () => {
+    renderAt("/admin/data?tab=postings&month=202607&sort=source");
+    await screen.findByText("QA 채용");
+    expect(screen.getByLabelText("정렬")).toHaveValue("source");
+    expect(api.fetchPostings).toHaveBeenCalledWith(
+      expect.objectContaining({ sort: "source" }),
+    );
+  });
+
+  it("정렬을 바꿔 조회하면 다시 불러온다", async () => {
+    renderAt("/admin/data?tab=postings&month=202607");
+    await screen.findByText("QA 채용");
+    await userEvent.selectOptions(screen.getByLabelText("정렬"), "source");
+    await userEvent.click(screen.getByRole("button", { name: "조회" }));
+    await waitFor(() =>
+      expect(api.fetchPostings).toHaveBeenLastCalledWith(
+        expect.objectContaining({ sort: "source", page: 0 }),
+      ),
     );
   });
 

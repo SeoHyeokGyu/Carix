@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
+  crawlJobDataHref,
+  formatCollectedDate,
   formatManwon,
   formatSalaryCell,
   formatSalaryRange,
@@ -90,5 +92,54 @@ describe("formatSalaryCell", () => {
 
   it("1억 이상 금액 표기", () => {
     expect(formatManwon(120_000_000)).toBe("1억 2,000만원");
+  });
+});
+
+describe("crawlJobDataHref", () => {
+  const base = {
+    jobType: "CRAWL",
+    status: "SUCCESS",
+    startedAt: "2026-10-07T01:00:00Z",
+  };
+
+  it("성공한 크롤링은 시작월·포털 원천으로 공고 탭 링크를 만든다", () => {
+    expect(crawlJobDataHref({ ...base, details: { portal: "JOBKOREA" } })).toBe(
+      "/admin/data?tab=postings&month=202610&sort=recent&source=JOBKOREA",
+    );
+    expect(
+      crawlJobDataHref({ ...base, details: { portal: "SARAMIN" } }),
+    ).toContain("source=SARAMIN");
+  });
+
+  it("점핏은 사람인 원천으로, 전체는 원천 없이 연다", () => {
+    expect(crawlJobDataHref({ ...base, details: { portal: "JUMPIT" } })).toBe(
+      "/admin/data?tab=postings&month=202610&sort=recent&source=SARAMIN",
+    );
+    expect(crawlJobDataHref({ ...base, details: { portal: "ALL" } })).toBe(
+      "/admin/data?tab=postings&month=202610&sort=recent",
+    );
+    expect(crawlJobDataHref({ ...base, details: null })).toBe(
+      "/admin/data?tab=postings&month=202610&sort=recent",
+    );
+  });
+
+  it("월은 collector 와 같은 UTC 기준이다", () => {
+    expect(
+      crawlJobDataHref({ ...base, startedAt: "2026-10-31T16:00:00Z" }),
+    ).toContain("month=202610");
+    expect(
+      crawlJobDataHref({ ...base, startedAt: "2026-11-01T00:30:00+09:00" }),
+    ).toContain("month=202610");
+  });
+
+  it("크롤링이 아니거나 성공이 아니면 링크가 없다", () => {
+    expect(crawlJobDataHref({ ...base, status: "FAILED" })).toBeNull();
+    expect(crawlJobDataHref({ ...base, jobType: "CPI_INGEST" })).toBeNull();
+  });
+});
+
+describe("formatCollectedDate", () => {
+  it("서울 날짜로 보여 준다", () => {
+    expect(formatCollectedDate("2026-09-30T16:00:00Z")).toBe("2026-10-01");
   });
 });

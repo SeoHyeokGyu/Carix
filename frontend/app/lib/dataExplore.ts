@@ -1,4 +1,4 @@
-import type { PostingItem } from "./collectorApi";
+import type { JobStatusResponse, PostingItem } from "./collectorApi";
 
 export type ExploreTab = "monthly" | "postings" | "cpi" | "wage";
 
@@ -85,4 +85,63 @@ export function formatSalaryCell(p: SalaryFields): {
         ? formatSalaryRange(p.salaryBandMin, p.salaryBandMax)
         : null;
   return { text: stored ? `판정 전 (${stored})` : "판정 전", muted: true };
+}
+
+export type PostingSort = "recent" | "source";
+
+export const POSTING_SORTS: { id: PostingSort; label: string }[] = [
+  { id: "recent", label: "최근 수집순" },
+  { id: "source", label: "원천·번호순" },
+];
+
+export function parsePostingSort(value: string | null): PostingSort {
+  return value === "source" ? "source" : "recent";
+}
+
+const SEOUL = "Asia/Seoul";
+
+function zonedParts(
+  iso: string,
+  timeZone: string,
+): { y: string; m: string; d: string } {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(new Date(iso));
+  const get = (t: string) => parts.find((p) => p.type === t)?.value ?? "";
+  return { y: get("year"), m: get("month"), d: get("day") };
+}
+
+/** 수집 시각(UTC instant) → 서울 기준 yyyy-MM-dd. */
+export function formatCollectedDate(iso: string): string {
+  const { y, m, d } = zonedParts(iso, SEOUL);
+  return `${y}-${m}-${d}`;
+}
+
+/** 크롤링 포털 → 공고 탭 원천 필터. 점핏 공고는 사람인 원천으로 저장된다. */
+const PORTAL_SOURCE: Record<string, string> = {
+  JOBKOREA: "JOBKOREA",
+  SARAMIN: "SARAMIN",
+  JUMPIT: "SARAMIN",
+};
+
+/**
+ * 성공한 크롤링 작업 → 수집 데이터 공고 탭(최근 수집순) 링크. 해당 없으면 null.
+ * 관측월은 UTC 로 도는 collector 의 `YearMonth.now()` 기준이라 월도 UTC 로 구한다.
+ */
+export function crawlJobDataHref(
+  job: Pick<JobStatusResponse, "jobType" | "status" | "startedAt" | "details">,
+): string | null {
+  if (job.jobType !== "CRAWL" || job.status !== "SUCCESS") return null;
+  const { y, m } = zonedParts(job.startedAt, "UTC");
+  const sp = new URLSearchParams({
+    tab: "postings",
+    month: `${y}${m}`,
+    sort: "recent",
+  });
+  const source = PORTAL_SOURCE[String(job.details?.portal ?? "")];
+  if (source) sp.set("source", source);
+  return `/admin/data?${sp.toString()}`;
 }
