@@ -3,6 +3,22 @@ import type { PostingItem, PostingPage } from "../../../lib/collectorApi";
 import { formatSalaryCell } from "../../../lib/dataExplore";
 import { Button } from "@/components/ui/button";
 
+const COLLECTED_VIA_LABEL: Record<string, string> = {
+  JOBKOREA_LIST: "잡코리아 목록",
+  JOBKOREA_BACKFILL: "잡코리아 표본",
+  JOBKOREA_SEED: "잡코리아 시드",
+  SARAMIN_SEARCH: "사람인 검색",
+  JUMPIT: "점핏",
+};
+
+function collectedVia(p: PostingItem): string {
+  if (!p.collectedVia) return "-";
+  return p.collectedVia
+    .split(",")
+    .map((v) => COLLECTED_VIA_LABEL[v] ?? v)
+    .join(" · ");
+}
+
 function experience(p: PostingItem): string {
   if (p.experienceMin == null && p.experienceMax == null) return "무관/미상";
   return `${p.experienceMin ?? 0}~${p.experienceMax ?? ""}년`;
@@ -42,6 +58,10 @@ function Row({ p }: { p: PostingItem }) {
             <p>
               고용형태 {p.employmentType ?? "-"} · 지역 {p.region ?? "-"} · 마감{" "}
               {p.postedEndDate ?? "-"} · 관측월 {p.firstSeenMonth ?? "-"}
+            </p>
+            <p>
+              확인 경로 {collectedVia(p)} · 원천 직군 태그{" "}
+              {p.sourceJobTags ?? "-"}
             </p>
             {p.url && (
               <a

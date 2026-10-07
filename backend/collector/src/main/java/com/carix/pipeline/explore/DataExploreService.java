@@ -323,7 +323,9 @@ public class DataExploreService {
                         r.salaryBandMin(),
                         r.salaryBandMax(),
                         r.salaryDisclosure(),
-                        skills.getOrDefault(r.id(), List.of())))
+                        skills.getOrDefault(r.id(), List.of()),
+                        r.collectedVia(),
+                        r.sourceJobTags()))
             .toList();
     return new PostingPage(total, p, s, items);
   }

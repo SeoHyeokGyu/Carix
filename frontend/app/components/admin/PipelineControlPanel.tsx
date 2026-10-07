@@ -28,7 +28,9 @@ export function PipelineControlPanel({
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // 크롤링 폼 상태
-  const [portal, setPortal] = useState<"ALL" | "JOBKOREA" | "SARAMIN">("ALL");
+  const [portal, setPortal] = useState<
+    "ALL" | "JOBKOREA" | "SARAMIN" | "JUMPIT"
+  >("ALL");
   const [maxPages, setMaxPages] = useState<number>(5);
   const [delayMs, setDelayMs] = useState<number>(500);
 
@@ -168,13 +170,17 @@ export function PipelineControlPanel({
                 <select
                   value={portal}
                   onChange={(e) =>
-                    setPortal(e.target.value as "ALL" | "JOBKOREA" | "SARAMIN")
+                    setPortal(
+                      e.target.value as
+                        "ALL" | "JOBKOREA" | "SARAMIN" | "JUMPIT",
+                    )
                   }
                   className="w-full rounded-md border border-carix-border bg-carix-bg px-3 py-1.5 text-xs text-carix-text"
                 >
                   <option value="ALL">전체 포털 (잡코리아 + 사람인)</option>
                   <option value="JOBKOREA">잡코리아 (JobKorea)</option>
                   <option value="SARAMIN">사람인 (Saramin)</option>
+                  <option value="JUMPIT">점핏 (Jumpit)</option>
                 </select>
               </div>
 
