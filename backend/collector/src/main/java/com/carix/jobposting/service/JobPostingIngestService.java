@@ -365,7 +365,34 @@ public class JobPostingIngestService {
     return ingestedCount;
   }
 
+  /** 공고 하나의 조회·갱신·저장을 한 트랜잭션으로 묶는다. 목록 크롤링은 this 호출이라 호출 스레드에 트랜잭션이 없다. */
   void ingestJobKoreaPosting(
+      String externalId,
+      String title,
+      String companyName,
+      String location,
+      ExperienceRange experience,
+      String createdAtRaw,
+      JobKoreaListingFields fields,
+      String detailHtml,
+      Instant now,
+      String currentMonth) {
+    tx.executeWithoutResult(
+        status ->
+            upsertJobKoreaPosting(
+                externalId,
+                title,
+                companyName,
+                location,
+                experience,
+                createdAtRaw,
+                fields,
+                detailHtml,
+                now,
+                currentMonth));
+  }
+
+  private void upsertJobKoreaPosting(
       String externalId,
       String title,
       String companyName,
