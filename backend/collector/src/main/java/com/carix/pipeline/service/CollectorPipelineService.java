@@ -538,39 +538,6 @@ public class CollectorPipelineService {
     return new PipelineStatsResponse(rawCount, postingCount, skillCount, wageCount, bySource);
   }
 
-  /**
-   * 최근 수집/정규화된 채용공고 목록을 최신순으로 조회합니다.
-   *
-   * @param limit 조회할 최대 건수 (최대 50건)
-   * @return 최근 공고 미리보기 DTO 목록
-   */
-  @org.springframework.transaction.annotation.Transactional(readOnly = true)
-  public List<com.carix.pipeline.dto.RecentPostingResponse> getRecentPostings(int limit) {
-    int safeLimit = Math.max(1, Math.min(limit, 50));
-    org.springframework.data.domain.Pageable pageable =
-        org.springframework.data.domain.PageRequest.of(0, safeLimit);
-    return jobPostingRepository.findAllByOrderByCollectedAtDesc(pageable).stream()
-        .map(
-            jp ->
-                new com.carix.pipeline.dto.RecentPostingResponse(
-                    jp.getId(),
-                    jp.getSource(),
-                    jp.getExternalId(),
-                    jp.getTitle(),
-                    jp.getCompanyName(),
-                    jp.getJobFamily(),
-                    jp.getSalaryMin(),
-                    jp.getSalaryMax(),
-                    jp.getRegion(),
-                    jp.getExperienceMin(),
-                    jp.getExperienceMax(),
-                    jp.getSkills().stream()
-                        .map(com.carix.jobposting.Skill::getStandardName)
-                        .toList(),
-                    jp.getCollectedAt()))
-        .toList();
-  }
-
   private void ensureNoJobRunning() {
     if (!isJobRunning.compareAndSet(false, true)) {
       throw new ResponseStatusException(HttpStatus.CONFLICT, "다른 파이프라인 작업이 이미 진행 중입니다.");

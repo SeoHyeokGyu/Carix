@@ -251,18 +251,6 @@ public class CollectorPipelineController {
   }
 
   /**
-   * [GET /internal/pipeline/recent-postings] 최근 수집/정규화된 채용공고 목록 조회 (최대 50건).
-   *
-   * @param limit 조회할 공고 건수 (기본값 20, 최대 50)
-   * @return 최근 채용공고 목록 (스킬 태그 포함)
-   */
-  @GetMapping("/recent-postings")
-  public ResponseEntity<List<com.carix.pipeline.dto.RecentPostingResponse>> getRecentPostings(
-      @RequestParam(value = "limit", defaultValue = "20") int limit) {
-    return ResponseEntity.ok(pipelineService.getRecentPostings(limit));
-  }
-
-  /**
    * [GET /internal/pipeline/priorities] MVI 시장 데이터 수집 우선순위 산출 결과 조회 (개발 계획 §2 b8b).
    *
    * @param month 기준 년월 (YYYYMM, null 시 최신 적재월 또는 당월)
