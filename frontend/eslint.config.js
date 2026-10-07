@@ -64,7 +64,6 @@ export default tseslint.config(
       "app/components/admin/CollectorStatusBanner.tsx", // 박지수
       "app/components/admin/JobHistoryTable.tsx", // 박지수
       "app/components/admin/PipelineControlPanel.tsx", // 박지수
-      "app/components/admin/RecentPostingsTable.tsx", // 박지수
       "app/routes/admin/collector.tsx", // 박지수
       "app/components/dashboard/SkillDemandSection.tsx", // B
       "app/routes/dashboard/history.tsx", // B

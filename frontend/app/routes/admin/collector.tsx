@@ -2,11 +2,9 @@ import { useState, useEffect, useCallback } from "react";
 import {
   fetchPipelineStats,
   fetchRecentJobs,
-  fetchRecentPostings,
   getAdminKey,
   type PipelineStatsResponse,
   type JobStatusResponse,
-  type RecentPostingResponse,
   type JobExecutionResponse,
 } from "../../lib/collectorApi";
 import { ThemeToggle } from "../../components/ThemeToggle";
@@ -16,7 +14,6 @@ import { CollectorStatusBanner } from "../../components/admin/CollectorStatusBan
 import { CollectorStatsCards } from "../../components/admin/CollectorStatsCards";
 import { PipelineControlPanel } from "../../components/admin/PipelineControlPanel";
 import { JobHistoryTable } from "../../components/admin/JobHistoryTable";
-import { RecentPostingsTable } from "../../components/admin/RecentPostingsTable";
 
 export function meta() {
   return [
@@ -31,9 +28,6 @@ export function meta() {
 export default function CollectorAdminPage() {
   const [stats, setStats] = useState<PipelineStatsResponse | null>(null);
   const [jobs, setJobs] = useState<JobStatusResponse[]>([]);
-  const [recentPostings, setRecentPostings] = useState<RecentPostingResponse[]>(
-    [],
-  );
   const [isLoading, setIsLoading] = useState(false);
   const [hasAdminKey, setHasAdminKey] = useState(() => Boolean(getAdminKey()));
   const [isKeyModalOpen, setIsKeyModalOpen] = useState(false);
@@ -48,10 +42,9 @@ export default function CollectorAdminPage() {
   const loadData = useCallback(async (isSilent = false) => {
     if (!isSilent) setIsLoading(true);
     try {
-      const [statsData, jobsData, postingsData] = await Promise.allSettled([
+      const [statsData, jobsData] = await Promise.allSettled([
         fetchPipelineStats(),
         fetchRecentJobs(),
-        fetchRecentPostings(20),
       ]);
 
       if (statsData.status === "fulfilled") {
@@ -59,9 +52,6 @@ export default function CollectorAdminPage() {
       }
       if (jobsData.status === "fulfilled") {
         setJobs(jobsData.value);
-      }
-      if (postingsData.status === "fulfilled") {
-        setRecentPostings(postingsData.value);
       }
     } catch {
       // ignore settled errors
@@ -81,15 +71,12 @@ export default function CollectorAdminPage() {
 
     const interval = setInterval(async () => {
       try {
-        const [statsData, jobsData, postingsData] = await Promise.allSettled([
+        const [statsData, jobsData] = await Promise.allSettled([
           fetchPipelineStats(),
           fetchRecentJobs(),
-          fetchRecentPostings(20),
         ]);
 
         if (statsData.status === "fulfilled") setStats(statsData.value);
-        if (postingsData.status === "fulfilled")
-          setRecentPostings(postingsData.value);
         if (jobsData.status === "fulfilled") {
           const latestJobs = jobsData.value;
           setJobs(latestJobs);
@@ -189,14 +176,6 @@ export default function CollectorAdminPage() {
         {/* 4. 작업 실행 이력 테이블 */}
         <section>
           <JobHistoryTable jobs={jobs} isLoading={isLoading} />
-        </section>
-
-        {/* 5. 최근 수집 공고 미리보기 테이블 */}
-        <section>
-          <RecentPostingsTable
-            postings={recentPostings}
-            isLoading={isLoading}
-          />
         </section>
       </main>
 
