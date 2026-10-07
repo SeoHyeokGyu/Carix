@@ -403,7 +403,7 @@ A안의 직종 해상도가 드러난 뒤 대체 후보로 실측했다. 아래�
 | --- | --- | --- |
 | 목록 | `GET https://www.wanted.co.kr/api/v4/jobs?country=kr&tag_type_ids=518&job_sort=job.latest_order&years=-1&locations=all&limit=100&offset={N}` | 페이지당 100건, 개발 직군(518). 목록 한 페이지가 `raw_ingest` 한 건이다 |
 | 공고 페이지 | `GET https://www.wanted.co.kr/wd/{id}` | `__NEXT_DATA__` 에 게시일 `confirm_time`·직군 태그·경력·지역·회사·고용형태·본문이 있다. 상위 태그가 518 이 아니거나 `__NEXT_DATA__` 가 없거나 페이지의 번호가 목록 번호와 다르면 건너뛴다 |
-| 상세 API | `GET https://www.wanted.co.kr/api/v4/jobs/{id}` | 스킬 태그 `skill_tags` 만 쓴다. 페이지에 스킬 태그가 없어 신규 공고와 표본으로 남은 공고만 연다 |
+| 상세 API | `GET https://www.wanted.co.kr/api/v4/jobs/{id}` | 스킬 태그 `skill_tags` 만 쓴다. 페이지에 스킬 태그가 없어 새로 만들 공고(정기 수집·표본)만 연다 |
 
 - 요청 간격은 초당 1건이다. 404 는 로그 없이 건너뛰고, 그 밖의 200 아닌 응답은 경고 로그를 남긴다.
 - 공개 연봉이 없어 급여는 `NONE` 이다. 직원 수를 얻지 못해 회사 규모는 `UNKNOWN` 이다.

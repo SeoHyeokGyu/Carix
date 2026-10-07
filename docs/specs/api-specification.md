@@ -803,7 +803,7 @@
 
 ### 8.1 채용공고 크롤링 비동기 실행
 *   `POST /internal/pipeline/crawl` — 잡코리아·사람인·점핏·원티드 IT/개발 채용공고 실시간 스크래핑 트리거.
-    *   `portal` 은 `ALL`(잡코리아·사람인, 기본)·`JOBKOREA`·`SARAMIN`·`JUMPIT`·`WANTED` 이다. `JUMPIT` 은 점핏 목록을 끝까지 순회해 사람인 공고를 보강·추가하며(규칙은 [데이터 아키텍처 §1.3](data-architecture.md), 원천 호출은 [외부 연동 §3.4](external-api-integration.md)) `ALL` 에는 들지 않는다. `JUMPIT` 작업 요약의 키는 `pages`(순회한 목록 페이지)·`fetched`(읽은 공고)·`created`(새로 만든 공고)·`enriched`(보강한 기존 공고)·`skipped`(필수 필드를 못 읽어 건너뜀)·`errors`(공고 단위 실패)·`droppedSkills`(사전에 없어 버린 기술 스택의 빈도)다. 새로 만들거나 보강한 공고가 하나도 없고 `errors` 만 있으면 작업은 `FAILED`(`errorMessage` 에 `errors` 수)로 끝난다.
+    *   `portal` 은 `ALL`(잡코리아·사람인, 기본)·`JOBKOREA`·`SARAMIN`·`JUMPIT`·`WANTED` 이다. `JUMPIT` 은 점핏 목록을 끝까지 순회해 사람인 공고를 보강·추가하며(규칙은 [데이터 아키텍처 §1.3](data-architecture.md), 원천 호출은 [외부 연동 §3.4](external-api-integration.md)) `ALL` 에는 들지 않는다. `JUMPIT` 작업 요약의 키는 `pages`(순회한 목록 페이지)·`fetched`(읽은 공고)·`created`(새로 만든 공고)·`enriched`(보강한 기존 공고)·`skipped`(필수 필드를 못 읽어 건너뜀)·`errors`(공고 단위 실패)·`droppedSkills`(사전에 없어 버린 기술 스택의 빈도)·`listFailed`(목록 응답을 못 받아 순회가 끊김)다. 새로 만들거나 보강한 공고가 하나도 없고 `errors` 만 있거나, 목록 페이지를 하나도 못 읽고(`pages` 가 0) `listFailed` 이면 작업은 `FAILED`(`errorMessage` 에 `errors` 수 또는 목록 실패)로 끝난다.
     *   `WANTED` 는 원티드 개발(518) 목록을 끝까지 순회해 새 공고를 만들고 이미 있는 공고는 마지막 관측월만 갱신한다(`ALL` 에는 들지 않는다. 원천 호출은 [외부 연동 §3.5](external-api-integration.md), 저장 규칙은 [데이터 아키텍처 §1.3](data-architecture.md)). 작업 요약의 키는 `pages`·`fetched`·`created`·`seen`(이미 있어 관측월만 갱신한 공고)·`skipped`(상위 태그가 518 이 아니거나 `__NEXT_DATA__` 가 없거나 목록 번호와 페이지 번호가 달라 건너뜀)·`errors`·`droppedSkills`·`listFailed`(목록 응답을 못 받아 순회가 끊김)·`portal` 이다. 새로 만들거나 본 공고가 하나도 없고(`created`+`seen` 이 0) `errors` 만 있거나, 목록 페이지를 하나도 못 읽고(`pages` 가 0) `listFailed` 이면 작업은 `FAILED` 로 끝난다.
     *   **Request Body (선택):**
         ```json
@@ -1011,7 +1011,7 @@
         | `page` | 선택 | 0부터. 기본 0 |
         | `size` | 선택 | 기본 50, 최대 100 (넘으면 100) |
 
-    *   `collectedVia` 는 공고를 확인한 수집 경로 목록(쉼표 구분: `JOBKOREA_LIST`·`JOBKOREA_BACKFILL`·`JOBKOREA_SEED`·`SARAMIN_SEARCH`·`JUMPIT`·`WANTED_LIST`·`WANTED_BACKFILL`)이고 `sourceJobTags` 는 원천의 직군 태그 원본(점핏 `jobCategory`)이며 없으면 `null` 이다. `collectedAt` 은 공고를 수집한 시각(UTC)이다. `url` 은 원천 공고 링크로, 잡코리아 `https://www.jobkorea.co.kr/Recruit/GI_Read/{externalId}`, 사람인 `https://www.saramin.co.kr/zf_user/jobs/relay/view?rec_idx={externalId}`, 원티드 `https://www.wanted.co.kr/wd/{externalId}` 다.
+    *   `collectedVia` 는 공고를 확인한 수집 경로 목록(쉼표 구분: `JOBKOREA_LIST`·`JOBKOREA_BACKFILL`·`JOBKOREA_SEED`·`SARAMIN_SEARCH`·`JUMPIT`·`WANTED_LIST`·`WANTED_BACKFILL`)이고 `sourceJobTags` 는 원천의 직군 태그 원본이며 점핏은 `jobCategory` 이름, 원티드는 하위 직군 `{태그 ID}:{이름}`(쉼표 구분)이고 없으면 `null` 이다. `collectedAt` 은 공고를 수집한 시각(UTC)이다. `url` 은 원천 공고 링크로, 잡코리아 `https://www.jobkorea.co.kr/Recruit/GI_Read/{externalId}`, 사람인 `https://www.saramin.co.kr/zf_user/jobs/relay/view?rec_idx={externalId}`, 원티드 `https://www.wanted.co.kr/wd/{externalId}` 다.
     *   **Response (200 OK):**
         ```json
         {
@@ -1129,4 +1129,4 @@
         | `minId`·`maxId` | 선택 | 공고 번호 탐색 범위(상한 포함). 원티드 기본 280000~420000 |
 
     *   **Response (202 Accepted):** 작업 ID 를 돌려준다(§8.1 과 같은 형식).
-    *   **작업 요약:** 달(`YYYYMM`)마다 `requests`·`saved`·`alreadySampled`·`empty`·`otherMonth`·`nonTarget`·`errors` 를 싣는다. `errors` 는 저장에 실패해 건너뛴 후보 수이며 그 달은 계속한다(잡코리아·원티드 공통). `source=WANTED` 는 `droppedSkills`(사전에 없어 버린 스킬 태그의 빈도)와 `apiMisses`(상세 API 에서 스킬 태그를 못 읽은 공고 수)를 더 싣는다.
+    *   **작업 요약:** 달(`YYYYMM`)마다 `requests`·`saved`·`alreadySampled`·`empty`·`otherMonth`·`nonTarget`·`errors` 를 싣는다. `errors` 는 저장에 실패해 건너뛴 후보 수이며 그 달은 계속하지만, 저장이 연달아 5번 실패하면 계통 오류로 보고 예외를 던져 작업을 `FAILED` 로 끝낸다(잡코리아·원티드 공통). 모든 달의 `saved` 합이 0 이고 `errors` 합이 0 보다 크면 작업은 `FAILED`(`errorMessage` 에 `errors` 수)로 끝난다. `source=WANTED` 는 `droppedSkills`(사전에 없어 버린 스킬 태그의 빈도)와 `apiMisses`(새로 만든 공고 중 상세 API 에서 스킬 태그를 못 읽은 수)를 더 싣는다.
