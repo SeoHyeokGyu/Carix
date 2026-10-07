@@ -9,7 +9,9 @@ import jakarta.persistence.Table;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
@@ -102,6 +104,12 @@ public class JobPosting {
    */
   @Column(name = "sampled_month", length = 6)
   private String sampledMonth;
+
+  @Column(name = "source_job_tags", columnDefinition = "text")
+  private String sourceJobTags;
+
+  @Column(name = "collected_via", length = 128)
+  private String collectedVia;
 
   @Column(name = "collected_at", nullable = false)
   private Instant collectedAt;
@@ -264,6 +272,56 @@ public class JobPosting {
   public void assignDedupGroup(UUID groupId, String ruleVersion) {
     this.dedupGroupId = groupId;
     this.dedupRuleVersion = ruleVersion;
+  }
+
+  /** 이 공고를 확인한 경로를 더한다. 이미 있으면 그대로 둔다. */
+  public void addCollectedVia(String path) {
+    if (path == null || path.isBlank() || hasCollectedVia(path)) {
+      return;
+    }
+    this.collectedVia =
+        collectedVia == null || collectedVia.isBlank() ? path : collectedVia + "," + path;
+  }
+
+  public boolean hasCollectedVia(String path) {
+    return collectedVia != null && Arrays.asList(collectedVia.split(",")).contains(path);
+  }
+
+  /** 원천의 직군 태그 원본. 다중 직무 판단 근거로 보존한다. */
+  public void recordSourceJobTags(String tags) {
+    this.sourceJobTags = tags == null || tags.isBlank() ? null : tags;
+  }
+
+  /** 기존 연결은 두고 없는 스킬만 더한다 — 다른 원천이 붙인 스킬을 지우지 않는다. */
+  public void addSkillsIfAbsent(List<Skill> skills) {
+    Set<UUID> linked =
+        jobPostingSkills.stream()
+            .filter(link -> link.getSkill() != null)
+            .map(link -> link.getSkill().getId())
+            .collect(Collectors.toCollection(HashSet::new));
+    for (Skill skill : skills) {
+      if (skill != null && skill.getId() != null && linked.add(skill.getId())) {
+        addSkill(skill);
+      }
+    }
+  }
+
+  public void fillJobFamilyIfEmpty(String family) {
+    if (jobFamily == null || jobFamily.isBlank()) {
+      this.jobFamily = family;
+    }
+  }
+
+  public void fillExperienceIfEmpty(Integer min, Integer max) {
+    if (experienceMin == null && experienceMax == null) {
+      this.experienceMin = min;
+      this.experienceMax = max;
+    }
+  }
+
+  public void applyPostedDates(LocalDate start, LocalDate end) {
+    this.postedStartDate = start;
+    this.postedEndDate = end;
   }
 
   public List<Skill> getSkills() {
