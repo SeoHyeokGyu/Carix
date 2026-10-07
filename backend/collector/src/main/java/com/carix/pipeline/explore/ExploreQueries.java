@@ -21,14 +21,15 @@ public class ExploreQueries {
 
   private final JdbcTemplate jdbc;
 
-  public Map<String, Integer> sampledCounts(String from, String to) {
+  public Map<String, Integer> sampledCounts(String from, String to, String source) {
     Map<String, Integer> out = new HashMap<>();
     jdbc.query(
         "SELECT sampled_month, COUNT(*) FROM core.job_posting"
-            + " WHERE source = 'JOBKOREA' AND sampled_month BETWEEN ? AND ? GROUP BY sampled_month",
+            + " WHERE source = ? AND sampled_month BETWEEN ? AND ? GROUP BY sampled_month",
         rs -> {
           out.put(rs.getString(1), rs.getInt(2));
         },
+        source,
         from,
         to);
     return out;

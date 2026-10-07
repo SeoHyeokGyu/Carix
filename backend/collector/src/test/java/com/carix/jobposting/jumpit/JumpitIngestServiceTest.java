@@ -52,6 +52,7 @@ class JumpitIngestServiceTest {
     String detail;
     int detailFetches;
     Runnable onFetchDetail = () -> {};
+    boolean listDown;
 
     FakeClient(String page, String empty, String detail) {
       this.page = page;
@@ -61,6 +62,9 @@ class JumpitIngestServiceTest {
 
     @Override
     public Optional<String> fetchListPage(int n) {
+      if (listDown) {
+        return Optional.empty();
+      }
       return Optional.of(n <= 2 ? page : empty);
     }
 
@@ -343,13 +347,34 @@ class JumpitIngestServiceTest {
   }
 
   @Test
+  @DisplayName("목록 응답을 못 받으면 listFailed 로 알린다")
+  void listFetchFailureIsFlagged() {
+    client.listDown = true;
+
+    JumpitIngestSummary summary = service.ingestAll();
+
+    assertThat(summary.pages()).isZero();
+    assertThat(summary.listFailed()).isTrue();
+  }
+
+  @Test
+  @DisplayName("목록을 끝까지 받으면 listFailed 가 아니다")
+  void listCompletionIsNotFlagged() {
+    given(postings.findBySourceAndExternalId(anyString(), anyString()))
+        .willReturn(Optional.empty());
+
+    assertThat(service.ingestAll().listFailed()).isFalse();
+  }
+
+  @Test
   @DisplayName("요약은 작업 details 맵으로 바뀐다")
   void summaryToDetails() {
     Map<String, Object> d =
-        new JumpitIngestSummary(2, 2, 1, 1, 0, 3, Map.of("ESET", 1)).toDetails();
+        new JumpitIngestSummary(2, 2, 1, 1, 0, 3, Map.of("ESET", 1), true).toDetails();
     assertThat(d)
         .containsEntry("errors", 3)
         .containsEntry("created", 1)
+        .containsEntry("listFailed", true)
         .containsEntry("droppedSkills", Map.of("ESET", 1));
   }
 

@@ -4,11 +4,14 @@ import com.carix.cpi.CpiIngestService;
 import com.carix.jobposting.JobPostingRepository;
 import com.carix.jobposting.RawIngestRepository;
 import com.carix.jobposting.SkillRepository;
+import com.carix.jobposting.backfill.BackfillSampler;
 import com.carix.jobposting.jumpit.JumpitIngestService;
 import com.carix.jobposting.jumpit.JumpitIngestSummary;
 import com.carix.jobposting.seed.SeedLoader;
 import com.carix.jobposting.service.JobPostingIngestService;
 import com.carix.jobposting.service.PostingSkillService;
+import com.carix.jobposting.wanted.WantedCrawlSummary;
+import com.carix.jobposting.wanted.WantedIngestService;
 import com.carix.pipeline.dto.BackfillRequest;
 import com.carix.pipeline.dto.CpiRequest;
 import com.carix.pipeline.dto.CrawlRequest;
@@ -65,6 +68,8 @@ public class CollectorPipelineService {
   private final com.carix.jobposting.backfill.JobKoreaBackfillService jobKoreaBackfillService;
   private final com.carix.jobposting.backfill.SalaryReclassifyService salaryReclassifyService;
   private final JumpitIngestService jumpitIngestService;
+  private final WantedIngestService wantedIngestService;
+  private final com.carix.jobposting.wanted.WantedBackfillService wantedBackfillService;
 
   private final AtomicBoolean isJobRunning = new AtomicBoolean(false);
   private final Map<String, JobState> jobHistory =
@@ -101,6 +106,11 @@ public class CollectorPipelineService {
                     : "ALL";
             if ("JUMPIT".equals(portal)) {
               JumpitIngestSummary summary = jumpitIngestService.ingestAll();
+              if (summary.pages() == 0 && summary.listFailed()) {
+                state.fail("점핏 목록을 받지 못했습니다");
+                log.error("[작업:{}] 점핏 목록 수집 실패: {}", jobId, summary);
+                return;
+              }
               if (summary.created() + summary.enriched() == 0 && summary.errors() > 0) {
                 state.fail("점핏 수집에서 모든 공고 처리에 실패했습니다 (errors=" + summary.errors() + ")");
                 log.error("[작업:{}] 점핏 수집 전부 실패: {}", jobId, summary);
@@ -110,6 +120,24 @@ public class CollectorPipelineService {
               details.put("portal", portal);
               state.complete(details);
               log.info("[작업:{}] 점핏 수집 완료: {}", jobId, summary);
+              return;
+            }
+            if ("WANTED".equals(portal)) {
+              WantedCrawlSummary summary = wantedIngestService.ingestAll();
+              if (summary.pages() == 0 && summary.listFailed()) {
+                state.fail("원티드 목록을 받지 못했습니다");
+                log.error("[작업:{}] 원티드 목록 수집 실패: {}", jobId, summary);
+                return;
+              }
+              if (summary.created() + summary.seen() == 0 && summary.errors() > 0) {
+                state.fail("원티드 수집에서 모든 공고 처리에 실패했습니다 (errors=" + summary.errors() + ")");
+                log.error("[작업:{}] 원티드 수집 전부 실패: {}", jobId, summary);
+                return;
+              }
+              Map<String, Object> details = new java.util.LinkedHashMap<>(summary.toDetails());
+              details.put("portal", portal);
+              state.complete(details);
+              log.info("[작업:{}] 원티드 수집 완료: {}", jobId, summary);
               return;
             }
             int ingested = jobPostingIngestService.crawlAndIngest(request);
@@ -196,8 +224,19 @@ public class CollectorPipelineService {
         now);
   }
 
+  private static boolean isWantedSource(String source) {
+    String normalized = source == null ? "" : source.strip().toUpperCase(java.util.Locale.ROOT);
+    return switch (normalized) {
+      case "", "JOBKOREA" -> false;
+      case "WANTED" -> true;
+      default ->
+          throw new ResponseStatusException(
+              HttpStatus.BAD_REQUEST, "source 는 JOBKOREA 또는 WANTED 입니다");
+    };
+  }
+
   /**
-   * 수집 시작 전 달의 잡코리아 공고를 상세페이지 ID 표본으로 채운다. 요청 간격 때문에 수 시간 걸린다.
+   * 수집 시작 전 달의 공고(잡코리아 기본, {@code source=WANTED} 면 원티드)를 공고 ID 표본으로 채운다. 요청 간격 때문에 수 시간 걸린다.
    *
    * @return 비동기 작업 수락 응답
    */
@@ -205,6 +244,7 @@ public class CollectorPipelineService {
     if (request == null || request.fromMonth() == null || request.toMonth() == null) {
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "fromMonth·toMonth 가 필요합니다");
     }
+    boolean isWanted = isWantedSource(request.source());
     ensureNoJobRunning();
     String jobId = UUID.randomUUID().toString();
     Instant now = Instant.now();
@@ -215,7 +255,16 @@ public class CollectorPipelineService {
         () -> {
           try {
             log.info("[작업:{}] 과거 공고 표본 백필 시작: {}", jobId, request);
-            Map<String, Object> summary = jobKoreaBackfillService.run(request);
+            Map<String, Object> summary =
+                isWanted
+                    ? wantedBackfillService.run(request)
+                    : jobKoreaBackfillService.run(request);
+            long[] totals = backfillTotals(summary);
+            if (totals[0] == 0 && totals[1] > 0) {
+              state.fail("백필에서 한 건도 저장하지 못했습니다 (saved=0, errors=" + totals[1] + ")");
+              log.error("[작업:{}] 과거 공고 표본 백필 전부 실패: {}", jobId, summary);
+              return;
+            }
             state.complete(summary);
             log.info("[작업:{}] 과거 공고 표본 백필 완료: {}", jobId, summary);
           } catch (Exception e) {
@@ -229,6 +278,22 @@ public class CollectorPipelineService {
 
     return new JobExecutionResponse(
         jobId, "BACKFILL", "ACCEPTED", "백필 작업이 수락되어 백그라운드에서 시작되었습니다.", now);
+  }
+
+  /**
+   * 월별 {@link BackfillSampler.Result} 를 합친 {@code [saved, errors]}. 월 항목이 아닌 값(droppedSkills 등)은
+   * 무시한다.
+   */
+  private static long[] backfillTotals(Map<String, Object> summary) {
+    long saved = 0;
+    long errors = 0;
+    for (Object value : summary.values()) {
+      if (value instanceof BackfillSampler.Result r) {
+        saved += r.saved();
+        errors += r.errors();
+      }
+    }
+    return new long[] {saved, errors};
   }
 
   /**
@@ -534,6 +599,7 @@ public class CollectorPipelineService {
     try {
       bySource.put("JOBKOREA", jobPostingRepository.countBySource("JOBKOREA"));
       bySource.put("SARAMIN", jobPostingRepository.countBySource("SARAMIN"));
+      bySource.put("WANTED", jobPostingRepository.countBySource("WANTED"));
     } catch (Exception ignored) {
     }
 

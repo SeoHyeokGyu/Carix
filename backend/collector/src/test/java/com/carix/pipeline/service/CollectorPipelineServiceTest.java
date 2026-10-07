@@ -10,12 +10,15 @@ import com.carix.cpi.CpiIngestService;
 import com.carix.jobposting.JobPostingRepository;
 import com.carix.jobposting.RawIngestRepository;
 import com.carix.jobposting.SkillRepository;
+import com.carix.jobposting.backfill.BackfillSampler;
 import com.carix.jobposting.backfill.JobKoreaBackfillService;
 import com.carix.jobposting.dedup.JobPostingDeduplicator;
 import com.carix.jobposting.jumpit.JumpitIngestService;
 import com.carix.jobposting.jumpit.JumpitIngestSummary;
 import com.carix.jobposting.service.JobPostingIngestService;
 import com.carix.jobposting.service.PostingSkillService;
+import com.carix.jobposting.wanted.WantedCrawlSummary;
+import com.carix.jobposting.wanted.WantedIngestService;
 import com.carix.market.MarketAggregateRepository;
 import com.carix.market.MarketAggregateService;
 import com.carix.pipeline.dto.BackfillRequest;
@@ -51,6 +54,8 @@ class CollectorPipelineServiceTest {
   private MarketAggregateService marketAggregateService;
   private JobKoreaBackfillService jobKoreaBackfillService;
   private JumpitIngestService jumpitIngestService;
+  private WantedIngestService wantedIngestService;
+  private com.carix.jobposting.wanted.WantedBackfillService wantedBackfillService;
 
   private CollectorPipelineService service;
 
@@ -69,6 +74,8 @@ class CollectorPipelineServiceTest {
     marketAggregateService = mock(MarketAggregateService.class);
     jobKoreaBackfillService = mock(JobKoreaBackfillService.class);
     jumpitIngestService = mock(JumpitIngestService.class);
+    wantedIngestService = mock(WantedIngestService.class);
+    wantedBackfillService = mock(com.carix.jobposting.wanted.WantedBackfillService.class);
 
     service =
         new CollectorPipelineService(
@@ -85,7 +92,9 @@ class CollectorPipelineServiceTest {
             marketAggregateService,
             jobKoreaBackfillService,
             mock(com.carix.jobposting.backfill.SalaryReclassifyService.class),
-            jumpitIngestService);
+            jumpitIngestService,
+            wantedIngestService,
+            wantedBackfillService);
   }
 
   @Test
@@ -113,7 +122,7 @@ class CollectorPipelineServiceTest {
   @DisplayName("triggerCrawl JUMPIT - 요약을 details 로 담아 성공 처리한다")
   void triggerCrawl_jumpitSuccess() throws Exception {
     given(jumpitIngestService.ingestAll())
-        .willReturn(new JumpitIngestSummary(2, 30, 20, 8, 1, 2, Map.of()));
+        .willReturn(new JumpitIngestSummary(2, 30, 20, 8, 1, 2, Map.of(), false));
 
     JobExecutionResponse response =
         service.triggerCrawl(new CrawlRequest("JUMPIT", null, null, null, null, null));
@@ -131,7 +140,7 @@ class CollectorPipelineServiceTest {
   @DisplayName("triggerCrawl JUMPIT - 처리한 공고가 하나도 없고 실패만 있으면 작업 실패다")
   void triggerCrawl_jumpitAllFailed() throws Exception {
     given(jumpitIngestService.ingestAll())
-        .willReturn(new JumpitIngestSummary(2, 30, 0, 0, 0, 30, Map.of()));
+        .willReturn(new JumpitIngestSummary(2, 30, 0, 0, 0, 30, Map.of(), false));
 
     JobExecutionResponse response =
         service.triggerCrawl(new CrawlRequest("JUMPIT", null, null, null, null, null));
@@ -143,18 +152,175 @@ class CollectorPipelineServiceTest {
   }
 
   @Test
+  @DisplayName("triggerCrawl JUMPIT - 목록을 한 페이지도 못 받으면 작업 실패다")
+  void triggerCrawl_jumpitListFailed() throws Exception {
+    given(jumpitIngestService.ingestAll())
+        .willReturn(new JumpitIngestSummary(0, 0, 0, 0, 0, 0, Map.of(), true));
+
+    JobExecutionResponse response =
+        service.triggerCrawl(new CrawlRequest("JUMPIT", null, null, null, null, null));
+    TimeUnit.MILLISECONDS.sleep(200);
+
+    JobStatusResponse status = service.getJobStatus(response.jobId());
+    assertThat(status.status()).isEqualTo("FAILED");
+    assertThat(status.errorMessage()).contains("점핏 목록을 받지 못했습니다");
+  }
+
+  @Test
+  @DisplayName("triggerCrawl WANTED - 요약을 details 로 담아 성공 처리한다")
+  void triggerCrawl_wantedSuccess() throws Exception {
+    given(wantedIngestService.ingestAll())
+        .willReturn(new WantedCrawlSummary(2, 30, 20, 8, 1, 2, Map.of(), false));
+
+    JobExecutionResponse response =
+        service.triggerCrawl(new CrawlRequest("WANTED", null, null, null, null, null));
+    TimeUnit.MILLISECONDS.sleep(200);
+
+    JobStatusResponse status = service.getJobStatus(response.jobId());
+    assertThat(status.status()).isEqualTo("SUCCESS");
+    assertThat(status.details())
+        .containsEntry("created", 20)
+        .containsEntry("errors", 2)
+        .containsEntry("portal", "WANTED");
+  }
+
+  @Test
+  @DisplayName("triggerCrawl WANTED - 처리한 공고가 하나도 없고 실패만 있으면 작업 실패다")
+  void triggerCrawl_wantedAllFailed() throws Exception {
+    given(wantedIngestService.ingestAll())
+        .willReturn(new WantedCrawlSummary(2, 30, 0, 0, 0, 30, Map.of(), false));
+
+    JobExecutionResponse response =
+        service.triggerCrawl(new CrawlRequest("WANTED", null, null, null, null, null));
+    TimeUnit.MILLISECONDS.sleep(200);
+
+    JobStatusResponse status = service.getJobStatus(response.jobId());
+    assertThat(status.status()).isEqualTo("FAILED");
+    assertThat(status.errorMessage()).contains("errors=30");
+  }
+
+  @Test
+  @DisplayName("triggerCrawl WANTED - 목록을 한 페이지도 못 받으면 작업 실패다")
+  void triggerCrawl_wantedListFailed() throws Exception {
+    given(wantedIngestService.ingestAll())
+        .willReturn(new WantedCrawlSummary(0, 0, 0, 0, 0, 0, Map.of(), true));
+
+    JobExecutionResponse response =
+        service.triggerCrawl(new CrawlRequest("WANTED", null, null, null, null, null));
+    TimeUnit.MILLISECONDS.sleep(200);
+
+    JobStatusResponse status = service.getJobStatus(response.jobId());
+    assertThat(status.status()).isEqualTo("FAILED");
+    assertThat(status.errorMessage()).contains("원티드 목록을 받지 못했습니다");
+  }
+
+  @Test
   @DisplayName("triggerBackfill - 비동기 백필 작업 수락 및 월별 요약 기록")
   void triggerBackfill_success() throws Exception {
     given(jobKoreaBackfillService.run(any())).willReturn(Map.of("202509", "ok"));
 
     JobExecutionResponse response =
-        service.triggerBackfill(new BackfillRequest("202509", "202509", 10, 100, 0L, null, null));
+        service.triggerBackfill(
+            new BackfillRequest("202509", "202509", 10, 100, 0L, null, null, null));
 
     assertThat(response.jobType()).isEqualTo("BACKFILL");
     TimeUnit.MILLISECONDS.sleep(200);
     JobStatusResponse status = service.getJobStatus(response.jobId());
     assertThat(status.status()).isEqualTo("SUCCESS");
     assertThat(status.details()).containsEntry("202509", "ok");
+  }
+
+  @Test
+  @DisplayName("triggerBackfill 잡코리아 - 모든 달에서 저장 0건이고 오류만 있으면 작업 실패다")
+  void triggerBackfill_jobKoreaAllFailed() throws Exception {
+    given(jobKoreaBackfillService.run(any()))
+        .willReturn(
+            Map.of(
+                "202509", new BackfillSampler.Result(10, 0, 0, 0, 0, 0, 5),
+                "202510", new BackfillSampler.Result(10, 0, 0, 0, 0, 0, 5)));
+
+    JobExecutionResponse response =
+        service.triggerBackfill(
+            new BackfillRequest("202509", "202510", 10, 100, 0L, null, null, null));
+    TimeUnit.MILLISECONDS.sleep(200);
+
+    JobStatusResponse status = service.getJobStatus(response.jobId());
+    assertThat(status.status()).isEqualTo("FAILED");
+    assertThat(status.errorMessage()).contains("saved=0").contains("errors=10");
+  }
+
+  @Test
+  @DisplayName("triggerBackfill 원티드 - 일부 달만 저장돼도 성공이다, 저장 0건이고 오류만 있으면 실패다")
+  void triggerBackfill_wantedFailureGuard() throws Exception {
+    given(wantedBackfillService.run(any()))
+        .willReturn(
+            Map.of(
+                "202509", new BackfillSampler.Result(10, 3, 0, 0, 0, 0, 2),
+                "202510", new BackfillSampler.Result(10, 0, 0, 0, 0, 0, 5),
+                "apiMisses", 0));
+    JobExecutionResponse ok =
+        service.triggerBackfill(
+            new BackfillRequest("202509", "202510", 10, 100, 0L, null, null, "WANTED"));
+    TimeUnit.MILLISECONDS.sleep(200);
+    assertThat(service.getJobStatus(ok.jobId()).status()).isEqualTo("SUCCESS");
+
+    given(wantedBackfillService.run(any()))
+        .willReturn(
+            Map.of(
+                "202509",
+                new BackfillSampler.Result(10, 0, 0, 0, 0, 0, 5),
+                "droppedSkills",
+                Map.of()));
+    JobExecutionResponse bad =
+        service.triggerBackfill(
+            new BackfillRequest("202509", "202509", 10, 100, 0L, null, null, "WANTED"));
+    TimeUnit.MILLISECONDS.sleep(200);
+    JobStatusResponse status = service.getJobStatus(bad.jobId());
+    assertThat(status.status()).isEqualTo("FAILED");
+    assertThat(status.errorMessage()).contains("errors=5");
+  }
+
+  @Test
+  @DisplayName("triggerBackfill - source=WANTED 는 원티드 백필로 보낸다")
+  void triggerBackfill_routesWanted() throws Exception {
+    given(wantedBackfillService.run(any())).willReturn(Map.of("202509", "wanted"));
+
+    JobExecutionResponse response =
+        service.triggerBackfill(
+            new BackfillRequest("202509", "202509", 10, 100, 0L, null, null, "wanted"));
+
+    TimeUnit.MILLISECONDS.sleep(200);
+    assertThat(service.getJobStatus(response.jobId()).details()).containsEntry("202509", "wanted");
+    org.mockito.Mockito.verifyNoInteractions(jobKoreaBackfillService);
+  }
+
+  @Test
+  @DisplayName("triggerBackfill - source 가 비거나 JOBKOREA 면 잡코리아 백필로 보낸다")
+  void triggerBackfill_defaultsToJobKorea() throws Exception {
+    given(jobKoreaBackfillService.run(any())).willReturn(Map.of("202509", "jk"));
+
+    service.triggerBackfill(new BackfillRequest("202509", "202509", 10, 100, 0L, null, null, " "));
+    TimeUnit.MILLISECONDS.sleep(200);
+
+    org.mockito.Mockito.verify(jobKoreaBackfillService).run(any());
+    org.mockito.Mockito.verifyNoInteractions(wantedBackfillService);
+  }
+
+  @Test
+  @DisplayName("triggerBackfill - 알 수 없는 source 는 400 이고 작업 잠금을 잡지 않는다")
+  void triggerBackfill_rejectsUnknownSource() {
+    assertThatThrownBy(
+            () ->
+                service.triggerBackfill(
+                    new BackfillRequest("202509", "202509", null, null, null, null, null, "X")))
+        .isInstanceOfSatisfying(
+            ResponseStatusException.class,
+            e -> {
+              assertThat(e.getStatusCode().value()).isEqualTo(400);
+              assertThat(e.getReason()).isEqualTo("source 는 JOBKOREA 또는 WANTED 입니다");
+            });
+    given(jobPostingIngestService.crawlAndIngest(any())).willReturn(1);
+    assertThat(service.triggerCrawl(null).status()).isEqualTo("ACCEPTED");
   }
 
   @Test
@@ -165,7 +331,7 @@ class CollectorPipelineServiceTest {
     assertThatThrownBy(
             () ->
                 service.triggerBackfill(
-                    new BackfillRequest("202509", null, null, null, null, null, null)))
+                    new BackfillRequest("202509", null, null, null, null, null, null, null)))
         .isInstanceOf(ResponseStatusException.class);
 
     given(jobPostingIngestService.crawlAndIngest(any())).willReturn(1);

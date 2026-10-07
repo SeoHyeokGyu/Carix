@@ -29,7 +29,7 @@ export function PipelineControlPanel({
 
   // 크롤링 폼 상태
   const [portal, setPortal] = useState<
-    "ALL" | "JOBKOREA" | "SARAMIN" | "JUMPIT"
+    "ALL" | "JOBKOREA" | "SARAMIN" | "JUMPIT" | "WANTED"
   >("ALL");
   const [maxPages, setMaxPages] = useState<number>(5);
   const [delayMs, setDelayMs] = useState<number>(500);
@@ -172,7 +172,7 @@ export function PipelineControlPanel({
                   onChange={(e) =>
                     setPortal(
                       e.target.value as
-                        "ALL" | "JOBKOREA" | "SARAMIN" | "JUMPIT",
+                        "ALL" | "JOBKOREA" | "SARAMIN" | "JUMPIT" | "WANTED",
                     )
                   }
                   className="w-full rounded-md border border-carix-border bg-carix-bg px-3 py-1.5 text-xs text-carix-text"
@@ -181,6 +181,7 @@ export function PipelineControlPanel({
                   <option value="JOBKOREA">잡코리아 (JobKorea)</option>
                   <option value="SARAMIN">사람인 (Saramin)</option>
                   <option value="JUMPIT">점핏 (Jumpit)</option>
+                  <option value="WANTED">원티드 (Wanted)</option>
                 </select>
               </div>
 
@@ -188,6 +189,11 @@ export function PipelineControlPanel({
                 <p className="sm:col-span-2 self-end text-xs text-carix-text/60">
                   점핏은 목록 전체를 순회합니다(약 30분, 그동안 다른 작업은
                   대기).
+                </p>
+              ) : portal === "WANTED" ? (
+                <p className="sm:col-span-2 self-end text-xs text-carix-text/60">
+                  원티드는 개발 공고 목록 전체를 순회합니다(첫 실행 약 1시간
+                  30분, 이후 신규만). 그동안 다른 작업은 대기
                 </p>
               ) : (
                 <>

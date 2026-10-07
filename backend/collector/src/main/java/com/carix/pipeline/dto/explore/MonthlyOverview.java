@@ -12,5 +12,8 @@ public record MonthlyOverview(String from, String to, List<Month> months) {
       int jobkoreaSampledCapped,
       int jobkoreaCrawled,
       int saraminCrawled,
-      Map<String, Integer> sampledByFamily) {}
+      Map<String, Integer> sampledByFamily,
+      int wantedSampled,
+      int wantedSampledCapped,
+      int wantedCrawled) {}
 }

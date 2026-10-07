@@ -10,6 +10,7 @@ package com.carix.pipeline.dto;
  * @param delayMs 상세페이지 요청 간격
  * @param minId ID 탐색 하한
  * @param maxId ID 탐색 상한(포함)
+ * @param source 표본 원천({@code JOBKOREA} 기본, {@code WANTED}). ID 구간은 그 원천의 공고 번호
  */
 public record BackfillRequest(
     String fromMonth,
@@ -18,4 +19,5 @@ public record BackfillRequest(
     Integer maxRequestsPerMonth,
     Long delayMs,
     Long minId,
-    Long maxId) {}
+    Long maxId,
+    String source) {}

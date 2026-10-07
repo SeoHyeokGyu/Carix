@@ -1,0 +1,176 @@
+{
+ "links": {
+  "prev": null,
+  "next": "/api/v4/jobs?country=kr&tag_type_ids=518&locations=all&years=-1&limit=3&offset=3&job_sort=job.latest_order"
+ },
+ "data": [
+  {
+   "status": "active",
+   "hidden": false,
+   "is_like": false,
+   "score": null,
+   "is_bookmark": false,
+   "company": {
+    "id": 26889,
+    "industry_name": "IT, 컨텐츠",
+    "application_response_stats": {
+     "avg_rate": 90.43,
+     "level": "high",
+     "delayed_count": 0,
+     "avg_day": null,
+     "remained_count": 0,
+     "type": "applied_reply_done"
+    },
+    "name": "콕스웨이브"
+   },
+   "annual_to": 35,
+   "title_img": {
+    "origin": "https://static.wanted.co.kr/images/company/26889/75apv9oo0lqfc0bn__1080_790.jpg",
+    "thumb": "https://static.wanted.co.kr/images/company/26889/75apv9oo0lqfc0bn__400_400.jpg"
+   },
+   "compare_country": true,
+   "due_time": null,
+   "like_count": 0,
+   "id": 391003,
+   "logo_img": {
+    "origin": "https://static.wanted.co.kr/images/wdes/0_4.20b81430.png",
+    "thumb": "https://static.wanted.co.kr/images/wdes/0_5.20b81430.png"
+   },
+   "address": {
+    "location_key": "seoul",
+    "district": "영등포구",
+    "country": "한국",
+    "location": "서울",
+    "full_location": "서울 영등포구 여의대방로69길 23, 10층 (07333)",
+    "district_key": "seoul.yeongdeungpo-gu"
+   },
+   "matching_score": null,
+   "position": "[AX krewa] 리서치 엔지니어 (Lead)",
+   "is_recommended": false,
+   "reward": {
+    "formatted_total": "100만원",
+    "formatted_recommender": "50만원",
+    "formatted_recommendee": "50만원"
+   },
+   "category_tags": [
+    {
+     "parent_id": 518,
+     "id": 1634
+    }
+   ],
+   "annual_from": 3
+  },
+  {
+   "status": "active",
+   "hidden": false,
+   "is_like": false,
+   "score": null,
+   "is_bookmark": false,
+   "company": {
+    "id": 26889,
+    "industry_name": "IT, 컨텐츠",
+    "application_response_stats": {
+     "avg_rate": 90.43,
+     "level": "high",
+     "delayed_count": 0,
+     "avg_day": null,
+     "remained_count": 0,
+     "type": "applied_reply_done"
+    },
+    "name": "콕스웨이브"
+   },
+   "annual_to": 7,
+   "title_img": {
+    "origin": "https://static.wanted.co.kr/images/company/26889/75apv9oo0lqfc0bn__1080_790.jpg",
+    "thumb": "https://static.wanted.co.kr/images/company/26889/75apv9oo0lqfc0bn__400_400.jpg"
+   },
+   "compare_country": true,
+   "due_time": null,
+   "like_count": 0,
+   "id": 391002,
+   "logo_img": {
+    "origin": "https://static.wanted.co.kr/images/wdes/0_4.20b81430.png",
+    "thumb": "https://static.wanted.co.kr/images/wdes/0_5.20b81430.png"
+   },
+   "address": {
+    "location_key": "seoul",
+    "district": "영등포구",
+    "country": "한국",
+    "location": "서울",
+    "full_location": "서울 영등포구 여의대방로69길 23, 10층 (07333)",
+    "district_key": "seoul.yeongdeungpo-gu"
+   },
+   "matching_score": null,
+   "position": "[AX krewa] 프로덕트 엔지니어 (Frontend)",
+   "is_recommended": false,
+   "reward": {
+    "formatted_total": "100만원",
+    "formatted_recommender": "50만원",
+    "formatted_recommendee": "50만원"
+   },
+   "category_tags": [
+    {
+     "parent_id": 518,
+     "id": 669
+    }
+   ],
+   "annual_from": 3
+  },
+  {
+   "status": "active",
+   "hidden": false,
+   "is_like": false,
+   "score": null,
+   "is_bookmark": false,
+   "company": {
+    "id": 26889,
+    "industry_name": "IT, 컨텐츠",
+    "application_response_stats": {
+     "avg_rate": 90.43,
+     "level": "high",
+     "delayed_count": 0,
+     "avg_day": null,
+     "remained_count": 0,
+     "type": "applied_reply_done"
+    },
+    "name": "콕스웨이브"
+   },
+   "annual_to": 7,
+   "title_img": {
+    "origin": "https://static.wanted.co.kr/images/company/26889/75apv9oo0lqfc0bn__1080_790.jpg",
+    "thumb": "https://static.wanted.co.kr/images/company/26889/75apv9oo0lqfc0bn__400_400.jpg"
+   },
+   "compare_country": true,
+   "due_time": null,
+   "like_count": 0,
+   "id": 390999,
+   "logo_img": {
+    "origin": "https://static.wanted.co.kr/images/wdes/0_4.20b81430.png",
+    "thumb": "https://static.wanted.co.kr/images/wdes/0_5.20b81430.png"
+   },
+   "address": {
+    "location_key": "seoul",
+    "district": "영등포구",
+    "country": "한국",
+    "location": "서울",
+    "full_location": "서울 영등포구 여의대방로69길 23, 10층 (07333)",
+    "district_key": "seoul.yeongdeungpo-gu"
+   },
+   "matching_score": null,
+   "position": "[AX AgentX] 데이터 엔지니어(RAG/LLM Pipeline)",
+   "is_recommended": false,
+   "reward": {
+    "formatted_total": "100만원",
+    "formatted_recommender": "50만원",
+    "formatted_recommendee": "50만원"
+   },
+   "category_tags": [
+    {
+     "parent_id": 518,
+     "id": 655
+    }
+   ],
+   "annual_from": 3
+  }
+ ]
+}

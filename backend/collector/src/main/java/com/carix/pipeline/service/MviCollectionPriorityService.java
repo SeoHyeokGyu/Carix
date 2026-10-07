@@ -61,11 +61,10 @@ public class MviCollectionPriorityService {
         (source != null && !source.isBlank()) ? source.trim().toUpperCase() : DEFAULT_SOURCE;
     String effectiveMonth = resolveTargetMonth(baseYearMonth);
 
+    // NOTE: 기본 ALL 도 source='ALL' 행만 읽는다. 원천별 행을 합산하면 원천 합산 행과 이중 계산된다.
     List<MarketAggregate> aggregates =
-        "ALL".equals(effectiveSource)
-            ? marketAggregateRepository.findPeerGroupAggregatesByMonth(effectiveMonth)
-            : marketAggregateRepository.findPeerGroupAggregatesByMonthAndSource(
-                effectiveMonth, effectiveSource);
+        marketAggregateRepository.findPeerGroupAggregatesByMonthAndSource(
+            effectiveMonth, effectiveSource);
 
     // (jobFamily, region, experienceBracket) -> sum(postingCount)
     Map<DimensionKey, Integer> countMap = new HashMap<>();

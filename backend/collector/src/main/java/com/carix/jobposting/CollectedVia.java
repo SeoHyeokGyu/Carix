@@ -8,6 +8,8 @@ public final class CollectedVia {
   public static final String JOBKOREA_SEED = "JOBKOREA_SEED";
   public static final String SARAMIN_SEARCH = "SARAMIN_SEARCH";
   public static final String JUMPIT = "JUMPIT";
+  public static final String WANTED_LIST = "WANTED_LIST";
+  public static final String WANTED_BACKFILL = "WANTED_BACKFILL";
 
   private CollectedVia() {}
 }

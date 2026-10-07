@@ -52,4 +52,17 @@ describe("DataHealthSummary", () => {
     render(<DataHealthSummary report={reportWith([check("CPI_LATEST")])} />);
     expect(screen.getByText("0 / 0명")).toBeInTheDocument();
   });
+
+  it("원티드 그룹의 점검 실패는 판정 불가로 치지 않는다", () => {
+    const report = reportWith([check("CPI_LATEST")]);
+    report.groups.push({
+      id: "WANTED",
+      title: "원티드",
+      question: "도입 중",
+      checks: [check("WANTED_FAILED")],
+    });
+    render(<DataHealthSummary report={report} />);
+    expect(screen.getByText("0 / 0명")).toBeInTheDocument();
+    expect(screen.queryByText("판정 불가")).not.toBeInTheDocument();
+  });
 });

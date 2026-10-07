@@ -34,6 +34,9 @@ export function MonthlyOverviewTable({ data }: { data: MonthlyOverview }) {
             <th className="px-2 py-1 text-right">상한 적용</th>
             <th className="px-2 py-1 text-right">잡코리아 정기</th>
             <th className="px-2 py-1 text-right">사람인 정기</th>
+            <th className="px-2 py-1 text-right">원티드 표본</th>
+            <th className="px-2 py-1 text-right">원티드 상한 적용</th>
+            <th className="px-2 py-1 text-right">원티드 정기</th>
             {FAMILIES.map((f) => (
               <th key={f} className="px-2 py-1 text-right">
                 {f}
@@ -61,6 +64,12 @@ export function MonthlyOverviewTable({ data }: { data: MonthlyOverview }) {
               </td>
               <td className="px-2 py-1 text-right">{m.jobkoreaCrawled}</td>
               <td className="px-2 py-1 text-right">{m.saraminCrawled}</td>
+              <td className="px-2 py-1 text-right">{m.wantedSampled}</td>
+              <Cell
+                value={m.wantedSampledCapped}
+                thin={isThinSample(m.wantedSampledCapped)}
+              />
+              <td className="px-2 py-1 text-right">{m.wantedCrawled}</td>
               {FAMILIES.map((f) =>
                 f === "OTHER" ? (
                   <td key={f} className="px-2 py-1 text-right">

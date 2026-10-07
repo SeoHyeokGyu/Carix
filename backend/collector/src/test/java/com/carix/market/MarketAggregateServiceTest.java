@@ -586,9 +586,19 @@ class MarketAggregateServiceTest {
   /** 잡코리아 공고 하나. 표본이면 {@code sampledMonth} 를 단다. */
   private static JobPosting jobkorea(
       String externalId, String company, String seenMonth, String sampledMonth, Skill skill) {
+    return posting("JOBKOREA", externalId, company, seenMonth, sampledMonth, skill);
+  }
+
+  private static JobPosting posting(
+      String source,
+      String externalId,
+      String company,
+      String seenMonth,
+      String sampledMonth,
+      Skill skill) {
     JobPosting p =
         JobPosting.builder()
-            .source("JOBKOREA")
+            .source(source)
             .externalId(externalId)
             .companyName(company)
             .jobFamily("DEVELOPER")
@@ -659,5 +669,44 @@ class MarketAggregateServiceTest {
     List<MarketAggregate> saved = aggregate("202608", postings);
 
     assertThat(total(saved, "JOBKOREA").getPostingCount()).isEqualTo(4);
+  }
+
+  @Test
+  @DisplayName("원티드 원천 집계도 그 달 표본만 센다 — 정기 수집분은 ALL 에만, 잡코리아·사람인은 그대로")
+  void wantedSourceCountsOnlySampledPostingsOfMonth() {
+    List<JobPosting> postings =
+        List.of(
+            posting("JOBKOREA", "jk1", "가", "202608", "202608", null),
+            posting("JOBKOREA", "jk2", "나", "202608", "202608", null),
+            posting("WANTED", "w1", "다", "202608", "202608", null),
+            posting("WANTED", "w2", "라", "202608", "202608", null),
+            posting("WANTED", "w3", "마", "202608", null, null),
+            posting("WANTED", "w4", "바", "202608", null, null),
+            posting("WANTED", "w5", "사", "202608", null, null),
+            posting("SARAMIN", "s1", "아", "202608", null, null),
+            posting("SARAMIN", "s2", "자", "202608", null, null),
+            posting("SARAMIN", "s3", "차", "202608", null, null));
+
+    List<MarketAggregate> saved = aggregate("202608", postings);
+
+    assertThat(total(saved, "WANTED").getPostingCount()).isEqualTo(2);
+    assertThat(total(saved, "JOBKOREA").getPostingCount()).isEqualTo(2);
+    assertThat(total(saved, "SARAMIN").getPostingCount()).isEqualTo(3);
+    assertThat(total(saved, "ALL").getPostingCount()).isEqualTo(10);
+  }
+
+  @Test
+  @DisplayName("원티드 표본도 같은 회사를 월 3건까지만 센다")
+  void wantedSampleCapsPostingsPerCompanyPerMonth() {
+    List<JobPosting> postings =
+        List.of(
+            posting("WANTED", "10", "㈜조인아이티", "202608", "202608", null),
+            posting("WANTED", "11", "조인아이티", "202608", "202608", null),
+            posting("WANTED", "12", "(주)조인아이티", "202608", "202608", null),
+            posting("WANTED", "13", "조인아이티", "202608", "202608", null));
+
+    List<MarketAggregate> saved = aggregate("202608", postings);
+
+    assertThat(total(saved, "WANTED").getPostingCount()).isEqualTo(3);
   }
 }

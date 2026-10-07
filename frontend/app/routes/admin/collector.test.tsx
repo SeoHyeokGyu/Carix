@@ -139,6 +139,33 @@ describe("CollectorAdminPage", () => {
     ).toBeInTheDocument();
   });
 
+  it("원티드를 고르면 페이지·간격 입력을 숨기고 안내를 보인다", async () => {
+    render(
+      <MemoryRouter>
+        <CollectorAdminPage />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText("500")).toBeInTheDocument();
+    });
+    expect(
+      screen.getByRole("option", { name: "원티드 (Wanted)" }),
+    ).toBeInTheDocument();
+
+    fireEvent.change(screen.getByDisplayValue(/전체 포털/), {
+      target: { value: "WANTED" },
+    });
+
+    expect(screen.queryByText(/수집 페이지 수/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/요청 지연 간격/)).not.toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "원티드는 개발 공고 목록 전체를 순회합니다(첫 실행 약 1시간 30분, 이후 신규만). 그동안 다른 작업은 대기",
+      ),
+    ).toBeInTheDocument();
+  });
+
   it("관리자 키 모달 열기 및 저장이 동작한다", async () => {
     render(
       <MemoryRouter>

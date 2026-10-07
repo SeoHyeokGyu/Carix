@@ -123,7 +123,7 @@ describe("SkillDemandSection", () => {
     const toggleBtn = screen.getByRole("button", { name: /원천 통계 보기/i });
     fireEvent.click(toggleBtn);
 
-    expect(screen.getByText(/JOBKOREA/)).toBeInTheDocument();
+    expect(screen.getByText(/잡코리아/)).toBeInTheDocument();
     expect(screen.getByText(/80건/)).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: /접기/i }));

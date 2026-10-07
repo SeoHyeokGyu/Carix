@@ -81,6 +81,19 @@ class PostingsExploreTest {
   }
 
   @Test
+  @DisplayName("원천 필터 WANTED 는 원티드 공고만, 링크는 wd 주소")
+  void postings_wanted() {
+    posting("WANTED", "330001", "원티드회사", "202609", "202609");
+    repository.flush();
+
+    PostingPage page =
+        service.postings("202609", "WANTED", null, null, null, null, null, null, null, null);
+
+    assertThat(page.total()).isEqualTo(1);
+    assertThat(page.items().getFirst().url()).isEqualTo("https://www.wanted.co.kr/wd/330001");
+  }
+
+  @Test
   @DisplayName("OTHER 직무 필터는 직무가 비었거나 알 수 없는 공고까지 센다")
   void postings_otherIncludesNullFamily() {
     repository.saveAndFlush(

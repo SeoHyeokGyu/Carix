@@ -7,6 +7,7 @@ import {
   resolveDemandTrend,
   resolveSkillDemandStatus,
 } from "../../lib/skillDemandStatus";
+import { sourceLabel } from "../../lib/sourceLabel";
 import { ToneBadge } from "@/components/ui/tone-badge";
 import { EmptyState } from "@/components/ui/empty-state";
 
@@ -150,7 +151,7 @@ export function SkillDemandSection({ data }: SkillDemandSectionProps) {
                                 key={src.source}
                                 className="flex justify-between items-center text-carix-text/80"
                               >
-                                <span>• {src.source}</span>
+                                <span>• {sourceLabel(src.source)}</span>
                                 <span>
                                   표본: <strong>{src.sampleSize}건</strong> |
                                   지수:{" "}

@@ -90,11 +90,13 @@ public class JumpitIngestService {
     int enriched = 0;
     int skipped = 0;
     int errors = 0;
+    boolean listFailed = false;
 
     for (int page = 1; page <= MAX_PAGES; page++) {
       Optional<String> body = client.fetchListPage(page);
       if (body.isEmpty()) {
         log.warn("[점핏] 목록 {}페이지를 받지 못해 순회를 멈춥니다", page);
+        listFailed = true;
         break;
       }
       JumpitParser.Page parsed = parser.parsePage(body.get());
@@ -134,7 +136,8 @@ public class JumpitIngestService {
         enriched,
         skipped,
         errors);
-    return new JumpitIngestSummary(pages, seen.size(), created, enriched, skipped, errors, dropped);
+    return new JumpitIngestSummary(
+        pages, seen.size(), created, enriched, skipped, errors, dropped, listFailed);
   }
 
   private Outcome process(JumpitPosition position, String month, Map<String, Integer> dropped) {

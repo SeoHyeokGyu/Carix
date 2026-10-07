@@ -79,4 +79,24 @@ describe("PostingsExplorer", () => {
     );
     expect(screen.getByText(/확인 경로 -/)).toBeInTheDocument();
   });
+
+  it("원티드 확인 경로를 표시명으로 보인다", async () => {
+    render(
+      <PostingsExplorer
+        data={{
+          total: 1,
+          page: 0,
+          size: 20,
+          items: [{ ...item, collectedVia: "WANTED_LIST,WANTED_BACKFILL" }],
+        }}
+        onPage={() => {}}
+      />,
+    );
+    await userEvent.click(
+      screen.getByRole("button", { name: "인프라보안 상세" }),
+    );
+    expect(
+      screen.getByText(/확인 경로 원티드 목록 · 원티드 표본/),
+    ).toBeInTheDocument();
+  });
 });

@@ -3,6 +3,7 @@ package com.carix.pipeline.health;
 import com.carix.jobposting.JobPosting;
 import com.carix.jobposting.JobPostingRepository;
 import com.carix.market.MarketAggregateService;
+import com.carix.pipeline.health.DataHealthSnapshot.SampleSeries;
 import com.carix.pipeline.health.DataHealthSnapshot.UserSnapshot;
 import com.carix.pipeline.health.DataHealthSnapshot.WageCell;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -40,38 +41,54 @@ public class JdbcDataHealthReader implements DataHealthReader {
   @Override
   @Transactional(readOnly = true)
   public DataHealthSnapshot read(YearMonth previousMonth) {
-    Map<String, Integer> sampled =
-        monthCounts(
-            "SELECT sampled_month, COUNT(*) FROM core.job_posting WHERE sampled_month IS NOT NULL GROUP BY sampled_month");
     List<JobPosting> all = jobPostingRepository.findAll();
-    Map<String, Integer> capped = new LinkedHashMap<>();
-    sampled
-        .keySet()
-        .forEach(m -> capped.put(m, marketAggregateService.sampledPostingsForMonth(all, m).size()));
+    SampleSeries jobKorea = sampleSeries("JOBKOREA", all);
+    SampleSeries wanted = sampleSeries("WANTED", all);
 
     return new DataHealthSnapshot(
         monthCounts(
             "SELECT base_year_month, COUNT(DISTINCT category) FROM core.cpi_observation GROUP BY base_year_month"),
-        sampled,
-        capped,
-        monthCounts(
-            "SELECT base_year_month, MAX(posting_count) FROM core.market_aggregate WHERE source = 'JOBKOREA'"
-                + " AND job_family = 'ALL' AND experience_bracket = 'ALL' AND region = 'ALL'"
-                + " AND employment_type = 'ALL' AND company_size = 'ALL' AND skill_id IS NULL GROUP BY base_year_month"),
+        jobKorea.sampledByMonth(),
+        jobKorea.cappedByMonth(),
+        jobKorea.aggregatedByMonth(),
         familyTotals(YM.format(previousMonth)),
         wageCells(),
         crawlLatest(),
         snapshots(),
-        families());
+        families(),
+        wanted);
   }
 
-  private Map<String, Integer> monthCounts(String sql) {
+  SampleSeries sampleSeries(String source, List<JobPosting> all) {
+    Map<String, Integer> sampled =
+        monthCounts(
+            "SELECT sampled_month, COUNT(*) FROM core.job_posting WHERE sampled_month IS NOT NULL"
+                + " AND source = ? GROUP BY sampled_month",
+            source);
+    Map<String, Integer> capped = new LinkedHashMap<>();
+    sampled
+        .keySet()
+        .forEach(
+            m ->
+                capped.put(
+                    m, marketAggregateService.sampledPostingsForMonth(all, m, source).size()));
+    Map<String, Integer> aggregated =
+        monthCounts(
+            "SELECT base_year_month, MAX(posting_count) FROM core.market_aggregate WHERE source = ?"
+                + " AND job_family = 'ALL' AND experience_bracket = 'ALL' AND region = 'ALL'"
+                + " AND employment_type = 'ALL' AND company_size = 'ALL' AND skill_id IS NULL GROUP BY base_year_month",
+            source);
+    return new SampleSeries(sampled, capped, aggregated);
+  }
+
+  private Map<String, Integer> monthCounts(String sql, Object... args) {
     Map<String, Integer> out = new HashMap<>();
     jdbc.query(
         sql,
         rs -> {
           out.put(rs.getString(1), rs.getInt(2));
-        });
+        },
+        args);
     return out;
   }
 

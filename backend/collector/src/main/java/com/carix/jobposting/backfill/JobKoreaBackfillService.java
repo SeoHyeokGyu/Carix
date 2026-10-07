@@ -75,7 +75,7 @@ public class JobKoreaBackfillService {
                             .flatMap(jsonLdParser::parse)
                             .map(JobKoreaJsonLd::datePosted)),
             PROBE_LIMIT);
-    BackfillSampler sampler = new BackfillSampler(new Pages(fetcher), new Random());
+    BackfillSampler<JobKoreaPage> sampler = new BackfillSampler<>(new Pages(fetcher), new Random());
 
     Map<String, Object> summary = new LinkedHashMap<>();
     long monthStartId = finder.findFirstIdOnOrAfter(from.atDay(1), minId, maxIdExclusive);
@@ -135,7 +135,7 @@ public class JobKoreaBackfillService {
     return value != null ? value : fallback;
   }
 
-  private final class Pages implements BackfillSampler.Pages {
+  private final class Pages implements BackfillSampler.Pages<JobKoreaPage> {
     private final JobKoreaPageFetcher fetcher;
 
     private Pages(JobKoreaPageFetcher fetcher) {
@@ -151,18 +151,18 @@ public class JobKoreaBackfillService {
     }
 
     @Override
-    public Optional<BackfillSampler.Candidate> fetch(long id) {
+    public Optional<BackfillSampler.Candidate<JobKoreaPage>> fetch(long id) {
       return fetcher.fetch(id).flatMap(html -> toCandidate(id, html));
     }
 
     @Override
-    public void save(BackfillSampler.Candidate candidate, YearMonth month) {
+    public void save(BackfillSampler.Candidate<JobKoreaPage> candidate, YearMonth month) {
       jobPostingIngestService.ingestBackfilledJobKorea(
-          candidate.page(), month.format(YM), Instant.now());
+          candidate.payload(), month.format(YM), Instant.now());
     }
   }
 
-  private Optional<BackfillSampler.Candidate> toCandidate(long id, String html) {
+  private Optional<BackfillSampler.Candidate<JobKoreaPage>> toCandidate(long id, String html) {
     return jsonLdParser
         .parse(html)
         .map(
@@ -170,7 +170,7 @@ public class JobKoreaBackfillService {
               String family = familyResolver.resolve(html, ld.title());
               LocalDate posted = ld.datePosted();
               JobKoreaPage page = new JobKoreaPage(String.valueOf(id), html, ld, family);
-              return new BackfillSampler.Candidate(
+              return new BackfillSampler.Candidate<>(
                   id, posted, TARGET_FAMILIES.contains(family), page);
             });
   }

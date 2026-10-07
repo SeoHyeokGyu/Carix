@@ -27,7 +27,7 @@ class PpiChecksTest {
 
   private static DataHealthReport.Check check(
       Map<String, Integer> cpi, String id, List<UserSnapshot> snaps) {
-    var data = new DataHealthSnapshot(cpi, null, null, null, null, null, null, snaps, null);
+    var data = new DataHealthSnapshot(cpi, null, null, null, null, null, null, snaps, null, null);
     return PpiChecks.group(data, NOW, HealthThresholds.defaults()).checks().stream()
         .filter(c -> c.id().equals(id))
         .findFirst()

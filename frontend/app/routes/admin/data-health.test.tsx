@@ -85,6 +85,43 @@ describe("DataHealthPage", () => {
     ).toHaveAttribute("href", "/admin/data?tab=cpi");
   });
 
+  it("원티드(도입 중) 그룹도 카드로 그려지고 원본 링크를 단다", async () => {
+    vi.mocked(api.fetchDataHealth).mockResolvedValue({
+      ...report,
+      groups: [
+        ...report.groups,
+        {
+          id: "WANTED",
+          title: "원티드(도입 중)",
+          question: "원티드 표본이 쌓이고 있나?",
+          checks: [
+            {
+              id: "WANTED_SAMPLE_LAST_MONTH",
+              title: "지난달 표본",
+              verdict: "ERROR",
+              message: "202609 표본 0건 (목표 250)",
+              impactUsers: null,
+              action: "202609 백필",
+              actionLink: "/admin/collector",
+              drillDown:
+                "/admin/data?tab=postings&month=202609&sampled=true&source=WANTED",
+              evidence: {},
+            },
+          ],
+        },
+      ],
+    });
+    renderPage();
+    expect(await screen.findByText("원티드(도입 중)")).toBeInTheDocument();
+    expect(screen.getByText(/원티드 표본이 쌓이고 있나\?/)).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: "지난달 표본 원본 보기" }),
+    ).toHaveAttribute(
+      "href",
+      "/admin/data?tab=postings&month=202609&sampled=true&source=WANTED",
+    );
+  });
+
   it("세 질문에 온전히 답하는 사용자 수를 보인다", async () => {
     renderPage();
     expect(await screen.findByText("1 / 3명")).toBeInTheDocument();

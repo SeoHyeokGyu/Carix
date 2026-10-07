@@ -45,6 +45,7 @@ export default function DataExplorePage() {
         ? false
         : undefined;
   const sort = parsePostingSort(params.get("sort"));
+  const sampleSource = params.get("sampleSource") ?? undefined;
   const page = Math.max(0, Math.trunc(Number(params.get("page") ?? "0") || 0));
 
   const from = params.get("from") ?? undefined;
@@ -64,7 +65,7 @@ export default function DataExplorePage() {
         if (tab === "monthly") {
           next = {
             kind: "monthly",
-            data: await fetchMonthlyOverview(from, to),
+            data: await fetchMonthlyOverview(from, to, sampleSource),
           };
         } else if (tab === "postings" && month && isMonthValid) {
           next = {
@@ -96,7 +97,18 @@ export default function DataExplorePage() {
     return () => {
       cancelled = true;
     };
-  }, [tab, month, isMonthValid, from, to, sampled, page, paramsKey, reloadKey]);
+  }, [
+    tab,
+    month,
+    isMonthValid,
+    from,
+    to,
+    sampleSource,
+    sampled,
+    page,
+    paramsKey,
+    reloadKey,
+  ]);
 
   const reload = () => setReloadKey((k) => k + 1);
 
@@ -129,6 +141,21 @@ export default function DataExplorePage() {
             </Button>
           ))}
         </div>
+
+        {tab === "monthly" && (
+          <label className="flex items-center gap-2 text-xs">
+            직무별 표본 원천
+            <select
+              aria-label="직무별 표본 원천"
+              value={sampleSource === "WANTED" ? "WANTED" : "JOBKOREA"}
+              onChange={(e) => update({ sampleSource: e.target.value })}
+              className="rounded border border-carix-border px-2 py-1"
+            >
+              <option value="JOBKOREA">잡코리아</option>
+              <option value="WANTED">원티드</option>
+            </select>
+          </label>
+        )}
 
         {tab === "postings" && (
           <form
@@ -166,6 +193,7 @@ export default function DataExplorePage() {
               <option value="">전체 원천</option>
               <option value="JOBKOREA">잡코리아</option>
               <option value="SARAMIN">사람인</option>
+              <option value="WANTED">원티드</option>
             </select>
             <select
               name="sampled"
