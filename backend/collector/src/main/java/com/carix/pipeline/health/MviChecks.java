@@ -20,14 +20,15 @@ public final class MviChecks {
 
   public static DataHealthReport.Group group(
       DataHealthSnapshot data, YearMonth previousMonth, HealthThresholds t) {
+    int impactUsers = mviNotOk(data);
     return new DataHealthReport.Group(
         "MVI",
         "시장가치 지수",
         "내 스킬 가치는?",
         List.of(
-            lastMonth(data.jobKorea(), previousMonth, t, "", mviNotOk(data)),
+            lastMonth(data.jobKorea(), previousMonth, t, "", impactUsers),
             gaps(data.jobKorea(), previousMonth, ""),
-            aggregateStale(data.jobKorea(), "", mviNotOk(data)),
+            aggregateStale(data.jobKorea(), "", impactUsers),
             peerByFamily(data, t)));
   }
 

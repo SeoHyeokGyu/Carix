@@ -5,7 +5,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.carix.pipeline.dto.DataHealthReport;
 import com.carix.pipeline.health.DataHealthSnapshot.SampleSeries;
 import java.time.YearMonth;
-import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -56,6 +55,15 @@ class WantedChecksTest {
     assertThat(g.checks()).allSatisfy(c -> assertThat(c.impactUsers()).isNull());
     assertThat(check(g, "WANTED_SAMPLE_GAPS").verdict()).isEqualTo(HealthVerdict.WARN);
     assertThat(check(g, "WANTED_AGGREGATE_STALE").verdict()).isEqualTo(HealthVerdict.ERROR);
-    assertThat(List.of(g)).hasSize(1);
+  }
+
+  @Test
+  @DisplayName("모두 정상이어도 영향 사용자 수는 null 이다")
+  void impactUsers_nullWhenAllOk() {
+    var g =
+        group(
+            new SampleSeries(Map.of("202609", 250), Map.of("202609", 250), Map.of("202609", 250)));
+    assertThat(g.checks()).allSatisfy(c -> assertThat(c.verdict()).isEqualTo(HealthVerdict.OK));
+    assertThat(g.checks()).allSatisfy(c -> assertThat(c.impactUsers()).isNull());
   }
 }
