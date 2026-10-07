@@ -158,6 +158,8 @@ erDiagram
         varchar first_seen_month
         varchar last_seen_month
         varchar sampled_month
+        text source_job_tags
+        varchar collected_via
         timestamp collected_at
     }
 
@@ -260,6 +262,8 @@ erDiagram
 > | `job_posting.title`·`company_name` | 적재만 된다. 집계는 차원만 쓰고 화면은 공고 개별을 보여주지 않는다 |
 > | `job_posting.position_level` | 직급 문자열. **잡코리아 원천에만 있다** — 사람인 행은 `null` 이라 절반 모수다. 경력 브래킷과 별개의 세 번째 연차 신호이지만 반쪽이라 그대로는 못 쓴다 |
 > | `job_posting.company_badge` | 잡코리아 전용 배지. 사람인 `null` |
+> | `job_posting.source_job_tags` | 원천의 직군 태그 원본(`text`, nullable). 점핏은 `jobCategory`(쉼표로 여러 분류)이고 직무군 판정 근거로 보존한다. 점핏이 보강하지 않은 행은 `NULL`. 관리자 공고 상세만 읽는다 |
+> | `job_posting.collected_via` | 공고를 확인한 수집 경로 목록(`varchar(128)`, 쉼표 구분·중복 없음). 값은 `JOBKOREA_LIST`·`JOBKOREA_BACKFILL`·`JOBKOREA_SEED`·`SARAMIN_SEARCH`·`JUMPIT` 이고 사람인 시드 행은 `SARAMIN_SEARCH` 로 센다. 관리자 공고 탐색·상세만 읽는다 |
 > | `job_posting.dedup_rule_version` | 중복제거 규칙 버전. 규칙을 바꿔 재집계할 때 어느 행이 옛 규칙 산물인지 가리려던 컬럼인데 읽는 코드가 없다 |
 > | `cpi_observation` 전체 | `collector` 가 적재하고 `core-api` 의 물가 기여도 뱃지(`c12`)와 구매력 지수 엔진(`a2`)이 읽는다 |
 >

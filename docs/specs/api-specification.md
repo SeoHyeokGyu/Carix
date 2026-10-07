@@ -803,6 +803,7 @@
 
 ### 8.1 채용공고 크롤링 비동기 실행
 *   `POST /internal/pipeline/crawl` — 잡코리아·사람인 IT/개발 채용공고 실시간 스크래핑 트리거.
+    *   `portal` 은 `ALL`(잡코리아·사람인, 기본)·`JOBKOREA`·`SARAMIN`·`JUMPIT` 이다. `JUMPIT` 은 점핏 목록을 끝까지 순회해 사람인 공고를 보강·추가하며(규칙은 [데이터 아키텍처 §1.3](data-architecture.md), 원천 호출은 [외부 연동 §3.4](external-api-integration.md)) `ALL` 에는 들지 않는다. `JUMPIT` 작업 요약의 키는 `pages`(순회한 목록 페이지)·`fetched`(읽은 공고)·`created`(새로 만든 공고)·`enriched`(보강한 기존 공고)·`skipped`(필수 필드를 못 읽어 건너뜀)·`errors`(공고 단위 실패)·`droppedSkills`(사전에 없어 버린 기술 스택의 빈도)다.
     *   **Request Body (선택):**
         ```json
         {
@@ -950,7 +951,7 @@
           "evaluatedAt": "2026-10-05T18:00:00+09:00",
           "referenceMonth": "202610",
           "previousMonth": "202609",
-          "engineRuleVersion": "1.3.0",
+          "engineRuleVersion": "1.4.0",
           "summary": {
             "users": 3,
             "fullyAnswered": 1,
@@ -987,7 +988,7 @@
 *   `GET /api/v1/meta/versions` — 결정 신호 엔진의 규칙 버전. 인증이 없고, collector 가 게이트웨이를 거치지 않고 서비스 간 호출로 읽어 8.8 의 `RULE_VERSION` 점검에 쓴다.
     *   **Response (200 OK):**
         ```json
-        { "ruleVersion": "1.3.0" }
+        { "ruleVersion": "1.4.0" }
         ```
 
 ### 8.10 수집 데이터 월별 현황 조회
@@ -1028,7 +1029,7 @@
         | `page` | 선택 | 0부터. 기본 0 |
         | `size` | 선택 | 기본 50, 최대 100 (넘으면 100) |
 
-    *   정렬은 `source`, `externalId` 오름차순이다. `url` 은 원천 공고 링크로, 잡코리아 `https://www.jobkorea.co.kr/Recruit/GI_Read/{externalId}`, 사람인 `https://www.saramin.co.kr/zf_user/jobs/relay/view?rec_idx={externalId}` 다.
+    *   `collectedVia` 는 공고를 확인한 수집 경로 목록(쉼표 구분: `JOBKOREA_LIST`·`JOBKOREA_BACKFILL`·`JOBKOREA_SEED`·`SARAMIN_SEARCH`·`JUMPIT`)이고 `sourceJobTags` 는 원천의 직군 태그 원본(점핏 `jobCategory`)이며 없으면 `null` 이다. 정렬은 `source`, `externalId` 오름차순이다. `url` 은 원천 공고 링크로, 잡코리아 `https://www.jobkorea.co.kr/Recruit/GI_Read/{externalId}`, 사람인 `https://www.saramin.co.kr/zf_user/jobs/relay/view?rec_idx={externalId}` 다.
     *   **Response (200 OK):**
         ```json
         {
@@ -1051,6 +1052,8 @@
               "postedEndDate": "2026-07-12",
               "firstSeenMonth": "202607",
               "sampledMonth": "202607",
+              "collectedVia": "JOBKOREA_LIST",
+              "sourceJobTags": null,
               "salaryMin": 50000000,
               "salaryMax": null,
               "salaryBandMin": null,
