@@ -12,6 +12,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
@@ -252,7 +253,13 @@ public class JobPosting {
       skills = Collections.emptyList();
     }
     List<Skill> validSkills =
-        skills.stream().filter(s -> s != null && s.getId() != null).collect(Collectors.toList());
+        skills.stream()
+            .filter(s -> s != null && s.getId() != null)
+            .collect(
+                Collectors.toMap(Skill::getId, s -> s, (first, dup) -> first, LinkedHashMap::new))
+            .values()
+            .stream()
+            .toList();
 
     Set<UUID> targetIds = validSkills.stream().map(Skill::getId).collect(Collectors.toSet());
     jobPostingSkills.removeIf(

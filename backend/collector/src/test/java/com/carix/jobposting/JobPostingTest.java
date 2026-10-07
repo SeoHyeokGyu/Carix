@@ -80,6 +80,19 @@ class JobPostingTest {
   }
 
   @Test
+  @DisplayName("replaceSkills - 같은 id 의 스킬이 두 번 들어와도 연결은 한 번만 만든다")
+  void replaceSkills_dedupesById() {
+    JobPosting posting = JobPosting.builder().build();
+    UUID id = UUID.randomUUID();
+    Skill first = Skill.builder().id(id).standardName("보안").build();
+    Skill second = Skill.builder().id(id).standardName("보안").build();
+
+    posting.replaceSkills(List.of(first, second));
+
+    assertThat(posting.getSkills()).hasSize(1);
+  }
+
+  @Test
   @DisplayName("도메인 분류 메서드 검증 (고용형태, 기업규모, 중복제거 그룹)")
   void domainClassifications() {
     JobPosting posting = JobPosting.builder().build();
