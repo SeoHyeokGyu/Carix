@@ -141,27 +141,36 @@ public class JumpitIngestService {
     // 있는 공고는 HTTP 가 필요 없다. 없을 때만 게시일·급여 근거를 트랜잭션 밖에서 미리 받는다.
     boolean alreadyKnown =
         postings.findBySourceAndExternalId(POSTING_SOURCE, position.id()).isPresent();
-    LocalDate published = null;
-    PostingSalary salary = null;
+    LocalDate publishedAt = null;
+    PostingSalary fetchedSalary = null;
     if (!alreadyKnown) {
-      published = publishedAt(position.id());
-      salary = salaryClassifier.classifySaramin(saraminDetail.fetch(position.id()).orElse(null));
+      publishedAt = publishedAt(position.id());
+      fetchedSalary =
+          salaryClassifier.classifySaramin(saraminDetail.fetch(position.id()).orElse(null));
     }
-    LocalDate publishedAt = published;
-    // 사전 확인 뒤 행이 사라지면 급여를 받지 않았으므로 미상으로 둔다.
-    PostingSalary postingSalary = salary != null ? salary : salaryClassifier.classifySaramin(null);
-    return tx.execute(
-        status -> {
-          Optional<JobPosting> existing =
-              postings.findBySourceAndExternalId(POSTING_SOURCE, position.id());
-          List<Skill> known = knownSkills(position.techStacks(), dropped);
-          if (existing.isPresent()) {
-            enrich(existing.get(), position, known, month);
-            return Outcome.ENRICHED;
-          }
-          postings.save(create(position, known, publishedAt, postingSalary, month));
-          return Outcome.CREATED;
-        });
+    LocalDate published = publishedAt;
+    PostingSalary salary = fetchedSalary;
+    // 실패한 공고의 미등록 스택은 총계에 넣지 않으므로 공고별로 모았다가 성공 뒤에 합친다.
+    Map<String, Integer> positionDropped = new TreeMap<>();
+    Outcome outcome =
+        tx.execute(
+            status -> {
+              positionDropped.clear();
+              Optional<JobPosting> existing =
+                  postings.findBySourceAndExternalId(POSTING_SOURCE, position.id());
+              List<Skill> known = knownSkills(position.techStacks(), positionDropped);
+              if (existing.isPresent()) {
+                enrich(existing.get(), position, known, month);
+                return Outcome.ENRICHED;
+              }
+              // 사전 확인 뒤 행이 사라지면 급여를 받지 않았으므로 미상으로 둔다.
+              PostingSalary postingSalary =
+                  salary != null ? salary : salaryClassifier.classifySaramin(null);
+              postings.save(create(position, known, published, postingSalary, month));
+              return Outcome.CREATED;
+            });
+    positionDropped.forEach((name, count) -> dropped.merge(name, count, Integer::sum));
+    return outcome;
   }
 
   /** 상세 응답을 못 읽으면 게시일만 비우고 계속한다. */
@@ -181,7 +190,7 @@ public class JumpitIngestService {
     posting.fillJobFamilyIfEmpty(
         familyResolver.resolve(position.jobCategories(), position.title()));
     posting.fillExperienceIfEmpty(experienceMin(position), position.maxCareer());
-    posting.recordSourceJobTags(String.join(",", position.jobCategories()));
+    recordSourceJobTags(posting, position);
     posting.addCollectedVia(CollectedVia.JUMPIT);
     postings.save(posting);
   }
@@ -215,10 +224,17 @@ public class JumpitIngestService {
             Instant.now());
     posting.applyPostedDates(published, position.closedAt());
     posting.applySalary(salary);
-    posting.recordSourceJobTags(String.join(",", position.jobCategories()));
+    recordSourceJobTags(posting, position);
     posting.addCollectedVia(CollectedVia.JUMPIT);
     posting.addSkillsIfAbsent(known);
     return posting;
+  }
+
+  /** 카테고리가 없는 포지션은 다른 원천이 남긴 출처 태그를 지우지 않는다. */
+  private static void recordSourceJobTags(JobPosting posting, JumpitPosition position) {
+    if (!position.jobCategories().isEmpty()) {
+      posting.recordSourceJobTags(String.join(",", position.jobCategories()));
+    }
   }
 
   /** 신입 공고는 경력 하한 0. 점핏은 신입에 minCareer 0 을 주지만 비어 오는 경우를 막는다. */

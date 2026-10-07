@@ -3,6 +3,7 @@ package com.carix.jobposting.jumpit;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.LocalDate;
+import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -97,7 +98,7 @@ public class JumpitParser {
     }
     try {
       return LocalDate.parse(v.substring(0, DATE_LENGTH));
-    } catch (Exception e) {
+    } catch (DateTimeParseException e) {
       return null;
     }
   }

@@ -35,6 +35,10 @@ class SaraminRecrawlLazySkillsTest {
   }
 
   private void seed(String via) {
+    seed(via, "DEVELOPER", null);
+  }
+
+  private void seed(String via, String family, Integer experienceMin) {
     new TransactionTemplate(transactionManager)
         .executeWithoutResult(
             s -> {
@@ -44,7 +48,8 @@ class SaraminRecrawlLazySkillsTest {
                       .externalId(EXTERNAL_ID)
                       .title("백엔드 엔지니어")
                       .companyName("테스트사")
-                      .jobFamily("DEVELOPER")
+                      .jobFamily(family)
+                      .experienceMin(experienceMin)
                       .firstSeenMonth("202610")
                       .lastSeenMonth("202610")
                       .collectedAt(Instant.now())
@@ -68,6 +73,11 @@ class SaraminRecrawlLazySkillsTest {
         Instant.now(),
         "202610",
         null);
+  }
+
+  private JobPosting loaded() {
+    return new TransactionTemplate(transactionManager)
+        .execute(s -> postings.findBySourceAndExternalId("SARAMIN", EXTERNAL_ID).orElseThrow());
   }
 
   private List<String> skillNames() {
@@ -101,5 +111,17 @@ class SaraminRecrawlLazySkillsTest {
     assertThatCode(this::recrawl).doesNotThrowAnyException();
 
     assertThat(skillNames()).contains("Java", "Kafka");
+  }
+
+  @Test
+  @DisplayName("점핏 이력이 있는 기존 공고의 직무군과 경력은 사람인 재수집이 덮어쓰지 않는다")
+  void recrawlKeepsFamilyAndExperienceOfJumpitRows() {
+    seed(CollectedVia.JUMPIT, "DATA", 5);
+
+    assertThatCode(this::recrawl).doesNotThrowAnyException();
+
+    JobPosting posting = loaded();
+    assertThat(posting.getJobFamily()).isEqualTo("DATA");
+    assertThat(posting.getExperienceMin()).isEqualTo(5);
   }
 }

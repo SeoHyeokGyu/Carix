@@ -631,9 +631,15 @@ public class JobPostingIngestService {
     if (existingOpt.isPresent()) {
       posting = existingOpt.get();
       posting.updateLastSeenMonth(currentMonth);
-      posting.classifyAs(jobFamily);
+      if (posting.hasCollectedVia(CollectedVia.JUMPIT)) {
+        // 점핏이 먼저 판정한 직무군·경력은 사람인 목록이 덮어쓰지 않는다.
+        posting.fillJobFamilyIfEmpty(jobFamily);
+        posting.fillExperienceIfEmpty(experience.min(), experience.max());
+      } else {
+        posting.classifyAs(jobFamily);
+        posting.applyExperienceRange(experience.min(), experience.max());
+      }
       posting.classifyCompanySizeAs(CompanySizeClassifier.UNKNOWN);
-      posting.applyExperienceRange(experience.min(), experience.max());
       posting.classifyEmploymentTypeAs(employmentTypeClassifier.classify(fields.employmentType()));
     } else {
       posting =

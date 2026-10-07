@@ -298,4 +298,63 @@ class JumpitIngestServiceTest {
         .containsEntry("created", 1)
         .containsEntry("droppedSkills", Map.of("ESET", 1));
   }
+
+  @Test
+  @DisplayName("점핏 포지션에 직무 카테고리가 없으면 기존 공고의 출처 직무 태그를 지우지 않는다")
+  void emptyCategoriesKeepExistingSourceTags() {
+    JobPosting existing = jobPosting("55220506");
+    existing.recordSourceJobTags("X");
+    given(postings.findBySourceAndExternalId(anyString(), anyString()))
+        .willReturn(Optional.empty());
+    given(postings.findBySourceAndExternalId("SARAMIN", "55220506"))
+        .willReturn(Optional.of(existing));
+
+    service.ingestAll();
+
+    assertThat(existing.getSourceJobTags()).isEqualTo("X");
+  }
+
+  @Test
+  @DisplayName("저장이 실패한 공고의 미등록 기술 스택은 droppedSkills 에 세지 않는다")
+  void failedPositionDoesNotCountDroppedSkills() {
+    given(postings.findBySourceAndExternalId(anyString(), anyString()))
+        .willReturn(Optional.empty());
+    given(postings.save(any(JobPosting.class)))
+        .willAnswer(
+            i -> {
+              JobPosting p = i.getArgument(0);
+              if ("55220505".equals(p.getExternalId())) {
+                throw new IllegalStateException("boom");
+              }
+              return p;
+            });
+
+    JumpitIngestSummary summary = service.ingestAll();
+
+    assertThat(summary.errors()).isEqualTo(1);
+    assertThat(summary.droppedSkills()).doesNotContainKey("ESET");
+  }
+
+  private static JobPosting jobPosting(String externalId) {
+    return new JobPosting(
+        "SARAMIN",
+        externalId,
+        "t",
+        "c",
+        null,
+        null,
+        "서울",
+        1,
+        3,
+        "UNKNOWN",
+        "UNKNOWN",
+        null,
+        null,
+        "DEVELOPER",
+        null,
+        null,
+        "202609",
+        "202609",
+        Instant.now());
+  }
 }
