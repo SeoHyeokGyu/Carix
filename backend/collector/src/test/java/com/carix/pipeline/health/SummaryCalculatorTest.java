@@ -13,7 +13,8 @@ class SummaryCalculatorTest {
 
   private static DataHealthSnapshot with(
       List<UserSnapshot> snapshots, Map<String, String> families) {
-    return new DataHealthSnapshot(null, null, null, null, null, null, null, snapshots, families);
+    return new DataHealthSnapshot(
+        null, null, null, null, null, null, null, snapshots, families, null);
   }
 
   private static UserSnapshot snap(

@@ -22,7 +22,7 @@ class MviChecksTest {
       String id) {
     var data =
         new DataHealthSnapshot(
-            null, sampled, capped, aggregated, families, null, null, List.of(), familyByUser);
+            null, sampled, capped, aggregated, families, null, null, List.of(), familyByUser, null);
     return MviChecks.group(data, PREV, HealthThresholds.defaults()).checks().stream()
         .filter(c -> c.id().equals(id))
         .findFirst()

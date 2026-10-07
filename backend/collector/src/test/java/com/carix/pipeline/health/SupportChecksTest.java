@@ -14,7 +14,8 @@ class SupportChecksTest {
   private static final Instant NOW = Instant.parse("2026-10-05T09:00:00Z");
 
   private static HealthVerdict verdict(Map<String, Instant> latest) {
-    var data = new DataHealthSnapshot(null, null, null, null, null, null, latest, List.of(), null);
+    var data =
+        new DataHealthSnapshot(null, null, null, null, null, null, latest, List.of(), null, null);
     return SupportChecks.group(data, NOW, HealthThresholds.defaults())
         .checks()
         .getFirst()

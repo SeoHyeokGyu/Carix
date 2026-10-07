@@ -27,7 +27,7 @@ class DecisionChecksTest {
 
   private static DataHealthReport.Check check(
       List<WageCell> wage, List<UserSnapshot> snaps, String engine, String id) {
-    var data = new DataHealthSnapshot(null, null, null, null, null, wage, null, snaps, null);
+    var data = new DataHealthSnapshot(null, null, null, null, null, wage, null, snaps, null, null);
     return DecisionChecks.group(data, NOW, engine).checks().stream()
         .filter(c -> c.id().equals(id))
         .findFirst()

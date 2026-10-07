@@ -14,7 +14,8 @@ public record DataHealthSnapshot(
     List<WageCell> wageCells,
     Map<String, Instant> crawlLatestBySource,
     List<UserSnapshot> snapshots,
-    Map<String, String> familyByUser) {
+    Map<String, String> familyByUser,
+    SampleSeries wanted) {
 
   public DataHealthSnapshot {
     cpiCodeCountByMonth = cpiCodeCountByMonth == null ? Map.of() : Map.copyOf(cpiCodeCountByMonth);
@@ -30,6 +31,25 @@ public record DataHealthSnapshot(
     crawlLatestBySource = crawlLatestBySource == null ? Map.of() : Map.copyOf(crawlLatestBySource);
     snapshots = snapshots == null ? List.of() : List.copyOf(snapshots);
     familyByUser = familyByUser == null ? Map.of() : Map.copyOf(familyByUser);
+    wanted = wanted == null ? new SampleSeries(null, null, null) : wanted;
+  }
+
+  /** 잡코리아 표본 시계열. 평면 컴포넌트 세 개가 잡코리아 몫이다. */
+  public SampleSeries jobKorea() {
+    return new SampleSeries(sampledByMonth, cappedSampleByMonth, aggregatedSampleByMonth);
+  }
+
+  /** 한 원천의 월별 표본 수·상한 적용 표본 수·집계 건수. */
+  public record SampleSeries(
+      Map<String, Integer> sampledByMonth,
+      Map<String, Integer> cappedByMonth,
+      Map<String, Integer> aggregatedByMonth) {
+
+    public SampleSeries {
+      sampledByMonth = sampledByMonth == null ? Map.of() : Map.copyOf(sampledByMonth);
+      cappedByMonth = cappedByMonth == null ? Map.of() : Map.copyOf(cappedByMonth);
+      aggregatedByMonth = aggregatedByMonth == null ? Map.of() : Map.copyOf(aggregatedByMonth);
+    }
   }
 
   /** 최신 기준 연도 임금통계 한 칸. */

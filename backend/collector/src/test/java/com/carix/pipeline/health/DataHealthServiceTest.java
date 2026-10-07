@@ -29,7 +29,7 @@ class DataHealthServiceTest {
   }
 
   @Test
-  @DisplayName("그룹 넷을 정해진 순서로 내고 지난달을 읽기에 넘긴다")
+  @DisplayName("그룹 다섯을 정해진 순서로 내고 지난달을 읽기에 넘긴다")
   void evaluate_groupsInOrder() {
     YearMonth[] asked = new YearMonth[1];
     DataHealthReader reader =
@@ -44,7 +44,8 @@ class DataHealthServiceTest {
               null,
               null,
               List.of(),
-              Map.of());
+              Map.of(),
+              null);
         };
     var service =
         new DataHealthService(
@@ -61,7 +62,7 @@ class DataHealthServiceTest {
     assertThat(r.engineRuleVersion()).isEqualTo("1.3.0");
     assertThat(r.groups())
         .extracting(DataHealthReport.Group::id)
-        .containsExactly("PPI", "MVI", "DECISION", "SUPPORT");
+        .containsExactly("PPI", "MVI", "DECISION", "SUPPORT", "WANTED");
   }
 
   @Test
@@ -77,7 +78,7 @@ class DataHealthServiceTest {
 
     DataHealthReport r = service.evaluate();
 
-    assertThat(r.groups()).hasSize(4);
+    assertThat(r.groups()).hasSize(5);
     assertThat(r.groups())
         .allSatisfy(
             g ->
@@ -100,6 +101,12 @@ class DataHealthServiceTest {
     for (String id : List.of("CPI_LATEST", "CPI_GAP")) {
       assertThat(DataHealthService.drillDown(id, "202609")).isEqualTo(cpi);
     }
+    assertThat(DataHealthService.drillDown("WANTED_SAMPLE_LAST_MONTH", "202609"))
+        .isEqualTo("/admin/data?tab=postings&month=202609&sampled=true&source=WANTED");
+    for (String id : List.of("WANTED_SAMPLE_GAPS", "WANTED_AGGREGATE_STALE")) {
+      assertThat(DataHealthService.drillDown(id, "202609"))
+          .isEqualTo(monthly + "&sampleSource=WANTED");
+    }
     assertThat(DataHealthService.drillDown("WAGE_BASELINE", "202609"))
         .isEqualTo("/admin/data?tab=wage");
     assertThat(DataHealthService.drillDown("RULE_VERSION", "202609")).isNull();
@@ -115,7 +122,8 @@ class DataHealthServiceTest {
                 null,
                 null,
                 List.of(),
-                Map.of());
+                Map.of(),
+                null);
     var service =
         new DataHealthService(
             reader,
@@ -129,5 +137,42 @@ class DataHealthServiceTest {
             .findFirst()
             .orElseThrow();
     assertThat(check.drillDown()).isEqualTo("/admin/data?tab=postings&month=202609&sampled=true");
+  }
+
+  @Test
+  @DisplayName("원티드 그룹은 요약 판정 건수에 들어가지 않고 영향 사용자 수는 비어 있다")
+  void wantedGroup_excludedFromSummary() {
+    // 원티드 표본이 있으나 지난달 0 건 → WANTED_SAMPLE_LAST_MONTH 는 ERROR
+    DataHealthReader reader =
+        prev ->
+            new DataHealthSnapshot(
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                List.of(),
+                Map.of(),
+                new DataHealthSnapshot.SampleSeries(Map.of("202608", 250), Map.of(), Map.of()));
+    var service =
+        new DataHealthService(
+            reader, Optional::empty, HealthThresholds.defaults(), at("2026-10-05T00:00:00Z"));
+
+    DataHealthReport r = service.evaluate();
+
+    var wanted = r.groups().get(4);
+    assertThat(wanted.title()).isEqualTo("원티드(도입 중)");
+    assertThat(wanted.question()).isEqualTo("원티드 표본이 쌓이고 있나?");
+    assertThat(wanted.checks())
+        .extracting(DataHealthReport.Check::id)
+        .containsExactly(
+            "WANTED_SAMPLE_LAST_MONTH", "WANTED_SAMPLE_GAPS", "WANTED_AGGREGATE_STALE");
+    assertThat(wanted.checks().get(0).verdict()).isEqualTo(HealthVerdict.ERROR);
+    assertThat(wanted.checks()).allSatisfy(c -> assertThat(c.impactUsers()).isNull());
+    int counted = r.summary().verdictCounts().values().stream().mapToInt(Integer::intValue).sum();
+    int others = r.groups().subList(0, 4).stream().mapToInt(g -> g.checks().size()).sum();
+    assertThat(counted).isEqualTo(others);
   }
 }

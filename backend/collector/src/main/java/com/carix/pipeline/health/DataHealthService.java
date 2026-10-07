@@ -92,11 +92,18 @@ public class DataHealthService {
             "연봉 분포·개방창",
             read,
             () -> SupportChecks.group(read, clock.instant(), thresholds)));
+    groups.add(
+        safe(
+            WantedChecks.GROUP_ID,
+            "원티드(도입 중)",
+            "원티드 표본이 쌓이고 있나?",
+            read,
+            () -> WantedChecks.group(read, previous, thresholds)));
 
     DataHealthSnapshot forSummary =
         read != null
             ? read
-            : new DataHealthSnapshot(null, null, null, null, null, null, null, null, null);
+            : new DataHealthSnapshot(null, null, null, null, null, null, null, null, null, null);
     String previousMonth = YM.format(previous);
     List<DataHealthReport.Group> linked =
         groups.stream()
@@ -126,7 +133,9 @@ public class DataHealthService {
         YM.format(reference),
         previousMonth,
         engine,
-        SummaryCalculator.summarize(forSummary, linked),
+        SummaryCalculator.summarize(
+            forSummary,
+            linked.stream().filter(g -> !WantedChecks.GROUP_ID.equals(g.id())).toList()),
         linked);
   }
 
@@ -152,6 +161,10 @@ public class DataHealthService {
       case "SAMPLE_GAPS", "AGGREGATE_STALE", "PEER_SAMPLE_BY_FAMILY", "CRAWL_FRESHNESS" ->
           rangedLink("monthly", previousMonth, MONTHLY_DRILL_MONTHS);
       case "CPI_LATEST", "CPI_GAP" -> rangedLink("cpi", previousMonth, CPI_DRILL_MONTHS);
+      case "WANTED_SAMPLE_LAST_MONTH" ->
+          "/admin/data?tab=postings&month=" + previousMonth + "&sampled=true&source=WANTED";
+      case "WANTED_SAMPLE_GAPS", "WANTED_AGGREGATE_STALE" ->
+          rangedLink("monthly", previousMonth, MONTHLY_DRILL_MONTHS) + "&sampleSource=WANTED";
       case "WAGE_BASELINE" -> "/admin/data?tab=wage";
       default -> null;
     };
