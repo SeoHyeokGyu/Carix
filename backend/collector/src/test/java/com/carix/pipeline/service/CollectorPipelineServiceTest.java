@@ -151,7 +151,7 @@ class CollectorPipelineServiceTest {
   @DisplayName("triggerCrawl WANTED - 요약을 details 로 담아 성공 처리한다")
   void triggerCrawl_wantedSuccess() throws Exception {
     given(wantedIngestService.ingestAll())
-        .willReturn(new WantedCrawlSummary(2, 30, 20, 8, 1, 2, Map.of()));
+        .willReturn(new WantedCrawlSummary(2, 30, 20, 8, 1, 2, Map.of(), false));
 
     JobExecutionResponse response =
         service.triggerCrawl(new CrawlRequest("WANTED", null, null, null, null, null));
@@ -169,7 +169,7 @@ class CollectorPipelineServiceTest {
   @DisplayName("triggerCrawl WANTED - 처리한 공고가 하나도 없고 실패만 있으면 작업 실패다")
   void triggerCrawl_wantedAllFailed() throws Exception {
     given(wantedIngestService.ingestAll())
-        .willReturn(new WantedCrawlSummary(2, 30, 0, 0, 0, 30, Map.of()));
+        .willReturn(new WantedCrawlSummary(2, 30, 0, 0, 0, 30, Map.of(), false));
 
     JobExecutionResponse response =
         service.triggerCrawl(new CrawlRequest("WANTED", null, null, null, null, null));
@@ -178,6 +178,21 @@ class CollectorPipelineServiceTest {
     JobStatusResponse status = service.getJobStatus(response.jobId());
     assertThat(status.status()).isEqualTo("FAILED");
     assertThat(status.errorMessage()).contains("errors=30");
+  }
+
+  @Test
+  @DisplayName("triggerCrawl WANTED - 목록을 한 페이지도 못 받으면 작업 실패다")
+  void triggerCrawl_wantedListFailed() throws Exception {
+    given(wantedIngestService.ingestAll())
+        .willReturn(new WantedCrawlSummary(0, 0, 0, 0, 0, 0, Map.of(), true));
+
+    JobExecutionResponse response =
+        service.triggerCrawl(new CrawlRequest("WANTED", null, null, null, null, null));
+    TimeUnit.MILLISECONDS.sleep(200);
+
+    JobStatusResponse status = service.getJobStatus(response.jobId());
+    assertThat(status.status()).isEqualTo("FAILED");
+    assertThat(status.errorMessage()).contains("원티드 목록을 받지 못했습니다");
   }
 
   @Test

@@ -50,6 +50,8 @@ class WantedIngestServiceTest {
     String detail;
     int pageFetches;
     int detailFetches;
+    boolean rewriteId = true;
+    int failListAtOffset = -1;
 
     FakeClient(String list, String page, String detail) {
       this.list = list;
@@ -59,13 +61,17 @@ class WantedIngestServiceTest {
 
     @Override
     public Optional<String> fetchList(int offset) {
+      if (offset == failListAtOffset) {
+        return Optional.empty();
+      }
       return Optional.of(offset == 0 ? list : EMPTY_LIST);
     }
 
     @Override
     public Optional<String> fetchPage(long id) {
       pageFetches++;
-      return Optional.ofNullable(page).map(p -> p.replace("391003", String.valueOf(id)));
+      return Optional.ofNullable(page)
+          .map(p -> rewriteId ? p.replace("391003", String.valueOf(id)) : p);
     }
 
     @Override
@@ -131,6 +137,7 @@ class WantedIngestServiceTest {
     assertThat(first.getFirstSeenMonth()).isEqualTo(month);
     assertThat(first.getLastSeenMonth()).isEqualTo(month);
     assertThat(first.getSampledMonth()).isNull();
+    assertThat(first.getSourceJobTags()).isEqualTo("1634:머신러닝 엔지니어");
     assertThat(first.getSkills()).extracting(Skill::getStandardName).contains("Kotlin", "AWS");
     assertThat(summary.created()).isEqualTo(3);
     assertThat(summary.pages()).isEqualTo(1);
@@ -223,9 +230,67 @@ class WantedIngestServiceTest {
   }
 
   @Test
+  @DisplayName("페이지 공고 번호가 목록 번호와 다르면 저장하지 않고 skipped 로 센다")
+  void pageIdMismatchSkipped() {
+    client.rewriteId = false;
+
+    WantedCrawlSummary summary = service.ingestAll();
+
+    // 391003 은 일치, 나머지 둘은 불일치
+    assertThat(summary.created()).isEqualTo(1);
+    assertThat(summary.skipped()).isEqualTo(2);
+    ArgumentCaptor<JobPosting> saved = ArgumentCaptor.forClass(JobPosting.class);
+    verify(postings, times(1)).save(saved.capture());
+    assertThat(saved.getValue().getExternalId()).isEqualTo("391003");
+  }
+
+  @Test
+  @DisplayName("같은 목록 번호가 한 실행에서 반복돼도 한 번만 처리한다")
+  void repeatedListIdProcessedOnce() throws IOException {
+    String one = fixture("list.json");
+    client =
+        new FakeClient(
+            one.replace("391002", "391003"),
+            fixture("page-active.html"),
+            fixture("detail-api.json"));
+    service = newService(TransactionOperations.withoutTransaction());
+
+    WantedCrawlSummary summary = service.ingestAll();
+
+    assertThat(summary.fetched()).isEqualTo(2);
+    assertThat(summary.created()).isEqualTo(2);
+    assertThat(client.pageFetches).isEqualTo(2);
+  }
+
+  @Test
+  @DisplayName("첫 목록 페이지를 못 받으면 listFailed 로 기록한다")
+  void firstListFailureFlagged() {
+    client.failListAtOffset = 0;
+
+    WantedCrawlSummary summary = service.ingestAll();
+
+    assertThat(summary.pages()).isZero();
+    assertThat(summary.listFailed()).isTrue();
+    assertThat(summary.toDetails()).containsEntry("listFailed", true);
+  }
+
+  @Test
+  @DisplayName("도중에 목록을 못 받으면 부분 결과를 남기고 listFailed 로 기록한다")
+  void midRunListFailureKeepsPartial() {
+    client.failListAtOffset = WantedClient.LIST_LIMIT;
+
+    WantedCrawlSummary summary = service.ingestAll();
+
+    assertThat(summary.pages()).isEqualTo(1);
+    assertThat(summary.created()).isEqualTo(3);
+    assertThat(summary.listFailed()).isTrue();
+  }
+
+  @Test
   @DisplayName("요약은 작업 details 맵으로 바뀐다")
   void summaryToDetails() {
-    Map<String, Object> d = new WantedCrawlSummary(1, 3, 2, 1, 0, 4, Map.of("Go", 1)).toDetails();
+    Map<String, Object> d =
+        new WantedCrawlSummary(1, 3, 2, 1, 0, 4, Map.of("Go", 1), false).toDetails();
     assertThat(d)
         .containsEntry("errors", 4)
         .containsEntry("created", 2)

@@ -72,11 +72,13 @@ public class WantedIngestService {
     int seen = 0;
     int skipped = 0;
     int errors = 0;
+    boolean listFailed = false;
 
     for (int page = 0; page < MAX_PAGES; page++) {
       Optional<String> body = client.fetchList(page * WantedClient.LIST_LIMIT);
       if (body.isEmpty()) {
         log.warn("[원티드] 목록 {}페이지를 받지 못해 순회를 멈춥니다", page);
+        listFailed = true;
         break;
       }
       WantedParser.ListPage parsed = parser.parseList(body.get());
@@ -118,7 +120,8 @@ public class WantedIngestService {
         seen,
         skipped,
         errors);
-    return new WantedCrawlSummary(pages, seenIds.size(), created, seen, skipped, errors, dropped);
+    return new WantedCrawlSummary(
+        pages, seenIds.size(), created, seen, skipped, errors, dropped, listFailed);
   }
 
   private Outcome process(WantedListItem item, String month, Map<String, Integer> dropped) {
@@ -128,6 +131,10 @@ public class WantedIngestService {
     long id = Long.parseLong(item.id());
     Optional<WantedPosting> page = client.fetchPage(id).flatMap(parser::parsePage);
     if (page.isEmpty() || page.get().parentTagId() != DEVELOPMENT_PARENT_TAG) {
+      return Outcome.SKIPPED;
+    }
+    if (!page.get().id().equals(item.id())) {
+      log.warn("[원티드] 목록 공고 {} 의 페이지 번호가 {} 라 건너뜁니다", item.id(), page.get().id());
       return Outcome.SKIPPED;
     }
     List<String> skillTags =

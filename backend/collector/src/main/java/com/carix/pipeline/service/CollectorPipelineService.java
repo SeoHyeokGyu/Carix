@@ -117,6 +117,11 @@ public class CollectorPipelineService {
             }
             if ("WANTED".equals(portal)) {
               WantedCrawlSummary summary = wantedIngestService.ingestAll();
+              if (summary.pages() == 0 && summary.listFailed()) {
+                state.fail("원티드 목록을 받지 못했습니다");
+                log.error("[작업:{}] 원티드 목록 수집 실패: {}", jobId, summary);
+                return;
+              }
               if (summary.created() + summary.seen() == 0 && summary.errors() > 0) {
                 state.fail("원티드 수집에서 모든 공고 처리에 실패했습니다 (errors=" + summary.errors() + ")");
                 log.error("[작업:{}] 원티드 수집 전부 실패: {}", jobId, summary);
