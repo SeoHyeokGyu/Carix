@@ -665,6 +665,19 @@ public class MarketValueIndexServiceImpl implements MarketValueIndexProvider {
     return customSkillIds;
   }
 
+  /** 결합에 참여하는(동료집단이 성공한) 원천의 결합 가중치. */
+  private Map<String, Double> combineWeights(
+      Map<String, PeerGroupFallbackResolver.ResolvedPeerGroup> peerGroups) {
+    Map<String, Integer> counts = new LinkedHashMap<>();
+    for (String source : SUPPORTED_SOURCES) {
+      PeerGroupFallbackResolver.ResolvedPeerGroup g = peerGroups.get(source);
+      if (g != null && g.isSuccessful()) {
+        counts.put(source, g.getSampleCount());
+      }
+    }
+    return SourceCombineWeights.of(counts);
+  }
+
   /**
    * 정규화된 스킬 가중치와 원천별 스킬 수요 지수를 결합하여 최종 MVI 지수를 산출합니다.
    *
@@ -678,8 +691,9 @@ public class MarketValueIndexServiceImpl implements MarketValueIndexProvider {
       Map<String, PeerGroupFallbackResolver.ResolvedPeerGroup> resolvedPeerGroups,
       Map<String, Map<UUID, Double>> sourceSkillDemandIndices) {
 
+    Map<String, Double> weights = combineWeights(resolvedPeerGroups);
     double weightedMviSum = 0.0;
-    int validSampleSum = 0;
+    double weightSum = 0.0;
 
     for (String source : SUPPORTED_SOURCES) {
       PeerGroupFallbackResolver.ResolvedPeerGroup peerGroup = resolvedPeerGroups.get(source);
@@ -713,13 +727,13 @@ public class MarketValueIndexServiceImpl implements MarketValueIndexProvider {
       // 이 원천에서 쓸 수 있는 스킬만으로 가중치를 100% 로 다시 맞춘다.
       double sourceMvi = weightedSum / availableWeight;
 
-      int sampleCount = peerGroup.getSampleCount();
-      weightedMviSum += sourceMvi * sampleCount;
-      validSampleSum += sampleCount;
+      double sourceWeight = weights.getOrDefault(source, 0.0);
+      weightedMviSum += sourceMvi * sourceWeight;
+      weightSum += sourceWeight;
     }
 
-    if (validSampleSum > 0) {
-      double combinedMvi = weightedMviSum / validSampleSum;
+    if (weightSum > 0) {
+      double combinedMvi = weightedMviSum / weightSum;
       return BigDecimal.valueOf(combinedMvi).setScale(1, RoundingMode.HALF_UP);
     }
     return null;
@@ -808,8 +822,8 @@ public class MarketValueIndexServiceImpl implements MarketValueIndexProvider {
    * 시장가치 지수의 표준오차(지수 포인트). {@link #calculateCombinedMvi} 와 같은 방식으로 접는다.
    *
    * <p>스킬 수요 지수는 두 비율의 나눗셈이라 상대 분산이 근사적으로 {@code 1/최근 창 스킬 건수 + 1/이전 창 스킬 건수} 다(모수 건수는 훨씬 커서 뺀다).
-   * 원천 안에서는 재정규화한 가중치로, 원천 사이에서는 표본 수 비중으로 분산을 더한다 — 스킬·원천 사이는 독립으로 본다. 결정 신호는 이 폭 밖으로 기준선을 넘을 때만
-   * 시장가치를 근거로 쓴다(도메인 정의서 §6.2). 계산할 원천이 없으면 {@code null}.
+   * 원천 안에서는 재정규화한 가중치로, 원천 사이에서는 결합 가중치({@link SourceCombineWeights}) 비중으로 분산을 더한다 — 스킬·원천 사이는 독립으로
+   * 본다. 결정 신호는 이 폭 밖으로 기준선을 넘을 때만 시장가치를 근거로 쓴다(도메인 정의서 §6.2). 계산할 원천이 없으면 {@code null}.
    */
   private BigDecimal calculateMviStandardError(
       Map<UUID, BigDecimal> normalizedWeights,
@@ -817,10 +831,11 @@ public class MarketValueIndexServiceImpl implements MarketValueIndexProvider {
       Map<String, Map<UUID, Double>> sourceSkillDemandIndices,
       Map<UUID, Map<String, SkillDemandCalculator.SkillDemandResult>> demandResults) {
 
+    Map<String, Double> weights = combineWeights(resolvedPeerGroups);
     double weightedVariance = 0.0;
-    int validSampleSum = 0;
+    double weightSum = 0.0;
     Map<String, Double> sourceVariances = new HashMap<>();
-    Map<String, Integer> sourceSamples = new HashMap<>();
+    Map<String, Double> sourceWeights = new HashMap<>();
 
     for (String source : SUPPORTED_SOURCES) {
       PeerGroupFallbackResolver.ResolvedPeerGroup peerGroup = resolvedPeerGroups.get(source);
@@ -856,15 +871,16 @@ public class MarketValueIndexServiceImpl implements MarketValueIndexProvider {
         variance += share * share * demandIndex * demandIndex * relativeVariance;
       }
       sourceVariances.put(source, variance);
-      sourceSamples.put(source, peerGroup.getSampleCount());
-      validSampleSum += peerGroup.getSampleCount();
+      double sourceWeight = weights.getOrDefault(source, 0.0);
+      sourceWeights.put(source, sourceWeight);
+      weightSum += sourceWeight;
     }
 
-    if (validSampleSum <= 0) {
+    if (weightSum <= 0) {
       return null;
     }
     for (Map.Entry<String, Double> entry : sourceVariances.entrySet()) {
-      double sourceShare = (double) sourceSamples.get(entry.getKey()) / validSampleSum;
+      double sourceShare = sourceWeights.get(entry.getKey()) / weightSum;
       weightedVariance += sourceShare * sourceShare * entry.getValue();
     }
     return BigDecimal.valueOf(Math.sqrt(weightedVariance)).setScale(1, RoundingMode.HALF_UP);
@@ -908,8 +924,8 @@ public class MarketValueIndexServiceImpl implements MarketValueIndexProvider {
   /**
    * 스킬별 지수 기여도를 만든다 (기술 명세 §1.3).
    *
-   * <p>수요 지수는 MVI 결합과 같은 방식으로 접는다 — 원천별 지수를 그 원천의 표본 수로 가중 평균한다. 두 경로가 다른 방식을 쓰면 기여도의 합이 지수와 어긋난다.
-   * 어느 원천에서도 지수를 내지 못한 스킬은 담지 않는다: 0 으로 채우면 기여가 없었다는 뜻이 되는데 실제로는 표본이 없었던 것이다.
+   * <p>수요 지수는 MVI 결합과 같은 방식으로 접는다 — 원천별 지수를 그 원천의 결합 가중치로 가중 평균한다. 두 경로가 다른 방식을 쓰면 기여도의 합이 지수와
+   * 어긋난다. 어느 원천에서도 지수를 내지 못한 스킬은 담지 않는다: 0 으로 채우면 기여가 없었다는 뜻이 되는데 실제로는 표본이 없었던 것이다.
    */
   private List<SkillContribution> buildSkillContributions(
       List<UserSkill> userSkills,
@@ -917,6 +933,7 @@ public class MarketValueIndexServiceImpl implements MarketValueIndexProvider {
       Map<String, Map<UUID, Double>> sourceSkillDemandIndices,
       Map<String, PeerGroupFallbackResolver.ResolvedPeerGroup> resolvedPeerGroups) {
 
+    Map<String, Double> weights = combineWeights(resolvedPeerGroups);
     List<SkillContribution> contributions = new ArrayList<>();
 
     for (UserSkill userSkill : userSkills) {
@@ -927,22 +944,23 @@ public class MarketValueIndexServiceImpl implements MarketValueIndexProvider {
       }
 
       double weightedIndexSum = 0.0;
-      int sampleSum = 0;
+      double weightSum = 0.0;
       for (String source : SUPPORTED_SOURCES) {
         PeerGroupFallbackResolver.ResolvedPeerGroup peerGroup = resolvedPeerGroups.get(source);
         Double demandIndex = sourceSkillDemandIndices.get(source).get(skillId);
         if (demandIndex == null || peerGroup == null || !peerGroup.isSuccessful()) {
           continue;
         }
-        weightedIndexSum += demandIndex * peerGroup.getSampleCount();
-        sampleSum += peerGroup.getSampleCount();
+        double sourceWeight = weights.getOrDefault(source, 0.0);
+        weightedIndexSum += demandIndex * sourceWeight;
+        weightSum += sourceWeight;
       }
-      if (sampleSum == 0) {
+      if (weightSum <= 0) {
         continue;
       }
 
       BigDecimal demandIndex =
-          BigDecimal.valueOf(weightedIndexSum / sampleSum).setScale(1, RoundingMode.HALF_UP);
+          BigDecimal.valueOf(weightedIndexSum / weightSum).setScale(1, RoundingMode.HALF_UP);
       contributions.add(
           new SkillContribution(
               userSkill.getSkill().getStandardName(),
@@ -961,7 +979,8 @@ public class MarketValueIndexServiceImpl implements MarketValueIndexProvider {
       Map<UUID, Map<String, SkillDemandCalculator.SkillDemandResult>> demandResults) {
 
     List<SkillDemandDetailData> resultList = new ArrayList<>();
-    int totalSamples = peerGroupResolution.totalSampleCount();
+    Map<String, Double> combineWeights = combineWeights(peerGroupResolution.peerGroups());
+    double weightSum = combineWeights.values().stream().mapToDouble(Double::doubleValue).sum();
 
     for (UserSkill us : userSkills) {
       Skill skill = us.getSkill();
@@ -1008,8 +1027,8 @@ public class MarketValueIndexServiceImpl implements MarketValueIndexProvider {
           overallStatus = SkillDemandStatus.NEW_OBSERVATION.name();
         }
 
-        if (totalSamples > 0 && peerGroup.isSuccessful()) {
-          double share = (double) sampleSize / totalSamples;
+        if (weightSum > 0 && peerGroup.isSuccessful()) {
+          double share = combineWeights.getOrDefault(source, 0.0) / weightSum;
           combinedDemandIndex += demandRes.getDemandIndex() * share;
           combinedRecentRate += demandRes.getRecentDemandRate() * share;
           combinedBaselineRate += demandRes.getBaselineDemandRate() * share;

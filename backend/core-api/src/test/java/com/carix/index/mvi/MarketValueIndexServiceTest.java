@@ -3,6 +3,7 @@ package com.carix.index.mvi;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.when;
 
 import com.carix.index.dto.ExcludedSkill;
@@ -916,6 +917,72 @@ class MarketValueIndexServiceTest {
     assertThat(result.baseYearMonth()).isEqualTo(requestedYm);
     assertThat(result.aggregateAsOf()).isEqualTo(LocalDate.of(2026, 8, 31));
     assertThat(result.status()).isEqualTo(IndexStatus.OK);
+  }
+
+  @Test
+  @DisplayName("정기 수집 원천의 동료집단이 표본 원천보다 커도 결합 가중치는 표본 원천 건수로 묶인다")
+  void testCrawlSourceWeightCappedAtSampledSourceCount() {
+    UUID userId = UUID.randomUUID();
+    String ym = "202610";
+    Skill skill =
+        Skill.builder().id(UUID.randomUUID()).standardName("Java").isCustom(false).build();
+    stubCombine(userId, ym, skill, resolvedGroup("JOBKOREA", 60), 100.0, 200.0);
+
+    MviResult result = service.calculate(userId, ym);
+
+    // 상한 없이는 (100×60 + 200×2000)/2060 = 197.1. 사람인을 60 으로 묶으면 (100×60 + 200×60)/120 = 150.
+    assertThat(result.value().doubleValue()).isEqualTo(150.0);
+  }
+
+  @Test
+  @DisplayName("표본 원천 동료집단이 실패하면 정기 수집 원천은 상한 없이 그 값으로 결합된다")
+  void testNoCapWhenSampledSourceUnsuccessful() {
+    UUID userId = UUID.randomUUID();
+    String ym = "202610";
+    Skill skill =
+        Skill.builder().id(UUID.randomUUID()).standardName("Java").isCustom(false).build();
+    PeerGroupFallbackResolver.ResolvedPeerGroup failed =
+        PeerGroupFallbackResolver.ResolvedPeerGroup.builder()
+            .source("JOBKOREA")
+            .successful(false)
+            .sampleCount(3)
+            .fallbackLevel(4)
+            .coverage(new SourceCoverage("JOBKOREA", 4, 3, false, "조건", BigDecimal.ZERO))
+            .build();
+    stubCombine(userId, ym, skill, failed, 100.0, 200.0);
+
+    MviResult result = service.calculate(userId, ym);
+
+    assertThat(result.value().doubleValue()).isEqualTo(200.0);
+  }
+
+  private void stubCombine(
+      UUID userId,
+      String ym,
+      Skill skill,
+      PeerGroupFallbackResolver.ResolvedPeerGroup jobkorea,
+      double jobkoreaIndex,
+      double saraminIndex) {
+    CareerProfile profile = new CareerProfile(userId);
+    profile.patch("DEVELOPER", 5, "서울 강남구", "FULL_TIME", "MEDIUM");
+    when(careerProfileRepository.findByUserId(userId)).thenReturn(Optional.of(profile));
+    when(userSkillRepository.findByUserId(userId)).thenReturn(List.of(userSkillOf(skill)));
+    when(peerGroupFallbackResolver.resolveForSource(eq("JOBKOREA"), any(), any()))
+        .thenReturn(jobkorea);
+    when(peerGroupFallbackResolver.resolveForSource(eq("SARAMIN"), any(), any()))
+        .thenReturn(resolvedGroup("SARAMIN", 2000));
+    lenient()
+        .when(
+            skillDemandCalculator.calculateDemandIndex(
+                eq("JOBKOREA"), eq(skill.getId()), any(), eq(ym)))
+        .thenReturn(demand(skill.getId(), jobkoreaIndex, SkillDemandStatus.OK));
+    when(skillDemandCalculator.calculateDemandIndex(
+            eq("SARAMIN"), eq(skill.getId()), any(), eq(ym)))
+        .thenReturn(demand(skill.getId(), saraminIndex, SkillDemandStatus.OK));
+    when(skillWeightCalculator.calculateWeights(any(), any(), any()))
+        .thenReturn(Map.of(skill.getId(), BigDecimal.ONE));
+    when(wageBaselineResolver.resolveBaseline(any()))
+        .thenReturn(new WageBaseline(65000000L, "초과급여 제외", "202609"));
   }
 
   private static UserSkill userSkillOf(Skill skill) {

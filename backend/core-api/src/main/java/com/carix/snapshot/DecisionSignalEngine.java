@@ -21,7 +21,7 @@ import org.springframework.stereotype.Component;
 public class DecisionSignalEngine {
 
   /** 결정표 버전. 규칙표를 바꿔 배포할 때 수동으로 올린다 (기술 명세 §1.3). */
-  public static final String RULE_VERSION = "1.3.0";
+  public static final String RULE_VERSION = "1.4.0";
 
   private static final int MIN_SAMPLE_SIZE = 10;
   private static final BigDecimal GAP_SEEK_JOB = new BigDecimal("0.15");
