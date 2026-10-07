@@ -50,7 +50,10 @@ import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionOperations;
+import org.springframework.transaction.support.TransactionTemplate;
 
 @Slf4j
 @Service
@@ -77,6 +80,7 @@ public class JobPostingIngestService {
   private final SaraminListingEnricher saraminListingEnricher = new SaraminListingEnricher();
   private final JobKoreaDetailParser jobKoreaDetailParser = new JobKoreaDetailParser();
   private final JobKoreaOwnPostingParser jobKoreaOwnPostingParser = new JobKoreaOwnPostingParser();
+  private final TransactionOperations tx;
   private final PostingSalaryClassifier salaryClassifier = new PostingSalaryClassifier();
   private final SaraminDetailFetcher saraminDetailFetcher =
       new SaraminDetailFetcher(SARAMIN_DETAIL_DELAY_MS);
@@ -93,7 +97,12 @@ public class JobPostingIngestService {
       @Autowired(required = false) JobPostingSkillRepository jobPostingSkillRepository,
       @Autowired(required = false) SkillAliasRepository skillAliasRepository,
       @Autowired(required = false) UserSkillRepository userSkillRepository,
-      @Autowired(required = false) SkillTaxonomy skillTaxonomy) {
+      @Autowired(required = false) SkillTaxonomy skillTaxonomy,
+      @Autowired(required = false) PlatformTransactionManager transactionManager) {
+    this.tx =
+        transactionManager != null
+            ? new TransactionTemplate(transactionManager)
+            : TransactionOperations.withoutTransaction();
     this.jobPostingRepository = jobPostingRepository;
     this.skillRepository = skillRepository;
     this.rawIngestRepository = rawIngestRepository;
@@ -109,6 +118,25 @@ public class JobPostingIngestService {
   public JobPostingIngestService(
       JobPostingRepository jobPostingRepository,
       SkillRepository skillRepository,
+      RawIngestRepository rawIngestRepository,
+      JobPostingSkillRepository jobPostingSkillRepository,
+      SkillAliasRepository skillAliasRepository,
+      UserSkillRepository userSkillRepository,
+      SkillTaxonomy skillTaxonomy) {
+    this(
+        jobPostingRepository,
+        skillRepository,
+        rawIngestRepository,
+        jobPostingSkillRepository,
+        skillAliasRepository,
+        userSkillRepository,
+        skillTaxonomy,
+        null);
+  }
+
+  public JobPostingIngestService(
+      JobPostingRepository jobPostingRepository,
+      SkillRepository skillRepository,
       RawIngestRepository rawIngestRepository) {
     this(
         jobPostingRepository,
@@ -117,7 +145,8 @@ public class JobPostingIngestService {
         null,
         null,
         null,
-        new SkillTaxonomy(skillRepository, null));
+        new SkillTaxonomy(skillRepository, null),
+        null);
   }
 
   /** 크롤링 요청 DTO 기반 전체 크롤링 & DB 실시간 적재 */
@@ -525,7 +554,37 @@ public class JobPostingIngestService {
     }
   }
 
+  /**
+   * 공고 하나의 조회·갱신·저장을 한 트랜잭션으로 묶는다. 호출 스레드에 트랜잭션이 없어도 지연 로딩 스킬 컬렉션을 갱신할 수 있어야 한다(HTTP 상세 조회는 호출 전에
+   * 끝낸다).
+   */
   void ingestSaraminPosting(
+      String externalId,
+      String title,
+      String companyName,
+      String location,
+      ExperienceRange experience,
+      String createdAtRaw,
+      SaraminListingFields fields,
+      Instant now,
+      String currentMonth,
+      PostingSalary salaryForNew) {
+    tx.executeWithoutResult(
+        status ->
+            upsertSaraminPosting(
+                externalId,
+                title,
+                companyName,
+                location,
+                experience,
+                createdAtRaw,
+                fields,
+                now,
+                currentMonth,
+                salaryForNew));
+  }
+
+  private void upsertSaraminPosting(
       String externalId,
       String title,
       String companyName,
