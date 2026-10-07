@@ -236,7 +236,7 @@ erDiagram
 > | --- | --- | --- |
 > | `job_posting` | `title VARCHAR(255)`, `company_name`·`region`·`experience_min`·`employment_type`·`company_size`·`job_family` 전부 NOT NULL | `title VARCHAR(500)`, 해당 컬럼 전부 NULL 허용. `company_badge`·`position_level` 컬럼 추가 |
 > | `job_posting.salary_*` | 원 단위 | **원 단위로 저장한다.** 원천 표기가 만원이라 적재 경로가 변환한다 — `JobKoreaListingEnricher`·`JobKoreaPayParser` 가 `값 < 1,000,000` 이면 `× 10,000`. 옛 만원 단위 행은 `06_fix_salary_units.sql` 이 같은 기준으로 올렸다. **읽을 때 다시 환산하지 않는다.** 휴리스틱이라 연 100만원 미만 실제 금액은 잘못 곱해지지만 채용공고 연봉에는 그런 값이 없다 |
-> | `job_posting.salary_*` (사람인) | — | **사람인은 연봉을 주지 않는다.** `SaraminListingFields` 에 필드가 없어 사람인 행은 전부 `null` 이고, 그 원천의 `market_aggregate` 5수치도 전부 `null`·결측률 100% 다 |
+> | `job_posting.salary_*` (사람인) | — | **사람인 목록페이지에는 연봉이 없다.** `SaraminListingFields` 에 필드가 없어 정기 수집은 신규 공고에 한해 상세페이지 `description` 의 급여 문구를 읽는다. 공개 금액이 있으면 `PUBLIC`, 「면접 후 결정」·「회사내규」면 `NONE` 이다 — 사람인에는 비공개 검색 구간이 없어 `BAND` 가 나오지 않는다 |
 > | `skill` | `standard_name VARCHAR(100)` 단독 UNIQUE, `category NOT NULL` | `VARCHAR(255)`, `UNIQUE (standard_name, category)`, `category` NULL 허용 |
 > | `skill.category` | `'BACKEND'`·`'FRONTEND'` 등 기술 분야 | `'SKILL'`·`'JOB_CATEGORY'`·`'INDUSTRY'` — 수집 태그의 성격 구분 |
 > | `skill_alias` | `alias_name VARCHAR(100) UNIQUE` | `VARCHAR(255)`, UNIQUE 없음. `SkillService`·`SkillRepository` 가 자동완성 검색에서 읽는다(`US-O5`) |
@@ -303,6 +303,7 @@ erDiagram
 | 2026-09-21 | `core.income_history` | 변경 사유 컬럼 `change_reason varchar(20)` 과 `CHECK (change_reason IN ('RAISE', 'JOB_CHANGE'))`, 컬럼 주석을 더했다. nullable·기본값 없음이라 카탈로그만 바뀌고 테이블 재작성이 없었다. 기존 2행은 새 컬럼이 `NULL` 이고 인덱스 셋(`income_history_pkey`·`income_history_user_effective_idx`·`income_history_user_id_effective_date_key`)은 그대로다. 제약 이름은 `income_history_change_reason_check`. 신규 환경용 실행 정본(`deploy/postgres/schema/02_user_domain.sql`)에도 같은 컬럼을 넣었다 |
 | 2026-10-05 | `core.job_posting` | 표본 월 컬럼 `sampled_month varchar(6)` 을 더했다. nullable·기본값 없음이라 카탈로그만 바뀌고 테이블 재작성이 없었다. 원천 항목 `backfill-<id>` 가 있는 백필분 2,010행에 `sampled_month = first_seen_month` 를 채웠고(202510~202607), 나머지 4,275행은 `NULL` 이다. 신규 환경용 실행 정본(`deploy/postgres/schema/01_job_posting.sql`)에도 같은 컬럼을 넣었다 |
 | 2026-10-06 | `core.job_posting` | 비공개 연봉 구간 `salary_band_min`·`salary_band_max bigint`(nullable)와 공개 구분 `salary_disclosure varchar(16) NOT NULL DEFAULT 'UNKNOWN'` 을 더했다. 기존 8,753행은 `UNKNOWN` 이고 `salary_min`·`salary_max` 는 그대로다 — 급여 재판정(`POST /internal/pipeline/salary-reclassify`) 적용 전까지 판정 전 값이다. 새 코드 배포 전에 적용했다(기본값이 있어 기존 코드의 삽입도 그대로 된다). 신규 환경용 실행 정본(`deploy/postgres/schema/01_job_posting.sql`)에도 같은 컬럼을 넣었다 |
+| 2026-10-07 | `core.job_posting` | 급여 재판정(`salary-reclassify`)을 적용했다(2026-10-06 전체 8,753행, 2026-10-07 판정 전 870행만 `onlyUnjudged` 로 재실행). 판정 결과 잡코리아 공개 788·비공개 구간 1,046·없음 4,862·판정 전 36, 사람인 공개 141·없음 1,855·판정 전 25 다. 비공개 구간으로 옮겨진 값은 `salary_band_*` 에 있고 공개 연봉만 `salary_min/max` 에 남았다. 이어 전 월 재집계와 전 사용자 재계산을 했다 |
 
 > **`core.wage_stat_observation.source` 는 쓰기 경로까지 들어왔다.** 수집이 연도별로 출처를
 > 기록하고, KOSIS 실측만 기존 행을 덮는다 — 폴백 상수는 기존 행을 건드리지 않는다. 컬럼 도입

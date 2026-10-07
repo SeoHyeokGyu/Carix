@@ -16,7 +16,10 @@ public final class SalaryTextParser {
   private static final long MANWON = 10_000L;
   private static final long EOK_IN_MANWON = 10_000L;
   private static final long MIN_ANNUAL = 10_000_000L;
-  private static final long MAX_ANNUAL = 1_000_000_000L;
+  // 원문 오기(연봉을 월급으로 적음, 0 하나 더)가 실제로 4.8억~9.6억·3억~5억 같은 값을 만든다. 개발 직군 공고에서 연 3억·월 1,500만원을 넘는
+  // 공개 금액은 오기로 보고 공개로 쓰지 않는다 — 무엇이 맞는 값인지 추측해 고치지 않는다.
+  private static final long MAX_ANNUAL = 300_000_000L;
+  private static final long MAX_MONTHLY = 15_000_000L;
   private static final int MONTHS = 12;
   private static final long CHEON_IN_MANWON = 1_000L;
   private static final int MAX_DIGITS = 12;
@@ -88,13 +91,21 @@ public final class SalaryTextParser {
     long min = won(first, fallback);
     long max = second == null ? min : won(second, fallback);
     if (monthly) {
+      if (max > MAX_MONTHLY) {
+        return Optional.empty();
+      }
       min *= MONTHS;
       max *= MONTHS;
     }
-    if (min > max || min < MIN_ANNUAL || max > MAX_ANNUAL) {
+    if (!isPlausibleAnnual(min, max)) {
       return Optional.empty();
     }
     return Optional.of(new SalaryRange(min, max));
+  }
+
+  /** 공개 연봉(연간 원)으로 받아들일 범위인가 — 연 1천만~3억, 하한 ≤ 상한. 목록페이지 폴백도 같은 기준을 쓴다. */
+  public static boolean isPlausibleAnnual(long min, long max) {
+    return min <= max && min >= MIN_ANNUAL && max <= MAX_ANNUAL;
   }
 
   /** {@code base} 는 그룹 번호 시작점. */
