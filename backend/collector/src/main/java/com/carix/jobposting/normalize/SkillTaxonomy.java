@@ -175,7 +175,16 @@ public class SkillTaxonomy {
 
   private static final Pattern UNKNOWN_TECH_PATTERN = Pattern.compile("^[a-zA-Z0-9_+#.-]{2,20}$");
 
+  /** 원천 태그에서 사전에 있는 표준 스킬만 고른다. 사전에 없는 값은 버린다(스킬 수요 분모를 흐리지 않게). */
+  public List<String> matchKnownSkills(String rawText) {
+    return extract(rawText, false);
+  }
+
   public List<String> extractCanonicalSkills(String rawText) {
+    return extract(rawText, true);
+  }
+
+  private List<String> extract(String rawText, boolean admitUnknownTech) {
     if (rawText == null || rawText.isBlank()) {
       return Collections.emptyList();
     }
@@ -223,7 +232,8 @@ public class SkillTaxonomy {
 
       // 4. 사전에 없는 단어: 1글자이거나 한글 일반명사(사전 미등록)는 노이즈이므로 버림.
       // 2~20자의 영문/기술 식별자 패턴인 경우에만 신기술 후보로 채택.
-      if (!matched
+      if (admitUnknownTech
+          && !matched
           && !JOB_TITLES.contains(normalizedKey)
           && UNKNOWN_TECH_PATTERN.matcher(trimmed).matches()) {
         results.add(trimmed);

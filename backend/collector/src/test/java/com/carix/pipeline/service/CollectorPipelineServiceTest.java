@@ -12,7 +12,10 @@ import com.carix.jobposting.RawIngestRepository;
 import com.carix.jobposting.SkillRepository;
 import com.carix.jobposting.backfill.JobKoreaBackfillService;
 import com.carix.jobposting.dedup.JobPostingDeduplicator;
+import com.carix.jobposting.jumpit.JumpitIngestService;
+import com.carix.jobposting.jumpit.JumpitIngestSummary;
 import com.carix.jobposting.service.JobPostingIngestService;
+import com.carix.jobposting.service.PostingSkillService;
 import com.carix.market.MarketAggregateRepository;
 import com.carix.market.MarketAggregateService;
 import com.carix.pipeline.dto.BackfillRequest;
@@ -41,11 +44,13 @@ class CollectorPipelineServiceTest {
   private WageStatObservationRepository wageStatObservationRepository;
   private MarketAggregateRepository marketAggregateRepository;
   private JobPostingIngestService jobPostingIngestService;
+  private PostingSkillService postingSkillService;
   private WageStatIngestService wageStatIngestService;
   private CpiIngestService cpiIngestService;
   private JobPostingDeduplicator jobPostingDeduplicator;
   private MarketAggregateService marketAggregateService;
   private JobKoreaBackfillService jobKoreaBackfillService;
+  private JumpitIngestService jumpitIngestService;
 
   private CollectorPipelineService service;
 
@@ -57,11 +62,13 @@ class CollectorPipelineServiceTest {
     wageStatObservationRepository = mock(WageStatObservationRepository.class);
     marketAggregateRepository = mock(MarketAggregateRepository.class);
     jobPostingIngestService = mock(JobPostingIngestService.class);
+    postingSkillService = mock(PostingSkillService.class);
     wageStatIngestService = mock(WageStatIngestService.class);
     cpiIngestService = mock(CpiIngestService.class);
     jobPostingDeduplicator = mock(JobPostingDeduplicator.class);
     marketAggregateService = mock(MarketAggregateService.class);
     jobKoreaBackfillService = mock(JobKoreaBackfillService.class);
+    jumpitIngestService = mock(JumpitIngestService.class);
 
     service =
         new CollectorPipelineService(
@@ -71,12 +78,14 @@ class CollectorPipelineServiceTest {
             wageStatObservationRepository,
             marketAggregateRepository,
             jobPostingIngestService,
+            postingSkillService,
             wageStatIngestService,
             cpiIngestService,
             jobPostingDeduplicator,
             marketAggregateService,
             jobKoreaBackfillService,
-            mock(com.carix.jobposting.backfill.SalaryReclassifyService.class));
+            mock(com.carix.jobposting.backfill.SalaryReclassifyService.class),
+            jumpitIngestService);
   }
 
   @Test
@@ -96,6 +105,36 @@ class CollectorPipelineServiceTest {
     JobStatusResponse status = service.getJobStatus(response.jobId());
     assertThat(status.status()).isEqualTo("SUCCESS");
     assertThat(status.details()).containsEntry("ingestedJobPostings", 10);
+  }
+
+  @Test
+  @DisplayName("triggerCrawl JUMPIT - 요약을 details 로 담아 성공 처리한다")
+  void triggerCrawl_jumpitSuccess() throws Exception {
+    given(jumpitIngestService.ingestAll())
+        .willReturn(new JumpitIngestSummary(2, 30, 20, 8, 1, 2, Map.of()));
+
+    JobExecutionResponse response =
+        service.triggerCrawl(new CrawlRequest("JUMPIT", null, null, null, null, null));
+    TimeUnit.MILLISECONDS.sleep(200);
+
+    JobStatusResponse status = service.getJobStatus(response.jobId());
+    assertThat(status.status()).isEqualTo("SUCCESS");
+    assertThat(status.details()).containsEntry("created", 20).containsEntry("errors", 2);
+  }
+
+  @Test
+  @DisplayName("triggerCrawl JUMPIT - 처리한 공고가 하나도 없고 실패만 있으면 작업 실패다")
+  void triggerCrawl_jumpitAllFailed() throws Exception {
+    given(jumpitIngestService.ingestAll())
+        .willReturn(new JumpitIngestSummary(2, 30, 0, 0, 0, 30, Map.of()));
+
+    JobExecutionResponse response =
+        service.triggerCrawl(new CrawlRequest("JUMPIT", null, null, null, null, null));
+    TimeUnit.MILLISECONDS.sleep(200);
+
+    JobStatusResponse status = service.getJobStatus(response.jobId());
+    assertThat(status.status()).isEqualTo("FAILED");
+    assertThat(status.errorMessage()).contains("errors=30");
   }
 
   @Test
@@ -131,7 +170,7 @@ class CollectorPipelineServiceTest {
   @Test
   @DisplayName("triggerSkillRefine - 비동기 스킬 재정제 작업 수락 및 상태 완료 확인")
   void triggerSkillRefine_success() throws Exception {
-    given(jobPostingIngestService.refineAllPostingSkills())
+    given(postingSkillService.refineAllPostingSkills())
         .willReturn(Map.of("totalPostings", 100, "refinedPostings", 100, "postingsWithSkills", 80));
 
     JobExecutionResponse response = service.triggerSkillRefine();

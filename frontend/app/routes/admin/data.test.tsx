@@ -61,6 +61,8 @@ const postings: api.PostingPage = {
       salaryBandMax: null,
       salaryDisclosure: "PUBLIC",
       skills: ["QA"],
+      collectedVia: null,
+      sourceJobTags: null,
     },
   ],
 };

@@ -48,7 +48,7 @@ export interface RecentPostingResponse {
 }
 
 export interface CrawlRequest {
-  portal?: "JOBKOREA" | "SARAMIN" | "ALL";
+  portal?: "JOBKOREA" | "SARAMIN" | "JUMPIT" | "ALL";
   maxPages?: number;
   delayMs?: number;
 }
@@ -352,6 +352,8 @@ export interface PostingItem {
   salaryBandMax: number | null;
   salaryDisclosure: "PUBLIC" | "BAND" | "NONE" | "UNKNOWN";
   skills: string[];
+  collectedVia: string | null;
+  sourceJobTags: string | null;
 }
 
 export interface PostingPage {

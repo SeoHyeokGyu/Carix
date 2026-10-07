@@ -1,15 +1,13 @@
 package com.carix.jobposting.service;
 
+import com.carix.jobposting.CollectedVia;
 import com.carix.jobposting.JobPosting;
 import com.carix.jobposting.JobPostingRepository;
-import com.carix.jobposting.JobPostingSkillRepository;
 import com.carix.jobposting.RawIngest;
 import com.carix.jobposting.RawIngestIds;
 import com.carix.jobposting.RawIngestRepository;
 import com.carix.jobposting.Skill;
-import com.carix.jobposting.SkillAliasRepository;
 import com.carix.jobposting.SkillRepository;
-import com.carix.jobposting.UserSkillRepository;
 import com.carix.jobposting.backfill.JobKoreaJsonLd;
 import com.carix.jobposting.backfill.JobKoreaOwnPostingParser;
 import com.carix.jobposting.backfill.JobKoreaPage;
@@ -33,15 +31,12 @@ import com.carix.pipeline.dto.CrawlRequest;
 import java.time.Instant;
 import java.time.YearMonth;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import java.util.UUID;
 import lombok.extern.slf4j.Slf4j;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
@@ -49,7 +44,10 @@ import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionOperations;
+import org.springframework.transaction.support.TransactionTemplate;
 
 @Slf4j
 @Service
@@ -65,17 +63,15 @@ public class JobPostingIngestService {
       "https://www.jobkorea.co.kr/recruit/joblist?menucode=duty&dutyCtgr=" + DUTY_CATEGORY_IT;
 
   private final JobPostingRepository jobPostingRepository;
-  private final SkillRepository skillRepository;
   private final RawIngestRepository rawIngestRepository;
-  private final JobPostingSkillRepository jobPostingSkillRepository;
-  private final SkillAliasRepository skillAliasRepository;
-  private final UserSkillRepository userSkillRepository;
+  private final PostingSkillService postingSkills;
   private final SkillTaxonomy skillTaxonomy;
 
   private final JobKoreaListingEnricher jobKoreaListingEnricher = new JobKoreaListingEnricher();
   private final SaraminListingEnricher saraminListingEnricher = new SaraminListingEnricher();
   private final JobKoreaDetailParser jobKoreaDetailParser = new JobKoreaDetailParser();
   private final JobKoreaOwnPostingParser jobKoreaOwnPostingParser = new JobKoreaOwnPostingParser();
+  private final TransactionOperations tx;
   private final PostingSalaryClassifier salaryClassifier = new PostingSalaryClassifier();
   private final SaraminDetailFetcher saraminDetailFetcher =
       new SaraminDetailFetcher(SARAMIN_DETAIL_DELAY_MS);
@@ -87,22 +83,18 @@ public class JobPostingIngestService {
   @Autowired
   public JobPostingIngestService(
       JobPostingRepository jobPostingRepository,
-      SkillRepository skillRepository,
       RawIngestRepository rawIngestRepository,
-      @Autowired(required = false) JobPostingSkillRepository jobPostingSkillRepository,
-      @Autowired(required = false) SkillAliasRepository skillAliasRepository,
-      @Autowired(required = false) UserSkillRepository userSkillRepository,
-      @Autowired(required = false) SkillTaxonomy skillTaxonomy) {
+      PostingSkillService postingSkills,
+      SkillTaxonomy skillTaxonomy,
+      @Autowired(required = false) PlatformTransactionManager transactionManager) {
+    this.tx =
+        transactionManager != null
+            ? new TransactionTemplate(transactionManager)
+            : TransactionOperations.withoutTransaction();
     this.jobPostingRepository = jobPostingRepository;
-    this.skillRepository = skillRepository;
     this.rawIngestRepository = rawIngestRepository;
-    this.jobPostingSkillRepository = jobPostingSkillRepository;
-    this.skillAliasRepository = skillAliasRepository;
-    this.userSkillRepository = userSkillRepository;
-    this.skillTaxonomy =
-        skillTaxonomy != null
-            ? skillTaxonomy
-            : new SkillTaxonomy(skillRepository, skillAliasRepository);
+    this.postingSkills = postingSkills;
+    this.skillTaxonomy = skillTaxonomy;
   }
 
   public JobPostingIngestService(
@@ -113,10 +105,21 @@ public class JobPostingIngestService {
         jobPostingRepository,
         skillRepository,
         rawIngestRepository,
-        null,
-        null,
-        null,
         new SkillTaxonomy(skillRepository, null));
+  }
+
+  private JobPostingIngestService(
+      JobPostingRepository jobPostingRepository,
+      SkillRepository skillRepository,
+      RawIngestRepository rawIngestRepository,
+      SkillTaxonomy skillTaxonomy) {
+    this(
+        jobPostingRepository,
+        rawIngestRepository,
+        new PostingSkillService(
+            jobPostingRepository, skillRepository, null, null, null, skillTaxonomy),
+        skillTaxonomy,
+        null);
   }
 
   /** 크롤링 요청 DTO 기반 전체 크롤링 & DB 실시간 적재 */
@@ -136,7 +139,6 @@ public class JobPostingIngestService {
   }
 
   /** 잡코리아 크롤링 & DB 실시간 직접 적재 */
-  @Transactional
   public int crawlAndIngestJobKorea(String keyword, int pageLimit) {
     String currentMonth = YearMonth.now().format(YM_FORMATTER);
     int ingestedCount = 0;
@@ -176,58 +178,7 @@ public class JobPostingIngestService {
           break;
         }
 
-        for (Element row : rows) {
-          String externalId = row.attr("data-gno").strip();
-          if (externalId.isEmpty() || !collectedIds.add(externalId)) {
-            continue;
-          }
-
-          String companyName = row.select(".tplCo a.link").text().strip();
-          Element titleLink = row.selectFirst(".tplTit strong a.link");
-          if (titleLink == null) {
-            continue;
-          }
-          String title = titleLink.text().strip();
-          String link = titleLink.attr("href").strip();
-          if (link.startsWith("/")) {
-            link = "https://www.jobkorea.co.kr" + link;
-          }
-
-          Elements cellSpans = row.select(".tplTit p.etc span.cell");
-          String careerType = cellSpans.size() > 0 ? cellSpans.get(0).text().strip() : "무관";
-          String location = cellSpans.size() > 2 ? cellSpans.get(2).text().strip() : "전국";
-          ExperienceRange experience = ExperienceRange.parse(careerType);
-
-          String createdAtRaw = "";
-          Element timeSpan = row.selectFirst("td.odd span.time");
-          if (timeSpan != null) {
-            createdAtRaw = timeSpan.text().strip();
-          }
-
-          // 상세 페이지 수집 및 DB 저장
-          String detailHtml = fetchDetailHtml(link);
-          if (detailHtml != null) {
-            persistRawIngestIfAbsent("JOBKOREA", "detail-" + externalId, now, currentMonth);
-          }
-
-          JobKoreaListingFields fields =
-              jobKoreaListingEnricher.extract(listDoc.outerHtml(), externalId);
-
-          ingestJobKoreaPosting(
-              externalId,
-              title,
-              companyName,
-              location,
-              experience,
-              createdAtRaw,
-              fields,
-              detailHtml,
-              now,
-              currentMonth);
-
-          ingestedCount++;
-          sleep(500);
-        }
+        ingestedCount += ingestJobKoreaRows(listDoc, rows, collectedIds, now, currentMonth);
 
         sleep(1000);
       } catch (Exception e) {
@@ -240,7 +191,6 @@ public class JobPostingIngestService {
   }
 
   /** 사람인 크롤링 & DB 실시간 직접 적재 */
-  @Transactional
   public int crawlAndIngestSaramin(int pageLimit) {
     String currentMonth = YearMonth.now().format(YM_FORMATTER);
     int ingestedCount = 0;
@@ -276,54 +226,7 @@ public class JobPostingIngestService {
           break;
         }
 
-        for (Element item : items) {
-          String externalId = item.attr("value");
-          if (externalId == null || externalId.trim().isEmpty()) {
-            externalId = item.attr("id");
-          }
-          if (externalId == null || externalId.trim().isEmpty() || !collectedIds.add(externalId)) {
-            continue;
-          }
-
-          Element corpLink = item.selectFirst("div.area_corp strong.corp_name a");
-          String companyName = corpLink != null ? corpLink.text().strip() : "";
-
-          Element titleLink = item.selectFirst("div.area_job h2.job_tit a");
-          if (titleLink == null) {
-            continue;
-          }
-          String title = titleLink.text().strip();
-
-          Elements jobConditions = item.select("div.area_job div.job_condition span");
-          String location = jobConditions.size() > 0 ? jobConditions.get(0).text().strip() : "전국";
-          String career = jobConditions.size() > 1 ? jobConditions.get(1).text().strip() : "무관";
-          ExperienceRange experience = ExperienceRange.parse(career);
-
-          String createdAtRaw = saraminCreatedAtRaw(item);
-
-          SaraminListingFields fields = saraminListingEnricher.extract(doc.outerHtml(), externalId);
-
-          // 상세페이지는 아직 DB 에 없는 공고만 연다 — 기존 공고는 급여를 다시 판정하지 않는다.
-          PostingSalary salaryForNew =
-              jobPostingRepository.findBySourceAndExternalId("SARAMIN", externalId).isPresent()
-                  ? null
-                  : salaryClassifier.classifySaramin(
-                      saraminDetailFetcher.fetch(externalId).orElse(null));
-
-          ingestSaraminPosting(
-              externalId,
-              title,
-              companyName,
-              location,
-              experience,
-              createdAtRaw,
-              fields,
-              now,
-              currentMonth,
-              salaryForNew);
-
-          ingestedCount++;
-        }
+        ingestedCount += ingestSaraminItems(doc, items, collectedIds, now, currentMonth);
 
         sleep(1000);
       } catch (Exception e) {
@@ -335,7 +238,170 @@ public class JobPostingIngestService {
     return ingestedCount;
   }
 
+  /** 목록 한 페이지의 공고를 하나씩 적재한다. 한 공고가 실패해도 나머지는 계속한다. */
+  int ingestJobKoreaRows(
+      Document listDoc, Elements rows, Set<String> collectedIds, Instant now, String currentMonth) {
+    int ingested = 0;
+    for (Element row : rows) {
+      String rowId = row.attr("data-gno").strip();
+      try {
+        if (ingestJobKoreaRow(listDoc, row, collectedIds, now, currentMonth)) {
+          ingested++;
+        }
+      } catch (Exception e) {
+        log.warn("[JobKorea] 공고 {} 적재 실패: {}", rowId, e.getMessage(), e);
+      }
+    }
+    return ingested;
+  }
+
+  private boolean ingestJobKoreaRow(
+      Document listDoc, Element row, Set<String> collectedIds, Instant now, String currentMonth) {
+    String externalId = row.attr("data-gno").strip();
+    if (externalId.isEmpty() || !collectedIds.add(externalId)) {
+      return false;
+    }
+
+    String companyName = row.select(".tplCo a.link").text().strip();
+    Element titleLink = row.selectFirst(".tplTit strong a.link");
+    if (titleLink == null) {
+      return false;
+    }
+    String title = titleLink.text().strip();
+    String link = titleLink.attr("href").strip();
+    if (link.startsWith("/")) {
+      link = "https://www.jobkorea.co.kr" + link;
+    }
+
+    Elements cellSpans = row.select(".tplTit p.etc span.cell");
+    String careerType = cellSpans.size() > 0 ? cellSpans.get(0).text().strip() : "무관";
+    String location = cellSpans.size() > 2 ? cellSpans.get(2).text().strip() : "전국";
+    ExperienceRange experience = ExperienceRange.parse(careerType);
+
+    String createdAtRaw = "";
+    Element timeSpan = row.selectFirst("td.odd span.time");
+    if (timeSpan != null) {
+      createdAtRaw = timeSpan.text().strip();
+    }
+
+    // 상세 페이지 수집 및 DB 저장
+    String detailHtml = fetchDetailHtml(link);
+    if (detailHtml != null) {
+      persistRawIngestIfAbsent("JOBKOREA", "detail-" + externalId, now, currentMonth);
+    }
+
+    JobKoreaListingFields fields = jobKoreaListingEnricher.extract(listDoc.outerHtml(), externalId);
+
+    ingestJobKoreaPosting(
+        externalId,
+        title,
+        companyName,
+        location,
+        experience,
+        createdAtRaw,
+        fields,
+        detailHtml,
+        now,
+        currentMonth);
+
+    sleep(500);
+    return true;
+  }
+
+  /** 목록 한 페이지의 공고를 하나씩 적재한다. 한 공고가 실패해도 나머지는 계속한다. */
+  int ingestSaraminItems(
+      Document doc, Elements items, Set<String> collectedIds, Instant now, String currentMonth) {
+    int ingested = 0;
+    for (Element item : items) {
+      String itemId = item.attr("value");
+      try {
+        if (ingestSaraminItem(doc, item, collectedIds, now, currentMonth)) {
+          ingested++;
+        }
+      } catch (Exception e) {
+        log.warn("[Saramin] 공고 {} 적재 실패: {}", itemId, e.getMessage(), e);
+      }
+    }
+    return ingested;
+  }
+
+  private boolean ingestSaraminItem(
+      Document doc, Element item, Set<String> collectedIds, Instant now, String currentMonth) {
+    String externalId = item.attr("value");
+    if (externalId == null || externalId.trim().isEmpty()) {
+      externalId = item.attr("id");
+    }
+    if (externalId == null || externalId.trim().isEmpty() || !collectedIds.add(externalId)) {
+      return false;
+    }
+
+    Element corpLink = item.selectFirst("div.area_corp strong.corp_name a");
+    String companyName = corpLink != null ? corpLink.text().strip() : "";
+
+    Element titleLink = item.selectFirst("div.area_job h2.job_tit a");
+    if (titleLink == null) {
+      return false;
+    }
+    String title = titleLink.text().strip();
+
+    Elements jobConditions = item.select("div.area_job div.job_condition span");
+    String location = jobConditions.size() > 0 ? jobConditions.get(0).text().strip() : "전국";
+    String career = jobConditions.size() > 1 ? jobConditions.get(1).text().strip() : "무관";
+    ExperienceRange experience = ExperienceRange.parse(career);
+
+    String createdAtRaw = saraminCreatedAtRaw(item);
+
+    SaraminListingFields fields = saraminListingEnricher.extract(doc.outerHtml(), externalId);
+
+    // 상세페이지는 아직 DB 에 없는 공고만 연다 — 기존 공고는 급여를 다시 판정하지 않는다.
+    PostingSalary salaryForNew =
+        jobPostingRepository.findBySourceAndExternalId("SARAMIN", externalId).isPresent()
+            ? null
+            : salaryClassifier.classifySaramin(saraminDetailFetcher.fetch(externalId).orElse(null));
+
+    ingestSaraminPosting(
+        externalId,
+        title,
+        companyName,
+        location,
+        experience,
+        createdAtRaw,
+        fields,
+        now,
+        currentMonth,
+        salaryForNew);
+
+    return true;
+  }
+
+  /** 공고 하나의 조회·갱신·저장을 한 트랜잭션으로 묶는다. 목록 크롤링은 this 호출이라 호출 스레드에 트랜잭션이 없다. */
   void ingestJobKoreaPosting(
+      String externalId,
+      String title,
+      String companyName,
+      String location,
+      ExperienceRange experience,
+      String createdAtRaw,
+      JobKoreaListingFields fields,
+      String detailHtml,
+      Instant now,
+      String currentMonth) {
+    tx.executeWithoutResult(
+        status ->
+            upsertJobKoreaPosting(
+                externalId,
+                title,
+                companyName,
+                location,
+                experience,
+                createdAtRaw,
+                fields,
+                detailHtml,
+                now,
+                currentMonth));
+  }
+
+  private void upsertJobKoreaPosting(
       String externalId,
       String title,
       String companyName,
@@ -399,7 +465,8 @@ public class JobPostingIngestService {
     List<String> rawSkills =
         detailHtml != null ? jobKoreaDetailParser.extractSkills(detailHtml) : List.of();
 
-    applySkillsToPosting(posting, title, rawSkills);
+    postingSkills.applySkillsToPosting(posting, title, rawSkills);
+    posting.addCollectedVia(CollectedVia.JOBKOREA_LIST);
     jobPostingRepository.save(posting);
   }
 
@@ -419,8 +486,9 @@ public class JobPostingIngestService {
       posting.markSampled(postedMonth);
       applySalaryIfKnown(posting, salaryClassifier.classifyJobKorea(page.html()));
       posting.classifyAs(page.jobFamily());
-      applySkillsToPosting(
+      postingSkills.applySkillsToPosting(
           posting, posting.getTitle(), jobKoreaDetailParser.extractSkills(page.html()));
+      posting.addCollectedVia(CollectedVia.JOBKOREA_BACKFILL);
       jobPostingRepository.save(posting);
       persistRawIngestIfAbsent("JOBKOREA", "backfill-" + page.externalId(), now, postedMonth);
       return true;
@@ -455,7 +523,9 @@ public class JobPostingIngestService {
 
     posting.applySalary(salaryClassifier.classifyJobKorea(html));
     posting.markSampled(postedMonth);
-    applySkillsToPosting(posting, ld.title(), jobKoreaDetailParser.extractSkills(html));
+    postingSkills.applySkillsToPosting(
+        posting, ld.title(), jobKoreaDetailParser.extractSkills(html));
+    posting.addCollectedVia(CollectedVia.JOBKOREA_BACKFILL);
     jobPostingRepository.save(posting);
     persistRawIngestIfAbsent("JOBKOREA", "backfill-" + page.externalId(), now, postedMonth);
     return true;
@@ -482,7 +552,7 @@ public class JobPostingIngestService {
     if (familyChanged) {
       posting.classifyAs(family);
     }
-    applySkillsToPosting(
+    postingSkills.applySkillsToPosting(
         posting, posting.getTitle(), jobKoreaDetailParser.extractSkills(detailHtml));
     jobPostingRepository.save(posting);
     return familyChanged;
@@ -521,7 +591,37 @@ public class JobPostingIngestService {
     }
   }
 
+  /**
+   * 공고 하나의 조회·갱신·저장을 한 트랜잭션으로 묶는다. 호출 스레드에 트랜잭션이 없어도 지연 로딩 스킬 컬렉션을 갱신할 수 있어야 한다(HTTP 상세 조회는 호출 전에
+   * 끝낸다).
+   */
   void ingestSaraminPosting(
+      String externalId,
+      String title,
+      String companyName,
+      String location,
+      ExperienceRange experience,
+      String createdAtRaw,
+      SaraminListingFields fields,
+      Instant now,
+      String currentMonth,
+      PostingSalary salaryForNew) {
+    tx.executeWithoutResult(
+        status ->
+            upsertSaraminPosting(
+                externalId,
+                title,
+                companyName,
+                location,
+                experience,
+                createdAtRaw,
+                fields,
+                now,
+                currentMonth,
+                salaryForNew));
+  }
+
+  private void upsertSaraminPosting(
       String externalId,
       String title,
       String companyName,
@@ -541,9 +641,15 @@ public class JobPostingIngestService {
     if (existingOpt.isPresent()) {
       posting = existingOpt.get();
       posting.updateLastSeenMonth(currentMonth);
-      posting.classifyAs(jobFamily);
+      if (posting.hasCollectedVia(CollectedVia.JUMPIT)) {
+        // 점핏이 먼저 판정한 직무군·경력은 사람인 목록이 덮어쓰지 않는다.
+        posting.fillJobFamilyIfEmpty(jobFamily);
+        posting.fillExperienceIfEmpty(experience.min(), experience.max());
+      } else {
+        posting.classifyAs(jobFamily);
+        posting.applyExperienceRange(experience.min(), experience.max());
+      }
       posting.classifyCompanySizeAs(CompanySizeClassifier.UNKNOWN);
-      posting.applyExperienceRange(experience.min(), experience.max());
       posting.classifyEmploymentTypeAs(employmentTypeClassifier.classify(fields.employmentType()));
     } else {
       posting =
@@ -572,209 +678,19 @@ public class JobPostingIngestService {
       }
     }
 
-    applySkillsToPosting(posting, title, fields.skillTags());
+    postingSkills.applySkillsToPosting(posting, title, fields.skillTags());
     for (String industryName : distinct(fields.industryTags())) {
       String canonical = skillTaxonomy.canonicalName(industryName);
       if (canonical != null && !canonical.isBlank()) {
-        Skill indSkill = upsertSkill(canonical, "INDUSTRY");
+        Skill indSkill = postingSkills.upsertSkill(canonical, "INDUSTRY");
         if (posting.getSkills().stream().noneMatch(s -> s.getId().equals(indSkill.getId()))) {
           posting.addSkill(indSkill);
         }
       }
     }
 
+    posting.addCollectedVia(CollectedVia.SARAMIN_SEARCH);
     jobPostingRepository.save(posting);
-  }
-
-  /**
-   * 공고 제목과 원천 스킬 태그 목록을 결합하여 고품질 스킬을 추출하고 공고에 반영합니다. 불필요한 1글자 잡음이나 노이즈는 제외되며, 기존 잘못 매핑된 스킬은 안전하게
-   * 정리됩니다.
-   */
-  private void applySkillsToPosting(JobPosting posting, String title, List<String> rawSkills) {
-    Set<String> combinedCanonicalSkills = new LinkedHashSet<>();
-
-    // 1. 공고 제목(자연어)에서 단어 경계를 준수하여 사전 기반 스킬 추출
-    if (title != null && !title.isBlank()) {
-      combinedCanonicalSkills.addAll(skillTaxonomy.extractSkillsFromSentence(title));
-    }
-
-    // 2. 크롤링된 태그/상세 원천 스킬 목록에서 추출
-    if (rawSkills != null) {
-      for (String rawName : rawSkills) {
-        combinedCanonicalSkills.addAll(skillTaxonomy.extractCanonicalSkills(rawName));
-      }
-    }
-
-    List<Skill> targetSkills = new ArrayList<>();
-    Set<String> appliedKeys = new LinkedHashSet<>();
-    for (String canonicalName : combinedCanonicalSkills) {
-      if (canonicalName == null || canonicalName.isBlank()) {
-        continue;
-      }
-      String category = skillTaxonomy.category(canonicalName);
-      if (appliedKeys.add(canonicalName + " " + category)) {
-        targetSkills.add(upsertSkill(canonicalName, category));
-      }
-    }
-
-    posting.replaceSkills(targetSkills);
-  }
-
-  /**
-   * DB에 적재된 모든 채용공고의 스킬을 공고 제목과 기존 태그를 바탕으로 일괄 재정제(Refinement)합니다. 크롤링 완료 후 스킬이 누락되었거나 노이즈가 섞인 공고들을
-   * 깨끗하게 복구합니다.
-   */
-  @Transactional
-  public Map<String, Object> refineAllPostingSkills() {
-    // 0. 기존 DB에 누적된 중복 standard_name 스킬 병합 정리
-    int deduped = deduplicateSkills();
-
-    // 1. 최신 스킬 사전 캐시 갱신
-    skillTaxonomy.reloadTaxonomy();
-
-    List<JobPosting> postings = jobPostingRepository.findAll();
-    int total = postings.size();
-    int refinedCount = 0;
-    int withSkillsCount = 0;
-    int totalSkillLinks = 0;
-
-    log.info("[스킬 재정제] 총 {}건의 공고를 대상으로 재정제를 시작합니다. (중복 정리 {}건)", total, deduped);
-
-    for (JobPosting posting : postings) {
-      List<String> currentSkillNames =
-          posting.getSkills().stream().map(Skill::getStandardName).toList();
-
-      applySkillsToPosting(posting, posting.getTitle(), currentSkillNames);
-      jobPostingRepository.save(posting);
-
-      int count = posting.getSkills().size();
-      if (count > 0) {
-        withSkillsCount++;
-        totalSkillLinks += count;
-      }
-      refinedCount++;
-    }
-
-    log.info(
-        "[스킬 재정제] 완료: 총 {}건 대상 중 스킬 보유 공고 {}건, 총 매핑 링크 {}건",
-        refinedCount,
-        withSkillsCount,
-        totalSkillLinks);
-
-    return Map.of(
-        "totalPostings", total,
-        "refinedPostings", refinedCount,
-        "postingsWithSkills", withSkillsCount,
-        "totalSkillLinks", totalSkillLinks,
-        "dedupedSkills", deduped);
-  }
-
-  /**
-   * DB에 동일한 standard_name(대소문자 무시)으로 여러 행이 존재하는 경우, 가장 구체적인 카테고리를 가진 행(SKILL 이외)을 대표로 남기고 나머지를 벌크
-   * 쿼리로 안전하게 병합·정리합니다. (영속성 컨텍스트 충돌 및 외래키 제약 오류 방지)
-   */
-  @Transactional
-  public int deduplicateSkills() {
-    List<Skill> allSkills = skillRepository.findAll();
-    Map<String, List<Skill>> byName = new HashMap<>();
-    for (Skill s : allSkills) {
-      byName
-          .computeIfAbsent(
-              s.getStandardName().strip().toLowerCase(java.util.Locale.ROOT),
-              k -> new ArrayList<>())
-          .add(s);
-    }
-
-    int removedDuplicates = 0;
-    for (List<Skill> dupGroup : byName.values()) {
-      if (dupGroup.size() <= 1) {
-        continue;
-      }
-
-      // 1. 대표 스킬 선택: 카테고리가 "SKILL"이 아닌 것 우선, 없으면 첫 번째
-      Skill canonical =
-          dupGroup.stream()
-              .filter(s -> !"SKILL".equalsIgnoreCase(s.getCategory()))
-              .findFirst()
-              .orElse(dupGroup.get(0));
-
-      for (Skill dup : dupGroup) {
-        if (dup.getId().equals(canonical.getId())) {
-          continue;
-        }
-
-        UUID dupId = dup.getId();
-        UUID canonicalId = canonical.getId();
-
-        // 2. JobPostingSkill 링크 정리 (벌크 쿼리 지원 시 안전하게 선행 삭제 후 재할당)
-        if (jobPostingSkillRepository != null) {
-          jobPostingSkillRepository.deleteDuplicateLinks(dupId, canonicalId);
-          jobPostingSkillRepository.reassignSkill(dupId, canonical);
-        } else {
-          for (JobPosting posting : jobPostingRepository.findAll()) {
-            boolean hasDup = posting.getSkills().stream().anyMatch(s -> s.getId().equals(dupId));
-            if (hasDup) {
-              List<Skill> updatedSkills = new ArrayList<>(posting.getSkills());
-              updatedSkills.removeIf(s -> s.getId().equals(dupId));
-              if (updatedSkills.stream().noneMatch(s -> s.getId().equals(canonicalId))) {
-                updatedSkills.add(canonical);
-              }
-              posting.replaceSkills(updatedSkills);
-              jobPostingRepository.save(posting);
-            }
-          }
-        }
-
-        // 3. SkillAlias 별칭 링크 정리
-        if (skillAliasRepository != null) {
-          try {
-            skillAliasRepository.reassignSkill(dupId, canonical);
-          } catch (Exception e) {
-            log.trace("[스킬 중복제거] 별칭 정리 건너뜀: {}", e.getMessage());
-          }
-        }
-
-        // 4. UserSkill (사용자 보유 스킬) 링크 정리
-        if (userSkillRepository != null) {
-          try {
-            userSkillRepository.deleteDuplicateLinks(dupId, canonicalId);
-            userSkillRepository.reassignSkill(dupId, canonical);
-          } catch (Exception e) {
-            log.trace("[스킬 중복제거] user_skill 정리 건너뜀: {}", e.getMessage());
-          }
-        }
-
-        // 5. 미참조 상태가 된 중복 스킬 엔티티 직접 삭제
-        try {
-          skillRepository.deleteSkillDirectly(dupId);
-          removedDuplicates++;
-        } catch (Exception e) {
-          log.warn("[스킬 중복제거] 스킬 ID {} 삭제 중 건너뜀: {}", dupId, e.getMessage());
-        }
-      }
-    }
-
-    if (removedDuplicates > 0) {
-      log.info("[스킬 중복제거] 총 {}건의 중복 스킬 엔티티를 병합 및 삭제했습니다.", removedDuplicates);
-    }
-    return removedDuplicates;
-  }
-
-  private Skill upsertSkill(String standardName, String category) {
-    Optional<Skill> byName = skillRepository.findFirstByStandardNameIgnoreCase(standardName);
-    if (byName.isPresent()) {
-      Skill existing = byName.get();
-      if ("SKILL".equalsIgnoreCase(existing.getCategory())
-          && category != null
-          && !"SKILL".equalsIgnoreCase(category)) {
-        existing.recategorize(category);
-        return skillRepository.save(existing);
-      }
-      return existing;
-    }
-    return skillRepository
-        .findByStandardNameAndCategory(standardName, category)
-        .orElseGet(() -> skillRepository.save(new Skill(standardName, category, false)));
   }
 
   /** 수집 이력을 raw_ingest 테이블에 중복 없이 기록 및 보존합니다. */
