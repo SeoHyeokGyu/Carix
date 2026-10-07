@@ -77,7 +77,8 @@ public class DataExploreService {
     List<MonthlyOverview.Month> months = new ArrayList<>();
     for (YearMonth m = range[0]; !m.isAfter(range[1]); m = m.plusMonths(1)) {
       String key = YM.format(m);
-      List<JobPosting> capped = marketAggregateService.sampledPostingsForMonth(all, key);
+      List<JobPosting> capped =
+          marketAggregateService.sampledPostingsForMonth(all, key, "JOBKOREA");
       Map<String, Integer> byFamily = new LinkedHashMap<>();
       FAMILIES.forEach(fam -> byFamily.put(fam, 0));
       capped.forEach(p -> byFamily.computeIfPresent(familyOf(p), (k, v) -> v + 1));

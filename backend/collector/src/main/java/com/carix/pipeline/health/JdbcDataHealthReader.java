@@ -47,7 +47,10 @@ public class JdbcDataHealthReader implements DataHealthReader {
     Map<String, Integer> capped = new LinkedHashMap<>();
     sampled
         .keySet()
-        .forEach(m -> capped.put(m, marketAggregateService.sampledPostingsForMonth(all, m).size()));
+        .forEach(
+            m ->
+                capped.put(
+                    m, marketAggregateService.sampledPostingsForMonth(all, m, "JOBKOREA").size()));
 
     return new DataHealthSnapshot(
         monthCounts(
