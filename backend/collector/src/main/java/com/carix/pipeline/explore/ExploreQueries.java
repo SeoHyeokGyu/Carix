@@ -1,6 +1,7 @@
 package com.carix.pipeline.explore;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -154,14 +155,15 @@ public class ExploreQueries {
       Long salaryBandMax,
       String salaryDisclosure,
       String collectedVia,
-      String sourceJobTags) {}
+      String sourceJobTags,
+      Instant collectedAt) {}
 
   private static final String POSTING_COLUMNS =
       "p.id, p.source, p.external_id, p.title, p.company_name, p.job_family, p.experience_min,"
           + " p.experience_max, p.employment_type, p.region, p.posted_start_date, p.posted_end_date,"
           + " p.first_seen_month, p.sampled_month, p.salary_min, p.salary_max,"
           + " p.salary_band_min, p.salary_band_max, p.salary_disclosure,"
-          + " p.collected_via, p.source_job_tags";
+          + " p.collected_via, p.source_job_tags, p.collected_at";
 
   public long countPostings(PostingFilter f) {
     List<Object> args = new ArrayList<>();
@@ -182,7 +184,8 @@ public class ExploreQueries {
             + POSTING_COLUMNS
             + " FROM core.job_posting p"
             + where
-            + " ORDER BY p.source, p.external_id LIMIT ? OFFSET ?",
+            + orderBy(f.sort())
+            + " LIMIT ? OFFSET ?",
         (rs, i) ->
             new PostingRow(
                 rs.getObject(1, UUID.class),
@@ -205,7 +208,8 @@ public class ExploreQueries {
                 (Long) rs.getObject(18),
                 rs.getString(19),
                 rs.getString(20),
-                rs.getString(21)),
+                rs.getString(21),
+                rs.getTimestamp(22).toInstant()),
         args.toArray());
   }
 
@@ -227,6 +231,13 @@ public class ExploreQueries {
         },
         ids.toArray());
     return out;
+  }
+
+  /** 화이트리스트 키만 SQL 로 옮긴다. 사용자 입력은 절대 붙이지 않는다. */
+  static String orderBy(String sort) {
+    return "source".equals(sort)
+        ? " ORDER BY p.source, p.external_id"
+        : " ORDER BY p.collected_at DESC, p.source, p.external_id";
   }
 
   private static String where(PostingFilter f, List<Object> args) {

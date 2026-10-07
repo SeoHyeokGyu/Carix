@@ -11,6 +11,7 @@ import com.carix.jobposting.normalize.PostingSalary;
 import com.carix.jobposting.normalize.SalaryRange;
 import com.carix.pipeline.dto.explore.PostingPage;
 import java.time.Instant;
+import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -58,7 +59,8 @@ class PostingsExploreTest {
   @Test
   @DisplayName("표본 필터와 원천 링크, 스킬 목록, 제시 연봉 범위")
   void postings_sampled() {
-    PostingPage page = service.postings("202609", null, true, null, null, null, null, null, null);
+    PostingPage page =
+        service.postings("202609", null, true, null, null, null, null, null, null, null);
 
     assertThat(page.total()).isEqualTo(1);
     PostingPage.Item item = page.items().getFirst();
@@ -72,7 +74,7 @@ class PostingsExploreTest {
   @DisplayName("정기 수집 필터는 sampled_month 가 비고 관측월이 그 달인 공고, 사람인 링크 형식")
   void postings_crawled() {
     PostingPage page =
-        service.postings("202609", "SARAMIN", false, null, null, null, null, null, null);
+        service.postings("202609", "SARAMIN", false, null, null, null, null, null, null, null);
     assertThat(page.items())
         .extracting(PostingPage.Item::url)
         .containsExactly("https://www.saramin.co.kr/zf_user/jobs/relay/view?rec_idx=51000001");
@@ -93,11 +95,11 @@ class PostingsExploreTest {
             .build());
 
     PostingPage other =
-        service.postings("202609", null, null, "OTHER", null, null, null, null, null);
+        service.postings("202609", null, null, "OTHER", null, null, null, null, null, null);
     assertThat(other.items()).extracting(PostingPage.Item::externalId).containsExactly("51000002");
     assertThat(
             service
-                .postings("202609", null, null, "DEVELOPER", null, null, null, null, null)
+                .postings("202609", null, null, "DEVELOPER", null, null, null, null, null, null)
                 .total())
         .isEqualTo(3);
   }
@@ -106,30 +108,38 @@ class PostingsExploreTest {
   @DisplayName("회사 필터의 % _ 는 글자 그대로 찾는다")
   void postings_companyFilterEscapesWildcards() {
     assertThat(
-            service.postings("202609", null, null, null, "100%_", null, null, null, null).total())
+            service
+                .postings("202609", null, null, null, "100%_", null, null, null, null, null)
+                .total())
         .isEqualTo(1);
-    assertThat(service.postings("202609", null, null, null, "%", null, null, null, null).total())
+    assertThat(
+            service.postings("202609", null, null, null, "%", null, null, null, null, null).total())
         .isEqualTo(1);
   }
 
   @Test
   @DisplayName("스킬 필터는 정확 일치, 스킬 없는 공고는 빈 목록")
   void postings_skillsEmptyList() {
-    assertThat(service.postings("202609", null, null, null, null, "Java", null, null, null).total())
+    assertThat(
+            service
+                .postings("202609", null, null, null, null, "Java", null, null, null, null)
+                .total())
         .isEqualTo(1);
     PostingPage none =
-        service.postings("202609", "SARAMIN", null, null, null, null, null, null, null);
+        service.postings("202609", "SARAMIN", null, null, null, null, null, null, null, null);
     assertThat(none.items().getFirst().skills()).isEmpty();
   }
 
   @Test
   @DisplayName("결과 없음은 빈 목록, size 는 100 으로 자르고 month 없으면 400")
   void postings_emptyResult() {
-    PostingPage empty = service.postings("202001", null, null, null, null, null, null, null, 500);
+    PostingPage empty =
+        service.postings("202001", null, null, null, null, null, null, null, null, 500);
     assertThat(empty.total()).isZero();
     assertThat(empty.items()).isEmpty();
     assertThat(empty.size()).isEqualTo(100);
-    assertThatThrownBy(() -> service.postings(null, null, null, null, null, null, null, null, null))
+    assertThatThrownBy(
+            () -> service.postings(null, null, null, null, null, null, null, null, null, null))
         .isInstanceOf(ResponseStatusException.class);
   }
 
@@ -140,7 +150,8 @@ class PostingsExploreTest {
     band.applySalary(PostingSalary.band(new SalaryRange(25_900_000L, 100_000_000L)));
     repository.saveAndFlush(band);
 
-    PostingPage page = service.postings("202609", null, null, null, null, null, "BAND", null, null);
+    PostingPage page =
+        service.postings("202609", null, null, null, null, null, "BAND", null, null, null);
 
     assertThat(page.total()).isEqualTo(1);
     PostingPage.Item item = page.items().getFirst();
@@ -153,7 +164,8 @@ class PostingsExploreTest {
   @DisplayName("알 수 없는 공개 구분은 400")
   void postings_invalidDisclosure() {
     assertThatThrownBy(
-            () -> service.postings("202609", null, null, null, null, null, "WRONG", null, null))
+            () ->
+                service.postings("202609", null, null, null, null, null, "WRONG", null, null, null))
         .isInstanceOf(ResponseStatusException.class);
   }
 
@@ -167,10 +179,69 @@ class PostingsExploreTest {
     repository.saveAndFlush(p);
 
     PostingPage page =
-        service.postings("202609", "SARAMIN", false, null, "점핏", null, null, null, null);
+        service.postings("202609", "SARAMIN", false, null, "점핏", null, null, null, null, null);
 
     PostingPage.Item item = page.items().getFirst();
     assertThat(item.collectedVia()).isEqualTo("SARAMIN_SEARCH,JUMPIT");
     assertThat(item.sourceJobTags()).isEqualTo("서버/백엔드 개발자");
+  }
+
+  private void collectedAt(String source, String id, String month, Instant at) {
+    repository.saveAndFlush(
+        JobPosting.builder()
+            .source(source)
+            .externalId(id)
+            .title("공고 " + id)
+            .companyName("정렬회사")
+            .firstSeenMonth(month)
+            .lastSeenMonth(month)
+            .collectedAt(at)
+            .build());
+  }
+
+  private List<String> ids(PostingPage page) {
+    return page.items().stream().map(PostingPage.Item::externalId).toList();
+  }
+
+  @Test
+  @DisplayName("정렬 기본값은 최근 수집순, 같은 시각이면 원천·번호순")
+  void postings_sortDefaultsToRecent() {
+    Instant t = Instant.parse("2026-08-10T00:00:00Z");
+    collectedAt("SARAMIN", "S2", "202608", t.plusSeconds(60));
+    collectedAt("JOBKOREA", "J9", "202608", t);
+    collectedAt("JOBKOREA", "J1", "202608", t.plusSeconds(60));
+
+    PostingPage byDefault =
+        service.postings("202608", null, null, null, null, null, null, null, null, null);
+    PostingPage recent =
+        service.postings("202608", null, null, null, null, null, null, "recent", null, null);
+
+    assertThat(ids(byDefault)).containsExactly("J1", "S2", "J9");
+    assertThat(ids(recent)).containsExactly("J1", "S2", "J9");
+    assertThat(byDefault.items().getFirst().collectedAt()).isEqualTo(t.plusSeconds(60));
+  }
+
+  @Test
+  @DisplayName("source 정렬은 원천·번호순")
+  void postings_sortBySource() {
+    Instant t = Instant.parse("2026-08-10T00:00:00Z");
+    collectedAt("SARAMIN", "S2", "202608", t.plusSeconds(60));
+    collectedAt("JOBKOREA", "J9", "202608", t);
+    collectedAt("JOBKOREA", "J1", "202608", t.plusSeconds(120));
+
+    PostingPage page =
+        service.postings("202608", null, null, null, null, null, null, "source", null, null);
+
+    assertThat(ids(page)).containsExactly("J1", "J9", "S2");
+  }
+
+  @Test
+  @DisplayName("알 수 없는 정렬은 400")
+  void postings_invalidSort() {
+    assertThatThrownBy(
+            () ->
+                service.postings(
+                    "202609", null, null, null, null, null, null, "id; DROP", null, null))
+        .isInstanceOf(ResponseStatusException.class);
   }
 }

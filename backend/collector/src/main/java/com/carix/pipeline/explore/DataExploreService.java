@@ -263,6 +263,8 @@ public class DataExploreService {
   private static final java.util.Set<String> DISCLOSURES =
       java.util.Set.of("PUBLIC", "BAND", "NONE", "UNKNOWN");
 
+  private static final java.util.Set<String> POSTING_SORTS = java.util.Set.of("recent", "source");
+
   @Transactional(readOnly = true)
   public PostingPage postings(
       String month,
@@ -272,6 +274,7 @@ public class DataExploreService {
       String company,
       String skill,
       String disclosure,
+      String sort,
       Integer page,
       Integer size) {
     if (month == null) {
@@ -281,6 +284,10 @@ public class DataExploreService {
     String disclosureFilter = blankToNull(disclosure);
     if (disclosureFilter != null && !DISCLOSURES.contains(disclosureFilter)) {
       throw badRequest("disclosure 는 PUBLIC|BAND|NONE|UNKNOWN 중 하나입니다: " + disclosureFilter);
+    }
+    String sortKey = blankToNull(sort) == null ? "recent" : sort;
+    if (!POSTING_SORTS.contains(sortKey)) {
+      throw badRequest("sort 는 recent|source 중 하나입니다: " + sort);
     }
     int s = size == null || size <= 0 ? POSTINGS_DEFAULT_SIZE : Math.min(size, POSTINGS_MAX_SIZE);
     int p = page == null || page < 0 ? 0 : page;
@@ -293,6 +300,7 @@ public class DataExploreService {
             blankToNull(company),
             blankToNull(skill),
             disclosureFilter,
+            sortKey,
             p,
             s);
     long total = queries.countPostings(filter);
@@ -325,7 +333,8 @@ public class DataExploreService {
                         r.salaryDisclosure(),
                         skills.getOrDefault(r.id(), List.of()),
                         r.collectedVia(),
-                        r.sourceJobTags()))
+                        r.sourceJobTags(),
+                        r.collectedAt()))
             .toList();
     return new PostingPage(total, p, s, items);
   }
