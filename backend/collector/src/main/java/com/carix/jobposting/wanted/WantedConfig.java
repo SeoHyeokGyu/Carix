@@ -31,4 +31,19 @@ public class WantedConfig {
         taxonomy,
         new TransactionTemplate(transactionManager));
   }
+
+  @Bean
+  WantedBackfillService wantedBackfillService(
+      JobPostingRepository postings,
+      PostingSkillService skillService,
+      SkillTaxonomy taxonomy,
+      PlatformTransactionManager transactionManager) {
+    return new WantedBackfillService(
+        WantedClient.Http::new,
+        new WantedParser(),
+        postings,
+        skillService,
+        taxonomy,
+        new TransactionTemplate(transactionManager));
+  }
 }

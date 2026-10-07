@@ -54,6 +54,7 @@ class CollectorPipelineServiceTest {
   private JobKoreaBackfillService jobKoreaBackfillService;
   private JumpitIngestService jumpitIngestService;
   private WantedIngestService wantedIngestService;
+  private com.carix.jobposting.wanted.WantedBackfillService wantedBackfillService;
 
   private CollectorPipelineService service;
 
@@ -73,6 +74,7 @@ class CollectorPipelineServiceTest {
     jobKoreaBackfillService = mock(JobKoreaBackfillService.class);
     jumpitIngestService = mock(JumpitIngestService.class);
     wantedIngestService = mock(WantedIngestService.class);
+    wantedBackfillService = mock(com.carix.jobposting.wanted.WantedBackfillService.class);
 
     service =
         new CollectorPipelineService(
@@ -90,7 +92,8 @@ class CollectorPipelineServiceTest {
             jobKoreaBackfillService,
             mock(com.carix.jobposting.backfill.SalaryReclassifyService.class),
             jumpitIngestService,
-            wantedIngestService);
+            wantedIngestService,
+            wantedBackfillService);
   }
 
   @Test
@@ -201,13 +204,57 @@ class CollectorPipelineServiceTest {
     given(jobKoreaBackfillService.run(any())).willReturn(Map.of("202509", "ok"));
 
     JobExecutionResponse response =
-        service.triggerBackfill(new BackfillRequest("202509", "202509", 10, 100, 0L, null, null));
+        service.triggerBackfill(
+            new BackfillRequest("202509", "202509", 10, 100, 0L, null, null, null));
 
     assertThat(response.jobType()).isEqualTo("BACKFILL");
     TimeUnit.MILLISECONDS.sleep(200);
     JobStatusResponse status = service.getJobStatus(response.jobId());
     assertThat(status.status()).isEqualTo("SUCCESS");
     assertThat(status.details()).containsEntry("202509", "ok");
+  }
+
+  @Test
+  @DisplayName("triggerBackfill - source=WANTED 는 원티드 백필로 보낸다")
+  void triggerBackfill_routesWanted() throws Exception {
+    given(wantedBackfillService.run(any())).willReturn(Map.of("202509", "wanted"));
+
+    JobExecutionResponse response =
+        service.triggerBackfill(
+            new BackfillRequest("202509", "202509", 10, 100, 0L, null, null, "wanted"));
+
+    TimeUnit.MILLISECONDS.sleep(200);
+    assertThat(service.getJobStatus(response.jobId()).details()).containsEntry("202509", "wanted");
+    org.mockito.Mockito.verifyNoInteractions(jobKoreaBackfillService);
+  }
+
+  @Test
+  @DisplayName("triggerBackfill - source 가 비거나 JOBKOREA 면 잡코리아 백필로 보낸다")
+  void triggerBackfill_defaultsToJobKorea() throws Exception {
+    given(jobKoreaBackfillService.run(any())).willReturn(Map.of("202509", "jk"));
+
+    service.triggerBackfill(new BackfillRequest("202509", "202509", 10, 100, 0L, null, null, " "));
+    TimeUnit.MILLISECONDS.sleep(200);
+
+    org.mockito.Mockito.verify(jobKoreaBackfillService).run(any());
+    org.mockito.Mockito.verifyNoInteractions(wantedBackfillService);
+  }
+
+  @Test
+  @DisplayName("triggerBackfill - 알 수 없는 source 는 400 이고 작업 잠금을 잡지 않는다")
+  void triggerBackfill_rejectsUnknownSource() {
+    assertThatThrownBy(
+            () ->
+                service.triggerBackfill(
+                    new BackfillRequest("202509", "202509", null, null, null, null, null, "X")))
+        .isInstanceOfSatisfying(
+            ResponseStatusException.class,
+            e -> {
+              assertThat(e.getStatusCode().value()).isEqualTo(400);
+              assertThat(e.getReason()).isEqualTo("source 는 JOBKOREA 또는 WANTED 입니다");
+            });
+    given(jobPostingIngestService.crawlAndIngest(any())).willReturn(1);
+    assertThat(service.triggerCrawl(null).status()).isEqualTo("ACCEPTED");
   }
 
   @Test
@@ -218,7 +265,7 @@ class CollectorPipelineServiceTest {
     assertThatThrownBy(
             () ->
                 service.triggerBackfill(
-                    new BackfillRequest("202509", null, null, null, null, null, null)))
+                    new BackfillRequest("202509", null, null, null, null, null, null, null)))
         .isInstanceOf(ResponseStatusException.class);
 
     given(jobPostingIngestService.crawlAndIngest(any())).willReturn(1);

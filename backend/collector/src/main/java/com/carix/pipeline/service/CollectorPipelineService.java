@@ -68,6 +68,7 @@ public class CollectorPipelineService {
   private final com.carix.jobposting.backfill.SalaryReclassifyService salaryReclassifyService;
   private final JumpitIngestService jumpitIngestService;
   private final WantedIngestService wantedIngestService;
+  private final com.carix.jobposting.wanted.WantedBackfillService wantedBackfillService;
 
   private final AtomicBoolean isJobRunning = new AtomicBoolean(false);
   private final Map<String, JobState> jobHistory =
@@ -217,8 +218,19 @@ public class CollectorPipelineService {
         now);
   }
 
+  private static boolean isWantedSource(String source) {
+    String normalized = source == null ? "" : source.strip().toUpperCase(java.util.Locale.ROOT);
+    return switch (normalized) {
+      case "", "JOBKOREA" -> false;
+      case "WANTED" -> true;
+      default ->
+          throw new ResponseStatusException(
+              HttpStatus.BAD_REQUEST, "source 는 JOBKOREA 또는 WANTED 입니다");
+    };
+  }
+
   /**
-   * 수집 시작 전 달의 잡코리아 공고를 상세페이지 ID 표본으로 채운다. 요청 간격 때문에 수 시간 걸린다.
+   * 수집 시작 전 달의 공고(잡코리아 기본, {@code source=WANTED} 면 원티드)를 공고 ID 표본으로 채운다. 요청 간격 때문에 수 시간 걸린다.
    *
    * @return 비동기 작업 수락 응답
    */
@@ -226,6 +238,7 @@ public class CollectorPipelineService {
     if (request == null || request.fromMonth() == null || request.toMonth() == null) {
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "fromMonth·toMonth 가 필요합니다");
     }
+    boolean isWanted = isWantedSource(request.source());
     ensureNoJobRunning();
     String jobId = UUID.randomUUID().toString();
     Instant now = Instant.now();
@@ -236,7 +249,10 @@ public class CollectorPipelineService {
         () -> {
           try {
             log.info("[작업:{}] 과거 공고 표본 백필 시작: {}", jobId, request);
-            Map<String, Object> summary = jobKoreaBackfillService.run(request);
+            Map<String, Object> summary =
+                isWanted
+                    ? wantedBackfillService.run(request)
+                    : jobKoreaBackfillService.run(request);
             state.complete(summary);
             log.info("[작업:{}] 과거 공고 표본 백필 완료: {}", jobId, summary);
           } catch (Exception e) {
