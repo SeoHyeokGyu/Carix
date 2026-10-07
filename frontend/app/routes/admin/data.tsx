@@ -13,7 +13,12 @@ import {
   type MonthlyOverview,
   type PostingPage,
 } from "../../lib/collectorApi";
-import { parseTab, TABS } from "../../lib/dataExplore";
+import {
+  parsePostingSort,
+  POSTING_SORTS,
+  parseTab,
+  TABS,
+} from "../../lib/dataExplore";
 
 export function meta() {
   return [{ title: "수집 데이터 | Carix 관리자" }];
@@ -39,6 +44,7 @@ export default function DataExplorePage() {
       : sampledParam === "false"
         ? false
         : undefined;
+  const sort = parsePostingSort(params.get("sort"));
   const page = Math.max(0, Math.trunc(Number(params.get("page") ?? "0") || 0));
 
   const from = params.get("from") ?? undefined;
@@ -71,6 +77,7 @@ export default function DataExplorePage() {
               company: q.get("company") ?? undefined,
               skill: q.get("skill") ?? undefined,
               disclosure: q.get("disclosure") ?? undefined,
+              sort: parsePostingSort(q.get("sort")),
               page,
             }),
           };
@@ -138,6 +145,7 @@ export default function DataExplorePage() {
                 company: String(fd.get("company") ?? ""),
                 skill: String(fd.get("skill") ?? ""),
                 disclosure: String(fd.get("disclosure") ?? ""),
+                sort: String(fd.get("sort") ?? ""),
                 page: undefined,
               });
             }}
@@ -206,6 +214,18 @@ export default function DataExplorePage() {
               <option value="BAND">비공개 구간</option>
               <option value="NONE">없음</option>
               <option value="UNKNOWN">판정 전</option>
+            </select>
+            <select
+              name="sort"
+              defaultValue={sort}
+              aria-label="정렬"
+              className="rounded border border-carix-border px-2 py-1"
+            >
+              {POSTING_SORTS.map((o) => (
+                <option key={o.id} value={o.id}>
+                  {o.label}
+                </option>
+              ))}
             </select>
             <Button type="submit" size="sm">
               조회

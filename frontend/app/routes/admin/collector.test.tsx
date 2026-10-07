@@ -7,7 +7,6 @@ import * as collectorApi from "../../lib/collectorApi";
 vi.mock("../../lib/collectorApi", () => ({
   fetchPipelineStats: vi.fn(),
   fetchRecentJobs: vi.fn(),
-  fetchRecentPostings: vi.fn(),
   getAdminKey: vi.fn(),
   setAdminKey: vi.fn(),
   clearAdminKey: vi.fn(),
@@ -37,23 +36,8 @@ describe("CollectorAdminPage", () => {
         status: "SUCCESS",
         startedAt: new Date().toISOString(),
         completedAt: new Date().toISOString(),
-        details: { ingestedJobPostings: 15 },
+        details: { ingestedJobPostings: 15, portal: "SARAMIN" },
         errorMessage: null,
-      },
-    ]);
-
-    vi.mocked(collectorApi.fetchRecentPostings).mockResolvedValue([
-      {
-        id: "post-1",
-        source: "JOBKOREA",
-        externalId: "JK-999",
-        title: "시니어 백엔드 개발자",
-        companyName: "카릭스랩",
-        jobFamily: "BACKEND",
-        salaryMin: 5000,
-        salaryMax: 8000,
-        skills: ["Java", "Spring Boot", "PostgreSQL"],
-        collectedAt: new Date().toISOString(),
       },
     ]);
 
@@ -77,7 +61,7 @@ describe("CollectorAdminPage", () => {
     });
   });
 
-  it("작업 실행 이력과 최근 수집 공고를 표시한다", async () => {
+  it("작업 실행 이력을 표시하고 최근 수집 공고 미리보기는 없다", async () => {
     render(
       <MemoryRouter>
         <CollectorAdminPage />
@@ -86,10 +70,26 @@ describe("CollectorAdminPage", () => {
 
     await waitFor(() => {
       expect(screen.getByText("job-1234...")).toBeInTheDocument();
-      expect(screen.getByText("시니어 백엔드 개발자")).toBeInTheDocument();
-      expect(screen.getByText("카릭스랩")).toBeInTheDocument();
-      expect(screen.getByText("#Java")).toBeInTheDocument();
     });
+    expect(
+      screen.queryByText("최근 수집된 공고 및 정규화 결과 미리보기"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("성공한 크롤링 작업에 수집 데이터 링크를 건다", async () => {
+    render(
+      <MemoryRouter>
+        <CollectorAdminPage />
+      </MemoryRouter>,
+    );
+
+    const link = await screen.findByRole("link", {
+      name: "수집 데이터에서 보기",
+    });
+    const href = link.getAttribute("href") ?? "";
+    expect(href).toMatch(
+      /^\/admin\/data\?tab=postings&month=\d{6}&sort=recent&source=SARAMIN$/,
+    );
   });
 
   it("제어 패널에서 탭을 전환할 수 있다", async () => {

@@ -4,7 +4,7 @@ import {
   fetchJobStatus,
   fetchPipelineStats,
   fetchRecentJobs,
-  fetchRecentPostings,
+  fetchPostings,
   getAdminKey,
   setAdminKey,
   triggerCrawl,
@@ -188,21 +188,15 @@ describe("collectorApi (Collector 파이프라인 관리자 API 클라이언트)
       expect(res).toEqual(mockJob);
     });
 
-    it("fetchRecentPostings(limit) 호출 시 최근 수집 공고를 조회한다", async () => {
+    it("fetchPostings 는 sort 를 쿼리로 넘긴다", async () => {
       globalThis.fetch = vi.fn().mockResolvedValue({
         ok: true,
-        json: async () => [],
+        json: async () => ({ total: 0, page: 0, size: 50, items: [] }),
       } as unknown as Response);
 
-      await fetchRecentPostings(10);
+      await fetchPostings({ month: "202610", sort: "source", page: 0 });
       expect(globalThis.fetch).toHaveBeenCalledWith(
-        "/api/v1/admin/collector/recent-postings?limit=10",
-        expect.anything(),
-      );
-
-      await fetchRecentPostings();
-      expect(globalThis.fetch).toHaveBeenCalledWith(
-        "/api/v1/admin/collector/recent-postings?limit=20",
+        "/api/v1/admin/collector/explore/postings?month=202610&sort=source&page=0",
         expect.anything(),
       );
     });

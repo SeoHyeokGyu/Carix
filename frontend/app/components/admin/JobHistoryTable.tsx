@@ -1,5 +1,7 @@
 import { useState } from "react";
+import { Link } from "react-router";
 import type { JobStatusResponse } from "../../lib/collectorApi";
+import { crawlJobDataHref } from "../../lib/dataExplore";
 
 interface JobHistoryTableProps {
   jobs: JobStatusResponse[];
@@ -13,6 +15,8 @@ export function JobHistoryTable({ jobs, isLoading }: JobHistoryTableProps) {
     if (filter === "ALL") return true;
     return job.status === filter;
   });
+
+  const dataHref = crawlJobDataHref;
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -219,6 +223,14 @@ export function JobHistoryTable({ jobs, isLoading }: JobHistoryTableProps) {
                         </span>
                       ) : (
                         renderDetails(job.details)
+                      )}
+                      {dataHref(job) && (
+                        <Link
+                          to={dataHref(job) as string}
+                          className="mt-1 inline-block text-[11px] text-carix-info underline"
+                        >
+                          수집 데이터에서 보기
+                        </Link>
                       )}
                     </td>
                   </tr>
