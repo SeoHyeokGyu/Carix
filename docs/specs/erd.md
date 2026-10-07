@@ -304,6 +304,7 @@ erDiagram
 | 2026-10-05 | `core.job_posting` | 표본 월 컬럼 `sampled_month varchar(6)` 을 더했다. nullable·기본값 없음이라 카탈로그만 바뀌고 테이블 재작성이 없었다. 원천 항목 `backfill-<id>` 가 있는 백필분 2,010행에 `sampled_month = first_seen_month` 를 채웠고(202510~202607), 나머지 4,275행은 `NULL` 이다. 신규 환경용 실행 정본(`deploy/postgres/schema/01_job_posting.sql`)에도 같은 컬럼을 넣었다 |
 | 2026-10-06 | `core.job_posting` | 비공개 연봉 구간 `salary_band_min`·`salary_band_max bigint`(nullable)와 공개 구분 `salary_disclosure varchar(16) NOT NULL DEFAULT 'UNKNOWN'` 을 더했다. 기존 8,753행은 `UNKNOWN` 이고 `salary_min`·`salary_max` 는 그대로다 — 급여 재판정(`POST /internal/pipeline/salary-reclassify`) 적용 전까지 판정 전 값이다. 새 코드 배포 전에 적용했다(기본값이 있어 기존 코드의 삽입도 그대로 된다). 신규 환경용 실행 정본(`deploy/postgres/schema/01_job_posting.sql`)에도 같은 컬럼을 넣었다 |
 | 2026-10-07 | `core.job_posting` | 급여 재판정(`salary-reclassify`)을 적용했다(2026-10-06 전체 8,753행, 2026-10-07 판정 전 870행만 `onlyUnjudged` 로 재실행). 판정 결과 잡코리아 공개 788·비공개 구간 1,046·없음 4,862·판정 전 36, 사람인 공개 141·없음 1,855·판정 전 25 다. 비공개 구간으로 옮겨진 값은 `salary_band_*` 에 있고 공개 연봉만 `salary_min/max` 에 남았다. 이어 전 월 재집계와 전 사용자 재계산을 했다 |
+| 2026-10-07 | `core.job_posting` | 공개 연봉 이상치 상한(연 3억·월 1,500만)을 적용했다. 공개 연봉이 1.8억을 넘던 8행(잡코리아 7·사람인 1)을 판정 전으로 되돌리고 판정 전 69행을 `onlyUnjudged` 로 재판정해 잡코리아 공개 3·없음 1, 사람인 공개 1 이 새로 판정됐다. 결과는 잡코리아 공개 784·비공개 구간 1,046·없음 4,863·판정 전 39, 사람인 공개 141·없음 1,855·판정 전 25 다. 이어 전 월 재집계와 전 사용자 재계산을 했다 |
 
 > **`core.wage_stat_observation.source` 는 쓰기 경로까지 들어왔다.** 수집이 연도별로 출처를
 > 기록하고, KOSIS 실측만 기존 행을 덮는다 — 폴백 상수는 기존 행을 건드리지 않는다. 컬럼 도입
