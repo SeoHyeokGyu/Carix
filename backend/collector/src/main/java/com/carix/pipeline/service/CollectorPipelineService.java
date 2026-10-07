@@ -9,6 +9,8 @@ import com.carix.jobposting.jumpit.JumpitIngestSummary;
 import com.carix.jobposting.seed.SeedLoader;
 import com.carix.jobposting.service.JobPostingIngestService;
 import com.carix.jobposting.service.PostingSkillService;
+import com.carix.jobposting.wanted.WantedCrawlSummary;
+import com.carix.jobposting.wanted.WantedIngestService;
 import com.carix.pipeline.dto.BackfillRequest;
 import com.carix.pipeline.dto.CpiRequest;
 import com.carix.pipeline.dto.CrawlRequest;
@@ -65,6 +67,7 @@ public class CollectorPipelineService {
   private final com.carix.jobposting.backfill.JobKoreaBackfillService jobKoreaBackfillService;
   private final com.carix.jobposting.backfill.SalaryReclassifyService salaryReclassifyService;
   private final JumpitIngestService jumpitIngestService;
+  private final WantedIngestService wantedIngestService;
 
   private final AtomicBoolean isJobRunning = new AtomicBoolean(false);
   private final Map<String, JobState> jobHistory =
@@ -110,6 +113,19 @@ public class CollectorPipelineService {
               details.put("portal", portal);
               state.complete(details);
               log.info("[작업:{}] 점핏 수집 완료: {}", jobId, summary);
+              return;
+            }
+            if ("WANTED".equals(portal)) {
+              WantedCrawlSummary summary = wantedIngestService.ingestAll();
+              if (summary.created() + summary.seen() == 0 && summary.errors() > 0) {
+                state.fail("원티드 수집에서 모든 공고 처리에 실패했습니다 (errors=" + summary.errors() + ")");
+                log.error("[작업:{}] 원티드 수집 전부 실패: {}", jobId, summary);
+                return;
+              }
+              Map<String, Object> details = new java.util.LinkedHashMap<>(summary.toDetails());
+              details.put("portal", portal);
+              state.complete(details);
+              log.info("[작업:{}] 원티드 수집 완료: {}", jobId, summary);
               return;
             }
             int ingested = jobPostingIngestService.crawlAndIngest(request);
@@ -534,6 +550,7 @@ public class CollectorPipelineService {
     try {
       bySource.put("JOBKOREA", jobPostingRepository.countBySource("JOBKOREA"));
       bySource.put("SARAMIN", jobPostingRepository.countBySource("SARAMIN"));
+      bySource.put("WANTED", jobPostingRepository.countBySource("WANTED"));
     } catch (Exception ignored) {
     }
 

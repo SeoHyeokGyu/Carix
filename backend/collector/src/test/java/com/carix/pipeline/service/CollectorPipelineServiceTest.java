@@ -16,6 +16,8 @@ import com.carix.jobposting.jumpit.JumpitIngestService;
 import com.carix.jobposting.jumpit.JumpitIngestSummary;
 import com.carix.jobposting.service.JobPostingIngestService;
 import com.carix.jobposting.service.PostingSkillService;
+import com.carix.jobposting.wanted.WantedCrawlSummary;
+import com.carix.jobposting.wanted.WantedIngestService;
 import com.carix.market.MarketAggregateRepository;
 import com.carix.market.MarketAggregateService;
 import com.carix.pipeline.dto.BackfillRequest;
@@ -51,6 +53,7 @@ class CollectorPipelineServiceTest {
   private MarketAggregateService marketAggregateService;
   private JobKoreaBackfillService jobKoreaBackfillService;
   private JumpitIngestService jumpitIngestService;
+  private WantedIngestService wantedIngestService;
 
   private CollectorPipelineService service;
 
@@ -69,6 +72,7 @@ class CollectorPipelineServiceTest {
     marketAggregateService = mock(MarketAggregateService.class);
     jobKoreaBackfillService = mock(JobKoreaBackfillService.class);
     jumpitIngestService = mock(JumpitIngestService.class);
+    wantedIngestService = mock(WantedIngestService.class);
 
     service =
         new CollectorPipelineService(
@@ -85,7 +89,8 @@ class CollectorPipelineServiceTest {
             marketAggregateService,
             jobKoreaBackfillService,
             mock(com.carix.jobposting.backfill.SalaryReclassifyService.class),
-            jumpitIngestService);
+            jumpitIngestService,
+            wantedIngestService);
   }
 
   @Test
@@ -135,6 +140,39 @@ class CollectorPipelineServiceTest {
 
     JobExecutionResponse response =
         service.triggerCrawl(new CrawlRequest("JUMPIT", null, null, null, null, null));
+    TimeUnit.MILLISECONDS.sleep(200);
+
+    JobStatusResponse status = service.getJobStatus(response.jobId());
+    assertThat(status.status()).isEqualTo("FAILED");
+    assertThat(status.errorMessage()).contains("errors=30");
+  }
+
+  @Test
+  @DisplayName("triggerCrawl WANTED - 요약을 details 로 담아 성공 처리한다")
+  void triggerCrawl_wantedSuccess() throws Exception {
+    given(wantedIngestService.ingestAll())
+        .willReturn(new WantedCrawlSummary(2, 30, 20, 8, 1, 2, Map.of()));
+
+    JobExecutionResponse response =
+        service.triggerCrawl(new CrawlRequest("WANTED", null, null, null, null, null));
+    TimeUnit.MILLISECONDS.sleep(200);
+
+    JobStatusResponse status = service.getJobStatus(response.jobId());
+    assertThat(status.status()).isEqualTo("SUCCESS");
+    assertThat(status.details())
+        .containsEntry("created", 20)
+        .containsEntry("errors", 2)
+        .containsEntry("portal", "WANTED");
+  }
+
+  @Test
+  @DisplayName("triggerCrawl WANTED - 처리한 공고가 하나도 없고 실패만 있으면 작업 실패다")
+  void triggerCrawl_wantedAllFailed() throws Exception {
+    given(wantedIngestService.ingestAll())
+        .willReturn(new WantedCrawlSummary(2, 30, 0, 0, 0, 30, Map.of()));
+
+    JobExecutionResponse response =
+        service.triggerCrawl(new CrawlRequest("WANTED", null, null, null, null, null));
     TimeUnit.MILLISECONDS.sleep(200);
 
     JobStatusResponse status = service.getJobStatus(response.jobId());
