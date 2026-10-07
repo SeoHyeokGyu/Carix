@@ -122,7 +122,7 @@ class CollectorPipelineServiceTest {
   @DisplayName("triggerCrawl JUMPIT - 요약을 details 로 담아 성공 처리한다")
   void triggerCrawl_jumpitSuccess() throws Exception {
     given(jumpitIngestService.ingestAll())
-        .willReturn(new JumpitIngestSummary(2, 30, 20, 8, 1, 2, Map.of()));
+        .willReturn(new JumpitIngestSummary(2, 30, 20, 8, 1, 2, Map.of(), false));
 
     JobExecutionResponse response =
         service.triggerCrawl(new CrawlRequest("JUMPIT", null, null, null, null, null));
@@ -140,7 +140,7 @@ class CollectorPipelineServiceTest {
   @DisplayName("triggerCrawl JUMPIT - 처리한 공고가 하나도 없고 실패만 있으면 작업 실패다")
   void triggerCrawl_jumpitAllFailed() throws Exception {
     given(jumpitIngestService.ingestAll())
-        .willReturn(new JumpitIngestSummary(2, 30, 0, 0, 0, 30, Map.of()));
+        .willReturn(new JumpitIngestSummary(2, 30, 0, 0, 0, 30, Map.of(), false));
 
     JobExecutionResponse response =
         service.triggerCrawl(new CrawlRequest("JUMPIT", null, null, null, null, null));
@@ -149,6 +149,21 @@ class CollectorPipelineServiceTest {
     JobStatusResponse status = service.getJobStatus(response.jobId());
     assertThat(status.status()).isEqualTo("FAILED");
     assertThat(status.errorMessage()).contains("errors=30");
+  }
+
+  @Test
+  @DisplayName("triggerCrawl JUMPIT - 목록을 한 페이지도 못 받으면 작업 실패다")
+  void triggerCrawl_jumpitListFailed() throws Exception {
+    given(jumpitIngestService.ingestAll())
+        .willReturn(new JumpitIngestSummary(0, 0, 0, 0, 0, 0, Map.of(), true));
+
+    JobExecutionResponse response =
+        service.triggerCrawl(new CrawlRequest("JUMPIT", null, null, null, null, null));
+    TimeUnit.MILLISECONDS.sleep(200);
+
+    JobStatusResponse status = service.getJobStatus(response.jobId());
+    assertThat(status.status()).isEqualTo("FAILED");
+    assertThat(status.errorMessage()).contains("점핏 목록을 받지 못했습니다");
   }
 
   @Test
