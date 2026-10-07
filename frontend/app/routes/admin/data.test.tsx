@@ -23,6 +23,9 @@ const monthly: api.MonthlyOverview = {
       jobkoreaCrawled: 1804,
       saraminCrawled: 400,
       sampledByFamily: { DEVELOPER: 200, DATA: 9, AI: 35, OTHER: 0 },
+      wantedSampled: 60,
+      wantedSampledCapped: 58,
+      wantedCrawled: 310,
     },
     {
       month: "202609",
@@ -31,6 +34,9 @@ const monthly: api.MonthlyOverview = {
       jobkoreaCrawled: 1248,
       saraminCrawled: 410,
       sampledByFamily: { DEVELOPER: 120, DATA: 10, AI: 18, OTHER: 0 },
+      wantedSampled: 70,
+      wantedSampledCapped: 68,
+      wantedCrawled: 320,
     },
   ],
 };
@@ -110,7 +116,57 @@ describe("DataExplorePage", () => {
   it("URL 의 from·to 를 월별·CPI 조회에 그대로 넘긴다", async () => {
     renderAt("/admin/data?tab=monthly&from=202310&to=202609");
     await screen.findByText("150");
-    expect(api.fetchMonthlyOverview).toHaveBeenCalledWith("202310", "202609");
+    expect(api.fetchMonthlyOverview).toHaveBeenCalledWith(
+      "202310",
+      "202609",
+      undefined,
+    );
+  });
+
+  it("월별 현황에 원티드 표본·상한 적용·정기 열을 보인다", async () => {
+    renderAt("/admin/data");
+    await screen.findByText("150");
+    expect(
+      screen.getByRole("columnheader", { name: "원티드 표본" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("columnheader", { name: "원티드 상한 적용" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("columnheader", { name: "원티드 정기" }),
+    ).toBeInTheDocument();
+    expect(screen.getByText("60")).toBeInTheDocument();
+    expect(screen.getByText("68")).toBeInTheDocument();
+    expect(screen.getByText("320")).toBeInTheDocument();
+  });
+
+  it("URL 의 sampleSource 를 월별 조회에 넘기고 선택 상자로 바꾼다", async () => {
+    renderAt("/admin/data?tab=monthly&sampleSource=WANTED");
+    await screen.findByText("150");
+    expect(api.fetchMonthlyOverview).toHaveBeenCalledWith(
+      undefined,
+      undefined,
+      "WANTED",
+    );
+    const select = screen.getByLabelText("직무별 표본 원천");
+    expect(select).toHaveValue("WANTED");
+    await userEvent.selectOptions(select, "JOBKOREA");
+    await waitFor(() =>
+      expect(api.fetchMonthlyOverview).toHaveBeenLastCalledWith(
+        undefined,
+        undefined,
+        "JOBKOREA",
+      ),
+    );
+  });
+
+  it("공고 탭 원천 선택에 원티드가 있다", async () => {
+    renderAt("/admin/data?tab=postings&month=202607&source=WANTED");
+    await screen.findByText("QA 채용");
+    expect(screen.getByLabelText("원천")).toHaveValue("WANTED");
+    expect(api.fetchPostings).toHaveBeenCalledWith(
+      expect.objectContaining({ source: "WANTED" }),
+    );
   });
 
   it("CPI 탭도 URL 의 from·to 를 넘긴다", async () => {

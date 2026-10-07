@@ -111,6 +111,12 @@ describe("crawlJobDataHref", () => {
     ).toContain("source=SARAMIN");
   });
 
+  it("원티드는 원티드 원천으로 연다", () => {
+    expect(crawlJobDataHref({ ...base, details: { portal: "WANTED" } })).toBe(
+      "/admin/data?tab=postings&month=202610&sort=recent&source=WANTED",
+    );
+  });
+
   it("점핏은 사람인 원천으로, 전체는 원천 없이 연다", () => {
     expect(crawlJobDataHref({ ...base, details: { portal: "JUMPIT" } })).toBe(
       "/admin/data?tab=postings&month=202610&sort=recent&source=SARAMIN",

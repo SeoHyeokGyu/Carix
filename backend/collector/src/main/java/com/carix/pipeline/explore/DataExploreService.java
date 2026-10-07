@@ -36,6 +36,8 @@ public class DataExploreService {
   static final List<String> FAMILIES = List.of("DEVELOPER", "DATA", "AI", "OTHER");
   private static final int MONTHLY_DEFAULT = 13;
   private static final int MONTHLY_MAX = 36;
+  private static final java.util.Set<String> SAMPLE_SOURCES =
+      java.util.Set.of("JOBKOREA", "WANTED");
 
   private final ExploreQueries queries;
   private final JobPostingRepository jobPostingRepository;
@@ -66,11 +68,16 @@ public class DataExploreService {
   }
 
   @Transactional(readOnly = true)
-  public MonthlyOverview monthly(String from, String to) {
+  public MonthlyOverview monthly(String from, String to, String sampleSource) {
+    String familySource = blankToNull(sampleSource) == null ? "JOBKOREA" : sampleSource;
+    if (!SAMPLE_SOURCES.contains(familySource)) {
+      throw badRequest("sampleSource 는 JOBKOREA|WANTED 중 하나입니다: " + sampleSource);
+    }
     YearMonth[] range = range(from, to, MONTHLY_DEFAULT, MONTHLY_MAX);
     String f = YM.format(range[0]);
     String t = YM.format(range[1]);
-    Map<String, Integer> sampled = queries.sampledCounts(f, t);
+    Map<String, Integer> sampled = queries.sampledCounts(f, t, "JOBKOREA");
+    Map<String, Integer> wantedSampled = queries.sampledCounts(f, t, "WANTED");
     Map<String, Map<String, Integer>> crawled = queries.crawledCounts(f, t);
     List<JobPosting> all = jobPostingRepository.findAll();
 
@@ -79,9 +86,12 @@ public class DataExploreService {
       String key = YM.format(m);
       List<JobPosting> capped =
           marketAggregateService.sampledPostingsForMonth(all, key, "JOBKOREA");
+      List<JobPosting> wantedCapped =
+          marketAggregateService.sampledPostingsForMonth(all, key, "WANTED");
       Map<String, Integer> byFamily = new LinkedHashMap<>();
       FAMILIES.forEach(fam -> byFamily.put(fam, 0));
-      capped.forEach(p -> byFamily.computeIfPresent(familyOf(p), (k, v) -> v + 1));
+      ("WANTED".equals(familySource) ? wantedCapped : capped)
+          .forEach(p -> byFamily.computeIfPresent(familyOf(p), (k, v) -> v + 1));
       Map<String, Integer> crawledMonth = crawled.getOrDefault(key, Map.of());
       months.add(
           new MonthlyOverview.Month(
@@ -90,7 +100,10 @@ public class DataExploreService {
               capped.size(),
               crawledMonth.getOrDefault("JOBKOREA", 0),
               crawledMonth.getOrDefault("SARAMIN", 0),
-              byFamily));
+              byFamily,
+              wantedSampled.getOrDefault(key, 0),
+              wantedCapped.size(),
+              crawledMonth.getOrDefault("WANTED", 0)));
     }
     return new MonthlyOverview(f, t, months);
   }
@@ -344,6 +357,7 @@ public class DataExploreService {
     return switch (source) {
       case "JOBKOREA" -> "https://www.jobkorea.co.kr/Recruit/GI_Read/" + externalId;
       case "SARAMIN" -> "https://www.saramin.co.kr/zf_user/jobs/relay/view?rec_idx=" + externalId;
+      case "WANTED" -> "https://www.wanted.co.kr/wd/" + externalId;
       default -> null;
     };
   }

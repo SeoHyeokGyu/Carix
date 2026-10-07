@@ -20,8 +20,10 @@ public class DataExploreController {
 
   @GetMapping("/monthly")
   public MonthlyOverview monthly(
-      @RequestParam(required = false) String from, @RequestParam(required = false) String to) {
-    return service.monthly(from, to);
+      @RequestParam(required = false) String from,
+      @RequestParam(required = false) String to,
+      @RequestParam(required = false) String sampleSource) {
+    return service.monthly(from, to, sampleSource);
   }
 
   @GetMapping("/postings")

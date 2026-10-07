@@ -32,7 +32,7 @@ export interface JobExecutionResponse {
 }
 
 export interface CrawlRequest {
-  portal?: "JOBKOREA" | "SARAMIN" | "JUMPIT" | "ALL";
+  portal?: "JOBKOREA" | "SARAMIN" | "JUMPIT" | "WANTED" | "ALL";
   maxPages?: number;
   delayMs?: number;
 }
@@ -304,6 +304,9 @@ export interface MonthlyOverview {
     jobkoreaCrawled: number;
     saraminCrawled: number;
     sampledByFamily: Record<string, number>;
+    wantedSampled: number;
+    wantedSampledCapped: number;
+    wantedCrawled: number;
   }[];
 }
 
@@ -366,10 +369,14 @@ function qs(
 export function fetchMonthlyOverview(
   from?: string,
   to?: string,
+  sampleSource?: string,
 ): Promise<MonthlyOverview> {
-  return request<MonthlyOverview>(`/explore/monthly${qs({ from, to })}`, {
-    method: "GET",
-  });
+  return request<MonthlyOverview>(
+    `/explore/monthly${qs({ from, to, sampleSource })}`,
+    {
+      method: "GET",
+    },
+  );
 }
 
 export function fetchPostings(q: PostingQuery): Promise<PostingPage> {
