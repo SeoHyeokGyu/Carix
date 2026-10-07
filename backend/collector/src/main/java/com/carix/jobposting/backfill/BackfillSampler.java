@@ -103,7 +103,9 @@ public class BackfillSampler<P> {
         consecutiveFailures++;
         if (consecutiveFailures >= MAX_CONSECUTIVE_SAVE_FAILURES) {
           log.error("[백필] 저장이 연속 {}회 실패해 중단합니다", consecutiveFailures);
-          throw e;
+          throw new IllegalStateException(
+              "표본 저장이 연속 " + MAX_CONSECUTIVE_SAVE_FAILURES + "회 실패해 백필을 중단합니다: " + e.getMessage(),
+              e);
         }
         if (stackLogged) {
           log.warn("[백필] ID {} 저장 실패: {}", candidate.id(), e.getMessage());

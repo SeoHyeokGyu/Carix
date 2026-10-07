@@ -26,7 +26,8 @@ class MviCollectionPriorityServiceTest {
   @Test
   @DisplayName("집계 데이터가 비어 있을 때 표준 차원 조합이 모두 CRITICAL 우선순위로 도출된다")
   void calculatePriorities_emptyMarketData_allCritical() {
-    when(marketAggregateRepository.findPeerGroupAggregatesByMonth("202607")).thenReturn(List.of());
+    when(marketAggregateRepository.findPeerGroupAggregatesByMonthAndSource("202607", "ALL"))
+        .thenReturn(List.of());
 
     CollectionPriorityResponse response = service.calculatePriorities("202607", "ALL", 10, false);
 
@@ -60,7 +61,7 @@ class MviCollectionPriorityServiceTest {
             .postingCount(3)
             .build();
 
-    when(marketAggregateRepository.findPeerGroupAggregatesByMonth("202607"))
+    when(marketAggregateRepository.findPeerGroupAggregatesByMonthAndSource("202607", "ALL"))
         .thenReturn(List.of(sufficientAgg, sparseAgg));
 
     // underSampledOnly = false
@@ -113,7 +114,7 @@ class MviCollectionPriorityServiceTest {
             .postingCount(8) // deficit 2
             .build();
 
-    when(marketAggregateRepository.findPeerGroupAggregatesByMonth("202607"))
+    when(marketAggregateRepository.findPeerGroupAggregatesByMonthAndSource("202607", "ALL"))
         .thenReturn(List.of(criticalAgg, highAgg, mediumAgg));
 
     CollectionPriorityResponse response = service.calculatePriorities("202607", "ALL", 10, true);
@@ -145,11 +146,37 @@ class MviCollectionPriorityServiceTest {
   @DisplayName("기준월이 null일 때 DB 최신 적재월 또는 당월로 자동 해석된다")
   void calculatePriorities_nullMonth_resolvesTargetMonth() {
     when(marketAggregateRepository.findDistinctBaseYearMonths()).thenReturn(List.of("202605"));
-    when(marketAggregateRepository.findPeerGroupAggregatesByMonth("202605")).thenReturn(List.of());
+    when(marketAggregateRepository.findPeerGroupAggregatesByMonthAndSource("202605", "ALL"))
+        .thenReturn(List.of());
 
     CollectionPriorityResponse response = service.calculatePriorities(null, null, null, false);
 
     assertThat(response.baseYearMonth()).isEqualTo("202605");
     assertThat(response.minSampleSize()).isEqualTo(10);
+  }
+
+  @Test
+  @DisplayName("기본 ALL 모드는 source=ALL 행만 읽고 원천별 행을 합산하지 않는다")
+  void calculatePriorities_defaultAll_readsOnlyAllSourceRows() {
+    MarketAggregate allRow =
+        MarketAggregate.builder()
+            .jobFamily("DEVELOPER")
+            .region("ALL")
+            .experienceBracket("MID")
+            .postingCount(7)
+            .build();
+    when(marketAggregateRepository.findPeerGroupAggregatesByMonthAndSource("202607", "ALL"))
+        .thenReturn(List.of(allRow));
+
+    CollectionPriorityResponse response = service.calculatePriorities("202607", "ALL", 10, false);
+
+    assertThat(response.priorities())
+        .filteredOn(
+            i ->
+                "DEVELOPER".equals(i.jobFamily())
+                    && "MID".equals(i.experienceBracket())
+                    && "ALL".equals(i.region()))
+        .singleElement()
+        .satisfies(i -> assertThat(i.currentSampleCount()).isEqualTo(7));
   }
 }

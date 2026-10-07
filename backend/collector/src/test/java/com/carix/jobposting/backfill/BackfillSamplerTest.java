@@ -131,7 +131,9 @@ class BackfillSamplerTest {
     BackfillSampler<Void> sampler = new BackfillSampler<>(pages, new Random(1));
 
     assertThatThrownBy(() -> sampler.sample(MONTH, 0, 10_000, 100, 5_000))
-        .isInstanceOf(IllegalStateException.class);
+        .isInstanceOf(IllegalStateException.class)
+        .hasMessageStartingWith("표본 저장이 연속 5회 실패해 백필을 중단합니다: ")
+        .hasMessageContaining("저장 실패");
   }
 
   @Test
