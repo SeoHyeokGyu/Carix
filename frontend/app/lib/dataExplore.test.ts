@@ -123,9 +123,12 @@ describe("crawlJobDataHref", () => {
     );
   });
 
-  it("월은 서울 시각 기준이다", () => {
+  it("월은 collector 와 같은 UTC 기준이다", () => {
     expect(
-      crawlJobDataHref({ ...base, startedAt: "2026-09-30T16:00:00Z" }),
+      crawlJobDataHref({ ...base, startedAt: "2026-10-31T16:00:00Z" }),
+    ).toContain("month=202610");
+    expect(
+      crawlJobDataHref({ ...base, startedAt: "2026-11-01T00:30:00+09:00" }),
     ).toContain("month=202610");
   });
 

@@ -100,9 +100,12 @@ export function parsePostingSort(value: string | null): PostingSort {
 
 const SEOUL = "Asia/Seoul";
 
-function seoulParts(iso: string): { y: string; m: string; d: string } {
+function zonedParts(
+  iso: string,
+  timeZone: string,
+): { y: string; m: string; d: string } {
   const parts = new Intl.DateTimeFormat("en-CA", {
-    timeZone: SEOUL,
+    timeZone,
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
@@ -113,7 +116,7 @@ function seoulParts(iso: string): { y: string; m: string; d: string } {
 
 /** 수집 시각(UTC instant) → 서울 기준 yyyy-MM-dd. */
 export function formatCollectedDate(iso: string): string {
-  const { y, m, d } = seoulParts(iso);
+  const { y, m, d } = zonedParts(iso, SEOUL);
   return `${y}-${m}-${d}`;
 }
 
@@ -124,12 +127,15 @@ const PORTAL_SOURCE: Record<string, string> = {
   JUMPIT: "SARAMIN",
 };
 
-/** 성공한 크롤링 작업 → 수집 데이터 공고 탭(최근 수집순) 링크. 해당 없으면 null. */
+/**
+ * 성공한 크롤링 작업 → 수집 데이터 공고 탭(최근 수집순) 링크. 해당 없으면 null.
+ * 관측월은 UTC 로 도는 collector 의 `YearMonth.now()` 기준이라 월도 UTC 로 구한다.
+ */
 export function crawlJobDataHref(
   job: Pick<JobStatusResponse, "jobType" | "status" | "startedAt" | "details">,
 ): string | null {
   if (job.jobType !== "CRAWL" || job.status !== "SUCCESS") return null;
-  const { y, m } = seoulParts(job.startedAt);
+  const { y, m } = zonedParts(job.startedAt, "UTC");
   const sp = new URLSearchParams({
     tab: "postings",
     month: `${y}${m}`,

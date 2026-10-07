@@ -84,7 +84,7 @@ describe("CollectorAdminPage", () => {
     );
 
     const link = await screen.findByRole("link", {
-      name: "수집 데이터에서 보기",
+      name: "이 달 신규 공고 보기",
     });
     const href = link.getAttribute("href") ?? "";
     expect(href).toMatch(

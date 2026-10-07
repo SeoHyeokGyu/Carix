@@ -16,8 +16,6 @@ export function JobHistoryTable({ jobs, isLoading }: JobHistoryTableProps) {
     return job.status === filter;
   });
 
-  const dataHref = crawlJobDataHref;
-
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "RUNNING":
@@ -191,6 +189,7 @@ export function JobHistoryTable({ jobs, isLoading }: JobHistoryTableProps) {
             ) : (
               filteredJobs.map((job) => {
                 const typeInfo = getJobTypeLabel(job.jobType);
+                const href = crawlJobDataHref(job);
                 return (
                   <tr
                     key={job.jobId}
@@ -224,12 +223,12 @@ export function JobHistoryTable({ jobs, isLoading }: JobHistoryTableProps) {
                       ) : (
                         renderDetails(job.details)
                       )}
-                      {dataHref(job) && (
+                      {href && (
                         <Link
-                          to={dataHref(job) as string}
+                          to={href}
                           className="mt-1 inline-block text-[11px] text-carix-info underline"
                         >
-                          수집 데이터에서 보기
+                          이 달 신규 공고 보기
                         </Link>
                       )}
                     </td>
