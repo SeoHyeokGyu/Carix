@@ -46,6 +46,11 @@ public class WantedPostingWriter {
         .orElse(false);
   }
 
+  /** 이 ID 의 원티드 행이 이미 있는가. 상세 API 를 부르기 전에 불필요한 호출을 거르는 데 쓴다. */
+  public boolean exists(String id) {
+    return postings.findBySourceAndExternalId(SOURCE, id).isPresent();
+  }
+
   /** 있으면 관측월·확인 경로만 갱신하고 true. */
   public boolean touchListed(String id, String month) {
     return postings

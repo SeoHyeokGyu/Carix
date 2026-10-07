@@ -17,6 +17,7 @@ import java.util.Optional;
 import java.util.Random;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.function.BiConsumer;
 import java.util.function.LongFunction;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.transaction.support.TransactionOperations;
@@ -60,6 +61,11 @@ public class WantedBackfillService {
   }
 
   public Map<String, Object> run(BackfillRequest request) {
+    return run(request, (nextStartId, cachedIds) -> {});
+  }
+
+  /** {@code afterMonth} 는 달마다 캐시 정리 직후 (다음 달 시작 ID, 남은 캐시 ID) 를 받는다. 캐시 정리 검증용. */
+  Map<String, Object> run(BackfillRequest request, BiConsumer<Long, Set<Long>> afterMonth) {
     YearMonth from = YearMonth.parse(request.fromMonth(), YM);
     YearMonth to = YearMonth.parse(request.toMonth(), YM);
     if (from.isAfter(to)) {
@@ -90,6 +96,8 @@ public class WantedBackfillService {
       log.info("[원티드 백필] {} ID [{}, {}) → {}", month.format(YM), monthStartId, nextStartId, result);
       summary.put(month.format(YM), result);
       monthStartId = nextStartId;
+      run.evictBefore(nextStartId);
+      afterMonth.accept(nextStartId, Set.copyOf(run.pageCache.keySet()));
     }
     summary.put("droppedSkills", run.dropped);
     summary.put("apiMisses", run.apiMisses);
@@ -110,10 +118,20 @@ public class WantedBackfillService {
     Optional<WantedPosting> page(long id) {
       Optional<WantedPosting> cached = pageCache.get(id);
       if (cached == null) {
-        cached = client.fetchPage(id).flatMap(parser::parsePage);
+        // 요청한 ID 와 페이지의 ID 가 다르면(리다이렉트 등) 다른 공고를 이 ID 로 저장하지 않는다.
+        cached =
+            client
+                .fetchPage(id)
+                .flatMap(parser::parsePage)
+                .filter(p -> String.valueOf(id).equals(p.id()));
         pageCache.put(id, cached);
       }
       return cached;
+    }
+
+    /** 다음 달 시작 ID 보다 작은 페이지는 다시 읽지 않으므로 메모리에서 뺀다. */
+    void evictBefore(long nextStartId) {
+      pageCache.keySet().removeIf(id -> id < nextStartId);
     }
 
     @Override
@@ -137,8 +155,13 @@ public class WantedBackfillService {
     @Override
     public void save(BackfillSampler.Candidate<WantedPosting> candidate, YearMonth month) {
       WantedPosting posting = candidate.payload();
+      // 이미 있는 행은 표본 표시만 달면 되므로 상세 API 를 부르지 않는다.
+      boolean existing =
+          Boolean.TRUE.equals(tx.execute(s -> writer.exists(String.valueOf(candidate.id()))));
       List<String> skillTags =
-          client.fetchDetailApi(candidate.id()).map(parser::parseSkillTags).orElse(List.of());
+          existing
+              ? List.of()
+              : client.fetchDetailApi(candidate.id()).map(parser::parseSkillTags).orElse(List.of());
       // 실패한 공고의 미등록 스택은 총계에 넣지 않으므로 공고별로 모았다가 성공 뒤에 합친다.
       Map<String, Integer> postingDropped = new TreeMap<>();
       tx.execute(
@@ -147,7 +170,7 @@ public class WantedBackfillService {
             return writer.upsertSampled(posting, skillTags, month, postingDropped);
           });
       postingDropped.forEach((name, count) -> dropped.merge(name, count, Integer::sum));
-      if (skillTags.isEmpty()) {
+      if (!existing && skillTags.isEmpty()) {
         apiMisses++;
       }
     }

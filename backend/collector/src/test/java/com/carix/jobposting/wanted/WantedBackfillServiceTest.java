@@ -4,8 +4,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 
 import com.carix.jobposting.JobPosting;
 import com.carix.jobposting.JobPostingRepository;
@@ -193,6 +196,7 @@ class WantedBackfillServiceTest {
 
     assertThat(listed.getSampledMonth()).isEqualTo("202609");
     assertThat(listed.getCollectedVia()).contains("WANTED_BACKFILL");
+    verify(postings, never()).save(argThat(p -> p != listed && "1008".equals(p.getExternalId())));
   }
 
   @Test
@@ -202,7 +206,7 @@ class WantedBackfillServiceTest {
 
     Map<String, Object> summary = service.run(request(1000, 1009, "202609", "202609"));
 
-    assertThat(client.detailFetches).containsExactlyInAnyOrder(1000L, 1001L, 1002L, 1008L, 1009L);
+    assertThat(client.detailFetches).containsExactlyInAnyOrder(1000L, 1001L, 1002L, 1009L);
     assertThat(summary.get("apiMisses")).isEqualTo(1);
     assertThat(dropped(summary)).containsEntry("Node.js", 3);
   }
@@ -237,6 +241,41 @@ class WantedBackfillServiceTest {
     assertThat(r.errors()).isEqualTo(1);
     assertThat(r.saved()).isEqualTo(4);
     assertThat(dropped(summary)).containsEntry("Node.js", 2);
+  }
+
+  @Test
+  @DisplayName("요청한 ID 와 페이지의 ID 가 다르면 빈 페이지로 센다")
+  void idMismatchIsEmpty() throws IOException {
+    seedSeptember();
+    client.pages.put(1002L, devPage(1500, SEPT));
+
+    Map<String, Object> summary = service.run(request(1000, 1009, "202609", "202609"));
+
+    BackfillSampler.Result r = (BackfillSampler.Result) summary.get("202609");
+    assertThat(r.empty()).isEqualTo(3);
+    assertThat(r.saved()).isEqualTo(4);
+  }
+
+  @Test
+  @DisplayName("달이 끝나면 다음 달 시작 ID 보다 작은 페이지 캐시를 비운다")
+  void evictsPageCacheAfterEachMonth() throws IOException {
+    seedSeptember();
+    for (long id = 1010; id <= 1019; id++) {
+      client.pages.put(id, devPage(id, OCT));
+    }
+    List<Long> nextStarts = new ArrayList<>();
+    List<Integer> staleCounts = new ArrayList<>();
+
+    service.run(
+        request(1000, 1019, "202609", "202610"),
+        (nextStartId, cachedIds) -> {
+          nextStarts.add(nextStartId);
+          staleCounts.add((int) cachedIds.stream().filter(id -> id < nextStartId).count());
+        });
+
+    assertThat(nextStarts).hasSize(2);
+    assertThat(nextStarts.get(0)).isGreaterThan(1000L);
+    assertThat(staleCounts).containsOnly(0);
   }
 
   @Test
