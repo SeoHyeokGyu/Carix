@@ -150,4 +150,13 @@ class PostingSalaryClassifierTest {
     assertThat(PostingSalaryClassifier.withListingFallback(none, 4000L, 900_000L)).isEqualTo(none);
     assertThat(PostingSalaryClassifier.withListingFallback(none, 6000L, 4000L)).isEqualTo(none);
   }
+
+  @Test
+  void implausibleMonthlyAmountIsUnknown() {
+    assertThat(
+            PostingSalaryClassifier.classify(
+                    "월급 4,000~8,000만원(면접 후 결정)", new SalaryRange(48_000_000L, 96_000_000L))
+                .disclosure())
+        .isEqualTo(SalaryDisclosure.UNKNOWN);
+  }
 }

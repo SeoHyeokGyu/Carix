@@ -96,4 +96,20 @@ class SalaryTextParserTest {
     assertThat(p("연봉 12345678901234567890만원")).isNull();
     assertThat(p("연봉 99999999999999999999억")).isNull();
   }
+
+  @Test
+  void rejectsImplausibleAmounts() {
+    // 원문 오기: 연봉을 월급으로 적었거나 0 을 하나 더 붙였다
+    assertThat(p("월급 4,000~8,000만원(면접 후 결정)")).isNull();
+    assertThat(p("월급 2,700~2,700만원")).isNull();
+    assertThat(p("연봉 30,000~50,000만원(면접 후 결정)")).isNull();
+    assertThat(p("연봉 3억 1,000만원")).isNull();
+    assertThat(p("월급 1,600만원")).isNull();
+  }
+
+  @Test
+  void keepsHighButPlausibleAmounts() {
+    assertThat(p("연봉 3억")).isEqualTo(new SalaryRange(300_000_000L, 300_000_000L));
+    assertThat(p("월급 1,500만원")).isEqualTo(new SalaryRange(180_000_000L, 180_000_000L));
+  }
 }

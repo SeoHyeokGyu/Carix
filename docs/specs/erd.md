@@ -236,7 +236,7 @@ erDiagram
 > | --- | --- | --- |
 > | `job_posting` | `title VARCHAR(255)`, `company_name`·`region`·`experience_min`·`employment_type`·`company_size`·`job_family` 전부 NOT NULL | `title VARCHAR(500)`, 해당 컬럼 전부 NULL 허용. `company_badge`·`position_level` 컬럼 추가 |
 > | `job_posting.salary_*` | 원 단위 | **원 단위로 저장한다.** 원천 표기가 만원이라 적재 경로가 변환한다 — `JobKoreaListingEnricher`·`JobKoreaPayParser` 가 `값 < 1,000,000` 이면 `× 10,000`. 옛 만원 단위 행은 `06_fix_salary_units.sql` 이 같은 기준으로 올렸다. **읽을 때 다시 환산하지 않는다.** 휴리스틱이라 연 100만원 미만 실제 금액은 잘못 곱해지지만 채용공고 연봉에는 그런 값이 없다 |
-> | `job_posting.salary_*` (사람인) | — | **사람인은 연봉을 주지 않는다.** `SaraminListingFields` 에 필드가 없어 사람인 행은 전부 `null` 이고, 그 원천의 `market_aggregate` 5수치도 전부 `null`·결측률 100% 다 |
+> | `job_posting.salary_*` (사람인) | — | **사람인 목록페이지에는 연봉이 없다.** `SaraminListingFields` 에 필드가 없어 정기 수집은 신규 공고에 한해 상세페이지 `description` 의 급여 문구를 읽는다. 공개 금액이 있으면 `PUBLIC`, 「면접 후 결정」·「회사내규」면 `NONE` 이다 — 사람인에는 비공개 검색 구간이 없어 `BAND` 가 나오지 않는다 |
 > | `skill` | `standard_name VARCHAR(100)` 단독 UNIQUE, `category NOT NULL` | `VARCHAR(255)`, `UNIQUE (standard_name, category)`, `category` NULL 허용 |
 > | `skill.category` | `'BACKEND'`·`'FRONTEND'` 등 기술 분야 | `'SKILL'`·`'JOB_CATEGORY'`·`'INDUSTRY'` — 수집 태그의 성격 구분 |
 > | `skill_alias` | `alias_name VARCHAR(100) UNIQUE` | `VARCHAR(255)`, UNIQUE 없음. `SkillService`·`SkillRepository` 가 자동완성 검색에서 읽는다(`US-O5`) |

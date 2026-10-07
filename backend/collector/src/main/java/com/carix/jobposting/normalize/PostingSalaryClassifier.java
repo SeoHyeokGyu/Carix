@@ -9,8 +9,6 @@ public class PostingSalaryClassifier {
 
   private static final Pattern PAY_KEYWORD = Pattern.compile("연봉|월급");
   private static final Pattern DIGIT = Pattern.compile("\\d");
-  private static final long MIN_ANNUAL = 10_000_000L;
-  private static final long MAX_ANNUAL = 1_000_000_000L;
 
   private final JobKoreaDetailParser detailParser = new JobKoreaDetailParser();
   private final JobKoreaPayParser payParser = new JobKoreaPayParser();
@@ -41,7 +39,7 @@ public class PostingSalaryClassifier {
     }
     long min = toWon(listingMin);
     long max = toWon(listingMax);
-    if (min > max || min < MIN_ANNUAL || max > MAX_ANNUAL) {
+    if (!SalaryTextParser.isPlausibleAnnual(min, max)) {
       return fromDetail;
     }
     return PostingSalary.publicRange(min, max);
