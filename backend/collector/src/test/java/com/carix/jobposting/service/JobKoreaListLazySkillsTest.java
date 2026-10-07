@@ -6,12 +6,19 @@ import static org.assertj.core.api.Assertions.assertThatCode;
 import com.carix.jobposting.CollectedVia;
 import com.carix.jobposting.JobPosting;
 import com.carix.jobposting.JobPostingRepository;
+import com.carix.jobposting.OwnRowsCleaner;
+import com.carix.jobposting.RawIngestRepository;
 import com.carix.jobposting.Skill;
+import com.carix.jobposting.SkillRepository;
+import com.carix.jobposting.backfill.JobKoreaJsonLd;
+import com.carix.jobposting.backfill.JobKoreaPage;
 import com.carix.jobposting.normalize.ExperienceRange;
 import com.carix.jobposting.seed.JobKoreaListingFields;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.List;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -28,11 +35,21 @@ class JobKoreaListLazySkillsTest {
   @Autowired private JobPostingRepository postings;
   @Autowired private JobPostingIngestService service;
   @Autowired private PostingSkillService skillService;
+  @Autowired private RawIngestRepository rawIngests;
+  @Autowired private SkillRepository skillRepository;
   @Autowired private PlatformTransactionManager transactionManager;
+
+  private OwnRowsCleaner cleaner;
+
+  @BeforeEach
+  void snapshot() {
+    cleaner = new OwnRowsCleaner(postings, skillRepository, rawIngests, transactionManager);
+    cleaner.snapshot();
+  }
 
   @AfterEach
   void cleanUp() {
-    postings.deleteAll();
+    cleaner.cleanUp("JOBKOREA", EXTERNAL_ID);
   }
 
   private void seed(String via) {
@@ -95,9 +112,25 @@ class JobKoreaListLazySkillsTest {
   }
 
   @Test
-  @DisplayName("트랜잭션 없이 호출해도 상세 재분류와 전체 스킬 재정제는 프록시 트랜잭션 안에서 돈다")
+  @DisplayName("트랜잭션 없이 호출해도 백필·상세 재분류·전체 스킬 재정제는 프록시 트랜잭션 안에서 돈다")
   void proxiedEntryPointsRunInTransaction() {
     seed(CollectedVia.JOBKOREA_LIST);
+
+    var page =
+        new JobKoreaPage(
+            EXTERNAL_ID,
+            "<html></html>",
+            new JobKoreaJsonLd(
+                "백엔드 엔지니어 Java",
+                "테스트사",
+                LocalDate.of(2026, 10, 1),
+                LocalDate.of(2026, 10, 31),
+                "FULL_TIME",
+                "경력 3년↑",
+                "서울"),
+            "DEVELOPER");
+    assertThatCode(() -> service.ingestBackfilledJobKorea(page, "202610", Instant.now()))
+        .doesNotThrowAnyException();
 
     assertThatCode(() -> service.refreshJobKoreaFromDetail(EXTERNAL_ID, "<html></html>"))
         .doesNotThrowAnyException();

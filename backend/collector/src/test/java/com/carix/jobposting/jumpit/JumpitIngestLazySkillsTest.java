@@ -8,14 +8,17 @@ import static org.mockito.Mockito.mock;
 import com.carix.jobposting.CollectedVia;
 import com.carix.jobposting.JobPosting;
 import com.carix.jobposting.JobPostingRepository;
+import com.carix.jobposting.OwnRowsCleaner;
 import com.carix.jobposting.RawIngestRepository;
 import com.carix.jobposting.Skill;
+import com.carix.jobposting.SkillRepository;
 import com.carix.jobposting.crawler.SaraminDetailFetcher;
 import com.carix.jobposting.normalize.SkillTaxonomy;
 import com.carix.jobposting.service.PostingSkillService;
 import java.time.Instant;
 import java.util.Optional;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -43,12 +46,20 @@ class JumpitIngestLazySkillsTest {
   @Autowired private RawIngestRepository rawIngests;
   @Autowired private PostingSkillService skillService;
   @Autowired private SkillTaxonomy taxonomy;
+  @Autowired private SkillRepository skillRepository;
   @Autowired private PlatformTransactionManager transactionManager;
+
+  private OwnRowsCleaner cleaner;
+
+  @BeforeEach
+  void snapshot() {
+    cleaner = new OwnRowsCleaner(postings, skillRepository, rawIngests, transactionManager);
+    cleaner.snapshot();
+  }
 
   @AfterEach
   void cleanUp() {
-    postings.deleteAll();
-    rawIngests.deleteAll();
+    cleaner.cleanUp("SARAMIN", EXTERNAL_ID);
   }
 
   @Test

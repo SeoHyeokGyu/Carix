@@ -6,12 +6,16 @@ import static org.assertj.core.api.Assertions.assertThatCode;
 import com.carix.jobposting.CollectedVia;
 import com.carix.jobposting.JobPosting;
 import com.carix.jobposting.JobPostingRepository;
+import com.carix.jobposting.OwnRowsCleaner;
+import com.carix.jobposting.RawIngestRepository;
 import com.carix.jobposting.Skill;
+import com.carix.jobposting.SkillRepository;
 import com.carix.jobposting.normalize.ExperienceRange;
 import com.carix.jobposting.seed.SaraminListingFields;
 import java.time.Instant;
 import java.util.List;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -28,11 +32,21 @@ class SaraminRecrawlLazySkillsTest {
   @Autowired private JobPostingRepository postings;
   @Autowired private JobPostingIngestService service;
   @Autowired private PostingSkillService skillService;
+  @Autowired private RawIngestRepository rawIngests;
+  @Autowired private SkillRepository skillRepository;
   @Autowired private PlatformTransactionManager transactionManager;
+
+  private OwnRowsCleaner cleaner;
+
+  @BeforeEach
+  void snapshot() {
+    cleaner = new OwnRowsCleaner(postings, skillRepository, rawIngests, transactionManager);
+    cleaner.snapshot();
+  }
 
   @AfterEach
   void cleanUp() {
-    postings.deleteAll();
+    cleaner.cleanUp("SARAMIN", EXTERNAL_ID);
   }
 
   private void seed(String via) {
@@ -62,7 +76,11 @@ class SaraminRecrawlLazySkillsTest {
   }
 
   private void recrawl() {
-    var fields = new SaraminListingFields("경력 3년↑", "정규직", null, List.of("Java"), List.of());
+    recrawl(List.of("Java"));
+  }
+
+  private void recrawl(List<String> skillTags) {
+    var fields = new SaraminListingFields("경력 3년↑", "정규직", null, skillTags, List.of());
     service.ingestSaraminPosting(
         EXTERNAL_ID,
         "백엔드 엔지니어",
@@ -119,10 +137,22 @@ class SaraminRecrawlLazySkillsTest {
   void recrawlKeepsFamilyAndExperienceOfJumpitRows() {
     seed(CollectedVia.JUMPIT, "DATA", 5);
 
-    assertThatCode(this::recrawl).doesNotThrowAnyException();
+    assertThatCode(() -> recrawl(List.of("Java", "백엔드개발자"))).doesNotThrowAnyException();
 
     JobPosting posting = loaded();
     assertThat(posting.getJobFamily()).isEqualTo("DATA");
     assertThat(posting.getExperienceMin()).isEqualTo(5);
+  }
+
+  @Test
+  @DisplayName("점핏 이력이 없는 기존 공고는 사람인 재수집이 직무군과 경력을 덮어쓴다")
+  void recrawlOverwritesFamilyAndExperienceOfNonJumpitRows() {
+    seed(CollectedVia.SARAMIN_SEARCH, "DATA", 5);
+
+    assertThatCode(() -> recrawl(List.of("Java", "백엔드개발자"))).doesNotThrowAnyException();
+
+    JobPosting posting = loaded();
+    assertThat(posting.getJobFamily()).isEqualTo("DEVELOPER");
+    assertThat(posting.getExperienceMin()).isEqualTo(3);
   }
 }
