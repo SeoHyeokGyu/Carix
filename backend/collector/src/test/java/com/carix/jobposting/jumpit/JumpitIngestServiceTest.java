@@ -20,15 +20,19 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.test.util.ReflectionTestUtils;
+import org.springframework.transaction.TransactionStatus;
+import org.springframework.transaction.support.TransactionCallback;
 import org.springframework.transaction.support.TransactionOperations;
 
 class JumpitIngestServiceTest {
@@ -46,6 +50,8 @@ class JumpitIngestServiceTest {
     final String page;
     final String empty;
     String detail;
+    int detailFetches;
+    Runnable onFetchDetail = () -> {};
 
     FakeClient(String page, String empty, String detail) {
       this.page = page;
@@ -60,6 +66,8 @@ class JumpitIngestServiceTest {
 
     @Override
     public Optional<String> fetchDetail(String id) {
+      detailFetches++;
+      onFetchDetail.run();
       return Optional.ofNullable(detail);
     }
   }
@@ -208,6 +216,52 @@ class JumpitIngestServiceTest {
     assertThat(existing.getLastSeenMonth()).isNotEqualTo("202609");
     assertThat(summary.enriched()).isEqualTo(1);
     verify(saramin, never()).fetch("55220505");
+    // 55220506 은 새 공고라 상세를 받지만, 있는 공고(55220505)는 받지 않는다 — 페이지가 둘이어도 새 공고 한 번이다.
+    assertThat(client.detailFetches).isEqualTo(1);
+  }
+
+  @Test
+  @DisplayName("점핏 상세·사람인 상세 HTTP 호출은 트랜잭션 밖에서 일어난다")
+  void httpCallsHappenOutsideTransaction() {
+    AtomicBoolean inTx = new AtomicBoolean(false);
+    List<Boolean> observed = new ArrayList<>();
+    TransactionOperations flagging =
+        new TransactionOperations() {
+          @Override
+          public <T> T execute(TransactionCallback<T> action) {
+            inTx.set(true);
+            try {
+              return action.doInTransaction(mock(TransactionStatus.class));
+            } finally {
+              inTx.set(false);
+            }
+          }
+        };
+    client.onFetchDetail = () -> observed.add(inTx.get());
+    given(saramin.fetch(anyString()))
+        .willAnswer(
+            i -> {
+              observed.add(inTx.get());
+              return Optional.empty();
+            });
+    given(postings.findBySourceAndExternalId(anyString(), anyString()))
+        .willReturn(Optional.empty());
+    JumpitIngestService flaggedService =
+        new JumpitIngestService(
+            client,
+            new JumpitParser(),
+            new JumpitFamilyResolver(),
+            postings,
+            rawIngests,
+            skills,
+            taxonomy,
+            saramin,
+            flagging);
+
+    JumpitIngestSummary summary = flaggedService.ingestAll();
+
+    assertThat(summary.created()).isEqualTo(2);
+    assertThat(observed).hasSize(4).containsOnly(false);
   }
 
   @Test

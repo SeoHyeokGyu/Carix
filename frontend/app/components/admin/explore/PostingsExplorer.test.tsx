@@ -47,4 +47,22 @@ describe("PostingsExplorer", () => {
       screen.getByText(/원천 직군 태그 정보보안 담당자/),
     ).toBeInTheDocument();
   });
+
+  it("확인 경로가 없으면 '-' 로 보여 준다", async () => {
+    render(
+      <PostingsExplorer
+        data={{
+          total: 1,
+          page: 0,
+          size: 20,
+          items: [{ ...item, collectedVia: null }],
+        }}
+        onPage={() => {}}
+      />,
+    );
+    await userEvent.click(
+      screen.getByRole("button", { name: "인프라보안 상세" }),
+    );
+    expect(screen.getByText(/확인 경로 -/)).toBeInTheDocument();
+  });
 });

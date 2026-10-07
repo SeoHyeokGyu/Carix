@@ -3,7 +3,6 @@ package com.carix.index.mvi;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.when;
 
 import com.carix.index.dto.ExcludedSkill;
@@ -932,6 +931,8 @@ class MarketValueIndexServiceTest {
 
     // 상한 없이는 (100×60 + 200×2000)/2060 = 197.1. 사람인을 60 으로 묶으면 (100×60 + 200×60)/120 = 150.
     assertThat(result.value().doubleValue()).isEqualTo(150.0);
+    assertThat(result.skillContributions().get(0).demandIndex().doubleValue()).isEqualTo(150.0);
+    assertThat(service.getSkillDemandDetails(userId, ym).get(0).getDemandIndex()).isEqualTo(150.0);
   }
 
   @Test
@@ -971,10 +972,8 @@ class MarketValueIndexServiceTest {
         .thenReturn(jobkorea);
     when(peerGroupFallbackResolver.resolveForSource(eq("SARAMIN"), any(), any()))
         .thenReturn(resolvedGroup("SARAMIN", 2000));
-    lenient()
-        .when(
-            skillDemandCalculator.calculateDemandIndex(
-                eq("JOBKOREA"), eq(skill.getId()), any(), eq(ym)))
+    when(skillDemandCalculator.calculateDemandIndex(
+            eq("JOBKOREA"), eq(skill.getId()), any(), eq(ym)))
         .thenReturn(demand(skill.getId(), jobkoreaIndex, SkillDemandStatus.OK));
     when(skillDemandCalculator.calculateDemandIndex(
             eq("SARAMIN"), eq(skill.getId()), any(), eq(ym)))

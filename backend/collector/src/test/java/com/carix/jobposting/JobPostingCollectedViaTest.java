@@ -86,4 +86,25 @@ class JobPostingCollectedViaTest {
     assertThat(p.getPostedStartDate()).isEqualTo(LocalDate.of(2026, 10, 7));
     assertThat(p.getPostedEndDate()).isNull();
   }
+
+  @Test
+  @DisplayName("비었거나 공백인 확인 경로는 무시한다")
+  void blankCollectedViaIsIgnored() {
+    JobPosting p = posting();
+    p.addCollectedVia(null);
+    p.addCollectedVia(" ");
+    assertThat(p.getCollectedVia()).isNull();
+    p.addCollectedVia(CollectedVia.JUMPIT);
+    p.addCollectedVia("");
+    assertThat(p.getCollectedVia()).isEqualTo(CollectedVia.JUMPIT);
+  }
+
+  @Test
+  @DisplayName("공백뿐인 원천 직군 태그는 비운다")
+  void blankSourceJobTagsBecomeNull() {
+    JobPosting p = posting();
+    p.recordSourceJobTags("서버");
+    p.recordSourceJobTags(" ");
+    assertThat(p.getSourceJobTags()).isNull();
+  }
 }

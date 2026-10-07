@@ -8,6 +8,7 @@ import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
+import com.carix.jobposting.CollectedVia;
 import com.carix.jobposting.JobPosting;
 import com.carix.jobposting.JobPostingRepository;
 import com.carix.jobposting.RawIngestRepository;
@@ -99,6 +100,29 @@ class JobPostingIngestServiceTest {
         "202608");
 
     verify(jobPostingRepository, atLeastOnce()).save(any(JobPosting.class));
+  }
+
+  @Test
+  @DisplayName("ingestJobKoreaPosting - 신규 공고는 확인 경로 JOBKOREA_LIST 를 단다")
+  void ingestJobKoreaPosting_marksListPath() {
+    given(jobPostingRepository.findBySourceAndExternalId("JOBKOREA", "1005"))
+        .willReturn(Optional.empty());
+    ArgumentCaptor<JobPosting> saved = ArgumentCaptor.forClass(JobPosting.class);
+
+    service.ingestJobKoreaPosting(
+        "1005",
+        "백엔드",
+        "회사",
+        "서울",
+        ExperienceRange.parse("신입"),
+        "오늘",
+        new JobKoreaListingFields("정규직", null, null, null, null, null),
+        null,
+        Instant.now(),
+        "202610");
+
+    verify(jobPostingRepository, atLeastOnce()).save(saved.capture());
+    assertThat(saved.getValue().getCollectedVia()).isEqualTo(CollectedVia.JOBKOREA_LIST);
   }
 
   @Test
@@ -412,7 +436,15 @@ class JobPostingIngestServiceTest {
     Skill kafka = new Skill("Kafka", "SKILL", false);
     ReflectionTestUtils.setField(kafka, "id", UUID.randomUUID());
     existing.addSkill(kafka);
-    existing.addCollectedVia("JUMPIT");
+    existing.addCollectedVia(CollectedVia.JUMPIT);
+    // 새로 만든 스킬도 연결할 수 있게 id 를 붙인다.
+    given(skillRepository.save(any(Skill.class)))
+        .willAnswer(
+            i -> {
+              Skill created = i.getArgument(0);
+              ReflectionTestUtils.setField(created, "id", UUID.randomUUID());
+              return created;
+            });
     given(jobPostingRepository.findBySourceAndExternalId("SARAMIN", "502"))
         .willReturn(Optional.of(existing));
 
@@ -428,7 +460,8 @@ class JobPostingIngestServiceTest {
         "202610",
         null);
 
-    assertThat(existing.getSkills()).extracting(Skill::getStandardName).contains("Kafka");
-    assertThat(existing.getCollectedVia()).isEqualTo("JUMPIT,SARAMIN_SEARCH");
+    assertThat(existing.getSkills()).extracting(Skill::getStandardName).contains("Kafka", "Java");
+    assertThat(existing.getCollectedVia())
+        .isEqualTo(CollectedVia.JUMPIT + "," + CollectedVia.SARAMIN_SEARCH);
   }
 }

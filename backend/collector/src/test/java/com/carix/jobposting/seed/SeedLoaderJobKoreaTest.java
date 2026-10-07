@@ -8,6 +8,7 @@ import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
+import com.carix.jobposting.CollectedVia;
 import com.carix.jobposting.JobPosting;
 import com.carix.jobposting.JobPostingRepository;
 import com.carix.jobposting.RawIngestRepository;
@@ -22,6 +23,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.mockito.ArgumentCaptor;
 
 class SeedLoaderJobKoreaTest {
 
@@ -101,7 +103,13 @@ class SeedLoaderJobKoreaTest {
     int loaded = seedLoader.load(outDir);
 
     assertThat(loaded).isEqualTo(1);
-    verify(jobPostingRepository, atLeastOnce()).save(any(JobPosting.class));
+    assertThat(savedPosting().getCollectedVia()).isEqualTo(CollectedVia.JOBKOREA_SEED);
+  }
+
+  private JobPosting savedPosting() {
+    ArgumentCaptor<JobPosting> saved = ArgumentCaptor.forClass(JobPosting.class);
+    verify(jobPostingRepository, atLeastOnce()).save(saved.capture());
+    return saved.getValue();
   }
 
   @Test
@@ -156,6 +164,6 @@ class SeedLoaderJobKoreaTest {
     int loaded = seedLoader.load(outDir);
 
     assertThat(loaded).isEqualTo(1);
-    verify(jobPostingRepository, atLeastOnce()).save(any(JobPosting.class));
+    assertThat(savedPosting().getCollectedVia()).isEqualTo(CollectedVia.SARAMIN_SEARCH);
   }
 }
