@@ -15,7 +15,7 @@ import com.carix.jobposting.RawIngestRepository;
 import com.carix.jobposting.Skill;
 import com.carix.jobposting.crawler.SaraminDetailFetcher;
 import com.carix.jobposting.normalize.SkillTaxonomy;
-import com.carix.jobposting.service.JobPostingIngestService;
+import com.carix.jobposting.service.PostingSkillService;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
@@ -39,7 +39,7 @@ class JumpitIngestServiceTest {
 
   private JobPostingRepository postings;
   private RawIngestRepository rawIngests;
-  private JobPostingIngestService skills;
+  private PostingSkillService skills;
   private SkillTaxonomy taxonomy;
   private SaraminDetailFetcher saramin;
   private FakeClient client;
@@ -88,7 +88,7 @@ class JumpitIngestServiceTest {
   void setUp() throws IOException {
     postings = mock(JobPostingRepository.class);
     rawIngests = mock(RawIngestRepository.class);
-    skills = mock(JobPostingIngestService.class);
+    skills = mock(PostingSkillService.class);
     taxonomy = mock(SkillTaxonomy.class);
     saramin = mock(SaraminDetailFetcher.class);
     given(postings.save(any(JobPosting.class))).willAnswer(i -> i.getArgument(0));

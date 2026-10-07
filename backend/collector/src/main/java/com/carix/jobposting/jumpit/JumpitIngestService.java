@@ -13,7 +13,7 @@ import com.carix.jobposting.normalize.EmploymentTypeClassifier;
 import com.carix.jobposting.normalize.PostingSalary;
 import com.carix.jobposting.normalize.PostingSalaryClassifier;
 import com.carix.jobposting.normalize.SkillTaxonomy;
-import com.carix.jobposting.service.JobPostingIngestService;
+import com.carix.jobposting.service.PostingSkillService;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.YearMonth;
@@ -54,7 +54,7 @@ public class JumpitIngestService {
   private final JumpitFamilyResolver familyResolver;
   private final JobPostingRepository postings;
   private final RawIngestRepository rawIngests;
-  private final JobPostingIngestService skills;
+  private final PostingSkillService skills;
   private final SkillTaxonomy taxonomy;
   private final SaraminDetailFetcher saraminDetail;
   private final TransactionOperations tx;
@@ -66,7 +66,7 @@ public class JumpitIngestService {
       JumpitFamilyResolver familyResolver,
       JobPostingRepository postings,
       RawIngestRepository rawIngests,
-      JobPostingIngestService skills,
+      PostingSkillService skills,
       SkillTaxonomy taxonomy,
       SaraminDetailFetcher saraminDetail,
       TransactionOperations tx) {

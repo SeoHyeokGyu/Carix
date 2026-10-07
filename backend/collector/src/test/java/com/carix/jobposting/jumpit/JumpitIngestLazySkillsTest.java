@@ -12,7 +12,7 @@ import com.carix.jobposting.RawIngestRepository;
 import com.carix.jobposting.Skill;
 import com.carix.jobposting.crawler.SaraminDetailFetcher;
 import com.carix.jobposting.normalize.SkillTaxonomy;
-import com.carix.jobposting.service.JobPostingIngestService;
+import com.carix.jobposting.service.PostingSkillService;
 import java.time.Instant;
 import java.util.Optional;
 import org.junit.jupiter.api.AfterEach;
@@ -41,7 +41,7 @@ class JumpitIngestLazySkillsTest {
 
   @Autowired private JobPostingRepository postings;
   @Autowired private RawIngestRepository rawIngests;
-  @Autowired private JobPostingIngestService ingestService;
+  @Autowired private PostingSkillService skillService;
   @Autowired private SkillTaxonomy taxonomy;
   @Autowired private PlatformTransactionManager transactionManager;
 
@@ -57,7 +57,7 @@ class JumpitIngestLazySkillsTest {
     var tx = new TransactionTemplate(transactionManager);
     tx.executeWithoutResult(
         s -> {
-          Skill kafka = ingestService.upsertKnownSkill("Kafka");
+          Skill kafka = skillService.upsertKnownSkill("Kafka");
           JobPosting posting =
               JobPosting.builder()
                   .source("SARAMIN")
@@ -95,7 +95,7 @@ class JumpitIngestLazySkillsTest {
             new JumpitFamilyResolver(),
             postings,
             rawIngests,
-            ingestService,
+            skillService,
             taxonomy,
             saramin,
             tx);

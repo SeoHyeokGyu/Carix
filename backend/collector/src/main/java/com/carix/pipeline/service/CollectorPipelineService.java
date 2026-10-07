@@ -8,6 +8,7 @@ import com.carix.jobposting.jumpit.JumpitIngestService;
 import com.carix.jobposting.jumpit.JumpitIngestSummary;
 import com.carix.jobposting.seed.SeedLoader;
 import com.carix.jobposting.service.JobPostingIngestService;
+import com.carix.jobposting.service.PostingSkillService;
 import com.carix.pipeline.dto.BackfillRequest;
 import com.carix.pipeline.dto.CpiRequest;
 import com.carix.pipeline.dto.CrawlRequest;
@@ -56,6 +57,7 @@ public class CollectorPipelineService {
   private final WageStatObservationRepository wageStatObservationRepository;
   private final com.carix.market.MarketAggregateRepository marketAggregateRepository;
   private final JobPostingIngestService jobPostingIngestService;
+  private final PostingSkillService postingSkillService;
   private final WageStatIngestService wageStatIngestService;
   private final CpiIngestService cpiIngestService;
   private final com.carix.jobposting.dedup.JobPostingDeduplicator jobPostingDeduplicator;
@@ -243,7 +245,7 @@ public class CollectorPipelineService {
         () -> {
           try {
             log.info("[작업:{}] 채용공고 스킬 일괄 재정제 작업을 시작합니다...", jobId);
-            Map<String, Object> stats = jobPostingIngestService.refineAllPostingSkills();
+            Map<String, Object> stats = postingSkillService.refineAllPostingSkills();
             state.complete(stats);
             log.info("[작업:{}] 채용공고 스킬 재정제 완료: {}", jobId, stats);
           } catch (Exception e) {

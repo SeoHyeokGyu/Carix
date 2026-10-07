@@ -15,6 +15,7 @@ import com.carix.jobposting.dedup.JobPostingDeduplicator;
 import com.carix.jobposting.jumpit.JumpitIngestService;
 import com.carix.jobposting.jumpit.JumpitIngestSummary;
 import com.carix.jobposting.service.JobPostingIngestService;
+import com.carix.jobposting.service.PostingSkillService;
 import com.carix.market.MarketAggregateRepository;
 import com.carix.market.MarketAggregateService;
 import com.carix.pipeline.dto.BackfillRequest;
@@ -43,6 +44,7 @@ class CollectorPipelineServiceTest {
   private WageStatObservationRepository wageStatObservationRepository;
   private MarketAggregateRepository marketAggregateRepository;
   private JobPostingIngestService jobPostingIngestService;
+  private PostingSkillService postingSkillService;
   private WageStatIngestService wageStatIngestService;
   private CpiIngestService cpiIngestService;
   private JobPostingDeduplicator jobPostingDeduplicator;
@@ -60,6 +62,7 @@ class CollectorPipelineServiceTest {
     wageStatObservationRepository = mock(WageStatObservationRepository.class);
     marketAggregateRepository = mock(MarketAggregateRepository.class);
     jobPostingIngestService = mock(JobPostingIngestService.class);
+    postingSkillService = mock(PostingSkillService.class);
     wageStatIngestService = mock(WageStatIngestService.class);
     cpiIngestService = mock(CpiIngestService.class);
     jobPostingDeduplicator = mock(JobPostingDeduplicator.class);
@@ -75,6 +78,7 @@ class CollectorPipelineServiceTest {
             wageStatObservationRepository,
             marketAggregateRepository,
             jobPostingIngestService,
+            postingSkillService,
             wageStatIngestService,
             cpiIngestService,
             jobPostingDeduplicator,
@@ -166,7 +170,7 @@ class CollectorPipelineServiceTest {
   @Test
   @DisplayName("triggerSkillRefine - 비동기 스킬 재정제 작업 수락 및 상태 완료 확인")
   void triggerSkillRefine_success() throws Exception {
-    given(jobPostingIngestService.refineAllPostingSkills())
+    given(postingSkillService.refineAllPostingSkills())
         .willReturn(Map.of("totalPostings", 100, "refinedPostings", 100, "postingsWithSkills", 80));
 
     JobExecutionResponse response = service.triggerSkillRefine();

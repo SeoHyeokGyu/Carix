@@ -4,7 +4,7 @@ import com.carix.jobposting.JobPostingRepository;
 import com.carix.jobposting.RawIngestRepository;
 import com.carix.jobposting.crawler.SaraminDetailFetcher;
 import com.carix.jobposting.normalize.SkillTaxonomy;
-import com.carix.jobposting.service.JobPostingIngestService;
+import com.carix.jobposting.service.PostingSkillService;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.transaction.PlatformTransactionManager;
@@ -20,7 +20,7 @@ public class JumpitConfig {
   JumpitIngestService jumpitIngestService(
       JobPostingRepository postings,
       RawIngestRepository rawIngests,
-      JobPostingIngestService ingestService,
+      PostingSkillService skillService,
       SkillTaxonomy taxonomy,
       PlatformTransactionManager transactionManager) {
     return new JumpitIngestService(
@@ -29,7 +29,7 @@ public class JumpitConfig {
         new JumpitFamilyResolver(),
         postings,
         rawIngests,
-        ingestService,
+        skillService,
         taxonomy,
         new SaraminDetailFetcher(REQUEST_DELAY_MS),
         new TransactionTemplate(transactionManager));

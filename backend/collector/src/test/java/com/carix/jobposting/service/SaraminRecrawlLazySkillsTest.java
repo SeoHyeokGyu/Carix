@@ -27,6 +27,7 @@ class SaraminRecrawlLazySkillsTest {
 
   @Autowired private JobPostingRepository postings;
   @Autowired private JobPostingIngestService service;
+  @Autowired private PostingSkillService skillService;
   @Autowired private PlatformTransactionManager transactionManager;
 
   @AfterEach
@@ -54,7 +55,7 @@ class SaraminRecrawlLazySkillsTest {
                       .lastSeenMonth("202610")
                       .collectedAt(Instant.now())
                       .build();
-              posting.addSkill(service.upsertKnownSkill("Kafka"));
+              posting.addSkill(skillService.upsertKnownSkill("Kafka"));
               posting.addCollectedVia(via);
               postings.save(posting);
             });
