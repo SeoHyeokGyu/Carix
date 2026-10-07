@@ -77,9 +77,10 @@ public class WantedBackfillService {
             ? request.maxRequestsPerMonth()
             : DEFAULT_MAX_REQUESTS;
     long minId = request.minId() != null ? request.minId() : DEFAULT_MIN_ID;
-    long maxIdExclusive = (request.maxId() != null ? request.maxId() : DEFAULT_MAX_ID) + 1;
     WantedClient client =
         clientFactory.apply(request.delayMs() != null ? request.delayMs() : DEFAULT_DELAY_MS);
+    long maxIdExclusive =
+        (request.maxId() != null ? request.maxId() : newestPostingIdOrDefault(client)) + 1;
 
     Run run = new Run(client);
     MonthIdRangeFinder finder =
@@ -102,6 +103,30 @@ public class WantedBackfillService {
     summary.put("droppedSkills", run.dropped);
     summary.put("apiMisses", run.apiMisses);
     return summary;
+  }
+
+  /** 상한을 지정하지 않으면 목록 API 의 최신 공고 번호를 쓴다. 다음 달 경계가 없는 최근 달이 없는 번호까지 퍼지지 않게 한다. */
+  private long newestPostingIdOrDefault(WantedClient client) {
+    try {
+      return client
+          .fetchList(0)
+          .map(parser::parseList)
+          .flatMap(
+              page ->
+                  page.items().stream()
+                      .map(WantedListItem::id)
+                      .filter(id -> id.chars().allMatch(Character::isDigit))
+                      .map(Long::parseLong)
+                      .max(Long::compare))
+          .orElseGet(
+              () -> {
+                log.warn("[원티드 백필] 목록에서 최신 공고 번호를 못 읽어 기본 상한 {} 을 쓴다", DEFAULT_MAX_ID);
+                return DEFAULT_MAX_ID;
+              });
+    } catch (RuntimeException e) {
+      log.warn("[원티드 백필] 목록 해석 실패, 기본 상한 {} 을 쓴다: {}", DEFAULT_MAX_ID, e.getMessage());
+      return DEFAULT_MAX_ID;
+    }
   }
 
   /** 한 번의 실행 상태. 같은 ID 의 페이지는 범위 탐색과 표본기가 한 번만 받도록 캐시한다. */

@@ -50,10 +50,13 @@ class WantedBackfillServiceTest {
     final Map<Long, String> details = new HashMap<>();
     final List<Long> pageFetches = new ArrayList<>();
     final List<Long> detailFetches = new ArrayList<>();
+    final List<Integer> listFetches = new ArrayList<>();
+    Optional<String> list = Optional.empty();
 
     @Override
     public Optional<String> fetchList(int offset) {
-      throw new UnsupportedOperationException();
+      listFetches.add(offset);
+      return list;
     }
 
     @Override
@@ -283,5 +286,57 @@ class WantedBackfillServiceTest {
   void rejectsReversedMonths() {
     assertThatThrownBy(() -> service.run(request(1000, 1009, "202610", "202609")))
         .isInstanceOf(IllegalArgumentException.class);
+  }
+
+  private static BackfillRequest requestWithoutMaxId(long minId, String from, String to) {
+    return new BackfillRequest(from, to, 250, 2_000, 0L, minId, null, "WANTED");
+  }
+
+  @Test
+  @DisplayName("maxId 가 없으면 목록 API 의 최신 공고 번호까지만 탐색한다")
+  void derivesUpperBoundFromNewestListedPosting() throws IOException {
+    seedSeptember();
+    client.list =
+        Optional.of("{\"data\":[{\"id\":1005},{\"id\":1009},{\"id\":1002}],\"links\":{}}");
+
+    Map<String, Object> summary = service.run(requestWithoutMaxId(1000, "202609", "202609"));
+
+    assertThat(client.listFetches).containsExactly(0);
+    assertThat(client.pageFetches).isNotEmpty().allMatch(id -> id <= 1009L);
+    assertThat(((BackfillSampler.Result) summary.get("202609")).saved()).isEqualTo(5);
+  }
+
+  @Test
+  @DisplayName("요청의 maxId 는 목록 API 를 부르지 않고 그대로 쓴다")
+  void explicitMaxIdSkipsListLookup() throws IOException {
+    seedSeptember();
+
+    service.run(request(1000, 1009, "202609", "202609"));
+
+    assertThat(client.listFetches).isEmpty();
+  }
+
+  @Test
+  @DisplayName("목록 API 를 못 읽으면 기본 상한으로 돌아가 그대로 실행한다")
+  void fallsBackToDefaultUpperBoundWhenListFails() throws IOException {
+    seedSeptember();
+    client.list = Optional.empty();
+
+    Map<String, Object> summary = service.run(requestWithoutMaxId(1000, "202609", "202609"));
+
+    assertThat(client.pageFetches).anyMatch(id -> id > 1009L);
+    assertThat(summary).containsKey("202609");
+  }
+
+  @Test
+  @DisplayName("목록 응답을 해석하지 못해도 기본 상한으로 실행한다")
+  void fallsBackToDefaultUpperBoundWhenListUnparseable() throws IOException {
+    seedSeptember();
+    client.list = Optional.of("not json");
+
+    Map<String, Object> summary = service.run(requestWithoutMaxId(1000, "202609", "202609"));
+
+    assertThat(client.pageFetches).anyMatch(id -> id > 1009L);
+    assertThat(summary).containsKey("202609");
   }
 }
