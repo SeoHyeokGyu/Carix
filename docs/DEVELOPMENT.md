@@ -185,7 +185,10 @@ deploy/postgres/schema/
 ├── 01_job_posting.sql             채용공고 수집 5개 테이블
 ├── 02_user_domain.sql             프로필·소득·소비·보유스킬 5개
 ├── 03_reference_and_aggregate.sql CPI·임금통계·시장집계 3개
-└── 04_snapshot_and_scenario.sql   지수 스냅샷·시나리오 2개
+├── 04_snapshot_and_scenario.sql   지수 스냅샷·시나리오 2개
+├── 05_standard_skills_seed.sql    표준 스킬·별칭 시드
+├── 06_fix_salary_units.sql        옛 만원 단위 연봉 보정
+└── 07_skill_dictionary_additions.sql 점핏 기술 스택용 표준 스킬·별칭 추가(여러 번 실행해도 같음)
 ```
 
 파일은 번호 순서대로 적용한다 — 뒤 파일이 앞 파일의 테이블을 참조한다.
