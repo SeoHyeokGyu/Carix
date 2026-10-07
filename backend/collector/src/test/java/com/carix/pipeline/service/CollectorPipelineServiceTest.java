@@ -10,6 +10,7 @@ import com.carix.cpi.CpiIngestService;
 import com.carix.jobposting.JobPostingRepository;
 import com.carix.jobposting.RawIngestRepository;
 import com.carix.jobposting.SkillRepository;
+import com.carix.jobposting.backfill.BackfillSampler;
 import com.carix.jobposting.backfill.JobKoreaBackfillService;
 import com.carix.jobposting.dedup.JobPostingDeduplicator;
 import com.carix.jobposting.jumpit.JumpitIngestService;
@@ -212,6 +213,56 @@ class CollectorPipelineServiceTest {
     JobStatusResponse status = service.getJobStatus(response.jobId());
     assertThat(status.status()).isEqualTo("SUCCESS");
     assertThat(status.details()).containsEntry("202509", "ok");
+  }
+
+  @Test
+  @DisplayName("triggerBackfill 잡코리아 - 모든 달에서 저장 0건이고 오류만 있으면 작업 실패다")
+  void triggerBackfill_jobKoreaAllFailed() throws Exception {
+    given(jobKoreaBackfillService.run(any()))
+        .willReturn(
+            Map.of(
+                "202509", new BackfillSampler.Result(10, 0, 0, 0, 0, 0, 5),
+                "202510", new BackfillSampler.Result(10, 0, 0, 0, 0, 0, 5)));
+
+    JobExecutionResponse response =
+        service.triggerBackfill(
+            new BackfillRequest("202509", "202510", 10, 100, 0L, null, null, null));
+    TimeUnit.MILLISECONDS.sleep(200);
+
+    JobStatusResponse status = service.getJobStatus(response.jobId());
+    assertThat(status.status()).isEqualTo("FAILED");
+    assertThat(status.errorMessage()).contains("saved=0").contains("errors=10");
+  }
+
+  @Test
+  @DisplayName("triggerBackfill 원티드 - 일부 달만 저장돼도 성공이다, 저장 0건이고 오류만 있으면 실패다")
+  void triggerBackfill_wantedFailureGuard() throws Exception {
+    given(wantedBackfillService.run(any()))
+        .willReturn(
+            Map.of(
+                "202509", new BackfillSampler.Result(10, 3, 0, 0, 0, 0, 2),
+                "202510", new BackfillSampler.Result(10, 0, 0, 0, 0, 0, 5),
+                "apiMisses", 0));
+    JobExecutionResponse ok =
+        service.triggerBackfill(
+            new BackfillRequest("202509", "202510", 10, 100, 0L, null, null, "WANTED"));
+    TimeUnit.MILLISECONDS.sleep(200);
+    assertThat(service.getJobStatus(ok.jobId()).status()).isEqualTo("SUCCESS");
+
+    given(wantedBackfillService.run(any()))
+        .willReturn(
+            Map.of(
+                "202509",
+                new BackfillSampler.Result(10, 0, 0, 0, 0, 0, 5),
+                "droppedSkills",
+                Map.of()));
+    JobExecutionResponse bad =
+        service.triggerBackfill(
+            new BackfillRequest("202509", "202509", 10, 100, 0L, null, null, "WANTED"));
+    TimeUnit.MILLISECONDS.sleep(200);
+    JobStatusResponse status = service.getJobStatus(bad.jobId());
+    assertThat(status.status()).isEqualTo("FAILED");
+    assertThat(status.errorMessage()).contains("errors=5");
   }
 
   @Test

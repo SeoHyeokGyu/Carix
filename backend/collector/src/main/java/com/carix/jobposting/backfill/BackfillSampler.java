@@ -12,7 +12,8 @@ import lombok.extern.slf4j.Slf4j;
  * 한 달치 ID 구간에서 무작위로 ID 를 골라 목표 건수만큼 대상 공고를 모은다. 요청 상한에 닿거나 구간을 다 뽑으면 목표를 못 채워도 멈춘다.
  *
  * <p>이미 표본인 ID 는 요청하지 않는다. 정기 수집만 된 ID 는 다시 열어 표본으로 표시한다. 게시일이 그 달이 아니면(경계 근사 오차) 저장하지 않는다. 저장이 던지면
- * 그 후보만 {@code errors} 로 세고 계속한다.
+ * 그 후보만 {@code errors} 로 세고 계속한다. 다만 저장이 연달아 {@value #MAX_CONSECUTIVE_SAVE_FAILURES} 번 실패하면 스키마·DB
+ * 문제로 보고 예외를 그대로 던져 실행을 멈춘다.
  */
 @Slf4j
 public class BackfillSampler<P> {
@@ -43,6 +44,8 @@ public class BackfillSampler<P> {
       int nonTarget,
       int errors) {}
 
+  static final int MAX_CONSECUTIVE_SAVE_FAILURES = 5;
+
   private final Pages<P> pages;
   private final Random random;
 
@@ -63,6 +66,8 @@ public class BackfillSampler<P> {
     int otherMonth = 0;
     int nonTarget = 0;
     int errors = 0;
+    int consecutiveFailures = 0;
+    boolean stackLogged = false;
 
     while (saved < target && requests < maxRequests && tried.size() < span) {
       long id = minId + (long) (random.nextDouble() * span);
@@ -91,10 +96,21 @@ public class BackfillSampler<P> {
       try {
         pages.save(candidate, month);
         saved++;
+        consecutiveFailures = 0;
       } catch (RuntimeException e) {
-        // 한 건의 저장 실패가 그 달 전체 표본을 버리지 않게 세고 넘어간다.
+        // 한 건의 저장 실패가 그 달 전체 표본을 버리지 않게 세고 넘어간다. 연속 실패는 계통 오류이므로 멈춘다.
         errors++;
-        log.warn("[백필] ID {} 저장 실패: {}", candidate.id(), e.getMessage(), e);
+        consecutiveFailures++;
+        if (consecutiveFailures >= MAX_CONSECUTIVE_SAVE_FAILURES) {
+          log.error("[백필] 저장이 연속 {}회 실패해 중단합니다", consecutiveFailures);
+          throw e;
+        }
+        if (stackLogged) {
+          log.warn("[백필] ID {} 저장 실패: {}", candidate.id(), e.getMessage());
+        } else {
+          stackLogged = true;
+          log.warn("[백필] ID {} 저장 실패: {}", candidate.id(), e.getMessage(), e);
+        }
       }
     }
     return new Result(requests, saved, alreadySampled, empty, otherMonth, nonTarget, errors);

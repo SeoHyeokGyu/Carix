@@ -4,6 +4,7 @@ import com.carix.cpi.CpiIngestService;
 import com.carix.jobposting.JobPostingRepository;
 import com.carix.jobposting.RawIngestRepository;
 import com.carix.jobposting.SkillRepository;
+import com.carix.jobposting.backfill.BackfillSampler;
 import com.carix.jobposting.jumpit.JumpitIngestService;
 import com.carix.jobposting.jumpit.JumpitIngestSummary;
 import com.carix.jobposting.seed.SeedLoader;
@@ -253,6 +254,12 @@ public class CollectorPipelineService {
                 isWanted
                     ? wantedBackfillService.run(request)
                     : jobKoreaBackfillService.run(request);
+            long[] totals = backfillTotals(summary);
+            if (totals[0] == 0 && totals[1] > 0) {
+              state.fail("백필에서 한 건도 저장하지 못했습니다 (saved=0, errors=" + totals[1] + ")");
+              log.error("[작업:{}] 과거 공고 표본 백필 전부 실패: {}", jobId, summary);
+              return;
+            }
             state.complete(summary);
             log.info("[작업:{}] 과거 공고 표본 백필 완료: {}", jobId, summary);
           } catch (Exception e) {
@@ -266,6 +273,22 @@ public class CollectorPipelineService {
 
     return new JobExecutionResponse(
         jobId, "BACKFILL", "ACCEPTED", "백필 작업이 수락되어 백그라운드에서 시작되었습니다.", now);
+  }
+
+  /**
+   * 월별 {@link BackfillSampler.Result} 를 합친 {@code [saved, errors]}. 월 항목이 아닌 값(droppedSkills 등)은
+   * 무시한다.
+   */
+  private static long[] backfillTotals(Map<String, Object> summary) {
+    long saved = 0;
+    long errors = 0;
+    for (Object value : summary.values()) {
+      if (value instanceof BackfillSampler.Result r) {
+        saved += r.saved();
+        errors += r.errors();
+      }
+    }
+    return new long[] {saved, errors};
   }
 
   /**

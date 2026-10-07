@@ -1,6 +1,7 @@
 package com.carix.jobposting.backfill;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.time.LocalDate;
 import java.time.YearMonth;
@@ -102,7 +103,7 @@ class BackfillSamplerTest {
         new FakePages(Set.of()) {
           @Override
           public void save(BackfillSampler.Candidate<Void> candidate, YearMonth month) {
-            if (candidate.id() % 4 == 0) {
+            if (candidate.id() % 20 == 0) {
               throw new IllegalStateException("저장 실패 " + candidate.id());
             }
             super.save(candidate, month);
@@ -114,6 +115,45 @@ class BackfillSamplerTest {
 
     assertThat(result.errors()).isPositive();
     assertThat(result.saved()).isEqualTo(pages.saved.size()).isPositive();
-    assertThat(pages.saved).noneMatch(id -> id % 4 == 0);
+    assertThat(pages.saved).noneMatch(id -> id % 20 == 0);
+  }
+
+  @Test
+  @DisplayName("저장이 연달아 5번 실패하면 예외를 던져 멈춘다")
+  void abortsAfterConsecutiveSaveFailures() {
+    FakePages pages =
+        new FakePages(Set.of()) {
+          @Override
+          public void save(BackfillSampler.Candidate<Void> candidate, YearMonth month) {
+            throw new IllegalStateException("저장 실패 " + candidate.id());
+          }
+        };
+    BackfillSampler<Void> sampler = new BackfillSampler<>(pages, new Random(1));
+
+    assertThatThrownBy(() -> sampler.sample(MONTH, 0, 10_000, 100, 5_000))
+        .isInstanceOf(IllegalStateException.class);
+  }
+
+  @Test
+  @DisplayName("실패 뒤 성공이 오면 연속 실패 횟수가 초기화된다")
+  void successResetsConsecutiveFailures() {
+    int[] calls = {0};
+    FakePages pages =
+        new FakePages(Set.of()) {
+          @Override
+          public void save(BackfillSampler.Candidate<Void> candidate, YearMonth month) {
+            calls[0]++;
+            if (calls[0] % 5 != 0) {
+              throw new IllegalStateException("저장 실패 " + candidate.id());
+            }
+            super.save(candidate, month);
+          }
+        };
+    BackfillSampler<Void> sampler = new BackfillSampler<>(pages, new Random(1));
+
+    BackfillSampler.Result result = sampler.sample(MONTH, 0, 10_000, 5, 5_000);
+
+    assertThat(result.saved()).isEqualTo(5);
+    assertThat(result.errors()).isEqualTo(20);
   }
 }
