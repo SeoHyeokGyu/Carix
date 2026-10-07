@@ -12,6 +12,8 @@ const COLLECTED_VIA_LABEL: Record<string, string> = {
   JOBKOREA_SEED: "잡코리아 시드",
   SARAMIN_SEARCH: "사람인 검색",
   JUMPIT: "점핏",
+  WANTED_LIST: "원티드 목록",
+  WANTED_BACKFILL: "원티드 표본",
 };
 
 function formatCollectedVia(p: PostingItem): string {

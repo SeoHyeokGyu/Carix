@@ -96,6 +96,13 @@ class MonthlyOverviewTest {
   }
 
   @Test
+  @DisplayName("sampleSource 는 대소문자·앞뒤 공백을 무시한다")
+  void sampleSourceIsNormalized() {
+    MonthlyOverview.Month sep = service.monthly("202609", "202609", " wanted ").months().get(0);
+    assertThat(sep.sampledByFamily()).containsEntry("AI", 2);
+  }
+
+  @Test
   @DisplayName("sampleSource 가 JOBKOREA·WANTED 가 아니면 400")
   void invalidSampleSource() {
     assertThatThrownBy(() -> service.monthly("202609", "202609", "SARAMIN"))

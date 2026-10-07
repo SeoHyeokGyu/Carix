@@ -19,6 +19,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.TreeMap;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -69,7 +70,8 @@ public class DataExploreService {
 
   @Transactional(readOnly = true)
   public MonthlyOverview monthly(String from, String to, String sampleSource) {
-    String familySource = blankToNull(sampleSource) == null ? "JOBKOREA" : sampleSource;
+    String requested = blankToNull(sampleSource);
+    String familySource = requested == null ? "JOBKOREA" : requested.toUpperCase(Locale.ROOT);
     if (!SAMPLE_SOURCES.contains(familySource)) {
       throw badRequest("sampleSource 는 JOBKOREA|WANTED 중 하나입니다: " + sampleSource);
     }

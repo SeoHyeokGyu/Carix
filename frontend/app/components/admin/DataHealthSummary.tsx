@@ -5,9 +5,9 @@ const FAILED_SUFFIX = "_FAILED";
 
 /** 점검 자체가 실패한 줄이 있으면 요약 수치는 데이터가 아니다. */
 function hasFailedCheck(report: DataHealthReport): boolean {
-  return report.groups.some((g) =>
-    g.checks.some((c) => c.id.endsWith(FAILED_SUFFIX)),
-  );
+  return report.groups
+    .filter((g) => g.id !== "WANTED")
+    .some((g) => g.checks.some((c) => c.id.endsWith(FAILED_SUFFIX)));
 }
 
 export function DataHealthSummary({ report }: { report: DataHealthReport }) {

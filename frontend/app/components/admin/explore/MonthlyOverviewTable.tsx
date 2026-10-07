@@ -65,7 +65,10 @@ export function MonthlyOverviewTable({ data }: { data: MonthlyOverview }) {
               <td className="px-2 py-1 text-right">{m.jobkoreaCrawled}</td>
               <td className="px-2 py-1 text-right">{m.saraminCrawled}</td>
               <td className="px-2 py-1 text-right">{m.wantedSampled}</td>
-              <td className="px-2 py-1 text-right">{m.wantedSampledCapped}</td>
+              <Cell
+                value={m.wantedSampledCapped}
+                thin={isThinSample(m.wantedSampledCapped)}
+              />
               <td className="px-2 py-1 text-right">{m.wantedCrawled}</td>
               {FAMILIES.map((f) =>
                 f === "OTHER" ? (
