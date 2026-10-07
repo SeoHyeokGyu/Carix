@@ -115,6 +115,30 @@ describe("CollectorAdminPage", () => {
     });
   });
 
+  it("점핏을 고르면 무시되는 페이지·간격 입력을 숨기고 안내를 보인다", async () => {
+    render(
+      <MemoryRouter>
+        <CollectorAdminPage />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText("500")).toBeInTheDocument();
+    });
+    expect(screen.getByText(/수집 페이지 수/)).toBeInTheDocument();
+    expect(screen.getByText(/요청 지연 간격/)).toBeInTheDocument();
+
+    fireEvent.change(screen.getByDisplayValue(/전체 포털/), {
+      target: { value: "JUMPIT" },
+    });
+
+    expect(screen.queryByText(/수집 페이지 수/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/요청 지연 간격/)).not.toBeInTheDocument();
+    expect(
+      screen.getByText(/점핏은 목록 전체를 순회합니다/),
+    ).toBeInTheDocument();
+  });
+
   it("관리자 키 모달 열기 및 저장이 동작한다", async () => {
     render(
       <MemoryRouter>

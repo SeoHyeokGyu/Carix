@@ -803,7 +803,7 @@
 
 ### 8.1 채용공고 크롤링 비동기 실행
 *   `POST /internal/pipeline/crawl` — 잡코리아·사람인 IT/개발 채용공고 실시간 스크래핑 트리거.
-    *   `portal` 은 `ALL`(잡코리아·사람인, 기본)·`JOBKOREA`·`SARAMIN`·`JUMPIT` 이다. `JUMPIT` 은 점핏 목록을 끝까지 순회해 사람인 공고를 보강·추가하며(규칙은 [데이터 아키텍처 §1.3](data-architecture.md), 원천 호출은 [외부 연동 §3.4](external-api-integration.md)) `ALL` 에는 들지 않는다. `JUMPIT` 작업 요약의 키는 `pages`(순회한 목록 페이지)·`fetched`(읽은 공고)·`created`(새로 만든 공고)·`enriched`(보강한 기존 공고)·`skipped`(필수 필드를 못 읽어 건너뜀)·`errors`(공고 단위 실패)·`droppedSkills`(사전에 없어 버린 기술 스택의 빈도)다.
+    *   `portal` 은 `ALL`(잡코리아·사람인, 기본)·`JOBKOREA`·`SARAMIN`·`JUMPIT` 이다. `JUMPIT` 은 점핏 목록을 끝까지 순회해 사람인 공고를 보강·추가하며(규칙은 [데이터 아키텍처 §1.3](data-architecture.md), 원천 호출은 [외부 연동 §3.4](external-api-integration.md)) `ALL` 에는 들지 않는다. `JUMPIT` 작업 요약의 키는 `pages`(순회한 목록 페이지)·`fetched`(읽은 공고)·`created`(새로 만든 공고)·`enriched`(보강한 기존 공고)·`skipped`(필수 필드를 못 읽어 건너뜀)·`errors`(공고 단위 실패)·`droppedSkills`(사전에 없어 버린 기술 스택의 빈도)다. 새로 만들거나 보강한 공고가 하나도 없고 `errors` 만 있으면 작업은 `FAILED`(`errorMessage` 에 `errors` 수)로 끝난다.
     *   **Request Body (선택):**
         ```json
         {

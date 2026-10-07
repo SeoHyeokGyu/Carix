@@ -184,34 +184,43 @@ export function PipelineControlPanel({
                 </select>
               </div>
 
-              <div>
-                <label className="block text-xs font-medium text-carix-text mb-1">
-                  수집 페이지 수 (Max Pages)
-                </label>
-                <input
-                  type="number"
-                  min={1}
-                  max={50}
-                  value={maxPages}
-                  onChange={(e) => setMaxPages(Number(e.target.value))}
-                  className="w-full rounded-md border border-carix-border bg-carix-bg px-3 py-1.5 text-xs text-carix-text"
-                />
-              </div>
+              {portal === "JUMPIT" ? (
+                <p className="sm:col-span-2 self-end text-xs text-carix-text/60">
+                  점핏은 목록 전체를 순회합니다(약 30분, 그동안 다른 작업은
+                  대기).
+                </p>
+              ) : (
+                <>
+                  <div>
+                    <label className="block text-xs font-medium text-carix-text mb-1">
+                      수집 페이지 수 (Max Pages)
+                    </label>
+                    <input
+                      type="number"
+                      min={1}
+                      max={50}
+                      value={maxPages}
+                      onChange={(e) => setMaxPages(Number(e.target.value))}
+                      className="w-full rounded-md border border-carix-border bg-carix-bg px-3 py-1.5 text-xs text-carix-text"
+                    />
+                  </div>
 
-              <div>
-                <label className="block text-xs font-medium text-carix-text mb-1">
-                  요청 지연 간격 (Delay ms)
-                </label>
-                <input
-                  type="number"
-                  min={100}
-                  max={5000}
-                  step={100}
-                  value={delayMs}
-                  onChange={(e) => setDelayMs(Number(e.target.value))}
-                  className="w-full rounded-md border border-carix-border bg-carix-bg px-3 py-1.5 text-xs text-carix-text"
-                />
-              </div>
+                  <div>
+                    <label className="block text-xs font-medium text-carix-text mb-1">
+                      요청 지연 간격 (Delay ms)
+                    </label>
+                    <input
+                      type="number"
+                      min={100}
+                      max={5000}
+                      step={100}
+                      value={delayMs}
+                      onChange={(e) => setDelayMs(Number(e.target.value))}
+                      className="w-full rounded-md border border-carix-border bg-carix-bg px-3 py-1.5 text-xs text-carix-text"
+                    />
+                  </div>
+                </>
+              )}
             </div>
           </div>
         )}
