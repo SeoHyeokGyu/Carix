@@ -2,6 +2,8 @@ package com.carix.index.mvi;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.carix.config.IndexThresholdProperties;
@@ -39,7 +41,8 @@ class MviCollectionPriorityServiceTest {
   @Test
   @DisplayName("집계 데이터 부재 시 표준 직군/경력 차원이 CRITICAL 수집 타깃으로 도출된다")
   void calculatePriorities_emptyMarketData_allCritical() {
-    when(marketAggregateRepository.findPeerGroupAggregatesByMonth("202607")).thenReturn(List.of());
+    when(marketAggregateRepository.findPeerGroupAggregatesByMonthAndSource("202607", "ALL"))
+        .thenReturn(List.of());
 
     CollectionPriorityResponse response = service.calculatePriorities("202607", "ALL", null, false);
 
@@ -66,7 +69,7 @@ class MviCollectionPriorityServiceTest {
             .postingCount(12) // deficit 3 (under 15)
             .build();
 
-    when(marketAggregateRepository.findPeerGroupAggregatesByMonth("202607"))
+    when(marketAggregateRepository.findPeerGroupAggregatesByMonthAndSource("202607", "ALL"))
         .thenReturn(List.of(agg));
 
     CollectionPriorityResponse response = service.calculatePriorities("202607", "ALL", null, false);
@@ -116,7 +119,7 @@ class MviCollectionPriorityServiceTest {
             .postingCount(25) // 25 >= 10 -> SUFFICIENT
             .build();
 
-    when(marketAggregateRepository.findPeerGroupAggregatesByMonth("202608"))
+    when(marketAggregateRepository.findPeerGroupAggregatesByMonthAndSource("202608", "ALL"))
         .thenReturn(List.of(criticalAgg, highAgg, mediumAgg, sufficientAgg));
 
     CollectionPriorityResponse response = service.calculatePriorities("2026-08", "ALL", 10, false);
@@ -158,13 +161,27 @@ class MviCollectionPriorityServiceTest {
             .experienceBracket("SENIOR")
             .postingCount(30)
             .build();
-    when(marketAggregateRepository.findPeerGroupAggregatesByMonth("202607"))
+    when(marketAggregateRepository.findPeerGroupAggregatesByMonthAndSource("202607", "ALL"))
         .thenReturn(List.of(sufficientAgg));
 
     CollectionPriorityResponse response = service.calculatePriorities("202607", "ALL", 10, true);
 
     assertThat(response.priorities())
         .noneMatch(item -> item.priorityGrade() == PriorityGrade.SUFFICIENT);
+  }
+
+  @Test
+  @DisplayName("source 를 안 주면 source='ALL' 행만 읽고 원천별 행은 합산하지 않는다")
+  void calculatePriorities_defaultReadsOnlyAllRows() {
+    when(marketAggregateRepository.findPeerGroupAggregatesByMonthAndSource("202607", "ALL"))
+        .thenReturn(List.of());
+
+    CollectionPriorityResponse response = service.calculatePriorities("202607", null, 10, false);
+
+    assertThat(response.source()).isEqualTo("ALL");
+    verify(marketAggregateRepository).findPeerGroupAggregatesByMonthAndSource("202607", "ALL");
+    verify(marketAggregateRepository, never())
+        .findPeerGroupAggregatesByMonthAndSource("202607", "JOBKOREA");
   }
 
   @Test
@@ -183,7 +200,8 @@ class MviCollectionPriorityServiceTest {
   @DisplayName("기준월 미지정 시 DB 최신월을 조회하고, DB도 비어있으면 당월을 기본값으로 사용한다")
   void calculatePriorities_nullMonth_fallsBack() {
     when(marketAggregateRepository.findDistinctBaseYearMonths()).thenReturn(List.of("202606"));
-    when(marketAggregateRepository.findPeerGroupAggregatesByMonth("202606")).thenReturn(List.of());
+    when(marketAggregateRepository.findPeerGroupAggregatesByMonthAndSource("202606", "ALL"))
+        .thenReturn(List.of());
 
     CollectionPriorityResponse response = service.calculatePriorities(null, null, null, false);
 
@@ -191,7 +209,8 @@ class MviCollectionPriorityServiceTest {
 
     // DB가 비어있는 경우
     when(marketAggregateRepository.findDistinctBaseYearMonths()).thenReturn(List.of());
-    when(marketAggregateRepository.findPeerGroupAggregatesByMonth(any())).thenReturn(List.of());
+    when(marketAggregateRepository.findPeerGroupAggregatesByMonthAndSource(any(), any()))
+        .thenReturn(List.of());
 
     CollectionPriorityResponse fallbackResponse =
         service.calculatePriorities("", null, null, false);
@@ -202,7 +221,8 @@ class MviCollectionPriorityServiceTest {
   @DisplayName("thresholds가 null일 때 기본 최소 표본수(10)가 적용된다")
   void calculatePriorities_nullThresholds_defaultsTo10() {
     ReflectionTestUtils.setField(service, "thresholds", null);
-    when(marketAggregateRepository.findPeerGroupAggregatesByMonth("202607")).thenReturn(List.of());
+    when(marketAggregateRepository.findPeerGroupAggregatesByMonthAndSource("202607", "ALL"))
+        .thenReturn(List.of());
 
     CollectionPriorityResponse response = service.calculatePriorities("202607", null, null, false);
 
