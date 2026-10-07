@@ -4,6 +4,8 @@ import com.carix.cpi.CpiIngestService;
 import com.carix.jobposting.JobPostingRepository;
 import com.carix.jobposting.RawIngestRepository;
 import com.carix.jobposting.SkillRepository;
+import com.carix.jobposting.jumpit.JumpitIngestService;
+import com.carix.jobposting.jumpit.JumpitIngestSummary;
 import com.carix.jobposting.seed.SeedLoader;
 import com.carix.jobposting.service.JobPostingIngestService;
 import com.carix.pipeline.dto.BackfillRequest;
@@ -60,6 +62,7 @@ public class CollectorPipelineService {
   private final com.carix.market.MarketAggregateService marketAggregateService;
   private final com.carix.jobposting.backfill.JobKoreaBackfillService jobKoreaBackfillService;
   private final com.carix.jobposting.backfill.SalaryReclassifyService salaryReclassifyService;
+  private final JumpitIngestService jumpitIngestService;
 
   private final AtomicBoolean isJobRunning = new AtomicBoolean(false);
   private final Map<String, JobState> jobHistory =
@@ -90,6 +93,16 @@ public class CollectorPipelineService {
         () -> {
           try {
             log.info("[작업:{}] 채용공고 크롤링 및 DB 적재 작업을 시작합니다...", jobId);
+            String portal =
+                request != null && request.portal() != null
+                    ? request.portal().toUpperCase()
+                    : "ALL";
+            if ("JUMPIT".equals(portal)) {
+              JumpitIngestSummary summary = jumpitIngestService.ingestAll();
+              state.complete(summary.toDetails());
+              log.info("[작업:{}] 점핏 수집 완료: {}", jobId, summary);
+              return;
+            }
             int ingested = jobPostingIngestService.crawlAndIngest(request);
             state.complete(Map.of("ingestedJobPostings", ingested));
             log.info("[작업:{}] 채용공고 크롤링 완료. 총 {}건의 공고가 DB에 적재되었습니다.", jobId, ingested);

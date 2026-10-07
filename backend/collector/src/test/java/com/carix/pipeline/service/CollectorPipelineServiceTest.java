@@ -76,7 +76,8 @@ class CollectorPipelineServiceTest {
             jobPostingDeduplicator,
             marketAggregateService,
             jobKoreaBackfillService,
-            mock(com.carix.jobposting.backfill.SalaryReclassifyService.class));
+            mock(com.carix.jobposting.backfill.SalaryReclassifyService.class),
+            mock(com.carix.jobposting.jumpit.JumpitIngestService.class));
   }
 
   @Test
