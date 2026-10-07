@@ -22,10 +22,12 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import org.springframework.test.util.ReflectionTestUtils;
 
 class JobPostingIngestServiceTest {
 
@@ -360,5 +362,73 @@ class JobPostingIngestServiceTest {
     verify(usRepo).deleteDuplicateLinks(duplicate.getId(), canonical.getId());
     verify(usRepo).reassignSkill(duplicate.getId(), canonical);
     verify(skillRepository).deleteSkillDirectly(duplicate.getId());
+  }
+
+  @Test
+  @DisplayName("사람인 신규 공고는 확인 경로 SARAMIN_SEARCH 를 단다")
+  void saraminNewPostingMarksSearchPath() {
+    given(jobPostingRepository.findBySourceAndExternalId("SARAMIN", "501"))
+        .willReturn(Optional.empty());
+    service.ingestSaraminPosting(
+        "501",
+        "백엔드 개발자",
+        "회사",
+        "서울",
+        ExperienceRange.parse("경력 3년↑"),
+        null,
+        new SaraminListingFields("경력 3년↑", "정규직", null, List.of("Java"), List.of()),
+        Instant.now(),
+        "202610",
+        null);
+    ArgumentCaptor<JobPosting> saved = ArgumentCaptor.forClass(JobPosting.class);
+    verify(jobPostingRepository, atLeastOnce()).save(saved.capture());
+    assertThat(saved.getValue().getCollectedVia()).isEqualTo("SARAMIN_SEARCH");
+  }
+
+  @Test
+  @DisplayName("점핏으로 보강된 사람인 공고는 사람인 재수집이 스킬을 지우지 않는다")
+  void saraminRecrawlKeepsJumpitSkills() {
+    JobPosting existing =
+        new JobPosting(
+            "SARAMIN",
+            "502",
+            "백엔드",
+            "회사",
+            null,
+            null,
+            "서울",
+            null,
+            null,
+            "UNKNOWN",
+            "UNKNOWN",
+            null,
+            null,
+            "DEVELOPER",
+            null,
+            null,
+            "202609",
+            "202609",
+            Instant.now());
+    Skill kafka = new Skill("Kafka", "SKILL", false);
+    ReflectionTestUtils.setField(kafka, "id", UUID.randomUUID());
+    existing.addSkill(kafka);
+    existing.addCollectedVia("JUMPIT");
+    given(jobPostingRepository.findBySourceAndExternalId("SARAMIN", "502"))
+        .willReturn(Optional.of(existing));
+
+    service.ingestSaraminPosting(
+        "502",
+        "백엔드",
+        "회사",
+        "서울",
+        ExperienceRange.parse("경력무관"),
+        null,
+        new SaraminListingFields("경력무관", "정규직", null, List.of("Java"), List.of()),
+        Instant.now(),
+        "202610",
+        null);
+
+    assertThat(existing.getSkills()).extracting(Skill::getStandardName).contains("Kafka");
+    assertThat(existing.getCollectedVia()).isEqualTo("JUMPIT,SARAMIN_SEARCH");
   }
 }

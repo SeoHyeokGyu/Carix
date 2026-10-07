@@ -1,5 +1,6 @@
 package com.carix.jobposting.service;
 
+import com.carix.jobposting.CollectedVia;
 import com.carix.jobposting.JobPosting;
 import com.carix.jobposting.JobPostingRepository;
 import com.carix.jobposting.JobPostingSkillRepository;
@@ -400,6 +401,7 @@ public class JobPostingIngestService {
         detailHtml != null ? jobKoreaDetailParser.extractSkills(detailHtml) : List.of();
 
     applySkillsToPosting(posting, title, rawSkills);
+    posting.addCollectedVia(CollectedVia.JOBKOREA_LIST);
     jobPostingRepository.save(posting);
   }
 
@@ -421,6 +423,7 @@ public class JobPostingIngestService {
       posting.classifyAs(page.jobFamily());
       applySkillsToPosting(
           posting, posting.getTitle(), jobKoreaDetailParser.extractSkills(page.html()));
+      posting.addCollectedVia(CollectedVia.JOBKOREA_BACKFILL);
       jobPostingRepository.save(posting);
       persistRawIngestIfAbsent("JOBKOREA", "backfill-" + page.externalId(), now, postedMonth);
       return true;
@@ -456,6 +459,7 @@ public class JobPostingIngestService {
     posting.applySalary(salaryClassifier.classifyJobKorea(html));
     posting.markSampled(postedMonth);
     applySkillsToPosting(posting, ld.title(), jobKoreaDetailParser.extractSkills(html));
+    posting.addCollectedVia(CollectedVia.JOBKOREA_BACKFILL);
     jobPostingRepository.save(posting);
     persistRawIngestIfAbsent("JOBKOREA", "backfill-" + page.externalId(), now, postedMonth);
     return true;
@@ -583,14 +587,12 @@ public class JobPostingIngestService {
       }
     }
 
+    posting.addCollectedVia(CollectedVia.SARAMIN_SEARCH);
     jobPostingRepository.save(posting);
   }
 
-  /**
-   * 공고 제목과 원천 스킬 태그 목록을 결합하여 고품질 스킬을 추출하고 공고에 반영합니다. 불필요한 1글자 잡음이나 노이즈는 제외되며, 기존 잘못 매핑된 스킬은 안전하게
-   * 정리됩니다.
-   */
-  private void applySkillsToPosting(JobPosting posting, String title, List<String> rawSkills) {
+  /** 공고 제목과 원천 스킬 태그 목록을 결합하여 표준 스킬을 추출하고 스킬 행을 준비합니다. 불필요한 1글자 잡음이나 노이즈는 제외됩니다. */
+  public List<Skill> resolveSkills(String title, List<String> rawSkills) {
     Set<String> combinedCanonicalSkills = new LinkedHashSet<>();
 
     // 1. 공고 제목(자연어)에서 단어 경계를 준수하여 사전 기반 스킬 추출
@@ -617,7 +619,22 @@ public class JobPostingIngestService {
       }
     }
 
-    posting.replaceSkills(targetSkills);
+    return targetSkills;
+  }
+
+  /** 사전에 있는 표준 스킬 이름으로 스킬 행을 찾거나 만든다. */
+  public Skill upsertKnownSkill(String canonicalName) {
+    return upsertSkill(canonicalName, skillTaxonomy.category(canonicalName));
+  }
+
+  /** 공고 스킬을 원천 재파싱 결과에 맞춘다. 점핏으로 보강된 공고는 점핏 기술 스택이 사람인 목록에 없으므로 더하기만 한다 — 바꾸면 점핏 스킬이 지워진다. */
+  private void applySkillsToPosting(JobPosting posting, String title, List<String> rawSkills) {
+    List<Skill> targetSkills = resolveSkills(title, rawSkills);
+    if (posting.hasCollectedVia(CollectedVia.JUMPIT)) {
+      posting.addSkillsIfAbsent(targetSkills);
+    } else {
+      posting.replaceSkills(targetSkills);
+    }
   }
 
   /**
