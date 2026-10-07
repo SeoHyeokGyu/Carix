@@ -48,7 +48,7 @@ class BackfillSamplerTest {
   @DisplayName("IT 공고만 목표 건수까지 저장한다")
   void savesItPostingsUpToTarget() {
     FakePages pages = new FakePages(Set.of());
-    BackfillSampler sampler = new BackfillSampler(pages, new Random(1));
+    BackfillSampler<Void> sampler = new BackfillSampler<>(pages, new Random(1));
 
     BackfillSampler.Result result = sampler.sample(MONTH, 0, 10_000, 20, 5_000);
 
@@ -60,7 +60,7 @@ class BackfillSamplerTest {
   @DisplayName("요청 상한에 닿으면 목표를 못 채워도 멈춘다")
   void stopsAtRequestCap() {
     FakePages pages = new FakePages(Set.of());
-    BackfillSampler sampler = new BackfillSampler(pages, new Random(1));
+    BackfillSampler<Void> sampler = new BackfillSampler<>(pages, new Random(1));
 
     BackfillSampler.Result result = sampler.sample(MONTH, 0, 10_000, 1_000, 30);
 
@@ -72,7 +72,7 @@ class BackfillSamplerTest {
   @DisplayName("이미 표본인 ID 와 같은 ID 는 다시 요청하지 않는다")
   void skipsExistingAndDuplicates() {
     FakePages pages = new FakePages(Set.of(2L, 4L, 6L, 8L));
-    BackfillSampler sampler = new BackfillSampler(pages, new Random(1));
+    BackfillSampler<Void> sampler = new BackfillSampler<>(pages, new Random(1));
 
     BackfillSampler.Result result = sampler.sample(MONTH, 0, 10, 100, 100);
 
@@ -90,7 +90,7 @@ class BackfillSamplerTest {
             return Optional.of(new BackfillSampler.Candidate(id, LocalDate.of(2026, 4, 1), true));
           }
         };
-    BackfillSampler sampler = new BackfillSampler(outOfMonth, new Random(1));
+    BackfillSampler<Void> sampler = new BackfillSampler<>(outOfMonth, new Random(1));
 
     assertThat(sampler.sample(MONTH, 0, 100, 10, 50).saved()).isZero();
   }

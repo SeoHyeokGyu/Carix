@@ -12,20 +12,20 @@ import java.util.Set;
  *
  * <p>이미 표본인 ID 는 요청하지 않는다. 정기 수집만 된 ID 는 다시 열어 표본으로 표시한다. 게시일이 그 달이 아니면(경계 근사 오차) 저장하지 않는다.
  */
-public class BackfillSampler {
+public class BackfillSampler<P> {
 
   /** 표본기가 바깥 세계와 닿는 세 지점. 테스트는 가짜로 바꿔 끼운다. */
-  public interface Pages {
+  public interface Pages<P> {
     /** 이미 표본으로 뽑힌 공고. 정기 수집만 된 공고는 여기 해당하지 않는다 — 표본에서 빼면 표본이 치우친다. */
     boolean alreadySampled(long id);
 
-    Optional<Candidate> fetch(long id);
+    Optional<Candidate<P>> fetch(long id);
 
-    void save(Candidate candidate, YearMonth month);
+    void save(Candidate<P> candidate, YearMonth month);
   }
 
-  /** {@code page} 는 저장에 쓰는 원문이며 테스트에서는 비어 있어도 된다. */
-  public record Candidate(long id, LocalDate datePosted, boolean target, JobKoreaPage page) {
+  /** {@code payload} 는 저장에 쓰는 원천별 원문이며 테스트에서는 비어 있어도 된다. */
+  public record Candidate<P>(long id, LocalDate datePosted, boolean target, P payload) {
     public Candidate(long id, LocalDate datePosted, boolean target) {
       this(id, datePosted, target, null);
     }
@@ -34,10 +34,10 @@ public class BackfillSampler {
   public record Result(
       int requests, int saved, int alreadySampled, int empty, int otherMonth, int nonTarget) {}
 
-  private final Pages pages;
+  private final Pages<P> pages;
   private final Random random;
 
-  public BackfillSampler(Pages pages, Random random) {
+  public BackfillSampler(Pages<P> pages, Random random) {
     this.pages = pages;
     this.random = random;
   }
@@ -64,12 +64,12 @@ public class BackfillSampler {
         continue;
       }
       requests++;
-      Optional<Candidate> fetched = pages.fetch(id);
+      Optional<Candidate<P>> fetched = pages.fetch(id);
       if (fetched.isEmpty()) {
         empty++;
         continue;
       }
-      Candidate candidate = fetched.get();
+      Candidate<P> candidate = fetched.get();
       if (!YearMonth.from(candidate.datePosted()).equals(month)) {
         otherMonth++;
         continue;
