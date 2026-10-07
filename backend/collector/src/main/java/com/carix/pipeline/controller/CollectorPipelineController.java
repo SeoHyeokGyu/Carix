@@ -69,6 +69,7 @@ public class CollectorPipelineController {
    * 같은 규칙으로 맞춘다.
    *
    * @param delayMs 상세페이지 요청 간격(ms, 빈 값은 기본값, 음수는 400)
+   * @param onlyUnjudged true 면 판정 전({@code UNKNOWN}) 공고만 다시 받는다
    * @return 202 Accepted(음수 간격은 400) 및 비동기 작업 추적용 jobId
    */
   @PostMapping("/reclassify-jobkorea")
@@ -87,16 +88,19 @@ public class CollectorPipelineController {
    *
    * @param dryRun true 면 저장하지 않는다
    * @param delayMs 상세페이지 요청 간격(ms, 빈 값은 기본값, 음수는 400)
+   * @param onlyUnjudged true 면 판정 전({@code UNKNOWN}) 공고만 다시 받는다
    * @return 202 Accepted(음수 간격은 400) 및 비동기 작업 추적용 jobId
    */
   @PostMapping("/salary-reclassify")
   public ResponseEntity<JobExecutionResponse> triggerSalaryReclassify(
       @RequestParam(defaultValue = "true") boolean dryRun,
-      @RequestParam(required = false) Long delayMs) {
+      @RequestParam(required = false) Long delayMs,
+      @RequestParam(defaultValue = "false") boolean onlyUnjudged) {
     if (delayMs != null && delayMs < 0) {
       return ResponseEntity.badRequest().build();
     }
-    JobExecutionResponse response = pipelineService.triggerSalaryReclassify(dryRun, delayMs);
+    JobExecutionResponse response =
+        pipelineService.triggerSalaryReclassify(dryRun, delayMs, onlyUnjudged);
     return ResponseEntity.status(HttpStatus.ACCEPTED).body(response);
   }
 

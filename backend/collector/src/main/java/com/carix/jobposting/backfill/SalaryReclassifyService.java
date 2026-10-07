@@ -56,6 +56,13 @@ public class SalaryReclassifyService {
   }
 
   public Map<String, Object> run(boolean dryRun, Long delayMs) {
+    return run(dryRun, delayMs, false);
+  }
+
+  /**
+   * @param onlyUnjudged true 면 아직 판정 전({@code UNKNOWN}) 공고만 다시 받는다 — 일시 실패로 남은 공고만 다시 판정할 때 쓴다
+   */
+  public Map<String, Object> run(boolean dryRun, Long delayMs, boolean onlyUnjudged) {
     DetailPages fetcher =
         pages != null
             ? pages
@@ -67,6 +74,9 @@ public class SalaryReclassifyService {
     int errors = 0;
     List<JobPosting> postings = new ArrayList<>();
     SOURCES.forEach(s -> postings.addAll(repository.findBySource(s)));
+    if (onlyUnjudged) {
+      postings.removeIf(p -> !isUnjudged(p));
+    }
     for (JobPosting posting : postings) {
       total++;
       try {
@@ -122,6 +132,7 @@ public class SalaryReclassifyService {
         bySource);
     Map<String, Object> summary = new LinkedHashMap<>();
     summary.put("dryRun", dryRun);
+    summary.put("onlyUnjudged", onlyUnjudged);
     summary.put("total", total);
     summary.put("unreachable", unreachable);
     summary.put("errors", errors);

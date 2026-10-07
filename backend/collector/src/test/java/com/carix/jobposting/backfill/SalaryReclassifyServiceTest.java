@@ -193,4 +193,34 @@ class SalaryReclassifyServiceTest {
     JobPosting ok = repository.findBySourceAndExternalId("JOBKOREA", "2").orElseThrow();
     assertThat(ok.getSalaryDisclosure()).isEqualTo("PUBLIC");
   }
+
+  @Test
+  @DisplayName("판정 전 공고만 모드는 이미 판정된 공고를 열지도 세지도 않는다")
+  void onlyUnjudged_skipsJudgedPostings() {
+    JobPosting judged = repository.findBySourceAndExternalId("JOBKOREA", "1").orElseThrow();
+    judged.applySalary(PostingSalary.publicRange(50_000_000L, 50_000_000L));
+    repository.saveAndFlush(judged);
+    java.util.List<String> fetched = new java.util.ArrayList<>();
+    SalaryReclassifyService service =
+        new SalaryReclassifyService(
+            repository,
+            (source, id) -> {
+              fetched.add(id);
+              return "2".equals(id) ? Optional.of(PUBLIC_HTML) : Optional.empty();
+            });
+
+    Map<String, Object> summary = service.run(false, 0L, true);
+    repository.flush();
+
+    assertThat(fetched).containsExactlyInAnyOrder("2", "3");
+    assertThat(summary).containsEntry("total", 2).containsEntry("onlyUnjudged", true);
+    assertThat(repository.findBySourceAndExternalId("JOBKOREA", "1").orElseThrow().getSalaryMin())
+        .isEqualTo(50_000_000L);
+    assertThat(
+            repository
+                .findBySourceAndExternalId("JOBKOREA", "2")
+                .orElseThrow()
+                .getSalaryDisclosure())
+        .isEqualTo("PUBLIC");
+  }
 }

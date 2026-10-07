@@ -14,6 +14,7 @@ public class JobKoreaPageFetcher {
       "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
   private static final int TIMEOUT_MS = 10_000;
   private static final int HTTP_OK = 200;
+  private static final int HTTP_NOT_FOUND = 404;
 
   private final long delayMs;
 
@@ -29,7 +30,15 @@ public class JobKoreaPageFetcher {
               .timeout(TIMEOUT_MS)
               .ignoreHttpErrors(true)
               .execute();
-      return response.statusCode() == HTTP_OK ? Optional.of(response.body()) : Optional.empty();
+      int status = response.statusCode();
+      if (status == HTTP_OK) {
+        return Optional.of(response.body());
+      }
+      // 404 는 백필 ID 탐색에서 흔한 정상 결과다. 그 밖(403·429·5xx)은 차단·장애 신호라 남긴다.
+      if (status != HTTP_NOT_FOUND) {
+        log.warn("[잡코리아] 상세페이지 {} 응답 {}", id, status);
+      }
+      return Optional.empty();
     } catch (Exception e) {
       log.warn("[백필] 상세페이지 {} 요청 실패: {}", id, e.getMessage());
       return Optional.empty();
