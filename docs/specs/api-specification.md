@@ -802,8 +802,9 @@
 *   **보안 인증:** 모든 요청에 요청 헤더 `X-Admin-Key: <ADMIN_SECRET_KEY>` 필수 전송 (누락 또는 불일치 시 `403 FORBIDDEN`).
 
 ### 8.1 채용공고 크롤링 비동기 실행
-*   `POST /internal/pipeline/crawl` — 잡코리아·사람인 IT/개발 채용공고 실시간 스크래핑 트리거.
-    *   `portal` 은 `ALL`(잡코리아·사람인, 기본)·`JOBKOREA`·`SARAMIN`·`JUMPIT` 이다. `JUMPIT` 은 점핏 목록을 끝까지 순회해 사람인 공고를 보강·추가하며(규칙은 [데이터 아키텍처 §1.3](data-architecture.md), 원천 호출은 [외부 연동 §3.4](external-api-integration.md)) `ALL` 에는 들지 않는다. `JUMPIT` 작업 요약의 키는 `pages`(순회한 목록 페이지)·`fetched`(읽은 공고)·`created`(새로 만든 공고)·`enriched`(보강한 기존 공고)·`skipped`(필수 필드를 못 읽어 건너뜀)·`errors`(공고 단위 실패)·`droppedSkills`(사전에 없어 버린 기술 스택의 빈도)다. 새로 만들거나 보강한 공고가 하나도 없고 `errors` 만 있으면 작업은 `FAILED`(`errorMessage` 에 `errors` 수)로 끝난다.
+*   `POST /internal/pipeline/crawl` — 잡코리아·사람인·점핏·원티드 IT/개발 채용공고 실시간 스크래핑 트리거.
+    *   `portal` 은 `ALL`(잡코리아·사람인, 기본)·`JOBKOREA`·`SARAMIN`·`JUMPIT`·`WANTED` 이다. `JUMPIT` 은 점핏 목록을 끝까지 순회해 사람인 공고를 보강·추가하며(규칙은 [데이터 아키텍처 §1.3](data-architecture.md), 원천 호출은 [외부 연동 §3.4](external-api-integration.md)) `ALL` 에는 들지 않는다. `JUMPIT` 작업 요약의 키는 `pages`(순회한 목록 페이지)·`fetched`(읽은 공고)·`created`(새로 만든 공고)·`enriched`(보강한 기존 공고)·`skipped`(필수 필드를 못 읽어 건너뜀)·`errors`(공고 단위 실패)·`droppedSkills`(사전에 없어 버린 기술 스택의 빈도)다. 새로 만들거나 보강한 공고가 하나도 없고 `errors` 만 있으면 작업은 `FAILED`(`errorMessage` 에 `errors` 수)로 끝난다.
+    *   `WANTED` 는 원티드 개발(518) 목록을 끝까지 순회해 새 공고를 만들고 이미 있는 공고는 마지막 관측월만 갱신한다(`ALL` 에는 들지 않는다. 원천 호출은 [외부 연동 §3.5](external-api-integration.md), 저장 규칙은 [데이터 아키텍처 §1.3](data-architecture.md)). 작업 요약의 키는 `pages`·`fetched`·`created`·`seen`(이미 있어 관측월만 갱신한 공고)·`skipped`(상위 태그가 518 이 아니거나 `__NEXT_DATA__` 가 없거나 목록 번호와 페이지 번호가 달라 건너뜀)·`errors`·`droppedSkills`·`listFailed`(목록 응답을 못 받아 순회가 끊김)·`portal` 이다. 새로 만들거나 본 공고가 하나도 없고(`created`+`seen` 이 0) `errors` 만 있거나, 목록 페이지를 하나도 못 읽고(`pages` 가 0) `listFailed` 이면 작업은 `FAILED` 로 끝난다.
     *   **Request Body (선택):**
         ```json
         {
@@ -957,9 +958,9 @@
           ]
         }
         ```
-    *   `groups[].id` 는 `PPI`·`MVI`·`DECISION`·`SUPPORT` 이고, `checks[].id` 는 `CPI_LATEST`·`CPI_GAP`·`SAMPLE_LAST_MONTH`·`SAMPLE_GAPS`·`AGGREGATE_STALE`·`PEER_SAMPLE_BY_FAMILY`·`WAGE_BASELINE`·`RULE_VERSION`·`SNAPSHOT_FRESHNESS`·`DECISION_QUALITY`·`CRAWL_FRESHNESS` 다. `verdict` 는 `OK`·`WARN`·`ERROR`·`UNKNOWN` 이다.
+    *   `groups[].id` 는 `PPI`·`MVI`·`DECISION`·`SUPPORT`·`WANTED` 이고, `checks[].id` 는 `CPI_LATEST`·`CPI_GAP`·`SAMPLE_LAST_MONTH`·`SAMPLE_GAPS`·`AGGREGATE_STALE`·`PEER_SAMPLE_BY_FAMILY`·`WAGE_BASELINE`·`RULE_VERSION`·`SNAPSHOT_FRESHNESS`·`DECISION_QUALITY`·`CRAWL_FRESHNESS`·`WANTED_SAMPLE_LAST_MONTH`·`WANTED_SAMPLE_GAPS`·`WANTED_AGGREGATE_STALE` 다. `MVI` 의 표본 점검(`SAMPLE_LAST_MONTH`·`SAMPLE_GAPS`·`AGGREGATE_STALE`)은 잡코리아만 센다. `WANTED` 그룹(「원티드(도입 중)」, 질문 「원티드 표본이 쌓이고 있나?」)은 같은 표본 점검을 원티드 시계열에 적용하며, 요약(`summary`)의 판정 건수와 「세 질문에 온전히 답하는 사용자」 계산에서 뺀다. `verdict` 는 `OK`·`WARN`·`ERROR`·`UNKNOWN` 이다.
     *   기준값은 collector 설정 `carix.collector.health.*`(`sample-target` 250, `sample-warn-ratio` 0.8, `cpi-max-lag-months` 2, `peer-min-sample` 10, `crawl-stale-days` 35)이다.
-    *   `checks[].drillDown` 은 근거 원본을 여는 관리자 콘솔 경로(문자열, nullable)이며 판정과 무관하게 채운다. `SAMPLE_LAST_MONTH` 는 `/admin/data?tab=postings&month={지난달}&sampled=true`, `SAMPLE_GAPS`·`AGGREGATE_STALE`·`PEER_SAMPLE_BY_FAMILY`·`CRAWL_FRESHNESS` 는 `/admin/data?tab=monthly&from={지난달−35개월}&to={지난달}`(36개월), `CPI_LATEST`·`CPI_GAP` 는 `/admin/data?tab=cpi&from={지난달−119개월}&to={지난달}`(120개월), `WAGE_BASELINE` 은 `/admin/data?tab=wage` 이고 그 밖의 점검은 `null` 이다.
+    *   `checks[].drillDown` 은 근거 원본을 여는 관리자 콘솔 경로(문자열, nullable)이며 판정과 무관하게 채운다. `SAMPLE_LAST_MONTH` 는 `/admin/data?tab=postings&month={지난달}&sampled=true`, `SAMPLE_GAPS`·`AGGREGATE_STALE`·`PEER_SAMPLE_BY_FAMILY`·`CRAWL_FRESHNESS` 는 `/admin/data?tab=monthly&from={지난달−35개월}&to={지난달}`(36개월), `CPI_LATEST`·`CPI_GAP` 는 `/admin/data?tab=cpi&from={지난달−119개월}&to={지난달}`(120개월), `WAGE_BASELINE` 은 `/admin/data?tab=wage` 이고 `WANTED_SAMPLE_LAST_MONTH` 는 `/admin/data?tab=postings&month={지난달}&sampled=true&source=WANTED`, `WANTED_SAMPLE_GAPS`·`WANTED_AGGREGATE_STALE` 는 36개월 월별 현황 경로에 `&sampleSource=WANTED` 를 더한 것이며 그 밖의 점검은 `null` 이다.
 
 ### 8.9 엔진 규칙 버전 조회 (core-api)
 *   `GET /api/v1/meta/versions` — 결정 신호 엔진의 규칙 버전. 인증이 없고, collector 가 게이트웨이를 거치지 않고 서비스 간 호출로 읽어 8.8 의 `RULE_VERSION` 점검에 쓴다.
@@ -969,9 +970,9 @@
         ```
 
 ### 8.10 수집 데이터 월별 현황 조회
-*   `GET /internal/pipeline/explore/monthly?from={YYYYMM}&to={YYYYMM}` — 월별 표본·정기 수집 건수 조회 (관리자 콘솔 `/admin/data` 월별 현황 탭 연동). 8.10~8.13 은 모두 읽기 전용이며 데이터를 바꾸지 않는다. 공개 원천의 금액(공고 제시 연봉 범위, 임금통계 중위값)은 싣고, 사용자 소득은 싣지 않는다. 월 기준은 `Asia/Seoul` 이다.
-    *   `from`·`to` 는 모두 선택이다. 기본 범위는 이번 달까지 최근 13개월이고, 범위는 최대 36개월이다. 관리자 콘솔은 URL 의 `from`·`to` 를 그대로 넘긴다. 형식 오류, `from` 이 `to` 보다 늦은 경우, 36개월 초과는 `400 BAD_REQUEST` 다.
-    *   표본은 `sampled_month`, 정기 수집은 `first_seen_month` 로 월을 센다. `jobkoreaSampledCapped` 와 `sampledByFamily` 는 같은 회사 월 3건 상한을 적용한 표본 기준으로 시장가치 동료집단과 같은 모수다.
+*   `GET /internal/pipeline/explore/monthly?from={YYYYMM}&to={YYYYMM}&sampleSource={JOBKOREA|WANTED}` — 월별 표본·정기 수집 건수 조회 (관리자 콘솔 `/admin/data` 월별 현황 탭 연동). 8.10~8.13 은 모두 읽기 전용이며 데이터를 바꾸지 않는다. 공개 원천의 금액(공고 제시 연봉 범위, 임금통계 중위값)은 싣고, 사용자 소득은 싣지 않는다. 월 기준은 `Asia/Seoul` 이다.
+    *   `from`·`to` 는 모두 선택이다. 기본 범위는 이번 달까지 최근 13개월이고, 범위는 최대 36개월이다. 관리자 콘솔은 URL 의 `from`·`to` 를 그대로 넘긴다. 형식 오류, `from` 이 `to` 보다 늦은 경우, 36개월 초과는 `400 BAD_REQUEST` 다. `sampleSource` 는 선택이며 `sampledByFamily`(직무별 표본)를 셀 표본 원천이다 — `JOBKOREA`(기본)·`WANTED`, 그 밖의 값은 `400 BAD_REQUEST`.
+    *   표본은 `sampled_month`, 정기 수집은 `first_seen_month` 로 월을 센다. `jobkoreaSampledCapped`·`wantedSampledCapped` 와 `sampledByFamily` 는 같은 회사 월 3건 상한을 적용한 표본 기준으로 시장가치 동료집단과 같은 모수다.
     *   **Response (200 OK):**
         ```json
         {
@@ -984,6 +985,9 @@
               "jobkoreaSampledCapped": 244,
               "jobkoreaCrawled": 1248,
               "saraminCrawled": 412,
+              "wantedSampled": 250,
+              "wantedSampledCapped": 238,
+              "wantedCrawled": 530,
               "sampledByFamily": { "DEVELOPER": 203, "DATA": 10, "AI": 31, "OTHER": 0 }
             }
           ]
@@ -997,7 +1001,7 @@
         | 파라미터 | 필수 | 설명 |
         | --- | --- | --- |
         | `month` | 필수 | `YYYYMM`. 누락 또는 형식 오류는 `400 BAD_REQUEST` |
-        | `source` | 선택 | `JOBKOREA`·`SARAMIN` |
+        | `source` | 선택 | `JOBKOREA`·`SARAMIN`·`WANTED` |
         | `sampled` | 선택 | `true` 면 `sampled_month = month`, `false` 면 `sampled_month IS NULL` 이고 `first_seen_month = month`, 생략하면 둘의 합집합 |
         | `family` | 선택 | 직무군. `OTHER` 는 `DEVELOPER`·`DATA`·`AI` 가 아닌 모든 공고(직무군이 비어 있는 공고 포함)로, 월별 현황의 `OTHER` 집계와 같은 기준이다 |
         | `company` | 선택 | 회사명 부분 일치 |
@@ -1007,7 +1011,7 @@
         | `page` | 선택 | 0부터. 기본 0 |
         | `size` | 선택 | 기본 50, 최대 100 (넘으면 100) |
 
-    *   `collectedVia` 는 공고를 확인한 수집 경로 목록(쉼표 구분: `JOBKOREA_LIST`·`JOBKOREA_BACKFILL`·`JOBKOREA_SEED`·`SARAMIN_SEARCH`·`JUMPIT`)이고 `sourceJobTags` 는 원천의 직군 태그 원본(점핏 `jobCategory`)이며 없으면 `null` 이다. `collectedAt` 은 공고를 수집한 시각(UTC)이다. `url` 은 원천 공고 링크로, 잡코리아 `https://www.jobkorea.co.kr/Recruit/GI_Read/{externalId}`, 사람인 `https://www.saramin.co.kr/zf_user/jobs/relay/view?rec_idx={externalId}` 다.
+    *   `collectedVia` 는 공고를 확인한 수집 경로 목록(쉼표 구분: `JOBKOREA_LIST`·`JOBKOREA_BACKFILL`·`JOBKOREA_SEED`·`SARAMIN_SEARCH`·`JUMPIT`·`WANTED_LIST`·`WANTED_BACKFILL`)이고 `sourceJobTags` 는 원천의 직군 태그 원본(점핏 `jobCategory`)이며 없으면 `null` 이다. `collectedAt` 은 공고를 수집한 시각(UTC)이다. `url` 은 원천 공고 링크로, 잡코리아 `https://www.jobkorea.co.kr/Recruit/GI_Read/{externalId}`, 사람인 `https://www.saramin.co.kr/zf_user/jobs/relay/view?rec_idx={externalId}`, 원티드 `https://www.wanted.co.kr/wd/{externalId}` 다.
     *   **Response (200 OK):**
         ```json
         {
@@ -1110,3 +1114,19 @@
         }
         ```
         `unreachable` 은 판정이 `UNKNOWN` 인 공고 수다(상세페이지를 못 열었거나, 열었지만 description 이나 급여 항목이 없는 경우). `publicPeers` 는 직무 × 경력(`JUNIOR`·`MID`·`SENIOR`) × 서울·정규직 칸의 표본 수로, `before` 는 지금 `salary_min`·`salary_max` 가 둘 다 저장된 공고 수(공개 구분과 무관), `after` 는 판정이 `PUBLIC` 인 공고 수다. 이 수는 원문 공고를 그대로 센다 — 중복제거도 기업 규모 필터도 거치지 않으므로 core-api 가 실제로 쓰는 표본 크기의 근사치다. `errors` 는 처리 중 예외가 나 건너뛴 공고 수이며(해당 공고는 바꾸지 않는다).
+
+### 8.15 과거 공고 표본 백필 실행
+*   `POST /internal/pipeline/backfill` — 지정한 달의 공고를 공고 번호 무작위 표본으로 채운다. 비동기로 실행하며 `JobExecution` 으로 진행을 본다(§8.5). 표본 규칙은 [데이터 아키텍처 §1.3](data-architecture.md)이 소관이다.
+    *   **Request Body:**
+
+        | 필드 | 필수 | 설명 |
+        | --- | --- | --- |
+        | `fromMonth`·`toMonth` | 필수 | `YYYYMM`. 누락은 `400 BAD_REQUEST` |
+        | `source` | 선택 | `JOBKOREA`(기본)·`WANTED`. 그 밖의 값은 `400 BAD_REQUEST` |
+        | `perMonthTarget` | 선택 | 월 목표 건수. 원티드 기본 250 |
+        | `maxRequestsPerMonth` | 선택 | 월 요청 상한. 원티드 기본 2000 |
+        | `delayMs` | 선택 | 요청 간격(ms). 원티드 기본 1000 |
+        | `minId`·`maxId` | 선택 | 공고 번호 탐색 범위(상한 포함). 원티드 기본 280000~420000 |
+
+    *   **Response (202 Accepted):** 작업 ID 를 돌려준다(§8.1 과 같은 형식).
+    *   **작업 요약:** 달(`YYYYMM`)마다 `requests`·`saved`·`alreadySampled`·`empty`·`otherMonth`·`nonTarget`·`errors` 를 싣는다. `errors` 는 저장에 실패해 건너뛴 후보 수이며 그 달은 계속한다(잡코리아·원티드 공통). `source=WANTED` 는 `droppedSkills`(사전에 없어 버린 스킬 태그의 빈도)와 `apiMisses`(상세 API 에서 스킬 태그를 못 읽은 공고 수)를 더 싣는다.
