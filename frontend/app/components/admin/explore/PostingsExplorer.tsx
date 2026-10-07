@@ -11,7 +11,7 @@ const COLLECTED_VIA_LABEL: Record<string, string> = {
   JUMPIT: "점핏",
 };
 
-function collectedVia(p: PostingItem): string {
+function formatCollectedVia(p: PostingItem): string {
   if (!p.collectedVia) return "-";
   return p.collectedVia
     .split(",")
@@ -60,7 +60,7 @@ function Row({ p }: { p: PostingItem }) {
               {p.postedEndDate ?? "-"} · 관측월 {p.firstSeenMonth ?? "-"}
             </p>
             <p>
-              확인 경로 {collectedVia(p)} · 원천 직군 태그{" "}
+              확인 경로 {formatCollectedVia(p)} · 원천 직군 태그{" "}
               {p.sourceJobTags ?? "-"}
             </p>
             {p.url && (

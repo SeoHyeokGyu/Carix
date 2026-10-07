@@ -258,11 +258,7 @@ public class JobPosting {
     jobPostingSkills.removeIf(
         link -> link.getSkill() == null || !targetIds.contains(link.getSkill().getId()));
 
-    Set<UUID> linkedIds =
-        jobPostingSkills.stream()
-            .filter(link -> link.getSkill() != null)
-            .map(link -> link.getSkill().getId())
-            .collect(Collectors.toSet());
+    Set<UUID> linkedIds = linkedSkillIds();
 
     validSkills.stream()
         .filter(skill -> !linkedIds.contains(skill.getId()))
@@ -292,13 +288,16 @@ public class JobPosting {
     this.sourceJobTags = tags == null || tags.isBlank() ? null : tags;
   }
 
+  private Set<UUID> linkedSkillIds() {
+    return jobPostingSkills.stream()
+        .filter(link -> link.getSkill() != null)
+        .map(link -> link.getSkill().getId())
+        .collect(Collectors.toCollection(HashSet::new));
+  }
+
   /** 기존 연결은 두고 없는 스킬만 더한다 — 다른 원천이 붙인 스킬을 지우지 않는다. */
   public void addSkillsIfAbsent(List<Skill> skills) {
-    Set<UUID> linked =
-        jobPostingSkills.stream()
-            .filter(link -> link.getSkill() != null)
-            .map(link -> link.getSkill().getId())
-            .collect(Collectors.toCollection(HashSet::new));
+    Set<UUID> linked = linkedSkillIds();
     for (Skill skill : skills) {
       if (skill != null && skill.getId() != null && linked.add(skill.getId())) {
         addSkill(skill);
