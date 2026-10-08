@@ -338,6 +338,27 @@ describe("DataExplorePage", () => {
     const input = screen.getByLabelText("월");
     expect(input).toHaveAttribute("type", "month");
     expect(input).toHaveValue("2026-05");
+    expect(input).toBeRequired();
+  });
+
+  it("월별 탭에서 공고 탭을 누르면 UTC 지난달로 한 번 조회한다", async () => {
+    vi.useFakeTimers({
+      toFake: ["Date"],
+      now: new Date("2026-10-31T16:00:00Z"),
+    });
+    try {
+      renderAt("/admin/data?tab=monthly");
+      await screen.findByText("150");
+      await userEvent.click(screen.getByRole("tab", { name: "공고" }));
+      expect(await screen.findByText("QA 채용")).toBeInTheDocument();
+      expect(screen.getByLabelText("월")).toHaveValue("2026-09");
+      expect(api.fetchPostings).toHaveBeenCalledTimes(1);
+      expect(api.fetchPostings).toHaveBeenCalledWith(
+        expect.objectContaining({ month: "202609" }),
+      );
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("월 입력을 바꿔 조회하면 yyyyMM 으로 조회한다", async () => {

@@ -224,6 +224,7 @@ export default function DataExplorePage() {
             <input
               name="month"
               type="month"
+              required
               defaultValue={toMonthInput(month)}
               aria-label="월"
               className="rounded border border-carix-border px-2 py-1"
