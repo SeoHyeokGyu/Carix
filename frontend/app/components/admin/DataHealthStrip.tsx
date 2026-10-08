@@ -55,41 +55,53 @@ function CheckRow({ check }: { check: HealthCheck }) {
 }
 
 /** S-20 맨 위 점검 줄. 실패해도 아래 탭은 그대로 쓴다. */
-export function DataHealthStrip({ onAuthError }: { onAuthError: () => void }) {
-  const [report, setReport] = useState<DataHealthReport | null>(null);
-  const [failed, setFailed] = useState(false);
+export function DataHealthStrip({
+  onAuthError,
+  refreshKey,
+}: {
+  onAuthError: () => void;
+  refreshKey: number;
+}) {
   const [attempt, setAttempt] = useState(0);
+  const token = `${attempt}:${refreshKey}`;
+  // settledToken 이 token 과 다르면 요청 중이다. effect 안에서 setState 를 동기 호출하지 않으려는 구조.
+  const [state, setState] = useState<{
+    settledToken: string | null;
+    report: DataHealthReport | null;
+    failed: boolean;
+  }>({ settledToken: null, report: null, failed: false });
 
   useEffect(() => {
     let cancelled = false;
     fetchDataHealth()
-      .then((r) => {
-        if (!cancelled) setReport(r);
+      .then((report) => {
+        if (!cancelled)
+          setState({ settledToken: token, report, failed: false });
       })
       .catch((err) => {
         if (cancelled) return;
         if ((err as { status?: number }).status === 403) onAuthError();
-        else setFailed(true);
+        setState((prev) => ({ ...prev, settledToken: token, failed: true }));
       });
     return () => {
       cancelled = true;
     };
-  }, [attempt, onAuthError]);
+  }, [token, onAuthError]);
+
+  const { report, failed } = state;
+  const loading = state.settledToken !== token;
 
   const retry = (
     <Button
       variant="outline"
       size="sm"
-      onClick={() => {
-        setFailed(false);
-        setAttempt((a) => a + 1);
-      }}
+      onClick={() => setAttempt((a) => a + 1)}
     >
       다시 점검
     </Button>
   );
 
-  if (failed) {
+  if (failed && !loading) {
     return (
       <section
         aria-label="점검"
@@ -130,6 +142,7 @@ export function DataHealthStrip({ onAuthError }: { onAuthError: () => void }) {
           {CHECKED_AT.format(new Date(report.evaluatedAt))}
         </span>
         {retry}
+        {loading && <span className="text-carix-text/60">점검 중…</span>}
       </div>
       {problems.length > 0 && (
         <ul className="space-y-1">

@@ -43,14 +43,17 @@ function report(
   };
 }
 
-function renderStrip(onAuthError = vi.fn()) {
+function renderStrip(onAuthError = vi.fn(), refreshKey = 0) {
   const Stub = createRoutesStub([
     {
       path: "/admin/data",
-      Component: () => <DataHealthStrip onAuthError={onAuthError} />,
+      Component: () => (
+        <DataHealthStrip onAuthError={onAuthError} refreshKey={refreshKey} />
+      ),
     },
   ]);
-  return render(<Stub initialEntries={["/admin/data"]} />);
+  const view = render(<Stub initialEntries={["/admin/data"]} />);
+  return view;
 }
 
 describe("DataHealthStrip", () => {
@@ -131,5 +134,26 @@ describe("DataHealthStrip", () => {
     const onAuthError = vi.fn();
     renderStrip(onAuthError);
     await vi.waitFor(() => expect(onAuthError).toHaveBeenCalled());
+    expect(
+      await screen.findByRole("button", { name: "다시 점검" }),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("점검 중…")).not.toBeInTheDocument();
+  });
+
+  it("다시 점검하는 동안 이전 보고서를 두고 점검 중 표시를 붙인다", async () => {
+    vi.mocked(api.fetchDataHealth).mockResolvedValueOnce(report());
+    renderStrip();
+    await screen.findByText("점검 정상");
+    let resolve: (r: api.DataHealthReport) => void = () => {};
+    vi.mocked(api.fetchDataHealth).mockReturnValueOnce(
+      new Promise((r) => (resolve = r)),
+    );
+    await userEvent.click(screen.getByRole("button", { name: "다시 점검" }));
+    expect(screen.getByText("점검 중…")).toBeInTheDocument();
+    expect(screen.getByText("점검 정상")).toBeInTheDocument();
+    resolve(report());
+    await vi.waitFor(() =>
+      expect(screen.queryByText("점검 중…")).not.toBeInTheDocument(),
+    );
   });
 });

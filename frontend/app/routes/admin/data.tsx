@@ -36,6 +36,7 @@ export default function DataExplorePage() {
   const [failed, setFailed] = useState(false);
   const [isKeyModalOpen, setIsKeyModalOpen] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
+  const [healthKey, setHealthKey] = useState(0);
 
   const month = params.get("month") ?? "";
   const sampledParam = params.get("sampled");
@@ -127,7 +128,7 @@ export default function DataExplorePage() {
       <AdminHeader active="data" onOpenKeyModal={openKeyModal} />
       <main className="mx-auto max-w-7xl px-6 py-8 space-y-4">
         <h1 className="text-lg font-bold">수집 데이터</h1>
-        <DataHealthStrip onAuthError={openKeyModal} />
+        <DataHealthStrip onAuthError={openKeyModal} refreshKey={healthKey} />
         <div role="tablist" className="flex gap-2">
           {TABS.map((t) => (
             <Button
@@ -304,7 +305,10 @@ export default function DataExplorePage() {
       <AdminKeyModal
         isOpen={isKeyModalOpen}
         onClose={() => setIsKeyModalOpen(false)}
-        onKeyUpdated={() => reload()}
+        onKeyUpdated={() => {
+          reload();
+          setHealthKey((k) => k + 1);
+        }}
       />
     </div>
   );

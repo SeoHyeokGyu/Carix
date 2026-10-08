@@ -393,4 +393,41 @@ describe("DataExplorePage", () => {
     await userEvent.click(screen.getByRole("button", { name: "다시 점검" }));
     await waitFor(() => expect(api.fetchDataHealth).toHaveBeenCalledTimes(2));
   });
+
+  it("키를 저장하면 점검도 다시 부른다", async () => {
+    vi.mocked(api.fetchDataHealth).mockRejectedValueOnce({ status: 403 });
+    renderAt("/admin/data");
+    expect(await screen.findByRole("dialog")).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "저장하기" }));
+    expect(await screen.findByText("점검 정상")).toBeInTheDocument();
+    expect(api.fetchDataHealth).toHaveBeenCalledTimes(2);
+  });
+
+  it("근거 링크는 같은 화면에서 탭만 바꾸고 점검은 다시 부르지 않는다", async () => {
+    const withLink: api.DataHealthReport = {
+      ...healthyReport,
+      checks: healthyReport.checks.map((c) =>
+        c.id === "CPI_LATEST"
+          ? {
+              ...c,
+              verdict: "WARN" as const,
+              drillDown: "/admin/data?tab=cpi",
+            }
+          : c,
+      ),
+    };
+    vi.mocked(api.fetchDataHealth).mockResolvedValue(withLink);
+    vi.mocked(api.fetchCpi).mockResolvedValue({
+      codes: ["A"],
+      months: [],
+      missing: [],
+    });
+    renderAt("/admin/data?tab=monthly");
+    await userEvent.click(await screen.findByRole("link", { name: "근거" }));
+    expect(await screen.findByRole("tab", { name: "CPI" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+    expect(api.fetchDataHealth).toHaveBeenCalledTimes(1);
+  });
 });
