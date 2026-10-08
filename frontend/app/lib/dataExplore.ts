@@ -173,3 +173,29 @@ export function crawlJobDataHref(
   if (source) sp.set("source", source);
   return `/admin/data?${sp.toString()}`;
 }
+
+/** KOSIS 소비자물가 지출목적별 12대 분류(2020 기준). 코드는 수집기 KosisCpiClient 의 A~L 순서와 같다. */
+export const CPI_CATEGORY_NAMES: Record<string, string> = {
+  A: "식료품·비주류음료",
+  B: "주류·담배",
+  C: "의류·신발",
+  D: "주거·수도·광열",
+  E: "가정용품·가사서비스",
+  F: "보건",
+  G: "교통",
+  H: "정보통신",
+  I: "오락·문화",
+  J: "교육",
+  K: "음식·숙박",
+  L: "기타 상품·서비스",
+};
+
+const CPI_SHARP_RATIO = 0.05;
+
+export function isSharpCpiChange(
+  prev: number | undefined,
+  curr: number | undefined,
+): boolean {
+  if (prev === undefined || curr === undefined || prev === 0) return false;
+  return Math.abs(curr / prev - 1) > CPI_SHARP_RATIO;
+}

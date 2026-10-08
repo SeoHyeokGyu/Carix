@@ -8,12 +8,20 @@ import {
   formatManwon,
   formatSalaryCell,
   formatSalaryRange,
+  isSharpCpiChange,
   isThinFamily,
   isThinSample,
   parseTab,
 } from "./dataExplore";
 
 describe("dataExplore", () => {
+  it("CPI 전월 대비 5% 넘는 변화만 급변으로 본다", () => {
+    expect(isSharpCpiChange(101.0, 87.87)).toBe(true);
+    expect(isSharpCpiChange(100, 104.9)).toBe(false);
+    expect(isSharpCpiChange(undefined, 90)).toBe(false);
+    expect(isSharpCpiChange(90, undefined)).toBe(false);
+  });
+
   it("unknown tab falls back to monthly", () => {
     expect(parseTab(null)).toBe("monthly");
     expect(parseTab("nope")).toBe("monthly");

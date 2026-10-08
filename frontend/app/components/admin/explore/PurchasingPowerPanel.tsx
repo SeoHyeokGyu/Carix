@@ -7,7 +7,12 @@ import {
   type WageBaseline,
   type WageValue,
 } from "../../../lib/collectorApi";
-import { formatManwon, type ExploreTab } from "../../../lib/dataExplore";
+import {
+  CPI_CATEGORY_NAMES,
+  formatManwon,
+  isSharpCpiChange,
+  type ExploreTab,
+} from "../../../lib/dataExplore";
 import { Button } from "@/components/ui/button";
 
 type PanelTab = Extract<ExploreTab, "cpi" | "wage">;
@@ -19,9 +24,18 @@ const EMPTY = (
   <p className="text-xs text-carix-text/60">해당 조건의 데이터가 없습니다</p>
 );
 const MISSING_CELL = "bg-carix-warning/10 text-carix-warning";
+// 급변은 원인 미확인이라 오류가 아니다 — 경고색 대신 중립 배경.
+const SHARP_CELL = "bg-carix-info/10";
+const SHARP_TITLE = "값 확인 — 전월 대비 5% 넘게 변함";
 
 function CpiView({ data }: { data: CpiTable }) {
   if (data.months.length === 0) return EMPTY;
+  const ascending = [...data.months].sort((a, b) =>
+    a.month.localeCompare(b.month),
+  );
+  const prevOf = new Map(
+    ascending.map((m, i) => [m.month, ascending[i - 1]] as const),
+  );
   return (
     <div className="overflow-x-auto">
       <table className="w-full text-xs">
@@ -30,7 +44,7 @@ function CpiView({ data }: { data: CpiTable }) {
             <th className="px-2 py-1 text-left">월</th>
             {data.codes.map((c) => (
               <th key={c} className="px-2 py-1 text-right">
-                {c}
+                {CPI_CATEGORY_NAMES[c] ? `${c} ${CPI_CATEGORY_NAMES[c]}` : c}
               </th>
             ))}
           </tr>
@@ -41,12 +55,18 @@ function CpiView({ data }: { data: CpiTable }) {
               <td className="px-2 py-1">{m.month}</td>
               {data.codes.map((c) => {
                 const v = m.values[c];
+                const sharp = isSharpCpiChange(
+                  prevOf.get(m.month)?.values[c],
+                  v,
+                );
                 return (
                   <td
                     key={c}
                     data-testid={`cpi-${m.month}-${c}`}
                     data-missing={String(v === undefined)}
-                    className={`px-2 py-1 text-right ${v === undefined ? MISSING_CELL : ""}`}
+                    data-sharp={String(sharp)}
+                    title={sharp ? SHARP_TITLE : undefined}
+                    className={`px-2 py-1 text-right ${v === undefined ? MISSING_CELL : sharp ? SHARP_CELL : ""}`}
                   >
                     {v === undefined ? "—" : v.toFixed(2)}
                   </td>
@@ -76,11 +96,11 @@ function WageCellBody({ values }: { values: WageValue[] }) {
         {gross ? formatManwon(gross.wageMedian) : "—"}
       </p>
       {base && (
-        <p className="text-[11px] text-carix-text/60">
+        <p className="text-xs text-carix-text/60">
           정액 {formatManwon(base.wageMedian)}
         </p>
       )}
-      <p className="text-[10px] text-carix-text/50">{origins.join(" · ")}</p>
+      <p className="text-xs text-carix-text/50">{origins.join(" · ")}</p>
     </div>
   );
 }
@@ -124,6 +144,10 @@ function WageView({ data }: { data: WageTable }) {
     );
   return (
     <div className="space-y-2">
+      <p className="text-xs text-carix-text/60">
+        KOSIS 연령대 기준선 — 직무 구분 없음. 직무 보정은 원티드 연봉 통계 도입
+        후
+      </p>
       <p className="text-xs text-carix-text/60">기준 연도 {data.basePeriod}</p>
       <table className="w-full text-xs">
         <thead>

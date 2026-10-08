@@ -142,7 +142,11 @@ export default function DataExplorePage() {
     <div className="min-h-screen bg-carix-bg text-carix-text">
       <ThemeToggle />
       <AdminHeader active="data" onOpenKeyModal={openKeyModal} />
-      <main className="mx-auto max-w-7xl px-6 py-8 space-y-4">
+      <main
+        className={`mx-auto px-6 py-8 space-y-4 ${
+          tab === "monthly" || tab === "cpi" ? "max-w-screen-2xl" : "max-w-7xl"
+        }`}
+      >
         <h1 className="text-lg font-bold">수집 데이터</h1>
         <DataHealthStrip onAuthError={openKeyModal} refreshKey={healthKey} />
         <div role="tablist" className="flex gap-2">
