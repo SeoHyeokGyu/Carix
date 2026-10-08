@@ -5,21 +5,25 @@ import java.time.Clock;
 import java.time.OffsetDateTime;
 import java.time.YearMonth;
 import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.function.Supplier;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-/** 관리자 데이터 상태 점검. 읽기 → 그룹별 판정 → 요약. 한 그룹이 실패해도 그 그룹만 판정 불가로 내고 응답은 낸다. */
+/** 관리자 데이터 상태 점검. 읽기 → 점검 다섯 → 요약. 읽기나 판정이 실패하면 점검을 모두 판정 불가로 내고 응답은 낸다. */
 @Slf4j
 @Service
 public class DataHealthService {
 
   static final ZoneId SEOUL = ZoneId.of("Asia/Seoul");
+  private static final int DEFAULT_DRILL_MONTHS = 17;
+  private static final int MAX_DRILL_MONTHS = 35;
+  private static final Map<String, String> CHECK_TITLES = checkTitles();
   private static final DateTimeFormatter YM = DateTimeFormatter.ofPattern("yyyyMM");
 
   private final DataHealthReader reader;
@@ -46,8 +50,19 @@ public class DataHealthService {
     this.clock = clock;
   }
 
+  private static Map<String, String> checkTitles() {
+    Map<String, String> titles = new LinkedHashMap<>();
+    titles.put("AGGREGATE_STALE", "재집계 누락");
+    titles.put("RULE_VERSION", "규칙 버전");
+    titles.put("SNAPSHOT_FRESHNESS", "스냅샷 최신성");
+    titles.put("CPI_LATEST", "CPI 최신월");
+    titles.put("CRAWL_FRESHNESS", "정기 수집 최신성");
+    return titles;
+  }
+
+  /** 서버 시계(UTC)로 센 이번 달. 수집기가 관측월을 UTC 로 매기므로 같은 기준을 쓴다. */
   static YearMonth referenceMonth(Clock clock) {
-    return YearMonth.from(clock.instant().atZone(SEOUL));
+    return YearMonth.from(clock.instant().atZone(ZoneOffset.UTC));
   }
 
   public DataHealthReport evaluate() {
@@ -62,146 +77,89 @@ public class DataHealthService {
       log.error("[데이터 상태] 데이터 읽기 실패", e);
       data = null;
     }
-    DataHealthSnapshot read = data;
-    List<DataHealthReport.Group> groups = new ArrayList<>();
-    groups.add(
-        safe(
-            "PPI",
-            "구매력 지수",
-            "내 실질 구매력은?",
-            read,
-            () -> PpiChecks.group(read, reference, thresholds)));
-    groups.add(
-        safe(
-            "MVI",
-            "시장가치 지수",
-            "내 스킬 가치는?",
-            read,
-            () -> MviChecks.group(read, previous, thresholds)));
-    groups.add(
-        safe(
-            "DECISION",
-            "결정 신호",
-            "지금 무엇을 해야 하나?",
-            read,
-            () -> DecisionChecks.group(read, reference, engine)));
-    groups.add(
-        safe(
-            "SUPPORT",
-            "보조 화면",
-            "연봉 분포·개방창",
-            read,
-            () -> SupportChecks.group(read, clock.instant(), thresholds)));
-    groups.add(
-        safe(
-            WantedChecks.GROUP_ID,
-            "원티드(도입 중)",
-            "원티드 표본이 쌓이고 있나?",
-            read,
-            () -> WantedChecks.group(read, previous, thresholds)));
-
+    List<DataHealthReport.Check> checks = checks(data, reference, engine);
     DataHealthSnapshot forSummary =
-        read != null
-            ? read
-            : new DataHealthSnapshot(null, null, null, null, null, null, null, null, null, null);
-    String previousMonth = YM.format(previous);
-    List<DataHealthReport.Group> linked =
-        groups.stream()
-            .map(
-                g ->
-                    new DataHealthReport.Group(
-                        g.id(),
-                        g.title(),
-                        g.question(),
-                        g.checks().stream()
-                            .map(
-                                c ->
-                                    new DataHealthReport.Check(
-                                        c.id(),
-                                        c.title(),
-                                        c.verdict(),
-                                        c.message(),
-                                        c.impactUsers(),
-                                        c.action(),
-                                        c.actionLink(),
-                                        c.evidence(),
-                                        drillDown(c.id(), previousMonth)))
-                            .toList()))
-            .toList();
+        data != null ? data : new DataHealthSnapshot(null, null, null, null, null, null);
     return new DataHealthReport(
         OffsetDateTime.now(clock.withZone(SEOUL)),
         YM.format(reference),
-        previousMonth,
+        YM.format(previous),
         engine,
-        SummaryCalculator.summarize(
-            forSummary,
-            linked.stream().filter(g -> !WantedChecks.GROUP_ID.equals(g.id())).toList()),
-        linked);
+        SummaryCalculator.summarize(forSummary),
+        checks.stream().map(c -> withDrillDown(c, reference)).toList());
   }
 
-  private static final int MONTHLY_DRILL_MONTHS = 36;
-  private static final int CPI_DRILL_MONTHS = 120;
-
-  /** 직전 달 포함 {@code months} 개월 범위를 붙인 링크. */
-  private static String rangedLink(String tab, String previousMonth, int months) {
-    YearMonth to = YearMonth.parse(previousMonth, YM);
-    return "/admin/data?tab="
-        + tab
-        + "&from="
-        + YM.format(to.minusMonths(months - 1L))
-        + "&to="
-        + previousMonth;
+  private List<DataHealthReport.Check> checks(
+      DataHealthSnapshot data, YearMonth reference, String engine) {
+    if (data == null) {
+      return allUnknown("데이터를 읽지 못했습니다");
+    }
+    try {
+      return HealthChecks.all(data, reference, engine, thresholds, clock.instant());
+    } catch (Exception e) {
+      log.error("[데이터 상태] 점검 실패", e);
+      return allUnknown("점검 중 오류: " + e.getMessage());
+    }
   }
 
-  /** 점검 → 관리자 「수집 데이터」 원본 화면. 판정과 무관하게 채운다(설계 §7). */
-  static String drillDown(String checkId, String previousMonth) {
-    return switch (checkId) {
-      case "SAMPLE_LAST_MONTH" ->
-          "/admin/data?tab=postings&month=" + previousMonth + "&sampled=true";
-      case "SAMPLE_GAPS", "AGGREGATE_STALE", "PEER_SAMPLE_BY_FAMILY", "CRAWL_FRESHNESS" ->
-          rangedLink("monthly", previousMonth, MONTHLY_DRILL_MONTHS);
-      case "CPI_LATEST", "CPI_GAP" -> rangedLink("cpi", previousMonth, CPI_DRILL_MONTHS);
-      case "WANTED_SAMPLE_LAST_MONTH" ->
-          "/admin/data?tab=postings&month=" + previousMonth + "&sampled=true&source=WANTED";
-      case "WANTED_SAMPLE_GAPS", "WANTED_AGGREGATE_STALE" ->
-          rangedLink("monthly", previousMonth, MONTHLY_DRILL_MONTHS) + "&sampleSource=WANTED";
-      case "WAGE_BASELINE" -> "/admin/data?tab=wage";
+  private static List<DataHealthReport.Check> allUnknown(String message) {
+    return CHECK_TITLES.entrySet().stream()
+        .map(e -> HealthChecks.unknown(e.getKey(), e.getValue(), message))
+        .toList();
+  }
+
+  private static DataHealthReport.Check withDrillDown(
+      DataHealthReport.Check c, YearMonth reference) {
+    return new DataHealthReport.Check(
+        c.id(),
+        c.title(),
+        c.verdict(),
+        c.message(),
+        c.impactUsers(),
+        c.action(),
+        c.actionLink(),
+        c.evidence(),
+        drillDown(c, reference));
+  }
+
+  /** 점검 → 관리자 「수집 데이터」 원본 화면. 판정과 무관하게 채운다(설계 §2.2). */
+  static String drillDown(DataHealthReport.Check c, YearMonth reference) {
+    return switch (c.id()) {
+      case "AGGREGATE_STALE" -> monthlyLink(c, reference);
+      case "CPI_LATEST" -> "/admin/data?tab=cpi";
+      case "CRAWL_FRESHNESS" -> crawlLink(c, reference);
       default -> null;
     };
   }
 
-  private static DataHealthReport.Group safe(
-      String id,
-      String title,
-      String question,
-      DataHealthSnapshot data,
-      Supplier<DataHealthReport.Group> build) {
-    if (data == null) {
-      return failed(id, title, question, "데이터를 읽지 못했습니다");
+  /** 불일치 달 중 가장 이른 달과 기준월-17개월 중 이른 쪽부터, 단 기준월-35개월보다 이르면 그 달부터. */
+  private static String monthlyLink(DataHealthReport.Check c, YearMonth reference) {
+    YearMonth from = reference.minusMonths(DEFAULT_DRILL_MONTHS);
+    for (Object months : c.evidence().values()) {
+      if (months instanceof List<?> list) {
+        for (Object m : list) {
+          YearMonth stale = YearMonth.parse(String.valueOf(m), YM);
+          from = stale.isBefore(from) ? stale : from;
+        }
+      }
     }
-    try {
-      return build.get();
-    } catch (Exception e) {
-      log.error("[데이터 상태] {} 점검 실패", id, e);
-      return failed(id, title, question, "점검 중 오류: " + e.getMessage());
-    }
+    YearMonth floor = reference.minusMonths(MAX_DRILL_MONTHS);
+    from = from.isBefore(floor) ? floor : from;
+    return "/admin/data?tab=monthly&from=" + YM.format(from) + "&to=" + YM.format(reference);
   }
 
-  private static DataHealthReport.Group failed(
-      String id, String title, String question, String message) {
-    return new DataHealthReport.Group(
-        id,
-        title,
-        question,
-        List.of(
-            new DataHealthReport.Check(
-                id + "_FAILED",
-                title,
-                HealthVerdict.UNKNOWN,
-                message,
-                null,
-                null,
-                null,
-                Map.of())));
+  private static String crawlLink(DataHealthReport.Check c, YearMonth reference) {
+    String link = "/admin/data?tab=postings&month=" + YM.format(reference) + "&sort=recent";
+    if (c.evidence().get("daysSinceBySource") instanceof Map<?, ?> days) {
+      String oldest =
+          days.entrySet().stream()
+              .max(Comparator.comparingLong(e -> ((Number) e.getValue()).longValue()))
+              .map(e -> String.valueOf(e.getKey()))
+              .orElse(null);
+      if (oldest != null) {
+        return link + "&source=" + oldest;
+      }
+    }
+    return link;
   }
 }

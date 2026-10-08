@@ -5,13 +5,11 @@ import com.carix.jobposting.JobPostingRepository;
 import com.carix.market.MarketAggregateService;
 import com.carix.pipeline.health.DataHealthSnapshot.SampleSeries;
 import com.carix.pipeline.health.DataHealthSnapshot.UserSnapshot;
-import com.carix.pipeline.health.DataHealthSnapshot.WageCell;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.time.YearMonth;
-import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -31,7 +29,6 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class JdbcDataHealthReader implements DataHealthReader {
 
-  private static final DateTimeFormatter YM = DateTimeFormatter.ofPattern("yyyyMM");
   private static final ObjectMapper MAPPER = new ObjectMapper();
 
   private final JdbcTemplate jdbc;
@@ -48,15 +45,11 @@ public class JdbcDataHealthReader implements DataHealthReader {
     return new DataHealthSnapshot(
         monthCounts(
             "SELECT base_year_month, COUNT(DISTINCT category) FROM core.cpi_observation GROUP BY base_year_month"),
-        jobKorea.sampledByMonth(),
-        jobKorea.cappedByMonth(),
-        jobKorea.aggregatedByMonth(),
-        familyTotals(YM.format(previousMonth)),
-        wageCells(),
+        jobKorea,
+        wanted,
         crawlLatest(),
         snapshots(),
-        families(),
-        wanted);
+        families());
   }
 
   SampleSeries sampleSeries(String source, List<JobPosting> all) {
@@ -90,26 +83,6 @@ public class JdbcDataHealthReader implements DataHealthReader {
         },
         args);
     return out;
-  }
-
-  private Map<String, Integer> familyTotals(String month) {
-    Map<String, Integer> out = new HashMap<>();
-    jdbc.query(
-        "SELECT job_family, MAX(posting_count) FROM core.market_aggregate WHERE source = 'JOBKOREA'"
-            + " AND base_year_month = ? AND experience_bracket = 'ALL' AND region = 'ALL'"
-            + " AND employment_type = 'ALL' AND company_size = 'ALL' AND skill_id IS NULL GROUP BY job_family",
-        rs -> {
-          out.put(rs.getString(1), rs.getInt(2));
-        },
-        month);
-    return out;
-  }
-
-  private List<WageCell> wageCells() {
-    return jdbc.query(
-        "SELECT DISTINCT base_period, job_family, experience_bracket, source FROM core.wage_stat_observation",
-        (rs, i) ->
-            new WageCell(rs.getString(1), rs.getString(2), rs.getString(3), rs.getString(4)));
   }
 
   private Map<String, Instant> crawlLatest() {
