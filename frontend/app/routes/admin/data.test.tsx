@@ -10,6 +10,7 @@ vi.mock("../../lib/collectorApi", async (orig) => ({
   fetchMonthlyOverview: vi.fn(),
   fetchPostings: vi.fn(),
   fetchCpi: vi.fn(),
+  fetchDataHealth: vi.fn(),
 }));
 
 const monthly: api.MonthlyOverview = {
@@ -39,6 +40,31 @@ const monthly: api.MonthlyOverview = {
       wantedCrawled: 320,
     },
   ],
+};
+
+const healthyReport: api.DataHealthReport = {
+  evaluatedAt: "2026-10-08T00:25:00Z",
+  referenceMonth: "202610",
+  previousMonth: "202609",
+  engineRuleVersion: "1.3.0",
+  summary: { users: 3, fullyAnswered: 3, gaps: [] },
+  checks: [
+    "AGGREGATE_STALE",
+    "RULE_VERSION",
+    "SNAPSHOT_FRESHNESS",
+    "CPI_LATEST",
+    "CRAWL_FRESHNESS",
+  ].map((id) => ({
+    id,
+    title: id,
+    verdict: "OK" as const,
+    message: "정상",
+    impactUsers: null,
+    action: null,
+    actionLink: null,
+    evidence: {},
+    drillDown: null,
+  })),
 };
 
 const postings: api.PostingPage = {
@@ -95,6 +121,7 @@ describe("DataExplorePage", () => {
     vi.clearAllMocks();
     vi.mocked(api.fetchMonthlyOverview).mockResolvedValue(monthly);
     vi.mocked(api.fetchPostings).mockResolvedValue(postings);
+    vi.mocked(api.fetchDataHealth).mockResolvedValue(healthyReport);
   });
 
   it("기본 탭은 월별 현황이고 얇은 칸을 강조한다", async () => {
@@ -345,5 +372,25 @@ describe("DataExplorePage", () => {
     await userEvent.click(screen.getByRole("button", { name: "저장하기" }));
     expect(await screen.findByText("118.32")).toBeInTheDocument();
     expect(api.fetchCpi).toHaveBeenCalledTimes(2);
+  });
+
+  it("점검 응답이 실패해도 탭 내용은 그려진다", async () => {
+    vi.mocked(api.fetchDataHealth).mockRejectedValue({ status: 500 });
+    renderAt("/admin/data");
+    expect(await screen.findByText("150")).toBeInTheDocument();
+    expect(
+      await screen.findByText("점검을 불러오지 못했습니다"),
+    ).toBeInTheDocument();
+  });
+
+  it("탭을 바꾸거나 다시 렌더해도 점검은 처음 한 번만 부른다", async () => {
+    renderAt("/admin/data");
+    await screen.findByText("점검 정상");
+    await userEvent.click(screen.getByRole("tab", { name: "공고" }));
+    await userEvent.click(screen.getByRole("tab", { name: "월별 현황" }));
+    await screen.findByText("150");
+    expect(api.fetchDataHealth).toHaveBeenCalledTimes(1);
+    await userEvent.click(screen.getByRole("button", { name: "다시 점검" }));
+    await waitFor(() => expect(api.fetchDataHealth).toHaveBeenCalledTimes(2));
   });
 });

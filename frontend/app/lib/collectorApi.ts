@@ -269,13 +269,6 @@ export interface HealthCheck {
   evidence: Record<string, unknown>;
 }
 
-export interface HealthGroup {
-  id: "PPI" | "MVI" | "DECISION" | "SUPPORT" | string;
-  title: string;
-  question: string;
-  checks: HealthCheck[];
-}
-
 export interface DataHealthReport {
   evaluatedAt: string;
   referenceMonth: string;
@@ -285,9 +278,8 @@ export interface DataHealthReport {
     users: number;
     fullyAnswered: number;
     gaps: { answer: string; reason: string; users: number }[];
-    verdictCounts: Record<HealthVerdict, number>;
   };
-  groups: HealthGroup[];
+  checks: HealthCheck[];
 }
 
 export function fetchDataHealth(): Promise<DataHealthReport> {

@@ -1,7 +1,8 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useSearchParams } from "react-router";
 import { ThemeToggle } from "../../components/ThemeToggle";
 import { AdminHeader } from "../../components/admin/AdminHeader";
+import { DataHealthStrip } from "../../components/admin/DataHealthStrip";
 import { AdminKeyModal } from "../../components/admin/AdminKeyModal";
 import { MonthlyOverviewTable } from "../../components/admin/explore/MonthlyOverviewTable";
 import { PostingsExplorer } from "../../components/admin/explore/PostingsExplorer";
@@ -110,6 +111,8 @@ export default function DataExplorePage() {
     reloadKey,
   ]);
 
+  const openKeyModal = useCallback(() => setIsKeyModalOpen(true), []);
+
   const reload = () => setReloadKey((k) => k + 1);
 
   const update = (next: Record<string, string | undefined>) => {
@@ -121,12 +124,10 @@ export default function DataExplorePage() {
   return (
     <div className="min-h-screen bg-carix-bg text-carix-text">
       <ThemeToggle />
-      <AdminHeader
-        active="data"
-        onOpenKeyModal={() => setIsKeyModalOpen(true)}
-      />
+      <AdminHeader active="data" onOpenKeyModal={openKeyModal} />
       <main className="mx-auto max-w-7xl px-6 py-8 space-y-4">
         <h1 className="text-lg font-bold">수집 데이터</h1>
+        <DataHealthStrip onAuthError={openKeyModal} />
         <div role="tablist" className="flex gap-2">
           {TABS.map((t) => (
             <Button
