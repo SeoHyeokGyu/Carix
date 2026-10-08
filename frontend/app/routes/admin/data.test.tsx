@@ -206,6 +206,48 @@ describe("DataExplorePage", () => {
     );
   });
 
+  it("시작 월이 끝 월보다 늦으면 메시지를 보이고 URL·조회를 바꾸지 않는다", async () => {
+    renderAt("/admin/data?tab=monthly&from=202310&to=202609");
+    await screen.findByText("150");
+    const calls = vi.mocked(api.fetchMonthlyOverview).mock.calls.length;
+    fireEvent.change(screen.getByLabelText("시작 월"), {
+      target: { value: "2026-10" },
+    });
+    expect(
+      await screen.findByText("시작 월이 끝 월보다 늦습니다"),
+    ).toBeInTheDocument();
+    expect(screen.getByLabelText("시작 월")).toHaveValue("2023-10");
+    expect(api.fetchMonthlyOverview).toHaveBeenCalledTimes(calls);
+    fireEvent.change(screen.getByLabelText("끝 월"), {
+      target: { value: "2023-09" },
+    });
+    expect(
+      await screen.findByText("시작 월이 끝 월보다 늦습니다"),
+    ).toBeInTheDocument();
+    expect(api.fetchMonthlyOverview).toHaveBeenCalledTimes(calls);
+  });
+
+  it("기간이 36개월을 넘으면 메시지를 보이고, 다음 올바른 입력에서 메시지가 사라진다", async () => {
+    renderAt("/admin/data?tab=monthly&from=202310&to=202609");
+    await screen.findByText("150");
+    const calls = vi.mocked(api.fetchMonthlyOverview).mock.calls.length;
+    fireEvent.change(screen.getByLabelText("시작 월"), {
+      target: { value: "2023-09" },
+    });
+    expect(
+      await screen.findByText("기간은 최대 36개월입니다"),
+    ).toBeInTheDocument();
+    expect(api.fetchMonthlyOverview).toHaveBeenCalledTimes(calls);
+    fireEvent.change(screen.getByLabelText("시작 월"), {
+      target: { value: "2023-11" },
+    });
+    await waitFor(() =>
+      expect(
+        screen.queryByText("기간은 최대 36개월입니다"),
+      ).not.toBeInTheDocument(),
+    );
+  });
+
   it("sampleSource 는 소문자여도 정규화해 선택 상자와 머리글에 반영한다", async () => {
     renderAt("/admin/data?tab=monthly&sampleSource=wanted");
     await screen.findByText("150");

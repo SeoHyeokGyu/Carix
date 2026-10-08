@@ -199,3 +199,23 @@ export function isSharpCpiChange(
   if (prev === undefined || curr === undefined || prev === 0) return false;
   return Math.abs(curr / prev - 1) > CPI_SHARP_RATIO;
 }
+
+/** 월별 현황·CPI 기간 입력의 최대 길이(시작·끝 월 포함). */
+export const MAX_PERIOD_MONTHS = 36;
+
+/** 기간 입력이 맞지 않으면 화면 문구를, 맞거나 한쪽이 비었으면 null 을 돌린다. 둘 다 yyyyMM. */
+export function periodError(
+  from: string | undefined,
+  to: string | undefined,
+): string | null {
+  if (!from || !to || !/^\d{6}$/.test(from) || !/^\d{6}$/.test(to)) {
+    return null;
+  }
+  const index = (m: string) => Number(m.slice(0, 4)) * 12 + Number(m.slice(4));
+  const span = index(to) - index(from) + 1;
+  if (span < 1) return "시작 월이 끝 월보다 늦습니다";
+  if (span > MAX_PERIOD_MONTHS) {
+    return `기간은 최대 ${MAX_PERIOD_MONTHS}개월입니다`;
+  }
+  return null;
+}

@@ -22,6 +22,7 @@ import {
   toMonthInput,
   POSTING_SORTS,
   parseTab,
+  periodError,
   TABS,
 } from "../../lib/dataExplore";
 
@@ -41,6 +42,7 @@ export default function DataExplorePage() {
   const [isKeyModalOpen, setIsKeyModalOpen] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
   const [healthKey, setHealthKey] = useState(0);
+  const [periodMessage, setPeriodMessage] = useState<string | null>(null);
 
   const month = params.get("month") ?? "";
   const sampledParam = params.get("sampled");
@@ -132,6 +134,20 @@ export default function DataExplorePage() {
 
   const reload = () => setReloadKey((k) => k + 1);
 
+  // 기간이 맞지 않으면 URL 을 바꾸지 않고 메시지만 남긴다. 입력칸은 URL 값으로 되돌아간다.
+  const changePeriod = (
+    nextFrom: string | undefined,
+    nextTo: string | undefined,
+  ) => {
+    const message = periodError(
+      nextFrom ?? shownRange?.from,
+      nextTo ?? shownRange?.to,
+    );
+    setPeriodMessage(message);
+    if (message) return;
+    update({ from: nextFrom, to: nextTo });
+  };
+
   const update = (next: Record<string, string | undefined>) => {
     const sp = new URLSearchParams(params);
     Object.entries(next).forEach(([k, v]) => (v ? sp.set(k, v) : sp.delete(k)));
@@ -157,7 +173,10 @@ export default function DataExplorePage() {
               aria-selected={tab === t.id}
               variant={tab === t.id ? "default" : "outline"}
               size="sm"
-              onClick={() => setParams(new URLSearchParams({ tab: t.id }))}
+              onClick={() => {
+                setPeriodMessage(null);
+                setParams(new URLSearchParams({ tab: t.id }));
+              }}
             >
               {t.label}
             </Button>
@@ -184,7 +203,7 @@ export default function DataExplorePage() {
                 aria-label="시작 월"
                 value={toMonthInput(from ?? shownRange?.from)}
                 onChange={(e) =>
-                  update({ from: fromMonthInput(e.target.value) })
+                  changePeriod(fromMonthInput(e.target.value), to)
                 }
                 className="rounded border border-carix-border px-2 py-1"
               />
@@ -194,14 +213,19 @@ export default function DataExplorePage() {
                 aria-label="끝 월"
                 value={toMonthInput(to ?? shownRange?.to)}
                 onChange={(e) =>
-                  update({
-                    from: from ?? shownRange?.from,
-                    to: fromMonthInput(e.target.value),
-                  })
+                  changePeriod(
+                    from ?? shownRange?.from,
+                    fromMonthInput(e.target.value),
+                  )
                 }
                 className="rounded border border-carix-border px-2 py-1"
               />
             </span>
+            {periodMessage && (
+              <p role="alert" className="text-carix-danger">
+                {periodMessage}
+              </p>
+            )}
           </div>
         )}
 
