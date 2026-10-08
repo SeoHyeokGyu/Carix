@@ -66,6 +66,25 @@ describe("MonthlyOverviewTable", () => {
     expect(screen.queryByText("기타")).not.toBeInTheDocument();
   });
 
+  it("2단 머리글이 묶음 순서대로 나열된다", () => {
+    renderTable();
+    const row = document.querySelectorAll("thead tr")[1];
+    expect(
+      Array.from(row.querySelectorAll("th")).map((th) => th.textContent),
+    ).toEqual([
+      "표본",
+      "상한 적용",
+      "정기",
+      "정기",
+      "표본",
+      "상한 적용",
+      "정기",
+      "개발",
+      "데이터",
+      "AI",
+    ]);
+  });
+
   it("직무별 묶음 머리글은 선택한 원천 이름을 따른다", () => {
     renderTable("WANTED");
     expect(
@@ -85,13 +104,8 @@ describe("MonthlyOverviewTable", () => {
     renderTable();
     const row = screen.getByRole("link", { name: "202610" }).closest("tr")!;
     expect(within(row).getByText("수집 중")).toBeInTheDocument();
-    const zeros = within(row).getAllByText("0");
-    expect(zeros.length).toBeGreaterThan(0);
-    zeros.forEach((c) => {
-      if (c.hasAttribute("data-thin")) {
-        expect(c).toHaveAttribute("data-thin", "false");
-      }
-    });
+    expect(row.querySelectorAll('td[data-thin="false"]')).toHaveLength(5);
+    expect(row.querySelectorAll('td[data-thin="true"]')).toHaveLength(0);
     expect(screen.getAllByText("수집 중")).toHaveLength(1);
   });
 

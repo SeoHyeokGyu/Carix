@@ -187,6 +187,30 @@ describe("DataExplorePage", () => {
     );
   });
 
+  it("기간 URL 이 없을 때 한쪽만 바꿔도 보이던 다른 쪽을 함께 남긴다", async () => {
+    renderAt("/admin/data");
+    await screen.findByText("150");
+    fireEvent.change(screen.getByLabelText("끝 월"), {
+      target: { value: "2026-08" },
+    });
+    await waitFor(() =>
+      expect(api.fetchMonthlyOverview).toHaveBeenLastCalledWith(
+        "202608",
+        "202608",
+        undefined,
+      ),
+    );
+  });
+
+  it("sampleSource 는 소문자여도 정규화해 선택 상자와 머리글에 반영한다", async () => {
+    renderAt("/admin/data?tab=monthly&sampleSource=wanted");
+    await screen.findByText("150");
+    expect(screen.getByLabelText("직무별 표본 원천")).toHaveValue("WANTED");
+    expect(
+      screen.getByRole("columnheader", { name: "직무별 표본 (원티드)" }),
+    ).toBeInTheDocument();
+  });
+
   it("월별 현황에 원티드 표본·상한 적용·정기 열을 보인다", async () => {
     renderAt("/admin/data");
     await screen.findByText("150");

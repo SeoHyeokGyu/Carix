@@ -16,6 +16,7 @@ import {
 } from "../../lib/collectorApi";
 import {
   fromMonthInput,
+  normalizeSampleSource,
   parsePostingSort,
   toMonthInput,
   POSTING_SORTS,
@@ -49,7 +50,8 @@ export default function DataExplorePage() {
         ? false
         : undefined;
   const sort = parsePostingSort(params.get("sort"));
-  const sampleSource = params.get("sampleSource") ?? undefined;
+  const rawSampleSource = params.get("sampleSource") ?? undefined;
+  const sampleSource = normalizeSampleSource(rawSampleSource);
   const page = Math.max(0, Math.trunc(Number(params.get("page") ?? "0") || 0));
 
   const from = params.get("from") ?? undefined;
@@ -69,7 +71,7 @@ export default function DataExplorePage() {
         if (tab === "monthly") {
           next = {
             kind: "monthly",
-            data: await fetchMonthlyOverview(from, to, sampleSource),
+            data: await fetchMonthlyOverview(from, to, rawSampleSource),
           };
         } else if (tab === "postings" && month && isMonthValid) {
           next = {
@@ -107,7 +109,7 @@ export default function DataExplorePage() {
     isMonthValid,
     from,
     to,
-    sampleSource,
+    rawSampleSource,
     sampled,
     page,
     paramsKey,
@@ -154,7 +156,7 @@ export default function DataExplorePage() {
               직무별 표본 원천
               <select
                 aria-label="직무별 표본 원천"
-                value={sampleSource === "WANTED" ? "WANTED" : "JOBKOREA"}
+                value={sampleSource}
                 onChange={(e) => update({ sampleSource: e.target.value })}
                 className="rounded border border-carix-border px-2 py-1"
               >
@@ -177,7 +179,12 @@ export default function DataExplorePage() {
                 type="month"
                 aria-label="끝 월"
                 value={toMonthInput(to ?? shownRange?.to)}
-                onChange={(e) => update({ to: fromMonthInput(e.target.value) })}
+                onChange={(e) =>
+                  update({
+                    from: from ?? shownRange?.from,
+                    to: fromMonthInput(e.target.value),
+                  })
+                }
                 className="rounded border border-carix-border px-2 py-1"
               />
             </span>

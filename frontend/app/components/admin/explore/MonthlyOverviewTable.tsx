@@ -1,6 +1,10 @@
 import { Link } from "react-router";
 import type { MonthlyOverview } from "../../../lib/collectorApi";
-import { isThinFamily, isThinSample } from "../../../lib/dataExplore";
+import {
+  isThinFamily,
+  isThinSample,
+  SAMPLE_COMPANY_CAP,
+} from "../../../lib/dataExplore";
 import { familyLabel, sourceLabel } from "../../../lib/sourceLabel";
 
 const FAMILIES = ["DEVELOPER", "DATA", "AI"] as const;
@@ -42,7 +46,7 @@ export function MonthlyOverviewTable({
     <div className="space-y-2">
       <p className="text-xs text-carix-text/60">
         주황 = 상한 적용 표본 200 미만 또는 직무 표본 10 미만 · 상한 적용 = 같은
-        회사 월 3건까지 · 정기 = 그 달 처음 관측된 공고
+        회사 월 {SAMPLE_COMPANY_CAP}건까지 · 정기 = 그 달 처음 관측된 공고
       </p>
       <div className="overflow-x-auto">
         <table className="w-full text-xs">

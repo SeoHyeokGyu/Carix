@@ -11,11 +11,18 @@ export const TABS: { id: ExploreTab; label: string }[] = [
 
 /** 표본 목표 250 의 80%. 설계 §8 강조 규칙 — collector 점검 기준과 같다. */
 export const SAMPLE_WARN_BELOW = 200;
+/** 상한 적용 = 같은 회사 월 3건까지. 백엔드 MarketAggregateService.SAMPLE_COMPANY_CAP_PER_MONTH 와 같아야 한다. */
+export const SAMPLE_COMPANY_CAP = 3;
 /** 시장가치 동료집단 최소 표본. */
 export const FAMILY_MIN_SAMPLE = 10;
 
 export function parseTab(value: string | null): ExploreTab {
   return TABS.some((t) => t.id === value) ? (value as ExploreTab) : "monthly";
+}
+
+/** 직무별 표본 원천 파라미터 정규화. 공백·대소문자를 무시하고 모르면 잡코리아. */
+export function normalizeSampleSource(raw: string | null | undefined) {
+  return raw?.trim().toUpperCase() === "WANTED" ? "WANTED" : "JOBKOREA";
 }
 
 export const isThinSample = (n: number) => n < SAMPLE_WARN_BELOW;
