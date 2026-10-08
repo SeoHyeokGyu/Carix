@@ -158,4 +158,52 @@ class HealthChecksTest {
     assertThat(find(HealthChecks.all(data, REF, "1.4.0", t, NOW), "SNAPSHOT_FRESHNESS").verdict())
         .isEqualTo(HealthVerdict.WARN);
   }
+
+  @Test
+  @DisplayName("잡코리아 표본이 없고 원티드만 있으면 원티드만 비교한다")
+  void aggregateStaleComparesOnlyPresentSource() {
+    var stale =
+        HealthChecks.all(
+            snapshot(null, series(200, 190), Map.of(), Map.of(), List.of()), REF, "1.4.0", t, NOW);
+    var equal =
+        HealthChecks.all(
+            snapshot(null, series(200, 200), Map.of(), Map.of(), List.of()), REF, "1.4.0", t, NOW);
+    assertThat(find(stale, "AGGREGATE_STALE").verdict()).isEqualTo(HealthVerdict.WARN);
+    assertThat(find(equal, "AGGREGATE_STALE").verdict()).isEqualTo(HealthVerdict.OK);
+  }
+
+  @Test
+  @DisplayName("재집계 누락 영향 사용자: 잡코리아 불일치면 MVI 미정상 수, 정상이면 0, 원티드만이면 0")
+  void aggregateStaleImpactUsers() {
+    var users =
+        List.of(
+            user("a", "202610", "1.4.0"),
+            new UserSnapshot(
+                "b", "202610", "1.4.0", "STAY", "OK", "INSUFFICIENT_SAMPLE", List.of()),
+            new UserSnapshot("c", "202610", "1.4.0", "STAY", "OK", null, List.of()));
+    var jk =
+        HealthChecks.all(
+            snapshot(series(200, 190), series(200, 200), Map.of(), Map.of(), users),
+            REF,
+            "1.4.0",
+            t,
+            NOW);
+    var ok =
+        HealthChecks.all(
+            snapshot(series(200, 200), series(200, 200), Map.of(), Map.of(), users),
+            REF,
+            "1.4.0",
+            t,
+            NOW);
+    var wanted =
+        HealthChecks.all(
+            snapshot(series(200, 200), series(200, 190), Map.of(), Map.of(), users),
+            REF,
+            "1.4.0",
+            t,
+            NOW);
+    assertThat(find(jk, "AGGREGATE_STALE").impactUsers()).isEqualTo(2);
+    assertThat(find(ok, "AGGREGATE_STALE").impactUsers()).isZero();
+    assertThat(find(wanted, "AGGREGATE_STALE").impactUsers()).isZero();
+  }
 }

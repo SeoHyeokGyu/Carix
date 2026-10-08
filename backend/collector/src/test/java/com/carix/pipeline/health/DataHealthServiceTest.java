@@ -37,7 +37,7 @@ class DataHealthServiceTest {
   void evaluate_referenceMonthUtc() {
     var service =
         new DataHealthService(
-            prev -> snap(null),
+            () -> snap(null),
             () -> Optional.of("1.3.0"),
             HealthThresholds.defaults(),
             at("2026-10-31T16:00:00Z"));
@@ -45,14 +45,9 @@ class DataHealthServiceTest {
   }
 
   @Test
-  @DisplayName("점검 다섯을 정해진 순서로 내고 groups 는 없으며 지난달을 읽기에 넘긴다")
+  @DisplayName("점검 다섯을 정해진 순서로 내고 groups 는 없다")
   void evaluate_checksInOrder() {
-    YearMonth[] asked = new YearMonth[1];
-    DataHealthReader reader =
-        prev -> {
-          asked[0] = prev;
-          return snap(null);
-        };
+    DataHealthReader reader = () -> snap(null);
     var service =
         new DataHealthService(
             reader,
@@ -62,7 +57,6 @@ class DataHealthServiceTest {
 
     DataHealthReport r = service.evaluate();
 
-    assertThat(asked[0]).isEqualTo(YearMonth.of(2026, 9));
     assertThat(r.referenceMonth()).isEqualTo("202610");
     assertThat(r.previousMonth()).isEqualTo("202609");
     assertThat(r.engineRuleVersion()).isEqualTo("1.3.0");
@@ -83,7 +77,7 @@ class DataHealthServiceTest {
   @DisplayName("읽기가 예외를 내면 다섯 점검 모두 판정 불가")
   void service_readFailureMakesAllUnknown() {
     DataHealthReader reader =
-        prev -> {
+        () -> {
           throw new IllegalStateException("db down");
         };
     var service =
@@ -104,7 +98,7 @@ class DataHealthServiceTest {
 
   private static DataHealthReport evaluate(DataHealthSnapshot data) {
     return new DataHealthService(
-            prev -> data,
+            () -> data,
             () -> Optional.of("1.3.0"),
             HealthThresholds.defaults(),
             at("2026-10-05T00:00:00Z"))
@@ -154,8 +148,7 @@ class DataHealthServiceTest {
   void drillDown_others() {
     var r = evaluate(snap(null));
     assertThat(check(r, "CPI_LATEST").drillDown()).isEqualTo("/admin/data?tab=cpi");
-    assertThat(check(r, "CRAWL_FRESHNESS").drillDown())
-        .isEqualTo("/admin/data?tab=postings&month=202610&sort=recent");
+    assertThat(check(r, "CRAWL_FRESHNESS").drillDown()).isNull();
     assertThat(check(r, "RULE_VERSION").drillDown()).isNull();
     assertThat(check(r, "SNAPSHOT_FRESHNESS").drillDown()).isNull();
 
@@ -171,6 +164,54 @@ class DataHealthServiceTest {
                 List.of(),
                 Map.of()));
     assertThat(check(withCrawl, "CRAWL_FRESHNESS").drillDown())
-        .isEqualTo("/admin/data?tab=postings&month=202610&sort=recent&source=WANTED");
+        .isEqualTo("/admin/data?tab=postings&month=202609&sort=recent&source=WANTED");
+  }
+
+  @Test
+  @DisplayName("재집계 누락 링크: 해석 못 하는 달 키는 건너뛰고 모두 못 하면 기본 범위")
+  void drillDown_aggregateStale_malformedMonth() {
+    var withBad =
+        new DataHealthReport.Check(
+            "AGGREGATE_STALE",
+            "t",
+            HealthVerdict.ERROR,
+            "m",
+            null,
+            null,
+            null,
+            Map.of("JOBKOREA", List.of("bad", "202401"), "WANTED", List.of()));
+    assertThat(DataHealthService.drillDown(withBad, YearMonth.of(2026, 10)))
+        .isEqualTo("/admin/data?tab=monthly&from=202401&to=202610");
+    var allBad =
+        new DataHealthReport.Check(
+            "AGGREGATE_STALE",
+            "t",
+            HealthVerdict.ERROR,
+            "m",
+            null,
+            null,
+            null,
+            Map.of("JOBKOREA", List.of("x", "2024-1")));
+    assertThat(DataHealthService.drillDown(allBad, YearMonth.of(2026, 10)))
+        .isEqualTo("/admin/data?tab=monthly&from=202505&to=202610");
+  }
+
+  @Test
+  @DisplayName("점검 계산이 예외를 내면 다섯 점검 모두 판정 불가")
+  void checksThrowing_allUnknown() {
+    var throwing =
+        new HealthThresholds() {
+          @Override
+          public int cpiMaxLagMonths() {
+            throw new IllegalStateException("boom");
+          }
+        };
+    var service =
+        new DataHealthService(
+            () -> snap(null), Optional::empty, throwing, at("2026-10-05T00:00:00Z"));
+    DataHealthReport r = service.evaluate();
+    assertThat(r.checks()).hasSize(5);
+    assertThat(r.checks())
+        .allSatisfy(c -> assertThat(c.verdict()).isEqualTo(HealthVerdict.UNKNOWN));
   }
 }

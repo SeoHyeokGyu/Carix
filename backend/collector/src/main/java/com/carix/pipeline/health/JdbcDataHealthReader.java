@@ -9,7 +9,6 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.sql.Timestamp;
 import java.time.Instant;
-import java.time.YearMonth;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -37,7 +36,7 @@ public class JdbcDataHealthReader implements DataHealthReader {
 
   @Override
   @Transactional(readOnly = true)
-  public DataHealthSnapshot read(YearMonth previousMonth) {
+  public DataHealthSnapshot read() {
     List<JobPosting> all = jobPostingRepository.findAll();
     SampleSeries jobKorea = sampleSeries("JOBKOREA", all);
     SampleSeries wanted = sampleSeries("WANTED", all);

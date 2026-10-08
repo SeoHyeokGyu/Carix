@@ -7,6 +7,7 @@ import java.time.YearMonth;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -72,7 +73,7 @@ public class DataHealthService {
 
     DataHealthSnapshot data;
     try {
-      data = reader.read(previous);
+      data = reader.read();
     } catch (Exception e) {
       log.error("[데이터 상태] 데이터 읽기 실패", e);
       data = null;
@@ -127,7 +128,7 @@ public class DataHealthService {
     return switch (c.id()) {
       case "AGGREGATE_STALE" -> monthlyLink(c, reference);
       case "CPI_LATEST" -> "/admin/data?tab=cpi";
-      case "CRAWL_FRESHNESS" -> crawlLink(c, reference);
+      case "CRAWL_FRESHNESS" -> crawlLink(c);
       default -> null;
     };
   }
@@ -138,8 +139,10 @@ public class DataHealthService {
     for (Object months : c.evidence().values()) {
       if (months instanceof List<?> list) {
         for (Object m : list) {
-          YearMonth stale = YearMonth.parse(String.valueOf(m), YM);
-          from = stale.isBefore(from) ? stale : from;
+          YearMonth stale = parseOrNull(m);
+          if (stale != null && stale.isBefore(from)) {
+            from = stale;
+          }
         }
       }
     }
@@ -148,18 +151,29 @@ public class DataHealthService {
     return "/admin/data?tab=monthly&from=" + YM.format(from) + "&to=" + YM.format(reference);
   }
 
-  private static String crawlLink(DataHealthReport.Check c, YearMonth reference) {
-    String link = "/admin/data?tab=postings&month=" + YM.format(reference) + "&sort=recent";
-    if (c.evidence().get("daysSinceBySource") instanceof Map<?, ?> days) {
-      String oldest =
-          days.entrySet().stream()
-              .max(Comparator.comparingLong(e -> ((Number) e.getValue()).longValue()))
-              .map(e -> String.valueOf(e.getKey()))
-              .orElse(null);
-      if (oldest != null) {
-        return link + "&source=" + oldest;
-      }
+  private static YearMonth parseOrNull(Object month) {
+    try {
+      return YearMonth.parse(String.valueOf(month), YM);
+    } catch (DateTimeParseException e) {
+      return null;
     }
-    return link;
+  }
+
+  /** 가장 오래된 원천의 마지막 수집 달로 간다. 원천이 없으면 링크도 없다. */
+  private static String crawlLink(DataHealthReport.Check c) {
+    if (!(c.evidence().get("daysSinceBySource") instanceof Map<?, ?> days)
+        || !(c.evidence().get("lastMonthBySource") instanceof Map<?, ?> months)) {
+      return null;
+    }
+    return days.entrySet().stream()
+        .filter(e -> e.getValue() instanceof Number && months.get(e.getKey()) != null)
+        .max(Comparator.comparingLong(e -> ((Number) e.getValue()).longValue()))
+        .map(
+            e ->
+                "/admin/data?tab=postings&month="
+                    + months.get(e.getKey())
+                    + "&sort=recent&source="
+                    + e.getKey())
+        .orElse(null);
   }
 }

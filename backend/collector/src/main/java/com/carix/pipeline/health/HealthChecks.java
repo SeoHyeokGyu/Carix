@@ -5,6 +5,7 @@ import com.carix.pipeline.health.DataHealthSnapshot.SampleSeries;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.YearMonth;
+import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
@@ -29,7 +30,7 @@ public final class HealthChecks {
       HealthThresholds t,
       Instant now) {
     return List.of(
-        aggregateStale(data.jobKorea(), data.wanted()),
+        aggregateStale(data),
         ruleVersion(data, engineRuleVersion),
         snapshotFreshness(data, referenceMonth),
         cpiLatest(data, referenceMonth, t),
@@ -41,7 +42,9 @@ public final class HealthChecks {
   }
 
   /** 잡코리아 불일치는 ERROR, 원티드만 불일치면 WARN(지수 편입 전). 표본이 있는 원천만 비교한다. */
-  private static Check aggregateStale(SampleSeries jobKorea, SampleSeries wanted) {
+  private static Check aggregateStale(DataHealthSnapshot data) {
+    SampleSeries jobKorea = data.jobKorea();
+    SampleSeries wanted = data.wanted();
     String id = "AGGREGATE_STALE";
     String title = "재집계 누락";
     if (jobKorea.sampledByMonth().isEmpty() && wanted.sampledByMonth().isEmpty()) {
@@ -56,6 +59,10 @@ public final class HealthChecks {
         !jkStale.isEmpty()
             ? HealthVerdict.ERROR
             : !wantedStale.isEmpty() ? HealthVerdict.WARN : HealthVerdict.OK;
+    int impact =
+        jkStale.isEmpty()
+            ? 0
+            : (int) data.snapshots().stream().filter(s -> !"OK".equals(s.mviStatus())).count();
     int total = jkStale.size() + wantedStale.size();
     Map<String, Object> evidence = new LinkedHashMap<>();
     evidence.put("JOBKOREA", jkStale);
@@ -65,7 +72,7 @@ public final class HealthChecks {
         title,
         v,
         total == 0 ? "표본과 집계 일치" : "불일치 " + total + "개월",
-        null,
+        impact,
         v == HealthVerdict.OK ? null : "재집계",
         v == HealthVerdict.OK ? null : COLLECTOR,
         evidence);
@@ -167,10 +174,12 @@ public final class HealthChecks {
       return unknown("CRAWL_FRESHNESS", "정기 수집 최신성", "정기 수집 기록이 없습니다");
     }
     Map<String, Object> days = new LinkedHashMap<>();
+    Map<String, Object> lastMonths = new LinkedHashMap<>();
     long worst = 0;
     for (Map.Entry<String, Instant> e : data.crawlLatestBySource().entrySet()) {
       long d = Duration.between(e.getValue(), now).toDays();
       days.put(e.getKey(), d);
+      lastMonths.put(e.getKey(), YM.format(e.getValue().atZone(ZoneOffset.UTC)));
       worst = Math.max(worst, d);
     }
     HealthVerdict v = worst > t.crawlStaleDays() ? HealthVerdict.WARN : HealthVerdict.OK;
@@ -182,7 +191,7 @@ public final class HealthChecks {
         null,
         v == HealthVerdict.OK ? null : "정기 수집 실행",
         v == HealthVerdict.OK ? null : COLLECTOR,
-        Map.of("daysSinceBySource", days));
+        Map.of("daysSinceBySource", days, "lastMonthBySource", lastMonths));
   }
 
   /** 점으로 나눈 숫자를 차례로 비교한다. 숫자가 아닌 조각은 0 으로 본다. */
