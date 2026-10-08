@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.carix.jobposting.JobPosting;
 import com.carix.jobposting.JobPostingRepository;
+import com.carix.market.MarketAggregateService;
 import com.carix.pipeline.dto.explore.MonthlyOverview;
 import java.time.Clock;
 import java.time.Instant;
@@ -24,6 +25,8 @@ class MonthlyOverviewTest {
 
   @Autowired private JobPostingRepository repository;
   @Autowired private DataExploreService service;
+  @Autowired private ExploreQueries queries;
+  @Autowired private MarketAggregateService aggregate;
 
   private void posting(
       String source, String id, String company, String family, String seen, String sampled) {
@@ -72,7 +75,7 @@ class MonthlyOverviewTest {
         .containsEntry("DEVELOPER", 3)
         .containsEntry("DATA", 1)
         .containsEntry("AI", 0)
-        .containsEntry("OTHER", 0);
+        .doesNotContainKey("OTHER");
     assertThat(o.months())
         .extracting(MonthlyOverview.Month::month)
         .containsExactly("202608", "202609");
@@ -110,12 +113,23 @@ class MonthlyOverviewTest {
   }
 
   @Test
-  @DisplayName("범위를 안 주면 서울 기준 이번 달 포함 최근 13개월")
-  void defaultRange() {
-    Clock clock = Clock.fixed(Instant.parse("2026-09-30T15:00:00Z"), ZoneOffset.UTC); // 서울 10월 1일
+  @DisplayName("범위를 안 주면 UTC 기준 이번 달 포함 최근 18개월, 당월 행만 current")
+  void defaultRangeIsUtcEighteenMonths() {
+    Clock clock = Clock.fixed(Instant.parse("2026-10-31T16:00:00Z"), ZoneOffset.UTC); // 서울 11월 1일
     assertThat(DataExploreService.currentMonth(clock)).isEqualTo(YearMonth.of(2026, 10));
-    MonthlyOverview o = service.monthly(null, null, null);
-    assertThat(o.months()).hasSize(13);
+    DataExploreService fixed = new DataExploreService(queries, repository, aggregate, clock);
+
+    MonthlyOverview o = fixed.monthly(null, null, null);
+
+    assertThat(o.months()).hasSize(18);
+    assertThat(o.from()).isEqualTo("202505");
+    assertThat(o.to()).isEqualTo("202610");
+    assertThat(o.months())
+        .filteredOn(MonthlyOverview.Month::current)
+        .extracting(MonthlyOverview.Month::month)
+        .containsExactly("202610");
+    assertThat(o.months())
+        .allSatisfy(m -> assertThat(m.sampledByFamily()).doesNotContainKey("OTHER"));
   }
 
   @Test

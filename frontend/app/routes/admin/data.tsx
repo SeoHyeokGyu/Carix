@@ -15,7 +15,9 @@ import {
   type PostingPage,
 } from "../../lib/collectorApi";
 import {
+  fromMonthInput,
   parsePostingSort,
+  toMonthInput,
   POSTING_SORTS,
   parseTab,
   TABS,
@@ -112,6 +114,8 @@ export default function DataExplorePage() {
     reloadKey,
   ]);
 
+  const shownRange = loaded?.kind === "monthly" ? loaded.data : undefined;
+
   const openKeyModal = useCallback(() => setIsKeyModalOpen(true), []);
 
   const reload = () => setReloadKey((k) => k + 1);
@@ -145,18 +149,39 @@ export default function DataExplorePage() {
         </div>
 
         {tab === "monthly" && (
-          <label className="flex items-center gap-2 text-xs">
-            직무별 표본 원천
-            <select
-              aria-label="직무별 표본 원천"
-              value={sampleSource === "WANTED" ? "WANTED" : "JOBKOREA"}
-              onChange={(e) => update({ sampleSource: e.target.value })}
-              className="rounded border border-carix-border px-2 py-1"
-            >
-              <option value="JOBKOREA">잡코리아</option>
-              <option value="WANTED">원티드</option>
-            </select>
-          </label>
+          <div className="flex flex-wrap items-center gap-4 text-xs">
+            <label className="flex items-center gap-2">
+              직무별 표본 원천
+              <select
+                aria-label="직무별 표본 원천"
+                value={sampleSource === "WANTED" ? "WANTED" : "JOBKOREA"}
+                onChange={(e) => update({ sampleSource: e.target.value })}
+                className="rounded border border-carix-border px-2 py-1"
+              >
+                <option value="JOBKOREA">잡코리아</option>
+                <option value="WANTED">원티드</option>
+              </select>
+            </label>
+            <span className="flex items-center gap-2">
+              <input
+                type="month"
+                aria-label="시작 월"
+                value={toMonthInput(from ?? shownRange?.from)}
+                onChange={(e) =>
+                  update({ from: fromMonthInput(e.target.value) })
+                }
+                className="rounded border border-carix-border px-2 py-1"
+              />
+              ~
+              <input
+                type="month"
+                aria-label="끝 월"
+                value={toMonthInput(to ?? shownRange?.to)}
+                onChange={(e) => update({ to: fromMonthInput(e.target.value) })}
+                className="rounded border border-carix-border px-2 py-1"
+              />
+            </span>
+          </div>
         )}
 
         {tab === "postings" && (
@@ -284,7 +309,10 @@ export default function DataExplorePage() {
           </p>
         )}
         {loaded?.kind === "monthly" && tab === "monthly" && (
-          <MonthlyOverviewTable data={loaded.data} />
+          <MonthlyOverviewTable
+            data={loaded.data}
+            sampleSource={sampleSource}
+          />
         )}
         {loaded?.kind === "postings" && tab === "postings" && (
           <PostingsExplorer

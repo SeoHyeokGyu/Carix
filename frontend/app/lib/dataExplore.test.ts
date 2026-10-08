@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   crawlJobDataHref,
+  fromMonthInput,
+  toMonthInput,
   formatCollectedDate,
   formatManwon,
   formatSalaryCell,
@@ -147,5 +149,15 @@ describe("crawlJobDataHref", () => {
 describe("formatCollectedDate", () => {
   it("서울 날짜로 보여 준다", () => {
     expect(formatCollectedDate("2026-09-30T16:00:00Z")).toBe("2026-10-01");
+  });
+});
+
+describe("월 입력 변환", () => {
+  it("yyyyMM 과 yyyy-MM 을 서로 바꾼다", () => {
+    expect(toMonthInput("202610")).toBe("2026-10");
+    expect(toMonthInput(undefined)).toBe("");
+    expect(toMonthInput("2026")).toBe("");
+    expect(fromMonthInput("2026-10")).toBe("202610");
+    expect(fromMonthInput("")).toBeUndefined();
   });
 });

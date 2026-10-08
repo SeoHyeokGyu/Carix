@@ -299,6 +299,7 @@ export interface MonthlyOverview {
     wantedSampled: number;
     wantedSampledCapped: number;
     wantedCrawled: number;
+    current: boolean;
   }[];
 }
 

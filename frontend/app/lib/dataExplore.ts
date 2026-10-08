@@ -21,6 +21,18 @@ export function parseTab(value: string | null): ExploreTab {
 export const isThinSample = (n: number) => n < SAMPLE_WARN_BELOW;
 export const isThinFamily = (n: number) => n < FAMILY_MIN_SAMPLE;
 
+/** URL 의 yyyyMM → `<input type="month">` 의 yyyy-MM. 형식이 다르면 빈 문자열. */
+export function toMonthInput(yyyyMM: string | undefined): string {
+  return yyyyMM && /^\d{6}$/.test(yyyyMM)
+    ? `${yyyyMM.slice(0, 4)}-${yyyyMM.slice(4)}`
+    : "";
+}
+
+/** `<input type="month">` 의 yyyy-MM → URL 의 yyyyMM. 비었거나 형식이 다르면 undefined. */
+export function fromMonthInput(value: string): string | undefined {
+  return /^\d{4}-\d{2}$/.test(value) ? value.replace("-", "") : undefined;
+}
+
 const WON_PER_MANWON = 10_000;
 
 const WON_PER_EOK = 100_000_000;

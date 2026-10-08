@@ -1,4 +1,11 @@
-import { act, render, screen, waitFor, within } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { createRoutesStub, Link } from "react-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -23,10 +30,11 @@ const monthly: api.MonthlyOverview = {
       jobkoreaSampledCapped: 244,
       jobkoreaCrawled: 1804,
       saraminCrawled: 400,
-      sampledByFamily: { DEVELOPER: 200, DATA: 9, AI: 35, OTHER: 0 },
+      sampledByFamily: { DEVELOPER: 200, DATA: 9, AI: 35 },
       wantedSampled: 60,
       wantedSampledCapped: 58,
       wantedCrawled: 310,
+      current: false,
     },
     {
       month: "202609",
@@ -34,10 +42,11 @@ const monthly: api.MonthlyOverview = {
       jobkoreaSampledCapped: 148,
       jobkoreaCrawled: 1248,
       saraminCrawled: 410,
-      sampledByFamily: { DEVELOPER: 120, DATA: 10, AI: 18, OTHER: 0 },
+      sampledByFamily: { DEVELOPER: 120, DATA: 10, AI: 18 },
       wantedSampled: 70,
       wantedSampledCapped: 68,
       wantedCrawled: 320,
+      current: false,
     },
   ],
 };
@@ -126,7 +135,8 @@ describe("DataExplorePage", () => {
 
   it("기본 탭은 월별 현황이고 얇은 칸을 강조한다", async () => {
     renderAt("/admin/data");
-    const thin = await screen.findByText("150");
+    await screen.findByText("150");
+    const thin = screen.getByText("148");
     expect(thin).toHaveAttribute("data-thin", "true");
     expect(screen.getByText("9")).toHaveAttribute("data-thin", "true");
     expect(screen.getByText("10")).toHaveAttribute("data-thin", "false");
@@ -150,17 +160,38 @@ describe("DataExplorePage", () => {
     );
   });
 
+  it("월별 탭의 시작·끝 월을 바꾸면 URL 과 조회가 따라간다", async () => {
+    renderAt("/admin/data?tab=monthly&from=202310&to=202609");
+    await screen.findByText("150");
+    expect(screen.getByLabelText("시작 월")).toHaveValue("2023-10");
+    expect(screen.getByLabelText("끝 월")).toHaveValue("2026-09");
+    fireEvent.change(screen.getByLabelText("시작 월"), {
+      target: { value: "2024-01" },
+    });
+    await waitFor(() =>
+      expect(api.fetchMonthlyOverview).toHaveBeenLastCalledWith(
+        "202401",
+        "202609",
+        undefined,
+      ),
+    );
+    fireEvent.change(screen.getByLabelText("끝 월"), {
+      target: { value: "2026-08" },
+    });
+    await waitFor(() =>
+      expect(api.fetchMonthlyOverview).toHaveBeenLastCalledWith(
+        "202401",
+        "202608",
+        undefined,
+      ),
+    );
+  });
+
   it("월별 현황에 원티드 표본·상한 적용·정기 열을 보인다", async () => {
     renderAt("/admin/data");
     await screen.findByText("150");
     expect(
-      screen.getByRole("columnheader", { name: "원티드 표본" }),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("columnheader", { name: "원티드 상한 적용" }),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("columnheader", { name: "원티드 정기" }),
+      screen.getByRole("columnheader", { name: "원티드" }),
     ).toBeInTheDocument();
     expect(screen.getByText("60")).toBeInTheDocument();
     expect(screen.getByText("68")).toBeInTheDocument();
