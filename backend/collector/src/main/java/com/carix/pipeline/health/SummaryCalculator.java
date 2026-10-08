@@ -20,7 +20,7 @@ public final class SummaryCalculator {
   public static DataHealthReport.Summary summarize(DataHealthSnapshot data) {
     Map<String, UserSnapshot> byUser = new LinkedHashMap<>();
     data.snapshots().forEach(s -> byUser.put(s.userId(), s));
-    java.util.Set<String> users = new java.util.LinkedHashSet<>(data.familyByUser().keySet());
+    java.util.Set<String> users = new java.util.LinkedHashSet<>(data.profileUserIds());
     users.addAll(byUser.keySet());
 
     Map<List<String>, Integer> gapCounts = new LinkedHashMap<>();

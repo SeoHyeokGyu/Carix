@@ -9,6 +9,7 @@ import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -21,7 +22,26 @@ public final class HealthChecks {
   private static final String COLLECTOR = "/admin/collector";
   private static final String RECALC = "전 사용자 재계산";
 
+  private static final String AGGREGATE_STALE = "AGGREGATE_STALE";
+  private static final String RULE_VERSION = "RULE_VERSION";
+  private static final String SNAPSHOT_FRESHNESS = "SNAPSHOT_FRESHNESS";
+  private static final String CPI_LATEST = "CPI_LATEST";
+  private static final String CRAWL_FRESHNESS = "CRAWL_FRESHNESS";
+
+  /** 점검 id → 제목. 응답에 싣는 순서이기도 하다. */
+  public static final Map<String, String> TITLES = Collections.unmodifiableMap(titles());
+
   private HealthChecks() {}
+
+  private static Map<String, String> titles() {
+    Map<String, String> t = new LinkedHashMap<>();
+    t.put(AGGREGATE_STALE, "재집계 누락");
+    t.put(RULE_VERSION, "규칙 버전");
+    t.put(SNAPSHOT_FRESHNESS, "스냅샷 최신성");
+    t.put(CPI_LATEST, "CPI 최신월");
+    t.put(CRAWL_FRESHNESS, "정기 수집 최신성");
+    return t;
+  }
 
   public static List<Check> all(
       DataHealthSnapshot data,
@@ -41,41 +61,54 @@ public final class HealthChecks {
     return new Check(id, title, HealthVerdict.UNKNOWN, message, null, null, null, Map.of());
   }
 
-  /** 잡코리아 불일치는 ERROR, 원티드만 불일치면 WARN(지수 편입 전). 표본이 있는 원천만 비교한다. */
+  /**
+   * 잡코리아 불일치는 ERROR, 원티드만 불일치면 WARN(지수 편입 전). 표본이 있는 원천만 비교한다. 두 원천은 따로 판정한다 — 원티드 상한 표본을 못 구해도
+   * 잡코리아 불일치는 오류로 낸다.
+   */
   private static Check aggregateStale(DataHealthSnapshot data) {
     SampleSeries jobKorea = data.jobKorea();
     SampleSeries wanted = data.wanted();
-    String id = "AGGREGATE_STALE";
-    String title = "재집계 누락";
+    String id = AGGREGATE_STALE;
+    String title = TITLES.get(id);
     if (jobKorea.sampledByMonth().isEmpty() && wanted.sampledByMonth().isEmpty()) {
       return unknown(id, title, "표본이 하나도 없습니다");
     }
     List<String> jkStale = staleMonths(jobKorea);
-    List<String> wantedStale = staleMonths(wanted);
-    if (jkStale == null || wantedStale == null) {
+    if (jkStale == null) {
       return unknown(id, title, "상한 적용 표본을 계산하지 못했습니다");
     }
+    List<String> wantedStale = staleMonths(wanted);
+    boolean wantedUnavailable = wantedStale == null;
+    List<String> wantedMonths = wantedUnavailable ? List.of() : wantedStale;
     HealthVerdict v =
         !jkStale.isEmpty()
             ? HealthVerdict.ERROR
-            : !wantedStale.isEmpty() ? HealthVerdict.WARN : HealthVerdict.OK;
+            : wantedUnavailable || !wantedMonths.isEmpty() ? HealthVerdict.WARN : HealthVerdict.OK;
     int impact =
         jkStale.isEmpty()
             ? 0
             : (int) data.snapshots().stream().filter(s -> !"OK".equals(s.mviStatus())).count();
-    int total = jkStale.size() + wantedStale.size();
+    int total = jkStale.size() + wantedMonths.size();
     Map<String, Object> evidence = new LinkedHashMap<>();
     evidence.put("JOBKOREA", jkStale);
-    evidence.put("WANTED", wantedStale);
+    evidence.put("WANTED", wantedMonths);
+    if (wantedUnavailable) {
+      evidence.put("wantedUnavailable", true);
+    }
     return new Check(
         id,
         title,
         v,
-        total == 0 ? "표본과 집계 일치" : "불일치 " + total + "개월",
+        staleMessage(total, wantedUnavailable),
         impact,
         v == HealthVerdict.OK ? null : "재집계",
         v == HealthVerdict.OK ? null : COLLECTOR,
         evidence);
+  }
+
+  private static String staleMessage(int total, boolean wantedUnavailable) {
+    String base = total == 0 ? "표본과 집계 일치" : "불일치 " + total + "개월";
+    return wantedUnavailable ? base + " · 원티드 상한 적용 표본을 계산하지 못했습니다" : base;
   }
 
   /** 표본과 집계가 어긋난 달. 표본 없는 원천은 빈 목록, 상한 적용 표본을 못 구한 달이 있으면 {@code null}. */
@@ -101,10 +134,10 @@ public final class HealthChecks {
 
   private static Check ruleVersion(DataHealthSnapshot data, String engine) {
     if (engine == null) {
-      return unknown("RULE_VERSION", "규칙 버전", "엔진 규칙 버전을 받지 못했습니다");
+      return unknown(RULE_VERSION, TITLES.get(RULE_VERSION), "엔진 규칙 버전을 받지 못했습니다");
     }
     if (data.snapshots().isEmpty()) {
-      return unknown("RULE_VERSION", "규칙 버전", "사용자 스냅샷이 없습니다");
+      return unknown(RULE_VERSION, TITLES.get(RULE_VERSION), "사용자 스냅샷이 없습니다");
     }
     List<String> behind = new ArrayList<>();
     data.snapshots().stream()
@@ -112,8 +145,8 @@ public final class HealthChecks {
         .forEach(s -> behind.add(prefix(s.userId())));
     HealthVerdict v = behind.isEmpty() ? HealthVerdict.OK : HealthVerdict.WARN;
     return new Check(
-        "RULE_VERSION",
-        "규칙 버전",
+        RULE_VERSION,
+        TITLES.get(RULE_VERSION),
         v,
         "엔진 " + engine + " · 뒤처진 사용자 " + behind.size() + "명",
         behind.size(),
@@ -124,7 +157,7 @@ public final class HealthChecks {
 
   private static Check snapshotFreshness(DataHealthSnapshot data, YearMonth referenceMonth) {
     if (data.snapshots().isEmpty()) {
-      return unknown("SNAPSHOT_FRESHNESS", "스냅샷 최신성", "사용자 스냅샷이 없습니다");
+      return unknown(SNAPSHOT_FRESHNESS, TITLES.get(SNAPSHOT_FRESHNESS), "사용자 스냅샷이 없습니다");
     }
     String current = YM.format(referenceMonth);
     List<String> stale = new ArrayList<>();
@@ -133,8 +166,8 @@ public final class HealthChecks {
         .forEach(s -> stale.add(prefix(s.userId())));
     HealthVerdict v = stale.isEmpty() ? HealthVerdict.OK : HealthVerdict.WARN;
     return new Check(
-        "SNAPSHOT_FRESHNESS",
-        "스냅샷 최신성",
+        SNAPSHOT_FRESHNESS,
+        TITLES.get(SNAPSHOT_FRESHNESS),
         v,
         current + " 이전 스냅샷 사용자 " + stale.size() + "명",
         stale.size(),
@@ -145,10 +178,10 @@ public final class HealthChecks {
 
   private static Check cpiLatest(
       DataHealthSnapshot data, YearMonth referenceMonth, HealthThresholds t) {
-    if (data.cpiCodeCountByMonth().isEmpty()) {
-      return unknown("CPI_LATEST", "CPI 최신월", "CPI 적재 기록이 없습니다");
+    if (data.cpiMonths().isEmpty()) {
+      return unknown(CPI_LATEST, TITLES.get(CPI_LATEST), "CPI 적재 기록이 없습니다");
     }
-    String latest = new TreeSet<>(data.cpiCodeCountByMonth().keySet()).last();
+    String latest = new TreeSet<>(data.cpiMonths()).last();
     long lag = ChronoUnit.MONTHS.between(YearMonth.parse(latest, YM), referenceMonth);
     int delayed =
         (int) data.snapshots().stream().filter(s -> "UPDATE_DELAYED".equals(s.ppiStatus())).count();
@@ -159,8 +192,8 @@ public final class HealthChecks {
     String action =
         v == HealthVerdict.OK ? null : v == HealthVerdict.WARN ? "다음 달 이전에 CPI 적재" : "CPI 적재";
     return new Check(
-        "CPI_LATEST",
-        "CPI 최신월",
+        CPI_LATEST,
+        TITLES.get(CPI_LATEST),
         v,
         "최신 CPI " + latest + " (" + lag + "개월 지연)",
         delayed,
@@ -171,7 +204,7 @@ public final class HealthChecks {
 
   private static Check crawlFreshness(DataHealthSnapshot data, Instant now, HealthThresholds t) {
     if (data.crawlLatestBySource().isEmpty()) {
-      return unknown("CRAWL_FRESHNESS", "정기 수집 최신성", "정기 수집 기록이 없습니다");
+      return unknown(CRAWL_FRESHNESS, TITLES.get(CRAWL_FRESHNESS), "정기 수집 기록이 없습니다");
     }
     Map<String, Object> days = new LinkedHashMap<>();
     Map<String, Object> lastMonths = new LinkedHashMap<>();
@@ -184,8 +217,8 @@ public final class HealthChecks {
     }
     HealthVerdict v = worst > t.crawlStaleDays() ? HealthVerdict.WARN : HealthVerdict.OK;
     return new Check(
-        "CRAWL_FRESHNESS",
-        "정기 수집 최신성",
+        CRAWL_FRESHNESS,
+        TITLES.get(CRAWL_FRESHNESS),
         v,
         "가장 오래된 원천 " + worst + "일 전",
         null,

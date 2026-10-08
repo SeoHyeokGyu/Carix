@@ -11,9 +11,11 @@ import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
@@ -42,13 +44,12 @@ public class JdbcDataHealthReader implements DataHealthReader {
     SampleSeries wanted = sampleSeries("WANTED", all);
 
     return new DataHealthSnapshot(
-        monthCounts(
-            "SELECT base_year_month, COUNT(DISTINCT category) FROM core.cpi_observation GROUP BY base_year_month"),
+        strings("SELECT DISTINCT base_year_month FROM core.cpi_observation"),
         jobKorea,
         wanted,
         crawlLatest(),
         snapshots(),
-        families());
+        strings("SELECT user_id FROM core.career_profile"));
   }
 
   SampleSeries sampleSeries(String source, List<JobPosting> all) {
@@ -84,6 +85,16 @@ public class JdbcDataHealthReader implements DataHealthReader {
     return out;
   }
 
+  private Set<String> strings(String sql) {
+    Set<String> out = new HashSet<>();
+    jdbc.query(
+        sql,
+        rs -> {
+          out.add(rs.getString(1));
+        });
+    return out;
+  }
+
   private Map<String, Instant> crawlLatest() {
     Map<String, Instant> out = new HashMap<>();
     jdbc.query(
@@ -116,16 +127,6 @@ public class JdbcDataHealthReader implements DataHealthReader {
                   rs.getString(5),
                   rs.getString(6),
                   MAPPER));
-        });
-    return out;
-  }
-
-  private Map<String, String> families() {
-    Map<String, String> out = new HashMap<>();
-    jdbc.query(
-        "SELECT user_id, job_family FROM core.career_profile",
-        rs -> {
-          out.put(rs.getString(1), rs.getString(2));
         });
     return out;
   }

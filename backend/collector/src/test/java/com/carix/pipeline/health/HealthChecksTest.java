@@ -9,6 +9,7 @@ import java.time.Instant;
 import java.time.YearMonth;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -21,10 +22,10 @@ class HealthChecksTest {
   private static DataHealthSnapshot snapshot(
       SampleSeries jk,
       SampleSeries wanted,
-      Map<String, Integer> cpi,
+      Set<String> cpi,
       Map<String, Instant> crawl,
       List<UserSnapshot> users) {
-    return new DataHealthSnapshot(cpi, jk, wanted, crawl, users, Map.of());
+    return new DataHealthSnapshot(cpi, jk, wanted, crawl, users, Set.of());
   }
 
   private static Check find(List<Check> checks, String id) {
@@ -50,7 +51,7 @@ class HealthChecksTest {
             snapshot(
                 series(200, 200),
                 series(200, 200),
-                Map.of("202609", 12),
+                Set.of("202609"),
                 Map.of("SARAMIN", NOW),
                 List.of(user("u", "202610", "1.4.0"))),
             REF,
@@ -73,14 +74,14 @@ class HealthChecksTest {
   void aggregateStaleSeverityBySource() {
     var jkStale =
         HealthChecks.all(
-            snapshot(series(200, 190), series(200, 200), Map.of(), Map.of(), List.of()),
+            snapshot(series(200, 190), series(200, 200), Set.of(), Map.of(), List.of()),
             REF,
             "1.4.0",
             t,
             NOW);
     var wantedStale =
         HealthChecks.all(
-            snapshot(series(200, 200), series(200, 190), Map.of(), Map.of(), List.of()),
+            snapshot(series(200, 200), series(200, 190), Set.of(), Map.of(), List.of()),
             REF,
             "1.4.0",
             t,
@@ -96,20 +97,20 @@ class HealthChecksTest {
   @DisplayName("두 원천 표본이 모두 비면 재집계 누락은 판정 불가")
   void aggregateStaleUnknownWhenBothEmpty() {
     var c =
-        HealthChecks.all(snapshot(null, null, Map.of(), Map.of(), List.of()), REF, "1.4.0", t, NOW);
+        HealthChecks.all(snapshot(null, null, Set.of(), Map.of(), List.of()), REF, "1.4.0", t, NOW);
     assertThat(find(c, "AGGREGATE_STALE").verdict()).isEqualTo(HealthVerdict.UNKNOWN);
   }
 
   @Test
   @DisplayName("CPI 지연 1개월 OK, 2개월 경고, 3개월 오류, 없으면 판정 불가")
   void cpiLag() {
-    assertThat(cpi(Map.of("202609", 12))).isEqualTo(HealthVerdict.OK);
-    assertThat(cpi(Map.of("202608", 12))).isEqualTo(HealthVerdict.WARN);
-    assertThat(cpi(Map.of("202607", 12))).isEqualTo(HealthVerdict.ERROR);
-    assertThat(cpi(Map.of())).isEqualTo(HealthVerdict.UNKNOWN);
+    assertThat(cpi(Set.of("202609"))).isEqualTo(HealthVerdict.OK);
+    assertThat(cpi(Set.of("202608"))).isEqualTo(HealthVerdict.WARN);
+    assertThat(cpi(Set.of("202607"))).isEqualTo(HealthVerdict.ERROR);
+    assertThat(cpi(Set.of())).isEqualTo(HealthVerdict.UNKNOWN);
   }
 
-  private HealthVerdict cpi(Map<String, Integer> cpi) {
+  private HealthVerdict cpi(Set<String> cpi) {
     return find(
             HealthChecks.all(snapshot(null, null, cpi, Map.of(), List.of()), REF, "1.4.0", t, NOW),
             "CPI_LATEST")
@@ -134,7 +135,7 @@ class HealthChecksTest {
   private HealthVerdict crawl(Map<String, Instant> crawl) {
     return find(
             HealthChecks.all(
-                snapshot(null, null, Map.of(), crawl, List.of()), REF, "1.4.0", t, NOW),
+                snapshot(null, null, Set.of(), crawl, List.of()), REF, "1.4.0", t, NOW),
             "CRAWL_FRESHNESS")
         .verdict();
   }
@@ -143,7 +144,7 @@ class HealthChecksTest {
   @DisplayName("규칙 버전: 섞이면 경고, 엔진 버전을 못 받으면 판정 불가")
   void ruleVersion() {
     var users = List.of(user("a", "202610", "1.4.0"), user("b", "202610", "1.3.0"));
-    var data = snapshot(null, null, Map.of(), Map.of(), users);
+    var data = snapshot(null, null, Set.of(), Map.of(), users);
     assertThat(find(HealthChecks.all(data, REF, "1.4.0", t, NOW), "RULE_VERSION").verdict())
         .isEqualTo(HealthVerdict.WARN);
     assertThat(find(HealthChecks.all(data, REF, null, t, NOW), "RULE_VERSION").verdict())
@@ -154,7 +155,7 @@ class HealthChecksTest {
   @DisplayName("스냅샷이 기준월 이전이면 경고")
   void snapshotFreshness() {
     var stale = List.of(user("a", "202609", "1.4.0"));
-    var data = snapshot(null, null, Map.of(), Map.of(), stale);
+    var data = snapshot(null, null, Set.of(), Map.of(), stale);
     assertThat(find(HealthChecks.all(data, REF, "1.4.0", t, NOW), "SNAPSHOT_FRESHNESS").verdict())
         .isEqualTo(HealthVerdict.WARN);
   }
@@ -164,10 +165,10 @@ class HealthChecksTest {
   void aggregateStaleComparesOnlyPresentSource() {
     var stale =
         HealthChecks.all(
-            snapshot(null, series(200, 190), Map.of(), Map.of(), List.of()), REF, "1.4.0", t, NOW);
+            snapshot(null, series(200, 190), Set.of(), Map.of(), List.of()), REF, "1.4.0", t, NOW);
     var equal =
         HealthChecks.all(
-            snapshot(null, series(200, 200), Map.of(), Map.of(), List.of()), REF, "1.4.0", t, NOW);
+            snapshot(null, series(200, 200), Set.of(), Map.of(), List.of()), REF, "1.4.0", t, NOW);
     assertThat(find(stale, "AGGREGATE_STALE").verdict()).isEqualTo(HealthVerdict.WARN);
     assertThat(find(equal, "AGGREGATE_STALE").verdict()).isEqualTo(HealthVerdict.OK);
   }
@@ -183,21 +184,21 @@ class HealthChecksTest {
             new UserSnapshot("c", "202610", "1.4.0", "STAY", "OK", null, List.of()));
     var jk =
         HealthChecks.all(
-            snapshot(series(200, 190), series(200, 200), Map.of(), Map.of(), users),
+            snapshot(series(200, 190), series(200, 200), Set.of(), Map.of(), users),
             REF,
             "1.4.0",
             t,
             NOW);
     var ok =
         HealthChecks.all(
-            snapshot(series(200, 200), series(200, 200), Map.of(), Map.of(), users),
+            snapshot(series(200, 200), series(200, 200), Set.of(), Map.of(), users),
             REF,
             "1.4.0",
             t,
             NOW);
     var wanted =
         HealthChecks.all(
-            snapshot(series(200, 200), series(200, 190), Map.of(), Map.of(), users),
+            snapshot(series(200, 200), series(200, 190), Set.of(), Map.of(), users),
             REF,
             "1.4.0",
             t,
@@ -205,5 +206,47 @@ class HealthChecksTest {
     assertThat(find(jk, "AGGREGATE_STALE").impactUsers()).isEqualTo(2);
     assertThat(find(ok, "AGGREGATE_STALE").impactUsers()).isZero();
     assertThat(find(wanted, "AGGREGATE_STALE").impactUsers()).isZero();
+  }
+
+  private static SampleSeries uncomputable() {
+    return new SampleSeries(Map.of("202609", 200), Map.of(), Map.of("202609", 200));
+  }
+
+  private Check stale(SampleSeries jk, SampleSeries wanted) {
+    return find(
+        HealthChecks.all(snapshot(jk, wanted, Set.of(), Map.of(), List.of()), REF, "1.4.0", t, NOW),
+        "AGGREGATE_STALE");
+  }
+
+  @Test
+  @DisplayName("원티드 상한 표본을 못 구해도 잡코리아가 어긋나면 오류이고 원티드 불가를 증거에 남긴다")
+  void aggregateStaleJobKoreaMismatchWithWantedUnavailable() {
+    Check c = stale(series(200, 190), uncomputable());
+    assertThat(c.verdict()).isEqualTo(HealthVerdict.ERROR);
+    assertThat(c.evidence())
+        .containsEntry("JOBKOREA", List.of("202609"))
+        .containsEntry("wantedUnavailable", true);
+  }
+
+  @Test
+  @DisplayName("원티드 상한 표본을 못 구하고 잡코리아가 일치하면 경고이고 원티드를 못 구했다고 알린다")
+  void aggregateStaleWantedUnavailableJobKoreaOk() {
+    Check c = stale(series(200, 200), uncomputable());
+    assertThat(c.verdict()).isEqualTo(HealthVerdict.WARN);
+    assertThat(c.message()).contains("원티드");
+    assertThat(c.evidence()).containsEntry("wantedUnavailable", true);
+  }
+
+  @Test
+  @DisplayName("잡코리아 상한 표본을 못 구하면 판정 불가")
+  void aggregateStaleJobKoreaUnavailable() {
+    assertThat(stale(uncomputable(), series(200, 200)).verdict()).isEqualTo(HealthVerdict.UNKNOWN);
+  }
+
+  @Test
+  @DisplayName("두 원천 모두 계산되면 wantedUnavailable 을 증거에 싣지 않는다")
+  void aggregateStaleNoFlagWhenComputable() {
+    assertThat(stale(series(200, 190), series(200, 200)).evidence())
+        .doesNotContainKey("wantedUnavailable");
   }
 }

@@ -9,7 +9,6 @@ import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.Comparator;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
@@ -24,7 +23,6 @@ public class DataHealthService {
   static final ZoneId SEOUL = ZoneId.of("Asia/Seoul");
   private static final int DEFAULT_DRILL_MONTHS = 17;
   private static final int MAX_DRILL_MONTHS = 35;
-  private static final Map<String, String> CHECK_TITLES = checkTitles();
   private static final DateTimeFormatter YM = DateTimeFormatter.ofPattern("yyyyMM");
 
   private final DataHealthReader reader;
@@ -49,16 +47,6 @@ public class DataHealthService {
     this.engineVersionClient = engineVersionClient;
     this.thresholds = thresholds;
     this.clock = clock;
-  }
-
-  private static Map<String, String> checkTitles() {
-    Map<String, String> titles = new LinkedHashMap<>();
-    titles.put("AGGREGATE_STALE", "재집계 누락");
-    titles.put("RULE_VERSION", "규칙 버전");
-    titles.put("SNAPSHOT_FRESHNESS", "스냅샷 최신성");
-    titles.put("CPI_LATEST", "CPI 최신월");
-    titles.put("CRAWL_FRESHNESS", "정기 수집 최신성");
-    return titles;
   }
 
   /** 서버 시계(UTC)로 센 이번 달. 수집기가 관측월을 UTC 로 매기므로 같은 기준을 쓴다. */
@@ -103,7 +91,7 @@ public class DataHealthService {
   }
 
   private static List<DataHealthReport.Check> allUnknown(String message) {
-    return CHECK_TITLES.entrySet().stream()
+    return HealthChecks.TITLES.entrySet().stream()
         .map(e -> HealthChecks.unknown(e.getKey(), e.getValue(), message))
         .toList();
   }

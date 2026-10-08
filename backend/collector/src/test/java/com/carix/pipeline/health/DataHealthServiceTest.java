@@ -10,6 +10,7 @@ import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -20,7 +21,7 @@ class DataHealthServiceTest {
   }
 
   private static DataHealthSnapshot snap(DataHealthSnapshot.SampleSeries jk) {
-    return new DataHealthSnapshot(Map.of("202609", 12), jk, null, Map.of(), List.of(), Map.of());
+    return new DataHealthSnapshot(Set.of("202609"), jk, null, Map.of(), List.of(), Set.of());
   }
 
   @Test
@@ -156,14 +157,14 @@ class DataHealthServiceTest {
     var withCrawl =
         evaluate(
             new DataHealthSnapshot(
-                Map.of(),
+                Set.of(),
                 null,
                 null,
                 Map.of(
                     "JOBKOREA", Instant.parse("2026-10-01T00:00:00Z"),
                     "WANTED", Instant.parse("2026-09-01T00:00:00Z")),
                 List.of(),
-                Map.of()));
+                Set.of()));
     assertThat(check(withCrawl, "CRAWL_FRESHNESS").drillDown())
         .isEqualTo("/admin/data?tab=postings&month=202609&sort=recent&source=WANTED");
   }
