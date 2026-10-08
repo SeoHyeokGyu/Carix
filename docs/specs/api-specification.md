@@ -1126,7 +1126,7 @@
         | `perMonthTarget` | 선택 | 월 목표 건수. 원티드 기본 250 |
         | `maxRequestsPerMonth` | 선택 | 월 요청 상한. 원티드 기본 2000 |
         | `delayMs` | 선택 | 요청 간격(ms). 원티드 기본 1000 |
-        | `minId`·`maxId` | 선택 | 공고 번호 탐색 범위(상한 포함). 원티드 기본 280000~420000 |
+        | `minId`·`maxId` | 선택 | 공고 번호 탐색 범위(상한 포함). 원티드 기본 `minId` 280000, `maxId` 는 목록 API 의 최신 공고 번호(못 읽으면 420000) |
 
     *   **Response (202 Accepted):** 작업 ID 를 돌려준다(§8.1 과 같은 형식).
     *   **작업 요약:** 달(`YYYYMM`)마다 `requests`·`saved`·`alreadySampled`·`empty`·`otherMonth`·`nonTarget`·`errors` 를 싣는다. `errors` 는 저장에 실패해 건너뛴 후보 수이며 그 달은 계속하지만, 저장이 연달아 5번 실패하면 계통 오류로 보고 예외를 던져 작업을 `FAILED` 로 끝낸다(잡코리아·원티드 공통). 모든 달의 `saved` 합이 0 이고 `errors` 합이 0 보다 크면 작업은 `FAILED`(`errorMessage` 에 `errors` 수)로 끝난다. `source=WANTED` 는 `droppedSkills`(사전에 없어 버린 스킬 태그의 빈도)와 `apiMisses`(새로 만든 공고 중 상세 API 에서 스킬 태그를 못 읽은 수)를 더 싣는다.
