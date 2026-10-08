@@ -9,7 +9,7 @@ export const TABS: { id: ExploreTab; label: string }[] = [
   { id: "wage", label: "임금통계" },
 ];
 
-/** 표본 목표 250 의 80%. 설계 §8 강조 규칙 — collector 점검 기준과 같다. */
+/** 월별 현황에서 상한 적용 표본이 이보다 적으면 강조한다(설계 §8). */
 export const SAMPLE_WARN_BELOW = 200;
 /** 상한 적용 = 같은 회사 월 3건까지. 백엔드 MarketAggregateService.SAMPLE_COMPANY_CAP_PER_MONTH 와 같아야 한다. */
 export const SAMPLE_COMPANY_CAP = 3;

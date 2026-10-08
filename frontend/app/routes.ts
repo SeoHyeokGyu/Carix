@@ -54,7 +54,7 @@ export default [
     ),
   ]),
 
-  // 관리자 — 데이터 상태 · 수집 파이프라인
+  // 관리자 — 수집 데이터 · 수집 파이프라인
   route("admin", "routes/admin/index.tsx"),
   route("admin/data", "routes/admin/data.tsx"),
   route("admin/collector", "routes/admin/collector.tsx"),
