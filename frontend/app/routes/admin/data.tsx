@@ -15,6 +15,7 @@ import {
   type PostingPage,
 } from "../../lib/collectorApi";
 import {
+  defaultPostingMonth,
   fromMonthInput,
   normalizeSampleSource,
   parsePostingSort,
@@ -116,6 +117,15 @@ export default function DataExplorePage() {
     reloadKey,
   ]);
 
+  // 공고 탭은 월 없이 열리면 지난달로 바로 보인다. 기록을 쌓지 않으려 replace 로 채우고, 있는 month 는 건드리지 않는다.
+  const hasMonthParam = params.has("month");
+  useEffect(() => {
+    if (tab !== "postings" || hasMonthParam) return;
+    const sp = new URLSearchParams(paramsKey);
+    sp.set("month", defaultPostingMonth(new Date()));
+    setParams(sp, { replace: true });
+  }, [tab, hasMonthParam, paramsKey, setParams]);
+
   const shownRange = loaded?.kind === "monthly" ? loaded.data : undefined;
 
   const openKeyModal = useCallback(() => setIsKeyModalOpen(true), []);
@@ -199,7 +209,7 @@ export default function DataExplorePage() {
               e.preventDefault();
               const fd = new FormData(e.currentTarget);
               update({
-                month: String(fd.get("month") ?? ""),
+                month: fromMonthInput(String(fd.get("month") ?? "")),
                 source: String(fd.get("source") ?? ""),
                 sampled: String(fd.get("sampled") ?? ""),
                 family: String(fd.get("family") ?? ""),
@@ -213,8 +223,8 @@ export default function DataExplorePage() {
           >
             <input
               name="month"
-              defaultValue={month}
-              placeholder="YYYYMM"
+              type="month"
+              defaultValue={toMonthInput(month)}
               aria-label="월"
               className="rounded border border-carix-border px-2 py-1"
             />
@@ -246,10 +256,10 @@ export default function DataExplorePage() {
               className="rounded border border-carix-border px-2 py-1"
             >
               <option value="">전체 직무</option>
-              <option value="DEVELOPER">DEVELOPER</option>
-              <option value="DATA">DATA</option>
+              <option value="DEVELOPER">개발</option>
+              <option value="DATA">데이터</option>
               <option value="AI">AI</option>
-              <option value="OTHER">OTHER</option>
+              <option value="OTHER">기타</option>
             </select>
             <input
               name="company"

@@ -4,6 +4,7 @@ import {
   formatCollectedDate,
   formatSalaryCell,
 } from "../../../lib/dataExplore";
+import { familyLabel, sourceLabel } from "../../../lib/sourceLabel";
 import { Button } from "@/components/ui/button";
 
 const COLLECTED_VIA_LABEL: Record<string, string> = {
@@ -35,7 +36,7 @@ function Row({ p }: { p: PostingItem }) {
   return (
     <>
       <tr className="border-t border-carix-border">
-        <td className="px-2 py-1">{p.source}</td>
+        <td className="px-2 py-1">{sourceLabel(p.source)}</td>
         <td className="px-2 py-1">
           <Button
             variant="link"
@@ -48,7 +49,9 @@ function Row({ p }: { p: PostingItem }) {
           </Button>
         </td>
         <td className="px-2 py-1">{p.companyName}</td>
-        <td className="px-2 py-1">{p.jobFamily}</td>
+        <td className="px-2 py-1">
+          {p.jobFamily ? familyLabel(p.jobFamily) : "-"}
+        </td>
         <td className="px-2 py-1">{experience(p)}</td>
         <td className={`px-2 py-1 ${cell.muted ? "text-carix-text/50" : ""}`}>
           {cell.text}
@@ -115,7 +118,12 @@ export function PostingsExplorer({
               <th className="px-2 py-1">직무</th>
               <th className="px-2 py-1">경력</th>
               <th className="px-2 py-1">제시 연봉</th>
-              <th className="px-2 py-1">게시일</th>
+              <th
+                className="px-2 py-1"
+                title="원천이 밝힌 게시일 — 관측월과 다를 수 있음"
+              >
+                게시일
+              </th>
               <th className="px-2 py-1">표본월</th>
             </tr>
           </thead>

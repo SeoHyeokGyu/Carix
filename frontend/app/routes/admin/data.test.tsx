@@ -7,7 +7,7 @@ import {
   within,
 } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { createRoutesStub, Link } from "react-router";
+import { createRoutesStub, Link, useNavigate } from "react-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import DataExplorePage from "./data";
 import * as api from "../../lib/collectorApi";
@@ -110,19 +110,23 @@ const postings: api.PostingPage = {
 };
 
 function PageWithBackLink() {
+  const navigate = useNavigate();
   return (
     <>
+      <button type="button" onClick={() => navigate(-1)}>
+        뒤로
+      </button>
       <Link to="/admin/data?tab=postings&month=202607">공고로 돌아가기</Link>
       <DataExplorePage />
     </>
   );
 }
 
-function renderAt(url: string) {
+function renderAt(url: string | string[]) {
   const Stub = createRoutesStub([
     { path: "/admin/data", Component: PageWithBackLink },
   ]);
-  render(<Stub initialEntries={[url]} />);
+  render(<Stub initialEntries={Array.isArray(url) ? url : [url]} />);
 }
 
 describe("DataExplorePage", () => {
@@ -298,6 +302,79 @@ describe("DataExplorePage", () => {
         expect.objectContaining({ sort: "source", page: 0 }),
       ),
     );
+  });
+
+  it("공고 탭에 month 가 없으면 UTC 지난달을 채워 조회한다", async () => {
+    vi.useFakeTimers({
+      toFake: ["Date"],
+      now: new Date("2026-10-31T16:00:00Z"),
+    });
+    try {
+      renderAt("/admin/data?tab=postings");
+      expect(await screen.findByText("QA 채용")).toBeInTheDocument();
+      expect(api.fetchPostings).toHaveBeenCalledWith(
+        expect.objectContaining({ month: "202609" }),
+      );
+      expect(screen.getByLabelText("월")).toHaveValue("2026-09");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("기본 월을 채워도 브라우저 기록을 쌓지 않는다", async () => {
+    renderAt(["/admin/data?tab=monthly", "/admin/data?tab=postings"]);
+    await screen.findByText("QA 채용");
+    await userEvent.click(screen.getByRole("button", { name: "뒤로" }));
+    expect(await screen.findByText("150")).toBeInTheDocument();
+  });
+
+  it("URL 에 month 가 있으면 덮어쓰지 않는다", async () => {
+    renderAt("/admin/data?tab=postings&month=202605&source=WANTED");
+    await screen.findByText("QA 채용");
+    expect(api.fetchPostings).toHaveBeenCalledTimes(1);
+    expect(api.fetchPostings).toHaveBeenCalledWith(
+      expect.objectContaining({ month: "202605", source: "WANTED" }),
+    );
+    const input = screen.getByLabelText("월");
+    expect(input).toHaveAttribute("type", "month");
+    expect(input).toHaveValue("2026-05");
+  });
+
+  it("월 입력을 바꿔 조회하면 yyyyMM 으로 조회한다", async () => {
+    renderAt("/admin/data?tab=postings&month=202605");
+    await screen.findByText("QA 채용");
+    fireEvent.change(screen.getByLabelText("월"), {
+      target: { value: "2026-03" },
+    });
+    await userEvent.click(screen.getByRole("button", { name: "조회" }));
+    await waitFor(() =>
+      expect(api.fetchPostings).toHaveBeenLastCalledWith(
+        expect.objectContaining({ month: "202603" }),
+      ),
+    );
+  });
+
+  it("필터 선택 항목이 표시명을 쓴다", async () => {
+    renderAt("/admin/data?tab=postings&month=202605");
+    await screen.findByText("QA 채용");
+    const optionTexts = (label: string) =>
+      within(screen.getByLabelText(label))
+        .getAllByRole("option")
+        .map((o) => o.textContent);
+    expect(optionTexts("원천")).toEqual([
+      "전체 원천",
+      "잡코리아",
+      "사람인",
+      "원티드",
+    ]);
+    expect(optionTexts("직무")).toEqual([
+      "전체 직무",
+      "개발",
+      "데이터",
+      "AI",
+      "기타",
+    ]);
+    expect(optionTexts("표본 여부")[0]).toBe("표본·정기 모두");
   });
 
   it("월 형식이 틀리면 조회 없이 안내한다", async () => {
