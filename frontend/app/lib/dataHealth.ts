@@ -9,3 +9,11 @@ export const GAP_REASON_LABEL: Record<string, string> = {
   MVI_NOT_REFLECTED: "시장가치 미반영",
   MVI_UNCERTAIN: "시장가치 불확실",
 };
+
+/** 빈 답이 가리키는 대상의 화면 문구. 모르는 코드는 그대로 보인다. */
+export const GAP_ANSWER_LABEL: Record<string, string> = {
+  PPI: "구매력",
+  MVI: "시장가치",
+  DECISION: "결정 신호",
+  ALL: "전체",
+};

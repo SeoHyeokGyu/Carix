@@ -576,7 +576,9 @@ describe("DataExplorePage", () => {
       missing: [],
     });
     renderAt("/admin/data?tab=monthly");
-    await userEvent.click(await screen.findByRole("link", { name: "근거" }));
+    await userEvent.click(
+      await screen.findByRole("link", { name: "CPI_LATEST 근거" }),
+    );
     expect(await screen.findByRole("tab", { name: "CPI" })).toHaveAttribute(
       "aria-selected",
       "true",

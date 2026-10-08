@@ -7,7 +7,7 @@ import {
   type HealthCheck,
   type HealthVerdict,
 } from "../../lib/collectorApi";
-import { GAP_REASON_LABEL } from "../../lib/dataHealth";
+import { GAP_ANSWER_LABEL, GAP_REASON_LABEL } from "../../lib/dataHealth";
 
 const BADGE: Record<HealthVerdict, { label: string; className: string }> = {
   OK: { label: "정상", className: "bg-carix-positive/15 text-carix-positive" },
@@ -41,12 +41,20 @@ function CheckRow({ check }: { check: HealthCheck }) {
         <span className="text-carix-text/70">영향 {check.impactUsers}명</span>
       )}
       {check.drillDown && (
-        <Link to={check.drillDown} className="text-carix-info underline">
+        <Link
+          to={check.drillDown}
+          aria-label={`${check.title} 근거`}
+          className="text-carix-info underline"
+        >
           근거
         </Link>
       )}
       {check.actionLink && check.action && (
-        <Link to={check.actionLink} className="text-carix-info underline">
+        <Link
+          to={check.actionLink}
+          aria-label={`${check.title} ${check.action}`}
+          className="text-carix-info underline"
+        >
           {check.action}
         </Link>
       )}
@@ -107,7 +115,7 @@ export function DataHealthStrip({
         aria-label="점검"
         className="flex items-center gap-3 rounded border border-carix-border p-3 text-xs"
       >
-        <span>점검을 불러오지 못했습니다</span>
+        <span role="alert">점검을 불러오지 못했습니다</span>
         {retry}
       </section>
     );
@@ -115,7 +123,7 @@ export function DataHealthStrip({
   if (!report) {
     return (
       <section aria-label="점검" className="text-xs text-carix-text/60">
-        점검 중…
+        <span role="status">점검 중…</span>
       </section>
     );
   }
@@ -147,7 +155,11 @@ export function DataHealthStrip({
           {CHECKED_AT.format(new Date(report.evaluatedAt))}
         </span>
         {retry}
-        {loading && <span className="text-carix-text/60">점검 중…</span>}
+        {loading && (
+          <span role="status" className="text-carix-text/60">
+            점검 중…
+          </span>
+        )}
       </div>
       {problems.length > 0 && (
         <ul className="space-y-1">
@@ -165,7 +177,7 @@ export function DataHealthStrip({
           {gaps
             .map(
               (g) =>
-                `${g.answer} ${GAP_REASON_LABEL[g.reason] ?? g.reason} ${g.users}명`,
+                `${GAP_ANSWER_LABEL[g.answer] ?? g.answer} ${GAP_REASON_LABEL[g.reason] ?? g.reason} ${g.users}명`,
             )
             .join(" · ")}
         </p>

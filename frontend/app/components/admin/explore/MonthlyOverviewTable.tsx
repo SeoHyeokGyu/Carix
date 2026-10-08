@@ -19,6 +19,7 @@ function Cell({ value, thin }: { value: number; thin: boolean }) {
       className={`px-2 py-1 text-right ${thin ? "text-carix-warning font-semibold" : ""}`}
     >
       {value}
+      {thin && <span className="sr-only">(부족)</span>}
     </td>
   );
 }

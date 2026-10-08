@@ -1,4 +1,4 @@
-import { act, render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { PurchasingPowerPanel } from "./PurchasingPowerPanel";
 import * as api from "../../../lib/collectorApi";
@@ -97,6 +97,27 @@ describe("PurchasingPowerPanel", () => {
       "data-sharp",
       "false",
     );
+  });
+
+  it("급변 칸에 눈에 보이는 표식과 스크린리더용 문구를 붙이고 다른 칸에는 붙이지 않는다", async () => {
+    vi.mocked(api.fetchCpi).mockResolvedValue({
+      codes: ["A", "H"],
+      months: [
+        { month: "202507", values: { A: 100, H: 101 } },
+        { month: "202508", values: { A: 100.5, H: 87.87 } },
+      ],
+      missing: [],
+    });
+    render(<PurchasingPowerPanel tab="cpi" />);
+    const sharp = await screen.findByTestId("cpi-202508-H");
+    const hint = within(sharp).getByText("값 확인 — 전월 대비 5% 넘게 변함");
+    expect(hint).toHaveClass("sr-only");
+    expect(within(sharp).getByText("!")).toHaveAttribute("aria-hidden", "true");
+    const plain = screen.getByTestId("cpi-202508-A");
+    expect(within(plain).queryByText("!")).not.toBeInTheDocument();
+    expect(
+      within(plain).queryByText("값 확인 — 전월 대비 5% 넘게 변함"),
+    ).not.toBeInTheDocument();
   });
 
   it("임금통계 표 위에 직무 구분 없음 설명을 보인다", async () => {

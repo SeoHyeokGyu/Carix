@@ -100,6 +100,18 @@ describe("MonthlyOverviewTable", () => {
     expect(screen.getByText("7")).toHaveAttribute("data-thin", "true");
   });
 
+  it("강조한 칸에 스크린리더용 「(부족)」 을 붙이고 나머지 칸에는 붙이지 않는다", () => {
+    renderTable();
+    const thin = screen.getByText("198");
+    expect(within(thin).getByText("(부족)")).toHaveClass("sr-only");
+    expect(
+      within(screen.getByText("250")).queryByText("(부족)"),
+    ).not.toBeInTheDocument();
+    expect(
+      document.querySelectorAll('td[data-thin="true"] .sr-only'),
+    ).toHaveLength(document.querySelectorAll('td[data-thin="true"]').length);
+  });
+
   it("당월 행은 「수집 중」을 달고 강조하지 않는다", () => {
     renderTable();
     const row = screen.getByRole("link", { name: "202610" }).closest("tr")!;

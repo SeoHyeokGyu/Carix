@@ -69,6 +69,17 @@ function CpiView({ data }: { data: CpiTable }) {
                     className={`px-2 py-1 text-right ${v === undefined ? MISSING_CELL : sharp ? SHARP_CELL : ""}`}
                   >
                     {v === undefined ? "—" : v.toFixed(2)}
+                    {sharp && (
+                      <>
+                        <sup
+                          aria-hidden="true"
+                          className="ml-0.5 font-semibold"
+                        >
+                          !
+                        </sup>
+                        <span className="sr-only">{SHARP_TITLE}</span>
+                      </>
+                    )}
                   </td>
                 );
               })}

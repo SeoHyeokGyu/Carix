@@ -85,14 +85,12 @@ describe("DataHealthStrip", () => {
     renderStrip();
     expect(await screen.findByText("CPI 최신월")).toBeInTheDocument();
     expect(screen.getByText("CPI 가 한 달 늦다")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "수집 확인" })).toHaveAttribute(
-      "href",
-      "/admin/collector",
-    );
-    expect(screen.getByRole("link", { name: "근거" })).toHaveAttribute(
-      "href",
-      "/admin/data?tab=cpi",
-    );
+    expect(
+      screen.getByRole("link", { name: "CPI 최신월 수집 확인" }),
+    ).toHaveAttribute("href", "/admin/collector");
+    expect(
+      screen.getByRole("link", { name: "CPI 최신월 근거" }),
+    ).toHaveAttribute("href", "/admin/data?tab=cpi");
     expect(screen.getByText("외 4개 정상")).toBeInTheDocument();
   });
 
@@ -113,7 +111,7 @@ describe("DataHealthStrip", () => {
     );
     renderStrip();
     expect(
-      await screen.findByText(/빠진 사유: PPI 스냅샷 없음 2명/),
+      await screen.findByText(/빠진 사유: 구매력 스냅샷 없음 2명/),
     ).toBeInTheDocument();
   });
 
@@ -139,6 +137,41 @@ describe("DataHealthStrip", () => {
     await userEvent.click(screen.getByRole("button", { name: "다시 점검" }));
     expect(await screen.findByText("점검 정상")).toBeInTheDocument();
     expect(api.fetchDataHealth).toHaveBeenCalledTimes(2);
+  });
+
+  it("답이 빈 대상 코드를 한글로 보이고 모르는 코드는 그대로 둔다", async () => {
+    vi.mocked(api.fetchDataHealth).mockResolvedValue(
+      report({ CPI_LATEST: { verdict: "WARN" } }, [
+        { answer: "MVI", reason: "INSUFFICIENT_SAMPLE", users: 1 },
+        { answer: "DECISION", reason: "MVI_UNCERTAIN", users: 2 },
+        { answer: "ALL", reason: "NO_SNAPSHOT", users: 3 },
+        { answer: "XYZ", reason: "NOT_AVAILABLE", users: 4 },
+      ]),
+    );
+    renderStrip();
+    expect(
+      await screen.findByText(
+        /시장가치 표본 부족 1명 · 결정 신호 시장가치 불확실 2명 · 전체 스냅샷 없음 3명 · XYZ 산출 불가 4명/,
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it("점검 중 표시는 status, 실패 문구는 alert 역할을 가진다", async () => {
+    let resolve: (r: api.DataHealthReport) => void = () => {};
+    vi.mocked(api.fetchDataHealth).mockReturnValueOnce(
+      new Promise((r) => (resolve = r)),
+    );
+    renderStrip();
+    expect(screen.getByRole("status")).toHaveTextContent("점검 중…");
+    resolve(report());
+    await screen.findByText("점검 정상");
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+
+    vi.mocked(api.fetchDataHealth).mockRejectedValueOnce({ status: 500 });
+    await userEvent.click(screen.getByRole("button", { name: "다시 점검" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "점검을 불러오지 못했습니다",
+    );
   });
 
   it("403 이면 onAuthError 를 부른다", async () => {
