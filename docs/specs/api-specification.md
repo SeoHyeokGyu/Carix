@@ -950,7 +950,7 @@
           ]
         }
         ```
-    *   `referenceMonth`·`previousMonth` 는 서버 시계(UTC)로 센 이번 달·지난달이다(수집기 관측월과 같은 기준). `evaluatedAt` 은 `Asia/Seoul` 오프셋이다. `summary.users` 는 프로필 또는 스냅샷이 있는 사용자 수, `fullyAnswered` 는 세 질문에 온전히 답하는 사용자 수, `gaps[]` 는 답이 빈 사유(`answer` 는 `PPI`·`MVI`·`DECISION`·`ALL`)별 사용자 수다.
+    *   `referenceMonth`·`previousMonth` 는 서버 시계(UTC)로 센 이번 달·지난달이다(수집기 관측월과 같은 기준). `evaluatedAt` 은 `Asia/Seoul` 오프셋이다. `summary.users` 는 프로필 또는 스냅샷이 있는 사용자 수, `fullyAnswered` 는 세 질문에 온전히 답하는 사용자 수, `gaps[]` 는 답이 빈 사유(`answer` 는 `PPI`·`MVI`·`DECISION`·`ALL`)별 사용자 수다. 데이터를 읽지 못했으면 사용자 수를 0 으로 세지 않고 `summary` 가 `null` 이다.
     *   `checks[]` 는 아래 5개를 이 순서로 싣는다. `verdict` 는 `OK`·`WARN`·`ERROR`·`UNKNOWN` 이다.
 
         | `id` | 판정 |

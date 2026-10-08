@@ -79,14 +79,13 @@ public class DataHealthService {
       data = null;
     }
     List<DataHealthReport.Check> checks = checks(data, reference, engine);
-    DataHealthSnapshot forSummary =
-        data != null ? data : new DataHealthSnapshot(null, null, null, null, null, null);
+    // 읽지 못했으면 빈 스냅샷으로 세지 않고 요약 자체를 비운다 — 0명으로 읽히면 거짓 정상이다.
     return new DataHealthReport(
         OffsetDateTime.now(clock.withZone(SEOUL)),
         YM.format(reference),
         YM.format(previous),
         engine,
-        SummaryCalculator.summarize(forSummary),
+        data == null ? null : SummaryCalculator.summarize(data),
         checks.stream().map(c -> withDrillDown(c, reference)).toList());
   }
 

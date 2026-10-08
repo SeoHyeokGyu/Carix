@@ -274,11 +274,12 @@ export interface DataHealthReport {
   referenceMonth: string;
   previousMonth: string;
   engineRuleVersion: string | null;
+  /** 데이터를 읽지 못했으면 null — 사용자 수를 0 으로 지어내지 않는다. */
   summary: {
     users: number;
     fullyAnswered: number;
     gaps: { answer: string; reason: string; users: number }[];
-  };
+  } | null;
   checks: HealthCheck[];
 }
 

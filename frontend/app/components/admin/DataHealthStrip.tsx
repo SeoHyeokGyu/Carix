@@ -122,7 +122,8 @@ export function DataHealthStrip({
 
   const problems = report.checks.filter((c) => c.verdict !== "OK");
   const okCount = report.checks.length - problems.length;
-  const { gaps } = report.summary;
+  const { summary } = report;
+  const gaps = summary?.gaps ?? [];
   return (
     <section
       aria-label="점검"
@@ -134,9 +135,13 @@ export function DataHealthStrip({
             ? "점검 정상"
             : `점검 ${problems.length}건 확인 필요`}
         </span>
-        <span>
-          답하는 사용자 {report.summary.fullyAnswered}/{report.summary.users}
-        </span>
+        {summary ? (
+          <span>
+            답하는 사용자 {summary.fullyAnswered}/{summary.users}
+          </span>
+        ) : (
+          <span className="text-carix-text/60">답하는 사용자 판정 불가</span>
+        )}
         <span className="text-carix-text/60">
           기준 {report.referenceMonth} · 확인{" "}
           {CHECKED_AT.format(new Date(report.evaluatedAt))}

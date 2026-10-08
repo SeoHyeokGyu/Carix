@@ -90,6 +90,7 @@ class DataHealthServiceTest {
     assertThat(r.checks())
         .allSatisfy(c -> assertThat(c.verdict()).isEqualTo(HealthVerdict.UNKNOWN));
     assertThat(r.engineRuleVersion()).isNull();
+    assertThat(r.summary()).isNull();
   }
 
   private static DataHealthReport.Check check(DataHealthReport r, String id) {

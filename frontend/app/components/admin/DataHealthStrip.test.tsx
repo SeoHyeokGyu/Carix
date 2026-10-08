@@ -20,7 +20,7 @@ const IDS = [
 
 function report(
   overrides: Record<string, Partial<api.HealthCheck>> = {},
-  gaps: api.DataHealthReport["summary"]["gaps"] = [],
+  gaps: NonNullable<api.DataHealthReport["summary"]>["gaps"] = [],
 ): api.DataHealthReport {
   return {
     evaluatedAt: "2026-10-08T00:25:00Z",
@@ -115,6 +115,18 @@ describe("DataHealthStrip", () => {
     expect(
       await screen.findByText(/빠진 사유: PPI 스냅샷 없음 2명/),
     ).toBeInTheDocument();
+  });
+
+  it("요약을 낼 수 없으면 답하는 사용자 판정 불가를 보이고 숫자를 지어내지 않는다", async () => {
+    vi.mocked(api.fetchDataHealth).mockResolvedValue({
+      ...report(),
+      summary: null,
+    });
+    renderStrip();
+    expect(
+      await screen.findByText("답하는 사용자 판정 불가"),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/답하는 사용자 \d/)).not.toBeInTheDocument();
   });
 
   it("500 이면 실패 문구와 다시 점검 버튼을 보이고 누르면 다시 부른다", async () => {
