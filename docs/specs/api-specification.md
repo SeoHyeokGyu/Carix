@@ -922,7 +922,7 @@
         ```
 
 ### 8.8 데이터 상태 점검 조회
-*   `GET /internal/pipeline/health` — 세 질문(구매력·시장가치·결정 신호)에 온전히 답하는지와 고칠 곳을 판정하는 읽기 전용 점검 (관리자 콘솔 `/admin/data-health` 연동). 데이터를 바꾸지 않는다. 판정할 데이터가 없으면 정상이 아니라 `UNKNOWN`(판정 불가)이다.
+*   `GET /internal/pipeline/health` — 세 질문(구매력·시장가치·결정 신호)에 온전히 답하는지와 고칠 곳을 판정하는 읽기 전용 점검 (관리자 콘솔 `/admin/data` 맨 위 점검 줄 연동). 데이터를 바꾸지 않는다. 판정할 데이터가 없으면 정상이 아니라 `UNKNOWN`(판정 불가)이다. 데이터를 읽지 못하거나 판정이 실패해도 응답은 내며 점검 5개를 모두 `UNKNOWN` 으로 채운다.
     *   **Response (200 OK):**
         ```json
         {
@@ -933,34 +933,36 @@
           "summary": {
             "users": 3,
             "fullyAnswered": 1,
-            "gaps": [ { "answer": "MVI", "reason": "INSUFFICIENT_SAMPLE", "users": 1 } ],
-            "verdictCounts": { "ERROR": 0, "WARN": 2, "OK": 9, "UNKNOWN": 0 }
+            "gaps": [ { "answer": "MVI", "reason": "INSUFFICIENT_SAMPLE", "users": 1 } ]
           },
-          "groups": [
+          "checks": [
             {
-              "id": "PPI",
-              "title": "구매력 지수",
-              "question": "내 실질 구매력은?",
-              "checks": [
-                {
-                  "id": "CPI_LATEST",
-                  "title": "CPI 최신월",
-                  "verdict": "OK",
-                  "message": "최신 CPI 202609 (1개월 지연)",
-                  "impactUsers": 0,
-                  "action": null,
-                  "actionLink": null,
-                  "drillDown": "/admin/data?tab=cpi&from=201610&to=202609",
-                  "evidence": { "latestCpiMonth": "202609", "lagMonths": 1 }
-                }
-              ]
+              "id": "CPI_LATEST",
+              "title": "CPI 최신월",
+              "verdict": "OK",
+              "message": "최신 CPI 202609 (1개월 지연)",
+              "impactUsers": 0,
+              "action": null,
+              "actionLink": null,
+              "drillDown": "/admin/data?tab=cpi",
+              "evidence": { "latestCpiMonth": "202609", "lagMonths": 1 }
             }
           ]
         }
         ```
-    *   `groups[].id` 는 `PPI`·`MVI`·`DECISION`·`SUPPORT`·`WANTED` 이고, `checks[].id` 는 `CPI_LATEST`·`CPI_GAP`·`SAMPLE_LAST_MONTH`·`SAMPLE_GAPS`·`AGGREGATE_STALE`·`PEER_SAMPLE_BY_FAMILY`·`WAGE_BASELINE`·`RULE_VERSION`·`SNAPSHOT_FRESHNESS`·`DECISION_QUALITY`·`CRAWL_FRESHNESS`·`WANTED_SAMPLE_LAST_MONTH`·`WANTED_SAMPLE_GAPS`·`WANTED_AGGREGATE_STALE` 다. `MVI` 의 표본 점검(`SAMPLE_LAST_MONTH`·`SAMPLE_GAPS`·`AGGREGATE_STALE`)은 잡코리아만 센다. `WANTED` 그룹(「원티드(도입 중)」, 질문 「원티드 표본이 쌓이고 있나?」)은 같은 표본 점검을 원티드 시계열에 적용하며, 요약(`summary`)의 판정 건수와 「세 질문에 온전히 답하는 사용자」 계산에서 뺀다. `verdict` 는 `OK`·`WARN`·`ERROR`·`UNKNOWN` 이다.
-    *   기준값은 collector 설정 `carix.collector.health.*`(`sample-target` 250, `sample-warn-ratio` 0.8, `cpi-max-lag-months` 2, `peer-min-sample` 10, `crawl-stale-days` 35)이다.
-    *   `checks[].drillDown` 은 근거 원본을 여는 관리자 콘솔 경로(문자열, nullable)이며 판정과 무관하게 채운다. `SAMPLE_LAST_MONTH` 는 `/admin/data?tab=postings&month={지난달}&sampled=true`, `SAMPLE_GAPS`·`AGGREGATE_STALE`·`PEER_SAMPLE_BY_FAMILY`·`CRAWL_FRESHNESS` 는 `/admin/data?tab=monthly&from={지난달−35개월}&to={지난달}`(36개월), `CPI_LATEST`·`CPI_GAP` 는 `/admin/data?tab=cpi&from={지난달−119개월}&to={지난달}`(120개월), `WAGE_BASELINE` 은 `/admin/data?tab=wage` 이고 `WANTED_SAMPLE_LAST_MONTH` 는 `/admin/data?tab=postings&month={지난달}&sampled=true&source=WANTED`, `WANTED_SAMPLE_GAPS`·`WANTED_AGGREGATE_STALE` 는 36개월 월별 현황 경로에 `&sampleSource=WANTED` 를 더한 것이며 그 밖의 점검은 `null` 이다.
+    *   `referenceMonth`·`previousMonth` 는 서버 시계(UTC)로 센 이번 달·지난달이다(수집기 관측월과 같은 기준). `evaluatedAt` 은 `Asia/Seoul` 오프셋이다. `summary.users` 는 프로필 또는 스냅샷이 있는 사용자 수, `fullyAnswered` 는 세 질문에 온전히 답하는 사용자 수, `gaps[]` 는 답이 빈 사유(`answer` 는 `PPI`·`MVI`·`DECISION`·`ALL`)별 사용자 수다.
+    *   `checks[]` 는 아래 5개를 이 순서로 싣는다. `verdict` 는 `OK`·`WARN`·`ERROR`·`UNKNOWN` 이다.
+
+        | `id` | 판정 |
+        | --- | --- |
+        | `AGGREGATE_STALE` | 월별 상한 적용 표본 수와 시장 집계 표본 수가 어긋난 달이 있는지. 잡코리아가 어긋나면 `ERROR`(`impactUsers` = 시장가치 상태가 `OK` 가 아닌 사용자 수), 원티드만 어긋나면 `WARN`(`impactUsers` 0, 지수 편입 전). 표본이 있는 원천만 비교한다 |
+        | `RULE_VERSION` | 사용자 스냅샷의 규칙 버전이 엔진(core-api, 8.9)보다 뒤처졌는지. 뒤처지면 `WARN` |
+        | `SNAPSHOT_FRESHNESS` | 스냅샷 기준월이 `referenceMonth` 보다 이른 사용자가 있는지. 있으면 `WARN` |
+        | `CPI_LATEST` | 최신 CPI 월이 `referenceMonth` 보다 늦은 개월 수. `cpi-max-lag-months`(2)와 같으면 `WARN`, 넘으면 `ERROR` |
+        | `CRAWL_FRESHNESS` | 가장 오래된 정기 수집 원천의 마지막 수집이 `crawl-stale-days`(35)일을 넘으면 `WARN` |
+
+    *   기준값은 collector 설정 `carix.collector.health.*`(`cpi-max-lag-months` 2, `crawl-stale-days` 35)이다.
+    *   `checks[].drillDown` 은 근거 원본을 여는 관리자 콘솔 경로(문자열, nullable)이며 판정과 무관하게 채운다. `AGGREGATE_STALE` 는 `/admin/data?tab=monthly&from={시작}&to={기준월}` 이고 시작은 어긋난 달 중 가장 이른 달과 기준월−17개월 중 이른 쪽이되 기준월−35개월(36개월 범위)보다 이르면 그 달이다. `CPI_LATEST` 는 `/admin/data?tab=cpi`(기본 범위)이고 `CRAWL_FRESHNESS` 는 가장 오래된 원천의 마지막 수집 달·그 원천·최근 수집순으로 여는 `/admin/data?tab=postings&month={YYYYMM}&sort=recent&source={원천}` 이다. 그 밖의 점검은 `null` 이다.
 
 ### 8.9 엔진 규칙 버전 조회 (core-api)
 *   `GET /api/v1/meta/versions` — 결정 신호 엔진의 규칙 버전. 인증이 없고, collector 가 게이트웨이를 거치지 않고 서비스 간 호출로 읽어 8.8 의 `RULE_VERSION` 점검에 쓴다.
@@ -970,9 +972,9 @@
         ```
 
 ### 8.10 수집 데이터 월별 현황 조회
-*   `GET /internal/pipeline/explore/monthly?from={YYYYMM}&to={YYYYMM}&sampleSource={JOBKOREA|WANTED}` — 월별 표본·정기 수집 건수 조회 (관리자 콘솔 `/admin/data` 월별 현황 탭 연동). 8.10~8.13 은 모두 읽기 전용이며 데이터를 바꾸지 않는다. 공개 원천의 금액(공고 제시 연봉 범위, 임금통계 중위값)은 싣고, 사용자 소득은 싣지 않는다. 월 기준은 `Asia/Seoul` 이다.
-    *   `from`·`to` 는 모두 선택이다. 기본 범위는 이번 달까지 최근 13개월이고, 범위는 최대 36개월이다. 관리자 콘솔은 URL 의 `from`·`to` 를 그대로 넘긴다. 형식 오류, `from` 이 `to` 보다 늦은 경우, 36개월 초과는 `400 BAD_REQUEST` 다. `sampleSource` 는 선택이며 `sampledByFamily`(직무별 표본)를 셀 표본 원천이다 — `JOBKOREA`(기본)·`WANTED`, 그 밖의 값은 `400 BAD_REQUEST`.
-    *   표본은 `sampled_month`, 정기 수집은 `first_seen_month` 로 월을 센다. `jobkoreaSampledCapped`·`wantedSampledCapped` 와 `sampledByFamily` 는 같은 회사 월 3건 상한을 적용한 표본 기준으로 시장가치 동료집단과 같은 모수다.
+*   `GET /internal/pipeline/explore/monthly?from={YYYYMM}&to={YYYYMM}&sampleSource={JOBKOREA|WANTED}` — 월별 표본·정기 수집 건수 조회 (관리자 콘솔 `/admin/data` 월별 현황 탭 연동). 8.10~8.13 은 모두 읽기 전용이며 데이터를 바꾸지 않는다. 공개 원천의 금액(공고 제시 연봉 범위, 임금통계 중위값)은 싣고, 사용자 소득은 싣지 않는다. 월 기준은 서버 시계(UTC)이며 수집기 관측월과 같다.
+    *   `from`·`to` 는 모두 선택이다. 기본 범위는 이번 달까지 최근 18개월이고, 범위는 최대 36개월이다. 관리자 콘솔은 URL 의 `from`·`to` 를 그대로 넘긴다. 형식 오류, `from` 이 `to` 보다 늦은 경우, 36개월 초과는 `400 BAD_REQUEST` 다. `sampleSource` 는 선택이며 `sampledByFamily`(직무별 표본)를 셀 표본 원천이다 — `JOBKOREA`(기본)·`WANTED`, 그 밖의 값은 `400 BAD_REQUEST`.
+    *   표본은 `sampled_month`, 정기 수집은 `first_seen_month` 로 월을 센다. `current` 는 그 달이 서버 시계(UTC) 기준 이번 달이면 `true` 다(수집 중인 달). `sampledByFamily` 는 `DEVELOPER`·`DATA`·`AI` 만 싣는다. `jobkoreaSampledCapped`·`wantedSampledCapped` 와 `sampledByFamily` 는 같은 회사 월 3건 상한을 적용한 표본 기준으로 시장가치 동료집단과 같은 모수다.
     *   **Response (200 OK):**
         ```json
         {
@@ -988,7 +990,8 @@
               "wantedSampled": 250,
               "wantedSampledCapped": 238,
               "wantedCrawled": 530,
-              "sampledByFamily": { "DEVELOPER": 203, "DATA": 10, "AI": 31, "OTHER": 0 }
+              "sampledByFamily": { "DEVELOPER": 203, "DATA": 10, "AI": 31 },
+              "current": false
             }
           ]
         }
@@ -1003,7 +1006,7 @@
         | `month` | 필수 | `YYYYMM`. 누락 또는 형식 오류는 `400 BAD_REQUEST` |
         | `source` | 선택 | `JOBKOREA`·`SARAMIN`·`WANTED` |
         | `sampled` | 선택 | `true` 면 `sampled_month = month`, `false` 면 `sampled_month IS NULL` 이고 `first_seen_month = month`, 생략하면 둘의 합집합 |
-        | `family` | 선택 | 직무군. `OTHER` 는 `DEVELOPER`·`DATA`·`AI` 가 아닌 모든 공고(직무군이 비어 있는 공고 포함)로, 월별 현황의 `OTHER` 집계와 같은 기준이다 |
+        | `family` | 선택 | 직무군. `OTHER` 는 `DEVELOPER`·`DATA`·`AI` 가 아닌 모든 공고(직무군이 비어 있는 공고 포함)다 |
         | `company` | 선택 | 회사명 부분 일치 |
         | `skill` | 선택 | 표준 스킬명 정확 일치 |
         | `disclosure` | 선택 | 연봉 공개 구분 `PUBLIC`·`BAND`·`NONE`·`UNKNOWN`. 그 밖의 값은 `400 BAD_REQUEST` |
