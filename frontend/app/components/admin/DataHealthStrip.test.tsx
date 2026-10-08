@@ -4,6 +4,7 @@ import { createRoutesStub } from "react-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { DataHealthStrip } from "./DataHealthStrip";
 import * as api from "../../lib/collectorApi";
+import { GAP_REASON_LABEL } from "../../lib/dataHealth";
 
 vi.mock("../../lib/collectorApi", async (orig) => ({
   ...(await orig<typeof import("../../lib/collectorApi")>()),
@@ -200,5 +201,48 @@ describe("DataHealthStrip", () => {
     await vi.waitFor(() =>
       expect(screen.queryByText("점검 중…")).not.toBeInTheDocument(),
     );
+  });
+
+  it("빈 답 사유 문구는 GAP_REASON_LABEL 에서 가져오고 모르는 사유는 코드 그대로 둔다", async () => {
+    expect(GAP_REASON_LABEL.UPDATE_DELAYED).toBe("업데이트 지연");
+    vi.mocked(api.fetchDataHealth).mockResolvedValue(
+      report({ CPI_LATEST: { verdict: "WARN" } }, [
+        { answer: "PPI", reason: "UPDATE_DELAYED", users: 2 },
+        { answer: "MVI", reason: "BRAND_NEW_REASON", users: 1 },
+      ]),
+    );
+    renderStrip();
+    expect(
+      await screen.findByText(
+        /구매력 업데이트 지연 2명 · 시장가치 BRAND_NEW_REASON 1명/,
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it("성공 뒤 실패하고 다시 점검하면 이전 보고서를 두고 점검 중을 붙인다", async () => {
+    vi.mocked(api.fetchDataHealth).mockResolvedValueOnce(
+      report({ CPI_LATEST: { verdict: "WARN", message: "CPI 가 늦다" } }),
+    );
+    renderStrip();
+    await screen.findByText("CPI 가 늦다");
+
+    vi.mocked(api.fetchDataHealth).mockRejectedValueOnce({ status: 500 });
+    await userEvent.click(screen.getByRole("button", { name: "다시 점검" }));
+    expect(
+      await screen.findByText("점검을 불러오지 못했습니다"),
+    ).toBeInTheDocument();
+
+    let resolve: (r: api.DataHealthReport) => void = () => {};
+    vi.mocked(api.fetchDataHealth).mockReturnValueOnce(
+      new Promise((r) => (resolve = r)),
+    );
+    await userEvent.click(screen.getByRole("button", { name: "다시 점검" }));
+    expect(screen.getByRole("status")).toHaveTextContent("점검 중…");
+    expect(screen.getByText("CPI 가 늦다")).toBeInTheDocument();
+    expect(
+      screen.queryByText("점검을 불러오지 못했습니다"),
+    ).not.toBeInTheDocument();
+    resolve(report());
+    expect(await screen.findByText("점검 정상")).toBeInTheDocument();
   });
 });

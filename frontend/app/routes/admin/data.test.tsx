@@ -627,4 +627,61 @@ describe("DataExplorePage", () => {
     );
     expect(api.fetchDataHealth).toHaveBeenCalledTimes(1);
   });
+
+  function withDrillDown(id: string, drillDown: string): api.DataHealthReport {
+    return {
+      ...healthyReport,
+      checks: healthyReport.checks.map((c) =>
+        c.id === id ? { ...c, verdict: "WARN" as const, drillDown } : c,
+      ),
+    };
+  }
+
+  it("재집계 누락의 근거 링크를 누르면 그 기간으로 월별 현황을 부른다", async () => {
+    vi.mocked(api.fetchDataHealth).mockResolvedValue(
+      withDrillDown(
+        "AGGREGATE_STALE",
+        "/admin/data?tab=monthly&from=202311&to=202610",
+      ),
+    );
+    vi.mocked(api.fetchCpi).mockResolvedValue({
+      codes: ["A"],
+      months: [],
+      missing: [],
+    });
+    renderAt("/admin/data?tab=cpi");
+    await userEvent.click(
+      await screen.findByRole("link", { name: "AGGREGATE_STALE 근거" }),
+    );
+    await waitFor(() =>
+      expect(api.fetchMonthlyOverview).toHaveBeenLastCalledWith(
+        "202311",
+        "202610",
+        undefined,
+      ),
+    );
+    expect(screen.getByLabelText("시작 월")).toHaveValue("2023-11");
+  });
+
+  it("정기 수집 최신성의 근거 링크를 누르면 그 월·원천·정렬로 공고를 부른다", async () => {
+    vi.mocked(api.fetchDataHealth).mockResolvedValue(
+      withDrillDown(
+        "CRAWL_FRESHNESS",
+        "/admin/data?tab=postings&month=202609&sort=recent&source=WANTED",
+      ),
+    );
+    renderAt("/admin/data");
+    await userEvent.click(
+      await screen.findByRole("link", { name: "CRAWL_FRESHNESS 근거" }),
+    );
+    await waitFor(() =>
+      expect(api.fetchPostings).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          month: "202609",
+          source: "WANTED",
+          sort: "recent",
+        }),
+      ),
+    );
+  });
 });
