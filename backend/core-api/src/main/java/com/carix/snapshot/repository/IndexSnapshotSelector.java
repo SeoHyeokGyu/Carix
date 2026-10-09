@@ -19,6 +19,8 @@ import java.util.Optional;
  */
 public final class IndexSnapshotSelector {
 
+  private static final DateTimeFormatter YYYYMM = DateTimeFormatter.ofPattern("yyyyMM");
+
   private IndexSnapshotSelector() {}
 
   public static Optional<IndexSnapshot> latest(List<IndexSnapshot> sameMonthSnapshots) {
@@ -35,7 +37,7 @@ public final class IndexSnapshotSelector {
   public static Optional<IndexSnapshot> recordedAtMonthEnd(
       List<IndexSnapshot> sameMonthSnapshots, String baseYearMonth) {
     Instant monthEnd =
-        YearMonth.parse(baseYearMonth, DateTimeFormatter.ofPattern("yyyyMM"))
+        YearMonth.parse(baseYearMonth, YYYYMM)
             .plusMonths(1)
             .atDay(1)
             .atStartOfDay(ZoneOffset.UTC)
