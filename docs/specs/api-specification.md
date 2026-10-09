@@ -478,6 +478,8 @@
 *   **경계.** `skill.is_custom` 은 양쪽(기준·후보)에서 제외한다. 동료집단 표본이 `PeerGroupFallbackResolver.MIN_SAMPLE_SIZE` 미만이면 `recommendations` 는 빈 배열이고 임의 스킬을 채우지 않는다. 기준 스킬의 공고 수가 같은 기준에 미달하거나 동시출현율이 임계값 미만이면 `coOccurrence` 는 `null` 이고 `reason` 은 수요율 문구로 되돌린다 — 임계값은 `b8` 에서 `SkillDemandCalculator` 상수와 함께 Config Server 로 외부화한다.
 *   **품질 상한.** `raw_ingest` 가 원문을 보관하지 않아 스킬 사전을 개선해도 **이미 수집된 공고에는 소급되지 않는다.** 동시출현율은 수집 시점의 파싱 품질에 묶인다.
 *   **Endpoint:** `GET /api/v1/skills/recommendations`
+*   **Query Parameters (선택):**
+    *   `limit` (Integer, optional): 추천 스킬 최대 조회 개수 (기본 10, 최대 30). 기본 10개를 제공하여 화면에서 상위 3개 단위 순환 탐색(다른 추천 보기)을 지원한다.
 *   **Response (200 OK):**
     ```json
     {
