@@ -601,12 +601,12 @@ public class MarketValueIndexServiceImpl implements MarketValueIndexProvider {
 
         SkillDemandStatus demandStatus = demandResult.getStatus();
         if (demandStatus == SkillDemandStatus.NEW_OBSERVATION) {
-          // 이 원천의 이전 창이 비었다(분모 0). 표본 미달처럼 이 원천의 가중합에서만 빠진다 (기능 명세 §4.1).
+          // 이 원천의 이전 창이 비었다(분모 0). 표본 미달처럼 이 스킬의 원천 결합에서 이 원천만 빠진다 (기능 명세 §4.1).
           newObservationSkillIds.add(skillId);
           continue;
         }
         if (demandStatus == SkillDemandStatus.INSUFFICIENT_SAMPLE) {
-          // 이 원천에서만 미달일 수 있다. 지수를 넣지 않으면 이 원천의 가중합에서 자동으로 빠진다.
+          // 이 원천에서만 미달일 수 있다. 지수를 넣지 않으면 이 스킬의 원천 결합에서 이 원천이 자동으로 빠진다.
           underSampledSkillIds.add(skillId);
           continue;
         }
@@ -1021,7 +1021,7 @@ public class MarketValueIndexServiceImpl implements MarketValueIndexProvider {
           continue;
         }
         if (isDroppedFromCombination(demandRes.getStatus())) {
-          // calculate() 의 classifySkills 와 같다 — 이 원천만 가중합에서 빠진다.
+          // calculate() 의 classifySkills 와 같다 — 이 스킬의 원천 결합에서 이 원천만 빠진다.
           droppedStatuses.add(demandRes.getStatus());
           continue;
         }
