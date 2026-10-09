@@ -124,6 +124,8 @@ function PageWithBackLink() {
   );
 }
 
+const LOADING = "불러오는 중입니다...";
+
 function renderAt(url: string | string[]) {
   const Stub = createRoutesStub([
     { path: "/admin/data", Component: PageWithBackLink },
@@ -494,6 +496,67 @@ describe("DataExplorePage", () => {
     ).toBeInTheDocument();
     expect(api.fetchPostings).not.toHaveBeenCalled();
     expect(screen.queryByText("불러오지 못했습니다")).not.toBeInTheDocument();
+  });
+
+  it("불러오는 동안 로딩 문구를 보이고 응답 뒤 지운다", async () => {
+    let resolve!: (v: api.MonthlyOverview) => void;
+    vi.mocked(api.fetchMonthlyOverview).mockReturnValue(
+      new Promise((r) => {
+        resolve = r;
+      }),
+    );
+    renderAt("/admin/data?tab=monthly");
+    expect(await screen.findByText(LOADING)).toBeInTheDocument();
+    await act(async () => resolve(monthly));
+    expect(screen.queryByText(LOADING)).not.toBeInTheDocument();
+    expect(screen.getByText("150")).toBeInTheDocument();
+  });
+
+  it("403 이면 로딩 문구를 지운다", async () => {
+    vi.mocked(api.fetchPostings).mockRejectedValue({ status: 403 });
+    renderAt("/admin/data?tab=postings&month=202607");
+    await waitFor(() =>
+      expect(screen.queryByText(LOADING)).not.toBeInTheDocument(),
+    );
+    expect(api.fetchPostings).toHaveBeenCalledTimes(1);
+  });
+
+  it("월 형식이 틀리면 로딩 문구가 없다", async () => {
+    renderAt("/admin/data?tab=postings&month=2026-09");
+    await screen.findByText("월은 YYYYMM 형식입니다");
+    expect(screen.queryByText(LOADING)).not.toBeInTheDocument();
+  });
+
+  it("서버 월을 URL 에 채운 뒤 로딩 문구가 남지 않는다", async () => {
+    renderAt("/admin/data?tab=postings");
+    await screen.findByText("QA 채용");
+    await waitFor(() =>
+      expect(screen.getByLabelText("월")).toHaveValue("2026-07"),
+    );
+    expect(screen.queryByText(LOADING)).not.toBeInTheDocument();
+  });
+
+  it("늦게 도착한 앞 요청이 뒤 요청의 로딩 문구를 지우지 않는다", async () => {
+    let resolveMonthly!: (v: api.MonthlyOverview) => void;
+    let resolvePostings!: (v: api.PostingPage) => void;
+    vi.mocked(api.fetchMonthlyOverview).mockReturnValue(
+      new Promise((r) => {
+        resolveMonthly = r;
+      }),
+    );
+    vi.mocked(api.fetchPostings).mockReturnValue(
+      new Promise((r) => {
+        resolvePostings = r;
+      }),
+    );
+    renderAt("/admin/data?tab=monthly");
+    await screen.findByText(LOADING);
+    await userEvent.click(screen.getByRole("tab", { name: "공고" }));
+    await act(async () => resolveMonthly(monthly));
+    expect(screen.getByText(LOADING)).toBeInTheDocument();
+    await act(async () => resolvePostings(postings));
+    expect(screen.queryByText(LOADING)).not.toBeInTheDocument();
+    expect(screen.getByText("QA 채용")).toBeInTheDocument();
   });
 
   it("공고 행을 펼치면 원천 링크가 새 창·noopener 로 열린다", async () => {
