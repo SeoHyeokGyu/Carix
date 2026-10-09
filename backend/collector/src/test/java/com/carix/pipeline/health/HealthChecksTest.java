@@ -70,7 +70,7 @@ class HealthChecksTest {
   }
 
   @Test
-  @DisplayName("재집계 누락은 잡코리아면 오류, 원티드만이면 경고다")
+  @DisplayName("재집계 누락은 잡코리아·원티드 모두 오류다")
   void aggregateStaleSeverityBySource() {
     var jkStale =
         HealthChecks.all(
@@ -87,7 +87,7 @@ class HealthChecksTest {
             t,
             NOW);
     assertThat(find(jkStale, "AGGREGATE_STALE").verdict()).isEqualTo(HealthVerdict.ERROR);
-    assertThat(find(wantedStale, "AGGREGATE_STALE").verdict()).isEqualTo(HealthVerdict.WARN);
+    assertThat(find(wantedStale, "AGGREGATE_STALE").verdict()).isEqualTo(HealthVerdict.ERROR);
     assertThat(find(jkStale, "AGGREGATE_STALE").evidence())
         .containsEntry("JOBKOREA", List.of("202609"))
         .containsEntry("WANTED", List.of());
@@ -161,7 +161,7 @@ class HealthChecksTest {
   }
 
   @Test
-  @DisplayName("잡코리아 표본이 없고 원티드만 있으면 원티드만 비교한다")
+  @DisplayName("잡코리아 표본이 없고 원티드만 있으면 원티드만 비교하고 불일치는 오류다")
   void aggregateStaleComparesOnlyPresentSource() {
     var stale =
         HealthChecks.all(
@@ -169,12 +169,12 @@ class HealthChecksTest {
     var equal =
         HealthChecks.all(
             snapshot(null, series(200, 200), Set.of(), Map.of(), List.of()), REF, "1.4.0", t, NOW);
-    assertThat(find(stale, "AGGREGATE_STALE").verdict()).isEqualTo(HealthVerdict.WARN);
+    assertThat(find(stale, "AGGREGATE_STALE").verdict()).isEqualTo(HealthVerdict.ERROR);
     assertThat(find(equal, "AGGREGATE_STALE").verdict()).isEqualTo(HealthVerdict.OK);
   }
 
   @Test
-  @DisplayName("재집계 누락 영향 사용자: 잡코리아 불일치면 MVI 미정상 수, 정상이면 0, 원티드만이면 0")
+  @DisplayName("재집계 누락 영향 사용자: 불일치면 MVI 미정상 수, 정상이면 0")
   void aggregateStaleImpactUsers() {
     var users =
         List.of(
@@ -205,7 +205,7 @@ class HealthChecksTest {
             NOW);
     assertThat(find(jk, "AGGREGATE_STALE").impactUsers()).isEqualTo(2);
     assertThat(find(ok, "AGGREGATE_STALE").impactUsers()).isZero();
-    assertThat(find(wanted, "AGGREGATE_STALE").impactUsers()).isZero();
+    assertThat(find(wanted, "AGGREGATE_STALE").impactUsers()).isEqualTo(2);
   }
 
   private static SampleSeries uncomputable() {

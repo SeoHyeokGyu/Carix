@@ -62,8 +62,8 @@ public final class HealthChecks {
   }
 
   /**
-   * 잡코리아 불일치는 ERROR, 원티드만 불일치면 WARN(지수 편입 전). 표본이 있는 원천만 비교한다. 두 원천은 따로 판정한다 — 원티드 상한 표본을 못 구해도
-   * 잡코리아 불일치는 오류로 낸다.
+   * 표본 원천(잡코리아·원티드) 불일치는 ERROR — 둘 다 지수 원천이다(규칙 1.5.0). 원티드 상한 표본을 못 구하면 판정할 수 없어 WARN. 두 원천은 따로
+   * 판정한다.
    */
   private static Check aggregateStale(DataHealthSnapshot data) {
     SampleSeries jobKorea = data.jobKorea();
@@ -80,14 +80,13 @@ public final class HealthChecks {
     List<String> wantedStale = staleMonths(wanted);
     boolean wantedUnavailable = wantedStale == null;
     List<String> wantedMonths = wantedUnavailable ? List.of() : wantedStale;
+    boolean stale = !jkStale.isEmpty() || !wantedMonths.isEmpty();
     HealthVerdict v =
-        !jkStale.isEmpty()
-            ? HealthVerdict.ERROR
-            : wantedUnavailable || !wantedMonths.isEmpty() ? HealthVerdict.WARN : HealthVerdict.OK;
+        stale ? HealthVerdict.ERROR : wantedUnavailable ? HealthVerdict.WARN : HealthVerdict.OK;
     int impact =
-        jkStale.isEmpty()
-            ? 0
-            : (int) data.snapshots().stream().filter(s -> !"OK".equals(s.mviStatus())).count();
+        stale
+            ? (int) data.snapshots().stream().filter(s -> !"OK".equals(s.mviStatus())).count()
+            : 0;
     int total = jkStale.size() + wantedMonths.size();
     Map<String, Object> evidence = new LinkedHashMap<>();
     evidence.put("JOBKOREA", jkStale);
