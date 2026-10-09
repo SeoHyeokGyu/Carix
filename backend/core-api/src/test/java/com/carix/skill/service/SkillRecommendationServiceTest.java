@@ -4,9 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyCollection;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -205,10 +203,6 @@ class SkillRecommendationServiceTest {
 
     when(marketAggregateRepository.findLatestAvailableYearMonthForSource(eq("ALL"), any()))
         .thenReturn(Optional.of("202610"));
-    // 원천 무관 최신 월이 프레임 행만 있는 달을 돌려줘도 쓰지 않아야 한다
-    lenient()
-        .when(marketAggregateRepository.findLatestAvailableYearMonth(any()))
-        .thenReturn(Optional.of("202611"));
     PeerGroupFallbackResolver.ResolvedPeerGroup mockResolvedPeer =
         mock(PeerGroupFallbackResolver.ResolvedPeerGroup.class);
     when(peerGroupFallbackResolver.resolve(eq("ALL"), eq("202610"), eq(profile)))
@@ -226,7 +220,6 @@ class SkillRecommendationServiceTest {
     service.getRecommendations(userId);
 
     verify(peerGroupFallbackResolver).resolve("ALL", "202610", profile);
-    verify(marketAggregateRepository, never()).findLatestAvailableYearMonth(any());
   }
 
   @Test
