@@ -10,7 +10,9 @@ import com.carix.jobposting.SkillRepository;
 import com.carix.jobposting.normalize.PostingSalary;
 import com.carix.jobposting.normalize.SalaryRange;
 import com.carix.pipeline.dto.explore.PostingPage;
+import java.time.Clock;
 import java.time.Instant;
+import java.time.ZoneOffset;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -27,6 +29,8 @@ class PostingsExploreTest {
   @Autowired private JobPostingRepository repository;
   @Autowired private SkillRepository skillRepository;
   @Autowired private DataExploreService service;
+  @Autowired private ExploreQueries queries;
+  @Autowired private com.carix.market.MarketAggregateService aggregate;
 
   private JobPosting posting(
       String source, String id, String company, String seen, String sampled) {
@@ -143,8 +147,82 @@ class PostingsExploreTest {
     assertThat(none.items().getFirst().skills()).isEmpty();
   }
 
+  private DataExploreService at(String instant) {
+    Clock clock = Clock.fixed(Instant.parse(instant), ZoneOffset.UTC);
+    return new DataExploreService(queries, repository, aggregate, clock);
+  }
+
   @Test
-  @DisplayName("결과 없음은 빈 목록, size 는 100 으로 자르고 month 없으면 400")
+  @DisplayName("month 를 안 주면 가장 최근 수집 월, 이번 달이면 current")
+  void postings_defaultsToLatestMonth() {
+    posting("SARAMIN", "51000100", "정기회사", "202610", null);
+    repository.flush();
+    DataExploreService fixed = at("2026-10-09T00:00:00Z");
+
+    PostingPage page = fixed.postings(null, null, null, null, null, null, null, null, null, null);
+
+    assertThat(page.month()).isEqualTo("202610");
+    assertThat(page.current()).isTrue();
+    assertThat(ids(page)).containsExactly("51000100");
+  }
+
+  @Test
+  @DisplayName("최근 월은 표본월도 센다, 다른 필터와 무관")
+  void postings_latestMonthIgnoresFilters() {
+    posting("JOBKOREA", "49500999", "표본회사", "202608", "202610");
+    repository.flush();
+
+    PostingPage page =
+        at("2026-10-09T00:00:00Z")
+            .postings(null, "SARAMIN", null, null, null, null, null, null, null, null);
+
+    assertThat(page.month()).isEqualTo("202610");
+    assertThat(page.total()).isZero();
+  }
+
+  @Test
+  @DisplayName("month 를 주면 그 달, 지난달이면 current 아님")
+  void postings_explicitMonthNotCurrent() {
+    posting("SARAMIN", "51000100", "정기회사", "202610", null);
+    repository.flush();
+
+    PostingPage page =
+        at("2026-10-09T00:00:00Z")
+            .postings("202609", null, null, null, null, null, null, null, null, null);
+
+    assertThat(page.month()).isEqualTo("202609");
+    assertThat(page.current()).isFalse();
+    assertThat(page.total()).isEqualTo(3);
+  }
+
+  @Test
+  @DisplayName("공고가 없으면 month null, total 0")
+  void postings_noPostings() {
+    repository.deleteAll();
+    repository.flush();
+
+    PostingPage page =
+        at("2026-10-09T00:00:00Z")
+            .postings(null, null, null, null, null, null, null, null, null, null);
+
+    assertThat(page.month()).isNull();
+    assertThat(page.current()).isFalse();
+    assertThat(page.total()).isZero();
+    assertThat(page.items()).isEmpty();
+  }
+
+  @Test
+  @DisplayName("빈 month 는 없는 것으로, 형식이 틀리면 400")
+  void postings_blankAndMalformedMonth() {
+    PostingPage page = service.postings(" ", null, null, null, null, null, null, null, null, null);
+    assertThat(page.month()).isEqualTo("202609");
+    assertThatThrownBy(
+            () -> service.postings("2026", null, null, null, null, null, null, null, null, null))
+        .isInstanceOf(ResponseStatusException.class);
+  }
+
+  @Test
+  @DisplayName("결과 없음은 빈 목록, size 는 100 으로 자르고 month 형식이 틀리면 400")
   void postings_emptyResult() {
     PostingPage empty =
         service.postings("202001", null, null, null, null, null, null, null, null, 500);
@@ -152,7 +230,7 @@ class PostingsExploreTest {
     assertThat(empty.items()).isEmpty();
     assertThat(empty.size()).isEqualTo(100);
     assertThatThrownBy(
-            () -> service.postings(null, null, null, null, null, null, null, null, null, null))
+            () -> service.postings("abc", null, null, null, null, null, null, null, null, null))
         .isInstanceOf(ResponseStatusException.class);
   }
 

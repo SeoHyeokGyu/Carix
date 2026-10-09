@@ -295,10 +295,10 @@ public class DataExploreService {
       String sort,
       Integer page,
       Integer size) {
-    if (month == null) {
-      throw badRequest("month 가 필요합니다");
+    String requested = blankToNull(month);
+    if (requested != null) {
+      parse(requested);
     }
-    parse(month);
     String disclosureFilter = blankToNull(disclosure);
     if (disclosureFilter != null && !DISCLOSURES.contains(disclosureFilter)) {
       throw badRequest("disclosure 는 PUBLIC|BAND|NONE|UNKNOWN 중 하나입니다: " + disclosureFilter);
@@ -309,9 +309,14 @@ public class DataExploreService {
     }
     int s = size == null || size <= 0 ? POSTINGS_DEFAULT_SIZE : Math.min(size, POSTINGS_MAX_SIZE);
     int p = page == null || page < 0 ? 0 : page;
+    String resolved = requested != null ? requested : queries.latestPostingMonth();
+    if (resolved == null) {
+      return new PostingPage(null, false, 0, p, s, List.of());
+    }
+    boolean current = resolved.equals(YM.format(currentMonth(clock)));
     PostingFilter filter =
         new PostingFilter(
-            month,
+            resolved,
             blankToNull(source),
             sampled,
             blankToNull(family),
@@ -354,7 +359,7 @@ public class DataExploreService {
                         r.sourceJobTags(),
                         r.collectedAt()))
             .toList();
-    return new PostingPage(total, p, s, items);
+    return new PostingPage(resolved, current, total, p, s, items);
   }
 
   static String sourceUrl(String source, String externalId) {
