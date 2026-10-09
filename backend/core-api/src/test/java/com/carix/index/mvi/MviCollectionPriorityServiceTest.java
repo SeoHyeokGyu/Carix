@@ -2,6 +2,7 @@ package com.carix.index.mvi;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -13,6 +14,7 @@ import com.carix.index.dto.CollectionPriorityResponse;
 import com.carix.market.MarketAggregate;
 import com.carix.market.MarketAggregateRepository;
 import java.util.List;
+import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -197,9 +199,24 @@ class MviCollectionPriorityServiceTest {
   }
 
   @Test
+  @DisplayName("기준월 미지정 시 ALL 행이 있는 최신 월을 대상으로 조회한다 - 프레임 행만 있는 달은 건너뛴다")
+  void calculatePriorities_nullMonth_usesLatestMonthWithAllRow() {
+    when(marketAggregateRepository.findLatestAvailableYearMonthForSource(eq("ALL"), any()))
+        .thenReturn(Optional.of("202610"));
+    when(marketAggregateRepository.findPeerGroupAggregatesByMonthAndSource("202610", "ALL"))
+        .thenReturn(List.of());
+
+    CollectionPriorityResponse response = service.calculatePriorities(null, null, null, false);
+
+    assertThat(response.baseYearMonth()).isEqualTo("202610");
+    verify(marketAggregateRepository, never()).findDistinctBaseYearMonths();
+  }
+
+  @Test
   @DisplayName("기준월 미지정 시 DB 최신월을 조회하고, DB도 비어있으면 당월을 기본값으로 사용한다")
   void calculatePriorities_nullMonth_fallsBack() {
-    when(marketAggregateRepository.findDistinctBaseYearMonths()).thenReturn(List.of("202606"));
+    when(marketAggregateRepository.findLatestAvailableYearMonthForSource(eq("ALL"), any()))
+        .thenReturn(Optional.of("202606"));
     when(marketAggregateRepository.findPeerGroupAggregatesByMonthAndSource("202606", "ALL"))
         .thenReturn(List.of());
 
@@ -208,7 +225,8 @@ class MviCollectionPriorityServiceTest {
     assertThat(response.baseYearMonth()).isEqualTo("202606");
 
     // DB가 비어있는 경우
-    when(marketAggregateRepository.findDistinctBaseYearMonths()).thenReturn(List.of());
+    when(marketAggregateRepository.findLatestAvailableYearMonthForSource(eq("ALL"), any()))
+        .thenReturn(Optional.empty());
     when(marketAggregateRepository.findPeerGroupAggregatesByMonthAndSource(any(), any()))
         .thenReturn(List.of());
 

@@ -55,7 +55,7 @@ import org.springframework.transaction.annotation.Transactional;
  *
  * <ol>
  *   <li>사용자 프로필 및 보유 스킬({@code core.user_skill}) 조회
- *   <li>원천별({@code JOBKOREA}, {@code SARAMIN}) 5단계 동료집단 완화 알고리즘 수행
+ *   <li>원천별({@code JOBKOREA}, {@code SARAMIN}, {@code WANTED}, {@code JUMPIT}) 5단계 동료집단 완화 알고리즘 수행
  *   <li>보유 스킬별 수요 지수 산출 및 제외 스킬({@code NEW_OBSERVATION}, {@code CUSTOM_SKILL_NO_STATS}) 분류
  *   <li>유효 스킬에 대해 숙련도/최근성 기반 가중치(\(W_{skill}\)) 100% 재정규화
  *   <li>원천별 MVI 가중합 계산: \( \text{MVI}_{src} = \sum W_i \times \text{SkillDemandIndex}_i(src) \)
@@ -74,7 +74,8 @@ import org.springframework.transaction.annotation.Transactional;
 public class MarketValueIndexServiceImpl implements MarketValueIndexProvider {
 
   /** 지원하는 채용공고 원천 플랫폼 목록 */
-  public static final List<String> SUPPORTED_SOURCES = List.of("JOBKOREA", "SARAMIN");
+  public static final List<String> SUPPORTED_SOURCES =
+      List.of("JOBKOREA", "SARAMIN", "WANTED", "JUMPIT");
 
   /** 기준월을 정하는 원천. 이전 창까지 채운 무작위 표본이 이 원천에만 있다. */
   static final String SAMPLED_SOURCE = "JOBKOREA";

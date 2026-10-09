@@ -94,7 +94,7 @@ public class SkillDemandCalculator {
    *
    * <p>스킬 ID와 무관한 공통 모수이므로, 스킬 루프 밖에서 1회만 조회하여 재사용할 수 있습니다.
    *
-   * @param source 플랫폼 원천 (JOBKOREA, SARAMIN)
+   * @param source 플랫폼 원천 (JOBKOREA, SARAMIN, WANTED, JUMPIT)
    * @param peerGroup 완화 완료된 동료집단 조건
    * @param baseYearMonth 기준년월 (YYYYMM)
    * @return 최근 3개월 및 이전 12개월 전체 공고 수
@@ -149,7 +149,7 @@ public class SkillDemandCalculator {
   /**
    * 주어진 동료집단 완화 조건 및 기준월에 대해 특정 스킬의 수요 지수를 계산합니다.
    *
-   * @param source 플랫폼 원천 (JOBKOREA, SARAMIN)
+   * @param source 플랫폼 원천 (JOBKOREA, SARAMIN, WANTED, JUMPIT)
    * @param skillId 대상 스킬 ID
    * @param peerGroup 완화 완료된 동료집단 조건
    * @param baseYearMonth 기준년월 (YYYYMM)
@@ -166,7 +166,7 @@ public class SkillDemandCalculator {
   /**
    * 사전 계산된 전체 공고 수({@link TotalPostings})를 전달받아 특정 스킬의 수요 지수를 계산합니다.
    *
-   * @param source 플랫폼 원천 (JOBKOREA, SARAMIN)
+   * @param source 플랫폼 원천 (JOBKOREA, SARAMIN, WANTED, JUMPIT)
    * @param skillId 대상 스킬 ID
    * @param peerGroup 완화 완료된 동료집단 조건
    * @param baseYearMonth 기준년월 (YYYYMM)

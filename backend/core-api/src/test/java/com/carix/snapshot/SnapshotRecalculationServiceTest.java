@@ -316,7 +316,7 @@ class SnapshotRecalculationServiceTest {
    */
   @Test
   void 규칙_버전은_부분_판정_도입분이다() {
-    assertThat(DecisionSignalEngine.RULE_VERSION).isEqualTo("1.4.0");
+    assertThat(DecisionSignalEngine.RULE_VERSION).isEqualTo("1.5.0");
   }
 
   /**

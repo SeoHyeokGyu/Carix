@@ -16,7 +16,7 @@ public interface MarketAggregateRepository extends JpaRepository<MarketAggregate
   /**
    * 동료집단 전체 행(skillId IS NULL)을 완화 조건에 따라 단건 조회합니다.
    *
-   * @param source 플랫폼 원천 (JOBKOREA, SARAMIN)
+   * @param source 플랫폼 원천 (JOBKOREA, SARAMIN, WANTED, JUMPIT)
    * @param baseYearMonth 기준년월 (YYYYMM)
    * @param jobFamily 직무
    * @param region 지역명

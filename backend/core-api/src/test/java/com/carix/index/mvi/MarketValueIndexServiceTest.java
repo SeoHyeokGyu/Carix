@@ -3,6 +3,7 @@ package com.carix.index.mvi;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.when;
 
 import com.carix.index.dto.ExcludedSkill;
@@ -337,6 +338,7 @@ class MarketValueIndexServiceTest {
         .thenReturn(resolvedGroup("JOBKOREA", 50));
     when(peerGroupFallbackResolver.resolveForSource(eq("SARAMIN"), any(), any()))
         .thenReturn(resolvedGroup("SARAMIN", 50));
+    stubWantedAndJumpitUnsuccessful();
 
     when(skillDemandCalculator.calculateDemandIndex(
             eq("JOBKOREA"), eq(onlySkill.getId()), any(), eq(ym)))
@@ -374,6 +376,7 @@ class MarketValueIndexServiceTest {
     when(userSkillRepository.findByUserId(userId)).thenReturn(List.of(userSkillOf(java)));
     when(peerGroupFallbackResolver.resolveForSource(any(), any(), any()))
         .thenReturn(resolvedGroup("JOBKOREA", 50));
+    stubWantedAndJumpitUnsuccessful();
     when(skillDemandCalculator.calculateDemandIndex(any(), eq(java.getId()), any(), eq(ym)))
         .thenReturn(
             SkillDemandCalculator.SkillDemandResult.builder()
@@ -415,6 +418,7 @@ class MarketValueIndexServiceTest {
         .thenReturn(List.of(userSkillOf(active), userSkillOf(partial)));
     when(peerGroupFallbackResolver.resolveForSource(any(), any(), any()))
         .thenReturn(resolvedGroup("JOBKOREA", 50));
+    stubWantedAndJumpitUnsuccessful();
 
     when(skillDemandCalculator.calculateDemandIndex(any(), eq(active.getId()), any(), eq(ym)))
         .thenReturn(demand(active.getId(), 120.0, SkillDemandStatus.OK));
@@ -501,6 +505,7 @@ class MarketValueIndexServiceTest {
         .thenReturn(List.of(userSkillOf(active), userSkillOf(partial)));
     when(peerGroupFallbackResolver.resolveForSource(any(), any(), any()))
         .thenReturn(resolvedGroup("JOBKOREA", 50));
+    stubWantedAndJumpitUnsuccessful();
 
     when(skillDemandCalculator.calculateDemandIndex(any(), eq(active.getId()), any(), eq(ym)))
         .thenReturn(demand(active.getId(), 120.0, SkillDemandStatus.OK));
@@ -646,6 +651,7 @@ class MarketValueIndexServiceTest {
         .thenReturn(jk);
     when(peerGroupFallbackResolver.resolveForSource(eq("SARAMIN"), any(), eq(baseYearMonth)))
         .thenReturn(sm);
+    stubWantedAndJumpitUnsuccessful();
 
     when(skillWeightCalculator.calculateWeights(any(), eq(baseYearMonth), any()))
         .thenReturn(Map.of(standardSkill.getId(), BigDecimal.valueOf(1.0)));
@@ -673,7 +679,8 @@ class MarketValueIndexServiceTest {
             .orElseThrow();
     assertThat(stdDetail.getStandardName()).isEqualTo("Spring Boot");
     assertThat(stdDetail.getStatus()).isEqualTo("OK");
-    assertThat(stdDetail.getSources()).hasSize(2);
+    // 원천 4개 모두 상세에 오른다 — 원티드·점핏은 동료집단이 비어 표본 0 으로 남는다
+    assertThat(stdDetail.getSources()).hasSize(4);
 
     var custDetail =
         details.stream()
@@ -795,6 +802,7 @@ class MarketValueIndexServiceTest {
         .thenReturn(jk);
     when(peerGroupFallbackResolver.resolveForSource(eq("SARAMIN"), any(), eq(baseYearMonth)))
         .thenReturn(sm);
+    stubWantedAndJumpitUnsuccessful();
 
     SkillDemandCalculator.TotalPostings totals = new SkillDemandCalculator.TotalPostings(100, 400);
     when(skillDemandCalculator.calculateTotalPostings(any(), any(), any())).thenReturn(totals);
@@ -819,7 +827,7 @@ class MarketValueIndexServiceTest {
 
     assertThat(details).hasSize(1);
     assertThat(details.get(0).getDemandIndex()).isEqualTo(120.0);
-    assertThat(details.get(0).getSources()).hasSize(2);
+    assertThat(details.get(0).getSources()).hasSize(4);
   }
 
   @Test
@@ -856,6 +864,58 @@ class MarketValueIndexServiceTest {
         .fallbackLevel(1)
         .coverage(new SourceCoverage(source, 1, sampleCount, true, "조건", BigDecimal.ZERO))
         .build();
+  }
+
+  /** 표본·정기 수집 두 원천만 보는 테스트가 원티드·점핏을 빈 원천으로 둔다. */
+  private void stubWantedAndJumpitUnsuccessful() {
+    for (String source : List.of("WANTED", "JUMPIT")) {
+      when(peerGroupFallbackResolver.resolveForSource(eq(source), any(), any()))
+          .thenReturn(unsuccessfulGroup());
+      // 뒤에 오는 any() 수요 스텁이 덮어도 되므로 lenient
+      lenient()
+          .when(skillDemandCalculator.calculateDemandIndex(eq(source), any(), any(), any()))
+          .thenReturn(demand(UUID.randomUUID(), 0.0, SkillDemandStatus.INSUFFICIENT_SAMPLE));
+    }
+  }
+
+  private static PeerGroupFallbackResolver.ResolvedPeerGroup unsuccessfulGroup() {
+    return PeerGroupFallbackResolver.ResolvedPeerGroup.builder()
+        .successful(false)
+        .sampleCount(0)
+        .fallbackLevel(0)
+        .coverage(new SourceCoverage("NONE", 0, 0, false, "조건", BigDecimal.ZERO))
+        .build();
+  }
+
+  @Test
+  @DisplayName("원천 4개를 조회하고, 이전 창이 빈 점핏은 신규 관측으로 빠지며 커버리지에 남는다")
+  void fourSourcesJumpitNewObservationExcluded() {
+    UUID userId = UUID.randomUUID();
+    String ym = "202609";
+    CareerProfile profile = new CareerProfile(userId);
+    profile.patch("DEVELOPER", 5, "서울 강남구", "FULL_TIME", "MEDIUM");
+    Skill java = Skill.builder().id(UUID.randomUUID()).standardName("Java").isCustom(false).build();
+
+    when(careerProfileRepository.findByUserId(userId)).thenReturn(Optional.of(profile));
+    when(userSkillRepository.findByUserId(userId)).thenReturn(List.of(userSkillOf(java)));
+    when(peerGroupFallbackResolver.resolveForSource(any(), any(), any()))
+        .thenAnswer(inv -> resolvedGroup(inv.getArgument(0), 50));
+    when(skillDemandCalculator.calculateDemandIndex(any(), eq(java.getId()), any(), eq(ym)))
+        .thenReturn(demand(java.getId(), 120.0, SkillDemandStatus.OK));
+    when(skillDemandCalculator.calculateDemandIndex(eq("JUMPIT"), eq(java.getId()), any(), eq(ym)))
+        .thenReturn(demand(java.getId(), 0.0, SkillDemandStatus.NEW_OBSERVATION));
+    when(skillWeightCalculator.calculateWeights(any(), any(), any()))
+        .thenReturn(Map.of(java.getId(), BigDecimal.valueOf(1.0)));
+    when(wageBaselineResolver.resolveBaseline(any()))
+        .thenReturn(new WageBaseline(65000000L, "초과급여 제외", "202606"));
+
+    MviResult result = service.calculate(userId, ym);
+
+    assertThat(result.sources())
+        .extracting(SourceCoverage::source)
+        .containsExactly("JOBKOREA", "SARAMIN", "WANTED", "JUMPIT");
+    assertThat(result.value()).isEqualByComparingTo("120.0");
+    assertThat(result.excludedSkills()).isEmpty();
   }
 
   private static SkillDemandCalculator.SkillDemandResult demand(
@@ -899,6 +959,7 @@ class MarketValueIndexServiceTest {
     when(peerGroupFallbackResolver.resolveForSource(
             eq("SARAMIN"), eq(profile), eq(latestAvailableYm)))
         .thenReturn(peerSaramin);
+    stubWantedAndJumpitUnsuccessful();
 
     when(skillDemandCalculator.calculateDemandIndex(
             eq("JOBKOREA"), eq(skill.getId()), any(), eq(latestAvailableYm)))
@@ -972,6 +1033,7 @@ class MarketValueIndexServiceTest {
         .thenReturn(jobkorea);
     when(peerGroupFallbackResolver.resolveForSource(eq("SARAMIN"), any(), any()))
         .thenReturn(resolvedGroup("SARAMIN", 2000));
+    stubWantedAndJumpitUnsuccessful();
     when(skillDemandCalculator.calculateDemandIndex(
             eq("JOBKOREA"), eq(skill.getId()), any(), eq(ym)))
         .thenReturn(demand(skill.getId(), jobkoreaIndex, SkillDemandStatus.OK));
