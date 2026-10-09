@@ -138,4 +138,24 @@ describe("PostingsExplorer", () => {
     const row = screen.getAllByRole("row")[1];
     expect(within(row).getAllByRole("cell")[col]).toHaveTextContent("-");
   });
+
+  it.each([
+    [null, null, "무관/미상"],
+    [3, null, "3년 이상"],
+    [null, 5, "~5년"],
+    [3, 5, "3~5년"],
+  ])("경력 %s~%s 는 '%s' 로 보인다", (min, max, text) => {
+    render(
+      <PostingsExplorer
+        data={{
+          total: 1,
+          page: 0,
+          size: 20,
+          items: [{ ...item, experienceMin: min, experienceMax: max }],
+        }}
+        onPage={() => {}}
+      />,
+    );
+    expect(screen.getByText(text)).toBeTruthy();
+  });
 });

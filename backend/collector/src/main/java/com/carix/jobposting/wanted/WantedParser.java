@@ -19,6 +19,8 @@ public class WantedParser {
   private static final Pattern NEXT_DATA =
       Pattern.compile("<script id=\"__NEXT_DATA__\"[^>]*>(.*?)</script>", Pattern.DOTALL);
   private static final int DATE_LENGTH = 10;
+  // 원티드는 경력 상한이 없는 공고의 annual_to 를 100 으로 내려 준다.
+  private static final int NO_UPPER_BOUND_SENTINEL = 100;
   private static final Map<String, String> EMPLOYMENT =
       Map.of(
           "regular", EmploymentTypeClassifier.FULL_TIME,
@@ -96,7 +98,7 @@ public class WantedParser {
             childIds,
             childNames,
             intOrNull(career.path("annual_from")),
-            intOrNull(career.path("annual_to")),
+            annualTo(career.path("annual_to")),
             career.path("is_newbie").asBoolean(false),
             region.isBlank() ? null : region,
             EMPLOYMENT.getOrDefault(
@@ -146,5 +148,10 @@ public class WantedParser {
     } catch (DateTimeParseException e) {
       return null;
     }
+  }
+
+  private static Integer annualTo(JsonNode node) {
+    Integer value = intOrNull(node);
+    return value != null && value >= NO_UPPER_BOUND_SENTINEL ? null : value;
   }
 }

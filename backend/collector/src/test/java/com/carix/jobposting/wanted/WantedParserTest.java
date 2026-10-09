@@ -68,6 +68,22 @@ class WantedParserTest {
   }
 
   @Test
+  @DisplayName("annual_to 100 은 상한 없음이라 null 로 저장한다")
+  void annualToSentinelBecomesNull() throws IOException {
+    String html = fixture("page-active.html").replace("\"annual_to\":35", "\"annual_to\":100");
+    WantedPosting p = parser.parsePage(html).orElseThrow();
+    assertThat(p.annualFrom()).isEqualTo(3);
+    assertThat(p.annualTo()).isNull();
+  }
+
+  @Test
+  @DisplayName("annual_to 100 미만은 그대로 저장한다")
+  void annualToBelowSentinelKept() throws IOException {
+    String html = fixture("page-active.html").replace("\"annual_to\":35", "\"annual_to\":10");
+    assertThat(parser.parsePage(html).orElseThrow().annualTo()).isEqualTo(10);
+  }
+
+  @Test
   @DisplayName("마감 공고 페이지도 게시일을 읽고 마감일은 close_time 으로 대체한다")
   void parsesClosedPage() throws IOException {
     WantedPosting p = parser.parsePage(fixture("page-closed.html")).orElseThrow();

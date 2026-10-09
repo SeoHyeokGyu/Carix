@@ -27,7 +27,9 @@ function formatCollectedVia(p: PostingItem): string {
 
 function experience(p: PostingItem): string {
   if (p.experienceMin == null && p.experienceMax == null) return "무관/미상";
-  return `${p.experienceMin ?? 0}~${p.experienceMax ?? ""}년`;
+  if (p.experienceMax == null) return `${p.experienceMin}년 이상`;
+  if (p.experienceMin == null) return `~${p.experienceMax}년`;
+  return `${p.experienceMin}~${p.experienceMax}년`;
 }
 
 function Row({ p }: { p: PostingItem }) {
