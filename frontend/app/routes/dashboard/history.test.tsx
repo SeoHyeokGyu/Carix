@@ -482,9 +482,33 @@ describe("S-11 DashboardHistory 라우트", () => {
     renderPage("/dashboard/history");
     const row = (await screen.findByText("2026-09")).closest("tr")!;
     expect(within(row).getByText("100.0")).toBeInTheDocument();
-    expect(within(row).getByText("현재 규칙: 이직 탐색")).toBeInTheDocument();
+    expect(
+      within(row).getByText("지금 다시 계산하면: 이직 탐색"),
+    ).toBeInTheDocument();
     const aug = screen.getByText("2026-08").closest("tr")!;
-    expect(within(aug).queryByText(/현재 규칙:/)).not.toBeInTheDocument();
+    expect(
+      within(aug).queryByText(/지금 다시 계산하면:/),
+    ).not.toBeInTheDocument();
+  });
+
+  it("보이는 달이 하나뿐이면 소급 계산 달이 숨어 있어도 단건 안내를 보인다", async () => {
+    vi.mocked(dashboardMarketApi.fetchSnapshotHistory).mockResolvedValue({
+      snapshots: [
+        {
+          ...current("202609", "STAY", "현 상태 유지"),
+          recorded: recorded("STAY", "현 상태 유지"),
+          changed: false,
+        },
+        {
+          ...current("202201", "STAY", "현 상태 유지"),
+          recorded: null,
+          changed: false,
+        },
+      ],
+    });
+    renderPage("/dashboard/history");
+    await screen.findByText("2026-09");
+    expect(screen.getByTestId("history-single-notice")).toBeInTheDocument();
   });
 
   it("소급 계산한 달은 기본으로 숨기고 show=all 이면 배지와 함께 보인다", async () => {

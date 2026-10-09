@@ -99,11 +99,11 @@ export default function DashboardHistory() {
   }, [loadData]);
 
   const snapshots = historyData?.snapshots ?? [];
-  const isSingleOrEmpty = snapshots.length <= 1;
   const recordedCount = snapshots.filter((s) => s.recorded).length;
   const noneRecorded = recordedCount === 0;
   const visible =
     showAll || noneRecorded ? snapshots : snapshots.filter((s) => s.recorded);
+  const isSingleOrEmpty = visible.length <= 1;
 
   const toggleShowAll = (checked: boolean) => {
     const next = new URLSearchParams(params);
@@ -276,7 +276,7 @@ export default function DashboardHistory() {
                           />
                           {item.changed && (
                             <span className="ml-1 rounded bg-carix-warning/10 px-1.5 py-0.5 text-[11px]">
-                              현재 규칙: {item.label}
+                              지금 다시 계산하면: {item.label}
                             </span>
                           )}
                         </td>
