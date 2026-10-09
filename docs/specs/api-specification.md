@@ -998,12 +998,12 @@
         ```
 
 ### 8.11 수집 공고 목록 조회
-*   `GET /internal/pipeline/explore/postings?month={YYYYMM}` — 한 달의 수집 공고를 필터·페이지로 조회 (관리자 콘솔 `/admin/data` 공고 탭 연동). 제시 연봉 범위 `salaryMin`·`salaryMax`(연간, 원)는 공고에 공개된 금액만이며 없으면 `null` 이다. 비공개 검색 구간은 `salaryBandMin`·`salaryBandMax` 에 따로 싣고(없으면 `null`), `salaryDisclosure` 는 `PUBLIC`·`BAND`·`NONE`·`UNKNOWN`(판정 전) 이다.
+*   `GET /internal/pipeline/explore/postings[?month={YYYYMM}]` — 한 달의 수집 공고를 필터·페이지로 조회 (관리자 콘솔 `/admin/data` 공고 탭 연동). 제시 연봉 범위 `salaryMin`·`salaryMax`(연간, 원)는 공고에 공개된 금액만이며 없으면 `null` 이다. 비공개 검색 구간은 `salaryBandMin`·`salaryBandMax` 에 따로 싣고(없으면 `null`), `salaryDisclosure` 는 `PUBLIC`·`BAND`·`NONE`·`UNKNOWN`(판정 전) 이다.
     *   **Query Parameters:**
 
         | 파라미터 | 필수 | 설명 |
         | --- | --- | --- |
-        | `month` | 필수 | `YYYYMM`. 누락 또는 형식 오류는 `400 BAD_REQUEST` |
+        | `month` | 선택 | `YYYYMM`. 생략하거나 비우면 가장 최근 수집 월(`core.job_posting` 의 `COALESCE(sampled_month, first_seen_month)` 최댓값, 다른 필터와 무관)이다. 형식 오류는 `400 BAD_REQUEST` |
         | `source` | 선택 | `JOBKOREA`·`SARAMIN`·`WANTED` |
         | `sampled` | 선택 | `true` 면 `sampled_month = month`, `false` 면 `sampled_month IS NULL` 이고 `first_seen_month = month`, 생략하면 둘의 합집합 |
         | `family` | 선택 | 직무군. `OTHER` 는 `DEVELOPER`·`DATA`·`AI` 가 아닌 모든 공고(직무군이 비어 있는 공고 포함)다 |
@@ -1014,10 +1014,13 @@
         | `page` | 선택 | 0부터. 기본 0 |
         | `size` | 선택 | 기본 50, 최대 100 (넘으면 100) |
 
+    *   `month` 는 실제로 조회한 월이고 공고가 하나도 없으면 `null`(`total` 0, 빈 `items`)이다. `current` 는 그 월이 이번 달(UTC)인지다.
     *   `collectedVia` 는 공고를 확인한 수집 경로 목록(쉼표 구분: `JOBKOREA_LIST`·`JOBKOREA_BACKFILL`·`JOBKOREA_SEED`·`SARAMIN_SEARCH`·`JUMPIT`·`WANTED_LIST`·`WANTED_BACKFILL`)이고 `sourceJobTags` 는 원천의 직군 태그 원본이며 점핏은 `jobCategory` 이름, 원티드는 하위 직군 `{태그 ID}:{이름}`(쉼표 구분)이고 없으면 `null` 이다. `collectedAt` 은 공고를 수집한 시각(UTC)이다. `url` 은 원천 공고 링크로, 잡코리아 `https://www.jobkorea.co.kr/Recruit/GI_Read/{externalId}`, 사람인 `https://www.saramin.co.kr/zf_user/jobs/relay/view?rec_idx={externalId}`, 원티드 `https://www.wanted.co.kr/wd/{externalId}` 다.
     *   **Response (200 OK):**
         ```json
         {
+          "month": "202610",
+          "current": true,
           "total": 250,
           "page": 0,
           "size": 50,

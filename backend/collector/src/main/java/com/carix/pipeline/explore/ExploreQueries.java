@@ -166,6 +166,13 @@ public class ExploreQueries {
           + " p.salary_band_min, p.salary_band_max, p.salary_disclosure,"
           + " p.collected_via, p.source_job_tags, p.collected_at";
 
+  /** 공고가 걸린 가장 최근 월(표본월 우선, 없으면 관측월). 공고가 없으면 null. */
+  public String latestPostingMonth() {
+    return jdbc.queryForObject(
+        "SELECT MAX(COALESCE(sampled_month, first_seen_month)) FROM core.job_posting",
+        String.class);
+  }
+
   public long countPostings(PostingFilter f) {
     List<Object> args = new ArrayList<>();
     String where = where(f, args);

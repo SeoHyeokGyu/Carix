@@ -34,7 +34,14 @@ describe("PostingsExplorer", () => {
   it("상세 펼침에 확인 경로와 원천 직군 태그를 보여 준다", async () => {
     render(
       <PostingsExplorer
-        data={{ total: 1, page: 0, size: 20, items: [item] }}
+        data={{
+          month: "202607",
+          current: false,
+          total: 1,
+          page: 0,
+          size: 20,
+          items: [item],
+        }}
         onPage={() => {}}
       />,
     );
@@ -52,7 +59,14 @@ describe("PostingsExplorer", () => {
   it("상세 펼침에 수집 날짜를 보여 준다", async () => {
     render(
       <PostingsExplorer
-        data={{ total: 1, page: 0, size: 20, items: [item] }}
+        data={{
+          month: "202607",
+          current: false,
+          total: 1,
+          page: 0,
+          size: 20,
+          items: [item],
+        }}
         onPage={() => {}}
       />,
     );
@@ -66,6 +80,8 @@ describe("PostingsExplorer", () => {
     render(
       <PostingsExplorer
         data={{
+          month: "202607",
+          current: false,
           total: 1,
           page: 0,
           size: 20,
@@ -84,6 +100,8 @@ describe("PostingsExplorer", () => {
     render(
       <PostingsExplorer
         data={{
+          month: "202607",
+          current: false,
           total: 1,
           page: 0,
           size: 20,
@@ -104,6 +122,8 @@ describe("PostingsExplorer", () => {
     render(
       <PostingsExplorer
         data={{
+          month: "202607",
+          current: false,
           total: 1,
           page: 0,
           size: 20,
@@ -123,6 +143,8 @@ describe("PostingsExplorer", () => {
     render(
       <PostingsExplorer
         data={{
+          month: "202607",
+          current: false,
           total: 1,
           page: 0,
           size: 20,
@@ -148,6 +170,8 @@ describe("PostingsExplorer", () => {
     render(
       <PostingsExplorer
         data={{
+          month: "202607",
+          current: false,
           total: 1,
           page: 0,
           size: 20,

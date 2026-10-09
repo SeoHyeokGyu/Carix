@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "react-router";
 import { ThemeToggle } from "../../components/ThemeToggle";
 import { AdminHeader } from "../../components/admin/AdminHeader";
@@ -15,7 +15,6 @@ import {
   type PostingPage,
 } from "../../lib/collectorApi";
 import {
-  defaultPostingMonth,
   fromMonthInput,
   normalizeSampleSource,
   parsePostingSort,
@@ -62,8 +61,21 @@ export default function DataExplorePage() {
   const isMonthValid = /^\d{6}$/.test(month);
 
   const paramsKey = params.toString();
+  // 월은 서버가 채우기도 하므로 폼 전체가 아니라 월 입력만 다시 그린다.
+  const formKey = (() => {
+    const sp = new URLSearchParams(paramsKey);
+    sp.delete("month");
+    return sp.toString();
+  })();
+  // 서버가 정한 월을 URL 에 채우면 effect 가 다시 도는데, 이미 받은 결과이므로 다시 조회하지 않는다.
+  const loadedKeyRef = useRef<string | null>(null);
 
   useEffect(() => {
+    const fetchKey = `${paramsKey}|${reloadKey}`;
+    if (loadedKeyRef.current === fetchKey) {
+      loadedKeyRef.current = null;
+      return;
+    }
     let cancelled = false;
     const q = new URLSearchParams(paramsKey);
     const run = async () => {
@@ -76,11 +88,11 @@ export default function DataExplorePage() {
             kind: "monthly",
             data: await fetchMonthlyOverview(from, to, rawSampleSource),
           };
-        } else if (tab === "postings" && month && isMonthValid) {
+        } else if (tab === "postings" && (!month || isMonthValid)) {
           next = {
             kind: "postings",
             data: await fetchPostings({
-              month,
+              month: month || undefined,
               sampled,
               source: q.get("source") ?? undefined,
               family: q.get("family") ?? undefined,
@@ -92,7 +104,14 @@ export default function DataExplorePage() {
             }),
           };
         }
-        if (!cancelled) setLoaded(next);
+        if (cancelled) return;
+        setLoaded(next);
+        if (next?.kind === "postings" && !month && next.data.month) {
+          const sp = new URLSearchParams(paramsKey);
+          sp.set("month", next.data.month);
+          loadedKeyRef.current = `${sp.toString()}|${reloadKey}`;
+          setParams(sp, { replace: true });
+        }
       } catch (err) {
         if (cancelled) return;
         if ((err as { status?: number }).status === 403) {
@@ -117,16 +136,8 @@ export default function DataExplorePage() {
     page,
     paramsKey,
     reloadKey,
+    setParams,
   ]);
-
-  // 공고 탭은 월 없이 열리면 지난달로 바로 보인다. 기록을 쌓지 않으려 replace 로 채우고, 있는 month 는 건드리지 않는다.
-  const hasMonthParam = params.has("month");
-  useEffect(() => {
-    if (tab !== "postings" || hasMonthParam) return;
-    const sp = new URLSearchParams(paramsKey);
-    sp.set("month", defaultPostingMonth(new Date()));
-    setParams(sp, { replace: true });
-  }, [tab, hasMonthParam, paramsKey, setParams]);
 
   const shownRange = loaded?.kind === "monthly" ? loaded.data : undefined;
 
@@ -231,7 +242,7 @@ export default function DataExplorePage() {
 
         {tab === "postings" && (
           <form
-            key={paramsKey}
+            key={formKey}
             className="flex flex-wrap gap-2 text-xs"
             onSubmit={(e) => {
               e.preventDefault();
@@ -250,13 +261,16 @@ export default function DataExplorePage() {
             }}
           >
             <input
+              key={month}
               name="month"
               type="month"
-              required
               defaultValue={toMonthInput(month)}
               aria-label="월"
               className="rounded border border-carix-border px-2 py-1"
             />
+            {loaded?.kind === "postings" && loaded.data.current && (
+              <span className="self-center text-carix-text/60">수집 중</span>
+            )}
             <select
               name="source"
               defaultValue={params.get("source") ?? ""}
@@ -346,9 +360,6 @@ export default function DataExplorePage() {
           </div>
         )}
 
-        {tab === "postings" && !month && (
-          <p className="text-xs text-carix-text/60">월을 입력하세요</p>
-        )}
         {tab === "postings" && month && !isMonthValid && (
           <p role="alert" className="text-xs text-carix-text/60">
             월은 YYYYMM 형식입니다

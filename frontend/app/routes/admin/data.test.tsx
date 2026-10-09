@@ -77,6 +77,8 @@ const healthyReport: api.DataHealthReport = {
 };
 
 const postings: api.PostingPage = {
+  month: "202607",
+  current: false,
   total: 1,
   page: 0,
   size: 50,
@@ -346,28 +348,81 @@ describe("DataExplorePage", () => {
     );
   });
 
-  it("공고 탭에 month 가 없으면 UTC 지난달을 채워 조회한다", async () => {
-    vi.useFakeTimers({
-      toFake: ["Date"],
-      now: new Date("2026-10-31T16:00:00Z"),
+  it("공고 탭에 month 가 없으면 month 없이 한 번만 조회하고 서버가 정한 월을 URL 에 채운다", async () => {
+    vi.mocked(api.fetchPostings).mockResolvedValue({
+      ...postings,
+      month: "202610",
     });
-    try {
-      renderAt("/admin/data?tab=postings");
-      expect(await screen.findByText("QA 채용")).toBeInTheDocument();
-      expect(api.fetchPostings).toHaveBeenCalledWith(
-        expect.objectContaining({ month: "202609" }),
-      );
-      expect(screen.getByLabelText("월")).toHaveValue("2026-09");
-    } finally {
-      vi.useRealTimers();
-    }
+    renderAt("/admin/data?tab=postings");
+    expect(await screen.findByText("QA 채용")).toBeInTheDocument();
+    await waitFor(() =>
+      expect(screen.getByLabelText("월")).toHaveValue("2026-10"),
+    );
+    expect(api.fetchPostings).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(api.fetchPostings).mock.calls[0][0].month).toBeUndefined();
+    expect(screen.getByText("QA 채용")).toBeInTheDocument();
   });
 
-  it("기본 월을 채워도 브라우저 기록을 쌓지 않는다", async () => {
+  it("서버가 채운 월은 브라우저 기록을 쌓지 않는다", async () => {
     renderAt(["/admin/data?tab=monthly", "/admin/data?tab=postings"]);
     await screen.findByText("QA 채용");
+    await waitFor(() =>
+      expect(screen.getByLabelText("월")).toHaveValue("2026-07"),
+    );
     await userEvent.click(screen.getByRole("button", { name: "뒤로" }));
     expect(await screen.findByText("150")).toBeInTheDocument();
+  });
+
+  it("빈 month 는 없는 것으로 보고 month 없이 조회한다", async () => {
+    renderAt("/admin/data?tab=postings&month=");
+    await screen.findByText("QA 채용");
+    expect(api.fetchPostings).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(api.fetchPostings).mock.calls[0][0].month).toBeUndefined();
+  });
+
+  it("응답이 current 이면 월 입력 옆에 「수집 중」을 보인다", async () => {
+    vi.mocked(api.fetchPostings).mockResolvedValue({
+      ...postings,
+      month: "202610",
+      current: true,
+    });
+    renderAt("/admin/data?tab=postings");
+    await screen.findByText("QA 채용");
+    expect(await screen.findByText("수집 중")).toBeInTheDocument();
+  });
+
+  it("서버 월을 URL 에 채워도 응답 중 입력한 필터와 「수집 중」이 그대로다", async () => {
+    let resolve!: (v: Awaited<ReturnType<typeof api.fetchPostings>>) => void;
+    vi.mocked(api.fetchPostings).mockReturnValue(
+      new Promise((r) => {
+        resolve = r;
+      }),
+    );
+    renderAt("/admin/data?tab=postings");
+    const company = await screen.findByLabelText("회사");
+    fireEvent.change(company, { target: { value: "카릭스" } });
+    resolve({ ...postings, month: "202610", current: true });
+    const badge = await screen.findByText("수집 중");
+    await waitFor(() =>
+      expect(screen.getByLabelText("월")).toHaveValue("2026-10"),
+    );
+    expect(badge).toBeInTheDocument();
+    expect(screen.getByLabelText("회사")).toHaveValue("카릭스");
+  });
+
+  it("current 가 아니면 「수집 중」이 없다", async () => {
+    renderAt("/admin/data?tab=postings&month=202607");
+    await screen.findByText("QA 채용");
+    expect(screen.queryByText("수집 중")).not.toBeInTheDocument();
+  });
+
+  it("월을 비우고 조회하면 month 가 URL 에서 빠지고 month 없이 다시 조회한다", async () => {
+    renderAt("/admin/data?tab=postings&month=202605");
+    await screen.findByText("QA 채용");
+    fireEvent.change(screen.getByLabelText("월"), { target: { value: "" } });
+    await userEvent.click(screen.getByRole("button", { name: "조회" }));
+    await waitFor(() => expect(api.fetchPostings).toHaveBeenCalledTimes(2));
+    expect(vi.mocked(api.fetchPostings).mock.calls[1][0].month).toBeUndefined();
   });
 
   it("URL 에 month 가 있으면 덮어쓰지 않는다", async () => {
@@ -380,27 +435,19 @@ describe("DataExplorePage", () => {
     const input = screen.getByLabelText("월");
     expect(input).toHaveAttribute("type", "month");
     expect(input).toHaveValue("2026-05");
-    expect(input).toBeRequired();
+    expect(input).not.toBeRequired();
   });
 
-  it("월별 탭에서 공고 탭을 누르면 UTC 지난달로 한 번 조회한다", async () => {
-    vi.useFakeTimers({
-      toFake: ["Date"],
-      now: new Date("2026-10-31T16:00:00Z"),
-    });
-    try {
-      renderAt("/admin/data?tab=monthly");
-      await screen.findByText("150");
-      await userEvent.click(screen.getByRole("tab", { name: "공고" }));
-      expect(await screen.findByText("QA 채용")).toBeInTheDocument();
-      expect(screen.getByLabelText("월")).toHaveValue("2026-09");
-      expect(api.fetchPostings).toHaveBeenCalledTimes(1);
-      expect(api.fetchPostings).toHaveBeenCalledWith(
-        expect.objectContaining({ month: "202609" }),
-      );
-    } finally {
-      vi.useRealTimers();
-    }
+  it("월별 탭에서 공고 탭을 누르면 month 없이 한 번 조회한다", async () => {
+    renderAt("/admin/data?tab=monthly");
+    await screen.findByText("150");
+    await userEvent.click(screen.getByRole("tab", { name: "공고" }));
+    expect(await screen.findByText("QA 채용")).toBeInTheDocument();
+    await waitFor(() =>
+      expect(screen.getByLabelText("월")).toHaveValue("2026-07"),
+    );
+    expect(api.fetchPostings).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(api.fetchPostings).mock.calls[0][0].month).toBeUndefined();
   });
 
   it("월 입력을 바꿔 조회하면 yyyyMM 으로 조회한다", async () => {
@@ -463,6 +510,8 @@ describe("DataExplorePage", () => {
 
   it("postings tab shows empty message", async () => {
     vi.mocked(api.fetchPostings).mockResolvedValue({
+      month: "202001",
+      current: false,
       total: 0,
       page: 0,
       size: 50,
@@ -470,7 +519,39 @@ describe("DataExplorePage", () => {
     });
     renderAt("/admin/data?tab=postings&month=202001");
     expect(
-      await screen.findByText("해당 조건의 데이터가 없습니다"),
+      await screen.findByText("이 달에는 조건에 맞는 공고가 없습니다"),
+    ).toBeInTheDocument();
+  });
+
+  it("당월이 비면 백필 안내를 덧붙인다", async () => {
+    vi.mocked(api.fetchPostings).mockResolvedValue({
+      month: "202001",
+      current: true,
+      total: 0,
+      page: 0,
+      size: 50,
+      items: [],
+    });
+    renderAt("/admin/data?tab=postings&month=202001");
+    expect(
+      await screen.findByText(
+        "이 달에는 조건에 맞는 공고가 없습니다 — 표본은 다음 달 백필 뒤 생깁니다",
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it("수집된 공고가 하나도 없으면 그렇게 알린다", async () => {
+    vi.mocked(api.fetchPostings).mockResolvedValue({
+      month: null,
+      current: false,
+      total: 0,
+      page: 0,
+      size: 50,
+      items: [],
+    });
+    renderAt("/admin/data?tab=postings");
+    expect(
+      await screen.findByText("수집된 공고가 없습니다"),
     ).toBeInTheDocument();
   });
 
