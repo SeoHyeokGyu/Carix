@@ -998,7 +998,7 @@
         ```
 
 ### 8.11 수집 공고 목록 조회
-*   `GET /internal/pipeline/explore/postings?month={YYYYMM}` — 한 달의 수집 공고를 필터·페이지로 조회 (관리자 콘솔 `/admin/data` 공고 탭 연동). 제시 연봉 범위 `salaryMin`·`salaryMax`(연간, 원)는 공고에 공개된 금액만이며 없으면 `null` 이다. 비공개 검색 구간은 `salaryBandMin`·`salaryBandMax` 에 따로 싣고(없으면 `null`), `salaryDisclosure` 는 `PUBLIC`·`BAND`·`NONE`·`UNKNOWN`(판정 전) 이다.
+*   `GET /internal/pipeline/explore/postings[?month={YYYYMM}]` — 한 달의 수집 공고를 필터·페이지로 조회 (관리자 콘솔 `/admin/data` 공고 탭 연동). 제시 연봉 범위 `salaryMin`·`salaryMax`(연간, 원)는 공고에 공개된 금액만이며 없으면 `null` 이다. 비공개 검색 구간은 `salaryBandMin`·`salaryBandMax` 에 따로 싣고(없으면 `null`), `salaryDisclosure` 는 `PUBLIC`·`BAND`·`NONE`·`UNKNOWN`(판정 전) 이다.
     *   **Query Parameters:**
 
         | 파라미터 | 필수 | 설명 |

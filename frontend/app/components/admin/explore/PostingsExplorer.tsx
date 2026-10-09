@@ -91,6 +91,15 @@ function Row({ p }: { p: PostingItem }) {
   );
 }
 
+function emptyMessage(data: PostingPage): string {
+  if (data.month === null) return "수집된 공고가 없습니다";
+  if (data.total > 0) return "해당 조건의 데이터가 없습니다";
+  // 당월 표본은 다음 달 백필에서 생기므로 당월만 안내를 덧붙인다.
+  return data.current
+    ? "이 달에는 조건에 맞는 공고가 없습니다 — 표본은 다음 달 백필 뒤 생깁니다"
+    : "이 달에는 조건에 맞는 공고가 없습니다";
+}
+
 /** 공고 표. 필터 입력은 페이지가 URL 로 관리한다. */
 export function PostingsExplorer({
   data,
@@ -100,13 +109,7 @@ export function PostingsExplorer({
   onPage: (page: number) => void;
 }) {
   if (data.items.length === 0) {
-    return (
-      <p className="text-xs text-carix-text/60">
-        {data.total === 0
-          ? "이 달에는 조건에 맞는 공고가 없습니다 — 표본은 다음 달 백필 뒤 생깁니다"
-          : "해당 조건의 데이터가 없습니다"}
-      </p>
-    );
+    return <p className="text-xs text-carix-text/60">{emptyMessage(data)}</p>;
   }
   const lastPage = Math.max(0, Math.ceil(data.total / data.size) - 1);
   return (

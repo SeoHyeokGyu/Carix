@@ -500,9 +500,39 @@ describe("DataExplorePage", () => {
     });
     renderAt("/admin/data?tab=postings&month=202001");
     expect(
+      await screen.findByText("이 달에는 조건에 맞는 공고가 없습니다"),
+    ).toBeInTheDocument();
+  });
+
+  it("당월이 비면 백필 안내를 덧붙인다", async () => {
+    vi.mocked(api.fetchPostings).mockResolvedValue({
+      month: "202001",
+      current: true,
+      total: 0,
+      page: 0,
+      size: 50,
+      items: [],
+    });
+    renderAt("/admin/data?tab=postings&month=202001");
+    expect(
       await screen.findByText(
         "이 달에는 조건에 맞는 공고가 없습니다 — 표본은 다음 달 백필 뒤 생깁니다",
       ),
+    ).toBeInTheDocument();
+  });
+
+  it("수집된 공고가 하나도 없으면 그렇게 알린다", async () => {
+    vi.mocked(api.fetchPostings).mockResolvedValue({
+      month: null,
+      current: false,
+      total: 0,
+      page: 0,
+      size: 50,
+      items: [],
+    });
+    renderAt("/admin/data?tab=postings");
+    expect(
+      await screen.findByText("수집된 공고가 없습니다"),
     ).toBeInTheDocument();
   });
 
