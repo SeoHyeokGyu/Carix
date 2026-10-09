@@ -400,7 +400,7 @@ class MarketValueIndexServiceTest {
   }
 
   @Test
-  @DisplayName("한 원천에서만 신규 관측이면 제외하지 않고 그 원천의 가중치만 재정규화한다")
+  @DisplayName("한 원천에서만 신규 관측이면 제외하지 않고 그 스킬은 지수를 낸 원천끼리 결합한다")
   void testSkillNewInOneSourceIsKept() {
     UUID userId = UUID.randomUUID();
     String ym = "202610";
@@ -440,9 +440,9 @@ class MarketValueIndexServiceTest {
 
     MviResult result = service.calculate(userId, ym);
 
-    // 표본 미달과 같은 결합: JOBKOREA 100, SARAMIN 은 Spring Boot 가 빠져 120 으로 재정규화 → 110.
+    // 표본 미달과 같은 결합: Java 는 두 원천 모두 120, Spring Boot 는 사람인이 빠져 잡코리아 80 만으로 → 0.5×120 + 0.5×80 = 100.
     assertThat(result.excludedSkills()).isEmpty();
-    assertThat(result.value()).isEqualByComparingTo("110.0");
+    assertThat(result.value()).isEqualByComparingTo("100.0");
   }
 
   @Test
@@ -487,7 +487,7 @@ class MarketValueIndexServiceTest {
   }
 
   @Test
-  @DisplayName("한 원천에서만 표본이 미달이면 제외하지 않고 그 원천의 가중치만 재정규화한다")
+  @DisplayName("한 원천에서만 표본이 미달이면 제외하지 않고 그 스킬은 지수를 낸 원천끼리 결합한다")
   void testSkillUnderSampledInOneSourceIsKept() {
     UUID userId = UUID.randomUUID();
     String ym = "202607";
@@ -526,11 +526,10 @@ class MarketValueIndexServiceTest {
 
     MviResult result = service.calculate(userId, ym);
 
-    // JOBKOREA: 0.5×120 + 0.5×80 = 100 (가중치 합 1.0)
-    // SARAMIN: Kotlin 이 빠져 0.5×120 을 0.5 로 재정규화 = 120
-    // 표본수가 같으므로 (100 + 120) / 2 = 110. 재정규화가 없으면 SARAMIN 이 60 이 되어 80 이 나온다.
+    // 스킬마다 지수를 낸 원천끼리 결합한다: Java = 두 원천 모두 120, Kotlin = 사람인이 빠져 잡코리아 80.
+    // 0.5×120 + 0.5×80 = 100. 사람인의 빠진 Kotlin 을 0 으로 채우면 (0.5×120+0.5×80 + 0.5×120)/2 = 80 이 나온다.
     assertThat(result.excludedSkills()).isEmpty();
-    assertThat(result.value()).isEqualByComparingTo("110.0");
+    assertThat(result.value()).isEqualByComparingTo("100.0");
   }
 
   @Test
@@ -1097,6 +1096,195 @@ class MarketValueIndexServiceTest {
     when(skillWeightCalculator.calculateWeights(any(), any(), any()))
         .thenReturn(Map.of(skill.getId(), BigDecimal.ONE));
     when(wageBaselineResolver.resolveBaseline(any()))
+        .thenReturn(new WageBaseline(65000000L, "초과급여 제외", "202609"));
+  }
+
+  @Test
+  @DisplayName("스킬에 지수를 내지 않는 원천(신규 관측)은 그 스킬의 정기 수집 상한 합계에 들지 않는다")
+  void nonContributingSourceExcludedFromSkillCap() {
+    UUID userId = UUID.randomUUID();
+    String ym = "202610";
+    Skill java = skill("Java");
+    stubSources(
+        userId,
+        ym,
+        Map.of("JOBKOREA", 250, "SARAMIN", 200, "JUMPIT", 554),
+        Map.of(java, BigDecimal.ONE),
+        Map.of(
+            java,
+            Map.of(
+                "JOBKOREA", demand(java.getId(), 100.0, 0.10, 0.10, 100, 100, SkillDemandStatus.OK),
+                "SARAMIN", demand(java.getId(), 140.0, 0.14, 0.10, 50, 50, SkillDemandStatus.OK),
+                "JUMPIT",
+                    demand(java.getId(), 0.0, 0.0, 0.0, 0, 0, SkillDemandStatus.NEW_OBSERVATION))));
+
+    MviResult result = service.calculate(userId, ym);
+
+    // 점핏은 지수를 내지 않아 상한 계산에서 빠진다. 사람인 200 ≤ 잡코리아 250 이라 줄이지 않는다:
+    // (250×100 + 200×140)/(250+200) = 117.8. 점핏을 세면 사람인이 250×200/754 = 66.3 으로 줄어 108.4 가 된다.
+    assertThat(result.value()).isEqualByComparingTo("117.8");
+    assertThat(result.skillContributions().get(0).demandIndex()).isEqualByComparingTo("117.8");
+    // 원천 비중 250/450·200/450 로 분산을 더한다: √((5/9)²·100²·0.02 + (4/9)²·140²·0.04) = 14.7
+    assertThat(result.standardError()).isEqualByComparingTo("14.7");
+    // 커버리지의 원천별 표본 수는 상한을 적용하지 않은 실제 수다.
+    assertThat(result.sources())
+        .filteredOn(c -> "JUMPIT".equals(c.source()))
+        .extracting(SourceCoverage::sampleCount)
+        .containsExactly(554);
+  }
+
+  @Test
+  @DisplayName("스킬에 지수를 내는 정기 수집 원천 합계가 상한을 넘으면 비례로 줄고, 상한은 지수를 내는 표본 원천에서만 잡는다")
+  void contributingRegularSourcesScaledToContributingSampledMax() {
+    UUID userId = UUID.randomUUID();
+    String ym = "202610";
+    Skill java = skill("Java");
+    stubSources(
+        userId,
+        ym,
+        Map.of("JOBKOREA", 100, "WANTED", 400, "SARAMIN", 200, "JUMPIT", 300),
+        Map.of(java, BigDecimal.ONE),
+        Map.of(
+            java,
+            Map.of(
+                "JOBKOREA", demand(java.getId(), 100.0, SkillDemandStatus.OK),
+                "WANTED", demand(java.getId(), 0.0, SkillDemandStatus.NEW_OBSERVATION),
+                "SARAMIN", demand(java.getId(), 140.0, SkillDemandStatus.OK),
+                "JUMPIT", demand(java.getId(), 80.0, SkillDemandStatus.OK))));
+
+    MviResult result = service.calculate(userId, ym);
+
+    // 상한 = 잡코리아 100(원티드는 지수를 내지 않아 상한을 잡지 않는다). 정기 수집 합계 500 → 0.2 배: 사람인 40·점핏 60.
+    // (100×100 + 40×140 + 60×80)/200 = 102.0. 원티드 400 을 상한으로 쓰면 103.2 가 된다.
+    assertThat(result.value()).isEqualByComparingTo("102.0");
+    assertThat(result.skillContributions().get(0).demandIndex()).isEqualByComparingTo("102.0");
+    assertThat(service.getSkillDemandDetails(userId, ym).get(0).getDemandIndex()).isEqualTo(102.0);
+  }
+
+  @Test
+  @DisplayName("스킬마다 지수를 낸 원천끼리 결합한 뒤 스킬 가중치로 합친다 — 기여도 합이 지수와 맞는다")
+  void combinesPerSkillThenAcrossSkills() {
+    UUID userId = UUID.randomUUID();
+    String ym = "202610";
+    Skill java = skill("Java");
+    Skill kotlin = skill("Kotlin");
+    stubSources(
+        userId,
+        ym,
+        Map.of("JOBKOREA", 250, "SARAMIN", 200, "JUMPIT", 554),
+        Map.of(java, new BigDecimal("0.5"), kotlin, new BigDecimal("0.5")),
+        Map.of(
+            java,
+            Map.of(
+                "JOBKOREA", demand(java.getId(), 100.0, SkillDemandStatus.OK),
+                "SARAMIN", demand(java.getId(), 140.0, SkillDemandStatus.OK),
+                "JUMPIT", demand(java.getId(), 0.0, SkillDemandStatus.NEW_OBSERVATION)),
+            kotlin,
+            Map.of(
+                "JOBKOREA", demand(kotlin.getId(), 120.0, SkillDemandStatus.OK),
+                "SARAMIN", demand(kotlin.getId(), 0.0, SkillDemandStatus.INSUFFICIENT_SAMPLE),
+                "JUMPIT", demand(kotlin.getId(), 0.0, SkillDemandStatus.NEW_OBSERVATION))));
+
+    MviResult result = service.calculate(userId, ym);
+
+    // Java = (250×100 + 200×140)/450 = 117.78, Kotlin = 잡코리아만 120. 0.5×117.78 + 0.5×120 = 118.9.
+    // 원천별 지수를 먼저 접으면 잡코리아 110·사람인 140 을 250:200 으로 합쳐 123.3 이 된다.
+    assertThat(result.value()).isEqualByComparingTo("118.9");
+    BigDecimal contributionSum =
+        result.skillContributions().stream()
+            .map(c -> c.contribution())
+            .reduce(BigDecimal.ZERO, BigDecimal::add);
+    assertThat(contributionSum.doubleValue())
+        .isCloseTo(118.9, org.assertj.core.data.Offset.offset(0.05));
+  }
+
+  @Test
+  @DisplayName("스킬 상세 - 지수를 낸 원천끼리 그 스킬의 결합 가중치로 다시 정규화한다")
+  void detailsRenormalizeOverContributingSources() {
+    UUID userId = UUID.randomUUID();
+    String ym = "202610";
+    Skill java = skill("Java");
+    stubSources(
+        userId,
+        ym,
+        Map.of("JOBKOREA", 250, "SARAMIN", 200, "JUMPIT", 554),
+        Map.of(java, BigDecimal.ONE),
+        Map.of(
+            java,
+            Map.of(
+                "JOBKOREA", demand(java.getId(), 100.0, 0.10, 0.10, 100, 100, SkillDemandStatus.OK),
+                "SARAMIN", demand(java.getId(), 140.0, 0.14, 0.10, 50, 50, SkillDemandStatus.OK),
+                "JUMPIT",
+                    demand(java.getId(), 0.0, 0.0, 0.0, 0, 0, SkillDemandStatus.NEW_OBSERVATION))));
+
+    var detail = service.getSkillDemandDetails(userId, ym).get(0);
+
+    // 비중 250/450·200/450: 지수 117.8, 최근 수요율 (250×0.10 + 200×0.14)/450 = 0.1178, 이전 0.1000.
+    assertThat(detail.getDemandIndex()).isEqualTo(117.8);
+    assertThat(detail.getRecentDemandRate()).isEqualTo(0.1178);
+    assertThat(detail.getBaselineDemandRate()).isEqualTo(0.1);
+    assertThat(detail.getStatus()).isEqualTo("OK");
+  }
+
+  private static Skill skill(String name) {
+    return Skill.builder().id(UUID.randomUUID()).standardName(name).isCustom(false).build();
+  }
+
+  private static SkillDemandCalculator.SkillDemandResult demand(
+      UUID skillId,
+      double index,
+      double recentRate,
+      double baselineRate,
+      int recentSkillPostings,
+      int baselineSkillPostings,
+      SkillDemandStatus status) {
+    return SkillDemandCalculator.SkillDemandResult.builder()
+        .skillId(skillId)
+        .demandIndex(index)
+        .recentDemandRate(recentRate)
+        .baselineDemandRate(baselineRate)
+        .recentSkillPostings(recentSkillPostings)
+        .baselineSkillPostings(baselineSkillPostings)
+        .status(status)
+        .build();
+  }
+
+  /** 원천별 동료집단 표본 수(없는 원천은 실패)와 스킬·원천별 수요 결과를 스텁한다. */
+  private void stubSources(
+      UUID userId,
+      String ym,
+      Map<String, Integer> sampleCounts,
+      Map<Skill, BigDecimal> skillWeights,
+      Map<Skill, Map<String, SkillDemandCalculator.SkillDemandResult>> demands) {
+    CareerProfile profile = new CareerProfile(userId);
+    profile.patch("DEVELOPER", 5, "서울 강남구", "FULL_TIME", "MEDIUM");
+    lenient().when(careerProfileRepository.findByUserId(userId)).thenReturn(Optional.of(profile));
+    List<UserSkill> userSkills =
+        skillWeights.keySet().stream()
+            .sorted(java.util.Comparator.comparing(Skill::getStandardName))
+            .map(MarketValueIndexServiceTest::userSkillOf)
+            .toList();
+    lenient().when(userSkillRepository.findByUserId(userId)).thenReturn(userSkills);
+    for (String source : MarketValueIndexServiceImpl.SUPPORTED_SOURCES) {
+      Integer count = sampleCounts.get(source);
+      lenient()
+          .when(peerGroupFallbackResolver.resolveForSource(eq(source), any(), any()))
+          .thenReturn(count == null ? unsuccessfulGroup() : resolvedGroup(source, count));
+    }
+    demands.forEach(
+        (skill, bySource) ->
+            bySource.forEach(
+                (source, result) ->
+                    lenient()
+                        .when(
+                            skillDemandCalculator.calculateDemandIndex(
+                                eq(source), eq(skill.getId()), any(), eq(ym)))
+                        .thenReturn(result)));
+    Map<UUID, BigDecimal> weights = new java.util.HashMap<>();
+    skillWeights.forEach((skill, w) -> weights.put(skill.getId(), w));
+    lenient().when(skillWeightCalculator.calculateWeights(any(), any(), any())).thenReturn(weights);
+    lenient()
+        .when(wageBaselineResolver.resolveBaseline(any()))
         .thenReturn(new WageBaseline(65000000L, "초과급여 제외", "202609"));
   }
 
