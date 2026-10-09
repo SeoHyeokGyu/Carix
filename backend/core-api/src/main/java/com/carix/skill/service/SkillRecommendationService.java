@@ -586,7 +586,10 @@ public class SkillRecommendationService {
    */
   private String resolveBaseYearMonth() {
     String currentYm = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMM"));
-    return marketAggregateRepository.findLatestAvailableYearMonth(currentYm).orElse(currentYm);
+    // 원천 조건 없는 기준월은 통합(ALL) 행이 있는 최신 월로 잡는다
+    return marketAggregateRepository
+        .findLatestAvailableYearMonthForSource("ALL", currentYm)
+        .orElse(currentYm);
   }
 
   /**

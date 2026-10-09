@@ -253,7 +253,7 @@ public class CollectorPipelineController {
   /**
    * [GET /internal/pipeline/priorities] MVI 시장 데이터 수집 우선순위 산출 결과 조회 (개발 계획 §2 b8b).
    *
-   * @param month 기준 년월 (YYYYMM, null 시 최신 적재월 또는 당월)
+   * @param month 기준 년월 (YYYYMM, null 시 ALL 집계 행이 있는 당월 이하 최신 월, 없으면 당월)
    * @param source 원천 플랫폼 (ALL, JOBKOREA, SARAMIN, 기본값 ALL)
    * @param minSampleSize 최소 기준 표본수 (기본값 10)
    * @param underSampledOnly 표본 부족(N &lt; minSampleSize) 항목만 반환할지 여부 (기본값 false)

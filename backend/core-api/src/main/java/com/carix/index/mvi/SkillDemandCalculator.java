@@ -37,8 +37,8 @@ import org.springframework.stereotype.Component;
  *       상태로 표시하고, 수요 지수를 0으로 하여 MVI 가중합에 그대로 반영합니다. 이 판정은 최근 창의 <b>모수(신규 수집 공고)가 0보다 클 때만</b> 내립니다
  *       — 모수가 0이면 수요가 없는 것이 아니라 집계가 없는 것입니다.
  *   <li><b>최근 창 모수 0 (집계 공백):</b> 최근 신규 수집된 동료집단 공고 자체가 한 건도 없어 수요율이 정의되지 않으므로 {@code
- *       NO_RECENT_COVERAGE}(집계 없음)로 처리하고 해당 원천의 가중합에서 제외합니다. 모든 원천이 이 상태면 MVI 는 0 이 아니라 {@code
- *       NULL} 입니다. 표본 부족과 갈라 둔 것은 해소 주체가 다르기 때문입니다 — 사용자 입력으로는 해소되지 않습니다.
+ *       NO_RECENT_COVERAGE}(집계 없음)로 처리하고 그 스킬의 원천 결합에서 해당 원천을 뺍니다. 모든 원천이 이 상태면 MVI 는 0 이 아니라
+ *       {@code NULL} 입니다. 표본 부족과 갈라 둔 것은 해소 주체가 다르기 때문입니다 — 사용자 입력으로는 해소되지 않습니다.
  *   <li><b>스킬 행 표본 미달:</b> 기간 창의 스킬 신규 공고 수가 {@link #MIN_SKILL_SAMPLE_SIZE} 미만이면 {@code
  *       INSUFFICIENT_SAMPLE}(표본 부족)로 처리하고 MVI 가중합에서 제외합니다 (기술 명세 §2.1). 최근 창의 스킬 공고 0 은 여기 해당하지
  *       않습니다 — 기준선 표본이 충분하고 최근 창에 모수가 있는데 스킬만 0 이면, 표본 문제가 아니라 수요가 사라진 신호입니다.
@@ -94,7 +94,7 @@ public class SkillDemandCalculator {
    *
    * <p>스킬 ID와 무관한 공통 모수이므로, 스킬 루프 밖에서 1회만 조회하여 재사용할 수 있습니다.
    *
-   * @param source 플랫폼 원천 (JOBKOREA, SARAMIN)
+   * @param source 플랫폼 원천 (JOBKOREA, SARAMIN, WANTED, JUMPIT)
    * @param peerGroup 완화 완료된 동료집단 조건
    * @param baseYearMonth 기준년월 (YYYYMM)
    * @return 최근 3개월 및 이전 12개월 전체 공고 수
@@ -149,7 +149,7 @@ public class SkillDemandCalculator {
   /**
    * 주어진 동료집단 완화 조건 및 기준월에 대해 특정 스킬의 수요 지수를 계산합니다.
    *
-   * @param source 플랫폼 원천 (JOBKOREA, SARAMIN)
+   * @param source 플랫폼 원천 (JOBKOREA, SARAMIN, WANTED, JUMPIT)
    * @param skillId 대상 스킬 ID
    * @param peerGroup 완화 완료된 동료집단 조건
    * @param baseYearMonth 기준년월 (YYYYMM)
@@ -166,7 +166,7 @@ public class SkillDemandCalculator {
   /**
    * 사전 계산된 전체 공고 수({@link TotalPostings})를 전달받아 특정 스킬의 수요 지수를 계산합니다.
    *
-   * @param source 플랫폼 원천 (JOBKOREA, SARAMIN)
+   * @param source 플랫폼 원천 (JOBKOREA, SARAMIN, WANTED, JUMPIT)
    * @param skillId 대상 스킬 ID
    * @param peerGroup 완화 완료된 동료집단 조건
    * @param baseYearMonth 기준년월 (YYYYMM)

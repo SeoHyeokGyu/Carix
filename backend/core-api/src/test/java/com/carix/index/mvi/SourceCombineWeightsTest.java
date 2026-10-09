@@ -37,4 +37,33 @@ class SourceCombineWeightsTest {
         .containsOnlyKeys("SARAMIN")
         .containsEntry("SARAMIN", 30.0);
   }
+
+  @Test
+  @DisplayName("정기 수집 원천 둘은 합계로 묶여 표본 원천 최대치를 넘지 않는다")
+  void capsRegularSourcesAsPool() {
+    assertThat(SourceCombineWeights.of(Map.of("JOBKOREA", 60, "SARAMIN", 90, "JUMPIT", 30)))
+        .containsEntry("JOBKOREA", 60.0)
+        .containsEntry("SARAMIN", 45.0)
+        .containsEntry("JUMPIT", 15.0);
+  }
+
+  @Test
+  @DisplayName("원티드도 표본 원천이라 상한은 잡코리아·원티드 중 큰 쪽이다")
+  void wantedIsSampledSource() {
+    assertThat(
+            SourceCombineWeights.of(
+                Map.of("JOBKOREA", 60, "WANTED", 100, "SARAMIN", 90, "JUMPIT", 30)))
+        .containsEntry("JOBKOREA", 60.0)
+        .containsEntry("WANTED", 100.0)
+        .containsEntry("SARAMIN", 75.0)
+        .containsEntry("JUMPIT", 25.0);
+  }
+
+  @Test
+  @DisplayName("정기 수집 합계가 상한 이하면 그대로다")
+  void regularPoolBelowCapUnchanged() {
+    assertThat(SourceCombineWeights.of(Map.of("WANTED", 200, "SARAMIN", 90, "JUMPIT", 30)))
+        .containsEntry("SARAMIN", 90.0)
+        .containsEntry("JUMPIT", 30.0);
+  }
 }

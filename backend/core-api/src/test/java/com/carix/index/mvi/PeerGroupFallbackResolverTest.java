@@ -1,6 +1,10 @@
 package com.carix.index.mvi;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.carix.config.IndexThresholdProperties;
@@ -262,6 +266,26 @@ class PeerGroupFallbackResolverTest {
     var result = resolver.resolveForSource("JOBKOREA", profile(5), "202607");
 
     assertThat(result.isSuccessful()).isFalse();
+  }
+
+  @Test
+  @DisplayName("resolve(ALL) 은 잡코리아가 실패하면 사람인을 쓰고 원티드·점핏은 보지 않는다")
+  void resolveAllFallsBackToSaraminOnly() {
+    when(marketAggregateRepository.findPeerGroupAggregatesByBrackets(
+            "JOBKOREA", "202607", "DEVELOPER", "ALL", List.of("ALL"), "ALL", "ALL"))
+        .thenReturn(List.of());
+    when(marketAggregateRepository.findPeerGroupAggregatesByBrackets(
+            "SARAMIN", "202607", "DEVELOPER", "ALL", List.of("ALL"), "ALL", "ALL"))
+        .thenReturn(List.of(row("ALL", 170)));
+
+    var result = resolver.resolve("ALL", "202607", profile(5));
+
+    assertThat(result.isSuccessful()).isTrue();
+    assertThat(result.getSource()).isEqualTo("SARAMIN");
+    verify(marketAggregateRepository, never())
+        .findPeerGroupAggregatesByBrackets(eq("JUMPIT"), any(), any(), any(), any(), any(), any());
+    verify(marketAggregateRepository, never())
+        .findPeerGroupAggregatesByBrackets(eq("WANTED"), any(), any(), any(), any(), any(), any());
   }
 
   @Test

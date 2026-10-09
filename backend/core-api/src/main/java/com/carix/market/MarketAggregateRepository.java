@@ -16,7 +16,7 @@ public interface MarketAggregateRepository extends JpaRepository<MarketAggregate
   /**
    * 동료집단 전체 행(skillId IS NULL)을 완화 조건에 따라 단건 조회합니다.
    *
-   * @param source 플랫폼 원천 (JOBKOREA, SARAMIN)
+   * @param source 플랫폼 원천 (JOBKOREA, SARAMIN, WANTED, JUMPIT)
    * @param baseYearMonth 기준년월 (YYYYMM)
    * @param jobFamily 직무
    * @param region 지역명
@@ -115,17 +115,6 @@ public interface MarketAggregateRepository extends JpaRepository<MarketAggregate
       @Param("brackets") Collection<String> brackets,
       @Param("employmentType") String employmentType,
       @Param("companySize") String companySize);
-
-  /**
-   * 주어진 기준월 이하(:baseYearMonth) 중 DB에 적재된 시장 집계 데이터의 최신 기준월을 조회합니다. 당월 데이터가 아직 마감/수집되지 않았을 때 직전 유효
-   * 월로 fallback하기 위해 사용됩니다.
-   */
-  @Query(
-      """
-      SELECT MAX(m.baseYearMonth) FROM MarketAggregate m
-      WHERE m.baseYearMonth <= :baseYearMonth
-      """)
-  Optional<String> findLatestAvailableYearMonth(@Param("baseYearMonth") String baseYearMonth);
 
   /** 한 원천의 집계가 있는 기준월 이하 최신 월. 시장가치 지수는 잡코리아 무작위 표본이 있는 달을 기준으로 삼는다. */
   @Query(

@@ -1,5 +1,6 @@
 package com.carix.market;
 
+import com.carix.jobposting.CollectedVia;
 import com.carix.jobposting.JobPosting;
 import com.carix.jobposting.JobPostingRepository;
 import com.carix.jobposting.JobPostingSkill;
@@ -16,10 +17,12 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -42,6 +45,20 @@ public class MarketAggregateService {
 
   static final List<String> SAMPLED_SOURCES = List.of("JOBKOREA", "WANTED");
   static final int SAMPLE_COMPANY_CAP_PER_MONTH = 3;
+
+  /** 측정 프레임 원천: 집계 원천 하나 = 수집 경로 하나(프레임 설계 §3). 공고 행은 SARAMIN 하나로 합쳐 두고 집계에서만 나눈다. */
+  private record FrameSource(String name, Predicate<JobPosting> member) {}
+
+  private static final List<FrameSource> FRAME_SOURCES =
+      List.of(
+          new FrameSource(
+              "SARAMIN",
+              p ->
+                  "SARAMIN".equals(p.getSource())
+                      && p.hasCollectedVia(CollectedVia.SARAMIN_SEARCH)),
+          new FrameSource("JUMPIT", p -> p.hasCollectedVia(CollectedVia.JUMPIT)));
+
+  private static final DateTimeFormatter YYYYMM = DateTimeFormatter.ofPattern("yyyyMM");
 
   private final CompanyNormalizer companyNormalizer = new CompanyNormalizer();
 
@@ -205,15 +222,18 @@ public class MarketAggregateService {
     // 3. 통합 관점 ("ALL" source, dedup_group_id 기준) 집계
     aggregates.addAll(buildAggregatesForSource("ALL", activePostings, baseYearMonth, true));
 
-    // 4. 개별 원천별 관점 ("JOBKOREA", "WANTED", "SARAMIN") 집계. 잡코리아·원티드는 활동 공고가 아니라 그 달 무작위 표본만 센다.
-    Map<String, List<JobPosting>> bySource =
-        activePostings.stream()
-            .filter(p -> !SAMPLED_SOURCES.contains(p.getSource()))
-            .collect(Collectors.groupingBy(p -> p.getSource() != null ? p.getSource() : "UNKNOWN"));
+    // 4. 원천별 행: 표본 원천은 그 달 무작위 표본, 프레임 원천(사람인 검색·점핏)은 ALL 과 같은 활동 규칙으로 그 경로가 수집한 공고.
+    Map<String, List<JobPosting>> bySource = new LinkedHashMap<>();
     for (String sampledSource : SAMPLED_SOURCES) {
       List<JobPosting> sample = sampledPostingsForMonth(allPostings, baseYearMonth, sampledSource);
       if (!sample.isEmpty()) {
         bySource.put(sampledSource, sample);
+      }
+    }
+    for (FrameSource frame : FRAME_SOURCES) {
+      List<JobPosting> members = activePostings.stream().filter(frame.member()).toList();
+      if (!members.isEmpty()) {
+        bySource.put(frame.name(), members);
       }
     }
     for (Map.Entry<String, List<JobPosting>> entry : bySource.entrySet()) {
@@ -330,7 +350,6 @@ public class MarketAggregateService {
 
   private Set<String> extractActiveMonths(List<JobPosting> postings) {
     Set<String> months = new java.util.TreeSet<>();
-    DateTimeFormatter yyyyMM = DateTimeFormatter.ofPattern("yyyyMM");
 
     for (JobPosting p : postings) {
       if (p.getSampledMonth() != null) {
@@ -340,15 +359,15 @@ public class MarketAggregateService {
       if (start != null) {
         String end = resolveEndMonth(p, start);
         try {
-          YearMonth startYm = YearMonth.parse(start, yyyyMM);
-          YearMonth endYm = YearMonth.parse(end, yyyyMM);
+          YearMonth startYm = YearMonth.parse(start, YYYYMM);
+          YearMonth endYm = YearMonth.parse(end, YYYYMM);
           if (startYm.isAfter(endYm)) {
             endYm = startYm;
           }
           if (ChronoUnit.MONTHS.between(startYm, endYm) <= 36) {
             YearMonth cur = startYm;
             while (!cur.isAfter(endYm)) {
-              months.add(cur.format(yyyyMM));
+              months.add(cur.format(YYYYMM));
               cur = cur.plusMonths(1);
             }
           } else {
@@ -362,7 +381,7 @@ public class MarketAggregateService {
     }
 
     if (months.isEmpty()) {
-      months.add(LocalDate.now().format(yyyyMM));
+      months.add(LocalDate.now().format(YYYYMM));
     }
     return months;
   }
