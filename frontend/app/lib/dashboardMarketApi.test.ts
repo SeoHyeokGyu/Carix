@@ -109,6 +109,19 @@ describe("dashboardMarketApi", () => {
         expect.objectContaining({ credentials: "include" }),
       );
     });
+
+    it("year 파라미터가 제공되면 쿼리스트링에 year 를 포함한다 (b14)", async () => {
+      global.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({ success: true, data: { status: "OK" } }),
+      });
+
+      await fetchSalaryDistribution("202608", "2024");
+      expect(global.fetch).toHaveBeenCalledWith(
+        "/api/v1/dashboard/salary-distribution?baseYearMonth=202608&year=2024",
+        expect.objectContaining({ credentials: "include" }),
+      );
+    });
   });
 
   // 세션 게이트가 켜진 뒤로 세션 없는 호출은 전부 401 이다. 평범한 Error 를 던지면 화면이

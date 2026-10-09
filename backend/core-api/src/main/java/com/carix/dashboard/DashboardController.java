@@ -142,6 +142,8 @@ public class DashboardController {
       @Parameter(description = "인덱스 기준 월 (YYYYMM 또는 YYYY-MM, 기본: 현재월)")
           @RequestParam(required = false)
           String baseYearMonth,
+      @Parameter(description = "경력 사다리 기준 연도 (YYYY, 미지정 시 최신 연도)") @RequestParam(required = false)
+          String year,
       @Parameter(description = "MVP 범위 밖 — 받기만 하고 쓰지 않는다 (개발 계획 §4)")
           @RequestParam(required = false)
           String jobFamily,
@@ -157,7 +159,9 @@ public class DashboardController {
 
     return ResponseEntity.ok(
         ApiResult.success(
-            salaryDistributionService.resolve(userId, normalizeYearMonth(baseYearMonth))));
+            year != null && !year.isBlank()
+                ? salaryDistributionService.resolve(userId, normalizeYearMonth(baseYearMonth), year)
+                : salaryDistributionService.resolve(userId, normalizeYearMonth(baseYearMonth))));
   }
 
   // =========================================================================

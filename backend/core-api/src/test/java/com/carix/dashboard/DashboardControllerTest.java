@@ -209,6 +209,43 @@ class DashboardControllerTest {
   }
 
   @Test
+  @DisplayName("GET /v1/dashboard/salary-distribution - year 파라미터가 있으면 3-arg resolve 를 호출한다 (b14)")
+  void getSalaryDistribution_연도파라미터() throws Exception {
+    given(salaryDistributionService.resolve(eq(USER_ID), eq("202607"), eq("2024")))
+        .willReturn(
+            new SalaryDistributionResponse(
+                "OK",
+                50,
+                null,
+                null,
+                null,
+                null,
+                null,
+                List.of(),
+                new SalaryDistributionResponse.CareerLadder(
+                    "MID",
+                    "2024",
+                    List.of("2023", "2024", "2025"),
+                    List.of(
+                        new SalaryDistributionResponse.CareerLadderStep(
+                            "ENTRY", 32_000_000L, null, "KOSIS"),
+                        new SalaryDistributionResponse.CareerLadderStep(
+                            "JUNIOR", 42_000_000L, 31.25, "KOSIS")))));
+
+    mockMvc
+        .perform(
+            get("/v1/dashboard/salary-distribution")
+                .header("X-User-Id", USER_ID.toString())
+                .param("baseYearMonth", "2026-07")
+                .param("year", "2024"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.data.status").value("OK"))
+        .andExpect(jsonPath("$.data.careerLadder.basePeriod").value("2024"))
+        .andExpect(jsonPath("$.data.careerLadder.availableYears[1]").value("2024"))
+        .andExpect(jsonPath("$.data.careerLadder.steps[0].bracket").value("ENTRY"));
+  }
+
+  @Test
   @DisplayName("GET /v1/dashboard/trends - 계열 상태를 함께 싣는다")
   void getTrends() throws Exception {
     given(snapshotSeriesService.trends(eq(USER_ID), eq("202601"), eq(6)))

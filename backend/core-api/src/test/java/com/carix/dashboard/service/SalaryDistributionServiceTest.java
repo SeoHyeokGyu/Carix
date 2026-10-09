@@ -141,6 +141,51 @@ class SalaryDistributionServiceTest {
   }
 
   @Test
+  @DisplayName("연도 축(b14) — 특정 연도(year)를 지정하면 해당 연도의 경력 사다리와 사용 가능 연도 목록을 반환한다")
+  void 경력사다리_연도지정_조회() {
+    givenCandidates(postings(4, 50_000_000L));
+    given(wageStatObservationRepository.findDistinctBasePeriodsByJobFamily("DEVELOPER"))
+        .willReturn(List.of("2021", "2022", "2023", "2024", "2025"));
+
+    given(wageStatObservationRepository.findBaselineByYear("DEVELOPER", "ENTRY", "ALL", "2024"))
+        .willReturn(
+            Optional.of(
+                wageObservationWithPeriod("ENTRY", 32_000_000L, WageStatSource.KOSIS, "2024")));
+    given(wageStatObservationRepository.findBaselineByYear("DEVELOPER", "JUNIOR", "ALL", "2024"))
+        .willReturn(
+            Optional.of(
+                wageObservationWithPeriod("JUNIOR", 42_000_000L, WageStatSource.KOSIS, "2024")));
+    given(wageStatObservationRepository.findBaselineByYear("DEVELOPER", "MID", "ALL", "2024"))
+        .willReturn(
+            Optional.of(
+                wageObservationWithPeriod("MID", 52_000_000L, WageStatSource.KOSIS, "2024")));
+    given(wageStatObservationRepository.findBaselineByYear("DEVELOPER", "SENIOR", "ALL", "2024"))
+        .willReturn(
+            Optional.of(
+                wageObservationWithPeriod("SENIOR", 62_000_000L, WageStatSource.KOSIS, "2024")));
+    given(wageStatObservationRepository.findBaselineByYear("DEVELOPER", "LEAD", "ALL", "2024"))
+        .willReturn(
+            Optional.of(
+                wageObservationWithPeriod("LEAD", 72_000_000L, WageStatSource.KOSIS, "2024")));
+
+    SalaryDistributionResponse response = service.resolve(USER_ID, BASE_YM, "2024");
+
+    assertThat(response.careerLadder()).isNotNull();
+    assertThat(response.careerLadder().basePeriod()).isEqualTo("2024");
+    assertThat(response.careerLadder().availableYears())
+        .containsExactly("2021", "2022", "2023", "2024", "2025");
+    assertThat(response.careerLadder().steps()).hasSize(5);
+    assertThat(response.careerLadder().steps().get(0).median()).isEqualTo(32_000_000L);
+    assertThat(response.careerLadder().steps().get(1).median()).isEqualTo(42_000_000L);
+    assertThat(response.careerLadder().steps().get(1).raiseFromPrevious()).isEqualTo(31.25);
+
+    SalaryDistributionResponse.CareerLadder legacy =
+        new SalaryDistributionResponse.CareerLadder("MID", List.of());
+    assertThat(legacy.basePeriod()).isNull();
+    assertThat(legacy.availableYears()).isEmpty();
+  }
+
+  @Test
   @DisplayName("표본이 충분하면 유효 공개연봉의 5수치를 계산한다")
   void 정상_5수치() {
     List<JobPosting> candidates = new ArrayList<>();
@@ -418,13 +463,18 @@ class SalaryDistributionServiceTest {
   }
 
   private WageStatObservation wageObservation(String bracket, long median, WageStatSource source) {
+    return wageObservationWithPeriod(bracket, median, source, "202500");
+  }
+
+  private WageStatObservation wageObservationWithPeriod(
+      String bracket, long median, WageStatSource source, String basePeriod) {
     return WageStatObservation.builder()
         .jobFamily("DEVELOPER")
         .experienceBracket(bracket)
         .region("ALL")
         .wageDefinition("ANNUAL_GROSS_MEDIAN")
         .wageMedian(median)
-        .basePeriod("202500")
+        .basePeriod(basePeriod)
         .statVintage("202600")
         .source(source)
         .build();

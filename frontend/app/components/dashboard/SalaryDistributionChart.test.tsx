@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
+import { render, screen, fireEvent, act } from "@testing-library/react";
 import {
   SalaryDistributionChart,
   formatKoreanSalary,
@@ -294,5 +294,45 @@ describe("SalaryDistributionChart", () => {
     expect(screen.getByText("6,200만 원")).toBeInTheDocument();
     expect(screen.getByText("2026-06")).toBeInTheDocument();
     expect(screen.getByText("표본 부족 (미산출)")).toBeInTheDocument();
+  });
+
+  it("경력 사다리에 기준 연도(basePeriod)와 연도 선택 버튼이 표시되고 연도 변경이 동작한다 (b14)", async () => {
+    const onYearChange = vi.fn();
+    const dataWithYearAxis: SalaryDistributionResponse = {
+      status: "OK",
+      sampleSize: 50,
+      careerLadder: {
+        userBracket: "MID",
+        basePeriod: "2025",
+        availableYears: ["2023", "2024", "2025"],
+        steps: [
+          {
+            bracket: "MID",
+            median: 55_000_000,
+            raiseFromPrevious: null,
+            source: "KOSIS",
+          },
+        ],
+      },
+    };
+
+    render(
+      <SalaryDistributionChart
+        data={dataWithYearAxis}
+        onYearChange={onYearChange}
+      />,
+    );
+
+    expect(screen.getByText(/2025년 기준/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "2023년" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "2024년" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "2025년" })).toBeInTheDocument();
+
+    const btn2024 = screen.getByRole("button", { name: "2024년" });
+    await act(async () => {
+      fireEvent.click(btn2024);
+    });
+
+    expect(onYearChange).toHaveBeenCalledWith("2024");
   });
 });

@@ -73,6 +73,8 @@ export interface SalaryDistributionResponse {
 
 export interface CareerLadder {
   userBracket: string;
+  basePeriod?: string;
+  availableYears?: string[];
   steps: CareerLadderStep[];
 }
 
@@ -146,10 +148,16 @@ export async function fetchSkillDemands(
  */
 export async function fetchSalaryDistribution(
   baseYearMonth?: string,
+  year?: string,
 ): Promise<SalaryDistributionResponse> {
-  const query = baseYearMonth
-    ? `?baseYearMonth=${encodeURIComponent(baseYearMonth)}`
-    : "";
+  const params = new URLSearchParams();
+  if (baseYearMonth) {
+    params.set("baseYearMonth", baseYearMonth);
+  }
+  if (year) {
+    params.set("year", year);
+  }
+  const query = params.toString() ? `?${params.toString()}` : "";
   return coreGet<SalaryDistributionResponse>(
     `/v1/dashboard/salary-distribution${query}`,
   );

@@ -80,6 +80,11 @@ public class SalaryDistributionService {
 
   @Transactional(readOnly = true)
   public SalaryDistributionResponse resolve(UUID userId, String baseYearMonth) {
+    return resolve(userId, baseYearMonth, null);
+  }
+
+  @Transactional(readOnly = true)
+  public SalaryDistributionResponse resolve(UUID userId, String baseYearMonth, String year) {
     Optional<CareerProfile> profile = careerProfileRepository.findByUserId(userId);
     if (profile.isEmpty()) {
       // 온보딩 미완료. 동료집단 조건 자체가 없어 표본이 0이다.
@@ -118,7 +123,7 @@ public class SalaryDistributionService {
           distribution.peerSampleSize(),
           null,
           distribution.appliedConditions(),
-          buildCareerLadder(careerProfile));
+          buildCareerLadder(careerProfile, year));
     }
     if (!distribution.hasSufficientSalaries()) {
       // 공고는 충분한데 공개연봉이 모자라다 — 5수치·사용자 위치는 내지 않고, 화면이 「공고 N건 중 공개 연봉 M건」을 보이게 수와 결측률만 싣는다.
@@ -127,7 +132,7 @@ public class SalaryDistributionService {
           distribution.peerSampleSize(),
           countsOnly(distribution.disclosedSampleSize(), distribution.peerSampleSize()),
           distribution.appliedConditions(),
-          buildCareerLadder(careerProfile));
+          buildCareerLadder(careerProfile, year));
     }
 
     List<Long> disclosed = distribution.disclosedSalaries();
@@ -145,20 +150,55 @@ public class SalaryDistributionService {
         new SalaryDistributionResponse.DistributionPeerGroup(
             distribution.fallbackLevel(), distribution.appliedConditions()),
         trend,
-        buildCareerLadder(careerProfile));
+        buildCareerLadder(careerProfile, year));
   }
 
   private SalaryDistributionResponse.CareerLadder buildCareerLadder(CareerProfile profile) {
+    return buildCareerLadder(profile, null);
+  }
+
+  private SalaryDistributionResponse.CareerLadder buildCareerLadder(
+      CareerProfile profile, String targetYear) {
     String jobFamily = profile.getJobFamily() == null ? "DEVELOPER" : profile.getJobFamily();
     Map<String, WageStatObservation> observations = new LinkedHashMap<>();
-    for (String bracket : PeerGroupFallbackResolver.BRACKET_6_ORDER) {
-      if (wageStatObservationRepository != null) {
-        wageStatObservationRepository
-            .findLatestBaseline(jobFamily, bracket, "ALL")
-            .or(() -> wageStatObservationRepository.findLatestBaseline(jobFamily, bracket, "전국"))
-            .ifPresent(observation -> observations.put(bracket, observation));
+    List<String> availableYears = Collections.emptyList();
+
+    if (wageStatObservationRepository != null) {
+      availableYears = wageStatObservationRepository.findDistinctBasePeriodsByJobFamily(jobFamily);
+      boolean hasYear = targetYear != null && !targetYear.isBlank();
+
+      for (String bracket : PeerGroupFallbackResolver.BRACKET_6_ORDER) {
+        if (hasYear) {
+          wageStatObservationRepository
+              .findBaselineByYear(jobFamily, bracket, "ALL", targetYear.trim())
+              .or(
+                  () ->
+                      wageStatObservationRepository.findBaselineByYear(
+                          jobFamily, bracket, "전국", targetYear.trim()))
+              .ifPresent(observation -> observations.put(bracket, observation));
+        } else {
+          wageStatObservationRepository
+              .findLatestBaseline(jobFamily, bracket, "ALL")
+              .or(() -> wageStatObservationRepository.findLatestBaseline(jobFamily, bracket, "전국"))
+              .ifPresent(observation -> observations.put(bracket, observation));
+        }
       }
     }
+
+    String resolvedBasePeriod =
+        targetYear != null && !targetYear.isBlank() ? targetYear.trim() : null;
+    if (resolvedBasePeriod == null) {
+      for (WageStatObservation obs : observations.values()) {
+        if (obs.getBasePeriod() != null && !obs.getBasePeriod().isBlank()) {
+          resolvedBasePeriod = obs.getBasePeriod();
+          break;
+        }
+      }
+      if (resolvedBasePeriod == null && !availableYears.isEmpty()) {
+        resolvedBasePeriod = availableYears.get(availableYears.size() - 1);
+      }
+    }
+
     List<SalaryDistributionResponse.CareerLadderStep> steps = new ArrayList<>();
     Long previous = null;
     for (String bracket : PeerGroupFallbackResolver.BRACKET_6_ORDER) {
@@ -183,7 +223,8 @@ public class SalaryDistributionService {
         years <= 1
             ? "ENTRY"
             : years <= 3 ? "JUNIOR" : years <= 7 ? "MID" : years <= 11 ? "SENIOR" : "LEAD";
-    return new SalaryDistributionResponse.CareerLadder(userBracket, List.copyOf(steps));
+    return new SalaryDistributionResponse.CareerLadder(
+        userBracket, resolvedBasePeriod, availableYears, List.copyOf(steps));
   }
 
   private List<SalaryDistributionResponse.SalaryTrendPoint> toTrendDtos(

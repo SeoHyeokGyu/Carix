@@ -284,7 +284,7 @@ public class MarketAggregateService {
   }
 
   /**
-   * 지정된 기준년월(baseYearMonth)에 활동 중인(게시 중인) 공고만 선별합니다.
+   * 지정된 기준년월(baseYearMonth)에 신규 수집/관측된(유량) 활동 공고만 선별합니다 (데이터 아키텍처 §1.3, b21).
    *
    * <p>귀속 기준: {@code firstSeenMonth <= baseYearMonth <= lastSeenMonth}
    */
@@ -299,7 +299,7 @@ public class MarketAggregateService {
         .collect(Collectors.toList());
   }
 
-  /** 특정 공고가 대상 월(targetMonth, YYYYMM)에 활동 중인지 판정합니다. */
+  /** 특정 공고가 대상 월(targetMonth, YYYYMM)에 신규 수집/관측(활동)되었는지 판정합니다. */
   public boolean isPostingActiveInMonth(JobPosting p, String targetMonth) {
     if (p == null || targetMonth == null) {
       return false;
