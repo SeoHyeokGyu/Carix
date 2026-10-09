@@ -46,6 +46,50 @@ public interface WageStatObservationRepository extends JpaRepository<WageStatObs
       @Param("region") String region);
 
   /**
+   * 주어진 직무, 경력 브래킷, 지역 및 특정 기준 연도(basePeriod)에 대해 임금통계를 조회합니다 (b14 경력 사다리 연도 축).
+   *
+   * @param jobFamily 직무 카테고리
+   * @param experienceBracket 경력 구간 브래킷
+   * @param region 지역명
+   * @param basePeriod 기준 연도
+   * @return 해당 연도의 임금통계 관측치
+   */
+  @Query(
+      """
+      SELECT w FROM WageStatObservation w
+      WHERE w.jobFamily = :jobFamily
+        AND w.experienceBracket = :experienceBracket
+        AND w.region = :region
+        AND w.basePeriod = :basePeriod
+      ORDER BY CASE WHEN w.source = com.carix.wagestat.WageStatSource.KOSIS THEN 1
+                    WHEN w.source = com.carix.wagestat.WageStatSource.UNKNOWN THEN 2
+                    ELSE 3 END ASC,
+        CASE WHEN w.wageDefinition = 'ANNUAL_GROSS_MEDIAN' THEN 1 ELSE 2 END ASC,
+        w.statVintage DESC
+      LIMIT 1
+      """)
+  Optional<WageStatObservation> findBaselineByYear(
+      @Param("jobFamily") String jobFamily,
+      @Param("experienceBracket") String experienceBracket,
+      @Param("region") String region,
+      @Param("basePeriod") String basePeriod);
+
+  /**
+   * 주어진 직무에 대해 등록된 모든 기준 연도(basePeriod) 목록을 오름차순으로 조회합니다 (b14 경력 사다리 연도 축).
+   *
+   * @param jobFamily 직무 카테고리
+   * @return 기준 연도 목록
+   */
+  @Query(
+      """
+      SELECT DISTINCT w.basePeriod FROM WageStatObservation w
+      WHERE w.jobFamily = :jobFamily
+        AND w.basePeriod IS NOT NULL
+      ORDER BY w.basePeriod ASC
+      """)
+  List<String> findDistinctBasePeriodsByJobFamily(@Param("jobFamily") String jobFamily);
+
+  /**
    * 주어진 직무, 경력 브래킷, 지역에 대해 연도별 시계열 임금통계를 조회합니다.
    *
    * <p>연도({@code basePeriod}) 오름차순, 동일 연도 내에서는 출처 우선순위(KOSIS > UNKNOWN > FALLBACK) 및 최신 vintage 순으로
