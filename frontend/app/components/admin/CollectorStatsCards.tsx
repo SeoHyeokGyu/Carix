@@ -1,4 +1,15 @@
 import type { PipelineStatsResponse } from "../../lib/collectorApi";
+import { sourceLabel } from "../../lib/sourceLabel";
+
+/** 원천 표시 순서. 서버가 이 밖의 원천을 보내면 뒤에 붙인다. */
+const SOURCE_ORDER = ["JOBKOREA", "WANTED", "SARAMIN"];
+
+const SOURCE_COLORS: Record<string, string> = {
+  JOBKOREA: "bg-blue-600",
+  WANTED: "bg-emerald-500",
+  SARAMIN: "bg-orange-500",
+};
+const FALLBACK_COLOR = "bg-carix-text/40";
 
 interface CollectorStatsCardsProps {
   stats: PipelineStatsResponse | null;
@@ -27,14 +38,17 @@ export function CollectorStatsCards({
   const skillCount = stats?.totalSkills ?? 0;
   const wageCount = stats?.totalWageStats ?? 0;
 
-  const jobkoreaCount = stats?.postingsBySource?.JOBKOREA ?? 0;
-  const saraminCount = stats?.postingsBySource?.SARAMIN ?? 0;
-  const totalPortal = jobkoreaCount + saraminCount;
-
-  const jobkoreaPct =
-    totalPortal > 0 ? Math.round((jobkoreaCount / totalPortal) * 100) : 0;
-  const saraminPct =
-    totalPortal > 0 ? Math.round((saraminCount / totalPortal) * 100) : 0;
+  const bySource = stats?.postingsBySource ?? {};
+  const sourceCodes = [
+    ...SOURCE_ORDER.filter((code) => code in bySource),
+    ...Object.keys(bySource).filter((code) => !SOURCE_ORDER.includes(code)),
+  ];
+  const portals = sourceCodes
+    .map((code) => ({ code, count: bySource[code] ?? 0 }))
+    .filter((p) => p.count > 0);
+  const totalPortal = portals.reduce((sum, p) => sum + p.count, 0);
+  const pct = (count: number) =>
+    totalPortal > 0 ? Math.round((count / totalPortal) * 100) : 0;
 
   const cards = [
     {
@@ -99,32 +113,31 @@ export function CollectorStatsCards({
           </span>
         </div>
 
+        <p className="mb-2 text-[11px] text-carix-text/50">
+          누적 공고 수 · 점핏 공고는 사람인에 포함
+        </p>
         <div className="h-3 w-full rounded-full overflow-hidden flex bg-carix-border/40">
-          <div
-            style={{ width: `${jobkoreaPct}%` }}
-            className="bg-blue-600 transition-all duration-500"
-            title={`잡코리아: ${jobkoreaCount.toLocaleString()}건 (${jobkoreaPct}%)`}
-          />
-          <div
-            style={{ width: `${saraminPct}%` }}
-            className="bg-orange-500 transition-all duration-500"
-            title={`사람인: ${saraminCount.toLocaleString()}건 (${saraminPct}%)`}
-          />
+          {portals.map((p) => (
+            <div
+              key={p.code}
+              style={{ width: `${pct(p.count)}%` }}
+              className={`${SOURCE_COLORS[p.code] ?? FALLBACK_COLOR} transition-all duration-500`}
+              title={`${sourceLabel(p.code)}: ${p.count.toLocaleString()}건 (${pct(p.count)}%)`}
+            />
+          ))}
         </div>
-
-        <div className="flex items-center justify-between text-[11px] text-carix-text/70 mt-2">
-          <div className="flex items-center gap-1.5">
-            <span className="h-2.5 w-2.5 rounded-full bg-blue-600" />
-            <span>
-              잡코리아 {jobkoreaCount.toLocaleString()}건 ({jobkoreaPct}%)
-            </span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <span className="h-2.5 w-2.5 rounded-full bg-orange-500" />
-            <span>
-              사람인 {saraminCount.toLocaleString()}건 ({saraminPct}%)
-            </span>
-          </div>
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-carix-text/70 mt-2">
+          {portals.map((p) => (
+            <div key={p.code} className="flex items-center gap-1.5">
+              <span
+                className={`h-2.5 w-2.5 rounded-full ${SOURCE_COLORS[p.code] ?? FALLBACK_COLOR}`}
+              />
+              <span>
+                {sourceLabel(p.code)} {p.count.toLocaleString()}건 (
+                {pct(p.count)}%)
+              </span>
+            </div>
+          ))}
         </div>
       </div>
     </div>
