@@ -8,9 +8,6 @@ import com.carix.jobposting.JobPosting;
 import com.carix.jobposting.JobPostingRepository;
 import java.time.Instant;
 import java.time.LocalDate;
-import java.time.YearMonth;
-import java.time.ZoneOffset;
-import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.OptionalInt;
 import org.junit.jupiter.api.BeforeEach;
@@ -83,54 +80,31 @@ class MarketAggregateFrameTest {
     assertThat(total(rows, "ALL")).hasValue(3);
   }
 
+  /** 저장된 모든 행. 저장이 없으면 빈 목록. */
+  @SuppressWarnings("unchecked")
+  private List<MarketAggregate> savedRows(String month, JobPosting... postings) {
+    when(jobPostingRepository.findAll()).thenReturn(List.of(postings));
+    service.aggregateMarketDataForMonth(month);
+    ArgumentCaptor<List<MarketAggregate>> captor = ArgumentCaptor.forClass(List.class);
+    verify(marketAggregateRepository, atLeast(0)).saveAll(captor.capture());
+    return captor.getAllValues().stream().flatMap(List::stream).toList();
+  }
+
   @Test
-  @DisplayName("마지막 수집 뒤 마감 전 달은 ALL 이 비어도 프레임 행이 남는다")
-  void frameRowsSurviveWhenAllRowEmpty() {
+  @DisplayName("마지막 관측월 뒤 마감 전 달은 프레임 행에 세지 않는다(유량)")
+  void frameRowsDoNotExtendPastLastSeenToDeadline() {
     var rows =
-        aggregate(
+        savedRows(
             "202609",
             saramin(
                 "s1", "202608", "202608", LocalDate.of(2026, 9, 20), CollectedVia.SARAMIN_SEARCH));
-    assertThat(total(rows, "SARAMIN")).hasValue(1);
-    assertThat(total(rows, "ALL")).isEmpty();
+    assertThat(rows).noneMatch(r -> "SARAMIN".equals(r.getSource()));
+    assertThat(rows).noneMatch(r -> "ALL".equals(r.getSource()));
   }
 
   @Test
-  @DisplayName("마감일 연장은 마지막 관측월 + 2개월까지다")
-  void deadlineExtensionCappedAtTwoMonths() {
-    var p =
-        saramin("s1", "202608", "202608", LocalDate.of(2026, 12, 31), CollectedVia.SARAMIN_SEARCH);
-    assertThat(service.isActiveInFrameMonth(p, "202610")).isTrue();
-    assertThat(service.isActiveInFrameMonth(p, "202611")).isFalse();
-  }
-
-  @Test
-  @DisplayName("게시일이 일러도 첫 관측월 전 달은 활동이 아니다")
-  void notActiveBeforeFirstSeen() {
-    var p =
-        JobPosting.builder()
-            .source("SARAMIN")
-            .firstSeenMonth("202610")
-            .lastSeenMonth("202610")
-            .postedStartDate(LocalDate.of(2026, 9, 1))
-            .postedEndDate(LocalDate.of(2026, 10, 30))
-            .build();
-    p.addCollectedVia(CollectedVia.JUMPIT);
-    assertThat(service.isActiveInFrameMonth(p, "202609")).isFalse();
-    assertThat(service.isActiveInFrameMonth(p, "202610")).isTrue();
-  }
-
-  @Test
-  @DisplayName("마감일이 없으면 마지막 관측월까지다")
-  void noDeadlineUsesLastSeen() {
-    var p = saramin("s1", "202608", "202609", null, CollectedVia.SARAMIN_SEARCH);
-    assertThat(service.isActiveInFrameMonth(p, "202609")).isTrue();
-    assertThat(service.isActiveInFrameMonth(p, "202610")).isFalse();
-  }
-
-  @Test
-  @DisplayName("전체 재집계는 마감일로 늘어난 달도 집계한다")
-  void extractedMonthsIncludeDeadlineExtension() {
+  @DisplayName("전체 재집계는 마감월이 아니라 관측월만 집계한다")
+  void extractedMonthsIgnoreDeadline() {
     when(jobPostingRepository.findAll())
         .thenReturn(
             List.of(
@@ -141,64 +115,27 @@ class MarketAggregateFrameTest {
                     LocalDate.of(2026, 9, 15),
                     CollectedVia.SARAMIN_SEARCH)));
     service.aggregateAllMarketData();
-    verify(marketAggregateRepository).deleteByBaseYearMonth("202609");
+    verify(marketAggregateRepository).deleteByBaseYearMonth("202608");
+    verify(marketAggregateRepository, never()).deleteByBaseYearMonth("202609");
   }
 
   @Test
-  @DisplayName("마감일 연장이 당월(UTC) 뒤 달을 만들지 않는다")
-  void noFutureMonthFromDeadline() {
-    YearMonth now = YearMonth.now(ZoneOffset.UTC);
-    String nowStr = now.format(DateTimeFormatter.ofPattern("yyyyMM"));
-    String next = now.plusMonths(1).format(DateTimeFormatter.ofPattern("yyyyMM"));
-    when(jobPostingRepository.findAll())
-        .thenReturn(
-            List.of(
-                saramin(
-                    "s1",
-                    nowStr,
-                    nowStr,
-                    now.plusMonths(1).atDay(10),
-                    CollectedVia.SARAMIN_SEARCH)));
-    service.aggregateAllMarketData();
-    verify(marketAggregateRepository, never()).deleteByBaseYearMonth(next);
-  }
-
-  @Test
-  @DisplayName("공고 기간은 당월(UTC) 뒤 달로 늘지 않는다")
-  void frameActivityStopsAtCurrentMonth() {
-    YearMonth now = YearMonth.now(ZoneOffset.UTC);
-    String nowStr = now.format(DateTimeFormatter.ofPattern("yyyyMM"));
-    String next = now.plusMonths(1).format(DateTimeFormatter.ofPattern("yyyyMM"));
-    var p = saramin("s1", nowStr, nowStr, now.plusMonths(1).atDay(10), CollectedVia.JUMPIT);
-    assertThat(service.isActiveInFrameMonth(p, nowStr)).isTrue();
-    assertThat(service.isActiveInFrameMonth(p, next)).isFalse();
-  }
-
-  @Test
-  @DisplayName("다음 달 단일 월 집계는 SARAMIN·JUMPIT 행을 만들지 않는다")
-  @SuppressWarnings("unchecked")
-  void singleMonthAggregationWritesNoFutureFrameRows() {
-    YearMonth now = YearMonth.now(ZoneOffset.UTC);
-    String nowStr = now.format(DateTimeFormatter.ofPattern("yyyyMM"));
-    String next = now.plusMonths(1).format(DateTimeFormatter.ofPattern("yyyyMM"));
-    when(jobPostingRepository.findAll())
-        .thenReturn(
-            List.of(
-                saramin(
-                    "b1",
-                    nowStr,
-                    nowStr,
-                    now.plusMonths(1).atDay(10),
-                    CollectedVia.SARAMIN_SEARCH,
-                    CollectedVia.JUMPIT)));
-
-    service.aggregateMarketDataForMonth(next);
-
-    ArgumentCaptor<List<MarketAggregate>> captor = ArgumentCaptor.forClass(List.class);
-    verify(marketAggregateRepository, atLeast(0)).saveAll(captor.capture());
-    List<MarketAggregate> rows = captor.getAllValues().stream().flatMap(List::stream).toList();
-    assertThat(rows).noneMatch(r -> "SARAMIN".equals(r.getSource()));
-    assertThat(rows).noneMatch(r -> "JUMPIT".equals(r.getSource()));
+  @DisplayName("게시일이 일러도 첫 관측월 전 달은 프레임 행에 세지 않는다")
+  void notActiveBeforeFirstSeen() {
+    var p =
+        JobPosting.builder()
+            .source("SARAMIN")
+            .externalId("j1")
+            .jobFamily("DEVELOPER")
+            .experienceMin(3)
+            .firstSeenMonth("202610")
+            .lastSeenMonth("202610")
+            .postedStartDate(LocalDate.of(2026, 9, 1))
+            .postedEndDate(LocalDate.of(2026, 10, 30))
+            .collectedAt(Instant.now())
+            .build();
+    p.addCollectedVia(CollectedVia.JUMPIT);
+    assertThat(savedRows("202609", p)).noneMatch(r -> "JUMPIT".equals(r.getSource()));
   }
 
   @Test
