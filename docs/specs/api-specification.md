@@ -278,7 +278,10 @@
 ### 5.2 동료집단 연봉 분포
 *   **Endpoint:** `GET /api/v1/dashboard/salary-distribution`
 *   구현: `com.carix.dashboard.service.SalaryDistributionService`. 완화 5단계를 원 공고 위에서 돌리고 백분위는 nearest-rank 로 낸다 — collector 의 `MarketAggregateService` 와 같은 방식이라야 두 경로의 숫자가 어긋나지 않고 H2/Postgres 분위수 함수 차이도 타지 않는다.
-*   **Query Parameters (모두 선택, 가상 프로필 탐색용) — `MVP 범위 밖`:** `jobFamily`, `yearsOfExperience`, `region`, `companySize` — 의미와 동작은 §5.1과 동일. 파라미터만 MVP 에서 제외한다 ([개발 계획 §4](../plans/carix-dev-plan.md)).
+*   **Query Parameters (선택):**
+    *   `baseYearMonth` (String, optional): 대시보드 기준 연월 (YYYY-MM 또는 YYYYMM). 미지정 시 최근 유효 등록월/당월 기준.
+    *   `year` (String, optional): 경력 사다리 기준 연도 (YYYY). 미지정 시 `baseYearMonth` 연도 또는 최근 기준선 연도 적용 ([개발 계획 §2 `b14`](../plans/carix-dev-plan.md)).
+    *   *가상 프로필 탐색용 (MVP 범위 밖)*: `jobFamily`, `yearsOfExperience`, `region`, `companySize` — 의미와 동작은 §5.1과 동일. 파라미터만 MVP 에서 제외한다 ([개발 계획 §4](../plans/carix-dev-plan.md)).
 *   결합 분포와 percentile은 원천별 5수치 요약으로 재구성할 수 없으므로, **동료집단 조건의 원 공고(`job_posting`)를 직접 집계**해 계산한다: `dedup_group_id` 단위로 원천 간 중복을 제거하고 유효 공개연봉 행만 사용. `market_aggregate` 에는 연봉 5수치를 두지 않는다 — 원천별 행은 중복 미제거라 이 응답과 모수가 다르다. **연봉 숫자의 정본은 이 경로 하나다**(개발 계획 `b11`). `salary_missing_rate` 는 `demand_rate` 신뢰도 지표라 집계에 남는다. 이 응답의 산출원이 아니다.
 *   표본 부족은 동료집단 공고 < 10 **또는** 그중 공개연봉 < 10 이다. 완화 사다리는 두 수가 모두 10건을 채우는 단계에 안착하고, 공고만 채우면 한 단계 더 넓힌다(스킬 추천의 동료집단은 공고 수만 본다).
 *   표본 부족 시에도 `200 OK`로 상태와 표본 수를 반환한다 (204 금지 — 화면은 `표본 부족`과 표본 수를 표시해야 함). `sampleSize` 는 동료집단 공고 수다.
@@ -294,6 +297,8 @@
       "peerGroup": { "fallbackLevel": null, "appliedConditions": "서울 / 경력 MID±1 / 회사규모 무관" },
       "careerLadder": {
         "userBracket": "MID",
+        "basePeriod": "2025",
+        "availableYears": ["2023", "2024", "2025"],
         "steps": [
           { "bracket": "ENTRY", "median": 31200000, "raiseFromPrevious": null, "source": "FALLBACK" },
           { "bracket": "JUNIOR", "median": 39600000, "raiseFromPrevious": 26.9, "source": "KOSIS" },
@@ -323,6 +328,8 @@
       },
       "careerLadder": {
         "userBracket": "MID",
+        "basePeriod": "2025",
+        "availableYears": ["2023", "2024", "2025"],
         "steps": [
           { "bracket": "ENTRY",  "median": 31200000, "raiseFromPrevious": null, "source": "FALLBACK" },
           { "bracket": "JUNIOR", "median": 39600000, "raiseFromPrevious": 26.9, "source": "KOSIS" },
