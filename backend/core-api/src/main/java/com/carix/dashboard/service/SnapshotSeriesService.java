@@ -6,6 +6,7 @@ import com.carix.index.enums.IndexStatus;
 import com.carix.snapshot.domain.IndexSnapshot;
 import com.carix.snapshot.domain.SnapshotRationale;
 import java.math.BigDecimal;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -112,7 +113,8 @@ public class SnapshotSeriesService {
         recorded.getDataVersion(),
         recorded.getRuleVersion(),
         toRationale(recorded.getRationale()),
-        recorded.getCreatedAt());
+        // 직렬화 오프셋이 JVM·드라이버 시간대를 따르지 않게 UTC 로 고정한다(월 경계도 UTC).
+        recorded.getCreatedAt().withOffsetSameInstant(ZoneOffset.UTC));
   }
 
   private SnapshotHistoryResponse.SnapshotRationale toRationale(SnapshotRationale rationale) {

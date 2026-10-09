@@ -483,6 +483,19 @@ class SnapshotReadServiceTest {
   }
 
   @Test
+  @DisplayName("history - recordedAt 은 UTC 오프셋으로 싣는다")
+  void recordedAtIsUtc() {
+    IndexSnapshot seoul =
+        snapshotAt(
+            "202609", "20260915000000-000", DecisionSignalCode.STAY, "2026-09-15T12:00:00+09:00");
+    given(repository.findByUserIdOrderByBaseYearMonthDesc(USER_ID)).willReturn(List.of(seoul));
+
+    var recordedAt = seriesService.history(USER_ID).snapshots().get(0).recorded().recordedAt();
+    assertThat(recordedAt.getOffset()).isEqualTo(java.time.ZoneOffset.UTC);
+    assertThat(recordedAt.getHour()).isEqualTo(3);
+  }
+
+  @Test
   @DisplayName("history - 다음 달 1일 00:00:00 UTC 정각에 만든 행은 그 달 당시 판정이 아니다")
   void excludesRowAtBoundary() {
     IndexSnapshot atBoundary =
