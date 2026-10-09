@@ -5,7 +5,17 @@ import {
   formatSalaryCell,
 } from "../../../lib/dataExplore";
 import { familyLabel, sourceLabel } from "../../../lib/sourceLabel";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { CELL, HEAD, META } from "./exploreStyles";
 
 const COLLECTED_VIA_LABEL: Record<string, string> = {
   JOBKOREA_LIST: "잡코리아 목록",
@@ -37,33 +47,42 @@ function Row({ p }: { p: PostingItem }) {
   const cell = formatSalaryCell(p);
   return (
     <>
-      <tr className="border-t border-carix-border">
-        <td className="px-2 py-1">{sourceLabel(p.source)}</td>
-        <td className="px-2 py-1">
+      <TableRow>
+        <TableCell className={CELL}>{sourceLabel(p.source)}</TableCell>
+        <TableCell className={CELL}>
           <Button
             variant="link"
-            size="sm"
             aria-expanded={open}
             aria-label={`${p.title} 상세`}
             onClick={() => setOpen((o) => !o)}
+            className="h-auto p-0 text-left whitespace-normal text-carix-info"
           >
             {p.title}
           </Button>
-        </td>
-        <td className="px-2 py-1">{p.companyName}</td>
-        <td className="px-2 py-1">
+        </TableCell>
+        <TableCell className={CELL}>{p.companyName}</TableCell>
+        <TableCell className={CELL}>
           {p.jobFamily ? familyLabel(p.jobFamily) : "-"}
-        </td>
-        <td className="px-2 py-1">{experience(p)}</td>
-        <td className={`px-2 py-1 ${cell.muted ? "text-carix-text/50" : ""}`}>
+        </TableCell>
+        <TableCell className={CELL}>{experience(p)}</TableCell>
+        <TableCell
+          className={`${CELL} ${cell.muted ? "text-carix-text/50" : ""}`}
+        >
           {cell.text}
-        </td>
-        <td className="px-2 py-1">{p.postedStartDate ?? "-"}</td>
-        <td className="px-2 py-1">{p.sampledMonth ?? "-"}</td>
-      </tr>
+        </TableCell>
+        <TableCell className={`${CELL} tabular-nums`}>
+          {p.postedStartDate ?? "-"}
+        </TableCell>
+        <TableCell className={`${CELL} tabular-nums`}>
+          {p.sampledMonth ?? "-"}
+        </TableCell>
+      </TableRow>
       {open && (
-        <tr>
-          <td colSpan={8} className="px-4 py-2 text-[11px] text-carix-text/80">
+        <TableRow className="bg-carix-bg/40">
+          <TableCell
+            colSpan={8}
+            className="space-y-0.5 px-4 py-2 text-[11px] text-carix-text/80"
+          >
             <p>스킬: {p.skills.length > 0 ? p.skills.join(", ") : "없음"}</p>
             <p>
               고용형태 {p.employmentType ?? "-"} · 지역 {p.region ?? "-"} · 마감{" "}
@@ -84,8 +103,8 @@ function Row({ p }: { p: PostingItem }) {
                 원천 공고
               </a>
             )}
-          </td>
-        </tr>
+          </TableCell>
+        </TableRow>
       )}
     </>
   );
@@ -112,56 +131,84 @@ export function PostingsExplorer({
     return <p className="text-xs text-carix-text/60">{emptyMessage(data)}</p>;
   }
   const lastPage = Math.max(0, Math.ceil(data.total / data.size) - 1);
+  const pager = (place: "위" | "아래") => (
+    <Pager
+      label={`공고 페이지 (${place})`}
+      page={data.page}
+      lastPage={lastPage}
+      onPage={onPage}
+    />
+  );
   return (
     <div className="space-y-2">
-      <p className="text-xs text-carix-text/60">총 {data.total}건</p>
-      <div className="overflow-x-auto">
-        <table className="w-full text-xs">
-          <thead>
-            <tr className="text-carix-text/60 text-left">
-              <th className="px-2 py-1">원천</th>
-              <th className="px-2 py-1">제목</th>
-              <th className="px-2 py-1">회사</th>
-              <th className="px-2 py-1">직무</th>
-              <th className="px-2 py-1">경력</th>
-              <th className="px-2 py-1">제시 연봉</th>
-              <th
-                className="px-2 py-1"
-                title="원천이 밝힌 게시일 — 관측월과 다를 수 있음"
-              >
-                게시일
-              </th>
-              <th className="px-2 py-1">표본월</th>
-            </tr>
-          </thead>
-          <tbody>
-            {data.items.map((p) => (
-              <Row key={`${p.source}-${p.externalId}`} p={p} />
-            ))}
-          </tbody>
-        </table>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className={META}>
+          <span>총 {data.total}건</span>
+          {data.current && <Badge variant="secondary">수집 중</Badge>}
+        </p>
+        {pager("위")}
       </div>
-      <div className="flex gap-2 text-xs">
-        <Button
-          variant="outline"
-          size="sm"
-          disabled={data.page <= 0}
-          onClick={() => onPage(data.page - 1)}
-        >
-          이전
-        </Button>
-        <span>
-          {data.page + 1} / {lastPage + 1}
-        </span>
-        <Button
-          variant="outline"
-          size="sm"
-          disabled={data.page >= lastPage}
-          onClick={() => onPage(data.page + 1)}
-        >
-          다음
-        </Button>
-      </div>
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead className={HEAD}>원천</TableHead>
+            <TableHead className={HEAD}>제목</TableHead>
+            <TableHead className={HEAD}>회사</TableHead>
+            <TableHead className={HEAD}>직무</TableHead>
+            <TableHead className={HEAD}>경력</TableHead>
+            <TableHead className={HEAD}>제시 연봉</TableHead>
+            <TableHead
+              className={HEAD}
+              title="원천이 밝힌 게시일 — 관측월과 다를 수 있음"
+            >
+              게시일
+            </TableHead>
+            <TableHead className={HEAD}>표본월</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {data.items.map((p) => (
+            <Row key={`${p.source}-${p.externalId}`} p={p} />
+          ))}
+        </TableBody>
+      </Table>
+      <div className="flex justify-end">{pager("아래")}</div>
     </div>
+  );
+}
+
+function Pager({
+  label,
+  page,
+  lastPage,
+  onPage,
+}: {
+  label: string;
+  page: number;
+  lastPage: number;
+  onPage: (page: number) => void;
+}) {
+  return (
+    <nav aria-label={label} className="flex items-center gap-2 text-xs">
+      <Button
+        variant="outline"
+        size="sm"
+        disabled={page <= 0}
+        onClick={() => onPage(page - 1)}
+      >
+        이전
+      </Button>
+      <span className="tabular-nums">
+        {page + 1} / {lastPage + 1}
+      </span>
+      <Button
+        variant="outline"
+        size="sm"
+        disabled={page >= lastPage}
+        onClick={() => onPage(page + 1)}
+      >
+        다음
+      </Button>
+    </nav>
   );
 }

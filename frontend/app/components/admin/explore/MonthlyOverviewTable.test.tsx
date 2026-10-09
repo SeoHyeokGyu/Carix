@@ -123,8 +123,14 @@ describe("MonthlyOverviewTable", () => {
 
   it("범례와 월 링크 툴팁을 보인다", () => {
     renderTable();
+    // 「주황」은 색을 입힌 별도 요소라 범례 한 항목의 글자 전체로 찾는다.
     expect(
-      screen.getByText(/주황 = 상한 적용 표본 200 미만 또는 직무 표본 10 미만/),
+      screen.getByText(
+        (_, el) =>
+          el?.tagName === "SPAN" &&
+          el.textContent ===
+            "주황 = 상한 적용 표본 200 미만 또는 직무 표본 10 미만",
+      ),
     ).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "202609" })).toHaveAttribute(
       "title",

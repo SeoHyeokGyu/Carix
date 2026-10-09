@@ -1,6 +1,6 @@
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { PostingsExplorer } from "./PostingsExplorer";
 import type { PostingItem } from "../../../lib/collectorApi";
 
@@ -181,5 +181,49 @@ describe("PostingsExplorer", () => {
       />,
     );
     expect(screen.getByText(text)).toBeTruthy();
+  });
+
+  it("페이지 이동을 표 위·아래에 두고 어느 쪽이든 같은 페이지로 간다", async () => {
+    const onPage = vi.fn();
+    render(
+      <PostingsExplorer
+        data={{
+          month: "202607",
+          current: false,
+          total: 45,
+          page: 0,
+          size: 20,
+          items: [item],
+        }}
+        onPage={onPage}
+      />,
+    );
+    const top = screen.getByRole("navigation", { name: "공고 페이지 (위)" });
+    const bottom = screen.getByRole("navigation", {
+      name: "공고 페이지 (아래)",
+    });
+    expect(within(top).getByText("1 / 3")).toBeInTheDocument();
+    expect(within(top).getByRole("button", { name: "이전" })).toBeDisabled();
+    await userEvent.click(within(top).getByRole("button", { name: "다음" }));
+    await userEvent.click(within(bottom).getByRole("button", { name: "다음" }));
+    expect(onPage.mock.calls).toEqual([[1], [1]]);
+  });
+
+  it("건수 옆에 수집 중인 달이면 「수집 중」을 붙인다", () => {
+    render(
+      <PostingsExplorer
+        data={{
+          month: "202610",
+          current: true,
+          total: 1,
+          page: 0,
+          size: 20,
+          items: [item],
+        }}
+        onPage={() => {}}
+      />,
+    );
+    expect(screen.getByText("총 1건")).toBeInTheDocument();
+    expect(screen.getByText("수집 중")).toBeInTheDocument();
   });
 });

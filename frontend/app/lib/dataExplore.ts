@@ -1,4 +1,9 @@
-import type { JobStatusResponse, PostingItem } from "./collectorApi";
+import type {
+  JobStatusResponse,
+  PostingItem,
+  WageTable,
+  WageValue,
+} from "./collectorApi";
 
 export type ExploreTab = "monthly" | "postings" | "cpi" | "wage";
 
@@ -18,6 +23,19 @@ export const FAMILY_MIN_SAMPLE = 10;
 
 export function parseTab(value: string | null): ExploreTab {
   return TABS.some((t) => t.id === value) ? (value as ExploreTab) : "monthly";
+}
+
+/** 탭을 바꿀 때의 URL. 월별 현황·CPI 가 같은 기간을 쓰므로 from·to 만 남기고 나머지 조건은 지운다. */
+export function tabSwitchParams(
+  tab: ExploreTab,
+  current: URLSearchParams,
+): URLSearchParams {
+  const next = new URLSearchParams({ tab });
+  for (const key of ["from", "to"]) {
+    const value = current.get(key);
+    if (value) next.set(key, value);
+  }
+  return next;
 }
 
 /** 직무별 표본 원천 파라미터 정규화. 공백·대소문자를 무시하고 모르면 잡코리아. */
@@ -210,4 +228,47 @@ export function periodError(
     return `기간은 최대 ${MAX_PERIOD_MONTHS}개월입니다`;
   }
   return null;
+}
+
+/** 응답 월들의 처음·끝(yyyyMM). 기간 입력의 기본값으로 쓴다. 응답 순서는 믿지 않는다. */
+export function periodRangeOf(
+  months: { month: string }[],
+): { from: string; to: string } | undefined {
+  if (months.length === 0) return undefined;
+  const sorted = months.map((m) => m.month).sort();
+  return { from: sorted[0], to: sorted[sorted.length - 1] };
+}
+
+function valuesKey(values: WageValue[]): string {
+  return values
+    .map(
+      (v) => `${v.wageDefinition}|${v.source}|${v.statVintage}|${v.wageMedian}`,
+    )
+    .sort()
+    .join(";");
+}
+
+/**
+ * 모든 직무가 경력 구간마다 같은 값·같은 엔진 기준선을 갖는지. KOSIS 기준선은 직무 구분이 없어 보통 참이고,
+ * 참이면 임금통계 표를 한 줄로 접는다. 엔진 기준선까지 보는 것은 직무별 엔진 차이를 숨기지 않기 위해서다.
+ */
+export function isWageUniformAcrossFamilies(data: WageTable): boolean {
+  if (data.families.length < 2) return false;
+  const signature = (family: string) =>
+    data.brackets
+      .map((b) => {
+        const cell = data.cells.find(
+          (c) => c.jobFamily === family && c.experienceBracket === b,
+        );
+        const engine = data.engineBaselines.find(
+          (e) => e.jobFamily === family && e.experienceBracket === b,
+        );
+        const engineKey = engine
+          ? `${engine.basePeriod}|${valuesKey([engine])}`
+          : "-";
+        return `${b}=${cell ? valuesKey(cell.values) : "-"}/${engineKey}`;
+      })
+      .join(",");
+  const first = signature(data.families[0]);
+  return data.families.every((f) => signature(f) === first);
 }

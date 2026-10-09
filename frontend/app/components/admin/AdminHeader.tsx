@@ -15,7 +15,10 @@ export function AdminHeader({
   onOpenKeyModal?: () => void;
 }) {
   return (
-    <header className="border-b border-carix-border bg-carix-surface/80 backdrop-blur-md sticky top-0 z-40">
+    <header
+      data-admin-header
+      className="border-b border-carix-border bg-carix-surface/80 backdrop-blur-md sticky top-0 z-40"
+    >
       <div className="mx-auto flex w-full max-w-7xl items-center justify-between px-6 py-3">
         <nav aria-label="관리자" className="flex items-center gap-3">
           <Link

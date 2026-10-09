@@ -11,7 +11,11 @@ import {
   isThinFamily,
   isThinSample,
   parseTab,
+  periodRangeOf,
+  tabSwitchParams,
+  isWageUniformAcrossFamilies,
 } from "./dataExplore";
+import type { WageTable } from "./collectorApi";
 
 describe("dataExplore", () => {
   it("CPI 전월 대비 5% 넘는 변화만 급변으로 본다", () => {
@@ -167,5 +171,168 @@ describe("월 입력 변환", () => {
     expect(toMonthInput("2026")).toBe("");
     expect(fromMonthInput("2026-10")).toBe("202610");
     expect(fromMonthInput("")).toBeUndefined();
+  });
+});
+
+describe("periodRangeOf", () => {
+  it("응답 월의 가장 이른 월과 가장 늦은 월을 돌린다 — 순서를 믿지 않는다", () => {
+    expect(
+      periodRangeOf([
+        { month: "202609" },
+        { month: "202411" },
+        { month: "202512" },
+      ]),
+    ).toEqual({ from: "202411", to: "202609" });
+  });
+
+  it("월이 없으면 undefined", () => {
+    expect(periodRangeOf([])).toBeUndefined();
+  });
+});
+
+describe("tabSwitchParams", () => {
+  it("탭만 바꾸고 기간은 남기며 나머지 조건은 지운다", () => {
+    const next = tabSwitchParams(
+      "cpi",
+      new URLSearchParams(
+        "tab=monthly&from=202401&to=202609&sampleSource=WANTED",
+      ),
+    );
+    expect(next.toString()).toBe("tab=cpi&from=202401&to=202609");
+  });
+
+  it("기간이 없으면 탭만 남는다", () => {
+    const next = tabSwitchParams(
+      "monthly",
+      new URLSearchParams("tab=postings&month=202607&source=WANTED"),
+    );
+    expect(next.toString()).toBe("tab=monthly");
+  });
+});
+
+const gross = (wageMedian: number) => ({
+  wageDefinition: "ANNUAL_GROSS_MEDIAN",
+  source: "KOSIS",
+  statVintage: "202508",
+  wageMedian,
+});
+
+function wageTable(overrides: Partial<WageTable> = {}): WageTable {
+  return {
+    basePeriod: "2025",
+    families: ["DEVELOPER", "DATA"],
+    brackets: ["ENTRY", "MID"],
+    cells: ["DEVELOPER", "DATA"].flatMap((f) => [
+      {
+        jobFamily: f,
+        experienceBracket: "ENTRY",
+        sources: ["KOSIS"],
+        values: [gross(32_240_000)],
+      },
+      {
+        jobFamily: f,
+        experienceBracket: "MID",
+        sources: ["KOSIS"],
+        values: [gross(47_690_000)],
+      },
+    ]),
+    missing: [],
+    engineBaselines: [],
+    ...overrides,
+  };
+}
+
+describe("isWageUniformAcrossFamilies", () => {
+  it("모든 직무의 칸 값이 같으면 참", () => {
+    expect(isWageUniformAcrossFamilies(wageTable())).toBe(true);
+  });
+
+  it("값이 칸 순서만 달라도 같다고 본다", () => {
+    const t = wageTable();
+    const reordered = {
+      ...t,
+      cells: t.cells.map((c) =>
+        c.jobFamily === "DATA"
+          ? {
+              ...c,
+              values: [
+                ...c.values,
+                { ...gross(1), wageDefinition: "ANNUAL_BASE_MEDIAN" },
+              ].reverse(),
+            }
+          : {
+              ...c,
+              values: [
+                ...c.values,
+                { ...gross(1), wageDefinition: "ANNUAL_BASE_MEDIAN" },
+              ],
+            },
+      ),
+    };
+    expect(isWageUniformAcrossFamilies(reordered)).toBe(true);
+  });
+
+  it("한 직무의 값이 다르면 거짓", () => {
+    const t = wageTable();
+    const differs = {
+      ...t,
+      cells: t.cells.map((c) =>
+        c.jobFamily === "DATA" && c.experienceBracket === "MID"
+          ? { ...c, values: [gross(50_000_000)] }
+          : c,
+      ),
+    };
+    expect(isWageUniformAcrossFamilies(differs)).toBe(false);
+  });
+
+  it("한 직무에만 빈 칸이 있으면 거짓", () => {
+    const t = wageTable();
+    expect(
+      isWageUniformAcrossFamilies({
+        ...t,
+        cells: t.cells.filter(
+          (c) => !(c.jobFamily === "DATA" && c.experienceBracket === "MID"),
+        ),
+      }),
+    ).toBe(false);
+  });
+
+  it("엔진 기준선이 직무마다 다르면 거짓", () => {
+    const baseline = (jobFamily: string, wageMedian: number) => ({
+      jobFamily,
+      experienceBracket: "MID",
+      region: "ALL",
+      basePeriod: "2025",
+      wageDefinition: "ANNUAL_GROSS_MEDIAN",
+      source: "KOSIS",
+      statVintage: "202508",
+      wageMedian,
+    });
+    expect(
+      isWageUniformAcrossFamilies(
+        wageTable({
+          engineBaselines: [
+            baseline("DEVELOPER", 47_690_000),
+            baseline("DATA", 48_000_000),
+          ],
+        }),
+      ),
+    ).toBe(false);
+    expect(
+      isWageUniformAcrossFamilies(
+        wageTable({
+          engineBaselines: [
+            baseline("DEVELOPER", 47_690_000),
+            baseline("DATA", 47_690_000),
+          ],
+        }),
+      ),
+    ).toBe(true);
+  });
+
+  it("직무가 하나뿐이면 접을 것이 없으므로 거짓", () => {
+    expect(
+      isWageUniformAcrossFamilies(wageTable({ families: ["DEVELOPER"] })),
+    ).toBe(false);
   });
 });
