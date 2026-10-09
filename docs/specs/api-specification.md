@@ -683,29 +683,6 @@
 ### 6.5 가상 소득/소비 변화에 따른 지수 변화 예측 (Index Predictor)
 *   **폐기.** 엔드포인트를 재도입하지 않는다. 대신 같은 계산을 **역으로** 돌린 `negotiationTargets` 가 §5.1 로 들어갔다 — "이렇게 바꾸면 지수가 얼마"보다 "목표에 닿으려면 얼마가 필요한가"가 `NEGOTIATE`·`SEEK_JOB` 신호의 빈칸을 메운다.
 *   **옛 배제 근거는 틀렸다.** MVP 규격 §2.3 이 막는 것은 **확정적 연봉 예측**인데 이 엔드포인트는 연봉을 예측하지 않았다 — 인상률을 사용자가 넣고 시스템은 재계산만 했다. `S-15` 시뮬레이터가 같은 구조로 이미 MVP 에 있다. 실제 사유는 규격이 먼저 적은 쪽, **대응 스토리·화면이 없다**였다. 아래 규격은 폐기된 계약의 기록으로만 남긴다.
-*   **Endpoint:** `POST /api/v1/dashboard/predict`
-*   **Request Body:**
-    ```json
-    {
-      "futureExpectedRaiseRate": 5.0,
-      "futureMonthlyExpenseChange": -500000
-    }
-    ```
-    *(`futureExpectedRaiseRate`: 세전 연봉 인상 예상 비율 (%), `futureMonthlyExpenseChange`: 월평균 소비액 증감액 (원, 마이너스는 절감))*
-*   **Response (200 OK):**
-    ```json
-    {
-      "currentPurchasingPowerIndex": 94.2,
-      "predictedPurchasingPowerIndex": 102.8,
-      "indexDifference": 8.6,
-      "changeStatus": "INCREASED",
-      "rationale": "연봉이 5.0% 인상되고 월 지출을 500,000원 절감하면 실질 가처분 소득이 증가하여, 구매력 지수가 현재 94.2에서 102.8로 약 8.6p 상승할 것으로 추정됩니다."
-    }
-    ```
-
----
-
-## 7. 지출·스킬·온보딩·계정 API
 
 ### 7.1 지출 이력
 *   `GET /api/v1/expenses` — 기준월별 지출 기록 목록. 각 항목: `baseYearMonth`, `items[{category, amount, status}]`
@@ -719,12 +696,9 @@
 *   `PUT /api/v1/user-skills/{id}` / `DELETE /api/v1/user-skills/{id}` — 수정·삭제
 
 ### 7.3 온보딩 상태 및 재시작
-*   ~~`GET /api/v1/onboarding`~~ — 철거했다. 현재 단계는 `GET /api/v1/auth/session`(§2.3) 응답의
-    `onboardingStep` 이 이미 담고 있어 별도 조회 엔드포인트가 필요 없다
-*   ~~`PATCH /api/v1/onboarding`~~ → **`PATCH /api/v1/auth/onboarding`**(`auth-service` 소유).
-    `users.onboarding_step` 은 `auth-service` 가 소유한 컬럼이라 갱신도 그쪽으로 옮겼다 —
-    `core-api` 의 두 엔드포인트는 받은 값을 그대로 되돌려줄 뿐 아무것도 쓰지 않는 스텁이었다.
-    세션 조회 응답도 `auth-service` 가 만들므로 갱신과 재조회가 한 서비스에 모인다. 단계
+*   현재 단계는 `GET /api/v1/auth/session`(§2.3) 응답의 `onboardingStep` 으로 읽는다. 별도 조회 엔드포인트는 없다.
+*   **`PATCH /api/v1/auth/onboarding`**(`auth-service` 소유) — 단계를 갱신한다. `users.onboarding_step` 은
+    `auth-service` 가 소유한 컬럼이고 세션 조회 응답도 같은 서비스가 만들어, 갱신과 재조회가 한 서비스에 모인다. 단계
     진행만 갱신하며 `REVIEW` → `COMPLETED` 전환에서 별도로 첫 지수 계산을 트리거하지 않는다 —
     소득·소비·스킬·프로필 저장마다 걸린 스냅샷 재계산 트리거([도메인 정의서 §5](domain-logic.md))가
     이미 8곳에 있어 검토 단계에 닿을 때는 스냅샷이 먼저 나와 있다.
@@ -1143,3 +1117,18 @@
 
     *   **Response (202 Accepted):** 작업 ID 를 돌려준다(§8.1 과 같은 형식).
     *   **작업 요약:** 달(`YYYYMM`)마다 `requests`·`saved`·`alreadySampled`·`empty`·`otherMonth`·`nonTarget`·`errors` 를 싣는다. `errors` 는 저장에 실패해 건너뛴 후보 수이며 그 달은 계속하지만, 저장이 연달아 5번 실패하면 계통 오류로 보고 예외를 던져 작업을 `FAILED` 로 끝낸다(잡코리아·원티드 공통). 모든 달의 `saved` 합이 0 이고 `errors` 합이 0 보다 크면 작업은 `FAILED`(`errorMessage` 에 `errors` 수)로 끝난다. `source=WANTED` 는 `droppedSkills`(사전에 없어 버린 스킬 태그의 빈도)와 `apiMisses`(새로 만든 공고 중 상세 API 에서 스킬 태그를 못 읽은 수)를 더 싣는다.
+
+### 8.16 MVI 수집 우선순위 조회
+*   `GET /internal/pipeline/priorities` (별칭 `/collection-priorities`) — 동료집단 조합별 표본 수로 MVI 수집 우선순위를 매긴다 (관리자 콘솔 수집 우선순위 연동). 읽기 전용이다.
+    *   **Query Parameters:** `month`(`YYYYMM`, 선택 — 비면 `ALL` 집계 행이 있는 당월(UTC) 이하 최신 월, 그것도 없으면 당월), `source`(`ALL` 기본·`JOBKOREA`·`SARAMIN` 등 집계 원천), `minSampleSize`(기본 10), `underSampledOnly`(기본 `false` — `true` 면 표본 부족 항목만).
+
+### 8.17 KOSIS 소비자물가지수 수집
+*   `POST /internal/pipeline/cpi` — 통계청 지출목적별 소비자물가지수(`DT_1J22001`) 12대 분류를 받아 `core.cpi_observation` 에 적재한다. 비동기로 실행하며 `JobExecution` 으로 진행을 본다(§8.5).
+    *   **Request Body (선택):** `startYearMonth`·`endYearMonth`(`YYYYMM`). 비우면 최신 1개월이다.
+    *   **Response (202 Accepted):** 작업 ID 를 돌려준다(§8.1 과 같은 형식).
+
+### 8.18 보조 배치
+비동기로 실행하며 `202 Accepted` 로 작업 ID 를 돌려준다(§8.1 과 같은 형식, 진행은 §8.5).
+*   `POST /internal/pipeline/reclassify-jobkorea?delayMs={ms}` — 기존 잡코리아 공고를 상세페이지로 다시 열어 직무군과 스킬을 백필과 같은 규칙으로 맞춘다([데이터 아키텍처 §1.3](data-architecture.md)). `delayMs` 는 요청 간격이며 비우면 기본값, 음수는 `400 BAD_REQUEST`.
+*   `POST /internal/pipeline/refine-skills` — 적재된 모든 공고의 제목과 기존 태그를 스킬 사전으로 다시 분석해 `job_posting_skill` 을 최신화한다. 요청 본문이 없다.
+*   `POST /internal/pipeline/seed-load` — 파일시스템에 보존한 원문 JSON 으로 `core.raw_ingest`·`core.job_posting` 을 적재한다(초기 환경 구축용). **Request Body (선택):** `dataDir`(시드 디렉터리 경로).
