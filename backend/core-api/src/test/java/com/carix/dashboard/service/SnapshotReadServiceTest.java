@@ -17,6 +17,7 @@ import com.carix.snapshot.domain.SnapshotRationale;
 import com.carix.snapshot.repository.IndexSnapshotRepository;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
@@ -436,6 +437,99 @@ class SnapshotReadServiceTest {
     assertThat(response.snapshots()).hasSize(1);
     assertThat(response.snapshots().get(0).decisionSignal()).isEqualTo("UPSKILL");
     assertThat(response.snapshots().get(0).label()).isEqualTo("스킬 보강 우선");
+  }
+
+  private IndexSnapshot snapshotAt(
+      String month, String dataVersion, DecisionSignalCode signal, String createdAtIso) {
+    return IndexSnapshot.builder()
+        .userId(USER_ID)
+        .baseYearMonth(month)
+        .dataVersion(dataVersion)
+        .ruleVersion("1.5.0")
+        .purchasingPowerIndex(new BigDecimal("100.00"))
+        .decisionSignal(signal)
+        .createdAt(createdAtIso == null ? null : OffsetDateTime.parse(createdAtIso))
+        .build();
+  }
+
+  @Test
+  @DisplayName("history - 당시 판정은 다음 달 1일 00:00 UTC 전에 만든 행 중 최신 버전이다")
+  void recordedPicksLatestBeforeMonthEnd() {
+    IndexSnapshot inMonth =
+        snapshotAt("202609", "20260915000000-000", DecisionSignalCode.STAY, "2026-09-15T00:00:00Z");
+    IndexSnapshot later =
+        snapshotAt(
+            "202609", "20261009000000-000", DecisionSignalCode.SEEK_JOB, "2026-10-09T00:00:00Z");
+    given(repository.findByUserIdOrderByBaseYearMonthDesc(USER_ID))
+        .willReturn(List.of(inMonth, later));
+
+    var point = seriesService.history(USER_ID).snapshots().get(0);
+
+    assertThat(point.decisionSignal()).isEqualTo("SEEK_JOB");
+    assertThat(point.recorded().decisionSignal()).isEqualTo("STAY");
+    assertThat(point.recorded().dataVersion()).isEqualTo("20260915000000-000");
+    assertThat(point.changed()).isTrue();
+  }
+
+  @Test
+  @DisplayName("history - 서울 기준 다음 달 1일 새벽(UTC 전월 말)에 만든 행은 전월 당시 판정이다")
+  void recordedUsesUtcMonthEnd() {
+    IndexSnapshot seoulOct1 =
+        snapshotAt(
+            "202609", "20260930233000-000", DecisionSignalCode.STAY, "2026-10-01T08:30:00+09:00");
+    given(repository.findByUserIdOrderByBaseYearMonthDesc(USER_ID)).willReturn(List.of(seoulOct1));
+
+    assertThat(seriesService.history(USER_ID).snapshots().get(0).recorded()).isNotNull();
+  }
+
+  @Test
+  @DisplayName("history - recordedAt 은 UTC 오프셋으로 싣는다")
+  void recordedAtIsUtc() {
+    IndexSnapshot seoul =
+        snapshotAt(
+            "202609", "20260915000000-000", DecisionSignalCode.STAY, "2026-09-15T12:00:00+09:00");
+    given(repository.findByUserIdOrderByBaseYearMonthDesc(USER_ID)).willReturn(List.of(seoul));
+
+    var recordedAt = seriesService.history(USER_ID).snapshots().get(0).recorded().recordedAt();
+    assertThat(recordedAt.getOffset()).isEqualTo(java.time.ZoneOffset.UTC);
+    assertThat(recordedAt.getHour()).isEqualTo(3);
+  }
+
+  @Test
+  @DisplayName("history - 다음 달 1일 00:00:00 UTC 정각에 만든 행은 그 달 당시 판정이 아니다")
+  void excludesRowAtBoundary() {
+    IndexSnapshot atBoundary =
+        snapshotAt("202609", "20261001000000-000", DecisionSignalCode.STAY, "2026-10-01T00:00:00Z");
+    given(repository.findByUserIdOrderByBaseYearMonthDesc(USER_ID)).willReturn(List.of(atBoundary));
+
+    var point = seriesService.history(USER_ID).snapshots().get(0);
+    assertThat(point.recorded()).isNull();
+    assertThat(point.changed()).isFalse();
+  }
+
+  @Test
+  @DisplayName("history - created_at 이 없는 행은 당시 판정 후보가 아니다")
+  void nullCreatedAtIsNotRecorded() {
+    IndexSnapshot noTime =
+        snapshotAt("202609", "20260915000000-000", DecisionSignalCode.STAY, null);
+    given(repository.findByUserIdOrderByBaseYearMonthDesc(USER_ID)).willReturn(List.of(noTime));
+
+    assertThat(seriesService.history(USER_ID).snapshots().get(0).recorded()).isNull();
+  }
+
+  @Test
+  @DisplayName("history - 신호가 같고 지수만 다르면 changed 는 false 다")
+  void changedOnlyOnSignal() {
+    IndexSnapshot inMonth =
+        snapshotAt("202609", "20260915000000-000", DecisionSignalCode.STAY, "2026-09-15T00:00:00Z");
+    IndexSnapshot later =
+        snapshotAt("202609", "20261009000000-000", DecisionSignalCode.STAY, "2026-10-09T00:00:00Z");
+    given(repository.findByUserIdOrderByBaseYearMonthDesc(USER_ID))
+        .willReturn(List.of(inMonth, later));
+
+    var point = seriesService.history(USER_ID).snapshots().get(0);
+    assertThat(point.recorded()).isNotNull();
+    assertThat(point.changed()).isFalse();
   }
 
   // --- /dashboard/trends ---

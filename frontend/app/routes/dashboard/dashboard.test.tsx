@@ -446,6 +446,8 @@ describe("대시보드 라우트 및 레이아웃 (Dashboard)", () => {
             dataVersion: "",
             ruleVersion: "",
             rationale: null,
+            recorded: null,
+            changed: false,
           },
           {
             baseYearMonth: "202608",
@@ -456,6 +458,8 @@ describe("대시보드 라우트 및 레이아웃 (Dashboard)", () => {
             dataVersion: "",
             ruleVersion: "",
             rationale: null,
+            recorded: null,
+            changed: false,
           },
         ],
       });
@@ -789,6 +793,8 @@ describe("대시보드 라우트 및 레이아웃 (Dashboard)", () => {
           dataVersion: "v1",
           ruleVersion: "1.2.0",
           rationale: null,
+          recorded: null,
+          changed: false,
         })),
       });
       renderScreen();

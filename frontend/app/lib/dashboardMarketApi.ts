@@ -109,6 +109,18 @@ export interface SnapshotRationale {
   baseDate: string | null;
 }
 
+export interface RecordedSnapshot {
+  purchasingPowerIndex: number | null;
+  marketValueIndex: number | null;
+  openingWindowIndex?: number | null;
+  decisionSignal: string;
+  label: string;
+  dataVersion: string;
+  ruleVersion: string;
+  rationale: SnapshotRationale | null;
+  recordedAt: string;
+}
+
 export interface SnapshotPoint {
   baseYearMonth: string;
   purchasingPowerIndex: number | null;
@@ -119,6 +131,10 @@ export interface SnapshotPoint {
   dataVersion: string;
   ruleVersion: string;
   rationale: SnapshotRationale | null;
+  /** 그 달 끝(다음 달 1일 00:00 UTC 전)에 대시보드가 보여 줬을 판정. 소급 계산한 달은 null. */
+  recorded: RecordedSnapshot | null;
+  /** 당시 판정과 현재 규칙 값의 결정 신호가 다르면 true. */
+  changed: boolean;
 }
 
 export interface SnapshotHistoryResponse {

@@ -2,6 +2,10 @@ package com.carix.snapshot.repository;
 
 import com.carix.snapshot.RuleVersion;
 import com.carix.snapshot.domain.IndexSnapshot;
+import java.time.Instant;
+import java.time.YearMonth;
+import java.time.ZoneOffset;
+import java.time.format.DateTimeFormatter;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
@@ -15,6 +19,8 @@ import java.util.Optional;
  */
 public final class IndexSnapshotSelector {
 
+  private static final DateTimeFormatter YYYYMM = DateTimeFormatter.ofPattern("yyyyMM");
+
   private IndexSnapshotSelector() {}
 
   public static Optional<IndexSnapshot> latest(List<IndexSnapshot> sameMonthSnapshots) {
@@ -22,5 +28,24 @@ public final class IndexSnapshotSelector {
         .max(
             Comparator.comparing(IndexSnapshot::getDataVersion)
                 .thenComparing(snapshot -> RuleVersion.of(snapshot.getRuleVersion())));
+  }
+
+  /**
+   * 기준월의 당시 판정 — 그 달이 끝나기 전(다음 달 1일 00:00 UTC 전)에 만든 행 중 {@link #latest} 와 같은 규칙으로 고른 한 행. 그 달 끝에
+   * 대시보드가 보여 줬을 판정이다. {@code created_at} 이 없는 행은 후보가 아니다.
+   */
+  public static Optional<IndexSnapshot> recordedAtMonthEnd(
+      List<IndexSnapshot> sameMonthSnapshots, String baseYearMonth) {
+    Instant monthEnd =
+        YearMonth.parse(baseYearMonth, YYYYMM)
+            .plusMonths(1)
+            .atDay(1)
+            .atStartOfDay(ZoneOffset.UTC)
+            .toInstant();
+    return latest(
+        sameMonthSnapshots.stream()
+            .filter(
+                s -> s.getCreatedAt() != null && s.getCreatedAt().toInstant().isBefore(monthEnd))
+            .toList());
   }
 }

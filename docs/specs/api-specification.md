@@ -411,7 +411,9 @@
 ### 5.4 월별 스냅샷 이력
 *   **Endpoint:** `GET /api/v1/dashboard/history`
 *   구현: `com.carix.dashboard.service.SnapshotSeriesService`. 한 달에 여러 행이 있으면 최신 `data_version` → 최신 `rule_version` 순으로 하나만 고른다 (`IndexSnapshotSelector`). 스냅샷이 없으면 빈 배열이다.
-*   S-11 화면용. 월별 스냅샷 목록을 최신순으로 반환.
+*   S-11 화면용. 월별 스냅샷 목록을 최신순으로 반환. 각 점의 평평한 필드(지수·`decisionSignal`·`label`·`dataVersion`·`ruleVersion`·`rationale`)는 **현재 유효 행**이고 대시보드(`VerdictHero`·`MarketValueTrend`)도 이를 쓴다. 그 달 끝에 보여 준 판정은 `recorded` 가 담는다.
+*   **당시 판정(`recorded`).** 기준월 다음 달 1일 00:00 UTC 전에 만들어진 행들에 위와 같은 선택 규칙(최신 `data_version` → 최신 `rule_version`)을 적용해 고른 한 행이다 ([도메인 정의서 §5](domain-logic.md)). 같은 지수·신호·버전·`rationale` 필드에 `recordedAt`(그 행의 생성 시각, ISO-8601 UTC)을 더한다. 그런 행이 없으면 `null` 이다 — 가입 전이거나 그 달이 끝난 뒤 소급 계산된 달.
+*   **`changed`.** `recorded` 가 있고 그 `decisionSignal` 이 현재 신호와 다르면 `true`. 지수만 다른 경우는 `false` 다.
 *   **Response (200 OK):**
     ```json
     {
@@ -425,7 +427,19 @@
           "label": "이직 탐색",
           "dataVersion": "20260701093000-000",
           "ruleVersion": "1.2.0",
-          "rationale": { "rulesApplied": ["..."], "excluded": ["..."], "baseDate": "2026-07-01" }
+          "rationale": { "rulesApplied": ["..."], "excluded": ["..."], "baseDate": "2026-07-01" },
+          "recorded": {
+            "purchasingPowerIndex": 95.1,
+            "marketValueIndex": 116.0,
+            "openingWindowIndex": 118.4,
+            "decisionSignal": "STAY",
+            "label": "현 상태 유지",
+            "dataVersion": "20260731150012-000",
+            "ruleVersion": "1.1.0",
+            "rationale": { "rulesApplied": ["..."], "excluded": [], "baseDate": "2026-07-01" },
+            "recordedAt": "2026-07-31T15:00:12Z"
+          },
+          "changed": true
         },
         {
           "baseYearMonth": "202606",
@@ -436,7 +450,9 @@
           "label": "데이터 부족",
           "dataVersion": "20260601093000-000",
           "ruleVersion": "1.2.0",
-          "rationale": { "rulesApplied": [], "excluded": ["..."], "baseDate": "2026-06-01" }
+          "rationale": { "rulesApplied": [], "excluded": ["..."], "baseDate": "2026-06-01" },
+          "recorded": null,
+          "changed": false
         }
       ]
     }

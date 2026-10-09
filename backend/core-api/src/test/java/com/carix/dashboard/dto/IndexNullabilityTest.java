@@ -92,7 +92,9 @@ class IndexNullabilityTest {
             "20260301093000-000",
             "1.2.0",
             new SnapshotHistoryResponse.SnapshotRationale(
-                List.of(), List.of(), LocalDate.of(2026, 3, 1)));
+                List.of(), List.of(), LocalDate.of(2026, 3, 1)),
+            null,
+            false);
 
     String json = objectMapper.writeValueAsString(point);
 
