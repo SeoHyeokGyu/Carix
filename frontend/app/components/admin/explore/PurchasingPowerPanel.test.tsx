@@ -201,6 +201,27 @@ describe("PurchasingPowerPanel", () => {
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 
+  it("불러오는 동안 로딩 문구를 보이고 응답 뒤 지운다", async () => {
+    let resolve!: (v: Awaited<ReturnType<typeof api.fetchCpi>>) => void;
+    vi.mocked(api.fetchCpi).mockReturnValue(
+      new Promise((r) => {
+        resolve = r;
+      }),
+    );
+    render(<PurchasingPowerPanel tab="cpi" />);
+    expect(await screen.findByText("불러오는 중입니다...")).toBeInTheDocument();
+    await act(async () => resolve({ codes: ["A"], months: [], missing: [] }));
+    expect(screen.queryByText("불러오는 중입니다...")).not.toBeInTheDocument();
+  });
+
+  it("403 이면 로딩 문구를 지운다", async () => {
+    vi.mocked(api.fetchCpi).mockRejectedValue({ status: 403 });
+    const onForbidden = vi.fn();
+    render(<PurchasingPowerPanel tab="cpi" onForbidden={onForbidden} />);
+    await waitFor(() => expect(onForbidden).toHaveBeenCalledTimes(1));
+    expect(screen.queryByText("불러오는 중입니다...")).not.toBeInTheDocument();
+  });
+
   it("reloadKey 가 바뀌면 다시 불러온다", async () => {
     const { rerender } = render(
       <PurchasingPowerPanel tab="cpi" reloadKey={0} />,

@@ -5,6 +5,7 @@ import { AdminHeader } from "../../components/admin/AdminHeader";
 import { DataHealthStrip } from "../../components/admin/DataHealthStrip";
 import { AdminKeyModal } from "../../components/admin/AdminKeyModal";
 import { MonthlyOverviewTable } from "../../components/admin/explore/MonthlyOverviewTable";
+import { LoadingNotice } from "../../components/admin/explore/LoadingNotice";
 import { PostingsExplorer } from "../../components/admin/explore/PostingsExplorer";
 import { PurchasingPowerPanel } from "../../components/admin/explore/PurchasingPowerPanel";
 import { Button } from "@/components/ui/button";
@@ -38,6 +39,7 @@ export default function DataExplorePage() {
   const tab = parseTab(params.get("tab"));
   const [loaded, setLoaded] = useState<Loaded | null>(null);
   const [failed, setFailed] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const [isKeyModalOpen, setIsKeyModalOpen] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
   const [healthKey, setHealthKey] = useState(0);
@@ -78,9 +80,12 @@ export default function DataExplorePage() {
     }
     let cancelled = false;
     const q = new URLSearchParams(paramsKey);
+    const willFetch =
+      tab === "monthly" || (tab === "postings" && (!month || isMonthValid));
     const run = async () => {
       setFailed(false);
       setLoaded(null);
+      setIsLoading(willFetch);
       try {
         let next: Loaded | null = null;
         if (tab === "monthly") {
@@ -106,6 +111,7 @@ export default function DataExplorePage() {
         }
         if (cancelled) return;
         setLoaded(next);
+        setIsLoading(false);
         if (next?.kind === "postings" && !month && next.data.month) {
           const sp = new URLSearchParams(paramsKey);
           sp.set("month", next.data.month);
@@ -114,6 +120,7 @@ export default function DataExplorePage() {
         }
       } catch (err) {
         if (cancelled) return;
+        setIsLoading(false);
         if ((err as { status?: number }).status === 403) {
           setIsKeyModalOpen(true);
           return;
@@ -170,6 +177,7 @@ export default function DataExplorePage() {
       <ThemeToggle />
       <AdminHeader active="data" onOpenKeyModal={openKeyModal} />
       <main
+        aria-busy={isLoading}
         className={`mx-auto px-6 py-8 space-y-4 ${
           tab === "monthly" || tab === "cpi" ? "max-w-screen-2xl" : "max-w-7xl"
         }`}
@@ -365,6 +373,7 @@ export default function DataExplorePage() {
             월은 YYYYMM 형식입니다
           </p>
         )}
+        {isLoading && <LoadingNotice />}
         {loaded?.kind === "monthly" && tab === "monthly" && (
           <MonthlyOverviewTable
             data={loaded.data}

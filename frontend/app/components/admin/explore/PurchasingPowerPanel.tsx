@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { LoadingNotice } from "./LoadingNotice";
 import {
   fetchCpi,
   fetchWage,
@@ -222,6 +223,7 @@ export function PurchasingPowerPanel({
   });
   const [loaded, setLoaded] = useState<Loaded | null>(null);
   const [failed, setFailed] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const [retryKey, setRetryKey] = useState(0);
 
   useEffect(() => {
@@ -229,14 +231,18 @@ export function PurchasingPowerPanel({
     const run = async () => {
       setFailed(false);
       setLoaded(null);
+      setIsLoading(true);
       try {
         const next: Loaded =
           tab === "cpi"
             ? { kind: "cpi", data: await fetchCpi(from, to) }
             : { kind: "wage", data: await fetchWage() };
-        if (!cancelled) setLoaded(next);
+        if (cancelled) return;
+        setLoaded(next);
+        setIsLoading(false);
       } catch (err) {
         if (cancelled) return;
+        setIsLoading(false);
         if ((err as { status?: number }).status === 403) {
           onForbiddenRef.current?.();
           return;
@@ -267,6 +273,7 @@ export function PurchasingPowerPanel({
       </div>
     );
   }
+  if (isLoading) return <LoadingNotice />;
   if (loaded?.kind === "cpi" && tab === "cpi") {
     return <CpiView data={loaded.data} />;
   }
