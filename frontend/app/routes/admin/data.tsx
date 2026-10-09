@@ -7,23 +7,30 @@ import { AdminKeyModal } from "../../components/admin/AdminKeyModal";
 import { MonthlyOverviewTable } from "../../components/admin/explore/MonthlyOverviewTable";
 import { LoadingNotice } from "../../components/admin/explore/LoadingNotice";
 import { PostingsExplorer } from "../../components/admin/explore/PostingsExplorer";
-import { PurchasingPowerPanel } from "../../components/admin/explore/PurchasingPowerPanel";
+import { PostingsFilters } from "../../components/admin/explore/PostingsFilters";
+import { PeriodFilter } from "../../components/admin/explore/PeriodFilter";
+import { CpiView } from "../../components/admin/explore/CpiView";
+import { WageView } from "../../components/admin/explore/WageView";
+import { CONTROL, FIELD } from "../../components/admin/explore/exploreStyles";
 import { Button } from "@/components/ui/button";
 import {
+  fetchCpi,
   fetchMonthlyOverview,
   fetchPostings,
+  fetchWage,
+  type CpiTable,
   type MonthlyOverview,
   type PostingPage,
+  type WageTable,
 } from "../../lib/collectorApi";
 import {
-  fromMonthInput,
   normalizeSampleSource,
   parsePostingSort,
-  toMonthInput,
-  POSTING_SORTS,
   parseTab,
-  periodError,
+  periodRangeOf,
+  tabSwitchParams,
   TABS,
+  type ExploreTab,
 } from "../../lib/dataExplore";
 
 export function meta() {
@@ -32,7 +39,9 @@ export function meta() {
 
 type Loaded =
   | { kind: "monthly"; data: MonthlyOverview }
-  | { kind: "postings"; data: PostingPage };
+  | { kind: "postings"; data: PostingPage }
+  | { kind: "cpi"; data: CpiTable }
+  | { kind: "wage"; data: WageTable };
 
 export default function DataExplorePage() {
   const [params, setParams] = useSearchParams();
@@ -43,7 +52,6 @@ export default function DataExplorePage() {
   const [isKeyModalOpen, setIsKeyModalOpen] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
   const [healthKey, setHealthKey] = useState(0);
-  const [periodMessage, setPeriodMessage] = useState<string | null>(null);
 
   const month = params.get("month") ?? "";
   const sampledParam = params.get("sampled");
@@ -53,7 +61,6 @@ export default function DataExplorePage() {
       : sampledParam === "false"
         ? false
         : undefined;
-  const sort = parsePostingSort(params.get("sort"));
   const rawSampleSource = params.get("sampleSource") ?? undefined;
   const sampleSource = normalizeSampleSource(rawSampleSource);
   const page = Math.max(0, Math.trunc(Number(params.get("page") ?? "0") || 0));
@@ -63,12 +70,6 @@ export default function DataExplorePage() {
   const isMonthValid = /^\d{6}$/.test(month);
 
   const paramsKey = params.toString();
-  // 월은 서버가 채우기도 하므로 폼 전체가 아니라 월 입력만 다시 그린다.
-  const formKey = (() => {
-    const sp = new URLSearchParams(paramsKey);
-    sp.delete("month");
-    return sp.toString();
-  })();
   // 서버가 정한 월을 URL 에 채우면 effect 가 다시 도는데, 이미 받은 결과이므로 다시 조회하지 않는다.
   const loadedKeyRef = useRef<string | null>(null);
 
@@ -80,8 +81,7 @@ export default function DataExplorePage() {
     }
     let cancelled = false;
     const q = new URLSearchParams(paramsKey);
-    const willFetch =
-      tab === "monthly" || (tab === "postings" && (!month || isMonthValid));
+    const willFetch = tab !== "postings" || !month || isMonthValid;
     const run = async () => {
       setFailed(false);
       setLoaded(null);
@@ -93,7 +93,11 @@ export default function DataExplorePage() {
             kind: "monthly",
             data: await fetchMonthlyOverview(from, to, rawSampleSource),
           };
-        } else if (tab === "postings" && (!month || isMonthValid)) {
+        } else if (tab === "cpi") {
+          next = { kind: "cpi", data: await fetchCpi(from, to) };
+        } else if (tab === "wage") {
+          next = { kind: "wage", data: await fetchWage() };
+        } else if (!month || isMonthValid) {
           next = {
             kind: "postings",
             data: await fetchPostings({
@@ -146,25 +150,20 @@ export default function DataExplorePage() {
     setParams,
   ]);
 
-  const shownRange = loaded?.kind === "monthly" ? loaded.data : undefined;
+  // 기간 입력의 기본값. 월별 현황은 서버가 정한 범위를 돌려주고, CPI 는 응답 월에서 구한다.
+  const shownRange =
+    loaded?.kind === "monthly"
+      ? { from: loaded.data.from, to: loaded.data.to }
+      : loaded?.kind === "cpi"
+        ? periodRangeOf(loaded.data.months)
+        : undefined;
 
   const openKeyModal = useCallback(() => setIsKeyModalOpen(true), []);
 
   const reload = () => setReloadKey((k) => k + 1);
 
-  // 기간이 맞지 않으면 URL 을 바꾸지 않고 메시지만 남긴다. 입력칸은 URL 값으로 되돌아간다.
-  const changePeriod = (
-    nextFrom: string | undefined,
-    nextTo: string | undefined,
-  ) => {
-    const message = periodError(
-      nextFrom ?? shownRange?.from,
-      nextTo ?? shownRange?.to,
-    );
-    setPeriodMessage(message);
-    if (message) return;
-    update({ from: nextFrom, to: nextTo });
-  };
+  const switchTab = (next: ExploreTab) =>
+    setParams(tabSwitchParams(next, params));
 
   const update = (next: Record<string, string | undefined>) => {
     const sp = new URLSearchParams(params);
@@ -172,229 +171,125 @@ export default function DataExplorePage() {
     setParams(sp);
   };
 
+  const periodFilter = (
+    <PeriodFilter
+      key={tab}
+      from={from}
+      to={to}
+      shown={shownRange}
+      onApply={(nextFrom, nextTo) => update({ from: nextFrom, to: nextTo })}
+    />
+  );
+
   return (
     <div className="min-h-screen bg-carix-bg text-carix-text">
       <ThemeToggle />
       <AdminHeader active="data" onOpenKeyModal={openKeyModal} />
       <main
         aria-busy={isLoading}
-        className={`mx-auto px-6 py-8 space-y-4 ${
-          tab === "monthly" || tab === "cpi" ? "max-w-screen-2xl" : "max-w-7xl"
-        }`}
+        className="mx-auto max-w-screen-2xl space-y-4 px-6 py-8"
       >
         <h1 className="text-lg font-bold">수집 데이터</h1>
         <DataHealthStrip onAuthError={openKeyModal} refreshKey={healthKey} />
-        <div role="tablist" className="flex gap-2">
-          {TABS.map((t) => (
-            <Button
-              key={t.id}
-              role="tab"
-              aria-selected={tab === t.id}
-              variant={tab === t.id ? "default" : "outline"}
-              size="sm"
-              onClick={() => {
-                setPeriodMessage(null);
-                setParams(new URLSearchParams({ tab: t.id }));
-              }}
-            >
-              {t.label}
-            </Button>
-          ))}
+        <div
+          role="tablist"
+          aria-label="수집 데이터 종류"
+          className="flex gap-1 border-b border-carix-border"
+        >
+          {TABS.map((t) => {
+            const selected = tab === t.id;
+            return (
+              <Button
+                key={t.id}
+                type="button"
+                variant="ghost"
+                role="tab"
+                id={`data-tab-${t.id}`}
+                aria-selected={selected}
+                aria-controls="data-panel"
+                onClick={() => switchTab(t.id)}
+                className={`-mb-px h-auto rounded-none border-b-2 px-4 py-2 text-sm ${
+                  selected
+                    ? "border-carix-info font-bold text-carix-info"
+                    : "border-transparent font-medium text-carix-text/60 hover:text-carix-text"
+                }`}
+              >
+                {t.label}
+              </Button>
+            );
+          })}
         </div>
 
-        {tab === "monthly" && (
-          <div className="flex flex-wrap items-center gap-4 text-xs">
-            <label className="flex items-center gap-2">
-              직무별 표본 원천
-              <select
-                aria-label="직무별 표본 원천"
-                value={sampleSource}
-                onChange={(e) => update({ sampleSource: e.target.value })}
-                className="rounded border border-carix-border px-2 py-1"
-              >
-                <option value="JOBKOREA">잡코리아</option>
-                <option value="WANTED">원티드</option>
-              </select>
-            </label>
-            <span className="flex items-center gap-2">
-              <input
-                type="month"
-                aria-label="시작 월"
-                value={toMonthInput(from ?? shownRange?.from)}
-                onChange={(e) =>
-                  changePeriod(fromMonthInput(e.target.value), to)
-                }
-                className="rounded border border-carix-border px-2 py-1"
-              />
-              ~
-              <input
-                type="month"
-                aria-label="끝 월"
-                value={toMonthInput(to ?? shownRange?.to)}
-                onChange={(e) =>
-                  changePeriod(
-                    from ?? shownRange?.from,
-                    fromMonthInput(e.target.value),
-                  )
-                }
-                className="rounded border border-carix-border px-2 py-1"
-              />
-            </span>
-            {periodMessage && (
-              <p role="alert" className="text-carix-danger">
-                {periodMessage}
-              </p>
-            )}
-          </div>
-        )}
-
-        {tab === "postings" && (
-          <form
-            key={formKey}
-            className="flex flex-wrap gap-2 text-xs"
-            onSubmit={(e) => {
-              e.preventDefault();
-              const fd = new FormData(e.currentTarget);
-              update({
-                month: fromMonthInput(String(fd.get("month") ?? "")),
-                source: String(fd.get("source") ?? ""),
-                sampled: String(fd.get("sampled") ?? ""),
-                family: String(fd.get("family") ?? ""),
-                company: String(fd.get("company") ?? ""),
-                skill: String(fd.get("skill") ?? ""),
-                disclosure: String(fd.get("disclosure") ?? ""),
-                sort: String(fd.get("sort") ?? ""),
-                page: undefined,
-              });
-            }}
-          >
-            <input
-              key={month}
-              name="month"
-              type="month"
-              defaultValue={toMonthInput(month)}
-              aria-label="월"
-              className="rounded border border-carix-border px-2 py-1"
+        <section
+          role="tabpanel"
+          id="data-panel"
+          aria-labelledby={`data-tab-${tab}`}
+          className="space-y-4"
+        >
+          {tab === "monthly" && (
+            <div className="flex flex-wrap items-end gap-3">
+              <label className={FIELD}>
+                직무별 표본 원천
+                <select
+                  aria-label="직무별 표본 원천"
+                  value={sampleSource}
+                  onChange={(e) => update({ sampleSource: e.target.value })}
+                  className={CONTROL}
+                >
+                  <option value="JOBKOREA">잡코리아</option>
+                  <option value="WANTED">원티드</option>
+                </select>
+              </label>
+              {periodFilter}
+            </div>
+          )}
+          {tab === "cpi" && (
+            <div className="flex flex-wrap items-end gap-3">{periodFilter}</div>
+          )}
+          {tab === "postings" && (
+            <PostingsFilters
+              params={params}
+              onApply={update}
+              onReset={() => setParams(tabSwitchParams("postings", params))}
             />
-            {loaded?.kind === "postings" && loaded.data.current && (
-              <span className="self-center text-carix-text/60">수집 중</span>
-            )}
-            <select
-              name="source"
-              defaultValue={params.get("source") ?? ""}
-              aria-label="원천"
-              className="rounded border border-carix-border px-2 py-1"
-            >
-              <option value="">전체 원천</option>
-              <option value="JOBKOREA">잡코리아</option>
-              <option value="SARAMIN">사람인</option>
-              <option value="WANTED">원티드</option>
-            </select>
-            <select
-              name="sampled"
-              defaultValue={sampledParam ?? ""}
-              aria-label="표본 여부"
-              className="rounded border border-carix-border px-2 py-1"
-            >
-              <option value="">표본·정기 모두</option>
-              <option value="true">표본</option>
-              <option value="false">정기 수집</option>
-            </select>
-            <select
-              name="family"
-              defaultValue={params.get("family") ?? ""}
-              aria-label="직무"
-              className="rounded border border-carix-border px-2 py-1"
-            >
-              <option value="">전체 직무</option>
-              <option value="DEVELOPER">개발</option>
-              <option value="DATA">데이터</option>
-              <option value="AI">AI</option>
-              <option value="OTHER">기타</option>
-            </select>
-            <input
-              name="company"
-              defaultValue={params.get("company") ?? ""}
-              placeholder="회사"
-              aria-label="회사"
-              className="rounded border border-carix-border px-2 py-1"
-            />
-            <input
-              name="skill"
-              defaultValue={params.get("skill") ?? ""}
-              placeholder="스킬(정확히)"
-              aria-label="스킬"
-              className="rounded border border-carix-border px-2 py-1"
-            />
-            <select
-              name="disclosure"
-              defaultValue={params.get("disclosure") ?? ""}
-              aria-label="공개 구분"
-              className="rounded border border-carix-border px-2 py-1"
-            >
-              <option value="">전체 공개 구분</option>
-              <option value="PUBLIC">공개</option>
-              <option value="BAND">비공개 구간</option>
-              <option value="NONE">없음</option>
-              <option value="UNKNOWN">판정 전</option>
-            </select>
-            <select
-              name="sort"
-              defaultValue={sort}
-              aria-label="정렬"
-              className="rounded border border-carix-border px-2 py-1"
-            >
-              {POSTING_SORTS.map((o) => (
-                <option key={o.id} value={o.id}>
-                  {o.label}
-                </option>
-              ))}
-            </select>
-            <Button type="submit" size="sm">
-              조회
-            </Button>
-          </form>
-        )}
+          )}
 
-        {failed && (
-          <div
-            role="alert"
-            className="rounded-lg border border-carix-border p-4 text-xs space-y-2"
-          >
-            <p>불러오지 못했습니다</p>
-            <Button variant="link" size="sm" onClick={() => reload()}>
-              다시 시도
-            </Button>
-          </div>
-        )}
-
-        {tab === "postings" && month && !isMonthValid && (
-          <p role="alert" className="text-xs text-carix-text/60">
-            월은 YYYYMM 형식입니다
-          </p>
-        )}
-        {isLoading && <LoadingNotice />}
-        {loaded?.kind === "monthly" && tab === "monthly" && (
-          <MonthlyOverviewTable
-            data={loaded.data}
-            sampleSource={sampleSource}
-          />
-        )}
-        {loaded?.kind === "postings" && tab === "postings" && (
-          <PostingsExplorer
-            data={loaded.data}
-            onPage={(p) => update({ page: String(p) })}
-          />
-        )}
-        {(tab === "cpi" || tab === "wage") && (
-          <PurchasingPowerPanel
-            tab={tab}
-            from={from}
-            to={to}
-            reloadKey={reloadKey}
-            onForbidden={() => setIsKeyModalOpen(true)}
-          />
-        )}
+          {failed && (
+            <div
+              role="alert"
+              className="space-y-2 rounded-lg border border-carix-border p-4 text-xs"
+            >
+              <p>불러오지 못했습니다</p>
+              <Button variant="link" size="sm" onClick={() => reload()}>
+                다시 시도
+              </Button>
+            </div>
+          )}
+          {tab === "postings" && month && !isMonthValid && (
+            <p role="alert" className="text-xs text-carix-text/60">
+              월은 YYYYMM 형식입니다
+            </p>
+          )}
+          {isLoading && <LoadingNotice />}
+          {loaded?.kind === "monthly" && tab === "monthly" && (
+            <MonthlyOverviewTable
+              data={loaded.data}
+              sampleSource={sampleSource}
+            />
+          )}
+          {loaded?.kind === "postings" && tab === "postings" && (
+            <PostingsExplorer
+              data={loaded.data}
+              onPage={(p) => update({ page: String(p) })}
+            />
+          )}
+          {loaded?.kind === "cpi" && tab === "cpi" && (
+            <CpiView data={loaded.data} />
+          )}
+          {loaded?.kind === "wage" && tab === "wage" && (
+            <WageView data={loaded.data} />
+          )}
+        </section>
       </main>
       <AdminKeyModal
         isOpen={isKeyModalOpen}

@@ -17,6 +17,7 @@ vi.mock("../../lib/collectorApi", async (orig) => ({
   fetchMonthlyOverview: vi.fn(),
   fetchPostings: vi.fn(),
   fetchCpi: vi.fn(),
+  fetchWage: vi.fn(),
   fetchDataHealth: vi.fn(),
 }));
 
@@ -338,11 +339,10 @@ describe("DataExplorePage", () => {
     );
   });
 
-  it("정렬을 바꿔 조회하면 다시 불러온다", async () => {
+  it("정렬을 고르면 바로 다시 불러온다", async () => {
     renderAt("/admin/data?tab=postings&month=202607");
     await screen.findByText("QA 채용");
     await userEvent.selectOptions(screen.getByLabelText("정렬"), "source");
-    await userEvent.click(screen.getByRole("button", { name: "조회" }));
     await waitFor(() =>
       expect(api.fetchPostings).toHaveBeenLastCalledWith(
         expect.objectContaining({ sort: "source", page: 0 }),
@@ -418,11 +418,11 @@ describe("DataExplorePage", () => {
     expect(screen.queryByText("수집 중")).not.toBeInTheDocument();
   });
 
-  it("월을 비우고 조회하면 month 가 URL 에서 빠지고 month 없이 다시 조회한다", async () => {
+  it("월을 비우고 포커스를 옮기면 month 가 URL 에서 빠지고 month 없이 다시 조회한다", async () => {
     renderAt("/admin/data?tab=postings&month=202605");
     await screen.findByText("QA 채용");
     fireEvent.change(screen.getByLabelText("월"), { target: { value: "" } });
-    await userEvent.click(screen.getByRole("button", { name: "조회" }));
+    fireEvent.blur(screen.getByLabelText("월"));
     await waitFor(() => expect(api.fetchPostings).toHaveBeenCalledTimes(2));
     expect(vi.mocked(api.fetchPostings).mock.calls[1][0].month).toBeUndefined();
   });
@@ -452,13 +452,14 @@ describe("DataExplorePage", () => {
     expect(vi.mocked(api.fetchPostings).mock.calls[0][0].month).toBeUndefined();
   });
 
-  it("월 입력을 바꿔 조회하면 yyyyMM 으로 조회한다", async () => {
+  it("월 입력을 바꾸고 포커스를 옮기면 yyyyMM 으로 조회한다", async () => {
     renderAt("/admin/data?tab=postings&month=202605");
     await screen.findByText("QA 채용");
     fireEvent.change(screen.getByLabelText("월"), {
       target: { value: "2026-03" },
     });
-    await userEvent.click(screen.getByRole("button", { name: "조회" }));
+    expect(api.fetchPostings).toHaveBeenCalledTimes(1);
+    fireEvent.blur(screen.getByLabelText("월"));
     await waitFor(() =>
       expect(api.fetchPostings).toHaveBeenLastCalledWith(
         expect.objectContaining({ month: "202603" }),
@@ -662,11 +663,12 @@ describe("DataExplorePage", () => {
     expect(screen.getByText("QA 채용")).toBeInTheDocument();
   });
 
-  it("필터 제출이 URL 파라미터로 fetchPostings 를 부른다", async () => {
+  it("회사는 입력만으로는 조회하지 않고 Enter 로 URL 파라미터에 넣어 부른다", async () => {
     renderAt("/admin/data?tab=postings&month=202607");
     await screen.findByText("QA 채용");
     await userEvent.type(screen.getByLabelText("회사"), "평화");
-    await userEvent.click(screen.getByRole("button", { name: "조회" }));
+    expect(api.fetchPostings).toHaveBeenCalledTimes(1);
+    await userEvent.keyboard("{Enter}");
     await waitFor(() =>
       expect(api.fetchPostings).toHaveBeenLastCalledWith(
         expect.objectContaining({ month: "202607", company: "평화", page: 0 }),
@@ -827,5 +829,190 @@ describe("DataExplorePage", () => {
         }),
       ),
     );
+  });
+
+  it("선택 상자를 바꿔도 포커스와 입력 중이던 회사가 남고, 회사도 함께 적용된다", async () => {
+    renderAt("/admin/data?tab=postings&month=202607");
+    await screen.findByText("QA 채용");
+    await userEvent.type(screen.getByLabelText("회사"), "평화");
+    const family = screen.getByLabelText("직무");
+    await userEvent.selectOptions(family, "DATA");
+    await waitFor(() =>
+      expect(api.fetchPostings).toHaveBeenLastCalledWith(
+        expect.objectContaining({ family: "DATA", company: "평화", page: 0 }),
+      ),
+    );
+    expect(screen.getByLabelText("직무")).toBe(family);
+    expect(family).toHaveFocus();
+    expect(screen.getByLabelText("회사")).toHaveValue("평화");
+  });
+
+  it("조건 초기화는 공고 탭의 조건을 지우고 기간은 남긴다", async () => {
+    renderAt(
+      "/admin/data?tab=postings&month=202607&source=WANTED&company=평화&from=202401",
+    );
+    await screen.findByText("QA 채용");
+    await userEvent.click(screen.getByRole("button", { name: "조건 초기화" }));
+    await waitFor(() =>
+      expect(api.fetchPostings).toHaveBeenLastCalledWith(
+        expect.objectContaining({ month: undefined, source: undefined }),
+      ),
+    );
+    expect(screen.getByLabelText("회사")).toHaveValue("");
+  });
+
+  it("탭을 바꿔도 기간은 남고 나머지 조건은 지운다", async () => {
+    vi.mocked(api.fetchCpi).mockResolvedValue({
+      codes: ["A"],
+      months: [{ month: "202609", values: { A: 118.3 } }],
+      missing: [],
+    });
+    renderAt(
+      "/admin/data?tab=monthly&from=202401&to=202609&sampleSource=WANTED",
+    );
+    await screen.findByText("150");
+    await userEvent.click(screen.getByRole("tab", { name: "CPI" }));
+    await screen.findByText("118.30");
+    expect(api.fetchCpi).toHaveBeenCalledWith("202401", "202609");
+    await userEvent.click(screen.getByRole("tab", { name: "월별 현황" }));
+    await screen.findByText("150");
+    expect(api.fetchMonthlyOverview).toHaveBeenLastCalledWith(
+      "202401",
+      "202609",
+      undefined,
+    );
+  });
+
+  it("CPI 탭에도 기간 입력이 있고, URL 이 없으면 응답 월 범위를 보이며 바꾸면 다시 부른다", async () => {
+    vi.mocked(api.fetchCpi).mockResolvedValue({
+      codes: ["A"],
+      months: [
+        { month: "202609", values: { A: 118.3 } },
+        { month: "202411", values: { A: 112.1 } },
+      ],
+      missing: [],
+    });
+    renderAt("/admin/data?tab=cpi");
+    await screen.findByText("118.30");
+    expect(screen.getByLabelText("시작 월")).toHaveValue("2024-11");
+    expect(screen.getByLabelText("끝 월")).toHaveValue("2026-09");
+    fireEvent.change(screen.getByLabelText("시작 월"), {
+      target: { value: "2025-01" },
+    });
+    await waitFor(() =>
+      expect(api.fetchCpi).toHaveBeenLastCalledWith("202501", "202609"),
+    );
+  });
+
+  it("탭은 모두 같은 탭 패널을 가리키고 선택된 탭이 패널의 이름이 된다", async () => {
+    renderAt("/admin/data");
+    await screen.findByText("150");
+    const panel = screen.getByRole("tabpanel");
+    expect(panel).toHaveAccessibleName("월별 현황");
+    for (const tab of screen.getAllByRole("tab")) {
+      expect(tab).toHaveAttribute("aria-controls", panel.id);
+    }
+  });
+
+  it.each([
+    ["cpi", () => vi.mocked(api.fetchCpi)],
+    ["wage", () => vi.mocked(api.fetchWage)],
+  ] as const)(
+    "%s 탭도 실패하면 같은 자리에 재시도를 보이고 다시 부른다",
+    async (tab, fetcher) => {
+      fetcher().mockRejectedValue({ status: 500 });
+      renderAt(`/admin/data?tab=${tab}`);
+      const panel = await screen.findByRole("tabpanel");
+      expect(
+        await within(panel).findByText("불러오지 못했습니다"),
+      ).toBeInTheDocument();
+      await userEvent.click(
+        within(panel).getByRole("button", { name: "다시 시도" }),
+      );
+      await waitFor(() => expect(fetcher()).toHaveBeenCalledTimes(2));
+    },
+  );
+
+  it("임금통계 탭은 응답을 받아 표를 그린다", async () => {
+    vi.mocked(api.fetchWage).mockResolvedValue({
+      basePeriod: "2025",
+      families: ["DEVELOPER"],
+      brackets: ["MID"],
+      cells: [
+        {
+          jobFamily: "DEVELOPER",
+          experienceBracket: "MID",
+          sources: ["KOSIS"],
+          values: [
+            {
+              wageDefinition: "ANNUAL_GROSS_MEDIAN",
+              source: "KOSIS",
+              statVintage: "202508",
+              wageMedian: 47_690_000,
+            },
+          ],
+        },
+      ],
+      missing: [],
+      engineBaselines: [],
+    });
+    renderAt("/admin/data?tab=wage");
+    expect(await screen.findByText("4,769만원")).toBeInTheDocument();
+    expect(screen.queryByText(LOADING)).not.toBeInTheDocument();
+  });
+
+  it("늦게 도착한 CPI 응답이 임금통계 탭을 덮어쓰지 않는다", async () => {
+    let resolveCpi!: (v: api.CpiTable) => void;
+    vi.mocked(api.fetchCpi).mockReturnValue(
+      new Promise((r) => {
+        resolveCpi = r;
+      }),
+    );
+    vi.mocked(api.fetchWage).mockResolvedValue({
+      basePeriod: null,
+      families: [],
+      brackets: [],
+      cells: [],
+      missing: [],
+      engineBaselines: [],
+    });
+    renderAt("/admin/data?tab=cpi");
+    await screen.findByText(LOADING);
+    await userEvent.click(screen.getByRole("tab", { name: "임금통계" }));
+    await screen.findByText("해당 조건의 데이터가 없습니다");
+    await act(async () =>
+      resolveCpi({
+        codes: ["A"],
+        months: [{ month: "202601", values: { A: 1 } }],
+        missing: [],
+      }),
+    );
+    expect(screen.queryByTestId("cpi-202601-A")).not.toBeInTheDocument();
+  });
+
+  it("회사·스킬도 칸을 벗어나면 적용하고, 폼 아래에 적용 방식을 안내한다", async () => {
+    renderAt("/admin/data?tab=postings&month=202607");
+    await screen.findByText("QA 채용");
+    expect(
+      screen.getByText(
+        "선택 상자는 바로, 월·회사·스킬은 Enter 를 누르거나 칸을 벗어나면 적용합니다",
+      ),
+    ).toBeInTheDocument();
+    await userEvent.type(screen.getByLabelText("스킬"), "Java");
+    expect(api.fetchPostings).toHaveBeenCalledTimes(1);
+    fireEvent.blur(screen.getByLabelText("스킬"));
+    await waitFor(() =>
+      expect(api.fetchPostings).toHaveBeenLastCalledWith(
+        expect.objectContaining({ skill: "Java", page: 0 }),
+      ),
+    );
+  });
+
+  it("바뀐 것 없이 칸을 벗어나면 다시 조회하지 않는다", async () => {
+    renderAt("/admin/data?tab=postings&month=202607&company=평화");
+    await screen.findByText("QA 채용");
+    fireEvent.blur(screen.getByLabelText("회사"));
+    fireEvent.blur(screen.getByLabelText("월"));
+    expect(api.fetchPostings).toHaveBeenCalledTimes(1);
   });
 });
