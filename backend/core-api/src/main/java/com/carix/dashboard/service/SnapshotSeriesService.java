@@ -16,7 +16,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * 스냅샷 시계열 두 화면 — `S-11` 이력(`/dashboard/history`)과 `S-14` 추이(`/dashboard/trends`).
+ * 스냅샷 시계열 두 화면 — `S-11` 이력(`/dashboard/history`, 당시 판정(그 달 끝 기준)과 현재 규칙 값을 함께 싣는다)과 `S-14`
+ * 추이(`/dashboard/trends`).
  *
  * <p>둘 다 스냅샷이 없으면 빈 결과를 돌려준다. 화면은 그때 `다음 달부터 변화를 볼 수 있습니다` 같은 비어있음 상태를 그린다 (기능 명세 §5).
  */
@@ -30,8 +31,9 @@ public class SnapshotSeriesService {
   @Transactional(readOnly = true)
   public SnapshotHistoryResponse history(UUID userId) {
     List<SnapshotHistoryResponse.SnapshotPoint> points = new ArrayList<>();
-    for (IndexSnapshot snapshot : snapshotQueryService.latestPerMonthDesc(userId)) {
-      points.add(toPoint(snapshot));
+    for (SnapshotQueryService.MonthSnapshots month :
+        snapshotQueryService.historyPerMonthDesc(userId)) {
+      points.add(toPoint(month));
     }
     return new SnapshotHistoryResponse(points);
   }
@@ -82,8 +84,9 @@ public class SnapshotSeriesService {
 
   // --- 매핑 ---
 
-  private SnapshotHistoryResponse.SnapshotPoint toPoint(IndexSnapshot snapshot) {
-    SnapshotRationale rationale = snapshot.getRationale();
+  private SnapshotHistoryResponse.SnapshotPoint toPoint(SnapshotQueryService.MonthSnapshots month) {
+    IndexSnapshot snapshot = month.current();
+    IndexSnapshot recorded = month.recorded();
 
     return new SnapshotHistoryResponse.SnapshotPoint(
         snapshot.getBaseYearMonth(),
@@ -94,10 +97,29 @@ public class SnapshotSeriesService {
         snapshot.getDecisionSignal().label(),
         snapshot.getDataVersion(),
         snapshot.getRuleVersion(),
-        rationale == null
-            ? null
-            : new SnapshotHistoryResponse.SnapshotRationale(
-                rationale.rulesApplied(), rationale.excludedSkills(), rationale.aggregateAsOf()));
+        toRationale(snapshot.getRationale()),
+        recorded == null ? null : toRecorded(recorded),
+        recorded != null && recorded.getDecisionSignal() != snapshot.getDecisionSignal());
+  }
+
+  private SnapshotHistoryResponse.RecordedSnapshot toRecorded(IndexSnapshot recorded) {
+    return new SnapshotHistoryResponse.RecordedSnapshot(
+        toDouble(recorded.getPurchasingPowerIndex()),
+        toDouble(recorded.getMarketValueIndex()),
+        toDouble(recorded.getOpeningWindowIndex()),
+        recorded.getDecisionSignal().name(),
+        recorded.getDecisionSignal().label(),
+        recorded.getDataVersion(),
+        recorded.getRuleVersion(),
+        toRationale(recorded.getRationale()),
+        recorded.getCreatedAt());
+  }
+
+  private SnapshotHistoryResponse.SnapshotRationale toRationale(SnapshotRationale rationale) {
+    return rationale == null
+        ? null
+        : new SnapshotHistoryResponse.SnapshotRationale(
+            rationale.rulesApplied(), rationale.excludedSkills(), rationale.aggregateAsOf());
   }
 
   /** 계열에 값이 하나도 없으면 화면이 이유를 알아야 한다. 한 달이라도 있으면 {@code OK} 이고 결측월은 점의 {@code null} 이 말한다. */

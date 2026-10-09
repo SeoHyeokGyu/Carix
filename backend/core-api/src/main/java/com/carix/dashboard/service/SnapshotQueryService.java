@@ -48,6 +48,31 @@ public class SnapshotQueryService {
     return selected;
   }
 
+  /** 월마다 현재 유효 행과 당시 판정(없으면 null). 최신월부터. */
+  public record MonthSnapshots(IndexSnapshot current, IndexSnapshot recorded) {}
+
+  @Transactional(readOnly = true)
+  public List<MonthSnapshots> historyPerMonthDesc(UUID userId) {
+    Map<String, List<IndexSnapshot>> byMonth = new LinkedHashMap<>();
+    for (IndexSnapshot snapshot :
+        indexSnapshotRepository.findByUserIdOrderByBaseYearMonthDesc(userId)) {
+      byMonth.computeIfAbsent(snapshot.getBaseYearMonth(), key -> new ArrayList<>()).add(snapshot);
+    }
+    List<MonthSnapshots> out = new ArrayList<>();
+    byMonth.forEach(
+        (month, sameMonth) ->
+            IndexSnapshotSelector.latest(sameMonth)
+                .ifPresent(
+                    current ->
+                        out.add(
+                            new MonthSnapshots(
+                                current,
+                                IndexSnapshotSelector.recordedAtMonthEnd(sameMonth, month)
+                                    .orElse(null)))));
+    out.sort(Comparator.comparing((MonthSnapshots m) -> m.current().getBaseYearMonth()).reversed());
+    return out;
+  }
+
   /** 기준월의 유효한 스냅샷. 그 달을 계산한 적이 없으면 empty 다. */
   public Optional<IndexSnapshot> forMonth(
       List<IndexSnapshot> latestPerMonth, String baseYearMonth) {
