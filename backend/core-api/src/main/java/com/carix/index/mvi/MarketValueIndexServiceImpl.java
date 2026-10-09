@@ -981,7 +981,6 @@ public class MarketValueIndexServiceImpl implements MarketValueIndexProvider {
 
     List<SkillDemandDetailData> resultList = new ArrayList<>();
     Map<String, Double> combineWeights = combineWeights(peerGroupResolution.peerGroups());
-    double weightSum = combineWeights.values().stream().mapToDouble(Double::doubleValue).sum();
 
     for (UserSkill us : userSkills) {
       Skill skill = us.getSkill();
@@ -1008,7 +1007,8 @@ public class MarketValueIndexServiceImpl implements MarketValueIndexProvider {
       double combinedRecentRate = 0.0;
       double combinedBaselineRate = 0.0;
       List<SkillSourceStatData> sourceStats = new ArrayList<>();
-      String overallStatus = "OK";
+      Set<SkillDemandStatus> droppedStatuses = new HashSet<>();
+      List<String> contributingSources = new ArrayList<>();
 
       Map<String, SkillDemandCalculator.SkillDemandResult> sourceMap =
           demandResults.getOrDefault(skillId, Collections.emptyMap());
@@ -1021,19 +1021,41 @@ public class MarketValueIndexServiceImpl implements MarketValueIndexProvider {
           continue;
         }
 
-        int sampleSize = peerGroup.getSampleCount();
-        sourceStats.add(new SkillSourceStatData(source, demandRes.getDemandIndex(), sampleSize));
+        sourceStats.add(
+            new SkillSourceStatData(
+                source, demandRes.getDemandIndex(), peerGroup.getSampleCount()));
 
-        if (demandRes.getStatus() == SkillDemandStatus.NEW_OBSERVATION) {
-          overallStatus = SkillDemandStatus.NEW_OBSERVATION.name();
+        if (!peerGroup.isSuccessful()) {
+          continue;
         }
+        if (isDroppedFromCombination(demandRes.getStatus())) {
+          // calculate() 의 classifySkills 와 같다 — 이 원천만 가중합에서 빠진다.
+          droppedStatuses.add(demandRes.getStatus());
+          continue;
+        }
+        contributingSources.add(source);
+      }
 
-        if (weightSum > 0 && peerGroup.isSuccessful()) {
-          double share = combineWeights.getOrDefault(source, 0.0) / weightSum;
+      // 남은 원천끼리 가중치를 다시 정규화한다 (calculate() 의 원천 결합과 같다).
+      double contributingWeightSum =
+          contributingSources.stream()
+              .mapToDouble(src -> combineWeights.getOrDefault(src, 0.0))
+              .sum();
+      if (contributingWeightSum > 0) {
+        for (String source : contributingSources) {
+          SkillDemandCalculator.SkillDemandResult demandRes = sourceMap.get(source);
+          double share = combineWeights.getOrDefault(source, 0.0) / contributingWeightSum;
           combinedDemandIndex += demandRes.getDemandIndex() * share;
           combinedRecentRate += demandRes.getRecentDemandRate() * share;
           combinedBaselineRate += demandRes.getBaselineDemandRate() * share;
         }
+      }
+
+      // 모든 원천에서 빠진 때만 사유를 상태로 올린다. 우선순위는 classifySkills 와 같다:
+      // 표본 부족 > 신규 관측 > 집계 공백.
+      String overallStatus = "OK";
+      if (contributingSources.isEmpty()) {
+        overallStatus = droppedStatus(droppedStatuses);
       }
 
       resultList.add(
@@ -1059,6 +1081,25 @@ public class MarketValueIndexServiceImpl implements MarketValueIndexProvider {
     }
 
     return resultList;
+  }
+
+  private static boolean isDroppedFromCombination(SkillDemandStatus status) {
+    return status == SkillDemandStatus.NEW_OBSERVATION
+        || status == SkillDemandStatus.INSUFFICIENT_SAMPLE
+        || status == SkillDemandStatus.NO_RECENT_COVERAGE;
+  }
+
+  private static String droppedStatus(Set<SkillDemandStatus> dropped) {
+    if (dropped.contains(SkillDemandStatus.INSUFFICIENT_SAMPLE)) {
+      return SkillDemandStatus.INSUFFICIENT_SAMPLE.name();
+    }
+    if (dropped.contains(SkillDemandStatus.NEW_OBSERVATION)) {
+      return SkillDemandStatus.NEW_OBSERVATION.name();
+    }
+    if (dropped.contains(SkillDemandStatus.NO_RECENT_COVERAGE)) {
+      return SkillDemandStatus.NO_RECENT_COVERAGE.name();
+    }
+    return "OK";
   }
 
   private List<ExcludedSkill> buildExcludedSkills(

@@ -888,6 +888,60 @@ class MarketValueIndexServiceTest {
   }
 
   @Test
+  @DisplayName("스킬 상세 - 이전 창이 빈 점핏은 결합에서 빠지고 스킬 상태는 신규 관측이 아니다")
+  void detailsJumpitNewObservationDropsOutOfCombination() {
+    UUID userId = UUID.randomUUID();
+    String ym = "202609";
+    CareerProfile profile = new CareerProfile(userId);
+    profile.patch("DEVELOPER", 5, "서울 강남구", "FULL_TIME", "MEDIUM");
+    Skill java = Skill.builder().id(UUID.randomUUID()).standardName("Java").isCustom(false).build();
+
+    when(careerProfileRepository.findByUserId(userId)).thenReturn(Optional.of(profile));
+    when(userSkillRepository.findByUserId(userId)).thenReturn(List.of(userSkillOf(java)));
+    when(peerGroupFallbackResolver.resolveForSource(any(), any(), any()))
+        .thenAnswer(inv -> resolvedGroup(inv.getArgument(0), 50));
+    when(skillDemandCalculator.calculateDemandIndex(any(), eq(java.getId()), any(), eq(ym)))
+        .thenReturn(demand(java.getId(), 120.0, SkillDemandStatus.OK));
+    when(skillDemandCalculator.calculateDemandIndex(eq("JUMPIT"), eq(java.getId()), any(), eq(ym)))
+        .thenReturn(demand(java.getId(), 0.0, SkillDemandStatus.NEW_OBSERVATION));
+    when(skillWeightCalculator.calculateWeights(any(), any(), any()))
+        .thenReturn(Map.of(java.getId(), BigDecimal.valueOf(1.0)));
+
+    var details = service.getSkillDemandDetails(userId, ym);
+
+    assertThat(details).hasSize(1);
+    assertThat(details.get(0).getDemandIndex()).isEqualTo(120.0);
+    assertThat(details.get(0).getStatus()).isEqualTo("OK");
+    assertThat(details.get(0).getSources()).hasSize(4);
+  }
+
+  @Test
+  @DisplayName("스킬 상세 - 모든 원천에서 빠지면 표본 부족 > 신규 관측 순으로 상태를 고른다")
+  void detailsAllSourcesDroppedUsesReasonPriority() {
+    UUID userId = UUID.randomUUID();
+    String ym = "202609";
+    CareerProfile profile = new CareerProfile(userId);
+    profile.patch("DEVELOPER", 5, "서울 강남구", "FULL_TIME", "MEDIUM");
+    Skill java = Skill.builder().id(UUID.randomUUID()).standardName("Java").isCustom(false).build();
+
+    when(careerProfileRepository.findByUserId(userId)).thenReturn(Optional.of(profile));
+    when(userSkillRepository.findByUserId(userId)).thenReturn(List.of(userSkillOf(java)));
+    when(peerGroupFallbackResolver.resolveForSource(any(), any(), any()))
+        .thenAnswer(inv -> resolvedGroup(inv.getArgument(0), 50));
+    when(skillDemandCalculator.calculateDemandIndex(any(), eq(java.getId()), any(), eq(ym)))
+        .thenReturn(demand(java.getId(), 0.0, SkillDemandStatus.NEW_OBSERVATION));
+    when(skillDemandCalculator.calculateDemandIndex(eq("SARAMIN"), eq(java.getId()), any(), eq(ym)))
+        .thenReturn(demand(java.getId(), 0.0, SkillDemandStatus.INSUFFICIENT_SAMPLE));
+    when(skillWeightCalculator.calculateWeights(any(), any(), any()))
+        .thenReturn(Map.of(java.getId(), BigDecimal.valueOf(1.0)));
+
+    var details = service.getSkillDemandDetails(userId, ym);
+
+    assertThat(details.get(0).getStatus()).isEqualTo("INSUFFICIENT_SAMPLE");
+    assertThat(details.get(0).getDemandIndex()).isEqualTo(0.0);
+  }
+
+  @Test
   @DisplayName("원천 4개를 조회하고, 이전 창이 빈 점핏은 신규 관측으로 빠지며 커버리지에 남는다")
   void fourSourcesJumpitNewObservationExcluded() {
     UUID userId = UUID.randomUUID();
