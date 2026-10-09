@@ -215,4 +215,23 @@ describe("skillApi 요청 형태", () => {
     );
     expect(result).toEqual(mockData);
   });
+
+  it("fetchSkillRecommendations 에 limit 를 넘기면 쿼리스트링에 포함된다", async () => {
+    const mockData = {
+      peerGroup: { appliedConditions: "서울" },
+      recommendations: [],
+    };
+    const mockFetch = vi
+      .fn()
+      .mockResolvedValue(mockResponse(200, { success: true, data: mockData }));
+    vi.stubGlobal("fetch", mockFetch);
+
+    const result = await fetchSkillRecommendations(5);
+
+    expect(mockFetch).toHaveBeenCalledWith(
+      "/api/v1/skills/recommendations?limit=5",
+      expect.objectContaining({ method: "GET" }),
+    );
+    expect(result).toEqual(mockData);
+  });
 });
