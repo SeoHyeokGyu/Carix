@@ -47,6 +47,7 @@ describe("PipelineControlPanel", () => {
       jobType: "CRAWL",
       status: "RUNNING",
       message: "Started",
+      startedAt: new Date().toISOString(),
     });
 
     render(

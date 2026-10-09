@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
 import {
   type SalaryDistributionResponse,
   fetchSalaryDistribution,
@@ -157,20 +158,20 @@ function CareerLadderView({
             {ladder.availableYears.map((yr) => {
               const isSelected = currentYear === yr;
               return (
-                <button
+                <Button
                   key={yr}
                   type="button"
+                  variant={isSelected ? "default" : "outline"}
+                  size="xs"
                   onClick={() => onSelectYear?.(yr)}
                   disabled={isLoading}
-                  className={`rounded-md px-2.5 py-0.5 text-xs font-medium transition-colors ${
-                    isSelected
-                      ? "bg-carix-primary text-white font-semibold shadow-xs"
-                      : "bg-carix-surface text-carix-text/70 border border-carix-border hover:bg-carix-border/30"
+                  className={`h-6 px-2 text-xs ${
+                    isSelected ? "font-semibold shadow-xs" : "font-normal"
                   }`}
                   aria-pressed={isSelected}
                 >
                   {yr}년
-                </button>
+                </Button>
               );
             })}
           </div>
@@ -219,26 +220,33 @@ export function SalaryDistributionChart({
   data,
   onYearChange,
 }: SalaryDistributionChartProps) {
-  const [activeLadder, setActiveLadder] = useState(data.careerLadder);
+  const [prevPropLadder, setPrevPropLadder] = useState(data.careerLadder);
+  const [customLadder, setCustomLadder] = useState<
+    SalaryDistributionResponse["careerLadder"] | null
+  >(null);
   const [selectedYear, setSelectedYear] = useState<string | undefined>(
-    data.careerLadder?.basePeriod,
+    undefined,
   );
   const [isLoadingYear, setIsLoadingYear] = useState(false);
 
-  useEffect(() => {
-    setActiveLadder(data.careerLadder);
-    setSelectedYear(data.careerLadder?.basePeriod);
-  }, [data.careerLadder]);
+  if (data.careerLadder !== prevPropLadder) {
+    setPrevPropLadder(data.careerLadder);
+    setCustomLadder(null);
+    setSelectedYear(undefined);
+  }
+
+  const activeLadder = customLadder ?? data.careerLadder;
+  const currentYear = selectedYear ?? data.careerLadder?.basePeriod;
 
   const handleSelectYear = async (year: string) => {
-    if (year === selectedYear) return;
+    if (year === currentYear) return;
     setSelectedYear(year);
     onYearChange?.(year);
     setIsLoadingYear(true);
     try {
       const res = await fetchSalaryDistribution(undefined, year);
       if (res?.careerLadder) {
-        setActiveLadder(res.careerLadder);
+        setCustomLadder(res.careerLadder);
       }
     } catch {
       // 조회 실패 시 기존 데이터 유지
@@ -292,7 +300,7 @@ export function SalaryDistributionChart({
         )}
         <CareerLadderView
           ladder={activeLadder}
-          selectedYear={selectedYear}
+          selectedYear={currentYear}
           onSelectYear={handleSelectYear}
           isLoading={isLoadingYear}
         />
@@ -949,7 +957,7 @@ export function SalaryDistributionChart({
       </div>
       <CareerLadderView
         ladder={activeLadder}
-        selectedYear={selectedYear}
+        selectedYear={currentYear}
         onSelectYear={handleSelectYear}
         isLoading={isLoadingYear}
       />
