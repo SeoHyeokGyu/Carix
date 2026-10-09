@@ -33,12 +33,13 @@ public class SkillController {
   @Operation(
       summary = "동료집단 기반 스킬 보강 추천",
       description =
-          "사용자의 동료집단 내에서 수요율이 높으나 아직 보유하지 않은 스킬 상위 3개를 추천하고, 보유 스킬과의 동시출현율(Co-occurrence) 근거를 함께 제공합니다.")
+          "사용자의 동료집단 내에서 수요율이 높으나 아직 보유하지 않은 스킬을 추천하고, 보유 스킬과의 동시출현율(Co-occurrence) 근거를 함께 제공합니다.")
   @ApiResponse(responseCode = "200", description = "추천 성공")
   @GetMapping("/skills/recommendations")
   public ResponseEntity<ApiResult<SkillRecommendationsResponse>> getSkillRecommendations(
-      @CurrentUserId UUID userId) {
-    SkillRecommendationsResponse response = skillRecommendationService.getRecommendations(userId);
+      @CurrentUserId UUID userId, @RequestParam(required = false) Integer limit) {
+    SkillRecommendationsResponse response =
+        skillRecommendationService.getRecommendations(userId, limit);
     return ResponseEntity.ok(ApiResult.success(response));
   }
 

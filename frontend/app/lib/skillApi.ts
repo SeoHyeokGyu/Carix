@@ -75,5 +75,9 @@ export interface SkillRecommendationsResponse {
 /**
  * 동료집단 기반 스킬 보강 추천 목록을 조회합니다 (API 규격 §5.6, US-D6).
  */
-export const fetchSkillRecommendations = () =>
-  coreGet<SkillRecommendationsResponse>("/v1/skills/recommendations");
+export const fetchSkillRecommendations = (limit?: number) =>
+  coreGet<SkillRecommendationsResponse>(
+    limit != null
+      ? `/v1/skills/recommendations?limit=${limit}`
+      : "/v1/skills/recommendations",
+  );

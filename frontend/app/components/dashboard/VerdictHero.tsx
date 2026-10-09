@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ChevronDown, ChevronUp } from "lucide-react";
+import { ChevronDown, ChevronUp, RotateCw } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -172,6 +172,8 @@ function getPrescriptionHeader(
   }
 }
 
+const SKILL_PAGE_SIZE = 3;
+
 function SkillPrescriptionBlock({
   signalCode,
   recommendations,
@@ -180,6 +182,7 @@ function SkillPrescriptionBlock({
   recommendations?: SkillRecommendationsResponse | null;
 }) {
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const [page, setPage] = useState(0);
   const items = recommendations?.recommendations ?? [];
   const isInsufficient = items.length === 0;
   const isUpskill = signalCode === "UPSKILL";
@@ -190,6 +193,15 @@ function SkillPrescriptionBlock({
   }
 
   const { badgeText, badgeTone, title } = getPrescriptionHeader(signalCode);
+  const totalPages = Math.ceil(items.length / SKILL_PAGE_SIZE);
+  const currentItems = items.slice(
+    page * SKILL_PAGE_SIZE,
+    (page + 1) * SKILL_PAGE_SIZE,
+  );
+
+  const handleNextPage = () => {
+    setPage((prev) => (prev + 1) % totalPages);
+  };
 
   return (
     <div
@@ -206,6 +218,21 @@ function SkillPrescriptionBlock({
         </div>
         <div className="flex items-center gap-1.5">
           {isInsufficient && <ToneBadge tone="warning">표본 부족</ToneBadge>}
+          {!isInsufficient && totalPages > 1 && (
+            <Button
+              type="button"
+              variant="outline"
+              size="xs"
+              onClick={handleNextPage}
+              aria-label={`다른 추천 보기 (${page + 1}/${totalPages})`}
+              className="h-6 gap-1 px-2 text-[11px] font-normal text-carix-text/70 hover:text-carix-text"
+            >
+              <RotateCw className="size-3" />
+              <span>
+                다른 추천 ({page + 1}/{totalPages})
+              </span>
+            </Button>
+          )}
           {!isInsufficient && (
             <Button
               type="button"
@@ -233,7 +260,7 @@ function SkillPrescriptionBlock({
             </p>
           ) : (
             <ul aria-label="추천 스킬 목록" className="flex flex-col gap-2">
-              {items.map((item) => (
+              {currentItems.map((item) => (
                 <li
                   key={item.standardName}
                   className="flex flex-col gap-1 rounded border border-carix-border/60 bg-carix-surface/80 p-2.5"

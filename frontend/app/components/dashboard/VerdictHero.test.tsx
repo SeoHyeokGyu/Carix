@@ -312,5 +312,77 @@ describe("VerdictHero", () => {
         screen.getByRole("list", { name: "추천 스킬 목록" }),
       ).toBeInTheDocument();
     });
+
+    it("추천 스킬이 3개 초과일 때 다른 추천 보기(로테이션) 버튼이 노출되고 클릭 시 다음 페이지 스킬로 전환된다", async () => {
+      const user = userEvent.setup();
+      const multiRecommendations = {
+        peerGroup: { appliedConditions: "서울" },
+        recommendations: [
+          {
+            standardName: "Skill-1",
+            category: "DEV",
+            demandRate: 0.5,
+            growthTrend: "UP",
+            coOccurrence: null,
+            reason: "수요율 50%",
+          },
+          {
+            standardName: "Skill-2",
+            category: "DEV",
+            demandRate: 0.4,
+            growthTrend: "STABLE",
+            coOccurrence: null,
+            reason: "수요율 40%",
+          },
+          {
+            standardName: "Skill-3",
+            category: "DEV",
+            demandRate: 0.3,
+            growthTrend: "DOWN",
+            coOccurrence: null,
+            reason: "수요율 30%",
+          },
+          {
+            standardName: "Skill-4",
+            category: "DEV",
+            demandRate: 0.2,
+            growthTrend: "UP",
+            coOccurrence: null,
+            reason: "수요율 20%",
+          },
+        ],
+      };
+
+      render(
+        <VerdictHero
+          signal={STAY}
+          history={[]}
+          recommendations={multiRecommendations}
+        />,
+      );
+
+      expect(screen.getByText("Skill-1")).toBeInTheDocument();
+      expect(screen.getByText("Skill-2")).toBeInTheDocument();
+      expect(screen.getByText("Skill-3")).toBeInTheDocument();
+      expect(screen.queryByText("Skill-4")).not.toBeInTheDocument();
+
+      const rotateBtn = screen.getByRole("button", {
+        name: "다른 추천 보기 (1/2)",
+      });
+      expect(rotateBtn).toBeInTheDocument();
+
+      await user.click(rotateBtn);
+
+      expect(screen.getByText("Skill-4")).toBeInTheDocument();
+      expect(screen.queryByText("Skill-1")).not.toBeInTheDocument();
+      expect(
+        screen.getByRole("button", { name: "다른 추천 보기 (2/2)" }),
+      ).toBeInTheDocument();
+
+      await user.click(
+        screen.getByRole("button", { name: "다른 추천 보기 (2/2)" }),
+      );
+      expect(screen.getByText("Skill-1")).toBeInTheDocument();
+    });
   });
 });

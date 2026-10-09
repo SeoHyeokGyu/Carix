@@ -334,7 +334,7 @@ class SkillControllerTest {
             "보유하신 Spring Boot 공고의 62%가 함께 요구합니다.");
     var response = new com.carix.skill.dto.SkillRecommendationsResponse(peerGroup, List.of(item));
 
-    given(skillRecommendationService.getRecommendations(userId)).willReturn(response);
+    given(skillRecommendationService.getRecommendations(userId, null)).willReturn(response);
 
     mockMvc
         .perform(get("/v1/skills/recommendations").header("X-User-Id", userId.toString()))
@@ -351,5 +351,22 @@ class SkillControllerTest {
         .andExpect(
             jsonPath("$.data.recommendations[0].reason")
                 .value("보유하신 Spring Boot 공고의 62%가 함께 요구합니다."));
+  }
+
+  @Test
+  @DisplayName("GET /v1/skills/recommendations?limit=5 - limit 파라미터가 서비스에 전달된다")
+  void getSkillRecommendations_withLimitParam() throws Exception {
+    UUID userId = UUID.randomUUID();
+    var peerGroup =
+        new com.carix.skill.dto.SkillRecommendationsResponse.PeerGroupInfo(
+            "서울 전체 / 경력 MID / 회사규모 무관");
+    var response = new com.carix.skill.dto.SkillRecommendationsResponse(peerGroup, List.of());
+
+    given(skillRecommendationService.getRecommendations(userId, 5)).willReturn(response);
+
+    mockMvc
+        .perform(get("/v1/skills/recommendations?limit=5").header("X-User-Id", userId.toString()))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.success").value(true));
   }
 }
