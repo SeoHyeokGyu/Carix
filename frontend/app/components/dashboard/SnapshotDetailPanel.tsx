@@ -127,7 +127,7 @@ export function SnapshotDetailPanel({
   onClose,
 }: SnapshotDetailPanelProps) {
   const { recorded } = point;
-  // 헤더와 데이터 부족 안내는 사용자가 그 달에 본 판정을 따른다. 소급 계산한 달만 현재 규칙 값이다.
+  // 헤더는 사용자가 그 달에 본 판정을 따른다. 소급 계산한 달만 현재 규칙 값이다.
   const shown = recorded ?? point;
 
   return (
@@ -223,10 +223,10 @@ export function SnapshotDetailPanel({
         </div>
       </div>
 
-      {/* 데이터 부족 시 입력 화면 유도 (US-D4). 단 수집 공백이 원인이면 유도하지 않는다 —
-          사용자가 무엇을 입력해도 그 달은 달라지지 않는다. */}
-      {shown.decisionSignal === "INSUFFICIENT_DATA" &&
-        !isUserActionable(shown.rationale?.rulesApplied) && (
+      {/* 데이터 부족 시 입력 화면 유도 (US-D4). 입력은 현재 재계산에만 반영되므로 당시가 아니라
+          현재 판정을 따른다. 수집 공백이 원인이면 유도하지 않는다 — 무엇을 입력해도 그 달은 달라지지 않는다. */}
+      {point.decisionSignal === "INSUFFICIENT_DATA" &&
+        !isUserActionable(point.rationale?.rulesApplied) && (
           <div className="mt-4 rounded-lg border border-carix-warning/30 bg-carix-warning/5 p-4 text-xs">
             <div className="font-bold text-carix-warning">
               ⚠️ 이 달은 시장 집계가 수집되지 않아 지수를 낼 수 없습니다.
@@ -238,8 +238,8 @@ export function SnapshotDetailPanel({
           </div>
         )}
 
-      {shown.decisionSignal === "INSUFFICIENT_DATA" &&
-        isUserActionable(shown.rationale?.rulesApplied) && (
+      {point.decisionSignal === "INSUFFICIENT_DATA" &&
+        isUserActionable(point.rationale?.rulesApplied) && (
           <div className="mt-4 rounded-lg border border-carix-danger/30 bg-carix-danger/5 p-4 text-xs">
             <div className="font-bold text-carix-danger">
               ⚠️ 입력 데이터가 부족하여 지수를 정상 판정하지 못했습니다.

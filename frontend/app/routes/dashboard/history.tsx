@@ -110,6 +110,10 @@ export default function DashboardHistory() {
     if (checked) next.set("show", "all");
     else next.delete("show");
     setParams(next, { replace: true });
+    // 숨겨지는 소급 계산 달의 상세가 열린 채 남지 않게 닫는다.
+    if (!checked && selectedSnapshot && !selectedSnapshot.recorded) {
+      setSelectedSnapshot(null);
+    }
   };
 
   return (

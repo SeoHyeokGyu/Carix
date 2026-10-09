@@ -512,6 +512,75 @@ describe("S-11 DashboardHistory 라우트", () => {
     expect(within(row).getAllByText("소급 계산").length).toBeGreaterThan(0);
   });
 
+  it("소급 계산한 달의 상세를 연 채 토글을 끄면 상세 패널도 닫는다", async () => {
+    vi.mocked(dashboardMarketApi.fetchSnapshotHistory).mockResolvedValue({
+      snapshots: [
+        {
+          ...current("202609", "STAY", "현 상태 유지"),
+          recorded: recorded("STAY", "현 상태 유지"),
+          changed: false,
+        },
+        {
+          ...current("202201", "STAY", "현 상태 유지"),
+          recorded: null,
+          changed: false,
+        },
+      ],
+    });
+    renderPage("/dashboard/history?show=all");
+    await userEvent.click(await screen.findByText("2022-01"));
+    expect(screen.getByTestId("snapshot-detail-panel")).toBeInTheDocument();
+    await userEvent.click(
+      screen.getByRole("checkbox", { name: "소급 계산한 달도 보기" }),
+    );
+    await waitFor(() => {
+      expect(screen.queryByText("2022-01")).not.toBeInTheDocument();
+    });
+    expect(
+      screen.queryByTestId("snapshot-detail-panel"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("입력 유도는 당시가 아니라 현재 판정이 데이터 부족일 때만 띄운다", async () => {
+    const insufficientRationale = {
+      rulesApplied: ["RULE_1_DATA_MISSING"],
+      excluded: [],
+      baseDate: "2026-09-01",
+    };
+    vi.mocked(dashboardMarketApi.fetchSnapshotHistory).mockResolvedValue({
+      snapshots: [
+        {
+          ...current("202609", "STAY", "현 상태 유지"),
+          recorded: {
+            ...recorded("INSUFFICIENT_DATA", "데이터 부족"),
+            rationale: insufficientRationale,
+          },
+          changed: true,
+        },
+        {
+          ...current("202608", "INSUFFICIENT_DATA", "데이터 부족"),
+          rationale: insufficientRationale,
+          recorded: recorded("STAY", "현 상태 유지"),
+          changed: true,
+        },
+      ],
+    });
+    renderPage("/dashboard/history");
+
+    // (a) 당시만 데이터 부족: 지금 입력해도 그 달은 안 바뀌고 현재 값은 정상이다.
+    await userEvent.click(await screen.findByText("2026-09"));
+    expect(screen.getByTestId("snapshot-detail-panel")).toBeInTheDocument();
+    expect(
+      screen.queryByRole("link", { name: "소득 정보 입력하기" }),
+    ).not.toBeInTheDocument();
+
+    // (b) 현재만 데이터 부족: 입력 보강으로 현재 재계산이 달라진다.
+    await userEvent.click(screen.getByText("2026-08"));
+    expect(
+      await screen.findByRole("link", { name: "소득 정보 입력하기" }),
+    ).toBeInTheDocument();
+  });
+
   it("show=all 로 들어오면 소급 계산한 달이 바로 보인다", async () => {
     vi.mocked(dashboardMarketApi.fetchSnapshotHistory).mockResolvedValue({
       snapshots: [
