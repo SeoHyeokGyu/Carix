@@ -432,7 +432,7 @@
             "purchasingPowerIndex": 95.1,
             "marketValueIndex": 116.0,
             "openingWindowIndex": 118.4,
-            "decisionSignal": "MAINTAIN",
+            "decisionSignal": "STAY",
             "label": "현 상태 유지",
             "dataVersion": "20260701093000-000",
             "ruleVersion": "1.1.0",
