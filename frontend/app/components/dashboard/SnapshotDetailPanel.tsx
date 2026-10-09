@@ -1,7 +1,10 @@
 import { Link } from "react-router";
 import { Button } from "@/components/ui/button";
 import { SignalBadge } from "./SignalBadge";
-import type { SnapshotPoint } from "../../lib/dashboardMarketApi";
+import type {
+  SnapshotPoint,
+  SnapshotRationale,
+} from "../../lib/dashboardMarketApi";
 import { isUserActionable } from "../../lib/insufficientDataCause";
 
 const SEOUL_TIME = new Intl.DateTimeFormat("sv-SE", {
@@ -55,6 +58,65 @@ function IndexRow({ name, value, diff }: IndexRowProps) {
   );
 }
 
+interface RationaleView {
+  dataVersion: string;
+  ruleVersion: string;
+  rationale: SnapshotRationale | null;
+}
+
+/** 한 칸의 근거: 적용 규칙, 제외 스킬, 기준일과 버전. */
+function RationaleBlock({ view }: { view: RationaleView }) {
+  const rules = view.rationale?.rulesApplied ?? [];
+  const excluded = view.rationale?.excluded ?? [];
+  return (
+    <div className="space-y-3 border-t border-carix-border/50 pt-3">
+      <div>
+        <span className="font-semibold text-carix-text">
+          적용된 규칙 (Rules Applied)
+        </span>
+        <div className="mt-2 space-y-1">
+          {rules.length > 0 ? (
+            rules.map((rule, idx) => (
+              <div
+                key={idx}
+                className="rounded bg-carix-bg p-1.5 font-mono text-[11px] text-carix-text/80"
+              >
+                • {rule}
+              </div>
+            ))
+          ) : (
+            <p className="text-carix-text/50">기록된 적용 규칙 없음</p>
+          )}
+        </div>
+      </div>
+      <div>
+        <span className="font-semibold text-carix-text">
+          제외된 스킬 (Excluded Skills)
+        </span>
+        <div className="mt-2 space-y-1">
+          {excluded.length > 0 ? (
+            excluded.map((skill, idx) => (
+              <div
+                key={idx}
+                className="rounded bg-carix-bg p-1.5 font-mono text-[11px] text-carix-warning"
+              >
+                ✕ {skill}
+              </div>
+            ))
+          ) : (
+            <p className="text-carix-text/50">제외된 스킬 없음 (전체 반영됨)</p>
+          )}
+        </div>
+      </div>
+      <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-carix-text/50">
+        <span>데이터 버전: {view.dataVersion || "-"}</span>
+        <span>규칙 버전: {view.ruleVersion || "-"}</span>
+        <span>기준일: {view.rationale?.baseDate || "-"}</span>
+      </div>
+    </div>
+  );
+}
+
 interface SnapshotDetailPanelProps {
   point: SnapshotPoint;
   onClose: () => void;
@@ -65,7 +127,7 @@ export function SnapshotDetailPanel({
   onClose,
 }: SnapshotDetailPanelProps) {
   const { recorded } = point;
-  // 근거·버전은 사용자가 그 달에 본 판정의 것이다. 소급 계산한 달만 현재 규칙 값을 쓴다.
+  // 헤더와 데이터 부족 안내는 사용자가 그 달에 본 판정을 따른다. 소급 계산한 달만 현재 규칙 값이다.
   const shown = recorded ?? point;
 
   return (
@@ -86,7 +148,10 @@ export function SnapshotDetailPanel({
       </div>
 
       <div className="mt-4 grid grid-cols-1 gap-4 text-xs sm:grid-cols-2">
-        <div className="rounded-xl border border-carix-border bg-carix-surface p-4.5 shadow-xs">
+        <div
+          data-testid="snapshot-column-recorded"
+          className="rounded-xl border border-carix-border bg-carix-surface p-4.5 shadow-xs"
+        >
           <span className="font-semibold text-carix-text">당시</span>
           {recorded ? (
             <div className="mt-2 space-y-1.5">
@@ -110,6 +175,7 @@ export function SnapshotDetailPanel({
                 기록 시각 {formatRecordedAt(recorded.recordedAt)} (서울) · 월
                 경계는 UTC 기준입니다
               </p>
+              <RationaleBlock view={recorded} />
             </div>
           ) : (
             <p className="mt-2 text-carix-text/50">
@@ -118,7 +184,10 @@ export function SnapshotDetailPanel({
           )}
         </div>
 
-        <div className="rounded-xl border border-carix-border bg-carix-surface p-4.5 shadow-xs">
+        <div
+          data-testid="snapshot-column-current"
+          className="rounded-xl border border-carix-border bg-carix-surface p-4.5 shadow-xs"
+        >
           <span className="font-semibold text-carix-text">현재 규칙</span>
           <div className="mt-2 space-y-1.5">
             <SignalBadge
@@ -149,57 +218,7 @@ export function SnapshotDetailPanel({
                 recorded?.openingWindowIndex,
               )}
             />
-            {recorded && (
-              <p className="pt-1 text-[11px] text-carix-text/60">
-                당시 대비 차이 · 규칙 {point.ruleVersion || "-"}
-              </p>
-            )}
-          </div>
-        </div>
-      </div>
-
-      <div className="mt-4 grid grid-cols-1 gap-4 text-xs sm:grid-cols-2">
-        <div className="rounded-xl border border-carix-border bg-carix-surface p-4.5 shadow-xs">
-          <span className="font-semibold text-carix-text">
-            적용된 규칙 (Rules Applied)
-          </span>
-          <div className="mt-2 space-y-1">
-            {shown.rationale?.rulesApplied &&
-            shown.rationale.rulesApplied.length > 0 ? (
-              shown.rationale.rulesApplied.map((rule, idx) => (
-                <div
-                  key={idx}
-                  className="rounded bg-carix-bg p-1.5 font-mono text-[11px] text-carix-text/80"
-                >
-                  • {rule}
-                </div>
-              ))
-            ) : (
-              <p className="text-carix-text/50">기록된 적용 규칙 없음</p>
-            )}
-          </div>
-        </div>
-
-        <div className="rounded-xl border border-carix-border bg-carix-surface p-4.5 shadow-xs">
-          <span className="font-semibold text-carix-text">
-            제외된 스킬 (Excluded Skills)
-          </span>
-          <div className="mt-2 space-y-1">
-            {shown.rationale?.excluded &&
-            shown.rationale.excluded.length > 0 ? (
-              shown.rationale.excluded.map((skill, idx) => (
-                <div
-                  key={idx}
-                  className="rounded bg-carix-bg p-1.5 font-mono text-[11px] text-carix-warning"
-                >
-                  ✕ {skill}
-                </div>
-              ))
-            ) : (
-              <p className="text-carix-text/50">
-                제외된 스킬 없음 (전체 반영됨)
-              </p>
-            )}
+            <RationaleBlock view={point} />
           </div>
         </div>
       </div>
@@ -245,12 +264,6 @@ export function SnapshotDetailPanel({
             </div>
           </div>
         )}
-
-      <div className="mt-4 flex flex-wrap gap-4 border-t border-carix-border/50 pt-3 text-[11px] text-carix-text/50">
-        <span>데이터 버전: {shown.dataVersion || "-"}</span>
-        <span>규칙 버전: {shown.ruleVersion || "-"}</span>
-        <span>기준일: {shown.rationale?.baseDate || "-"}</span>
-      </div>
     </div>
   );
 }

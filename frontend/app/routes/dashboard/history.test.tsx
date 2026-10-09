@@ -245,10 +245,10 @@ describe("S-11 DashboardHistory 라우트", () => {
     await waitFor(() => {
       expect(screen.getByTestId("snapshot-detail-panel")).toBeInTheDocument();
       expect(
-        screen.getByText("• RULE_2_SEEK_JOB_MVI_HIGH"),
+        screen.getAllByText("• RULE_2_SEEK_JOB_MVI_HIGH")[0],
       ).toBeInTheDocument();
-      expect(screen.getByText("✕ React Native")).toBeInTheDocument();
-      expect(screen.getByText(/데이터 버전: v1.1/)).toBeInTheDocument();
+      expect(screen.getAllByText("✕ React Native")[0]).toBeInTheDocument();
+      expect(screen.getAllByText(/데이터 버전: v1.1/)[0]).toBeInTheDocument();
     });
 
     // 두 번째 행 클릭 (데이터 부족 행)
@@ -417,7 +417,9 @@ describe("S-11 DashboardHistory 라우트", () => {
     fireEvent.click(screen.getByText("2026-07"));
 
     await waitFor(() => {
-      expect(screen.getByText("기록된 적용 규칙 없음")).toBeInTheDocument();
+      expect(
+        screen.getAllByText("기록된 적용 규칙 없음")[0],
+      ).toBeInTheDocument();
     });
   });
 
@@ -574,5 +576,50 @@ describe("S-11 DashboardHistory 라우트", () => {
     expect(within(panel).getByText(/2026-09-15 12:00/)).toBeInTheDocument();
     expect(within(panel).getByText(/월 경계는 UTC 기준/)).toBeInTheDocument();
     expect(within(panel).getByText("+10.0")).toBeInTheDocument();
+  });
+  it("상세의 두 칸은 각자의 적용 규칙·제외 스킬·기준일·버전을 보인다", async () => {
+    vi.mocked(dashboardMarketApi.fetchSnapshotHistory).mockResolvedValue({
+      snapshots: [
+        {
+          ...current("202609", "SEEK_JOB", "이직 탐색"),
+          rationale: {
+            rulesApplied: ["RULE_NOW"],
+            excluded: ["Skill Now"],
+            baseDate: "2026-09-30",
+          },
+          recorded: {
+            ...recorded("STAY", "현 상태 유지"),
+            rationale: {
+              rulesApplied: ["RULE_THEN"],
+              excluded: [],
+              baseDate: "2026-09-01",
+            },
+          },
+          changed: true,
+        },
+      ],
+    });
+    renderPage("/dashboard/history");
+    await userEvent.click(await screen.findByText("2026-09"));
+    const then = within(screen.getByTestId("snapshot-column-recorded"));
+    const now = within(screen.getByTestId("snapshot-column-current"));
+    expect(then.getByText("• RULE_THEN")).toBeInTheDocument();
+    expect(then.queryByText("• RULE_NOW")).not.toBeInTheDocument();
+    expect(
+      then.getByText("제외된 스킬 없음 (전체 반영됨)"),
+    ).toBeInTheDocument();
+    expect(then.getByText("기준일: 2026-09-01")).toBeInTheDocument();
+    expect(then.getByText("규칙 버전: 1.4.0")).toBeInTheDocument();
+    expect(
+      then.getByText("데이터 버전: 20260915000000-000"),
+    ).toBeInTheDocument();
+    expect(now.getByText("• RULE_NOW")).toBeInTheDocument();
+    expect(now.queryByText("• RULE_THEN")).not.toBeInTheDocument();
+    expect(now.getByText("✕ Skill Now")).toBeInTheDocument();
+    expect(now.getByText("기준일: 2026-09-30")).toBeInTheDocument();
+    expect(now.getByText("규칙 버전: 1.5.0")).toBeInTheDocument();
+    expect(
+      now.getByText("데이터 버전: 20261009000000-000"),
+    ).toBeInTheDocument();
   });
 });
