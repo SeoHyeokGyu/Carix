@@ -613,4 +613,46 @@ class SkillRecommendationServiceTest {
     SkillRecommendationsResponse response = service.getRecommendations(userId);
     assertThat(response.recommendations()).isEmpty();
   }
+
+  @Test
+  @DisplayName("limit 파라미터 지정 시 요청한 개수만큼 추천 스킬을 반환한다")
+  void getRecommendations_withCustomLimit() {
+    when(careerProfileRepository.findByUserId(userId)).thenReturn(Optional.of(profile));
+    when(userSkillRepository.findByUserId(userId)).thenReturn(List.of());
+
+    List<Skill> skills = new ArrayList<>();
+    for (int i = 0; i < 5; i++) {
+      skills.add(
+          Skill.builder()
+              .id(UUID.randomUUID())
+              .standardName("Skill-" + i)
+              .category("TEST")
+              .isCustom(false)
+              .build());
+    }
+
+    List<JobPosting> postings = new ArrayList<>();
+    List<JobPostingSkill> jpsList = new ArrayList<>();
+    for (int i = 0; i < 20; i++) {
+      JobPosting p = JobPosting.builder().id(UUID.randomUUID()).jobFamily("DEVELOPER").build();
+      postings.add(p);
+      for (Skill s : skills) {
+        jpsList.add(new JobPostingSkill(p, s));
+      }
+    }
+
+    ResolvedPeerPostings resolvedPeer = new ResolvedPeerPostings(1, postings, "조건");
+    when(peerSalaryDistributionResolver.resolvePostings(profile)).thenReturn(resolvedPeer);
+    when(jobPostingSkillRepository.findByJobPostingIdIn(anyCollection())).thenReturn(jpsList);
+    when(marketAggregateRepository.findLatestAvailableYearMonth(any()))
+        .thenReturn(Optional.of("202607"));
+
+    PeerGroupFallbackResolver.ResolvedPeerGroup mockResolvedPeer =
+        mock(PeerGroupFallbackResolver.ResolvedPeerGroup.class);
+    when(peerGroupFallbackResolver.resolve(eq("ALL"), any(), eq(profile)))
+        .thenReturn(mockResolvedPeer);
+
+    SkillRecommendationsResponse response = service.getRecommendations(userId, 2);
+    assertThat(response.recommendations()).hasSize(2);
+  }
 }

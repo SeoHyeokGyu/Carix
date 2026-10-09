@@ -80,13 +80,26 @@ public class SkillRecommendationService {
   }
 
   /**
-   * 로그인 사용자의 동료집단 기반 스킬 보강 추천 목록을 조회합니다.
+   * 로그인 사용자의 동료집단 기반 스킬 보강 추천 목록을 조회합니다. (기본 최대 10개)
    *
    * @param userId 사용자 ID
    * @return 스킬 추천 응답 (조건 미달 시 빈 목록 반환)
    */
   @Transactional(readOnly = true)
   public SkillRecommendationsResponse getRecommendations(UUID userId) {
+    return getRecommendations(userId, 10);
+  }
+
+  /**
+   * 로그인 사용자의 동료집단 기반 스킬 보강 추천 목록을 limit 개수만큼 조회합니다.
+   *
+   * @param userId 사용자 ID
+   * @param limit 최대 추천 개수 (기본 10, 최대 30)
+   * @return 스킬 추천 응답 (조건 미달 시 빈 목록 반환)
+   */
+  @Transactional(readOnly = true)
+  public SkillRecommendationsResponse getRecommendations(UUID userId, Integer limit) {
+    int effectiveLimit = (limit != null && limit > 0) ? Math.min(limit, 30) : 10;
     Optional<CareerProfile> profileOpt = careerProfileRepository.findByUserId(userId);
     if (profileOpt.isEmpty()) {
       return new SkillRecommendationsResponse(new PeerGroupInfo("동료집단 미설정"), List.of());
@@ -192,7 +205,7 @@ public class SkillRecommendationService {
                     .thenComparingInt(CandidateRanking::postingCount)
                     .reversed()
                     .thenComparing(c -> c.skill().getStandardName()))
-            .limit(3)
+            .limit(effectiveLimit)
             .toList();
 
     // 4. 보유 스킬 중 기준 스킬(Base Skill) 도출: 동료집단 공고 수가 가장 많은 스킬
