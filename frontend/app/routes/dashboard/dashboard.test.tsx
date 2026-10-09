@@ -431,8 +431,6 @@ describe("대시보드 라우트 및 레이아웃 (Dashboard)", () => {
             label: "현 상태 유지",
             rulesApplied: ["연봉이 시장 수준에 근접"],
             rationale: null,
-            recorded: null,
-            changed: false,
           },
           metadata: { baseDate: "2026-09-01", updateDelayed: false },
         },
