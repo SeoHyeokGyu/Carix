@@ -434,7 +434,7 @@
             "openingWindowIndex": 118.4,
             "decisionSignal": "STAY",
             "label": "현 상태 유지",
-            "dataVersion": "20260701093000-000",
+            "dataVersion": "20260731150012-000",
             "ruleVersion": "1.1.0",
             "rationale": { "rulesApplied": ["..."], "excluded": [], "baseDate": "2026-07-01" },
             "recordedAt": "2026-07-31T15:00:12Z"
