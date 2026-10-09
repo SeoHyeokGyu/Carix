@@ -149,15 +149,13 @@ describe("마이페이지 라우트 및 레이아웃 (Mypage)", () => {
       expect(screen.getByText("설정 페이지 내용")).toBeInTheDocument();
 
       // 상단 메인 메뉴바의 항목들이 설정 화면에서도 변경되지 않고 그대로 유지되는지 검증
-      for (const name of [
-        "판정",
-        "추이 분석",
-        "시뮬레이터",
-        "지수 기록",
-        "입력 관리",
-      ]) {
+      for (const name of ["판정", "추이 분석", "시뮬레이터", "입력 관리"]) {
         expect(screen.getByRole("link", { name })).toBeInTheDocument();
       }
+      // 지난 판정(S-11)은 주 메뉴가 아니라 판정 화면 안의 링크로 들어간다.
+      expect(
+        screen.queryByRole("link", { name: "지수 기록" }),
+      ).not.toBeInTheDocument();
       expect(screen.getByRole("link", { name: "도움말" })).toBeInTheDocument();
       expect(screen.getByRole("button", { name: "내 정보" })).toHaveAttribute(
         "data-active",

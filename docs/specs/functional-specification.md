@@ -35,7 +35,7 @@ DB 스키마는 [ERD](erd.md), REST 계약은 [API 규격](api-specification.md)
 | S-08 | `/onboarding/skills` | 온보딩 4: 스킬 | SPA | 세션 |
 | S-09 | `/onboarding/review` | 온보딩 5: 검토 | SPA | 세션 |
 | S-10 | `/dashboard` | 대시보드 메인 (판정 히어로·근거 지표 카드·신뢰 3층) | SPA | 세션 + 온보딩 완료 |
-| S-11 | `/dashboard/history` | 지수 기록 (월별 스냅샷 이력) | SPA | 세션 + 온보딩 완료 |
+| S-11 | `/dashboard/history` | 지난 판정 (월별 당시 판정 이력, 판정 화면에서 진입) | SPA | 세션 + 온보딩 완료 |
 | S-12 | `/mypage/records` | 입력 관리 (소득·소비·스킬 이력) | SPA | 세션 |
 | S-13 | `/mypage/profile` | 세션·사용자 정보 관리, 삭제 | SPA | 세션 |
 | S-14 | `/dashboard/trends` | 추이분석 (소득vs물가·스킬수요·연봉분포) | SPA | 세션 + 온보딩 완료 |

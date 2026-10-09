@@ -50,7 +50,7 @@ export function MarketValueTrend({
           to="/dashboard/history"
           className="font-medium text-carix-info hover:underline"
         >
-          지수 기록 →
+          지난 판정 →
         </Link>
       </div>
     </div>

@@ -1,8 +1,13 @@
 import { render, screen, within } from "@testing-library/react";
+import type { ReactElement } from "react";
+import { MemoryRouter } from "react-router";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 import type { SnapshotPoint } from "../../lib/dashboardMarketApi";
 import { VerdictHero } from "./VerdictHero";
+
+const renderHero = (ui: ReactElement) =>
+  render(<MemoryRouter>{ui}</MemoryRouter>);
 
 const STAY = {
   code: "STAY",
@@ -46,7 +51,7 @@ const HISTORY = [
 
 describe("VerdictHero", () => {
   it("프런트 description 이 h2 제목이고 label 은 상태 뱃지다", () => {
-    render(<VerdictHero signal={STAY} history={[]} />);
+    renderHero(<VerdictHero signal={STAY} history={[]} />);
     expect(
       screen.getByRole("heading", {
         level: 2,
@@ -59,34 +64,41 @@ describe("VerdictHero", () => {
   });
 
   it("적용 규칙을 칩으로 보인다", () => {
-    render(<VerdictHero signal={STAY} history={[]} />);
+    renderHero(<VerdictHero signal={STAY} history={[]} />);
     const rules = screen.getByRole("list", { name: "적용 규칙" });
     expect(within(rules).getAllByRole("listitem")).toHaveLength(2);
   });
 
   it("서버 rationale 은 1층에 두지 않는다", () => {
-    render(<VerdictHero signal={STAY} history={[]} />);
+    renderHero(<VerdictHero signal={STAY} history={[]} />);
     expect(screen.queryByText(STAY.rationale)).not.toBeInTheDocument();
   });
 
   it("같은 신호가 이어진 개월 수를 보인다", () => {
-    render(<VerdictHero signal={STAY} history={HISTORY} />);
+    renderHero(<VerdictHero signal={STAY} history={HISTORY} />);
     expect(screen.getByText("3개월째")).toBeInTheDocument();
   });
 
+  it("판정이 이어진 기간 옆에 지난 판정으로 가는 링크를 둔다", () => {
+    renderHero(<VerdictHero signal={STAY} history={HISTORY} />);
+    expect(
+      screen.getByRole("link", { name: "지난 판정 보기 →" }),
+    ).toHaveAttribute("href", "/dashboard/history");
+  });
+
   it("이력이 없으면 연속 개월 줄이 없다", () => {
-    render(<VerdictHero signal={STAY} history={[]} />);
+    renderHero(<VerdictHero signal={STAY} history={[]} />);
     expect(screen.queryByText(/개월째/)).not.toBeInTheDocument();
   });
 
   it("이력을 못 받았으면 프리뷰 전체가 없다", () => {
-    render(<VerdictHero signal={STAY} history={null} />);
+    renderHero(<VerdictHero signal={STAY} history={null} />);
     expect(screen.queryByText("이 판정이 이어진 기간")).not.toBeInTheDocument();
   });
 
   // 시장가치 추세는 판정의 근거라 2층 시장가치 카드(MarketValueTrend)가 갖는다.
   it("판정 히어로에는 시장가치 추세 그래프가 없다", () => {
-    const { container } = render(
+    const { container } = renderHero(
       <VerdictHero signal={STAY} history={HISTORY} />,
     );
     expect(container.querySelector("svg[data-testid='sparkline']")).toBeNull();
@@ -96,7 +108,7 @@ describe("VerdictHero", () => {
 
   it("경고 신호(이직 탐색)의 연속 개월 점은 경고 톤이지 긍정 톤이 아니다", () => {
     const seekJobHistory = [point("202608", "SEEK_JOB", 104.6)];
-    render(<VerdictHero signal={SEEK_JOB} history={seekJobHistory} />);
+    renderHero(<VerdictHero signal={SEEK_JOB} history={seekJobHistory} />);
     const dots = screen.getAllByTestId("streak-dot");
     expect(dots.length).toBeGreaterThan(0);
     for (const dot of dots) {
@@ -106,7 +118,7 @@ describe("VerdictHero", () => {
   });
 
   it("판정이 없어도 h2 가 있다", () => {
-    render(<VerdictHero signal={null} history={[]} />);
+    renderHero(<VerdictHero signal={null} history={[]} />);
     expect(
       screen.getByRole("heading", { level: 2, name: "판정 대기" }),
     ).toBeInTheDocument();

@@ -14,7 +14,7 @@ import { LOGIN_PATH } from "../../lib/routeGuards";
 
 export function meta() {
   return [
-    { title: "지수 기록 | Carix" },
+    { title: "지난 판정 | Carix" },
     {
       name: "description",
       content: "과거 월별 구매력 지수, 시장가치 지수 및 결정 신호 스냅샷 이력",
@@ -122,7 +122,7 @@ export default function DashboardHistory() {
       <div className="mb-6 flex flex-wrap items-center justify-between gap-2 border-b border-carix-border pb-4">
         <div>
           <h1 className="font-display text-2xl font-bold text-carix-text sm:text-3xl">
-            지수 기록
+            지난 판정
           </h1>
           <p className="mt-1 text-sm text-carix-text/70">
             그 달에 Carix 가 보여 준 판정의 기록입니다. 지금 규칙으로 다시

@@ -58,7 +58,7 @@ S-01 랜딩에서 가입 또는 로그인으로 들어온다. 계정 없이 접�
 
 <img src="screenshots/simulator.png" width="560" alt="simulator" />
 
-### [지수 기록](dashboard-history.html) — S-11 `/dashboard/history`
+### [지난 판정](dashboard-history.html) — S-11 `/dashboard/history`
 
 월별 지수 스냅샷 조회 전용. 입력 관리(S-12)와 다른 화면이다.
 

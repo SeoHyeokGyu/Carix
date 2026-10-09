@@ -74,10 +74,10 @@ describe("MarketValueTrend", () => {
     ).toHaveClass("sr-only");
   });
 
-  it("지수 기록으로 링크한다", () => {
+  it("지난 판정으로 링크한다", () => {
     renderTrend(HISTORY);
 
-    expect(screen.getByRole("link", { name: "지수 기록 →" })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: "지난 판정 →" })).toHaveAttribute(
       "href",
       "/dashboard/history",
     );
