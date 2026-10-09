@@ -331,7 +331,7 @@ public class SkillRecommendationService {
 
   private String resolveBaseYearMonth() {
     String currentYm = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMM"));
-    // 프레임 행만 있는 달은 기준월이 아니다 — 통합(ALL) 행이 있는 최신 월을 쓴다
+    // 원천 조건 없는 기준월은 통합(ALL) 행이 있는 최신 월로 잡는다
     return marketAggregateRepository
         .findLatestAvailableYearMonthForSource("ALL", currentYm)
         .orElse(currentYm);
