@@ -7,6 +7,9 @@ describe("sourceLabel", () => {
     expect(sourceLabel("SARAMIN")).toBe("사람인");
     expect(sourceLabel("WANTED")).toBe("원티드");
   });
+  it("점핏을 표시명으로 바꾼다", () => {
+    expect(sourceLabel("JUMPIT")).toBe("점핏");
+  });
   it("모르는 코드는 그대로 둔다", () => {
     expect(sourceLabel("KOSIS")).toBe("KOSIS");
   });

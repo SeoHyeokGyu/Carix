@@ -110,7 +110,10 @@ describe("SkillDemandSection", () => {
           demandIndex: 120.0,
           recentDemandRate: 0.15,
           baselineDemandRate: 0.12,
-          sources: [{ source: "JOBKOREA", demandIndex: 118.0, sampleSize: 80 }],
+          sources: [
+            { source: "JOBKOREA", demandIndex: 118.0, sampleSize: 80 },
+            { source: "JUMPIT", sampleSize: 12, demandIndex: 0 },
+          ],
           weight: 1.0,
           status: "OK",
         },
@@ -125,6 +128,7 @@ describe("SkillDemandSection", () => {
 
     expect(screen.getByText(/잡코리아/)).toBeInTheDocument();
     expect(screen.getByText(/80건/)).toBeInTheDocument();
+    expect(screen.getByText("• 점핏")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: /접기/i }));
     expect(screen.queryByText(/80건/)).not.toBeInTheDocument();
