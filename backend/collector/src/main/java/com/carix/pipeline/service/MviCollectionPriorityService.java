@@ -156,7 +156,7 @@ public class MviCollectionPriorityService {
     if (baseYearMonth != null && !baseYearMonth.isBlank()) {
       return baseYearMonth.replace("-", "").trim();
     }
-    // 마감일로 늘어난 달에는 SARAMIN·JUMPIT 프레임 행만 있고 ALL 행이 없어, ALL 행이 있는 당월 이하 최신 월을 잡는다.
+    // 원천 조건 없는 대상월은 통합(ALL) 행이 있는 당월 이하 최신 월로 잡는다.
     String current = YearMonth.now(ZoneOffset.UTC).format(DateTimeFormatter.ofPattern("yyyyMM"));
     return marketAggregateRepository
         .findLatestYearMonthForSource(DEFAULT_SOURCE, current)

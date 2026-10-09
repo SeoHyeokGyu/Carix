@@ -15,7 +15,7 @@ public interface MarketAggregateRepository extends JpaRepository<MarketAggregate
   @Query("SELECT DISTINCT m.baseYearMonth FROM MarketAggregate m ORDER BY m.baseYearMonth DESC")
   List<String> findDistinctBaseYearMonths();
 
-  /** 한 원천의 집계가 있는 기준월 이하 최신 월. 마감일로 늘어난 달에는 프레임 행만 있어 원천을 지정해야 한다. */
+  /** 한 원천의 집계가 있는 기준월 이하 최신 월. */
   @Query(
       """
       SELECT MAX(m.baseYearMonth) FROM MarketAggregate m
