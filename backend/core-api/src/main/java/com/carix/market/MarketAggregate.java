@@ -15,8 +15,8 @@ import lombok.NoArgsConstructor;
 /**
  * 사전 집계된 시장 채용공고 데이터 엔티티 (core.market_aggregate).
  *
- * <p>원천별(JOBKOREA, SARAMIN 등) 집계 데이터를 저장하며, 동료집단 완화 단계(Level 1~5)에 따라 회사 규모나 고용 형태가 NULL(전체 롤업)인 행을
- * 포함합니다.
+ * <p>원천별(JOBKOREA, SARAMIN, WANTED, JUMPIT 등) 집계 데이터를 저장하며, 동료집단 완화 단계(Level 1~5)에 따라 회사 규모나 고용 형태가
+ * NULL(전체 롤업)인 행을 포함합니다.
  *
  * <p>스킬 ID가 NULL인 행은 해당 동료집단 조건의 '전체 공고 기준 행'이며, 스킬 ID가 존재하는 행은 해당 조건 내 특정 스킬의 출현 빈도 및 수요율을 나타냅니다.
  */
@@ -30,7 +30,7 @@ public class MarketAggregate {
 
   @Id @Builder.Default private UUID id = UUID.randomUUID();
 
-  /** 채용공고 원천 플랫폼 코드 (예: JOBKOREA, SARAMIN) */
+  /** 채용공고 원천 플랫폼 코드 (예: JOBKOREA, SARAMIN, WANTED, JUMPIT) */
   @Column(nullable = false, length = 50)
   private String source;
 

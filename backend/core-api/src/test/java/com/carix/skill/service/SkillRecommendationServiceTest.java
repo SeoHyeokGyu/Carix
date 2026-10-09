@@ -5,6 +5,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyCollection;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.carix.config.IndexThresholdProperties;
@@ -121,7 +122,7 @@ class SkillRecommendationServiceTest {
     when(peerSalaryDistributionResolver.resolvePostings(profile)).thenReturn(resolvedPeer);
     when(jobPostingSkillRepository.findByJobPostingIdIn(anyCollection())).thenReturn(jpsList);
 
-    when(marketAggregateRepository.findLatestAvailableYearMonth(any()))
+    when(marketAggregateRepository.findLatestAvailableYearMonthForSource(eq("ALL"), any()))
         .thenReturn(Optional.of("202607"));
     PeerGroupFallbackResolver.ResolvedPeerGroup mockResolvedPeer =
         mock(PeerGroupFallbackResolver.ResolvedPeerGroup.class);
@@ -151,6 +152,74 @@ class SkillRecommendationServiceTest {
     assertThat(item.coOccurrence().withSkill()).isEqualTo("Spring Boot");
     assertThat(item.coOccurrence().rate()).isEqualTo(0.80);
     assertThat(item.reason()).isEqualTo("보유하신 Spring Boot 공고의 80%가 함께 요구합니다.");
+  }
+
+  @Test
+  @DisplayName("프레임 행만 있는 달은 스킬 추천 기준월이 아니다 - ALL 행이 있는 최신 월을 쓴다")
+  void frameOnlyMonthIsNotBaseMonth() {
+    when(careerProfileRepository.findByUserId(userId)).thenReturn(Optional.of(profile));
+
+    // 보유 스킬: Spring Boot
+    Skill springBoot =
+        Skill.builder()
+            .id(UUID.randomUUID())
+            .standardName("Spring Boot")
+            .category("BACKEND")
+            .isCustom(false)
+            .build();
+    UserSkill userSkill = UserSkill.builder().userId(userId).skill(springBoot).build();
+    when(userSkillRepository.findByUserId(userId)).thenReturn(List.of(userSkill));
+
+    // 추천 대상 스킬: Kubernetes (미보유)
+    Skill k8s =
+        Skill.builder()
+            .id(UUID.randomUUID())
+            .standardName("Kubernetes")
+            .category("DEVOPS")
+            .isCustom(false)
+            .build();
+
+    // 동료집단 공고 20건 생성
+    List<JobPosting> postings = new ArrayList<>();
+    List<JobPostingSkill> jpsList = new ArrayList<>();
+    for (int i = 0; i < 20; i++) {
+      JobPosting p = JobPosting.builder().id(UUID.randomUUID()).jobFamily("DEVELOPER").build();
+      postings.add(p);
+
+      // Spring Boot는 10건(0~9)에 출현 (표본 >= 10 충족)
+      if (i < 10) {
+        jpsList.add(new JobPostingSkill(p, springBoot));
+      }
+      // Kubernetes는 8건(0~7)에 출현 -> Spring Boot와 동시출현 8건 / 10건 = 80% (>= 20%)
+      if (i < 8) {
+        jpsList.add(new JobPostingSkill(p, k8s));
+      }
+    }
+
+    ResolvedPeerPostings resolvedPeer =
+        new ResolvedPeerPostings(1, postings, "서울 전체 / 경력 MID / 회사규모 무관");
+    when(peerSalaryDistributionResolver.resolvePostings(profile)).thenReturn(resolvedPeer);
+    when(jobPostingSkillRepository.findByJobPostingIdIn(anyCollection())).thenReturn(jpsList);
+
+    when(marketAggregateRepository.findLatestAvailableYearMonthForSource(eq("ALL"), any()))
+        .thenReturn(Optional.of("202610"));
+    PeerGroupFallbackResolver.ResolvedPeerGroup mockResolvedPeer =
+        mock(PeerGroupFallbackResolver.ResolvedPeerGroup.class);
+    when(peerGroupFallbackResolver.resolve(eq("ALL"), eq("202610"), eq(profile)))
+        .thenReturn(mockResolvedPeer);
+
+    // Kubernetes 트렌드: UP
+    SkillDemandResult k8sTrend =
+        SkillDemandResult.builder()
+            .skillId(k8s.getId())
+            .status(SkillDemandStatus.OK)
+            .demandIndex(120.0)
+            .build();
+    when(skillDemandCalculator.calculate(eq(k8s.getId()), any(), any())).thenReturn(k8sTrend);
+
+    service.getRecommendations(userId);
+
+    verify(peerGroupFallbackResolver).resolve("ALL", "202610", profile);
   }
 
   @Test
@@ -197,7 +266,7 @@ class SkillRecommendationServiceTest {
     when(peerSalaryDistributionResolver.resolvePostings(profile)).thenReturn(resolvedPeer);
     when(jobPostingSkillRepository.findByJobPostingIdIn(anyCollection())).thenReturn(jpsList);
 
-    when(marketAggregateRepository.findLatestAvailableYearMonth(any()))
+    when(marketAggregateRepository.findLatestAvailableYearMonthForSource(eq("ALL"), any()))
         .thenReturn(Optional.of("202607"));
     PeerGroupFallbackResolver.ResolvedPeerGroup mockResolvedPeer =
         mock(PeerGroupFallbackResolver.ResolvedPeerGroup.class);
@@ -265,7 +334,7 @@ class SkillRecommendationServiceTest {
     when(peerSalaryDistributionResolver.resolvePostings(profile)).thenReturn(resolvedPeer);
     when(jobPostingSkillRepository.findByJobPostingIdIn(anyCollection())).thenReturn(jpsList);
 
-    when(marketAggregateRepository.findLatestAvailableYearMonth(any()))
+    when(marketAggregateRepository.findLatestAvailableYearMonthForSource(eq("ALL"), any()))
         .thenReturn(Optional.of("202607"));
     PeerGroupFallbackResolver.ResolvedPeerGroup mockResolvedPeer =
         mock(PeerGroupFallbackResolver.ResolvedPeerGroup.class);
@@ -329,7 +398,7 @@ class SkillRecommendationServiceTest {
     when(peerSalaryDistributionResolver.resolvePostings(profile)).thenReturn(resolvedPeer);
     when(jobPostingSkillRepository.findByJobPostingIdIn(anyCollection())).thenReturn(jpsList);
 
-    when(marketAggregateRepository.findLatestAvailableYearMonth(any()))
+    when(marketAggregateRepository.findLatestAvailableYearMonthForSource(eq("ALL"), any()))
         .thenReturn(Optional.of("202607"));
     PeerGroupFallbackResolver.ResolvedPeerGroup mockResolvedPeer =
         mock(PeerGroupFallbackResolver.ResolvedPeerGroup.class);
@@ -418,7 +487,7 @@ class SkillRecommendationServiceTest {
     ResolvedPeerPostings resolvedPeer = new ResolvedPeerPostings(1, postings, "조건");
     when(peerSalaryDistributionResolver.resolvePostings(profile)).thenReturn(resolvedPeer);
     when(jobPostingSkillRepository.findByJobPostingIdIn(anyCollection())).thenReturn(jpsList);
-    when(marketAggregateRepository.findLatestAvailableYearMonth(any()))
+    when(marketAggregateRepository.findLatestAvailableYearMonthForSource(eq("ALL"), any()))
         .thenReturn(Optional.of("202607"));
 
     PeerGroupFallbackResolver.ResolvedPeerGroup mockResolvedPeer =
@@ -485,7 +554,7 @@ class SkillRecommendationServiceTest {
     ResolvedPeerPostings resolvedPeer = new ResolvedPeerPostings(1, postings, "조건");
     when(peerSalaryDistributionResolver.resolvePostings(profile)).thenReturn(resolvedPeer);
     when(jobPostingSkillRepository.findByJobPostingIdIn(anyCollection())).thenReturn(jpsList);
-    when(marketAggregateRepository.findLatestAvailableYearMonth(any()))
+    when(marketAggregateRepository.findLatestAvailableYearMonthForSource(eq("ALL"), any()))
         .thenReturn(Optional.of("202607"));
 
     PeerGroupFallbackResolver.ResolvedPeerGroup mockResolvedPeer =
@@ -553,7 +622,7 @@ class SkillRecommendationServiceTest {
     ResolvedPeerPostings resolvedPeer = new ResolvedPeerPostings(1, postings, "조건");
     when(peerSalaryDistributionResolver.resolvePostings(profile)).thenReturn(resolvedPeer);
     when(jobPostingSkillRepository.findByJobPostingIdIn(anyCollection())).thenReturn(jpsList);
-    when(marketAggregateRepository.findLatestAvailableYearMonth(any()))
+    when(marketAggregateRepository.findLatestAvailableYearMonthForSource(eq("ALL"), any()))
         .thenReturn(Optional.of("202607"));
 
     PeerGroupFallbackResolver.ResolvedPeerGroup mockResolvedPeer =

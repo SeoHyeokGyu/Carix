@@ -1,6 +1,8 @@
 package com.carix.pipeline.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.carix.market.MarketAggregate;
@@ -8,7 +10,11 @@ import com.carix.market.MarketAggregateRepository;
 import com.carix.pipeline.dto.CollectionPriorityItem;
 import com.carix.pipeline.dto.CollectionPriorityItem.PriorityGrade;
 import com.carix.pipeline.dto.CollectionPriorityResponse;
+import java.time.YearMonth;
+import java.time.ZoneOffset;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -143,16 +149,35 @@ class MviCollectionPriorityServiceTest {
   }
 
   @Test
-  @DisplayName("기준월이 null일 때 DB 최신 적재월 또는 당월로 자동 해석된다")
-  void calculatePriorities_nullMonth_resolvesTargetMonth() {
-    when(marketAggregateRepository.findDistinctBaseYearMonths()).thenReturn(List.of("202605"));
-    when(marketAggregateRepository.findPeerGroupAggregatesByMonthAndSource("202605", "ALL"))
+  @DisplayName("기준월 미지정 시 당월(UTC) 이하에서 ALL 행이 있는 최신 월을 쓴다 — 프레임 행만 있는 달은 건너뛴다")
+  void calculatePriorities_nullMonth_usesLatestMonthWithAllRow() {
+    String currentMonth =
+        YearMonth.now(ZoneOffset.UTC).format(DateTimeFormatter.ofPattern("yyyyMM"));
+    when(marketAggregateRepository.findLatestYearMonthForSource("ALL", currentMonth))
+        .thenReturn(Optional.of("202609"));
+    when(marketAggregateRepository.findPeerGroupAggregatesByMonthAndSource("202609", "ALL"))
         .thenReturn(List.of());
 
     CollectionPriorityResponse response = service.calculatePriorities(null, null, null, false);
 
-    assertThat(response.baseYearMonth()).isEqualTo("202605");
+    assertThat(response.baseYearMonth()).isEqualTo("202609");
     assertThat(response.minSampleSize()).isEqualTo(10);
+    verify(marketAggregateRepository, never()).findDistinctBaseYearMonths();
+  }
+
+  @Test
+  @DisplayName("기준월 미지정이고 ALL 행이 없으면 당월(UTC)을 쓴다")
+  void calculatePriorities_nullMonth_fallsBackToCurrentMonth() {
+    String currentMonth =
+        YearMonth.now(ZoneOffset.UTC).format(DateTimeFormatter.ofPattern("yyyyMM"));
+    when(marketAggregateRepository.findLatestYearMonthForSource("ALL", currentMonth))
+        .thenReturn(Optional.empty());
+    when(marketAggregateRepository.findPeerGroupAggregatesByMonthAndSource(currentMonth, "ALL"))
+        .thenReturn(List.of());
+
+    CollectionPriorityResponse response = service.calculatePriorities(null, null, null, false);
+
+    assertThat(response.baseYearMonth()).isEqualTo(currentMonth);
   }
 
   @Test

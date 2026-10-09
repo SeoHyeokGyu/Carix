@@ -6,6 +6,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.carix.jobposting.CollectedVia;
 import com.carix.jobposting.JobPosting;
 import com.carix.jobposting.JobPostingRepository;
 import com.carix.jobposting.Skill;
@@ -614,6 +615,13 @@ class MarketAggregateServiceTest {
     return p;
   }
 
+  /** 사람인 검색 경로로 수집한 공고(측정 프레임 SARAMIN 행의 구성원). */
+  private static JobPosting saraminSearch(String externalId, String company, String seenMonth) {
+    JobPosting p = posting("SARAMIN", externalId, company, seenMonth, null, null);
+    p.addCollectedVia(CollectedVia.SARAMIN_SEARCH);
+    return p;
+  }
+
   private List<MarketAggregate> aggregate(String month, List<JobPosting> postings) {
     when(jobPostingRepository.findAll()).thenReturn(postings);
     marketAggregateService.aggregateMarketDataForMonth(month);
@@ -683,9 +691,9 @@ class MarketAggregateServiceTest {
             posting("WANTED", "w3", "마", "202608", null, null),
             posting("WANTED", "w4", "바", "202608", null, null),
             posting("WANTED", "w5", "사", "202608", null, null),
-            posting("SARAMIN", "s1", "아", "202608", null, null),
-            posting("SARAMIN", "s2", "자", "202608", null, null),
-            posting("SARAMIN", "s3", "차", "202608", null, null));
+            saraminSearch("s1", "아", "202608"),
+            saraminSearch("s2", "자", "202608"),
+            saraminSearch("s3", "차", "202608"));
 
     List<MarketAggregate> saved = aggregate("202608", postings);
 

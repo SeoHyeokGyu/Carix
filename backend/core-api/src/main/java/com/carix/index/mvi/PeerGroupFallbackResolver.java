@@ -32,7 +32,7 @@ import org.springframework.stereotype.Component;
  * <p>경력은 3구간(JUNIOR 0~3·MID 4~7·SENIOR 8+)으로 판정하고 collector 6구간 행을 합산한다 — JUNIOR = ENTRY+JUNIOR,
  * SENIOR = SENIOR+LEAD. 6구간은 임금통계·경력 사다리와 맞춰 둔 것이라 collector 쪽을 바꾸지 않는다.
  *
- * <p><b>원천별 독립 수행:</b> 시장 집계는 원천별(JOBKOREA, SARAMIN)로 저장되므로 완화도 원천별로 따로 안착한다.
+ * <p><b>원천별 독립 수행:</b> 시장 집계는 원천별(JOBKOREA, SARAMIN, WANTED, JUMPIT)로 저장되므로 완화도 원천별로 따로 안착한다.
  */
 @Component
 @RequiredArgsConstructor
@@ -89,7 +89,7 @@ public class PeerGroupFallbackResolver {
    * 기준선 간격(5~20)을 넘는다. 「이 스킬의 수요가 늘었나」는 경력 구간마다 크게 다르지 않고, 경력이 갈라야 하는 건 연봉 기준선이다 — 그쪽은 {@link
    * WageBaselineResolver} 가 경력 구간별로 잡는다.
    *
-   * @param source 플랫폼 원천 (JOBKOREA, SARAMIN)
+   * @param source 플랫폼 원천 (JOBKOREA, SARAMIN, WANTED, JUMPIT)
    * @param profile 사용자 커리어 프로필 — 직무만 쓴다
    * @param baseYearMonth 기준년월 (YYYYMM)
    * @return 해석 결과 (표본 부족 시 실패 상태)

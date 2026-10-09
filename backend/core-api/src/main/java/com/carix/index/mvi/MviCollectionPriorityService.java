@@ -55,7 +55,7 @@ public class MviCollectionPriorityService {
    * 기준월 및 원천 기준 시장 데이터 수집 우선순위를 산출합니다.
    *
    * @param baseYearMonth 기준 년월 (YYYYMM, null 시 최신 적재월 또는 당월)
-   * @param source 원천 플랫폼 (ALL, JOBKOREA, SARAMIN, null 시 ALL)
+   * @param source 원천 플랫폼 (ALL, JOBKOREA, SARAMIN, WANTED, JUMPIT, null 시 ALL)
    * @param customMinSampleSize 최소 기준 표본수 (null 또는 &lt;= 0 시 설정값)
    * @param underSampledOnly 표본 부족(N &lt; minSampleSize) 항목만 필터링할지 여부
    * @return 수집 우선순위 산출 응답
@@ -162,11 +162,10 @@ public class MviCollectionPriorityService {
     if (baseYearMonth != null && !baseYearMonth.isBlank()) {
       return baseYearMonth.replace("-", "").trim();
     }
-    List<String> months = marketAggregateRepository.findDistinctBaseYearMonths();
-    if (!months.isEmpty()) {
-      return months.get(0);
-    }
-    return LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMM"));
+    String current = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMM"));
+    return marketAggregateRepository
+        .findLatestAvailableYearMonthForSource("ALL", current)
+        .orElse(current);
   }
 
   private PriorityGrade determineGrade(int count, int minSample) {

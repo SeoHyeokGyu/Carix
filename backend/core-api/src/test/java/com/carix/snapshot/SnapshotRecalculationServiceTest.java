@@ -312,11 +312,12 @@ class SnapshotRecalculationServiceTest {
   /**
    * 규칙표를 바꾸면 버전을 올린다 — 옛 스냅샷의 판정 근거와 갈라 읽기 위해서다. 1.1.0 은 시장가치 없는 부분 판정, 1.2.0 은 구매력 지수가 실제 물가를 보기
    * 시작한 것(규칙표는 같고 `PPI < 95` 입력의 뜻이 바뀌었다), 1.3.0 은 시장가치가 표본 잡음 폭 안이면 근거로 쓰지 않는 신뢰 가드, 1.4.0 은 시장가치
-   * 원천 결합에서 정기 수집 원천 가중치를 표본 원천 건수로 묶은 것.
+   * 원천 결합에서 정기 수집 원천 가중치를 표본 원천 건수로 묶은 것, 1.5.0 은 원티드·점핏을 원천에 넣고 정기 수집 원천 합계를 스킬마다 지수를 낸 표본 원천의 가장
+   * 큰 표본 수로 묶은 것.
    */
   @Test
   void 규칙_버전은_부분_판정_도입분이다() {
-    assertThat(DecisionSignalEngine.RULE_VERSION).isEqualTo("1.4.0");
+    assertThat(DecisionSignalEngine.RULE_VERSION).isEqualTo("1.5.0");
   }
 
   /**
