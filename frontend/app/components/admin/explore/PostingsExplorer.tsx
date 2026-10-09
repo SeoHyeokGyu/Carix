@@ -102,7 +102,9 @@ export function PostingsExplorer({
   if (data.items.length === 0) {
     return (
       <p className="text-xs text-carix-text/60">
-        해당 조건의 데이터가 없습니다
+        {data.total === 0
+          ? "이 달에는 조건에 맞는 공고가 없습니다 — 표본은 다음 달 백필 뒤 생깁니다"
+          : "해당 조건의 데이터가 없습니다"}
       </p>
     );
   }

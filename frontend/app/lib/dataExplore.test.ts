@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
   crawlJobDataHref,
-  defaultPostingMonth,
   fromMonthInput,
   toMonthInput,
   formatCollectedDate,
@@ -168,19 +167,5 @@ describe("월 입력 변환", () => {
     expect(toMonthInput("2026")).toBe("");
     expect(fromMonthInput("2026-10")).toBe("202610");
     expect(fromMonthInput("")).toBeUndefined();
-  });
-});
-
-describe("defaultPostingMonth", () => {
-  it("UTC 기준 지난달 yyyyMM", () => {
-    expect(defaultPostingMonth(new Date("2026-10-31T16:00:00Z"))).toBe(
-      "202609",
-    );
-    expect(defaultPostingMonth(new Date("2026-11-01T00:30:00+09:00"))).toBe(
-      "202609",
-    );
-    expect(defaultPostingMonth(new Date("2026-01-15T00:00:00Z"))).toBe(
-      "202512",
-    );
   });
 });

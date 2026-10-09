@@ -40,14 +40,6 @@ export function fromMonthInput(value: string): string | undefined {
   return /^\d{4}-\d{2}$/.test(value) ? value.replace("-", "") : undefined;
 }
 
-/** 공고 탭 기본 월 = 지난달. 수집기 관측월이 UTC 기준이라 UTC 로 구한다(설계 §2.5). */
-export function defaultPostingMonth(now: Date): string {
-  const prev = new Date(
-    Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, 1),
-  );
-  return `${prev.getUTCFullYear()}${String(prev.getUTCMonth() + 1).padStart(2, "0")}`;
-}
-
 const WON_PER_MANWON = 10_000;
 
 const WON_PER_EOK = 100_000_000;

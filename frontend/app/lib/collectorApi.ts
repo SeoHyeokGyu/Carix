@@ -330,7 +330,10 @@ export interface PostingItem {
   collectedAt: string;
 }
 
+/** month 는 서버가 실제로 조회한 월(공고가 없으면 null), current 는 그 월이 이번 달(UTC)인지. */
 export interface PostingPage {
+  month: string | null;
+  current: boolean;
   total: number;
   page: number;
   size: number;
@@ -338,7 +341,8 @@ export interface PostingPage {
 }
 
 export interface PostingQuery {
-  month: string;
+  /** 없으면 서버가 가장 최근 수집 월을 고른다. */
+  month?: string;
   source?: string;
   sampled?: boolean;
   family?: string;
