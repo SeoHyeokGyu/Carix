@@ -713,7 +713,7 @@ class SkillRecommendationServiceTest {
     ResolvedPeerPostings resolvedPeer = new ResolvedPeerPostings(1, postings, "조건");
     when(peerSalaryDistributionResolver.resolvePostings(profile)).thenReturn(resolvedPeer);
     when(jobPostingSkillRepository.findByJobPostingIdIn(anyCollection())).thenReturn(jpsList);
-    when(marketAggregateRepository.findLatestAvailableYearMonth(any()))
+    when(marketAggregateRepository.findLatestAvailableYearMonthForSource(eq("ALL"), any()))
         .thenReturn(Optional.of("202607"));
 
     PeerGroupFallbackResolver.ResolvedPeerGroup mockResolvedPeer =
