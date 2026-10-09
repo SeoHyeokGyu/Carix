@@ -5,7 +5,8 @@ import com.carix.market.MarketAggregateRepository;
 import com.carix.pipeline.dto.CollectionPriorityItem;
 import com.carix.pipeline.dto.CollectionPriorityItem.PriorityGrade;
 import com.carix.pipeline.dto.CollectionPriorityResponse;
-import java.time.LocalDate;
+import java.time.YearMonth;
+import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -45,7 +46,7 @@ public class MviCollectionPriorityService {
   /**
    * 기준월 및 원천 기준 시장 데이터 수집 우선순위를 산출합니다.
    *
-   * @param baseYearMonth 기준 년월 (YYYYMM, null 시 최신 적재월 또는 당월)
+   * @param baseYearMonth 기준 년월 (YYYYMM, null 시 ALL 행이 있는 당월 이하 최신 월, 없으면 당월)
    * @param source 원천 플랫폼 (ALL, JOBKOREA, SARAMIN, null 시 ALL)
    * @param minSampleSize 최소 기준 표본수 (null 또는 &lt;= 0 시 기본 10)
    * @param underSampledOnly 표본 부족(N &lt; minSampleSize) 항목만 필터링할지 여부
@@ -155,11 +156,11 @@ public class MviCollectionPriorityService {
     if (baseYearMonth != null && !baseYearMonth.isBlank()) {
       return baseYearMonth.replace("-", "").trim();
     }
-    List<String> months = marketAggregateRepository.findDistinctBaseYearMonths();
-    if (!months.isEmpty()) {
-      return months.get(0);
-    }
-    return LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMM"));
+    // 마감일로 늘어난 달에는 SARAMIN·JUMPIT 프레임 행만 있고 ALL 행이 없어, ALL 행이 있는 당월 이하 최신 월을 잡는다.
+    String current = YearMonth.now(ZoneOffset.UTC).format(DateTimeFormatter.ofPattern("yyyyMM"));
+    return marketAggregateRepository
+        .findLatestYearMonthForSource(DEFAULT_SOURCE, current)
+        .orElse(current);
   }
 
   private PriorityGrade determineGrade(int count, int minSample) {
