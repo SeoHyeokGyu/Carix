@@ -1,7 +1,12 @@
-import type { SalaryDistributionResponse } from "../../lib/dashboardMarketApi";
+import { useState, useEffect } from "react";
+import {
+  type SalaryDistributionResponse,
+  fetchSalaryDistribution,
+} from "../../lib/dashboardMarketApi";
 
 export interface SalaryDistributionChartProps {
   data: SalaryDistributionResponse;
+  onYearChange?: (year: string) => void;
 }
 
 /**
@@ -119,20 +124,57 @@ export function percentileToBodyY(pct: number): number {
 
 function CareerLadderView({
   ladder,
+  selectedYear,
+  onSelectYear,
+  isLoading,
 }: {
   ladder: SalaryDistributionResponse["careerLadder"];
+  selectedYear?: string;
+  onSelectYear?: (year: string) => void;
+  isLoading?: boolean;
 }) {
   if (!ladder?.steps?.length) return null;
+  const currentYear = selectedYear || ladder.basePeriod;
   return (
     <section
       className="mt-6 rounded-xl border border-carix-border bg-carix-bg/40 p-4"
       aria-label="경력 사다리"
     >
       <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <h4 className="font-semibold text-carix-text">경력 사다리</h4>
-        <p className="text-xs text-carix-text/60">
-          같은 직군의 경력 구간별 공식 임금통계 · 지역 전체
-        </p>
+        <div>
+          <h4 className="font-semibold text-carix-text">경력 사다리</h4>
+          <p className="text-xs text-carix-text/60">
+            같은 직군의 경력 구간별 공식 임금통계
+            {currentYear ? ` (${currentYear}년 기준)` : ""} · 지역 전체
+          </p>
+        </div>
+        {ladder.availableYears && ladder.availableYears.length > 1 && (
+          <div
+            className="flex items-center gap-1 flex-wrap"
+            role="group"
+            aria-label="기준 연도 선택"
+          >
+            {ladder.availableYears.map((yr) => {
+              const isSelected = currentYear === yr;
+              return (
+                <button
+                  key={yr}
+                  type="button"
+                  onClick={() => onSelectYear?.(yr)}
+                  disabled={isLoading}
+                  className={`rounded-md px-2.5 py-0.5 text-xs font-medium transition-colors ${
+                    isSelected
+                      ? "bg-carix-primary text-white font-semibold shadow-xs"
+                      : "bg-carix-surface text-carix-text/70 border border-carix-border hover:bg-carix-border/30"
+                  }`}
+                  aria-pressed={isSelected}
+                >
+                  {yr}년
+                </button>
+              );
+            })}
+          </div>
+        )}
       </div>
       <ol className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-5">
         {ladder.steps.map((step) => {
@@ -175,7 +217,36 @@ function CareerLadderView({
 
 export function SalaryDistributionChart({
   data,
+  onYearChange,
 }: SalaryDistributionChartProps) {
+  const [activeLadder, setActiveLadder] = useState(data.careerLadder);
+  const [selectedYear, setSelectedYear] = useState<string | undefined>(
+    data.careerLadder?.basePeriod,
+  );
+  const [isLoadingYear, setIsLoadingYear] = useState(false);
+
+  useEffect(() => {
+    setActiveLadder(data.careerLadder);
+    setSelectedYear(data.careerLadder?.basePeriod);
+  }, [data.careerLadder]);
+
+  const handleSelectYear = async (year: string) => {
+    if (year === selectedYear) return;
+    setSelectedYear(year);
+    onYearChange?.(year);
+    setIsLoadingYear(true);
+    try {
+      const res = await fetchSalaryDistribution(undefined, year);
+      if (res?.careerLadder) {
+        setActiveLadder(res.careerLadder);
+      }
+    } catch {
+      // 조회 실패 시 기존 데이터 유지
+    } finally {
+      setIsLoadingYear(false);
+    }
+  };
+
   // 1. 표본 부족 열화 상태 (US-D2, US-D3)
   if (data.status === "INSUFFICIENT_SAMPLE" || data.sampleSize < 10) {
     const minRequired = data.minRequired ?? 10;
@@ -219,7 +290,12 @@ export function SalaryDistributionChart({
             적용된 비교 조건: {data.peerGroup.appliedConditions}
           </p>
         )}
-        <CareerLadderView ladder={data.careerLadder} />
+        <CareerLadderView
+          ladder={activeLadder}
+          selectedYear={selectedYear}
+          onSelectYear={handleSelectYear}
+          isLoading={isLoadingYear}
+        />
       </div>
     );
   }
@@ -871,7 +947,12 @@ export function SalaryDistributionChart({
           결정 신호 판정은 국가 공식 임금통계 중앙값을 기준으로 이루어집니다.
         </p>
       </div>
-      <CareerLadderView ladder={data.careerLadder} />
+      <CareerLadderView
+        ladder={activeLadder}
+        selectedYear={selectedYear}
+        onSelectYear={handleSelectYear}
+        isLoading={isLoadingYear}
+      />
     </div>
   );
 }

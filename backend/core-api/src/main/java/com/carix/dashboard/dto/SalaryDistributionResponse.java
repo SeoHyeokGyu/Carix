@@ -68,7 +68,15 @@ public record SalaryDistributionResponse(
         null);
   }
 
-  public record CareerLadder(String userBracket, List<CareerLadderStep> steps) {}
+  public record CareerLadder(
+      String userBracket,
+      String basePeriod,
+      List<String> availableYears,
+      List<CareerLadderStep> steps) {
+    public CareerLadder(String userBracket, List<CareerLadderStep> steps) {
+      this(userBracket, null, Collections.emptyList(), steps);
+    }
+  }
 
   public record CareerLadderStep(
       String bracket, Long median, Double raiseFromPrevious, String source) {}
