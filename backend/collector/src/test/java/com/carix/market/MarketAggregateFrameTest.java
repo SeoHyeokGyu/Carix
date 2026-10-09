@@ -164,6 +164,44 @@ class MarketAggregateFrameTest {
   }
 
   @Test
+  @DisplayName("공고 기간은 당월(UTC) 뒤 달로 늘지 않는다")
+  void frameActivityStopsAtCurrentMonth() {
+    YearMonth now = YearMonth.now(ZoneOffset.UTC);
+    String nowStr = now.format(DateTimeFormatter.ofPattern("yyyyMM"));
+    String next = now.plusMonths(1).format(DateTimeFormatter.ofPattern("yyyyMM"));
+    var p = saramin("s1", nowStr, nowStr, now.plusMonths(1).atDay(10), CollectedVia.JUMPIT);
+    assertThat(service.isActiveInFrameMonth(p, nowStr)).isTrue();
+    assertThat(service.isActiveInFrameMonth(p, next)).isFalse();
+  }
+
+  @Test
+  @DisplayName("다음 달 단일 월 집계는 SARAMIN·JUMPIT 행을 만들지 않는다")
+  @SuppressWarnings("unchecked")
+  void singleMonthAggregationWritesNoFutureFrameRows() {
+    YearMonth now = YearMonth.now(ZoneOffset.UTC);
+    String nowStr = now.format(DateTimeFormatter.ofPattern("yyyyMM"));
+    String next = now.plusMonths(1).format(DateTimeFormatter.ofPattern("yyyyMM"));
+    when(jobPostingRepository.findAll())
+        .thenReturn(
+            List.of(
+                saramin(
+                    "b1",
+                    nowStr,
+                    nowStr,
+                    now.plusMonths(1).atDay(10),
+                    CollectedVia.SARAMIN_SEARCH,
+                    CollectedVia.JUMPIT)));
+
+    service.aggregateMarketDataForMonth(next);
+
+    ArgumentCaptor<List<MarketAggregate>> captor = ArgumentCaptor.forClass(List.class);
+    verify(marketAggregateRepository, atLeast(0)).saveAll(captor.capture());
+    List<MarketAggregate> rows = captor.getAllValues().stream().flatMap(List::stream).toList();
+    assertThat(rows).noneMatch(r -> "SARAMIN".equals(r.getSource()));
+    assertThat(rows).noneMatch(r -> "JUMPIT".equals(r.getSource()));
+  }
+
+  @Test
   @DisplayName("표본 원천 행은 그대로다")
   void sampledRowsUnchanged() {
     JobPosting jk =

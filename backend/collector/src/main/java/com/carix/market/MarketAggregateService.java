@@ -370,7 +370,7 @@ public class MarketAggregateService {
     return !target.isBefore(range[0]) && !target.isAfter(range[1]);
   }
 
-  /** [시작, 끝] 또는 첫 관측월이 없으면 null. */
+  /** [시작, 끝] 또는 첫 관측월이 없으면 null. 끝은 당월(UTC)을 넘지 않는다 — 어느 집계 경로로도 미래 달 프레임 행을 만들지 않는다. */
   private static YearMonth[] frameRange(JobPosting p) {
     YearMonth start = parseMonth(p.getFirstSeenMonth());
     if (start == null) {
@@ -389,6 +389,10 @@ public class MarketAggregateService {
         end = extended;
       }
     }
+    YearMonth currentUtc = YearMonth.now(ZoneOffset.UTC);
+    if (end.isAfter(currentUtc)) {
+      end = currentUtc;
+    }
     return new YearMonth[] {start, end};
   }
 
@@ -402,9 +406,6 @@ public class MarketAggregateService {
 
   private Set<String> extractActiveMonths(List<JobPosting> postings) {
     Set<String> months = new java.util.TreeSet<>();
-    DateTimeFormatter yyyyMM = DateTimeFormatter.ofPattern("yyyyMM");
-
-    YearMonth currentUtc = YearMonth.now(ZoneOffset.UTC);
 
     for (JobPosting p : postings) {
       if (p.getSampledMonth() != null) {
@@ -414,15 +415,15 @@ public class MarketAggregateService {
       if (start != null) {
         String end = resolveEndMonth(p, start);
         try {
-          YearMonth startYm = YearMonth.parse(start, yyyyMM);
-          YearMonth endYm = YearMonth.parse(end, yyyyMM);
+          YearMonth startYm = YearMonth.parse(start, YYYYMM);
+          YearMonth endYm = YearMonth.parse(end, YYYYMM);
           if (startYm.isAfter(endYm)) {
             endYm = startYm;
           }
           if (ChronoUnit.MONTHS.between(startYm, endYm) <= 36) {
             YearMonth cur = startYm;
             while (!cur.isAfter(endYm)) {
-              months.add(cur.format(yyyyMM));
+              months.add(cur.format(YYYYMM));
               cur = cur.plusMonths(1);
             }
           } else {
@@ -437,8 +438,8 @@ public class MarketAggregateService {
         YearMonth[] range = frameRange(p);
         if (range != null) {
           YearMonth cur = range[0];
-          while (!cur.isAfter(range[1]) && !cur.isAfter(currentUtc)) {
-            months.add(cur.format(yyyyMM));
+          while (!cur.isAfter(range[1])) {
+            months.add(cur.format(YYYYMM));
             cur = cur.plusMonths(1);
           }
         }
@@ -446,7 +447,7 @@ public class MarketAggregateService {
     }
 
     if (months.isEmpty()) {
-      months.add(LocalDate.now().format(yyyyMM));
+      months.add(LocalDate.now().format(YYYYMM));
     }
     return months;
   }
