@@ -184,7 +184,7 @@
 ### 5.1 대시보드 지표 요약 (Summary)
 *   **Endpoint:** `GET /api/v1/dashboard/summary`
 *   구현: `com.carix.dashboard.service.DashboardSummaryService`. `index_snapshot` 의 그 달 유효 행을 읽는다.
-*   `metadata` 의 원천별 커버리지는 `index_snapshot.rationale.sourceCoverages` 에서 온다 ([도메인 정의서 §5](domain-logic.md)). 완화 결과는 당시 프로필에 의존해 나중에 재계산하면 같은 값이 안 나오므로 저장분을 그대로 읽는다. `salaryMissingRate` 는 원천별 결측률을 **표본 수로 가중 평균**한 값이고, `peerGroup` 은 표본이 가장 큰 원천의 안착 조건이다. 완화에 성공한 원천이 없으면 네 필드 모두 `null`·빈 배열이다.
+*   `metadata` 의 원천별 커버리지는 `index_snapshot.rationale.sourceCoverages` 에서 온다 ([도메인 정의서 §5](domain-logic.md)). 완화 결과는 당시 프로필에 의존해 나중에 재계산하면 같은 값이 안 나오므로 저장분을 그대로 읽는다. `salaryMissingRate` 는 원천별 결측률을 **표본 수로 가중 평균**한 값이고, `peerGroup` 은 표본이 가장 큰 원천의 안착 조건이다. 완화에 성공한 원천이 없으면 네 필드 모두 `null`·빈 배열이다. 원천 `source` 값은 `JOBKOREA`·`SARAMIN`·`WANTED`·`JUMPIT` 이고, 이전 창이 비었거나 표본이 모자란 원천은 `신규 관측`·`표본 부족`으로 커버리지에 드러나며 그 원천만 결합에서 빠진다([도메인 정의서 §6.2](domain-logic.md)).
 *   `openingWindowIndex` 는 동료집단 공고의 중앙 모집기간을 전체시장 대비 100 기준으로 환산한 값이다 ([기능 명세 §4.5](functional-specification.md)). 근거 3종은 `metadata.openingWindow` 에 담는다 — `medianWindowDays`(일), `openEndedRate`(상시채용 비율 %), `deadlineSampleSize`(마감일 보유 표본 수). **마감일 보유 표본이 최소 기준 미달이면 `indexStatus` 가 `INSUFFICIENT_SAMPLE` 이고 `value` 는 `null` 이며 `openEndedRate` 만 채워진다.** 계획된 모집 기간이지 충원 소요가 아니므로 화면 문구는 US-D5 의 경계를 따른다.
 *   **`metadata.wageStat` 은 축 둘을 따로 싣는다.** `basis` 는 **기준선의 성격**이다 — `AGE_BAND_PROXY` 는 KOSIS 연령대를 경력구간으로 옮긴 값이라는 뜻이고, 오늘은 모든 행이 여기 해당해 컬럼 없이 상수로 낸다(경력별 실측 원천이 생기면 그때 축이 살아난다). `source` 는 **그 행의 출처 종류다** — `core.wage_stat_observation.source` 컬럼을 그대로 싣는다 — `KOSIS`(24계층 누적분포 보간 실측), `FALLBACK`(하드코딩 상수), `UNKNOWN`(출처 컬럼 도입 이전 적재분). 화면은 이 기준선으로 낸 격차·신호에 두 값을 함께 표시한다 — 프록시 위의 판정도, 상수 위의 판정도 출처 없이 내보내지 않는다 (개발 계획 §2 `b12`).
 *   `negotiationTargets` 는 결정 신호가 `NEGOTIATE`·`SEEK_JOB` 일 때 화면이 쓰는 목표 인상률 셋이다 ([기능 명세 US-D7·§4.8](functional-specification.md)). 기준선을 못 잡거나 현재 연봉이 없으면 그 항목이 `null` 이고, 이미 넘어섰으면 `status` 가 `ABOVE` 이며 `raiseRatePercent` 는 `null` 이다. `toPurchasingPowerRecovery` 는 개인물가 지수로 산출한다(개발 계획 `c8`). 그 전에는 `null` 이다. **이 값은 `index_snapshot.rationale` 에 저장하지 않는다** — 같은 응답의 기준선 금액과 조인하면 연봉이 원 단위로 복원되며, 저장은 §1.3 소득 격차가 막은 것과 같은 경로를 연다.
@@ -862,7 +862,7 @@
             ```json
             { "all": true }
             ```
-            *(본문 생략 시에도 DB에 적재된 모든 공고 데이터의 활동 기준월을 자동 추출하여 전체 일괄 집계)*
+            *(본문 생략 시에도 DB에 적재된 모든 공고 데이터의 활동 기준월을 자동 추출하여 전체 일괄 집계. 사람인·점핏 공고 기간으로 늘어난 달도 포함하고 당월보다 뒤의 달은 집계하지 않는다)*
         *   **2) 특정 단일 연도 전체(1~12월) 집계:**
             ```json
             { "year": "2025" }
@@ -929,7 +929,7 @@
           "evaluatedAt": "2026-10-05T18:00:00+09:00",
           "referenceMonth": "202610",
           "previousMonth": "202609",
-          "engineRuleVersion": "1.4.0",
+          "engineRuleVersion": "1.5.0",
           "summary": {
             "users": 3,
             "fullyAnswered": 1,
@@ -955,7 +955,7 @@
 
         | `id` | 판정 |
         | --- | --- |
-        | `AGGREGATE_STALE` | 월별 상한 적용 표본 수와 시장 집계 표본 수가 어긋난 달이 있는지. 잡코리아가 어긋나면 `ERROR`(`impactUsers` = 시장가치 상태가 `OK` 가 아닌 사용자 수), 원티드만 어긋나면 `WARN`(`impactUsers` 0, 지수 편입 전). 표본이 있는 원천만 비교한다 |
+        | `AGGREGATE_STALE` | 월별 상한 적용 표본 수와 시장 집계 표본 수가 어긋난 달이 있는지. 잡코리아 또는 원티드가 어긋나면 `ERROR`(`impactUsers` = 시장가치 상태가 `OK` 가 아닌 사용자 수), 원티드 상한 적용 표본을 계산하지 못했고 어긋난 달이 없으면 `WARN`. 표본이 있는 원천만 비교하며 사람인·점핏은 표본이 아니라 대상이 아니다 |
         | `RULE_VERSION` | 사용자 스냅샷의 규칙 버전이 엔진(core-api, 8.9)보다 뒤처졌는지. 뒤처지면 `WARN` |
         | `SNAPSHOT_FRESHNESS` | 스냅샷 기준월이 `referenceMonth` 보다 이른 사용자가 있는지. 있으면 `WARN` |
         | `CPI_LATEST` | 최신 CPI 월이 `referenceMonth` 보다 늦은 개월 수. `cpi-max-lag-months`(2)와 같으면 `WARN`, 넘으면 `ERROR` |
@@ -968,7 +968,7 @@
 *   `GET /api/v1/meta/versions` — 결정 신호 엔진의 규칙 버전. 인증이 없고, collector 가 게이트웨이를 거치지 않고 서비스 간 호출로 읽어 8.8 의 `RULE_VERSION` 점검에 쓴다.
     *   **Response (200 OK):**
         ```json
-        { "ruleVersion": "1.4.0" }
+        { "ruleVersion": "1.5.0" }
         ```
 
 ### 8.10 수집 데이터 월별 현황 조회
