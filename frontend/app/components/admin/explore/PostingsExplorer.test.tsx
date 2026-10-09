@@ -99,4 +99,24 @@ describe("PostingsExplorer", () => {
       screen.getByText(/확인 경로 원티드 목록 · 원티드 표본/),
     ).toBeInTheDocument();
   });
+
+  it.each([
+    [null, null, "무관/미상"],
+    [3, null, "3년 이상"],
+    [null, 5, "~5년"],
+    [3, 5, "3~5년"],
+  ])("경력 %s~%s 는 '%s' 로 보인다", (min, max, text) => {
+    render(
+      <PostingsExplorer
+        data={{
+          total: 1,
+          page: 0,
+          size: 20,
+          items: [{ ...item, experienceMin: min, experienceMax: max }],
+        }}
+        onPage={() => {}}
+      />,
+    );
+    expect(screen.getByText(text)).toBeTruthy();
+  });
 });
