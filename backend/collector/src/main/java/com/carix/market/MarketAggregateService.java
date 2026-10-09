@@ -1,5 +1,6 @@
 package com.carix.market;
 
+import com.carix.jobposting.CollectedVia;
 import com.carix.jobposting.JobPosting;
 import com.carix.jobposting.JobPostingRepository;
 import com.carix.jobposting.JobPostingSkill;
@@ -9,6 +10,7 @@ import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
@@ -16,10 +18,12 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -42,6 +46,23 @@ public class MarketAggregateService {
 
   static final List<String> SAMPLED_SOURCES = List.of("JOBKOREA", "WANTED");
   static final int SAMPLE_COMPANY_CAP_PER_MONTH = 3;
+
+  /** 정기 수집 원천의 마감일 연장 상한(마지막 관측월 기준 개월). 상시 채용처럼 먼 마감일이 공고를 계속 살려 두지 않게 자른다. */
+  static final int DEADLINE_EXTENSION_MONTHS = 2;
+
+  /** 측정 프레임 원천: 집계 원천 하나 = 수집 경로 하나(프레임 설계 §3). 공고 행은 SARAMIN 하나로 합쳐 두고 집계에서만 나눈다. */
+  private record FrameSource(String name, Predicate<JobPosting> member) {}
+
+  private static final List<FrameSource> FRAME_SOURCES =
+      List.of(
+          new FrameSource(
+              "SARAMIN",
+              p ->
+                  "SARAMIN".equals(p.getSource())
+                      && p.hasCollectedVia(CollectedVia.SARAMIN_SEARCH)),
+          new FrameSource("JUMPIT", p -> p.hasCollectedVia(CollectedVia.JUMPIT)));
+
+  private static final DateTimeFormatter YYYYMM = DateTimeFormatter.ofPattern("yyyyMM");
 
   private final CompanyNormalizer companyNormalizer = new CompanyNormalizer();
 
@@ -195,26 +216,34 @@ public class MarketAggregateService {
 
     // 2. 활동월(firstSeenMonth ~ lastSeenMonth) 기준 월별 귀속 필터링 (b18)
     List<JobPosting> activePostings = filterActivePostingsForMonth(allPostings, baseYearMonth);
-    if (activePostings.isEmpty()) {
-      log.info("[시장사전집계] 기준년월 {}에 해당하는 활동 공고가 없어 0건 적재 완료.", baseYearMonth);
-      return 0;
-    }
 
-    List<MarketAggregate> aggregates = new ArrayList<>();
-
-    // 3. 통합 관점 ("ALL" source, dedup_group_id 기준) 집계
-    aggregates.addAll(buildAggregatesForSource("ALL", activePostings, baseYearMonth, true));
-
-    // 4. 개별 원천별 관점 ("JOBKOREA", "WANTED", "SARAMIN") 집계. 잡코리아·원티드는 활동 공고가 아니라 그 달 무작위 표본만 센다.
-    Map<String, List<JobPosting>> bySource =
-        activePostings.stream()
-            .filter(p -> !SAMPLED_SOURCES.contains(p.getSource()))
-            .collect(Collectors.groupingBy(p -> p.getSource() != null ? p.getSource() : "UNKNOWN"));
+    // 원천별 행: 표본 원천은 그 달 무작위 표본, 프레임 원천(사람인 검색·점핏)은 공고 기간으로 활동한 그 경로 공고.
+    Map<String, List<JobPosting>> bySource = new LinkedHashMap<>();
     for (String sampledSource : SAMPLED_SOURCES) {
       List<JobPosting> sample = sampledPostingsForMonth(allPostings, baseYearMonth, sampledSource);
       if (!sample.isEmpty()) {
         bySource.put(sampledSource, sample);
       }
+    }
+    for (FrameSource frame : FRAME_SOURCES) {
+      List<JobPosting> members =
+          allPostings.stream()
+              .filter(frame.member())
+              .filter(p -> isActiveInFrameMonth(p, baseYearMonth))
+              .toList();
+      if (!members.isEmpty()) {
+        bySource.put(frame.name(), members);
+      }
+    }
+
+    if (activePostings.isEmpty() && bySource.isEmpty()) {
+      log.info("[시장사전집계] 기준년월 {}에 해당하는 활동 공고가 없어 0건 적재 완료.", baseYearMonth);
+      return 0;
+    }
+
+    List<MarketAggregate> aggregates = new ArrayList<>();
+    if (!activePostings.isEmpty()) {
+      aggregates.addAll(buildAggregatesForSource("ALL", activePostings, baseYearMonth, true));
     }
     for (Map.Entry<String, List<JobPosting>> entry : bySource.entrySet()) {
       aggregates.addAll(
@@ -328,9 +357,54 @@ public class MarketAggregateService {
     return cleaned;
   }
 
+  /**
+   * 프레임 원천의 활동 판정. 첫 관측월부터 {@code max(마지막 관측월, min(마감월, 마지막 관측월 + 2))} 까지 — 다시 수집되지 않았을 뿐 열려 있던 달을
+   * 세되, 그 경로가 수집하기 전 달로 당기지는 않는다(생존 편향).
+   */
+  public boolean isActiveInFrameMonth(JobPosting p, String targetMonth) {
+    YearMonth[] range = frameRange(p);
+    if (range == null || targetMonth == null) {
+      return false;
+    }
+    YearMonth target = YearMonth.parse(normalizeMonth(targetMonth), YYYYMM);
+    return !target.isBefore(range[0]) && !target.isAfter(range[1]);
+  }
+
+  /** [시작, 끝] 또는 첫 관측월이 없으면 null. */
+  private static YearMonth[] frameRange(JobPosting p) {
+    YearMonth start = parseMonth(p.getFirstSeenMonth());
+    if (start == null) {
+      return null;
+    }
+    YearMonth seenEnd = parseMonth(p.getLastSeenMonth());
+    if (seenEnd == null || seenEnd.isBefore(start)) {
+      seenEnd = start;
+    }
+    YearMonth end = seenEnd;
+    if (p.getPostedEndDate() != null) {
+      YearMonth deadline = YearMonth.from(p.getPostedEndDate());
+      YearMonth cap = seenEnd.plusMonths(DEADLINE_EXTENSION_MONTHS);
+      YearMonth extended = deadline.isAfter(cap) ? cap : deadline;
+      if (extended.isAfter(end)) {
+        end = extended;
+      }
+    }
+    return new YearMonth[] {start, end};
+  }
+
+  private static YearMonth parseMonth(String raw) {
+    if (raw == null) {
+      return null;
+    }
+    String cleaned = raw.replace("-", "").trim();
+    return cleaned.matches("\\d{6}") ? YearMonth.parse(cleaned, YYYYMM) : null;
+  }
+
   private Set<String> extractActiveMonths(List<JobPosting> postings) {
     Set<String> months = new java.util.TreeSet<>();
     DateTimeFormatter yyyyMM = DateTimeFormatter.ofPattern("yyyyMM");
+
+    YearMonth currentUtc = YearMonth.now(ZoneOffset.UTC);
 
     for (JobPosting p : postings) {
       if (p.getSampledMonth() != null) {
@@ -357,6 +431,16 @@ public class MarketAggregateService {
           }
         } catch (Exception e) {
           months.add(start);
+        }
+      }
+      if (FRAME_SOURCES.stream().anyMatch(f -> f.member().test(p))) {
+        YearMonth[] range = frameRange(p);
+        if (range != null) {
+          YearMonth cur = range[0];
+          while (!cur.isAfter(range[1]) && !cur.isAfter(currentUtc)) {
+            months.add(cur.format(yyyyMM));
+            cur = cur.plusMonths(1);
+          }
         }
       }
     }
