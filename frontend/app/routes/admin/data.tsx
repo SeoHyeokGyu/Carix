@@ -1,7 +1,8 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useSearchParams } from "react-router";
 import { ThemeToggle } from "../../components/ThemeToggle";
 import { AdminHeader } from "../../components/admin/AdminHeader";
+import { DataHealthStrip } from "../../components/admin/DataHealthStrip";
 import { AdminKeyModal } from "../../components/admin/AdminKeyModal";
 import { MonthlyOverviewTable } from "../../components/admin/explore/MonthlyOverviewTable";
 import { PostingsExplorer } from "../../components/admin/explore/PostingsExplorer";
@@ -14,9 +15,14 @@ import {
   type PostingPage,
 } from "../../lib/collectorApi";
 import {
+  defaultPostingMonth,
+  fromMonthInput,
+  normalizeSampleSource,
   parsePostingSort,
+  toMonthInput,
   POSTING_SORTS,
   parseTab,
+  periodError,
   TABS,
 } from "../../lib/dataExplore";
 
@@ -35,6 +41,8 @@ export default function DataExplorePage() {
   const [failed, setFailed] = useState(false);
   const [isKeyModalOpen, setIsKeyModalOpen] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
+  const [healthKey, setHealthKey] = useState(0);
+  const [periodMessage, setPeriodMessage] = useState<string | null>(null);
 
   const month = params.get("month") ?? "";
   const sampledParam = params.get("sampled");
@@ -45,7 +53,8 @@ export default function DataExplorePage() {
         ? false
         : undefined;
   const sort = parsePostingSort(params.get("sort"));
-  const sampleSource = params.get("sampleSource") ?? undefined;
+  const rawSampleSource = params.get("sampleSource") ?? undefined;
+  const sampleSource = normalizeSampleSource(rawSampleSource);
   const page = Math.max(0, Math.trunc(Number(params.get("page") ?? "0") || 0));
 
   const from = params.get("from") ?? undefined;
@@ -65,7 +74,7 @@ export default function DataExplorePage() {
         if (tab === "monthly") {
           next = {
             kind: "monthly",
-            data: await fetchMonthlyOverview(from, to, sampleSource),
+            data: await fetchMonthlyOverview(from, to, rawSampleSource),
           };
         } else if (tab === "postings" && month && isMonthValid) {
           next = {
@@ -103,14 +112,41 @@ export default function DataExplorePage() {
     isMonthValid,
     from,
     to,
-    sampleSource,
+    rawSampleSource,
     sampled,
     page,
     paramsKey,
     reloadKey,
   ]);
 
+  // 공고 탭은 월 없이 열리면 지난달로 바로 보인다. 기록을 쌓지 않으려 replace 로 채우고, 있는 month 는 건드리지 않는다.
+  const hasMonthParam = params.has("month");
+  useEffect(() => {
+    if (tab !== "postings" || hasMonthParam) return;
+    const sp = new URLSearchParams(paramsKey);
+    sp.set("month", defaultPostingMonth(new Date()));
+    setParams(sp, { replace: true });
+  }, [tab, hasMonthParam, paramsKey, setParams]);
+
+  const shownRange = loaded?.kind === "monthly" ? loaded.data : undefined;
+
+  const openKeyModal = useCallback(() => setIsKeyModalOpen(true), []);
+
   const reload = () => setReloadKey((k) => k + 1);
+
+  // 기간이 맞지 않으면 URL 을 바꾸지 않고 메시지만 남긴다. 입력칸은 URL 값으로 되돌아간다.
+  const changePeriod = (
+    nextFrom: string | undefined,
+    nextTo: string | undefined,
+  ) => {
+    const message = periodError(
+      nextFrom ?? shownRange?.from,
+      nextTo ?? shownRange?.to,
+    );
+    setPeriodMessage(message);
+    if (message) return;
+    update({ from: nextFrom, to: nextTo });
+  };
 
   const update = (next: Record<string, string | undefined>) => {
     const sp = new URLSearchParams(params);
@@ -121,12 +157,14 @@ export default function DataExplorePage() {
   return (
     <div className="min-h-screen bg-carix-bg text-carix-text">
       <ThemeToggle />
-      <AdminHeader
-        active="data"
-        onOpenKeyModal={() => setIsKeyModalOpen(true)}
-      />
-      <main className="mx-auto max-w-7xl px-6 py-8 space-y-4">
+      <AdminHeader active="data" onOpenKeyModal={openKeyModal} />
+      <main
+        className={`mx-auto px-6 py-8 space-y-4 ${
+          tab === "monthly" || tab === "cpi" ? "max-w-screen-2xl" : "max-w-7xl"
+        }`}
+      >
         <h1 className="text-lg font-bold">수집 데이터</h1>
+        <DataHealthStrip onAuthError={openKeyModal} refreshKey={healthKey} />
         <div role="tablist" className="flex gap-2">
           {TABS.map((t) => (
             <Button
@@ -135,7 +173,10 @@ export default function DataExplorePage() {
               aria-selected={tab === t.id}
               variant={tab === t.id ? "default" : "outline"}
               size="sm"
-              onClick={() => setParams(new URLSearchParams({ tab: t.id }))}
+              onClick={() => {
+                setPeriodMessage(null);
+                setParams(new URLSearchParams({ tab: t.id }));
+              }}
             >
               {t.label}
             </Button>
@@ -143,18 +184,49 @@ export default function DataExplorePage() {
         </div>
 
         {tab === "monthly" && (
-          <label className="flex items-center gap-2 text-xs">
-            직무별 표본 원천
-            <select
-              aria-label="직무별 표본 원천"
-              value={sampleSource === "WANTED" ? "WANTED" : "JOBKOREA"}
-              onChange={(e) => update({ sampleSource: e.target.value })}
-              className="rounded border border-carix-border px-2 py-1"
-            >
-              <option value="JOBKOREA">잡코리아</option>
-              <option value="WANTED">원티드</option>
-            </select>
-          </label>
+          <div className="flex flex-wrap items-center gap-4 text-xs">
+            <label className="flex items-center gap-2">
+              직무별 표본 원천
+              <select
+                aria-label="직무별 표본 원천"
+                value={sampleSource}
+                onChange={(e) => update({ sampleSource: e.target.value })}
+                className="rounded border border-carix-border px-2 py-1"
+              >
+                <option value="JOBKOREA">잡코리아</option>
+                <option value="WANTED">원티드</option>
+              </select>
+            </label>
+            <span className="flex items-center gap-2">
+              <input
+                type="month"
+                aria-label="시작 월"
+                value={toMonthInput(from ?? shownRange?.from)}
+                onChange={(e) =>
+                  changePeriod(fromMonthInput(e.target.value), to)
+                }
+                className="rounded border border-carix-border px-2 py-1"
+              />
+              ~
+              <input
+                type="month"
+                aria-label="끝 월"
+                value={toMonthInput(to ?? shownRange?.to)}
+                onChange={(e) =>
+                  changePeriod(
+                    from ?? shownRange?.from,
+                    fromMonthInput(e.target.value),
+                  )
+                }
+                className="rounded border border-carix-border px-2 py-1"
+              />
+            </span>
+            {periodMessage && (
+              <p role="alert" className="text-carix-danger">
+                {periodMessage}
+              </p>
+            )}
+          </div>
         )}
 
         {tab === "postings" && (
@@ -165,7 +237,7 @@ export default function DataExplorePage() {
               e.preventDefault();
               const fd = new FormData(e.currentTarget);
               update({
-                month: String(fd.get("month") ?? ""),
+                month: fromMonthInput(String(fd.get("month") ?? "")),
                 source: String(fd.get("source") ?? ""),
                 sampled: String(fd.get("sampled") ?? ""),
                 family: String(fd.get("family") ?? ""),
@@ -179,8 +251,9 @@ export default function DataExplorePage() {
           >
             <input
               name="month"
-              defaultValue={month}
-              placeholder="YYYYMM"
+              type="month"
+              required
+              defaultValue={toMonthInput(month)}
               aria-label="월"
               className="rounded border border-carix-border px-2 py-1"
             />
@@ -212,10 +285,10 @@ export default function DataExplorePage() {
               className="rounded border border-carix-border px-2 py-1"
             >
               <option value="">전체 직무</option>
-              <option value="DEVELOPER">DEVELOPER</option>
-              <option value="DATA">DATA</option>
+              <option value="DEVELOPER">개발</option>
+              <option value="DATA">데이터</option>
               <option value="AI">AI</option>
-              <option value="OTHER">OTHER</option>
+              <option value="OTHER">기타</option>
             </select>
             <input
               name="company"
@@ -282,7 +355,10 @@ export default function DataExplorePage() {
           </p>
         )}
         {loaded?.kind === "monthly" && tab === "monthly" && (
-          <MonthlyOverviewTable data={loaded.data} />
+          <MonthlyOverviewTable
+            data={loaded.data}
+            sampleSource={sampleSource}
+          />
         )}
         {loaded?.kind === "postings" && tab === "postings" && (
           <PostingsExplorer
@@ -303,7 +379,10 @@ export default function DataExplorePage() {
       <AdminKeyModal
         isOpen={isKeyModalOpen}
         onClose={() => setIsKeyModalOpen(false)}
-        onKeyUpdated={() => reload()}
+        onKeyUpdated={() => {
+          reload();
+          setHealthKey((k) => k + 1);
+        }}
       />
     </div>
   );

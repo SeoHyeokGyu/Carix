@@ -10,6 +10,7 @@ import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -19,34 +20,35 @@ class DataHealthServiceTest {
     return Clock.fixed(Instant.parse(instant), ZoneOffset.UTC);
   }
 
-  @Test
-  @DisplayName("현재월은 서울 기준이다 — UTC 9월 30일 15시는 서울 10월 1일")
-  void referenceMonths_useSeoulZone() {
-    assertThat(DataHealthService.referenceMonth(at("2026-09-30T15:00:00Z")))
-        .isEqualTo(YearMonth.of(2026, 10));
-    assertThat(DataHealthService.referenceMonth(at("2026-09-30T14:59:59Z")))
-        .isEqualTo(YearMonth.of(2026, 9));
+  private static DataHealthSnapshot snap(DataHealthSnapshot.SampleSeries jk) {
+    return new DataHealthSnapshot(Set.of("202609"), jk, null, Map.of(), List.of(), Set.of());
   }
 
   @Test
-  @DisplayName("그룹 다섯을 정해진 순서로 내고 지난달을 읽기에 넘긴다")
-  void evaluate_groupsInOrder() {
-    YearMonth[] asked = new YearMonth[1];
-    DataHealthReader reader =
-        prev -> {
-          asked[0] = prev;
-          return new DataHealthSnapshot(
-              Map.of("202609", 12),
-              Map.of("202609", 250),
-              null,
-              null,
-              null,
-              null,
-              null,
-              List.of(),
-              Map.of(),
-              null);
-        };
+  @DisplayName("현재월은 UTC 기준이다 — 서울 11월 1일 01시(UTC 10월 31일 16시)는 10월")
+  void referenceMonth_usesUtc() {
+    assertThat(DataHealthService.referenceMonth(at("2026-10-31T16:00:00Z")))
+        .isEqualTo(YearMonth.of(2026, 10));
+    assertThat(DataHealthService.referenceMonth(at("2026-11-01T00:00:00Z")))
+        .isEqualTo(YearMonth.of(2026, 11));
+  }
+
+  @Test
+  @DisplayName("고정 Clock 이 서울 11-01 01:00 이어도 referenceMonth 는 202610")
+  void evaluate_referenceMonthUtc() {
+    var service =
+        new DataHealthService(
+            () -> snap(null),
+            () -> Optional.of("1.3.0"),
+            HealthThresholds.defaults(),
+            at("2026-10-31T16:00:00Z"));
+    assertThat(service.evaluate().referenceMonth()).isEqualTo("202610");
+  }
+
+  @Test
+  @DisplayName("점검 다섯을 정해진 순서로 내고 groups 는 없다")
+  void evaluate_checksInOrder() {
+    DataHealthReader reader = () -> snap(null);
     var service =
         new DataHealthService(
             reader,
@@ -56,20 +58,27 @@ class DataHealthServiceTest {
 
     DataHealthReport r = service.evaluate();
 
-    assertThat(asked[0]).isEqualTo(YearMonth.of(2026, 9));
     assertThat(r.referenceMonth()).isEqualTo("202610");
     assertThat(r.previousMonth()).isEqualTo("202609");
     assertThat(r.engineRuleVersion()).isEqualTo("1.3.0");
-    assertThat(r.groups())
-        .extracting(DataHealthReport.Group::id)
-        .containsExactly("PPI", "MVI", "DECISION", "SUPPORT", "WANTED");
+    assertThat(r.checks())
+        .extracting(DataHealthReport.Check::id)
+        .containsExactly(
+            "AGGREGATE_STALE",
+            "RULE_VERSION",
+            "SNAPSHOT_FRESHNESS",
+            "CPI_LATEST",
+            "CRAWL_FRESHNESS");
+    assertThat(DataHealthReport.class.getRecordComponents())
+        .extracting(c -> c.getName())
+        .doesNotContain("groups");
   }
 
   @Test
-  @DisplayName("한 그룹 계산이 예외를 내면 그 그룹 점검만 판정 불가이고 나머지는 계산된다")
-  void service_oneFailingCheckBecomesUnknown() {
+  @DisplayName("읽기가 예외를 내면 다섯 점검 모두 판정 불가")
+  void service_readFailureMakesAllUnknown() {
     DataHealthReader reader =
-        prev -> {
+        () -> {
           throw new IllegalStateException("db down");
         };
     var service =
@@ -78,101 +87,133 @@ class DataHealthServiceTest {
 
     DataHealthReport r = service.evaluate();
 
-    assertThat(r.groups()).hasSize(5);
-    assertThat(r.groups())
-        .allSatisfy(
-            g ->
-                assertThat(g.checks())
-                    .allSatisfy(c -> assertThat(c.verdict()).isEqualTo(HealthVerdict.UNKNOWN)));
+    assertThat(r.checks()).hasSize(5);
+    assertThat(r.checks())
+        .allSatisfy(c -> assertThat(c.verdict()).isEqualTo(HealthVerdict.UNKNOWN));
     assertThat(r.engineRuleVersion()).isNull();
+    assertThat(r.summary()).isNull();
   }
 
-  @Test
-  @DisplayName("점검마다 원본 화면 링크를 판정과 무관하게 채운다")
-  void drillDownLinks() {
-    assertThat(DataHealthService.drillDown("SAMPLE_LAST_MONTH", "202609"))
-        .isEqualTo("/admin/data?tab=postings&month=202609&sampled=true");
-    String monthly = "/admin/data?tab=monthly&from=202310&to=202609";
-    for (String id :
-        List.of("SAMPLE_GAPS", "AGGREGATE_STALE", "PEER_SAMPLE_BY_FAMILY", "CRAWL_FRESHNESS")) {
-      assertThat(DataHealthService.drillDown(id, "202609")).isEqualTo(monthly);
-    }
-    String cpi = "/admin/data?tab=cpi&from=201610&to=202609";
-    for (String id : List.of("CPI_LATEST", "CPI_GAP")) {
-      assertThat(DataHealthService.drillDown(id, "202609")).isEqualTo(cpi);
-    }
-    assertThat(DataHealthService.drillDown("WANTED_SAMPLE_LAST_MONTH", "202609"))
-        .isEqualTo("/admin/data?tab=postings&month=202609&sampled=true&source=WANTED");
-    for (String id : List.of("WANTED_SAMPLE_GAPS", "WANTED_AGGREGATE_STALE")) {
-      assertThat(DataHealthService.drillDown(id, "202609"))
-          .isEqualTo(monthly + "&sampleSource=WANTED");
-    }
-    assertThat(DataHealthService.drillDown("WAGE_BASELINE", "202609"))
-        .isEqualTo("/admin/data?tab=wage");
-    assertThat(DataHealthService.drillDown("RULE_VERSION", "202609")).isNull();
+  private static DataHealthReport.Check check(DataHealthReport r, String id) {
+    return r.checks().stream().filter(c -> c.id().equals(id)).findFirst().orElseThrow();
+  }
 
-    DataHealthReader reader =
-        prev ->
-            new DataHealthSnapshot(
-                Map.of("202609", 12),
-                Map.of("202609", 250),
-                null,
-                null,
-                null,
-                null,
-                null,
-                List.of(),
-                Map.of(),
-                null);
-    var service =
-        new DataHealthService(
-            reader,
+  private static DataHealthReport evaluate(DataHealthSnapshot data) {
+    return new DataHealthService(
+            () -> data,
             () -> Optional.of("1.3.0"),
             HealthThresholds.defaults(),
-            at("2026-10-05T00:00:00Z"));
-    var check =
-        service.evaluate().groups().stream()
-            .flatMap(g -> g.checks().stream())
-            .filter(c -> c.id().equals("SAMPLE_LAST_MONTH"))
-            .findFirst()
-            .orElseThrow();
-    assertThat(check.drillDown()).isEqualTo("/admin/data?tab=postings&month=202609&sampled=true");
+            at("2026-10-05T00:00:00Z"))
+        .evaluate();
   }
 
   @Test
-  @DisplayName("원티드 그룹은 요약 판정 건수에 들어가지 않고 영향 사용자 수는 비어 있다")
-  void wantedGroup_excludedFromSummary() {
-    // 원티드 표본이 있으나 지난달 0 건 → WANTED_SAMPLE_LAST_MONTH 는 ERROR
-    DataHealthReader reader =
-        prev ->
+  @DisplayName("재집계 누락 링크: 불일치가 없으면 기준월-17개월부터")
+  void drillDown_aggregateStale_default() {
+    var r =
+        evaluate(
+            snap(
+                new DataHealthSnapshot.SampleSeries(
+                    Map.of("202609", 5), Map.of("202609", 5), Map.of("202609", 5))));
+    assertThat(check(r, "AGGREGATE_STALE").drillDown())
+        .isEqualTo("/admin/data?tab=monthly&from=202505&to=202610");
+  }
+
+  @Test
+  @DisplayName("재집계 누락 링크: 불일치 202401 이 있으면 from=202401")
+  void drillDown_aggregateStale_earliestMismatch() {
+    var r =
+        evaluate(
+            snap(
+                new DataHealthSnapshot.SampleSeries(
+                    Map.of("202401", 5, "202609", 5),
+                    Map.of("202401", 5, "202609", 5),
+                    Map.of("202609", 5))));
+    assertThat(check(r, "AGGREGATE_STALE").drillDown())
+        .isEqualTo("/admin/data?tab=monthly&from=202401&to=202610");
+  }
+
+  @Test
+  @DisplayName("재집계 누락 링크: 기준월-35개월보다 이르면 202311 로 자른다")
+  void drillDown_aggregateStale_clamped() {
+    var r =
+        evaluate(
+            snap(
+                new DataHealthSnapshot.SampleSeries(
+                    Map.of("202001", 5), Map.of("202001", 5), Map.of())));
+    assertThat(check(r, "AGGREGATE_STALE").drillDown())
+        .isEqualTo("/admin/data?tab=monthly&from=202311&to=202610");
+  }
+
+  @Test
+  @DisplayName("CPI·수집 신선도 링크, 나머지는 null")
+  void drillDown_others() {
+    var r = evaluate(snap(null));
+    assertThat(check(r, "CPI_LATEST").drillDown()).isEqualTo("/admin/data?tab=cpi");
+    assertThat(check(r, "CRAWL_FRESHNESS").drillDown()).isNull();
+    assertThat(check(r, "RULE_VERSION").drillDown()).isNull();
+    assertThat(check(r, "SNAPSHOT_FRESHNESS").drillDown()).isNull();
+
+    var withCrawl =
+        evaluate(
             new DataHealthSnapshot(
+                Set.of(),
                 null,
                 null,
-                null,
-                null,
-                null,
-                null,
-                null,
+                Map.of(
+                    "JOBKOREA", Instant.parse("2026-10-01T00:00:00Z"),
+                    "WANTED", Instant.parse("2026-09-01T00:00:00Z")),
                 List.of(),
-                Map.of(),
-                new DataHealthSnapshot.SampleSeries(Map.of("202608", 250), Map.of(), Map.of()));
+                Set.of()));
+    assertThat(check(withCrawl, "CRAWL_FRESHNESS").drillDown())
+        .isEqualTo("/admin/data?tab=postings&month=202609&sort=recent&source=WANTED");
+  }
+
+  @Test
+  @DisplayName("재집계 누락 링크: 해석 못 하는 달 키는 건너뛰고 모두 못 하면 기본 범위")
+  void drillDown_aggregateStale_malformedMonth() {
+    var withBad =
+        new DataHealthReport.Check(
+            "AGGREGATE_STALE",
+            "t",
+            HealthVerdict.ERROR,
+            "m",
+            null,
+            null,
+            null,
+            Map.of("JOBKOREA", List.of("bad", "202401"), "WANTED", List.of()));
+    assertThat(DataHealthService.drillDown(withBad, YearMonth.of(2026, 10)))
+        .isEqualTo("/admin/data?tab=monthly&from=202401&to=202610");
+    var allBad =
+        new DataHealthReport.Check(
+            "AGGREGATE_STALE",
+            "t",
+            HealthVerdict.ERROR,
+            "m",
+            null,
+            null,
+            null,
+            Map.of("JOBKOREA", List.of("x", "2024-1")));
+    assertThat(DataHealthService.drillDown(allBad, YearMonth.of(2026, 10)))
+        .isEqualTo("/admin/data?tab=monthly&from=202505&to=202610");
+  }
+
+  @Test
+  @DisplayName("점검 계산이 예외를 내면 다섯 점검 모두 판정 불가")
+  void checksThrowing_allUnknown() {
+    var throwing =
+        new HealthThresholds() {
+          @Override
+          public int cpiMaxLagMonths() {
+            throw new IllegalStateException("boom");
+          }
+        };
     var service =
         new DataHealthService(
-            reader, Optional::empty, HealthThresholds.defaults(), at("2026-10-05T00:00:00Z"));
-
+            () -> snap(null), Optional::empty, throwing, at("2026-10-05T00:00:00Z"));
     DataHealthReport r = service.evaluate();
-
-    var wanted = r.groups().get(4);
-    assertThat(wanted.title()).isEqualTo("원티드(도입 중)");
-    assertThat(wanted.question()).isEqualTo("원티드 표본이 쌓이고 있나?");
-    assertThat(wanted.checks())
-        .extracting(DataHealthReport.Check::id)
-        .containsExactly(
-            "WANTED_SAMPLE_LAST_MONTH", "WANTED_SAMPLE_GAPS", "WANTED_AGGREGATE_STALE");
-    assertThat(wanted.checks().get(0).verdict()).isEqualTo(HealthVerdict.ERROR);
-    assertThat(wanted.checks()).allSatisfy(c -> assertThat(c.impactUsers()).isNull());
-    int counted = r.summary().verdictCounts().values().stream().mapToInt(Integer::intValue).sum();
-    int others = r.groups().subList(0, 4).stream().mapToInt(g -> g.checks().size()).sum();
-    assertThat(counted).isEqualTo(others);
+    assertThat(r.checks()).hasSize(5);
+    assertThat(r.checks())
+        .allSatisfy(c -> assertThat(c.verdict()).isEqualTo(HealthVerdict.UNKNOWN));
   }
 }

@@ -9,8 +9,10 @@ export const TABS: { id: ExploreTab; label: string }[] = [
   { id: "wage", label: "임금통계" },
 ];
 
-/** 표본 목표 250 의 80%. 설계 §8 강조 규칙 — collector 점검 기준과 같다. */
+/** 월별 현황에서 상한 적용 표본이 이보다 적으면 강조한다(설계 §8). */
 export const SAMPLE_WARN_BELOW = 200;
+/** 상한 적용 = 같은 회사 월 3건까지. 백엔드 MarketAggregateService.SAMPLE_COMPANY_CAP_PER_MONTH 와 같아야 한다. */
+export const SAMPLE_COMPANY_CAP = 3;
 /** 시장가치 동료집단 최소 표본. */
 export const FAMILY_MIN_SAMPLE = 10;
 
@@ -18,8 +20,33 @@ export function parseTab(value: string | null): ExploreTab {
   return TABS.some((t) => t.id === value) ? (value as ExploreTab) : "monthly";
 }
 
+/** 직무별 표본 원천 파라미터 정규화. 공백·대소문자를 무시하고 모르면 잡코리아. */
+export function normalizeSampleSource(raw: string | null | undefined) {
+  return raw?.trim().toUpperCase() === "WANTED" ? "WANTED" : "JOBKOREA";
+}
+
 export const isThinSample = (n: number) => n < SAMPLE_WARN_BELOW;
 export const isThinFamily = (n: number) => n < FAMILY_MIN_SAMPLE;
+
+/** URL 의 yyyyMM → `<input type="month">` 의 yyyy-MM. 형식이 다르면 빈 문자열. */
+export function toMonthInput(yyyyMM: string | undefined): string {
+  return yyyyMM && /^\d{6}$/.test(yyyyMM)
+    ? `${yyyyMM.slice(0, 4)}-${yyyyMM.slice(4)}`
+    : "";
+}
+
+/** `<input type="month">` 의 yyyy-MM → URL 의 yyyyMM. 비었거나 형식이 다르면 undefined. */
+export function fromMonthInput(value: string): string | undefined {
+  return /^\d{4}-\d{2}$/.test(value) ? value.replace("-", "") : undefined;
+}
+
+/** 공고 탭 기본 월 = 지난달. 수집기 관측월이 UTC 기준이라 UTC 로 구한다(설계 §2.5). */
+export function defaultPostingMonth(now: Date): string {
+  const prev = new Date(
+    Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, 1),
+  );
+  return `${prev.getUTCFullYear()}${String(prev.getUTCMonth() + 1).padStart(2, "0")}`;
+}
 
 const WON_PER_MANWON = 10_000;
 
@@ -145,4 +172,50 @@ export function crawlJobDataHref(
   const source = PORTAL_SOURCE[String(job.details?.portal ?? "")];
   if (source) sp.set("source", source);
   return `/admin/data?${sp.toString()}`;
+}
+
+/** KOSIS 소비자물가 지출목적별 12대 분류(2020 기준). 코드는 수집기 KosisCpiClient 의 A~L 순서와 같다. */
+export const CPI_CATEGORY_NAMES: Record<string, string> = {
+  A: "식료품·비주류음료",
+  B: "주류·담배",
+  C: "의류·신발",
+  D: "주거·수도·광열",
+  E: "가정용품·가사서비스",
+  F: "보건",
+  G: "교통",
+  H: "정보통신",
+  I: "오락·문화",
+  J: "교육",
+  K: "음식·숙박",
+  L: "기타 상품·서비스",
+};
+
+const CPI_SHARP_RATIO = 0.05;
+
+export function isSharpCpiChange(
+  prev: number | undefined,
+  curr: number | undefined,
+): boolean {
+  if (prev === undefined || curr === undefined || prev === 0) return false;
+  return Math.abs(curr / prev - 1) > CPI_SHARP_RATIO;
+}
+
+/** 월별 현황·CPI 기간 입력의 최대 길이(시작·끝 월 포함). */
+export const MAX_PERIOD_MONTHS = 36;
+
+/** 기간 입력이 맞지 않으면 화면 문구를, 맞거나 한쪽이 비었으면 null 을 돌린다. 둘 다 yyyyMM. */
+export function periodError(
+  from: string | undefined,
+  to: string | undefined,
+): string | null {
+  if (!from || !to || !/^\d{6}$/.test(from) || !/^\d{6}$/.test(to)) {
+    return null;
+  }
+  const index = (m: string) => Number(m.slice(0, 4)) * 12 + Number(m.slice(4));
+  const span = index(to) - index(from) + 1;
+  if (span < 1) return "시작 월이 끝 월보다 늦습니다";
+  if (span > MAX_PERIOD_MONTHS) {
+    return `기간은 최대 ${MAX_PERIOD_MONTHS}개월입니다`;
+  }
+  return null;
 }

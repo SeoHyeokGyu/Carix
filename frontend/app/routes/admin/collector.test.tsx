@@ -44,6 +44,17 @@ describe("CollectorAdminPage", () => {
     vi.mocked(collectorApi.getAdminKey).mockReturnValue("sample-admin-key");
   });
 
+  it("헤더에 데이터 상태 링크가 없다", async () => {
+    render(
+      <MemoryRouter>
+        <CollectorAdminPage />
+      </MemoryRouter>,
+    );
+    expect(
+      screen.queryByRole("link", { name: "데이터 상태" }),
+    ).not.toBeInTheDocument();
+  });
+
   it("콘솔 타이틀과 요약 카드를 정상 렌더링한다", async () => {
     render(
       <MemoryRouter>

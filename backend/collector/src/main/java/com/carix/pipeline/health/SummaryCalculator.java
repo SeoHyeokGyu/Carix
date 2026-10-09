@@ -3,13 +3,12 @@ package com.carix.pipeline.health;
 import com.carix.pipeline.dto.DataHealthReport;
 import com.carix.pipeline.health.DataHealthSnapshot.UserSnapshot;
 import java.util.ArrayList;
-import java.util.EnumMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-/** 맨 위 요약 — 「세 질문에 온전히 답하는 사용자」와 빈 답 사유, 판정 건수. */
+/** 맨 위 요약 — 「세 질문에 온전히 답하는 사용자」와 빈 답 사유. */
 public final class SummaryCalculator {
 
   public static final String MVI_NOT_REFLECTED = "시장가치 미반영";
@@ -18,11 +17,10 @@ public final class SummaryCalculator {
 
   private SummaryCalculator() {}
 
-  public static DataHealthReport.Summary summarize(
-      DataHealthSnapshot data, List<DataHealthReport.Group> groups) {
+  public static DataHealthReport.Summary summarize(DataHealthSnapshot data) {
     Map<String, UserSnapshot> byUser = new LinkedHashMap<>();
     data.snapshots().forEach(s -> byUser.put(s.userId(), s));
-    java.util.Set<String> users = new java.util.LinkedHashSet<>(data.familyByUser().keySet());
+    java.util.Set<String> users = new java.util.LinkedHashSet<>(data.profileUserIds());
     users.addAll(byUser.keySet());
 
     Map<List<String>, Integer> gapCounts = new LinkedHashMap<>();
@@ -43,12 +41,7 @@ public final class SummaryCalculator {
     List<DataHealthReport.AnswerGap> gaps = new ArrayList<>();
     gapCounts.forEach((k, v) -> gaps.add(new DataHealthReport.AnswerGap(k.get(0), k.get(1), v)));
 
-    Map<HealthVerdict, Integer> verdicts = new EnumMap<>(HealthVerdict.class);
-    for (HealthVerdict v : HealthVerdict.values()) {
-      verdicts.put(v, 0);
-    }
-    groups.forEach(g -> g.checks().forEach(c -> verdicts.merge(c.verdict(), 1, Integer::sum)));
-    return new DataHealthReport.Summary(users.size(), fully, gaps, verdicts);
+    return new DataHealthReport.Summary(users.size(), fully, gaps);
   }
 
   private static List<List<String>> gapsOf(UserSnapshot s) {

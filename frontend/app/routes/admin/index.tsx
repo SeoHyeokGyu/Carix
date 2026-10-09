@@ -1,7 +1,7 @@
 import { redirect } from "react-router";
 
 export function clientLoader() {
-  return redirect("/admin/data-health");
+  return redirect("/admin/data");
 }
 
 export default function AdminIndex() {

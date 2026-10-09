@@ -11,7 +11,7 @@ import com.carix.wagestat.WageDefinition;
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.YearMonth;
-import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.time.temporal.ChronoUnit;
@@ -32,10 +32,9 @@ import org.springframework.web.server.ResponseStatusException;
 @Service
 public class DataExploreService {
 
-  static final ZoneId SEOUL = ZoneId.of("Asia/Seoul");
   static final DateTimeFormatter YM = DateTimeFormatter.ofPattern("yyyyMM");
-  static final List<String> FAMILIES = List.of("DEVELOPER", "DATA", "AI", "OTHER");
-  private static final int MONTHLY_DEFAULT = 13;
+  static final List<String> FAMILIES = List.of("DEVELOPER", "DATA", "AI");
+  private static final int MONTHLY_DEFAULT = 18;
   private static final int MONTHLY_MAX = 36;
   private static final java.util.Set<String> SAMPLE_SOURCES =
       java.util.Set.of("JOBKOREA", "WANTED");
@@ -50,7 +49,7 @@ public class DataExploreService {
       ExploreQueries queries,
       JobPostingRepository jobPostingRepository,
       MarketAggregateService marketAggregateService) {
-    this(queries, jobPostingRepository, marketAggregateService, Clock.system(SEOUL));
+    this(queries, jobPostingRepository, marketAggregateService, Clock.systemUTC());
   }
 
   DataExploreService(
@@ -65,7 +64,8 @@ public class DataExploreService {
   }
 
   static YearMonth currentMonth(Clock clock) {
-    return YearMonth.from(clock.instant().atZone(SEOUL));
+    // 수집기가 관측월을 서버 시계(UTC)로 매기므로 같은 기준을 쓴다.
+    return YearMonth.now(clock.withZone(ZoneOffset.UTC));
   }
 
   @Transactional(readOnly = true)
@@ -83,6 +83,7 @@ public class DataExploreService {
     Map<String, Map<String, Integer>> crawled = queries.crawledCounts(f, t);
     List<JobPosting> all = jobPostingRepository.findAll();
 
+    String currentKey = YM.format(currentMonth(clock));
     List<MonthlyOverview.Month> months = new ArrayList<>();
     for (YearMonth m = range[0]; !m.isAfter(range[1]); m = m.plusMonths(1)) {
       String key = YM.format(m);
@@ -105,7 +106,8 @@ public class DataExploreService {
               byFamily,
               wantedSampled.getOrDefault(key, 0),
               wantedCapped.size(),
-              crawledMonth.getOrDefault("WANTED", 0)));
+              crawledMonth.getOrDefault("WANTED", 0),
+              key.equals(currentKey)));
     }
     return new MonthlyOverview(f, t, months);
   }

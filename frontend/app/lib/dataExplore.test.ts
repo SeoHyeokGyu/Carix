@@ -1,16 +1,27 @@
 import { describe, expect, it } from "vitest";
 import {
   crawlJobDataHref,
+  defaultPostingMonth,
+  fromMonthInput,
+  toMonthInput,
   formatCollectedDate,
   formatManwon,
   formatSalaryCell,
   formatSalaryRange,
+  isSharpCpiChange,
   isThinFamily,
   isThinSample,
   parseTab,
 } from "./dataExplore";
 
 describe("dataExplore", () => {
+  it("CPI 전월 대비 5% 넘는 변화만 급변으로 본다", () => {
+    expect(isSharpCpiChange(101.0, 87.87)).toBe(true);
+    expect(isSharpCpiChange(100, 104.9)).toBe(false);
+    expect(isSharpCpiChange(undefined, 90)).toBe(false);
+    expect(isSharpCpiChange(90, undefined)).toBe(false);
+  });
+
   it("unknown tab falls back to monthly", () => {
     expect(parseTab(null)).toBe("monthly");
     expect(parseTab("nope")).toBe("monthly");
@@ -147,5 +158,29 @@ describe("crawlJobDataHref", () => {
 describe("formatCollectedDate", () => {
   it("서울 날짜로 보여 준다", () => {
     expect(formatCollectedDate("2026-09-30T16:00:00Z")).toBe("2026-10-01");
+  });
+});
+
+describe("월 입력 변환", () => {
+  it("yyyyMM 과 yyyy-MM 을 서로 바꾼다", () => {
+    expect(toMonthInput("202610")).toBe("2026-10");
+    expect(toMonthInput(undefined)).toBe("");
+    expect(toMonthInput("2026")).toBe("");
+    expect(fromMonthInput("2026-10")).toBe("202610");
+    expect(fromMonthInput("")).toBeUndefined();
+  });
+});
+
+describe("defaultPostingMonth", () => {
+  it("UTC 기준 지난달 yyyyMM", () => {
+    expect(defaultPostingMonth(new Date("2026-10-31T16:00:00Z"))).toBe(
+      "202609",
+    );
+    expect(defaultPostingMonth(new Date("2026-11-01T00:30:00+09:00"))).toBe(
+      "202609",
+    );
+    expect(defaultPostingMonth(new Date("2026-01-15T00:00:00Z"))).toBe(
+      "202512",
+    );
   });
 });

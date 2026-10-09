@@ -42,8 +42,7 @@ DB 스키마는 [ERD](erd.md), REST 계약은 [API 규격](api-specification.md)
 | S-15 | `/dashboard/simulator` | 12개월 시뮬레이터 | SPA | 세션 + 온보딩 완료 |
 | S-16 | `/admin/collector` | 관리자 파이프라인 콘솔 (수집·집계 제어/모니터링) | SPA | 관리자 키 (`X-Admin-Key`) |
 | S-17 | `/dashboard/guide` | 지표 가이드 및 도움말 (지표 3종·결정 신호·FAQ) | SPA | 세션 + 온보딩 완료 |
-| S-19 | `/admin/data-health` | 관리자 데이터 상태 (세 질문 답변 가능 여부·점검 판정). `/admin` 진입 시 이 화면으로 | SPA | 관리자 키 (`X-Admin-Key`) |
-| S-20 | `/admin/data` | 관리자 수집 데이터 (월별 현황·공고·CPI·임금통계 열람) | SPA | 관리자 키 (`X-Admin-Key`) |
+| S-20 | `/admin/data` | 관리자 수집 데이터 (맨 위 데이터 상태 점검 줄, 월별 현황·공고·CPI·임금통계 열람). `/admin` 진입 시 이 화면으로 | SPA | 관리자 키 (`X-Admin-Key`) |
 
 렌더링 열은 MVP 현행 구성이다 — `/` 만 빌드 시 사전 렌더링하고 나머지는 SPA 셸에서
 클라이언트가 렌더링한다(`ssr: false`). 화면별 Node SSR·SSR shell 적용은 MVP 이후로
@@ -259,16 +258,16 @@ DB 스키마는 [ERD](erd.md), REST 계약은 [API 규격](api-specification.md)
 **US-M2. 데이터 상태 점검**
 > 운영 관리자로서, 매달 운영 뒤 사용자 세 질문(구매력·시장가치·결정 신호)에 온전히 답하는지와 고칠 곳을 DB 를 조회하지 않고 알고 싶다.
 
-- Given 관리자 권한 / When S-19 진입 / Then 「세 질문에 온전히 답하는 사용자 X/N」과 질문별 점검 판정(`OK`·`WARN`·`ERROR`·`UNKNOWN`)·영향 사용자 수·조치를 본다. 판정할 데이터가 없으면 정상이 아니라 판정 불가다.
-- Given S-19 / When 점검 그룹 목록을 본다 / Then 「원티드(도입 중)」 그룹이 지난달 표본·표본 공백·집계 갱신을 원티드 기준으로 따로 보인다. 이 그룹은 요약의 판정 건수와 「세 질문에 답하는 사용자」 계산에서 빠지고, 시장가치 표본 점검은 잡코리아만 센다.
-- Given 점검 줄 / When 「원본 보기」 / Then S-20 의 해당 탭·기간으로 근거 원본을 연다.
+- Given 관리자 권한 / When S-20 진입 / Then 맨 위 점검 줄이 「답하는 사용자 X/N」, 기준월, 확인 시각(서울)과 점검 5개(재집계 누락·규칙 버전·스냅샷 최신성·CPI 최신월·정기 수집 최신성)의 판정(`OK`·`WARN`·`ERROR`·`UNKNOWN`)을 보인다. 판정할 데이터가 없으면 정상이 아니라 판정 불가(회색)다.
+- Given 점검 줄 / When 전부 정상이다 / Then 한 줄로 접힌다. 문제(`WARN`·`ERROR`·`UNKNOWN`)가 있으면 그 점검만 펼쳐 메시지·영향 사용자 수와 「근거」(같은 화면의 해당 탭·기간)·「조치」(S-16) 링크를 보이고 나머지는 「외 N개 정상」으로 줄인다.
+- Given 점검 줄 / When 점검을 불러오지 못한다 / Then 실패 문구와 「다시 점검」을 보이고 아래 탭은 그대로 쓴다. 관리자 키가 거부되면(403) 키 입력창을 열고, 키를 저장하면 다시 점검한다. 자동 새로고침은 없다.
 
 **US-M3. 수집 데이터 열람**
 > 운영 관리자로서, 판정의 근거와 시장 흐름을 원본 데이터로 확인하고 싶다.
 
-- Given 관리자 권한 / When S-20 월별 현황 / Then 월별 잡코리아·원티드 표본, 상한 적용 표본, 정기 수집 건수와 직무별 표본(잡코리아·원티드 중 고른 표본 원천)을 보고, 표본 200 미만·직무 표본 10 미만 칸이 강조된다.
-- Given S-20 공고 / When 월·원천·표본 여부·직무·회사·스킬로 거르고 정렬(최근 수집순 기본, 원천·번호순)을 고른다 / Then 공고 목록과 원천 링크(잡코리아·사람인·원티드)를 본다. 정렬은 URL 쿼리(`sort`)로 유지된다. 제시 연봉은 공개된 금액만 보이고 비공개 검색 구간은 「비공개 (…)」, 급여를 못 읽은 공고는 「판정 전」으로 구분되며 공개 여부로 거를 수 있다. 공고 상세에는 수집 날짜, 확인 경로(수집 경로 목록)와 원천 직군 태그가 보인다.
-- Given S-20 CPI·임금통계 / When 탭 진입 / Then CPI 월 × 품목 결측 칸, 임금통계 직무 × 경력 칸별 중위값·출처와 빈 칸이 강조된다. 엔진이 실제로 쓰는 기준선이 최신 연도 값과 다르면(이전 연도 KOSIS 등) 그 값이 함께 강조된다.
+- Given 관리자 권한 / When S-20 월별 현황 / Then 원천별 2단 머리글 아래 월별 잡코리아·원티드 표본, 상한 적용 표본, 정기 수집 건수와 직무별 표본(잡코리아·원티드 중 고른 표본 원천)을 보고, 상한 적용 표본 200 미만·직무 표본 10 미만 칸이 강조된다. 수집 중인 당월 행은 「수집 중」으로 표시하고 강조하지 않으며, 범례가 강조 기준을 설명한다. 기본은 최근 18개월이고 시작·끝 월 입력으로 바꾼다(최대 36개월).
+- Given S-20 공고 / When 월·원천·표본 여부·직무·회사·스킬로 거르고 정렬(최근 수집순 기본, 원천·번호순)을 고른다 / Then 공고 목록과 원천 링크(잡코리아·사람인·원티드)를 본다. 정렬은 URL 쿼리(`sort`)로 유지된다. 제시 연봉은 공개된 금액만 보이고 비공개 검색 구간은 「비공개 (…)」, 급여를 못 읽은 공고는 「판정 전」으로 구분되며 공개 여부로 거를 수 있다. 공고 상세에는 수집 날짜, 확인 경로(수집 경로 목록)와 원천 직군 태그가 보인다. 월 입력은 필수이고 기본은 지난달이다. 원천·직무는 표시명으로 보이고 표본 여부 선택은 「표본·정기 모두」가 기본이며 게시일 열 설명을 툴팁으로 단다.
+- Given S-20 CPI·임금통계 / When 탭 진입 / Then CPI 월 × 품목 결측 칸, 임금통계 직무 × 경력 칸별 중위값·출처와 빈 칸이 강조된다. 엔진이 실제로 쓰는 기준선이 최신 연도 값과 다르면(이전 연도 KOSIS 등) 그 값이 함께 강조된다. CPI 열은 분류 이름(A–L)을 함께 보이고, 전월 대비 5% 넘게 변한 칸은 오류가 아니라 중립색 「값 확인」으로 표시한다. 임금통계 탭은 기준선이 연령대 기준이며 직무 구분이 없다는 설명 줄을 단다.
 - 공개 원천의 금액(공고 제시 연봉, 임금통계 중위값)은 보이고 사용자 소득은 보이지 않는다. 열람만 하고 데이터를 바꾸지 않는다.
 
 ---
@@ -508,8 +507,7 @@ OWI         = 동료집단 중앙 개방일수 ÷ 전체시장 중앙 개방일�
 | S-12 입력 관리 | US-R1 | `PUT`·`DELETE /income`·`/user-skills`, `PUT /expenses/{ym}` | `income_history`(`change_reason`), `expense_*`, `user_skill` |
 | S-13 설정/탈퇴 | US-C1, US-C2 | `POST /auth/logout`·`/logout-all`, `DELETE /users` | `session`, 전 개인 테이블 |
 | S-16 파이프라인 콘솔 | US-M1 | `POST /internal/pipeline/*`, `GET /internal/pipeline/jobs`, `/stats` | `raw_ingest`, `job_posting`, `wage_stat_observation`, `market_aggregate` |
-| S-19 데이터 상태 | US-M2 | `GET /internal/pipeline/health`, `GET /meta/versions`(core-api) | `job_posting`, `cpi_observation`, `wage_stat_observation`, `market_aggregate`, `index_snapshot`, `career_profile` |
-| S-20 수집 데이터 | US-M3 | `GET /internal/pipeline/explore/monthly`·`/postings`·`/cpi`·`/wage` | `job_posting`, `job_posting_skill`, `skill`, `cpi_observation`, `wage_stat_observation` |
+| S-20 수집 데이터 | US-M2, US-M3 | `GET /internal/pipeline/health`, `GET /meta/versions`(core-api), `GET /internal/pipeline/explore/monthly`·`/postings`·`/cpi`·`/wage` | `job_posting`, `job_posting_skill`, `skill`, `cpi_observation`, `wage_stat_observation`, `market_aggregate`, `index_snapshot`, `career_profile` |
 
 API 경로는 `/api/v1` 접두사를 생략했다. 상세는
 [API 규격](api-specification.md), 테이블은 [ERD](erd.md)를 따른다.

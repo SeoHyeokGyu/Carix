@@ -5,18 +5,17 @@ import com.carix.jobposting.JobPostingRepository;
 import com.carix.market.MarketAggregateService;
 import com.carix.pipeline.health.DataHealthSnapshot.SampleSeries;
 import com.carix.pipeline.health.DataHealthSnapshot.UserSnapshot;
-import com.carix.pipeline.health.DataHealthSnapshot.WageCell;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.sql.Timestamp;
 import java.time.Instant;
-import java.time.YearMonth;
-import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
@@ -31,7 +30,6 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class JdbcDataHealthReader implements DataHealthReader {
 
-  private static final DateTimeFormatter YM = DateTimeFormatter.ofPattern("yyyyMM");
   private static final ObjectMapper MAPPER = new ObjectMapper();
 
   private final JdbcTemplate jdbc;
@@ -40,23 +38,18 @@ public class JdbcDataHealthReader implements DataHealthReader {
 
   @Override
   @Transactional(readOnly = true)
-  public DataHealthSnapshot read(YearMonth previousMonth) {
+  public DataHealthSnapshot read() {
     List<JobPosting> all = jobPostingRepository.findAll();
     SampleSeries jobKorea = sampleSeries("JOBKOREA", all);
     SampleSeries wanted = sampleSeries("WANTED", all);
 
     return new DataHealthSnapshot(
-        monthCounts(
-            "SELECT base_year_month, COUNT(DISTINCT category) FROM core.cpi_observation GROUP BY base_year_month"),
-        jobKorea.sampledByMonth(),
-        jobKorea.cappedByMonth(),
-        jobKorea.aggregatedByMonth(),
-        familyTotals(YM.format(previousMonth)),
-        wageCells(),
+        strings("SELECT DISTINCT base_year_month FROM core.cpi_observation"),
+        jobKorea,
+        wanted,
         crawlLatest(),
         snapshots(),
-        families(),
-        wanted);
+        strings("SELECT user_id FROM core.career_profile"));
   }
 
   SampleSeries sampleSeries(String source, List<JobPosting> all) {
@@ -92,24 +85,14 @@ public class JdbcDataHealthReader implements DataHealthReader {
     return out;
   }
 
-  private Map<String, Integer> familyTotals(String month) {
-    Map<String, Integer> out = new HashMap<>();
+  private Set<String> strings(String sql) {
+    Set<String> out = new HashSet<>();
     jdbc.query(
-        "SELECT job_family, MAX(posting_count) FROM core.market_aggregate WHERE source = 'JOBKOREA'"
-            + " AND base_year_month = ? AND experience_bracket = 'ALL' AND region = 'ALL'"
-            + " AND employment_type = 'ALL' AND company_size = 'ALL' AND skill_id IS NULL GROUP BY job_family",
+        sql,
         rs -> {
-          out.put(rs.getString(1), rs.getInt(2));
-        },
-        month);
+          out.add(rs.getString(1));
+        });
     return out;
-  }
-
-  private List<WageCell> wageCells() {
-    return jdbc.query(
-        "SELECT DISTINCT base_period, job_family, experience_bracket, source FROM core.wage_stat_observation",
-        (rs, i) ->
-            new WageCell(rs.getString(1), rs.getString(2), rs.getString(3), rs.getString(4)));
   }
 
   private Map<String, Instant> crawlLatest() {
@@ -144,16 +127,6 @@ public class JdbcDataHealthReader implements DataHealthReader {
                   rs.getString(5),
                   rs.getString(6),
                   MAPPER));
-        });
-    return out;
-  }
-
-  private Map<String, String> families() {
-    Map<String, String> out = new HashMap<>();
-    jdbc.query(
-        "SELECT user_id, job_family FROM core.career_profile",
-        rs -> {
-          out.put(rs.getString(1), rs.getString(2));
         });
     return out;
   }

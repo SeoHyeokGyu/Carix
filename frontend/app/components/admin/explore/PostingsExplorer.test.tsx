@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 import { PostingsExplorer } from "./PostingsExplorer";
@@ -98,6 +98,45 @@ describe("PostingsExplorer", () => {
     expect(
       screen.getByText(/확인 경로 원티드 목록 · 원티드 표본/),
     ).toBeInTheDocument();
+  });
+
+  it("원천·직무를 표시명으로 보이고 게시일 머리글에 툴팁을 단다", () => {
+    render(
+      <PostingsExplorer
+        data={{
+          total: 1,
+          page: 0,
+          size: 20,
+          items: [{ ...item, source: "WANTED" }],
+        }}
+        onPage={() => {}}
+      />,
+    );
+    expect(screen.getByRole("cell", { name: "원티드" })).toBeInTheDocument();
+    expect(screen.getByRole("cell", { name: "개발" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("columnheader", { name: "게시일" }),
+    ).toHaveAttribute("title", "원천이 밝힌 게시일 — 관측월과 다를 수 있음");
+  });
+
+  it("직무가 없으면 직무 칸에 -를 보인다", () => {
+    render(
+      <PostingsExplorer
+        data={{
+          total: 1,
+          page: 0,
+          size: 20,
+          items: [{ ...item, jobFamily: null }],
+        }}
+        onPage={() => {}}
+      />,
+    );
+    const headers = screen.getAllByRole("columnheader");
+    const col = headers.indexOf(
+      screen.getByRole("columnheader", { name: "직무" }),
+    );
+    const row = screen.getAllByRole("row")[1];
+    expect(within(row).getAllByRole("cell")[col]).toHaveTextContent("-");
   });
 
   it.each([

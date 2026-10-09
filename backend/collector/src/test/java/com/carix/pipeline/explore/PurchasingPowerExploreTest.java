@@ -5,9 +5,14 @@ import static org.assertj.core.api.Assertions.tuple;
 
 import com.carix.cpi.CpiObservation;
 import com.carix.cpi.CpiObservationRepository;
+import com.carix.jobposting.JobPostingRepository;
+import com.carix.market.MarketAggregateService;
 import com.carix.pipeline.dto.explore.CpiTable;
 import com.carix.pipeline.dto.explore.WageTable;
 import java.math.BigDecimal;
+import java.time.Clock;
+import java.time.Instant;
+import java.time.ZoneOffset;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -22,6 +27,9 @@ class PurchasingPowerExploreTest {
   @Autowired private CpiObservationRepository cpiRepository;
   @Autowired private JdbcTemplate jdbc;
   @Autowired private DataExploreService service;
+  @Autowired private ExploreQueries queries;
+  @Autowired private JobPostingRepository jobPostingRepository;
+  @Autowired private MarketAggregateService aggregate;
 
   private void cpi(String month, String code, String value) {
     cpiRepository.saveAndFlush(
@@ -30,6 +38,20 @@ class PurchasingPowerExploreTest {
             .category(code)
             .cpiValue(new BigDecimal(value))
             .build());
+  }
+
+  @Test
+  @DisplayName("CPI 기본 범위의 끝은 UTC 기준 이번 달")
+  void cpi_defaultRangeEndsAtUtcMonth() {
+    cpi("202610", "A", "111.00");
+    cpi("202611", "A", "112.00");
+    Clock clock = Clock.fixed(Instant.parse("2026-10-31T16:00:00Z"), ZoneOffset.UTC); // 서울 11월 1일
+    DataExploreService fixed =
+        new DataExploreService(queries, jobPostingRepository, aggregate, clock);
+
+    CpiTable t = fixed.cpi(null, null);
+
+    assertThat(t.months()).extracting(CpiTable.Month::month).containsExactly("202610");
   }
 
   @Test

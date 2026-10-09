@@ -5,24 +5,18 @@ import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Map;
 
-/** 관리자 데이터 상태 점검 결과. 설계: docs/superpowers/specs/2026-10-05-admin-data-health-design.md §4. */
+/** 관리자 데이터 상태 점검 결과. 설계: docs/superpowers/specs/2026-10-08-admin-data-revamp-design.md §2. */
 public record DataHealthReport(
     OffsetDateTime evaluatedAt,
     String referenceMonth,
     String previousMonth,
     String engineRuleVersion,
     Summary summary,
-    List<Group> groups) {
+    List<Check> checks) {
 
-  public record Summary(
-      int users,
-      int fullyAnswered,
-      List<AnswerGap> gaps,
-      Map<HealthVerdict, Integer> verdictCounts) {}
+  public record Summary(int users, int fullyAnswered, List<AnswerGap> gaps) {}
 
   public record AnswerGap(String answer, String reason, int users) {}
-
-  public record Group(String id, String title, String question, List<Check> checks) {}
 
   public record Check(
       String id,

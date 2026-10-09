@@ -269,25 +269,18 @@ export interface HealthCheck {
   evidence: Record<string, unknown>;
 }
 
-export interface HealthGroup {
-  id: "PPI" | "MVI" | "DECISION" | "SUPPORT" | string;
-  title: string;
-  question: string;
-  checks: HealthCheck[];
-}
-
 export interface DataHealthReport {
   evaluatedAt: string;
   referenceMonth: string;
   previousMonth: string;
   engineRuleVersion: string | null;
+  /** 데이터를 읽지 못했으면 null — 사용자 수를 0 으로 지어내지 않는다. */
   summary: {
     users: number;
     fullyAnswered: number;
     gaps: { answer: string; reason: string; users: number }[];
-    verdictCounts: Record<HealthVerdict, number>;
-  };
-  groups: HealthGroup[];
+  } | null;
+  checks: HealthCheck[];
 }
 
 export function fetchDataHealth(): Promise<DataHealthReport> {
@@ -307,6 +300,7 @@ export interface MonthlyOverview {
     wantedSampled: number;
     wantedSampledCapped: number;
     wantedCrawled: number;
+    current: boolean;
   }[];
 }
 

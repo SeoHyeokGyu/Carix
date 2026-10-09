@@ -5,16 +5,14 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.carix.pipeline.dto.DataHealthReport;
 import com.carix.pipeline.health.DataHealthSnapshot.UserSnapshot;
 import java.util.List;
-import java.util.Map;
+import java.util.Set;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 class SummaryCalculatorTest {
 
-  private static DataHealthSnapshot with(
-      List<UserSnapshot> snapshots, Map<String, String> families) {
-    return new DataHealthSnapshot(
-        null, null, null, null, null, null, null, snapshots, families, null);
+  private static DataHealthSnapshot with(List<UserSnapshot> snapshots, Set<String> families) {
+    return new DataHealthSnapshot(null, null, null, null, snapshots, families);
   }
 
   private static UserSnapshot snap(
@@ -31,9 +29,9 @@ class SummaryCalculatorTest {
                 snap("u1", "INSUFFICIENT_HISTORY", "OK", "STAY", "연봉이 시장 수준에 근접"),
                 snap("u2", "OK", "INSUFFICIENT_SAMPLE", "STAY", "시장가치 미반영"),
                 snap("u3", "OK", "OK", "STAY", "시장가치 불확실")),
-            Map.of("u1", "DEVELOPER", "u2", "DEVELOPER", "u3", "DATA"));
+            Set.of("u1", "u2", "u3"));
 
-    DataHealthReport.Summary s = SummaryCalculator.summarize(data, List.of());
+    DataHealthReport.Summary s = SummaryCalculator.summarize(data);
 
     assertThat(s.users()).isEqualTo(3);
     assertThat(s.fullyAnswered()).isEqualTo(1);
@@ -47,9 +45,9 @@ class SummaryCalculatorTest {
   @Test
   @DisplayName("스냅샷이 없는 사용자는 NO_SNAPSHOT 빈 답이다")
   void summary_countsUsersWithoutSnapshot() {
-    var data = with(List.of(), Map.of("u1", "DEVELOPER"));
+    var data = with(List.of(), Set.of("u1"));
 
-    DataHealthReport.Summary s = SummaryCalculator.summarize(data, List.of());
+    DataHealthReport.Summary s = SummaryCalculator.summarize(data);
 
     assertThat(s.users()).isEqualTo(1);
     assertThat(s.fullyAnswered()).isZero();
@@ -59,26 +57,11 @@ class SummaryCalculatorTest {
   @Test
   @DisplayName("지수 상태가 없는 옛 rationale 은 온전으로 세지 않는다")
   void summary_missingStatusesAreNotComplete() {
-    var data = with(List.of(snap("u1", null, null, "STAY")), Map.of("u1", "DEVELOPER"));
+    var data = with(List.of(snap("u1", null, null, "STAY")), Set.of("u1"));
 
-    DataHealthReport.Summary s = SummaryCalculator.summarize(data, List.of());
+    DataHealthReport.Summary s = SummaryCalculator.summarize(data);
 
     assertThat(s.fullyAnswered()).isZero();
     assertThat(s.gaps()).contains(new DataHealthReport.AnswerGap("PPI", "UNKNOWN_RATIONALE", 1));
-  }
-
-  @Test
-  @DisplayName("판정 건수를 그룹 전체에서 센다")
-  void summary_countsVerdicts() {
-    var check =
-        new DataHealthReport.Check("X", "x", HealthVerdict.WARN, "m", null, null, null, Map.of());
-    var group = new DataHealthReport.Group("PPI", "구매력 지수", "내 실질 구매력은?", List.of(check, check));
-
-    DataHealthReport.Summary s =
-        SummaryCalculator.summarize(with(List.of(), Map.of()), List.of(group));
-
-    assertThat(s.verdictCounts())
-        .containsEntry(HealthVerdict.WARN, 2)
-        .containsEntry(HealthVerdict.OK, 0);
   }
 }
