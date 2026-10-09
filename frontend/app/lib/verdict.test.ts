@@ -21,6 +21,8 @@ function point(
     dataVersion: "",
     ruleVersion: "",
     rationale: null,
+    recorded: null,
+    changed: false,
   };
 }
 

@@ -1,5 +1,6 @@
-import { useState, useEffect, useCallback } from "react";
-import { Link, useNavigate } from "react-router";
+import { useState, useEffect, useCallback, type ReactNode } from "react";
+import { Link, useNavigate, useSearchParams } from "react-router";
+import { SnapshotDetailPanel } from "../../components/dashboard/SnapshotDetailPanel";
 import { SignalBadge } from "../../components/dashboard/SignalBadge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { LoadingState } from "@/components/ui/loading-state";
@@ -8,7 +9,6 @@ import {
   type SnapshotHistoryResponse,
   type SnapshotPoint,
 } from "../../lib/dashboardMarketApi";
-import { isUserActionable } from "../../lib/insufficientDataCause";
 import { UnauthorizedError } from "../../lib/coreApi";
 import { LOGIN_PATH } from "../../lib/routeGuards";
 
@@ -34,22 +34,40 @@ function formatYearMonth(ym: string): string {
 }
 
 /** 지수 셀. 값이 없는 달은 0 이나 100 으로 채우지 않고 「데이터 없음」이다. */
-function IndexCell({ value }: { value: number | null | undefined }) {
+function IndexCell({
+  value,
+  isRetroactive = false,
+  badge,
+}: {
+  value: number | null | undefined;
+  /** 당시 판정이 없어 현재 규칙으로 소급 계산한 값이면 흐리게 보인다. */
+  isRetroactive?: boolean;
+  badge?: ReactNode;
+}) {
   return (
     <td className="px-4 py-3.5">
       {value != null ? (
-        <span className="font-medium text-carix-text">{value.toFixed(1)}</span>
+        <span
+          className={`font-medium ${
+            isRetroactive ? "text-carix-text/50" : "text-carix-text"
+          }`}
+        >
+          {value.toFixed(1)}
+        </span>
       ) : (
         <span className="inline-block rounded bg-carix-border/30 px-2 py-0.5 text-[11px] text-carix-text/60">
           데이터 없음
         </span>
       )}
+      {badge}
     </td>
   );
 }
 
 export default function DashboardHistory() {
   const navigate = useNavigate();
+  const [params, setParams] = useSearchParams();
+  const showAll = params.get("show") === "all";
   const [historyData, setHistoryData] =
     useState<SnapshotHistoryResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -82,6 +100,17 @@ export default function DashboardHistory() {
 
   const snapshots = historyData?.snapshots ?? [];
   const isSingleOrEmpty = snapshots.length <= 1;
+  const recordedCount = snapshots.filter((s) => s.recorded).length;
+  const noneRecorded = recordedCount === 0;
+  const visible =
+    showAll || noneRecorded ? snapshots : snapshots.filter((s) => s.recorded);
+
+  const toggleShowAll = (checked: boolean) => {
+    const next = new URLSearchParams(params);
+    if (checked) next.set("show", "all");
+    else next.delete("show");
+    setParams(next, { replace: true });
+  };
 
   return (
     <div className="mx-auto w-full max-w-4xl px-4 py-8 sm:px-6">
@@ -92,8 +121,8 @@ export default function DashboardHistory() {
             지수 기록
           </h1>
           <p className="mt-1 text-sm text-carix-text/70">
-            과거 월별 구매력 지수, 시장가치 지수 및 커리어 의사결정 신호
-            기록입니다.
+            그 달에 Carix 가 보여 준 판정의 기록입니다. 지금 규칙으로 다시
+            계산한 값과 함께 봅니다.
           </p>
         </div>
         <button
@@ -157,6 +186,24 @@ export default function DashboardHistory() {
             </div>
           )}
 
+          <div className="space-y-1">
+            <label className="inline-flex items-center gap-2 text-xs text-carix-text">
+              <input
+                type="checkbox"
+                checked={showAll || noneRecorded}
+                disabled={noneRecorded}
+                onChange={(e) => toggleShowAll(e.target.checked)}
+              />
+              소급 계산한 달도 보기
+            </label>
+            {noneRecorded && (
+              <p className="text-xs text-carix-text/60">
+                아직 그 달에 기록된 판정이 없어 지금 규칙으로 계산한 값을 보여
+                줍니다.
+              </p>
+            )}
+          </div>
+
           {/* 스냅샷 이력 테이블 */}
           <div className="overflow-hidden rounded-xl border border-carix-border bg-carix-surface shadow-xs">
             <div className="overflow-x-auto">
@@ -175,7 +222,9 @@ export default function DashboardHistory() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-carix-border">
-                  {snapshots.map((item) => {
+                  {visible.map((item) => {
+                    const shown = item.recorded ?? item;
+                    const isRetroactive = item.recorded === null;
                     const isSelected =
                       selectedSnapshot?.baseYearMonth === item.baseYearMonth;
 
@@ -194,22 +243,43 @@ export default function DashboardHistory() {
                           {formatYearMonth(item.baseYearMonth)}
                         </td>
 
-                        <IndexCell value={item.purchasingPowerIndex} />
-                        <IndexCell value={item.marketValueIndex} />
-                        <IndexCell value={item.openingWindowIndex} />
+                        <IndexCell
+                          value={shown.purchasingPowerIndex}
+                          isRetroactive={isRetroactive}
+                          badge={
+                            isRetroactive && (
+                              <span className="ml-1.5 rounded bg-carix-border/30 px-1.5 py-0.5 text-[11px] text-carix-text/60">
+                                소급 계산
+                              </span>
+                            )
+                          }
+                        />
+                        <IndexCell
+                          value={shown.marketValueIndex}
+                          isRetroactive={isRetroactive}
+                        />
+                        <IndexCell
+                          value={shown.openingWindowIndex}
+                          isRetroactive={isRetroactive}
+                        />
 
                         {/* 결정 신호 */}
                         <td className="px-4 py-3.5">
                           <SignalBadge
-                            code={item.decisionSignal}
-                            serverLabel={item.label}
+                            code={shown.decisionSignal}
+                            serverLabel={shown.label}
                             className="px-2.5 py-1"
                           />
+                          {item.changed && (
+                            <span className="ml-1 rounded bg-carix-warning/10 px-1.5 py-0.5 text-[11px]">
+                              현재 규칙: {item.label}
+                            </span>
+                          )}
                         </td>
 
                         {/* 데이터 기준일 */}
                         <td className="hidden px-4 py-3.5 text-xs text-carix-text/60 sm:table-cell">
-                          {item.rationale?.baseDate ?? "-"}
+                          {shown.rationale?.baseDate ?? "-"}
                         </td>
 
                         {/* 액션 */}
@@ -225,145 +295,11 @@ export default function DashboardHistory() {
               </table>
             </div>
 
-            {/* 선택된 행 상세 아코디언 (US-D4 근거, 데이터 버전, 사유 표시) */}
             {selectedSnapshot && (
-              <div
-                data-testid="snapshot-detail-panel"
-                className="border-t border-carix-border bg-carix-bg/30 p-6"
-              >
-                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-carix-border/80 pb-3">
-                  <div className="flex items-center gap-2">
-                    <h3 className="font-bold text-carix-text">
-                      {formatYearMonth(selectedSnapshot.baseYearMonth)} 스냅샷
-                      산출 근거
-                    </h3>
-                    <SignalBadge
-                      code={selectedSnapshot.decisionSignal}
-                      serverLabel={selectedSnapshot.label}
-                    />
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setSelectedSnapshot(null)}
-                    className="text-xs text-carix-text/60 hover:text-carix-text"
-                  >
-                    닫기 ✕
-                  </button>
-                </div>
-
-                <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 text-xs">
-                  {/* 적용된 판정 규칙 */}
-                  <div className="rounded-xl border border-carix-border bg-carix-surface p-4.5 shadow-xs">
-                    <span className="font-semibold text-carix-text">
-                      적용된 규칙 (Rules Applied)
-                    </span>
-                    <div className="mt-2 space-y-1">
-                      {selectedSnapshot.rationale?.rulesApplied &&
-                      selectedSnapshot.rationale.rulesApplied.length > 0 ? (
-                        selectedSnapshot.rationale.rulesApplied.map(
-                          (rule, idx) => (
-                            <div
-                              key={idx}
-                              className="rounded bg-carix-bg p-1.5 text-carix-text/80 font-mono text-[11px]"
-                            >
-                              • {rule}
-                            </div>
-                          ),
-                        )
-                      ) : (
-                        <p className="text-carix-text/50">
-                          기록된 적용 규칙 없음
-                        </p>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* 제외된 스킬 및 사유 */}
-                  <div className="rounded-xl border border-carix-border bg-carix-surface p-4.5 shadow-xs">
-                    <span className="font-semibold text-carix-text">
-                      제외된 스킬 (Excluded Skills)
-                    </span>
-                    <div className="mt-2 space-y-1">
-                      {selectedSnapshot.rationale?.excluded &&
-                      selectedSnapshot.rationale.excluded.length > 0 ? (
-                        selectedSnapshot.rationale.excluded.map(
-                          (skill, idx) => (
-                            <div
-                              key={idx}
-                              className="rounded bg-carix-bg p-1.5 text-carix-warning font-mono text-[11px]"
-                            >
-                              ✕ {skill}
-                            </div>
-                          ),
-                        )
-                      ) : (
-                        <p className="text-carix-text/50">
-                          제외된 스킬 없음 (전체 반영됨)
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                {/* 데이터 부족 시 입력 화면 유도 (US-D4). 단 수집 공백이 원인이면 유도하지 않는다 —
-                    사용자가 무엇을 입력해도 그 달은 달라지지 않는다. */}
-                {selectedSnapshot.decisionSignal === "INSUFFICIENT_DATA" &&
-                  !isUserActionable(
-                    selectedSnapshot.rationale?.rulesApplied,
-                  ) && (
-                    <div className="mt-4 rounded-lg border border-carix-warning/30 bg-carix-warning/5 p-4 text-xs">
-                      <div className="font-bold text-carix-warning">
-                        ⚠️ 이 달은 시장 집계가 수집되지 않아 지수를 낼 수
-                        없습니다.
-                      </div>
-                      <p className="mt-1 text-carix-text/70">
-                        보유 스킬이나 소득 정보와 무관한 구간입니다. 해당 월
-                        집계가 채워지면 다시 계산됩니다.
-                      </p>
-                    </div>
-                  )}
-
-                {selectedSnapshot.decisionSignal === "INSUFFICIENT_DATA" &&
-                  isUserActionable(
-                    selectedSnapshot.rationale?.rulesApplied,
-                  ) && (
-                    <div className="mt-4 rounded-lg border border-carix-danger/30 bg-carix-danger/5 p-4 text-xs">
-                      <div className="font-bold text-carix-danger">
-                        ⚠️ 입력 데이터가 부족하여 지수를 정상 판정하지
-                        못했습니다.
-                      </div>
-                      <p className="mt-1 text-carix-text/70">
-                        소득 내역 또는 보유 스킬 정보를 보강하시면 다음
-                        스냅샷에서 정상적인 지표를 확인하실 수 있습니다.
-                      </p>
-                      <div className="mt-3 flex gap-2">
-                        <Link
-                          to="/onboarding/income"
-                          className="rounded border border-carix-danger/40 bg-carix-surface px-3 py-1.5 font-medium text-carix-danger hover:bg-carix-danger/10"
-                        >
-                          소득 정보 입력하기
-                        </Link>
-                        <Link
-                          to="/onboarding/skills"
-                          className="rounded border border-carix-danger/40 bg-carix-surface px-3 py-1.5 font-medium text-carix-danger hover:bg-carix-danger/10"
-                        >
-                          보유 스킬 입력하기
-                        </Link>
-                      </div>
-                    </div>
-                  )}
-
-                {/* 버전 메타데이터 */}
-                <div className="mt-4 flex flex-wrap gap-4 text-[11px] text-carix-text/50 border-t border-carix-border/50 pt-3">
-                  <span>
-                    데이터 버전: {selectedSnapshot.dataVersion || "-"}
-                  </span>
-                  <span>규칙 버전: {selectedSnapshot.ruleVersion || "-"}</span>
-                  <span>
-                    기준일: {selectedSnapshot.rationale?.baseDate || "-"}
-                  </span>
-                </div>
-              </div>
+              <SnapshotDetailPanel
+                point={selectedSnapshot}
+                onClose={() => setSelectedSnapshot(null)}
+              />
             )}
           </div>
 
