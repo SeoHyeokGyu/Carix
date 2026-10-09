@@ -174,7 +174,7 @@ export function SkillDemandSection({ data }: SkillDemandSectionProps) {
       {/* 3. 하단 안내 각주 */}
       <div className="mt-5 text-[11px] text-carix-text/60 space-y-1">
         <p>
-          * 스킬 수요 지수는 최근 3개월 채용공고 언급 빈도율을 직전
+          * 스킬 수요 지수는 최근 3개월 신규 채용공고(유량) 언급 빈도율을 직전
           12개월(4~15개월 전 비중첩)과 비교한 값입니다 (100 = 전년 동등 수요
           유지).
         </p>

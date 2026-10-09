@@ -162,6 +162,19 @@ export function PipelineControlPanel({
               </p>
             </div>
 
+            <div className="rounded-lg border border-carix-info/30 bg-carix-info/5 p-3 text-xs text-carix-text/80 space-y-1">
+              <div className="flex items-center gap-1.5 font-semibold text-carix-info">
+                <span>ℹ️</span>
+                <span>운영 규칙 (크롤링 규모 고정 — b21)</span>
+              </div>
+              <p>
+                수요율은 신규 수집 공고(유량)로 정의되므로, 매월 같은
+                일자·동일한 페이지 수(기본 5페이지)·동일 원천으로 크롤링해야
+                월별 표본 수와 수요율 판정의 일관성을 유지할 수 있습니다 (데이터
+                아키텍처 §1.3).
+              </p>
+            </div>
+
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2">
               <div>
                 <label className="block text-xs font-medium text-carix-text mb-1">
@@ -199,7 +212,7 @@ export function PipelineControlPanel({
                 <>
                   <div>
                     <label className="block text-xs font-medium text-carix-text mb-1">
-                      수집 페이지 수 (Max Pages)
+                      수집 페이지 수 (Max Pages) — 기본 5 (규모 고정)
                     </label>
                     <input
                       type="number"
