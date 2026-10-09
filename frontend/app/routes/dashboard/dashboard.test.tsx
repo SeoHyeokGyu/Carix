@@ -47,7 +47,7 @@ describe("대시보드 라우트 및 레이아웃 (Dashboard)", () => {
       );
       expect(screen.queryByText("S-11")).not.toBeInTheDocument();
       expect(
-        screen.getByRole("heading", { name: "지수 기록" }),
+        screen.getByRole("heading", { name: "지난 판정" }),
       ).toBeInTheDocument();
     });
 
@@ -416,7 +416,7 @@ describe("대시보드 라우트 및 레이아웃 (Dashboard)", () => {
       expect(await screen.findByText(/1\.2\.0/)).toBeInTheDocument();
     });
 
-    // S-11·도움말은 상단 메뉴(지수 기록·도움말)가 갖는다. 화면 안 바로가기는 상단에 없는
+    // 도움말은 상단 메뉴가, 지난 판정(S-11)은 판정 히어로·시장가치 카드의 링크가 갖는다. 화면 안 바로가기는 상단에 없는
     // 온보딩 검토 하나만 남긴다.
     it("시장가치 추세는 판정 히어로가 아니라 시장가치 카드 안에 있다", async () => {
       vi.spyOn(dashboardApi, "fetchSummary").mockResolvedValue({

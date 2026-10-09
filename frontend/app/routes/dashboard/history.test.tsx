@@ -101,7 +101,7 @@ describe("S-11 DashboardHistory 라우트", () => {
 
     expect(screen.queryByText("S-11")).not.toBeInTheDocument();
     expect(
-      screen.getByRole("heading", { name: "지수 기록" }),
+      screen.getByRole("heading", { name: "지난 판정" }),
     ).toBeInTheDocument();
 
     await waitFor(() => {
