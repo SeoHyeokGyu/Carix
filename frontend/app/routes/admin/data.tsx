@@ -61,6 +61,12 @@ export default function DataExplorePage() {
   const isMonthValid = /^\d{6}$/.test(month);
 
   const paramsKey = params.toString();
+  // 월은 서버가 채우기도 하므로 폼 전체가 아니라 월 입력만 다시 그린다.
+  const formKey = (() => {
+    const sp = new URLSearchParams(paramsKey);
+    sp.delete("month");
+    return sp.toString();
+  })();
   // 서버가 정한 월을 URL 에 채우면 effect 가 다시 도는데, 이미 받은 결과이므로 다시 조회하지 않는다.
   const loadedKeyRef = useRef<string | null>(null);
 
@@ -236,7 +242,7 @@ export default function DataExplorePage() {
 
         {tab === "postings" && (
           <form
-            key={paramsKey}
+            key={formKey}
             className="flex flex-wrap gap-2 text-xs"
             onSubmit={(e) => {
               e.preventDefault();
@@ -255,6 +261,7 @@ export default function DataExplorePage() {
             }}
           >
             <input
+              key={month}
               name="month"
               type="month"
               defaultValue={toMonthInput(month)}

@@ -391,6 +391,25 @@ describe("DataExplorePage", () => {
     expect(await screen.findByText("수집 중")).toBeInTheDocument();
   });
 
+  it("서버 월을 URL 에 채워도 응답 중 입력한 필터와 「수집 중」이 그대로다", async () => {
+    let resolve!: (v: Awaited<ReturnType<typeof api.fetchPostings>>) => void;
+    vi.mocked(api.fetchPostings).mockReturnValue(
+      new Promise((r) => {
+        resolve = r;
+      }),
+    );
+    renderAt("/admin/data?tab=postings");
+    const company = await screen.findByLabelText("회사");
+    fireEvent.change(company, { target: { value: "카릭스" } });
+    resolve({ ...postings, month: "202610", current: true });
+    const badge = await screen.findByText("수집 중");
+    await waitFor(() =>
+      expect(screen.getByLabelText("월")).toHaveValue("2026-10"),
+    );
+    expect(badge).toBeInTheDocument();
+    expect(screen.getByLabelText("회사")).toHaveValue("카릭스");
+  });
+
   it("current 가 아니면 「수집 중」이 없다", async () => {
     renderAt("/admin/data?tab=postings&month=202607");
     await screen.findByText("QA 채용");
