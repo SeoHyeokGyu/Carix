@@ -297,7 +297,7 @@ describe("S-07 소비 화면", () => {
     renderScreen();
     const user = userEvent.setup();
 
-    await screen.findByText("소비 관리");
+    await screen.findByRole("heading", { level: 1, name: "소비" });
     await user.click(screen.getByRole("link", { name: "이전" }));
 
     expect(await screen.findByText("소득 화면")).toBeInTheDocument();
@@ -328,7 +328,7 @@ describe("S-07 소비 화면", () => {
     renderScreen();
     const user = userEvent.setup();
 
-    await screen.findByText("소비 관리");
+    await screen.findByRole("heading", { level: 1, name: "소비" });
     await user.click(screen.getByRole("button", { name: "다음" }));
 
     await screen.findByText("스킬 화면");

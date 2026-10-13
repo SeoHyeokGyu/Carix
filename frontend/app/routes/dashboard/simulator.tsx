@@ -1,3 +1,5 @@
+import { PageFrame } from "@/components/layout/PageFrame";
+import { PageHeader } from "@/components/layout/PageHeader";
 import { useEffect, useRef, useState } from "react";
 import { Link, redirect, useFetcher, useLoaderData } from "react-router";
 import { Badge } from "@/components/ui/badge";
@@ -163,16 +165,13 @@ export default function DashboardSimulator() {
   }, [errors]);
 
   return (
-    <section className="mx-auto w-full max-w-3xl px-6 py-10">
-      <h2 className="font-display text-2xl font-bold text-carix-text">
-        12개월 시뮬레이터
-      </h2>
-      <p className="mt-1 text-sm text-carix-text/70">
-        잔류와 이직의 12개월 보상을 비교합니다. 세금·성과급·주식보상·퇴직금은
-        포함하지 않습니다.
-      </p>
+    <PageFrame width="narrow">
+      <PageHeader
+        title="시뮬레이터"
+        description="잔류와 이직의 12개월 보상을 비교합니다. 세금·성과급·주식보상·퇴직금은 포함하지 않습니다."
+      />
 
-      <Card className="mt-6">
+      <Card>
         <CardHeader>
           <CardTitle>시나리오 입력</CardTitle>
           <CardDescription>
@@ -432,6 +431,6 @@ export default function DashboardSimulator() {
           )}
         </CardContent>
       </Card>
-    </section>
+    </PageFrame>
   );
 }

@@ -89,6 +89,16 @@ describe("S-15 시뮬레이터 화면", () => {
     expect(screen.getByText(OK_RESULT.warningNote)).toBeInTheDocument();
   });
 
+  it("제목은 메뉴 이름 「시뮬레이터」 h1 이다", async () => {
+    vi.spyOn(scenarioApi, "getLatestScenario").mockResolvedValue(null as never);
+
+    renderScreen();
+
+    expect(
+      await screen.findByRole("heading", { level: 1, name: "시뮬레이터" }),
+    ).toBeInTheDocument();
+  });
+
   it("204(저장분 없음)면 빈 폼을 보여주고 기본값을 채우지 않는다", async () => {
     vi.spyOn(scenarioApi, "getLatestScenario").mockResolvedValue(null as never);
 

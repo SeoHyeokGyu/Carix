@@ -31,6 +31,19 @@ const UI_RULES = [
   },
 ];
 
+// 화면 틀 — 제목이 헤더 로고 선에서 시작하고 제목 줄 구성이 같도록 화면 파일은 공용 틀만 쓴다.
+const PAGE_RULES = [
+  {
+    selector: "JSXOpeningElement[name.name='h1']",
+    message: "화면 제목은 @/components/layout/PageHeader 로 그린다.",
+  },
+  {
+    selector:
+      "Literal[value=/\\bmx-auto\\b.*\\bmax-w-(3xl|4xl|5xl|7xl|screen-2xl)\\b/]",
+    message: "화면 틀은 @/components/layout/PageFrame 으로 그린다.",
+  },
+];
+
 export default tseslint.config(
   { ignores: ["build", ".react-router", "node_modules"] },
   js.configs.recommended,
@@ -61,6 +74,18 @@ export default tseslint.config(
     files: ["app/**/*.tsx"],
     ignores: ["app/components/ui/**", "app/**/*.test.tsx"],
     rules: { "no-restricted-syntax": UI_RULES },
+  },
+  {
+    // 같은 규칙 이름을 뒤 블록이 덮으므로 UI_RULES 를 함께 펼친다.
+    files: ["app/routes/**/*.tsx"],
+    ignores: [
+      "app/**/*.test.tsx",
+      "app/routes/home.tsx",
+      "app/routes/login/**",
+      "app/routes/register/**",
+      "app/routes/dev/**",
+    ],
+    rules: { "no-restricted-syntax": [...UI_RULES, ...PAGE_RULES] },
   },
   {
     // §5 교체표의 남은 일이다. 소유자가 raw 버튼·팔레트를 걷어 내면 여기서 한 줄씩 지운다.

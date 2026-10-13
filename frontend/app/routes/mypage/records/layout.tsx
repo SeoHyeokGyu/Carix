@@ -1,3 +1,5 @@
+import { PageFrame } from "@/components/layout/PageFrame";
+import { PageHeader } from "@/components/layout/PageHeader";
 import { NavLink, Outlet } from "react-router";
 import type { NavItem } from "../../../components/layout/AppShell";
 
@@ -16,15 +18,11 @@ export const RECORDS_TAB_ITEMS: NavItem[] = [
 
 export default function RecordsLayout() {
   return (
-    <section className="mx-auto w-full max-w-3xl px-6 py-8 sm:py-12">
-      <header className="mb-6">
-        <h1 className="font-display text-2xl font-extrabold tracking-tight text-carix-text">
-          입력 관리
-        </h1>
-        <p className="mt-1 text-sm text-carix-text/70">
-          소득·소비·스킬 이력을 고치면 그 시점 이후 지수가 다시 계산됩니다.
-        </p>
-      </header>
+    <PageFrame width="narrow">
+      <PageHeader
+        title="입력 관리"
+        description="소득·소비·스킬 이력을 고치면 그 시점 이후 지수가 다시 계산됩니다."
+      />
 
       <nav
         aria-label="이력 종류"
@@ -50,6 +48,6 @@ export default function RecordsLayout() {
       </nav>
 
       <Outlet />
-    </section>
+    </PageFrame>
   );
 }

@@ -4,7 +4,8 @@ import { SnapshotDetailPanel } from "../../components/dashboard/SnapshotDetailPa
 import { SignalBadge } from "../../components/dashboard/SignalBadge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { LoadingState } from "@/components/ui/loading-state";
-import { TextLink } from "@/components/ui/text-link";
+import { PageFrame } from "@/components/layout/PageFrame";
+import { PageHeader } from "@/components/layout/PageHeader";
 import {
   fetchSnapshotHistory,
   type SnapshotHistoryResponse,
@@ -118,32 +119,13 @@ export default function DashboardHistory() {
   };
 
   return (
-    <div className="mx-auto w-full max-w-4xl px-4 py-8 sm:px-6">
-      {/* 주 메뉴에 없는 하위 화면이라 상위 화면으로 돌아가는 길을 둔다.
-          직접 들어와도 같은 곳이어야 해서 이전 기록이 아니라 상위 주소다. */}
-      <TextLink to="/dashboard" direction="back" size="sm" className="mb-3">
-        판정
-      </TextLink>
-      {/* 1. 헤더 영역 */}
-      <div className="mb-6 flex flex-wrap items-center justify-between gap-2 border-b border-carix-border pb-4">
-        <div>
-          <h1 className="font-display text-2xl font-bold text-carix-text sm:text-3xl">
-            지난 판정
-          </h1>
-          <p className="mt-1 text-sm text-carix-text/70">
-            그 달에 Carix 가 보여 준 판정의 기록입니다. 지금 규칙으로 다시
-            계산한 값과 함께 봅니다.
-          </p>
-        </div>
-        <button
-          type="button"
-          onClick={() => void loadData()}
-          disabled={isLoading}
-          className="rounded-lg border border-carix-border bg-carix-surface px-3 py-1.5 text-xs text-carix-text hover:bg-carix-bg disabled:opacity-50"
-        >
-          {isLoading ? "새로고침 중..." : "새로고침 ↻"}
-        </button>
-      </div>
+    <PageFrame>
+      <PageHeader
+        back={{ to: "/dashboard", label: "판정" }}
+        title="지난 판정"
+        description="그 달에 Carix 가 보여 준 판정의 기록입니다. 지금 규칙으로 다시 계산한 값과 함께 봅니다."
+        divider
+      />
 
       {/* 2. 에러 알림 */}
       {errorMessage && (
@@ -325,6 +307,6 @@ export default function DashboardHistory() {
           </div>
         </div>
       )}
-    </div>
+    </PageFrame>
   );
 }

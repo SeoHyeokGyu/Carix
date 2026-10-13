@@ -204,7 +204,7 @@ describe("대시보드 라우트 및 레이아웃 (Dashboard)", () => {
         screen.getByText("요청을 처리하지 못했습니다."),
       ).toBeInTheDocument();
       expect(
-        screen.getByRole("heading", { level: 1, name: "내 커리어 판정" }),
+        screen.getByRole("heading", { level: 1, name: "판정" }),
       ).toBeInTheDocument();
       // code·status 는 절대 화면에 노출하지 않는다.
       expect(screen.queryByText(/502/)).not.toBeInTheDocument();
@@ -502,7 +502,7 @@ describe("대시보드 라우트 및 레이아웃 (Dashboard)", () => {
       ).not.toBeInTheDocument();
     });
 
-    it("화면 안 바로가기는 온보딩 검토 하나뿐이다", async () => {
+    it("온보딩 검토 링크는 제목 줄에 있고 별도 바로가기 줄은 없다", async () => {
       vi.spyOn(dashboardApi, "fetchSummary").mockResolvedValue({
         ok: true,
         data: {
@@ -516,12 +516,12 @@ describe("대시보드 라우트 및 레이아웃 (Dashboard)", () => {
 
       renderScreen();
 
-      const shortcuts = await screen.findByRole("navigation", {
-        name: "대시보드 바로가기",
-      });
-      const links = within(shortcuts).getAllByRole("link");
-      expect(links).toHaveLength(1);
-      expect(links[0]).toHaveAttribute("href", "/onboarding/review");
+      expect(
+        await screen.findByRole("link", { name: "온보딩 검토 및 재시작" }),
+      ).toHaveAttribute("href", "/onboarding/review");
+      expect(
+        screen.queryByRole("navigation", { name: "대시보드 바로가기" }),
+      ).toBeNull();
     });
 
     it("조회 중 401 을 받으면 로그인 화면으로 보낸다", async () => {
@@ -722,10 +722,10 @@ describe("대시보드 라우트 및 레이아웃 (Dashboard)", () => {
         expect(level - levels[i]).toBeLessThanOrEqual(1);
       });
       expect(
-        screen.getByRole("heading", {
-          level: 1,
-          name: "2026년 8월 기준 · 내 커리어 판정",
-        }),
+        screen.getByRole("heading", { level: 1, name: "판정" }),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByText("2026년 8월 기준 · 내 커리어 판정"),
       ).toBeInTheDocument();
     });
 

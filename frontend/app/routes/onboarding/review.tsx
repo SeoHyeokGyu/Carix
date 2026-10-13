@@ -1,3 +1,5 @@
+import { PageFrame } from "@/components/layout/PageFrame";
+import { PageHeader } from "@/components/layout/PageHeader";
 import {
   Link,
   redirect,
@@ -301,13 +303,11 @@ export default function Review() {
   const canSubmit = incompleteSteps.length === 0;
 
   return (
-    <section className="mx-auto w-full max-w-3xl px-6 py-8 sm:py-12">
-      <h1 className="font-display text-3xl font-bold text-carix-text sm:text-4xl">
-        검토
-      </h1>
+    <PageFrame width="narrow">
+      <PageHeader title="검토" />
 
       {isCompleted && (
-        <div className="mt-6 rounded-lg border border-carix-info/40 bg-carix-info/10 p-5 text-sm text-carix-text">
+        <div className="rounded-lg border border-carix-info/40 bg-carix-info/10 p-5 text-sm text-carix-text">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <p className="font-semibold text-carix-info">온보딩 완료 상태</p>
@@ -486,6 +486,6 @@ export default function Review() {
           )}
         </div>
       </Form>
-    </section>
+    </PageFrame>
   );
 }

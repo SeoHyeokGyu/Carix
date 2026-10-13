@@ -28,7 +28,7 @@ describe("온보딩 라우트 및 레이아웃 (Onboarding)", () => {
       );
       expect(screen.queryByText("S-08")).not.toBeInTheDocument();
       expect(
-        screen.getByRole("heading", { name: "보유 스킬" }),
+        screen.getByRole("heading", { level: 1, name: "스킬" }),
       ).toBeInTheDocument();
     });
   });

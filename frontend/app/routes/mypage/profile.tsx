@@ -1,3 +1,5 @@
+import { PageFrame } from "@/components/layout/PageFrame";
+import { PageHeader } from "@/components/layout/PageHeader";
 import { useState, useEffect } from "react";
 import { Form, redirect, useActionData, useNavigation } from "react-router";
 import { Button } from "@/components/ui/button";
@@ -132,18 +134,14 @@ export default function MypageProfile() {
   }, []);
 
   return (
-    <section className="mx-auto w-full max-w-3xl px-6 py-10">
-      <div className="flex items-center gap-2">
-        <h1 className="font-display text-2xl font-bold text-carix-text sm:text-3xl">
-          설정
-        </h1>
-      </div>
-      <p className="mt-2 text-sm text-carix-text/70">
-        세션을 관리하고 온보딩 데이터 및 계정을 관리합니다.
-      </p>
+    <PageFrame width="narrow">
+      <PageHeader
+        title="설정"
+        description="세션을 관리하고 온보딩 데이터 및 계정을 관리합니다."
+      />
 
       {currentEmail && (
-        <div className="mt-4 rounded-lg bg-carix-surface border border-carix-border p-3.5 text-xs text-carix-text/80 flex items-center justify-between">
+        <div className="rounded-lg bg-carix-surface border border-carix-border p-3.5 text-xs text-carix-text/80 flex items-center justify-between">
           <span>
             로그인 계정: <strong>{currentEmail}</strong>
           </span>
@@ -316,6 +314,6 @@ export default function MypageProfile() {
           </CardContent>
         </Card>
       </div>
-    </section>
+    </PageFrame>
   );
 }

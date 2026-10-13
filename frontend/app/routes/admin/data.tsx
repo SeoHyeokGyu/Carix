@@ -1,3 +1,5 @@
+import { PageFrame } from "@/components/layout/PageFrame";
+import { PageHeader } from "@/components/layout/PageHeader";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "react-router";
 import { ThemeToggle } from "../../components/ThemeToggle";
@@ -185,11 +187,13 @@ export default function DataExplorePage() {
     <div className="min-h-screen bg-carix-bg text-carix-text">
       <ThemeToggle />
       <AdminHeader active="data" onOpenKeyModal={openKeyModal} />
-      <main
+      <PageFrame
+        as="main"
+        width="admin"
         aria-busy={isLoading}
-        className="mx-auto max-w-screen-2xl space-y-4 px-6 py-8"
+        className="space-y-4"
       >
-        <h1 className="text-lg font-bold">수집 데이터</h1>
+        <PageHeader title="수집 데이터" />
         <DataHealthStrip onAuthError={openKeyModal} refreshKey={healthKey} />
         <div
           role="tablist"
@@ -290,7 +294,7 @@ export default function DataExplorePage() {
             <WageView data={loaded.data} />
           )}
         </section>
-      </main>
+      </PageFrame>
       <AdminKeyModal
         isOpen={isKeyModalOpen}
         onClose={() => setIsKeyModalOpen(false)}

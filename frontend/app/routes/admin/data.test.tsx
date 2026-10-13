@@ -149,6 +149,11 @@ describe("DataExplorePage", () => {
     expect(thin).toHaveAttribute("data-thin", "true");
     expect(screen.getByText("9")).toHaveAttribute("data-thin", "true");
     expect(screen.getByText("10")).toHaveAttribute("data-thin", "false");
+    // 관리자 헤더(max-w-7xl)와 같은 폭이라 제목이 로고 선에서 시작한다.
+    expect(screen.getByRole("main")).toHaveClass("max-w-7xl");
+    expect(
+      screen.getByRole("heading", { level: 1, name: "수집 데이터" }),
+    ).toHaveClass("font-display");
   });
 
   it("URL 의 tab·month·sampled 로 공고 탭을 연다", async () => {

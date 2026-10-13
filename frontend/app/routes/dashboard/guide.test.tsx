@@ -8,7 +8,7 @@ describe("DashboardGuide (지표 가이드 및 도움말)", () => {
 
     // 메인 타이틀
     expect(
-      screen.getByRole("heading", { name: /지표 해석 및 결정 신호 가이드/ }),
+      screen.getByRole("heading", { level: 1, name: "도움말" }),
     ).toBeInTheDocument();
 
     // 3대 지표 카드 확인

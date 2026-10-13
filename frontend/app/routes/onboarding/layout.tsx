@@ -1,3 +1,4 @@
+import { PageFrame } from "@/components/layout/PageFrame";
 import { Outlet, redirect } from "react-router";
 import { AppShell } from "../../components/layout/AppShell";
 import { StepIndicator } from "../../components/onboarding/StepIndicator";
@@ -21,9 +22,9 @@ export default function OnboardingLayout() {
     <AppShell navLabel="온보딩" items={[]}>
       {/* 화면 내에 일관된 온보딩 Step 인디케이터 표시 */}
       <div className="w-full border-b border-carix-border/60 bg-carix-surface/40 backdrop-blur-xs py-4 sm:py-6">
-        <div className="mx-auto w-full max-w-3xl px-6">
+        <PageFrame className="py-0 sm:py-0">
           <StepIndicator />
-        </div>
+        </PageFrame>
       </div>
       <Outlet />
     </AppShell>

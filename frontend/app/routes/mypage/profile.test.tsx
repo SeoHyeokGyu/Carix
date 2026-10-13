@@ -58,7 +58,9 @@ describe("S-13 MypageProfile 라우트", () => {
     renderScreen();
 
     expect(screen.queryByText("S-13")).not.toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "설정" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { level: 1, name: "설정" }),
+    ).toBeInTheDocument();
     expect(screen.getByText("세션 관리")).toBeInTheDocument();
     expect(screen.getByText("온보딩 재설정")).toBeInTheDocument();
     expect(

@@ -1,3 +1,5 @@
+import { PageFrame } from "@/components/layout/PageFrame";
+import { PageHeader } from "@/components/layout/PageHeader";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { SignalBadge } from "../../components/dashboard/SignalBadge";
@@ -31,18 +33,13 @@ const SIGNAL_RULES = [
 
 export default function DashboardGuide() {
   return (
-    <section className="mx-auto w-full max-w-4xl px-6 py-10">
-      <div>
-        <h1 className="font-display text-2xl font-bold text-carix-text">
-          지표 해석 및 결정 신호 가이드
-        </h1>
-        <p className="mt-1 text-sm text-carix-text/70">
-          Carix가 제공하는 지표 3종과 결정 신호의 산출 배경 및 해석 방법을
-          안내합니다.
-        </p>
-      </div>
+    <PageFrame>
+      <PageHeader
+        title="도움말"
+        description="Carix가 제공하는 지표 3종과 결정 신호의 산출 배경 및 해석 방법을 안내합니다."
+      />
 
-      <div className="mt-8 flex flex-col gap-8">
+      <div className="flex flex-col gap-8">
         {/* 1. 지표 3종 상세 안내 */}
         <div>
           <h2 className="text-lg font-semibold text-carix-text mb-4">
@@ -254,6 +251,6 @@ export default function DashboardGuide() {
           </div>
         </div>
       </div>
-    </section>
+    </PageFrame>
   );
 }
