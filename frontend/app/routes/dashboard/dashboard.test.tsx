@@ -913,5 +913,34 @@ describe("대시보드 라우트 및 레이아웃 (Dashboard)", () => {
       ).toBeInTheDocument();
       expect(screen.getByText("대시보드 콘텐츠")).toBeInTheDocument();
     });
+
+    it("지난 판정에서는 주 메뉴 「판정」이 선택된 채 보인다", async () => {
+      setSession({
+        status: "authenticated",
+        userId: "user-1",
+        email: "user@carix.kr",
+        onboardingStep: "COMPLETED",
+      });
+
+      const Stub = createRoutesStub([
+        {
+          path: "/dashboard",
+          loader: dashboardLayoutLoader,
+          HydrateFallback: () => null,
+          Component: DashboardLayout,
+          children: [
+            { path: "history", Component: () => <div>지난 판정</div> },
+          ],
+        },
+      ]);
+
+      render(<Stub initialEntries={["/dashboard/history"]} />);
+
+      const nav = await screen.findByRole("navigation", { name: "대시보드" });
+      expect(within(nav).getByRole("link", { name: "판정" })).toHaveAttribute(
+        "aria-current",
+        "true",
+      );
+    });
   });
 });
