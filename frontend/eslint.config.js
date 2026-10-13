@@ -22,6 +22,13 @@ const UI_RULES = [
     selector: `TemplateElement[value.raw=/${PALETTE}/]`,
     message: PALETTE_MESSAGE,
   },
+  {
+    // 화면 이동 글자 링크를 손으로 다시 쓰는 실수를 잡는다. 변수·템플릿 문자열 우회까지는 막지 않는다.
+    selector:
+      "JSXOpeningElement[name.name='Link'] JSXAttribute[name.name='className'] Literal[value=/(?=.*text-carix-info)(?=.*underline)/]",
+    message:
+      "화면 이동 글자 링크는 @/components/ui/text-link 의 TextLink 를 쓴다.",
+  },
 ];
 
 export default tseslint.config(

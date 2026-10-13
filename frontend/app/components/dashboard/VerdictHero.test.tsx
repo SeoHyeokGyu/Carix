@@ -82,7 +82,7 @@ describe("VerdictHero", () => {
   it("판정이 이어진 기간 옆에 지난 판정으로 가는 링크를 둔다", () => {
     renderHero(<VerdictHero signal={STAY} history={HISTORY} />);
     expect(
-      screen.getByRole("link", { name: "지난 판정 보기 →" }),
+      screen.getByRole("link", { name: "지난 판정 보기" }),
     ).toHaveAttribute("href", "/dashboard/history");
   });
 

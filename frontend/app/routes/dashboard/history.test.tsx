@@ -88,6 +88,23 @@ describe("S-11 DashboardHistory 라우트", () => {
     vi.clearAllMocks();
   });
 
+  it("헤더 위에 판정 화면으로 돌아가는 링크를 둔다", async () => {
+    vi.mocked(dashboardMarketApi.fetchSnapshotHistory).mockResolvedValue({
+      snapshots: [],
+    });
+
+    render(
+      <MemoryRouter>
+        <DashboardHistory />
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByRole("link", { name: "판정" })).toHaveAttribute(
+      "href",
+      "/dashboard",
+    );
+  });
+
   it("스냅샷이 0개일 때 비어있음 안내 상태를 렌더링한다", async () => {
     vi.mocked(dashboardMarketApi.fetchSnapshotHistory).mockResolvedValue({
       snapshots: [],

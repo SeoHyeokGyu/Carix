@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router";
+import { TextLink } from "@/components/ui/text-link";
 import { Button } from "@/components/ui/button";
 import {
   fetchDataHealth,
@@ -41,22 +41,24 @@ function CheckRow({ check }: { check: HealthCheck }) {
         <span className="text-carix-text/70">영향 {check.impactUsers}명</span>
       )}
       {check.drillDown && (
-        <Link
+        <TextLink
           to={check.drillDown}
           aria-label={`${check.title} 근거`}
-          className="text-carix-info underline"
+          direction="none"
+          size="inherit"
         >
           근거
-        </Link>
+        </TextLink>
       )}
       {check.actionLink && check.action && (
-        <Link
+        <TextLink
           to={check.actionLink}
           aria-label={`${check.title} ${check.action}`}
-          className="text-carix-info underline"
+          direction="none"
+          size="inherit"
         >
           {check.action}
-        </Link>
+        </TextLink>
       )}
     </li>
   );

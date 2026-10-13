@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { LoadingState } from "@/components/ui/loading-state";
+import { TextLink } from "@/components/ui/text-link";
 import { ToneBadge, TONE_CLASS } from "@/components/ui/tone-badge";
 import { SignalBadge } from "../../components/dashboard/SignalBadge";
 import { SalaryDistributionChart } from "../../components/dashboard/SalaryDistributionChart";
@@ -148,6 +149,31 @@ function Gallery() {
         <Button data-testid="button-focus-target">포커스 대상</Button>
       </Section>
 
+      <Section id="primitives-text-link" title="TextLink">
+        <div className="flex flex-wrap items-center gap-6">
+          <TextLink to="/dev/primitives">앞으로 xs</TextLink>
+          <TextLink
+            to="/dev/primitives"
+            direction="back"
+            size="sm"
+            data-testid="text-link-focus-target"
+          >
+            상위 sm
+          </TextLink>
+          <span className="text-sm text-carix-text/70">
+            문장 속{" "}
+            <TextLink to="/dev/primitives" direction="none" size="sm">
+              링크
+            </TextLink>
+          </span>
+          <span className="text-[11px] text-carix-text/70">
+            표 셀{" "}
+            <TextLink to="/dev/primitives" direction="none" size="inherit">
+              202609
+            </TextLink>
+          </span>
+        </div>
+      </Section>
       <Section id="primitives-badges" title="Badge / SignalBadge">
         <div className="flex flex-wrap items-center gap-3">
           {BADGE_VARIANTS.map((variant) => (
