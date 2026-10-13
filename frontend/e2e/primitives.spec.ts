@@ -15,6 +15,7 @@ import { expect, test, type Page } from "@playwright/test";
  */
 const SECTIONS = [
   "primitives-buttons",
+  "primitives-text-link",
   "primitives-badges",
   "primitives-cards",
   "primitives-composed",
@@ -67,6 +68,17 @@ test("버튼 focus-visible 링이 베이스라인과 같다", async ({ page }) =
 
   await setTheme(page, "dark");
   await expect(target).toHaveScreenshot("button-focus-dark.png");
+});
+
+test("TextLink 포커스 링이 라이트·다크 모두 그려진다", async ({ page }) => {
+  const target = page.getByTestId("text-link-focus-target");
+  await target.focus();
+
+  // 링은 box-shadow 라 요소 스크린샷 범위 밖에 그려진다 — 이미지가 아니라 계산값으로 지킨다.
+  for (const theme of ["light", "dark"] as const) {
+    await setTheme(page, theme);
+    await expect(target).toHaveCSS("box-shadow", /0px 0px 0px 3px/);
+  }
 });
 
 for (const theme of ["light", "dark"] as const) {

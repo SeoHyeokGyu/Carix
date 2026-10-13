@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Link } from "react-router";
+import { TextLink } from "@/components/ui/text-link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ToneBadge } from "@/components/ui/tone-badge";
 import type { IndexValue } from "../../lib/api/dashboard";
@@ -93,13 +93,13 @@ export function IndexCard({
         {status && <ToneBadge tone={status.tone}>{status.label}</ToneBadge>}
         {footer}
         {detailHref && (
-          <Link
+          <TextLink
             to={detailHref}
             aria-label={`${title} 자세히 보기`}
-            className="self-start text-xs font-medium text-carix-info hover:underline"
+            className="self-start"
           >
-            자세히 보기 →
-          </Link>
+            자세히 보기
+          </TextLink>
         )}
       </CardContent>
     </Card>

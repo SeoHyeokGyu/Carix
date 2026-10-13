@@ -77,7 +77,7 @@ describe("MarketValueTrend", () => {
   it("지난 판정으로 링크한다", () => {
     renderTrend(HISTORY);
 
-    expect(screen.getByRole("link", { name: "지난 판정 →" })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: "지난 판정" })).toHaveAttribute(
       "href",
       "/dashboard/history",
     );

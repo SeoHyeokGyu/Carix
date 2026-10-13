@@ -1,4 +1,4 @@
-import { Link } from "react-router";
+import { TextLink } from "@/components/ui/text-link";
 import type { SnapshotPoint } from "../../lib/dashboardMarketApi";
 import { toSparklineSeries } from "../../lib/verdict";
 import { Sparkline } from "./Sparkline";
@@ -46,12 +46,7 @@ export function MarketValueTrend({
         ) : (
           <span />
         )}
-        <Link
-          to="/dashboard/history"
-          className="font-medium text-carix-info hover:underline"
-        >
-          지난 판정 →
-        </Link>
+        <TextLink to="/dashboard/history">지난 판정</TextLink>
       </div>
     </div>
   );

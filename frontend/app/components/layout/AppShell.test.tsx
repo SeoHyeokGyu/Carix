@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import { CircleHelp } from "lucide-react";
 import { createRoutesStub, MemoryRouter, Route, Routes } from "react-router";
 import { describe, expect, it } from "vitest";
@@ -100,5 +100,65 @@ describe("AppShell", () => {
     expect(
       await screen.findByRole("button", { name: "내 정보" }),
     ).toBeInTheDocument();
+  });
+  describe("하위 화면 선택(match)", () => {
+    const sectionItems = [
+      {
+        to: "/dashboard",
+        label: "판정",
+        end: true,
+        match: ["/dashboard/history"],
+      },
+      { to: "/dashboard/trends", label: "추이 분석" },
+    ];
+
+    function renderAt(path: string) {
+      render(
+        <MemoryRouter initialEntries={[path]}>
+          <Routes>
+            <Route
+              element={<AppShell navLabel="대시보드" items={sectionItems} />}
+            >
+              <Route path="/dashboard" element={<div>판정</div>} />
+              <Route path="/dashboard/history" element={<div>지난 판정</div>} />
+              <Route
+                path="/dashboard/historyx"
+                element={<div>다른 화면</div>}
+              />
+              <Route path="/dashboard/trends" element={<div>추이</div>} />
+            </Route>
+          </Routes>
+        </MemoryRouter>,
+      );
+      const nav = screen.getByRole("navigation", { name: "대시보드" });
+      return {
+        verdict: within(nav).getByRole("link", { name: "판정" }),
+        trends: within(nav).getByRole("link", { name: "추이 분석" }),
+      };
+    }
+
+    it("하위 화면에서 상위 항목을 선택으로 보이고 aria-current=true 를 단다", () => {
+      const { verdict, trends } = renderAt("/dashboard/history");
+
+      expect(verdict).toHaveAttribute("aria-current", "true");
+      expect(verdict).toHaveClass("bg-carix-info/10");
+      expect(verdict).toHaveAttribute("href", "/dashboard");
+      expect(trends).not.toHaveAttribute("aria-current");
+      expect(trends).toHaveClass("text-carix-text/70");
+    });
+
+    it("상위 화면 자체에서는 aria-current=page 다", () => {
+      const { verdict } = renderAt("/dashboard");
+
+      expect(verdict).toHaveAttribute("aria-current", "page");
+      expect(verdict).toHaveClass("bg-carix-info/10");
+    });
+
+    it("경로 접두만 같은 화면은 하위 화면이 아니다", () => {
+      const { verdict } = renderAt("/dashboard/historyx");
+
+      expect(verdict).not.toHaveAttribute("aria-current");
+      expect(verdict).toHaveClass("text-carix-text/70");
+    });
   });
 });

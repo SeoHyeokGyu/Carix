@@ -1,5 +1,5 @@
 import type { LucideIcon } from "lucide-react";
-import { Link, NavLink, Outlet } from "react-router";
+import { Link, NavLink, Outlet, useLocation } from "react-router";
 import { ThemeToggle } from "../ThemeToggle";
 import { AccountMenu } from "./AccountMenu";
 
@@ -8,6 +8,21 @@ export interface NavItem {
   label: string;
   end?: boolean;
   icon?: LucideIcon;
+  /** 이 항목을 선택된 것으로 볼 하위 화면 경로. 정확히 같거나 그 아래면 선택이다. */
+  match?: readonly string[];
+}
+
+const NAV_ACTIVE = "bg-carix-info/10 text-carix-info font-semibold";
+const NAV_IDLE =
+  "text-carix-text/70 hover:bg-carix-border/40 hover:text-carix-text";
+const NAV_ITEM =
+  "whitespace-nowrap rounded-md px-3 py-1.5 text-sm font-medium transition-colors";
+
+function isInSection(item: NavItem, pathname: string): boolean {
+  return (
+    item.match?.some((p) => pathname === p || pathname.startsWith(`${p}/`)) ??
+    false
+  );
 }
 
 interface AppShellProps {
@@ -27,6 +42,7 @@ export function AppShell({
   accountMenu = false,
   children,
 }: AppShellProps) {
+  const { pathname } = useLocation();
   return (
     <div className="min-h-screen bg-carix-bg text-carix-text transition-colors duration-300">
       <header className="sticky top-0 z-40 border-b border-carix-border bg-carix-surface/80 backdrop-blur-md">
@@ -47,23 +63,31 @@ export function AppShell({
                 aria-label={navLabel}
                 className="flex items-center gap-1 overflow-x-auto py-0.5"
               >
-                {items.map((item) => (
-                  <NavLink
-                    key={item.to}
-                    to={item.to}
-                    end={item.end}
-                    className={({ isActive }) =>
-                      [
-                        "whitespace-nowrap rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
-                        isActive
-                          ? "bg-carix-info/10 text-carix-info font-semibold"
-                          : "text-carix-text/70 hover:bg-carix-border/40 hover:text-carix-text",
-                      ].join(" ")
-                    }
-                  >
-                    {item.label}
-                  </NavLink>
-                ))}
+                {items.map((item) =>
+                  // NavLink 는 자기가 선택일 때만 aria-current 를 붙인다 — 하위 화면에서는
+                  // Link 로 그려 「이 묶음 안」(true)을 직접 단다.
+                  isInSection(item, pathname) ? (
+                    <Link
+                      key={item.to}
+                      to={item.to}
+                      aria-current="true"
+                      className={`${NAV_ITEM} ${NAV_ACTIVE}`}
+                    >
+                      {item.label}
+                    </Link>
+                  ) : (
+                    <NavLink
+                      key={item.to}
+                      to={item.to}
+                      end={item.end}
+                      className={({ isActive }) =>
+                        `${NAV_ITEM} ${isActive ? NAV_ACTIVE : NAV_IDLE}`
+                      }
+                    >
+                      {item.label}
+                    </NavLink>
+                  ),
+                )}
               </nav>
             )}
           </div>
@@ -76,12 +100,7 @@ export function AppShell({
                 to={uItem.to}
                 end={uItem.end}
                 className={({ isActive }) =>
-                  [
-                    "inline-flex items-center gap-1.5 whitespace-nowrap rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
-                    isActive
-                      ? "bg-carix-info/10 text-carix-info font-semibold"
-                      : "text-carix-text/70 hover:bg-carix-border/40 hover:text-carix-text",
-                  ].join(" ")
+                  `inline-flex items-center gap-1.5 ${NAV_ITEM} ${isActive ? NAV_ACTIVE : NAV_IDLE}`
                 }
               >
                 {uItem.icon && <uItem.icon aria-hidden className="size-4" />}

@@ -1,4 +1,4 @@
-import { Link } from "react-router";
+import { TextLink } from "@/components/ui/text-link";
 import { Badge } from "@/components/ui/badge";
 import type { MonthlyOverview } from "../../../lib/collectorApi";
 import {
@@ -101,13 +101,14 @@ export function MonthlyOverviewTable({
           {data.months.map((m) => (
             <TableRow key={m.month}>
               <TableCell className={`${CELL} tabular-nums`}>
-                <Link
+                <TextLink
                   to={`/admin/data?tab=postings&month=${m.month}`}
                   title="이 달 공고 보기"
-                  className="text-carix-info underline"
+                  direction="none"
+                  size="inherit"
                 >
                   {m.month}
-                </Link>
+                </TextLink>
                 {m.current && (
                   <Badge variant="secondary" className="ml-2">
                     수집 중

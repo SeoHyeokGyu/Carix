@@ -1,4 +1,5 @@
-import { Link, useNavigate } from "react-router";
+import { useNavigate } from "react-router";
+import { TextLink } from "@/components/ui/text-link";
 import { AuthForm } from "../../components/auth/AuthForm";
 import { login } from "../../lib/authApi";
 import { stepPath } from "../../lib/routeGuards";
@@ -27,12 +28,9 @@ export default function Login() {
       footer={
         <>
           계정이 없으신가요?{" "}
-          <Link
-            to="/register"
-            className="font-medium text-carix-info underline"
-          >
+          <TextLink to="/register" direction="none" size="sm">
             가입하기
-          </Link>
+          </TextLink>
         </>
       }
       note="비밀번호 재설정은 제공하지 않습니다. 잊으셨다면 다른 이메일로 새 계정을 만들어 주세요."

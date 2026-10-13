@@ -1,4 +1,5 @@
-import { Link, useNavigate } from "react-router";
+import { useNavigate } from "react-router";
+import { TextLink } from "@/components/ui/text-link";
 import { AuthForm } from "../../components/auth/AuthForm";
 import { register } from "../../lib/authApi";
 import { stepPath } from "../../lib/routeGuards";
@@ -26,9 +27,9 @@ export default function Register() {
       footer={
         <>
           이미 계정이 있으신가요?{" "}
-          <Link to="/login" className="font-medium text-carix-info underline">
+          <TextLink to="/login" direction="none" size="sm">
             로그인
-          </Link>
+          </TextLink>
         </>
       }
     />

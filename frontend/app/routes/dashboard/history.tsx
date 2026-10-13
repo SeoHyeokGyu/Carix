@@ -11,6 +11,7 @@ import {
 } from "../../lib/dashboardMarketApi";
 import { UnauthorizedError } from "../../lib/coreApi";
 import { LOGIN_PATH } from "../../lib/routeGuards";
+import { TextLink } from "@/components/ui/text-link";
 
 export function meta() {
   return [
@@ -118,6 +119,10 @@ export default function DashboardHistory() {
 
   return (
     <div className="mx-auto w-full max-w-4xl px-4 py-8 sm:px-6">
+      {/* 주 메뉴에 없는 하위 화면이라 상위 화면으로 돌아가는 길을 둔다. 직접 들어와도 같은 곳이어야 해서 이전 기록이 아니라 상위 주소다. */}
+      <TextLink to="/dashboard" direction="back" size="sm" className="mb-3">
+        판정
+      </TextLink>
       {/* 1. 헤더 영역 */}
       <div className="mb-6 flex flex-wrap items-center justify-between gap-2 border-b border-carix-border pb-4">
         <div>

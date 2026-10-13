@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { ChevronDown, ChevronUp, RotateCw } from "lucide-react";
-import { Link } from "react-router";
+import { TextLink } from "@/components/ui/text-link";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -126,12 +126,7 @@ function VerdictPreview({
           </span>
         </div>
       </div>
-      <Link
-        to="/dashboard/history"
-        className="text-xs font-medium text-carix-info hover:underline"
-      >
-        지난 판정 보기 →
-      </Link>
+      <TextLink to="/dashboard/history">지난 판정 보기</TextLink>
     </aside>
   );
 }
