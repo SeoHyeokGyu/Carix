@@ -16,6 +16,7 @@ import { expect, test, type Page } from "@playwright/test";
 const SECTIONS = [
   "primitives-buttons",
   "primitives-text-link",
+  "primitives-page-header",
   "primitives-badges",
   "primitives-cards",
   "primitives-composed",

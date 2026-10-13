@@ -1,3 +1,4 @@
+import { RotateCw } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -19,6 +20,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { LoadingState } from "@/components/ui/loading-state";
 import { TextLink } from "@/components/ui/text-link";
+import { PageHeader } from "@/components/layout/PageHeader";
 import { ToneBadge, TONE_CLASS } from "@/components/ui/tone-badge";
 import { SignalBadge } from "../../components/dashboard/SignalBadge";
 import { SalaryDistributionChart } from "../../components/dashboard/SalaryDistributionChart";
@@ -172,6 +174,29 @@ function Gallery() {
               202609
             </TextLink>
           </span>
+        </div>
+      </Section>
+      <Section id="primitives-page-header" title="PageHeader">
+        <div className="rounded-lg border border-carix-border p-4">
+          <PageHeader
+            back={{ to: "/dev/primitives", label: "상위" }}
+            title="화면 제목"
+            description="설명 한 줄"
+            divider
+            actions={
+              <>
+                <TextLink to="/dev/primitives">보조 링크</TextLink>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="flex items-center gap-1.5"
+                >
+                  <RotateCw className="h-3.5 w-3.5" />
+                  서버 동작
+                </Button>
+              </>
+            }
+          />
         </div>
       </Section>
       <Section id="primitives-badges" title="Badge / SignalBadge">
