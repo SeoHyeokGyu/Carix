@@ -257,7 +257,6 @@ export default function DashboardHome() {
                 index={data.openingWindowIndex}
                 baselineHint="기준 100: 전체 시장 중앙 모집 기간"
                 helpContent={<OpeningWindowHelp />}
-                detailHref="/dashboard/history"
                 footer={
                   <OpeningWindowBadges meta={data.metadata.openingWindow} />
                 }
