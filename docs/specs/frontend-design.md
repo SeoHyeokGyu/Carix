@@ -190,6 +190,8 @@ OCI VM에서 다음 컨테이너를 Docker Compose로 운영한다.
 | 프리미티브 | 쓰는 자리 |
 | :--- | :--- |
 | `Button` | 모든 버튼. 크기 `xs`·`sm`·`default`(h-8, text-xs)·`lg`, 아이콘 `icon-*`. 링크처럼 보여야 하면 `variant="link"`, 링크 요소에 버튼 모양이 필요하면 `buttonVariants` |
+| `TextLink` | 화면 이동 글자 링크. 그 자리에서 실행하는 것은 `Button variant="link"` 다(이동이면 `TextLink`, 실행이면 `Button`). `direction` 은 `forward`(기본, 뒤 화살표)·`back`(앞 화살표)·`none`(화살표 없음), `size` 는 `xs`(기본)·`sm`·`inherit`(표 셀처럼 부모 크기). 화살표 링크는 마우스 올림에만, `none` 은 늘 밑줄이다 — 문장 속·표 안은 색만으로 갈리지 않게(WCAG 1.4.1). 주 메뉴에 없는 하위 화면은 콘텐츠 맨 처음에 `direction="back" size="sm"` 으로 상위 메뉴 이름을 둔다 |
+| 단계 이동 줄 | 컴포넌트가 아니라 배치 규칙이다. 폼 끝에 `flex flex-wrap gap-3` 왼쪽 정렬, 되돌아가기는 `buttonVariants({ variant: "outline" })` 를 단 `Link`, 진행은 기본 `Button`. 글자는 「이전」·「다음」 또는 결과를 말하는 동사구(「제출하고 대시보드로」)만 — 화살표·행선지 괄호 없음. 보이는 순서 = DOM 순서, 구분선·양끝 정렬 없음. 근거는 온보딩 와이어프레임 01~05 |
 | `Card` | 내용 묶음. 여백 `p-6`, 자식 간격 16px |
 | `Badge` | **중립 칩**(라벨·보조 지표). `default`·`secondary`·`outline` 뿐이다 |
 | `ToneBadge` | **상태·의미 색.** 톤 여섯(`positive`·`warning`·`danger`·`info`·`action`·`muted`) |
@@ -203,7 +205,7 @@ OCI VM에서 다음 컨테이너를 Docker Compose로 운영한다.
 *   상태 색은 도메인별 해석 모듈(`lib/decisionSignal.ts`·`lib/indexStatus.ts`·`lib/skillDemandStatus.ts`)이 톤을 정하고 `ToneBadge` 가 그린다. 화면이 색을 고르지 않는다.
 *   값이 없으면 비워 두고 이유를 밝힌다. 0 이나 평균으로 채우지 않는다.
 
-**금지 — eslint 가 막는다.** raw `<button>` 과 토큰 밖 Tailwind 팔레트 색(`bg-blue-500` 등)은 `error` 다. 색은 carix 토큰(`bg-carix-*`·`text-carix-*`)만 쓴다. 아직 교체 전인 파일은 `frontend/eslint.config.js` 의 예외 목록에 소유자와 함께 있고, 교체하면 목록에서 지운다. 새 파일은 목록에 넣지 않는다.
+**금지 — eslint 가 막는다.** raw `<button>`, 토큰 밖 Tailwind 팔레트 색(`bg-blue-500` 등), `text-carix-info` 와 밑줄을 손으로 단 `Link` 는 `error` 다. 색은 carix 토큰(`bg-carix-*`·`text-carix-*`)만 쓴다. 아직 교체 전인 파일은 `frontend/eslint.config.js` 의 예외 목록에 소유자와 함께 있고, 교체하면 목록에서 지운다. 새 파일은 목록에 넣지 않는다.
 
 ---
 
@@ -299,8 +301,8 @@ OCI VM에서 다음 컨테이너를 Docker Compose로 운영한다.
 
 ### 분리된 화면 (추이분석·시뮬레이터·가이드·마이페이지)
 
-*   **추이분석 (`/dashboard/trends`):** 기존 대시보드 하단에 있던 `[Tab: 소득vs물가 / 스킬수요 / 연봉분포]` 블록이 그대로 이동. 선택 탭은 URL `?tab=income|skills|salary` 가 갖고(기본 `income`), 대시보드 지표 카드의 「자세히 보기」가 구매력 → `income`, 시장가치 → `skills` 로 보낸다(개방창 → 지난 판정). 컴포넌트 상세는 §4 참고.
-*   **지난 판정 (`/dashboard/history`, S-11):** 주 메뉴가 아니라 판정 히어로의 「지난 판정 보기 →」(판정이 이어진 기간 옆)과 시장가치 카드의 「지난 판정 →」으로 들어간다. 월마다 그 달 끝에 보여 준 판정(당시 판정, [도메인 정의서 §5](domain-logic.md))을 표의 주 값으로 둔다.
+*   **추이분석 (`/dashboard/trends`):** 기존 대시보드 하단에 있던 `[Tab: 소득vs물가 / 스킬수요 / 연봉분포]` 블록이 그대로 이동. 선택 탭은 URL `?tab=income|skills|salary` 가 갖고(기본 `income`), 대시보드 지표 카드의 「자세히 보기」가 구매력 → `income`, 시장가치 → `skills` 로 보낸다. 개방창은 맞는 탭이 없어 「자세히 보기」를 두지 않는다. 컴포넌트 상세는 §4 참고.
+*   **지난 판정 (`/dashboard/history`, S-11):** 주 메뉴가 아니라 판정 히어로의 「지난 판정 보기」(판정이 이어진 기간 옆)와 시장가치 카드의 「지난 판정」으로 들어간다. 화면 맨 위 「← 판정」이 판정으로 돌아가고, 이 화면에서는 주 메뉴 「판정」이 선택된 채 보인다(`NavItem.match`). 월마다 그 달 끝에 보여 준 판정(당시 판정, [도메인 정의서 §5](domain-logic.md))을 표의 주 값으로 둔다.
     *   **표:** 지수 3개와 결정 신호는 `recorded` 값이다. 현재 규칙의 신호가 다르면(`changed`) 신호 옆에 `지금 다시 계산하면: {라벨}` 칩을 단다 — 차이의 원인이 규칙 변경인지 입력·데이터 변경인지는 가르지 않는다.
     *   **소급 계산:** `recorded` 가 없는 달은 지수 칸에 `소급 계산` 배지를 달고 현재 규칙 값을 흐리게 보인다. 기본 목록에서는 숨기며, `소급 계산한 달도 보기` 토글이 URL `show=all` 로 펼친다. 당시 판정이 있는 달이 하나도 없으면 전부 보이고 그 사유를 안내 한 줄로 밝힌다.
     *   **상세(펼침):** `당시` / `현재 규칙` 두 칸에 지수, 결정 신호, 적용 규칙, 제외 스킬, 집계 기준일, 데이터·규칙 버전을 나란히 둔다. 당시 칸에는 기록 시각(서울 시간)과 `월 경계는 UTC 기준` 안내를, 현재 규칙 칸에는 지수 차이(현재 − 당시)를 보인다. 당시 판정이 없으면 당시 칸은 `당시 판정 없음 — 이 달이 끝난 뒤 계산됨` 이다.
