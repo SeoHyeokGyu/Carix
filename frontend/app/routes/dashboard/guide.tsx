@@ -1,5 +1,7 @@
 import { PageFrame } from "@/components/layout/PageFrame";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { PageSection } from "@/components/layout/PageSection";
+import { HEADING } from "@/components/ui/heading";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { SignalBadge } from "../../components/dashboard/SignalBadge";
@@ -41,19 +43,14 @@ export default function DashboardGuide() {
 
       <div className="flex flex-col gap-8">
         {/* 1. 지표 3종 상세 안내 */}
-        <div>
-          <h2 className="text-lg font-semibold text-carix-text mb-4">
-            📊 지표 3종 (기준선 100의 의미)
-          </h2>
+        <PageSection title="지표 3종 (기준선 100의 의미)">
           <div className="grid gap-4 md:grid-cols-3">
             {/* 구매력 지수 */}
             <Card className="p-5 flex flex-col justify-between">
               <div>
                 <CardHeader className="p-0 mb-3">
                   <div className="flex items-center justify-between">
-                    <CardTitle className="text-base font-bold text-carix-text">
-                      구매력 지수 (PPI)
-                    </CardTitle>
+                    <CardTitle>구매력 지수 (PPI)</CardTitle>
                     <Badge variant="secondary">소득 vs 물가</Badge>
                   </div>
                   <p className="text-xs text-carix-text/60 mt-1">
@@ -97,9 +94,7 @@ export default function DashboardGuide() {
               <div>
                 <CardHeader className="p-0 mb-3">
                   <div className="flex items-center justify-between">
-                    <CardTitle className="text-base font-bold text-carix-text">
-                      시장가치 지수 (MVI)
-                    </CardTitle>
+                    <CardTitle>시장가치 지수 (MVI)</CardTitle>
                     <Badge variant="secondary">스킬 수요 가치</Badge>
                   </div>
                   <p className="text-xs text-carix-text/60 mt-1">
@@ -144,9 +139,7 @@ export default function DashboardGuide() {
               <div>
                 <CardHeader className="p-0 mb-3">
                   <div className="flex items-center justify-between">
-                    <CardTitle className="text-base font-bold text-carix-text">
-                      개방창 지수 (OWI)
-                    </CardTitle>
+                    <CardTitle>개방창 지수 (OWI)</CardTitle>
                     <Badge variant="secondary">채용 모집 속도</Badge>
                   </div>
                   <p className="text-xs text-carix-text/60 mt-1">
@@ -186,13 +179,10 @@ export default function DashboardGuide() {
               </div>
             </Card>
           </div>
-        </div>
+        </PageSection>
 
         {/* 2. 결정 신호 (Decision Signal) 안내 */}
-        <div>
-          <h2 className="text-lg font-semibold text-carix-text mb-4">
-            🚦 결정 신호 (Decision Signal) 해석
-          </h2>
+        <PageSection title="결정 신호 (Decision Signal) 해석">
           <Card className="p-5">
             <div className="text-xs text-carix-text/80 leading-relaxed mb-4">
               결정 신호는 구매력 지수, 시장가치 지수, 그리고 내 세전 연봉과 공식
@@ -218,16 +208,13 @@ export default function DashboardGuide() {
               ))}
             </div>
           </Card>
-        </div>
+        </PageSection>
 
         {/* 3. 자주 묻는 질문 (FAQ) */}
-        <div>
-          <h2 className="text-lg font-semibold text-carix-text mb-4">
-            ❓ 자주 묻는 질문
-          </h2>
+        <PageSection title="자주 묻는 질문">
           <div className="flex flex-col gap-3">
             <Card className="p-4">
-              <h3 className="text-sm font-semibold text-carix-text">
+              <h3 className={HEADING.sub}>
                 Q. 수치가 100 미만이면 무조건 나쁜 건가요?
               </h3>
               <p className="mt-1 text-xs text-carix-text/70 leading-relaxed">
@@ -239,7 +226,7 @@ export default function DashboardGuide() {
             </Card>
 
             <Card className="p-4">
-              <h3 className="text-sm font-semibold text-carix-text">
+              <h3 className={HEADING.sub}>
                 Q. 과거 스냅샷 데이터에 새로운 지표가 비어 있어요.
               </h3>
               <p className="mt-1 text-xs text-carix-text/70 leading-relaxed">
@@ -249,7 +236,7 @@ export default function DashboardGuide() {
               </p>
             </Card>
           </div>
-        </div>
+        </PageSection>
       </div>
     </PageFrame>
   );

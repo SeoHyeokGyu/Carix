@@ -1,3 +1,4 @@
+import { PageSection } from "@/components/layout/PageSection";
 import { useEffect, useRef, useState } from "react";
 import { redirect, useFetcher, useLoaderData } from "react-router";
 import { ToneBadge, type Tone } from "@/components/ui/tone-badge";
@@ -349,107 +350,106 @@ export default function RecordsExpense() {
       </div>
 
       {editing && (
-        <fetcher.Form
-          method="post"
-          ref={formRef}
-          className="flex flex-col gap-4 rounded-xl border border-carix-border bg-carix-surface p-6"
-        >
-          <input type="hidden" name="baseYearMonth" value={editing} />
-          <input
-            type="hidden"
-            name="isNew"
-            value={isNewMonth ? "true" : "false"}
-          />
-          <h2 className="text-lg font-bold text-carix-text">
-            {formatYearMonth(editing)} 소비
-          </h2>
+        <PageSection title={`${formatYearMonth(editing)} 소비`}>
+          <fetcher.Form
+            method="post"
+            ref={formRef}
+            className="flex flex-col gap-4 rounded-xl border border-carix-border bg-carix-surface p-6"
+          >
+            <input type="hidden" name="baseYearMonth" value={editing} />
+            <input
+              type="hidden"
+              name="isNew"
+              value={isNewMonth ? "true" : "false"}
+            />
 
-          {EXPENSE_CATEGORIES.map((category) => {
-            const index = itemIndex[category.value];
-            const errorKey =
-              index !== undefined ? `items.${index}.amount` : undefined;
-            const fieldError = errorKey ? errors?.[errorKey] : undefined;
+            {EXPENSE_CATEGORIES.map((category) => {
+              const index = itemIndex[category.value];
+              const errorKey =
+                index !== undefined ? `items.${index}.amount` : undefined;
+              const fieldError = errorKey ? errors?.[errorKey] : undefined;
 
-            return (
-              <div key={category.value} className="flex items-end gap-2">
-                <div className="flex-1">
-                  <Field
-                    id={`amount-${category.value}`}
-                    label={category.label}
-                    error={fieldError}
-                  >
-                    {(aria) => (
-                      <Input
-                        {...aria}
-                        name={`amount-${category.value}`}
-                        type="text"
-                        inputMode="numeric"
-                        placeholder="미입력 시 통계청 평균으로 보간됩니다"
-                        value={amounts[category.value] ?? ""}
-                        onChange={(e) =>
-                          setAmounts((prev) => ({
-                            ...prev,
-                            [category.value]: e.target.value.replace(
-                              /[^0-9]/g,
-                              "",
-                            ),
-                          }))
-                        }
-                      />
-                    )}
-                  </Field>
-                </div>
-                {/* D2: 라벨은 "삭제"가 아니다. 값을 빼면 지워지는 게 아니라 서버가
+              return (
+                <div key={category.value} className="flex items-end gap-2">
+                  <div className="flex-1">
+                    <Field
+                      id={`amount-${category.value}`}
+                      label={category.label}
+                      error={fieldError}
+                    >
+                      {(aria) => (
+                        <Input
+                          {...aria}
+                          name={`amount-${category.value}`}
+                          type="text"
+                          inputMode="numeric"
+                          placeholder="미입력 시 통계청 평균으로 보간됩니다"
+                          value={amounts[category.value] ?? ""}
+                          onChange={(e) =>
+                            setAmounts((prev) => ({
+                              ...prev,
+                              [category.value]: e.target.value.replace(
+                                /[^0-9]/g,
+                                "",
+                              ),
+                            }))
+                          }
+                        />
+                      )}
+                    </Field>
+                  </div>
+                  {/* D2: 라벨은 "삭제"가 아니다. 값을 빼면 지워지는 게 아니라 서버가
                   통계청 평균으로 보간해 DEFAULT_CPI 로 돌려준다. */}
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  aria-label={`${category.label} 기본값으로 되돌리기`}
-                  onClick={() =>
-                    setAmounts((prev) => {
-                      const next = { ...prev };
-                      delete next[category.value];
-                      return next;
-                    })
-                  }
-                >
-                  기본값으로
-                </Button>
-              </div>
-            );
-          })}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    aria-label={`${category.label} 기본값으로 되돌리기`}
+                    onClick={() =>
+                      setAmounts((prev) => {
+                        const next = { ...prev };
+                        delete next[category.value];
+                        return next;
+                      })
+                    }
+                  >
+                    기본값으로
+                  </Button>
+                </div>
+              );
+            })}
 
-          {exceedsNet && (
-            <p role="alert" className="text-sm text-carix-warning">
-              입력한 합계 {total.toLocaleString()}원이 월 실수령액을 초과합니다.
-              월 실수령액은 {latestNet?.toLocaleString()}원입니다. 그대로 저장할
-              수 있습니다.
-            </p>
-          )}
+            {exceedsNet && (
+              <p role="alert" className="text-sm text-carix-warning">
+                입력한 합계 {total.toLocaleString()}원이 월 실수령액을
+                초과합니다. 월 실수령액은 {latestNet?.toLocaleString()}원입니다.
+                그대로 저장할 수 있습니다.
+              </p>
+            )}
 
-          {errors?._form && (
-            <p role="alert" className="text-sm text-destructive">
-              {errors._form}
-            </p>
-          )}
+            {errors?._form && (
+              <p role="alert" className="text-sm text-destructive">
+                {errors._form}
+              </p>
+            )}
 
-          <div className="flex items-center gap-2">
-            <Button type="submit" disabled={fetcher.state !== "idle"}>
-              저장
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setEditing(null)}
-            >
-              취소
-            </Button>
-            <p className="text-xs text-carix-text/60">
-              저장하면 해당 월 이후 지수에 반영됩니다.
-            </p>
-          </div>
-        </fetcher.Form>
+            <div className="flex items-center gap-2">
+              <Button type="submit" disabled={fetcher.state !== "idle"}>
+                저장
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setEditing(null)}
+              >
+                취소
+              </Button>
+              <p className="text-xs text-carix-text/60">
+                저장하면 해당 월 이후 지수에 반영됩니다.
+              </p>
+            </div>
+          </fetcher.Form>
+        </PageSection>
       )}
     </div>
   );

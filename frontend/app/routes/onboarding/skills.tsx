@@ -1,5 +1,6 @@
 import { PageFrame } from "@/components/layout/PageFrame";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { PageSection } from "@/components/layout/PageSection";
 import { useState, useEffect, useCallback, useRef } from "react";
 import { Link, useNavigate } from "react-router";
 import {
@@ -359,13 +360,12 @@ export default function Skills() {
       )}
 
       {/* 4. 스킬 검색 및 추가 카드 */}
-      <div className="mb-10 rounded-xl border border-carix-border bg-carix-surface p-5 shadow-sm">
-        <h2 className="text-base font-semibold text-carix-text mb-3">
-          새 스킬 추가
-        </h2>
-
+      <PageSection
+        title="새 스킬 추가"
+        className="rounded-xl border border-carix-border bg-carix-surface p-5 shadow-sm"
+      >
         {/* 검색창 */}
-        <div ref={searchContainerRef} className="relative mb-4">
+        <div ref={searchContainerRef} className="relative">
           <label
             htmlFor="skill-search-input"
             className="block text-xs font-medium text-carix-text/80 mb-1"
@@ -432,7 +432,7 @@ export default function Skills() {
         {selectedSkill && (
           <form
             onSubmit={handleAddSkill}
-            className="mt-4 rounded-lg border border-carix-border/60 bg-carix-bg/60 p-4"
+            className="rounded-lg border border-carix-border/60 bg-carix-bg/60 p-4"
           >
             <div className="mb-3 flex items-center justify-between">
               <span className="text-sm font-semibold text-carix-text">
@@ -545,14 +545,13 @@ export default function Skills() {
             </div>
           </form>
         )}
-      </div>
+      </PageSection>
 
       {/* 5. 등록된 스킬 테이블 */}
-      <div className="mb-10">
-        <h2 className="text-base font-semibold text-carix-text mb-3">
-          등록된 스킬 ({userSkills.length}개)
-        </h2>
-
+      <PageSection
+        title={`등록된 스킬 (${userSkills.length}개)`}
+        className="mb-10"
+      >
         {isLoading ? (
           <div className="rounded-xl border border-carix-border bg-carix-surface p-8 text-center text-sm text-carix-text/60">
             스킬 목록을 불러오는 중입니다...
@@ -684,7 +683,7 @@ export default function Skills() {
             </table>
           </div>
         )}
-      </div>
+      </PageSection>
 
       {/* 6. 이전 / 다음 네비게이션 버튼 */}
       <div className="flex items-center justify-between border-t border-carix-border pt-6">

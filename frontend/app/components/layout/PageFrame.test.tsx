@@ -43,4 +43,11 @@ describe("PageFrame", () => {
     );
     expect(screen.getByTestId("f")).toHaveClass("space-y-4", "max-w-5xl");
   });
+  // 탭 줄·오류 알림처럼 섹션이 아닌 형제 사이는 건드리지 않는다 — 섹션끼리만 32px.
+  it("data-page-section 형제끼리만 32px 를 준다", () => {
+    render(<PageFrame data-testid="f">내용</PageFrame>);
+    const cls = screen.getByTestId("f").className;
+    expect(cls).toContain("[&>[data-page-section]~[data-page-section]]:mt-8");
+    expect(cls).not.toMatch(/\[&>\*[^\]]*\+\*\]:mt-8/);
+  });
 });

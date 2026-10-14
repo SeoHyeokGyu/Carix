@@ -1,3 +1,4 @@
+import { HEADING } from "@/components/ui/heading";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
@@ -143,7 +144,7 @@ function CareerLadderView({
     >
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <div>
-          <h4 className="font-semibold text-carix-text">경력 사다리</h4>
+          <h3 className={HEADING.sub}>경력 사다리</h3>
           <p className="text-xs text-carix-text/60">
             같은 직군의 경력 구간별 공식 임금통계
             {currentYear ? ` (${currentYear}년 기준)` : ""} · 지역 전체
@@ -269,11 +270,11 @@ export function SalaryDistributionChart({
         <div className="inline-flex items-center gap-1.5 rounded-full bg-carix-warning/10 px-3 py-1 text-xs font-semibold text-carix-warning mb-3">
           ⚠️ 표본 부족
         </div>
-        <h4 className="text-base font-bold text-carix-text">
+        <p className="text-base font-bold text-carix-text">
           {salaryShort
             ? "공개 연봉이 부족하여 연봉 분포를 산출할 수 없습니다."
             : "동료집단 표본 수가 부족하여 연봉 분포를 산출할 수 없습니다."}
-        </h4>
+        </p>
         <p className="mt-2 text-sm text-carix-text/70">
           {salaryShort ? (
             <>
@@ -369,9 +370,7 @@ export function SalaryDistributionChart({
       <div className="flex flex-wrap items-start justify-between gap-4 border-b border-carix-border pb-5">
         <div>
           <div className="flex items-center gap-2">
-            <h3 className="font-display text-lg font-bold text-carix-text">
-              동료집단 연봉 분포
-            </h3>
+            <h3 className={HEADING.sub}>동료집단 연봉 분포</h3>
             {peerGroup?.fallbackLevel && peerGroup.fallbackLevel > 1 && (
               <span className="rounded bg-carix-warning/10 px-2 py-0.5 text-[11px] font-medium text-carix-warning">
                 완화 {peerGroup.fallbackLevel}단계
@@ -411,9 +410,9 @@ export function SalaryDistributionChart({
           <div className="inline-flex items-center gap-1.5 rounded-full bg-carix-info/10 px-3 py-1 text-xs font-semibold text-carix-info mb-3">
             ℹ️ 공개 연봉 미제공
           </div>
-          <h4 className="text-base font-bold text-carix-text">
+          <p className="text-base font-bold text-carix-text">
             동료집단 공고 중 공개된 연봉 정보가 없습니다.
-          </h4>
+          </p>
           <p className="mt-2 text-xs text-carix-text/70">
             총 동료집단 공고{" "}
             <strong className="text-carix-text">{data.sampleSize}건</strong> 중

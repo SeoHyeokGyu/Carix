@@ -171,9 +171,9 @@ export default function DashboardSimulator() {
         description="잔류와 이직의 12개월 보상을 비교합니다. 세금·성과급·주식보상·퇴직금은 포함하지 않습니다."
       />
 
-      <Card>
+      <Card data-page-section="">
         <CardHeader>
-          <CardTitle>시나리오 입력</CardTitle>
+          <CardTitle as="h2">시나리오 입력</CardTitle>
           <CardDescription>
             값을 비워 두면 임의로 채우지 않습니다 — 계산에 필요한 값을 직접
             입력해 주세요.
@@ -355,9 +355,9 @@ export default function DashboardSimulator() {
         </CardContent>
       </Card>
 
-      <Card className="mt-6">
+      <Card data-page-section="" className="mt-6">
         <CardHeader>
-          <CardTitle>비교 결과</CardTitle>
+          <CardTitle as="h2">비교 결과</CardTitle>
         </CardHeader>
         <CardContent>
           {!result && (

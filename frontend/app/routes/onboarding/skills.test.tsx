@@ -1,3 +1,4 @@
+import { expectHeadingOutline } from "../../test-utils/headingOutline";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { MemoryRouter, createRoutesStub } from "react-router";
@@ -60,6 +61,10 @@ describe("S-08 Skills 온보딩 화면", () => {
       expect(screen.getByText("TypeScript")).toBeInTheDocument();
       expect(screen.getByText("18개월")).toBeInTheDocument();
     });
+    expectHeadingOutline();
+    expect(
+      screen.getByRole("heading", { level: 2, name: "새 스킬 추가" }),
+    ).toHaveClass("text-lg");
   });
 
   it("스킬 검색 후 선택하여 새 스킬을 등록할 수 있다", async () => {

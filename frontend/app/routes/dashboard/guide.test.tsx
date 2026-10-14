@@ -1,3 +1,4 @@
+import { expectHeadingOutline } from "../../test-utils/headingOutline";
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import DashboardGuide from "./guide";
@@ -9,6 +10,17 @@ describe("DashboardGuide (지표 가이드 및 도움말)", () => {
     // 메인 타이틀
     expect(
       screen.getByRole("heading", { level: 1, name: "도움말" }),
+    ).toBeInTheDocument();
+
+    expectHeadingOutline();
+    expect(
+      screen.getByRole("heading", {
+        level: 2,
+        name: "지표 3종 (기준선 100의 의미)",
+      }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { level: 3, name: "구매력 지수 (PPI)" }),
     ).toBeInTheDocument();
 
     // 3대 지표 카드 확인

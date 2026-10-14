@@ -331,10 +331,10 @@ export default function Review() {
         </div>
       )}
 
-      <div className="mt-6 flex flex-col gap-4">
-        <Card>
+      <div className="mt-6 flex flex-col gap-8">
+        <Card data-page-section="">
           <CardHeader>
-            <CardTitle>프로필</CardTitle>
+            <CardTitle as="h2">프로필</CardTitle>
             <CardAction>
               <Link
                 to="/onboarding/profile"
@@ -352,9 +352,9 @@ export default function Review() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card data-page-section="">
           <CardHeader>
-            <CardTitle>소득</CardTitle>
+            <CardTitle as="h2">소득</CardTitle>
             <CardAction>
               <Link
                 to="/onboarding/income"
@@ -374,9 +374,9 @@ export default function Review() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card data-page-section="">
           <CardHeader>
-            <CardTitle>소비</CardTitle>
+            <CardTitle as="h2">소비</CardTitle>
             <CardAction>
               <Link
                 to="/onboarding/expense"
@@ -396,9 +396,9 @@ export default function Review() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card data-page-section="">
           <CardHeader>
-            <CardTitle>스킬</CardTitle>
+            <CardTitle as="h2">스킬</CardTitle>
             <CardAction>
               <Link
                 to="/onboarding/skills"

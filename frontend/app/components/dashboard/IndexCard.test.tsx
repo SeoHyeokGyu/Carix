@@ -147,7 +147,7 @@ describe("IndexCard", () => {
 });
 
 describe("IndexCard — 판정 우선 개편", () => {
-  it("카드 제목이 h4 헤딩이다", () => {
+  it("카드 제목이 h3 소제목이다", () => {
     render(
       <IndexCard
         title="구매력 지수"
@@ -160,7 +160,7 @@ describe("IndexCard — 판정 우선 개편", () => {
       />,
     );
     expect(
-      screen.getByRole("heading", { level: 4, name: "구매력 지수" }),
+      screen.getByRole("heading", { level: 3, name: "구매력 지수" }),
     ).toBeInTheDocument();
   });
 

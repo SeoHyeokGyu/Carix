@@ -57,12 +57,13 @@ export function VerdictHero({
             )}
             <DecisionSignalHelp />
           </div>
-          <h2
+          <p
             id="verdict-title"
+            data-testid="verdict-statement"
             className="font-display text-2xl font-bold leading-snug text-carix-text md:text-3xl"
           >
             {title}
-          </h2>
+          </p>
           {signal && signal.rulesApplied.length > 0 && (
             <ul aria-label="적용 규칙" className="flex flex-wrap gap-1.5">
               {signal.rulesApplied.map((rule) => (

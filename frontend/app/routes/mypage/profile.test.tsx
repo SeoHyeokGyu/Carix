@@ -1,3 +1,4 @@
+import { expectHeadingOutline } from "../../test-utils/headingOutline";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { createRoutesStub } from "react-router";
@@ -67,6 +68,10 @@ describe("S-13 MypageProfile 라우트", () => {
       screen.getByText("회원 탈퇴 및 개인 데이터 완전 삭제"),
     ).toBeInTheDocument();
     expect(await screen.findByText(/user@example.com/)).toBeInTheDocument();
+    expectHeadingOutline();
+    expect(
+      screen.getByRole("heading", { level: 2, name: "세션 관리" }),
+    ).toBeInTheDocument();
   });
 
   it("동의 체크박스와 이메일 입력 전에는 탈퇴 버튼이 비활성화된다", async () => {

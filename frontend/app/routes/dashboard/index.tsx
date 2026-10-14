@@ -29,6 +29,7 @@ import { fetchSkillRecommendations } from "../../lib/skillApi";
 import { formatVerdictHeading } from "../../lib/verdict";
 import { PageFrame } from "@/components/layout/PageFrame";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { PageSection } from "@/components/layout/PageSection";
 import { TextLink } from "@/components/ui/text-link";
 
 /**
@@ -218,16 +219,7 @@ export default function DashboardHome() {
             recommendations={recommendations}
           />
 
-          <section
-            aria-labelledby="evidence-title"
-            className="flex flex-col gap-3"
-          >
-            <h3
-              id="evidence-title"
-              className="text-sm font-semibold text-carix-text/80"
-            >
-              이 판정을 만든 지표
-            </h3>
+          <PageSection title="이 판정을 만든 지표">
             <div className="grid gap-4 md:grid-cols-3">
               <IndexCard
                 title="구매력 지수"
@@ -257,7 +249,7 @@ export default function DashboardHome() {
                 }
               />
             </div>
-          </section>
+          </PageSection>
 
           <TrustPanel
             metadata={data.metadata}

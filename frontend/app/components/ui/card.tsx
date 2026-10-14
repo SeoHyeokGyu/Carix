@@ -1,5 +1,6 @@
 import * as React from "react";
 import { cn } from "@/lib/utils";
+import { HEADING } from "./heading";
 
 function Card({ className, ...props }: React.ComponentProps<"div">) {
   return (
@@ -27,11 +28,20 @@ function CardHeader({ className, ...props }: React.ComponentProps<"div">) {
   );
 }
 
-function CardTitle({ className, ...props }: React.ComponentProps<"div">) {
+function CardTitle({
+  as: Tag = "h3",
+  className,
+  ...props
+}: React.ComponentProps<"h3"> & { as?: "h2" | "h3" }) {
   return (
-    <div
+    <Tag
       data-slot="card-title"
-      className={cn("leading-none font-semibold", className)}
+      className={cn(
+        Tag === "h2" ? HEADING.section : HEADING.sub,
+        // 여러 줄 카드 제목(「회원 탈퇴 및 …」)이 붙지 않게 snug — text-* 뒤에 둬야 tailwind-merge 가 남긴다
+        "leading-snug",
+        className,
+      )}
       {...props}
     />
   );

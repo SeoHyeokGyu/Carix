@@ -169,9 +169,9 @@ export default function DashboardHistory() {
               data-testid="history-single-notice"
               className="rounded-xl border border-dashed border-carix-border bg-carix-surface p-6 text-center shadow-xs"
             >
-              <h4 className="text-sm font-semibold text-carix-text">
+              <p className="text-sm font-semibold text-carix-text">
                 초기 스냅샷이 생성되었습니다
-              </h4>
+              </p>
               <p className="mt-1 text-xs text-carix-text/60">
                 다음 달부터 변화를 볼 수 있습니다.
               </p>

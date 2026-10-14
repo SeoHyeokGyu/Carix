@@ -65,9 +65,7 @@ export function IndexCard({
   return (
     <Card className="p-5 gap-3 transition-transform hover:-translate-y-0.5 duration-200">
       <CardHeader className="p-0 flex flex-row items-center justify-between gap-1">
-        <CardTitle className="text-xs font-medium text-carix-text/70">
-          <h4 className="text-xs font-medium">{title}</h4>
-        </CardTitle>
+        <CardTitle>{title}</CardTitle>
         {helpContent}
       </CardHeader>
       <CardContent className="p-0 flex flex-col gap-2">

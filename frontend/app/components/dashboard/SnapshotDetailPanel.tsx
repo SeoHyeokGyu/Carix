@@ -1,3 +1,4 @@
+import { HEADING } from "@/components/ui/heading";
 import { Link } from "react-router";
 import { Button } from "@/components/ui/button";
 import { SignalBadge } from "./SignalBadge";
@@ -137,9 +138,9 @@ export function SnapshotDetailPanel({
     >
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-carix-border/80 pb-3">
         <div className="flex items-center gap-2">
-          <h3 className="font-bold text-carix-text">
+          <h2 className={HEADING.section}>
             {formatYearMonth(point.baseYearMonth)} 스냅샷 산출 근거
-          </h3>
+          </h2>
           <SignalBadge code={shown.decisionSignal} serverLabel={shown.label} />
         </div>
         <Button type="button" variant="ghost" size="xs" onClick={onClose}>

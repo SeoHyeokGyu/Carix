@@ -149,11 +149,11 @@ export default function MypageProfile() {
         </div>
       )}
 
-      <div className="mt-8 flex flex-col gap-6">
+      <div className="mt-8 flex flex-col gap-8">
         {/* 1. 세션 관리 카드 (US-C1) */}
-        <Card>
+        <Card data-page-section="">
           <CardHeader>
-            <CardTitle>세션 관리</CardTitle>
+            <CardTitle as="h2">세션 관리</CardTitle>
             <CardDescription>
               현재 기기를 포함하여 모든 브라우저 및 기기에서의 로그인 세션을
               일괄 종료합니다.
@@ -188,9 +188,9 @@ export default function MypageProfile() {
         </Card>
 
         {/* 2. 온보딩 재설정 카드 */}
-        <Card>
+        <Card data-page-section="">
           <CardHeader>
-            <CardTitle>온보딩 재설정</CardTitle>
+            <CardTitle as="h2">온보딩 재설정</CardTitle>
             <CardDescription>
               초기 설정(프로필, 소득, 소비, 스킬)을 처음부터 다시 검토하고
               수정합니다.
@@ -223,9 +223,9 @@ export default function MypageProfile() {
         </Card>
 
         {/* 3. 계정 및 개인 데이터 완전 삭제 카드 (US-C2) */}
-        <Card className="border-destructive/30">
+        <Card data-page-section="" className="border-destructive/30">
           <CardHeader>
-            <CardTitle className="text-destructive">
+            <CardTitle as="h2" className="text-destructive">
               회원 탈퇴 및 개인 데이터 완전 삭제
             </CardTitle>
             <CardDescription>
