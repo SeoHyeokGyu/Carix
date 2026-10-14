@@ -6,7 +6,7 @@ describe("EmptyState", () => {
   it("제목을 표제로 올린다", () => {
     render(<EmptyState title="기록된 월별 스냅샷이 없습니다." />);
     expect(
-      screen.getByRole("heading", { name: "기록된 월별 스냅샷이 없습니다." }),
+      screen.getByText("기록된 월별 스냅샷이 없습니다."),
     ).toBeInTheDocument();
   });
 
@@ -65,10 +65,9 @@ describe("EmptyState", () => {
     ).toBeInTheDocument();
   });
 
-  it("headingLevel 이 없으면 h4 다", () => {
+  it("headingLevel 이 없으면 제목은 heading 이 아니다", () => {
     render(<EmptyState title="이력이 없습니다" />);
-    expect(
-      screen.getByRole("heading", { level: 4, name: "이력이 없습니다" }),
-    ).toBeInTheDocument();
+    expect(screen.queryByRole("heading")).toBeNull();
+    expect(screen.getByText("이력이 없습니다").tagName).toBe("P");
   });
 });

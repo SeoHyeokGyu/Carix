@@ -21,6 +21,7 @@ import { Input } from "@/components/ui/input";
 import { LoadingState } from "@/components/ui/loading-state";
 import { TextLink } from "@/components/ui/text-link";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { PageSection } from "@/components/layout/PageSection";
 import { ToneBadge, TONE_CLASS } from "@/components/ui/tone-badge";
 import { SignalBadge } from "../../components/dashboard/SignalBadge";
 import { SalaryDistributionChart } from "../../components/dashboard/SalaryDistributionChart";
@@ -197,6 +198,22 @@ function Gallery() {
               </>
             }
           />
+        </div>
+      </Section>
+      <Section id="primitives-page-section" title="PageSection · CardTitle">
+        <div className="rounded-lg border border-carix-border p-4">
+          <PageSection title="섹션 제목" description="설명 한 줄">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Card>
+                <CardTitle>소제목 카드</CardTitle>
+                <p className="text-sm">내용</p>
+              </Card>
+              <Card data-page-section="">
+                <CardTitle as="h2">카드형 섹션</CardTitle>
+                <p className="text-sm">내용</p>
+              </Card>
+            </div>
+          </PageSection>
         </div>
       </Section>
       <Section id="primitives-badges" title="Badge / SignalBadge">

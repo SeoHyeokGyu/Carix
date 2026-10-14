@@ -14,8 +14,8 @@ export interface EmptyStateProps extends ComponentPropsWithoutRef<"div"> {
   tone?: Tone;
   title: string;
   description?: ReactNode;
-  /** 제목 태그. 화면의 제목 계층에 맞춘다 — 기본 h4 는 h1 바로 아래에서 단계를 건너뛴다. */
-  headingLevel?: "h2" | "h3" | "h4";
+  /** 빈 상태 문구는 제목이 아니라 기본 `p` 다. 섹션 제목 자리에 둘 때만 h2·h3 를 준다. */
+  headingLevel?: "h2" | "h3";
   /** 링크·버튼 같은 다음 행동. */
   children?: ReactNode;
   className?: string;
@@ -43,12 +43,12 @@ export function EmptyState({
   tone,
   title,
   description,
-  headingLevel = "h4",
+  headingLevel,
   children,
   className,
   ...rest
 }: EmptyStateProps) {
-  const Heading = headingLevel;
+  const Heading = headingLevel ?? "p";
   return (
     <div
       // 기본 식별자를 먼저 두고 `...rest` 를 뒤에 편다 — 호출부가 덮어쓸 수 있게.
