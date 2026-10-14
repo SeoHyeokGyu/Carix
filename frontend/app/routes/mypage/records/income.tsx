@@ -1,3 +1,4 @@
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useEffect, useRef, useState } from "react";
 import { redirect, useFetcher, useLoaderData } from "react-router";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -154,32 +155,27 @@ function IncomeRow({ income, onEdit }: IncomeRowProps) {
             >
               수정
             </Button>
-            <deleteFetcher.Form
-              method="post"
-              className="inline"
-              onSubmit={(e) => {
-                // M3: skills 탭·onboarding/skills.tsx 와 같은 확인 절차 — 삭제는
-                // 되돌릴 수 없다.
-                if (
-                  !window.confirm(
-                    `${income.effectiveDate} 소득 이력을 삭제하시겠습니까?`,
-                  )
-                ) {
-                  e.preventDefault();
-                }
-              }}
-            >
-              <input type="hidden" name="intent" value="delete" />
-              <input type="hidden" name="id" value={income.id} />
-              <Button
-                type="submit"
-                variant="destructive"
-                size="sm"
-                disabled={isDeleting}
-              >
-                삭제
-              </Button>
-            </deleteFetcher.Form>
+            <ConfirmDialog
+              trigger={
+                <Button
+                  type="button"
+                  variant="destructive"
+                  size="sm"
+                  disabled={isDeleting}
+                >
+                  삭제
+                </Button>
+              }
+              title="소득 이력을 삭제할까요?"
+              description={`${income.effectiveDate} 소득 이력이 지워지고, 그 시점 이후 지수가 다시 계산됩니다. 되돌릴 수 없습니다.`}
+              confirmLabel="삭제"
+              onConfirm={() =>
+                deleteFetcher.submit(
+                  { intent: "delete", id: income.id },
+                  { method: "post" },
+                )
+              }
+            />
           </div>
           {deleteError && (
             <p role="alert" className="text-xs text-destructive">

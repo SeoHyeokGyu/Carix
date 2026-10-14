@@ -1,3 +1,4 @@
+import { cancelDialog, confirmDialog } from "../../../test-utils/confirmDialog";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { createRoutesStub } from "react-router";
@@ -39,10 +40,6 @@ describe("스킬 탭 (S-12)", () => {
     vi.clearAllMocks();
     vi.mocked(skillApi.fetchUserSkills).mockResolvedValue(skills);
     vi.mocked(skillApi.searchSkills).mockResolvedValue([]);
-    // M3: jsdom 은 window.confirm 을 구현하지 않는다 — 부르면 "Not implemented" 를
-    // 찍고 undefined(falsy) 를 돌려줘 실제 확인 다이얼로그 없이도 삭제가 항상
-    // 취소된 것처럼 보인다. onboarding/skills.test.tsx 와 같은 스텁.
-    vi.spyOn(window, "confirm").mockReturnValue(true);
   });
 
   it("보유 스킬을 그린다", async () => {
@@ -129,6 +126,7 @@ describe("스킬 탭 (S-12)", () => {
     await user.click(
       await screen.findByRole("button", { name: "Spring Boot 삭제" }),
     );
+    await confirmDialog(user, "삭제");
     await waitFor(() =>
       expect(skillApi.deleteUserSkill).toHaveBeenCalledWith("us-1"),
     );
@@ -162,18 +160,39 @@ describe("스킬 탭 (S-12)", () => {
   });
 
   it("확인을 취소하면 삭제 API 를 부르지 않는다", async () => {
-    // M3 가 실제로 확인을 거치는지 — 스텁만 있고 취소 경로를 검증하지 않으면
-    // handleDelete 가 confirm 을 아예 안 불러도 그린으로 남는다.
-    vi.spyOn(window, "confirm").mockReturnValue(false);
+    // 확인창에서 취소하면 요청이 나가지 않는다.
     renderTab();
     const user = userEvent.setup();
 
     await user.click(
       await screen.findByRole("button", { name: "Spring Boot 삭제" }),
     );
+    await cancelDialog(user);
 
     expect(skillApi.deleteUserSkill).not.toHaveBeenCalled();
     expect(screen.getByText("Spring Boot")).toBeInTheDocument();
+  });
+
+  it("삭제 확인창은 무엇이 지워지는지 알리고, 요청이 끝날 때까지 다시 열 수 없다", async () => {
+    let resolveDelete: () => void = () => {};
+    vi.mocked(skillApi.deleteUserSkill).mockReturnValue(
+      new Promise<void>((r) => {
+        resolveDelete = r;
+      }),
+    );
+    renderTab();
+    const user = userEvent.setup();
+
+    const trigger = await screen.findByRole("button", {
+      name: "Spring Boot 삭제",
+    });
+    await user.click(trigger);
+    expect(
+      screen.getByRole("alertdialog", { name: "스킬을 삭제할까요?" }),
+    ).toHaveAccessibleDescription(/보유 목록에서 지워집니다/);
+    await confirmDialog(user, "삭제");
+    await waitFor(() => expect(trigger).toBeDisabled());
+    resolveDelete();
   });
 
   it("삭제가 실패하면 그 행 옆에 오류를 보여주고 목록은 그대로 둔다", async () => {
@@ -189,6 +208,7 @@ describe("스킬 탭 (S-12)", () => {
     await user.click(
       await screen.findByRole("button", { name: "Spring Boot 삭제" }),
     );
+    await confirmDialog(user, "삭제");
 
     expect(await screen.findByText("삭제하지 못했습니다.")).toBeInTheDocument();
     expect(screen.getByText("Spring Boot")).toBeInTheDocument();

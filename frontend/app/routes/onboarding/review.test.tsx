@@ -1,5 +1,6 @@
+import { confirmDialog } from "../../test-utils/confirmDialog";
 import { expectHeadingOutline } from "../../test-utils/headingOutline";
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { createRoutesStub } from "react-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -603,12 +604,19 @@ describe("S-09 검토 화면", () => {
       renderScreen();
 
       expect(await screen.findByText("온보딩 완료 상태")).toBeInTheDocument();
+      const restarts = screen.getAllByRole("button", { name: /다시 시작/ });
+      expect(restarts).toHaveLength(1);
+      expect(restarts[0]).toHaveAttribute("data-variant", "outline");
       expect(
-        screen.getAllByRole("button", { name: "온보딩 처음부터 다시 시작" }),
-      ).toHaveLength(2);
-      expect(
-        screen.getByRole("link", { name: "대시보드로 돌아가기" }),
-      ).toHaveAttribute("href", "/dashboard");
+        screen.getByText(
+          /화면 아래 「처음부터 다시 시작」으로 다시 할 수 있습니다/,
+        ),
+      ).toBeInTheDocument();
+      const dashboard = screen.getByRole("link", {
+        name: "대시보드로 돌아가기",
+      });
+      expect(dashboard).toHaveAttribute("href", "/dashboard");
+      expect(dashboard).toHaveClass("bg-primary");
     });
 
     it("'온보딩 처음부터 다시 시작'을 누르면 resetOnboarding 을 호출하고 프로필 화면으로 이동한다", async () => {
@@ -622,12 +630,12 @@ describe("S-09 검토 화면", () => {
       renderScreen();
       const user = userEvent.setup();
 
-      const restartButtons = await screen.findAllByRole("button", {
-        name: "온보딩 처음부터 다시 시작",
-      });
-      await user.click(restartButtons[0]);
+      await user.click(
+        await screen.findByRole("button", { name: "처음부터 다시 시작" }),
+      );
+      await confirmDialog(user, "다시 시작");
 
-      expect(resetSpy).toHaveBeenCalledTimes(1);
+      await waitFor(() => expect(resetSpy).toHaveBeenCalledTimes(1));
       expect(await screen.findByText("프로필 화면")).toBeInTheDocument();
     });
 
@@ -639,10 +647,10 @@ describe("S-09 검토 화면", () => {
       renderScreen();
       const user = userEvent.setup();
 
-      const restartButtons = await screen.findAllByRole("button", {
-        name: "온보딩 처음부터 다시 시작",
-      });
-      await user.click(restartButtons[0]);
+      await user.click(
+        await screen.findByRole("button", { name: "처음부터 다시 시작" }),
+      );
+      await confirmDialog(user, "다시 시작");
 
       const banner = await screen.findByRole("alert");
       expect(banner).toHaveTextContent("요청을 처리하지 못했습니다");

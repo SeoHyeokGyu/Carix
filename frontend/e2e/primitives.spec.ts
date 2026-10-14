@@ -83,6 +83,22 @@ test("TextLink 포커스 링이 라이트·다크 모두 그려진다", async ({
   }
 });
 
+for (const tone of ["danger", "default"] as const) {
+  test(`ConfirmDialog(${tone}) 확인창이 베이스라인과 같다`, async ({
+    page,
+  }) => {
+    for (const theme of ["light", "dark"] as const) {
+      await page.goto("/dev/primitives");
+      await setTheme(page, theme);
+      await page.getByTestId(`confirm-open-${tone}`).click();
+      // 확인창은 Portal 로 body 끝에 그려져 갤러리 절 스크린샷에 들어오지 않는다 — 확인창 요소를 찍는다.
+      await expect(page.getByRole("alertdialog")).toHaveScreenshot(
+        `confirm-dialog-${tone}-${theme}.png`,
+      );
+    }
+  });
+}
+
 for (const theme of ["light", "dark"] as const) {
   for (const section of [
     "gallery-tone-badge",

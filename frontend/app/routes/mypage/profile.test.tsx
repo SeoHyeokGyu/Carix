@@ -1,6 +1,8 @@
 import { expectHeadingOutline } from "../../test-utils/headingOutline";
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { cancelDialog, confirmDialog } from "../../test-utils/confirmDialog";
 import { createRoutesStub } from "react-router";
 import MypageProfile, { clientAction } from "./profile";
 import * as authApi from "../../lib/authApi";
@@ -72,6 +74,40 @@ describe("S-13 MypageProfile 라우트", () => {
     expect(
       screen.getByRole("heading", { level: 2, name: "세션 관리" }),
     ).toBeInTheDocument();
+  });
+
+  it("온보딩 재시작은 보조 버튼이고 확인창을 거쳐 보낸다", async () => {
+    vi.mocked(onboardingApi.resetOnboarding).mockResolvedValue({
+      currentStep: "PROFILE",
+      completed: false,
+    });
+    vi.mocked(sessionModule.requireSession).mockResolvedValue({
+      status: "authenticated",
+      userId: "u-123",
+      email: "user@example.com",
+      onboardingStep: "COMPLETED",
+    });
+    renderScreen();
+    const user = userEvent.setup();
+    const trigger = await screen.findByRole("button", {
+      name: "온보딩 처음부터 다시 시작",
+    });
+    expect(trigger).toHaveAttribute("data-variant", "outline");
+
+    await user.click(trigger);
+    await cancelDialog(user);
+    expect(onboardingApi.resetOnboarding).not.toHaveBeenCalled();
+
+    await user.click(trigger);
+    expect(
+      screen.getByRole("alertdialog", {
+        name: "온보딩을 처음부터 다시 할까요?",
+      }),
+    ).toBeInTheDocument();
+    await confirmDialog(user, "다시 시작");
+    await waitFor(() =>
+      expect(onboardingApi.resetOnboarding).toHaveBeenCalledTimes(1),
+    );
   });
 
   it("동의 체크박스와 이메일 입력 전에는 탈퇴 버튼이 비활성화된다", async () => {

@@ -22,6 +22,7 @@ import { LoadingState } from "@/components/ui/loading-state";
 import { TextLink } from "@/components/ui/text-link";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { PageSection } from "@/components/layout/PageSection";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { ToneBadge, TONE_CLASS } from "@/components/ui/tone-badge";
 import { SignalBadge } from "../../components/dashboard/SignalBadge";
 import { SalaryDistributionChart } from "../../components/dashboard/SalaryDistributionChart";
@@ -214,6 +215,33 @@ function Gallery() {
               </Card>
             </div>
           </PageSection>
+        </div>
+      </Section>
+      <Section id="gallery-confirm-dialog" title="ConfirmDialog">
+        <div className="flex flex-wrap gap-3">
+          <ConfirmDialog
+            trigger={
+              <Button variant="destructive" data-testid="confirm-open-danger">
+                삭제
+              </Button>
+            }
+            title="소득 이력을 삭제할까요?"
+            description="2026-02-01 소득 이력이 지워지고, 그 시점 이후 지수가 다시 계산됩니다. 되돌릴 수 없습니다."
+            confirmLabel="삭제"
+            onConfirm={() => {}}
+          />
+          <ConfirmDialog
+            trigger={
+              <Button variant="outline" data-testid="confirm-open-default">
+                처음부터 다시 시작
+              </Button>
+            }
+            title="온보딩을 처음부터 다시 할까요?"
+            description="입력한 프로필·소득·소비·스킬은 그대로 남습니다. 다만 온보딩을 다시 마칠 때까지 판정 화면에 들어갈 수 없습니다."
+            confirmLabel="다시 시작"
+            tone="default"
+            onConfirm={() => {}}
+          />
         </div>
       </Section>
       <Section id="primitives-badges" title="Badge / SignalBadge">

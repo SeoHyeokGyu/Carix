@@ -1,3 +1,4 @@
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { PageFrame } from "@/components/layout/PageFrame";
 import { PageHeader } from "@/components/layout/PageHeader";
 import {
@@ -6,6 +7,7 @@ import {
   useActionData,
   useLoaderData,
   useNavigation,
+  useSubmit,
   Form,
 } from "react-router";
 import { buttonVariants, Button } from "@/components/ui/button";
@@ -262,6 +264,7 @@ export default function Review() {
     useLoaderData<typeof clientLoader>();
   const actionData = useActionData<typeof clientAction>();
   const navigation = useNavigation();
+  const submit = useSubmit();
   const errors = actionData?.errors;
   const isSubmitting =
     navigation.state === "submitting" || navigation.state === "loading";
@@ -308,26 +311,11 @@ export default function Review() {
 
       {isCompleted && (
         <div className="rounded-lg border border-carix-info/40 bg-carix-info/10 p-5 text-sm text-carix-text">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <p className="font-semibold text-carix-info">온보딩 완료 상태</p>
-              <p className="mt-1 text-carix-text/80">
-                이미 온보딩을 완료하셨습니다. 처음부터 다시 온보딩을
-                진행하시려면 재시작을 눌러주세요.
-              </p>
-            </div>
-            <Button
-              type="submit"
-              name="intent"
-              value="reset"
-              form="review-form"
-              variant="default"
-              disabled={isSubmitting}
-              className="self-start sm:self-auto"
-            >
-              온보딩 처음부터 다시 시작
-            </Button>
-          </div>
+          <p className="font-semibold text-carix-info">온보딩 완료 상태</p>
+          <p className="mt-1 text-carix-text/80">
+            이미 온보딩을 완료하셨습니다. 화면 아래 「처음부터 다시 시작」으로
+            다시 할 수 있습니다.
+          </p>
         </div>
       )}
 
@@ -427,7 +415,7 @@ export default function Review() {
         </p>
       </div>
 
-      <Form id="review-form" method="post" className="mt-8 flex flex-col gap-4">
+      <Form method="post" className="mt-8 flex flex-col gap-4">
         {errors?._form && (
           <p role="alert" className="text-sm text-destructive">
             {errors._form}
@@ -462,20 +450,27 @@ export default function Review() {
           )}
           {isCompleted ? (
             <>
-              <Button
-                type="submit"
-                name="intent"
-                value="reset"
-                disabled={isSubmitting}
-              >
-                온보딩 처음부터 다시 시작
-              </Button>
-              <Link
-                to="/dashboard"
-                className={buttonVariants({ variant: "outline" })}
-              >
+              <Link to="/dashboard" className={buttonVariants()}>
                 대시보드로 돌아가기
               </Link>
+              <ConfirmDialog
+                trigger={
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={isSubmitting}
+                  >
+                    처음부터 다시 시작
+                  </Button>
+                }
+                title="온보딩을 처음부터 다시 할까요?"
+                description="입력한 프로필·소득·소비·스킬은 그대로 남습니다. 다만 온보딩을 다시 마칠 때까지 판정 화면에 들어갈 수 없습니다."
+                confirmLabel="다시 시작"
+                tone="default"
+                onConfirm={() =>
+                  submit({ intent: "reset" }, { method: "post" })
+                }
+              />
             </>
           ) : (
             canSubmit && (

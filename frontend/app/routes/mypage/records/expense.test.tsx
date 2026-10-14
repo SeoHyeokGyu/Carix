@@ -98,7 +98,7 @@ describe("소비 탭 (S-12)", () => {
     renderTab();
     const user = userEvent.setup();
     await user.click(
-      (await screen.findAllByRole("button", { name: "편집" }))[0],
+      (await screen.findAllByRole("button", { name: "수정" }))[0],
     );
 
     for (const label of [
@@ -122,7 +122,7 @@ describe("소비 탭 (S-12)", () => {
     renderTab();
     const user = userEvent.setup();
     await user.click(
-      (await screen.findAllByRole("button", { name: "편집" }))[0],
+      (await screen.findAllByRole("button", { name: "수정" }))[0],
     );
     await user.click(
       screen.getByRole("button", { name: "식비 기본값으로 되돌리기" }),
@@ -139,7 +139,7 @@ describe("소비 탭 (S-12)", () => {
     renderTab();
     const user = userEvent.setup();
     await user.click(
-      (await screen.findAllByRole("button", { name: "편집" }))[0],
+      (await screen.findAllByRole("button", { name: "수정" }))[0],
     );
 
     // 202607 은 HOUSING·FOOD 만 USER_DEFINED 라 폼을 열면 이 둘만 채워진다 —
@@ -183,7 +183,7 @@ describe("소비 탭 (S-12)", () => {
     renderTab();
     const user = userEvent.setup();
     await user.click(
-      (await screen.findAllByRole("button", { name: "편집" }))[0],
+      (await screen.findAllByRole("button", { name: "수정" }))[0],
     );
 
     const housing = screen.getByLabelText("주거·공공요금");
@@ -224,9 +224,9 @@ describe("소비 탭 (S-12)", () => {
     renderTab();
     const user = userEvent.setup();
 
-    // 202607 은 HOUSING·FOOD 가 USER_DEFINED 다 — 편집을 열면 둘 다 채워진다.
+    // 202607 은 HOUSING·FOOD 가 USER_DEFINED 다 — 수정을 열면 둘 다 채워진다.
     await user.click(
-      (await screen.findAllByRole("button", { name: "편집" }))[0],
+      (await screen.findAllByRole("button", { name: "수정" }))[0],
     );
     await user.click(
       screen.getByRole("button", { name: "주거·공공요금 기본값으로 되돌리기" }),
