@@ -1,3 +1,5 @@
+import { PageFrame } from "@/components/layout/PageFrame";
+import { PageHeader } from "@/components/layout/PageHeader";
 import { useEffect, useRef, useState } from "react";
 import {
   Form,
@@ -9,13 +11,7 @@ import {
 } from "react-router";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { ExpenseDonut } from "../../components/expense/ExpenseDonut";
 import { Field } from "../../components/onboarding/Field";
@@ -232,15 +228,12 @@ export default function Expense() {
   });
 
   return (
-    <section className="mx-auto w-full max-w-3xl px-6 py-8 sm:py-12">
+    <PageFrame width="narrow">
+      <PageHeader
+        title="소비"
+        description="6대 카테고리의 월 소비 금액을 입력해 주세요. 비워 둔 카테고리는 통계청 평균 소비지출 비중으로 자동 보완됩니다."
+      />
       <Card>
-        <CardHeader>
-          <CardTitle>소비 관리</CardTitle>
-          <CardDescription>
-            6대 카테고리의 월 소비 금액을 입력해 주세요. 비워 둔 카테고리는
-            통계청 평균 소비지출 비중으로 자동 보완됩니다.
-          </CardDescription>
-        </CardHeader>
         <CardContent>
           <Form method="post" ref={formRef} className="flex flex-col gap-6">
             {EXPENSE_CATEGORIES.map((category) => {
@@ -322,6 +315,6 @@ export default function Expense() {
           </Form>
         </CardContent>
       </Card>
-    </section>
+    </PageFrame>
   );
 }

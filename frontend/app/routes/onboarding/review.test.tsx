@@ -230,6 +230,9 @@ describe("S-09 검토 화면", () => {
     expect(
       screen.getByText(/2개 등록.*Spring Boot.*TypeScript/),
     ).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 1, name: "검토" })).toHaveClass(
+      "sm:text-3xl",
+    );
   });
 
   // 브리프 2 — 대체 항목은 목록 조회가 아니라 GET /expenses/applied 로 그린다(US-O6).

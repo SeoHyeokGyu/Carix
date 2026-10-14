@@ -1,3 +1,5 @@
+import { PageFrame } from "@/components/layout/PageFrame";
+import { PageHeader } from "@/components/layout/PageHeader";
 import { useEffect, useRef, useState } from "react";
 import {
   Form,
@@ -17,13 +19,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Field } from "../../components/onboarding/Field";
 import { NativeSelect } from "../../components/onboarding/NativeSelect";
@@ -341,15 +337,12 @@ export default function Income() {
   const netWonHint = getWonHint(netInput);
 
   return (
-    <section className="mx-auto w-full max-w-3xl px-6 py-8 sm:py-12">
+    <PageFrame width="narrow">
+      <PageHeader
+        title="소득"
+        description="동료집단 비교와 구매력 지수(PPI) 추이 계산을 위해 세전 연봉과 월 실수령액, 해당 연봉의 적용 시작일을 입력해 주세요."
+      />
       <Card>
-        <CardHeader>
-          <CardTitle>소득 관리</CardTitle>
-          <CardDescription>
-            동료집단 비교와 구매력 지수(PPI) 추이 계산을 위해 세전 연봉과 월
-            실수령액, 해당 연봉의 적용 시작일을 입력해 주세요.
-          </CardDescription>
-        </CardHeader>
         <CardContent>
           <formFetcher.Form
             method="post"
@@ -544,6 +537,6 @@ export default function Income() {
           </Form>
         </div>
       </div>
-    </section>
+    </PageFrame>
   );
 }

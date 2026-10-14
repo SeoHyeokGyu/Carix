@@ -1,3 +1,5 @@
+import { PageFrame } from "@/components/layout/PageFrame";
+import { PageHeader } from "@/components/layout/PageHeader";
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import { Button } from "@/components/ui/button";
@@ -109,27 +111,12 @@ export default function DashboardTrends() {
   }, [loadData]);
 
   return (
-    <div className="mx-auto w-full max-w-4xl px-4 py-8 sm:px-6">
-      {/* 1. 헤더 영역 */}
-      <div className="mb-6 flex flex-wrap items-center justify-between gap-2 border-b border-carix-border pb-4">
-        <div>
-          <h1 className="font-display text-2xl font-bold text-carix-text sm:text-3xl">
-            추이 분석
-          </h1>
-          <p className="mt-1 text-sm text-carix-text/70">
-            소득 대 개인물가, 스킬 수요, 동료집단 연봉 분포를 다각도로 비교
-            분석합니다.
-          </p>
-        </div>
-        <button
-          type="button"
-          onClick={() => void loadData()}
-          disabled={isLoading}
-          className="rounded-lg border border-carix-border bg-carix-surface px-3 py-1.5 text-xs text-carix-text hover:bg-carix-bg disabled:opacity-50"
-        >
-          {isLoading ? "새로고침 중..." : "새로고침 ↻"}
-        </button>
-      </div>
+    <PageFrame>
+      <PageHeader
+        title="추이 분석"
+        description="소득 대 개인물가, 스킬 수요, 동료집단 연봉 분포를 다각도로 비교 분석합니다."
+        divider
+      />
 
       {/* 2. 탭 — 선택은 URL ?tab= 이 갖는다(대시보드 카드가 특정 탭으로 보낸다) */}
       <div
@@ -228,6 +215,6 @@ export default function DashboardTrends() {
           </div>
         )}
       </div>
-    </div>
+    </PageFrame>
   );
 }

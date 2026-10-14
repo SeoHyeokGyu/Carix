@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, redirect, useLoaderData, useRevalidator } from "react-router";
+import { redirect, useLoaderData, useRevalidator } from "react-router";
 import { RotateCw } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -27,6 +27,9 @@ import { resolvePeerConditions } from "../../lib/peerConditions";
 import { LOGIN_PATH } from "../../lib/routeGuards";
 import { fetchSkillRecommendations } from "../../lib/skillApi";
 import { formatVerdictHeading } from "../../lib/verdict";
+import { PageFrame } from "@/components/layout/PageFrame";
+import { PageHeader } from "@/components/layout/PageHeader";
+import { TextLink } from "@/components/ui/text-link";
 
 /**
  * 1층 프리뷰와 3층 비교 조건의 재료. 없어도 판정은 선다 — 실패하면 그 요소만 사라지고
@@ -139,38 +142,30 @@ export default function DashboardHome() {
   const firstCalculation = data !== null && isFirstCalculation(data);
 
   return (
-    <section className="mx-auto w-full max-w-5xl px-6 py-10">
-      <nav
-        aria-label="대시보드 바로가기"
-        className="flex flex-wrap justify-end gap-4"
-      >
-        <Link
-          to="/onboarding/review"
-          className="text-sm text-carix-text/70 hover:text-carix-text underline"
-        >
-          온보딩 검토 및 재시작
-        </Link>
-      </nav>
-
-      <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
-        <h1 className="font-display text-xl font-bold text-carix-text">
-          {formatVerdictHeading(data?.metadata.baseDate)}
-        </h1>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          disabled={isRecalculating || revalidator.state === "loading"}
-          onClick={handleRecalculate}
-          className="flex items-center gap-1.5"
-          aria-label="지표 재계산"
-        >
-          <RotateCw
-            className={`h-3.5 w-3.5 ${isRecalculating ? "animate-spin" : ""}`}
-          />
-          {isRecalculating ? "재계산 중..." : "지표 재계산"}
-        </Button>
-      </div>
+    <PageFrame>
+      <PageHeader
+        title="판정"
+        description={formatVerdictHeading(data?.metadata.baseDate)}
+        actions={
+          <>
+            <TextLink to="/onboarding/review">온보딩 검토 및 재시작</TextLink>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={isRecalculating || revalidator.state === "loading"}
+              onClick={handleRecalculate}
+              className="flex items-center gap-1.5"
+              aria-label="지표 재계산"
+            >
+              <RotateCw
+                className={`h-3.5 w-3.5 ${isRecalculating ? "animate-spin" : ""}`}
+              />
+              {isRecalculating ? "재계산 중..." : "지표 재계산"}
+            </Button>
+          </>
+        }
+      />
 
       {recalculateMessage && (
         <div className="mt-2.5 flex items-center justify-between rounded-md bg-carix-surface px-3 py-2 text-xs text-carix-info border border-carix-border">
@@ -272,7 +267,7 @@ export default function DashboardHome() {
           />
         </div>
       )}
-    </section>
+    </PageFrame>
   );
 }
 

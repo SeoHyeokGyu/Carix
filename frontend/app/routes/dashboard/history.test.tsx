@@ -378,7 +378,8 @@ describe("S-11 DashboardHistory 라우트", () => {
     expect(dashboardMarketApi.fetchSnapshotHistory).toHaveBeenCalledTimes(2);
   });
 
-  it("새로고침 버튼 클릭 시 최신 스냅샷 데이터를 다시 조회한다", async () => {
+  // 들어올 때 불러오고 실패하면 「다시 시도」가 있다 — 제목 줄 새로고침은 두지 않는다.
+  it("제목 줄에 새로고침 버튼이 없고 h1 은 하나다", async () => {
     vi.mocked(dashboardMarketApi.fetchSnapshotHistory).mockResolvedValue({
       snapshots: [],
     });
@@ -389,16 +390,13 @@ describe("S-11 DashboardHistory 라우트", () => {
       </MemoryRouter>,
     );
 
-    await waitFor(() => {
-      expect(screen.getByTestId("empty-state")).toBeInTheDocument();
-    });
-
-    const refreshBtn = screen.getByRole("button", { name: "새로고침 ↻" });
-    fireEvent.click(refreshBtn);
-
-    await waitFor(() => {
-      expect(dashboardMarketApi.fetchSnapshotHistory).toHaveBeenCalledTimes(2);
-    });
+    await screen.findByTestId("empty-state");
+    expect(screen.queryByRole("button", { name: /새로고침/ })).toBeNull();
+    expect(screen.getAllByRole("heading", { level: 1 })).toHaveLength(1);
+    expect(screen.getByRole("link", { name: "판정" })).toHaveAttribute(
+      "href",
+      "/dashboard",
+    );
   });
 
   it("적용 규칙이 비어 있는 스냅샷 행 상세 패널에서는 '기록된 적용 규칙 없음'을 표시한다", async () => {

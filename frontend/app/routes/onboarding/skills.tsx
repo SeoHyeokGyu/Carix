@@ -1,3 +1,5 @@
+import { PageFrame } from "@/components/layout/PageFrame";
+import { PageHeader } from "@/components/layout/PageHeader";
 import { useState, useEffect, useCallback, useRef } from "react";
 import { Link, useNavigate } from "react-router";
 import {
@@ -320,24 +322,16 @@ export default function Skills() {
   };
 
   return (
-    <div className="mx-auto w-full max-w-3xl px-4 py-8 sm:px-6 sm:py-12">
-      {/* 2. 타이틀 영역 */}
-      <div className="mb-8 flex items-start justify-between">
-        <div>
-          <h1 className="font-display text-2xl font-bold text-carix-text sm:text-3xl">
-            보유 스킬
-          </h1>
-          <p className="mt-2 text-sm text-carix-text/70">
-            표준 스킬 사전에서 검색해 실무 사용 기간과 마지막 사용일을
-            기록합니다.
-          </p>
-        </div>
-        <div className="text-right">
+    <PageFrame width="narrow">
+      <PageHeader
+        title="스킬"
+        description="표준 스킬 사전에서 검색해 실무 사용 기간과 마지막 사용일을 기록합니다."
+        actions={
           <span className="inline-flex items-center rounded-full bg-carix-surface border border-carix-border px-3 py-1 text-xs font-medium text-carix-text">
             등록: {userSkills.length} / 30
           </span>
-        </div>
-      </div>
+        }
+      />
 
       {/* 3. 피드백 메시지 */}
       {errorMessage && (
@@ -712,6 +706,6 @@ export default function Skills() {
           다음 (검토) →
         </button>
       </div>
-    </div>
+    </PageFrame>
   );
 }

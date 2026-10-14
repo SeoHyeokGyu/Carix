@@ -117,6 +117,14 @@ describe("S-14 DashboardTrends 라우트", () => {
     });
   });
 
+  it("제목 줄에 새로고침 버튼이 없다", async () => {
+    renderTrends();
+    expect(
+      await screen.findByRole("heading", { level: 1, name: "추이 분석" }),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /새로고침/ })).toBeNull();
+  });
+
   it("화면 헤더와 기본 탭(소득 vs 물가)을 렌더링하고 화면 ID 는 보이지 않는다", async () => {
     renderTrends();
 

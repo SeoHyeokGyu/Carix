@@ -1,3 +1,5 @@
+import { PageFrame } from "@/components/layout/PageFrame";
+import { PageHeader } from "@/components/layout/PageHeader";
 import { useEffect, useRef } from "react";
 import {
   Form,
@@ -7,13 +9,7 @@ import {
   useNavigation,
 } from "react-router";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Field } from "../../components/onboarding/Field";
 import { NativeSelect } from "../../components/onboarding/NativeSelect";
@@ -115,14 +111,12 @@ export default function Profile() {
   }, [errors]);
 
   return (
-    <section className="mx-auto w-full max-w-3xl px-6 py-8 sm:py-12">
+    <PageFrame width="narrow">
+      <PageHeader
+        title="프로필"
+        description="동료집단 비교를 위해 직군·총 경력·지역·고용 형태를 입력해 주세요."
+      />
       <Card>
-        <CardHeader>
-          <CardTitle>프로필</CardTitle>
-          <CardDescription>
-            동료집단 비교를 위해 직군·총 경력·지역·고용 형태를 입력해 주세요.
-          </CardDescription>
-        </CardHeader>
         <CardContent>
           <Form method="post" ref={formRef} className="flex flex-col gap-6">
             <Field id="jobFamily" label="주 직무" error={errors?.jobFamily}>
@@ -233,6 +227,6 @@ export default function Profile() {
           </Form>
         </CardContent>
       </Card>
-    </section>
+    </PageFrame>
   );
 }

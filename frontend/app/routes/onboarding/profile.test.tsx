@@ -53,6 +53,9 @@ describe("S-05 프로필 화면", () => {
 
     expect(await screen.findByLabelText("주 직무")).toHaveValue("DATA");
     expect(screen.getByLabelText("총 경력 (년)")).toHaveValue(7);
+    expect(
+      screen.getByRole("heading", { level: 1, name: "프로필" }),
+    ).toBeInTheDocument();
   });
 
   it("저장하면 프로필을 보내고 단계를 INCOME 으로 옮긴 뒤 소득 화면으로 간다", async () => {
