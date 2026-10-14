@@ -124,7 +124,7 @@ C 는 공용 계층만 낸다. 화면 교체는 소유자 몫이므로 **이 표
 | 소유 | 파일 | 교체 |
 | :--- | :--- | :--- |
 | B | `SalaryDistributionChart`·`SkillDemandSection`·`IncomeVsPriceChart`·`routes/dashboard/history`·`trends`·`routes/onboarding/skills` | raw 카드 6 → `Card`, raw button 10종 → `Button`, raw table 3 → `Table`, 열화 박스 → `EmptyState`, 상태 span → `ToneBadge`, `getSignalBadge` → `SignalBadge`, `SalaryDistributionChart` 손수 배지 → `ToneBadge`, `onboarding/skills` 단계 이동 줄 → 컴포넌트 계약 「단계 이동 줄」 |
-| 박지수 | `components/admin/` 6파일 + `routes/admin/collector.tsx` | 팔레트 누출 → 토큰, raw button → `Button`, `animate-pulse` → `LoadingState`, `collector.tsx` 상태 뱃지 `-300` → 테이블과 동일한 `-400`, `JobHistoryTable` 링크 → `TextLink direction="none" size="inherit"`, `routes/admin/collector.tsx` → `PageFrame width="admin" as="main"`·`PageHeader` |
+| 박지수 | `components/admin/` 6파일 + `routes/admin/collector.tsx` | 팔레트 누출 → 토큰, raw button → `Button`, `animate-pulse` → `LoadingState`, `collector.tsx` 상태 뱃지 `-300` → 테이블과 동일한 `-400`, `JobHistoryTable` 링크 → `TextLink direction="none" size="inherit"`, `routes/admin/collector.tsx` → `PageFrame width="admin" as="main"`·`PageHeader`, 관리자 컴포넌트 제목(`CollectorStatusBanner` h2·`JobHistoryTable`·`PipelineControlPanel` h3) → 두 단계 계약 |
 | C | 온보딩 4화면·대시보드·가이드·시뮬레이터·`S-12`·`mypage/profile`·`AuthForm` | 완료(P3). 프리미티브를 import 하는 파일은 전부 C 소유라 P3 재정의가 닿는 것도 C 화면뿐이다 |
 
 **남은 일을 세는 곳은 `frontend/eslint.config.js` 의 예외 목록이다.** raw `<button>`·토큰 밖

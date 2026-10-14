@@ -192,9 +192,10 @@ OCI VM에서 다음 컨테이너를 Docker Compose로 운영한다.
 | `Button` | 모든 버튼. 크기 `xs`·`sm`·`default`(h-8, text-xs)·`lg`, 아이콘 `icon-*`. 링크처럼 보여야 하면 `variant="link"`, 링크 요소에 버튼 모양이 필요하면 `buttonVariants` |
 | `PageFrame` | 화면 바깥 틀. 폭·좌우 여백이 헤더와 같아(`max-w-5xl px-6`, 관리자 `max-w-7xl`) 제목이 로고 선에서 시작한다. `width` 는 `wide`(기본)·`narrow`(헤더 아래 내용만 3xl 왼쪽 정렬 — 폼 화면)·`admin`. 화면 파일은 `mx-auto max-w-*` 틀을 직접 쓰지 않는다 |
 | `PageHeader` | 화면 제목 줄. h1 하나(메뉴 이름, `font-display text-2xl sm:text-3xl bold`), 설명 한 줄, 하위 화면이면 위에 상위 복귀(`back`), 오른쪽 `actions`(보조 `TextLink` + 서버 동작 버튼 최대 하나, `outline sm` + 아이콘), 아래가 탭이면 `divider`. 날짜·부연은 설명으로 간다. 다시 불러오기 버튼은 두지 않는다 — 화면이 들어올 때 불러오고 실패하면 「다시 시도」가 있다 |
+| `PageSection` | 화면 안 섹션. h2 하나(섹션 제목 `font-display text-lg font-semibold`), 설명 한 줄, 오른쪽 `actions`, 제목 → 내용 12px. 섹션끼리 32px 는 `PageFrame` 이 `data-page-section` 형제에만 준다(탭 → 패널 등은 그대로). 탭 패널처럼 이미 이름이 있는 자리는 `titleHidden`(sr-only h2, region 아님) |
 | `TextLink` | 화면 이동 글자 링크. 그 자리에서 실행하는 것은 `Button variant="link"` 다(이동이면 `TextLink`, 실행이면 `Button`). `direction` 은 `forward`(기본, 뒤 화살표)·`back`(앞 화살표)·`none`(화살표 없음), `size` 는 `xs`(기본)·`sm`·`inherit`(표 셀처럼 부모 크기). 화살표 링크는 마우스 올림에만, `none` 은 늘 밑줄이다 — 문장 속·표 안은 색만으로 갈리지 않게(WCAG 1.4.1). 주 메뉴에 없는 하위 화면은 콘텐츠 맨 처음에 `direction="back" size="sm"` 으로 상위 메뉴 이름을 둔다 |
 | 단계 이동 줄 | 컴포넌트가 아니라 배치 규칙이다. 폼 끝에 `flex flex-wrap gap-3` 왼쪽 정렬, 되돌아가기는 `buttonVariants({ variant: "outline" })` 를 단 `Link`, 진행은 기본 `Button`. 글자는 「이전」·「다음」 또는 결과를 말하는 동사구(「제출하고 대시보드로」)만 — 화살표·행선지 괄호 없음. 보이는 순서 = DOM 순서, 구분선·양끝 정렬 없음. 근거는 온보딩 와이어프레임 01~05 |
-| `Card` | 내용 묶음. 여백 `p-6`, 자식 간격 16px |
+| `Card` | 내용 묶음. 여백 `p-6`, 자식 간격 16px. 카드 제목 `CardTitle` 은 h3 소제목(`text-sm`)이 기본이고, 화면에 바로 놓인 카드형 섹션은 `as="h2"` + `<Card data-page-section>` — 이 경우 제목 → 내용 간격은 `Card` 를 따른다 |
 | `Badge` | **중립 칩**(라벨·보조 지표). `default`·`secondary`·`outline` 뿐이다 |
 | `ToneBadge` | **상태·의미 색.** 톤 여섯(`positive`·`warning`·`danger`·`info`·`action`·`muted`) |
 | `Table` | 표. 기본은 틀이 있고, 이미 `Card` 안이면 `variant="plain"`. 좁은 폭은 가로 스크롤 |
@@ -202,12 +203,17 @@ OCI VM에서 다음 컨테이너를 Docker Compose로 운영한다.
 | `LoadingState` | 불러오는 중 |
 | `NativeSelect` | 선택 필드 (Radix `Select` 는 쓰지 않는다) |
 
+**제목 단계** — 화면 안 제목은 두 단계다. 섹션 h2(`font-display text-lg font-semibold`, 18px)와 소제목 h3(`font-display text-sm font-semibold`, 14px). 두 문자열은 `components/ui/heading.ts` 에만 있다.
+*   컴포넌트가 화면 섹션 하나를 통째로 그리면 h2(`TrustPanel`·`SnapshotDetailPanel`), 그 밖의 컴포넌트 안 제목은 h3.
+*   제목이 아닌 큰 글씨(판정 문장)·빈 상태 문구는 제목 태그가 아니라 `p` 다 — `EmptyState` 의 제목도 기본 `p` 다.
+*   제목에 이모지를 붙이지 않는다.
+
 **상태 표현 규칙**
 *   열화 상태(표본 부족·산출 불가 등)는 `EmptyState` 로 그린다. 흐린 문단 하나로 두지 않는다 — "로딩이 덜 끝났나" 로 읽힌다.
 *   상태 색은 도메인별 해석 모듈(`lib/decisionSignal.ts`·`lib/indexStatus.ts`·`lib/skillDemandStatus.ts`)이 톤을 정하고 `ToneBadge` 가 그린다. 화면이 색을 고르지 않는다.
 *   값이 없으면 비워 두고 이유를 밝힌다. 0 이나 평균으로 채우지 않는다.
 
-**금지 — eslint 가 막는다.** raw `<button>`, 토큰 밖 Tailwind 팔레트 색(`bg-blue-500` 등), `text-carix-info` 와 밑줄을 손으로 단 `Link`, 화면 파일의 직접 `<h1>` 과 `mx-auto max-w-*` 틀은 `error` 다. 색은 carix 토큰(`bg-carix-*`·`text-carix-*`)만 쓴다. 아직 교체 전인 파일은 `frontend/eslint.config.js` 의 예외 목록에 소유자와 함께 있고, 교체하면 목록에서 지운다. 새 파일은 목록에 넣지 않는다.
+**금지 — eslint 가 막는다.** raw `<button>`, 토큰 밖 Tailwind 팔레트 색(`bg-blue-500` 등), `text-carix-info` 와 밑줄을 손으로 단 `Link`, 화면 파일의 직접 `<h1>`·`<h2>`·`<h4>`~`<h6>` 과 `mx-auto max-w-*` 틀은 `error` 다. 색은 carix 토큰(`bg-carix-*`·`text-carix-*`)만 쓴다. 아직 교체 전인 파일은 `frontend/eslint.config.js` 의 예외 목록에 소유자와 함께 있고, 교체하면 목록에서 지운다. 새 파일은 목록에 넣지 않는다.
 
 ---
 
