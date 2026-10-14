@@ -1,6 +1,7 @@
 import { PageFrame } from "@/components/layout/PageFrame";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { PageSection } from "@/components/layout/PageSection";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useState, useEffect, useCallback, useRef } from "react";
 import { Link, useNavigate } from "react-router";
 import {
@@ -247,9 +248,6 @@ export default function Skills() {
 
   // 스킬 삭제 핸들러
   const handleDelete = async (id: string, name: string) => {
-    if (!window.confirm(`'${name}' 스킬을 삭제하시겠습니까?`)) {
-      return;
-    }
     try {
       setActionLoading(true);
       await deleteUserSkill(id);
@@ -664,15 +662,23 @@ export default function Skills() {
                             >
                               수정
                             </button>
-                            <button
-                              type="button"
-                              onClick={() =>
-                                handleDelete(skill.id, skill.standardName)
+                            <ConfirmDialog
+                              trigger={
+                                <button
+                                  type="button"
+                                  disabled={actionLoading}
+                                  className="text-xs font-medium text-carix-danger hover:underline"
+                                >
+                                  삭제
+                                </button>
                               }
-                              className="text-xs font-medium text-carix-danger hover:underline"
-                            >
-                              삭제
-                            </button>
+                              title="스킬을 삭제할까요?"
+                              description={`'${skill.standardName}' 스킬이 보유 목록에서 지워집니다. 되돌릴 수 없습니다.`}
+                              confirmLabel="삭제"
+                              onConfirm={() =>
+                                void handleDelete(skill.id, skill.standardName)
+                              }
+                            />
                           </div>
                         )}
                       </td>

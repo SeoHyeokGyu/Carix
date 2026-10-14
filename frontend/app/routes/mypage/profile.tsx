@@ -1,7 +1,14 @@
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { PageFrame } from "@/components/layout/PageFrame";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { useState, useEffect } from "react";
-import { Form, redirect, useActionData, useNavigation } from "react-router";
+import {
+  Form,
+  redirect,
+  useActionData,
+  useNavigation,
+  useSubmit,
+} from "react-router";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -120,6 +127,7 @@ export default function MypageProfile() {
   const navigation = useSafeNavigation();
   const isSubmitting =
     navigation.state === "submitting" || navigation.state === "loading";
+  const submit = useSubmit();
 
   const [currentEmail, setCurrentEmail] = useState<string | null>(null);
   const [deleteEmailInput, setDeleteEmailInput] = useState("");
@@ -209,16 +217,20 @@ export default function MypageProfile() {
               </p>
             )}
 
-            <Form method="post">
-              <Button
-                type="submit"
-                name="intent"
-                value="reset-onboarding"
-                disabled={isSubmitting}
-              >
-                온보딩 처음부터 다시 시작
-              </Button>
-            </Form>
+            <ConfirmDialog
+              trigger={
+                <Button type="button" variant="outline" disabled={isSubmitting}>
+                  온보딩 처음부터 다시 시작
+                </Button>
+              }
+              title="온보딩을 처음부터 다시 할까요?"
+              description="입력한 프로필·소득·소비·스킬은 그대로 남습니다. 다만 온보딩을 다시 마칠 때까지 판정 화면에 들어갈 수 없습니다."
+              confirmLabel="다시 시작"
+              tone="default"
+              onConfirm={() =>
+                submit({ intent: "reset-onboarding" }, { method: "post" })
+              }
+            />
           </CardContent>
         </Card>
 

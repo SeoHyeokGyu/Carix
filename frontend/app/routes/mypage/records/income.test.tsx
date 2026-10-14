@@ -1,3 +1,4 @@
+import { cancelDialog, confirmDialog } from "../../../test-utils/confirmDialog";
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { createRoutesStub } from "react-router";
@@ -48,10 +49,6 @@ describe("소득 탭 (S-12)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(incomeApi.listIncome).mockResolvedValue(rows);
-    // M3: jsdom 은 window.confirm 을 구현하지 않는다 — 부르면 "Not implemented" 를
-    // 찍고 undefined(falsy) 를 돌려줘 실제 확인 다이얼로그 없이도 삭제가 항상
-    // 취소된 것처럼 보인다. skills.test.tsx·onboarding/skills.test.tsx 와 같은 스텁.
-    vi.spyOn(window, "confirm").mockReturnValue(true);
   });
 
   it("유효 시작일 내림차순으로 그린다", async () => {
@@ -169,6 +166,7 @@ describe("소득 탭 (S-12)", () => {
 
     const buttons = await screen.findAllByRole("button", { name: "삭제" });
     await user.click(buttons[0]);
+    await confirmDialog(user, "삭제");
 
     await waitFor(() =>
       expect(incomeApi.deleteIncome).toHaveBeenCalledWith("i-new"),
@@ -186,6 +184,7 @@ describe("소득 탭 (S-12)", () => {
 
     const buttons = await screen.findAllByRole("button", { name: "삭제" });
     await user.click(buttons[0]);
+    await confirmDialog(user, "삭제");
 
     expect(await screen.findByText("삭제하지 못했습니다.")).toBeInTheDocument();
     // 행별 삭제 실패가 목록 전체를 비우지 않는다 — 두 행 모두 남아 있다.
@@ -212,17 +211,36 @@ describe("소득 탭 (S-12)", () => {
   });
 
   it("확인을 취소하면 삭제 API 를 부르지 않는다", async () => {
-    // M3 가 실제로 확인을 거치는지 — 스텁만 있고 취소 경로를 검증하지 않으면
-    // onSubmit 이 confirm 을 아예 안 불러도 그린으로 남는다.
-    vi.spyOn(window, "confirm").mockReturnValue(false);
+    // 확인창에서 취소하면 요청이 나가지 않는다.
     renderTab();
     const user = userEvent.setup();
 
     const buttons = await screen.findAllByRole("button", { name: "삭제" });
     await user.click(buttons[0]);
+    await cancelDialog(user);
 
     expect(incomeApi.deleteIncome).not.toHaveBeenCalled();
     expect(screen.getByText("2024-01-01")).toBeInTheDocument();
+  });
+
+  it("삭제 확인창은 시작일과 재계산을 알리고, 요청이 끝날 때까지 다시 열 수 없다", async () => {
+    let resolveDelete: (v: null) => void = () => {};
+    vi.mocked(incomeApi.deleteIncome).mockReturnValue(
+      new Promise((r) => {
+        resolveDelete = r;
+      }),
+    );
+    renderTab();
+    const user = userEvent.setup();
+
+    const trigger = (await screen.findAllByRole("button", { name: "삭제" }))[0];
+    await user.click(trigger);
+    expect(
+      screen.getByRole("alertdialog", { name: "소득 이력을 삭제할까요?" }),
+    ).toHaveAccessibleDescription(/지수가 다시 계산됩니다/);
+    await confirmDialog(user, "삭제");
+    await waitFor(() => expect(trigger).toBeDisabled());
+    resolveDelete(null);
   });
 
   it("이력이 없으면 변경 사유 셀렉트를 그리지 않는다", async () => {

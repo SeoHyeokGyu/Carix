@@ -1,3 +1,4 @@
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useEffect, useState } from "react";
 import { redirect, useLoaderData, useNavigate } from "react-router";
 import { Button } from "@/components/ui/button";
@@ -173,16 +174,23 @@ function SkillRow({
             >
               수정
             </Button>
-            <Button
-              type="button"
-              variant="destructive"
-              size="sm"
-              disabled={busy}
-              aria-label={`${skill.standardName} 삭제`}
-              onClick={() => onDelete(skill)}
-            >
-              삭제
-            </Button>
+            <ConfirmDialog
+              trigger={
+                <Button
+                  type="button"
+                  variant="destructive"
+                  size="sm"
+                  disabled={busy}
+                  aria-label={`${skill.standardName} 삭제`}
+                >
+                  삭제
+                </Button>
+              }
+              title="스킬을 삭제할까요?"
+              description={`'${skill.standardName}' 스킬이 보유 목록에서 지워집니다. 되돌릴 수 없습니다.`}
+              confirmLabel="삭제"
+              onConfirm={() => onDelete(skill)}
+            />
           </div>
           {deleteError && (
             <p role="alert" className="text-xs text-destructive">
@@ -309,10 +317,6 @@ export default function RecordsSkills() {
   };
 
   const handleDelete = async (skill: UserSkill) => {
-    // M3: onboarding/skills.tsx 와 같은 확인 절차 — 삭제는 되돌릴 수 없다.
-    if (!window.confirm(`'${skill.standardName}' 스킬을 삭제하시겠습니까?`)) {
-      return;
-    }
     setBusy(true);
     // M4: 실패해도 다른 행의 오류를 지우지 않는다 — 행별로 붙인다.
     setDeleteErrors((prev) => {

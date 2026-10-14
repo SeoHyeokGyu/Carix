@@ -312,7 +312,7 @@ export default function RecordsExpense() {
                     size="sm"
                     onClick={() => openMonth(month.baseYearMonth)}
                   >
-                    편집
+                    수정
                   </Button>
                 </TableCell>
               </TableRow>

@@ -1,7 +1,8 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { createRoutesStub } from "react-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { confirmDialog } from "../../test-utils/confirmDialog";
 import * as authApi from "../../lib/authApi";
 import * as onboardingApi from "../../lib/onboardingApi";
 import { getSession, resetSession, setSession } from "../../lib/session";
@@ -70,8 +71,9 @@ describe("마이페이지 라우트 및 레이아웃 (Mypage)", () => {
           name: "온보딩 처음부터 다시 시작",
         }),
       );
+      await confirmDialog(user, "다시 시작");
 
-      expect(resetSpy).toHaveBeenCalledTimes(1);
+      await waitFor(() => expect(resetSpy).toHaveBeenCalledTimes(1));
       expect(await screen.findByText("프로필 화면")).toBeInTheDocument();
     });
 

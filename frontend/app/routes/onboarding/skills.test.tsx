@@ -1,3 +1,5 @@
+import { confirmDialog } from "../../test-utils/confirmDialog";
+import userEvent from "@testing-library/user-event";
 import { expectHeadingOutline } from "../../test-utils/headingOutline";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
@@ -213,7 +215,6 @@ describe("S-08 Skills 온보딩 화면", () => {
   });
 
   it("스킬 삭제 시 deleteUserSkill을 호출하고 목록에서 제거된다", async () => {
-    vi.spyOn(window, "confirm").mockReturnValue(true);
     vi.mocked(skillApi.deleteUserSkill).mockResolvedValue();
 
     render(
@@ -226,8 +227,9 @@ describe("S-08 Skills 온보딩 화면", () => {
       expect(screen.getByText("Spring Boot")).toBeInTheDocument();
     });
 
-    const deleteButtons = screen.getAllByRole("button", { name: "삭제" });
-    fireEvent.click(deleteButtons[0]);
+    const user = userEvent.setup();
+    await user.click(screen.getAllByRole("button", { name: "삭제" })[0]);
+    await confirmDialog(user, "삭제");
 
     await waitFor(() => {
       expect(skillApi.deleteUserSkill).toHaveBeenCalledWith("u-1");
