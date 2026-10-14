@@ -31,11 +31,11 @@ function renderPanel(
 }
 
 describe("TrustPanel", () => {
-  it("h3 제목 아래 수집 표본·비교 조건·판정 근거·규칙 버전을 보인다", () => {
+  it("h2 섹션 제목 아래 수집 표본·비교 조건·판정 근거·규칙 버전을 보인다", () => {
     renderPanel();
     expect(
       screen.getByRole("heading", {
-        level: 3,
+        level: 2,
         name: "이 판정은 이렇게 나왔습니다",
       }),
     ).toBeInTheDocument();

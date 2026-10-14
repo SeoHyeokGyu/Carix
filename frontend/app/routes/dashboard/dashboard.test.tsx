@@ -1,3 +1,4 @@
+import { expectHeadingOutline } from "../../test-utils/headingOutline";
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { createRoutesStub, MemoryRouter } from "react-router";
@@ -124,12 +125,9 @@ describe("대시보드 라우트 및 레이아웃 (Dashboard)", () => {
       expect(
         screen.getByRole("link", { name: "온보딩 검토 및 재시작" }),
       ).toHaveAttribute("href", "/onboarding/review");
-      expect(
-        screen.getByRole("heading", {
-          level: 2,
-          name: "연봉 격차가 크고 스킬 수요도 올라 있습니다. 적극적인 이직 탐색 구간입니다.",
-        }),
-      ).toBeInTheDocument();
+      expect(screen.getByTestId("verdict-statement")).toHaveTextContent(
+        "연봉 격차가 크고 스킬 수요도 올라 있습니다. 적극적인 이직 탐색 구간입니다.",
+      );
     });
 
     // 브리프 시나리오 2 — 둘 다 계산 전이면 첫 계산 안내를 띄운다.
@@ -711,16 +709,24 @@ describe("대시보드 라우트 및 레이아웃 (Dashboard)", () => {
         data: OK_DATA,
       } as never);
       renderScreen();
-      await screen.findByRole("heading", { level: 2 });
-
-      const levels = screen
-        .getAllByRole("heading")
-        .map((heading) => Number(heading.tagName.slice(1)));
-      expect(levels.filter((level) => level === 1)).toHaveLength(1);
-      expect(levels[0]).toBe(1);
-      levels.slice(1).forEach((level, i) => {
-        expect(level - levels[i]).toBeLessThanOrEqual(1);
+      await screen.findByRole("heading", {
+        level: 2,
+        name: "이 판정을 만든 지표",
       });
+
+      expectHeadingOutline();
+      expect(
+        screen.getByRole("heading", { level: 2, name: "이 판정을 만든 지표" }),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByRole("heading", {
+          level: 2,
+          name: "이 판정은 이렇게 나왔습니다",
+        }),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByRole("heading", { level: 3, name: "구매력 지수" }),
+      ).toBeInTheDocument();
       expect(
         screen.getByRole("heading", { level: 1, name: "판정" }),
       ).toBeInTheDocument();
@@ -755,7 +761,7 @@ describe("대시보드 라우트 및 레이아웃 (Dashboard)", () => {
       renderScreen();
 
       expect(await screen.findByText("104.6")).toBeInTheDocument();
-      expect(screen.getByRole("heading", { level: 2 })).toBeInTheDocument();
+      expect(screen.getByTestId("verdict-statement")).toBeInTheDocument();
       expect(
         screen.getByText("서울 전체 / MID (4~7년) / LARGE / FULL_TIME"),
       ).toBeInTheDocument();

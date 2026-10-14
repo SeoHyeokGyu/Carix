@@ -1,3 +1,4 @@
+import { expectHeadingOutline } from "../../test-utils/headingOutline";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { createRoutesStub } from "react-router";
@@ -96,6 +97,10 @@ describe("S-15 시뮬레이터 화면", () => {
 
     expect(
       await screen.findByRole("heading", { level: 1, name: "시뮬레이터" }),
+    ).toBeInTheDocument();
+    expectHeadingOutline();
+    expect(
+      screen.getByRole("heading", { level: 2, name: "시나리오 입력" }),
     ).toBeInTheDocument();
   });
 

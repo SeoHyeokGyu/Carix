@@ -42,6 +42,15 @@ const PAGE_RULES = [
       "Literal[value=/\\bmx-auto\\b.*\\bmax-w-(3xl|4xl|5xl|7xl|screen-2xl)\\b/]",
     message: "화면 틀은 @/components/layout/PageFrame 으로 그린다.",
   },
+  {
+    selector: "JSXOpeningElement[name.name='h2']",
+    message:
+      '섹션 제목은 @/components/layout/PageSection 또는 CardTitle as="h2" 로 그린다.',
+  },
+  {
+    selector: "JSXOpeningElement[name.name=/^h[4-6]$/]",
+    message: "화면 안 제목은 두 단계(h2 섹션·h3 소제목)다.",
+  },
 ];
 
 export default tseslint.config(

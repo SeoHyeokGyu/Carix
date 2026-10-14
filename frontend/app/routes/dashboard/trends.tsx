@@ -1,5 +1,6 @@
 import { PageFrame } from "@/components/layout/PageFrame";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { PageSection } from "@/components/layout/PageSection";
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import { Button } from "@/components/ui/button";
@@ -171,49 +172,54 @@ export default function DashboardTrends() {
         id="trends-panel"
         aria-labelledby={`trends-tab-${activeTab}`}
       >
-        {isLoading ? (
-          <div className="rounded-xl border border-carix-border bg-carix-surface p-12 text-center text-sm text-carix-text/60">
-            시장 분석 데이터를 집계 및 분석하고 있습니다...
-          </div>
-        ) : (
-          <div>
-            {activeTab === "skills" && (
-              <div>
-                {skillData ? (
-                  <SkillDemandSection data={skillData} />
-                ) : (
-                  <div className="rounded-xl border border-carix-border bg-carix-surface p-8 text-center text-sm text-carix-text/60">
-                    스킬 수요 데이터를 불러오지 못했습니다.
-                  </div>
-                )}
-              </div>
-            )}
+        <PageSection
+          titleHidden
+          title={TRENDS_TABS.find((t) => t.key === activeTab)?.label ?? ""}
+        >
+          {isLoading ? (
+            <div className="rounded-xl border border-carix-border bg-carix-surface p-12 text-center text-sm text-carix-text/60">
+              시장 분석 데이터를 집계 및 분석하고 있습니다...
+            </div>
+          ) : (
+            <div>
+              {activeTab === "skills" && (
+                <div>
+                  {skillData ? (
+                    <SkillDemandSection data={skillData} />
+                  ) : (
+                    <div className="rounded-xl border border-carix-border bg-carix-surface p-8 text-center text-sm text-carix-text/60">
+                      스킬 수요 데이터를 불러오지 못했습니다.
+                    </div>
+                  )}
+                </div>
+              )}
 
-            {activeTab === "salary" && (
-              <div>
-                {salaryData ? (
-                  <SalaryDistributionChart data={salaryData} />
-                ) : (
-                  <div className="rounded-xl border border-carix-border bg-carix-surface p-8 text-center text-sm text-carix-text/60">
-                    연봉 분포 데이터를 불러오지 못했습니다.
-                  </div>
-                )}
-              </div>
-            )}
+              {activeTab === "salary" && (
+                <div>
+                  {salaryData ? (
+                    <SalaryDistributionChart data={salaryData} />
+                  ) : (
+                    <div className="rounded-xl border border-carix-border bg-carix-surface p-8 text-center text-sm text-carix-text/60">
+                      연봉 분포 데이터를 불러오지 못했습니다.
+                    </div>
+                  )}
+                </div>
+              )}
 
-            {activeTab === "income" && (
-              <div>
-                {trendData ? (
-                  <IncomeVsPriceChart data={trendData} />
-                ) : (
-                  <div className="rounded-xl border border-carix-border bg-carix-surface p-8 text-center text-sm text-carix-text/60">
-                    소득 대 물가 추이 데이터를 불러오지 못했습니다.
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        )}
+              {activeTab === "income" && (
+                <div>
+                  {trendData ? (
+                    <IncomeVsPriceChart data={trendData} />
+                  ) : (
+                    <div className="rounded-xl border border-carix-border bg-carix-surface p-8 text-center text-sm text-carix-text/60">
+                      소득 대 물가 추이 데이터를 불러오지 못했습니다.
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+        </PageSection>
       </div>
     </PageFrame>
   );

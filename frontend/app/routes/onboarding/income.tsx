@@ -475,9 +475,9 @@ export default function Income() {
         </CardContent>
       </Card>
 
-      <Card className="mt-6">
+      <Card data-page-section="" className="mt-6">
         <CardHeader>
-          <CardTitle>과거 연봉 이력</CardTitle>
+          <CardTitle as="h2">과거 연봉 이력</CardTitle>
         </CardHeader>
         <CardContent>
           {income.length === 0 ? (

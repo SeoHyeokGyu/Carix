@@ -111,6 +111,10 @@ describe("소비 탭 (S-12)", () => {
     ]) {
       expect(screen.getByLabelText(label)).toBeInTheDocument();
     }
+    const section = screen.getByRole("region", { name: /소비$/ });
+    expect(section).toContainElement(
+      screen.getByRole("heading", { level: 2, name: /소비$/ }),
+    );
   });
 
   it("기본값으로 되돌리면 그 카테고리를 빼고 PUT 한다", async () => {

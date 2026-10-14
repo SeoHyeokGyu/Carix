@@ -1,3 +1,4 @@
+import { expectHeadingOutline } from "../../test-utils/headingOutline";
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { createRoutesStub } from "react-router";
@@ -709,6 +710,10 @@ describe("S-06 소득 화면", () => {
     // 표로 좁힌다 — 라벨 문구는 셀렉트의 <option> 에도 있다.
     const table = await screen.findByRole("table");
     expect(within(table).getByText("최초 입력")).toBeInTheDocument();
+    expectHeadingOutline();
+    expect(
+      await screen.findByRole("heading", { level: 2, name: "과거 연봉 이력" }),
+    ).toBeInTheDocument();
   });
 
   it("최소 유효일 행에 고른 값이 있으면 표가 둘 다 낸다", async () => {

@@ -1,5 +1,13 @@
+import { expectHeadingOutline } from "../../test-utils/headingOutline";
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import {
+  render,
+  screen,
+  within,
+  fireEvent,
+  waitFor,
+  waitForElementToBeRemoved,
+} from "@testing-library/react";
 import { MemoryRouter, Route, Routes, useLocation } from "react-router";
 import DashboardTrends from "./trends";
 import * as dashboardMarketApi from "../../lib/dashboardMarketApi";
@@ -115,6 +123,34 @@ describe("S-14 DashboardTrends 라우트", () => {
       purchasingPowerStatus: "OK",
       marketValueStatus: "OK",
     });
+  });
+
+  // 탭 패널의 이름은 탭 하나 — 패널 안에 이름 붙은 region 을 또 두지 않는다.
+  // 로딩 자리표시만 보고 끝나면 차트 제목(h3)을 검사하지 못한다 — 로드가 끝난 패널을 본다.
+  const LOADING = "시장 분석 데이터를 집계 및 분석하고 있습니다...";
+
+  it("탭 패널은 선택된 탭 이름 하나를 갖고 제목 단계가 이어진다", async () => {
+    renderTrends();
+    await waitForElementToBeRemoved(() => screen.queryByText(LOADING));
+    const panel = screen.getByRole("tabpanel", { name: "소득 vs 물가" });
+    expect(within(panel).queryByRole("region")).toBeNull();
+    expect(
+      within(panel).getByRole("heading", { level: 2, name: "소득 vs 물가" }),
+    ).toHaveClass("sr-only");
+    expect(
+      within(panel).getAllByRole("heading", { level: 3 }).length,
+    ).toBeGreaterThan(0);
+    expectHeadingOutline();
+  });
+
+  it.each(["skills", "salary"])("%s 탭도 제목 단계가 이어진다", async (tab) => {
+    renderTrends(`/dashboard/trends?tab=${tab}`);
+    await waitForElementToBeRemoved(() => screen.queryByText(LOADING));
+    expect(
+      within(screen.getByRole("tabpanel")).getAllByRole("heading", { level: 3 })
+        .length,
+    ).toBeGreaterThan(0);
+    expectHeadingOutline();
   });
 
   it("제목 줄에 새로고침 버튼이 없다", async () => {

@@ -1,3 +1,4 @@
+import { HEADING } from "@/components/ui/heading";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -36,12 +37,9 @@ export function TrustPanel({
     <section aria-labelledby="trust-title">
       <Card className="gap-4">
         <div className="flex items-center justify-between gap-2">
-          <h3
-            id="trust-title"
-            className="text-sm font-semibold text-carix-text/80"
-          >
+          <h2 id="trust-title" className={HEADING.section}>
             이 판정은 이렇게 나왔습니다
-          </h3>
+          </h2>
           {isNarrow && (
             <Button
               type="button"

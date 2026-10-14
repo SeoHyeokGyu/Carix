@@ -1,3 +1,4 @@
+import { HEADING } from "@/components/ui/heading";
 import { useState } from "react";
 import type {
   TrendListResponse,
@@ -51,9 +52,9 @@ export function IncomeVsPriceChart({ data }: IncomeVsPriceChartProps) {
         <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-carix-info/10 text-xl">
           📊
         </div>
-        <h4 className="text-base font-bold text-carix-text">
+        <p className="text-base font-bold text-carix-text">
           시계열 추이 데이터가 아직 충분하지 않습니다.
-        </h4>
+        </p>
         <p className="mt-2 text-sm text-carix-text/70">
           다음 달부터 지수 변화를 확인하실 수 있습니다.
         </p>
@@ -202,7 +203,7 @@ export function IncomeVsPriceChart({ data }: IncomeVsPriceChartProps) {
       <div className="flex flex-wrap items-start justify-between gap-4 border-b border-carix-border pb-4">
         <div>
           <div className="flex items-center gap-2">
-            <h3 className="font-display text-lg font-bold text-carix-text">
+            <h3 className={HEADING.sub}>
               {hasIncomeAndPrice
                 ? "소득 대 개인물가 지수 추이"
                 : "구매력 및 시장가치 지수 추이"}

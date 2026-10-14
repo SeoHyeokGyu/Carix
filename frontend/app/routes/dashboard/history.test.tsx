@@ -1,3 +1,4 @@
+import { expectHeadingOutline } from "../../test-utils/headingOutline";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import {
   render,
@@ -127,6 +128,7 @@ describe("S-11 DashboardHistory 라우트", () => {
         screen.getByText("기록된 월별 스냅샷이 없습니다."),
       ).toBeInTheDocument();
     });
+    expectHeadingOutline();
   });
 
   it("스냅샷이 1개일 때 단건 안내 문구(다음 달부터 변화를 볼 수 있습니다)를 렌더링한다", async () => {
@@ -160,6 +162,7 @@ describe("S-11 DashboardHistory 라우트", () => {
       expect(screen.getByText("현 상태 유지")).toBeInTheDocument();
       expect(screen.getByText("2026-07")).toBeInTheDocument();
     });
+    expectHeadingOutline();
   });
 
   // 대시보드는 지표 셋을 보인다 — 기록 화면도 같은 셋을 보여야 비교가 된다.
@@ -285,6 +288,10 @@ describe("S-11 DashboardHistory 라우트", () => {
         screen.getByRole("link", { name: "보유 스킬 입력하기" }),
       ).toBeInTheDocument();
     });
+    expectHeadingOutline();
+    expect(
+      screen.getByRole("heading", { level: 2, name: /스냅샷 산출 근거/ }),
+    ).toBeInTheDocument();
   });
 
   it("수집 공백이 원인인 달에는 입력 유도 대신 집계 안내를 띄운다", async () => {
@@ -376,6 +383,7 @@ describe("S-11 DashboardHistory 라우트", () => {
       expect(screen.getByTestId("empty-state")).toBeInTheDocument();
     });
     expect(dashboardMarketApi.fetchSnapshotHistory).toHaveBeenCalledTimes(2);
+    expectHeadingOutline();
   });
 
   // 들어올 때 불러오고 실패하면 「다시 시도」가 있다 — 제목 줄 새로고침은 두지 않는다.

@@ -50,17 +50,17 @@ const HISTORY = [
 ];
 
 describe("VerdictHero", () => {
-  it("프런트 description 이 h2 제목이고 label 은 상태 뱃지다", () => {
+  it("프런트 description 이 판정 문장이고 label 은 상태 뱃지다", () => {
     renderHero(<VerdictHero signal={STAY} history={[]} />);
-    expect(
-      screen.getByRole("heading", {
-        level: 2,
-        name: "지표가 시장 수준 안에 있습니다. 당장 움직일 이유가 없습니다.",
-      }),
-    ).toBeInTheDocument();
-    expect(screen.getByTestId("signal-badge")).toHaveTextContent(
-      "현 상태 유지",
+    const statement = screen.getByTestId("verdict-statement");
+    expect(statement.tagName).toBe("P");
+    expect(statement).toHaveTextContent(
+      "지표가 시장 수준 안에 있습니다. 당장 움직일 이유가 없습니다.",
     );
+    // 문장이 제목이 아니어도 판정 구획의 이름은 그 문장이다.
+    expect(
+      screen.getByRole("region", { name: /지표가 시장 수준 안에/ }),
+    ).toBeInTheDocument();
   });
 
   it("적용 규칙을 칩으로 보인다", () => {
@@ -117,11 +117,11 @@ describe("VerdictHero", () => {
     }
   });
 
-  it("판정이 없어도 h2 가 있다", () => {
+  it("판정이 없어도 판정 문장이 있다", () => {
     renderHero(<VerdictHero signal={null} history={[]} />);
-    expect(
-      screen.getByRole("heading", { level: 2, name: "판정 대기" }),
-    ).toBeInTheDocument();
+    expect(screen.getByTestId("verdict-statement")).toHaveTextContent(
+      "판정 대기",
+    );
   });
 
   it("모르는 코드면 서버 label 을 제목으로 쓴다", () => {
@@ -131,9 +131,9 @@ describe("VerdictHero", () => {
         history={[]}
       />,
     );
-    expect(
-      screen.getByRole("heading", { level: 2, name: "새 신호" }),
-    ).toBeInTheDocument();
+    expect(screen.getByTestId("verdict-statement")).toHaveTextContent(
+      "새 신호",
+    );
   });
 
   describe("처방 및 추천 블록 (US-D6 확장)", () => {

@@ -1,3 +1,4 @@
+import { HEADING } from "@/components/ui/heading";
 import { useState } from "react";
 import type {
   SkillDemandResponse,
@@ -47,9 +48,7 @@ export function SkillDemandSection({ data }: SkillDemandSectionProps) {
       {/* 1. 섹션 헤더 및 커버리지 정보 */}
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-carix-border pb-4">
         <div>
-          <h3 className="font-display text-lg font-bold text-carix-text">
-            보유 스킬 수요 추세
-          </h3>
+          <h3 className={HEADING.sub}>보유 스킬 수요 추세</h3>
           <p className="mt-1 text-xs text-carix-text/70">
             최근 3개월 채용공고 수요율 대비 직전 12개월(4~15개월 전) 기준선(100)
             비교 지수
