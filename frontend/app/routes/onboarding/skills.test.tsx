@@ -68,6 +68,11 @@ describe("S-08 Skills 온보딩 화면", () => {
     expect(
       screen.getByRole("heading", { level: 2, name: "새 스킬 추가" }),
     ).toHaveClass("text-lg");
+    // 제목 줄 오른쪽은 이동 링크·서버 동작 자리다. 등록 수는 목록 섹션 제목이 갖는다.
+    expect(screen.queryByText(/^등록: /)).toBeNull();
+    expect(
+      screen.getByRole("heading", { level: 2, name: "등록된 스킬 (2 / 30)" }),
+    ).toBeInTheDocument();
     // 표 행 동작은 [수정 outline sm][삭제 destructive sm] 이다.
     expect(screen.getByRole("table")).toHaveAttribute("data-slot", "table");
     const [edit] = screen.getAllByRole("button", { name: "수정" });
@@ -231,7 +236,10 @@ describe("S-08 Skills 온보딩 화면", () => {
     expect(
       screen.getByText(/시장 수요 통계가 제공되지 않을 수 있습니다/i),
     ).toBeInTheDocument();
-    expect(screen.getByLabelText(/직무 카테고리/i)).toBeInTheDocument();
+    // 온보딩 선택 필드는 NativeSelect — 빈 선택지가 생기므로 required 로 막는다.
+    const category = screen.getByLabelText(/직무 카테고리/i);
+    expect(category).toBeRequired();
+    expect(category).toHaveValue("BACKEND");
 
     const monthsInput = screen.getByLabelText(/실무 사용 기간/i);
     fireEvent.change(monthsInput, { target: { value: "6" } });
@@ -336,9 +344,12 @@ describe("S-08 Skills 온보딩 화면", () => {
     expect(nextBtn).toBeEnabled();
     fireEvent.click(nextBtn);
 
-    expect(
-      screen.getByText("최소 1개 이상의 보유 스킬을 등록해야 합니다."),
-    ).toBeInTheDocument();
+    // 이유는 누른 버튼 바로 위에 뜬다 — 페이지 맨 위 알림은 화면 밖일 수 있다.
+    const reason = screen.getByText(
+      "최소 1개 이상의 보유 스킬을 등록해야 합니다.",
+    );
+    expect(reason).toHaveAttribute("role", "alert");
+    expect(reason.nextElementSibling).toBe(nextBtn.parentElement);
   });
 
   it("스킬 목록 조회 중 401 을 받으면 로그인 화면으로 보낸다", async () => {
@@ -355,7 +366,7 @@ describe("S-08 Skills 온보딩 화면", () => {
     expect(await screen.findByText("로그인 화면")).toBeInTheDocument();
   });
   it("목록 불러오기에 실패하면 목록 자리에 다시 시도를 두고, 성공하면 목록이 뜬다", async () => {
-    const loaded = await skillApi.fetchUserSkills(); // beforeEach(23행)의 기본 목 목록
+    const loaded = await skillApi.fetchUserSkills(); // beforeEach 의 기본 목 목록
     vi.mocked(skillApi.fetchUserSkills)
       .mockRejectedValueOnce(new Error("x"))
       .mockResolvedValueOnce(loaded);
@@ -369,8 +380,13 @@ describe("S-08 Skills 온보딩 화면", () => {
     expect(
       await screen.findByText("스킬 목록을 불러오지 못했습니다"),
     ).toBeInTheDocument();
+    // 보여 줄 데이터가 없는 실패라 한 줄 알림은 겹쳐 띄우지 않는다.
+    expect(screen.queryByRole("alert")).toBeNull();
+    // 목록을 모르는 채로는 다음 단계로 넘어가지 못한다.
+    expect(screen.getByRole("button", { name: "다음" })).toBeDisabled();
     await user.click(screen.getByRole("button", { name: "다시 시도" }));
     expect(await screen.findByText("Spring Boot")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "다음" })).toBeEnabled();
   });
 
   it("동작 실패 문장은 목록을 덮지 않는 한 줄 알림이고 닫을 수 있다", async () => {

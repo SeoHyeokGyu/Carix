@@ -1,3 +1,5 @@
+import RecordsLayout from "./layout";
+import { expectHeadingOutline } from "../../../test-utils/headingOutline";
 import { cancelDialog, confirmDialog } from "../../../test-utils/confirmDialog";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -344,5 +346,30 @@ describe("스킬 탭 (S-12)", () => {
     await user.click(screen.getByRole("button", { name: "다시 시도" }));
 
     expect(await screen.findByText("Spring Boot")).toBeInTheDocument();
+  });
+
+  it("입력 관리 h1 아래로 제목 단계가 이어진다", async () => {
+    const Stub = createRoutesStub([
+      {
+        path: "/mypage/records",
+        Component: RecordsLayout,
+        children: [
+          {
+            path: "skills",
+            Component: RecordsSkills,
+            ErrorBoundary,
+            loader: clientLoader,
+            HydrateFallback: () => null,
+          },
+        ],
+      },
+      { path: "/login", Component: () => <div>로그인 화면</div> },
+    ]);
+    render(<Stub initialEntries={["/mypage/records/skills"]} />);
+
+    expect(
+      await screen.findByRole("heading", { level: 2, name: "보유 스킬" }),
+    ).toBeInTheDocument();
+    expectHeadingOutline();
   });
 });

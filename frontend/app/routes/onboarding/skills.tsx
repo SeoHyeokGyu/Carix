@@ -2,7 +2,6 @@ import { InlineAlert } from "@/components/ui/inline-alert";
 import { LoadingState } from "@/components/ui/loading-state";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Button, buttonVariants } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { ToneBadge } from "@/components/ui/tone-badge";
@@ -17,6 +16,7 @@ import {
 import { PageFrame } from "@/components/layout/PageFrame";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { PageSection } from "@/components/layout/PageSection";
+import { NativeSelect } from "../../components/onboarding/NativeSelect";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useState, useEffect, useCallback, useRef } from "react";
 import { Link, useNavigate } from "react-router";
@@ -70,6 +70,7 @@ export default function Skills() {
   const [actionLoading, setActionLoading] = useState(false);
   // 목록 불러오기 실패는 동작 실패 문장(errorMessage)과 갈라 목록 자리에서 다시 시도한다.
   const [loadError, setLoadError] = useState(false);
+  const [nextError, setNextError] = useState<string | null>(null);
 
   // 검색 및 선택 상태
   const [searchQuery, setSearchQuery] = useState("");
@@ -248,6 +249,7 @@ export default function Skills() {
       });
 
       setUserSkills((prev) => [...prev, created]);
+      setNextError(null);
       setSuccessMessage(`'${created.standardName}' 스킬이 등록되었습니다.`);
       // 폼 초기화
       setSelectedSkill(null);
@@ -330,10 +332,9 @@ export default function Skills() {
   };
 
   // 다음 단계 진행 검증
-  const handleNextStep = (e: React.MouseEvent) => {
+  const handleNextStep = () => {
     if (userSkills.length === 0) {
-      e.preventDefault();
-      setErrorMessage("최소 1개 이상의 보유 스킬을 등록해야 합니다.");
+      setNextError("최소 1개 이상의 보유 스킬을 등록해야 합니다.");
     } else {
       navigate("/onboarding/review");
     }
@@ -344,9 +345,6 @@ export default function Skills() {
       <PageHeader
         title="스킬"
         description="표준 스킬 사전에서 검색해 실무 사용 기간과 마지막 사용일을 기록합니다."
-        actions={
-          <Badge variant="outline">등록: {userSkills.length} / 30</Badge>
-        }
       />
 
       {/* 3. 피드백 메시지 */}
@@ -467,18 +465,15 @@ export default function Skills() {
                     >
                       직무 카테고리
                     </label>
-                    <select
+                    <NativeSelect
                       id="custom-category-select"
+                      required
+                      options={CATEGORY_OPTIONS}
+                      placeholder="카테고리 선택"
                       value={category}
                       onChange={(e) => setCategory(e.target.value)}
-                      className="rounded border border-carix-border bg-carix-surface px-2.5 py-1.5 text-xs text-carix-text focus:outline-none focus:border-carix-info"
-                    >
-                      {CATEGORY_OPTIONS.map((opt) => (
-                        <option key={opt.value} value={opt.value}>
-                          {opt.label}
-                        </option>
-                      ))}
-                    </select>
+                      className="bg-carix-surface text-carix-text"
+                    />
                   </div>
                 </div>
               )}
@@ -530,7 +525,7 @@ export default function Skills() {
               </p>
 
               <div className="mt-4 flex flex-wrap gap-3">
-                <Button type="submit" disabled={actionLoading}>
+                <Button type="submit" disabled={actionLoading || loadError}>
                   {actionLoading ? "추가 중..." : "+ 스킬 추가"}
                 </Button>
                 <Button
@@ -548,7 +543,7 @@ export default function Skills() {
 
       {/* 5. 등록된 스킬 테이블 */}
       <PageSection
-        title={`등록된 스킬 (${userSkills.length}개)`}
+        title={`등록된 스킬 (${userSkills.length} / 30)`}
         className="mb-10"
       >
         {isLoading ? (
@@ -698,17 +693,25 @@ export default function Skills() {
         )}
       </PageSection>
 
-      {/* 6. 단계 이동 줄 */}
-      <div className="flex flex-wrap gap-3">
-        <Link
-          to="/onboarding/expense"
-          className={buttonVariants({ variant: "outline" })}
-        >
-          이전
-        </Link>
-        <Button type="button" onClick={handleNextStep}>
-          다음
-        </Button>
+      {/* 6. 단계 이동 줄 — 넘어가지 못하는 이유는 누른 버튼 바로 위에 둔다 */}
+      <div className="flex flex-col gap-3">
+        {nextError && (
+          <p role="alert" className="text-sm text-carix-danger">
+            {nextError}
+          </p>
+        )}
+        <div className="flex flex-wrap gap-3">
+          <Link
+            to="/onboarding/expense"
+            className={buttonVariants({ variant: "outline" })}
+          >
+            이전
+          </Link>
+          {/* 목록을 모르는 채로는 넘어가지 않는다 — 실패 자리에 다시 시도가 있다. */}
+          <Button type="button" disabled={loadError} onClick={handleNextStep}>
+            다음
+          </Button>
+        </div>
       </div>
     </PageFrame>
   );

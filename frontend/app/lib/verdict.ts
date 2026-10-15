@@ -25,7 +25,7 @@ export interface SparklineSeries {
   segments: SparklinePoint[][];
 }
 
-export function formatVerdictHeading(baseDate: string | undefined): string {
+export function formatVerdictDescription(baseDate: string | undefined): string {
   const match = baseDate ? BASE_DATE_PATTERN.exec(baseDate) : null;
   if (!match) return HEADING_SUFFIX;
   return `${match[1]}년 ${Number(match[2])}월 기준 · ${HEADING_SUFFIX}`;

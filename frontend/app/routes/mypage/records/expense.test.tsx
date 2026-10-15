@@ -1,3 +1,5 @@
+import RecordsLayout from "./layout";
+import { expectHeadingOutline } from "../../../test-utils/headingOutline";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { createRoutesStub } from "react-router";
@@ -272,5 +274,37 @@ describe("소비 탭 (S-12)", () => {
     await user.click(screen.getByRole("button", { name: "다시 시도" }));
 
     expect(await screen.findByText("2026-07")).toBeInTheDocument();
+  });
+
+  it("입력 관리 h1 아래로 제목 단계가 이어진다", async () => {
+    const Stub = createRoutesStub([
+      {
+        path: "/mypage/records",
+        Component: RecordsLayout,
+        children: [
+          {
+            path: "expense",
+            Component: RecordsExpense,
+            ErrorBoundary,
+            loader: clientLoader,
+            action: clientAction,
+            HydrateFallback: () => null,
+          },
+        ],
+      },
+      { path: "/login", Component: () => <div>로그인 화면</div> },
+    ]);
+    render(<Stub initialEntries={["/mypage/records/expense"]} />);
+
+    expect(
+      await screen.findByRole("heading", { level: 2, name: "월별 소비" }),
+    ).toBeInTheDocument();
+    expectHeadingOutline();
+    // 제목 → 내용 12px 는 PageSection 이 정한다. 구획 안 간격을 섹션에 덮어쓰지 않는다.
+    expect(
+      screen
+        .getByRole("heading", { level: 2, name: "월별 소비" })
+        .closest("[data-page-section]"),
+    ).not.toHaveClass("gap-4");
   });
 });

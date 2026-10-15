@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { SnapshotPoint } from "./dashboardMarketApi";
 import {
   countSignalStreak,
-  formatVerdictHeading,
+  formatVerdictDescription,
   previousYearMonth,
   toSparklineSeries,
 } from "./verdict";
@@ -26,16 +26,16 @@ function point(
   };
 }
 
-describe("formatVerdictHeading", () => {
+describe("formatVerdictDescription", () => {
   it("기준일의 연·월로 제목을 만든다", () => {
-    expect(formatVerdictHeading("2026-08-01")).toBe(
+    expect(formatVerdictDescription("2026-08-01")).toBe(
       "2026년 8월 기준 · 내 커리어 판정",
     );
   });
 
   it("기준일이 없거나 형식이 아니면 월 없이 쓴다", () => {
-    expect(formatVerdictHeading(undefined)).toBe("내 커리어 판정");
-    expect(formatVerdictHeading("-")).toBe("내 커리어 판정");
+    expect(formatVerdictDescription(undefined)).toBe("내 커리어 판정");
+    expect(formatVerdictDescription("-")).toBe("내 커리어 판정");
   });
 });
 

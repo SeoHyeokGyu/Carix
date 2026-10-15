@@ -346,6 +346,9 @@ describe("S-14 DashboardTrends 라우트", () => {
     expect(screen.getAllByRole("button", { name: "다시 시도" })).toHaveLength(
       1,
     );
+    // 화면 전체 실패는 탭 패널 안이 아니라 탭을 대신한다 — 고를 탭이 없다.
+    expect(screen.queryByRole("tablist")).toBeNull();
+    expect(screen.queryByRole("tabpanel")).toBeNull();
 
     await user.click(screen.getByRole("button", { name: "다시 시도" }));
     await waitFor(() =>

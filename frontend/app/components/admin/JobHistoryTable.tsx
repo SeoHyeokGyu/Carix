@@ -1,7 +1,7 @@
 import { useState } from "react";
 import type { JobStatusResponse } from "../../lib/collectorApi";
 import { crawlJobDataHref } from "../../lib/dataExplore";
-import { resolveJobStatus } from "../../lib/jobStatus";
+import { jobTypeLabel, resolveJobStatus } from "../../lib/jobStatus";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -19,20 +19,10 @@ import {
 
 const FILTERS = [
   { id: "ALL", label: "전체" },
-  { id: "RUNNING", label: "진행중" },
+  { id: "RUNNING", label: "실행 중" },
   { id: "SUCCESS", label: "성공" },
   { id: "FAILED", label: "실패" },
 ] as const;
-
-const JOB_TYPE_LABELS: Record<string, string> = {
-  CRAWL: "크롤링",
-  WAGE_STAT_INGEST: "임금 통계",
-  CPI_INGEST: "소비자물가지수",
-  DEDUPLICATION: "중복제거",
-  MARKET_AGGREGATION: "시장 집계",
-  SKILL_REFINE: "스킬 재정제",
-  SEED_LOAD: "시드 적재",
-};
 
 interface JobHistoryTableProps {
   jobs: JobStatusResponse[];
@@ -46,8 +36,6 @@ export function JobHistoryTable({ jobs, isLoading }: JobHistoryTableProps) {
     if (filter === "ALL") return true;
     return job.status === filter;
   });
-
-  const getJobTypeLabel = (type: string) => JOB_TYPE_LABELS[type] ?? type;
 
   const formatDuration = (
     startedAt: string,
@@ -114,10 +102,10 @@ export function JobHistoryTable({ jobs, isLoading }: JobHistoryTableProps) {
             {f.label}
           </Button>
         ))}
-        <p className="ml-1 text-xs text-carix-text/60">
-          최근 실행된 비동기 파이프라인 배치 작업 (최대 100건)
-        </p>
       </div>
+      <p className="text-xs text-carix-text/60">
+        최근 실행된 비동기 파이프라인 배치 작업 (최대 100건)
+      </p>
 
       {isLoading && jobs.length === 0 ? (
         <LoadingState message="이력을 불러오는 중입니다..." />
@@ -149,7 +137,7 @@ export function JobHistoryTable({ jobs, isLoading }: JobHistoryTableProps) {
                   </TableCell>
                   <TableCell>
                     <Badge variant="secondary">
-                      {getJobTypeLabel(job.jobType)}
+                      {jobTypeLabel(job.jobType)}
                     </Badge>
                   </TableCell>
                   <TableCell>
