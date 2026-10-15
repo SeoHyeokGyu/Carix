@@ -7,7 +7,14 @@ import {
   type JobStatusResponse,
   type JobExecutionResponse,
 } from "../../lib/collectorApi";
+import { X } from "lucide-react";
 import { ThemeToggle } from "../../components/ThemeToggle";
+import { PageFrame } from "@/components/layout/PageFrame";
+import { PageHeader } from "@/components/layout/PageHeader";
+import { PageSection } from "@/components/layout/PageSection";
+import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
+import { InlineAlert } from "@/components/ui/inline-alert";
 import { AdminHeader } from "../../components/admin/AdminHeader";
 import { AdminKeyModal } from "../../components/admin/AdminKeyModal";
 import { CollectorStatusBanner } from "../../components/admin/CollectorStatusBanner";
@@ -28,7 +35,10 @@ export function meta() {
 export default function CollectorAdminPage() {
   const [stats, setStats] = useState<PipelineStatsResponse | null>(null);
   const [jobs, setJobs] = useState<JobStatusResponse[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+  // 첫 렌더부터 불러오는 중이다 — false 로 시작하면 한 프레임 「이력 없음」이 비친다.
+  const [isLoading, setIsLoading] = useState(true);
+  const [statsFailed, setStatsFailed] = useState(false);
+  const [jobsFailed, setJobsFailed] = useState(false);
   const [hasAdminKey, setHasAdminKey] = useState(() => Boolean(getAdminKey()));
   const [isKeyModalOpen, setIsKeyModalOpen] = useState(false);
   const [notice, setNotice] = useState<{
@@ -40,21 +50,27 @@ export default function CollectorAdminPage() {
   const isJobRunning = Boolean(activeJob);
 
   const loadData = useCallback(async (isSilent = false) => {
-    if (!isSilent) setIsLoading(true);
+    if (!isSilent) {
+      setIsLoading(true);
+      // 다시 시도하는 동안 실패 박스 대신 로딩을 보인다 — 연타로 요청이 겹치지 않게.
+      setStatsFailed(false);
+      setJobsFailed(false);
+    }
     try {
       const [statsData, jobsData] = await Promise.allSettled([
         fetchPipelineStats(),
         fetchRecentJobs(),
       ]);
 
+      // 받아 둔 값이 있으면 실패해도 화면을 비우지 않는다 — 실패 표시는 값이 없을 때만 쓴다.
+      setStatsFailed(statsData.status === "rejected");
       if (statsData.status === "fulfilled") {
         setStats(statsData.value);
       }
+      setJobsFailed(jobsData.status === "rejected");
       if (jobsData.status === "fulfilled") {
         setJobs(jobsData.value);
       }
-    } catch {
-      // ignore settled errors
     } finally {
       if (!isSilent) setIsLoading(false);
     }
@@ -119,72 +135,136 @@ export default function CollectorAdminPage() {
     });
   };
 
+  const retry = () => void loadData(false);
+
   return (
     <div className="min-h-screen bg-carix-bg text-carix-text transition-colors duration-300">
       <ThemeToggle />
-
-      {/* 상단 통합 네비게이션 */}
       <AdminHeader active="collector" />
 
-      {/* 본문 콘텐츠 */}
-      <main className="mx-auto max-w-7xl px-6 py-8 space-y-6">
-        {/* 알림 배너 */}
-        {notice && (
-          <div
-            className={`flex items-center justify-between rounded-lg p-4 text-xs font-medium border ${
-              notice.type === "success"
-                ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-700 dark:text-emerald-300"
-                : notice.type === "error"
-                  ? "bg-rose-500/10 border-rose-500/30 text-rose-700 dark:text-rose-300"
-                  : "bg-blue-500/10 border-blue-500/30 text-blue-700 dark:text-blue-300"
-            }`}
-          >
-            <span>{notice.text}</span>
-            <button
-              type="button"
-              onClick={() => setNotice(null)}
-              className="opacity-70 hover:opacity-100 ml-4 font-bold"
-            >
-              ✕
-            </button>
-          </div>
-        )}
-
-        {/* 1. 상단 상태 및 락 인디케이터 배너 */}
-        <CollectorStatusBanner
-          activeJob={activeJob}
-          hasAdminKey={hasAdminKey}
-          isLoading={isLoading}
-          onRefresh={() => loadData(false)}
-          onOpenKeyModal={() => setIsKeyModalOpen(true)}
+      <PageFrame as="main" width="admin" aria-busy={isLoading}>
+        <PageHeader
+          title="수집 파이프라인"
+          description="채용공고 스크래핑, 임금 통계 연계, 중복제거 및 시장 데이터 사전 집계를 실행하고 지켜봅니다."
+          divider
         />
 
-        {/* 2. 수집 DB 현황 요약 카드 */}
-        <section>
-          <CollectorStatsCards stats={stats} isLoading={isLoading} />
-        </section>
+        <div className="mb-8 space-y-3">
+          <CollectorStatusBanner
+            activeJob={activeJob}
+            hasAdminKey={hasAdminKey}
+            onOpenKeyModal={() => setIsKeyModalOpen(true)}
+          />
+          {notice?.type === "error" && (
+            <InlineAlert
+              message={notice.text}
+              onDismiss={() => setNotice(null)}
+            />
+          )}
+          {notice && notice.type !== "error" && (
+            <div role="status" className="flex flex-wrap items-center gap-3">
+              <p
+                className={`text-sm ${
+                  notice.type === "success"
+                    ? "text-carix-positive"
+                    : "text-carix-info"
+                }`}
+              >
+                {notice.text}
+              </p>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-xs"
+                aria-label="알림 닫기"
+                onClick={() => setNotice(null)}
+              >
+                <X />
+              </Button>
+            </div>
+          )}
+        </div>
 
-        {/* 3. 파이프라인 제어 패널 */}
-        <section>
+        <PageSection title="수집 현황">
+          {statsFailed && stats && (
+            <div className="mb-3">
+              <InlineAlert
+                message="수집 현황을 다시 불러오지 못했습니다"
+                onRetry={retry}
+                retrying={isLoading}
+              />
+            </div>
+          )}
+          {statsFailed && !stats ? (
+            <LoadFailure
+              title="수집 현황을 불러오지 못했습니다"
+              onRetry={retry}
+            />
+          ) : (
+            <CollectorStatsCards stats={stats} isLoading={isLoading} />
+          )}
+        </PageSection>
+
+        <PageSection title="파이프라인 실행">
           <PipelineControlPanel
             isJobRunning={isJobRunning}
             onJobTriggered={handleJobTriggered}
             onError={handleError}
           />
-        </section>
+        </PageSection>
 
-        {/* 4. 작업 실행 이력 테이블 */}
-        <section>
-          <JobHistoryTable jobs={jobs} isLoading={isLoading} />
-        </section>
-      </main>
+        <PageSection title="작업 실행 이력">
+          {jobsFailed && jobs.length > 0 && (
+            <div className="mb-3">
+              <InlineAlert
+                message="작업 실행 이력을 다시 불러오지 못했습니다"
+                onRetry={retry}
+                retrying={isLoading}
+              />
+            </div>
+          )}
+          {jobsFailed && jobs.length === 0 ? (
+            <LoadFailure
+              title="작업 실행 이력을 불러오지 못했습니다"
+              onRetry={retry}
+            />
+          ) : (
+            <JobHistoryTable jobs={jobs} isLoading={isLoading} />
+          )}
+        </PageSection>
+      </PageFrame>
 
-      {/* 관리자 키 설정 모달 */}
       <AdminKeyModal
         isOpen={isKeyModalOpen}
         onClose={() => setIsKeyModalOpen(false)}
-        onKeyUpdated={() => setHasAdminKey(Boolean(getAdminKey()))}
+        onKeyUpdated={() => {
+          setHasAdminKey(Boolean(getAdminKey()));
+          // 키가 바뀌면 그 키로 다시 불러온다 — 새로고침 버튼을 두지 않는다.
+          void loadData(true);
+        }}
       />
     </div>
+  );
+}
+
+/** 구획 하나가 보여 줄 데이터 없이 실패했을 때. 키가 없거나 틀린 경우가 흔하다. */
+function LoadFailure({
+  title,
+  onRetry,
+}: {
+  title: string;
+  onRetry: () => void;
+}) {
+  return (
+    <EmptyState
+      tone="danger"
+      icon="⚠️"
+      title={title}
+      description="관리자 키를 확인하거나 잠시 후 다시 시도해 주세요."
+    >
+      <Button type="button" variant="outline" size="sm" onClick={onRetry}>
+        다시 시도
+      </Button>
+    </EmptyState>
   );
 }

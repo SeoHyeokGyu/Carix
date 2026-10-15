@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useId, useState } from "react";
 import {
   triggerCrawl,
   triggerSkillRefine,
@@ -9,6 +9,17 @@ import {
   triggerSeedLoad,
   type JobExecutionResponse,
 } from "../../lib/collectorApi";
+import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { HEADING } from "@/components/ui/heading";
+import {
+  TAB_ACTIVE,
+  TAB_IDLE,
+  TAB_ITEM,
+  TAB_LIST,
+} from "@/components/ui/tab-styles";
 
 interface PipelineControlPanelProps {
   isJobRunning: boolean;
@@ -25,6 +36,8 @@ export function PipelineControlPanel({
   onError,
 }: PipelineControlPanelProps) {
   const [activeTab, setActiveTab] = useState<TabType>("crawl");
+  const idPrefix = useId();
+  const panelId = `${idPrefix}-panel`;
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // 크롤링 폼 상태
@@ -128,32 +141,51 @@ export function PipelineControlPanel({
     { id: "seed", label: "파일 시드 적재", icon: "💾" },
   ];
 
+  const activeLabel = tabs.find((t) => t.id === activeTab)?.label ?? "";
+
   return (
-    <div className="rounded-xl border border-carix-border bg-carix-surface shadow-xs overflow-hidden">
-      <div className="border-b border-carix-border bg-carix-bg/50 px-4 pt-3 flex flex-wrap gap-1">
-        {tabs.map((tab) => (
-          <button
-            key={tab.id}
-            type="button"
-            onClick={() => setActiveTab(tab.id)}
-            className={`flex items-center gap-1.5 rounded-t-lg px-3.5 py-2 text-xs font-medium transition-colors border-b-2 -mb-px ${
-              activeTab === tab.id
-                ? "border-carix-info bg-carix-surface text-carix-info shadow-xs"
-                : "border-transparent text-carix-text/70 hover:text-carix-text hover:bg-carix-border/30"
-            }`}
-          >
-            <span>{tab.icon}</span>
-            <span>{tab.label}</span>
-          </button>
-        ))}
+    <Card className="gap-0 overflow-hidden p-0">
+      <div
+        role="tablist"
+        aria-label="파이프라인 작업"
+        className={cn("flex-wrap px-4 pt-3", TAB_LIST)}
+      >
+        {tabs.map((tab) => {
+          const selected = activeTab === tab.id;
+          return (
+            <Button
+              key={tab.id}
+              type="button"
+              variant="ghost"
+              role="tab"
+              id={`${idPrefix}-tab-${tab.id}`}
+              aria-controls={panelId}
+              aria-selected={selected}
+              onClick={() => setActiveTab(tab.id)}
+              className={cn(
+                "h-auto rounded-none text-xs",
+                TAB_ITEM,
+                selected ? TAB_ACTIVE : TAB_IDLE,
+              )}
+            >
+              <span aria-hidden>{tab.icon}</span>
+              <span>{tab.label}</span>
+            </Button>
+          );
+        })}
       </div>
 
-      <div className="p-5">
+      <div
+        role="tabpanel"
+        id={panelId}
+        aria-labelledby={`${idPrefix}-tab-${activeTab}`}
+        className="p-5"
+      >
         {/* 1. 채용공고 크롤링 탭 */}
         {activeTab === "crawl" && (
           <div className="space-y-4">
             <div>
-              <h3 className="text-sm font-semibold text-carix-text">
+              <h3 className={HEADING.sub}>
                 외부 채용 포털 실시간 스크래핑 및 정규화
               </h3>
               <p className="text-xs text-carix-text/60 mt-0.5">
@@ -248,7 +280,7 @@ export function PipelineControlPanel({
         {activeTab === "refine" && (
           <div className="space-y-4">
             <div>
-              <h3 className="text-sm font-semibold text-carix-text">
+              <h3 className={HEADING.sub}>
                 채용공고 스킬 데이터 일괄 재정제 (Skill Refinement)
               </h3>
               <p className="text-xs text-carix-text/60 mt-0.5">
@@ -290,7 +322,7 @@ export function PipelineControlPanel({
         {activeTab === "wage" && (
           <div className="space-y-4">
             <div>
-              <h3 className="text-sm font-semibold text-carix-text">
+              <h3 className={HEADING.sub}>
                 KOSIS 국가 공식 임금 통계 수집 및 보간
               </h3>
               <p className="text-xs text-carix-text/60 mt-0.5">
@@ -360,7 +392,7 @@ export function PipelineControlPanel({
         {activeTab === "cpi" && (
           <div className="space-y-4">
             <div>
-              <h3 className="text-sm font-semibold text-carix-text">
+              <h3 className={HEADING.sub}>
                 KOSIS 지출목적별 소비자물가지수 수집
               </h3>
               <p className="text-xs text-carix-text/60 mt-0.5">
@@ -430,7 +462,7 @@ export function PipelineControlPanel({
         {activeTab === "dedup" && (
           <div className="space-y-3">
             <div>
-              <h3 className="text-sm font-semibold text-carix-text">
+              <h3 className={HEADING.sub}>
                 원천 간(잡코리아-사람인) 채용공고 중복제거 배치
               </h3>
               <p className="text-xs text-carix-text/60 mt-0.5">
@@ -450,7 +482,7 @@ export function PipelineControlPanel({
         {activeTab === "aggregate" && (
           <div className="space-y-4">
             <div>
-              <h3 className="text-sm font-semibold text-carix-text">
+              <h3 className={HEADING.sub}>
                 채용 시장 데이터 다차원 사전 집계 (Pre-aggregation)
               </h3>
               <p className="text-xs text-carix-text/60 mt-0.5">
@@ -566,7 +598,7 @@ export function PipelineControlPanel({
         {activeTab === "seed" && (
           <div className="space-y-3">
             <div>
-              <h3 className="text-sm font-semibold text-carix-text">
+              <h3 className={HEADING.sub}>
                 로컬/서버 파일시스템 스냅샷 시드 데이터 일괄 적재
               </h3>
               <p className="text-xs text-carix-text/60 mt-0.5">
@@ -590,38 +622,27 @@ export function PipelineControlPanel({
           </div>
         )}
 
-        {/* 실행 액션 바 */}
-        <div className="mt-6 flex items-center justify-between border-t border-carix-border pt-4">
-          <span className="text-xs text-carix-text/50">
+        {/* 실행 액션 바 — 폼 제출 규칙: 주 버튼이 먼저, 왼쪽 정렬 */}
+        <div className="mt-6 flex flex-wrap items-center gap-3 border-t border-carix-border pt-4">
+          <ConfirmDialog
+            trigger={
+              <Button type="button" disabled={isJobRunning || isSubmitting}>
+                {isSubmitting ? "요청 전송 중..." : "작업 시작하기"}
+              </Button>
+            }
+            title={`${activeLabel} 작업을 시작할까요?`}
+            description="백그라운드에서 실행되며, 끝날 때까지 다른 파이프라인 작업은 시작할 수 없습니다."
+            confirmLabel="작업 시작"
+            tone="default"
+            onConfirm={() => void handleExecute()}
+          />
+          <span className="text-xs text-carix-text/60">
             {isJobRunning
-              ? "⚠️ 현재 다른 파이프라인 작업이 진행 중입니다."
-              : "버튼을 클릭하면 비동기 백그라운드 작업이 시작됩니다."}
+              ? "현재 다른 파이프라인 작업이 진행 중입니다."
+              : "확인하면 비동기 백그라운드 작업이 시작됩니다."}
           </span>
-
-          <button
-            type="button"
-            onClick={handleExecute}
-            disabled={isJobRunning || isSubmitting}
-            className={`flex items-center gap-2 rounded-lg px-5 py-2 text-xs font-semibold text-white transition-all shadow-xs ${
-              isJobRunning || isSubmitting
-                ? "bg-carix-text/30 cursor-not-allowed"
-                : "bg-carix-info hover:opacity-90 active:scale-95"
-            }`}
-          >
-            {isSubmitting ? (
-              <>
-                <span className="animate-spin inline-block">⏳</span>
-                <span>요청 전송 중...</span>
-              </>
-            ) : (
-              <>
-                <span>🚀</span>
-                <span>작업 시작하기</span>
-              </>
-            )}
-          </button>
         </div>
       </div>
-    </div>
+    </Card>
   );
 }
