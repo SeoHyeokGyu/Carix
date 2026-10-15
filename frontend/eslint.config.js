@@ -124,10 +124,6 @@ export default tseslint.config(
       "app/components/admin/JobHistoryTable.tsx", // 박지수
       "app/components/admin/PipelineControlPanel.tsx", // 박지수
       "app/routes/admin/collector.tsx", // 박지수
-      "app/components/dashboard/SkillDemandSection.tsx", // B
-      "app/routes/dashboard/history.tsx", // B
-      "app/routes/dashboard/trends.tsx", // B
-      "app/routes/onboarding/skills.tsx", // B
     ],
     rules: { "no-restricted-syntax": "off" },
   },

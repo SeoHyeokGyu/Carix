@@ -1,7 +1,19 @@
 import { InlineAlert } from "@/components/ui/inline-alert";
 import { LoadingState } from "@/components/ui/loading-state";
 import { EmptyState } from "@/components/ui/empty-state";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { ToneBadge } from "@/components/ui/tone-badge";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { PageFrame } from "@/components/layout/PageFrame";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { PageSection } from "@/components/layout/PageSection";
@@ -333,9 +345,7 @@ export default function Skills() {
         title="스킬"
         description="표준 스킬 사전에서 검색해 실무 사용 기간과 마지막 사용일을 기록합니다."
         actions={
-          <span className="inline-flex items-center rounded-full bg-carix-surface border border-carix-border px-3 py-1 text-xs font-medium text-carix-text">
-            등록: {userSkills.length} / 30
-          </span>
+          <Badge variant="outline">등록: {userSkills.length} / 30</Badge>
         }
       />
 
@@ -358,191 +368,182 @@ export default function Skills() {
       )}
 
       {/* 4. 스킬 검색 및 추가 카드 */}
-      <PageSection
-        title="새 스킬 추가"
-        className="rounded-xl border border-carix-border bg-carix-surface p-5 shadow-sm"
-      >
-        {/* 검색창 */}
-        <div ref={searchContainerRef} className="relative">
-          <label
-            htmlFor="skill-search-input"
-            className="block text-xs font-medium text-carix-text/80 mb-1"
-          >
-            스킬 검색
-          </label>
-          <div className="relative">
-            <input
-              id="skill-search-input"
-              type="search"
-              value={searchQuery}
-              onChange={(e) => {
-                setSearchQuery(e.target.value);
-                setSelectedSkill(null);
-              }}
-              placeholder="스킬 이름을 검색하세요 (예: Spring Boot, TypeScript, Docker)..."
-              autoComplete="off"
-              className="w-full rounded-lg border border-carix-border bg-carix-bg px-4 py-2.5 text-sm text-carix-text placeholder:text-carix-text/40 focus:border-carix-info focus:outline-none focus:ring-1 focus:ring-carix-info"
-            />
-            {isSearching && (
-              <span className="absolute right-3 top-2.5 text-xs text-carix-text/50">
-                검색 중...
-              </span>
+      <PageSection title="새 스킬 추가">
+        <Card>
+          {/* 검색창 */}
+          <div ref={searchContainerRef} className="relative">
+            <label
+              htmlFor="skill-search-input"
+              className="block text-xs font-medium text-carix-text/80 mb-1"
+            >
+              스킬 검색
+            </label>
+            <div className="relative">
+              <Input
+                id="skill-search-input"
+                type="search"
+                value={searchQuery}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value);
+                  setSelectedSkill(null);
+                }}
+                placeholder="스킬 이름을 검색하세요 (예: Spring Boot, TypeScript, Docker)..."
+                autoComplete="off"
+              />
+              {isSearching && (
+                <span className="absolute right-3 top-2 text-xs text-carix-text/50">
+                  검색 중...
+                </span>
+              )}
+            </div>
+
+            {/* 자동완성 드롭다운 */}
+            {showDropdown && searchQuery.trim().length > 0 && (
+              <div className="absolute z-20 mt-1 max-h-60 w-full overflow-auto rounded-lg border border-carix-border bg-carix-surface py-1 shadow-lg">
+                {searchResults.length > 0 ? (
+                  searchResults.map((item) => (
+                    <Button
+                      key={item.id}
+                      type="button"
+                      variant="ghost"
+                      onClick={() => handleSelectSkill(item)}
+                      className="h-auto w-full justify-between rounded-none px-4 py-2 text-left text-sm whitespace-normal"
+                    >
+                      <span>{item.standardName}</span>
+                      {item.isCustom && (
+                        <ToneBadge tone="warning">사용자 정의</ToneBadge>
+                      )}
+                    </Button>
+                  ))
+                ) : (
+                  <div className="px-4 py-3 text-sm text-carix-text/70">
+                    <p>
+                      &apos;{searchQuery}&apos;에 대한 검색 결과가 없습니다.
+                    </p>
+                    <Button
+                      type="button"
+                      variant="link"
+                      size="xs"
+                      onClick={handleCustomSkillStart}
+                      className="mt-2 h-auto px-0 text-left whitespace-normal"
+                    >
+                      + &apos;{searchQuery}&apos;를 사전에 없는 스킬로 직접
+                      추가하기
+                    </Button>
+                  </div>
+                )}
+              </div>
             )}
           </div>
 
-          {/* 자동완성 드롭다운 */}
-          {showDropdown && searchQuery.trim().length > 0 && (
-            <div className="absolute z-20 mt-1 max-h-60 w-full overflow-auto rounded-lg border border-carix-border bg-carix-surface py-1 shadow-lg">
-              {searchResults.length > 0 ? (
-                searchResults.map((item) => (
-                  <button
-                    key={item.id}
-                    type="button"
-                    onClick={() => handleSelectSkill(item)}
-                    className="w-full px-4 py-2 text-left text-sm hover:bg-carix-bg flex items-center justify-between text-carix-text"
-                  >
-                    <span>{item.standardName}</span>
-                    {item.isCustom && (
-                      <span className="text-[11px] rounded bg-carix-warning/10 text-carix-warning px-1.5 py-0.5">
-                        사용자 정의
-                      </span>
-                    )}
-                  </button>
-                ))
-              ) : (
-                <div className="px-4 py-3 text-sm text-carix-text/70">
-                  <p>&apos;{searchQuery}&apos;에 대한 검색 결과가 없습니다.</p>
-                  <button
-                    type="button"
-                    onClick={handleCustomSkillStart}
-                    className="mt-2 text-xs font-medium text-carix-info hover:underline"
-                  >
-                    + &apos;{searchQuery}&apos;를 사전에 없는 스킬로 직접
-                    추가하기
-                  </button>
+          {/* 선택된 스킬 상세 입력 폼 */}
+          {selectedSkill && (
+            <form
+              onSubmit={handleAddSkill}
+              className="rounded-lg border border-carix-border/60 bg-carix-bg/60 p-4"
+            >
+              <div className="mb-3 flex items-center justify-between">
+                <span className="text-sm font-semibold text-carix-text">
+                  선택된 스킬:{" "}
+                  <span className="text-carix-info">
+                    {selectedSkill.standardName}
+                  </span>
+                </span>
+                {selectedSkill.isCustom ? (
+                  <ToneBadge tone="warning">사용자 정의 스킬</ToneBadge>
+                ) : (
+                  <ToneBadge tone="positive">표준 스킬</ToneBadge>
+                )}
+              </div>
+
+              {selectedSkill.isCustom && (
+                <div className="mb-4 rounded border border-carix-warning/30 bg-carix-warning/5 p-2.5 text-xs text-carix-warning">
+                  ⚠️ 사전에 없는 스킬은 시장 수요 통계가 제공되지 않을 수
+                  있습니다. 직무 카테고리를 선택해 주세요.
+                  <div className="mt-2">
+                    <label
+                      htmlFor="custom-category-select"
+                      className="block text-[11px] font-semibold mb-1"
+                    >
+                      직무 카테고리
+                    </label>
+                    <select
+                      id="custom-category-select"
+                      value={category}
+                      onChange={(e) => setCategory(e.target.value)}
+                      className="rounded border border-carix-border bg-carix-surface px-2.5 py-1.5 text-xs text-carix-text focus:outline-none focus:border-carix-info"
+                    >
+                      {CATEGORY_OPTIONS.map((opt) => (
+                        <option key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
               )}
-            </div>
-          )}
-        </div>
 
-        {/* 선택된 스킬 상세 입력 폼 */}
-        {selectedSkill && (
-          <form
-            onSubmit={handleAddSkill}
-            className="rounded-lg border border-carix-border/60 bg-carix-bg/60 p-4"
-          >
-            <div className="mb-3 flex items-center justify-between">
-              <span className="text-sm font-semibold text-carix-text">
-                선택된 스킬:{" "}
-                <span className="text-carix-info">
-                  {selectedSkill.standardName}
-                </span>
-              </span>
-              {selectedSkill.isCustom ? (
-                <span className="rounded bg-carix-warning/10 px-2 py-0.5 text-xs font-medium text-carix-warning">
-                  사용자 정의 스킬
-                </span>
-              ) : (
-                <span className="rounded bg-carix-positive/10 px-2 py-0.5 text-xs font-medium text-carix-positive">
-                  표준 스킬
-                </span>
-              )}
-            </div>
-
-            {selectedSkill.isCustom && (
-              <div className="mb-4 rounded border border-carix-warning/30 bg-carix-warning/5 p-2.5 text-xs text-carix-warning">
-                ⚠️ 사전에 없는 스킬은 시장 수요 통계가 제공되지 않을 수
-                있습니다. 직무 카테고리를 선택해 주세요.
-                <div className="mt-2">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div>
                   <label
-                    htmlFor="custom-category-select"
-                    className="block text-[11px] font-semibold mb-1"
+                    htmlFor="months-input"
+                    className="block text-xs font-medium text-carix-text/80 mb-1"
                   >
-                    직무 카테고리
+                    실무 사용 기간 (개월, 1~600)
                   </label>
-                  <select
-                    id="custom-category-select"
-                    value={category}
-                    onChange={(e) => setCategory(e.target.value)}
-                    className="rounded border border-carix-border bg-carix-surface px-2.5 py-1.5 text-xs text-carix-text focus:outline-none focus:border-carix-info"
+                  <Input
+                    id="months-input"
+                    type="number"
+                    min="1"
+                    max="600"
+                    required
+                    placeholder="예: 24"
+                    value={months}
+                    onChange={(e) =>
+                      setMonths(
+                        e.target.value === "" ? "" : Number(e.target.value),
+                      )
+                    }
+                  />
+                </div>
+                <div>
+                  <label
+                    htmlFor="last-used-date-input"
+                    className="block text-xs font-medium text-carix-text/80 mb-1"
                   >
-                    {CATEGORY_OPTIONS.map((opt) => (
-                      <option key={opt.value} value={opt.value}>
-                        {opt.label}
-                      </option>
-                    ))}
-                  </select>
+                    마지막 사용일
+                  </label>
+                  <Input
+                    id="last-used-date-input"
+                    type="date"
+                    max={getCurrentYearMonthDay()}
+                    required
+                    value={lastUsedDate}
+                    onChange={(e) => setLastUsedDate(e.target.value)}
+                  />
                 </div>
               </div>
-            )}
 
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <div>
-                <label
-                  htmlFor="months-input"
-                  className="block text-xs font-medium text-carix-text/80 mb-1"
+              <p className="mt-3 text-[11px] text-carix-text/50">
+                * 자기평가 숙련도(상/중/하)는 받지 않으며, 실무 사용 기간과
+                최근성을 바탕으로 객관적 가중치를 산출합니다.
+              </p>
+
+              <div className="mt-4 flex flex-wrap gap-3">
+                <Button type="submit" disabled={actionLoading}>
+                  {actionLoading ? "추가 중..." : "+ 스킬 추가"}
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setSelectedSkill(null)}
                 >
-                  실무 사용 기간 (개월, 1~600)
-                </label>
-                <input
-                  id="months-input"
-                  type="number"
-                  min="1"
-                  max="600"
-                  required
-                  placeholder="예: 24"
-                  value={months}
-                  onChange={(e) =>
-                    setMonths(
-                      e.target.value === "" ? "" : Number(e.target.value),
-                    )
-                  }
-                  className="w-full rounded-lg border border-carix-border bg-carix-surface px-3 py-2 text-sm text-carix-text focus:outline-none focus:border-carix-info"
-                />
+                  취소
+                </Button>
               </div>
-              <div>
-                <label
-                  htmlFor="last-used-date-input"
-                  className="block text-xs font-medium text-carix-text/80 mb-1"
-                >
-                  마지막 사용일
-                </label>
-                <input
-                  id="last-used-date-input"
-                  type="date"
-                  max={getCurrentYearMonthDay()}
-                  required
-                  value={lastUsedDate}
-                  onChange={(e) => setLastUsedDate(e.target.value)}
-                  className="w-full rounded-lg border border-carix-border bg-carix-surface px-3 py-2 text-sm text-carix-text focus:outline-none focus:border-carix-info"
-                />
-              </div>
-            </div>
-
-            <p className="mt-3 text-[11px] text-carix-text/50">
-              * 자기평가 숙련도(상/중/하)는 받지 않으며, 실무 사용 기간과
-              최근성을 바탕으로 객관적 가중치를 산출합니다.
-            </p>
-
-            <div className="mt-4 flex justify-end gap-2">
-              <button
-                type="button"
-                onClick={() => setSelectedSkill(null)}
-                className="rounded-lg border border-carix-border bg-carix-surface px-3 py-1.5 text-xs text-carix-text hover:bg-carix-bg"
-              >
-                취소
-              </button>
-              <button
-                type="submit"
-                disabled={actionLoading}
-                className="rounded-lg bg-carix-info px-4 py-1.5 text-xs font-medium text-white hover:opacity-90 disabled:opacity-50"
-              >
-                {actionLoading ? "추가 중..." : "+ 스킬 추가"}
-              </button>
-            </div>
-          </form>
-        )}
+            </form>
+          )}
+        </Card>
       </PageSection>
 
       {/* 5. 등록된 스킬 테이블 */}
@@ -570,161 +571,144 @@ export default function Skills() {
             </Button>
           </EmptyState>
         ) : userSkills.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-carix-border bg-carix-surface p-8 text-center">
-            <p className="text-sm text-carix-text/60">
-              등록된 보유 스킬이 없습니다.
-            </p>
-            <p className="mt-1 text-xs text-carix-text/40">
-              상단 검색창에서 본인의 스킬을 검색해 최소 1개 이상 추가해 주세요.
-            </p>
-          </div>
+          <EmptyState
+            icon="📋"
+            title="등록된 보유 스킬이 없습니다."
+            description="상단 검색창에서 본인의 스킬을 검색해 최소 1개 이상 추가해 주세요."
+          />
         ) : (
-          <div className="overflow-hidden rounded-xl border border-carix-border bg-carix-surface shadow-sm">
-            <table className="w-full text-left text-sm text-carix-text">
-              <thead className="border-b border-carix-border bg-carix-bg/60 text-xs font-medium text-carix-text/70">
-                <tr>
-                  <th scope="col" className="px-4 py-3">
-                    스킬
-                  </th>
-                  <th scope="col" className="px-4 py-3">
-                    실무 사용 기간
-                  </th>
-                  <th scope="col" className="px-4 py-3">
-                    마지막 사용일
-                  </th>
-                  <th scope="col" className="px-4 py-3 text-right">
-                    작업
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-carix-border">
-                {userSkills.map((skill) => {
-                  const isEditing = editingId === skill.id;
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead scope="col">스킬</TableHead>
+                <TableHead scope="col">실무 사용 기간</TableHead>
+                <TableHead scope="col">마지막 사용일</TableHead>
+                <TableHead scope="col" className="text-right">
+                  작업
+                </TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {userSkills.map((skill) => {
+                const isEditing = editingId === skill.id;
 
-                  return (
-                    <tr key={skill.id} className="hover:bg-carix-bg/40">
-                      <td className="px-4 py-3 font-medium">
-                        <div className="flex items-center gap-2">
-                          <span>{skill.standardName}</span>
-                          {skill.isCustom && (
-                            <span className="rounded bg-carix-warning/10 px-1.5 py-0.5 text-[11px] text-carix-warning">
-                              통계 미제공
-                            </span>
-                          )}
-                        </div>
-                      </td>
-                      <td className="px-4 py-3">
-                        {isEditing ? (
-                          <div className="flex items-center gap-1">
-                            <input
-                              type="number"
-                              min="1"
-                              max="600"
-                              value={editMonths}
-                              onChange={(e) =>
-                                setEditMonths(
-                                  e.target.value === ""
-                                    ? ""
-                                    : Number(e.target.value),
-                                )
-                              }
-                              className="w-20 rounded border border-carix-border bg-carix-bg px-2 py-1 text-xs text-carix-text"
-                            />
-                            <span className="text-xs">개월</span>
-                          </div>
-                        ) : (
-                          <span>{skill.monthsOfExperience}개월</span>
+                return (
+                  <TableRow key={skill.id} className="hover:bg-carix-bg/40">
+                    <TableCell className="font-medium">
+                      <div className="flex items-center gap-2">
+                        <span>{skill.standardName}</span>
+                        {skill.isCustom && (
+                          <ToneBadge tone="warning">통계 미제공</ToneBadge>
                         )}
-                      </td>
-                      <td className="px-4 py-3 text-carix-text/80 text-xs">
-                        {isEditing ? (
-                          <input
-                            type="date"
-                            max={getCurrentYearMonthDay()}
-                            value={editDate}
-                            onChange={(e) => setEditDate(e.target.value)}
-                            className="rounded border border-carix-border bg-carix-bg px-2 py-1 text-xs text-carix-text"
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      {isEditing ? (
+                        <div className="flex items-center gap-1">
+                          <Input
+                            type="number"
+                            min="1"
+                            max="600"
+                            aria-label={`${skill.standardName} 실무 사용 기간`}
+                            value={editMonths}
+                            onChange={(e) =>
+                              setEditMonths(
+                                e.target.value === ""
+                                  ? ""
+                                  : Number(e.target.value),
+                              )
+                            }
+                            className="w-20"
                           />
-                        ) : (
-                          <span>{skill.lastUsedDate}</span>
-                        )}
-                      </td>
-                      <td className="px-4 py-3 text-right">
-                        {isEditing ? (
-                          <div className="flex items-center justify-end gap-1.5">
-                            <button
-                              type="button"
-                              onClick={() => handleSaveEdit(skill.id)}
-                              disabled={actionLoading}
-                              className="rounded bg-carix-positive px-2 py-1 text-xs text-white hover:opacity-90 disabled:opacity-50"
-                            >
-                              저장
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => setEditingId(null)}
-                              className="rounded border border-carix-border px-2 py-1 text-xs text-carix-text hover:bg-carix-bg"
-                            >
-                              취소
-                            </button>
-                          </div>
-                        ) : (
-                          <div className="flex items-center justify-end gap-2">
-                            <button
-                              type="button"
-                              onClick={() => startEditing(skill)}
-                              className="text-xs font-medium text-carix-info hover:underline"
-                            >
-                              수정
-                            </button>
-                            <ConfirmDialog
-                              trigger={
-                                <button
-                                  type="button"
-                                  disabled={actionLoading}
-                                  className="text-xs font-medium text-carix-danger hover:underline"
-                                >
-                                  삭제
-                                </button>
-                              }
-                              title="스킬을 삭제할까요?"
-                              description={`'${skill.standardName}' 스킬이 보유 목록에서 지워집니다. 되돌릴 수 없습니다.`}
-                              confirmLabel="삭제"
-                              onConfirm={() =>
-                                void handleDelete(skill.id, skill.standardName)
-                              }
-                            />
-                          </div>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+                          <span className="text-xs">개월</span>
+                        </div>
+                      ) : (
+                        <span>{skill.monthsOfExperience}개월</span>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-xs text-carix-text/80">
+                      {isEditing ? (
+                        <Input
+                          type="date"
+                          max={getCurrentYearMonthDay()}
+                          aria-label={`${skill.standardName} 마지막 사용일`}
+                          value={editDate}
+                          onChange={(e) => setEditDate(e.target.value)}
+                        />
+                      ) : (
+                        <span>{skill.lastUsedDate}</span>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {isEditing ? (
+                        <div className="flex items-center justify-end gap-2">
+                          <Button
+                            type="button"
+                            size="sm"
+                            onClick={() => handleSaveEdit(skill.id)}
+                            disabled={actionLoading}
+                          >
+                            저장
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setEditingId(null)}
+                          >
+                            취소
+                          </Button>
+                        </div>
+                      ) : (
+                        <div className="flex items-center justify-end gap-2">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => startEditing(skill)}
+                          >
+                            수정
+                          </Button>
+                          <ConfirmDialog
+                            trigger={
+                              <Button
+                                type="button"
+                                variant="destructive"
+                                size="sm"
+                                disabled={actionLoading}
+                              >
+                                삭제
+                              </Button>
+                            }
+                            title="스킬을 삭제할까요?"
+                            description={`'${skill.standardName}' 스킬이 보유 목록에서 지워집니다. 되돌릴 수 없습니다.`}
+                            confirmLabel="삭제"
+                            onConfirm={() =>
+                              void handleDelete(skill.id, skill.standardName)
+                            }
+                          />
+                        </div>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
         )}
       </PageSection>
 
-      {/* 6. 이전 / 다음 네비게이션 버튼 */}
-      <div className="flex items-center justify-between border-t border-carix-border pt-6">
+      {/* 6. 단계 이동 줄 */}
+      <div className="flex flex-wrap gap-3">
         <Link
           to="/onboarding/expense"
-          className="rounded-lg border border-carix-border bg-carix-surface px-5 py-2.5 text-sm font-medium text-carix-text hover:bg-carix-bg"
+          className={buttonVariants({ variant: "outline" })}
         >
-          ← 이전 (소비 입력)
+          이전
         </Link>
-        <button
-          type="button"
-          onClick={handleNextStep}
-          className={`rounded-lg px-6 py-2.5 text-sm font-medium text-white transition-opacity ${
-            userSkills.length === 0
-              ? "cursor-not-allowed bg-carix-text/30"
-              : "bg-carix-info hover:opacity-90"
-          }`}
-        >
-          다음 (검토) →
-        </button>
+        <Button type="button" onClick={handleNextStep}>
+          다음
+        </Button>
       </div>
     </PageFrame>
   );
