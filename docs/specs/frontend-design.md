@@ -193,12 +193,12 @@ OCI VM에서 다음 컨테이너를 Docker Compose로 운영한다.
 | `PageFrame` | 화면 바깥 틀. 폭·좌우 여백이 헤더와 같아(`max-w-5xl px-6`, 관리자 `max-w-7xl`) 제목이 로고 선에서 시작한다. `width` 는 `wide`(기본)·`narrow`(헤더 아래 내용만 3xl 왼쪽 정렬 — 폼 화면)·`admin`. 화면 파일은 `mx-auto max-w-*` 틀을 직접 쓰지 않는다 |
 | `PageHeader` | 화면 제목 줄. h1 하나(메뉴 이름, `font-display text-2xl sm:text-3xl bold`), 설명 한 줄, 하위 화면이면 위에 상위 복귀(`back`), 오른쪽 `actions`(보조 `TextLink` + 서버 동작 버튼 최대 하나, `outline sm` + 아이콘), `divider` 는 탭이 아닌 내용 위에서만 — 탭 줄은 자기 밑줄을 가진다. 날짜·부연은 설명으로 간다. 다시 불러오기 버튼은 두지 않는다 — 화면이 들어올 때 불러오고 실패하면 「다시 시도」가 있다 |
 | `PageSection` | 화면 안 섹션. h2 하나(섹션 제목 `font-display text-lg font-semibold`), 설명 한 줄, 오른쪽 `actions`, 제목 → 내용 12px. 섹션끼리 32px 는 `PageFrame` 이 `data-page-section` 형제에만 준다(탭 → 패널 등은 그대로). 탭 패널처럼 이미 이름이 있는 자리는 `titleHidden`(sr-only h2, region 아님) |
-| `ConfirmDialog` | 되돌리기 어려운 동작의 확인창(`radix-ui` `AlertDialog`). 열리면 포커스는 「취소」, Esc·「취소」로만 닫힌다(바깥 클릭은 닫지 않는다). 버튼은 오른쪽 정렬 `[취소][실행]`, 실행은 데이터를 지우면 `destructive`(`tone` 기본), 지우지 않는 확인(초기화)은 주 버튼. 제목 「~할까요?」, 설명은 무엇이 사라지고 어떤 영향이 있는지 한 줄. 처리 중에는 여는 버튼을 `disabled` 로 막는다. 회원 탈퇴는 이메일 직접 입력 확인을 쓴다 |
+| `ConfirmDialog` | 되돌리기 어려운 동작의 확인창(`radix-ui` `AlertDialog`). 열리면 포커스는 「취소」. 실행하지 않고 닫는 길은 Esc·「취소」뿐이다 — 바깥 클릭으로는 닫지 않는다. 버튼은 오른쪽 정렬 `[취소][실행]`, 실행은 데이터를 지우면 `destructive`(`tone` 기본), 지우지 않는 확인(초기화)은 주 버튼. 제목 「~할까요?」, 설명은 무엇이 사라지고 어떤 영향이 있는지 한 줄. 처리 중에는 여는 버튼을 `disabled` 로 막는다. 회원 탈퇴는 이메일 직접 입력 확인을 쓴다 |
 | `InlineAlert` | 내용(이전 데이터)을 남긴 채 알리는 한 줄 실패 — 위험 색 문장, `onRetry` 면 「다시 시도」(outline sm, 다시 불러오는 중 `disabled`), `onDismiss` 면 닫기. 다시 불러오기 실패와 동작 실패(추가·삭제·검증 문장)에 쓴다. 보여 줄 데이터가 없는 실패는 이것이 아니라 `EmptyState tone="danger"` |
 | `tab-styles`(`TAB_LIST`·`TAB_ITEM`·`TAB_ACTIVE`·`TAB_IDLE`) | 밑줄 탭 한 모양. 화면 안 전환(`role="tab"`, 추이 분석)과 화면 이동(`NavLink`, 입력 관리)이 같은 상수를 쓰고 역할은 각자 그대로다. 탭 줄은 자기 밑줄을 가진다 |
 | `TextLink` | 화면 이동 글자 링크. 그 자리에서 실행하는 것은 `Button variant="link"` 다(이동이면 `TextLink`, 실행이면 `Button`). `direction` 은 `forward`(기본, 뒤 화살표)·`back`(앞 화살표)·`none`(화살표 없음), `size` 는 `xs`(기본)·`sm`·`inherit`(표 셀처럼 부모 크기). 화살표 링크는 마우스 올림에만, `none` 은 늘 밑줄이다 — 문장 속·표 안은 색만으로 갈리지 않게(WCAG 1.4.1). 주 메뉴에 없는 하위 화면은 콘텐츠 맨 처음에 `direction="back" size="sm"` 으로 상위 메뉴 이름을 둔다 |
 | 단계 이동 줄 | 컴포넌트가 아니라 배치 규칙이다. 폼 끝에 `flex flex-wrap gap-3` 왼쪽 정렬, 되돌아가기는 `buttonVariants({ variant: "outline" })` 를 단 `Link`, 진행은 기본 `Button`. 글자는 「이전」·「다음」 또는 결과를 말하는 동사구(「제출하고 대시보드로」)만 — 화살표·행선지 괄호 없음. 보이는 순서 = DOM 순서, 구분선·양끝 정렬 없음. 근거는 온보딩 와이어프레임 01~05 |
-| `Card` | 내용 묶음. 여백 `p-6`, 자식 간격 16px. 카드 제목 `CardTitle` 은 h3 소제목(`text-sm`)이 기본이고, 화면에 바로 놓인 카드형 섹션은 `as="h2"` + `<Card data-page-section>` — 이 경우 제목 → 내용 간격은 `Card` 를 따른다 |
+| `Card` | 내용 묶음. 여백 `p-6`, 자식 간격 16px. 숫자 타일·비교 칸처럼 촘촘한 카드는 여백만 덮어쓴다(`gap-0 p-4.5`, 수집 현황 타일·지난 판정 상세 두 칸). 카드 제목 `CardTitle` 은 h3 소제목(`text-sm`)이 기본이고, 화면에 바로 놓인 카드형 섹션은 `as="h2"` + `<Card data-page-section>` — 이 경우 제목 → 내용 간격은 `Card` 를 따른다 |
 | `Badge` | **중립 칩**(라벨·보조 지표). `default`·`secondary`·`outline` 뿐이다 |
 | `ToneBadge` | **상태·의미 색.** 톤 여섯(`positive`·`warning`·`danger`·`info`·`action`·`muted`) |
 | `Table` | 표. 기본은 틀이 있고, 이미 `Card` 안이면 `variant="plain"`. 좁은 폭은 가로 스크롤 |
@@ -224,7 +224,7 @@ OCI VM에서 다음 컨테이너를 Docker Compose로 운영한다.
 *   불러오기 실패는 둘이다. 보여 줄 데이터가 없으면 `EmptyState tone="danger"` + 「다시 시도」(화면 전체가 실패하면 화면 단위 하나, 일부만 실패하면 그 구획 안 하나 — 같은 실패를 두 번 그리지 않는다). 이전 데이터가 있으면 `InlineAlert` 로 내용 위에 알리고 화면을 비우지 않는다.
 *   데이터가 없는 채 기다리는 동안은 `LoadingState`. 데이터가 있는 채 다시 불러오는 동안은 쓰지 않는다 — 버튼 상태로만 알린다.
 
-**금지 — eslint 가 막는다.** raw `<button>`, 토큰 밖 Tailwind 팔레트 색(`bg-blue-500` 등), `Card` 틀(`rounded-xl border border-carix-border bg-carix-surface`)을 클래스 문자열로 복제한 것, `text-carix-info` 와 밑줄을 손으로 단 `Link`, 화면 파일의 직접 `<h1>`·`<h2>`·`<h4>`~`<h6>` 과 `mx-auto max-w-*` 틀, 앱 어디서든 `confirm`·`alert`·`prompt`(확인은 `ConfirmDialog`), 화면·컴포넌트 파일의 `*-destructive` 위험 색 이름(`*-carix-danger` 를 쓴다)은 `error` 다. 색은 carix 토큰(`bg-carix-*`·`text-carix-*`)만 쓴다. 예외 목록은 없다 — 새 파일도 처음부터 이 규칙을 지킨다.
+**금지 — eslint 가 막는다.** raw `<button>`, 토큰 밖 Tailwind 팔레트 색(`bg-blue-500` 등), `Card` 틀(`rounded-xl border border-carix-border bg-carix-surface`)을 클래스 문자열로 복제한 것, `text-carix-info` 와 밑줄을 손으로 단 `Link`, 화면 파일의 직접 `<h1>`·`<h2>`·`<h4>`~`<h6>` 과 `mx-auto max-w-{3xl,4xl,5xl,7xl,screen-2xl}` 틀, `confirm`·`alert`·`prompt`(확인은 `ConfirmDialog`), `*-destructive` 위험 색 이름(`*-carix-danger` 를 쓴다)은 `error` 다. 검사 범위는 `app/**/*.tsx`(프리미티브 `components/ui/`·테스트 제외)이고, 클래스는 문자열 리터럴로 쓴 것만 잡는다 — 변수·`.ts` 파일은 리뷰가 본다. 색은 carix 토큰(`bg-carix-*`·`text-carix-*`)만 쓴다. 예외 목록은 없다 — 새 파일도 처음부터 이 규칙을 지킨다.
 
 ---
 
@@ -253,7 +253,7 @@ OCI VM에서 다음 컨테이너를 Docker Compose로 운영한다.
 
 ## 대시보드 레이아웃
 
-대시보드 메인은 **판정(1층)** ➡️ **근거 지표(2층)** ➡️ **신뢰(3층)** 세 층으로 구성된 축소 레이아웃입니다. 정보 과부하를 줄이기 위해 추이 차트와 12개월 시뮬레이터는 아래 §3.2와 같이 독립 메뉴(추이 분석/시뮬레이터)로 분리했습니다.
+대시보드 메인은 **판정(1층)** ➡️ **근거 지표(2층)** ➡️ **신뢰(3층)** 세 층으로 구성된 축소 레이아웃입니다. 세 층은 한 묶음(`flex flex-col gap-8`)이라 층 사이 32px 를 묶음이 준다 — 섹션 간격과 같다. 정보 과부하를 줄이기 위해 추이 차트와 12개월 시뮬레이터는 아래 §3.2와 같이 독립 메뉴(추이 분석/시뮬레이터)로 분리했습니다.
 네비게이션은 글로벌 GNB(`AppShell`)로 통일하여 좌측에 `Carix 로고`와 함께 `판정 | 추이 분석 | 시뮬레이터 | 입력 관리` 4개 주 메뉴를 고정 배치하고, 우측에 `도움말`과 계정 메뉴 `내 정보 ▾`(설정·로그아웃), 테마 전환 유틸리티를 분리 배치했습니다. 앞 넷은 보는 화면, 마지막 `입력 관리`(S-12)는 입력하는 화면입니다 — 연봉·소비 갱신이 스냅샷 재계산과 시나리오 사후 검증의 입구라 계정 메뉴로 내리지 않고 주 메뉴에 둡니다. 사용자가 '설정'이나 '도움말' 페이지에 진입하더라도 상단 메인 메뉴가 사라지지 않고 항상 동일한 자리에 유지되어 언제든 즉시 분석 화면으로 복귀할 수 있습니다. §1.3의 "사이드바 제거" 원칙과 별개로, 상단 네비는 플랫하게 유지합니다. **예외는 계정 메뉴 하나다** — 설정·로그아웃은 분석 흐름과 무관하고 드물게 쓰여 두 번째 층으로 접는다. 아이콘은 lucide 를 쓴다.
 
 ```text
