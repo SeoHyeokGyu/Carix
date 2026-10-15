@@ -1,4 +1,5 @@
 import { PageSection } from "@/components/layout/PageSection";
+import { Card } from "@/components/ui/card";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useEffect, useRef, useState } from "react";
 import {
@@ -273,129 +274,131 @@ export default function RecordsIncome() {
       </PageSection>
 
       <PageSection title="소득 추가">
-        <formFetcher.Form
-          method="post"
-          ref={formRef}
-          key={editingId ?? "new"}
-          className="flex flex-col gap-4 rounded-xl border border-carix-border bg-carix-surface p-6"
-        >
-          <input
-            type="hidden"
-            name="intent"
-            value={editingId ? "update" : "create"}
-          />
-          {editingId && <input type="hidden" name="id" value={editingId} />}
-
-          <Field
-            id="grossSalary"
-            label="세전 연봉 (만원)"
-            hint="1,000만 원 ~ 300,000만 원 사이로 입력해 주세요. (예: 5,000)"
-            error={errors?.grossSalary}
+        <Card>
+          <formFetcher.Form
+            method="post"
+            ref={formRef}
+            key={editingId ?? "new"}
+            className="flex flex-col gap-4"
           >
-            {(aria) => (
-              <Input
-                {...aria}
-                name="grossSalary"
-                type="text"
-                inputMode="numeric"
-                placeholder="예: 5,000"
-                value={grossInput}
-                onChange={(e) => setGrossInput(formatDigits(e.target.value))}
-              />
-            )}
-          </Field>
+            <input
+              type="hidden"
+              name="intent"
+              value={editingId ? "update" : "create"}
+            />
+            {editingId && <input type="hidden" name="id" value={editingId} />}
 
-          <Field
-            id="netSalary"
-            label="월 실수령액 (만원)"
-            hint="구매력 지수(PPI) 계산에 쓰이므로 필수입니다. (50만 원 ~ 20,000만 원, 예: 350)"
-            error={errors?.netSalary}
-          >
-            {(aria) => (
-              <Input
-                {...aria}
-                name="netSalary"
-                type="text"
-                inputMode="numeric"
-                placeholder="예: 350"
-                value={netInput}
-                onChange={(e) => setNetInput(formatDigits(e.target.value))}
-              />
-            )}
-          </Field>
-
-          <Field
-            id="effectiveDate"
-            label="연봉 적용 시작일"
-            hint="해당 연봉 계약이 적용되기 시작한 날짜입니다. 미래 날짜는 입력할 수 없습니다."
-            error={errors?.effectiveDate}
-          >
-            {(aria) => (
-              <Input
-                {...aria}
-                name="effectiveDate"
-                type="text"
-                placeholder="YYYY-MM-DD (예: 2024-03-01)"
-                value={dateInput}
-                onChange={(e) => setDateInput(e.target.value)}
-              />
-            )}
-          </Field>
-
-          {/* 이력이 0건이면 그리지 않는다 — 그 행은 서버가 INITIAL 로 확정하고
-            사용자에게 묻지 않는다(기능 명세 US-O3). 컨트롤드 컴포넌트다 — 생성→
-            생성 경로는 폼 key(editingId)가 안 바뀌어 리마운트가 없으므로,
-            defaultValue 로는 이전 선택이 다음 저장에 그대로 실린다. */}
-          {income.length > 0 && (
             <Field
-              id="changeReason"
-              label="변경 사유"
-              hint={INCOME_CHANGE_REASON_HINT}
-              error={errors?.changeReason}
+              id="grossSalary"
+              label="세전 연봉 (만원)"
+              hint="1,000만 원 ~ 300,000만 원 사이로 입력해 주세요. (예: 5,000)"
+              error={errors?.grossSalary}
             >
               {(aria) => (
-                <NativeSelect
+                <Input
                   {...aria}
-                  name="changeReason"
-                  value={changeReasonInput}
-                  onChange={(e) => setChangeReasonInput(e.target.value)}
-                  placeholder="선택 안 함"
-                  options={INCOME_CHANGE_REASONS}
+                  name="grossSalary"
+                  type="text"
+                  inputMode="numeric"
+                  placeholder="예: 5,000"
+                  value={grossInput}
+                  onChange={(e) => setGrossInput(formatDigits(e.target.value))}
                 />
               )}
             </Field>
-          )}
 
-          {errors?._form && (
-            <p role="alert" className="text-sm text-carix-danger">
-              {errors._form}
-            </p>
-          )}
+            <Field
+              id="netSalary"
+              label="월 실수령액 (만원)"
+              hint="구매력 지수(PPI) 계산에 쓰이므로 필수입니다. (50만 원 ~ 20,000만 원, 예: 350)"
+              error={errors?.netSalary}
+            >
+              {(aria) => (
+                <Input
+                  {...aria}
+                  name="netSalary"
+                  type="text"
+                  inputMode="numeric"
+                  placeholder="예: 350"
+                  value={netInput}
+                  onChange={(e) => setNetInput(formatDigits(e.target.value))}
+                />
+              )}
+            </Field>
 
-          <div className="flex items-center gap-2">
-            <Button type="submit" disabled={isSubmitting}>
-              저장
-            </Button>
-            {editingId && (
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => {
-                  setEditingId(null);
-                  setGrossInput("");
-                  setNetInput("");
-                  setDateInput("");
-                  setChangeReasonInput("");
-                }}
+            <Field
+              id="effectiveDate"
+              label="연봉 적용 시작일"
+              hint="해당 연봉 계약이 적용되기 시작한 날짜입니다. 미래 날짜는 입력할 수 없습니다."
+              error={errors?.effectiveDate}
+            >
+              {(aria) => (
+                <Input
+                  {...aria}
+                  name="effectiveDate"
+                  type="text"
+                  placeholder="YYYY-MM-DD (예: 2024-03-01)"
+                  value={dateInput}
+                  onChange={(e) => setDateInput(e.target.value)}
+                />
+              )}
+            </Field>
+
+            {/* 이력이 0건이면 그리지 않는다 — 그 행은 서버가 INITIAL 로 확정하고
+            사용자에게 묻지 않는다(기능 명세 US-O3). 컨트롤드 컴포넌트다 — 생성→
+            생성 경로는 폼 key(editingId)가 안 바뀌어 리마운트가 없으므로,
+            defaultValue 로는 이전 선택이 다음 저장에 그대로 실린다. */}
+            {income.length > 0 && (
+              <Field
+                id="changeReason"
+                label="변경 사유"
+                hint={INCOME_CHANGE_REASON_HINT}
+                error={errors?.changeReason}
               >
-                취소
-              </Button>
+                {(aria) => (
+                  <NativeSelect
+                    {...aria}
+                    name="changeReason"
+                    value={changeReasonInput}
+                    onChange={(e) => setChangeReasonInput(e.target.value)}
+                    placeholder="선택 안 함"
+                    options={INCOME_CHANGE_REASONS}
+                  />
+                )}
+              </Field>
             )}
-            <p className="text-xs text-carix-text/60">
-              저장하면 해당 시점 이후 지수에 반영됩니다.
-            </p>
-          </div>
-        </formFetcher.Form>
+
+            {errors?._form && (
+              <p role="alert" className="text-sm text-carix-danger">
+                {errors._form}
+              </p>
+            )}
+
+            <div className="flex items-center gap-2">
+              <Button type="submit" disabled={isSubmitting}>
+                저장
+              </Button>
+              {editingId && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    setEditingId(null);
+                    setGrossInput("");
+                    setNetInput("");
+                    setDateInput("");
+                    setChangeReasonInput("");
+                  }}
+                >
+                  취소
+                </Button>
+              )}
+              <p className="text-xs text-carix-text/60">
+                저장하면 해당 시점 이후 지수에 반영됩니다.
+              </p>
+            </div>
+          </formFetcher.Form>
+        </Card>
       </PageSection>
     </div>
   );

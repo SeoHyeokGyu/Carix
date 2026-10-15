@@ -1,4 +1,5 @@
 import { CORE_INDEX_CARDS } from "../../content/landing";
+import { Card } from "@/components/ui/card";
 
 export function CoreIndexCards() {
   const getEmoji = (title: string) => {
@@ -28,29 +29,28 @@ export function CoreIndexCards() {
         {/* 모바일은 세로 피드, 데스크톱은 가로 그리드 배치 */}
         <div className="mt-10 grid gap-6 md:grid-cols-3">
           {CORE_INDEX_CARDS.map((card) => (
-            <article
-              key={card.title}
-              className="rounded-xl border border-carix-border bg-carix-surface p-6 shadow-xs transition-transform hover:-translate-y-0.5 duration-200"
-            >
-              <div className="flex items-center gap-3">
-                <span className="text-3xl" role="img" aria-label={card.title}>
-                  {getEmoji(card.title)}
-                </span>
-                <h3 className="font-display text-xl font-bold text-carix-text">
-                  {card.title}
-                </h3>
-              </div>
-              <p className="mt-4 text-base leading-relaxed text-carix-text/80">
-                {card.description}
-              </p>
-              <div className="mt-5 pt-4 border-t border-carix-border flex items-center justify-between text-xs">
-                <span className="text-carix-text/80 font-medium">
-                  분석 기준
-                </span>
-                <span className="text-carix-info font-semibold">
-                  {card.inputs}
-                </span>
-              </div>
+            <article key={card.title}>
+              <Card className="h-full gap-0 transition-transform duration-200 hover:-translate-y-0.5">
+                <div className="flex items-center gap-3">
+                  <span className="text-3xl" role="img" aria-label={card.title}>
+                    {getEmoji(card.title)}
+                  </span>
+                  <h3 className="font-display text-xl font-bold text-carix-text">
+                    {card.title}
+                  </h3>
+                </div>
+                <p className="mt-4 text-base leading-relaxed text-carix-text/80">
+                  {card.description}
+                </p>
+                <div className="mt-5 pt-4 border-t border-carix-border flex items-center justify-between text-xs">
+                  <span className="text-carix-text/80 font-medium">
+                    분석 기준
+                  </span>
+                  <span className="text-carix-info font-semibold">
+                    {card.inputs}
+                  </span>
+                </div>
+              </Card>
             </article>
           ))}
         </div>

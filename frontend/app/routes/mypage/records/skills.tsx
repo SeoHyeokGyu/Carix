@@ -1,4 +1,5 @@
 import { PageSection } from "@/components/layout/PageSection";
+import { Card } from "@/components/ui/card";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useEffect, useState } from "react";
 import {
@@ -429,7 +430,7 @@ export default function RecordsSkills() {
       </PageSection>
 
       <PageSection title="스킬 추가">
-        <div className="flex flex-col gap-4 rounded-xl border border-carix-border bg-carix-surface p-6">
+        <Card>
           <Field
             id="skillSearch"
             label="스킬 검색"
@@ -546,7 +547,7 @@ export default function RecordsSkills() {
               추가하면 다음 계산부터 시장가치 지수에 반영됩니다.
             </p>
           </div>
-        </div>
+        </Card>
       </PageSection>
     </div>
   );

@@ -6,14 +6,11 @@
 
 ---
 
-## 1. 남은 불일치 — 프리미티브 미채택
+## 1. 남은 불일치 — 없음
 
-raw `<button>`·토큰 밖 팔레트는 0 이고 eslint 가 예외 없이 막는다. raw `<table>` 도 0 이지만
-eslint 대상은 아니다. 남은 것은 eslint 가 못 잡는 카드 복제다.
-
-| 항목 | 실측 |
-| :--- | :--- |
-| 카드 | `<Card>` 와 같은 클래스 문자열 인라인 복제 — `mypage/records/{income,expense,skills}`·`SnapshotDetailPanel`·`CoreIndexCards`·`AdminKeyModal`(대화상자 판)·`hero/Hero` |
+raw `<button>`·토큰 밖 팔레트·`Card` 틀을 클래스 문자열로 복제한 것은 0 이고 eslint 가 예외
+없이 막는다. raw `<table>` 도 0 이지만 eslint 대상은 아니다. 반투명 표면(`bg-carix-surface/95`)인
+툴팁·드롭다운과 랜딩 `Hero` 의 질문 줄은 카드가 아니라 eslint 카드 규칙에 걸리지 않는다.
 
 차트 색은 누출이 아니다. `IncomeVsPriceChart` 의 stroke/fill 은 전부
 `var(--color-carix-*)` 토큰을 쓴다.

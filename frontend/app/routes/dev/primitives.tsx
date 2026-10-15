@@ -310,14 +310,14 @@ function Gallery() {
               행동 슬롯
             </Button>
           </EmptyState>
-          <div className="rounded-xl border border-carix-border bg-carix-surface p-6">
+          <Card>
             <EmptyState
               data-testid="empty-state-plain"
               variant="plain"
               title="plain — 카드 안에 놓인 경우"
               description="테두리와 배경을 벗어 박스 안의 박스를 막습니다."
             />
-          </div>
+          </Card>
         </div>
       </Section>
 

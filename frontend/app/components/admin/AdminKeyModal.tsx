@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Card } from "@/components/ui/card";
 import {
   getAdminKey,
   setAdminKey,
@@ -57,7 +58,7 @@ function AdminKeyModalContent({
       aria-labelledby="admin-modal-title"
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4"
     >
-      <div className="w-full max-w-md rounded-xl border border-carix-border bg-carix-surface p-6 shadow-2xl transition-all">
+      <Card className="w-full max-w-md gap-0 shadow-2xl">
         <div className="flex items-center justify-between pb-3 border-b border-carix-border">
           <div className="flex items-center gap-2">
             <span className="text-xl">🔑</span>
@@ -133,7 +134,7 @@ function AdminKeyModalContent({
             </div>
           </div>
         </div>
-      </div>
+      </Card>
     </div>
   );
 }

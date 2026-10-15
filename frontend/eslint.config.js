@@ -11,6 +11,9 @@ const PALETTE =
   "\\b(bg|text|border|ring|fill|stroke|from|to|via|outline|divide|decoration|shadow|accent|caret|placeholder)-(slate|gray|zinc|neutral|stone|red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose)-(50|[1-9]00|950)\\b";
 const PALETTE_MESSAGE =
   "토큰 밖 Tailwind 팔레트 색이다. carix 토큰(bg-carix-*, text-carix-* 등)을 쓴다.";
+const CARD_FRAME =
+  "\\brounded-xl border border-carix-border bg-carix-surface(?=\\s|$)";
+const CARD_MESSAGE = "카드 틀은 @/components/ui/card 의 Card 를 쓴다.";
 const UI_RULES = [
   "error",
   {
@@ -37,6 +40,15 @@ const UI_RULES = [
   {
     selector: "CallExpression[callee.name=/^(confirm|alert|prompt)$/]",
     message: "확인은 @/components/ui/confirm-dialog 의 ConfirmDialog 로 한다.",
+  },
+  {
+    // 카드 틀을 클래스 문자열로 복제하는 실수를 잡는다. 반투명 표면(`bg-carix-surface/95`)인 툴팁·드롭다운은 카드가 아니다.
+    selector: `Literal[value=/${CARD_FRAME}/]`,
+    message: CARD_MESSAGE,
+  },
+  {
+    selector: `TemplateElement[value.raw=/${CARD_FRAME}/]`,
+    message: CARD_MESSAGE,
   },
   {
     selector: "Literal[value=/\\b(text|bg|border|ring)-destructive\\b/]",
