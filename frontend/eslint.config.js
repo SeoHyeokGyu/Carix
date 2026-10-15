@@ -1,5 +1,6 @@
 import js from "@eslint/js";
 import reactHooks from "eslint-plugin-react-hooks";
+import simpleImportSort from "eslint-plugin-simple-import-sort";
 import react from "eslint-plugin-react";
 import tseslint from "typescript-eslint";
 import prettier from "eslint-config-prettier";
@@ -97,11 +98,20 @@ export default tseslint.config(
     plugins: {
       react,
       "react-hooks": reactHooks,
+      "simple-import-sort": simpleImportSort,
     },
     rules: {
       ...react.configs.recommended.rules,
       ...reactHooks.configs.recommended.rules,
       "react/react-in-jsx-scope": "off",
+      // import 순서 — 부수효과(CSS) → 외부 패키지 → `@/` 별칭 → 상대 경로. `eslint --fix` 가 맞춘다.
+      "simple-import-sort/imports": [
+        "error",
+        {
+          groups: [["^\\u0000"], ["^@?\\w"], ["^@/"], ["^\\."]],
+        },
+      ],
+      "simple-import-sort/exports": "error",
     },
     settings: {
       react: {
