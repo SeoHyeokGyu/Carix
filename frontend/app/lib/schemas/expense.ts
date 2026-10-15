@@ -1,5 +1,6 @@
 import { z } from "zod";
-import { values, type Option } from "./options";
+
+import { type Option, values } from "./options";
 
 /** 정본은 backend/core-api 의 ExpenseCategoryEnum 이다. */
 export const EXPENSE_CATEGORIES = [

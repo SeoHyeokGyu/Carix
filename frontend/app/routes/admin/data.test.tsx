@@ -9,8 +9,9 @@ import {
 import userEvent from "@testing-library/user-event";
 import { createRoutesStub, Link, useNavigate } from "react-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import DataExplorePage from "./data";
+
 import * as api from "../../lib/collectorApi";
+import DataExplorePage from "./data";
 
 vi.mock("../../lib/collectorApi", async (orig) => ({
   ...(await orig<typeof import("../../lib/collectorApi")>()),

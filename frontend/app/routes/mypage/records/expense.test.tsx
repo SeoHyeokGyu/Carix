@@ -1,18 +1,19 @@
-import RecordsLayout from "./layout";
-import { expectHeadingOutline } from "../../../test-utils/headingOutline";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { createRoutesStub } from "react-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+
 import * as expenseApi from "../../../lib/api/expense";
 import * as incomeApi from "../../../lib/api/income";
 import { EXPENSE_ITEM_AMOUNT_MESSAGE } from "../../../lib/schemas/expense";
 import { currentYearMonth, formatYearMonth } from "../../../lib/yearMonth";
+import { expectHeadingOutline } from "../../../test-utils/headingOutline";
 import RecordsExpense, {
-  ErrorBoundary,
   clientAction,
   clientLoader,
+  ErrorBoundary,
 } from "./expense";
+import RecordsLayout from "./layout";
 
 vi.mock("../../../lib/api/expense");
 vi.mock("../../../lib/api/income");

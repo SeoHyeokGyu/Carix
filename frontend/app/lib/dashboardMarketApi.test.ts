@@ -1,10 +1,11 @@
-import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
 import { UnauthorizedError } from "./coreApi";
 import {
-  fetchSkillDemands,
   fetchSalaryDistribution,
-  fetchTrends,
+  fetchSkillDemands,
   fetchSnapshotHistory,
+  fetchTrends,
 } from "./dashboardMarketApi";
 
 describe("dashboardMarketApi", () => {

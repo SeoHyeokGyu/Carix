@@ -1,5 +1,6 @@
 import { CircleHelp } from "lucide-react";
 import { redirect } from "react-router";
+
 import { AppShell, type NavItem } from "../../components/layout/AppShell";
 import { guardOnboarded, LANDING_PATH } from "../../lib/routeGuards";
 import { requireSession } from "../../lib/session";

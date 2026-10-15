@@ -1,7 +1,8 @@
-import { describe, expect, it } from "vitest";
 import { render, screen } from "@testing-library/react";
-import { FeatureList } from "./FeatureList";
+import { describe, expect, it } from "vitest";
+
 import { FEATURES } from "../../content/landing";
+import { FeatureList } from "./FeatureList";
 
 describe("FeatureList", () => {
   it("6개 기능 항목을 모두 리스트로 렌더링한다", () => {

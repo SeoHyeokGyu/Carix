@@ -1,5 +1,6 @@
 import type { LucideIcon } from "lucide-react";
 import { Link, NavLink, Outlet, useLocation } from "react-router";
+
 import { ThemeToggle } from "../ThemeToggle";
 import { AccountMenu } from "./AccountMenu";
 

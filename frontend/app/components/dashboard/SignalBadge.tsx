@@ -1,5 +1,6 @@
-import { resolveDecisionSignal } from "../../lib/decisionSignal";
 import { ToneBadge } from "@/components/ui/tone-badge";
+
+import { resolveDecisionSignal } from "../../lib/decisionSignal";
 
 interface SignalBadgeProps {
   code: string;

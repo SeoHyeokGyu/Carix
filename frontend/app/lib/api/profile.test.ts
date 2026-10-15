@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
 import { getProfile, patchProfile } from "./profile";
 
 describe("profile API", () => {

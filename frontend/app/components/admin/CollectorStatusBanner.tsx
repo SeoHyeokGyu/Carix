@@ -1,9 +1,10 @@
+import { ToneBadge } from "@/components/ui/tone-badge";
+
 import type { JobStatusResponse } from "../../lib/collectorApi";
 import {
   resolveAdminKeyState,
   resolvePipelineState,
 } from "../../lib/jobStatus";
-import { ToneBadge } from "@/components/ui/tone-badge";
 
 interface CollectorStatusBannerProps {
   activeJob: JobStatusResponse | null;

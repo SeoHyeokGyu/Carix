@@ -1,15 +1,16 @@
 import { describe, expect, test } from "vitest";
-import type { OnboardingStep, Session } from "./session";
+
 import {
   DASHBOARD_PATH,
-  LANDING_PATH,
-  REVIEW_PATH,
   guardOnboarded,
   guardOnboarding,
   guardSession,
   isForwardStep,
+  LANDING_PATH,
+  REVIEW_PATH,
   stepPath,
 } from "./routeGuards";
+import type { OnboardingStep, Session } from "./session";
 
 const anonymous: Session = { status: "anonymous" };
 

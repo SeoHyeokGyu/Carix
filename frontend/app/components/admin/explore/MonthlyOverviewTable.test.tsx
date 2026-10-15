@@ -1,6 +1,7 @@
 import { render, screen, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router";
 import { describe, expect, it } from "vitest";
+
 import type { MonthlyOverview } from "../../../lib/collectorApi";
 import { MonthlyOverviewTable } from "./MonthlyOverviewTable";
 

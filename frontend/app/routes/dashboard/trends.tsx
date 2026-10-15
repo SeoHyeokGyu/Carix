@@ -1,19 +1,25 @@
-import { cn } from "@/lib/utils";
+import { useCallback, useEffect, useState } from "react";
+import { useNavigate, useSearchParams } from "react-router";
+
+import { PageFrame } from "@/components/layout/PageFrame";
+import { PageHeader } from "@/components/layout/PageHeader";
+import { PageSection } from "@/components/layout/PageSection";
+import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
+import { InlineAlert } from "@/components/ui/inline-alert";
+import { LoadingState } from "@/components/ui/loading-state";
 import {
   TAB_ACTIVE,
   TAB_IDLE,
   TAB_ITEM,
   TAB_LIST,
 } from "@/components/ui/tab-styles";
-import { EmptyState } from "@/components/ui/empty-state";
-import { LoadingState } from "@/components/ui/loading-state";
-import { InlineAlert } from "@/components/ui/inline-alert";
-import { PageFrame } from "@/components/layout/PageFrame";
-import { PageHeader } from "@/components/layout/PageHeader";
-import { PageSection } from "@/components/layout/PageSection";
-import { useState, useEffect, useCallback } from "react";
-import { useNavigate, useSearchParams } from "react-router";
-import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
+
+import { IncomeVsPriceChart } from "../../components/dashboard/IncomeVsPriceChart";
+import { SalaryDistributionChart } from "../../components/dashboard/SalaryDistributionChart";
+import { SkillDemandSection } from "../../components/dashboard/SkillDemandSection";
+import { UnauthorizedError } from "../../lib/coreApi";
 import {
   fetchSalaryDistribution,
   fetchSkillDemands,
@@ -22,10 +28,6 @@ import {
   type SkillDemandResponse,
   type TrendListResponse,
 } from "../../lib/dashboardMarketApi";
-import { SalaryDistributionChart } from "../../components/dashboard/SalaryDistributionChart";
-import { SkillDemandSection } from "../../components/dashboard/SkillDemandSection";
-import { IncomeVsPriceChart } from "../../components/dashboard/IncomeVsPriceChart";
-import { UnauthorizedError } from "../../lib/coreApi";
 import { LOGIN_PATH } from "../../lib/routeGuards";
 import {
   resolveTrendsTab,

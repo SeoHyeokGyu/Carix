@@ -1,13 +1,14 @@
 import { describe, expect, it } from "vitest";
+
 import {
-  HERO_INTRO,
+  BETA_NOTICE,
   CORE_INDEX_CARDS,
   DATA_FLOW_NODES,
-  FORMULAS,
-  FEATURES,
-  RESULT_EXAMPLE,
   DISCLAIMER,
-  BETA_NOTICE,
+  FEATURES,
+  FORMULAS,
+  HERO_INTRO,
+  RESULT_EXAMPLE,
 } from "./landing";
 
 describe("landing content", () => {

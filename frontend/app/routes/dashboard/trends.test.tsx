@@ -1,18 +1,19 @@
-import userEvent from "@testing-library/user-event";
-import { expectHeadingOutline } from "../../test-utils/headingOutline";
-import { describe, expect, it, vi, beforeEach } from "vitest";
 import {
+  fireEvent,
   render,
   screen,
-  within,
-  fireEvent,
   waitFor,
   waitForElementToBeRemoved,
+  within,
 } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes, useLocation } from "react-router";
-import DashboardTrends from "./trends";
-import * as dashboardMarketApi from "../../lib/dashboardMarketApi";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
 import { UnauthorizedError } from "../../lib/coreApi";
+import * as dashboardMarketApi from "../../lib/dashboardMarketApi";
+import { expectHeadingOutline } from "../../test-utils/headingOutline";
+import DashboardTrends from "./trends";
 
 const mockNavigate = vi.fn();
 

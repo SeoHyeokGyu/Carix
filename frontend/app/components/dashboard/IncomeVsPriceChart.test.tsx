@@ -1,7 +1,8 @@
-import { render, screen, fireEvent } from "@testing-library/react";
-import { describe, it, expect } from "vitest";
-import { IncomeVsPriceChart } from "./IncomeVsPriceChart";
+import { fireEvent, render, screen } from "@testing-library/react";
+import { describe, expect, it } from "vitest";
+
 import type { TrendListResponse } from "../../lib/dashboardMarketApi";
+import { IncomeVsPriceChart } from "./IncomeVsPriceChart";
 
 describe("IncomeVsPriceChart", () => {
   it("데이터가 비어 있을 때 비어있음 안내 상태를 렌더링한다", () => {

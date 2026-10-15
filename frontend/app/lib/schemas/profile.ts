@@ -1,5 +1,6 @@
 import { z } from "zod";
-import { values, type Option } from "./options";
+
+import { type Option, values } from "./options";
 
 /**
  * collector 의 JobFamilyClassifier 가 만드는 값과 같아야 한다.

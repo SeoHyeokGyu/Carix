@@ -1,39 +1,41 @@
-import { EmptyState } from "@/components/ui/empty-state";
-import { PageFrame } from "@/components/layout/PageFrame";
-import { PageHeader } from "@/components/layout/PageHeader";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "react-router";
-import { ThemeToggle } from "../../components/ThemeToggle";
+
+import { PageFrame } from "@/components/layout/PageFrame";
+import { PageHeader } from "@/components/layout/PageHeader";
+import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
+
 import { AdminHeader } from "../../components/admin/AdminHeader";
-import { DataHealthStrip } from "../../components/admin/DataHealthStrip";
 import { AdminKeyModal } from "../../components/admin/AdminKeyModal";
-import { MonthlyOverviewTable } from "../../components/admin/explore/MonthlyOverviewTable";
+import { DataHealthStrip } from "../../components/admin/DataHealthStrip";
+import { CpiView } from "../../components/admin/explore/CpiView";
+import { CONTROL, FIELD } from "../../components/admin/explore/exploreStyles";
 import { LoadingNotice } from "../../components/admin/explore/LoadingNotice";
+import { MonthlyOverviewTable } from "../../components/admin/explore/MonthlyOverviewTable";
+import { PeriodFilter } from "../../components/admin/explore/PeriodFilter";
 import { PostingsExplorer } from "../../components/admin/explore/PostingsExplorer";
 import { PostingsFilters } from "../../components/admin/explore/PostingsFilters";
-import { PeriodFilter } from "../../components/admin/explore/PeriodFilter";
-import { CpiView } from "../../components/admin/explore/CpiView";
 import { WageView } from "../../components/admin/explore/WageView";
-import { CONTROL, FIELD } from "../../components/admin/explore/exploreStyles";
-import { Button } from "@/components/ui/button";
+import { ThemeToggle } from "../../components/ThemeToggle";
 import {
+  type CpiTable,
   fetchCpi,
   fetchMonthlyOverview,
   fetchPostings,
   fetchWage,
-  type CpiTable,
   type MonthlyOverview,
   type PostingPage,
   type WageTable,
 } from "../../lib/collectorApi";
 import {
+  type ExploreTab,
   normalizeSampleSource,
   parsePostingSort,
   parseTab,
   periodRangeOf,
-  tabSwitchParams,
   TABS,
-  type ExploreTab,
+  tabSwitchParams,
 } from "../../lib/dataExplore";
 
 export function meta() {

@@ -1,6 +1,7 @@
+import { ArrowLeft, ArrowRight } from "lucide-react";
 import type { ComponentProps } from "react";
 import { Link } from "react-router";
-import { ArrowLeft, ArrowRight } from "lucide-react";
+
 import { cn } from "@/lib/utils";
 
 type TextLinkSize = "xs" | "sm" | "inherit";

@@ -1,5 +1,6 @@
-import { describe, expect, it, vi, afterEach } from "vitest";
 import { render, screen } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
+
 import { IndexCrossoverLine } from "./IndexCrossoverLine";
 
 function mockMatchMedia(matches: boolean) {

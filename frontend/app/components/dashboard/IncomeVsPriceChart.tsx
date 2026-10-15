@@ -1,7 +1,9 @@
+import { useState } from "react";
+
 import { Card, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
-import { ToneBadge, type Tone } from "@/components/ui/tone-badge";
-import { useState } from "react";
+import { type Tone, ToneBadge } from "@/components/ui/tone-badge";
+
 import type {
   TrendListResponse,
   TrendPoint,

@@ -1,5 +1,3 @@
-import { PageFrame } from "@/components/layout/PageFrame";
-import { PageHeader } from "@/components/layout/PageHeader";
 import { useEffect, useRef, useState } from "react";
 import {
   Form,
@@ -10,7 +8,12 @@ import {
   useLoaderData,
   useNavigation,
 } from "react-router";
+
+import { PageFrame } from "@/components/layout/PageFrame";
+import { PageHeader } from "@/components/layout/PageHeader";
 import { Button, buttonVariants } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import {
   Table,
   TableBody,
@@ -19,29 +22,28 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
+
 import { Field } from "../../components/onboarding/Field";
 import { NativeSelect } from "../../components/onboarding/NativeSelect";
-import { isApiError, toUserMessage } from "../../lib/apiError";
 import {
   createIncome,
   deleteIncome,
+  type IncomeResponse,
   listIncome,
   updateIncome,
-  type IncomeResponse,
 } from "../../lib/api/income";
+import { isApiError, toUserMessage } from "../../lib/apiError";
 import { type ApiError, UnauthorizedError } from "../../lib/coreApi";
-import { toFieldErrors, type FieldErrors } from "../../lib/fieldErrors";
+import { type FieldErrors, toFieldErrors } from "../../lib/fieldErrors";
 import { focusFirstInvalidField } from "../../lib/focusFirstInvalidField";
 import { advanceOnboarding } from "../../lib/onboardingApi";
 import { isForwardStep, LOGIN_PATH } from "../../lib/routeGuards";
 import {
-  incomeSchema,
-  INCOME_CHANGE_REASONS,
   INCOME_CHANGE_REASON_HINT,
+  INCOME_CHANGE_REASONS,
   INCOME_FIELD_MESSAGES,
   incomeChangeReasonCell,
+  incomeSchema,
 } from "../../lib/schemas/income";
 import { requireSession, setSession } from "../../lib/session";
 

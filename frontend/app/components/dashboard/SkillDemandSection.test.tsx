@@ -1,7 +1,8 @@
+import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
-import { SkillDemandSection } from "./SkillDemandSection";
+
 import type { SkillDemandResponse } from "../../lib/dashboardMarketApi";
+import { SkillDemandSection } from "./SkillDemandSection";
 
 describe("SkillDemandSection", () => {
   it("보유 스킬별 수요 지수, 가중치, 추세 뱃지를 올바르게 렌더링한다", () => {

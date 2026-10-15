@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
 import { createIncome, deleteIncome, listIncome, updateIncome } from "./income";
 
 describe("income API", () => {

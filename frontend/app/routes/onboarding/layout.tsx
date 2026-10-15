@@ -1,5 +1,7 @@
-import { PageFrame } from "@/components/layout/PageFrame";
 import { Outlet, redirect } from "react-router";
+
+import { PageFrame } from "@/components/layout/PageFrame";
+
 import { AppShell } from "../../components/layout/AppShell";
 import { StepIndicator } from "../../components/onboarding/StepIndicator";
 import { guardOnboarding, LANDING_PATH } from "../../lib/routeGuards";

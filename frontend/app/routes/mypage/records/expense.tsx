@@ -1,5 +1,3 @@
-import { PageSection } from "@/components/layout/PageSection";
-import { Card } from "@/components/ui/card";
 import { useEffect, useRef, useState } from "react";
 import {
   redirect,
@@ -7,8 +5,12 @@ import {
   useLoaderData,
   useRevalidator,
 } from "react-router";
-import { ToneBadge, type Tone } from "@/components/ui/tone-badge";
+
+import { PageSection } from "@/components/layout/PageSection";
 import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
+import { Input } from "@/components/ui/input";
 import {
   Table,
   TableBody,
@@ -17,18 +19,18 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { EmptyState } from "@/components/ui/empty-state";
-import { Input } from "@/components/ui/input";
+import { type Tone, ToneBadge } from "@/components/ui/tone-badge";
+
 import { Field } from "../../../components/onboarding/Field";
-import { toUserMessage } from "../../../lib/apiError";
 import {
+  type ExpenseItemStatus,
   listExpenses,
   putExpenses,
-  type ExpenseItemStatus,
 } from "../../../lib/api/expense";
 import { listIncome } from "../../../lib/api/income";
+import { toUserMessage } from "../../../lib/apiError";
 import { UnauthorizedError } from "../../../lib/coreApi";
-import { toFieldErrors, type FieldErrors } from "../../../lib/fieldErrors";
+import { type FieldErrors, toFieldErrors } from "../../../lib/fieldErrors";
 import { focusFirstInvalidField } from "../../../lib/focusFirstInvalidField";
 import { LOGIN_PATH } from "../../../lib/routeGuards";
 import {

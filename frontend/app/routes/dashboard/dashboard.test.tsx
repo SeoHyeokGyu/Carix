@@ -1,13 +1,14 @@
-import { expectHeadingOutline } from "../../test-utils/headingOutline";
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { createRoutesStub, MemoryRouter } from "react-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+
 import * as dashboardApi from "../../lib/api/dashboard";
 import { UnauthorizedError } from "../../lib/coreApi";
 import * as dashboardMarketApi from "../../lib/dashboardMarketApi";
 import { resetSession, setSession } from "../../lib/session";
 import * as skillApi from "../../lib/skillApi";
+import { expectHeadingOutline } from "../../test-utils/headingOutline";
 import DashboardHistory from "./history";
 import DashboardHome, { clientLoader } from "./index";
 import DashboardLayout, {

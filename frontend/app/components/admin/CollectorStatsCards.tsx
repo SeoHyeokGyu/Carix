@@ -1,7 +1,8 @@
-import type { PipelineStatsResponse } from "../../lib/collectorApi";
-import { sourceLabel } from "../../lib/sourceLabel";
 import { Card } from "@/components/ui/card";
 import { LoadingState } from "@/components/ui/loading-state";
+
+import type { PipelineStatsResponse } from "../../lib/collectorApi";
+import { sourceLabel } from "../../lib/sourceLabel";
 
 /** 원천 표시 순서. 서버가 이 밖의 원천을 보내면 뒤에 붙인다. */
 const SOURCE_ORDER = ["JOBKOREA", "WANTED", "SARAMIN"];

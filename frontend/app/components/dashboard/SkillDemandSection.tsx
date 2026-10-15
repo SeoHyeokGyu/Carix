@@ -1,18 +1,9 @@
 import { useState } from "react";
-import type {
-  SkillDemandResponse,
-  SkillDemandDetail,
-} from "../../lib/dashboardMarketApi";
-import {
-  resolveDemandTrend,
-  resolveSkillDemandStatus,
-} from "../../lib/skillDemandStatus";
-import { sourceLabel } from "../../lib/sourceLabel";
-import { ToneBadge } from "@/components/ui/tone-badge";
-import { EmptyState } from "@/components/ui/empty-state";
+
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardTitle } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
 import {
   Table,
   TableBody,
@@ -21,6 +12,17 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { ToneBadge } from "@/components/ui/tone-badge";
+
+import type {
+  SkillDemandDetail,
+  SkillDemandResponse,
+} from "../../lib/dashboardMarketApi";
+import {
+  resolveDemandTrend,
+  resolveSkillDemandStatus,
+} from "../../lib/skillDemandStatus";
+import { sourceLabel } from "../../lib/sourceLabel";
 
 export interface SkillDemandSectionProps {
   data: SkillDemandResponse;

@@ -1,7 +1,7 @@
-import { fileURLToPath } from "node:url";
 import { reactRouter } from "@react-router/dev/vite";
-import { defineConfig, loadEnv } from "vite";
 import tailwindcss from "@tailwindcss/vite";
+import { fileURLToPath } from "node:url";
+import { defineConfig, loadEnv } from "vite";
 
 /**
  * 개발 서버에서 쓰는 `/api` 프록시.

@@ -1,7 +1,8 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
-import { WageView } from "./WageView";
+
 import type { WageBaseline, WageTable } from "../../../lib/collectorApi";
+import { WageView } from "./WageView";
 
 const gross = (wageMedian: number, statVintage = "202508") => ({
   wageDefinition: "ANNUAL_GROSS_MEDIAN",

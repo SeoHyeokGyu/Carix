@@ -1,7 +1,8 @@
 import { render, screen, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
-import { CpiView } from "./CpiView";
+
 import type { CpiTable } from "../../../lib/collectorApi";
+import { CpiView } from "./CpiView";
 
 const sharpTable: CpiTable = {
   codes: ["A", "H"],

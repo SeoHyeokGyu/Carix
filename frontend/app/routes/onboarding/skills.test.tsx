@@ -1,13 +1,15 @@
-import { confirmDialog } from "../../test-utils/confirmDialog";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { createRoutesStub, MemoryRouter } from "react-router";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
 import { buttonVariants } from "@/components/ui/button";
-import { expectHeadingOutline } from "../../test-utils/headingOutline";
-import { describe, expect, it, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
-import { MemoryRouter, createRoutesStub } from "react-router";
-import Skills from "./skills";
-import * as skillApi from "../../lib/skillApi";
+
 import { UnauthorizedError } from "../../lib/coreApi";
+import * as skillApi from "../../lib/skillApi";
+import { confirmDialog } from "../../test-utils/confirmDialog";
+import { expectHeadingOutline } from "../../test-utils/headingOutline";
+import Skills from "./skills";
 
 vi.mock("../../lib/skillApi", () => ({
   fetchUserSkills: vi.fn(),

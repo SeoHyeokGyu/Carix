@@ -1,5 +1,6 @@
-import { CORE_INDEX_CARDS } from "../../content/landing";
 import { Card } from "@/components/ui/card";
+
+import { CORE_INDEX_CARDS } from "../../content/landing";
 
 export function CoreIndexCards() {
   const getEmoji = (title: string) => {

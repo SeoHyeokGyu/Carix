@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react";
-import { TextLink } from "@/components/ui/text-link";
+
 import { Button } from "@/components/ui/button";
+import { TextLink } from "@/components/ui/text-link";
+
 import {
-  fetchDataHealth,
   type DataHealthReport,
+  fetchDataHealth,
   type HealthCheck,
   type HealthVerdict,
 } from "../../lib/collectorApi";

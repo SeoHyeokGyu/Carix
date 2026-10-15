@@ -1,5 +1,3 @@
-import type { CpiTable } from "../../../lib/collectorApi";
-import { CPI_CATEGORY_NAMES, isSharpCpiChange } from "../../../lib/dataExplore";
 import {
   Table,
   TableBody,
@@ -8,6 +6,9 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+
+import type { CpiTable } from "../../../lib/collectorApi";
+import { CPI_CATEGORY_NAMES, isSharpCpiChange } from "../../../lib/dataExplore";
 import { CELL, HEAD, META, NUM } from "./exploreStyles";
 
 const MISSING_CELL = "bg-carix-warning/10 text-carix-warning";

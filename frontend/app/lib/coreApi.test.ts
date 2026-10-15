@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
 import { coreGet, coreSend, UnauthorizedError } from "./coreApi";
 
 describe("coreApi", () => {

@@ -1,6 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import { createRoutesStub } from "react-router";
 import { describe, expect, it } from "vitest";
+
 import RecordsLayout from "./layout";
 
 describe("이력 관리 탭 레이아웃 (S-12)", () => {

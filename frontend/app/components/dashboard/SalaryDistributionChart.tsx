@@ -1,10 +1,9 @@
-import { HEADING } from "@/components/ui/heading";
 import { useState } from "react";
-import { cn } from "@/lib/utils";
+
 import { Button } from "@/components/ui/button";
 import { Card, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
-import { ToneBadge } from "@/components/ui/tone-badge";
+import { HEADING } from "@/components/ui/heading";
 import {
   Table,
   TableBody,
@@ -13,9 +12,12 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { ToneBadge } from "@/components/ui/tone-badge";
+import { cn } from "@/lib/utils";
+
 import {
-  type SalaryDistributionResponse,
   fetchSalaryDistribution,
+  type SalaryDistributionResponse,
 } from "../../lib/dashboardMarketApi";
 
 export interface SalaryDistributionChartProps {

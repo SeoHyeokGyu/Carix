@@ -1,10 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
 import {
   clearAdminKey,
   fetchJobStatus,
   fetchPipelineStats,
-  fetchRecentJobs,
   fetchPostings,
+  fetchRecentJobs,
   getAdminKey,
   setAdminKey,
   triggerCrawl,

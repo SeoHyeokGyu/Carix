@@ -1,9 +1,10 @@
-import { describe, expect, it, vi, beforeEach } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
-import { PipelineControlPanel } from "./PipelineControlPanel";
 import userEvent from "@testing-library/user-event";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
 import * as collectorApi from "../../lib/collectorApi";
 import { cancelDialog, confirmDialog } from "../../test-utils/confirmDialog";
+import { PipelineControlPanel } from "./PipelineControlPanel";
 
 vi.mock("../../lib/collectorApi", () => ({
   triggerCrawl: vi.fn(),

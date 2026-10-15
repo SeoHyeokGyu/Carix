@@ -1,5 +1,6 @@
-import { useState, useRef, useEffect, type ReactNode } from "react";
 import { HelpCircle } from "lucide-react";
+import { type ReactNode, useEffect, useRef, useState } from "react";
+
 import { Button } from "@/components/ui/button";
 
 /** 팝오버와 화면 가장자리 사이에 남길 여백(px). */

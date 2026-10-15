@@ -2,11 +2,12 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { createRoutesStub } from "react-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { UnauthorizedError } from "../../lib/coreApi";
-import { requireSession, resetSession, setSession } from "../../lib/session";
-import Profile, { clientLoader, clientAction } from "./profile";
+
 import * as profileApi from "../../lib/api/profile";
+import { UnauthorizedError } from "../../lib/coreApi";
 import * as onboardingApi from "../../lib/onboardingApi";
+import { requireSession, resetSession, setSession } from "../../lib/session";
+import Profile, { clientAction, clientLoader } from "./profile";
 
 describe("S-05 프로필 화면", () => {
   beforeEach(() => {

@@ -2,10 +2,11 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { createRoutesStub } from "react-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { confirmDialog } from "../../test-utils/confirmDialog";
+
 import * as authApi from "../../lib/authApi";
 import * as onboardingApi from "../../lib/onboardingApi";
 import { getSession, resetSession, setSession } from "../../lib/session";
+import { confirmDialog } from "../../test-utils/confirmDialog";
 import MypageLayout, { clientLoader as mypageLayoutLoader } from "./layout";
 import MypageProfile, { clientAction as mypageProfileAction } from "./profile";
 

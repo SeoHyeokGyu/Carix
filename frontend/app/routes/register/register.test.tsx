@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+
 import * as authApi from "../../lib/authApi";
 import * as sessionLib from "../../lib/session";
 import Register from "./register";

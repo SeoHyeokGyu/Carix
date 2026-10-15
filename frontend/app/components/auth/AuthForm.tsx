@@ -1,6 +1,8 @@
-import { useState, type FormEvent, type ReactNode } from "react";
-import type { ApiError } from "../../lib/authApi";
+import { type FormEvent, type ReactNode, useState } from "react";
+
 import { Button } from "@/components/ui/button";
+
+import type { ApiError } from "../../lib/authApi";
 
 interface AuthFormProps {
   screenId: string;

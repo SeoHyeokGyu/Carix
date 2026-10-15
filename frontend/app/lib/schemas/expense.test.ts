@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+
 import { EXPENSE_CATEGORIES, expenseSchema } from "./expense";
 
 describe("expenseSchema", () => {

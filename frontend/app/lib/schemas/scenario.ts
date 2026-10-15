@@ -1,4 +1,5 @@
 import { z } from "zod";
+
 import { GROSS_SALARY_RANGE_TEXT } from "./options";
 
 /**
