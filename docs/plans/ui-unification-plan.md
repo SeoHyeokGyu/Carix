@@ -8,22 +8,18 @@
 
 ## 1. 남은 불일치 — 프리미티브 미채택
 
-디자인 시스템이 있는데 절반이 쓰이지 않는다. 아래는 실측치다.
+raw `<button>`·토큰 밖 팔레트는 0 이고 eslint 가 예외 없이 막는다. raw `<table>` 도 0 이지만
+eslint 대상은 아니다. 남은 것은 eslint 가 못 잡는 카드 복제다.
 
 | 항목 | 실측 |
 | :--- | :--- |
-| raw `<table>` | 1곳 — `JobHistoryTable`(박지수). 나머지는 `Table` 로 옮겼다 |
-| raw `<button>` | 10개 — 전부 박지수 소유(`components/admin/`·`routes/admin/collector.tsx`) |
-| 포커스 링 | 두 벌 — 프리미티브는 `focus-visible:ring-[3px] ring-ring/50`, raw 는 UA 기본 아웃라인 |
-| 오류 표현 | 두 계열 — `text-destructive` 인라인 vs `carix-danger` 박스 배너 |
-| 카드 | `<Card>` vs 동일 클래스 문자열 인라인 복제 |
-| 팔레트 누출 | admin 4파일 |
+| 카드 | `<Card>` 와 같은 클래스 문자열 인라인 복제 — `mypage/records/{income,expense,skills}`·`SnapshotDetailPanel`·`CoreIndexCards`·`AdminKeyModal`(대화상자 판)·`hero/Hero` |
 
 차트 색은 누출이 아니다. `IncomeVsPriceChart` 의 stroke/fill 은 전부
 `var(--color-carix-*)` 토큰을 쓴다.
 
-**결정 신호 분기·토큰 공백·로딩 표현은 P0~P2 가, 프리미티브 재정의와 C 소유 교체는 P3 이
-해소했다.** 남은 것은 박지수 관리자 화면의 교체(§5)뿐이고, P4 의 eslint 예외 목록이 그 남은 일을 센다.
+**결정 신호 분기·토큰 공백·로딩 표현은 P0~P2 가, 프리미티브 재정의와 C 소유 교체는 P3 가,
+B·박지수 화면 교체는 §5 가 해소했다.**
 
 ---
 
@@ -86,7 +82,7 @@
 
 | 항목 | 내용 |
 | :--- | :--- |
-| 손수 뱃지 잔여 | `SalaryDistributionChart` 는 B 몫이다(§5). `admin/JobHistoryTable`·`admin/CollectorStatusBanner`·`onboarding/skills` 는 소유자 몫(§5). `hero/Hero` 의 알약은 랜딩 제목 위 장식 문구라 배지 계약 대상이 아니다 |
+| 손수 뱃지 | `hero/Hero` 의 알약은 랜딩 제목 위 장식 문구라 배지 계약 대상이 아니다 |
 | `history.tsx` 로딩 분기 | 기계 검증이 0인 유일한 자리다. 모든 테스트가 `fetchSnapshotHistory` 를 즉시 resolve 해서 `isLoading` 을 안 탄다 |
 | 시각 커버리지 없는 호출부 | `IndexCard` 의 뱃지, `SkillDemandSection` 의 `variant="plain"` 빈 상태 — 갤러리엔 합성 카드만 있다 |
 
@@ -119,16 +115,9 @@ tr '}' '\n' < build/client/assets/root-*.css | grep ...
 
 ## 5. 마이그레이션 계약
 
-C 는 공용 계층만 낸다. 화면 교체는 소유자 몫이므로 **이 표가 곧 납품물이다.**
-
-| 소유 | 파일 | 교체 |
-| :--- | :--- | :--- |
-| 박지수 | `components/admin/` 6파일 + `routes/admin/collector.tsx` | 팔레트 누출 → 토큰, raw button → `Button`, `animate-pulse` → `LoadingState`, `collector.tsx` 상태 뱃지 `-300` → 테이블과 동일한 `-400`, `JobHistoryTable` 링크 → `TextLink direction="none" size="inherit"`, `routes/admin/collector.tsx` → `PageFrame width="admin" as="main"`·`PageHeader`, 관리자 컴포넌트 제목(`CollectorStatusBanner` h2·`JobHistoryTable`·`PipelineControlPanel` h3) → 두 단계 계약, 관리자 실행 버튼 위계·확인 → `ConfirmDialog`, 관리자 수집 화면 실패·로딩 → `EmptyState danger`·`LoadingState` |
-| C | 온보딩 4화면·대시보드·가이드·시뮬레이터·`S-12`·`mypage/profile`·`AuthForm` | 완료(P3) |
-
-**남은 일을 세는 곳은 `frontend/eslint.config.js` 의 예외 목록이다.** raw `<button>`·토큰 밖
-팔레트는 `error` 이고, 아직 교체하지 않은 박지수 6파일만 소유자 주석과 함께 예외로 남았다.
-교체하면 목록에서 한 줄씩 지운다. 새 파일은 목록에 넣지 않는다 — 넣는 순간 공존이 굳는다.
+교체표는 없다. B·박지수 화면까지 프리미티브로 옮겼고 eslint 예외 목록도 없다 — raw
+`<button>`·토큰 밖 팔레트는 앱 전체에서 `error` 다. 새 파일을 예외로 빼지 않는다. 빼는 순간
+공존이 굳는다.
 
 ## 6. 범위 밖
 
