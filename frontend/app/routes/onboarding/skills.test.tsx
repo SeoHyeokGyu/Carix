@@ -1,5 +1,6 @@
 import { confirmDialog } from "../../test-utils/confirmDialog";
 import userEvent from "@testing-library/user-event";
+import { buttonVariants } from "@/components/ui/button";
 import { expectHeadingOutline } from "../../test-utils/headingOutline";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
@@ -67,6 +68,40 @@ describe("S-08 Skills 온보딩 화면", () => {
     expect(
       screen.getByRole("heading", { level: 2, name: "새 스킬 추가" }),
     ).toHaveClass("text-lg");
+    // 표 행 동작은 [수정 outline sm][삭제 destructive sm] 이다.
+    expect(screen.getByRole("table")).toHaveAttribute("data-slot", "table");
+    const [edit] = screen.getAllByRole("button", { name: "수정" });
+    const [del] = screen.getAllByRole("button", { name: "삭제" });
+    expect(edit).toHaveAttribute("data-variant", "outline");
+    expect(del).toHaveAttribute("data-variant", "destructive");
+    expect(edit.compareDocumentPosition(del)).toBe(
+      Node.DOCUMENT_POSITION_FOLLOWING,
+    );
+  });
+
+  it("단계 이동 줄은 왼쪽 정렬 [이전 링크][다음 버튼] 이다", async () => {
+    render(
+      <MemoryRouter>
+        <Skills />
+      </MemoryRouter>,
+    );
+    await screen.findByText("Spring Boot");
+
+    const prev = screen.getByRole("link", { name: "이전" });
+    const next = screen.getByRole("button", { name: "다음" });
+    expect(prev).toHaveAttribute("href", "/onboarding/expense");
+    expect(prev).toHaveClass(
+      ...buttonVariants({ variant: "outline" }).split(" "),
+    );
+    expect(next).toHaveAttribute("data-variant", "default");
+    const row = prev.parentElement!;
+    expect(next.parentElement).toBe(row);
+    expect(row).toHaveClass("flex", "flex-wrap", "gap-3");
+    expect(row).not.toHaveClass("justify-between");
+    expect(row).not.toHaveClass("border-t");
+    expect(prev.compareDocumentPosition(next)).toBe(
+      Node.DOCUMENT_POSITION_FOLLOWING,
+    );
   });
 
   it("스킬 검색 후 선택하여 새 스킬을 등록할 수 있다", async () => {
@@ -291,12 +326,14 @@ describe("S-08 Skills 온보딩 화면", () => {
     );
 
     await waitFor(() => {
-      expect(
-        screen.getByText("등록된 보유 스킬이 없습니다."),
-      ).toBeInTheDocument();
+      expect(screen.getByTestId("empty-state")).toHaveTextContent(
+        "등록된 보유 스킬이 없습니다.",
+      );
     });
 
-    const nextBtn = screen.getByRole("button", { name: /다음 \(검토\) →/i });
+    // 스킬이 없어도 「다음」은 눌린다 — 누르면 이유를 알린다.
+    const nextBtn = screen.getByRole("button", { name: "다음" });
+    expect(nextBtn).toBeEnabled();
     fireEvent.click(nextBtn);
 
     expect(

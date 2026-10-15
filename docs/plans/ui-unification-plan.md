@@ -12,8 +12,8 @@
 
 | 항목 | 실측 |
 | :--- | :--- |
-| raw `<table>` | 6곳 — 전부 B·박지수 소유. C 소유는 `Table` 로 옮겼다 |
-| raw `<button>` | 29개 — 전부 B·박지수 소유 |
+| raw `<table>` | 1곳 — `JobHistoryTable`(박지수). 나머지는 `Table` 로 옮겼다 |
+| raw `<button>` | 10개 — 전부 박지수 소유(`components/admin/`·`routes/admin/collector.tsx`) |
 | 포커스 링 | 두 벌 — 프리미티브는 `focus-visible:ring-[3px] ring-ring/50`, raw 는 UA 기본 아웃라인 |
 | 오류 표현 | 두 계열 — `text-destructive` 인라인 vs `carix-danger` 박스 배너 |
 | 카드 | `<Card>` vs 동일 클래스 문자열 인라인 복제 |
@@ -23,7 +23,7 @@
 `var(--color-carix-*)` 토큰을 쓴다.
 
 **결정 신호 분기·토큰 공백·로딩 표현은 P0~P2 가, 프리미티브 재정의와 C 소유 교체는 P3 이
-해소했다.** 남은 것은 B·박지수 화면의 교체(§5)뿐이고, P4 의 eslint 예외 목록이 그 남은 일을 센다.
+해소했다.** 남은 것은 박지수 관리자 화면의 교체(§5)뿐이고, P4 의 eslint 예외 목록이 그 남은 일을 센다.
 
 ---
 
@@ -123,12 +123,11 @@ C 는 공용 계층만 낸다. 화면 교체는 소유자 몫이므로 **이 표
 
 | 소유 | 파일 | 교체 |
 | :--- | :--- | :--- |
-| B | `SalaryDistributionChart`·`SkillDemandSection`·`IncomeVsPriceChart`·`routes/dashboard/history`·`trends`·`routes/onboarding/skills` | raw 카드 6 → `Card`, raw button 10종 → `Button`, raw table 3 → `Table`, 열화 박스 → `EmptyState`, 상태 span → `ToneBadge`, `getSignalBadge` → `SignalBadge`, `SalaryDistributionChart` 손수 배지 → `ToneBadge`, `onboarding/skills` 단계 이동 줄 → 컴포넌트 계약 「단계 이동 줄」 |
 | 박지수 | `components/admin/` 6파일 + `routes/admin/collector.tsx` | 팔레트 누출 → 토큰, raw button → `Button`, `animate-pulse` → `LoadingState`, `collector.tsx` 상태 뱃지 `-300` → 테이블과 동일한 `-400`, `JobHistoryTable` 링크 → `TextLink direction="none" size="inherit"`, `routes/admin/collector.tsx` → `PageFrame width="admin" as="main"`·`PageHeader`, 관리자 컴포넌트 제목(`CollectorStatusBanner` h2·`JobHistoryTable`·`PipelineControlPanel` h3) → 두 단계 계약, 관리자 실행 버튼 위계·확인 → `ConfirmDialog`, 관리자 수집 화면 실패·로딩 → `EmptyState danger`·`LoadingState` |
-| C | 온보딩 4화면·대시보드·가이드·시뮬레이터·`S-12`·`mypage/profile`·`AuthForm` | 완료(P3). 프리미티브를 import 하는 파일은 전부 C 소유라 P3 재정의가 닿는 것도 C 화면뿐이다 |
+| C | 온보딩 4화면·대시보드·가이드·시뮬레이터·`S-12`·`mypage/profile`·`AuthForm` | 완료(P3) |
 
 **남은 일을 세는 곳은 `frontend/eslint.config.js` 의 예외 목록이다.** raw `<button>`·토큰 밖
-팔레트는 `error` 이고, 아직 교체하지 않은 B·박지수 11파일만 소유자 주석과 함께 예외로 남았다.
+팔레트는 `error` 이고, 아직 교체하지 않은 박지수 6파일만 소유자 주석과 함께 예외로 남았다.
 교체하면 목록에서 한 줄씩 지운다. 새 파일은 목록에 넣지 않는다 — 넣는 순간 공존이 굳는다.
 
 ## 6. 범위 밖
@@ -138,5 +137,5 @@ C 는 공용 계층만 낸다. 화면 교체는 소유자 몫이므로 **이 표
 - **`MarketValueIndexServiceImpl` 1026줄** — 코딩 규칙 800줄 상한을 넘는 레포 유일 파일.
   UI 와 무관하다
 - **`SalaryDistributionChart` 의 격자 두 벌** — `getBodyPartInfo` 의 `relativeY` 가 죽은
-  값이고 `percentileToBodyY` 와 경계가 어긋난다. B 소유 컴포넌트 내부 결함이라 위 교체표의
-  작업과 함께 B 가 다룬다
+  값이고 `percentileToBodyY` 와 경계가 어긋난다. B 소유 컴포넌트 내부 결함이라
+  B 가 다룬다

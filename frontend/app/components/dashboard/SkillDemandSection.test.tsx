@@ -34,9 +34,17 @@ describe("SkillDemandSection", () => {
       coverage: "보유 스킬 2개 중 2개 반영 (가중치 100% 재정규화)",
     };
 
-    render(<SkillDemandSection data={mockData} />);
+    const { container } = render(<SkillDemandSection data={mockData} />);
 
-    expect(screen.getByText("보유 스킬 수요 추세")).toBeInTheDocument();
+    expect(screen.getByTestId("skill-demand-section")).toHaveAttribute(
+      "data-slot",
+      "card",
+    );
+    expect(container.querySelector('[data-slot="table"]')).not.toBeNull();
+    expect(screen.getByText("보유 스킬 수요 추세")).toHaveAttribute(
+      "data-slot",
+      "card-title",
+    );
     const coveragePill = screen.getByText(/보유 스킬 2개 중 2개 반영/);
     expect(coveragePill).toBeInTheDocument();
     // ToneBadge 를 실제로 거쳤는지 — data-tone 은 ToneBadge 만 찍는다.
@@ -98,7 +106,11 @@ describe("SkillDemandSection", () => {
 
     expect(screen.getByText("통계 미제공")).toBeInTheDocument();
     expect(screen.getByText("표본 부족")).toBeInTheDocument();
-    expect(screen.getByText("이상치 보정")).toBeInTheDocument();
+    // 이상치 보정은 상태가 아니라 보조 라벨이라 중립 칩이다.
+    expect(screen.getByText("이상치 보정")).toHaveAttribute(
+      "data-slot",
+      "badge",
+    );
   });
 
   it("원천 통계 토글 클릭 시 아코디언이 열리고 닫힌다", () => {
@@ -124,7 +136,13 @@ describe("SkillDemandSection", () => {
     render(<SkillDemandSection data={mockData} />);
 
     const toggleBtn = screen.getByRole("button", { name: /원천 통계 보기/i });
+    expect(toggleBtn).toHaveAttribute("data-slot", "button");
+    expect(toggleBtn).toHaveAttribute("aria-expanded", "false");
     fireEvent.click(toggleBtn);
+    expect(screen.getByRole("button", { name: /접기/i })).toHaveAttribute(
+      "aria-expanded",
+      "true",
+    );
 
     expect(screen.getByText(/잡코리아/)).toBeInTheDocument();
     expect(screen.getByText(/80건/)).toBeInTheDocument();

@@ -1,4 +1,6 @@
-import { HEADING } from "@/components/ui/heading";
+import { Card, CardTitle } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
+import { ToneBadge, type Tone } from "@/components/ui/tone-badge";
 import { useState } from "react";
 import type {
   TrendListResponse,
@@ -45,23 +47,12 @@ export function IncomeVsPriceChart({ data }: IncomeVsPriceChartProps) {
   // 1. 비어있음 상태 또는 12개월 미만 안내 (기능 명세 §5, US-D3)
   if (!trends || trends.length === 0 || validPoints.length === 0) {
     return (
-      <div
+      <EmptyState
         data-testid="trends-empty-state"
-        className="rounded-xl border border-dashed border-carix-border bg-carix-surface p-12 text-center shadow-xs"
-      >
-        <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-carix-info/10 text-xl">
-          📊
-        </div>
-        <p className="text-base font-bold text-carix-text">
-          시계열 추이 데이터가 아직 충분하지 않습니다.
-        </p>
-        <p className="mt-2 text-sm text-carix-text/70">
-          다음 달부터 지수 변화를 확인하실 수 있습니다.
-        </p>
-        <p className="mt-1 text-xs text-carix-text/50">
-          (최소 2개월 이상의 스냅샷 데이터가 누적되면 추이 그래프가 제공됩니다)
-        </p>
-      </div>
+        icon="📊"
+        title="시계열 추이 데이터가 아직 충분하지 않습니다."
+        description="다음 달부터 지수 변화를 확인하실 수 있습니다. 최소 2개월 이상의 스냅샷 데이터가 누적되면 추이 그래프가 제공됩니다."
+      />
     );
   }
 
@@ -195,30 +186,20 @@ export function IncomeVsPriceChart({ data }: IncomeVsPriceChartProps) {
     hoveredIndex != null && trends[hoveredIndex] ? trends[hoveredIndex] : null;
 
   return (
-    <div
-      data-testid="income-vs-price-chart"
-      className="rounded-xl border border-carix-border bg-carix-surface p-6 shadow-xs"
-    >
+    <Card data-testid="income-vs-price-chart">
       {/* 1. 상단 타이틀 및 상태 */}
       <div className="flex flex-wrap items-start justify-between gap-4 border-b border-carix-border pb-4">
         <div>
           <div className="flex items-center gap-2">
-            <h3 className={HEADING.sub}>
+            <CardTitle>
               {hasIncomeAndPrice
                 ? "소득 대 개인물가 지수 추이"
                 : "구매력 및 시장가치 지수 추이"}
-            </h3>
+            </CardTitle>
             {purchasingPowerStatus && (
-              <span
-                className={`rounded px-2 py-0.5 text-[11px] font-medium ${
-                  purchasingPowerStatus === "OK" ||
-                  purchasingPowerStatus === "INSUFFICIENT_HISTORY"
-                    ? "bg-carix-info/10 text-carix-info"
-                    : "bg-carix-warning/10 text-carix-warning"
-                }`}
-              >
+              <ToneBadge tone={statusBadgeTone(purchasingPowerStatus)}>
                 {statusBadgeLabel(purchasingPowerStatus)}
-              </span>
+              </ToneBadge>
             )}
           </div>
           <p className="mt-1 text-xs text-carix-text/70">
@@ -254,7 +235,7 @@ export function IncomeVsPriceChart({ data }: IncomeVsPriceChartProps) {
 
       {/* 12개월 미만 알림 배너 */}
       {isLessThan12Months && (
-        <div className="mt-4 rounded-lg bg-carix-bg/80 border border-carix-border/80 px-3.5 py-2 text-xs text-carix-text/70 flex items-center gap-2">
+        <div className="rounded-lg bg-carix-bg/80 border border-carix-border/80 px-3.5 py-2 text-xs text-carix-text/70 flex items-center gap-2">
           <span>ℹ️</span>
           <span>
             현재 <strong>{trends.length}개월</strong> 데이터가 누적되어
@@ -265,7 +246,7 @@ export function IncomeVsPriceChart({ data }: IncomeVsPriceChartProps) {
       )}
 
       {/* 2. SVG 시계열 라인 차트 */}
-      <div className="relative my-6 w-full overflow-hidden">
+      <div className="relative my-2 w-full overflow-hidden">
         <svg
           viewBox={`0 0 ${width} ${height}`}
           className="w-full h-auto overflow-visible select-none"
@@ -500,7 +481,7 @@ export function IncomeVsPriceChart({ data }: IncomeVsPriceChartProps) {
       </div>
 
       {/* 3. 하단 안내 및 메타데이터 */}
-      <div className="mt-2 rounded-lg bg-carix-bg/40 p-3 text-xs text-carix-text/70 border border-carix-border/60 space-y-1">
+      <div className="rounded-lg bg-carix-bg/40 p-3 text-xs text-carix-text/70 border border-carix-border/60 space-y-1">
         <p className="flex items-center gap-1.5">
           <span className="font-semibold text-carix-text">
             💡 차트 해석 가이드:
@@ -516,7 +497,7 @@ export function IncomeVsPriceChart({ data }: IncomeVsPriceChartProps) {
           방지하기 위해 원화 금액은 툴팁 보조 정보로만 확인하실 수 있습니다.
         </p>
       </div>
-    </div>
+    </Card>
   );
 }
 
@@ -525,4 +506,10 @@ function statusBadgeLabel(status: string): string {
   if (status === "OK") return "정상 산출";
   if (status === "INSUFFICIENT_HISTORY") return "비교 기간 짧음";
   return "일부 지연";
+}
+
+function statusBadgeTone(status: string): Tone {
+  return status === "OK" || status === "INSUFFICIENT_HISTORY"
+    ? "info"
+    : "warning";
 }

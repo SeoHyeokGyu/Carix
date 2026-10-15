@@ -1,4 +1,15 @@
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Card } from "@/components/ui/card";
+import { ToneBadge } from "@/components/ui/tone-badge";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { useState, useEffect, useCallback, type ReactNode } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router";
 import { SnapshotDetailPanel } from "../../components/dashboard/SnapshotDetailPanel";
@@ -48,7 +59,7 @@ function IndexCell({
   badge?: ReactNode;
 }) {
   return (
-    <td className="px-4 py-3.5">
+    <TableCell>
       {value != null ? (
         <span
           className={`font-medium ${
@@ -58,12 +69,10 @@ function IndexCell({
           {value.toFixed(1)}
         </span>
       ) : (
-        <span className="inline-block rounded bg-carix-border/30 px-2 py-0.5 text-[11px] text-carix-text/60">
-          데이터 없음
-        </span>
+        <Badge variant="secondary">데이터 없음</Badge>
       )}
       {badge}
-    </td>
+    </TableCell>
   );
 }
 
@@ -154,10 +163,7 @@ export default function DashboardHistory() {
           title="기록된 월별 스냅샷이 없습니다."
           description="다음 달부터 변화를 볼 수 있습니다."
         >
-          <Link
-            to="/onboarding/profile"
-            className="inline-flex items-center rounded-lg bg-carix-info px-4 py-2 text-xs font-semibold text-white shadow hover:opacity-90"
-          >
+          <Link to="/onboarding/profile" className={buttonVariants()}>
             온보딩 정보 확인하기
           </Link>
         </EmptyState>
@@ -165,17 +171,12 @@ export default function DashboardHistory() {
         <div className="space-y-6">
           {/* 스냅샷 1개 이하 시 안내 카드 (와이어프레임 준수) */}
           {isSingleOrEmpty && (
-            <div
+            <EmptyState
               data-testid="history-single-notice"
-              className="rounded-xl border border-dashed border-carix-border bg-carix-surface p-6 text-center shadow-xs"
-            >
-              <p className="text-sm font-semibold text-carix-text">
-                초기 스냅샷이 생성되었습니다
-              </p>
-              <p className="mt-1 text-xs text-carix-text/60">
-                다음 달부터 변화를 볼 수 있습니다.
-              </p>
-            </div>
+              icon="🌱"
+              title="초기 스냅샷이 생성되었습니다"
+              description="다음 달부터 변화를 볼 수 있습니다."
+            />
           )}
 
           <div className="space-y-1">
@@ -197,95 +198,94 @@ export default function DashboardHistory() {
           </div>
 
           {/* 스냅샷 이력 테이블 */}
-          <div className="overflow-hidden rounded-xl border border-carix-border bg-carix-surface shadow-xs">
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-sm">
-                <thead className="border-b border-carix-border bg-carix-bg/60 text-xs font-semibold text-carix-text/70">
-                  <tr>
-                    <th className="px-4 py-3.5 sm:px-6">기준월</th>
-                    <th className="px-4 py-3.5">구매력 지수</th>
-                    <th className="px-4 py-3.5">시장가치 지수</th>
-                    <th className="px-4 py-3.5">개방창 지수</th>
-                    <th className="px-4 py-3.5">결정 신호</th>
-                    <th className="hidden px-4 py-3.5 sm:table-cell">
-                      데이터 기준일
-                    </th>
-                    <th className="px-4 py-3.5 text-right">상세</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-carix-border">
-                  {visible.map((item) => {
-                    const shown = item.recorded ?? item;
-                    const isRetroactive = item.recorded === null;
-                    const isSelected =
-                      selectedSnapshot?.baseYearMonth === item.baseYearMonth;
+          {/* 상세 패널이 표 밑에 같은 틀로 붙어야 해서 틀은 Table 이 아니라 Card 가 진다. */}
+          <Card className="gap-0 overflow-hidden p-0">
+            <Table variant="plain">
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="sm:px-6">기준월</TableHead>
+                  <TableHead>구매력 지수</TableHead>
+                  <TableHead>시장가치 지수</TableHead>
+                  <TableHead>개방창 지수</TableHead>
+                  <TableHead>결정 신호</TableHead>
+                  <TableHead className="hidden sm:table-cell">
+                    데이터 기준일
+                  </TableHead>
+                  <TableHead className="text-right">상세</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {visible.map((item) => {
+                  const shown = item.recorded ?? item;
+                  const isRetroactive = item.recorded === null;
+                  const isSelected =
+                    selectedSnapshot?.baseYearMonth === item.baseYearMonth;
 
-                    return (
-                      <tr
-                        key={item.baseYearMonth}
-                        onClick={() =>
-                          setSelectedSnapshot(isSelected ? null : item)
+                  return (
+                    <TableRow
+                      key={item.baseYearMonth}
+                      onClick={() =>
+                        setSelectedSnapshot(isSelected ? null : item)
+                      }
+                      className={`cursor-pointer transition-colors hover:bg-carix-bg/40 ${
+                        isSelected ? "bg-carix-info/5" : ""
+                      }`}
+                    >
+                      {/* 기준월 */}
+                      <TableCell className="font-semibold sm:px-6">
+                        {formatYearMonth(item.baseYearMonth)}
+                      </TableCell>
+
+                      <IndexCell
+                        value={shown.purchasingPowerIndex}
+                        isRetroactive={isRetroactive}
+                        badge={
+                          isRetroactive && (
+                            <Badge variant="secondary" className="ml-1.5">
+                              소급 계산
+                            </Badge>
+                          )
                         }
-                        className={`cursor-pointer transition-colors hover:bg-carix-bg/40 ${
-                          isSelected ? "bg-carix-info/5" : ""
-                        }`}
-                      >
-                        {/* 기준월 */}
-                        <td className="px-4 py-3.5 sm:px-6 font-semibold text-carix-text">
-                          {formatYearMonth(item.baseYearMonth)}
-                        </td>
+                      />
+                      <IndexCell
+                        value={shown.marketValueIndex}
+                        isRetroactive={isRetroactive}
+                      />
+                      <IndexCell
+                        value={shown.openingWindowIndex}
+                        isRetroactive={isRetroactive}
+                      />
 
-                        <IndexCell
-                          value={shown.purchasingPowerIndex}
-                          isRetroactive={isRetroactive}
-                          badge={
-                            isRetroactive && (
-                              <span className="ml-1.5 rounded bg-carix-border/30 px-1.5 py-0.5 text-[11px] text-carix-text/60">
-                                소급 계산
-                              </span>
-                            )
-                          }
+                      {/* 결정 신호 */}
+                      <TableCell>
+                        <SignalBadge
+                          code={shown.decisionSignal}
+                          serverLabel={shown.label}
+                          className="px-2.5 py-1"
                         />
-                        <IndexCell
-                          value={shown.marketValueIndex}
-                          isRetroactive={isRetroactive}
-                        />
-                        <IndexCell
-                          value={shown.openingWindowIndex}
-                          isRetroactive={isRetroactive}
-                        />
+                        {item.changed && (
+                          <ToneBadge tone="warning" className="ml-1">
+                            지금 다시 계산하면: {item.label}
+                          </ToneBadge>
+                        )}
+                      </TableCell>
 
-                        {/* 결정 신호 */}
-                        <td className="px-4 py-3.5">
-                          <SignalBadge
-                            code={shown.decisionSignal}
-                            serverLabel={shown.label}
-                            className="px-2.5 py-1"
-                          />
-                          {item.changed && (
-                            <span className="ml-1 rounded bg-carix-warning/10 px-1.5 py-0.5 text-[11px]">
-                              지금 다시 계산하면: {item.label}
-                            </span>
-                          )}
-                        </td>
+                      {/* 데이터 기준일 */}
+                      <TableCell className="hidden text-xs text-carix-text/60 sm:table-cell">
+                        {shown.rationale?.baseDate ?? "-"}
+                      </TableCell>
 
-                        {/* 데이터 기준일 */}
-                        <td className="hidden px-4 py-3.5 text-xs text-carix-text/60 sm:table-cell">
-                          {shown.rationale?.baseDate ?? "-"}
-                        </td>
-
-                        {/* 액션 */}
-                        <td className="px-4 py-3.5 text-right text-xs">
-                          <span className="text-carix-info hover:underline">
-                            {isSelected ? "닫기 ▲" : "보기 ▼"}
-                          </span>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+                      {/* 액션 */}
+                      <TableCell className="text-right text-xs">
+                        <span className="text-carix-info hover:underline">
+                          {isSelected ? "닫기 ▲" : "보기 ▼"}
+                        </span>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
 
             {selectedSnapshot && (
               <SnapshotDetailPanel
@@ -293,7 +293,7 @@ export default function DashboardHistory() {
                 onClose={() => setSelectedSnapshot(null)}
               />
             )}
-          </div>
+          </Card>
 
           {/* 4. 하단 각주 및 안내 */}
           <div className="rounded-lg bg-carix-bg/40 p-4 text-xs text-carix-text/70 border border-carix-border/60">

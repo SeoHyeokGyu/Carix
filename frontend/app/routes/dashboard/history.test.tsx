@@ -1,4 +1,5 @@
 import { expectHeadingOutline } from "../../test-utils/headingOutline";
+import { buttonVariants } from "@/components/ui/button";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import {
   render,
@@ -128,6 +129,10 @@ describe("S-11 DashboardHistory 라우트", () => {
         screen.getByText("기록된 월별 스냅샷이 없습니다."),
       ).toBeInTheDocument();
     });
+    // 버튼 모양 링크는 손으로 칠하지 않고 buttonVariants 를 단다.
+    expect(
+      screen.getByRole("link", { name: "온보딩 정보 확인하기" }),
+    ).toHaveClass(...buttonVariants().split(" "));
     expectHeadingOutline();
   });
 
@@ -205,7 +210,10 @@ describe("S-11 DashboardHistory 라우트", () => {
     ).toBeInTheDocument();
     const [, july, june] = screen.getAllByRole("row");
     expect(within(july).getByText("108.3")).toBeInTheDocument();
-    expect(within(june).getByText("데이터 없음")).toBeInTheDocument();
+    expect(within(june).getByText("데이터 없음")).toHaveAttribute(
+      "data-slot",
+      "badge",
+    );
   });
 
   it("스냅샷 목록(2건 이상)과 결측치 뱃지, 상세 패널 펼침을 정상 동작한다", async () => {
@@ -262,6 +270,14 @@ describe("S-11 DashboardHistory 라우트", () => {
     const row = screen.getByText("2026-07");
     fireEvent.click(row);
 
+    // 상세는 표와 같은 카드 틀 안에 붙는다.
+    const frame = screen.getByRole("table").closest('[data-slot="card"]');
+    expect(frame).not.toBeNull();
+    expect(
+      (await screen.findByTestId("snapshot-detail-panel")).closest(
+        '[data-slot="card"]',
+      ),
+    ).toBe(frame);
     await waitFor(() => {
       expect(screen.getByTestId("snapshot-detail-panel")).toBeInTheDocument();
       expect(
@@ -506,7 +522,7 @@ describe("S-11 DashboardHistory 라우트", () => {
     expect(within(row).getByText("100.0")).toBeInTheDocument();
     expect(
       within(row).getByText("지금 다시 계산하면: 이직 탐색"),
-    ).toBeInTheDocument();
+    ).toHaveAttribute("data-tone", "warning");
     const aug = screen.getByText("2026-08").closest("tr")!;
     expect(
       within(aug).queryByText(/지금 다시 계산하면:/),
@@ -530,7 +546,11 @@ describe("S-11 DashboardHistory 라우트", () => {
     });
     renderPage("/dashboard/history");
     await screen.findByText("2026-09");
-    expect(screen.getByTestId("history-single-notice")).toBeInTheDocument();
+    expect(
+      screen
+        .getByTestId("history-single-notice")
+        .querySelector('[data-testid="empty-state-icon"]'),
+    ).not.toBeNull();
   });
 
   it("소급 계산한 달은 기본으로 숨기고 show=all 이면 배지와 함께 보인다", async () => {
@@ -555,7 +575,10 @@ describe("S-11 DashboardHistory 라우트", () => {
       screen.getByRole("checkbox", { name: "소급 계산한 달도 보기" }),
     );
     const row = (await screen.findByText("2022-01")).closest("tr")!;
-    expect(within(row).getAllByText("소급 계산").length).toBeGreaterThan(0);
+    expect(within(row).getAllByText("소급 계산")[0]).toHaveAttribute(
+      "data-slot",
+      "badge",
+    );
   });
 
   it("소급 계산한 달의 상세를 연 채 토글을 끄면 상세 패널도 닫는다", async () => {
