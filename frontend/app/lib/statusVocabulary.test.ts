@@ -6,6 +6,7 @@ import {
   SKILL_DEMAND_STATUS_CODES,
 } from "./skillDemandStatus";
 import { resolveDecisionSignal, DECISION_SIGNAL_CODES } from "./decisionSignal";
+import { resolveJobStatus, JOB_STATUS_CODES } from "./jobStatus";
 
 /**
  * 같은 문구가 화면에서 두 가지 색으로 나오는 것을 막는다.
@@ -38,6 +39,10 @@ function collectLabelTonePairs(): { label: string; tone: Tone }[] {
     pairs.push({ label: resolved.label, tone: resolved.tone });
   }
 
+  for (const code of JOB_STATUS_CODES) {
+    pairs.push(resolveJobStatus(code));
+  }
+
   return pairs;
 }
 
@@ -52,6 +57,7 @@ const WIRED_RESOLVER_MODULES = [
   "./indexStatus.ts",
   "./skillDemandStatus.ts",
   "./decisionSignal.ts",
+  "./jobStatus.ts",
 ];
 
 describe("상태 어휘 톤 불변식", () => {

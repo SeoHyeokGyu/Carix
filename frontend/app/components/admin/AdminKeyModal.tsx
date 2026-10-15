@@ -4,6 +4,10 @@ import {
   setAdminKey,
   clearAdminKey,
 } from "../../lib/collectorApi";
+import { X } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { HEADING } from "@/components/ui/heading";
+import { Input } from "@/components/ui/input";
 
 interface AdminKeyModalProps {
   isOpen: boolean;
@@ -57,20 +61,19 @@ function AdminKeyModalContent({
         <div className="flex items-center justify-between pb-3 border-b border-carix-border">
           <div className="flex items-center gap-2">
             <span className="text-xl">🔑</span>
-            <h3
-              id="admin-modal-title"
-              className="text-base font-semibold text-carix-text"
-            >
+            <h3 id="admin-modal-title" className={HEADING.sub}>
               Collector 관리자 시크릿 키 설정
             </h3>
           </div>
-          <button
+          <Button
             type="button"
+            variant="ghost"
+            size="icon-xs"
+            aria-label="닫기"
             onClick={onClose}
-            className="text-carix-text/50 hover:text-carix-text rounded-md p-1 text-sm transition-colors"
           >
-            ✕
-          </button>
+            <X />
+          </Button>
         </div>
 
         <div className="mt-4 space-y-4">
@@ -91,13 +94,12 @@ function AdminKeyModalContent({
             >
               관리자 시크릿 키 (Admin Secret Key)
             </label>
-            <input
+            <Input
               id="admin-key-input"
               type="password"
               value={keyInput}
               onChange={(e) => setKeyInput(e.target.value)}
               placeholder="예: carix-admin-secret-dev-key"
-              className="w-full rounded-md border border-carix-border bg-carix-bg px-3 py-2 text-sm text-carix-text outline-hidden focus:border-carix-info focus:ring-1 focus:ring-carix-info"
             />
             <p className="mt-1 text-[11px] text-carix-text/50">
               * 로컬 개발 기본값:{" "}
@@ -109,32 +111,25 @@ function AdminKeyModalContent({
 
           <div className="flex items-center justify-between pt-2">
             {hasExistingKey ? (
-              <button
+              <Button
                 type="button"
+                variant="destructive"
+                size="sm"
                 onClick={handleClear}
-                className="text-xs text-carix-danger hover:underline"
               >
                 저장된 키 삭제
-              </button>
+              </Button>
             ) : (
               <span />
             )}
 
             <div className="flex gap-2">
-              <button
-                type="button"
-                onClick={onClose}
-                className="rounded-md border border-carix-border px-3 py-1.5 text-xs font-medium text-carix-text/80 hover:bg-carix-border/30 transition-colors"
-              >
+              <Button type="button" variant="outline" onClick={onClose}>
                 취소
-              </button>
-              <button
-                type="button"
-                onClick={handleSave}
-                className="rounded-md bg-carix-info px-4 py-1.5 text-xs font-medium text-white hover:opacity-90 transition-opacity"
-              >
+              </Button>
+              <Button type="button" onClick={handleSave}>
                 저장하기
-              </button>
+              </Button>
             </div>
           </div>
         </div>

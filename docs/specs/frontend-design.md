@@ -219,12 +219,12 @@ OCI VM에서 다음 컨테이너를 Docker Compose로 운영한다.
 
 **상태 표현 규칙**
 *   열화 상태(표본 부족·산출 불가 등)는 `EmptyState` 로 그린다. 흐린 문단 하나로 두지 않는다 — "로딩이 덜 끝났나" 로 읽힌다.
-*   상태 색은 도메인별 해석 모듈(`lib/decisionSignal.ts`·`lib/indexStatus.ts`·`lib/skillDemandStatus.ts`)이 톤을 정하고 `ToneBadge` 가 그린다. 화면이 색을 고르지 않는다.
+*   상태 색은 도메인별 해석 모듈(`lib/decisionSignal.ts`·`lib/indexStatus.ts`·`lib/skillDemandStatus.ts`·`lib/jobStatus.ts`)이 톤을 정하고 `ToneBadge` 가 그린다. 화면이 색을 고르지 않는다.
 *   값이 없으면 비워 두고 이유를 밝힌다. 0 이나 평균으로 채우지 않는다.
 *   불러오기 실패는 둘이다. 보여 줄 데이터가 없으면 `EmptyState tone="danger"` + 「다시 시도」(화면 전체가 실패하면 화면 단위 하나, 일부만 실패하면 그 구획 안 하나 — 같은 실패를 두 번 그리지 않는다). 이전 데이터가 있으면 `InlineAlert` 로 내용 위에 알리고 화면을 비우지 않는다.
 *   데이터가 없는 채 기다리는 동안은 `LoadingState`. 데이터가 있는 채 다시 불러오는 동안은 쓰지 않는다 — 버튼 상태로만 알린다.
 
-**금지 — eslint 가 막는다.** raw `<button>`, 토큰 밖 Tailwind 팔레트 색(`bg-blue-500` 등), `text-carix-info` 와 밑줄을 손으로 단 `Link`, 화면 파일의 직접 `<h1>`·`<h2>`·`<h4>`~`<h6>` 과 `mx-auto max-w-*` 틀, 앱 어디서든 `confirm`·`alert`·`prompt`(확인은 `ConfirmDialog`), 화면·컴포넌트 파일의 `*-destructive` 위험 색 이름(`*-carix-danger` 를 쓴다)은 `error` 다. 색은 carix 토큰(`bg-carix-*`·`text-carix-*`)만 쓴다. 아직 교체 전인 파일은 `frontend/eslint.config.js` 의 예외 목록에 소유자와 함께 있고, 교체하면 목록에서 지운다. 새 파일은 목록에 넣지 않는다.
+**금지 — eslint 가 막는다.** raw `<button>`, 토큰 밖 Tailwind 팔레트 색(`bg-blue-500` 등), `text-carix-info` 와 밑줄을 손으로 단 `Link`, 화면 파일의 직접 `<h1>`·`<h2>`·`<h4>`~`<h6>` 과 `mx-auto max-w-*` 틀, 앱 어디서든 `confirm`·`alert`·`prompt`(확인은 `ConfirmDialog`), 화면·컴포넌트 파일의 `*-destructive` 위험 색 이름(`*-carix-danger` 를 쓴다)은 `error` 다. 색은 carix 토큰(`bg-carix-*`·`text-carix-*`)만 쓴다. 예외 목록은 없다 — 새 파일도 처음부터 이 규칙을 지킨다.
 
 ---
 

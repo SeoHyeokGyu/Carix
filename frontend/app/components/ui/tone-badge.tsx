@@ -27,7 +27,7 @@ export interface ToneBadgeProps extends ComponentPropsWithoutRef<"span"> {
 /**
  * 뱃지 표현 프리미티브. 어떤 어휘도 모른다 — 톤과 내용만 받는다.
  * 도메인별 문구·톤 결정은 `lib/decisionSignal.ts`, `lib/indexStatus.ts`,
- * `lib/skillDemandStatus.ts` 가 각자 맡는다.
+ * `lib/skillDemandStatus.ts`, `lib/jobStatus.ts` 가 각자 맡는다.
  */
 export function ToneBadge({
   tone,

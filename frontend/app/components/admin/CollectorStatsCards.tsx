@@ -1,13 +1,15 @@
 import type { PipelineStatsResponse } from "../../lib/collectorApi";
 import { sourceLabel } from "../../lib/sourceLabel";
+import { Card } from "@/components/ui/card";
+import { LoadingState } from "@/components/ui/loading-state";
 
 /** 원천 표시 순서. 서버가 이 밖의 원천을 보내면 뒤에 붙인다. */
 const SOURCE_ORDER = ["JOBKOREA", "WANTED", "SARAMIN"];
 
 const SOURCE_COLORS: Record<string, string> = {
-  JOBKOREA: "bg-blue-600",
-  WANTED: "bg-emerald-500",
-  SARAMIN: "bg-orange-500",
+  JOBKOREA: "bg-carix-info",
+  WANTED: "bg-carix-positive",
+  SARAMIN: "bg-carix-warning",
 };
 const FALLBACK_COLOR = "bg-carix-text/40";
 
@@ -21,16 +23,7 @@ export function CollectorStatsCards({
   isLoading,
 }: CollectorStatsCardsProps) {
   if (isLoading && !stats) {
-    return (
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {[1, 2, 3, 4].map((n) => (
-          <div
-            key={n}
-            className="h-28 rounded-xl border border-carix-border bg-carix-surface p-4 animate-pulse"
-          />
-        ))}
-      </div>
-    );
+    return <LoadingState message="수집 현황을 불러오는 중입니다..." />;
   }
 
   const rawCount = stats?.totalRawIngest ?? 0;
@@ -56,28 +49,24 @@ export function CollectorStatsCards({
       count: rawCount.toLocaleString(),
       subtext: "core.raw_ingest 보존 건수",
       icon: "📥",
-      color: "text-blue-500",
     },
     {
       title: "정규화 채용공고",
       count: postingCount.toLocaleString(),
       subtext: "core.job_posting 적재 건수",
       icon: "📄",
-      color: "text-indigo-500",
     },
     {
       title: "표준 스킬 사전",
       count: skillCount.toLocaleString(),
       subtext: "core.skill 등록/추출 스킬",
       icon: "🏷️",
-      color: "text-emerald-500",
     },
     {
       title: "KOSIS 공식 임금 통계",
       count: wageCount.toLocaleString(),
       subtext: "core.wage_stat_observation",
       icon: "📊",
-      color: "text-amber-500",
     },
   ];
 
@@ -85,10 +74,7 @@ export function CollectorStatsCards({
     <div className="space-y-4">
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {cards.map((c) => (
-          <div
-            key={c.title}
-            className="rounded-xl border border-carix-border bg-carix-surface p-4.5 shadow-xs transition-transform hover:-translate-y-0.5 duration-200"
-          >
+          <Card key={c.title} className="gap-0 p-4.5">
             <div className="flex items-center justify-between">
               <span className="text-xs font-medium text-carix-text/70">
                 {c.title}
@@ -100,12 +86,12 @@ export function CollectorStatsCards({
               <span className="text-xs font-normal text-carix-text/60">건</span>
             </div>
             <p className="mt-1 text-[11px] text-carix-text/50">{c.subtext}</p>
-          </div>
+          </Card>
         ))}
       </div>
 
       {/* 포털별 수집 비율 바 */}
-      <div className="rounded-xl border border-carix-border bg-carix-surface p-4 shadow-xs">
+      <Card className="gap-0 p-4">
         <div className="flex items-center justify-between text-xs font-medium text-carix-text mb-2">
           <span>원천 채용 포털별 공고 분포</span>
           <span className="text-carix-text/60">
@@ -139,7 +125,7 @@ export function CollectorStatsCards({
             </div>
           ))}
         </div>
-      </div>
+      </Card>
     </div>
   );
 }

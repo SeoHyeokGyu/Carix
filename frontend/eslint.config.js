@@ -115,19 +115,6 @@ export default tseslint.config(
     rules: { "no-restricted-syntax": [...UI_RULES, ...PAGE_RULES] },
   },
   {
-    // §5 교체표의 남은 일이다. 소유자가 raw 버튼·팔레트를 걷어 내면 여기서 한 줄씩 지운다.
-    // 새 파일은 이 목록에 넣지 않는다 — 넣는 순간 공존이 굳는다.
-    files: [
-      "app/components/admin/AdminKeyModal.tsx", // 박지수
-      "app/components/admin/CollectorStatsCards.tsx", // 박지수
-      "app/components/admin/CollectorStatusBanner.tsx", // 박지수
-      "app/components/admin/JobHistoryTable.tsx", // 박지수
-      "app/components/admin/PipelineControlPanel.tsx", // 박지수
-      "app/routes/admin/collector.tsx", // 박지수
-    ],
-    rules: { "no-restricted-syntax": "off" },
-  },
-  {
     files: [
       "server.js",
       "server.test.js",
