@@ -2,12 +2,14 @@ import { useState } from "react";
 
 import { Card, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
-import { type Tone, ToneBadge } from "@/components/ui/tone-badge";
+import { ToneBadge } from "@/components/ui/tone-badge";
 
+import type { IndexStatus } from "../../lib/api/dashboard";
 import type {
   TrendListResponse,
   TrendPoint,
 } from "../../lib/dashboardMarketApi";
+import { resolveIndexStatus } from "../../lib/indexStatus";
 
 export interface IncomeVsPriceChartProps {
   data: TrendListResponse;
@@ -37,6 +39,11 @@ export function IncomeVsPriceChart({ data }: IncomeVsPriceChartProps) {
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
 
   const { trends, purchasingPowerStatus } = data;
+  // 지표 카드와 같은 해석 모듈이 문구·톤을 정한다. 와이어 타입은 string 이고, 모르는 코드는
+  // 해석 모듈이 코드 그대로 muted 로 돌려준다.
+  const status = purchasingPowerStatus
+    ? resolveIndexStatus(purchasingPowerStatus as IndexStatus)
+    : null;
 
   // 유효한 데이터 포인트 판별 (points가 없거나 모두 null인 경우 빈 상태)
   const validPoints = (trends ?? []).filter(
@@ -198,11 +205,7 @@ export function IncomeVsPriceChart({ data }: IncomeVsPriceChartProps) {
                 ? "소득 대 개인물가 지수 추이"
                 : "구매력 및 시장가치 지수 추이"}
             </CardTitle>
-            {purchasingPowerStatus && (
-              <ToneBadge tone={statusBadgeTone(purchasingPowerStatus)}>
-                {statusBadgeLabel(purchasingPowerStatus)}
-              </ToneBadge>
-            )}
+            {status && <ToneBadge tone={status.tone}>{status.label}</ToneBadge>}
           </div>
           <p className="mt-1 text-xs text-carix-text/70">
             기준월 지수(100) 대비 실질 구매력 변동 및 물가 압력 추이를
@@ -501,17 +504,4 @@ export function IncomeVsPriceChart({ data }: IncomeVsPriceChartProps) {
       </div>
     </Card>
   );
-}
-
-/** 비교 기간이 짧은 달도 값은 있다 — 지연으로 읽히지 않게 따로 부른다. */
-function statusBadgeLabel(status: string): string {
-  if (status === "OK") return "정상 산출";
-  if (status === "INSUFFICIENT_HISTORY") return "비교 기간 짧음";
-  return "일부 지연";
-}
-
-function statusBadgeTone(status: string): Tone {
-  return status === "OK" || status === "INSUFFICIENT_HISTORY"
-    ? "info"
-    : "warning";
 }

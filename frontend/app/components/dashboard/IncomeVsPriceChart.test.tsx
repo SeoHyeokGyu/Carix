@@ -51,9 +51,10 @@ describe("IncomeVsPriceChart", () => {
     };
 
     render(<IncomeVsPriceChart data={data} />);
+    // 상태 문구·톤은 지표 카드와 같은 해석 모듈(lib/indexStatus.ts)이 정한다.
     expect(screen.getByText("비교 기간 짧음")).toHaveAttribute(
       "data-tone",
-      "info",
+      "muted",
     );
     expect(screen.queryByText("일부 지연")).not.toBeInTheDocument();
     expect(screen.getByTestId("income-vs-price-chart")).toHaveAttribute(
@@ -180,6 +181,11 @@ describe("IncomeVsPriceChart", () => {
 
     render(<IncomeVsPriceChart data={fullData} />);
     expect(screen.getByTestId("income-vs-price-chart")).toBeInTheDocument();
+    // 정상 상태에는 라벨을 붙이지 않는다.
+    expect(screen.queryByText("정상 산출")).not.toBeInTheDocument();
+    expect(
+      screen.getByTestId("income-vs-price-chart").querySelector("[data-tone]"),
+    ).toBeNull();
     expect(screen.getByText("소득 대 개인물가 지수 추이")).toBeInTheDocument();
     expect(screen.getByText("소득 지수 (실선)")).toBeInTheDocument();
     expect(screen.getByText("개인물가 지수 (점선)")).toBeInTheDocument();
