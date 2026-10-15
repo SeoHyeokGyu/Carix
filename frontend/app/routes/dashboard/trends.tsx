@@ -109,8 +109,6 @@ export default function DashboardTrends() {
       ) {
         setErrorMessage("시장 분석 데이터를 불러오지 못했습니다");
       }
-    } catch {
-      setErrorMessage("시장 분석 데이터를 불러오지 못했습니다");
     } finally {
       setIsLoading(false);
     }
@@ -122,6 +120,8 @@ export default function DashboardTrends() {
   }, [loadData]);
 
   const hasAnyData = Boolean(salaryData || skillData || trendData);
+  // 셋 다 실패하고 받아 둔 것도 없으면 고를 탭이 없다 — 탭 대신 화면 단위 실패 하나.
+  const screenFailed = !isLoading && Boolean(errorMessage) && !hasAnyData;
 
   return (
     <PageFrame>
@@ -130,150 +130,154 @@ export default function DashboardTrends() {
         description="소득 대 개인물가, 스킬 수요, 동료집단 연봉 분포를 다각도로 비교 분석합니다."
       />
 
-      {/* 2. 탭 — 선택은 URL ?tab= 이 갖는다(대시보드 카드가 특정 탭으로 보낸다) */}
-      <div
-        role="tablist"
-        aria-label="추이 분석 종류"
-        className={cn("mb-6", TAB_LIST)}
-      >
-        {TRENDS_TABS.map((tab) => {
-          const selected = activeTab === tab.key;
-          return (
-            <Button
-              key={tab.key}
-              type="button"
-              variant="ghost"
-              role="tab"
-              id={`trends-tab-${tab.key}`}
-              aria-selected={selected}
-              aria-controls="trends-panel"
-              onClick={() => selectTab(tab.key)}
-              className={cn(
-                "h-auto rounded-none",
-                TAB_ITEM,
-                selected ? TAB_ACTIVE : TAB_IDLE,
-              )}
-            >
-              {tab.label}
-            </Button>
-          );
-        })}
-      </div>
-
-      {/* 4. 탭 콘텐츠 영역 */}
-      <div
-        role="tabpanel"
-        id="trends-panel"
-        aria-labelledby={`trends-tab-${activeTab}`}
-      >
-        <PageSection
-          titleHidden
-          title={TRENDS_TABS.find((t) => t.key === activeTab)?.label ?? ""}
+      {screenFailed ? (
+        <EmptyState
+          tone="danger"
+          icon="⚠️"
+          title={errorMessage ?? ""}
+          description="잠시 후 다시 시도해 주세요."
         >
-          {isLoading ? (
-            <LoadingState message="시장 분석 데이터를 집계 및 분석하고 있습니다..." />
-          ) : errorMessage && !hasAnyData ? (
-            <EmptyState
-              tone="danger"
-              icon="⚠️"
-              title={errorMessage}
-              description="잠시 후 다시 시도해 주세요."
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => void loadData()}
+          >
+            다시 시도
+          </Button>
+        </EmptyState>
+      ) : (
+        <>
+          {/* 2. 탭 — 선택은 URL ?tab= 이 갖는다(대시보드 카드가 특정 탭으로 보낸다) */}
+          <div
+            role="tablist"
+            aria-label="추이 분석 종류"
+            className={cn("mb-6", TAB_LIST)}
+          >
+            {TRENDS_TABS.map((tab) => {
+              const selected = activeTab === tab.key;
+              return (
+                <Button
+                  key={tab.key}
+                  type="button"
+                  variant="ghost"
+                  role="tab"
+                  id={`trends-tab-${tab.key}`}
+                  aria-selected={selected}
+                  aria-controls="trends-panel"
+                  onClick={() => selectTab(tab.key)}
+                  className={cn(
+                    "h-auto rounded-none",
+                    TAB_ITEM,
+                    selected ? TAB_ACTIVE : TAB_IDLE,
+                  )}
+                >
+                  {tab.label}
+                </Button>
+              );
+            })}
+          </div>
+
+          {/* 4. 탭 콘텐츠 영역 */}
+          <div
+            role="tabpanel"
+            id="trends-panel"
+            aria-labelledby={`trends-tab-${activeTab}`}
+          >
+            <PageSection
+              titleHidden
+              title={TRENDS_TABS.find((t) => t.key === activeTab)?.label ?? ""}
             >
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => void loadData()}
-              >
-                다시 시도
-              </Button>
-            </EmptyState>
-          ) : (
-            <div>
-              {/* 받아 둔 데이터가 있으면 화면을 비우지 않고 위에 한 줄로 알린다. */}
-              {errorMessage && (
-                <div className="mb-4">
-                  <InlineAlert
-                    message={errorMessage}
-                    onRetry={() => void loadData()}
-                  />
-                </div>
-              )}
-              {activeTab === "skills" && (
+              {isLoading ? (
+                <LoadingState message="시장 분석 데이터를 집계 및 분석하고 있습니다..." />
+              ) : (
                 <div>
-                  {skillData ? (
-                    <SkillDemandSection data={skillData} />
-                  ) : (
-                    <EmptyState
-                      variant="plain"
-                      tone="danger"
-                      icon="⚠️"
-                      title="스킬 수요 데이터를 불러오지 못했습니다"
-                    >
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => void loadData()}
-                      >
-                        다시 시도
-                      </Button>
-                    </EmptyState>
+                  {/* 받아 둔 데이터가 있으면 화면을 비우지 않고 위에 한 줄로 알린다. */}
+                  {errorMessage && (
+                    <div className="mb-4">
+                      <InlineAlert
+                        message={errorMessage}
+                        onRetry={() => void loadData()}
+                      />
+                    </div>
                   )}
-                </div>
-              )}
+                  {activeTab === "skills" && (
+                    <div>
+                      {skillData ? (
+                        <SkillDemandSection data={skillData} />
+                      ) : (
+                        <EmptyState
+                          variant="plain"
+                          tone="danger"
+                          icon="⚠️"
+                          title="스킬 수요 데이터를 불러오지 못했습니다"
+                        >
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => void loadData()}
+                          >
+                            다시 시도
+                          </Button>
+                        </EmptyState>
+                      )}
+                    </div>
+                  )}
 
-              {activeTab === "salary" && (
-                <div>
-                  {salaryData ? (
-                    <SalaryDistributionChart data={salaryData} />
-                  ) : (
-                    <EmptyState
-                      variant="plain"
-                      tone="danger"
-                      icon="⚠️"
-                      title="연봉 분포 데이터를 불러오지 못했습니다"
-                    >
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => void loadData()}
-                      >
-                        다시 시도
-                      </Button>
-                    </EmptyState>
+                  {activeTab === "salary" && (
+                    <div>
+                      {salaryData ? (
+                        <SalaryDistributionChart data={salaryData} />
+                      ) : (
+                        <EmptyState
+                          variant="plain"
+                          tone="danger"
+                          icon="⚠️"
+                          title="연봉 분포 데이터를 불러오지 못했습니다"
+                        >
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => void loadData()}
+                          >
+                            다시 시도
+                          </Button>
+                        </EmptyState>
+                      )}
+                    </div>
                   )}
-                </div>
-              )}
 
-              {activeTab === "income" && (
-                <div>
-                  {trendData ? (
-                    <IncomeVsPriceChart data={trendData} />
-                  ) : (
-                    <EmptyState
-                      variant="plain"
-                      tone="danger"
-                      icon="⚠️"
-                      title="소득 대 물가 추이 데이터를 불러오지 못했습니다"
-                    >
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => void loadData()}
-                      >
-                        다시 시도
-                      </Button>
-                    </EmptyState>
+                  {activeTab === "income" && (
+                    <div>
+                      {trendData ? (
+                        <IncomeVsPriceChart data={trendData} />
+                      ) : (
+                        <EmptyState
+                          variant="plain"
+                          tone="danger"
+                          icon="⚠️"
+                          title="소득 대 물가 추이 데이터를 불러오지 못했습니다"
+                        >
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => void loadData()}
+                          >
+                            다시 시도
+                          </Button>
+                        </EmptyState>
+                      )}
+                    </div>
                   )}
                 </div>
               )}
-            </div>
-          )}
-        </PageSection>
-      </div>
+            </PageSection>
+          </div>
+        </>
+      )}
     </PageFrame>
   );
 }

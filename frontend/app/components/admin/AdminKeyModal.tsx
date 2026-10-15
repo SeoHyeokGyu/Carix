@@ -60,12 +60,9 @@ function AdminKeyModalContent({
     >
       <Card className="w-full max-w-md gap-0 shadow-2xl">
         <div className="flex items-center justify-between pb-3 border-b border-carix-border">
-          <div className="flex items-center gap-2">
-            <span className="text-xl">🔑</span>
-            <h3 id="admin-modal-title" className={HEADING.sub}>
-              Collector 관리자 시크릿 키 설정
-            </h3>
-          </div>
+          <h2 id="admin-modal-title" className={HEADING.section}>
+            Collector 관리자 시크릿 키 설정
+          </h2>
           <Button
             type="button"
             variant="ghost"
@@ -114,7 +111,7 @@ function AdminKeyModalContent({
             {hasExistingKey ? (
               <Button
                 type="button"
-                variant="destructive"
+                variant="outline"
                 size="sm"
                 onClick={handleClear}
               >

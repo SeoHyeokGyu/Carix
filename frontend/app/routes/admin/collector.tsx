@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import {
   fetchPipelineStats,
   fetchRecentJobs,
@@ -7,6 +7,7 @@ import {
   type JobStatusResponse,
   type JobExecutionResponse,
 } from "../../lib/collectorApi";
+import { jobTypeLabel } from "../../lib/jobStatus";
 import { X } from "lucide-react";
 import { ThemeToggle } from "../../components/ThemeToggle";
 import { PageFrame } from "@/components/layout/PageFrame";
@@ -49,7 +50,11 @@ export default function CollectorAdminPage() {
   const activeJob = jobs.find((j) => j.status === "RUNNING") ?? null;
   const isJobRunning = Boolean(activeJob);
 
+  // 늦게 온 앞선 응답이 나중 요청의 결과를 덮지 않게 마지막 요청만 반영한다.
+  const requestSeq = useRef(0);
+
   const loadData = useCallback(async (isSilent = false) => {
+    const seq = ++requestSeq.current;
     if (!isSilent) {
       setIsLoading(true);
       // 다시 시도하는 동안 실패 박스 대신 로딩을 보인다 — 연타로 요청이 겹치지 않게.
@@ -61,8 +66,9 @@ export default function CollectorAdminPage() {
         fetchPipelineStats(),
         fetchRecentJobs(),
       ]);
+      if (seq !== requestSeq.current) return;
 
-      // 받아 둔 값이 있으면 실패해도 화면을 비우지 않는다 — 실패 표시는 값이 없을 때만 쓴다.
+      // 받아 둔 값이 있으면 실패해도 화면을 비우지 않는다 — 구획이 한 줄 알림으로 알린다.
       setStatsFailed(statsData.status === "rejected");
       if (statsData.status === "fulfilled") {
         setStats(statsData.value);
@@ -72,9 +78,19 @@ export default function CollectorAdminPage() {
         setJobs(jobsData.value);
       }
     } finally {
-      if (!isSilent) setIsLoading(false);
+      if (!isSilent && seq === requestSeq.current) setIsLoading(false);
     }
   }, []);
+
+  // 새로고침 버튼을 두지 않는 대신, 탭으로 돌아오면 조용히 다시 불러온다 —
+  // 다른 경로로 시작된 작업도 그때 보인다.
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState === "visible") void loadData(true);
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
+  }, [loadData]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -102,12 +118,12 @@ export default function CollectorAdminPage() {
             if (finished?.status === "SUCCESS") {
               setNotice({
                 type: "success",
-                text: `작업 [${finished.jobType}]이(가) 성공적으로 완료되었습니다.`,
+                text: `작업 [${jobTypeLabel(finished.jobType)}]이(가) 성공적으로 완료되었습니다.`,
               });
             } else if (finished?.status === "FAILED") {
               setNotice({
                 type: "error",
-                text: `작업 [${finished.jobType}] 실행 중 오류가 발생했습니다: ${finished.errorMessage ?? ""}`,
+                text: `작업 [${jobTypeLabel(finished.jobType)}] 실행 중 오류가 발생했습니다: ${finished.errorMessage ?? ""}`,
               });
             }
           }
@@ -123,7 +139,7 @@ export default function CollectorAdminPage() {
   const handleJobTriggered = (res: JobExecutionResponse) => {
     setNotice({
       type: "info",
-      text: `새 작업 [${res.jobType}]이(가) 백그라운드에서 시작되었습니다. (ID: ${res.jobId.slice(0, 8)})`,
+      text: `새 작업 [${jobTypeLabel(res.jobType)}]이(가) 백그라운드에서 시작되었습니다. (ID: ${res.jobId.slice(0, 8)})`,
     });
     loadData(true);
   };
@@ -140,7 +156,10 @@ export default function CollectorAdminPage() {
   return (
     <div className="min-h-screen bg-carix-bg text-carix-text transition-colors duration-300">
       <ThemeToggle />
-      <AdminHeader active="collector" />
+      <AdminHeader
+        active="collector"
+        onOpenKeyModal={() => setIsKeyModalOpen(true)}
+      />
 
       <PageFrame as="main" width="admin" aria-busy={isLoading}>
         <PageHeader
@@ -153,7 +172,6 @@ export default function CollectorAdminPage() {
           <CollectorStatusBanner
             activeJob={activeJob}
             hasAdminKey={hasAdminKey}
-            onOpenKeyModal={() => setIsKeyModalOpen(true)}
           />
           {notice?.type === "error" && (
             <InlineAlert
@@ -161,28 +179,31 @@ export default function CollectorAdminPage() {
               onDismiss={() => setNotice(null)}
             />
           )}
-          {notice && notice.type !== "error" && (
-            <div role="status" className="flex flex-wrap items-center gap-3">
-              <p
-                className={`text-sm ${
-                  notice.type === "success"
-                    ? "text-carix-positive"
-                    : "text-carix-info"
-                }`}
-              >
-                {notice.text}
-              </p>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon-xs"
-                aria-label="알림 닫기"
-                onClick={() => setNotice(null)}
-              >
-                <X />
-              </Button>
-            </div>
-          )}
+          {/* 내용과 함께 생기는 role=status 는 읽히지 않을 수 있어 그릇은 늘 둔다. */}
+          <div role="status" data-testid="collector-notice">
+            {notice && notice.type !== "error" && (
+              <div className="flex flex-wrap items-center gap-3">
+                <p
+                  className={`text-sm ${
+                    notice.type === "success"
+                      ? "text-carix-positive"
+                      : "text-carix-info"
+                  }`}
+                >
+                  {notice.text}
+                </p>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-xs"
+                  aria-label="알림 닫기"
+                  onClick={() => setNotice(null)}
+                >
+                  <X />
+                </Button>
+              </div>
+            )}
+          </div>
         </div>
 
         <PageSection title="수집 현황">

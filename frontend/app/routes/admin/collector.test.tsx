@@ -262,11 +262,20 @@ describe("CollectorAdminPage", () => {
       expect(screen.getByText("500")).toBeInTheDocument();
     });
 
-    const keyBtn = screen.getByRole("button", { name: /키 등록됨/i });
+    // 키 상태는 상태 줄의 배지, 키 창은 수집 데이터 화면처럼 헤더 「관리자 키」로 연다.
+    expect(screen.getByText("키 등록됨")).toHaveAttribute(
+      "data-tone",
+      "positive",
+    );
+    const keyBtn = screen.getByRole("button", { name: "관리자 키" });
     fireEvent.click(keyBtn);
 
+    // 대화상자 제목은 확인창과 같은 h2 이고 이모지를 붙이지 않는다.
     expect(
-      screen.getByText("Collector 관리자 시크릿 키 설정"),
+      screen.getByRole("heading", {
+        level: 2,
+        name: "Collector 관리자 시크릿 키 설정",
+      }),
     ).toBeInTheDocument();
 
     const saveBtn = screen.getByRole("button", { name: "저장하기" });
@@ -298,8 +307,11 @@ describe("CollectorAdminPage", () => {
     );
 
     // 저장된 키를 지우면 다시 불러오고, 그 실패가 옛 데이터 위에 보인다.
-    fireEvent.click(screen.getByRole("button", { name: /키 등록됨/i }));
-    fireEvent.click(screen.getByRole("button", { name: "저장된 키 삭제" }));
+    fireEvent.click(screen.getByRole("button", { name: "관리자 키" }));
+    const clear = screen.getByRole("button", { name: "저장된 키 삭제" });
+    // 키 삭제는 되돌릴 수 있는 계정 동작이라 보조(outline)다.
+    expect(clear).toHaveAttribute("data-variant", "outline");
+    fireEvent.click(clear);
 
     expect(
       await screen.findByText("수집 현황을 다시 불러오지 못했습니다"),
@@ -310,5 +322,108 @@ describe("CollectorAdminPage", () => {
     expect(screen.getAllByRole("alert").length).toBeGreaterThanOrEqual(2);
     expect(screen.getByText("500")).toBeInTheDocument();
     expect(screen.getByText("job-1234...")).toBeInTheDocument();
+  });
+
+  it("진행 중인 작업은 유형 이름과 info 톤으로 상태 줄에 보인다", async () => {
+    vi.mocked(collectorApi.fetchRecentJobs).mockResolvedValue([
+      {
+        jobId: "job-running-1",
+        jobType: "CRAWL",
+        status: "RUNNING",
+        startedAt: new Date().toISOString(),
+        completedAt: null,
+        details: null,
+        errorMessage: null,
+      },
+    ]);
+    render(
+      <MemoryRouter>
+        <CollectorAdminPage />
+      </MemoryRouter>,
+    );
+    expect(await screen.findByText("작업 진행 중: 크롤링")).toHaveAttribute(
+      "data-tone",
+      "info",
+    );
+  });
+
+  it("키가 없으면 상태 줄에 경고 톤으로 알린다", async () => {
+    vi.mocked(collectorApi.getAdminKey).mockReturnValue("");
+    render(
+      <MemoryRouter>
+        <CollectorAdminPage />
+      </MemoryRouter>,
+    );
+    expect(await screen.findByText("키 미등록")).toHaveAttribute(
+      "data-tone",
+      "warning",
+    );
+  });
+
+  it("알림 영역은 처음부터 있어 나중에 생긴 문장도 읽힌다", () => {
+    render(
+      <MemoryRouter>
+        <CollectorAdminPage />
+      </MemoryRouter>,
+    );
+    expect(screen.getByTestId("collector-notice")).toHaveAttribute(
+      "role",
+      "status",
+    );
+  });
+
+  it("탭으로 돌아오면 조용히 다시 불러온다", async () => {
+    render(
+      <MemoryRouter>
+        <CollectorAdminPage />
+      </MemoryRouter>,
+    );
+    expect(await screen.findByText("500")).toBeInTheDocument();
+    expect(collectorApi.fetchRecentJobs).toHaveBeenCalledTimes(1);
+
+    document.dispatchEvent(new Event("visibilitychange"));
+
+    await waitFor(() =>
+      expect(collectorApi.fetchRecentJobs).toHaveBeenCalledTimes(2),
+    );
+    // 조용한 재조회라 화면을 로딩으로 바꾸지 않는다.
+    expect(screen.getByText("500")).toBeInTheDocument();
+  });
+
+  it("먼저 보낸 요청이 늦게 와도 나중 요청의 결과를 덮지 않는다", async () => {
+    let resolveFirst: (
+      v: Awaited<ReturnType<typeof collectorApi.fetchPipelineStats>>,
+    ) => void = () => {};
+    vi.mocked(collectorApi.fetchPipelineStats)
+      .mockReturnValueOnce(
+        new Promise((r) => {
+          resolveFirst = r;
+        }),
+      )
+      .mockResolvedValueOnce({
+        totalRawIngest: 777,
+        totalJobPostings: 1,
+        totalSkills: 1,
+        totalWageStats: 1,
+        postingsBySource: {},
+      });
+    render(
+      <MemoryRouter>
+        <CollectorAdminPage />
+      </MemoryRouter>,
+    );
+    document.dispatchEvent(new Event("visibilitychange"));
+    expect(await screen.findByText("777")).toBeInTheDocument();
+
+    resolveFirst({
+      totalRawIngest: 111,
+      totalJobPostings: 1,
+      totalSkills: 1,
+      totalWageStats: 1,
+      postingsBySource: {},
+    });
+    await new Promise((r) => setTimeout(r, 0));
+    expect(screen.queryByText("111")).toBeNull();
+    expect(screen.getByText("777")).toBeInTheDocument();
   });
 });
