@@ -1,6 +1,12 @@
+import { PageSection } from "@/components/layout/PageSection";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useEffect, useState } from "react";
-import { redirect, useLoaderData, useNavigate } from "react-router";
+import {
+  redirect,
+  useLoaderData,
+  useNavigate,
+  useRevalidator,
+} from "react-router";
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -193,7 +199,7 @@ function SkillRow({
             />
           </div>
           {deleteError && (
-            <p role="alert" className="text-xs text-destructive">
+            <p role="alert" className="text-xs text-carix-danger">
               {deleteError}
             </p>
           )}
@@ -380,169 +386,174 @@ export default function RecordsSkills() {
   };
 
   return (
-    <div className="flex flex-col gap-6">
-      {skills.length === 0 ? (
-        <EmptyState
-          icon="📋"
-          title="등록된 스킬이 없습니다"
-          description="아래에서 스킬을 검색해 추가하면 시장가치 지수 계산에 반영됩니다."
-        />
-      ) : (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>스킬</TableHead>
-              <TableHead>실무 사용 기간</TableHead>
-              <TableHead>마지막 사용일</TableHead>
-              <TableHead>작업</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {skills.map((skill) => (
-              <SkillRow
-                key={skill.id}
-                skill={skill}
-                busy={busy}
-                isEditing={editingId === skill.id}
-                editMonths={editMonths}
-                editDate={editDate}
-                editError={editError}
-                onStartEdit={startEdit}
-                onCancelEdit={cancelEdit}
-                onEditMonthsChange={setEditMonths}
-                onEditDateChange={setEditDate}
-                onSaveEdit={handleSaveEdit}
-                onDelete={handleDelete}
-                deleteError={deleteErrors[skill.id] ?? null}
-              />
-            ))}
-          </TableBody>
-        </Table>
-      )}
+    <div className="flex flex-col gap-8">
+      <PageSection title="보유 스킬">
+        {skills.length === 0 ? (
+          <EmptyState
+            icon="📋"
+            title="등록된 스킬이 없습니다"
+            description="아래에서 스킬을 검색해 추가하면 시장가치 지수 계산에 반영됩니다."
+          />
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>스킬</TableHead>
+                <TableHead>실무 사용 기간</TableHead>
+                <TableHead>마지막 사용일</TableHead>
+                <TableHead>작업</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {skills.map((skill) => (
+                <SkillRow
+                  key={skill.id}
+                  skill={skill}
+                  busy={busy}
+                  isEditing={editingId === skill.id}
+                  editMonths={editMonths}
+                  editDate={editDate}
+                  editError={editError}
+                  onStartEdit={startEdit}
+                  onCancelEdit={cancelEdit}
+                  onEditMonthsChange={setEditMonths}
+                  onEditDateChange={setEditDate}
+                  onSaveEdit={handleSaveEdit}
+                  onDelete={handleDelete}
+                  deleteError={deleteErrors[skill.id] ?? null}
+                />
+              ))}
+            </TableBody>
+          </Table>
+        )}
+      </PageSection>
 
-      <div className="flex flex-col gap-4 rounded-xl border border-carix-border bg-carix-surface p-6">
-        <Field
-          id="skillSearch"
-          label="스킬 검색"
-          hint="사전에 없는 스킬은 직접 등록할 수 있습니다."
-          error={searchError ?? undefined}
-        >
-          {(aria) => (
-            <Input
-              {...aria}
-              type="text"
-              placeholder="예: Spring Boot"
-              value={selected?.standardName ?? query}
-              onChange={(e) => {
-                setSelected(null);
-                setHasSearched(false);
-                setQuery(e.target.value);
-              }}
-            />
-          )}
-        </Field>
-
-        {results.length > 0 && !selected && (
-          <ul
-            role="listbox"
-            aria-label="검색 결과"
-            className="flex flex-col gap-1"
+      <PageSection title="스킬 추가">
+        <div className="flex flex-col gap-4 rounded-xl border border-carix-border bg-carix-surface p-6">
+          <Field
+            id="skillSearch"
+            label="스킬 검색"
+            hint="사전에 없는 스킬은 직접 등록할 수 있습니다."
+            error={searchError ?? undefined}
           >
-            {results.map((item) => (
-              <li key={item.id}>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  role="option"
-                  aria-selected="false"
-                  className="h-auto min-h-8 w-full justify-start py-1.5 text-left whitespace-normal"
-                  onClick={() => setSelected(item)}
-                >
-                  {item.standardName}
-                </Button>
-              </li>
-            ))}
-          </ul>
-        )}
-
-        {/* I2: 사전 검색이 끝났는데 결과가 없으면 직접 추가할 길이 없었다 — 이
-          카테고리 셀렉트(selected?.isCustom 아래)는 이 경로로만 열린다. */}
-        {hasSearched && results.length === 0 && query.trim() && !selected && (
-          <div className="rounded-md border border-carix-border/60 px-3 py-2 text-sm text-carix-text/70">
-            <p>&apos;{query.trim()}&apos;에 대한 검색 결과가 없습니다.</p>
-            <Button
-              type="button"
-              variant="link"
-              size="xs"
-              className="mt-2 h-auto px-0 text-left whitespace-normal"
-              onClick={handleCustomSkillStart}
-            >
-              + &apos;{query.trim()}&apos;를 사전에 없는 스킬로 직접 추가하기
-            </Button>
-          </div>
-        )}
-
-        {selected?.isCustom && (
-          <Field id="skillCategory" label="스킬 분류">
             {(aria) => (
-              <select
+              <Input
                 {...aria}
-                className="h-9 rounded-md border border-carix-border bg-carix-surface px-3 text-sm"
-                value={category}
-                onChange={(e) => setCategory(e.target.value)}
-              >
-                {CATEGORY_OPTIONS.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
+                type="text"
+                placeholder="예: Spring Boot"
+                value={selected?.standardName ?? query}
+                onChange={(e) => {
+                  setSelected(null);
+                  setHasSearched(false);
+                  setQuery(e.target.value);
+                }}
+              />
             )}
           </Field>
-        )}
 
-        <Field
-          id="monthsOfExperience"
-          label="실무 사용 기간 (개월, 1~600)"
-          error={formError ?? undefined}
-        >
-          {(aria) => (
-            <Input
-              {...aria}
-              type="number"
-              min="1"
-              max="600"
-              value={months}
-              onChange={(e) => setMonths(e.target.value)}
-            />
+          {results.length > 0 && !selected && (
+            <ul
+              role="listbox"
+              aria-label="검색 결과"
+              className="flex flex-col gap-1"
+            >
+              {results.map((item) => (
+                <li key={item.id}>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    role="option"
+                    aria-selected="false"
+                    className="h-auto min-h-8 w-full justify-start py-1.5 text-left whitespace-normal"
+                    onClick={() => setSelected(item)}
+                  >
+                    {item.standardName}
+                  </Button>
+                </li>
+              ))}
+            </ul>
           )}
-        </Field>
 
-        <Field id="lastUsedDate" label="마지막 사용일">
-          {(aria) => (
-            <Input
-              {...aria}
-              type="date"
-              value={lastUsedDate}
-              onChange={(e) => setLastUsedDate(e.target.value)}
-            />
+          {/* I2: 사전 검색이 끝났는데 결과가 없으면 직접 추가할 길이 없었다 — 이
+          카테고리 셀렉트(selected?.isCustom 아래)는 이 경로로만 열린다. */}
+          {hasSearched && results.length === 0 && query.trim() && !selected && (
+            <div className="rounded-md border border-carix-border/60 px-3 py-2 text-sm text-carix-text/70">
+              <p>&apos;{query.trim()}&apos;에 대한 검색 결과가 없습니다.</p>
+              <Button
+                type="button"
+                variant="link"
+                size="xs"
+                className="mt-2 h-auto px-0 text-left whitespace-normal"
+                onClick={handleCustomSkillStart}
+              >
+                + &apos;{query.trim()}&apos;를 사전에 없는 스킬로 직접 추가하기
+              </Button>
+            </div>
           )}
-        </Field>
 
-        <div className="flex items-center gap-2">
-          <Button type="button" disabled={busy} onClick={handleCreate}>
-            스킬 추가
-          </Button>
-          <p className="text-xs text-carix-text/60">
-            추가하면 다음 계산부터 시장가치 지수에 반영됩니다.
-          </p>
+          {selected?.isCustom && (
+            <Field id="skillCategory" label="스킬 분류">
+              {(aria) => (
+                <select
+                  {...aria}
+                  className="h-9 rounded-md border border-carix-border bg-carix-surface px-3 text-sm"
+                  value={category}
+                  onChange={(e) => setCategory(e.target.value)}
+                >
+                  {CATEGORY_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              )}
+            </Field>
+          )}
+
+          <Field
+            id="monthsOfExperience"
+            label="실무 사용 기간 (개월, 1~600)"
+            error={formError ?? undefined}
+          >
+            {(aria) => (
+              <Input
+                {...aria}
+                type="number"
+                min="1"
+                max="600"
+                value={months}
+                onChange={(e) => setMonths(e.target.value)}
+              />
+            )}
+          </Field>
+
+          <Field id="lastUsedDate" label="마지막 사용일">
+            {(aria) => (
+              <Input
+                {...aria}
+                type="date"
+                value={lastUsedDate}
+                onChange={(e) => setLastUsedDate(e.target.value)}
+              />
+            )}
+          </Field>
+
+          <div className="flex items-center gap-2">
+            <Button type="button" disabled={busy} onClick={handleCreate}>
+              스킬 추가
+            </Button>
+            <p className="text-xs text-carix-text/60">
+              추가하면 다음 계산부터 시장가치 지수에 반영됩니다.
+            </p>
+          </div>
         </div>
-      </div>
+      </PageSection>
     </div>
   );
 }
 
 export function ErrorBoundary() {
+  const revalidator = useRevalidator();
   return (
     <EmptyState
       variant="plain"
@@ -550,6 +561,16 @@ export function ErrorBoundary() {
       icon="⚠️"
       title="스킬 이력을 불러오지 못했습니다"
       description="잠시 후 다시 시도해 주세요. 다른 탭은 그대로 열립니다."
-    />
+    >
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        disabled={revalidator.state === "loading"}
+        onClick={() => revalidator.revalidate()}
+      >
+        다시 시도
+      </Button>
+    </EmptyState>
   );
 }

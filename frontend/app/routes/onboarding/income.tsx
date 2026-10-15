@@ -213,7 +213,7 @@ function IncomeRow({ income, isEditing, onEdit }: IncomeRowProps) {
             </deleteFetcher.Form>
           </div>
           {deleteError && (
-            <p role="alert" className="text-xs text-destructive">
+            <p role="alert" className="text-xs text-carix-danger">
               {deleteError}
             </p>
           )}
@@ -451,7 +451,7 @@ export default function Income() {
             )}
 
             {errors?._form && (
-              <p role="alert" className="text-sm text-destructive">
+              <p role="alert" className="text-sm text-carix-danger">
                 {errors._form}
               </p>
             )}
@@ -512,7 +512,7 @@ export default function Income() {
 
       <div className="mt-6 flex flex-col gap-3">
         {nextErrors?._form && (
-          <p role="alert" className="text-sm text-destructive">
+          <p role="alert" className="text-sm text-carix-danger">
             {nextErrors._form}
           </p>
         )}

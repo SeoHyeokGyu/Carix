@@ -176,7 +176,7 @@ export default function MypageProfile() {
             {(actionData?.intent === "logout" ||
               actionData?.intent === "logout-all") &&
               actionData.error && (
-                <p role="alert" className="text-sm text-destructive">
+                <p role="alert" className="text-sm text-carix-danger">
                   {actionData.error}
                 </p>
               )}
@@ -212,7 +212,7 @@ export default function MypageProfile() {
             </p>
 
             {actionData?.intent === "reset-onboarding" && actionData.error && (
-              <p role="alert" className="text-sm text-destructive">
+              <p role="alert" className="text-sm text-carix-danger">
                 {actionData.error}
               </p>
             )}
@@ -235,9 +235,9 @@ export default function MypageProfile() {
         </Card>
 
         {/* 3. 계정 및 개인 데이터 완전 삭제 카드 (US-C2) */}
-        <Card data-page-section="" className="border-destructive/30">
+        <Card data-page-section="" className="border-carix-danger/30">
           <CardHeader>
-            <CardTitle as="h2" className="text-destructive">
+            <CardTitle as="h2" className="text-carix-danger">
               회원 탈퇴 및 개인 데이터 완전 삭제
             </CardTitle>
             <CardDescription>
@@ -246,11 +246,11 @@ export default function MypageProfile() {
             </CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col gap-4">
-            <div className="rounded-lg bg-destructive/10 border border-destructive/20 p-4 text-xs text-destructive space-y-1.5">
+            <div className="rounded-lg bg-carix-danger/10 border border-carix-danger/20 p-4 text-xs text-carix-danger space-y-1.5">
               <div className="font-bold flex items-center gap-1.5 text-sm">
                 ⚠️ 삭제되는 데이터 안내
               </div>
-              <ul className="list-disc list-inside space-y-0.5 text-destructive/90">
+              <ul className="list-disc list-inside space-y-0.5 text-carix-danger/90">
                 <li>커리어 프로필 (직무, 연차, 지역, 고용형태 등)</li>
                 <li>소득 내역 및 지출 카테고리 설정 이력</li>
                 <li>등록된 모든 보유 스킬 목록</li>
@@ -266,7 +266,7 @@ export default function MypageProfile() {
             {actionData?.intent === "delete-account" && actionData.error && (
               <p
                 role="alert"
-                className="text-sm text-destructive font-semibold"
+                className="text-sm text-carix-danger font-semibold"
               >
                 {actionData.error}
               </p>
@@ -298,7 +298,7 @@ export default function MypageProfile() {
                   id="confirm-delete-checkbox"
                   checked={isDeleteConfirmed}
                   onChange={(e) => setIsDeleteConfirmed(e.target.checked)}
-                  className="rounded border-carix-border text-destructive focus:ring-destructive"
+                  className="rounded border-carix-border text-carix-danger focus:ring-carix-danger"
                   disabled={isSubmitting}
                 />
                 <label

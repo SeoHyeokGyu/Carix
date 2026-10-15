@@ -316,7 +316,7 @@ export default function DashboardSimulator() {
                 <p
                   id="eligibility-error"
                   role="alert"
-                  className="text-sm text-destructive"
+                  className="text-sm text-carix-danger"
                 >
                   {errors.isEligibleForUnemploymentBenefit}
                 </p>
@@ -325,7 +325,7 @@ export default function DashboardSimulator() {
 
             {errors?._form && (
               <div className="flex flex-col gap-1">
-                <p role="alert" className="text-sm text-destructive">
+                <p role="alert" className="text-sm text-carix-danger">
                   {errors._form}
                 </p>
                 {missingIncome && (

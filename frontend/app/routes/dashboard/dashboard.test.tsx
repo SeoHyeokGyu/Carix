@@ -207,6 +207,12 @@ describe("대시보드 라우트 및 레이아웃 (Dashboard)", () => {
       // code·status 는 절대 화면에 노출하지 않는다.
       expect(screen.queryByText(/502/)).not.toBeInTheDocument();
       expect(screen.queryByText(/UNKNOWN/)).not.toBeInTheDocument();
+      expect(screen.getByRole("alert")).toContainElement(
+        screen.getByRole("button", { name: "다시 시도" }),
+      );
+      expect(screen.getByText(/요청을 처리하지 못했습니다/)).toHaveClass(
+        "text-carix-danger",
+      );
     });
 
     // "다시 시도" 는 실패 상태의 어포던스다 — 정상 조회에는 뜨지 않는다. 재시도가

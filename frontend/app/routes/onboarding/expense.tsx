@@ -291,7 +291,7 @@ export default function Expense() {
             <ExpenseDonut items={donutItems} />
 
             {errors?._form && (
-              <p role="alert" className="text-sm text-destructive">
+              <p role="alert" className="text-sm text-carix-danger">
                 {errors._form}
               </p>
             )}

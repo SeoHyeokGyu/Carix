@@ -369,19 +369,18 @@ describe("S-11 DashboardHistory 라우트", () => {
       </MemoryRouter>,
     );
 
-    await waitFor(() => {
-      expect(screen.getByRole("alert")).toBeInTheDocument();
-      expect(
-        screen.getByText("월별 스냅샷 이력을 불러오는 데 실패했습니다."),
-      ).toBeInTheDocument();
-    });
+    // 보여 줄 데이터가 없는 실패 — 빈 상태가 아니라 실패 EmptyState 하나다.
+    expect(
+      await screen.findByText("월별 스냅샷 이력을 불러오지 못했습니다"),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("기록된 월별 스냅샷이 없습니다.")).toBeNull();
 
     const retryBtn = screen.getByRole("button", { name: "다시 시도" });
     fireEvent.click(retryBtn);
 
-    await waitFor(() => {
-      expect(screen.getByTestId("empty-state")).toBeInTheDocument();
-    });
+    expect(
+      await screen.findByText("기록된 월별 스냅샷이 없습니다."),
+    ).toBeInTheDocument();
     expect(dashboardMarketApi.fetchSnapshotHistory).toHaveBeenCalledTimes(2);
     expectHeadingOutline();
   });
@@ -463,7 +462,7 @@ describe("S-11 DashboardHistory 라우트", () => {
       expect(mockNavigate).toHaveBeenCalledWith("/login", { replace: true });
     });
     expect(
-      screen.queryByText("월별 스냅샷 이력을 불러오는 데 실패했습니다."),
+      screen.queryByText("월별 스냅샷 이력을 불러오지 못했습니다"),
     ).not.toBeInTheDocument();
   });
 
@@ -482,7 +481,7 @@ describe("S-11 DashboardHistory 라우트", () => {
 
     await waitFor(() => {
       expect(
-        screen.getByText("월별 스냅샷 이력을 불러오는 데 실패했습니다."),
+        screen.getByText("월별 스냅샷 이력을 불러오지 못했습니다"),
       ).toBeInTheDocument();
     });
     expect(mockNavigate).not.toHaveBeenCalled();

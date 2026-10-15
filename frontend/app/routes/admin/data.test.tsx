@@ -501,7 +501,9 @@ describe("DataExplorePage", () => {
       await screen.findByText("월은 YYYYMM 형식입니다"),
     ).toBeInTheDocument();
     expect(api.fetchPostings).not.toHaveBeenCalled();
-    expect(screen.queryByText("불러오지 못했습니다")).not.toBeInTheDocument();
+    expect(
+      screen.queryByText("데이터를 불러오지 못했습니다"),
+    ).not.toBeInTheDocument();
   });
 
   it("불러오는 동안 로딩 문구를 보이고 응답 뒤 지운다", async () => {
@@ -631,10 +633,13 @@ describe("DataExplorePage", () => {
       status: 500,
     });
     renderAt("/admin/data");
-    expect(await screen.findByText("불러오지 못했습니다")).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: "다시 시도" }),
+      await screen.findByText("데이터를 불러오지 못했습니다"),
     ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "다시 시도" })).toHaveAttribute(
+      "data-variant",
+      "outline",
+    );
   });
 
   it("월별 현황의 월을 누르면 그 달 공고 탭으로 간다", async () => {
@@ -701,7 +706,9 @@ describe("DataExplorePage", () => {
     });
     renderAt("/admin/data");
     expect(await screen.findByRole("dialog")).toBeInTheDocument();
-    expect(screen.queryByText("불러오지 못했습니다")).not.toBeInTheDocument();
+    expect(
+      screen.queryByText("데이터를 불러오지 못했습니다"),
+    ).not.toBeInTheDocument();
   });
 
   it("CPI 탭 403 이면 키 모달을 열고, 키 저장 뒤 다시 불러온다", async () => {
@@ -714,7 +721,9 @@ describe("DataExplorePage", () => {
       });
     renderAt("/admin/data?tab=cpi");
     expect(await screen.findByRole("dialog")).toBeInTheDocument();
-    expect(screen.queryByText("불러오지 못했습니다")).not.toBeInTheDocument();
+    expect(
+      screen.queryByText("데이터를 불러오지 못했습니다"),
+    ).not.toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "저장하기" }));
     expect(await screen.findByText("118.32")).toBeInTheDocument();
     expect(api.fetchCpi).toHaveBeenCalledTimes(2);
@@ -929,7 +938,7 @@ describe("DataExplorePage", () => {
       renderAt(`/admin/data?tab=${tab}`);
       const panel = await screen.findByRole("tabpanel");
       expect(
-        await within(panel).findByText("불러오지 못했습니다"),
+        await within(panel).findByText("데이터를 불러오지 못했습니다"),
       ).toBeInTheDocument();
       await userEvent.click(
         within(panel).getByRole("button", { name: "다시 시도" }),
