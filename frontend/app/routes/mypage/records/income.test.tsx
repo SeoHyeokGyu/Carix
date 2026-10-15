@@ -1,3 +1,5 @@
+import RecordsLayout from "./layout";
+import { expectHeadingOutline } from "../../../test-utils/headingOutline";
 import { cancelDialog, confirmDialog } from "../../../test-utils/confirmDialog";
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -440,5 +442,31 @@ describe("소득 탭 (S-12)", () => {
     await user.click(screen.getByRole("button", { name: "다시 시도" }));
 
     expect(await screen.findByText("2024-01-01")).toBeInTheDocument();
+  });
+
+  it("입력 관리 h1 아래로 제목 단계가 이어진다", async () => {
+    const Stub = createRoutesStub([
+      {
+        path: "/mypage/records",
+        Component: RecordsLayout,
+        children: [
+          {
+            index: true,
+            Component: RecordsIncome,
+            ErrorBoundary,
+            loader: clientLoader,
+            action: clientAction,
+            HydrateFallback: () => null,
+          },
+        ],
+      },
+      { path: "/login", Component: () => <div>로그인 화면</div> },
+    ]);
+    render(<Stub initialEntries={["/mypage/records"]} />);
+
+    expect(
+      await screen.findByRole("heading", { level: 2, name: "소득 이력" }),
+    ).toBeInTheDocument();
+    expectHeadingOutline();
   });
 });

@@ -26,7 +26,7 @@ import { fetchSnapshotHistory } from "../../lib/dashboardMarketApi";
 import { resolvePeerConditions } from "../../lib/peerConditions";
 import { LOGIN_PATH } from "../../lib/routeGuards";
 import { fetchSkillRecommendations } from "../../lib/skillApi";
-import { formatVerdictHeading } from "../../lib/verdict";
+import { formatVerdictDescription } from "../../lib/verdict";
 import { PageFrame } from "@/components/layout/PageFrame";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { PageSection } from "@/components/layout/PageSection";
@@ -147,7 +147,7 @@ export default function DashboardHome() {
     <PageFrame>
       <PageHeader
         title="판정"
-        description={formatVerdictHeading(data?.metadata.baseDate)}
+        description={formatVerdictDescription(data?.metadata.baseDate)}
         actions={
           <>
             <TextLink to="/onboarding/review">온보딩 검토 및 재시작</TextLink>

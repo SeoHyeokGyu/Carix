@@ -355,7 +355,7 @@ export default function DashboardSimulator() {
         </CardContent>
       </Card>
 
-      <Card data-page-section="" className="mt-6">
+      <Card data-page-section="">
         <CardHeader>
           <CardTitle as="h2">비교 결과</CardTitle>
         </CardHeader>

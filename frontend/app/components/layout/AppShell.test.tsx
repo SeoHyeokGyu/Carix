@@ -3,6 +3,7 @@ import { CircleHelp } from "lucide-react";
 import { createRoutesStub, MemoryRouter, Route, Routes } from "react-router";
 import { describe, expect, it } from "vitest";
 import { AppShell } from "./AppShell";
+import { MAIN_NAV_ITEMS } from "../../routes/dashboard/layout";
 
 describe("AppShell", () => {
   const items = [
@@ -102,15 +103,8 @@ describe("AppShell", () => {
     ).toBeInTheDocument();
   });
   describe("하위 화면 선택(match)", () => {
-    const sectionItems = [
-      {
-        to: "/dashboard",
-        label: "판정",
-        end: true,
-        match: ["/dashboard/history"],
-      },
-      { to: "/dashboard/trends", label: "추이 분석" },
-    ];
+    // 실제 주 메뉴 정의를 쓴다 — 「판정」의 match 가 빠지면 지난 판정 화면에서 선택이 사라진다.
+    const sectionItems = MAIN_NAV_ITEMS;
 
     function renderAt(path: string) {
       render(
