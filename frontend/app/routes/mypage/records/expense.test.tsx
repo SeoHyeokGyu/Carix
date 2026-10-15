@@ -6,7 +6,11 @@ import * as expenseApi from "../../../lib/api/expense";
 import * as incomeApi from "../../../lib/api/income";
 import { EXPENSE_ITEM_AMOUNT_MESSAGE } from "../../../lib/schemas/expense";
 import { currentYearMonth, formatYearMonth } from "../../../lib/yearMonth";
-import RecordsExpense, { clientAction, clientLoader } from "./expense";
+import RecordsExpense, {
+  ErrorBoundary,
+  clientAction,
+  clientLoader,
+} from "./expense";
 
 vi.mock("../../../lib/api/expense");
 vi.mock("../../../lib/api/income");
@@ -35,6 +39,7 @@ function renderTab() {
     {
       path: "/mypage/records/expense",
       Component: RecordsExpense,
+      ErrorBoundary,
       loader: clientLoader,
       action: clientAction,
       HydrateFallback: () => null,
@@ -65,6 +70,9 @@ describe("소비 탭 (S-12)", () => {
     const cells = await screen.findAllByText(/^\d{4}-\d{2}$/);
     expect(cells[0]).toHaveTextContent("2026-07");
     expect(cells[1]).toHaveTextContent("2026-06");
+    expect(
+      screen.getByRole("heading", { level: 2, name: "월별 소비" }),
+    ).toBeInTheDocument();
   });
 
   it("카테고리 상태 뱃지에 카테고리명을 함께 그려 어느 칸이 보간됐는지 구분한다", async () => {
@@ -111,9 +119,9 @@ describe("소비 탭 (S-12)", () => {
     ]) {
       expect(screen.getByLabelText(label)).toBeInTheDocument();
     }
-    const section = screen.getByRole("region", { name: /소비$/ });
+    const section = screen.getByRole("region", { name: /^\d{4}-\d{2} 소비$/ });
     expect(section).toContainElement(
-      screen.getByRole("heading", { level: 2, name: /소비$/ }),
+      screen.getByRole("heading", { level: 2, name: /^\d{4}-\d{2} 소비$/ }),
     );
   });
 
@@ -249,5 +257,20 @@ describe("소비 탭 (S-12)", () => {
       await screen.findByText("등록된 소비 기록이 없습니다"),
     ).toBeInTheDocument();
     expect(screen.getByText(/기준월은 삭제할 수 없습니다/)).toBeInTheDocument();
+  });
+
+  it("불러오기에 실패하면 다시 시도할 수 있고, 성공하면 목록으로 돌아온다", async () => {
+    vi.mocked(expenseApi.listExpenses)
+      .mockRejectedValueOnce(new Error("boom"))
+      .mockResolvedValueOnce(months);
+    renderTab();
+    const user = userEvent.setup();
+
+    expect(
+      await screen.findByText("소비 이력을 불러오지 못했습니다"),
+    ).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "다시 시도" }));
+
+    expect(await screen.findByText("2026-07")).toBeInTheDocument();
   });
 });

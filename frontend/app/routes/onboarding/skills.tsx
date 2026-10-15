@@ -1,3 +1,7 @@
+import { InlineAlert } from "@/components/ui/inline-alert";
+import { LoadingState } from "@/components/ui/loading-state";
+import { EmptyState } from "@/components/ui/empty-state";
+import { Button } from "@/components/ui/button";
 import { PageFrame } from "@/components/layout/PageFrame";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { PageSection } from "@/components/layout/PageSection";
@@ -52,6 +56,8 @@ export default function Skills() {
   const [userSkills, setUserSkills] = useState<UserSkill[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
+  // 목록 불러오기 실패는 동작 실패 문장(errorMessage)과 갈라 목록 자리에서 다시 시도한다.
+  const [loadError, setLoadError] = useState(false);
 
   // 검색 및 선택 상태
   const [searchQuery, setSearchQuery] = useState("");
@@ -85,6 +91,7 @@ export default function Skills() {
   const loadSkills = useCallback(async () => {
     try {
       setIsLoading(true);
+      setLoadError(false);
       const data = await fetchUserSkills();
       setUserSkills(data);
     } catch (err) {
@@ -92,7 +99,7 @@ export default function Skills() {
         navigate(LOGIN_PATH);
         return;
       }
-      setErrorMessage("스킬 목록을 불러오는 중 오류가 발생했습니다.");
+      setLoadError(true);
     } finally {
       setIsLoading(false);
     }
@@ -334,18 +341,11 @@ export default function Skills() {
 
       {/* 3. 피드백 메시지 */}
       {errorMessage && (
-        <div
-          role="alert"
-          className="mb-6 rounded-lg border border-carix-danger/30 bg-carix-danger/10 px-4 py-3 text-sm text-carix-danger flex items-center justify-between"
-        >
-          <span>{errorMessage}</span>
-          <button
-            type="button"
-            onClick={() => setErrorMessage(null)}
-            className="text-carix-danger hover:opacity-80 text-xs font-bold"
-          >
-            닫기
-          </button>
+        <div className="mb-6">
+          <InlineAlert
+            message={errorMessage}
+            onDismiss={() => setErrorMessage(null)}
+          />
         </div>
       )}
       {successMessage && (
@@ -551,9 +551,24 @@ export default function Skills() {
         className="mb-10"
       >
         {isLoading ? (
-          <div className="rounded-xl border border-carix-border bg-carix-surface p-8 text-center text-sm text-carix-text/60">
-            스킬 목록을 불러오는 중입니다...
-          </div>
+          <LoadingState message="스킬 목록을 불러오는 중입니다..." />
+        ) : loadError ? (
+          <EmptyState
+            variant="plain"
+            tone="danger"
+            icon="⚠️"
+            title="스킬 목록을 불러오지 못했습니다"
+            description="잠시 후 다시 시도해 주세요."
+          >
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => void loadSkills()}
+            >
+              다시 시도
+            </Button>
+          </EmptyState>
         ) : userSkills.length === 0 ? (
           <div className="rounded-xl border border-dashed border-carix-border bg-carix-surface p-8 text-center">
             <p className="text-sm text-carix-text/60">

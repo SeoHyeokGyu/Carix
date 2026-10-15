@@ -54,6 +54,7 @@ describe("이력 관리 탭 레이아웃 (S-12)", () => {
 
     const active = await screen.findByRole("link", { name: "스킬" });
     expect(active).toHaveAttribute("aria-current", "page");
+    expect(active).toHaveClass("font-semibold", "border-carix-info", "-mb-px");
   });
 
   it("Outlet 으로 탭 본문을 그린다", async () => {

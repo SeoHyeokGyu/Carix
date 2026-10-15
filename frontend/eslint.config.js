@@ -38,6 +38,15 @@ const UI_RULES = [
     selector: "CallExpression[callee.name=/^(confirm|alert|prompt)$/]",
     message: "확인은 @/components/ui/confirm-dialog 의 ConfirmDialog 로 한다.",
   },
+  {
+    selector: "Literal[value=/\\b(text|bg|border|ring)-destructive\\b/]",
+    message: "위험 색은 carix-danger 다(text-carix-danger 등).",
+  },
+  {
+    selector:
+      "TemplateElement[value.raw=/\\b(text|bg|border|ring)-destructive\\b/]",
+    message: "위험 색은 carix-danger 다(text-carix-danger 등).",
+  },
 ];
 
 // 화면 틀 — 제목이 헤더 로고 선에서 시작하고 제목 줄 구성이 같도록 화면 파일은 공용 틀만 쓴다.

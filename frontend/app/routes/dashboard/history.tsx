@@ -1,3 +1,4 @@
+import { Button } from "@/components/ui/button";
 import { useState, useEffect, useCallback, type ReactNode } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router";
 import { SnapshotDetailPanel } from "../../components/dashboard/SnapshotDetailPanel";
@@ -89,7 +90,7 @@ export default function DashboardHistory() {
         void navigate(LOGIN_PATH, { replace: true });
         return;
       }
-      setErrorMessage("월별 스냅샷 이력을 불러오는 데 실패했습니다.");
+      setErrorMessage("월별 스냅샷 이력을 불러오지 못했습니다");
     } finally {
       setIsLoading(false);
     }
@@ -127,26 +128,25 @@ export default function DashboardHistory() {
         divider
       />
 
-      {/* 2. 에러 알림 */}
-      {errorMessage && (
-        <div
-          role="alert"
-          className="mb-6 rounded-lg border border-carix-danger/30 bg-carix-danger/10 px-4 py-3 text-sm text-carix-danger flex items-center justify-between"
-        >
-          <span>{errorMessage}</span>
-          <button
-            type="button"
-            onClick={() => void loadData()}
-            className="text-xs font-bold underline"
-          >
-            다시 시도
-          </button>
-        </div>
-      )}
-
       {/* 3. 콘텐츠 영역 */}
       {isLoading ? (
         <LoadingState message="스냅샷 이력을 조회하고 있습니다..." />
+      ) : errorMessage ? (
+        <EmptyState
+          tone="danger"
+          icon="⚠️"
+          title={errorMessage}
+          description="잠시 후 다시 시도해 주세요."
+        >
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => void loadData()}
+          >
+            다시 시도
+          </Button>
+        </EmptyState>
       ) : snapshots.length === 0 ? (
         /* 스냅샷 0개 비어있음 상태 */
         <EmptyState

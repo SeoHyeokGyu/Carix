@@ -317,4 +317,45 @@ describe("S-08 Skills 온보딩 화면", () => {
 
     expect(await screen.findByText("로그인 화면")).toBeInTheDocument();
   });
+  it("목록 불러오기에 실패하면 목록 자리에 다시 시도를 두고, 성공하면 목록이 뜬다", async () => {
+    const loaded = await skillApi.fetchUserSkills(); // beforeEach(23행)의 기본 목 목록
+    vi.mocked(skillApi.fetchUserSkills)
+      .mockRejectedValueOnce(new Error("x"))
+      .mockResolvedValueOnce(loaded);
+    render(
+      <MemoryRouter>
+        <Skills />
+      </MemoryRouter>,
+    );
+    const user = userEvent.setup();
+
+    expect(
+      await screen.findByText("스킬 목록을 불러오지 못했습니다"),
+    ).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "다시 시도" }));
+    expect(await screen.findByText("Spring Boot")).toBeInTheDocument();
+  });
+
+  it("동작 실패 문장은 목록을 덮지 않는 한 줄 알림이고 닫을 수 있다", async () => {
+    vi.mocked(skillApi.deleteUserSkill).mockRejectedValue({
+      code: "UNKNOWN",
+      message: "삭제하지 못했습니다.",
+      status: 500,
+    });
+    render(
+      <MemoryRouter>
+        <Skills />
+      </MemoryRouter>,
+    );
+    const user = userEvent.setup();
+    await screen.findByText("Spring Boot");
+    // 삭제 실패(:261 의 setErrorMessage) — 동작 실패 경로
+    await user.click(screen.getAllByRole("button", { name: "삭제" })[0]);
+    await confirmDialog(user, "삭제");
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent("삭제하지 못했습니다.");
+    expect(screen.getByText("Spring Boot")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "알림 닫기" }));
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
 });

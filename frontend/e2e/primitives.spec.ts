@@ -18,6 +18,7 @@ const SECTIONS = [
   "primitives-text-link",
   "primitives-page-header",
   "primitives-page-section",
+  "gallery-state-feedback",
   "primitives-badges",
   "primitives-cards",
   "primitives-composed",

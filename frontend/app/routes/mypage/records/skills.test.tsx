@@ -4,7 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { createRoutesStub } from "react-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as skillApi from "../../../lib/skillApi";
-import RecordsSkills, { clientLoader } from "./skills";
+import RecordsSkills, { ErrorBoundary, clientLoader } from "./skills";
 
 vi.mock("../../../lib/skillApi");
 
@@ -27,6 +27,7 @@ function renderTab() {
     {
       path: "/mypage/records/skills",
       Component: RecordsSkills,
+      ErrorBoundary,
       loader: clientLoader,
       HydrateFallback: () => null,
     },
@@ -47,6 +48,12 @@ describe("스킬 탭 (S-12)", () => {
     expect(await screen.findByText("Spring Boot")).toBeInTheDocument();
     expect(screen.getByText("36개월")).toBeInTheDocument();
     expect(screen.getByText("2026-08-01")).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { level: 2, name: "보유 스킬" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { level: 2, name: "스킬 추가" }),
+    ).toBeInTheDocument();
   });
 
   it("스킬이 없으면 추가를 유도한다", async () => {
@@ -322,5 +329,20 @@ describe("스킬 탭 (S-12)", () => {
     const option = await screen.findByRole("option", { name: "TypeScript" });
     expect(option).toHaveClass("whitespace-normal", "h-auto");
     expect(option).not.toHaveClass("whitespace-nowrap");
+  });
+
+  it("불러오기에 실패하면 다시 시도할 수 있고, 성공하면 목록으로 돌아온다", async () => {
+    vi.mocked(skillApi.fetchUserSkills)
+      .mockRejectedValueOnce(new Error("boom"))
+      .mockResolvedValueOnce(skills);
+    renderTab();
+    const user = userEvent.setup();
+
+    expect(
+      await screen.findByText("스킬 이력을 불러오지 못했습니다"),
+    ).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "다시 시도" }));
+
+    expect(await screen.findByText("Spring Boot")).toBeInTheDocument();
   });
 });

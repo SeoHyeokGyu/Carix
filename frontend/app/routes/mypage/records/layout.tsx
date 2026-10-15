@@ -1,3 +1,10 @@
+import { cn } from "@/lib/utils";
+import {
+  TAB_ACTIVE,
+  TAB_IDLE,
+  TAB_ITEM,
+  TAB_LIST,
+} from "@/components/ui/tab-styles";
 import { PageFrame } from "@/components/layout/PageFrame";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { NavLink, Outlet } from "react-router";
@@ -24,22 +31,14 @@ export default function RecordsLayout() {
         description="소득·소비·스킬 이력을 고치면 그 시점 이후 지수가 다시 계산됩니다."
       />
 
-      <nav
-        aria-label="이력 종류"
-        className="mb-6 flex items-center gap-1 border-b border-carix-border"
-      >
+      <nav aria-label="이력 종류" className={cn("mb-6", TAB_LIST)}>
         {RECORDS_TAB_ITEMS.map((item) => (
           <NavLink
             key={item.to}
             to={item.to}
             end={item.end}
             className={({ isActive }) =>
-              [
-                "-mb-px whitespace-nowrap border-b-2 px-4 py-2 text-sm font-medium transition-colors",
-                isActive
-                  ? "border-carix-info text-carix-info font-semibold"
-                  : "border-transparent text-carix-text/70 hover:text-carix-text",
-              ].join(" ")
+              cn(TAB_ITEM, isActive ? TAB_ACTIVE : TAB_IDLE)
             }
           >
             {item.label}

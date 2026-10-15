@@ -4,7 +4,11 @@ import userEvent from "@testing-library/user-event";
 import { createRoutesStub } from "react-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as incomeApi from "../../../lib/api/income";
-import RecordsIncome, { clientAction, clientLoader } from "./income";
+import RecordsIncome, {
+  ErrorBoundary,
+  clientAction,
+  clientLoader,
+} from "./income";
 
 vi.mock("../../../lib/api/income");
 
@@ -36,6 +40,7 @@ function renderTab() {
     {
       path: "/mypage/records",
       Component: RecordsIncome,
+      ErrorBoundary,
       loader: clientLoader,
       action: clientAction,
       HydrateFallback: () => null,
@@ -56,6 +61,12 @@ describe("소득 탭 (S-12)", () => {
     const cells = await screen.findAllByText(/^\d{4}-\d{2}-\d{2}$/);
     expect(cells[0]).toHaveTextContent("2024-01-01");
     expect(cells[1]).toHaveTextContent("2023-01-01");
+    expect(
+      screen.getByRole("heading", { level: 2, name: "소득 이력" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { level: 2, name: "소득 추가" }),
+    ).toBeInTheDocument();
   });
 
   it("이력이 없으면 추가를 유도한다", async () => {
@@ -414,5 +425,20 @@ describe("소득 탭 (S-12)", () => {
     expect(within(table).getByText("최초 입력 · 이직")).toBeInTheDocument();
     // 고른 값이 없는 최소 유효일 행은 그대로 "최초 입력" 하나만 낸다.
     expect(within(table).queryByText("최초 입력")).toBeNull();
+  });
+
+  it("불러오기에 실패하면 다시 시도할 수 있고, 성공하면 목록으로 돌아온다", async () => {
+    vi.mocked(incomeApi.listIncome)
+      .mockRejectedValueOnce(new Error("boom"))
+      .mockResolvedValueOnce(rows);
+    renderTab();
+    const user = userEvent.setup();
+
+    expect(
+      await screen.findByText("소득 이력을 불러오지 못했습니다"),
+    ).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "다시 시도" }));
+
+    expect(await screen.findByText("2024-01-01")).toBeInTheDocument();
   });
 });

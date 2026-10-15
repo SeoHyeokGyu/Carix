@@ -31,6 +31,7 @@ import { PageFrame } from "@/components/layout/PageFrame";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { PageSection } from "@/components/layout/PageSection";
 import { TextLink } from "@/components/ui/text-link";
+import { InlineAlert } from "@/components/ui/inline-alert";
 
 /**
  * 1층 프리뷰와 3층 비교 조건의 재료. 없어도 판정은 선다 — 실패하면 그 요소만 사라지고
@@ -185,19 +186,12 @@ export default function DashboardHome() {
       )}
 
       {!summary.ok && (
-        <div className="mt-3 flex flex-wrap items-center gap-3">
-          <p role="alert" className="text-sm text-destructive">
-            {toUserMessage(summary.error)}
-          </p>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            disabled={revalidator.state === "loading"}
-            onClick={() => revalidator.revalidate()}
-          >
-            다시 시도
-          </Button>
+        <div className="mt-3">
+          <InlineAlert
+            message={toUserMessage(summary.error)}
+            onRetry={() => revalidator.revalidate()}
+            retrying={revalidator.state === "loading"}
+          />
         </div>
       )}
 

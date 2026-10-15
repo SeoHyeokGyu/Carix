@@ -1,3 +1,13 @@
+import { cn } from "@/lib/utils";
+import {
+  TAB_ACTIVE,
+  TAB_IDLE,
+  TAB_ITEM,
+  TAB_LIST,
+} from "@/components/ui/tab-styles";
+import { EmptyState } from "@/components/ui/empty-state";
+import { LoadingState } from "@/components/ui/loading-state";
+import { InlineAlert } from "@/components/ui/inline-alert";
 import { PageFrame } from "@/components/layout/PageFrame";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { PageSection } from "@/components/layout/PageSection";
@@ -97,10 +107,10 @@ export default function DashboardTrends() {
         skillRes.status === "rejected" &&
         trendRes.status === "rejected"
       ) {
-        setErrorMessage("시장 분석 데이터를 불러오는 데 실패했습니다.");
+        setErrorMessage("시장 분석 데이터를 불러오지 못했습니다");
       }
     } catch {
-      setErrorMessage("데이터 조회 중 예기치 못한 오류가 발생했습니다.");
+      setErrorMessage("시장 분석 데이터를 불러오지 못했습니다");
     } finally {
       setIsLoading(false);
     }
@@ -111,19 +121,20 @@ export default function DashboardTrends() {
     void loadData();
   }, [loadData]);
 
+  const hasAnyData = Boolean(salaryData || skillData || trendData);
+
   return (
     <PageFrame>
       <PageHeader
         title="추이 분석"
         description="소득 대 개인물가, 스킬 수요, 동료집단 연봉 분포를 다각도로 비교 분석합니다."
-        divider
       />
 
       {/* 2. 탭 — 선택은 URL ?tab= 이 갖는다(대시보드 카드가 특정 탭으로 보낸다) */}
       <div
         role="tablist"
         aria-label="추이 분석 종류"
-        className="mb-6 flex gap-2 border-b border-carix-border"
+        className={cn("mb-6", TAB_LIST)}
       >
         {TRENDS_TABS.map((tab) => {
           const selected = activeTab === tab.key;
@@ -137,34 +148,17 @@ export default function DashboardTrends() {
               aria-selected={selected}
               aria-controls="trends-panel"
               onClick={() => selectTab(tab.key)}
-              className={`h-auto rounded-none px-4 py-2.5 text-sm border-b-2 ${
-                selected
-                  ? "border-carix-info text-carix-info font-bold"
-                  : "border-transparent font-medium text-carix-text/60 hover:text-carix-text"
-              }`}
+              className={cn(
+                "h-auto rounded-none",
+                TAB_ITEM,
+                selected ? TAB_ACTIVE : TAB_IDLE,
+              )}
             >
               {tab.label}
             </Button>
           );
         })}
       </div>
-
-      {/* 3. 에러 알림 */}
-      {errorMessage && (
-        <div
-          role="alert"
-          className="mb-6 rounded-lg border border-carix-danger/30 bg-carix-danger/10 px-4 py-3 text-sm text-carix-danger flex items-center justify-between"
-        >
-          <span>{errorMessage}</span>
-          <button
-            type="button"
-            onClick={() => void loadData()}
-            className="text-xs font-bold underline"
-          >
-            다시 시도
-          </button>
-        </div>
-      )}
 
       {/* 4. 탭 콘텐츠 영역 */}
       <div
@@ -177,19 +171,54 @@ export default function DashboardTrends() {
           title={TRENDS_TABS.find((t) => t.key === activeTab)?.label ?? ""}
         >
           {isLoading ? (
-            <div className="rounded-xl border border-carix-border bg-carix-surface p-12 text-center text-sm text-carix-text/60">
-              시장 분석 데이터를 집계 및 분석하고 있습니다...
-            </div>
+            <LoadingState message="시장 분석 데이터를 집계 및 분석하고 있습니다..." />
+          ) : errorMessage && !hasAnyData ? (
+            <EmptyState
+              tone="danger"
+              icon="⚠️"
+              title={errorMessage}
+              description="잠시 후 다시 시도해 주세요."
+            >
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => void loadData()}
+              >
+                다시 시도
+              </Button>
+            </EmptyState>
           ) : (
             <div>
+              {/* 받아 둔 데이터가 있으면 화면을 비우지 않고 위에 한 줄로 알린다. */}
+              {errorMessage && (
+                <div className="mb-4">
+                  <InlineAlert
+                    message={errorMessage}
+                    onRetry={() => void loadData()}
+                  />
+                </div>
+              )}
               {activeTab === "skills" && (
                 <div>
                   {skillData ? (
                     <SkillDemandSection data={skillData} />
                   ) : (
-                    <div className="rounded-xl border border-carix-border bg-carix-surface p-8 text-center text-sm text-carix-text/60">
-                      스킬 수요 데이터를 불러오지 못했습니다.
-                    </div>
+                    <EmptyState
+                      variant="plain"
+                      tone="danger"
+                      icon="⚠️"
+                      title="스킬 수요 데이터를 불러오지 못했습니다"
+                    >
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => void loadData()}
+                      >
+                        다시 시도
+                      </Button>
+                    </EmptyState>
                   )}
                 </div>
               )}
@@ -199,9 +228,21 @@ export default function DashboardTrends() {
                   {salaryData ? (
                     <SalaryDistributionChart data={salaryData} />
                   ) : (
-                    <div className="rounded-xl border border-carix-border bg-carix-surface p-8 text-center text-sm text-carix-text/60">
-                      연봉 분포 데이터를 불러오지 못했습니다.
-                    </div>
+                    <EmptyState
+                      variant="plain"
+                      tone="danger"
+                      icon="⚠️"
+                      title="연봉 분포 데이터를 불러오지 못했습니다"
+                    >
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => void loadData()}
+                      >
+                        다시 시도
+                      </Button>
+                    </EmptyState>
                   )}
                 </div>
               )}
@@ -211,9 +252,21 @@ export default function DashboardTrends() {
                   {trendData ? (
                     <IncomeVsPriceChart data={trendData} />
                   ) : (
-                    <div className="rounded-xl border border-carix-border bg-carix-surface p-8 text-center text-sm text-carix-text/60">
-                      소득 대 물가 추이 데이터를 불러오지 못했습니다.
-                    </div>
+                    <EmptyState
+                      variant="plain"
+                      tone="danger"
+                      icon="⚠️"
+                      title="소득 대 물가 추이 데이터를 불러오지 못했습니다"
+                    >
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => void loadData()}
+                      >
+                        다시 시도
+                      </Button>
+                    </EmptyState>
                   )}
                 </div>
               )}

@@ -23,6 +23,7 @@ import { TextLink } from "@/components/ui/text-link";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { PageSection } from "@/components/layout/PageSection";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { InlineAlert } from "@/components/ui/inline-alert";
 import { ToneBadge, TONE_CLASS } from "@/components/ui/tone-badge";
 import { SignalBadge } from "../../components/dashboard/SignalBadge";
 import { SalaryDistributionChart } from "../../components/dashboard/SalaryDistributionChart";
@@ -216,6 +217,26 @@ function Gallery() {
             </div>
           </PageSection>
         </div>
+      </Section>
+      <Section
+        id="gallery-state-feedback"
+        title="InlineAlert · EmptyState 실패"
+      >
+        <InlineAlert message="요청을 처리하지 못했습니다." onRetry={() => {}} />
+        <InlineAlert
+          message="이미 등록되어 있는 스킬입니다."
+          onDismiss={() => {}}
+        />
+        <EmptyState
+          tone="danger"
+          icon="⚠️"
+          title="소득 이력을 불러오지 못했습니다"
+          description="잠시 후 다시 시도해 주세요."
+        >
+          <Button type="button" variant="outline" size="sm">
+            다시 시도
+          </Button>
+        </EmptyState>
       </Section>
       <Section id="gallery-confirm-dialog" title="ConfirmDialog">
         <div className="flex flex-wrap gap-3">

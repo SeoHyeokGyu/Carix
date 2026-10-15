@@ -1,6 +1,11 @@
 import { PageSection } from "@/components/layout/PageSection";
 import { useEffect, useRef, useState } from "react";
-import { redirect, useFetcher, useLoaderData } from "react-router";
+import {
+  redirect,
+  useFetcher,
+  useLoaderData,
+  useRevalidator,
+} from "react-router";
 import { ToneBadge, type Tone } from "@/components/ui/tone-badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -260,94 +265,97 @@ export default function RecordsExpense() {
   };
 
   return (
-    <div className="flex flex-col gap-6">
-      {months.length === 0 ? (
-        <EmptyState
-          icon="📋"
-          title="등록된 소비 기록이 없습니다"
-          description="아래에서 기준월을 고르면 6개 카테고리를 입력할 수 있습니다. 기준월은 삭제할 수 없습니다 — 금액만 고치거나 기본값으로 되돌릴 수 있습니다."
-        />
-      ) : (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>기준월</TableHead>
-              <TableHead>월 상태</TableHead>
-              <TableHead>카테고리 상태</TableHead>
-              <TableHead>작업</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {months.map((month) => (
-              <TableRow key={month.baseYearMonth}>
-                {/* 짧은 고정 길이 값이다. 카테고리 뱃지 묶음이 폭을 가져가도 꺾지 않는다. */}
-                <TableCell className="whitespace-nowrap">
-                  {formatYearMonth(month.baseYearMonth)}
-                </TableCell>
-                <TableCell className="whitespace-nowrap">
-                  <ToneBadge
-                    tone={WEIGHT_STATUS_TONE[month.weightStatus] ?? "muted"}
-                  >
-                    {WEIGHT_STATUS_LABEL[month.weightStatus] ??
-                      month.weightStatus}
-                  </ToneBadge>
-                </TableCell>
-                <TableCell>
-                  <div className="flex flex-wrap gap-1">
-                    {month.items.map((item) => (
-                      <ToneBadge
-                        key={item.category}
-                        tone={STATUS_TONE[item.status]}
-                      >
-                        {EXPENSE_CATEGORY_LABEL[item.category] ?? item.category}{" "}
-                        · {STATUS_LABEL[item.status]}
-                      </ToneBadge>
-                    ))}
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => openMonth(month.baseYearMonth)}
-                  >
-                    수정
-                  </Button>
-                </TableCell>
+    <div className="flex flex-col gap-8">
+      <PageSection title="월별 소비" className="gap-4">
+        {months.length === 0 ? (
+          <EmptyState
+            icon="📋"
+            title="등록된 소비 기록이 없습니다"
+            description="아래에서 기준월을 고르면 6개 카테고리를 입력할 수 있습니다. 기준월은 삭제할 수 없습니다 — 금액만 고치거나 기본값으로 되돌릴 수 있습니다."
+          />
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>기준월</TableHead>
+                <TableHead>월 상태</TableHead>
+                <TableHead>카테고리 상태</TableHead>
+                <TableHead>작업</TableHead>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      )}
-
-      <div className="flex flex-col gap-2 rounded-xl border border-carix-border bg-carix-surface p-6">
-        <Field
-          id="newMonth"
-          label="추가할 기준월"
-          hint="당월까지만 추가할 수 있습니다."
-        >
-          {(aria) => (
-            <Input
-              {...aria}
-              type="month"
-              max={formatYearMonth(currentYearMonth())}
-              value={newMonth}
-              onChange={(e) => setNewMonth(e.target.value)}
-            />
-          )}
-        </Field>
-        <div>
-          <Button type="button" variant="outline" onClick={handleAddMonth}>
-            기준월 추가
-          </Button>
-        </div>
-        {monthError && (
-          <p role="alert" className="text-sm text-destructive">
-            {monthError}
-          </p>
+            </TableHeader>
+            <TableBody>
+              {months.map((month) => (
+                <TableRow key={month.baseYearMonth}>
+                  {/* 짧은 고정 길이 값이다. 카테고리 뱃지 묶음이 폭을 가져가도 꺾지 않는다. */}
+                  <TableCell className="whitespace-nowrap">
+                    {formatYearMonth(month.baseYearMonth)}
+                  </TableCell>
+                  <TableCell className="whitespace-nowrap">
+                    <ToneBadge
+                      tone={WEIGHT_STATUS_TONE[month.weightStatus] ?? "muted"}
+                    >
+                      {WEIGHT_STATUS_LABEL[month.weightStatus] ??
+                        month.weightStatus}
+                    </ToneBadge>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex flex-wrap gap-1">
+                      {month.items.map((item) => (
+                        <ToneBadge
+                          key={item.category}
+                          tone={STATUS_TONE[item.status]}
+                        >
+                          {EXPENSE_CATEGORY_LABEL[item.category] ??
+                            item.category}{" "}
+                          · {STATUS_LABEL[item.status]}
+                        </ToneBadge>
+                      ))}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => openMonth(month.baseYearMonth)}
+                    >
+                      수정
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
         )}
-      </div>
+
+        <div className="flex flex-col gap-2 rounded-xl border border-carix-border bg-carix-surface p-6">
+          <Field
+            id="newMonth"
+            label="추가할 기준월"
+            hint="당월까지만 추가할 수 있습니다."
+          >
+            {(aria) => (
+              <Input
+                {...aria}
+                type="month"
+                max={formatYearMonth(currentYearMonth())}
+                value={newMonth}
+                onChange={(e) => setNewMonth(e.target.value)}
+              />
+            )}
+          </Field>
+          <div>
+            <Button type="button" variant="outline" onClick={handleAddMonth}>
+              기준월 추가
+            </Button>
+          </div>
+          {monthError && (
+            <p role="alert" className="text-sm text-carix-danger">
+              {monthError}
+            </p>
+          )}
+        </div>
+      </PageSection>
 
       {editing && (
         <PageSection title={`${formatYearMonth(editing)} 소비`}>
@@ -428,7 +436,7 @@ export default function RecordsExpense() {
             )}
 
             {errors?._form && (
-              <p role="alert" className="text-sm text-destructive">
+              <p role="alert" className="text-sm text-carix-danger">
                 {errors._form}
               </p>
             )}
@@ -456,6 +464,7 @@ export default function RecordsExpense() {
 }
 
 export function ErrorBoundary() {
+  const revalidator = useRevalidator();
   return (
     <EmptyState
       variant="plain"
@@ -463,6 +472,16 @@ export function ErrorBoundary() {
       icon="⚠️"
       title="소비 이력을 불러오지 못했습니다"
       description="잠시 후 다시 시도해 주세요. 다른 탭은 그대로 열립니다."
-    />
+    >
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        disabled={revalidator.state === "loading"}
+        onClick={() => revalidator.revalidate()}
+      >
+        다시 시도
+      </Button>
+    </EmptyState>
   );
 }

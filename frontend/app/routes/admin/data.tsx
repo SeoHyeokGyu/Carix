@@ -1,3 +1,4 @@
+import { EmptyState } from "@/components/ui/empty-state";
 import { PageFrame } from "@/components/layout/PageFrame";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -259,15 +260,22 @@ export default function DataExplorePage() {
           )}
 
           {failed && (
-            <div
-              role="alert"
-              className="space-y-2 rounded-lg border border-carix-border p-4 text-xs"
+            <EmptyState
+              variant="plain"
+              tone="danger"
+              icon="⚠️"
+              title="데이터를 불러오지 못했습니다"
+              description="잠시 후 다시 시도해 주세요."
             >
-              <p>불러오지 못했습니다</p>
-              <Button variant="link" size="sm" onClick={() => reload()}>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => reload()}
+              >
                 다시 시도
               </Button>
-            </div>
+            </EmptyState>
           )}
           {tab === "postings" && month && !isMonthValid && (
             <p role="alert" className="text-xs text-carix-text/60">
