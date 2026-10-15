@@ -15,6 +15,7 @@ import { Input } from "@/components/ui/input";
 
 import { Field } from "../../components/onboarding/Field";
 import { NativeSelect } from "../../components/onboarding/NativeSelect";
+import { onboardingStepLabel } from "../../components/onboarding/StepIndicator";
 import { getProfile, patchProfile } from "../../lib/api/profile";
 import { toUserMessage } from "../../lib/apiError";
 import { UnauthorizedError } from "../../lib/coreApi";
@@ -115,7 +116,7 @@ export default function Profile() {
   return (
     <PageFrame width="narrow">
       <PageHeader
-        title="프로필"
+        title={onboardingStepLabel(1)}
         description="동료집단 비교를 위해 직군·총 경력·지역·고용 형태를 입력해 주세요."
       />
       <Card>

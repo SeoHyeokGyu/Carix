@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/card";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 
+import { onboardingStepLabel } from "../../components/onboarding/StepIndicator";
 import {
   type AppliedExpenseCategory,
   type AppliedExpenseResponse,
@@ -309,7 +310,7 @@ export default function Review() {
 
   return (
     <PageFrame width="narrow">
-      <PageHeader title="검토" />
+      <PageHeader title={onboardingStepLabel(5)} />
 
       {isCompleted && (
         <div className="rounded-lg border border-carix-info/40 bg-carix-info/10 p-5 text-sm text-carix-text">

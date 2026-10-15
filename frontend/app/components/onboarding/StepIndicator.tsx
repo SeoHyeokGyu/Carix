@@ -12,6 +12,11 @@ export const ONBOARDING_STEPS = [
 
 export type StepNumber = 1 | 2 | 3 | 4 | 5;
 
+/** 단계 이름 — 단계 표시와 각 화면 제목이 같은 이름을 쓴다. */
+export function onboardingStepLabel(step: StepNumber): string {
+  return ONBOARDING_STEPS[step - 1].label;
+}
+
 const STEP_ORDER_MAP: Record<string, StepNumber> = {
   PROFILE: 1,
   INCOME: 2,
