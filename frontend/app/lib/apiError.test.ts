@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+
 import { isApiError, toUserMessage } from "./apiError";
 
 describe("toUserMessage", () => {

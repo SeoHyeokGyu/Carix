@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+
 import { formDataToObject } from "./formData";
 
 function toFormData(entries: [string, string][]): FormData {

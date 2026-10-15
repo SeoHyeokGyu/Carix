@@ -1,13 +1,14 @@
-import { expectHeadingOutline } from "../../test-utils/headingOutline";
-import { describe, expect, it, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { cancelDialog, confirmDialog } from "../../test-utils/confirmDialog";
 import { createRoutesStub } from "react-router";
-import MypageProfile, { clientAction } from "./profile";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
 import * as authApi from "../../lib/authApi";
 import * as onboardingApi from "../../lib/onboardingApi";
 import * as sessionModule from "../../lib/session";
+import { cancelDialog, confirmDialog } from "../../test-utils/confirmDialog";
+import { expectHeadingOutline } from "../../test-utils/headingOutline";
+import MypageProfile, { clientAction } from "./profile";
 
 vi.mock("../../lib/authApi", () => ({
   deleteAccount: vi.fn(),

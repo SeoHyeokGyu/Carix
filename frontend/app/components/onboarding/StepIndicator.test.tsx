@@ -1,6 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router";
 import { beforeEach, describe, expect, it } from "vitest";
+
 import { resetSession, setSession } from "../../lib/session";
 import { StepIndicator } from "./StepIndicator";
 

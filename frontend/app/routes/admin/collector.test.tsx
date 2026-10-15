@@ -1,10 +1,11 @@
-import { describe, expect, it, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
-import { MemoryRouter } from "react-router";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import CollectorAdminPage from "./collector";
-import { expectHeadingOutline } from "../../test-utils/headingOutline";
+import { MemoryRouter } from "react-router";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
 import * as collectorApi from "../../lib/collectorApi";
+import { expectHeadingOutline } from "../../test-utils/headingOutline";
+import CollectorAdminPage from "./collector";
 
 vi.mock("../../lib/collectorApi", () => ({
   fetchPipelineStats: vi.fn(),

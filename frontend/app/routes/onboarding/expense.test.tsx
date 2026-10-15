@@ -2,13 +2,14 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { createRoutesStub } from "react-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { UnauthorizedError } from "../../lib/coreApi";
-import { EXPENSE_CATEGORIES } from "../../lib/schemas/expense";
-import { resetSession, setSession } from "../../lib/session";
-import Expense, { clientLoader, clientAction } from "./expense";
+
 import * as expenseApi from "../../lib/api/expense";
 import * as incomeApi from "../../lib/api/income";
+import { UnauthorizedError } from "../../lib/coreApi";
 import * as onboardingApi from "../../lib/onboardingApi";
+import { EXPENSE_CATEGORIES } from "../../lib/schemas/expense";
+import { resetSession, setSession } from "../../lib/session";
+import Expense, { clientAction, clientLoader } from "./expense";
 
 // baseYearMonth 는 항상 "당월"이어야 한다(화면에 월 선택 UI 자체가 없다) — 실제
 // 구현과 별개로, 여기서 독립적으로 계산해 기대값 오라클로 쓴다. 구현의 계산

@@ -2,8 +2,9 @@ import { render, screen, within } from "@testing-library/react";
 import { CircleHelp } from "lucide-react";
 import { createRoutesStub, MemoryRouter, Route, Routes } from "react-router";
 import { describe, expect, it } from "vitest";
-import { AppShell } from "./AppShell";
+
 import { MAIN_NAV_ITEMS } from "../../routes/dashboard/layout";
+import { AppShell } from "./AppShell";
 
 describe("AppShell", () => {
   const items = [

@@ -1,6 +1,3 @@
-import { PageSection } from "@/components/layout/PageSection";
-import { Card } from "@/components/ui/card";
-import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useEffect, useState } from "react";
 import {
   redirect,
@@ -8,7 +5,13 @@ import {
   useNavigate,
   useRevalidator,
 } from "react-router";
+
+import { PageSection } from "@/components/layout/PageSection";
 import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { EmptyState } from "@/components/ui/empty-state";
+import { Input } from "@/components/ui/input";
 import {
   Table,
   TableBody,
@@ -17,8 +20,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { EmptyState } from "@/components/ui/empty-state";
-import { Input } from "@/components/ui/input";
+
 import { Field } from "../../../components/onboarding/Field";
 import { toUserMessage } from "../../../lib/apiError";
 import { UnauthorizedError } from "../../../lib/coreApi";
@@ -32,8 +34,8 @@ import {
   deleteUserSkill,
   fetchUserSkills,
   searchSkills,
-  updateUserSkill,
   type SkillSearchItem,
+  updateUserSkill,
   type UserSkill,
 } from "../../../lib/skillApi";
 

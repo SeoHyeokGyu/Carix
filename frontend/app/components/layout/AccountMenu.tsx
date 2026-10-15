@@ -1,6 +1,7 @@
 import { ChevronDown, LogOut, Settings, UserRound } from "lucide-react";
 import { DropdownMenu } from "radix-ui";
 import { Link, useLocation, useSubmit } from "react-router";
+
 import { Button } from "@/components/ui/button";
 
 const SETTINGS_PATH = "/mypage/profile";

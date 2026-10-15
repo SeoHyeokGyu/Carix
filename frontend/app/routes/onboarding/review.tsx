@@ -1,16 +1,17 @@
-import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import { PageFrame } from "@/components/layout/PageFrame";
-import { PageHeader } from "@/components/layout/PageHeader";
+import type { ReactNode } from "react";
 import {
+  Form,
   Link,
   redirect,
   useActionData,
   useLoaderData,
   useNavigation,
   useSubmit,
-  Form,
 } from "react-router";
-import { buttonVariants, Button } from "@/components/ui/button";
+
+import { PageFrame } from "@/components/layout/PageFrame";
+import { PageHeader } from "@/components/layout/PageHeader";
+import { Button, buttonVariants } from "@/components/ui/button";
 import {
   Card,
   CardAction,
@@ -18,29 +19,30 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { toUserMessage } from "../../lib/apiError";
-import { getProfile, type ProfileResponse } from "../../lib/api/profile";
-import { listIncome, type IncomeResponse } from "../../lib/api/income";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+
 import {
-  getAppliedExpenses,
-  listExpenses,
   type AppliedExpenseCategory,
   type AppliedExpenseResponse,
+  getAppliedExpenses,
+  listExpenses,
 } from "../../lib/api/expense";
-import { fetchUserSkills } from "../../lib/skillApi";
+import { type IncomeResponse, listIncome } from "../../lib/api/income";
+import { getProfile, type ProfileResponse } from "../../lib/api/profile";
+import { toUserMessage } from "../../lib/apiError";
 import { UnauthorizedError } from "../../lib/coreApi";
 import type { FieldErrors } from "../../lib/fieldErrors";
-import type { ReactNode } from "react";
 import { advanceOnboarding, resetOnboarding } from "../../lib/onboardingApi";
 import { LOGIN_PATH } from "../../lib/routeGuards";
+import { EXPENSE_CATEGORIES } from "../../lib/schemas/expense";
 import {
   COMPANY_SIZES,
   EMPLOYMENT_TYPES,
   JOB_FAMILIES,
   REGIONS,
 } from "../../lib/schemas/profile";
-import { EXPENSE_CATEGORIES } from "../../lib/schemas/expense";
 import { requireSession, setSession } from "../../lib/session";
+import { fetchUserSkills } from "../../lib/skillApi";
 import { currentYearMonth } from "../../lib/yearMonth";
 
 type ActionData = { errors: FieldErrors } | null;

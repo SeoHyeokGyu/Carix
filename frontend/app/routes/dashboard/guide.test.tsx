@@ -1,6 +1,7 @@
-import { expectHeadingOutline } from "../../test-utils/headingOutline";
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
+
+import { expectHeadingOutline } from "../../test-utils/headingOutline";
 import DashboardGuide from "./guide";
 
 describe("DashboardGuide (지표 가이드 및 도움말)", () => {

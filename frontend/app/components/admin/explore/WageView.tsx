@@ -1,3 +1,12 @@
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+
 import type {
   WageBaseline,
   WageTable,
@@ -8,14 +17,6 @@ import {
   isWageUniformAcrossFamilies,
 } from "../../../lib/dataExplore";
 import { bracketLabel, familyLabel } from "../../../lib/sourceLabel";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { CELL, HEAD, META, NUM } from "./exploreStyles";
 
 const GROSS = "ANNUAL_GROSS_MEDIAN";

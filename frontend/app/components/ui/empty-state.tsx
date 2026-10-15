@@ -1,6 +1,8 @@
 import type { ComponentPropsWithoutRef, ReactNode } from "react";
+
 import { cn } from "@/lib/utils";
-import { ToneBadge, type Tone } from "./tone-badge";
+
+import { type Tone, ToneBadge } from "./tone-badge";
 
 export interface EmptyStateProps extends ComponentPropsWithoutRef<"div"> {
   /**

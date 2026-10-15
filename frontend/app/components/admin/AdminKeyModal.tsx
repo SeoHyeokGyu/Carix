@@ -1,14 +1,16 @@
-import { useState } from "react";
-import { Card } from "@/components/ui/card";
-import {
-  getAdminKey,
-  setAdminKey,
-  clearAdminKey,
-} from "../../lib/collectorApi";
 import { X } from "lucide-react";
+import { useState } from "react";
+
 import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import { HEADING } from "@/components/ui/heading";
 import { Input } from "@/components/ui/input";
+
+import {
+  clearAdminKey,
+  getAdminKey,
+  setAdminKey,
+} from "../../lib/collectorApi";
 
 interface AdminKeyModalProps {
   isOpen: boolean;

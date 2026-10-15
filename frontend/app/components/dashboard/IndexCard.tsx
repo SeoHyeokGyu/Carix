@@ -1,7 +1,9 @@
 import type { ReactNode } from "react";
-import { TextLink } from "@/components/ui/text-link";
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { TextLink } from "@/components/ui/text-link";
 import { ToneBadge } from "@/components/ui/tone-badge";
+
 import type { IndexValue } from "../../lib/api/dashboard";
 import { resolveIndexStatus } from "../../lib/indexStatus";
 

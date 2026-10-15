@@ -1,16 +1,17 @@
-import RecordsLayout from "./layout";
-import { expectHeadingOutline } from "../../../test-utils/headingOutline";
-import { cancelDialog, confirmDialog } from "../../../test-utils/confirmDialog";
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { createRoutesStub } from "react-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+
 import * as incomeApi from "../../../lib/api/income";
+import { cancelDialog, confirmDialog } from "../../../test-utils/confirmDialog";
+import { expectHeadingOutline } from "../../../test-utils/headingOutline";
 import RecordsIncome, {
-  ErrorBoundary,
   clientAction,
   clientLoader,
+  ErrorBoundary,
 } from "./income";
+import RecordsLayout from "./layout";
 
 vi.mock("../../../lib/api/income");
 

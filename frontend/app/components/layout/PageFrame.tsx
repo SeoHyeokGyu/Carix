@@ -1,4 +1,5 @@
 import type { HTMLAttributes, ReactNode } from "react";
+
 import { cn } from "@/lib/utils";
 
 type PageFrameWidth = "wide" | "narrow" | "admin";

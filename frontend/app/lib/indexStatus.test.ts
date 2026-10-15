@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { resolveIndexStatus } from "./indexStatus";
+
 import type { IndexStatus } from "./api/dashboard";
+import { resolveIndexStatus } from "./indexStatus";
 
 describe("resolveIndexStatus", () => {
   it("OK 는 뱃지를 만들지 않는다", () => {

@@ -1,5 +1,6 @@
 import { render } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
+
 import { Sparkline, sparklineDomain } from "./Sparkline";
 
 function series(values: number[]) {

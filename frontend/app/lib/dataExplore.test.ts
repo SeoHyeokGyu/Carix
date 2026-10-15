@@ -1,21 +1,22 @@
 import { describe, expect, it } from "vitest";
+
+import type { WageTable } from "./collectorApi";
 import {
   crawlJobDataHref,
-  fromMonthInput,
-  toMonthInput,
   formatCollectedDate,
   formatManwon,
   formatSalaryCell,
   formatSalaryRange,
+  fromMonthInput,
   isSharpCpiChange,
   isThinFamily,
   isThinSample,
+  isWageUniformAcrossFamilies,
   parseTab,
   periodRangeOf,
   tabSwitchParams,
-  isWageUniformAcrossFamilies,
+  toMonthInput,
 } from "./dataExplore";
-import type { WageTable } from "./collectorApi";
 
 describe("dataExplore", () => {
   it("CPI 전월 대비 5% 넘는 변화만 급변으로 본다", () => {

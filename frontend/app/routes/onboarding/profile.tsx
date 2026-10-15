@@ -1,5 +1,3 @@
-import { PageFrame } from "@/components/layout/PageFrame";
-import { PageHeader } from "@/components/layout/PageHeader";
 import { useEffect, useRef } from "react";
 import {
   Form,
@@ -8,15 +6,19 @@ import {
   useLoaderData,
   useNavigation,
 } from "react-router";
+
+import { PageFrame } from "@/components/layout/PageFrame";
+import { PageHeader } from "@/components/layout/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+
 import { Field } from "../../components/onboarding/Field";
 import { NativeSelect } from "../../components/onboarding/NativeSelect";
-import { toUserMessage } from "../../lib/apiError";
 import { getProfile, patchProfile } from "../../lib/api/profile";
+import { toUserMessage } from "../../lib/apiError";
 import { UnauthorizedError } from "../../lib/coreApi";
-import { toFieldErrors, type FieldErrors } from "../../lib/fieldErrors";
+import { type FieldErrors, toFieldErrors } from "../../lib/fieldErrors";
 import { focusFirstInvalidField } from "../../lib/focusFirstInvalidField";
 import { formDataToObject } from "../../lib/formData";
 import { advanceOnboarding } from "../../lib/onboardingApi";

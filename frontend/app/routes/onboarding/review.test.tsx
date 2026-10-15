@@ -1,21 +1,22 @@
-import { confirmDialog } from "../../test-utils/confirmDialog";
-import { expectHeadingOutline } from "../../test-utils/headingOutline";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { createRoutesStub } from "react-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+
+import * as expenseApi from "../../lib/api/expense";
+import * as incomeApi from "../../lib/api/income";
+import type { ProfileResponse } from "../../lib/api/profile";
+import * as profileApi from "../../lib/api/profile";
 import { UnauthorizedError } from "../../lib/coreApi";
+import * as onboardingApi from "../../lib/onboardingApi";
 import { resetSession, setSession } from "../../lib/session";
+import * as skillApi from "../../lib/skillApi";
+import { confirmDialog } from "../../test-utils/confirmDialog";
+import { expectHeadingOutline } from "../../test-utils/headingOutline";
 import OnboardingLayout, {
   clientLoader as onboardingLayoutLoader,
 } from "./layout";
-import Review, { clientLoader, clientAction } from "./review";
-import * as profileApi from "../../lib/api/profile";
-import type { ProfileResponse } from "../../lib/api/profile";
-import * as incomeApi from "../../lib/api/income";
-import * as expenseApi from "../../lib/api/expense";
-import * as skillApi from "../../lib/skillApi";
-import * as onboardingApi from "../../lib/onboardingApi";
+import Review, { clientAction, clientLoader } from "./review";
 
 // baseYearMonth 는 항상 "당월"이다(expense.tsx 와 같은 이유 — 화면에 월 선택 UI 가 없다).
 // 구현의 계산 함수를 그대로 가져오면 구현이 틀려도 항상 통과하는 동어반복이 되므로,

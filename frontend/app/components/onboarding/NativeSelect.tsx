@@ -1,5 +1,7 @@
 import type { SelectHTMLAttributes } from "react";
+
 import { cn } from "@/lib/utils";
+
 import type { Option } from "../../lib/schemas/options";
 
 const SELECT_CLASS =

@@ -1,8 +1,8 @@
 import {
+  type ApiError,
   coreGet,
   coreSend,
   UnauthorizedError,
-  type ApiError,
 } from "../coreApi";
 
 /**

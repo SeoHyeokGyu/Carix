@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+
 import { resolvePeerConditions } from "./peerConditions";
 
 const SERVER_TEXT = "전국 / 4~7년 / 회사규모 무관 / 고용형태 무관";

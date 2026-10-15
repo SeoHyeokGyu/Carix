@@ -1,6 +1,6 @@
-import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import { fileURLToPath, URL as NodeURL } from "node:url";
+import { describe, expect, it } from "vitest";
 
 const css = readFileSync(
   fileURLToPath(new NodeURL("./tokens.css", import.meta.url)),

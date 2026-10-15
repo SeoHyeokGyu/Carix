@@ -1,7 +1,8 @@
-import { PageFrame } from "@/components/layout/PageFrame";
-import { PageHeader } from "@/components/layout/PageHeader";
 import { useEffect, useRef, useState } from "react";
 import { Link, redirect, useFetcher, useLoaderData } from "react-router";
+
+import { PageFrame } from "@/components/layout/PageFrame";
+import { PageHeader } from "@/components/layout/PageHeader";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -12,22 +13,23 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+
 import { Field } from "../../components/onboarding/Field";
-import { isApiError, toUserMessage } from "../../lib/apiError";
 import {
+  type DifficultyGrade,
   getLatestScenario,
   simulate,
-  type DifficultyGrade,
   type SimulationResult,
 } from "../../lib/api/scenario";
+import { isApiError, toUserMessage } from "../../lib/apiError";
 import { type ApiError, UnauthorizedError } from "../../lib/coreApi";
-import { toFieldErrors, type FieldErrors } from "../../lib/fieldErrors";
+import { type FieldErrors, toFieldErrors } from "../../lib/fieldErrors";
 import { focusFirstInvalidField } from "../../lib/focusFirstInvalidField";
 import { formDataToObject } from "../../lib/formData";
 import { LOGIN_PATH } from "../../lib/routeGuards";
 import {
-  scenarioSchema,
   SCENARIO_FIELD_MESSAGES,
+  scenarioSchema,
 } from "../../lib/schemas/scenario";
 
 type ActionData =

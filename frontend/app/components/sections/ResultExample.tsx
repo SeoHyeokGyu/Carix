@@ -1,4 +1,5 @@
 import { useState } from "react";
+
 import { DISCLAIMER } from "../../content/landing";
 
 export function ResultExample() {

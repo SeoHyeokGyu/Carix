@@ -1,13 +1,15 @@
-import { HEADING } from "@/components/ui/heading";
-import { Card } from "@/components/ui/card";
 import { Link } from "react-router";
+
 import { Button } from "@/components/ui/button";
-import { SignalBadge } from "./SignalBadge";
+import { Card } from "@/components/ui/card";
+import { HEADING } from "@/components/ui/heading";
+
 import type {
   SnapshotPoint,
   SnapshotRationale,
 } from "../../lib/dashboardMarketApi";
 import { isUserActionable } from "../../lib/insufficientDataCause";
+import { SignalBadge } from "./SignalBadge";
 
 const SEOUL_TIME = new Intl.DateTimeFormat("sv-SE", {
   timeZone: "Asia/Seoul",

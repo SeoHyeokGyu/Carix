@@ -1,10 +1,11 @@
 import { render, screen } from "@testing-library/react";
 import { createRoutesStub } from "react-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+
 import * as authApi from "../lib/authApi";
-import * as sessionLib from "../lib/session";
 import type { Session } from "../lib/session";
-import ProtectedLayout, { HydrateFallback, clientLoader } from "./protected";
+import * as sessionLib from "../lib/session";
+import ProtectedLayout, { clientLoader, HydrateFallback } from "./protected";
 
 const { ANONYMOUS } = sessionLib;
 

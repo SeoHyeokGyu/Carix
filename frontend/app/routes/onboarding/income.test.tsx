@@ -1,13 +1,14 @@
-import { expectHeadingOutline } from "../../test-utils/headingOutline";
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { createRoutesStub } from "react-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { UnauthorizedError } from "../../lib/coreApi";
-import { resetSession, setSession } from "../../lib/session";
-import Income, { clientLoader, clientAction } from "./income";
+
 import * as incomeApi from "../../lib/api/income";
+import { UnauthorizedError } from "../../lib/coreApi";
 import * as onboardingApi from "../../lib/onboardingApi";
+import { resetSession, setSession } from "../../lib/session";
+import { expectHeadingOutline } from "../../test-utils/headingOutline";
+import Income, { clientAction, clientLoader } from "./income";
 
 describe("S-06 소득 화면", () => {
   beforeEach(() => {

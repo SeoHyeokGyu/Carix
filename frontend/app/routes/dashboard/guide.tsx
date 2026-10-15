@@ -1,9 +1,10 @@
 import { PageFrame } from "@/components/layout/PageFrame";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { PageSection } from "@/components/layout/PageSection";
-import { HEADING } from "@/components/ui/heading";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { HEADING } from "@/components/ui/heading";
+
 import { SignalBadge } from "../../components/dashboard/SignalBadge";
 
 /**

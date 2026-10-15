@@ -1,8 +1,9 @@
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
-import { PostingsExplorer } from "./PostingsExplorer";
+
 import type { PostingItem } from "../../../lib/collectorApi";
+import { PostingsExplorer } from "./PostingsExplorer";
 
 const item: PostingItem = {
   source: "SARAMIN",

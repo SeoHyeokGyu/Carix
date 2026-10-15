@@ -1,13 +1,15 @@
-import { cn } from "@/lib/utils";
+import { NavLink, Outlet } from "react-router";
+
+import { PageFrame } from "@/components/layout/PageFrame";
+import { PageHeader } from "@/components/layout/PageHeader";
 import {
   TAB_ACTIVE,
   TAB_IDLE,
   TAB_ITEM,
   TAB_LIST,
 } from "@/components/ui/tab-styles";
-import { PageFrame } from "@/components/layout/PageFrame";
-import { PageHeader } from "@/components/layout/PageHeader";
-import { NavLink, Outlet } from "react-router";
+import { cn } from "@/lib/utils";
+
 import type { NavItem } from "../../../components/layout/AppShell";
 
 /**

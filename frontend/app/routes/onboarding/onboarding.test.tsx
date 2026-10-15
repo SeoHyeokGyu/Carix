@@ -1,6 +1,7 @@
 import { render, screen } from "@testing-library/react";
-import { MemoryRouter, createRoutesStub } from "react-router";
+import { createRoutesStub, MemoryRouter } from "react-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+
 import { resetSession, setSession } from "../../lib/session";
 import OnboardingLayout, {
   clientLoader as onboardingLayoutLoader,

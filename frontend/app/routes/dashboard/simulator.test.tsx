@@ -1,11 +1,12 @@
-import { expectHeadingOutline } from "../../test-utils/headingOutline";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { createRoutesStub } from "react-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+
 import * as scenarioApi from "../../lib/api/scenario";
 import { UnauthorizedError } from "../../lib/coreApi";
 import { resetSession, setSession } from "../../lib/session";
+import { expectHeadingOutline } from "../../test-utils/headingOutline";
 import DashboardSimulator, { clientAction, clientLoader } from "./simulator";
 
 const SAVED_INPUTS = {

@@ -1,5 +1,6 @@
-import type { ReactNode } from "react";
 import { X } from "lucide-react";
+import type { ReactNode } from "react";
+
 import { Button } from "./button";
 
 export type InlineAlertProps = {

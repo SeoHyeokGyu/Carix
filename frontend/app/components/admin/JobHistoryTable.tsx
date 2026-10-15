@@ -1,13 +1,9 @@
 import { useState } from "react";
-import type { JobStatusResponse } from "../../lib/collectorApi";
-import { crawlJobDataHref } from "../../lib/dataExplore";
-import { jobTypeLabel, resolveJobStatus } from "../../lib/jobStatus";
+
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { LoadingState } from "@/components/ui/loading-state";
-import { TextLink } from "@/components/ui/text-link";
-import { ToneBadge } from "@/components/ui/tone-badge";
 import {
   Table,
   TableBody,
@@ -16,6 +12,12 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { TextLink } from "@/components/ui/text-link";
+import { ToneBadge } from "@/components/ui/tone-badge";
+
+import type { JobStatusResponse } from "../../lib/collectorApi";
+import { crawlJobDataHref } from "../../lib/dataExplore";
+import { jobTypeLabel, resolveJobStatus } from "../../lib/jobStatus";
 
 const FILTERS = [
   { id: "ALL", label: "전체" },

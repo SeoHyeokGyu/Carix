@@ -1,5 +1,6 @@
 import { z } from "zod";
-import { GROSS_SALARY_RANGE_TEXT, values, type Option } from "./options";
+
+import { GROSS_SALARY_RANGE_TEXT, type Option, values } from "./options";
 
 /**
  * 당월 말일을 "YYYY-MM-DD" 로 돌려준다. 기능 명세 §3 은 유효 시작일 허용 범위를

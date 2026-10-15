@@ -1,4 +1,7 @@
 import { RotateCw } from "lucide-react";
+
+import { PageHeader } from "@/components/layout/PageHeader";
+import { PageSection } from "@/components/layout/PageSection";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -8,7 +11,11 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { EmptyState } from "@/components/ui/empty-state";
+import { InlineAlert } from "@/components/ui/inline-alert";
+import { Input } from "@/components/ui/input";
+import { LoadingState } from "@/components/ui/loading-state";
 import {
   Table,
   TableBody,
@@ -17,16 +24,11 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Input } from "@/components/ui/input";
-import { LoadingState } from "@/components/ui/loading-state";
 import { TextLink } from "@/components/ui/text-link";
-import { PageHeader } from "@/components/layout/PageHeader";
-import { PageSection } from "@/components/layout/PageSection";
-import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import { InlineAlert } from "@/components/ui/inline-alert";
-import { ToneBadge, TONE_CLASS } from "@/components/ui/tone-badge";
-import { SignalBadge } from "../../components/dashboard/SignalBadge";
+import { TONE_CLASS, ToneBadge } from "@/components/ui/tone-badge";
+
 import { SalaryDistributionChart } from "../../components/dashboard/SalaryDistributionChart";
+import { SignalBadge } from "../../components/dashboard/SignalBadge";
 import { NativeSelect } from "../../components/onboarding/NativeSelect";
 import type { SalaryDistributionResponse } from "../../lib/dashboardMarketApi";
 

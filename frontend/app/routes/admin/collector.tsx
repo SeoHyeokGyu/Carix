@@ -1,27 +1,29 @@
-import { useState, useEffect, useCallback, useRef } from "react";
-import {
-  fetchPipelineStats,
-  fetchRecentJobs,
-  getAdminKey,
-  type PipelineStatsResponse,
-  type JobStatusResponse,
-  type JobExecutionResponse,
-} from "../../lib/collectorApi";
-import { jobTypeLabel } from "../../lib/jobStatus";
 import { X } from "lucide-react";
-import { ThemeToggle } from "../../components/ThemeToggle";
+import { useCallback, useEffect, useRef, useState } from "react";
+
 import { PageFrame } from "@/components/layout/PageFrame";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { PageSection } from "@/components/layout/PageSection";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { InlineAlert } from "@/components/ui/inline-alert";
+
 import { AdminHeader } from "../../components/admin/AdminHeader";
 import { AdminKeyModal } from "../../components/admin/AdminKeyModal";
-import { CollectorStatusBanner } from "../../components/admin/CollectorStatusBanner";
 import { CollectorStatsCards } from "../../components/admin/CollectorStatsCards";
-import { PipelineControlPanel } from "../../components/admin/PipelineControlPanel";
+import { CollectorStatusBanner } from "../../components/admin/CollectorStatusBanner";
 import { JobHistoryTable } from "../../components/admin/JobHistoryTable";
+import { PipelineControlPanel } from "../../components/admin/PipelineControlPanel";
+import { ThemeToggle } from "../../components/ThemeToggle";
+import {
+  fetchPipelineStats,
+  fetchRecentJobs,
+  getAdminKey,
+  type JobExecutionResponse,
+  type JobStatusResponse,
+  type PipelineStatsResponse,
+} from "../../lib/collectorApi";
+import { jobTypeLabel } from "../../lib/jobStatus";
 
 export function meta() {
   return [

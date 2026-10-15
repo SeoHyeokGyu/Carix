@@ -1,8 +1,9 @@
 import { render, screen, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import type { ReactElement } from "react";
 import { MemoryRouter } from "react-router";
-import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
+
 import type { SnapshotPoint } from "../../lib/dashboardMarketApi";
 import { VerdictHero } from "./VerdictHero";
 

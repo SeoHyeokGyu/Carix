@@ -1,12 +1,4 @@
-import { TextLink } from "@/components/ui/text-link";
 import { Badge } from "@/components/ui/badge";
-import type { MonthlyOverview } from "../../../lib/collectorApi";
-import {
-  isThinFamily,
-  isThinSample,
-  SAMPLE_COMPANY_CAP,
-} from "../../../lib/dataExplore";
-import { familyLabel, sourceLabel } from "../../../lib/sourceLabel";
 import {
   Table,
   TableBody,
@@ -15,6 +7,15 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { TextLink } from "@/components/ui/text-link";
+
+import type { MonthlyOverview } from "../../../lib/collectorApi";
+import {
+  isThinFamily,
+  isThinSample,
+  SAMPLE_COMPANY_CAP,
+} from "../../../lib/dataExplore";
+import { familyLabel, sourceLabel } from "../../../lib/sourceLabel";
 import { CELL, HEAD, META, NUM } from "./exploreStyles";
 
 const FAMILIES = ["DEVELOPER", "DATA", "AI"] as const;

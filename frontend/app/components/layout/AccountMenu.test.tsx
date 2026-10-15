@@ -2,6 +2,7 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { createRoutesStub } from "react-router";
 import { beforeAll, describe, expect, it, vi } from "vitest";
+
 import { AccountMenu } from "./AccountMenu";
 
 // Radix 팝퍼가 트리거 크기를 재려고 ResizeObserver 를 부르는데 jsdom 에는 없다.

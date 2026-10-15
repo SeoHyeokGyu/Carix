@@ -1,10 +1,5 @@
 import { useState } from "react";
-import type { PostingItem, PostingPage } from "../../../lib/collectorApi";
-import {
-  formatCollectedDate,
-  formatSalaryCell,
-} from "../../../lib/dataExplore";
-import { familyLabel, sourceLabel } from "../../../lib/sourceLabel";
+
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -15,6 +10,13 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+
+import type { PostingItem, PostingPage } from "../../../lib/collectorApi";
+import {
+  formatCollectedDate,
+  formatSalaryCell,
+} from "../../../lib/dataExplore";
+import { familyLabel, sourceLabel } from "../../../lib/sourceLabel";
 import { CELL, HEAD, META } from "./exploreStyles";
 
 const COLLECTED_VIA_LABEL: Record<string, string> = {

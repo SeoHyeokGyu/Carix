@@ -1,12 +1,14 @@
 import { describe, expect, it } from "vitest";
+
 import type { Tone } from "@/components/ui/tone-badge";
-import { resolveIndexStatus, INDEX_STATUS_CODES } from "./indexStatus";
+
+import { DECISION_SIGNAL_CODES, resolveDecisionSignal } from "./decisionSignal";
+import { INDEX_STATUS_CODES, resolveIndexStatus } from "./indexStatus";
+import { JOB_STATUS_CODES, resolveJobStatus } from "./jobStatus";
 import {
   resolveSkillDemandStatus,
   SKILL_DEMAND_STATUS_CODES,
 } from "./skillDemandStatus";
-import { resolveDecisionSignal, DECISION_SIGNAL_CODES } from "./decisionSignal";
-import { resolveJobStatus, JOB_STATUS_CODES } from "./jobStatus";
 
 /**
  * 같은 문구가 화면에서 두 가지 색으로 나오는 것을 막는다.

@@ -1,4 +1,4 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, type Page, test } from "@playwright/test";
 
 /**
  * S-12 이력 관리 — 진입 가드와 인증 후 한 줄기.

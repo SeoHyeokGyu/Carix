@@ -2,9 +2,10 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { createRoutesStub } from "react-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { DataHealthStrip } from "./DataHealthStrip";
+
 import * as api from "../../lib/collectorApi";
 import { GAP_REASON_LABEL } from "../../lib/dataHealth";
+import { DataHealthStrip } from "./DataHealthStrip";
 
 vi.mock("../../lib/collectorApi", async (orig) => ({
   ...(await orig<typeof import("../../lib/collectorApi")>()),

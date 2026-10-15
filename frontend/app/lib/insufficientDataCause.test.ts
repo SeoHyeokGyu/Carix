@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { MARKET_COVERAGE_GAP, isUserActionable } from "./insufficientDataCause";
+import { isUserActionable, MARKET_COVERAGE_GAP } from "./insufficientDataCause";
 
 describe("isUserActionable", () => {
   it("수집 공백이 원인이면 입력 유도를 띄우지 않는다", () => {

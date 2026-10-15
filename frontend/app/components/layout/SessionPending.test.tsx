@@ -1,5 +1,6 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
+
 import { SessionPending } from "./SessionPending";
 
 describe("SessionPending", () => {

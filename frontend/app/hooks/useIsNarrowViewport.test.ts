@@ -1,5 +1,6 @@
 import { renderHook } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
+
 import {
   NARROW_VIEWPORT_QUERY,
   useIsNarrowViewport,

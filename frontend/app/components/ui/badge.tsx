@@ -1,7 +1,8 @@
-import * as React from "react";
 import { cva, type VariantProps } from "class-variance-authority";
-import { cn } from "@/lib/utils";
 import { Slot } from "radix-ui";
+import * as React from "react";
+
+import { cn } from "@/lib/utils";
 
 /** 중립 칩 전용. 상태·의미 색은 `ToneBadge` 하나가 맡는다 — 여기에 톤 variant 를 되살리지 않는다. */
 const badgeVariants = cva(

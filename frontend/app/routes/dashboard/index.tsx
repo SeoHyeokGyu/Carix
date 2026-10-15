@@ -1,37 +1,39 @@
+import { RotateCw } from "lucide-react";
 import { useState } from "react";
 import { redirect, useLoaderData, useRevalidator } from "react-router";
-import { RotateCw } from "lucide-react";
+
+import { PageFrame } from "@/components/layout/PageFrame";
+import { PageHeader } from "@/components/layout/PageHeader";
+import { PageSection } from "@/components/layout/PageSection";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { InlineAlert } from "@/components/ui/inline-alert";
+import { TextLink } from "@/components/ui/text-link";
+
 import { IndexCard } from "../../components/dashboard/IndexCard";
 import {
-  OpeningWindowHelp,
   MarketValueHelp,
+  OpeningWindowHelp,
   PurchasingPowerHelp,
 } from "../../components/dashboard/IndexHelp";
+import { MarketValueTrend } from "../../components/dashboard/MarketValueTrend";
 import { PriceDriverBadge } from "../../components/dashboard/PriceDriverBadge";
 import { TrustPanel } from "../../components/dashboard/TrustPanel";
-import { trendsTabHref } from "../../lib/trendsTabs";
-import { MarketValueTrend } from "../../components/dashboard/MarketValueTrend";
 import { VerdictHero } from "../../components/dashboard/VerdictHero";
 import { useIsNarrowViewport } from "../../hooks/useIsNarrowViewport";
-import { toUserMessage } from "../../lib/apiError";
 import {
+  type DashboardSummary,
   fetchSummary,
   recalculateDashboard,
-  type DashboardSummary,
 } from "../../lib/api/dashboard";
+import { toUserMessage } from "../../lib/apiError";
 import { UnauthorizedError } from "../../lib/coreApi";
 import { fetchSnapshotHistory } from "../../lib/dashboardMarketApi";
 import { resolvePeerConditions } from "../../lib/peerConditions";
 import { LOGIN_PATH } from "../../lib/routeGuards";
 import { fetchSkillRecommendations } from "../../lib/skillApi";
+import { trendsTabHref } from "../../lib/trendsTabs";
 import { formatVerdictDescription } from "../../lib/verdict";
-import { PageFrame } from "@/components/layout/PageFrame";
-import { PageHeader } from "@/components/layout/PageHeader";
-import { PageSection } from "@/components/layout/PageSection";
-import { TextLink } from "@/components/ui/text-link";
-import { InlineAlert } from "@/components/ui/inline-alert";
 
 /**
  * 1층 프리뷰와 3층 비교 조건의 재료. 없어도 판정은 선다 — 실패하면 그 요소만 사라지고

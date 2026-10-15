@@ -1,7 +1,8 @@
-import React from "react";
-import { describe, expect, it, vi, afterEach } from "vitest";
 import { renderHook } from "@testing-library/react";
+import React from "react";
 import { renderToString } from "react-dom/server";
+import { afterEach, describe, expect, it, vi } from "vitest";
+
 import { usePrefersReducedMotion } from "./usePrefersReducedMotion";
 
 function mockMatchMedia(matches: boolean) {

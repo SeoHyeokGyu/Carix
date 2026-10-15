@@ -1,7 +1,4 @@
-import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import { PageFrame } from "@/components/layout/PageFrame";
-import { PageHeader } from "@/components/layout/PageHeader";
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import {
   Form,
   redirect,
@@ -9,6 +6,9 @@ import {
   useNavigation,
   useSubmit,
 } from "react-router";
+
+import { PageFrame } from "@/components/layout/PageFrame";
+import { PageHeader } from "@/components/layout/PageHeader";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -17,8 +17,10 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+
 import { toUserMessage } from "../../lib/apiError";
 import { deleteAccount, logout, logoutAll } from "../../lib/authApi";
 import { UnauthorizedError } from "../../lib/coreApi";

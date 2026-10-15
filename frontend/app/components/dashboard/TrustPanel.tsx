@@ -1,11 +1,13 @@
-import { HEADING } from "@/components/ui/heading";
 import { useState } from "react";
+
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { HEADING } from "@/components/ui/heading";
+
 import type { DashboardMetadata } from "../../lib/api/dashboard";
 import type { PeerConditionView } from "../../lib/peerConditions";
-import { formatYearMonth } from "../../lib/yearMonth";
 import { toSampleCoverage } from "../../lib/sampleCoverage";
+import { formatYearMonth } from "../../lib/yearMonth";
 
 const BODY_ID = "trust-panel-body";
 

@@ -1,6 +1,3 @@
-import { PageSection } from "@/components/layout/PageSection";
-import { Card } from "@/components/ui/card";
-import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useEffect, useRef, useState } from "react";
 import {
   redirect,
@@ -8,8 +5,13 @@ import {
   useLoaderData,
   useRevalidator,
 } from "react-router";
-import { EmptyState } from "@/components/ui/empty-state";
+
+import { PageSection } from "@/components/layout/PageSection";
 import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { EmptyState } from "@/components/ui/empty-state";
+import { Input } from "@/components/ui/input";
 import {
   Table,
   TableBody,
@@ -18,27 +20,27 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Input } from "@/components/ui/input";
+
 import { Field } from "../../../components/onboarding/Field";
 import { NativeSelect } from "../../../components/onboarding/NativeSelect";
-import { isApiError, toUserMessage } from "../../../lib/apiError";
 import {
   createIncome,
   deleteIncome,
+  type IncomeResponse,
   listIncome,
   updateIncome,
-  type IncomeResponse,
 } from "../../../lib/api/income";
+import { isApiError, toUserMessage } from "../../../lib/apiError";
 import { type ApiError, UnauthorizedError } from "../../../lib/coreApi";
-import { toFieldErrors, type FieldErrors } from "../../../lib/fieldErrors";
+import { type FieldErrors, toFieldErrors } from "../../../lib/fieldErrors";
 import { focusFirstInvalidField } from "../../../lib/focusFirstInvalidField";
 import { LOGIN_PATH } from "../../../lib/routeGuards";
 import {
-  incomeSchema,
-  INCOME_CHANGE_REASONS,
   INCOME_CHANGE_REASON_HINT,
+  INCOME_CHANGE_REASONS,
   INCOME_FIELD_MESSAGES,
   incomeChangeReasonCell,
+  incomeSchema,
 } from "../../../lib/schemas/income";
 
 type ActionData = { errors: FieldErrors } | null;

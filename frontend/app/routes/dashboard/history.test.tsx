@@ -1,18 +1,20 @@
-import { expectHeadingOutline } from "../../test-utils/headingOutline";
-import { buttonVariants } from "@/components/ui/button";
-import { describe, expect, it, vi, beforeEach } from "vitest";
 import {
+  fireEvent,
   render,
   screen,
-  fireEvent,
   waitFor,
   within,
 } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router";
-import DashboardHistory from "./history";
-import * as dashboardMarketApi from "../../lib/dashboardMarketApi";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+import { buttonVariants } from "@/components/ui/button";
+
 import { UnauthorizedError } from "../../lib/coreApi";
+import * as dashboardMarketApi from "../../lib/dashboardMarketApi";
+import { expectHeadingOutline } from "../../test-utils/headingOutline";
+import DashboardHistory from "./history";
 
 const mockNavigate = vi.fn();
 

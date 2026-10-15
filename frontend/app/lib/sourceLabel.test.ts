@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+
 import { bracketLabel, familyLabel, sourceLabel } from "./sourceLabel";
 
 describe("sourceLabel", () => {

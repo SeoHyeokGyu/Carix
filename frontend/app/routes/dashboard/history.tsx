@@ -1,7 +1,13 @@
-import { Button, buttonVariants } from "@/components/ui/button";
+import { type ReactNode, useCallback, useEffect, useState } from "react";
+import { Link, useNavigate, useSearchParams } from "react-router";
+
+import { PageFrame } from "@/components/layout/PageFrame";
+import { PageHeader } from "@/components/layout/PageHeader";
 import { Badge } from "@/components/ui/badge";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { ToneBadge } from "@/components/ui/tone-badge";
+import { EmptyState } from "@/components/ui/empty-state";
+import { LoadingState } from "@/components/ui/loading-state";
 import {
   Table,
   TableBody,
@@ -10,20 +16,16 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { useState, useEffect, useCallback, type ReactNode } from "react";
-import { Link, useNavigate, useSearchParams } from "react-router";
-import { SnapshotDetailPanel } from "../../components/dashboard/SnapshotDetailPanel";
+import { ToneBadge } from "@/components/ui/tone-badge";
+
 import { SignalBadge } from "../../components/dashboard/SignalBadge";
-import { EmptyState } from "@/components/ui/empty-state";
-import { LoadingState } from "@/components/ui/loading-state";
-import { PageFrame } from "@/components/layout/PageFrame";
-import { PageHeader } from "@/components/layout/PageHeader";
+import { SnapshotDetailPanel } from "../../components/dashboard/SnapshotDetailPanel";
+import { UnauthorizedError } from "../../lib/coreApi";
 import {
   fetchSnapshotHistory,
   type SnapshotHistoryResponse,
   type SnapshotPoint,
 } from "../../lib/dashboardMarketApi";
-import { UnauthorizedError } from "../../lib/coreApi";
 import { LOGIN_PATH } from "../../lib/routeGuards";
 
 export function meta() {

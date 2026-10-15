@@ -1,4 +1,4 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, type Page, test } from "@playwright/test";
 
 /**
  * 설계 §11 — 온보딩 → 대시보드 → 시뮬레이터 한 줄기의 E2E 골격. 본 점검은 7주차다.
