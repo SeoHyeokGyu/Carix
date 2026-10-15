@@ -204,6 +204,14 @@ describe("S-08 Skills 온보딩 화면", () => {
       ).toBeInTheDocument();
       expect(skillApi.createUserSkill).not.toHaveBeenCalled();
     });
+
+    // 같은 실패를 다시 내면 알림을 새로 그린다 — 같은 노드에 같은 문장이면 스크린리더가 다시 읽지 않는다.
+    const first = screen.getByRole("alert");
+    fireEvent.click(submitBtn);
+    await waitFor(() => expect(screen.getByRole("alert")).not.toBe(first));
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "이미 등록되어 있는 스킬입니다.",
+    );
   });
 
   it("사전에 없는 스킬 직접 추가 시 사용자 정의 스킬로 안내하고 카테고리를 지원한다", async () => {

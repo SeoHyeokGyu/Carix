@@ -4,6 +4,7 @@ import { MemoryRouter } from "react-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import * as collectorApi from "../../lib/collectorApi";
+import { confirmDialog } from "../../test-utils/confirmDialog";
 import { expectHeadingOutline } from "../../test-utils/headingOutline";
 import CollectorAdminPage from "./collector";
 
@@ -426,5 +427,29 @@ describe("CollectorAdminPage", () => {
     await new Promise((r) => setTimeout(r, 0));
     expect(screen.queryByText("111")).toBeNull();
     expect(screen.getByText("777")).toBeInTheDocument();
+  });
+
+  it("같은 실행 실패가 다시 나면 알림을 새로 그린다", async () => {
+    vi.mocked(collectorApi.triggerCrawl).mockRejectedValue(
+      new Error("키가 올바르지 않습니다"),
+    );
+    const user = userEvent.setup();
+    render(
+      <MemoryRouter>
+        <CollectorAdminPage />
+      </MemoryRouter>,
+    );
+    await screen.findByText("500");
+
+    const start = screen.getByRole("button", { name: "작업 시작하기" });
+    await user.click(start);
+    await confirmDialog(user, "작업 시작");
+    const first = await screen.findByText("키가 올바르지 않습니다");
+
+    await user.click(start);
+    await confirmDialog(user, "작업 시작");
+    await waitFor(() =>
+      expect(screen.getByText("키가 올바르지 않습니다")).not.toBe(first),
+    );
   });
 });
