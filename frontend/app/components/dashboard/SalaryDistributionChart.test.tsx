@@ -97,8 +97,19 @@ describe("SalaryDistributionChart", () => {
 
     render(<SalaryDistributionChart data={mockData} />);
 
+    expect(screen.getByTestId("salary-distribution-chart")).toHaveAttribute(
+      "data-slot",
+      "card",
+    );
     // 차트 제목 및 사용자 백분위 위치 확인
-    expect(screen.getByText("동료집단 연봉 분포")).toBeInTheDocument();
+    expect(screen.getByText("동료집단 연봉 분포")).toHaveAttribute(
+      "data-slot",
+      "card-title",
+    );
+    // 신체 부위 라벨과 「내 위치」는 손수 배지가 아니라 ToneBadge 다.
+    for (const el of screen.getAllByText(/^내 위치/)) {
+      expect(el).toHaveAttribute("data-tone", "positive");
+    }
     expect(screen.getAllByText(/상위 35%/).length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText(/현재 세전:/).length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText("[어깨]")).toBeInTheDocument();
@@ -126,7 +137,8 @@ describe("SalaryDistributionChart", () => {
     ).toBeInTheDocument();
     expect(screen.getByText("공고중앙")).toBeInTheDocument();
     expect(screen.getByText("공식기준")).toBeInTheDocument();
-    expect(screen.getByLabelText("경력 사다리")).toBeInTheDocument();
+    // 카드 안에서는 카드 gap 이 간격을 준다 — 자기 margin 을 더하면 40px 로 벌어진다.
+    expect(screen.getByLabelText("경력 사다리")).not.toHaveClass("mt-6");
     expect(screen.getByText("내 구간")).toBeInTheDocument();
     expect(screen.getByText("추정 · FALLBACK")).toBeInTheDocument();
     expect(screen.getAllByText("KOSIS 실측 보간")).toHaveLength(2);
@@ -161,7 +173,13 @@ describe("SalaryDistributionChart", () => {
 
     render(<SalaryDistributionChart data={noDisclosedSalaryData} />);
 
-    expect(screen.getByTestId("no-disclosed-salary-state")).toBeInTheDocument();
+    const noDisclosed = screen.getByTestId("no-disclosed-salary-state");
+    expect(
+      noDisclosed.querySelector('[data-testid="empty-state-icon"]'),
+    ).toHaveAttribute("data-tone", "info");
+    // EmptyState 설명은 p 다 — 기준선 문장을 p 로 넣으면 p 안의 p 가 된다.
+    expect(noDisclosed.querySelector("p p")).toBeNull();
+    expect(screen.getByText(/국가 공식 임금통계 기준선/)).toBeInTheDocument();
     expect(
       screen.getByText("동료집단 공고 중 공개된 연봉 정보가 없습니다."),
     ).toBeInTheDocument();
@@ -231,7 +249,10 @@ describe("SalaryDistributionChart", () => {
 
     render(<SalaryDistributionChart data={insufficientData} />);
 
-    expect(screen.getByTestId("insufficient-sample-state")).toBeInTheDocument();
+    const insufficient = screen.getByTestId("insufficient-sample-state");
+    expect(
+      insufficient.querySelector('[data-testid="empty-state-icon"]'),
+    ).toHaveAttribute("data-tone", "warning");
     expect(screen.getByText("⚠️ 표본 부족")).toBeInTheDocument();
     expect(
       screen.getByText(
@@ -239,7 +260,7 @@ describe("SalaryDistributionChart", () => {
       ),
     ).toBeInTheDocument();
     expect(screen.getByText("6건")).toBeInTheDocument();
-    expect(screen.getByLabelText("경력 사다리")).toBeInTheDocument();
+    expect(screen.getByLabelText("경력 사다리")).toHaveClass("mt-6");
     expect(
       screen.queryByTestId("salary-distribution-chart"),
     ).not.toBeInTheDocument();
@@ -266,7 +287,7 @@ describe("SalaryDistributionChart", () => {
       },
       userPosition: null,
       peerGroup: {
-        fallbackLevel: 1,
+        fallbackLevel: 3,
         appliedConditions: "서울 / 경력 MID / 회사규모 무관",
       },
       trend: [
@@ -289,11 +310,19 @@ describe("SalaryDistributionChart", () => {
 
     render(<SalaryDistributionChart data={dataWithTrend} />);
 
-    expect(screen.getByTestId("salary-trend-section")).toBeInTheDocument();
+    expect(
+      screen
+        .getByTestId("salary-trend-section")
+        .querySelector('[data-slot="table"]'),
+    ).not.toBeNull();
     expect(screen.getByText("2026-05")).toBeInTheDocument();
     expect(screen.getByText("6,200만 원")).toBeInTheDocument();
     expect(screen.getByText("2026-06")).toBeInTheDocument();
     expect(screen.getByText("표본 부족 (미산출)")).toBeInTheDocument();
+    expect(screen.getByText("완화 3단계")).toHaveAttribute(
+      "data-tone",
+      "warning",
+    );
   });
 
   it("경력 사다리에 기준 연도(basePeriod)와 연도 선택 버튼이 표시되고 연도 변경이 동작한다 (b14)", async () => {

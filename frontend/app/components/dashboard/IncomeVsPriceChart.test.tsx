@@ -12,7 +12,12 @@ describe("IncomeVsPriceChart", () => {
     };
 
     render(<IncomeVsPriceChart data={emptyData} />);
-    expect(screen.getByTestId("trends-empty-state")).toBeInTheDocument();
+    // 손으로 그린 점선 박스가 아니라 EmptyState 다.
+    expect(
+      screen
+        .getByTestId("trends-empty-state")
+        .querySelector('[data-testid="empty-state-icon"]'),
+    ).not.toBeNull();
     expect(
       screen.getByText("시계열 추이 데이터가 아직 충분하지 않습니다."),
     ).toBeInTheDocument();
@@ -45,8 +50,15 @@ describe("IncomeVsPriceChart", () => {
     };
 
     render(<IncomeVsPriceChart data={data} />);
-    expect(screen.getByText("비교 기간 짧음")).toBeInTheDocument();
+    expect(screen.getByText("비교 기간 짧음")).toHaveAttribute(
+      "data-tone",
+      "info",
+    );
     expect(screen.queryByText("일부 지연")).not.toBeInTheDocument();
+    expect(screen.getByTestId("income-vs-price-chart")).toHaveAttribute(
+      "data-slot",
+      "card",
+    );
   });
 
   it("12개월 이상 정상 소득 및 개인물가 데이터가 주어지면 차트와 손실 구간을 렌더링한다", () => {

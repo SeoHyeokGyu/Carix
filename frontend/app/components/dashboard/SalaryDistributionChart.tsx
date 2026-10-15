@@ -1,6 +1,18 @@
 import { HEADING } from "@/components/ui/heading";
 import { useState } from "react";
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { Card, CardTitle } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
+import { ToneBadge } from "@/components/ui/tone-badge";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import {
   type SalaryDistributionResponse,
   fetchSalaryDistribution,
@@ -129,17 +141,23 @@ function CareerLadderView({
   selectedYear,
   onSelectYear,
   isLoading,
+  className,
 }: {
   ladder: SalaryDistributionResponse["careerLadder"];
   selectedYear?: string;
   onSelectYear?: (year: string) => void;
   isLoading?: boolean;
+  /** 카드 안에서는 카드 gap 이 간격을 준다. 블록 흐름에 놓일 때만 여백을 넘긴다. */
+  className?: string;
 }) {
   if (!ladder?.steps?.length) return null;
   const currentYear = selectedYear || ladder.basePeriod;
   return (
     <section
-      className="mt-6 rounded-xl border border-carix-border bg-carix-bg/40 p-4"
+      className={cn(
+        "rounded-xl border border-carix-border bg-carix-bg/40 p-4",
+        className,
+      )}
       aria-label="경력 사다리"
     >
       <div className="flex flex-wrap items-baseline justify-between gap-2">
@@ -263,20 +281,17 @@ export function SalaryDistributionChart({
     const salaryShort =
       data.postingReference != null && data.sampleSize >= minRequired;
     return (
-      <div
+      <EmptyState
         data-testid="insufficient-sample-state"
-        className="rounded-xl border border-carix-warning/30 bg-carix-warning/5 p-6 text-center shadow-xs"
-      >
-        <div className="inline-flex items-center gap-1.5 rounded-full bg-carix-warning/10 px-3 py-1 text-xs font-semibold text-carix-warning mb-3">
-          ⚠️ 표본 부족
-        </div>
-        <p className="text-base font-bold text-carix-text">
-          {salaryShort
+        tone="warning"
+        icon="⚠️ 표본 부족"
+        title={
+          salaryShort
             ? "공개 연봉이 부족하여 연봉 분포를 산출할 수 없습니다."
-            : "동료집단 표본 수가 부족하여 연봉 분포를 산출할 수 없습니다."}
-        </p>
-        <p className="mt-2 text-sm text-carix-text/70">
-          {salaryShort ? (
+            : "동료집단 표본 수가 부족하여 연봉 분포를 산출할 수 없습니다."
+        }
+        description={
+          salaryShort ? (
             <>
               동료집단 공고 {data.sampleSize}건 중 공개 연봉{" "}
               <strong className="text-carix-warning">
@@ -292,20 +307,22 @@ export function SalaryDistributionChart({
               </strong>{" "}
               (최소 기준: {minRequired}건 이상 필요)
             </>
-          )}
-        </p>
+          )
+        }
+      >
         {data.peerGroup?.appliedConditions && (
-          <p className="mt-3 text-xs text-carix-text/60 bg-carix-surface rounded-lg p-2 border border-carix-border inline-block shadow-xs">
+          <p className="text-xs text-carix-text/60 bg-carix-surface rounded-lg p-2 border border-carix-border inline-block shadow-xs">
             적용된 비교 조건: {data.peerGroup.appliedConditions}
           </p>
         )}
         <CareerLadderView
+          className="mt-6"
           ladder={activeLadder}
           selectedYear={currentYear}
           onSelectYear={handleSelectYear}
           isLoading={isLoadingYear}
         />
-      </div>
+      </EmptyState>
     );
   }
 
@@ -362,19 +379,16 @@ export function SalaryDistributionChart({
     : null;
 
   return (
-    <div
-      data-testid="salary-distribution-chart"
-      className="rounded-xl border border-carix-border bg-carix-surface p-6 shadow-xs"
-    >
+    <Card data-testid="salary-distribution-chart">
       {/* 1. 상단 타이틀 및 사용자 연봉 위치 요약 */}
       <div className="flex flex-wrap items-start justify-between gap-4 border-b border-carix-border pb-5">
         <div>
           <div className="flex items-center gap-2">
-            <h3 className={HEADING.sub}>동료집단 연봉 분포</h3>
+            <CardTitle>동료집단 연봉 분포</CardTitle>
             {peerGroup?.fallbackLevel && peerGroup.fallbackLevel > 1 && (
-              <span className="rounded bg-carix-warning/10 px-2 py-0.5 text-[11px] font-medium text-carix-warning">
+              <ToneBadge tone="warning">
                 완화 {peerGroup.fallbackLevel}단계
-              </span>
+              </ToneBadge>
             )}
           </div>
           <p className="mt-1 text-xs text-carix-text/70">
@@ -403,36 +417,35 @@ export function SalaryDistributionChart({
       </div>
 
       {!hasPostingSalaries ? (
-        <div
+        <EmptyState
           data-testid="no-disclosed-salary-state"
-          className="my-8 rounded-xl border border-carix-border/80 bg-carix-bg/40 p-6 text-center shadow-xs"
-        >
-          <div className="inline-flex items-center gap-1.5 rounded-full bg-carix-info/10 px-3 py-1 text-xs font-semibold text-carix-info mb-3">
-            ℹ️ 공개 연봉 미제공
-          </div>
-          <p className="text-base font-bold text-carix-text">
-            동료집단 공고 중 공개된 연봉 정보가 없습니다.
-          </p>
-          <p className="mt-2 text-xs text-carix-text/70">
-            총 동료집단 공고{" "}
-            <strong className="text-carix-text">{data.sampleSize}건</strong> 중
-            급여가 공개된 공고 표본이 없어 공고 기반 5분위 연봉 통계를 산출할 수
-            없습니다.
-          </p>
-          {officialMedian && (
-            <p className="mt-2 text-xs text-carix-text/80">
-              대신 하단의{" "}
-              <strong>
-                국가 공식 임금통계 기준선({formatKoreanSalary(officialMedian)})
-              </strong>
-              을 참고하실 수 있습니다.
-            </p>
-          )}
-        </div>
+          variant="plain"
+          tone="info"
+          icon="ℹ️ 공개 연봉 미제공"
+          title="동료집단 공고 중 공개된 연봉 정보가 없습니다."
+          description={
+            <>
+              총 동료집단 공고{" "}
+              <strong className="text-carix-text">{data.sampleSize}건</strong>{" "}
+              중 급여가 공개된 공고 표본이 없어 공고 기반 5분위 연봉 통계를
+              산출할 수 없습니다.
+              {officialMedian && (
+                <span className="mt-2 block">
+                  대신 하단의{" "}
+                  <strong>
+                    국가 공식 임금통계 기준선(
+                    {formatKoreanSalary(officialMedian)})
+                  </strong>
+                  을 참고하실 수 있습니다.
+                </span>
+              )}
+            </>
+          }
+        />
       ) : (
         <>
           {/* 2. "머리-어깨-무릎-발" 신체 형태 인터랙티브 시각화 */}
-          <div className="my-6 rounded-2xl bg-carix-bg/40 p-5 sm:p-6 border border-carix-border/70">
+          <div className="rounded-2xl bg-carix-bg/40 p-5 sm:p-6 border border-carix-border/70">
             {/* 상단 브리핑 헤드라인 */}
             {userPosition && userBodyPart && (
               <div className="mb-6 flex items-center gap-3 rounded-xl bg-carix-surface p-4 border border-carix-border shadow-2xs">
@@ -446,9 +459,7 @@ export function SalaryDistributionChart({
                       </span>
                       에 위치해 있어요!
                     </span>
-                    <span className="rounded-full bg-carix-positive/10 px-2 py-0.5 text-[11px] font-bold text-carix-positive border border-carix-positive/30">
-                      {userBodyPart.label}
-                    </span>
+                    <ToneBadge tone="positive">{userBodyPart.label}</ToneBadge>
                   </div>
                   <p className="mt-0.5 text-xs text-carix-text/70">
                     {userBodyPart.desc} (현재 세전:{" "}
@@ -623,9 +634,9 @@ export function SalaryDistributionChart({
                       {formatKoreanSalary(p75)} 이상
                     </span>
                     {userPosition && userPosition.percentile >= 75 && (
-                      <span className="ml-2 rounded bg-carix-positive px-1.5 py-0.5 text-[10px] font-bold text-white">
+                      <ToneBadge tone="positive" className="ml-2">
                         내 위치
-                      </span>
+                      </ToneBadge>
                     )}
                   </div>
                 </div>
@@ -658,10 +669,10 @@ export function SalaryDistributionChart({
                     {userPosition &&
                       userPosition.percentile >= 55 &&
                       userPosition.percentile < 75 && (
-                        <span className="ml-2 rounded bg-carix-positive px-1.5 py-0.5 text-[10px] font-bold text-white shadow-xs">
+                        <ToneBadge tone="positive" className="ml-2">
                           내 위치 (
                           {formatKoreanSalary(userPosition.grossSalary)})
-                        </span>
+                        </ToneBadge>
                       )}
                   </div>
                 </div>
@@ -691,10 +702,10 @@ export function SalaryDistributionChart({
                     {userPosition &&
                       userPosition.percentile >= 35 &&
                       userPosition.percentile < 55 && (
-                        <span className="rounded bg-carix-positive px-1.5 py-0.5 text-[10px] font-bold text-white">
+                        <ToneBadge tone="positive">
                           내 위치 (
                           {formatKoreanSalary(userPosition.grossSalary)})
-                        </span>
+                        </ToneBadge>
                       )}
                   </div>
 
@@ -752,10 +763,10 @@ export function SalaryDistributionChart({
                     {userPosition &&
                       userPosition.percentile >= 20 &&
                       userPosition.percentile < 35 && (
-                        <span className="ml-2 rounded bg-carix-positive px-1.5 py-0.5 text-[10px] font-bold text-white">
+                        <ToneBadge tone="positive" className="ml-2">
                           내 위치 (
                           {formatKoreanSalary(userPosition.grossSalary)})
-                        </span>
+                        </ToneBadge>
                       )}
                   </div>
                 </div>
@@ -784,9 +795,9 @@ export function SalaryDistributionChart({
                       {formatKoreanSalary(min)} ~ {formatKoreanSalary(p25)}
                     </span>
                     {userPosition && userPosition.percentile < 20 && (
-                      <span className="ml-2 rounded bg-carix-positive px-1.5 py-0.5 text-[10px] font-bold text-white">
+                      <ToneBadge tone="positive" className="ml-2">
                         내 위치 ({formatKoreanSalary(userPosition.grossSalary)})
-                      </span>
+                      </ToneBadge>
                     )}
                   </div>
                 </div>
@@ -823,7 +834,7 @@ export function SalaryDistributionChart({
           </div>
 
           {/* 3. 5수치 상세 카드 그리드 (공고 표본 분위별 기준 연봉) */}
-          <div className="mt-8">
+          <div className="mt-4">
             <div className="mb-2.5 flex items-center justify-between text-xs text-carix-text/70">
               <span className="font-semibold text-carix-text/90">
                 📊 공고 표본 5분위 기준 연봉 (참고치)
@@ -869,7 +880,7 @@ export function SalaryDistributionChart({
 
           {/* 제시 연봉 추이 (기능 명세 §4.6, US-D3) */}
           {data.trend && data.trend.length > 0 && (
-            <div className="mt-8" data-testid="salary-trend-section">
+            <div className="mt-4" data-testid="salary-trend-section">
               <div className="mb-2.5 flex items-center justify-between text-xs text-carix-text/70">
                 <span className="font-semibold text-carix-text/90">
                   📈 동료집단 등록월별 중앙 제시 연봉 추이
@@ -878,58 +889,53 @@ export function SalaryDistributionChart({
                   공고 등록일(posted_start_date) 기준
                 </span>
               </div>
-              <div className="overflow-x-auto rounded-lg border border-carix-border bg-carix-surface/60">
-                <table className="w-full text-left text-xs">
-                  <thead className="border-b border-carix-border bg-carix-bg/60 text-[11px] text-carix-text/70">
-                    <tr>
-                      <th className="px-3 py-2">등록월</th>
-                      <th className="px-3 py-2">중앙 제시 연봉</th>
-                      <th className="px-3 py-2 text-right">전체 공고</th>
-                      <th className="px-3 py-2 text-right">공개 표본</th>
-                      <th className="px-3 py-2 text-right">결측률</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-carix-border/60">
-                    {data.trend.map((point) => (
-                      <tr
-                        key={point.yearMonth}
-                        className="hover:bg-carix-bg/30"
-                      >
-                        <td className="px-3 py-2 font-medium text-carix-text">
-                          {point.yearMonth}
-                        </td>
-                        <td className="px-3 py-2 font-semibold">
-                          {point.median != null ? (
-                            <span className="text-carix-info">
-                              {formatKoreanSalary(point.median)}
-                            </span>
-                          ) : (
-                            <span className="text-carix-text/40 italic">
-                              표본 부족 (미산출)
-                            </span>
-                          )}
-                        </td>
-                        <td className="px-3 py-2 text-right text-carix-text/80">
-                          {point.sampleSize}건
-                        </td>
-                        <td className="px-3 py-2 text-right text-carix-text/80">
-                          {point.disclosedSampleSize}건
-                        </td>
-                        <td className="px-3 py-2 text-right text-carix-text/60">
-                          {point.missingRate.toFixed(1)}%
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+              <Table variant="plain">
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>등록월</TableHead>
+                    <TableHead>중앙 제시 연봉</TableHead>
+                    <TableHead className="text-right">전체 공고</TableHead>
+                    <TableHead className="text-right">공개 표본</TableHead>
+                    <TableHead className="text-right">결측률</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {data.trend.map((point) => (
+                    <TableRow key={point.yearMonth}>
+                      <TableCell className="font-medium">
+                        {point.yearMonth}
+                      </TableCell>
+                      <TableCell className="font-semibold">
+                        {point.median != null ? (
+                          <span className="text-carix-info">
+                            {formatKoreanSalary(point.median)}
+                          </span>
+                        ) : (
+                          <span className="text-carix-text/40 italic">
+                            표본 부족 (미산출)
+                          </span>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-right text-carix-text/80">
+                        {point.sampleSize}건
+                      </TableCell>
+                      <TableCell className="text-right text-carix-text/80">
+                        {point.disclosedSampleSize}건
+                      </TableCell>
+                      <TableCell className="text-right text-carix-text/60">
+                        {point.missingRate.toFixed(1)}%
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
             </div>
           )}
         </>
       )}
 
       {/* 4. 하단 각주 및 데이터 신뢰도 메타데이터 (US-D3) */}
-      <div className="mt-6 rounded-lg bg-carix-bg/40 p-3.5 text-xs text-carix-text/70 border border-carix-border/60 space-y-1.5">
+      <div className="mt-2 rounded-lg bg-carix-bg/40 p-3.5 text-xs text-carix-text/70 border border-carix-border/60 space-y-1.5">
         <p className="flex items-center gap-1.5">
           <span className="font-semibold text-carix-text">📌 판정 기준선:</span>
           <span>
@@ -960,6 +966,6 @@ export function SalaryDistributionChart({
         onSelectYear={handleSelectYear}
         isLoading={isLoadingYear}
       />
-    </div>
+    </Card>
   );
 }
