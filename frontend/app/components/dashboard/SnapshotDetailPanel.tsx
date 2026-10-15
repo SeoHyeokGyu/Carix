@@ -1,4 +1,5 @@
 import { HEADING } from "@/components/ui/heading";
+import { Card } from "@/components/ui/card";
 import { Link } from "react-router";
 import { Button } from "@/components/ui/button";
 import { SignalBadge } from "./SignalBadge";
@@ -149,10 +150,7 @@ export function SnapshotDetailPanel({
       </div>
 
       <div className="mt-4 grid grid-cols-1 gap-4 text-xs sm:grid-cols-2">
-        <div
-          data-testid="snapshot-column-recorded"
-          className="rounded-xl border border-carix-border bg-carix-surface p-4.5 shadow-xs"
-        >
+        <Card data-testid="snapshot-column-recorded" className="gap-0 p-4.5">
           <span className="font-semibold text-carix-text">당시</span>
           {recorded ? (
             <div className="mt-2 space-y-1.5">
@@ -183,12 +181,9 @@ export function SnapshotDetailPanel({
               당시 판정 없음 — 이 달이 끝난 뒤 계산됨
             </p>
           )}
-        </div>
+        </Card>
 
-        <div
-          data-testid="snapshot-column-current"
-          className="rounded-xl border border-carix-border bg-carix-surface p-4.5 shadow-xs"
-        >
+        <Card data-testid="snapshot-column-current" className="gap-0 p-4.5">
           <span className="font-semibold text-carix-text">현재 규칙</span>
           <div className="mt-2 space-y-1.5">
             <SignalBadge
@@ -221,7 +216,7 @@ export function SnapshotDetailPanel({
             />
             <RationaleBlock view={point} />
           </div>
-        </div>
+        </Card>
       </div>
 
       {/* 데이터 부족 시 입력 화면 유도 (US-D4). 입력은 현재 재계산에만 반영되므로 당시가 아니라
