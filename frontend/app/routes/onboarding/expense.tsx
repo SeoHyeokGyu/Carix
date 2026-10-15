@@ -17,6 +17,7 @@ import { Input } from "@/components/ui/input";
 
 import { ExpenseDonut } from "../../components/expense/ExpenseDonut";
 import { Field } from "../../components/onboarding/Field";
+import { onboardingStepLabel } from "../../components/onboarding/StepIndicator";
 import {
   type ExpenseItemStatus,
   listExpenses,
@@ -232,7 +233,7 @@ export default function Expense() {
   return (
     <PageFrame width="narrow">
       <PageHeader
-        title="소비"
+        title={onboardingStepLabel(3)}
         description="6대 카테고리의 월 소비 금액을 입력해 주세요. 비워 둔 카테고리는 통계청 평균 소비지출 비중으로 자동 보완됩니다."
       />
       <Card>

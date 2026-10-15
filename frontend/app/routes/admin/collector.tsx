@@ -44,10 +44,19 @@ export default function CollectorAdminPage() {
   const [jobsFailed, setJobsFailed] = useState(false);
   const [hasAdminKey, setHasAdminKey] = useState(() => Boolean(getAdminKey()));
   const [isKeyModalOpen, setIsKeyModalOpen] = useState(false);
-  const [notice, setNotice] = useState<{
+  const [notice, setNoticeState] = useState<{
     type: "success" | "error" | "info";
     text: string;
+    /** 같은 문장이 다시 나도 알림을 새로 그려 다시 읽히게 하는 키. */
+    seq: number;
   } | null>(null);
+  const setNotice = useCallback(
+    (next: { type: "success" | "error" | "info"; text: string } | null) =>
+      setNoticeState((prev) =>
+        next ? { ...next, seq: (prev?.seq ?? 0) + 1 } : null,
+      ),
+    [],
+  );
 
   const activeJob = jobs.find((j) => j.status === "RUNNING") ?? null;
   const isJobRunning = Boolean(activeJob);
@@ -136,7 +145,7 @@ export default function CollectorAdminPage() {
     }, 3000);
 
     return () => clearInterval(interval);
-  }, [isJobRunning]);
+  }, [isJobRunning, setNotice]);
 
   const handleJobTriggered = (res: JobExecutionResponse) => {
     setNotice({
@@ -177,6 +186,7 @@ export default function CollectorAdminPage() {
           />
           {notice?.type === "error" && (
             <InlineAlert
+              key={notice.seq}
               message={notice.text}
               onDismiss={() => setNotice(null)}
             />

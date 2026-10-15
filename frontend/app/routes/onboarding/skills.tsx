@@ -22,6 +22,8 @@ import {
 import { ToneBadge } from "@/components/ui/tone-badge";
 
 import { NativeSelect } from "../../components/onboarding/NativeSelect";
+import { onboardingStepLabel } from "../../components/onboarding/StepIndicator";
+import { useAlertMessage } from "../../hooks/useAlertMessage";
 import { toUserMessage } from "../../lib/apiError";
 import { UnauthorizedError } from "../../lib/coreApi";
 import { LOGIN_PATH } from "../../lib/routeGuards";
@@ -97,7 +99,11 @@ export default function Skills() {
   const [editDate, setEditDate] = useState<string>("");
 
   // 피드백 알림
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const {
+    message: errorMessage,
+    key: errorKey,
+    show: setErrorMessage,
+  } = useAlertMessage();
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   const searchContainerRef = useRef<HTMLDivElement>(null);
@@ -345,7 +351,7 @@ export default function Skills() {
   return (
     <PageFrame width="narrow">
       <PageHeader
-        title="스킬"
+        title={onboardingStepLabel(4)}
         description="표준 스킬 사전에서 검색해 실무 사용 기간과 마지막 사용일을 기록합니다."
       />
 
@@ -353,6 +359,7 @@ export default function Skills() {
       {errorMessage && (
         <div className="mb-6">
           <InlineAlert
+            key={errorKey}
             message={errorMessage}
             onDismiss={() => setErrorMessage(null)}
           />

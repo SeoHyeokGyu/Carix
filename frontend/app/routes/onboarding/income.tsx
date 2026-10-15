@@ -25,6 +25,7 @@ import {
 
 import { Field } from "../../components/onboarding/Field";
 import { NativeSelect } from "../../components/onboarding/NativeSelect";
+import { onboardingStepLabel } from "../../components/onboarding/StepIndicator";
 import {
   createIncome,
   deleteIncome,
@@ -341,7 +342,7 @@ export default function Income() {
   return (
     <PageFrame width="narrow">
       <PageHeader
-        title="소득"
+        title={onboardingStepLabel(2)}
         description="동료집단 비교와 구매력 지수(PPI) 추이 계산을 위해 세전 연봉과 월 실수령액, 해당 연봉의 적용 시작일을 입력해 주세요."
       />
       <Card>
