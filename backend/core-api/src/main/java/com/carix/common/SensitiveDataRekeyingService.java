@@ -18,6 +18,9 @@ import org.springframework.transaction.annotation.Transactional;
  *       ..._encrypted})을 직접 다루기 위해 {@link JdbcTemplate}을 사용하여 직접 조회·갱신한다.
  *   <li><b>멱등성 및 증분 마이그레이션 (Incremental Migration):</b> 이미 최신 활성 키 접두사({@code activeKeyId + ":%"})로
  *       암호화된 행은 쿼리 조건({@code NOT LIKE ?})에서 자동으로 제외되므로, 재실행하더라도 안전하고 중복 연산이 발생하지 않는다.
+ *   <li><b>동시 쓰기 보호:</b> 재암호화는 서비스가 요청을 받는 동안 돈다. 행을 읽은 뒤 쓰기 전에 사용자가 같은 행을 고칠 수 있으므로 {@code UPDATE}
+ *       는 읽은 암호문이 그대로일 때만 쓴다. 갱신이 0건이면 사용자가 먼저 썼다는 뜻이고 그 값은 이미 활성 키로 암호화돼 있어 건너뛴다. 같은 이유로 트랜잭션으로 묶지
+ *       않는다 — 행마다 자동 커밋해 잠금을 오래 잡지 않는다.
  *   <li><b>민감 정보 로깅 방지:</b> 로테이션 과정에서 어떠한 평문 금액이나 암호화 키 값도 로그에 출력하지 않으며, 오직 대상 테이블별 갱신 건수와 {@code
  *       activeKeyId} 메타데이터만 로깅한다 (완료 기준 10).
  * </ol>
@@ -142,7 +145,6 @@ public class SensitiveDataRekeyingService {
    *
    * @return 각 테이블별 갱신된 레코드 수 보고서
    */
-  @Transactional
   public RekeyingResult rekeyAll() {
     int income = rekeyIncomeHistory();
     int expense = rekeyExpenseItem();
@@ -163,7 +165,6 @@ public class SensitiveDataRekeyingService {
    *
    * @return 재암호화된 소득 이력 건수
    */
-  @Transactional
   public int rekeyIncomeHistory() {
     String activePrefix = keyRing.getActiveKeyId() + ":%";
 
@@ -189,13 +190,17 @@ public class SensitiveDataRekeyingService {
               newNet = converter.convertToDatabaseColumn(net);
             }
 
-            // 3. 물리적 컬럼 직접 업데이트
-            jdbcTemplate.update(
-                "UPDATE core.income_history SET gross_salary_encrypted = ?, net_salary_encrypted = ? WHERE id = ?",
-                newGross,
-                newNet,
-                id);
-            count++;
+            // 3. 읽은 암호문이 그대로일 때만 갱신한다 (동시 쓰기 보호)
+            count +=
+                jdbcTemplate.update(
+                    "UPDATE core.income_history SET gross_salary_encrypted = ?, net_salary_encrypted = ? "
+                        + "WHERE id = ? AND gross_salary_encrypted = ? "
+                        + "AND net_salary_encrypted IS NOT DISTINCT FROM ?",
+                    newGross,
+                    newNet,
+                    id,
+                    rawGross,
+                    rawNet);
           }
           return count;
         },
@@ -208,7 +213,6 @@ public class SensitiveDataRekeyingService {
    *
    * @return 재암호화된 소비 항목 건수
    */
-  @Transactional
   public int rekeyExpenseItem() {
     String activePrefix = keyRing.getActiveKeyId() + ":%";
 
@@ -223,9 +227,13 @@ public class SensitiveDataRekeyingService {
             Long amount = converter.convertToEntityAttribute(rawAmount);
             String newAmount = converter.convertToDatabaseColumn(amount);
 
-            jdbcTemplate.update(
-                "UPDATE core.expense_item SET amount_encrypted = ? WHERE id = ?", newAmount, id);
-            count++;
+            count +=
+                jdbcTemplate.update(
+                    "UPDATE core.expense_item SET amount_encrypted = ? "
+                        + "WHERE id = ? AND amount_encrypted = ?",
+                    newAmount,
+                    id,
+                    rawAmount);
           }
           return count;
         },
@@ -237,7 +245,6 @@ public class SensitiveDataRekeyingService {
    *
    * @return 재암호화된 시나리오 레코드 건수
    */
-  @Transactional
   public int rekeyCareerScenario() {
     String activePrefix = keyRing.getActiveKeyId() + ":%";
 
@@ -258,47 +265,48 @@ public class SensitiveDataRekeyingService {
             UUID id = rs.getObject("id", UUID.class);
 
             // 6개 암호화 금액 컬럼 각각에 대해 복호화 후 신규 활성 키로 재암호화
-            String newCurrentGross =
-                converter.convertToDatabaseColumn(
-                    converter.convertToEntityAttribute(
-                        rs.getString("current_gross_salary_encrypted")));
-            String newMoveTargetGross =
-                converter.convertToDatabaseColumn(
-                    converter.convertToEntityAttribute(
-                        rs.getString("move_target_gross_salary_encrypted")));
-            String newStayComp =
-                converter.convertToDatabaseColumn(
-                    converter.convertToEntityAttribute(
-                        rs.getString("stay_compensation_12m_encrypted")));
-            String newMoveComp =
-                converter.convertToDatabaseColumn(
-                    converter.convertToEntityAttribute(
-                        rs.getString("move_compensation_12m_encrypted")));
-            String newUnemployment =
-                converter.convertToDatabaseColumn(
-                    converter.convertToEntityAttribute(
-                        rs.getString("estimated_unemployment_benefit_encrypted")));
-            String newDiff =
-                converter.convertToDatabaseColumn(
-                    converter.convertToEntityAttribute(rs.getString("difference_encrypted")));
+            String rawCurrentGross = rs.getString("current_gross_salary_encrypted");
+            String rawMoveTargetGross = rs.getString("move_target_gross_salary_encrypted");
+            String rawStayComp = rs.getString("stay_compensation_12m_encrypted");
+            String rawMoveComp = rs.getString("move_compensation_12m_encrypted");
+            String rawUnemployment = rs.getString("estimated_unemployment_benefit_encrypted");
+            String rawDiff = rs.getString("difference_encrypted");
+            String newCurrentGross = reencrypt(rawCurrentGross);
+            String newMoveTargetGross = reencrypt(rawMoveTargetGross);
+            String newStayComp = reencrypt(rawStayComp);
+            String newMoveComp = reencrypt(rawMoveComp);
+            String newUnemployment = reencrypt(rawUnemployment);
+            String newDiff = reencrypt(rawDiff);
 
-            jdbcTemplate.update(
-                "UPDATE core.career_scenario SET "
-                    + "current_gross_salary_encrypted = ?, "
-                    + "move_target_gross_salary_encrypted = ?, "
-                    + "stay_compensation_12m_encrypted = ?, "
-                    + "move_compensation_12m_encrypted = ?, "
-                    + "estimated_unemployment_benefit_encrypted = ?, "
-                    + "difference_encrypted = ? "
-                    + "WHERE id = ?",
-                newCurrentGross,
-                newMoveTargetGross,
-                newStayComp,
-                newMoveComp,
-                newUnemployment,
-                newDiff,
-                id);
-            count++;
+            count +=
+                jdbcTemplate.update(
+                    "UPDATE core.career_scenario SET "
+                        + "current_gross_salary_encrypted = ?, "
+                        + "move_target_gross_salary_encrypted = ?, "
+                        + "stay_compensation_12m_encrypted = ?, "
+                        + "move_compensation_12m_encrypted = ?, "
+                        + "estimated_unemployment_benefit_encrypted = ?, "
+                        + "difference_encrypted = ? "
+                        + "WHERE id = ? "
+                        + "AND current_gross_salary_encrypted = ? "
+                        + "AND move_target_gross_salary_encrypted = ? "
+                        + "AND stay_compensation_12m_encrypted = ? "
+                        + "AND move_compensation_12m_encrypted = ? "
+                        + "AND estimated_unemployment_benefit_encrypted = ? "
+                        + "AND difference_encrypted = ?",
+                    newCurrentGross,
+                    newMoveTargetGross,
+                    newStayComp,
+                    newMoveComp,
+                    newUnemployment,
+                    newDiff,
+                    id,
+                    rawCurrentGross,
+                    rawMoveTargetGross,
+                    rawStayComp,
+                    rawMoveComp,
+                    rawUnemployment,
+                    rawDiff);
           }
           return count;
         },
@@ -308,5 +316,9 @@ public class SensitiveDataRekeyingService {
         activePrefix,
         activePrefix,
         activePrefix);
+  }
+
+  private String reencrypt(String ciphertext) {
+    return converter.convertToDatabaseColumn(converter.convertToEntityAttribute(ciphertext));
   }
 }

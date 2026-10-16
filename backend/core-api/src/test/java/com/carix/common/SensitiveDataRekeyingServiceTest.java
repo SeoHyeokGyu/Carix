@@ -1,6 +1,8 @@
 package com.carix.common;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doAnswer;
 
 import com.carix.expense.domain.ExpenseCategoryEnum;
 import com.carix.expense.domain.ExpenseHistory;
@@ -19,6 +21,7 @@ import org.springframework.boot.jdbc.test.autoconfigure.AutoConfigureTestDatabas
 import org.springframework.boot.jpa.test.autoconfigure.TestEntityManager;
 import org.springframework.context.annotation.Import;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 
 /**
  * SensitiveDataRekeyingService 통합 테스트.
@@ -38,7 +41,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 class SensitiveDataRekeyingServiceTest {
 
   @Autowired private SensitiveDataRekeyingService rekeyingService;
-  @Autowired private EncryptedConverter converter;
+  @MockitoSpyBean private EncryptedConverter converter;
   @Autowired private KeyRing keyRing;
   @Autowired private JdbcTemplate jdbcTemplate;
   @Autowired private TestEntityManager em;
@@ -144,5 +147,130 @@ class SensitiveDataRekeyingServiceTest {
             String.class,
             incomeId);
     assertThat(updatedEncrypted).startsWith(keyRing.getActiveKeyId() + ":");
+  }
+
+  /**
+   * 재암호화는 서비스가 요청을 받는 동안 돈다 — 읽은 뒤 쓰기 전에 사용자가 같은 행을 고칠 수 있다. 읽은 암호문이 그대로일 때만 써야 사용자의 새 값이 옛 값으로 덮이지
+   * 않는다.
+   */
+  @Test
+  @DisplayName("재암호화 도중 사용자가 같은 행을 고치면 사용자 값이 남는다 — 옛 값으로 덮어쓰지 않는다")
+  void rekey_doesNotOverwriteConcurrentUserWrite() {
+    String legacy = legacyCiphertext(65_000_000L);
+    UUID incomeId = UUID.randomUUID();
+    jdbcTemplate.update(
+        "INSERT INTO core.income_history (id, user_id, gross_salary_encrypted, effective_date) "
+            + "VALUES (?, ?, ?, ?)",
+        incomeId,
+        UUID.randomUUID(),
+        legacy,
+        LocalDate.of(2026, 6, 1));
+    String userWrite = converter.convertToDatabaseColumn(70_000_000L);
+    doAnswer(
+            call -> {
+              // 재암호화가 이 행을 읽고 복호화하는 사이 사용자 수정이 먼저 커밋된다
+              jdbcTemplate.update(
+                  "UPDATE core.income_history SET gross_salary_encrypted = ? WHERE id = ?",
+                  userWrite,
+                  incomeId);
+              return call.callRealMethod();
+            })
+        .when(converter)
+        .convertToEntityAttribute(eq(legacy));
+
+    int updated = rekeyingService.rekeyIncomeHistory();
+    em.clear();
+
+    assertThat(updated).isZero();
+    assertThat(em.find(IncomeHistory.class, incomeId).getGrossSalary()).isEqualTo(70_000_000L);
+    assertThat(rekeyingService.checkStatus().isFullyMigrated()).isTrue();
+  }
+
+  @Test
+  @DisplayName("소비 항목도 재암호화 도중의 사용자 수정을 덮어쓰지 않는다")
+  void rekeyExpense_doesNotOverwriteConcurrentUserWrite() {
+    String legacy = legacyCiphertext(450_000L);
+    ExpenseHistory history = new ExpenseHistory(UUID.randomUUID(), "202606");
+    em.persistAndFlush(history);
+    UUID itemId = UUID.randomUUID();
+    jdbcTemplate.update(
+        "INSERT INTO core.expense_item (id, expense_history_id, category, amount_encrypted) "
+            + "VALUES (?, ?, ?, ?)",
+        itemId,
+        history.getId(),
+        ExpenseCategoryEnum.FOOD.name(),
+        legacy);
+    String userWrite = converter.convertToDatabaseColumn(500_000L);
+    racingUserWrite(
+        legacy,
+        "UPDATE core.expense_item SET amount_encrypted = ? WHERE id = ?",
+        userWrite,
+        itemId);
+
+    assertThat(rekeyingService.rekeyExpenseItem()).isZero();
+    em.clear();
+
+    assertThat(em.find(ExpenseItemEntity.class, itemId).getAmount()).isEqualTo(500_000L);
+  }
+
+  @Test
+  @DisplayName("시나리오도 재암호화 도중의 사용자 수정을 덮어쓰지 않는다")
+  void rekeyScenario_doesNotOverwriteConcurrentUserWrite() {
+    String legacy = legacyCiphertext(60_000_000L);
+    UUID scenarioId = UUID.randomUUID();
+    jdbcTemplate.update(
+        "INSERT INTO core.career_scenario (id, user_id, scenario_name, current_gross_salary_encrypted, "
+            + "stay_expected_raise_rate, move_target_gross_salary_encrypted, move_one_time_cost, "
+            + "expected_unemployment_months, is_eligible_for_unemployment_benefit, stay_compensation_12m_encrypted, "
+            + "move_compensation_12m_encrypted, estimated_unemployment_benefit_encrypted, difference_encrypted, "
+            + "feasibility_status, calculated_at) "
+            + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        scenarioId,
+        UUID.randomUUID(),
+        "시나리오",
+        legacy,
+        new BigDecimal("5.00"),
+        legacy,
+        0L,
+        0,
+        false,
+        legacy,
+        legacy,
+        legacy,
+        legacy,
+        "OK",
+        OffsetDateTime.now());
+    String userWrite = converter.convertToDatabaseColumn(61_000_000L);
+    racingUserWrite(
+        legacy,
+        "UPDATE core.career_scenario SET current_gross_salary_encrypted = ? WHERE id = ?",
+        userWrite,
+        scenarioId);
+
+    assertThat(rekeyingService.rekeyCareerScenario()).isZero();
+    em.clear();
+
+    assertThat(em.find(CareerScenario.class, scenarioId).getCurrentGrossSalary())
+        .isEqualTo(61_000_000L);
+  }
+
+  /** 재암호화가 {@code legacy} 를 처음 복호화하는 순간, 그 전에 사용자 수정이 커밋된 것처럼 행을 바꾼다. */
+  private void racingUserWrite(String legacy, String sql, String userWrite, UUID id) {
+    boolean[] fired = {false};
+    doAnswer(
+            call -> {
+              if (!fired[0]) {
+                fired[0] = true;
+                jdbcTemplate.update(sql, userWrite, id);
+              }
+              return call.callRealMethod();
+            })
+        .when(converter)
+        .convertToEntityAttribute(eq(legacy));
+  }
+
+  private String legacyCiphertext(long amount) {
+    String encrypted = converter.convertToDatabaseColumn(amount);
+    return encrypted.substring(encrypted.indexOf(':') + 1);
   }
 }
