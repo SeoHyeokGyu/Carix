@@ -7,7 +7,7 @@ import java.util.UUID;
 @Schema(description = "최근 시나리오 상세 응답")
 public record LatestScenarioResponse(
     @Schema(description = "시나리오 고유 ID") UUID id,
-    @Schema(description = "시나리오 이름") String scenarioName,
+    @Schema(description = "시나리오 이름. 이름 없이 저장했으면 null", nullable = true) String scenarioName,
     SimulationRequest inputs,
     SimulationResponse result,
     Instant calculatedAt) {}

@@ -23,7 +23,8 @@ export interface ScenarioFeasibility {
 
 export interface SimulationResult {
   id: string;
-  scenarioName: string;
+  /** 이름 없이 계산했으면 null 이다 — 목록 라벨은 계산 시각으로 만든다(`scenarioLabel.ts`). */
+  scenarioName: string | null;
   stayCompensation12m: number;
   moveCompensation12m: number;
   estimatedUnemploymentBenefit: number;
@@ -35,19 +36,29 @@ export interface SimulationResult {
   feasibility: ScenarioFeasibility;
 }
 
-export interface LatestScenario {
-  inputs: ScenarioInput;
+/**
+ * 저장분의 입력 가정. 요청(`ScenarioInput`)과 달리 이름이 null 로 올 수 있고, 계산에 실제로
+ * 쓴 현재 연봉이 함께 실린다.
+ */
+export type SavedScenarioInputs = Omit<ScenarioInput, "scenarioName"> & {
+  scenarioName: string | null;
+  currentGrossSalary: number;
+};
+
+/** 저장된 시나리오 한 건 (API 규격 §6.3). */
+export interface SavedScenario {
+  id: string;
+  scenarioName: string | null;
+  inputs: SavedScenarioInputs;
   result: SimulationResult;
   calculatedAt: string;
 }
 
 /**
- * 저장된 시나리오가 없으면 204 다 — coreGet 은 이 경우 null 을 반환하지만 호출자의
- * 타입을 넓히지 않는다(coreApi.ts 주석). 이 엔드포인트가 실제로 204 를 받는 유일한
- * 곳이라 여기서 명시적으로 `| null` 을 붙인다.
+ * 저장분 전부, 최근 순이다 — 첫 행이 마지막 시나리오라 `GET /latest` 를 따로 부르지 않는다.
+ * 없으면 빈 배열(200)이다. 복호화된 금액이 여러 건 실리므로 로그에 남기지 않는다(완료 기준 10번).
  */
-export const getLatestScenario = () =>
-  coreGet<LatestScenario | null>("/v1/scenarios/latest");
+export const listScenarios = () => coreGet<SavedScenario[]>("/v1/scenarios");
 
 export const simulate = (input: ScenarioInput) =>
   coreSend<SimulationResult>("POST", "/v1/scenarios/simulate", input);

@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.carix.scenario.CareerScenarioRepository;
 import com.carix.scenario.domain.CareerScenario;
 import java.math.BigDecimal;
+import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -63,6 +64,22 @@ class CareerScenarioRepositoryTest {
 
     assertThat(latest.getId()).isEqualTo(newer.getId());
     assertThat(latest.getStayCompensation12m()).isEqualTo(63_000_000L);
+  }
+
+  @Test
+  @DisplayName("목록은 calculated_at 내림차순이고 본인 행만 담는다")
+  void 목록_정렬() {
+    UUID userId = UUID.randomUUID();
+    CareerScenario older = repository.saveAndFlush(scenario(userId, 61_000_000L));
+    CareerScenario newer = repository.saveAndFlush(scenario(userId, 63_000_000L));
+    repository.saveAndFlush(scenario(UUID.randomUUID(), 64_000_000L));
+    testEntityManager.clear();
+
+    List<CareerScenario> list = repository.findByUserIdOrderByCalculatedAtDescIdDesc(userId);
+
+    assertThat(list)
+        .extracting(CareerScenario::getId)
+        .containsExactly(newer.getId(), older.getId());
   }
 
   @Test

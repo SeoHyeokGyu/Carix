@@ -6,7 +6,7 @@ import java.util.UUID;
 @Schema(description = "시뮬레이션 결과 응답")
 public record SimulationResponse(
     @Schema(description = "시나리오 고유 ID") UUID id,
-    @Schema(description = "시나리오 이름") String scenarioName,
+    @Schema(description = "시나리오 이름. 이름 없이 저장했으면 null", nullable = true) String scenarioName,
     @Schema(description = "12개월 추정 잔류 보상액", example = "62100000") long stayCompensation12m,
     @Schema(description = "12개월 추정 이직 보상액", example = "60960000") long moveCompensation12m,
     @Schema(description = "실업급여 추정액", example = "3960000") long estimatedUnemploymentBenefit,

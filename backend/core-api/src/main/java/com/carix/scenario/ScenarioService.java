@@ -13,6 +13,7 @@ import com.carix.scenario.dto.SimulationRequest;
 import com.carix.scenario.dto.SimulationResponse;
 import com.carix.snapshot.YearMonths;
 import java.math.BigDecimal;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -34,7 +35,6 @@ public class ScenarioService {
   static final String STATUS_INSUFFICIENT_SAMPLE = "INSUFFICIENT_SAMPLE";
 
   private static final String WARNING_NOTE = "이 계산에는 세금, 성과급, 퇴직금 등이 포함되지 않은 단순 세전 기준 시뮬레이션입니다.";
-  private static final String DEFAULT_SCENARIO_NAME = "기본 시나리오";
 
   private static final int GRADE_REALISTIC_FROM = 30;
   private static final int GRADE_CHALLENGING_FROM = 60;
@@ -62,7 +62,7 @@ public class ScenarioService {
             request.isEligibleForUnemploymentBenefit());
 
     Feasibility feasibility = resolveFeasibility(userId, request.moveTargetGrossSalary());
-    String name = request.scenarioName() != null ? request.scenarioName() : DEFAULT_SCENARIO_NAME;
+    String name = normalizeName(request.scenarioName());
 
     CareerScenario saved =
         repository.save(
@@ -91,6 +91,25 @@ public class ScenarioService {
   @Transactional(readOnly = true)
   public Optional<LatestScenarioResponse> latest(UUID userId) {
     return repository.findFirstByUserIdOrderByCalculatedAtDescIdDesc(userId).map(this::toLatest);
+  }
+
+  /** 저장된 시나리오 전부, 최근 순 (규격 §6.3). 응답에 복호화된 금액이 여러 건 실리므로 로그에 남기지 않는다 (완료 기준 10번). */
+  @Transactional(readOnly = true)
+  public List<LatestScenarioResponse> list(UUID userId) {
+    return repository.findByUserIdOrderByCalculatedAtDescIdDesc(userId).stream()
+        .map(this::toLatest)
+        .toList();
+  }
+
+  /**
+   * 이름은 선택이다. 비었거나 공백뿐이면 이름 없이 저장한다 — 목록이 계산 시각으로 라벨을 만든다 (기능 명세 US-S1). 종전에는 "기본 시나리오" 를 채워 넣어 이름
+   * 없는 행이 생기지 않았다.
+   */
+  private static String normalizeName(String requested) {
+    if (requested == null || requested.isBlank()) {
+      return null;
+    }
+    return requested.strip();
   }
 
   // --- 연봉 ---

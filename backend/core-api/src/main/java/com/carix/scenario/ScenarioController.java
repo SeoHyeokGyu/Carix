@@ -13,6 +13,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -46,6 +47,17 @@ public class ScenarioController {
 
     return ResponseEntity.ok(
         ApiResult.success(scenarioService.simulate(userId, request), "시뮬레이션 모의계산이 완료되었습니다."));
+  }
+
+  @Operation(
+      summary = "저장된 시나리오 목록 조회",
+      description = "저장한 시나리오 전부를 최근 순으로 반환합니다. 시뮬레이터가 과거 입력 가정을 불러오는 복원용입니다. 없으면 빈 배열입니다.")
+  @ApiResponse(responseCode = "200", description = "성공")
+  @GetMapping
+  public ResponseEntity<ApiResult<List<LatestScenarioResponse>>> listScenarios(
+      @CurrentUserId UUID userId) {
+
+    return ResponseEntity.ok(ApiResult.success(scenarioService.list(userId)));
   }
 
   @Operation(

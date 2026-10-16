@@ -178,8 +178,8 @@ class ScenarioServiceTest {
   }
 
   @Test
-  @DisplayName("이름을 생략하면 기본명을 붙인다")
-  void 기본_시나리오명() {
+  @DisplayName("이름을 생략하면 이름 없이 저장한다 — 목록은 계산 시각으로 라벨을 만든다 (기능 명세 US-S1)")
+  void 이름_생략() {
     givenProfileWithDistribution(distribution(30, 20, 50_000_000L));
 
     SimulationResponse response =
@@ -187,7 +187,32 @@ class ScenarioServiceTest {
             USER_ID,
             new SimulationRequest(null, 60_000_000L, 3.5, 72_000_000L, 3_000_000L, 2, true));
 
-    assertThat(response.scenarioName()).isEqualTo("기본 시나리오");
+    assertThat(response.scenarioName()).isNull();
+    assertThat(savedScenario().getScenarioName()).isNull();
+  }
+
+  @Test
+  @DisplayName("공백뿐인 이름은 이름 없음이다 — 앞뒤 공백은 잘라 저장한다")
+  void 이름_공백() {
+    givenProfileWithDistribution(distribution(30, 20, 50_000_000L));
+
+    service.simulate(
+        USER_ID, new SimulationRequest("   ", 60_000_000L, 3.5, 72_000_000L, 3_000_000L, 2, true));
+    assertThat(savedScenario().getScenarioName()).isNull();
+  }
+
+  @Test
+  @DisplayName("이름의 앞뒤 공백은 잘라 저장한다")
+  void 이름_트림() {
+    givenProfileWithDistribution(distribution(30, 20, 50_000_000L));
+
+    SimulationResponse response =
+        service.simulate(
+            USER_ID,
+            new SimulationRequest("  A사 오퍼  ", 60_000_000L, 3.5, 72_000_000L, 3_000_000L, 2, true));
+
+    assertThat(response.scenarioName()).isEqualTo("A사 오퍼");
+    assertThat(savedScenario().getScenarioName()).isEqualTo("A사 오퍼");
   }
 
   // --- 복원 ---
@@ -263,7 +288,43 @@ class ScenarioServiceTest {
     assertThat(feasibility.difficultyGrade()).isNull();
   }
 
+  // --- 목록 (규격 §6.3) ---
+
+  @Test
+  @DisplayName("목록은 저장분을 최근 순으로 전부 되살린다")
+  void 목록() {
+    CareerScenario newer = storedScenario();
+    CareerScenario older = storedScenario(null);
+    given(repository.findByUserIdOrderByCalculatedAtDescIdDesc(USER_ID))
+        .willReturn(List.of(newer, older));
+
+    List<LatestScenarioResponse> list = service.list(USER_ID);
+
+    assertThat(list)
+        .extracting(LatestScenarioResponse::id)
+        .containsExactly(newer.getId(), older.getId());
+    assertThat(list.get(0).inputs().moveTargetGrossSalary()).isEqualTo(72_000_000L);
+    assertThat(list.get(0).result().feasibility().targetPercentile()).isEqualTo(69);
+    assertThat(list.get(1).scenarioName()).isNull();
+    org.mockito.Mockito.verifyNoInteractions(distributionResolver);
+  }
+
+  @Test
+  @DisplayName("저장분이 없으면 빈 목록이다")
+  void 목록_없음() {
+    given(repository.findByUserIdOrderByCalculatedAtDescIdDesc(USER_ID)).willReturn(List.of());
+
+    assertThat(service.list(USER_ID)).isEmpty();
+  }
+
   // --- 픽스처 ---
+
+  private CareerScenario savedScenario() {
+    org.mockito.ArgumentCaptor<CareerScenario> captor =
+        org.mockito.ArgumentCaptor.forClass(CareerScenario.class);
+    org.mockito.Mockito.verify(repository).save(captor.capture());
+    return captor.getValue();
+  }
 
   private SimulationRequest request(Long currentGrossSalary) {
     return new SimulationRequest(
@@ -286,10 +347,14 @@ class ScenarioServiceTest {
   }
 
   private CareerScenario storedScenario() {
+    return storedScenario("A사 오퍼 제안");
+  }
+
+  private CareerScenario storedScenario(String name) {
     return CareerScenario.builder()
         .id(UUID.randomUUID())
         .userId(USER_ID)
-        .scenarioName("A사 오퍼 제안")
+        .scenarioName(name)
         .currentGrossSalary(60_000_000L)
         .stayExpectedRaiseRate(new BigDecimal("3.50"))
         .moveTargetGrossSalary(72_000_000L)
