@@ -73,8 +73,11 @@ Carix는 연봉·실수령액·소비 금액 등 민감한 개인 재무 정보�
   - 하위 호환: 콜론(`:`) 접두사가 없는 레거시 암호문은 레거시 키(`v1`)로 자동 복호화.
 - **무중단 키 로테이션 및 재암호화 절차**:
   1. `CARIX_ENCRYPTION_KEYS`에 신규 키를 추가하고 `CARIX_ENCRYPTION_ACTIVE_KEY_ID`를 신규 키로 지정해 배포한다 (신규 쓰기는 즉시 신규 키로 암호화, 구 암호문은 이전 키로 정상 복호화).
-  2. `SensitiveDataRekeyingService`(`rekeyAll()`)를 실행하여 `income_history`, `expense_item`, `career_scenario`의 구 암호문을 활성 키로 일괄 재암호화한다.
-  3. `checkStatus()`로 잔여 구 암호문이 0건임을 확인한 후 구 키를 환경변수에서 폐기한다.
+  2. `CARIX_ENCRYPTION_REKEY_ON_STARTUP=true` 로 core-api 를 재기동한다. 기동이 끝난 뒤 `SensitiveDataRekeyingService.rekeyAll()` 이 `income_history`, `expense_item`, `career_scenario` 의 구 암호문(접두사 없는 레거시 포함)을 활성 키로 재암호화한다. 이미 활성 키로 된 행은 건너뛰므로 플래그를 켜 둔 채 재기동해도 비용이 거의 없다.
+  3. core-api 는 기동할 때마다 `rekey-status activeKeyId=… incomeHistory=… expenseItem=… careerScenario=… fullyMigrated=…` 한 줄을 남긴다. `fullyMigrated=true`(잔여 0건)를 확인한 뒤 구 키를 환경변수에서 폐기하고 플래그를 끈다.
+  - 재암호화는 서비스가 요청을 받는 동안 돈다. 행마다 읽은 암호문이 그대로일 때만 갱신해 그사이 사용자가 고친 값을 옛 값으로 덮어쓰지 않는다.
+  - 재암호화나 상태 조회가 실패해도 기동을 막지 않는다. `rekey-failed`·`rekey-status-failed` 로그와 미전환 건수로 드러난다. 로그에는 키 ID·건수·예외 문구만 남고 금액과 키 값은 남지 않는다.
+  - 키는 서버 `.env` 한 곳에만 있다(백업 없음). 키를 추가·폐기하기 전에 분실 시 그 키의 암호문은 복구되지 않는다는 점을 확인한다.
 - **스냅샷 복호화 경계 (Decryption Boundary)**:
   - 연봉 복호화는 오직 소득 도메인(`CurrentSalaryProvider` - `IncomeCurrentSalaryProvider`) 내부에서만 격리 수행된다.
   - 스냅샷 엔진(`SnapshotRecalculationService`)은 암호화 컬럼에 직접 접근하지 않으며, 전달받은 `CurrentSalary`는 루프 내에서 결정 신호 판정에만 사용되고 즉시 메모리에서 폐기된다.
