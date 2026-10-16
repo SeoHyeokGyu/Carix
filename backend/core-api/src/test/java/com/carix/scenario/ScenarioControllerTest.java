@@ -15,6 +15,7 @@ import com.carix.scenario.dto.LatestScenarioResponse;
 import com.carix.scenario.dto.SimulationRequest;
 import com.carix.scenario.dto.SimulationResponse;
 import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
@@ -133,6 +134,46 @@ class ScenarioControllerTest {
     mockMvc
         .perform(get("/v1/scenarios/latest").header("X-User-Id", USER_ID.toString()))
         .andExpect(status().isNoContent());
+  }
+
+  @Test
+  @DisplayName("GET /v1/scenarios - 저장분을 목록으로 돌려준다")
+  void list() throws Exception {
+    given(scenarioService.list(USER_ID))
+        .willReturn(
+            List.of(
+                new LatestScenarioResponse(
+                    response().id(),
+                    null,
+                    new SimulationRequest(null, 60_000_000L, 3.5, 72_000_000L, 3_000_000L, 2, true),
+                    response(),
+                    Instant.parse("2026-07-18T17:00:00Z"))));
+
+    mockMvc
+        .perform(get("/v1/scenarios").header("X-User-Id", USER_ID.toString()))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.data.length()").value(1))
+        .andExpect(jsonPath("$.data[0].id").value("e812d8a4-0cfb-4a5f-9dfb-12d88c91350c"))
+        .andExpect(jsonPath("$.data[0].inputs.moveTargetGrossSalary").value(72000000))
+        .andExpect(jsonPath("$.data[0].calculatedAt").exists());
+  }
+
+  @Test
+  @DisplayName("GET /v1/scenarios - 저장분이 없으면 200 과 빈 배열이다")
+  void list_없음() throws Exception {
+    given(scenarioService.list(USER_ID)).willReturn(List.of());
+
+    mockMvc
+        .perform(get("/v1/scenarios").header("X-User-Id", USER_ID.toString()))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.data").isArray())
+        .andExpect(jsonPath("$.data.length()").value(0));
+  }
+
+  @Test
+  @DisplayName("GET /v1/scenarios - X-User-Id 가 없으면 401 이다")
+  void list_인증없음() throws Exception {
+    mockMvc.perform(get("/v1/scenarios")).andExpect(status().isUnauthorized());
   }
 
   private String body() {

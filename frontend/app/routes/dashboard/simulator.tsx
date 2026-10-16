@@ -15,9 +15,11 @@ import {
 import { Input } from "@/components/ui/input";
 
 import { Field } from "../../components/onboarding/Field";
+import { NativeSelect } from "../../components/onboarding/NativeSelect";
 import {
   type DifficultyGrade,
-  getLatestScenario,
+  listScenarios,
+  type SavedScenario,
   simulate,
   type SimulationResult,
 } from "../../lib/api/scenario";
@@ -27,6 +29,10 @@ import { type FieldErrors, toFieldErrors } from "../../lib/fieldErrors";
 import { focusFirstInvalidField } from "../../lib/focusFirstInvalidField";
 import { formDataToObject } from "../../lib/formData";
 import { LOGIN_PATH } from "../../lib/routeGuards";
+import {
+  scenarioDisplayName,
+  scenarioOptionLabel,
+} from "../../lib/scenarioLabel";
 import {
   SCENARIO_FIELD_MESSAGES,
   scenarioSchema,
@@ -63,7 +69,8 @@ function isLikelyMissingIncome(error: unknown): error is ApiError {
 
 export async function clientLoader() {
   try {
-    return { scenario: await getLatestScenario() };
+    // 최근 순이라 첫 행이 마지막 시나리오다 — `GET /latest` 를 따로 부르지 않는다.
+    return { scenarios: await listScenarios() };
   } catch (error) {
     if (error instanceof UnauthorizedError) throw redirect(LOGIN_PATH);
     // 조회 실패는 이 화면에 그릴 자리가 없다 — ErrorBoundary 몫이다(S-05·S-06·S-07 과 동일 판단).
@@ -114,12 +121,36 @@ export async function clientAction({ request }: { request: Request }) {
   }
 }
 
+/** 이 수 이상 저장돼 있어야 목록 선택 컨트롤을 보인다(기능 명세 US-S1 — 1건 이하면 감춘다). */
+const MIN_SCENARIOS_FOR_PICKER = 2;
+
+/**
+ * 목록에서 고른 시나리오. `headId` 는 고를 때의 첫 행(가장 최근) id 다 — 계산이 성공하면
+ * 저장분이 다시 불려 첫 행이 바뀌므로, 그 뒤로는 고른 것이 아니라 방금 계산한 것을 보인다.
+ * 계산이 실패하면 첫 행이 그대로라 고른 것이 유지된다.
+ */
+interface Pick {
+  id: string;
+  headId: string;
+}
+
 export default function DashboardSimulator() {
-  const { scenario } = useLoaderData<typeof clientLoader>();
+  const { scenarios } = useLoaderData<typeof clientLoader>();
   const fetcher = useFetcher<ActionData>();
   const formRef = useRef<HTMLFormElement>(null);
 
-  // 저장된 시나리오가 없으면(204) 아무것도 고르지 않은 상태로 둔다 — 라디오는
+  const latest = scenarios[0] ?? null;
+  const [pick, setPick] = useState<Pick | null>(null);
+  const picked: SavedScenario | null =
+    pick && pick.headId === latest?.id
+      ? (scenarios.find((s) => s.id === pick.id) ?? null)
+      : null;
+  const scenario = picked ?? latest;
+  // 폼은 defaultValue 로 그리므로 고를 때만 다시 마운트한다. 계산 뒤 첫 행이 바뀌는 것에
+  // 묶으면 계산할 때마다 폼이 다시 그려져 계산 버튼의 포커스가 body 로 빠진다.
+  const [formKey, setFormKey] = useState(0);
+
+  // 저장된 시나리오가 없으면(빈 목록) 아무것도 고르지 않은 상태로 둔다 — 라디오는
   // "미입력"을 표현할 방법이 텍스트 입력의 빈 문자열과 다르므로 세 번째 상태(null)
   // 를 따로 둔다. 기본값을 채우지 않는다는 규칙(브리프)은 이 필드에도 똑같이 적용된다.
   // 이 상태는 라디오 컨트롤 자체(다음 제출에 실릴 값)의 것이다 — 화면에 지금
@@ -131,8 +162,11 @@ export default function DashboardSimulator() {
   // 계산이 실패하면 fetcher.data 는 {errors} 만 담고 {result} 는 없다 — loader 가
   // 준 이전 결과(scenario.result)로 자연히 폴백해, 실패한 계산이 화면에서 이전
   // 결과를 지우지 않는다(별도 "마지막 성공 결과" 상태를 만들 필요가 없다).
+  //
+  // 목록에서 고른 시나리오가 있으면 그 저장분이 이긴다 — 계산 직후 남은 성공분을 앞세우면
+  // 예전 입력 옆에 방금 계산한 숫자가 붙는다.
   const success =
-    fetcher.data && "result" in fetcher.data ? fetcher.data : null;
+    !picked && fetcher.data && "result" in fetcher.data ? fetcher.data : null;
   const result = success?.result ?? scenario?.result ?? null;
   // difficultyGrade 는 서버 응답을 실측한 적이 없다(검증 범위 절 참고) — 이 화면이
   // 아는 네 값(EASY/REALISTIC/CHALLENGING/VERY_HIGH_CHALLENGE) 밖의 문자열이 오면
@@ -162,6 +196,14 @@ export default function DashboardSimulator() {
   const isSubmitting = fetcher.state !== "idle";
   const inputs = scenario?.inputs;
 
+  function handlePick(id: string) {
+    const next = scenarios.find((s) => s.id === id);
+    if (!next || !latest) return;
+    setPick({ id, headId: latest.id });
+    setIsEligible(next.inputs.isEligibleForUnemploymentBenefit);
+    setFormKey((key) => key + 1);
+  }
+
   useEffect(() => {
     if (errors) focusFirstInvalidField(formRef.current);
   }, [errors]);
@@ -181,8 +223,29 @@ export default function DashboardSimulator() {
             입력해 주세요.
           </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="flex flex-col gap-6">
+          {scenarios.length >= MIN_SCENARIOS_FOR_PICKER && (
+            <Field
+              id="savedScenario"
+              label="저장된 시나리오 불러오기"
+              hint="불러온 값으로 다시 계산하면 현재 소득 이력의 연봉으로 계산합니다."
+            >
+              {(aria) => (
+                <NativeSelect
+                  {...aria}
+                  value={scenario?.id ?? ""}
+                  onChange={(e) => handlePick(e.target.value)}
+                  placeholder="시나리오 선택"
+                  options={scenarios.map((s) => ({
+                    value: s.id,
+                    label: scenarioOptionLabel(s),
+                  }))}
+                />
+              )}
+            </Field>
+          )}
           <fetcher.Form
+            key={formKey}
             method="post"
             ref={formRef}
             className="flex flex-col gap-4"
@@ -198,7 +261,9 @@ export default function DashboardSimulator() {
                   name="scenarioName"
                   type="text"
                   placeholder="예: A사 오퍼 제안"
-                  defaultValue={inputs?.scenarioName ?? ""}
+                  defaultValue={
+                    scenarioDisplayName(inputs?.scenarioName ?? null) ?? ""
+                  }
                 />
               )}
             </Field>
