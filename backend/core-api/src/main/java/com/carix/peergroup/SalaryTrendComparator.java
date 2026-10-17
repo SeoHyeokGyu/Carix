@@ -16,8 +16,8 @@ import java.util.stream.IntStream;
 /**
  * 동료집단 공고의 최근·이전 3개월 제시 연봉 중앙값을 무작위 표본 프레임에서 비교한다.
  *
- * <p>두 기간 6개월을 모두 채운 원천만 센다. 월 구성이 다른 원천을 섞으면 프레임이 달라져 추세가 아니라 구성 변화를 읽게 된다. 중앙값의 95% 신뢰구간은 정확
- * 이항(p=0.5) 순위로 구하고, 두 구간이 겹치지 않을 때만 방향을 말한다.
+ * <p>두 기간 6개월 중 어느 원천에든 표본이 있는 달을 모두 채운 원천만 센다. 어느 원천에도 표본이 없는 달은 0건으로 본다. 월 구성이 다른 원천을 섞으면 프레임이
+ * 달라져 추세가 아니라 구성 변화를 읽게 된다. 중앙값의 95% 신뢰구간은 정확 이항(p=0.5) 순위로 구하고, 두 구간이 겹치지 않을 때만 방향을 말한다.
  */
 public final class SalaryTrendComparator {
 
@@ -40,9 +40,12 @@ public final class SalaryTrendComparator {
     YearMonth previousTo = recentFrom.minusMonths(1);
     YearMonth previousFrom = previousTo.minusMonths(WINDOW_MONTHS - 1);
 
+    Set<YearMonth> backfilled =
+        sampledMonthsBySource.values().stream().flatMap(Set::stream).collect(Collectors.toSet());
     Set<YearMonth> required =
         IntStream.range(0, WINDOW_MONTHS * 2)
             .mapToObj(previousFrom::plusMonths)
+            .filter(backfilled::contains)
             .collect(Collectors.toSet());
     List<String> sources =
         sampledMonthsBySource.entrySet().stream()

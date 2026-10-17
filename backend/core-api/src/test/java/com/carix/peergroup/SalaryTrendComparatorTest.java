@@ -219,7 +219,10 @@ class SalaryTrendComparatorTest {
 
   @Test
   void noCommonSource() {
-    Map<String, Set<YearMonth>> coverage = Map.of("SARAMIN", months(YearMonth.of(2026, 6), 4));
+    Map<String, Set<YearMonth>> coverage =
+        Map.of(
+            "JOBKOREA", months(YearMonth.of(2026, 4), 3),
+            "SARAMIN", months(YearMonth.of(2026, 7), 3));
 
     TrendComparison result =
         SalaryTrendComparator.compare(
@@ -231,5 +234,25 @@ class SalaryTrendComparatorTest {
 
     assertThat(result.sources()).isEmpty();
     assertThat(result.verdict()).isEqualTo(Verdict.INSUFFICIENT_SAMPLE);
+  }
+
+  @Test
+  void monthWithoutAnyBackfillCountsAsZeroRows() {
+    Set<YearMonth> fiveMonths = months(YearMonth.of(2026, 4), 6);
+    fiveMonths.remove(YearMonth.of(2026, 5));
+    List<JobPosting> postings = new ArrayList<>();
+    for (int i = 0; i < 12; i++) {
+      postings.add(posting("JOBKOREA", YearMonth.of(2026, 4), 50_000_000L + i));
+      postings.add(posting("JOBKOREA", YearMonth.of(2026, 6), 50_000_000L + i));
+    }
+    postings.addAll(spread(flat(12, 50_000_000L), YearMonth.of(2026, 7)));
+
+    TrendComparison result =
+        SalaryTrendComparator.compare(
+            postings, LATEST, Map.of("JOBKOREA", fiveMonths), CURRENT, MIN_SAMPLE);
+
+    assertThat(result.sources()).containsExactly("JOBKOREA");
+    assertThat(result.previous().disclosedSampleSize()).isEqualTo(24);
+    assertThat(result.recent().disclosedSampleSize()).isEqualTo(12);
   }
 }
