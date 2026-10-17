@@ -40,10 +40,11 @@ export interface PeerGroupMetadata {
 }
 
 export interface OpeningWindowMetadata {
-  medianWindowDays: number | null;
-  /** 상시채용 비율(%). 비율이 아니라 퍼센트다. */
-  openEndedRate: number | null;
-  deadlineSampleSize: number | null;
+  /** 최근 3개월 동료집단 채용 비중(%). */
+  recentSharePercent: number | null;
+  /** 이전 12개월 동료집단 채용 비중(%). */
+  baselineSharePercent: number | null;
+  peerSampleSize: number | null;
 }
 
 /**

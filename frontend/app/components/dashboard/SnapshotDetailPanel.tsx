@@ -169,7 +169,7 @@ export function SnapshotDetailPanel({
                 value={recorded.marketValueIndex}
               />
               <IndexRow
-                name="개방창 지수"
+                name="채용 활발도"
                 value={recorded.openingWindowIndex}
               />
               <p className="pt-1 text-[11px] text-carix-text/60">
@@ -209,7 +209,7 @@ export function SnapshotDetailPanel({
               )}
             />
             <IndexRow
-              name="개방창 지수"
+              name="채용 활발도"
               value={point.openingWindowIndex}
               diff={formatDiff(
                 point.openingWindowIndex,

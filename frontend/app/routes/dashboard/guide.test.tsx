@@ -27,7 +27,7 @@ describe("DashboardGuide (지표 가이드 및 도움말)", () => {
     // 3대 지표 카드 확인
     expect(screen.getByText("구매력 지수 (PPI)")).toBeInTheDocument();
     expect(screen.getByText("시장가치 지수 (MVI)")).toBeInTheDocument();
-    expect(screen.getByText("개방창 지수 (OWI)")).toBeInTheDocument();
+    expect(screen.getByText("채용 활발도 (OWI)")).toBeInTheDocument();
 
     // 결정 신호 5종 — 판정 화면과 같은 어휘(decisionSignal.ts)로 보인다
     const badges = screen

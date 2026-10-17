@@ -208,7 +208,7 @@ export default function DashboardHistory() {
                   <TableHead className="sm:px-6">기준월</TableHead>
                   <TableHead>구매력 지수</TableHead>
                   <TableHead>시장가치 지수</TableHead>
-                  <TableHead>개방창 지수</TableHead>
+                  <TableHead>채용 활발도</TableHead>
                   <TableHead>결정 신호</TableHead>
                   <TableHead className="hidden sm:table-cell">
                     데이터 기준일
