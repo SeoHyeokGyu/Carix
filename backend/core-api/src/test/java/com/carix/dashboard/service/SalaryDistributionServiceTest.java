@@ -16,12 +16,17 @@ import com.carix.index.mvi.WageBaselineResolver;
 import com.carix.jobposting.JobPosting;
 import com.carix.jobposting.JobPostingRepository;
 import com.carix.market.MarketAggregateRepository;
+import com.carix.peergroup.PeerSalaryDistribution;
 import com.carix.peergroup.PeerSalaryDistributionResolver;
+import com.carix.peergroup.TrendComparison;
+import com.carix.peergroup.TrendComparison.Period;
+import com.carix.peergroup.TrendComparison.Verdict;
 import com.carix.profile.domain.CareerProfile;
 import com.carix.profile.repository.CareerProfileRepository;
 import com.carix.wagestat.WageStatObservation;
 import com.carix.wagestat.WageStatObservationRepository;
 import com.carix.wagestat.WageStatSource;
+import java.time.YearMonth;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -413,36 +418,26 @@ class SalaryDistributionServiceTest {
     assertThat(response.sampleSize()).isZero();
   }
 
-  // --- fixtures ---
-
   @Test
   @DisplayName("분포의 기간 비교를 응답에 월 문자열로 싣는다")
   void mapsTrendComparison() {
     PeerSalaryDistributionResolver resolver = mock(PeerSalaryDistributionResolver.class);
     List<Long> salaries = java.util.stream.LongStream.rangeClosed(1, 12).boxed().toList();
-    com.carix.peergroup.TrendComparison comparison =
-        new com.carix.peergroup.TrendComparison(
-            new com.carix.peergroup.TrendComparison.Period(
-                java.time.YearMonth.of(2026, 7),
-                java.time.YearMonth.of(2026, 9),
+    TrendComparison comparison =
+        new TrendComparison(
+            new Period(
+                YearMonth.of(2026, 7),
+                YearMonth.of(2026, 9),
                 60_000_000L,
                 58_000_000L,
                 62_000_000L,
                 40),
-            new com.carix.peergroup.TrendComparison.Period(
-                java.time.YearMonth.of(2026, 4),
-                java.time.YearMonth.of(2026, 6),
-                null,
-                null,
-                null,
-                3),
-            com.carix.peergroup.TrendComparison.Verdict.FLAT,
+            new Period(YearMonth.of(2026, 4), YearMonth.of(2026, 6), null, null, null, 3),
+            Verdict.FLAT,
             List.of("JOBKOREA"),
-            List.of(java.time.YearMonth.of(2026, 10)));
+            List.of(YearMonth.of(2026, 10)));
     given(resolver.resolve(any(CareerProfile.class)))
-        .willReturn(
-            new com.carix.peergroup.PeerSalaryDistribution(
-                salaries, 12, 2, "조건", List.of(), comparison));
+        .willReturn(new PeerSalaryDistribution(salaries, 12, 2, "조건", List.of(), comparison));
     SalaryDistributionService withComparison =
         new SalaryDistributionService(
             careerProfileRepository,
@@ -462,6 +457,8 @@ class SalaryDistributionServiceTest {
     assertThat(dto.sources()).containsExactly("JOBKOREA");
     assertThat(dto.inProgress()).containsExactly("2026-10");
   }
+
+  // --- fixtures ---
 
   private void givenCandidates(List<JobPosting> candidates) {
     given(

@@ -10,6 +10,7 @@ import com.carix.index.mvi.PeerGroupFallbackResolver;
 import com.carix.index.mvi.WageBaselineResolver;
 import com.carix.peergroup.PeerSalaryDistribution;
 import com.carix.peergroup.PeerSalaryDistributionResolver;
+import com.carix.peergroup.TrendComparison;
 import com.carix.profile.domain.CareerProfile;
 import com.carix.profile.repository.CareerProfileRepository;
 import com.carix.wagestat.WageStatObservation;
@@ -250,7 +251,7 @@ public class SalaryDistributionService {
   }
 
   private SalaryDistributionResponse.TrendComparison toTrendComparisonDto(
-      com.carix.peergroup.TrendComparison comparison) {
+      TrendComparison comparison) {
     if (comparison == null) {
       return null;
     }
@@ -262,8 +263,7 @@ public class SalaryDistributionService {
         comparison.inProgress().stream().map(TREND_MONTH_FORMAT::format).toList());
   }
 
-  private SalaryDistributionResponse.TrendPeriod toTrendPeriodDto(
-      com.carix.peergroup.TrendComparison.Period period) {
+  private SalaryDistributionResponse.TrendPeriod toTrendPeriodDto(TrendComparison.Period period) {
     return new SalaryDistributionResponse.TrendPeriod(
         TREND_MONTH_FORMAT.format(period.from()),
         TREND_MONTH_FORMAT.format(period.to()),

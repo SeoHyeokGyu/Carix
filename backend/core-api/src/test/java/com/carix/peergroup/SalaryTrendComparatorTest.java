@@ -137,7 +137,7 @@ class SalaryTrendComparatorTest {
   @Test
   void excludesNonSampledAndReversed() {
     List<JobPosting> postings =
-        new ArrayList<>(spread(flat(10, 50 * TEN_MILLION / 10), YearMonth.of(2026, 7)));
+        new ArrayList<>(spread(flat(10, 50_000_000L), YearMonth.of(2026, 7)));
     for (int i = 0; i < 5; i++) {
       postings.add(posting("JOBKOREA", null, 50_000_000L));
     }
@@ -196,6 +196,15 @@ class SalaryTrendComparatorTest {
   void flatWhenIntervalsOverlap() {
     assertThat(compare(both(flat(14, 50_000_000L), flat(14, 50_000_000L))).verdict())
         .isEqualTo(Verdict.FLAT);
+  }
+
+  @Test
+  void flatWhenIntervalsTouch() {
+    // 이전 상한(2·9 순위의 9번째) 40,080,000 = 최근 하한(2번째) 40,080,000 — 비겹침은 엄격 부등호다.
+    TrendComparison result = compare(both(flat(10, 40_000_000L), flat(10, 40_070_000L)));
+
+    assertThat(result.recent().ciLow()).isEqualTo(result.previous().ciHigh());
+    assertThat(result.verdict()).isEqualTo(Verdict.FLAT);
   }
 
   @Test

@@ -72,11 +72,16 @@ public interface JobPostingRepository extends JpaRepository<JobPosting, UUID> {
   List<JobPosting> findAllByRegistrationMonth(
       @Param("monthStart") LocalDate monthStart, @Param("monthEnd") LocalDate monthEnd);
 
-  /** 표본 월과 공개 연봉이 모두 있는 공고 중 가장 최근 월 (YYYYMM). 없으면 비어 있다. */
+  /**
+   * 표본 월과 공개 연봉이 모두 있는 공고 중 notAfter(YYYYMM, 포함) 이하에서 가장 최근 월. 없으면 비어 있다.
+   *
+   * <p>상한을 두는 이유: 표본 월은 문자열이라 {@code 202613} 같은 깨진 값이 MAX 를 차지하면 비교 전체가 빈다. 현재 월 이후는 정상 값일 수 없다.
+   */
   @Query(
       "SELECT MAX(p.sampledMonth) FROM JobPosting p"
-          + " WHERE p.salaryMin IS NOT NULL AND p.salaryMax IS NOT NULL")
-  Optional<String> findLatestSampledMonth();
+          + " WHERE p.sampledMonth <= :notAfter"
+          + " AND p.salaryMin IS NOT NULL AND p.salaryMax IS NOT NULL")
+  Optional<String> findLatestSampledMonth(@Param("notAfter") String notAfter);
 
   /** 범위(양끝 포함, YYYYMM 문자열 비교) 안에 공개 연봉 표본이 있는 (원천, 표본 월) 쌍. 동료집단 필터는 걸지 않는다. */
   @Query(
