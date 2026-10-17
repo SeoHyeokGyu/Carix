@@ -136,8 +136,8 @@ export function SalaryTrend({
         </>
       )}
       <p className="text-[11px] text-carix-text/50">
-        공고 등록월 기준. 연봉 공개 비율이 달마다 달라, 변동이 시장이 아니라
-        공개 성향 탓일 수 있습니다.
+        연봉 공개 비율이 달마다 달라, 변동이 시장이 아니라 공개 성향 탓일 수
+        있습니다.
       </p>
       <div id={TABLE_ID} hidden={!isOpen}>
         <p className="mb-1 text-[11px] text-carix-text/50">
