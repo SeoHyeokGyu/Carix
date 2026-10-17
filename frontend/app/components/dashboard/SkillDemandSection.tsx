@@ -75,7 +75,7 @@ export function SkillDemandSection({ data }: SkillDemandSectionProps) {
         <EmptyState
           variant="plain"
           title="등록된 보유 스킬이 없습니다."
-          description="온보딩 또는 마이페이지에서 스킬을 등록하면 채용 시장 수요 지수가 표시됩니다."
+          description="온보딩 또는 내 정보 › 입력 관리에서 스킬을 등록하면 채용 시장 수요 지수가 표시됩니다."
         />
       ) : (
         <Table variant="plain">
