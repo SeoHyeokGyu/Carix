@@ -2,9 +2,16 @@ import { HelpCircle } from "lucide-react";
 import { type ReactNode, useEffect, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
+import { TextLink } from "@/components/ui/text-link";
 
 /** 팝오버와 화면 가장자리 사이에 남길 여백(px). */
 const VIEWPORT_MARGIN = 16;
+
+/**
+ * 마우스가 벗어난 뒤 닫기까지 기다리는 시간. 아이콘에서 팝오버 안 링크로 대각선으로 가면
+ * 아이콘 옆 빈칸을 잠깐 지나는데, 그 순간 바로 닫으면 링크에 닿지 못한다.
+ */
+const HOVER_CLOSE_DELAY_MS = 150;
 
 /**
  * 열린 팝오버가 화면 밖으로 나간 만큼 안쪽으로 민다. 폭이 고정이고 아이콘 기준으로
@@ -28,16 +35,27 @@ interface HelpTooltipProps {
   label: string;
   children: ReactNode;
   align?: "left" | "right" | "center";
+  /** 도움말 화면의 해당 섹션 주소. 주면 팝오버 아래에 「도움말에서 자세히 보기」를 단다. */
+  moreHref?: string;
 }
 
 export function HelpTooltip({
   label,
   children,
   align = "left",
+  moreHref,
 }: HelpTooltipProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [isPinned, setIsPinned] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const cancelClose = () => {
+    if (closeTimerRef.current) clearTimeout(closeTimerRef.current);
+    closeTimerRef.current = null;
+  };
+
+  useEffect(() => cancelClose, []);
 
   // 바깥 클릭 시 닫기
   useEffect(() => {
@@ -82,13 +100,17 @@ export function HelpTooltip({
         : "left-0";
 
   const handleMouseEnter = () => {
+    cancelClose();
     setIsOpen(true);
   };
 
   const handleMouseLeave = () => {
-    if (!isPinned) {
-      setIsOpen(false);
-    }
+    if (isPinned) return;
+    cancelClose();
+    closeTimerRef.current = setTimeout(
+      () => setIsOpen(false),
+      HOVER_CLOSE_DELAY_MS,
+    );
   };
 
   const handleClick = (e: React.MouseEvent) => {
@@ -124,12 +146,21 @@ export function HelpTooltip({
       </Button>
 
       {showTooltip && (
+        // 아이콘과 팝오버 사이 틈을 바깥 껍데기의 pb 로 채운다 — margin 이면 마우스가 틈을
+        // 지나는 순간 컨테이너를 벗어나 닫혀, 호버로는 안의 링크에 닿지 못한다.
         <div
           ref={keepInViewport}
           role="tooltip"
-          className={`absolute bottom-full mb-2 z-50 w-64 max-w-[calc(100vw-2rem)] p-3 rounded-lg border border-carix-border bg-carix-surface/95 backdrop-blur-sm text-xs text-carix-text shadow-md animate-in fade-in-0 zoom-in-95 ${alignmentClasses}`}
+          className={`absolute bottom-full pb-2 z-50 w-64 max-w-[calc(100vw-2rem)] ${alignmentClasses}`}
         >
-          {children}
+          <div className="p-3 rounded-lg border border-carix-border bg-carix-surface/95 backdrop-blur-sm text-xs text-carix-text shadow-md animate-in fade-in-0 zoom-in-95">
+            {children}
+            {moreHref && (
+              <div className="mt-2 border-t border-carix-border pt-2">
+                <TextLink to={moreHref}>도움말에서 자세히 보기</TextLink>
+              </div>
+            )}
+          </div>
         </div>
       )}
     </div>
