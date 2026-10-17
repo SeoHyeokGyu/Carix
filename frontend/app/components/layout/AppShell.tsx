@@ -100,19 +100,24 @@ export function AppShell({
                 key={uItem.to}
                 to={uItem.to}
                 end={uItem.end}
+                aria-label={uItem.label}
                 className={({ isActive }) =>
-                  `inline-flex items-center gap-1.5 ${NAV_ITEM} ${isActive ? NAV_ACTIVE : NAV_IDLE}`
+                  `inline-flex h-11 sm:h-auto items-center gap-1.5 ${NAV_ITEM} ${isActive ? NAV_ACTIVE : NAV_IDLE}`
                 }
               >
                 {uItem.icon && <uItem.icon aria-hidden className="size-4" />}
-                <span>{uItem.label}</span>
+                {/* 좁은 화면은 주 메뉴 띠에 폭을 넘기려고 아이콘만 남긴다. */}
+                <span className={uItem.icon ? "hidden sm:inline" : undefined}>
+                  {uItem.label}
+                </span>
               </NavLink>
             ))}
+            {/* 떠 있는 토글은 계정 메뉴 트리거를 덮어 좁은 화면에서 탭을 가로챘다 — 헤더 안에 둔다. */}
+            <ThemeToggle inHeader />
             {accountMenu && <AccountMenu />}
           </div>
         </div>
       </header>
-      <ThemeToggle />
       <main>{children ?? <Outlet />}</main>
     </div>
   );
