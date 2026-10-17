@@ -110,7 +110,7 @@ describe("WageView", () => {
     render(<WageView data={divergent} />);
     expect(screen.getByRole("rowheader", { name: "개발" })).toBeInTheDocument();
     expect(
-      screen.getByRole("columnheader", { name: "미드 30~34세" }),
+      screen.getByRole("columnheader", { name: "미들 30~34세" }),
     ).toBeInTheDocument();
     expect(screen.queryByText("DEVELOPER")).not.toBeInTheDocument();
   });

@@ -385,7 +385,7 @@ describe("대시보드 라우트 및 레이아웃 (Dashboard)", () => {
 
       expect(await screen.findByText("연봉 격차 15% 이상")).toBeInTheDocument();
       expect(
-        screen.getByText("서울 전체 / 경력 MID / 회사규모 무관"),
+        screen.getByText("서울 전체 / 경력 미들 / 회사규모 무관"),
       ).toBeInTheDocument();
       expect(screen.getByText("조건을 넓혀 비교했습니다")).toBeInTheDocument();
     });
@@ -750,7 +750,7 @@ describe("대시보드 라우트 및 레이아웃 (Dashboard)", () => {
       } as never);
       renderScreen();
       expect(
-        await screen.findByText("서울 전체 / MID (4~7년) / LARGE / FULL_TIME"),
+        await screen.findByText("서울 전체 / 미들 (4~7년) / 대기업 / 정규직"),
       ).toBeInTheDocument();
       expect(
         screen.queryByRole("list", { name: "비교 조건" }),
@@ -770,7 +770,7 @@ describe("대시보드 라우트 및 레이아웃 (Dashboard)", () => {
       expect(await screen.findByText("104.6")).toBeInTheDocument();
       expect(screen.getByTestId("verdict-statement")).toBeInTheDocument();
       expect(
-        screen.getByText("서울 전체 / MID (4~7년) / LARGE / FULL_TIME"),
+        screen.getByText("서울 전체 / 미들 (4~7년) / 대기업 / 정규직"),
       ).toBeInTheDocument();
       expect(
         screen.queryByText("조건을 넓혀 비교했습니다"),
