@@ -72,8 +72,8 @@
 지역·고용형태·회사규모는 `ALL` 로 집계하는데, MVI 는 경력도 `ALL`(경력 전체) 행을 쓴다. 잡코리아 수요율은 월 250건 무작위
 표본으로 재므로(데이터 아키텍처 §1.3) 경력 넷으로 쪼개면 스킬별 건수가 한 자릿수로 떨어지고, 지수 잡음(±30~40%)이 판정
 기준선 간격(5~20)을 넘는다. 「이 스킬의 수요가 늘었나」는 경력 구간마다 크게 다르지 않다 — 경력이 갈라야 하는 건 연봉 기준선이고,
-그쪽은 임금통계를 경력 구간별로 잡는다(§1.3 연봉 격차). 지역·규모·고용형태를 실제로 거르는 경로는 원 공고(`job_posting`)를
-직접 집계하는 연봉 분포·개방창 지수다(기능 명세 §4.5·§4.6) — 같은 화면에서 비교 조건이 경로마다 다를 수 있고, 각 경로는 자기
+그쪽은 임금통계를 경력 구간별로 잡는다(§1.3 연봉 격차). 반면 **채용 활발도(OWI)** 는 스킬별로 쪼개지 않고 동료집단 전체 공고 행(`skill_id IS NULL`)을 쓰므로 같은 `market_aggregate` 위에서 경력 축 2단계 완화(Level 1: 내 경력 구간, Level 2: 인접 경력 구간)를 적용한다(기능 명세 §4.5). 지역·규모·고용형태를 실제로 거르는 경로는 원 공고(`job_posting`)를
+직접 집계하는 연봉 분포다(기능 명세 §4.6) — 같은 화면에서 비교 조건이 경로마다 다를 수 있고, 각 경로는 자기
 조건을 그대로 밝힌다.
 
 ```mermaid
@@ -98,7 +98,7 @@ collector 가 지역·규모·고용형태 행을 만들기 시작하면 쿼리�
 
 ### 2.2 메타데이터 반환 규격
 지표 API 응답에 실제 적용된 단계와 **실제 조회 조건** 문구를 함께 반환한다. MVI 는 **"전국 / 경력 전체 / 회사규모 무관 /
-고용형태 무관"** 이다. 경력을 쓰는 경로(연봉 분포·개방창)는 연차로만 쓰고 원시 enum 을 섞지 않는다. 화면은 이 문구를 그대로
+고용형태 무관"** 이다. 경력을 쓰는 경로(연봉 분포·채용 활발도)는 연차로만 쓰고 원시 enum 을 섞지 않는다. 화면은 이 문구를 그대로
 보이고 프로필 값으로 칩을 다시 만들지 않는다 — 다시 만들면 집계에 없는 조건을 비교한 것처럼 보인다.
 
 ### 2.3 표본 실측 제약
@@ -205,8 +205,8 @@ $$\text{Difference} = Move_{12m} - Stay_{12m}$$
 *   `data_version`은 **스냅샷 계산 실행 단위**로 발급한다: 사용자 입력 변경에 따른 재계산과 배치 정기 재계산(외부 데이터 갱신 — CPI, 공고 집계, 임금통계 vintage, dedup 규칙 변경 포함) 모두 새 버전을 발급받는다. 형식은 발급 시각 기반 `YYYYMMDDHHMMSS-NNN`(UTC, `NNN`은 같은 초 내 충돌 시 0부터 증가하는 3자리 시퀀스)이며, 발급은 사용자 단위 직렬화로 유일성과 단조 증가를 보장한다 — 잠글 행을 전제하지 않는 `pg_advisory_xact_lock(hashtextextended(user_id::text, 0))`을 쓴다. 온보딩 중인 사용자는 `career_profile` 행이 아직 없을 수 있고, 해시 충돌은 무관한 두 사용자를 직렬화할 뿐 정합성을 해치지 않는다. "최신 버전" 판정은 사전순 비교를 따른다. 스냅샷 `rationale`에 계산에 사용된 원천 기준일·배치 실행 ID를 기록해 외부 데이터 상태를 재현 가능하게 한다.
 *   **`rationale`에 금액을 쓰지 않는다.** 이 컬럼은 평문 JSONB이고 연봉은 `income_history`에서 AES-256-GCM으로 보호된다(§1.1). 같은 값을 여기 적으면 컬럼 암호화가 무력화된다. 기록 대상은 임계값 문구·원천 기준일·배치 실행 ID·원천별 커버리지·스킬별 기여도, 그리고 **소득 격차의 구간 코드**다.
 *   **소득 격차는 비율이 아니라 구간으로 적는다.** 비율(소수점)을 남기면 평문 `wage_stat_observation.wage_median`·평문 `career_profile` 동료집단과 조인해 $연봉 = 중앙값 / (1 + 격차비율)$ 로 원 단위 복원된다 — 중앙값을 안 적어도 조인으로 구해지므로 "둘 중 하나만"으로는 막히지 않는다. `SalaryGapBucket` 구간(경계 -0.05/0.05/0.15, 결정 규칙표와 같다)만 저장하고 비율 자체는 `DecisionOutcome` 안에만 둔다. 구간으로 접어도 화면 근거에서 잃는 정보는 없다 — `rulesApplied` 가 이미 같은 구간을 문구로 담고 있고 소수점 비율은 복원 정밀도만 더했다. **저장하지 않고 조회 시 재계산하는 안(案)은 기각했다** — 완화 결과가 계산 당시 프로필에 의존해 나중에 재계산하면 이력이 깨진다. 화면이 금액이 포함된 문장을 보여줘야 하면 프런트엔드가 보유한 값으로 조립한다.
-*   **개방창 근거(`openingWindow`)를 기록한다.** 동료집단 표본 수(`peerSampleSize`), 마감일 보유 표본 수(`deadlineSampleSize`), 동료집단 중앙 개방일수(`medianWindowDays`), 상시채용 비율(`openEndedRatePercent`), 완화 단계(`fallbackLevel`), 안착 조건 문구(`appliedConditions`), 기준 모수 중앙 개방일수(`marketMedianWindowDays`) 일곱을 모두 저장한다 — 화면에 나가는 것은 [API 규격 §5.1](api-specification.md) 의 셋(`medianWindowDays`·`openEndedRatePercent`·`deadlineSampleSize`)뿐이지만, 완화 결과는 계산 당시 프로필에 의존해 나중에 재계산하면 같은 값이 안 나온다. 지수 자체는 `opening_window_index` 컬럼이 갖고 여기에는 근거만 둔다. 금액이 아니라 §1.1 암호화 경로를 열지 않는다.
-*   **개방창 지수(OWI) 산출 및 비동기 병렬 최적화 (`OpeningWindowIndexProvider`).** 동료집단 중앙 개방일수와 전체시장 중앙 개방일수를 집계할 때, I/O 대기 최소화와 소급 재계산 처리량 극대화를 위해 Java 21 가상 스레드(`Executors.newVirtualThreadPerTaskExecutor()`) 기반 비동기 병렬 처리를 적용한다. 또한 기준 모수인 전체시장 월별 중앙 개방일수(`marketMedianWindowDays`)는 사용자 조건에 무관한 전사 공통값이므로 `ConcurrentHashMap` 인메모리 캐시를 적용하여 다월 소급 재계산 시의 불필요한 전체시장 집계 쿼리를 1회로 단축한다.
+*   **채용 활발도 근거(`openingWindow`)를 기록한다.** 최근 3개월 동료집단 표본 수(`peerSampleSize`), 이전 12개월 동료집단 표본 수(`baselineSampleSize`), 최근 3개월 동료집단 비중(`recentSharePercent`), 이전 12개월 동료집단 비중(`baselineSharePercent`), 완화 단계(`fallbackLevel`), 안착 조건 문구(`appliedConditions`), 최근 3개월 전체시장 표본 수(`marketSampleSize`) 일곱을 모두 저장한다 — 화면에 나가는 것은 [API 규격 §5.1](api-specification.md) 의 셋(`recentSharePercent`·`baselineSharePercent`·`peerSampleSize`)뿐이지만, 완화 결과는 계산 당시 프로필에 의존해 나중에 재계산하면 같은 값이 안 나온다. 옛 `rationale` 행(개방일수 기반 필드)을 역직렬화할 때 알 수 없는 키로 깨지지 않도록 `@JsonIgnoreProperties(ignoreUnknown = true)` 를 둔다. 지수 자체는 `opening_window_index` 컬럼이 갖고 여기에는 근거만 둔다. 금액이 아니라 §1.1 암호화 경로를 열지 않는다.
+*   **채용 활발도(OWI) 산출 (`OpeningWindowIndexProvider`).** `core.market_aggregate` 의 전체 공고 행(`skill_id IS NULL`)에서 원천별로 최근 3개월과 이전 12개월(4~15개월 전)의 동료집단 공고 비중을 구하고, `SourceCombineWeights` 로 원천별 지수를 결합한다([기능 명세 §4.5](functional-specification.md)).
 *   **원천별 커버리지(`sourceCoverages`)와 스킬별 기여도(`skillContributions`)를 함께 기록한다.** 완화 단계·표본 수·결측률과 스킬별 가중치×수요 지수는 계산 시점의 프로필에 의존해 나중에 재계산하면 같은 값이 안 나온다. 저장하지 않으면 그 달의 근거가 영구히 사라지고 소급도 불가능하다. 둘 다 금액이 아니라 §1.1 암호화 경로를 열지 않는다.
 *   **월 행 생성 범위.** CPI **최신월** 결측이 허용 시차(2개월)를 넘으면 그 월의 스냅샷 행을 만들지 않는다 — 화면은 마지막 계산월과 `업데이트 지연`을 표시한다([기능 명세 §4.3](functional-specification.md)). 그 외의 산출 불가는 행을 만들고 지수 컬럼을 `NULL`, `decision_signal`을 `INSUFFICIENT_DATA`로 기록한다. 모든 산출 불가를 행 스킵으로 처리하면 §2.2 우선순위 1이 저장될 자리를 잃는다.
 *   **재계산 트리거는 트랜잭션 안의 동기 직접 호출이다.** 호출 대상은 `SnapshotRecalculationService.recalculateSnapshot(UUID userId, String fromYearMonth)` 이고 호출부는 소득 3경로·소비 1·스킬 3·프로필 1 이다. 스케줄러나 비동기 이벤트는 쓰지 않는다 — 스레드풀·재시도·실패 관측 경로를 늘리지 않기 위해서이며, 멱등성은 `pg_advisory_xact_lock` 과 `data_version` 이 이미 보증한다. 응답 지연이 실측으로 문제가 되면 그때 비동기로 옮긴다.
