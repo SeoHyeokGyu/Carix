@@ -15,21 +15,18 @@ interface TrustPanelProps {
   metadata: DashboardMetadata;
   rationale: string | null;
   peerConditions: PeerConditionView | null;
-  isNarrow: boolean;
 }
 
 /**
  * `S-10` 3층. 새 API 없이 응답에 이미 있던 값으로 판정의 재료를 보인다(설계 §4).
- * 데스크톱은 항상 펼치고 모바일에서만 접는다(D5).
+ * 폭과 무관하게 접어 두고, 비교 조건을 넓혔다는 안내만 접힌 채로도 제목 줄에 보인다.
  */
 export function TrustPanel({
   metadata,
   rationale,
   peerConditions,
-  isNarrow,
 }: TrustPanelProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const isCollapsed = isNarrow && !isOpen;
   const coverage = toSampleCoverage(
     metadata.sampleSize,
     metadata.salaryMissingRate,
@@ -39,25 +36,30 @@ export function TrustPanel({
     <section aria-labelledby="trust-title">
       <Card className="gap-4">
         <div className="flex items-center justify-between gap-2">
-          <h2 id="trust-title" className={HEADING.section}>
-            이 판정은 이렇게 나왔습니다
-          </h2>
-          {isNarrow && (
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              aria-expanded={isOpen}
-              aria-controls={BODY_ID}
-              onClick={() => setIsOpen((open) => !open)}
-            >
-              {isOpen ? "근거 접기" : "근거 펼치기"}
-            </Button>
-          )}
+          <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+            <h2 id="trust-title" className={HEADING.section}>
+              이 판정은 이렇게 나왔습니다
+            </h2>
+            {peerConditions?.widened && (
+              <span className="text-xs text-carix-warning">
+                조건을 넓혀 비교했습니다
+              </span>
+            )}
+          </div>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            aria-expanded={isOpen}
+            aria-controls={BODY_ID}
+            onClick={() => setIsOpen((open) => !open)}
+          >
+            {isOpen ? "근거 접기" : "근거 펼치기"}
+          </Button>
         </div>
         <dl
           id={BODY_ID}
-          hidden={isCollapsed}
+          hidden={!isOpen}
           className="grid gap-3 text-sm md:grid-cols-[10rem_1fr]"
         >
           {coverage && (
@@ -79,9 +81,7 @@ export function TrustPanel({
           {peerConditions && (
             <>
               <dt className="text-carix-text/60">나와 비교한 사람들</dt>
-              <dd>
-                <PeerConditions view={peerConditions} />
-              </dd>
+              <dd className="text-carix-text">{peerConditions.text}</dd>
             </>
           )}
           {rationale && (
@@ -134,18 +134,5 @@ function CoverageRow({
         <span className="text-carix-text">{value}</span>
       </dd>
     </>
-  );
-}
-
-function PeerConditions({ view }: { view: PeerConditionView }) {
-  return (
-    <div className="flex flex-col gap-1">
-      <span className="text-carix-text">{view.text}</span>
-      {view.widened && (
-        <span className="text-xs text-carix-warning">
-          조건을 넓혀 비교했습니다
-        </span>
-      )}
-    </div>
   );
 }

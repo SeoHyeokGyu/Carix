@@ -25,7 +25,6 @@ function renderPanel(
         text: "전국 / 4~7년 / 회사규모 무관 / 고용형태 무관",
         widened: false,
       }}
-      isNarrow={false}
       {...overrides}
     />,
   );
@@ -93,17 +92,9 @@ describe("TrustPanel", () => {
     expect(screen.queryByText("그중 연봉이 적힌 것")).not.toBeInTheDocument();
   });
 
-  it("데스크톱 폭에서는 토글 없이 항상 펼쳐져 있다", () => {
-    renderPanel();
-    expect(
-      screen.queryByRole("button", { name: /근거/ }),
-    ).not.toBeInTheDocument();
-    expect(screen.getByText("308건")).toBeVisible();
-  });
-
-  it("모바일 폭에서는 접혀 있고 토글로 연다", async () => {
+  it("처음엔 접혀 있고 토글로 연다", async () => {
     const user = userEvent.setup();
-    renderPanel({ isNarrow: true });
+    renderPanel();
 
     const toggle = screen.getByRole("button", { name: "근거 펼치기" });
     expect(toggle).toHaveAttribute("aria-expanded", "false");
@@ -117,6 +108,16 @@ describe("TrustPanel", () => {
       "true",
     );
     expect(screen.getByText("308건")).toBeVisible();
+  });
+
+  it("조건 완화 안내는 접혀 있어도 제목 줄에 보인다", () => {
+    renderPanel({
+      peerConditions: {
+        text: "서울 전체 / MID (4~7년) / 회사규모 무관 / FULL_TIME",
+        widened: true,
+      },
+    });
+    expect(screen.getByText("조건을 넓혀 비교했습니다")).toBeVisible();
   });
 
   it("물가 기여도 기준월을 기준 줄에 보인다", () => {
