@@ -316,9 +316,31 @@ describe("SalaryDistributionChart", () => {
           missingRate: 66.7,
         },
       ],
+      trendComparison: {
+        previous: {
+          from: "2026-01",
+          to: "2026-03",
+          median: 50_000_000,
+          ciLow: null,
+          ciHigh: null,
+          disclosedSampleSize: 35,
+        },
+        recent: {
+          from: "2026-04",
+          to: "2026-06",
+          median: 51_000_000,
+          ciLow: null,
+          ciHigh: null,
+          disclosedSampleSize: 40,
+        },
+        verdict: "FLAT",
+        sources: ["JOBKOREA"],
+        inProgress: [],
+      },
     };
 
     render(<SalaryDistributionChart data={dataWithTrend} />);
+    expect(screen.getByText("뚜렷한 변화 없음")).toBeInTheDocument();
 
     expect(
       screen

@@ -4,12 +4,19 @@ import com.carix.config.IndexThresholdProperties;
 import com.carix.index.mvi.PeerGroupFallbackResolver;
 import com.carix.jobposting.JobPosting;
 import com.carix.jobposting.JobPostingRepository;
+import com.carix.jobposting.SourceMonth;
 import com.carix.profile.domain.CareerProfile;
+import java.time.Clock;
+import java.time.YearMonth;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.TreeSet;
 import java.util.UUID;
 import java.util.function.Predicate;
 import lombok.RequiredArgsConstructor;
@@ -35,6 +42,18 @@ public class PeerSalaryDistributionResolver {
 
   @Autowired(required = false)
   private IndexThresholdProperties thresholds;
+
+  @Autowired(required = false)
+  private Clock clock;
+
+  private static final DateTimeFormatter SAMPLED_MONTH_FORMAT =
+      DateTimeFormatter.ofPattern("yyyyMM");
+  private static final int COMPARISON_WINDOW_MONTHS = 6;
+
+  /** 테스트에서 현재 월을 고정하려고 필드 주입 자리에 값을 넣는다. */
+  void setClock(Clock clock) {
+    this.clock = clock;
+  }
 
   public record ResolvedPeerPostings(
       int level, List<JobPosting> postings, String appliedConditions) {}
@@ -114,19 +133,62 @@ public class PeerSalaryDistributionResolver {
             ladder(profile),
             candidate ->
                 candidate.postings().size() >= minSample
-                    && disclosedSalaries(candidate.postings()).size() >= minSample));
+                    && disclosedSalaries(candidate.postings()).size() >= minSample),
+        minSample);
   }
 
   private static final java.time.format.DateTimeFormatter TREND_YM_FORMATTER =
       java.time.format.DateTimeFormatter.ofPattern("uuuu-MM");
 
-  private PeerSalaryDistribution toDistribution(ResolvedPeerPostings resolved) {
+  private PeerSalaryDistribution toDistribution(ResolvedPeerPostings resolved, int minSample) {
+    List<Long> disclosed = disclosedSalaries(resolved.postings());
+    boolean sufficient = resolved.postings().size() >= minSample && disclosed.size() >= minSample;
     return new PeerSalaryDistribution(
-        disclosedSalaries(resolved.postings()),
+        disclosed,
         resolved.postings().size(),
         resolved.level(),
         resolved.appliedConditions(),
-        calculateTrend(resolved.postings()));
+        calculateTrend(resolved.postings()),
+        sufficient ? compareTrend(resolved.postings()) : null);
+  }
+
+  /**
+   * 무작위 표본 프레임 기준 최근·이전 3개월 비교. 표본 월이 없으면 null.
+   *
+   * <p>NOTE: (cjkang) 원천 간 중복 묶음에서 대표가 표본이 아닌 행이면 그 묶음의 표본 행은 빠진다. 알려진 한계로 두고 고치지 않았다.
+   */
+  private TrendComparison compareTrend(List<JobPosting> postings) {
+    YearMonth latest =
+        jobPostingRepository.findLatestSampledMonth().map(this::parseSampledMonth).orElse(null);
+    if (latest == null) {
+      return null;
+    }
+    YearMonth windowFrom = latest.minusMonths(COMPARISON_WINDOW_MONTHS - 1);
+    Map<String, Set<YearMonth>> monthsBySource = new LinkedHashMap<>();
+    for (SourceMonth sourceMonth :
+        jobPostingRepository.findSampledSourceMonths(
+            windowFrom.format(SAMPLED_MONTH_FORMAT), latest.format(SAMPLED_MONTH_FORMAT))) {
+      YearMonth month = parseSampledMonth(sourceMonth.sampledMonth());
+      if (month != null) {
+        monthsBySource.computeIfAbsent(sourceMonth.source(), k -> new TreeSet<>()).add(month);
+      }
+    }
+    Clock effective = clock != null ? clock : Clock.system(ZoneId.of("Asia/Seoul"));
+    return SalaryTrendComparator.compare(
+        postings,
+        latest,
+        monthsBySource,
+        YearMonth.now(effective.withZone(ZoneId.of("Asia/Seoul"))),
+        minSample());
+  }
+
+  /** 형식이 깨진 값은 null — 한 행 때문에 요청이 실패하지 않게 한다. */
+  private YearMonth parseSampledMonth(String value) {
+    try {
+      return YearMonth.parse(value, SAMPLED_MONTH_FORMAT);
+    } catch (java.time.format.DateTimeParseException | NullPointerException e) {
+      return null;
+    }
   }
 
   /** 동료집단 공고의 등록월(posted_start_date)별 중앙 제시 연봉 추이를 집계한다 (기능 명세 §4.6). */

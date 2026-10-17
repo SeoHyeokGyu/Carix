@@ -15,16 +15,27 @@ import java.util.List;
  * @param fallbackLevel 안착한 완화 단계 (1~5)
  * @param appliedConditions 화면에 그대로 쓸 비교 조건 문구
  * @param trend 등록월(posted_start_date)별 제시 연봉 추이 (기능 명세 §4.6)
+ * @param trendComparison 무작위 표본 기준 최근·이전 3개월 비교. 표본 월이 없으면 null
  */
 public record PeerSalaryDistribution(
     List<Long> disclosedSalaries,
     int peerSampleSize,
     int fallbackLevel,
     String appliedConditions,
-    List<TrendPoint> trend) {
+    List<TrendPoint> trend,
+    TrendComparison trendComparison) {
 
   public record TrendPoint(
       String yearMonth, Long median, int sampleSize, int disclosedSampleSize, double missingRate) {}
+
+  public PeerSalaryDistribution(
+      List<Long> disclosedSalaries,
+      int peerSampleSize,
+      int fallbackLevel,
+      String appliedConditions,
+      List<TrendPoint> trend) {
+    this(disclosedSalaries, peerSampleSize, fallbackLevel, appliedConditions, trend, null);
+  }
 
   public PeerSalaryDistribution(
       List<Long> disclosedSalaries,

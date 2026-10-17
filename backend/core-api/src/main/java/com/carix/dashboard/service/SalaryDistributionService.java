@@ -14,6 +14,7 @@ import com.carix.profile.domain.CareerProfile;
 import com.carix.profile.repository.CareerProfileRepository;
 import com.carix.wagestat.WageStatObservation;
 import com.carix.wagestat.WageStatObservationRepository;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -40,6 +41,9 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 @ReadOnlyRouting
 public class SalaryDistributionService {
+
+  private static final DateTimeFormatter TREND_MONTH_FORMAT =
+      DateTimeFormatter.ofPattern("uuuu-MM");
 
   static final String STATUS_OK = "OK";
   static final String STATUS_INSUFFICIENT_SAMPLE = "INSUFFICIENT_SAMPLE";
@@ -150,7 +154,8 @@ public class SalaryDistributionService {
         new SalaryDistributionResponse.DistributionPeerGroup(
             distribution.fallbackLevel(), distribution.appliedConditions()),
         trend,
-        buildCareerLadder(careerProfile, year));
+        buildCareerLadder(careerProfile, year),
+        toTrendComparisonDto(distribution.trendComparison()));
   }
 
   private SalaryDistributionResponse.CareerLadder buildCareerLadder(CareerProfile profile) {
@@ -242,6 +247,30 @@ public class SalaryDistributionService {
                     t.disclosedSampleSize(),
                     t.missingRate()))
         .toList();
+  }
+
+  private SalaryDistributionResponse.TrendComparison toTrendComparisonDto(
+      com.carix.peergroup.TrendComparison comparison) {
+    if (comparison == null) {
+      return null;
+    }
+    return new SalaryDistributionResponse.TrendComparison(
+        toTrendPeriodDto(comparison.recent()),
+        toTrendPeriodDto(comparison.previous()),
+        comparison.verdict().name(),
+        comparison.sources(),
+        comparison.inProgress().stream().map(TREND_MONTH_FORMAT::format).toList());
+  }
+
+  private SalaryDistributionResponse.TrendPeriod toTrendPeriodDto(
+      com.carix.peergroup.TrendComparison.Period period) {
+    return new SalaryDistributionResponse.TrendPeriod(
+        TREND_MONTH_FORMAT.format(period.from()),
+        TREND_MONTH_FORMAT.format(period.to()),
+        period.median(),
+        period.ciLow(),
+        period.ciHigh(),
+        period.disclosedSampleSize());
   }
 
   /** 공개연봉 부족 표본 부족 응답용 — 5수치 없이 공개연봉 수와 결측률만. */

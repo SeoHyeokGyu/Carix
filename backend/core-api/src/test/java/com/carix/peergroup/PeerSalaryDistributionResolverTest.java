@@ -12,9 +12,15 @@ import static org.mockito.Mockito.mock;
 import com.carix.index.mvi.PeerGroupFallbackResolver;
 import com.carix.jobposting.JobPosting;
 import com.carix.jobposting.JobPostingRepository;
+import com.carix.jobposting.SourceMonth;
 import com.carix.profile.domain.CareerProfile;
+import java.time.Clock;
+import java.time.Instant;
+import java.time.YearMonth;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -221,6 +227,112 @@ class PeerSalaryDistributionResolverTest {
     PeerSalaryDistribution distribution = resolver.resolve(profile);
     assertThat(distribution.trend()).isEmpty();
     assertThat(distribution.peerSampleSize()).isZero();
+  }
+
+  @Test
+  @DisplayName("resolve - 무작위 표본 월이 있으면 최근·이전 3개월 비교를 싣는다")
+  void resolve_attachesTrendComparison() {
+    CareerProfile profile = new CareerProfile(UUID.randomUUID());
+    profile.patch("DEVELOPER", 5, "서울 강남구", "FULL_TIME", "LARGE");
+    List<JobPosting> postings = new ArrayList<>();
+    for (int month = 4; month <= 9; month++) {
+      for (int i = 0; i < 10; i++) {
+        postings.add(sampledPosting("JOBKOREA", "2026%02d".formatted(month), 60_000_000L + i));
+      }
+    }
+    given(
+            jobPostingRepository.findPeerGroupCandidates(
+                eq("DEVELOPER"), eq("서울 강남구"), eq("FULL_TIME"), eq("LARGE"), eq(4), eq(7)))
+        .willReturn(postings);
+    given(jobPostingRepository.findLatestSampledMonth()).willReturn(Optional.of("202609"));
+    given(jobPostingRepository.findSampledSourceMonths("202604", "202609"))
+        .willReturn(
+            java.util.stream.IntStream.rangeClosed(4, 9)
+                .mapToObj(m -> new SourceMonth("JOBKOREA", "2026%02d".formatted(m)))
+                .toList());
+    resolver.setClock(Clock.fixed(Instant.parse("2026-10-17T15:00:00Z"), ZoneId.of("Asia/Seoul")));
+
+    TrendComparison comparison = resolver.resolve(profile).trendComparison();
+
+    assertThat(comparison).isNotNull();
+    assertThat(comparison.recent().from()).isEqualTo(YearMonth.of(2026, 7));
+    assertThat(comparison.previous().from()).isEqualTo(YearMonth.of(2026, 4));
+    assertThat(comparison.sources()).containsExactly("JOBKOREA");
+    assertThat(comparison.inProgress()).containsExactly(YearMonth.of(2026, 10));
+  }
+
+  @Test
+  @DisplayName("resolve - 표본 월이 하나도 없으면 비교는 null")
+  void resolve_nullComparisonWhenNoBackfill() {
+    CareerProfile profile = new CareerProfile(UUID.randomUUID());
+    profile.patch("DEVELOPER", 5, "서울 강남구", "FULL_TIME", "LARGE");
+    given(
+            jobPostingRepository.findPeerGroupCandidates(
+                eq("DEVELOPER"), eq("서울 강남구"), eq("FULL_TIME"), eq("LARGE"), eq(4), eq(7)))
+        .willReturn(createPostings(12, 60_000_000L));
+    given(jobPostingRepository.findLatestSampledMonth()).willReturn(Optional.empty());
+
+    assertThat(resolver.resolve(profile).trendComparison()).isNull();
+  }
+
+  @Test
+  @DisplayName("resolve - 형식이 깨진 표본 월은 건너뛰고 500 을 내지 않는다")
+  void resolve_ignoresMalformedSourceMonth() {
+    CareerProfile profile = new CareerProfile(UUID.randomUUID());
+    profile.patch("DEVELOPER", 5, "서울 강남구", "FULL_TIME", "LARGE");
+    List<JobPosting> postings = new ArrayList<>();
+    for (int month = 4; month <= 9; month++) {
+      for (int i = 0; i < 10; i++) {
+        postings.add(sampledPosting("JOBKOREA", "2026%02d".formatted(month), 60_000_000L + i));
+      }
+    }
+    given(
+            jobPostingRepository.findPeerGroupCandidates(
+                eq("DEVELOPER"), eq("서울 강남구"), eq("FULL_TIME"), eq("LARGE"), eq(4), eq(7)))
+        .willReturn(postings);
+    given(jobPostingRepository.findLatestSampledMonth()).willReturn(Optional.of("202609"));
+    List<SourceMonth> sourceMonths =
+        new ArrayList<>(
+            java.util.stream.IntStream.rangeClosed(4, 9)
+                .mapToObj(m -> new SourceMonth("JOBKOREA", "2026%02d".formatted(m)))
+                .toList());
+    sourceMonths.add(new SourceMonth("JOBKOREA", "202613"));
+    given(jobPostingRepository.findSampledSourceMonths("202604", "202609"))
+        .willReturn(sourceMonths);
+    resolver.setClock(Clock.fixed(Instant.parse("2026-10-17T15:00:00Z"), ZoneId.of("Asia/Seoul")));
+
+    TrendComparison comparison = resolver.resolve(profile).trendComparison();
+
+    assertThat(comparison).isNotNull();
+    assertThat(comparison.sources()).containsExactly("JOBKOREA");
+  }
+
+  @Test
+  @DisplayName("resolve - 표본이 모자라면 비교 쿼리를 돌리지 않고 null")
+  void resolve_skipsComparisonWhenInsufficient() {
+    CareerProfile profile = new CareerProfile(UUID.randomUUID());
+    profile.patch("DEVELOPER", 5, "서울 강남구", "FULL_TIME", "LARGE");
+    given(
+            jobPostingRepository.findPeerGroupCandidates(
+                eq("DEVELOPER"), eq("서울 강남구"), eq("FULL_TIME"), eq("LARGE"), eq(4), eq(7)))
+        .willReturn(createPostings(3, 60_000_000L));
+
+    assertThat(resolver.resolve(profile).trendComparison()).isNull();
+    org.mockito.Mockito.verify(jobPostingRepository, org.mockito.Mockito.never())
+        .findLatestSampledMonth();
+  }
+
+  private JobPosting sampledPosting(String source, String sampledMonth, long salary) {
+    return JobPosting.builder()
+        .id(UUID.randomUUID())
+        .region("서울 강남구")
+        .employmentType("FULL_TIME")
+        .salaryMin(salary)
+        .salaryMax(salary)
+        .source(source)
+        .sampledMonth(sampledMonth)
+        .dedupGroupId(UUID.randomUUID())
+        .build();
   }
 
   private List<JobPosting> createPostings(int count, long salary) {

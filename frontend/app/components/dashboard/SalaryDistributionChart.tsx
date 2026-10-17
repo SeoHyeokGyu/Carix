@@ -861,8 +861,11 @@ export function SalaryDistributionChart({
           </div>
 
           {/* 제시 연봉 추이 (기능 명세 §4.6, US-D3) */}
-          {data.trend && data.trend.length > 0 && (
-            <SalaryTrend trend={data.trend} />
+          {((data.trend?.length ?? 0) > 0 || data.trendComparison) && (
+            <SalaryTrend
+              trend={data.trend ?? []}
+              comparison={data.trendComparison}
+            />
           )}
         </>
       )}
