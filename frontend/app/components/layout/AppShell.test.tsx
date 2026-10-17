@@ -76,6 +76,22 @@ describe("AppShell", () => {
     expect(helpLink).toHaveClass("bg-carix-info/10");
   });
 
+  it("테마 토글은 떠 있지 않고 헤더 안에 있다", () => {
+    render(
+      <MemoryRouter initialEntries={["/dashboard"]}>
+        <Routes>
+          <Route element={<AppShell navLabel="주 메뉴" items={items} />}>
+            <Route path="/dashboard" element={<div>판정 페이지</div>} />
+          </Route>
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    // 떠 있는 토글은 좁은 화면에서 계정 메뉴 트리거를 덮어 탭을 가로챘다.
+    const toggle = within(screen.getByRole("banner")).getByTitle("테마 전환");
+    expect(toggle).not.toHaveClass("fixed");
+  });
+
   it("accountMenu 를 켜야 계정 메뉴 트리거가 나온다", async () => {
     // 계정 메뉴는 useSubmit 을 써서 데이터 라우터 안에서만 그려진다(앱과 같은 조건).
     const Stub = createRoutesStub([

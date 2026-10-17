@@ -35,7 +35,7 @@ export function ThemeToggle({
   };
 
   const defaultClass = inHeader
-    ? "flex h-9 w-9 items-center justify-center rounded-lg border border-carix-border/60 bg-carix-surface hover:bg-carix-border/40 text-base cursor-pointer select-none transition-colors"
+    ? "flex size-11 sm:size-9 items-center justify-center rounded-lg border border-carix-border/60 bg-carix-surface hover:bg-carix-border/40 text-base cursor-pointer select-none transition-colors"
     : "fixed right-6 top-6 z-50 flex h-11 w-11 items-center justify-center rounded-full border border-carix-border bg-carix-surface/90 shadow-md backdrop-blur-md transition-all duration-300 hover:scale-105 active:scale-95 text-xl cursor-pointer select-none";
 
   return (
