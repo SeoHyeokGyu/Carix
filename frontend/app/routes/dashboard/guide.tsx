@@ -4,6 +4,7 @@ import { PageSection } from "@/components/layout/PageSection";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { HEADING } from "@/components/ui/heading";
+import { GUIDE_SECTION } from "@/lib/guideSections";
 
 import { SignalBadge } from "../../components/dashboard/SignalBadge";
 
@@ -34,6 +35,9 @@ const SIGNAL_RULES = [
   },
 ] as const;
 
+/** 고정 헤더 아래로 앵커가 숨지 않게 띄운다. 좁은 화면 헤더가 약 65px 다. */
+const ANCHOR_OFFSET = "scroll-mt-24";
+
 export default function DashboardGuide() {
   return (
     <PageFrame>
@@ -47,7 +51,10 @@ export default function DashboardGuide() {
         <PageSection title="지표 3종 (기준선 100의 의미)">
           <div className="grid gap-4 md:grid-cols-3">
             {/* 구매력 지수 */}
-            <Card className="p-5 flex flex-col justify-between">
+            <Card
+              id={GUIDE_SECTION.ppi}
+              className={`p-5 flex flex-col justify-between ${ANCHOR_OFFSET}`}
+            >
               <div>
                 <CardHeader className="p-0 mb-3">
                   <div className="flex items-center justify-between">
@@ -91,7 +98,10 @@ export default function DashboardGuide() {
             </Card>
 
             {/* 시장가치 지수 */}
-            <Card className="p-5 flex flex-col justify-between">
+            <Card
+              id={GUIDE_SECTION.mvi}
+              className={`p-5 flex flex-col justify-between ${ANCHOR_OFFSET}`}
+            >
               <div>
                 <CardHeader className="p-0 mb-3">
                   <div className="flex items-center justify-between">
@@ -136,7 +146,10 @@ export default function DashboardGuide() {
             </Card>
 
             {/* 채용 활발도 */}
-            <Card className="p-5 flex flex-col justify-between">
+            <Card
+              id={GUIDE_SECTION.owi}
+              className={`p-5 flex flex-col justify-between ${ANCHOR_OFFSET}`}
+            >
               <div>
                 <CardHeader className="p-0 mb-3">
                   <div className="flex items-center justify-between">
@@ -187,7 +200,7 @@ export default function DashboardGuide() {
 
         {/* 2. 결정 신호 (Decision Signal) 해석 */}
         <PageSection title="결정 신호 (Decision Signal) 해석">
-          <Card className="p-5">
+          <Card id={GUIDE_SECTION.signal} className={`p-5 ${ANCHOR_OFFSET}`}>
             <div className="text-xs text-carix-text/80 leading-relaxed mb-4">
               결정 신호는 구매력 지수, 시장가치 지수, 그리고 내 세전 연봉과 공식
               임금통계 중앙값의 격차(연봉 격차)를 규칙표로 조합해 다음에 검토할

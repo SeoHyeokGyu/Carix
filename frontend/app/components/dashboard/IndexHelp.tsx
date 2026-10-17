@@ -1,9 +1,11 @@
+import { guideHref } from "@/lib/guideSections";
+
 import { HelpTooltip } from "../common/HelpTooltip";
 
 /** `S-10` 지수·신호 도움말. 문구는 개편 전 카드에 있던 그대로다. */
 export function PurchasingPowerHelp() {
   return (
-    <HelpTooltip label="구매력 지수">
+    <HelpTooltip label="구매력 지수" moreHref={guideHref("ppi")}>
       <div className="flex flex-col gap-1.5">
         <p className="font-semibold text-carix-text">구매력 지수 (PPI)</p>
         <p className="text-carix-text/80">
@@ -31,7 +33,7 @@ export function PurchasingPowerHelp() {
 
 export function MarketValueHelp() {
   return (
-    <HelpTooltip label="시장가치 지수">
+    <HelpTooltip label="시장가치 지수" moreHref={guideHref("mvi")}>
       <div className="flex flex-col gap-1.5">
         <p className="font-semibold text-carix-text">시장가치 지수 (MVI)</p>
         <p className="text-carix-text/80">
@@ -59,7 +61,7 @@ export function MarketValueHelp() {
 
 export function DecisionSignalHelp() {
   return (
-    <HelpTooltip label="결정 신호">
+    <HelpTooltip label="결정 신호" moreHref={guideHref("signal")}>
       <div className="flex flex-col gap-1.5">
         <p className="font-semibold text-carix-text">
           결정 신호 (Decision Signal)
@@ -78,7 +80,7 @@ export function DecisionSignalHelp() {
 
 export function OpeningWindowHelp() {
   return (
-    <HelpTooltip label="채용 활발도" align="right">
+    <HelpTooltip label="채용 활발도" align="right" moreHref={guideHref("owi")}>
       <div className="flex flex-col gap-1.5">
         <p className="font-semibold text-carix-text">채용 활발도 (OWI)</p>
         <p className="text-carix-text/80">
