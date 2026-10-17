@@ -6,8 +6,8 @@ import { guardOnboarded, LANDING_PATH } from "../../lib/routeGuards";
 import { requireSession } from "../../lib/session";
 
 /**
- * 앞 넷은 보는 화면, 마지막은 입력하는 화면이다. 입력 관리는 스냅샷 재계산과 시나리오 사후
- * 검증의 입구라 계정 메뉴로 내리지 않는다 — 설정·로그아웃만 `AccountMenu` 에 있다. 지난 판정(S-11)은
+ * 주 메뉴는 보는 화면만 둔다. 입력 관리(S-12)는 처음 한 번 넣고 바뀔 때만 고치는 화면이라
+ * 설정·로그아웃과 함께 `AccountMenu` 에 있다. 지난 판정(S-11)은
  * 판정의 하위 화면이라 주 메뉴가 아니라 판정 히어로·시장가치 카드의 링크로 들어가고,
  * 그 화면에서는 `match` 로 「대시보드」가 선택된 채 보인다.
  */
@@ -21,7 +21,6 @@ export const MAIN_NAV_ITEMS: NavItem[] = [
   { to: "/dashboard/trends", label: "추이 분석" },
   { to: "/dashboard/skills", label: "스킬 분석" },
   { to: "/dashboard/simulator", label: "시뮬레이터" },
-  { to: "/mypage/records", label: "입력 관리" },
 ];
 
 export const MAIN_UTILITY_ITEMS: NavItem[] = [

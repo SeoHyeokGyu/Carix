@@ -21,6 +21,7 @@ function renderAt(
   const Stub = createRoutesStub([
     { path: "/dashboard", Component: AccountMenu },
     { path: "/mypage/profile", Component: AccountMenu, action },
+    { path: "/mypage/records", Component: AccountMenu },
   ]);
   render(<Stub initialEntries={[path]} />);
   return action;
@@ -35,26 +36,19 @@ async function openMenu() {
 }
 
 describe("AccountMenu", () => {
-  it("열면 설정 링크와 로그아웃 항목을 보인다", async () => {
+  it("열면 입력 관리·설정 링크와 로그아웃 항목을 보인다", async () => {
     renderAt("/dashboard");
     await openMenu();
 
+    expect(
+      await screen.findByRole("menuitem", { name: "입력 관리" }),
+    ).toHaveAttribute("href", "/mypage/records");
     expect(
       await screen.findByRole("menuitem", { name: "설정" }),
     ).toHaveAttribute("href", "/mypage/profile");
     expect(
       screen.getByRole("menuitem", { name: "로그아웃" }),
     ).toBeInTheDocument();
-  });
-
-  it("입력 관리는 주 메뉴에 남으므로 계정 메뉴에 없다", async () => {
-    renderAt("/dashboard");
-    await openMenu();
-
-    await screen.findByRole("menuitem", { name: "설정" });
-    expect(
-      screen.queryByRole("menuitem", { name: "입력 관리" }),
-    ).not.toBeInTheDocument();
   });
 
   it("로그아웃을 고르면 설정 화면 action 에 logout 의도를 보낸다", async () => {
@@ -73,6 +67,14 @@ describe("AccountMenu", () => {
 
   it("설정 화면에서는 트리거가 활성 상태다", async () => {
     renderAt("/mypage/profile");
+
+    expect(
+      await screen.findByRole("button", { name: "내 정보" }),
+    ).toHaveAttribute("data-active", "true");
+  });
+
+  it("입력 관리 화면에서도 트리거가 활성 상태다", async () => {
+    renderAt("/mypage/records");
 
     expect(
       await screen.findByRole("button", { name: "내 정보" }),
