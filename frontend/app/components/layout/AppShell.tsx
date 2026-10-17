@@ -1,8 +1,10 @@
 import type { LucideIcon } from "lucide-react";
+import { useRef } from "react";
 import { Link, NavLink, Outlet, useLocation } from "react-router";
 
 import { ThemeToggle } from "../ThemeToggle";
 import { AccountMenu } from "./AccountMenu";
+import { navMask, useNavOverflow } from "./useNavOverflow";
 
 export interface NavItem {
   to: string;
@@ -44,6 +46,8 @@ export function AppShell({
   children,
 }: AppShellProps) {
   const { pathname } = useLocation();
+  const navRef = useRef<HTMLElement>(null);
+  const mask = navMask(useNavOverflow(navRef, pathname));
   return (
     <div className="min-h-screen bg-carix-bg text-carix-text transition-colors duration-300">
       <header className="sticky top-0 z-40 border-b border-carix-border bg-carix-surface/80 backdrop-blur-md">
@@ -61,8 +65,12 @@ export function AppShell({
 
             {items.length > 0 && (
               <nav
+                ref={navRef}
                 aria-label={navLabel}
-                className="flex items-center gap-1 overflow-x-auto py-0.5"
+                className="relative flex items-center gap-1 overflow-x-auto py-0.5"
+                style={
+                  mask ? { maskImage: mask, WebkitMaskImage: mask } : undefined
+                }
               >
                 {items.map((item) =>
                   // NavLink 는 자기가 선택일 때만 aria-current 를 붙인다 — 하위 화면에서는
