@@ -17,6 +17,7 @@ import {
   PurchasingPowerHelp,
 } from "../../components/dashboard/IndexHelp";
 import { MarketValueTrend } from "../../components/dashboard/MarketValueTrend";
+import { PpiInputLine } from "../../components/dashboard/PpiInputLine";
 import { PriceDriverBadge } from "../../components/dashboard/PriceDriverBadge";
 import { TrustPanel } from "../../components/dashboard/TrustPanel";
 import { VerdictHero } from "../../components/dashboard/VerdictHero";
@@ -25,10 +26,13 @@ import {
   fetchSummary,
   recalculateDashboard,
 } from "../../lib/api/dashboard";
+import { getAppliedExpenses } from "../../lib/api/expense";
+import { listIncome } from "../../lib/api/income";
 import { toUserMessage } from "../../lib/apiError";
 import { UnauthorizedError } from "../../lib/coreApi";
 import { fetchSnapshotHistory } from "../../lib/dashboardMarketApi";
 import { resolvePeerConditions } from "../../lib/peerConditions";
+import { toPpiInputs, toWireBaseMonth } from "../../lib/ppiInputs";
 import { LOGIN_PATH } from "../../lib/routeGuards";
 import { fetchSkillRecommendations } from "../../lib/skillApi";
 import { trendsTabHref } from "../../lib/trendsTabs";
@@ -49,15 +53,32 @@ async function loadOptional<T>(load: () => Promise<T>): Promise<T | null> {
 
 export async function clientLoader() {
   try {
-    const [summary, history, recommendations] = await Promise.all([
-      fetchSummary(),
-      loadOptional(fetchSnapshotHistory),
-      loadOptional(fetchSkillRecommendations),
-    ]);
+    const summaryRequest = fetchSummary();
+    // 적용 소비는 판정 기준월로 물어야 해서 summary 를 기다린다 — 나머지 조회와는 나란히 돈다.
+    const appliedRequest = summaryRequest.then((summary) => {
+      const baseMonth = summary.ok
+        ? toWireBaseMonth(summary.data.metadata.baseDate)
+        : null;
+      return baseMonth
+        ? loadOptional(() => getAppliedExpenses(baseMonth))
+        : null;
+    });
+    const [summary, history, recommendations, income, applied] =
+      await Promise.all([
+        summaryRequest,
+        loadOptional(fetchSnapshotHistory),
+        loadOptional(fetchSkillRecommendations),
+        loadOptional(listIncome),
+        appliedRequest,
+      ]);
     return {
       summary,
       history: history?.snapshots ?? null,
       recommendations,
+      ppiInputs:
+        summary.ok && income && applied
+          ? toPpiInputs(summary.data.metadata.baseDate, income, applied)
+          : null,
     };
   } catch (error) {
     // fetchSummary 는 UnauthorizedError 만 다시 던진다(설계 §10) — 다른 화면과 같은 판단으로
@@ -92,6 +113,7 @@ export default function DashboardHome() {
   // 재검증 사이 loaderData 가 summary 만 가진 모양으로 올 수 있다(retention 테스트) — 없으면 없는 대로 그린다.
   const history = loaderData.history ?? null;
   const recommendations = loaderData.recommendations ?? null;
+  const ppiInputs = loaderData.ppiInputs ?? null;
   const revalidator = useRevalidator();
   // loader 는 실패를 예외가 아니라 {ok:false} 로 돌려준다(설계 §10) — 하지만 React Router 는
   // 재검증마다 loaderData 를 통째로 새 값으로 바꾼다. 재조회가 실패하면 이전 성공 데이터가
@@ -222,7 +244,10 @@ export default function DashboardHome() {
                 helpContent={<PurchasingPowerHelp />}
                 detailHref={trendsTabHref("income")}
                 footer={
-                  <PriceDriverBadge driver={data.metadata.topPriceDriver} />
+                  <>
+                    <PriceDriverBadge driver={data.metadata.topPriceDriver} />
+                    <PpiInputLine inputs={ppiInputs} />
+                  </>
                 }
               />
               <IndexCard

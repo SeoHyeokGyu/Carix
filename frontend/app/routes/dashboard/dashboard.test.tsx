@@ -4,6 +4,8 @@ import { createRoutesStub, MemoryRouter } from "react-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import * as dashboardApi from "../../lib/api/dashboard";
+import * as expenseApi from "../../lib/api/expense";
+import * as incomeApi from "../../lib/api/income";
 import { UnauthorizedError } from "../../lib/coreApi";
 import * as dashboardMarketApi from "../../lib/dashboardMarketApi";
 import { resetSession, setSession } from "../../lib/session";
@@ -71,6 +73,11 @@ describe("대시보드 라우트 및 레이아웃 (Dashboard)", () => {
       vi.spyOn(dashboardMarketApi, "fetchSnapshotHistory").mockResolvedValue({
         snapshots: [],
       });
+      // 입력값 한 줄은 아래 전용 테스트만 본다 — 나머지 테스트에서는 조회 실패로 줄이 없다.
+      vi.spyOn(incomeApi, "listIncome").mockRejectedValue(new Error("down"));
+      vi.spyOn(expenseApi, "getAppliedExpenses").mockRejectedValue(
+        new Error("down"),
+      );
     });
 
     function renderScreen() {
@@ -129,6 +136,96 @@ describe("대시보드 라우트 및 레이아웃 (Dashboard)", () => {
       expect(screen.getByTestId("verdict-statement")).toHaveTextContent(
         "연봉 격차가 크고 스킬 수요도 올라 있습니다. 적극적인 이직 탐색 구간입니다.",
       );
+    });
+
+    describe("구매력 카드 입력값 한 줄", () => {
+      const SUMMARY = {
+        ok: true,
+        data: {
+          purchasingPowerIndex: OK_INDEX,
+          marketValueIndex: OK_INDEX,
+          openingWindowIndex: EMPTY_INDEX,
+          decisionSignal: null,
+          metadata: { baseDate: "2026-09-01", updateDelayed: false },
+        },
+      } as never;
+
+      beforeEach(() => {
+        vi.spyOn(dashboardApi, "fetchSummary").mockResolvedValue(SUMMARY);
+        vi.spyOn(incomeApi, "listIncome").mockResolvedValue([
+          {
+            id: "a",
+            grossSalary: 52_000_000,
+            netSalary: 3_600_000,
+            effectiveDate: "2026-03-01",
+            changeReason: "INITIAL",
+            selectedChangeReason: null,
+          },
+        ]);
+      });
+
+      it("판정 기준월의 적용 소비로 연봉·생활비를 보이고 입력 관리로 보낸다", async () => {
+        const applied = vi
+          .spyOn(expenseApi, "getAppliedExpenses")
+          .mockResolvedValue({
+            baseYearMonth: "202609",
+            weightVersion: 1,
+            weightBasePeriod: "2025",
+            amountBasis: "USER_INPUT",
+            categories: [
+              {
+                category: "HOUSING",
+                amount: 2_300_000,
+                weight: 1,
+                weightStatus: "USER_DEFINED",
+              },
+            ],
+          });
+
+        renderScreen();
+
+        expect(
+          await screen.findByText("세전 연봉 5,200만원 · 월 생활비 230만원"),
+        ).toBeInTheDocument();
+        expect(applied).toHaveBeenCalledWith("202609");
+        expect(
+          screen.getByRole("link", { name: "연봉·생활비 수정" }),
+        ).toHaveAttribute("href", "/mypage/records");
+      });
+
+      it("금액 기준이 없으면 생활비를 0 이 아니라 미입력으로 보인다", async () => {
+        vi.spyOn(expenseApi, "getAppliedExpenses").mockResolvedValue({
+          baseYearMonth: "202609",
+          weightVersion: 1,
+          weightBasePeriod: "2025",
+          amountBasis: "NONE",
+          categories: [
+            {
+              category: "HOUSING",
+              amount: null,
+              weight: 0.2,
+              weightStatus: "DEFAULT_CPI",
+            },
+          ],
+        });
+
+        renderScreen();
+
+        expect(
+          await screen.findByText("세전 연봉 5,200만원 · 월 생활비 미입력"),
+        ).toBeInTheDocument();
+      });
+
+      it("입력값 조회가 실패하면 줄만 없고 지수는 뜬다", async () => {
+        vi.spyOn(incomeApi, "listIncome").mockRejectedValue(new Error("down"));
+
+        renderScreen();
+
+        expect(await screen.findByText("구매력 지수")).toBeInTheDocument();
+        expect(
+          screen.queryByRole("link", { name: "연봉·생활비 수정" }),
+        ).not.toBeInTheDocument();
+      });
     });
 
     // 브리프 시나리오 2 — 둘 다 계산 전이면 첫 계산 안내를 띄운다.
