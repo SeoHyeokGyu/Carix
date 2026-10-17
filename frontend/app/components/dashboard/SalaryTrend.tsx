@@ -42,7 +42,8 @@ function deltaLabel({ recent, previous, verdict }: TrendComparison) {
     return null;
   const diff = recent.median - previous.median;
   const sign = diff < 0 ? MINUS : "+";
-  const percent = Math.abs(Math.round((diff / previous.median) * 100));
+  // 소수 첫째 자리까지 — 정수로 반올림하면 1% 미만 차이가 `+0%` 로 뭉개진다.
+  const percent = Math.round(Math.abs(diff / previous.median) * 1000) / 10;
   return `${sign}${formatKoreanSalary(Math.abs(diff))} (${sign}${percent}%)`;
 }
 
@@ -67,9 +68,10 @@ function PeriodCell({ period }: { period: TrendPeriod }) {
 }
 
 function summaryText(comparison: TrendComparison): string {
-  const median = (period: TrendPeriod) =>
-    period.median != null ? formatKoreanSalary(period.median) : "표본 부족";
-  return `동료집단 중앙 제시 연봉 ${VERDICT_TEXT[comparison.verdict]}. 이전 ${periodLabel(comparison.previous)} ${median(comparison.previous)}, 최근 ${periodLabel(comparison.recent)} ${median(comparison.recent)}.`;
+  const describe = (period: TrendPeriod) =>
+    `${periodLabel(period)} ${period.median != null ? formatKoreanSalary(period.median) : "표본 부족"} (공개 ${period.disclosedSampleSize}건)`;
+  const delta = deltaLabel(comparison);
+  return `동료집단 중앙 제시 연봉 ${VERDICT_TEXT[comparison.verdict]}${delta ? ` ${delta}` : ""}. 이전 ${describe(comparison.previous)}, 최근 ${describe(comparison.recent)}.`;
 }
 
 /**

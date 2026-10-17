@@ -5,10 +5,12 @@ import com.carix.peergroup.TrendComparison.Period;
 import com.carix.peergroup.TrendComparison.Verdict;
 import java.math.BigDecimal;
 import java.math.BigInteger;
+import java.math.RoundingMode;
 import java.time.YearMonth;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -74,10 +76,7 @@ public final class SalaryTrendComparator {
     }
     BigInteger total = BigInteger.TWO.pow(n);
     BigInteger threshold =
-        CONFIDENCE
-            .multiply(new BigDecimal(total))
-            .setScale(0, java.math.RoundingMode.CEILING)
-            .toBigInteger();
+        CONFIDENCE.multiply(new BigDecimal(total)).setScale(0, RoundingMode.CEILING).toBigInteger();
     BigInteger[] choose = binomialRow(n);
     BigInteger[] prefix = new BigInteger[n + 2];
     prefix[0] = BigInteger.ZERO;
@@ -112,7 +111,7 @@ public final class SalaryTrendComparator {
               return month != null && !month.isBefore(from) && !month.isAfter(to);
             })
         .map(JobPosting::disclosedSalary)
-        .filter(s -> s != null)
+        .filter(Objects::nonNull)
         .mapToLong(Long::longValue)
         .sorted()
         .toArray();

@@ -244,7 +244,7 @@ class PeerSalaryDistributionResolverTest {
             jobPostingRepository.findPeerGroupCandidates(
                 eq("DEVELOPER"), eq("서울 강남구"), eq("FULL_TIME"), eq("LARGE"), eq(4), eq(7)))
         .willReturn(postings);
-    given(jobPostingRepository.findLatestSampledMonth()).willReturn(Optional.of("202609"));
+    given(jobPostingRepository.findLatestSampledMonth("202610")).willReturn(Optional.of("202609"));
     given(jobPostingRepository.findSampledSourceMonths("202604", "202609"))
         .willReturn(
             java.util.stream.IntStream.rangeClosed(4, 9)
@@ -270,7 +270,7 @@ class PeerSalaryDistributionResolverTest {
             jobPostingRepository.findPeerGroupCandidates(
                 eq("DEVELOPER"), eq("서울 강남구"), eq("FULL_TIME"), eq("LARGE"), eq(4), eq(7)))
         .willReturn(createPostings(12, 60_000_000L));
-    given(jobPostingRepository.findLatestSampledMonth()).willReturn(Optional.empty());
+    given(jobPostingRepository.findLatestSampledMonth(anyString())).willReturn(Optional.empty());
 
     assertThat(resolver.resolve(profile).trendComparison()).isNull();
   }
@@ -290,7 +290,7 @@ class PeerSalaryDistributionResolverTest {
             jobPostingRepository.findPeerGroupCandidates(
                 eq("DEVELOPER"), eq("서울 강남구"), eq("FULL_TIME"), eq("LARGE"), eq(4), eq(7)))
         .willReturn(postings);
-    given(jobPostingRepository.findLatestSampledMonth()).willReturn(Optional.of("202609"));
+    given(jobPostingRepository.findLatestSampledMonth("202610")).willReturn(Optional.of("202609"));
     List<SourceMonth> sourceMonths =
         new ArrayList<>(
             java.util.stream.IntStream.rangeClosed(4, 9)
@@ -319,7 +319,7 @@ class PeerSalaryDistributionResolverTest {
 
     assertThat(resolver.resolve(profile).trendComparison()).isNull();
     org.mockito.Mockito.verify(jobPostingRepository, org.mockito.Mockito.never())
-        .findLatestSampledMonth();
+        .findLatestSampledMonth(anyString());
   }
 
   private JobPosting sampledPosting(String source, String sampledMonth, long salary) {

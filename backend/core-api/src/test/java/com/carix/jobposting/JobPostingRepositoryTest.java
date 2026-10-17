@@ -38,7 +38,8 @@ class JobPostingRepositoryTest {
     save("JOBKOREA", "202609");
     save("SARAMIN", null);
 
-    assertThat(jobPostingRepository.findLatestSampledMonth()).isEqualTo(Optional.of("202609"));
+    assertThat(jobPostingRepository.findLatestSampledMonth("202610"))
+        .isEqualTo(Optional.of("202609"));
   }
 
   @Test
@@ -46,7 +47,19 @@ class JobPostingRepositoryTest {
   void findLatestSampledMonth_emptyWhenNoSample() {
     save("SARAMIN", null);
 
-    assertThat(jobPostingRepository.findLatestSampledMonth()).isEmpty();
+    assertThat(jobPostingRepository.findLatestSampledMonth("202610")).isEmpty();
+  }
+
+  @Test
+  @DisplayName("findLatestSampledMonth - 상한(현재 월)을 넘는 깨진 표본 월은 무시한다")
+  void findLatestSampledMonth_ignoresMonthAfterCeiling() {
+    save("JOBKOREA", "202609");
+    save("JOBKOREA", "202613");
+
+    assertThat(jobPostingRepository.findLatestSampledMonth("202610"))
+        .isEqualTo(Optional.of("202609"));
+    assertThat(jobPostingRepository.findLatestSampledMonth("202609"))
+        .isEqualTo(Optional.of("202609"));
   }
 
   @Test
@@ -69,7 +82,8 @@ class JobPostingRepositoryTest {
     save("JOBKOREA", "202609");
     save("WANTED", "202610", null);
 
-    assertThat(jobPostingRepository.findLatestSampledMonth()).isEqualTo(Optional.of("202609"));
+    assertThat(jobPostingRepository.findLatestSampledMonth("202610"))
+        .isEqualTo(Optional.of("202609"));
   }
 
   @Test

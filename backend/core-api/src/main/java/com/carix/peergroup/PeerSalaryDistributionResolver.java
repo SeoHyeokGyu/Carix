@@ -37,6 +37,13 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class PeerSalaryDistributionResolver {
 
+  private static final DateTimeFormatter TREND_YM_FORMATTER =
+      DateTimeFormatter.ofPattern("uuuu-MM");
+  private static final DateTimeFormatter SAMPLED_MONTH_FORMAT =
+      DateTimeFormatter.ofPattern("yyyyMM");
+  private static final int COMPARISON_WINDOW_MONTHS = SalaryTrendComparator.WINDOW_MONTHS * 2;
+  private static final ZoneId SEOUL = ZoneId.of("Asia/Seoul");
+
   private final JobPostingRepository jobPostingRepository;
   private final PeerGroupFallbackResolver peerGroupFallbackResolver;
 
@@ -45,10 +52,6 @@ public class PeerSalaryDistributionResolver {
 
   @Autowired(required = false)
   private Clock clock;
-
-  private static final DateTimeFormatter SAMPLED_MONTH_FORMAT =
-      DateTimeFormatter.ofPattern("yyyyMM");
-  private static final int COMPARISON_WINDOW_MONTHS = 6;
 
   /** 테스트에서 현재 월을 고정하려고 필드 주입 자리에 값을 넣는다. */
   void setClock(Clock clock) {
@@ -137,9 +140,6 @@ public class PeerSalaryDistributionResolver {
         minSample);
   }
 
-  private static final java.time.format.DateTimeFormatter TREND_YM_FORMATTER =
-      java.time.format.DateTimeFormatter.ofPattern("uuuu-MM");
-
   private PeerSalaryDistribution toDistribution(ResolvedPeerPostings resolved, int minSample) {
     List<Long> disclosed = disclosedSalaries(resolved.postings());
     boolean sufficient = resolved.postings().size() >= minSample && disclosed.size() >= minSample;
@@ -158,8 +158,13 @@ public class PeerSalaryDistributionResolver {
    * <p>NOTE: (cjkang) 원천 간 중복 묶음에서 대표가 표본이 아닌 행이면 그 묶음의 표본 행은 빠진다. 알려진 한계로 두고 고치지 않았다.
    */
   private TrendComparison compareTrend(List<JobPosting> postings) {
+    Clock effective = clock != null ? clock : Clock.system(SEOUL);
+    YearMonth currentMonth = YearMonth.now(effective.withZone(SEOUL));
     YearMonth latest =
-        jobPostingRepository.findLatestSampledMonth().map(this::parseSampledMonth).orElse(null);
+        jobPostingRepository
+            .findLatestSampledMonth(currentMonth.format(SAMPLED_MONTH_FORMAT))
+            .map(this::parseSampledMonth)
+            .orElse(null);
     if (latest == null) {
       return null;
     }
@@ -173,13 +178,8 @@ public class PeerSalaryDistributionResolver {
         monthsBySource.computeIfAbsent(sourceMonth.source(), k -> new TreeSet<>()).add(month);
       }
     }
-    Clock effective = clock != null ? clock : Clock.system(ZoneId.of("Asia/Seoul"));
     return SalaryTrendComparator.compare(
-        postings,
-        latest,
-        monthsBySource,
-        YearMonth.now(effective.withZone(ZoneId.of("Asia/Seoul"))),
-        minSample());
+        postings, latest, monthsBySource, currentMonth, minSample());
   }
 
   /** 형식이 깨진 값은 null — 한 행 때문에 요청이 실패하지 않게 한다. */
