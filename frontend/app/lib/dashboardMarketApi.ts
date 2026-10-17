@@ -59,6 +59,25 @@ export interface SalaryTrendPoint {
   missingRate: number;
 }
 
+export type TrendVerdict = "UP" | "DOWN" | "FLAT" | "INSUFFICIENT_SAMPLE";
+
+export interface TrendPeriod {
+  from: string;
+  to: string;
+  median: number | null;
+  ciLow: number | null;
+  ciHigh: number | null;
+  disclosedSampleSize: number;
+}
+
+export interface TrendComparison {
+  recent: TrendPeriod;
+  previous: TrendPeriod;
+  verdict: TrendVerdict;
+  sources: string[];
+  inProgress: string[];
+}
+
 export interface SalaryDistributionResponse {
   status: "OK" | "INSUFFICIENT_SAMPLE" | string;
   sampleSize: number;
@@ -68,6 +87,7 @@ export interface SalaryDistributionResponse {
   userPosition?: UserPosition | null;
   peerGroup?: DistributionPeerGroup | null;
   trend?: SalaryTrendPoint[] | null;
+  trendComparison?: TrendComparison | null;
   careerLadder?: CareerLadder | null;
 }
 
