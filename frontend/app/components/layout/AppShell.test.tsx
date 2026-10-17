@@ -16,7 +16,7 @@ describe("AppShell", () => {
     render(
       <MemoryRouter initialEntries={["/dashboard"]}>
         <Routes>
-          <Route element={<AppShell navLabel="대시보드" items={items} />}>
+          <Route element={<AppShell navLabel="주 메뉴" items={items} />}>
             <Route path="/dashboard" element={<div>판정 페이지</div>} />
             <Route
               path="/dashboard/history"
@@ -27,7 +27,7 @@ describe("AppShell", () => {
       </MemoryRouter>,
     );
 
-    const nav = screen.getByRole("navigation", { name: "대시보드" });
+    const nav = screen.getByRole("navigation", { name: "주 메뉴" });
     expect(nav).toBeInTheDocument();
 
     const activeLink = screen.getByRole("link", { name: "판정" });
@@ -49,7 +49,7 @@ describe("AppShell", () => {
           <Route
             element={
               <AppShell
-                navLabel="대시보드"
+                navLabel="주 메뉴"
                 items={items}
                 utilityItems={utilityItems}
               />
@@ -86,7 +86,7 @@ describe("AppShell", () => {
       {
         path: "/dashboard",
         Component: () => (
-          <AppShell navLabel="대시보드" items={items} accountMenu />
+          <AppShell navLabel="주 메뉴" items={items} accountMenu />
         ),
       },
     ]);
@@ -104,7 +104,7 @@ describe("AppShell", () => {
     ).toBeInTheDocument();
   });
   describe("하위 화면 선택(match)", () => {
-    // 실제 주 메뉴 정의를 쓴다 — 「판정」의 match 가 빠지면 지난 판정 화면에서 선택이 사라진다.
+    // 실제 주 메뉴 정의를 쓴다 — 「대시보드」의 match 가 빠지면 지난 판정 화면에서 선택이 사라진다.
     const sectionItems = MAIN_NAV_ITEMS;
 
     function renderAt(path: string) {
@@ -112,9 +112,9 @@ describe("AppShell", () => {
         <MemoryRouter initialEntries={[path]}>
           <Routes>
             <Route
-              element={<AppShell navLabel="대시보드" items={sectionItems} />}
+              element={<AppShell navLabel="주 메뉴" items={sectionItems} />}
             >
-              <Route path="/dashboard" element={<div>판정</div>} />
+              <Route path="/dashboard" element={<div>대시보드 화면</div>} />
               <Route path="/dashboard/history" element={<div>지난 판정</div>} />
               <Route
                 path="/dashboard/historyx"
@@ -125,35 +125,35 @@ describe("AppShell", () => {
           </Routes>
         </MemoryRouter>,
       );
-      const nav = screen.getByRole("navigation", { name: "대시보드" });
+      const nav = screen.getByRole("navigation", { name: "주 메뉴" });
       return {
-        verdict: within(nav).getByRole("link", { name: "판정" }),
+        home: within(nav).getByRole("link", { name: "대시보드" }),
         trends: within(nav).getByRole("link", { name: "추이 분석" }),
       };
     }
 
     it("하위 화면에서 상위 항목을 선택으로 보이고 aria-current=true 를 단다", () => {
-      const { verdict, trends } = renderAt("/dashboard/history");
+      const { home, trends } = renderAt("/dashboard/history");
 
-      expect(verdict).toHaveAttribute("aria-current", "true");
-      expect(verdict).toHaveClass("bg-carix-info/10");
-      expect(verdict).toHaveAttribute("href", "/dashboard");
+      expect(home).toHaveAttribute("aria-current", "true");
+      expect(home).toHaveClass("bg-carix-info/10");
+      expect(home).toHaveAttribute("href", "/dashboard");
       expect(trends).not.toHaveAttribute("aria-current");
       expect(trends).toHaveClass("text-carix-text/70");
     });
 
     it("상위 화면 자체에서는 aria-current=page 다", () => {
-      const { verdict } = renderAt("/dashboard");
+      const { home } = renderAt("/dashboard");
 
-      expect(verdict).toHaveAttribute("aria-current", "page");
-      expect(verdict).toHaveClass("bg-carix-info/10");
+      expect(home).toHaveAttribute("aria-current", "page");
+      expect(home).toHaveClass("bg-carix-info/10");
     });
 
     it("경로 접두만 같은 화면은 하위 화면이 아니다", () => {
-      const { verdict } = renderAt("/dashboard/historyx");
+      const { home } = renderAt("/dashboard/historyx");
 
-      expect(verdict).not.toHaveAttribute("aria-current");
-      expect(verdict).toHaveClass("text-carix-text/70");
+      expect(home).not.toHaveAttribute("aria-current");
+      expect(home).toHaveClass("text-carix-text/70");
     });
   });
 });

@@ -12,7 +12,12 @@ import { requireSession } from "../../lib/session";
  * `match` 로 「판정」이 선택된 채 보인다.
  */
 export const MAIN_NAV_ITEMS: NavItem[] = [
-  { to: "/dashboard", label: "판정", end: true, match: ["/dashboard/history"] },
+  {
+    to: "/dashboard",
+    label: "대시보드",
+    end: true,
+    match: ["/dashboard/history"],
+  },
   { to: "/dashboard/trends", label: "추이 분석" },
   { to: "/dashboard/simulator", label: "시뮬레이터" },
   { to: "/mypage/records", label: "입력 관리" },
@@ -37,7 +42,7 @@ export async function clientLoader() {
 export default function DashboardLayout() {
   return (
     <AppShell
-      navLabel="대시보드"
+      navLabel="주 메뉴"
       items={MAIN_NAV_ITEMS}
       utilityItems={MAIN_UTILITY_ITEMS}
       accountMenu

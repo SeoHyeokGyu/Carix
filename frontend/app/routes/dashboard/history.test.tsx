@@ -103,10 +103,9 @@ describe("S-11 DashboardHistory 라우트", () => {
       </MemoryRouter>,
     );
 
-    expect(await screen.findByRole("link", { name: "판정" })).toHaveAttribute(
-      "href",
-      "/dashboard",
-    );
+    expect(
+      await screen.findByRole("link", { name: "대시보드" }),
+    ).toHaveAttribute("href", "/dashboard");
   });
 
   it("스냅샷이 0개일 때 비어있음 안내 상태를 렌더링한다", async () => {
@@ -418,7 +417,7 @@ describe("S-11 DashboardHistory 라우트", () => {
     await screen.findByTestId("empty-state");
     expect(screen.queryByRole("button", { name: /새로고침/ })).toBeNull();
     expect(screen.getAllByRole("heading", { level: 1 })).toHaveLength(1);
-    expect(screen.getByRole("link", { name: "판정" })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: "대시보드" })).toHaveAttribute(
       "href",
       "/dashboard",
     );

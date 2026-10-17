@@ -21,7 +21,7 @@ export async function clientLoader() {
 export default function MypageLayout() {
   return (
     <AppShell
-      navLabel="마이페이지"
+      navLabel="주 메뉴"
       items={MAIN_NAV_ITEMS}
       utilityItems={MAIN_UTILITY_ITEMS}
       accountMenu
