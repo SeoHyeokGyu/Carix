@@ -5,6 +5,9 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import java.time.LocalDate;
+import java.time.YearMonth;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.time.temporal.ChronoUnit;
 import java.util.UUID;
 import lombok.AccessLevel;
@@ -29,6 +32,9 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
 public class JobPosting {
+
+  private static final DateTimeFormatter SAMPLED_MONTH_FORMAT =
+      DateTimeFormatter.ofPattern("yyyyMM");
 
   @Id private UUID id;
 
@@ -61,11 +67,35 @@ public class JobPosting {
   @Column(name = "job_family", length = 100)
   private String jobFamily;
 
+  /** 수집 원천 (JOBKOREA, SARAMIN 등). */
+  @Column(name = "source", length = 20)
+  private String source;
+
+  /** 무작위 표본으로 수집된 월 (YYYYMM). 표본 프레임이 아니면 {@code null}. */
+  @Column(name = "sampled_month", length = 6)
+  private String sampledMonth;
+
   @Column(name = "posted_start_date")
   private LocalDate postedStartDate;
 
   @Column(name = "posted_end_date")
   private LocalDate postedEndDate;
+
+  /**
+   * 표본 월을 {@link YearMonth} 로 푼다.
+   *
+   * @return {@code sampledMonth} 가 없거나 YYYYMM 형식이 아니면 {@code null}
+   */
+  public YearMonth sampledYearMonth() {
+    if (sampledMonth == null) {
+      return null;
+    }
+    try {
+      return YearMonth.parse(sampledMonth, SAMPLED_MONTH_FORMAT);
+    } catch (DateTimeParseException e) {
+      return null;
+    }
+  }
 
   /**
    * 모집 개방 기간 (일수). {@code posted_end_date - posted_start_date} (기능 명세 §4.5).

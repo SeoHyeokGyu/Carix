@@ -1,0 +1,59 @@
+package com.carix.jobposting;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+import java.util.Optional;
+import java.util.UUID;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
+import org.springframework.boot.jdbc.test.autoconfigure.AutoConfigureTestDatabase;
+
+@DataJpaTest
+@AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
+class JobPostingRepositoryTest {
+
+  @Autowired private JobPostingRepository jobPostingRepository;
+
+  private void save(String source, String sampledMonth) {
+    jobPostingRepository.saveAndFlush(
+        JobPosting.builder()
+            .id(UUID.randomUUID())
+            .source(source)
+            .sampledMonth(sampledMonth)
+            .build());
+  }
+
+  @Test
+  @DisplayName("findLatestSampledMonth - 표본 월이 없는 행을 무시하고 가장 최근 월을 돌려준다")
+  void findLatestSampledMonth() {
+    save("JOBKOREA", "202608");
+    save("JOBKOREA", "202609");
+    save("SARAMIN", null);
+
+    assertThat(jobPostingRepository.findLatestSampledMonth()).isEqualTo(Optional.of("202609"));
+  }
+
+  @Test
+  @DisplayName("findLatestSampledMonth - 표본이 하나도 없으면 비어 있다")
+  void findLatestSampledMonth_emptyWhenNoSample() {
+    save("SARAMIN", null);
+
+    assertThat(jobPostingRepository.findLatestSampledMonth()).isEmpty();
+  }
+
+  @Test
+  @DisplayName("findSampledSourceMonths - 범위 안의 (원천, 표본 월) 쌍을 중복 없이 돌려준다")
+  void findSampledSourceMonths() {
+    save("JOBKOREA", "202604");
+    save("JOBKOREA", "202604");
+    save("SARAMIN", "202606");
+    save("JOBKOREA", "202610");
+    save("SARAMIN", null);
+
+    assertThat(jobPostingRepository.findSampledSourceMonths("202604", "202609"))
+        .containsExactlyInAnyOrder(
+            new SourceMonth("JOBKOREA", "202604"), new SourceMonth("SARAMIN", "202606"));
+  }
+}

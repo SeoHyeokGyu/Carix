@@ -3,6 +3,7 @@ package com.carix.jobposting;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.time.LocalDate;
+import java.time.YearMonth;
 import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -67,5 +68,20 @@ class JobPostingTest {
     assertThat(noStart.windowDays()).isNull();
     assertThat(noStart.isReversed()).isFalse();
     assertThat(noStart.isOpenEnded()).isFalse();
+  }
+
+  @Test
+  @DisplayName("sampledYearMonth - YYYYMM 문자열을 YearMonth 로 푼다")
+  void sampledYearMonth_parsesYyyymm() {
+    JobPosting posting = JobPosting.builder().sampledMonth("202609").build();
+
+    assertThat(posting.sampledYearMonth()).isEqualTo(YearMonth.of(2026, 9));
+  }
+
+  @Test
+  @DisplayName("sampledYearMonth - 표본 월이 없거나 형식이 틀리면 null")
+  void sampledYearMonth_nullWhenAbsent() {
+    assertThat(JobPosting.builder().sampledMonth(null).build().sampledYearMonth()).isNull();
+    assertThat(JobPosting.builder().sampledMonth("2026-09").build().sampledYearMonth()).isNull();
   }
 }

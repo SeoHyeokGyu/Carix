@@ -2,6 +2,7 @@ package com.carix.jobposting;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -70,4 +71,18 @@ public interface JobPostingRepository extends JpaRepository<JobPosting, UUID> {
       """)
   List<JobPosting> findAllByRegistrationMonth(
       @Param("monthStart") LocalDate monthStart, @Param("monthEnd") LocalDate monthEnd);
+
+  /** 표본 월이 있는 공고 중 가장 최근 월 (YYYYMM). 표본이 없으면 비어 있다. */
+  @Query("SELECT MAX(p.sampledMonth) FROM JobPosting p")
+  Optional<String> findLatestSampledMonth();
+
+  /** 범위(양끝 포함, YYYYMM 문자열 비교) 안에 표본이 있는 (원천, 표본 월) 쌍. 동료집단 필터는 걸지 않는다. */
+  @Query(
+      """
+      SELECT DISTINCT new com.carix.jobposting.SourceMonth(p.source, p.sampledMonth)
+      FROM JobPosting p
+      WHERE p.sampledMonth >= :fromMonth AND p.sampledMonth <= :toMonth
+      """)
+  List<SourceMonth> findSampledSourceMonths(
+      @Param("fromMonth") String fromMonth, @Param("toMonth") String toMonth);
 }
