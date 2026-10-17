@@ -18,9 +18,31 @@ describe("sparklineDomain", () => {
   it("100 에서 더 멀리 벗어나면 그만큼 넓힌다", () => {
     expect(sparklineDomain([82, 104])).toEqual({ min: 82, max: 118 });
   });
+
+  it("기준선이 없으면(금액) 최소·최대로 채운다", () => {
+    expect(sparklineDomain([48_000_000, 52_000_000], null)).toEqual({
+      min: 48_000_000,
+      max: 52_000_000,
+    });
+  });
+
+  it("기준선 없이 값이 모두 같아도 범위가 0 이 되지 않는다", () => {
+    const { min, max } = sparklineDomain([50_000_000, 50_000_000], null);
+    expect(max - min).toBeGreaterThan(0);
+  });
 });
 
 describe("Sparkline", () => {
+  it("기준선이 없으면 점선을 긋지 않는다", () => {
+    const { container } = render(
+      <Sparkline series={series([48_000_000, 52_000_000])} baseline={null} />,
+    );
+    expect(
+      container.querySelector("[data-testid='sparkline-baseline']"),
+    ).toBeNull();
+    expect(container.querySelector("polyline")).not.toBeNull();
+  });
+
   it("기준 100 에 점선 기준선을 그린다", () => {
     const { container } = render(<Sparkline series={series([100, 105])} />);
     const baseline = container.querySelector(

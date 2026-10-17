@@ -4,14 +4,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { HEADING } from "@/components/ui/heading";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { ToneBadge } from "@/components/ui/tone-badge";
 import { cn } from "@/lib/utils";
 
@@ -19,32 +11,15 @@ import {
   fetchSalaryDistribution,
   type SalaryDistributionResponse,
 } from "../../lib/dashboardMarketApi";
+import { formatKoreanSalary } from "../../lib/koreanSalary";
 import { bracketLabel, formatAppliedConditions } from "../../lib/sourceLabel";
+import { SalaryTrend } from "./SalaryTrend";
+
+export { formatKoreanSalary };
 
 export interface SalaryDistributionChartProps {
   data: SalaryDistributionResponse;
   onYearChange?: (year: string) => void;
-}
-
-/**
- * 원 단위 금액을 "X,XXX만 원" 또는 "X억 X,XXX만 원" 형태로 포맷
- */
-export function formatKoreanSalary(won: number | null | undefined): string {
-  if (won == null) return "-";
-  if (won === 0) return "0원";
-
-  const eok = Math.floor(won / 100_000_000);
-  const man = Math.floor((won % 100_000_000) / 10_000);
-
-  if (eok > 0 && man > 0) {
-    return `${eok}억 ${man.toLocaleString()}만 원`;
-  } else if (eok > 0) {
-    return `${eok}억 원`;
-  } else if (man > 0) {
-    return `${man.toLocaleString()}만 원`;
-  } else {
-    return `${won.toLocaleString()}원`;
-  }
 }
 
 interface BodyPartInfo {
@@ -887,56 +862,7 @@ export function SalaryDistributionChart({
 
           {/* 제시 연봉 추이 (기능 명세 §4.6, US-D3) */}
           {data.trend && data.trend.length > 0 && (
-            <div className="mt-4" data-testid="salary-trend-section">
-              <div className="mb-2.5 flex items-center justify-between text-xs text-carix-text/70">
-                <span className="font-semibold text-carix-text/90">
-                  📈 동료집단 등록월별 중앙 제시 연봉 추이
-                </span>
-                <span className="text-[11px] text-carix-text/50">
-                  공고 등록일(posted_start_date) 기준
-                </span>
-              </div>
-              <Table variant="plain">
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>등록월</TableHead>
-                    <TableHead>중앙 제시 연봉</TableHead>
-                    <TableHead className="text-right">전체 공고</TableHead>
-                    <TableHead className="text-right">공개 표본</TableHead>
-                    <TableHead className="text-right">결측률</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {data.trend.map((point) => (
-                    <TableRow key={point.yearMonth}>
-                      <TableCell className="font-medium">
-                        {point.yearMonth}
-                      </TableCell>
-                      <TableCell className="font-semibold">
-                        {point.median != null ? (
-                          <span className="text-carix-info">
-                            {formatKoreanSalary(point.median)}
-                          </span>
-                        ) : (
-                          <span className="text-carix-text/40 italic">
-                            표본 부족 (미산출)
-                          </span>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-right text-carix-text/80">
-                        {point.sampleSize}건
-                      </TableCell>
-                      <TableCell className="text-right text-carix-text/80">
-                        {point.disclosedSampleSize}건
-                      </TableCell>
-                      <TableCell className="text-right text-carix-text/60">
-                        {point.missingRate.toFixed(1)}%
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
+            <SalaryTrend trend={data.trend} />
           )}
         </>
       )}

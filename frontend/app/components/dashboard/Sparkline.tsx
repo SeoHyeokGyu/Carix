@@ -8,24 +8,41 @@ const BASELINE = 100;
 const MIN_HALF_SPAN = 10;
 
 /**
- * 세로축 범위. 최소·최대로 채우지 않고 기준 100 을 가운데 둔 대칭 범위를 쓴다 —
+ * 세로축 범위. 지수는 최소·최대로 채우지 않고 기준 100 을 가운데 둔 대칭 범위를 쓴다 —
  * 지표 카드 눈금(`IndexCard` BaselineScale)과 같은 기준으로 크기를 읽게 한다.
+ * 기준선이 없는 금액 계열(`baseline` null)은 최소·최대로 채운다.
  */
-export function sparklineDomain(values: readonly number[]): {
+export function sparklineDomain(
+  values: readonly number[],
+  baseline: number | null = BASELINE,
+): {
   min: number;
   max: number;
 } {
+  if (baseline === null) {
+    const min = Math.min(...values);
+    const max = Math.max(...values);
+    // 값이 모두 같으면 범위가 0 이라 가운데 수평선으로 그린다.
+    return min === max ? { min: min - 1, max: max + 1 } : { min, max };
+  }
   const halfSpan = Math.max(
     MIN_HALF_SPAN,
-    ...values.map((value) => Math.abs(value - BASELINE)),
+    ...values.map((value) => Math.abs(value - baseline)),
   );
-  return { min: BASELINE - halfSpan, max: BASELINE + halfSpan };
+  return { min: baseline - halfSpan, max: baseline + halfSpan };
 }
 
 /** 값이 이어진 구간마다 선을 따로 긋는다 — 구간 사이는 잇지 않는다. 한 점짜리 구간은 점으로. */
-export function Sparkline({ series }: { series: SparklineSeries }) {
+export function Sparkline({
+  series,
+  baseline = BASELINE,
+}: {
+  series: SparklineSeries;
+  /** 점선 기준선 값. 금액처럼 기준이 없는 계열은 null. */
+  baseline?: number | null;
+}) {
   const values = series.segments.flat().map((point) => point.value);
-  const { min, max } = sparklineDomain(values);
+  const { min, max } = sparklineDomain(values, baseline);
   const range = max - min;
   const x = (index: number) =>
     series.slots <= 1 ? WIDTH / 2 : (index / (series.slots - 1)) * WIDTH;
@@ -39,16 +56,18 @@ export function Sparkline({ series }: { series: SparklineSeries }) {
       viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
       className="h-8 w-30 text-carix-info"
     >
-      <line
-        data-testid="sparkline-baseline"
-        x1={0}
-        x2={WIDTH}
-        y1={y(BASELINE)}
-        y2={y(BASELINE)}
-        className="stroke-carix-text/30"
-        strokeWidth={1}
-        strokeDasharray="2 2"
-      />
+      {baseline !== null && (
+        <line
+          data-testid="sparkline-baseline"
+          x1={0}
+          x2={WIDTH}
+          y1={y(baseline)}
+          y2={y(baseline)}
+          className="stroke-carix-text/30"
+          strokeWidth={1}
+          strokeDasharray="2 2"
+        />
+      )}
       {series.segments.map((segment) =>
         segment.length === 1 ? (
           <circle
