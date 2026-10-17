@@ -17,11 +17,17 @@ class JobPostingRepositoryTest {
   @Autowired private JobPostingRepository jobPostingRepository;
 
   private void save(String source, String sampledMonth) {
+    save(source, sampledMonth, 50_000_000L);
+  }
+
+  private void save(String source, String sampledMonth, Long salary) {
     jobPostingRepository.saveAndFlush(
         JobPosting.builder()
             .id(UUID.randomUUID())
             .source(source)
             .sampledMonth(sampledMonth)
+            .salaryMin(salary)
+            .salaryMax(salary)
             .build());
   }
 
@@ -55,5 +61,25 @@ class JobPostingRepositoryTest {
     assertThat(jobPostingRepository.findSampledSourceMonths("202604", "202609"))
         .containsExactlyInAnyOrder(
             new SourceMonth("JOBKOREA", "202604"), new SourceMonth("SARAMIN", "202606"));
+  }
+
+  @Test
+  @DisplayName("findLatestSampledMonth - 연봉 미공개 표본 행은 최신 월을 올리지 않는다")
+  void findLatestSampledMonth_ignoresUndisclosedSalary() {
+    save("JOBKOREA", "202609");
+    save("WANTED", "202610", null);
+
+    assertThat(jobPostingRepository.findLatestSampledMonth()).isEqualTo(Optional.of("202609"));
+  }
+
+  @Test
+  @DisplayName("findSampledSourceMonths - 연봉 미공개 표본 행은 돌려주지 않고 상한 월은 포함한다")
+  void findSampledSourceMonths_disclosedOnlyAndInclusiveUpperBound() {
+    save("JOBKOREA", "202609");
+    save("WANTED", "202609", null);
+    save("WANTED", "202608", null);
+
+    assertThat(jobPostingRepository.findSampledSourceMonths("202604", "202609"))
+        .containsExactly(new SourceMonth("JOBKOREA", "202609"));
   }
 }
