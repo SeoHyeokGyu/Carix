@@ -296,13 +296,19 @@ class SnapshotReadServiceTest {
                     new BigDecimal("118.40"),
                     new SnapshotRationale.IndexStatuses(null, null, IndexStatus.OK),
                     new SnapshotRationale.OpeningWindowEvidence(
-                        124, 86, 34, new BigDecimal("21.50"), 3, "서울 전체 / MID", 29))));
+                        86,
+                        320,
+                        new BigDecimal("24.50"),
+                        new BigDecimal("20.69"),
+                        1,
+                        "전국 / 4~7년 / 회사규모 무관 / 고용형태 무관",
+                        351))));
 
     DashboardSummaryResponse response = summaryService.resolve(USER_ID, "202607");
 
     assertThat(response.openingWindowIndex().value()).isEqualTo(118.4);
     assertThat(response.metadata().openingWindow())
-        .isEqualTo(new DashboardSummaryResponse.OpeningWindowSummary(34, 21.5, 86));
+        .isEqualTo(new DashboardSummaryResponse.OpeningWindowSummary(24.5, 20.69, 86));
   }
 
   @Test

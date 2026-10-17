@@ -240,12 +240,18 @@ class SnapshotRecalculationServiceTest {
     assertThat(saved.getRationale().openingWindow())
         .isEqualTo(
             new SnapshotRationale.OpeningWindowEvidence(
-                124, 86, 34, new BigDecimal("21.50"), 3, "서울 전체 / 경력 MID / 회사규모 무관", 29));
+                86,
+                320,
+                new BigDecimal("24.50"),
+                new BigDecimal("20.69"),
+                1,
+                "전국 / 4~7년 / 회사규모 무관 / 고용형태 무관",
+                351));
   }
 
-  /** 표본 부족은 결측이 아니다 — 아는 사실(상시채용 비율·마감일 표본)은 남긴다 (기능 명세 §4.5). */
+  /** 표본 부족은 결측이 아니다 — 아는 사실(최근 창 비중·표본 수)은 남긴다 (기능 명세 §4.5, b22). */
   @Test
-  void OWI_표본부족이면_상시채용_비율과_마감일_표본은_남는다() {
+  void OWI_표본부족이면_최근_비중과_표본수는_남는다() {
     SnapshotRecalculationService withOwi = serviceWithOwi(insufficientOwi());
 
     withOwi.recalculateSnapshot(userId, CURRENT_YM);
@@ -257,15 +263,15 @@ class SnapshotRecalculationServiceTest {
         .isEqualTo(IndexStatus.INSUFFICIENT_SAMPLE);
     assertThat(saved.getRationale().openingWindow())
         .extracting(
-            SnapshotRationale.OpeningWindowEvidence::openEndedRatePercent,
-            SnapshotRationale.OpeningWindowEvidence::deadlineSampleSize,
-            SnapshotRationale.OpeningWindowEvidence::medianWindowDays)
-        .containsExactly(new BigDecimal("18.00"), 4, null);
+            SnapshotRationale.OpeningWindowEvidence::recentSharePercent,
+            SnapshotRationale.OpeningWindowEvidence::peerSampleSize,
+            SnapshotRationale.OpeningWindowEvidence::baselineSharePercent)
+        .containsExactly(new BigDecimal("24.50"), 31, null);
   }
 
   /**
    * 표본 수치 넷이 전부 없어도 완화 이력 셋({@code fallbackLevel}·{@code appliedConditions}·{@code
-   * marketMedianWindowDays})만 있으면 근거 블록을 만든다. 넷만 보던 옛 가드는 이 모양에서 블록째 버려 D1 이 지키려는 완화 이력이 사라졌다.
+   * marketSampleSize})만 있으면 근거 블록을 만든다. 넷만 보던 옛 가드는 이 모양에서 블록째 버려 D1 이 지키려는 완화 이력이 사라졌다.
    */
   @Test
   void 완화_이력만_있어도_근거_블록이_만들어진다() {
@@ -278,9 +284,9 @@ class SnapshotRecalculationServiceTest {
             null,
             null,
             null,
-            5,
-            "전국 / 경력 무관",
-            29);
+            2,
+            "전국 / 경력 전체 / 회사규모 무관 / 고용형태 무관",
+            351);
     SnapshotRecalculationService withOwi = serviceWithOwi(relaxationOnlyOwi);
 
     withOwi.recalculateSnapshot(userId, CURRENT_YM);
@@ -290,7 +296,7 @@ class SnapshotRecalculationServiceTest {
     assertThat(saved.getRationale().openingWindow())
         .isEqualTo(
             new SnapshotRationale.OpeningWindowEvidence(
-                null, null, null, null, 5, "전국 / 경력 무관", 29));
+                null, null, null, null, 2, "전국 / 경력 전체 / 회사규모 무관 / 고용형태 무관", 351));
   }
 
   /** 세 지수 상태를 다 저장한다 — 읽기 경로가 value==null 에서 NOT_AVAILABLE 로 뭉개지 않게. */
@@ -437,13 +443,13 @@ class SnapshotRecalculationServiceTest {
         CURRENT_YM,
         new BigDecimal("118.40"),
         IndexStatus.OK,
-        124,
         86,
-        34,
-        new BigDecimal("21.50"),
-        3,
-        "서울 전체 / 경력 MID / 회사규모 무관",
-        29);
+        320,
+        new BigDecimal("24.50"),
+        new BigDecimal("20.69"),
+        1,
+        "전국 / 4~7년 / 회사규모 무관 / 고용형태 무관",
+        351);
   }
 
   private static OwiResult insufficientOwi() {
@@ -453,11 +459,11 @@ class SnapshotRecalculationServiceTest {
         IndexStatus.INSUFFICIENT_SAMPLE,
         31,
         4,
+        new BigDecimal("24.50"),
         null,
-        new BigDecimal("18.00"),
-        5,
-        "전국 / 경력 무관",
-        29);
+        2,
+        "전국 / 경력 전체 / 회사규모 무관 / 고용형태 무관",
+        126);
   }
 
   /**

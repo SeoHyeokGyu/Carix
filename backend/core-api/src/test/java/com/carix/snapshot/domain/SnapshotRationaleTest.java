@@ -110,4 +110,33 @@ class SnapshotRationaleTest {
 
     assertThat(read.topPriceDriver()).isEqualTo(driver);
   }
+
+  @Test
+  @DisplayName("b22 이전 openingWindow 구 필드(medianWindowDays 등)가 포함된 JSON 도 오류 없이 역직렬화된다")
+  void legacyOpeningWindowJson_ignoresOldFields() throws Exception {
+    ObjectMapper objectMapper = new ObjectMapper().registerModule(new JavaTimeModule());
+    String legacyJson =
+        """
+        {
+          "rulesApplied": [],
+          "indexStatuses": {"ppi": "OK", "mvi": "OK", "owi": "OK"},
+          "openingWindow": {
+            "peerSampleSize": 124,
+            "deadlineSampleSize": 86,
+            "medianWindowDays": 34,
+            "openEndedRatePercent": 21.50,
+            "fallbackLevel": 3,
+            "appliedConditions": "서울 전체 / 경력 MID / 회사규모 무관",
+            "marketMedianWindowDays": 29
+          }
+        }
+        """;
+
+    SnapshotRationale rationale = objectMapper.readValue(legacyJson, SnapshotRationale.class);
+
+    assertThat(rationale.openingWindow()).isNotNull();
+    assertThat(rationale.openingWindow().peerSampleSize()).isEqualTo(124);
+    assertThat(rationale.openingWindow().recentSharePercent()).isNull();
+    assertThat(rationale.openingWindow().baselineSharePercent()).isNull();
+  }
 }

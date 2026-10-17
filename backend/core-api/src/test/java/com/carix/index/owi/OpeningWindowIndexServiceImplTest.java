@@ -2,21 +2,22 @@ package com.carix.index.owi;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyCollection;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
 
+import com.carix.config.IndexThresholdProperties;
 import com.carix.index.dto.OwiResult;
 import com.carix.index.enums.IndexStatus;
 import com.carix.index.mvi.PeerGroupFallbackResolver;
-import com.carix.jobposting.JobPosting;
-import com.carix.jobposting.JobPostingRepository;
+import com.carix.market.MarketAggregate;
+import com.carix.market.MarketAggregateRepository;
 import com.carix.profile.domain.CareerProfile;
 import com.carix.profile.repository.CareerProfileRepository;
-import java.time.LocalDate;
-import java.util.ArrayList;
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -28,51 +29,104 @@ class OpeningWindowIndexServiceImplTest {
 
   private static final UUID USER_ID = UUID.randomUUID();
   private static final String BASE_YM = "202608";
-  private static final LocalDate MONTH_START = LocalDate.of(2026, 8, 1);
-  private static final LocalDate MONTH_END = LocalDate.of(2026, 8, 31);
+
+  private static final List<String> RECENT_MONTHS = List.of("202605", "202606", "202607");
+  private static final List<String> BASELINE_MONTHS =
+      List.of(
+          "202505", "202506", "202507", "202508", "202509", "202510", "202511", "202512", "202601",
+          "202602", "202603", "202604");
 
   private CareerProfileRepository careerProfileRepository;
-  private JobPostingRepository jobPostingRepository;
+  private MarketAggregateRepository marketAggregateRepository;
   private PeerGroupFallbackResolver peerGroupFallbackResolver;
   private OpeningWindowIndexServiceImpl service;
 
   @BeforeEach
   void setUp() {
     careerProfileRepository = mock(CareerProfileRepository.class);
-    jobPostingRepository = mock(JobPostingRepository.class);
-    peerGroupFallbackResolver =
-        new PeerGroupFallbackResolver(mock(com.carix.market.MarketAggregateRepository.class));
+    marketAggregateRepository = mock(MarketAggregateRepository.class);
+    peerGroupFallbackResolver = new PeerGroupFallbackResolver(marketAggregateRepository);
+
+    lenient()
+        .when(
+            marketAggregateRepository.findTotalPostingAggregates(
+                anyString(),
+                anyCollection(),
+                anyString(),
+                anyString(),
+                anyCollection(),
+                anyString(),
+                anyString()))
+        .thenReturn(List.of());
+    lenient()
+        .when(marketAggregateRepository.findLatestAvailableYearMonthForSource(anyString(), any()))
+        .thenReturn(Optional.empty());
+    lenient()
+        .when(marketAggregateRepository.findEarliestAvailableYearMonthForSource(anyString(), any()))
+        .thenReturn(Optional.empty());
 
     service =
         new OpeningWindowIndexServiceImpl(
-            careerProfileRepository, jobPostingRepository, peerGroupFallbackResolver);
+            careerProfileRepository,
+            marketAggregateRepository,
+            peerGroupFallbackResolver,
+            new IndexThresholdProperties());
   }
 
-  private CareerProfile createProfile() {
+  private CareerProfile createProfile(int yearsOfExperience) {
     return CareerProfile.builder()
         .userId(USER_ID)
         .jobFamily("DEVELOPER")
-        .yearsOfExperience(5) // MID
+        .yearsOfExperience(yearsOfExperience)
         .region("서울 강남구")
         .employmentType("FULL_TIME")
         .companySize("LARGE")
         .build();
   }
 
-  private JobPosting createPosting(
-      UUID dedupGroupId, LocalDate start, LocalDate end, String jobFamily, String region) {
-    return JobPosting.builder()
+  private MarketAggregate agg(
+      String source, String ym, String jobFamily, String bracket, int count) {
+    return MarketAggregate.builder()
         .id(UUID.randomUUID())
-        .dedupGroupId(dedupGroupId)
+        .source(source)
+        .baseYearMonth(ym)
         .jobFamily(jobFamily)
-        .region(region)
-        .employmentType("FULL_TIME")
-        .companySize("LARGE")
-        .experienceMin(3)
-        .experienceMax(7)
-        .postedStartDate(start)
-        .postedEndDate(end)
+        .region("ALL")
+        .experienceBracket(bracket)
+        .employmentType("ALL")
+        .companySize("ALL")
+        .postingCount(count)
+        .totalAggregatePostings(count)
+        .demandRate(BigDecimal.ONE)
+        .salaryMissingRatePercent(BigDecimal.ZERO)
         .build();
+  }
+
+  private void stubTotals(
+      String source,
+      List<String> months,
+      String jobFamily,
+      List<String> brackets,
+      int totalPostingCount) {
+    given(
+            marketAggregateRepository.findTotalPostingAggregates(
+                eq(source),
+                eq(months),
+                eq(jobFamily),
+                eq("ALL"),
+                eq(brackets),
+                eq("ALL"),
+                eq("ALL")))
+        .willReturn(
+            totalPostingCount > 0
+                ? List.of(
+                    agg(
+                        source,
+                        months.getFirst(),
+                        jobFamily,
+                        brackets.getFirst(),
+                        totalPostingCount))
+                : List.of());
   }
 
   @Test
@@ -87,510 +141,200 @@ class OpeningWindowIndexServiceImplTest {
   }
 
   @Test
-  @DisplayName("마감일 보유 표본이 10건 미만이면 INSUFFICIENT_SAMPLE 과 상시채용 비율을 반환한다")
-  void 마감일_표본부족_INSUFFICIENT_SAMPLE() {
-    given(careerProfileRepository.findByUserId(USER_ID)).willReturn(Optional.of(createProfile()));
-
-    // 시장 전체 공고
-    given(jobPostingRepository.findAllByRegistrationMonth(MONTH_START, MONTH_END))
-        .willReturn(
-            List.of(
-                createPosting(null, MONTH_START, MONTH_START.plusDays(30), "DEVELOPER", "서울 강남구")));
-
-    // 동료집단 공고: 마감일 있는 공고 5개, 상시채용 5개 (총 10개이지만 deadline = 5 < 10)
-    List<JobPosting> peerPostings = new ArrayList<>();
-    for (int i = 0; i < 5; i++) {
-      peerPostings.add(
-          createPosting(null, MONTH_START, MONTH_START.plusDays(20), "DEVELOPER", "서울 강남구"));
-    }
-    for (int i = 0; i < 5; i++) {
-      peerPostings.add(createPosting(null, MONTH_START, null, "DEVELOPER", "서울 강남구"));
-    }
-
-    given(
-            jobPostingRepository.findPeerGroupCandidatesByRegistrationMonth(
-                anyString(),
-                any(),
-                any(),
-                any(),
-                anyInt(),
-                anyInt(),
-                eq(MONTH_START),
-                eq(MONTH_END)))
-        .willReturn(peerPostings);
-
-    OwiResult result = service.calculate(USER_ID, BASE_YM);
-
-    assertThat(result.status()).isEqualTo(IndexStatus.INSUFFICIENT_SAMPLE);
-    assertThat(result.value()).isNull();
-    assertThat(result.medianWindowDays()).isNull();
-    assertThat(result.peerSampleSize()).isEqualTo(10);
-    assertThat(result.deadlineSampleSize()).isEqualTo(5);
-    assertThat(result.openEndedRatePercent()).isEqualByComparingTo("50.00");
+  @DisplayName("기준년월이 null·빈 문자열·잘못된 형식이면 NOT_AVAILABLE 을 반환한다")
+  void 잘못된_입력_NOT_AVAILABLE() {
+    assertThat(service.calculate(null, BASE_YM).status()).isEqualTo(IndexStatus.NOT_AVAILABLE);
+    assertThat(service.calculate(USER_ID, null).status()).isEqualTo(IndexStatus.NOT_AVAILABLE);
+    assertThat(service.calculate(USER_ID, "   ").status()).isEqualTo(IndexStatus.NOT_AVAILABLE);
+    assertThat(service.calculate(USER_ID, "2026-13").status()).isEqualTo(IndexStatus.NOT_AVAILABLE);
+    assertThat(service.calculate(USER_ID, "invalid").status()).isEqualTo(IndexStatus.NOT_AVAILABLE);
   }
 
   @Test
-  @DisplayName("마감일 표본이 충분하면 OWI 를 정상 산출하고 이상치 클램프 [25, 400] 범위 내에 둔다")
+  @DisplayName("최근 3개월·이전 12개월 표본이 충분하면 동료집단 채용 비중 추이(OWI)를 산출한다")
   void OWI_정상_산출() {
-    given(careerProfileRepository.findByUserId(USER_ID)).willReturn(Optional.of(createProfile()));
+    given(careerProfileRepository.findByUserId(USER_ID)).willReturn(Optional.of(createProfile(5)));
 
-    // 시장 전체 공고 (전체시장 중앙값 = 20일)
-    List<JobPosting> marketPostings = new ArrayList<>();
-    for (int i = 0; i < 15; i++) {
-      marketPostings.add(
-          createPosting(null, MONTH_START, MONTH_START.plusDays(20), "DEVELOPER", "서울 강남구"));
-    }
-    given(jobPostingRepository.findAllByRegistrationMonth(MONTH_START, MONTH_END))
-        .willReturn(marketPostings);
+    // 최근 3개월: 전체시장 100건, 동료집단(DEVELOPER / MID) 30건 -> 30.00%
+    stubTotals("JOBKOREA", RECENT_MONTHS, "ALL", List.of("ALL"), 100);
+    stubTotals("JOBKOREA", RECENT_MONTHS, "DEVELOPER", List.of("MID"), 30);
 
-    // 동료집단 공고: 마감일 있는 공고 10개 (개방일수 30일), 상시채용 2개 -> 중앙값 30일
-    List<JobPosting> peerPostings = new ArrayList<>();
-    for (int i = 0; i < 10; i++) {
-      peerPostings.add(
-          createPosting(null, MONTH_START, MONTH_START.plusDays(30), "DEVELOPER", "서울 강남구"));
-    }
-    for (int i = 0; i < 2; i++) {
-      peerPostings.add(createPosting(null, MONTH_START, null, "DEVELOPER", "서울 강남구"));
-    }
+    // 이전 12개월: 전체시장 400건, 동료집단(DEVELOPER / MID) 80건 -> 20.00%
+    stubTotals("JOBKOREA", BASELINE_MONTHS, "ALL", List.of("ALL"), 400);
+    stubTotals("JOBKOREA", BASELINE_MONTHS, "DEVELOPER", List.of("MID"), 80);
 
-    given(
-            jobPostingRepository.findPeerGroupCandidatesByRegistrationMonth(
-                anyString(),
-                any(),
-                any(),
-                any(),
-                anyInt(),
-                anyInt(),
-                eq(MONTH_START),
-                eq(MONTH_END)))
-        .willReturn(peerPostings);
+    OwiResult result = service.calculate(USER_ID, "2026-08");
 
-    OwiResult result = service.calculate(USER_ID, BASE_YM);
-
-    // OWI = (동료집단 중앙 30 / 전체시장 중앙 20) * 100 = 150.00
+    // OWI = (30.00 / 20.00) * 100 = 150.00
+    assertThat(result.baseYearMonth()).isEqualTo("202608");
     assertThat(result.status()).isEqualTo(IndexStatus.OK);
     assertThat(result.value()).isEqualByComparingTo("150.00");
-    assertThat(result.medianWindowDays()).isEqualTo(30);
-    assertThat(result.marketMedianWindowDays()).isEqualTo(20);
-    assertThat(result.peerSampleSize()).isEqualTo(12);
-    assertThat(result.deadlineSampleSize()).isEqualTo(10);
-    // 상시채용 비율 = (2 / 12) * 100 = 16.67%
-    assertThat(result.openEndedRatePercent()).isEqualByComparingTo("16.67");
+    assertThat(result.recentSharePercent()).isEqualByComparingTo("30.00");
+    assertThat(result.baselineSharePercent()).isEqualByComparingTo("20.00");
+    assertThat(result.peerSampleSize()).isEqualTo(30);
+    assertThat(result.baselineSampleSize()).isEqualTo(80);
+    assertThat(result.marketSampleSize()).isEqualTo(100);
     assertThat(result.fallbackLevel()).isEqualTo(1);
-    assertThat(result.appliedConditions()).isEqualTo("서울 강남구 / 경력 MID / LARGE");
+    assertThat(result.appliedConditions()).isEqualTo("전국 / 4~7년 / 회사규모 무관 / 고용형태 무관");
   }
 
   @Test
-  @DisplayName("역전 공고(end < start)는 표본에서 제외된다")
-  void 역전_공고_제외() {
-    given(careerProfileRepository.findByUserId(USER_ID)).willReturn(Optional.of(createProfile()));
+  @DisplayName("수집 이력 15개월 전이라 이전 12개월 창 표본이 부족하면 INSUFFICIENT_SAMPLE 과 최근 비중만 반환한다")
+  void 이전창_표본부족_최근비중만_유지() {
+    given(careerProfileRepository.findByUserId(USER_ID)).willReturn(Optional.of(createProfile(5)));
 
-    // 전체시장
-    List<JobPosting> marketPostings = new ArrayList<>();
-    for (int i = 0; i < 10; i++) {
-      marketPostings.add(
-          createPosting(null, MONTH_START, MONTH_START.plusDays(10), "DEVELOPER", "서울"));
-    }
-    given(jobPostingRepository.findAllByRegistrationMonth(MONTH_START, MONTH_END))
-        .willReturn(marketPostings);
+    // 최근 3개월: 전체시장 100건, 동료집단 25건 -> 25.00%
+    stubTotals("JOBKOREA", RECENT_MONTHS, "ALL", List.of("ALL"), 100);
+    stubTotals("JOBKOREA", RECENT_MONTHS, "DEVELOPER", List.of("MID"), 25);
 
-    // 동료집단: 정상 마감 9개 + 역전 2개 (start > end) -> 유효 deadline = 9 (< 10)
-    List<JobPosting> peerPostings = new ArrayList<>();
-    for (int i = 0; i < 9; i++) {
-      peerPostings.add(
-          createPosting(null, MONTH_START, MONTH_START.plusDays(15), "DEVELOPER", "서울 강남구"));
-    }
-    // 역전 공고
-    peerPostings.add(
-        createPosting(null, MONTH_START.plusDays(10), MONTH_START, "DEVELOPER", "서울 강남구"));
-    peerPostings.add(
-        createPosting(null, MONTH_START.plusDays(20), MONTH_START, "DEVELOPER", "서울 강남구"));
-
-    given(
-            jobPostingRepository.findPeerGroupCandidatesByRegistrationMonth(
-                anyString(),
-                any(),
-                any(),
-                any(),
-                anyInt(),
-                anyInt(),
-                eq(MONTH_START),
-                eq(MONTH_END)))
-        .willReturn(peerPostings);
-
-    OwiResult result = service.calculate(USER_ID, BASE_YM);
-
-    // 역전 공고 2개 제외되어 유효 표본은 9개뿐 -> INSUFFICIENT_SAMPLE
-    assertThat(result.status()).isEqualTo(IndexStatus.INSUFFICIENT_SAMPLE);
-    assertThat(result.deadlineSampleSize()).isEqualTo(9);
-    assertThat(result.peerSampleSize()).isEqualTo(9);
-  }
-
-  @Test
-  @DisplayName("중복 공고(dedup_group_id 동일)는 대표 1건만 반영된다")
-  void 중복_공고_제거() {
-    given(careerProfileRepository.findByUserId(USER_ID)).willReturn(Optional.of(createProfile()));
-
-    // 전체시장
-    given(jobPostingRepository.findAllByRegistrationMonth(MONTH_START, MONTH_END))
-        .willReturn(
-            List.of(createPosting(null, MONTH_START, MONTH_START.plusDays(10), "DEVELOPER", "서울")));
-
-    UUID dedupGroup = UUID.randomUUID();
-    List<JobPosting> peerPostings = new ArrayList<>();
-    // 같은 dedupGroupId를 가진 공고 5개 -> 1개로 집계됨
-    for (int i = 0; i < 5; i++) {
-      peerPostings.add(
-          createPosting(dedupGroup, MONTH_START, MONTH_START.plusDays(15), "DEVELOPER", "서울 강남구"));
-    }
-
-    given(
-            jobPostingRepository.findPeerGroupCandidatesByRegistrationMonth(
-                anyString(),
-                any(),
-                any(),
-                any(),
-                anyInt(),
-                anyInt(),
-                eq(MONTH_START),
-                eq(MONTH_END)))
-        .willReturn(peerPostings);
-
-    OwiResult result = service.calculate(USER_ID, BASE_YM);
-
-    // 중복 제거 후 1건만 남음
-    assertThat(result.deadlineSampleSize()).isEqualTo(1);
-    assertThat(result.peerSampleSize()).isEqualTo(1);
-    assertThat(result.status()).isEqualTo(IndexStatus.INSUFFICIENT_SAMPLE);
-  }
-
-  @Test
-  @DisplayName("OWI 가 400을 초과하면 400.00으로 클램프되고 25 미만이면 25.00으로 클램프된다")
-  void 이상치_클램프() {
-    given(careerProfileRepository.findByUserId(USER_ID)).willReturn(Optional.of(createProfile()));
-
-    // 전체시장 중앙값 = 10일
-    List<JobPosting> marketPostings = new ArrayList<>();
-    for (int i = 0; i < 10; i++) {
-      marketPostings.add(
-          createPosting(null, MONTH_START, MONTH_START.plusDays(10), "DEVELOPER", "서울"));
-    }
-    given(jobPostingRepository.findAllByRegistrationMonth(MONTH_START, MONTH_END))
-        .willReturn(marketPostings);
-
-    // 동료집단 중앙값 = 50일 -> (50 / 10) * 100 = 500 -> 클램프 400.00
-    List<JobPosting> peerPostings = new ArrayList<>();
-    for (int i = 0; i < 10; i++) {
-      peerPostings.add(
-          createPosting(null, MONTH_START, MONTH_START.plusDays(50), "DEVELOPER", "서울 강남구"));
-    }
-
-    given(
-            jobPostingRepository.findPeerGroupCandidatesByRegistrationMonth(
-                anyString(),
-                any(),
-                any(),
-                any(),
-                anyInt(),
-                anyInt(),
-                eq(MONTH_START),
-                eq(MONTH_END)))
-        .willReturn(peerPostings);
-
-    OwiResult result = service.calculate(USER_ID, BASE_YM);
-
-    assertThat(result.value()).isEqualByComparingTo("400.00");
-  }
-
-  @Test
-  @DisplayName("OWI 가 25 미만이면 25.00으로 하한 클램프된다")
-  void 이상치_하한_클램프() {
-    given(careerProfileRepository.findByUserId(USER_ID)).willReturn(Optional.of(createProfile()));
-
-    // 전체시장 중앙값 = 100일
-    List<JobPosting> marketPostings = new ArrayList<>();
-    for (int i = 0; i < 10; i++) {
-      marketPostings.add(
-          createPosting(null, MONTH_START, MONTH_START.plusDays(100), "DEVELOPER", "서울"));
-    }
-    given(jobPostingRepository.findAllByRegistrationMonth(MONTH_START, MONTH_END))
-        .willReturn(marketPostings);
-
-    // 동료집단 중앙값 = 5일 -> (5 / 100) * 100 = 5 -> 클램프 25.00
-    List<JobPosting> peerPostings = new ArrayList<>();
-    for (int i = 0; i < 10; i++) {
-      peerPostings.add(
-          createPosting(null, MONTH_START, MONTH_START.plusDays(5), "DEVELOPER", "서울 강남구"));
-    }
-
-    given(
-            jobPostingRepository.findPeerGroupCandidatesByRegistrationMonth(
-                anyString(),
-                any(),
-                any(),
-                any(),
-                anyInt(),
-                anyInt(),
-                eq(MONTH_START),
-                eq(MONTH_END)))
-        .willReturn(peerPostings);
-
-    OwiResult result = service.calculate(USER_ID, BASE_YM);
-
-    assertThat(result.value()).isEqualByComparingTo("25.00");
-  }
-
-  @Test
-  @DisplayName("baseYearMonth 가 null 이거나 비어있거나 잘못된 형식이면 NOT_AVAILABLE 을 반환한다")
-  void baseYearMonth_비정상_NOT_AVAILABLE() {
-    assertThat(service.calculate(USER_ID, null).status()).isEqualTo(IndexStatus.NOT_AVAILABLE);
-    assertThat(service.calculate(USER_ID, "").status()).isEqualTo(IndexStatus.NOT_AVAILABLE);
-    assertThat(service.calculate(USER_ID, "   ").status()).isEqualTo(IndexStatus.NOT_AVAILABLE);
-    assertThat(service.calculate(USER_ID, "invalid-date").status())
-        .isEqualTo(IndexStatus.NOT_AVAILABLE);
-  }
-
-  @Test
-  @DisplayName("전체시장 기준 모수가 결측이면 INSUFFICIENT_SAMPLE 을 반환한다")
-  void 전체시장_모수_부재_INSUFFICIENT_SAMPLE() {
-    given(careerProfileRepository.findByUserId(USER_ID)).willReturn(Optional.of(createProfile()));
-
-    // 전체시장에 공고 없음
-    given(jobPostingRepository.findAllByRegistrationMonth(MONTH_START, MONTH_END))
-        .willReturn(List.of());
-
-    List<JobPosting> peerPostings = new ArrayList<>();
-    for (int i = 0; i < 10; i++) {
-      peerPostings.add(
-          createPosting(null, MONTH_START, MONTH_START.plusDays(20), "DEVELOPER", "서울 강남구"));
-    }
-    given(
-            jobPostingRepository.findPeerGroupCandidatesByRegistrationMonth(
-                anyString(),
-                any(),
-                any(),
-                any(),
-                anyInt(),
-                anyInt(),
-                eq(MONTH_START),
-                eq(MONTH_END)))
-        .willReturn(peerPostings);
+    // 이전 12개월: 표본 4건 (< 10), 인접 구간 확장(Level 2)도 6건 (< 10)
+    stubTotals("JOBKOREA", BASELINE_MONTHS, "ALL", List.of("ALL"), 50);
+    stubTotals("JOBKOREA", BASELINE_MONTHS, "DEVELOPER", List.of("MID"), 4);
+    stubTotals(
+        "JOBKOREA",
+        RECENT_MONTHS,
+        "DEVELOPER",
+        List.of("ENTRY", "JUNIOR", "MID", "SENIOR", "LEAD"),
+        60);
+    stubTotals(
+        "JOBKOREA",
+        BASELINE_MONTHS,
+        "DEVELOPER",
+        List.of("ENTRY", "JUNIOR", "MID", "SENIOR", "LEAD"),
+        6);
 
     OwiResult result = service.calculate(USER_ID, BASE_YM);
 
     assertThat(result.status()).isEqualTo(IndexStatus.INSUFFICIENT_SAMPLE);
     assertThat(result.value()).isNull();
-    assertThat(result.marketMedianWindowDays()).isNull();
+    assertThat(result.recentSharePercent()).isEqualByComparingTo("25.00");
+    assertThat(result.baselineSharePercent()).isNull();
+    assertThat(result.peerSampleSize()).isEqualTo(25);
+    assertThat(result.baselineSampleSize()).isEqualTo(4);
+    assertThat(result.fallbackLevel()).isEqualTo(1);
+    assertThat(result.appliedConditions()).isEqualTo("전국 / 4~7년 / 회사규모 무관 / 고용형태 무관");
   }
 
   @Test
-  @DisplayName("전체시장 공고 중 역전 공고는 전체시장 중앙값 산출에서 제외된다")
-  void 전체시장_역전_공고_제외() {
-    given(careerProfileRepository.findByUserId(USER_ID)).willReturn(Optional.of(createProfile()));
+  @DisplayName("최근 창과 이전 창 모두 표본이 10건 미만이면 최근·이전 비중 모두 null 로 반환한다")
+  void 양쪽창_모두_표본부족() {
+    given(careerProfileRepository.findByUserId(USER_ID)).willReturn(Optional.of(createProfile(2)));
 
-    List<JobPosting> marketPostings = new ArrayList<>();
-    for (int i = 0; i < 10; i++) {
-      marketPostings.add(
-          createPosting(null, MONTH_START, MONTH_START.plusDays(20), "DEVELOPER", "서울"));
-    }
-    // 전체시장에 역전 공고 추가
-    marketPostings.add(
-        createPosting(null, MONTH_START.plusDays(10), MONTH_START, "DEVELOPER", "서울"));
-
-    given(jobPostingRepository.findAllByRegistrationMonth(MONTH_START, MONTH_END))
-        .willReturn(marketPostings);
-
-    List<JobPosting> peerPostings = new ArrayList<>();
-    for (int i = 0; i < 10; i++) {
-      peerPostings.add(
-          createPosting(null, MONTH_START, MONTH_START.plusDays(20), "DEVELOPER", "서울 강남구"));
-    }
-    given(
-            jobPostingRepository.findPeerGroupCandidatesByRegistrationMonth(
-                anyString(),
-                any(),
-                any(),
-                any(),
-                anyInt(),
-                anyInt(),
-                eq(MONTH_START),
-                eq(MONTH_END)))
-        .willReturn(peerPostings);
-
-    OwiResult result = service.calculate(USER_ID, BASE_YM);
-
-    assertThat(result.status()).isEqualTo(IndexStatus.OK);
-    assertThat(result.marketMedianWindowDays()).isEqualTo(20);
-  }
-
-  @Test
-  @DisplayName("회사규모가 없고 경력이 주니어/시니어인 경우에도 완화 사다리가 정상 동작한다")
-  void 회사규모_없음_및_주니어_시니어_완화() {
-    CareerProfile juniorProfile =
-        CareerProfile.builder()
-            .userId(USER_ID)
-            .jobFamily("DEVELOPER")
-            .yearsOfExperience(null) // null -> default 3 (JUNIOR)
-            .region("서울")
-            .employmentType(null)
-            .companySize(null) // Level 1 스킵 -> Level 2 시작
-            .build();
-
-    given(careerProfileRepository.findByUserId(USER_ID)).willReturn(Optional.of(juniorProfile));
-
-    List<JobPosting> marketPostings =
-        List.of(createPosting(null, MONTH_START, MONTH_START.plusDays(30), "DEVELOPER", "서울"));
-    given(jobPostingRepository.findAllByRegistrationMonth(MONTH_START, MONTH_END))
-        .willReturn(marketPostings);
-
-    List<JobPosting> peerPostings = new ArrayList<>();
-    for (int i = 0; i < 10; i++) {
-      peerPostings.add(
-          createPosting(null, MONTH_START, MONTH_START.plusDays(30), "DEVELOPER", "서울"));
-    }
-    given(
-            jobPostingRepository.findPeerGroupCandidatesByRegistrationMonth(
-                anyString(),
-                any(),
-                any(),
-                any(),
-                anyInt(),
-                anyInt(),
-                eq(MONTH_START),
-                eq(MONTH_END)))
-        .willReturn(peerPostings);
-
-    OwiResult result = service.calculate(USER_ID, BASE_YM);
-
-    assertThat(result.status()).isEqualTo(IndexStatus.OK);
-    assertThat(result.fallbackLevel()).isEqualTo(2);
-    assertThat(result.appliedConditions()).contains("회사규모 무관");
-  }
-
-  @Test
-  @DisplayName("전체시장 중앙 개방일수가 0일 이하이면 INSUFFICIENT_SAMPLE 을 반환한다")
-  void 전체시장_중앙값_0일_이하_INSUFFICIENT_SAMPLE() {
-    given(careerProfileRepository.findByUserId(USER_ID)).willReturn(Optional.of(createProfile()));
-
-    // 시작일과 종료일이 같은 당일 마감 공고 (windowDays = 0)
-    List<JobPosting> marketPostings =
-        List.of(createPosting(null, MONTH_START, MONTH_START, "DEVELOPER", "서울"));
-    given(jobPostingRepository.findAllByRegistrationMonth(MONTH_START, MONTH_END))
-        .willReturn(marketPostings);
-
-    List<JobPosting> peerPostings = new ArrayList<>();
-    for (int i = 0; i < 10; i++) {
-      peerPostings.add(
-          createPosting(null, MONTH_START, MONTH_START.plusDays(10), "DEVELOPER", "서울 강남구"));
-    }
-    given(
-            jobPostingRepository.findPeerGroupCandidatesByRegistrationMonth(
-                anyString(),
-                any(),
-                any(),
-                any(),
-                anyInt(),
-                anyInt(),
-                eq(MONTH_START),
-                eq(MONTH_END)))
-        .willReturn(peerPostings);
+    // JUNIOR (ENTRY + JUNIOR) Level 1 = 3건, Level 2 (ENTRY + JUNIOR + MID) = 5건 (< 10)
+    stubTotals("JOBKOREA", RECENT_MONTHS, "ALL", List.of("ALL"), 40);
+    stubTotals("JOBKOREA", RECENT_MONTHS, "DEVELOPER", List.of("ENTRY", "JUNIOR"), 3);
+    stubTotals("JOBKOREA", RECENT_MONTHS, "DEVELOPER", List.of("ENTRY", "JUNIOR", "MID"), 5);
 
     OwiResult result = service.calculate(USER_ID, BASE_YM);
 
     assertThat(result.status()).isEqualTo(IndexStatus.INSUFFICIENT_SAMPLE);
-    assertThat(result.marketMedianWindowDays()).isEqualTo(0);
+    assertThat(result.value()).isNull();
+    assertThat(result.recentSharePercent()).isNull();
+    assertThat(result.baselineSharePercent()).isNull();
+    assertThat(result.peerSampleSize()).isEqualTo(5);
+    assertThat(result.fallbackLevel()).isEqualTo(2);
+    assertThat(result.appliedConditions()).isEqualTo("전국 / 0~7년 / 회사규모 무관 / 고용형태 무관");
   }
 
   @Test
-  @DisplayName("프로필의 companySize 나 region 이 공백 문자열인 경우 fallback 으로 치환된다")
-  void 공백문자열_필드_폴백() {
-    CareerProfile blankProfile =
-        CareerProfile.builder()
-            .userId(USER_ID)
-            .jobFamily("   ") // isBlank() -> "DEVELOPER"
-            .yearsOfExperience(10) // SENIOR
-            .region("   ") // isBlank() -> "서울 강남구"
-            .employmentType("   ") // isBlank() -> "FULL_TIME"
-            .companySize("   ") // isBlank() -> "회사규모 무관", Level 1 스킵
-            .build();
+  @DisplayName("Level 1(본인 경력 구간) 표본이 부족하면 Level 2(인접 경력 구간)로 완화하여 산출한다")
+  void 동료집단_Level2_인접경력_완화() {
+    given(careerProfileRepository.findByUserId(USER_ID)).willReturn(Optional.of(createProfile(2)));
 
-    given(careerProfileRepository.findByUserId(USER_ID)).willReturn(Optional.of(blankProfile));
+    // 전체시장
+    stubTotals("JOBKOREA", RECENT_MONTHS, "ALL", List.of("ALL"), 100);
+    stubTotals("JOBKOREA", BASELINE_MONTHS, "ALL", List.of("ALL"), 200);
 
-    // 전체시장에 상시채용 공고(days == null)와 마감 공고 혼합 -> days == null 분기 커버
-    List<JobPosting> marketPostings =
-        List.of(
-            createPosting(null, MONTH_START, MONTH_START.plusDays(20), "DEVELOPER", "서울"),
-            createPosting(null, MONTH_START, null, "DEVELOPER", "서울"));
-    given(jobPostingRepository.findAllByRegistrationMonth(MONTH_START, MONTH_END))
-        .willReturn(marketPostings);
+    // Level 1: JUNIOR (ENTRY, JUNIOR) -> 최근 6건 (< 10), 이전 15건
+    stubTotals("JOBKOREA", RECENT_MONTHS, "DEVELOPER", List.of("ENTRY", "JUNIOR"), 6);
+    stubTotals("JOBKOREA", BASELINE_MONTHS, "DEVELOPER", List.of("ENTRY", "JUNIOR"), 15);
 
-    // 동료집단에 시작일 없는 공고(days == null && !isOpenEnded) 혼합 -> !isOpenEnded 분기 커버
-    List<JobPosting> peerPostings = new ArrayList<>();
-    for (int i = 0; i < 10; i++) {
-      peerPostings.add(
-          createPosting(null, MONTH_START, MONTH_START.plusDays(20), "DEVELOPER", "서울 강남구"));
-    }
-    peerPostings.add(createPosting(null, null, MONTH_START.plusDays(20), "DEVELOPER", "서울 강남구"));
-
-    given(
-            jobPostingRepository.findPeerGroupCandidatesByRegistrationMonth(
-                anyString(),
-                any(),
-                any(),
-                any(),
-                anyInt(),
-                anyInt(),
-                eq(MONTH_START),
-                eq(MONTH_END)))
-        .willReturn(peerPostings);
+    // Level 2: JUNIOR + MID (ENTRY, JUNIOR, MID) -> 최근 20건 (20%), 이전 50건 (25%)
+    stubTotals("JOBKOREA", RECENT_MONTHS, "DEVELOPER", List.of("ENTRY", "JUNIOR", "MID"), 20);
+    stubTotals("JOBKOREA", BASELINE_MONTHS, "DEVELOPER", List.of("ENTRY", "JUNIOR", "MID"), 50);
 
     OwiResult result = service.calculate(USER_ID, BASE_YM);
 
+    // OWI = (20% / 25%) * 100 = 80.00
     assertThat(result.status()).isEqualTo(IndexStatus.OK);
-    assertThat(result.appliedConditions()).contains("회사규모 무관");
+    assertThat(result.value()).isEqualByComparingTo("80.00");
+    assertThat(result.recentSharePercent()).isEqualByComparingTo("20.00");
+    assertThat(result.baselineSharePercent()).isEqualByComparingTo("25.00");
+    assertThat(result.fallbackLevel()).isEqualTo(2);
+    assertThat(result.appliedConditions()).isEqualTo("전국 / 0~7년 / 회사규모 무관 / 고용형태 무관");
   }
 
   @Test
-  @DisplayName("전체시장 중앙값 캐싱: 동일 월 재계산 시 findAllByRegistrationMonth 를 중복 호출하지 않는다")
-  void marketMedianWindowDays_caching() {
-    CareerProfile profile = createProfile();
-    given(careerProfileRepository.findByUserId(USER_ID)).willReturn(Optional.of(profile));
+  @DisplayName("다중 원천 결합 시 정기 수집 원천(SARAMIN) 가중치를 표본 원천(JOBKOREA) 상한으로 제한한다")
+  void 다중원천_SourceCombineWeights_결합() {
+    given(careerProfileRepository.findByUserId(USER_ID)).willReturn(Optional.of(createProfile(5)));
 
-    List<JobPosting> marketPostings =
-        List.of(createPosting(null, MONTH_START, MONTH_START.plusDays(20), "DEVELOPER", "서울"));
-    given(jobPostingRepository.findAllByRegistrationMonth(MONTH_START, MONTH_END))
-        .willReturn(marketPostings);
+    // JOBKOREA (표본 원천): 최근 20 / 100 (20%), 이전 20 / 100 (20%) -> 지수 100.00, 표본 20
+    stubTotals("JOBKOREA", RECENT_MONTHS, "ALL", List.of("ALL"), 100);
+    stubTotals("JOBKOREA", RECENT_MONTHS, "DEVELOPER", List.of("MID"), 20);
+    stubTotals("JOBKOREA", BASELINE_MONTHS, "ALL", List.of("ALL"), 100);
+    stubTotals("JOBKOREA", BASELINE_MONTHS, "DEVELOPER", List.of("MID"), 20);
 
-    List<JobPosting> peerPostings = new ArrayList<>();
-    for (int i = 0; i < 10; i++) {
-      peerPostings.add(
-          createPosting(null, MONTH_START, MONTH_START.plusDays(20), "DEVELOPER", "서울 강남구"));
-    }
-    given(
-            jobPostingRepository.findPeerGroupCandidatesByRegistrationMonth(
-                anyString(),
-                any(),
-                any(),
-                any(),
-                anyInt(),
-                anyInt(),
-                eq(MONTH_START),
-                eq(MONTH_END)))
-        .willReturn(peerPostings);
+    // SARAMIN (정기 수집 원천): 최근 60 / 150 (40%), 이전 40 / 200 (20%) -> 지수 200.00, 표본 60 (상한 20으로 축소)
+    stubTotals("SARAMIN", RECENT_MONTHS, "ALL", List.of("ALL"), 150);
+    stubTotals("SARAMIN", RECENT_MONTHS, "DEVELOPER", List.of("MID"), 60);
+    stubTotals("SARAMIN", BASELINE_MONTHS, "ALL", List.of("ALL"), 200);
+    stubTotals("SARAMIN", BASELINE_MONTHS, "DEVELOPER", List.of("MID"), 40);
 
-    // 첫 번째 호출 -> DB 조회
-    service.calculate(USER_ID, BASE_YM);
-    // 두 번째 호출 -> 캐시 사용
-    service.calculate(USER_ID, BASE_YM);
+    OwiResult result = service.calculate(USER_ID, BASE_YM);
 
-    // 전체 시장 조회가 단 1회만 일어났는지 검증
-    org.mockito.Mockito.verify(jobPostingRepository, org.mockito.Mockito.times(1))
-        .findAllByRegistrationMonth(MONTH_START, MONTH_END);
+    // JOBKOREA 가중치 20, SARAMIN 가중치 20 (상한 적용) -> 동일 가중 평균
+    // 지수 = (100 + 200) / 2 = 150.00
+    // 최근 비중 = (20% + 40%) / 2 = 30.00%
+    // 이전 비중 = (20% + 20%) / 2 = 20.00%
+    assertThat(result.status()).isEqualTo(IndexStatus.OK);
+    assertThat(result.value()).isEqualByComparingTo("150.00");
+    assertThat(result.recentSharePercent()).isEqualByComparingTo("30.00");
+    assertThat(result.baselineSharePercent()).isEqualByComparingTo("20.00");
+    assertThat(result.peerSampleSize()).isEqualTo(80);
+    assertThat(result.baselineSampleSize()).isEqualTo(60);
+  }
 
-    // 캐시 삭제 후 다시 호출 -> 다시 DB 조회 1회 추가 발생 (총 2회)
-    service.clearMarketMedianCache();
-    service.calculate(USER_ID, BASE_YM);
-    org.mockito.Mockito.verify(jobPostingRepository, org.mockito.Mockito.times(2))
-        .findAllByRegistrationMonth(MONTH_START, MONTH_END);
+  @Test
+  @DisplayName("산출 지수가 400을 초과하면 400.00으로, 25 미만이면 25.00으로 클램프한다")
+  void 이상치_클램프_검증() {
+    given(careerProfileRepository.findByUserId(USER_ID)).willReturn(Optional.of(createProfile(5)));
+
+    // 상한 클램프: 최근 60/100 (60%), 이전 10/100 (10%) -> raw 600.00 -> 400.00
+    stubTotals("JOBKOREA", RECENT_MONTHS, "ALL", List.of("ALL"), 100);
+    stubTotals("JOBKOREA", RECENT_MONTHS, "DEVELOPER", List.of("MID"), 60);
+    stubTotals("JOBKOREA", BASELINE_MONTHS, "ALL", List.of("ALL"), 100);
+    stubTotals("JOBKOREA", BASELINE_MONTHS, "DEVELOPER", List.of("MID"), 10);
+
+    OwiResult high = service.calculate(USER_ID, BASE_YM);
+    assertThat(high.value()).isEqualByComparingTo("400.00");
+
+    // 하한 클램프: 최근 10/200 (5%), 이전 50/100 (50%) -> raw 10.00 -> 25.00
+    stubTotals("JOBKOREA", RECENT_MONTHS, "ALL", List.of("ALL"), 200);
+    stubTotals("JOBKOREA", RECENT_MONTHS, "DEVELOPER", List.of("MID"), 10);
+    stubTotals("JOBKOREA", BASELINE_MONTHS, "ALL", List.of("ALL"), 100);
+    stubTotals("JOBKOREA", BASELINE_MONTHS, "DEVELOPER", List.of("MID"), 50);
+
+    OwiResult low = service.calculate(USER_ID, BASE_YM);
+    assertThat(low.value()).isEqualByComparingTo("25.00");
+  }
+
+  @Test
+  @DisplayName("당월 표본이 아직 없으면 잡코리아 최신 가용 기준월을 사용해 기간 창을 잡는다")
+  void 기준월_유효월_해석() {
+    given(careerProfileRepository.findByUserId(USER_ID)).willReturn(Optional.of(createProfile(5)));
+    given(marketAggregateRepository.findLatestAvailableYearMonthForSource("JOBKOREA", "202609"))
+        .willReturn(Optional.of("202608"));
+
+    stubTotals("JOBKOREA", RECENT_MONTHS, "ALL", List.of("ALL"), 100);
+    stubTotals("JOBKOREA", RECENT_MONTHS, "DEVELOPER", List.of("MID"), 25);
+    stubTotals("JOBKOREA", BASELINE_MONTHS, "ALL", List.of("ALL"), 100);
+    stubTotals("JOBKOREA", BASELINE_MONTHS, "DEVELOPER", List.of("MID"), 25);
+
+    OwiResult result = service.calculate(USER_ID, "202609");
+
+    assertThat(result.baseYearMonth()).isEqualTo("202609");
+    assertThat(result.status()).isEqualTo(IndexStatus.OK);
+    assertThat(result.value()).isEqualByComparingTo("100.00");
   }
 }
