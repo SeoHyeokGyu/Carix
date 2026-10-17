@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
 <meta charset="utf-8" />
-<title>Carix - 마이페이지</title>
+<title>Carix - 입력 관리 · 설정</title>
 <link rel="stylesheet" href="./_shared.css" />
 </head>
 <body>
@@ -10,16 +10,17 @@
   <div class="nav">
     <span class="logo">◈ Carix</span>
     <div style="display:flex;gap:4px;">
-      <a class="tab" href="./dashboard.html">판정</a>
+      <a class="tab" href="./dashboard.html">대시보드</a>
       <a class="tab" href="./trends.html">추이 분석</a>
+      <a class="tab" href="#">스킬 분석</a>
       <a class="tab" href="./simulator.html">시뮬레이터</a>
-      <a class="tab active" href="./mypage.html">입력 관리</a>
     </div>
     <div style="display:flex;align-items:center;gap:8px;">
       <a class="tab" href="#">도움말</a>
       <div style="position:relative;">
         <span class="avatar">U</span>
         <div class="dropdown-menu">
+          <a href="./mypage.html">입력 관리</a>
           <a href="./mypage.html">설정</a>
           <a href="#">로그아웃</a>
         </div>
@@ -28,89 +29,119 @@
   </div>
   <p class="note">아바타 클릭 시에만 드롭다운이 열린다 — 와이어프레임에서는 항상 펼친 상태로 표시.</p>
 
-  <h1>마이페이지</h1>
-
+  <h1>입력 관리</h1>
+  <p class="note" style="margin-top:0;">S-12 <code>/mypage/records</code> — 계정 메뉴의 「입력 관리」로 들어간다. 소득·소비·스킬 이력을 고치면 그 시점 이후 지수가 다시 계산된다.</p>
   <div class="tabs">
-    <span class="tab active">기록 관리</span>
-    <span class="tab">계정 설정</span>
+    <span class="tab active">소득</span>
+    <span class="tab">소비</span>
+    <span class="tab">스킬</span>
   </div>
 
-  <h2>기록 관리</h2>
-
-  <div class="tabs">
-    <span class="tab active">연봉 이력</span>
-    <span class="tab">소비 이력</span>
-    <span class="tab">스킬 이력</span>
-  </div>
-
+  <h2>소득 탭</h2>
   <div class="card">
-    <h3>연봉 이력</h3>
+    <h3>소득 이력</h3>
     <table>
-      <thead><tr><th>유효 시작일</th><th>세전 연봉</th><th>월 실수령액</th><th>작업</th></tr></thead>
+      <thead><tr><th>유효 시작일</th><th>세전 연봉</th><th>월 실수령액</th><th>변경 사유</th><th>작업</th></tr></thead>
       <tbody>
-        <tr><td>2024-01-01</td><td>65,000,000</td><td>4,200,000</td><td><button class="btn">수정</button> <button class="btn">삭제</button></td></tr>
-        <tr><td>2023-01-01</td><td>58,000,000</td><td>-</td><td><button class="btn">수정</button> <button class="btn">삭제</button></td></tr>
+        <tr><td>2025-03-01</td><td>65,000,000원</td><td>4,200,000원</td><td>이직</td><td><button class="btn">수정</button> <button class="btn btn-danger">삭제</button></td></tr>
+        <tr><td>2024-03-01</td><td>58,000,000원</td><td>3,800,000원</td><td>연봉 인상</td><td><button class="btn">수정</button> <button class="btn btn-danger">삭제</button></td></tr>
+        <tr><td>2023-01-01</td><td>52,000,000원</td><td>3,450,000원</td><td>최초 입력</td><td><button class="btn">수정</button> <button class="btn btn-danger">삭제</button></td></tr>
       </tbody>
     </table>
-    <div style="margin-top:12px;"><button class="btn btn-primary">+ 이력 추가</button></div>
-    <p class="note">같은 유효 시작일 중복 저장 불가. 미래 시점 입력 거부.</p>
+    <p class="note">가장 이른 행은 「최초 입력」이다. 그 행에 사유를 고르면 「최초 입력 · 이직」처럼 둘 다 보인다. 삭제는 확인 대화상자를 거친다.</p>
+  </div>
+  <div class="card">
+    <h3>소득 추가</h3>
+    <label>세전 연봉 (만원)</label>
+    <input type="text" placeholder="예: 5,000" />
+    <label>월 실수령액 (만원)</label>
+    <input type="text" placeholder="예: 350" />
+    <label>연봉 적용 시작일</label>
+    <input type="text" placeholder="YYYY-MM-DD (예: 2024-03-01)" />
+    <label>변경 사유</label>
+    <select><option>선택 안 함</option><option>연봉 인상</option><option>이직</option></select>
+    <div style="margin-top:12px;"><button class="btn btn-primary">추가</button></div>
+    <p class="note">같은 유효 시작일은 중복 저장 불가, 미래 날짜는 거부. 변경 사유는 12개월 뒤 시나리오 예측을 실제 소득과 맞댈 때 잔류·이직 중 어느 쪽을 검증할지 가른다. 「수정」을 누르면 이 폼이 그 행의 값으로 채워진다.</p>
   </div>
 
+  <h2>소비 탭</h2>
   <div class="card">
-    <h3>소비 이력</h3>
+    <h3>월별 소비</h3>
     <table>
-      <thead><tr><th>기준월</th><th>카테고리</th><th>월 금액</th><th>작업</th></tr></thead>
+      <thead><tr><th>기준월</th><th>월 상태</th><th>카테고리 상태</th><th>작업</th></tr></thead>
       <tbody>
-        <tr><td>2026-07</td><td>주거·공공요금</td><td>900,000</td><td><button class="btn">수정</button> <button class="btn">삭제</button></td></tr>
-        <tr><td>2026-07</td><td>식비</td><td>600,000</td><td><button class="btn">수정</button> <button class="btn">삭제</button></td></tr>
-        <tr><td>2026-07</td><td>교통</td><td><span class="badge badge-warning">통계청 평균 기준</span></td><td><button class="btn">수정</button> <button class="btn">삭제</button></td></tr>
+        <tr><td>2026-07</td><td><span class="badge badge-warning">일부 보간</span></td><td><span class="badge">주거·공공요금 · 직접 입력</span> <span class="badge">식비 · 직접 입력</span> <span class="badge badge-warning">교통 · 통계청 평균 기준</span> …</td><td><button class="btn">수정</button></td></tr>
+        <tr><td>2026-04</td><td><span class="badge badge-primary">이전 수정 반영</span></td><td><span class="badge">주거·공공요금 · 직접 입력</span> <span class="badge">식비 · 직접 입력</span> …</td><td><button class="btn">수정</button></td></tr>
       </tbody>
     </table>
-    <div style="margin-top:12px;"><button class="btn btn-primary">+ 이력 추가</button></div>
-    <p class="note">지출 합계가 월 실수령액을 초과하면 경고하되 저장은 허용한다.</p>
+    <p class="note">한 줄이 기준월 하나다. 카테고리는 6개(주거·공공요금, 식비, 교통, 의료, 교육·자기계발, 여가·기타). 기준월은 삭제할 수 없다 — 금액만 고치거나 기본값으로 되돌린다.</p>
+    <label>추가할 기준월</label>
+    <input type="text" placeholder="YYYY-MM" />
+    <p class="note">당월까지만 추가할 수 있다.</p>
+  </div>
+  <div class="card">
+    <h3>2026-07 소비</h3>
+    <label>주거·공공요금</label>
+    <div style="display:flex;gap:8px;"><input type="text" value="900,000" /><button class="btn" style="white-space:nowrap;">기본값으로</button></div>
+    <label>교통</label>
+    <div style="display:flex;gap:8px;"><input type="text" placeholder="미입력 시 통계청 평균으로 보간됩니다" /><button class="btn" style="white-space:nowrap;">기본값으로</button></div>
+    <div class="alert alert-warning" style="margin-top:12px;">입력한 합계가 월 실수령액을 초과합니다. 그대로 저장할 수 있습니다.</div>
+    <div class="btn-row"><button class="btn btn-primary">저장</button><button class="btn">취소</button></div>
+    <p class="note">「수정」 또는 기준월 추가 시 열린다(6개 카테고리 중 둘만 그림). 저장하면 해당 월 이후 지수에 반영된다.</p>
   </div>
 
+  <h2>스킬 탭</h2>
   <div class="card">
-    <h3>스킬 이력</h3>
+    <h3>보유 스킬</h3>
     <table>
       <thead><tr><th>스킬</th><th>실무 사용 기간</th><th>마지막 사용일</th><th>작업</th></tr></thead>
       <tbody>
-        <tr><td>Spring Boot</td><td>36개월</td><td>2026-08-01</td><td><button class="btn">수정</button> <button class="btn">삭제</button></td></tr>
-        <tr><td>TypeScript</td><td>18개월</td><td>2026-07-15</td><td><button class="btn">수정</button> <button class="btn">삭제</button></td></tr>
+        <tr><td>Spring Boot</td><td>36개월</td><td>2026-08-01</td><td><button class="btn">수정</button> <button class="btn btn-danger">삭제</button></td></tr>
+        <tr><td>TypeScript</td><td>18개월</td><td>2026-07-15</td><td><button class="btn">수정</button> <button class="btn btn-danger">삭제</button></td></tr>
       </tbody>
     </table>
-    <div style="margin-top:12px;"><button class="btn btn-primary">+ 스킬 추가</button></div>
-    <p class="note">동일한 정규화 스킬은 중복 등록할 수 없다. 자기평가 숙련도는 받지 않는다.</p>
+    <p class="note">「수정」은 그 행 안에서 기간·마지막 사용일을 바로 고친다. 스킬 분석 화면의 「보유 스킬 관리」도 이 탭으로 온다.</p>
   </div>
-
-  <p class="note">탭 예시: 실제로는 클릭한 탭 하나의 콘텐츠만 화면에 표시된다. 위 3개는 참고용으로 모두 펼쳐 보여준 것. 월별 지수 스냅샷은 별도 화면(<a href="./dashboard-history.html">대시보드 &gt; 이력</a>)에서 조회한다.</p>
-
-  <h2>계정 설정</h2>
-
   <div class="card">
-    <h3>세션</h3>
-    현재 모든 기기에서 로그인된 상태입니다.
+    <h3>스킬 추가</h3>
+    <label>스킬 검색</label>
+    <input type="text" placeholder="예: Kotlin" />
+    <label>실무 사용 기간 (개월, 1~600)</label>
+    <input type="text" />
+    <label>마지막 사용일</label>
+    <input type="text" placeholder="YYYY-MM-DD" />
+    <div style="margin-top:12px;"><button class="btn btn-primary">추가</button></div>
+    <p class="note">사전에 없는 검색어면 직접 추가와 「스킬 분류」 선택이 열린다. 동일한 정규화 스킬은 중복 등록할 수 없다. 자기평가 숙련도는 받지 않는다.</p>
+  </div>
+  <p class="note">탭 예시: 실제로는 고른 탭 하나만 보인다. 위 세 탭은 참고용으로 모두 펼친 것. 월별 지수 스냅샷은 별도 화면(<a href="./dashboard-history.html">지난 판정</a>)에서 본다.</p>
+
+  <hr style="margin:40px 0;border:none;border-top:2px dashed #e2e4ea;" />
+
+  <h1>설정</h1>
+  <p class="note" style="margin-top:0;">S-13 <code>/mypage/profile</code> — 계정 메뉴의 「설정」으로 들어가는 별개 화면. 세션을 관리하고 온보딩 데이터 및 계정을 관리한다.</p>
+  <p>로그인 계정: <strong>user@example.com</strong> · 세션 활성 상태</p>
+  <div class="card">
+    <h3>세션 관리</h3>
+    현재 기기를 포함하여 모든 브라우저 및 기기에서의 로그인 세션을 일괄 종료합니다.
     <div style="margin-top:12px;"><button class="btn">모든 기기에서 로그아웃</button></div>
   </div>
-
   <div class="card">
-    <h3>데이터 삭제</h3>
-    계정과 모든 개인 데이터(프로필, 소득, 소비, 스킬 이력, 지수 스냅샷)를 삭제합니다. 이 작업은 되돌릴 수 없습니다.
-    <div style="margin-top:12px;"><button class="btn btn-danger">내 데이터 삭제</button></div>
+    <h3>온보딩 재설정</h3>
+    초기 설정(프로필, 소득, 소비, 스킬)을 처음부터 다시 검토하고 수정합니다. 등록한 데이터는 삭제되지 않고 각 단계에 그대로 유지됩니다.
+    <div style="margin-top:12px;"><button class="btn">온보딩 처음부터 다시 시작</button></div>
+    <p class="note">확인 대화상자: 온보딩을 다시 마칠 때까지 판정 화면에 들어갈 수 없다.</p>
   </div>
-
-  <div class="card" style="border:1px solid #e2e4ea;">
-    <h3>정말 삭제하시겠습니까?</h3>
-    계정과 모든 개인 데이터가 영구적으로 삭제되며 복구할 수 없습니다.
-    <div class="btn-row">
-      <button class="btn btn-danger">영구 삭제</button>
-      <button class="btn">취소</button>
+  <div class="card">
+    <h3>회원 탈퇴 및 개인 데이터 완전 삭제</h3>
+    <div class="alert alert-error">
+      삭제되는 데이터: 커리어 프로필 · 소득 내역 및 지출 카테고리 설정 이력 · 보유 스킬 목록 · 월별 지수 스냅샷 및 시뮬레이션 시나리오 · 로그인 세션 및 회원 계정 정보. 복구할 수 없다. 시장 통계용 공용 집계 데이터는 영향받지 않는다.
     </div>
+    <label>탈퇴 확인을 위해 이메일 주소를 입력해 주세요</label>
+    <input type="text" placeholder="user@example.com" />
+    <label style="display:flex;gap:8px;align-items:center;"><input type="checkbox" style="width:auto;" /> 안내 사항을 모두 확인하였으며, 데이터 영구 삭제에 동의합니다.</label>
+    <div style="margin-top:12px;"><button class="btn btn-danger">회원 탈퇴 및 모든 데이터 삭제</button></div>
+    <p class="note">이메일이 일치하고 동의에 체크해야 버튼이 켜진다.</p>
   </div>
-
-  <p class="note">삭제 확인 모달은 [내 데이터 삭제] 클릭 시에만 표시된다.</p>
-
-  <p class="note">탭 예시: 실제로는 클릭한 탭(기록 관리/계정 설정) 하나의 콘텐츠만 화면에 표시된다. 위 2개 섹션은 참고용으로 모두 펼쳐 보여준 것.</p>
 </div>
 </body>
 </html>
