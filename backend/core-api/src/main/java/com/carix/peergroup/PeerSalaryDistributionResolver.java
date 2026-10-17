@@ -133,20 +133,23 @@ public class PeerSalaryDistributionResolver {
             ladder(profile),
             candidate ->
                 candidate.postings().size() >= minSample
-                    && disclosedSalaries(candidate.postings()).size() >= minSample));
+                    && disclosedSalaries(candidate.postings()).size() >= minSample),
+        minSample);
   }
 
   private static final java.time.format.DateTimeFormatter TREND_YM_FORMATTER =
       java.time.format.DateTimeFormatter.ofPattern("uuuu-MM");
 
-  private PeerSalaryDistribution toDistribution(ResolvedPeerPostings resolved) {
+  private PeerSalaryDistribution toDistribution(ResolvedPeerPostings resolved, int minSample) {
+    List<Long> disclosed = disclosedSalaries(resolved.postings());
+    boolean sufficient = resolved.postings().size() >= minSample && disclosed.size() >= minSample;
     return new PeerSalaryDistribution(
-        disclosedSalaries(resolved.postings()),
+        disclosed,
         resolved.postings().size(),
         resolved.level(),
         resolved.appliedConditions(),
         calculateTrend(resolved.postings()),
-        compareTrend(resolved.postings()));
+        sufficient ? compareTrend(resolved.postings()) : null);
   }
 
   /**
@@ -156,10 +159,7 @@ public class PeerSalaryDistributionResolver {
    */
   private TrendComparison compareTrend(List<JobPosting> postings) {
     YearMonth latest =
-        jobPostingRepository
-            .findLatestSampledMonth()
-            .map(month -> YearMonth.parse(month, SAMPLED_MONTH_FORMAT))
-            .orElse(null);
+        jobPostingRepository.findLatestSampledMonth().map(this::parseSampledMonth).orElse(null);
     if (latest == null) {
       return null;
     }
@@ -168,13 +168,27 @@ public class PeerSalaryDistributionResolver {
     for (SourceMonth sourceMonth :
         jobPostingRepository.findSampledSourceMonths(
             windowFrom.format(SAMPLED_MONTH_FORMAT), latest.format(SAMPLED_MONTH_FORMAT))) {
-      monthsBySource
-          .computeIfAbsent(sourceMonth.source(), k -> new TreeSet<>())
-          .add(YearMonth.parse(sourceMonth.sampledMonth(), SAMPLED_MONTH_FORMAT));
+      YearMonth month = parseSampledMonth(sourceMonth.sampledMonth());
+      if (month != null) {
+        monthsBySource.computeIfAbsent(sourceMonth.source(), k -> new TreeSet<>()).add(month);
+      }
     }
     Clock effective = clock != null ? clock : Clock.system(ZoneId.of("Asia/Seoul"));
     return SalaryTrendComparator.compare(
-        postings, latest, monthsBySource, YearMonth.now(effective), minSample());
+        postings,
+        latest,
+        monthsBySource,
+        YearMonth.now(effective.withZone(ZoneId.of("Asia/Seoul"))),
+        minSample());
+  }
+
+  /** 형식이 깨진 값은 null — 한 행 때문에 요청이 실패하지 않게 한다. */
+  private YearMonth parseSampledMonth(String value) {
+    try {
+      return YearMonth.parse(value, SAMPLED_MONTH_FORMAT);
+    } catch (java.time.format.DateTimeParseException | NullPointerException e) {
+      return null;
+    }
   }
 
   /** 동료집단 공고의 등록월(posted_start_date)별 중앙 제시 연봉 추이를 집계한다 (기능 명세 §4.6). */

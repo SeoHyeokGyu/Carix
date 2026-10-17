@@ -275,6 +275,53 @@ class PeerSalaryDistributionResolverTest {
     assertThat(resolver.resolve(profile).trendComparison()).isNull();
   }
 
+  @Test
+  @DisplayName("resolve - 형식이 깨진 표본 월은 건너뛰고 500 을 내지 않는다")
+  void resolve_ignoresMalformedSourceMonth() {
+    CareerProfile profile = new CareerProfile(UUID.randomUUID());
+    profile.patch("DEVELOPER", 5, "서울 강남구", "FULL_TIME", "LARGE");
+    List<JobPosting> postings = new ArrayList<>();
+    for (int month = 4; month <= 9; month++) {
+      for (int i = 0; i < 10; i++) {
+        postings.add(sampledPosting("JOBKOREA", "2026%02d".formatted(month), 60_000_000L + i));
+      }
+    }
+    given(
+            jobPostingRepository.findPeerGroupCandidates(
+                eq("DEVELOPER"), eq("서울 강남구"), eq("FULL_TIME"), eq("LARGE"), eq(4), eq(7)))
+        .willReturn(postings);
+    given(jobPostingRepository.findLatestSampledMonth()).willReturn(Optional.of("202609"));
+    List<SourceMonth> sourceMonths =
+        new ArrayList<>(
+            java.util.stream.IntStream.rangeClosed(4, 9)
+                .mapToObj(m -> new SourceMonth("JOBKOREA", "2026%02d".formatted(m)))
+                .toList());
+    sourceMonths.add(new SourceMonth("JOBKOREA", "202613"));
+    given(jobPostingRepository.findSampledSourceMonths("202604", "202609"))
+        .willReturn(sourceMonths);
+    resolver.setClock(Clock.fixed(Instant.parse("2026-10-17T15:00:00Z"), ZoneId.of("Asia/Seoul")));
+
+    TrendComparison comparison = resolver.resolve(profile).trendComparison();
+
+    assertThat(comparison).isNotNull();
+    assertThat(comparison.sources()).containsExactly("JOBKOREA");
+  }
+
+  @Test
+  @DisplayName("resolve - 표본이 모자라면 비교 쿼리를 돌리지 않고 null")
+  void resolve_skipsComparisonWhenInsufficient() {
+    CareerProfile profile = new CareerProfile(UUID.randomUUID());
+    profile.patch("DEVELOPER", 5, "서울 강남구", "FULL_TIME", "LARGE");
+    given(
+            jobPostingRepository.findPeerGroupCandidates(
+                eq("DEVELOPER"), eq("서울 강남구"), eq("FULL_TIME"), eq("LARGE"), eq(4), eq(7)))
+        .willReturn(createPostings(3, 60_000_000L));
+
+    assertThat(resolver.resolve(profile).trendComparison()).isNull();
+    org.mockito.Mockito.verify(jobPostingRepository, org.mockito.Mockito.never())
+        .findLatestSampledMonth();
+  }
+
   private JobPosting sampledPosting(String source, String sampledMonth, long salary) {
     return JobPosting.builder()
         .id(UUID.randomUUID())
