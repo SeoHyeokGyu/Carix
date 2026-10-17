@@ -58,6 +58,8 @@ class JobPostingRepositoryTest {
 
     assertThat(jobPostingRepository.findLatestSampledMonth("202610"))
         .isEqualTo(Optional.of("202609"));
+    assertThat(jobPostingRepository.findLatestSampledMonth("202609"))
+        .isEqualTo(Optional.of("202609"));
   }
 
   @Test
