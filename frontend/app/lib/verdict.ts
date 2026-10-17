@@ -7,7 +7,7 @@
 import type { SnapshotPoint } from "./dashboardMarketApi";
 
 const WIRE_PATTERN = /^\d{6}$/;
-const BASE_DATE_PATTERN = /^(\d{4})-(\d{2})/;
+export const BASE_DATE_PATTERN = /^(\d{4})-(\d{2})/;
 const HEADING_SUFFIX = "내 커리어 판정";
 
 export const SPARKLINE_MONTHS = 12;
