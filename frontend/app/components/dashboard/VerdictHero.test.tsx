@@ -126,7 +126,7 @@ describe("VerdictHero", () => {
   });
 
   it("모르는 코드면 서버 label 을 제목으로 쓴다", () => {
-    render(
+    renderHero(
       <VerdictHero
         signal={{ ...STAY, code: "NEW_CODE", label: "새 신호" }}
         history={[]}
@@ -174,12 +174,11 @@ describe("VerdictHero", () => {
       ],
     };
 
-    it("UPSKILL 신호에서 처방 타이틀과 추천 스킬 목록을 노출한다", () => {
-      render(
+    it("UPSKILL 신호에서 처방 타이틀과 추천 스킬 목록, 스킬 분석 이동 링크를 노출한다", () => {
+      renderHero(
         <VerdictHero
           signal={UPSKILL}
           history={[]}
-
           recommendations={RECOMMENDATIONS}
         />,
       );
@@ -200,14 +199,18 @@ describe("VerdictHero", () => {
       expect(screen.getByText("Docker")).toBeInTheDocument();
       expect(screen.getByText("수요율 18.0%")).toBeInTheDocument();
       expect(screen.getByText("- 유지")).toBeInTheDocument();
+      expect(
+        within(block).getByRole("link", {
+          name: "스킬 분석 전체 보기",
+        }),
+      ).toHaveAttribute("href", "/dashboard/skills");
     });
 
     it("UPSKILL 신호에서 추천 스킬이 비어있으면 표본 부족을 노출한다", () => {
-      render(
+      renderHero(
         <VerdictHero
           signal={UPSKILL}
           history={[]}
-
           recommendations={{
             peerGroup: { appliedConditions: "" },
             recommendations: [],
@@ -229,11 +232,10 @@ describe("VerdictHero", () => {
     });
 
     it("STAY 신호에서도 추천 스킬이 있으면 성장 가이드로 노출한다", () => {
-      render(
+      renderHero(
         <VerdictHero
           signal={STAY}
           history={[]}
-
           recommendations={RECOMMENDATIONS}
         />,
       );
@@ -248,11 +250,10 @@ describe("VerdictHero", () => {
     });
 
     it("SEEK_JOB 및 NEGOTIATE 신호에서 상황에 맞는 타이틀로 노출한다", () => {
-      const { rerender } = render(
+      const { rerender } = renderHero(
         <VerdictHero
           signal={SEEK_JOB}
           history={[]}
-
           recommendations={RECOMMENDATIONS}
         />,
       );
@@ -262,12 +263,13 @@ describe("VerdictHero", () => {
       ).toBeInTheDocument();
 
       rerender(
-        <VerdictHero
-          signal={NEGOTIATE}
-          history={[]}
-
-          recommendations={RECOMMENDATIONS}
-        />,
+        <MemoryRouter>
+          <VerdictHero
+            signal={NEGOTIATE}
+            history={[]}
+            recommendations={RECOMMENDATIONS}
+          />
+        </MemoryRouter>,
       );
       expect(screen.getByText("시장 수요")).toBeInTheDocument();
       expect(
@@ -276,11 +278,10 @@ describe("VerdictHero", () => {
     });
 
     it("STAY 신호에서 추천 스킬이 비어있으면 블록 자체를 숨긴다 (불필요한 표본 부족 경고 방지)", () => {
-      render(
+      renderHero(
         <VerdictHero
           signal={STAY}
           history={[]}
-
           recommendations={{
             peerGroup: { appliedConditions: "" },
             recommendations: [],
@@ -295,11 +296,10 @@ describe("VerdictHero", () => {
 
     it("추천 스킬 접기 및 펼치기 토글이 정상 작동한다", async () => {
       const user = userEvent.setup();
-      render(
+      renderHero(
         <VerdictHero
           signal={STAY}
           history={[]}
-
           recommendations={RECOMMENDATIONS}
         />,
       );
@@ -368,7 +368,7 @@ describe("VerdictHero", () => {
         ],
       };
 
-      render(
+      renderHero(
         <VerdictHero
           signal={STAY}
           history={[]}

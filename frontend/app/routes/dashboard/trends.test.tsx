@@ -27,7 +27,6 @@ vi.mock("react-router", async () => {
 
 vi.mock("../../lib/dashboardMarketApi", () => ({
   fetchSalaryDistribution: vi.fn(),
-  fetchSkillDemands: vi.fn(),
   fetchTrends: vi.fn(),
 }));
 
@@ -85,22 +84,6 @@ describe("S-14 DashboardTrends 라우트", () => {
       },
     });
 
-    vi.mocked(dashboardMarketApi.fetchSkillDemands).mockResolvedValue({
-      skills: [
-        {
-          skillId: "s-1",
-          standardName: "Kotlin",
-          demandIndex: 115.0,
-          recentDemandRate: 0.12,
-          baselineDemandRate: 0.1,
-          sources: [{ source: "SARAMIN", demandIndex: 115.0, sampleSize: 45 }],
-          weight: 1.0,
-          status: "OK",
-        },
-      ],
-      coverage: "보유 스킬 1개 중 1개 반영 (가중치 100% 재정규화)",
-    });
-
     vi.mocked(dashboardMarketApi.fetchTrends).mockResolvedValue({
       trends: [
         {
@@ -145,8 +128,8 @@ describe("S-14 DashboardTrends 라우트", () => {
     expectHeadingOutline();
   });
 
-  it.each(["skills", "salary"])("%s 탭도 제목 단계가 이어진다", async (tab) => {
-    renderTrends(`/dashboard/trends?tab=${tab}`);
+  it("salary 탭도 제목 단계가 이어진다", async () => {
+    renderTrends("/dashboard/trends?tab=salary");
     await waitForElementToBeRemoved(() => screen.queryByText(LOADING));
     expect(
       within(screen.getByRole("tabpanel")).getAllByRole("heading", { level: 3 })
@@ -179,29 +162,15 @@ describe("S-14 DashboardTrends 라우트", () => {
     });
   });
 
-  // 컨셉 질문 순서(구매력 → 시장가치)를 따른다.
-  it("탭 순서는 소득 vs 물가 · 스킬 수요 · 연봉 분포다", () => {
+  // 스킬 수요 섹션은 S-18 스킬 분석(/dashboard/skills)으로 이동했다.
+  it("탭 순서는 소득 vs 물가 · 연봉 분포다", () => {
     renderTrends();
 
     expect(screen.getAllByRole("tab").map((tab) => tab.textContent)).toEqual([
       "소득 vs 물가",
-      "스킬 수요",
       "연봉 분포",
     ]);
     expect(screen.getByRole("tablist")).toBeInTheDocument();
-  });
-
-  it("?tab=skills 로 들어오면 스킬 수요 탭이 열린다", async () => {
-    renderTrends("/dashboard/trends?tab=skills");
-
-    await waitFor(() => {
-      expect(screen.getByText("Kotlin")).toBeInTheDocument();
-      expect(screen.getByText(/▲ 상승/)).toBeInTheDocument();
-    });
-    expect(screen.getByRole("tab", { name: "스킬 수요" })).toHaveAttribute(
-      "aria-selected",
-      "true",
-    );
   });
 
   it("?tab=salary 로 들어오면 연봉 분포 차트가 마운트된다", async () => {
@@ -248,13 +217,13 @@ describe("S-14 DashboardTrends 라우트", () => {
   it("탭을 누르면 URL 의 tab 값이 바뀐다", async () => {
     renderTrends();
 
-    fireEvent.click(screen.getByRole("tab", { name: "스킬 수요" }));
+    fireEvent.click(screen.getByRole("tab", { name: "연봉 분포" }));
 
     expect(screen.getByTestId("location-search")).toHaveTextContent(
-      "?tab=skills",
+      "?tab=salary",
     );
     await waitFor(() => {
-      expect(screen.getByText("Kotlin")).toBeInTheDocument();
+      expect(screen.getByText("동료집단 연봉 분포")).toBeInTheDocument();
     });
   });
 
@@ -284,13 +253,10 @@ describe("S-14 DashboardTrends 라우트", () => {
     });
   });
 
-  // 세션이 죽으면 세 호출이 동시에 401 이다. 부분 성공 렌더링과 갈라 둬야 한다 —
+  // 세션이 죽으면 두 호출이 동시에 401 이다. 부분 성공 렌더링과 갈라 둬야 한다 —
   // 한 API 만 죽은 경우에 멀쩡한 화면을 로그인으로 내쫓으면 안 된다.
   it("세션이 만료되면 로그인으로 보낸다", async () => {
     vi.mocked(dashboardMarketApi.fetchSalaryDistribution).mockRejectedValue(
-      new UnauthorizedError(),
-    );
-    vi.mocked(dashboardMarketApi.fetchSkillDemands).mockRejectedValue(
       new UnauthorizedError(),
     );
     vi.mocked(dashboardMarketApi.fetchTrends).mockRejectedValue(
@@ -329,11 +295,9 @@ describe("S-14 DashboardTrends 라우트", () => {
       screen.queryByText("시장 분석 데이터를 불러오지 못했습니다"),
     ).not.toBeInTheDocument();
   });
-  it("세 조회가 모두 실패하면 화면 단위 실패 하나만 보이고 다시 시도할 수 있다", async () => {
+
+  it("두 조회가 모두 실패하면 화면 단위 실패 하나만 보이고 다시 시도할 수 있다", async () => {
     vi.mocked(dashboardMarketApi.fetchSalaryDistribution).mockRejectedValue(
-      new Error("x"),
-    );
-    vi.mocked(dashboardMarketApi.fetchSkillDemands).mockRejectedValue(
       new Error("x"),
     );
     vi.mocked(dashboardMarketApi.fetchTrends).mockRejectedValue(new Error("x"));
@@ -407,18 +371,15 @@ describe("S-14 DashboardTrends 라우트", () => {
     vi.mocked(dashboardMarketApi.fetchSalaryDistribution).mockRejectedValue(
       new Error("x"),
     );
-    vi.mocked(dashboardMarketApi.fetchSkillDemands).mockRejectedValue(
-      new Error("x"),
-    );
     renderTrends();
     const user = userEvent.setup();
     await within(
       await screen.findByRole("tabpanel", { name: "소득 vs 물가" }),
     ).findByRole("heading", { level: 3 });
 
-    // 실패한 스킬 수요 탭에서 다시 시도 — 이번엔 소득 대 물가까지 셋 다 실패한다.
+    // 실패한 연봉 분포 탭에서 다시 시도 — 이번엔 소득 대 물가까지 둘 다 실패한다.
     vi.mocked(dashboardMarketApi.fetchTrends).mockRejectedValue(new Error("x"));
-    await user.click(screen.getByRole("tab", { name: "스킬 수요" }));
+    await user.click(screen.getByRole("tab", { name: "연봉 분포" }));
     await user.click(
       await within(screen.getByRole("tabpanel")).findByRole("button", {
         name: "다시 시도",

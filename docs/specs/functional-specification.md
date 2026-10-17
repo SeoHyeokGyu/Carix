@@ -38,10 +38,11 @@ DB 스키마는 [ERD](erd.md), REST 계약은 [API 규격](api-specification.md)
 | S-11 | `/dashboard/history` | 지난 판정 (월별 당시 판정 이력, 판정 화면에서 진입) | SPA | 세션 + 온보딩 완료 |
 | S-12 | `/mypage/records` | 입력 관리 (소득·소비·스킬 이력) | SPA | 세션 |
 | S-13 | `/mypage/profile` | 세션·사용자 정보 관리, 삭제 | SPA | 세션 |
-| S-14 | `/dashboard/trends` | 추이분석 (소득vs물가·스킬수요·연봉분포) | SPA | 세션 + 온보딩 완료 |
+| S-14 | `/dashboard/trends` | 추이분석 (소득vs물가·연봉분포) | SPA | 세션 + 온보딩 완료 |
 | S-15 | `/dashboard/simulator` | 12개월 시뮬레이터 | SPA | 세션 + 온보딩 완료 |
 | S-16 | `/admin/collector` | 관리자 파이프라인 콘솔 (수집·집계 제어/모니터링) | SPA | 관리자 키 (`X-Admin-Key`) |
 | S-17 | `/dashboard/guide` | 지표 가이드 및 도움말 (지표 3종·결정 신호·FAQ) | SPA | 세션 + 온보딩 완료 |
+| S-18 | `/dashboard/skills` | 스킬 분석 (보유 스킬 수요·동료집단 추천 스킬) | SPA | 세션 + 온보딩 완료 |
 | S-20 | `/admin/data` | 관리자 수집 데이터 (맨 위 데이터 상태 점검 줄, 월별 현황·공고·CPI·임금통계 열람). `/admin` 진입 시 이 화면으로 | SPA | 관리자 키 (`X-Admin-Key`) |
 
 렌더링 열은 MVP 현행 구성이다 — `/` 만 빌드 시 사전 렌더링하고 나머지는 SPA 셸에서
@@ -58,7 +59,7 @@ DB 스키마는 [ERD](erd.md), REST 계약은 [API 규격](api-specification.md)
 
 - 세션 없이 S-05 이후 접근 → 랜딩(`/`) 리다이렉트. 로그인 화면이 아니다 — 처음 온 사용자는
   가입이 필요하고, 랜딩이 가입·로그인을 모두 안내한다
-- 온보딩 미완료 세션이 `/dashboard`, `/dashboard/trends`, `/dashboard/simulator` 접근 → 마지막 미완료 온보딩 단계로 리다이렉트
+- 온보딩 미완료 세션이 `/dashboard`, `/dashboard/trends`, `/dashboard/skills`, `/dashboard/simulator` 접근 → 마지막 미완료 온보딩 단계로 리다이렉트
 - 온보딩 완료 세션이 `/onboarding/*` 접근 → `/dashboard` 리다이렉트 (단, 검토 화면 S-09는 재진입 허용). 검토 화면(S-09) 및 마이페이지 설정(S-13)에서 '온보딩 처음부터 다시 시작'을 실행하면 단계를 `PROFILE`로 초기화하여 1단계부터 온보딩 전 과정을 재수행할 수 있다
 - 온보딩 미완료 세션이 `/onboarding/*` 내에서 현재 진행 단계보다 앞선(아직 도달하지 않은) 단계에
   접근 → 현재 단계로 리다이렉트. **현재 단계와 같거나 그 이전 단계 접근은 허용한다** — 검토
@@ -187,6 +188,7 @@ DB 스키마는 [ERD](erd.md), REST 계약은 [API 규격](api-specification.md)
 - Given 기준 스킬이 없거나 동시출현율이 임계값 미만 / When 근거 표시 / Then 동료집단 수요율 문구로 되돌린다. 낮은 동시출현율을 그대로 쓰면 설득이 아니라 소음이다.
 - Given 결정 신호가 `UPSKILL` 이외(`STAY`, `SEEK_JOB`, `NEGOTIATE` 등) / When 판정 히어로 표시 / Then 신호 맥락에 맞춘 라벨(`[이직 대비]`, `[시장 수요]`, `[성장 가이드]`)과 객관적 수요 타이틀로 추천 스킬을 노출한다. 단, 표본 부족 등으로 추천 스킬이 비어있는 경우 불필요한 경고 노출을 방지하기 위해 블록 자체를 숨긴다.
 - Given 추천 스킬 후보가 3개를 초과할 때 / When 처방 및 성장 가이드 블록 표시 / Then 3개 단위로 표시하며, 우측 상단에「다른 추천 (현재페이지/전체페이지) 🔄」순환 버튼을 노출하여 사용자가 차순위 수요 스킬(4~6위, 7~9위 등)을 순환 탐색할 수 있도록 지원한다.
+- Given 처방 및 추천 블록 표시 / When 하단 안내 링크 클릭 / Then `/dashboard/skills` (`S-18` 스킬 분석) 화면으로 이동하여 보유 스킬 수요 추세와 동료집단 추천 스킬 전체를 확인한다.
 
 **US-D7. 협상 목표 수치 (S-10)**
 
@@ -210,6 +212,14 @@ DB 스키마는 [ERD](erd.md), REST 계약은 [API 규격](api-specification.md)
 - Given 구간의 어느 한 해라도 실측이 아님(`FALLBACK`·`UNKNOWN`) / When 상승률 표시 / Then **그 구간은 상승률을 내지 않고** 누적 격차는 다음 실측 구간에서 다시 시작한다. 0% 로 채우지 않는다.
 - Given 모든 구간이 제외됨 / When 탭 진입 / Then 빈 상태와 `공식 임금통계 결측 구간` 문구를 표시하고 차트를 그리지 않는다.
 - Given 임금통계 기준선 표시 / When 어느 화면이든 / Then 그 기준선의 성격(`basis`)과 출처(`source`)를 함께 보여준다.
+
+**US-D9. 스킬 분석 (S-18)**
+> 사용자로서, 보유한 스킬의 시장 수요 변화와 동료집단에서 요구되는 미보유 스킬을 한 화면에서 비교하고 싶다.
+
+- Given 온보딩 완료 세션 / When 상단 주 메뉴 `스킬 분석`, 대시보드(`S-10`) 시장가치 지수 카드의 `자세히 보기`, 또는 1층 처방/추천 블록의 `스킬 분석 전체 보기` 클릭 / Then 상단 우측에 `보유 스킬 관리`(`S-12` 스킬 탭) 이동 링크를 두고, **보유 스킬 수요**(`GET /dashboard/skills`) 섹션과 **동료집단 추천 스킬**(`GET /skills/recommendations`) 섹션을 한 화면에 표시한다.
+- Given 보유 스킬 수요 섹션 / When 표시 / Then 보유 스킬별 가중치, 최근 3개월 수요 추세(지수 및 상태 뱃지), 원천별 표본·지수 상세 아코디언, 커버리지 뱃지를 표시한다. 등록된 보유 스킬이 없으면 빈 상태를 안내한다.
+- Given 동료집단 추천 스킬 섹션 / When 표시 / Then 결정 신호와 무관하게 동료집단 적용 조건(`appliedConditions`)과 미보유 추천 스킬 전체 목록(스킬명, 카테고리, 수요율, 추세 뱃지, 동시출현·수요율 근거 문구)을 표시한다. 동료집단 표본 부족 등으로 추천 목록이 비어 있으면 `표본 부족` 안내를 표시한다.
+- Given 두 조회(`GET /dashboard/skills`, `GET /skills/recommendations`) 중 하나만 실패 / When 화면 표시 / Then 성공한 섹션은 그대로 표시하고 실패한 섹션 자리에서만 `다시 시도` 버튼을 제공하며, 둘 다 실패하고 이전 데이터도 없으면 화면 단위 오류 상태를 표시한다.
 
 ### 2.4 12개월 시나리오 (SCEN)
 
@@ -412,6 +422,7 @@ OWI         = 동료집단 중앙 개방일수 ÷ 전체시장 중앙 개방일�
 | S-11 이력 | 스냅샷 1개 이하: `다음 달부터 변화를 볼 수 있습니다` | 일부 월 누락 시 갭 표시 (선 연결 금지) | 재시도 |
 | S-12 입력 관리 | 항목 없음: 추가 유도 | — | 저장 실패 시 입력 보존 |
 | S-14 추이분석 | 12개월 미만 데이터: 차트 대신 안내 문구 | `표본 부족`(N<10), 업데이트 지연 시 마지막 성공 데이터 + 지연 배지 (US-D2 기준 동일 적용) | 재시도 버튼 + 마지막 성공 데이터 유지 |
+| S-18 스킬 분석 | 보유 스킬 0개: `등록된 보유 스킬이 없습니다` 안내 | 추천 표본 부족 시 안내, 커스텀 스킬 `통계 미제공`, 스킬별 `표본 부족`·`신규 관측`·`최근 수요 없음` 배지 | 부분 실패 시 섹션별 재시도, 전체 실패 시 화면 재시도 |
 | S-15 시뮬레이터 | 미입력: 기본값 채움 없이 입력 유도 | 실업급여 조건 미충족 가정 시 안내 | 계산 실패 시 이전 결과 유지 + 오류 표시 |
 
 공통 원칙:
@@ -504,7 +515,8 @@ OWI         = 동료집단 중앙 개방일수 ÷ 전체시장 중앙 개방일�
 | S-09 검토·완료 | US-O6 | `PATCH /auth/onboarding`(`auth-service`), `GET /expenses/applied` | `users`(onboarding_step), `config/default-expense-weights.yml` |
 | S-10 대시보드 | US-D1~D2, US-D5~D6 | `GET /dashboard/summary`, `GET /skills/recommendations` | `index_snapshot`, `market_aggregate`, `job_posting`(OWI), `user_skill` |
 | S-11 이력 | US-D4 | `GET /dashboard/history` | `index_snapshot` |
-| S-14 추이분석 | US-D3, US-D8 | `GET /trends`, `/salary-distribution`, `/skills`, `/wage-growth` | `market_aggregate`, `wage_stat_observation`, `income_history` |
+| S-14 추이분석 | US-D3, US-D8 | `GET /trends`, `/salary-distribution`, `/wage-growth` | `market_aggregate`, `wage_stat_observation`, `income_history` |
+| S-18 스킬 분석 | US-D6, US-D9 | `GET /dashboard/skills`, `GET /skills/recommendations` | `market_aggregate`, `job_posting_skill`, `skill`, `user_skill` |
 | S-15 시뮬레이터 | US-S1 | `POST /scenarios/simulate`, `GET /scenarios/latest`, `GET /scenarios` | `career_scenario` |
 | S-12 입력 관리 | US-R1 | `PUT`·`DELETE /income`·`/user-skills`, `PUT /expenses/{ym}` | `income_history`(`change_reason`), `expense_*`, `user_skill` |
 | S-13 설정/탈퇴 | US-C1, US-C2 | `POST /auth/logout`·`/logout-all`, `DELETE /users` | `session`, 전 개인 테이블 |
@@ -575,7 +587,7 @@ API 경로는 `/api/v1` 접두사를 생략했다. 상세는
 
 ### 10.3 대시보드
 
-첫 화면은 세 가지 핵심 결과만 독립적으로 보여준다. 상세 추이는 별도 추이분석 화면에서 확인한다.
+첫 화면은 세 가지 핵심 결과만 독립적으로 보여준다. 상세 추이와 스킬 시장 정보는 별도 하위·분석 화면에서 확인한다.
 
 - 구매력 지수와 이전 스냅샷 대비 변화
 - 시장가치 지수와 이전 스냅샷 대비 변화
@@ -585,9 +597,13 @@ API 경로는 `/api/v1` 접두사를 생략했다. 상세는
 **추이분석 화면**은 다음을 보여준다.
 
 - 명목소득과 실질 구매력의 월별 추세
-- 보유 스킬별 최근 수요 변화
-- 비교 가능한 공개연봉 범위
+- 비교 가능한 공개연봉 범위 및 경력 사다리
 - 표본 수, 공개연봉 결측률, 데이터 기준일
+
+**스킬 분석 화면**은 다음을 보여준다.
+
+- 보유 스킬별 가중치, 최근 수요 추세 지수, 원천별 표본·지수 상세
+- 동료집단 공고에서 자주 요구하는 미보유 추천 스킬 및 동시출현 근거
 
 ### 10.4 의사결정 분석
 

@@ -230,7 +230,7 @@ export default function DashboardHome() {
                 index={data.marketValueIndex}
                 baselineHint="기준 100: 동료집단 임금 중앙값"
                 helpContent={<MarketValueHelp />}
-                detailHref={trendsTabHref("skills")}
+                detailHref="/dashboard/skills"
                 footer={history && <MarketValueTrend history={history} />}
               />
               <IndexCard

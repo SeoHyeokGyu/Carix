@@ -121,6 +121,7 @@ describe("AppShell", () => {
                 element={<div>다른 화면</div>}
               />
               <Route path="/dashboard/trends" element={<div>추이</div>} />
+              <Route path="/dashboard/skills" element={<div>스킬 분석</div>} />
             </Route>
           </Routes>
         </MemoryRouter>,
@@ -129,17 +130,20 @@ describe("AppShell", () => {
       return {
         home: within(nav).getByRole("link", { name: "대시보드" }),
         trends: within(nav).getByRole("link", { name: "추이 분석" }),
+        skills: within(nav).getByRole("link", { name: "스킬 분석" }),
       };
     }
 
     it("하위 화면에서 상위 항목을 선택으로 보이고 aria-current=true 를 단다", () => {
-      const { home, trends } = renderAt("/dashboard/history");
+      const { home, trends, skills } = renderAt("/dashboard/history");
 
       expect(home).toHaveAttribute("aria-current", "true");
       expect(home).toHaveClass("bg-carix-info/10");
       expect(home).toHaveAttribute("href", "/dashboard");
       expect(trends).not.toHaveAttribute("aria-current");
       expect(trends).toHaveClass("text-carix-text/70");
+      expect(skills).not.toHaveAttribute("aria-current");
+      expect(skills).toHaveClass("text-carix-text/70");
     });
 
     it("상위 화면 자체에서는 aria-current=page 다", () => {

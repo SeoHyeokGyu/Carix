@@ -19,6 +19,7 @@ import {
   fetchSalaryDistribution,
   type SalaryDistributionResponse,
 } from "../../lib/dashboardMarketApi";
+import { bracketLabel, formatAppliedConditions } from "../../lib/sourceLabel";
 
 export interface SalaryDistributionChartProps {
   data: SalaryDistributionResponse;
@@ -201,6 +202,7 @@ function CareerLadderView({
       <ol className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-5">
         {ladder.steps.map((step) => {
           const estimated = step.source !== "KOSIS";
+          const { label } = bracketLabel(step.bracket);
           return (
             <li
               key={step.bracket}
@@ -208,7 +210,7 @@ function CareerLadderView({
             >
               <div className="flex items-center justify-between gap-1">
                 <span className="text-xs font-semibold text-carix-text">
-                  {step.bracket}
+                  {label}
                 </span>
                 {step.bracket === ladder.userBracket && (
                   <span className="text-[10px] font-semibold text-carix-primary">
@@ -314,7 +316,8 @@ export function SalaryDistributionChart({
       >
         {data.peerGroup?.appliedConditions && (
           <p className="text-xs text-carix-text/60 bg-carix-surface rounded-lg p-2 border border-carix-border inline-block shadow-xs">
-            적용된 비교 조건: {data.peerGroup.appliedConditions}
+            적용된 비교 조건:{" "}
+            {formatAppliedConditions(data.peerGroup.appliedConditions)}
           </p>
         )}
         <CareerLadderView
@@ -394,7 +397,9 @@ export function SalaryDistributionChart({
             )}
           </div>
           <p className="mt-1 text-xs text-carix-text/70">
-            {peerGroup?.appliedConditions ?? "동료집단 기준선"}
+            {peerGroup?.appliedConditions
+              ? formatAppliedConditions(peerGroup.appliedConditions)
+              : "동료집단 기준선"}
           </p>
         </div>
 
