@@ -147,13 +147,13 @@ describe("마이페이지 라우트 및 레이아웃 (Mypage)", () => {
       render(<Stub initialEntries={["/mypage/profile"]} />);
 
       expect(
-        await screen.findByRole("navigation", { name: "마이페이지" }),
+        await screen.findByRole("navigation", { name: "주 메뉴" }),
       ).toBeInTheDocument();
       expect(screen.getByText("설정 페이지 내용")).toBeInTheDocument();
 
       // 상단 메인 메뉴바의 항목들이 설정 화면에서도 변경되지 않고 그대로 유지되는지 검증
       for (const name of [
-        "판정",
+        "대시보드",
         "추이 분석",
         "스킬 분석",
         "시뮬레이터",

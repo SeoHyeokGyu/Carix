@@ -203,7 +203,7 @@ describe("대시보드 라우트 및 레이아웃 (Dashboard)", () => {
         screen.getByText("요청을 처리하지 못했습니다."),
       ).toBeInTheDocument();
       expect(
-        screen.getByRole("heading", { level: 1, name: "판정" }),
+        screen.getByRole("heading", { level: 1, name: "대시보드" }),
       ).toBeInTheDocument();
       // code·status 는 절대 화면에 노출하지 않는다.
       expect(screen.queryByText(/502/)).not.toBeInTheDocument();
@@ -735,7 +735,7 @@ describe("대시보드 라우트 및 레이아웃 (Dashboard)", () => {
         screen.getByRole("heading", { level: 3, name: "구매력 지수" }),
       ).toBeInTheDocument();
       expect(
-        screen.getByRole("heading", { level: 1, name: "판정" }),
+        screen.getByRole("heading", { level: 1, name: "대시보드" }),
       ).toBeInTheDocument();
       expect(
         screen.getByText("2026년 8월 기준 · 내 커리어 판정"),
@@ -922,12 +922,12 @@ describe("대시보드 라우트 및 레이아웃 (Dashboard)", () => {
       render(<Stub initialEntries={["/dashboard"]} />);
 
       expect(
-        await screen.findByRole("navigation", { name: "대시보드" }),
+        await screen.findByRole("navigation", { name: "주 메뉴" }),
       ).toBeInTheDocument();
       expect(screen.getByText("대시보드 콘텐츠")).toBeInTheDocument();
     });
 
-    it("지난 판정에서는 주 메뉴 「판정」이 선택된 채 보인다", async () => {
+    it("지난 판정에서는 주 메뉴 「대시보드」가 선택된 채 보인다", async () => {
       setSession({
         status: "authenticated",
         userId: "user-1",
@@ -949,11 +949,10 @@ describe("대시보드 라우트 및 레이아웃 (Dashboard)", () => {
 
       render(<Stub initialEntries={["/dashboard/history"]} />);
 
-      const nav = await screen.findByRole("navigation", { name: "대시보드" });
-      expect(within(nav).getByRole("link", { name: "판정" })).toHaveAttribute(
-        "aria-current",
-        "true",
-      );
+      const nav = await screen.findByRole("navigation", { name: "주 메뉴" });
+      expect(
+        within(nav).getByRole("link", { name: "대시보드" }),
+      ).toHaveAttribute("aria-current", "true");
     });
   });
 });

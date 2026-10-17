@@ -133,7 +133,7 @@ export default function DashboardHistory() {
   return (
     <PageFrame>
       <PageHeader
-        back={{ to: "/dashboard", label: "판정" }}
+        back={{ to: "/dashboard", label: "대시보드" }}
         title="지난 판정"
         description="그 달에 Carix 가 보여 준 판정의 기록입니다. 지금 규칙으로 다시 계산한 값과 함께 봅니다."
         divider

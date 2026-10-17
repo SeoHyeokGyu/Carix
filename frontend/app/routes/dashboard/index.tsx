@@ -146,7 +146,7 @@ export default function DashboardHome() {
   return (
     <PageFrame>
       <PageHeader
-        title="판정"
+        title="대시보드"
         description={formatVerdictDescription(data?.metadata.baseDate)}
         actions={
           <>
