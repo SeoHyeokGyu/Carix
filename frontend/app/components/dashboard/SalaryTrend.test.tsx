@@ -128,14 +128,24 @@ describe("SalaryTrend", () => {
     expect(screen.getByText("판단 보류 (표본 부족)")).toBeInTheDocument();
   });
 
-  it("하락 비율도 상승과 같은 방향으로 반올림한다 (−12.5% → −13%)", () => {
+  it("비율은 소수 첫째 자리까지 보인다 (−12.5%)", () => {
     render(
       <SalaryTrend
         trend={TREND}
         comparison={comparison("DOWN", 80_000_000, 70_000_000)}
       />,
     );
-    expect(screen.getByText("−1,000만 원 (−13%)")).toBeInTheDocument();
+    expect(screen.getByText("−1,000만 원 (−12.5%)")).toBeInTheDocument();
+  });
+
+  it("1% 미만 차이도 0% 로 뭉개지 않는다", () => {
+    render(
+      <SalaryTrend
+        trend={TREND}
+        comparison={comparison("UP", 50_000_000, 50_200_000)}
+      />,
+    );
+    expect(screen.getByText("+20만 원 (+0.4%)")).toBeInTheDocument();
   });
 
   it("상승·하락이어도 중앙값이 비면 차이를 숨긴다", () => {
