@@ -34,6 +34,18 @@ describe("resolvePeerConditions", () => {
     ).toEqual({ text: SERVER_TEXT, widened: true });
   });
 
+  it("서버 문구에 영문 구간·규모·고용형태 코드가 섞여 있으면 한국어로 변환한다", () => {
+    expect(
+      resolvePeerConditions({
+        fallbackLevel: 1,
+        appliedConditions: "서울 전체 / 경력 MID / LARGE / FULL_TIME",
+      }),
+    ).toEqual({
+      text: "서울 전체 / 경력 미들 / 대기업 / 정규직",
+      widened: false,
+    });
+  });
+
   it("동료집단 정보가 없으면 null", () => {
     expect(resolvePeerConditions(null)).toBeNull();
     expect(resolvePeerConditions(undefined)).toBeNull();

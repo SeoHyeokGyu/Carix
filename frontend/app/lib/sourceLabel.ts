@@ -26,7 +26,7 @@ export function familyLabel(code: string): string {
 const BRACKET_LABELS: Record<string, { label: string; age: string }> = {
   ENTRY: { label: "신입", age: "20~24세" },
   JUNIOR: { label: "주니어", age: "25~29세" },
-  MID: { label: "미드", age: "30~34세" },
+  MID: { label: "미들", age: "30~34세" },
   SENIOR: { label: "시니어", age: "35~39세" },
   LEAD: { label: "리드", age: "40~44세" },
 };
@@ -37,4 +37,36 @@ export function bracketLabel(code: string): {
   age: string | null;
 } {
   return BRACKET_LABELS[code] ?? { label: code, age: null };
+}
+
+const CONDITION_TOKEN_LABELS: Record<string, string> = {
+  ENTRY: BRACKET_LABELS.ENTRY.label,
+  JUNIOR: BRACKET_LABELS.JUNIOR.label,
+  MID: BRACKET_LABELS.MID.label,
+  SENIOR: BRACKET_LABELS.SENIOR.label,
+  LEAD: BRACKET_LABELS.LEAD.label,
+  LARGE: "대기업",
+  MEDIUM: "중견·중소",
+  SME: "중소기업",
+  STARTUP: "스타트업",
+  FULL_TIME: "정규직",
+  CONTRACT: "계약직",
+  FREELANCE: "프리랜서",
+  INTERN: "인턴",
+};
+
+const CONDITION_TOKEN_PATTERN = new RegExp(
+  `\\b(${Object.keys(CONDITION_TOKEN_LABELS).join("|")})\\b`,
+  "g",
+);
+
+/**
+ * 백엔드 `peerGroup.appliedConditions` 문자열에 포함된 영문 코드(경력 구간·회사 규모·고용 형태)를
+ * 사용자 화면용 한국어 라벨로 변환한다.
+ */
+export function formatAppliedConditions(raw: string): string {
+  return raw.replace(
+    CONDITION_TOKEN_PATTERN,
+    (match) => CONDITION_TOKEN_LABELS[match] ?? match,
+  );
 }

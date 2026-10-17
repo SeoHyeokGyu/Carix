@@ -167,7 +167,8 @@ flowchart TD
 | `/onboarding/{profile,income,expense,skills,review}` | 온보딩 5단계 | 세션 |
 | `/dashboard` | 지표 카드 (OWI 도입 전까지 3종) | 세션 + 온보딩 완료 |
 | `/dashboard/history` | 지난 판정 (월별 당시 판정 이력) | 세션 + 온보딩 완료 |
-| `/dashboard/trends` | 추이분석 (소득vs물가·스킬수요·연봉분포) | 세션 + 온보딩 완료 |
+| `/dashboard/trends` | 추이분석 (소득vs물가·연봉분포) | 세션 + 온보딩 완료 |
+| `/dashboard/skills` | 스킬 분석 (보유 스킬 수요·동료집단 추천 스킬) | 세션 + 온보딩 완료 |
 | `/dashboard/simulator` | 12개월 시뮬레이터 | 세션 + 온보딩 완료 |
 | `/mypage/records` | 입력 관리 (소득·소비·스킬 이력) | 세션 |
 | `/mypage/profile` | 세션 관리·계정 삭제 | 세션 |

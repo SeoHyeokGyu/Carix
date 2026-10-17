@@ -140,6 +140,15 @@ describe("SalaryDistributionChart", () => {
     expect(screen.getByText("공식기준")).toBeInTheDocument();
     // 카드 안에서는 카드 gap 이 간격을 준다 — 자기 margin 을 더하면 40px 로 벌어진다.
     expect(screen.getByLabelText("경력 사다리")).not.toHaveClass("mt-6");
+    expect(screen.getByText("신입")).toBeInTheDocument();
+    expect(screen.getByText("주니어")).toBeInTheDocument();
+    expect(screen.getByText("미들")).toBeInTheDocument();
+    expect(screen.getByText("시니어")).toBeInTheDocument();
+    expect(screen.getByText("리드")).toBeInTheDocument();
+    expect(screen.queryByText("ENTRY")).not.toBeInTheDocument();
+    expect(
+      screen.getByText("서울 전체 / 경력 4~7년(미들) / 회사규모 무관"),
+    ).toBeInTheDocument();
     expect(screen.getByText("내 구간")).toBeInTheDocument();
     expect(screen.getByText("추정 · FALLBACK")).toBeInTheDocument();
     expect(screen.getAllByText("KOSIS 실측 보간")).toHaveLength(2);

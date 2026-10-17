@@ -6,6 +6,7 @@
  * 비교한 것처럼 보인다(기능 명세 §4.2).
  */
 import type { PeerGroupMetadata } from "./api/dashboard";
+import { formatAppliedConditions } from "./sourceLabel";
 
 export interface PeerConditionView {
   text: string;
@@ -20,7 +21,7 @@ export function resolvePeerConditions(
 ): PeerConditionView | null {
   if (!peerGroup) return null;
   return {
-    text: peerGroup.appliedConditions,
+    text: formatAppliedConditions(peerGroup.appliedConditions),
     widened: peerGroup.fallbackLevel !== OWN_TIER_LEVEL,
   };
 }
