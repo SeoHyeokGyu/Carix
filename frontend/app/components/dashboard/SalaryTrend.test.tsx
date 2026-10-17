@@ -124,7 +124,42 @@ describe("SalaryTrend", () => {
     );
     expect(screen.getByText("표본 부족")).toBeInTheDocument();
     expect(screen.getByText("4,100만 원")).toBeInTheDocument();
+    expect(screen.getByText("공개 9건")).toBeInTheDocument();
     expect(screen.getByText("판단 보류 (표본 부족)")).toBeInTheDocument();
+  });
+
+  it("하락 비율도 상승과 같은 방향으로 반올림한다 (−12.5% → −13%)", () => {
+    render(
+      <SalaryTrend
+        trend={TREND}
+        comparison={comparison("DOWN", 80_000_000, 70_000_000)}
+      />,
+    );
+    expect(screen.getByText("−1,000만 원 (−13%)")).toBeInTheDocument();
+  });
+
+  it("상승·하락이어도 중앙값이 비면 차이를 숨긴다", () => {
+    render(
+      <SalaryTrend
+        trend={TREND}
+        comparison={comparison("UP", null, 50_000_000)}
+      />,
+    );
+    expect(screen.queryByText(/\(\+/)).toBeNull();
+  });
+
+  it("비교 원천이 여럿이면 가운뎃점으로 잇는다", () => {
+    render(
+      <SalaryTrend
+        trend={TREND}
+        comparison={comparison("FLAT", 50_000_000, 50_000_000, {
+          sources: ["JOBKOREA", "SARAMIN"],
+        })}
+      />,
+    );
+    expect(
+      screen.getByText(/^잡코리아·사람인 무작위 표본 기준/),
+    ).toBeInTheDocument();
   });
 
   it("집계 중인 달이 없으면 안내 줄을 두지 않는다", () => {
@@ -176,7 +211,7 @@ describe("SalaryTrend", () => {
     ).toBeInTheDocument();
   });
 
-  it("스크린리더 요약에 판정과 두 중앙값이 들어간다", () => {
+  it("스크린리더 요약에 판정·차이·두 중앙값과 건수가 들어간다", () => {
     const { container } = render(
       <SalaryTrend
         trend={TREND}
@@ -188,6 +223,9 @@ describe("SalaryTrend", () => {
     expect(summary).toHaveTextContent("상승");
     expect(summary).toHaveTextContent("4,000만 원");
     expect(summary).toHaveTextContent("5,000만 원");
+    expect(summary).toHaveTextContent("+1,000만 원 (+25%)");
+    expect(summary).toHaveTextContent("공개 35건");
+    expect(summary).toHaveTextContent("공개 47건");
   });
 
   it("월별 표는 접혀 있고 토글로 연다", async () => {
