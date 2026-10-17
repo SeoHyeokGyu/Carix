@@ -20,7 +20,6 @@ import { MarketValueTrend } from "../../components/dashboard/MarketValueTrend";
 import { PriceDriverBadge } from "../../components/dashboard/PriceDriverBadge";
 import { TrustPanel } from "../../components/dashboard/TrustPanel";
 import { VerdictHero } from "../../components/dashboard/VerdictHero";
-import { useIsNarrowViewport } from "../../hooks/useIsNarrowViewport";
 import {
   type DashboardSummary,
   fetchSummary,
@@ -93,7 +92,6 @@ export default function DashboardHome() {
   // 재검증 사이 loaderData 가 summary 만 가진 모양으로 올 수 있다(retention 테스트) — 없으면 없는 대로 그린다.
   const history = loaderData.history ?? null;
   const recommendations = loaderData.recommendations ?? null;
-  const isNarrow = useIsNarrowViewport();
   const revalidator = useRevalidator();
   // loader 는 실패를 예외가 아니라 {ok:false} 로 돌려준다(설계 §10) — 하지만 React Router 는
   // 재검증마다 loaderData 를 통째로 새 값으로 바꾼다. 재조회가 실패하면 이전 성공 데이터가
@@ -251,7 +249,6 @@ export default function DashboardHome() {
             metadata={data.metadata}
             rationale={data.decisionSignal?.rationale ?? null}
             peerConditions={resolvePeerConditions(data.metadata.peerGroup)}
-            isNarrow={isNarrow}
           />
         </div>
       )}
