@@ -33,6 +33,7 @@ export default [
         index("routes/dashboard/index.tsx"),
         route("history", "routes/dashboard/history.tsx"),
         route("trends", "routes/dashboard/trends.tsx"),
+        route("skills", "routes/dashboard/skills.tsx"),
         route("simulator", "routes/dashboard/simulator.tsx"),
         route("guide", "routes/dashboard/guide.tsx"),
       ]),

@@ -481,7 +481,7 @@ describe("대시보드 라우트 및 레이아웃 (Dashboard)", () => {
       expect(screen.getByText("2개월째")).toBeInTheDocument();
     });
 
-    it("구매력·시장가치 카드는 추이 분석 탭으로 링크하고 개방창 카드는 링크하지 않는다", async () => {
+    it("구매력 카드는 추이 분석 탭으로, 시장가치 카드는 스킬 분석으로 링크하고 개방창 카드는 링크하지 않는다", async () => {
       vi.spyOn(dashboardApi, "fetchSummary").mockResolvedValue({
         ok: true,
         data: {
@@ -500,7 +500,7 @@ describe("대시보드 라우트 및 레이아웃 (Dashboard)", () => {
       ).toHaveAttribute("href", "/dashboard/trends?tab=income");
       expect(
         screen.getByRole("link", { name: "시장가치 지수 자세히 보기" }),
-      ).toHaveAttribute("href", "/dashboard/trends?tab=skills");
+      ).toHaveAttribute("href", "/dashboard/skills");
       // 추이 분석에 개방창 탭이 없다 — 지난 판정 표로 보내면 「자세히」가 아니다.
       expect(
         screen.queryByRole("link", { name: "개방창 지수 자세히 보기" }),

@@ -290,6 +290,10 @@ function SkillPrescriptionBlock({
           )}
         </>
       )}
+
+      <div className="flex justify-end">
+        <TextLink to="/dashboard/skills">스킬 분석 전체 보기</TextLink>
+      </div>
     </div>
   );
 }

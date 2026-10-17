@@ -1,10 +1,9 @@
 /**
  * 추이 분석(S-14) 탭 키. URL `?tab=` 값이라 대시보드 카드 링크가 특정 탭으로 바로 보낸다.
- * 순서는 컨셉 질문 순서(구매력 → 시장가치)다.
+ * 스킬 수요 섹션은 스킬 분석(S-18, `/dashboard/skills`)으로 이동했다.
  */
 export const TRENDS_TABS = [
   { key: "income", label: "소득 vs 물가" },
-  { key: "skills", label: "스킬 수요" },
   { key: "salary", label: "연봉 분포" },
 ] as const;
 

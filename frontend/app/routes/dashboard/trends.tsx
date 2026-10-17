@@ -18,14 +18,11 @@ import { cn } from "@/lib/utils";
 
 import { IncomeVsPriceChart } from "../../components/dashboard/IncomeVsPriceChart";
 import { SalaryDistributionChart } from "../../components/dashboard/SalaryDistributionChart";
-import { SkillDemandSection } from "../../components/dashboard/SkillDemandSection";
 import { UnauthorizedError } from "../../lib/coreApi";
 import {
   fetchSalaryDistribution,
-  fetchSkillDemands,
   fetchTrends,
   type SalaryDistributionResponse,
-  type SkillDemandResponse,
   type TrendListResponse,
 } from "../../lib/dashboardMarketApi";
 import { LOGIN_PATH } from "../../lib/routeGuards";
@@ -49,7 +46,7 @@ export function meta() {
     { title: "추이 분석 | Carix" },
     {
       name: "description",
-      content: "소득 대 개인물가, 스킬 수요, 동료집단 연봉 분포 추이 분석",
+      content: "소득 대 개인물가, 동료집단 연봉 분포 추이 분석",
     },
   ];
 }
@@ -72,7 +69,6 @@ export default function DashboardTrends() {
   // 데이터 상태
   const [salaryData, setSalaryData] =
     useState<SalaryDistributionResponse | null>(null);
-  const [skillData, setSkillData] = useState<SkillDemandResponse | null>(null);
   const [trendData, setTrendData] = useState<TrendListResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -81,15 +77,14 @@ export default function DashboardTrends() {
     setIsLoading(true);
     setErrorMessage(null);
     try {
-      const [salaryRes, skillRes, trendRes] = await Promise.allSettled([
+      const [salaryRes, trendRes] = await Promise.allSettled([
         fetchSalaryDistribution(),
-        fetchSkillDemands(),
         fetchTrends(),
       ]);
 
-      // 세션이 죽으면 셋이 동시에 401 이다. 부분 성공 렌더링과 갈라 둔다 — 한 원천만 죽은
+      // 세션이 죽으면 둘이 동시에 401 이다. 부분 성공 렌더링과 갈라 둔다 — 한 원천만 죽은
       // 경우에 멀쩡한 화면을 로그인으로 내쫓으면 안 된다.
-      if (hasUnauthorized([salaryRes, skillRes, trendRes])) {
+      if (hasUnauthorized([salaryRes, trendRes])) {
         void navigate(LOGIN_PATH, { replace: true });
         return;
       }
@@ -97,18 +92,11 @@ export default function DashboardTrends() {
       if (salaryRes.status === "fulfilled") {
         setSalaryData(salaryRes.value);
       }
-      if (skillRes.status === "fulfilled") {
-        setSkillData(skillRes.value);
-      }
       if (trendRes.status === "fulfilled") {
         setTrendData(trendRes.value);
       }
 
-      if (
-        salaryRes.status === "rejected" &&
-        skillRes.status === "rejected" &&
-        trendRes.status === "rejected"
-      ) {
+      if (salaryRes.status === "rejected" && trendRes.status === "rejected") {
         setErrorMessage("시장 분석 데이터를 불러오지 못했습니다");
       }
     } finally {
@@ -121,15 +109,15 @@ export default function DashboardTrends() {
     void loadData();
   }, [loadData]);
 
-  const hasAnyData = Boolean(salaryData || skillData || trendData);
-  // 셋 다 실패하고 받아 둔 것도 없으면 고를 탭이 없다 — 탭 대신 화면 단위 실패 하나.
+  const hasAnyData = Boolean(salaryData || trendData);
+  // 둘 다 실패하고 받아 둔 것도 없으면 고를 탭이 없다 — 탭 대신 화면 단위 실패 하나.
   const screenFailed = !isLoading && Boolean(errorMessage) && !hasAnyData;
 
   return (
     <PageFrame>
       <PageHeader
         title="추이 분석"
-        description="소득 대 개인물가, 스킬 수요, 동료집단 연봉 분포를 다각도로 비교 분석합니다."
+        description="소득 대 개인물가, 동료집단 연봉 분포를 다각도로 비교 분석합니다."
       />
 
       {screenFailed ? (
@@ -203,30 +191,6 @@ export default function DashboardTrends() {
                       />
                     </div>
                   )}
-                  {activeTab === "skills" && (
-                    <div>
-                      {skillData ? (
-                        <SkillDemandSection data={skillData} />
-                      ) : (
-                        <EmptyState
-                          variant="plain"
-                          tone="danger"
-                          icon="⚠️"
-                          title="스킬 수요 데이터를 불러오지 못했습니다"
-                        >
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={() => void loadData()}
-                          >
-                            다시 시도
-                          </Button>
-                        </EmptyState>
-                      )}
-                    </div>
-                  )}
-
                   {activeTab === "salary" && (
                     <div>
                       {salaryData ? (
