@@ -25,7 +25,32 @@ public record SalaryDistributionResponse(
     @Schema(nullable = true) DistributionPeerGroup peerGroup,
     @Schema(description = "등록월별 제시 연봉 추이 (기능 명세 §4.6)") List<SalaryTrendPoint> trend,
     @Schema(description = "직군별 경력 구간 임금 사다리 (기능 명세 §4.7)", nullable = true)
-        CareerLadder careerLadder) {
+        CareerLadder careerLadder,
+    @Schema(description = "무작위 표본 기준 최근·이전 3개월 비교. 표본 월이 없으면 null", nullable = true)
+        TrendComparison trendComparison) {
+
+  public SalaryDistributionResponse(
+      String status,
+      Integer sampleSize,
+      Integer minRequired,
+      WageBaseline baseline,
+      PostingReference postingReference,
+      UserPosition userPosition,
+      DistributionPeerGroup peerGroup,
+      List<SalaryTrendPoint> trend,
+      CareerLadder careerLadder) {
+    this(
+        status,
+        sampleSize,
+        minRequired,
+        baseline,
+        postingReference,
+        userPosition,
+        peerGroup,
+        trend,
+        careerLadder,
+        null);
+  }
 
   public SalaryDistributionResponse(
       String status,
@@ -44,6 +69,7 @@ public record SalaryDistributionResponse(
         userPosition,
         peerGroup,
         Collections.emptyList(),
+        null,
         null);
   }
 
@@ -65,8 +91,25 @@ public record SalaryDistributionResponse(
         userPosition,
         peerGroup,
         trend,
+        null,
         null);
   }
+
+  /** 최근·이전 3개월 제시 연봉 비교. 월은 {@code uuuu-MM}. */
+  public record TrendComparison(
+      TrendPeriod recent,
+      TrendPeriod previous,
+      @Schema(allowableValues = {"UP", "DOWN", "FLAT", "INSUFFICIENT_SAMPLE"}) String verdict,
+      List<String> sources,
+      List<String> inProgress) {}
+
+  public record TrendPeriod(
+      String from,
+      String to,
+      @Schema(description = "표본 부족 시 null", nullable = true) Long median,
+      @Schema(nullable = true) Long ciLow,
+      @Schema(nullable = true) Long ciHigh,
+      int disclosedSampleSize) {}
 
   public record CareerLadder(
       String userBracket,
