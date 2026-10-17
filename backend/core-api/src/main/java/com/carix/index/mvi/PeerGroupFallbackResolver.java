@@ -296,6 +296,17 @@ public class PeerGroupFallbackResolver {
   }
 
   /**
+   * 3구간 경력을 collector 6구간 행으로 푼다. JUNIOR 는 ENTRY(0년)·JUNIOR(1~3년), SENIOR 는
+   * SENIOR(8~12년)·LEAD(13년+)를 합쳐야 「0~3년」「8년+」 문구와 표본이 맞는다.
+   */
+  public List<String> toCollectorBrackets(List<String> tiers) {
+    if (tiers == null || tiers.isEmpty() || tiers.contains(BRACKET_ALL)) {
+      return List.of(BRACKET_ALL);
+    }
+    return BRACKET_6_ORDER.stream().filter(b -> tiers.contains(to3TierBracket(b))).toList();
+  }
+
+  /**
    * 총 경력 년수를 JUNIOR, MID, SENIOR 3구간 브래킷으로 매핑합니다.
    *
    * <p>채용공고 시장 사전 집계(market_aggregate) 및 동료집단 완화 알고리즘에서 사용됩니다.

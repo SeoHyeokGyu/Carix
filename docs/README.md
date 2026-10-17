@@ -84,7 +84,7 @@
 | OCI 배포 환경 | 구성 완료 — 최소 스캐폴드 기준 빌드 → GHCR → SSH → 헬스체크 전 구간 검증 |
 | Spring Cloud 전환 | 계획 A(멀티모듈·Config Server·Eureka) 구현·운영 검증 완료, 계획 B(Gateway 도입, 요청경로 편입) 구현 완료, 계획 C(auth-service 배포 배선) 구현 완료 |
 | core-api | 사용자 도메인(프로필·소득·소비·스킬)과 지수·스냅샷·시나리오가 JPA로 `core` 스키마 사용. `income_history` 는 변경 사유(`change_reason`)를 담고, 최초 소득 행 여부는 저장하지 않고 `min(effective_date)` 로 읽기 시점에 판정한다 ([ERD 스키마 설계 주석](specs/erd.md)). 고정 응답 스텁은 전부 철거했다 ([개발 계획 §4](plans/carix-dev-plan.md)). 인증은 Spring Security 대신 게이트웨이가 주입한 `X-User-Id` 를 신뢰하고 헤더가 없으면 401 이다. 지수 스냅샷 갱신(Job 4)은 core-api 가 전담 소유 |
-| 지수·스냅샷·시나리오 엔진 | 시장가치 지수(MVI)·스킬 수요 지수·개방창 지수(OWI)·동료집단 완화, 스냅샷 멱등 재계산과 결정 신호 판정, 시나리오 시뮬레이터 실데이터 산출이 모두 구현 완료. 소득·소비·스킬·프로필 변경 시 재계산 트리거가 여덟 경로에 배선돼 있다. 대시보드 `summary`·`trends`·`history`·`salary-distribution` 은 실데이터로 응답한다 |
+| 지수·스냅샷·시나리오 엔진 | 시장가치 지수(MVI)·스킬 수요 지수·채용 활발도(OWI)·동료집단 완화, 스냅샷 멱등 재계산과 결정 신호 판정, 시나리오 시뮬레이터 실데이터 산출이 모두 구현 완료. 소득·소비·스킬·프로필 변경 시 재계산 트리거가 여덟 경로에 배선돼 있다. 대시보드 `summary`·`trends`·`history`·`salary-distribution` 은 실데이터로 응답한다 |
 | UI 일관성 통일 | P0~P4 완료 — 결정 신호 표현 단일화, 다크 변형의 클래스 전환과 의미 색상 토큰, 공용 표현 계층(`ToneBadge`·`EmptyState`·`LoadingState`), 프리미티브 재정의와 eslint 규범. 계획은 [ui-unification-plan.md](plans/ui-unification-plan.md) |
 | auth-service | 이메일·비밀번호 가입·로그인·세션 조회·로그아웃 구현 완료. 세션 토큰 해시 저장. 매직링크·초대·메일 코드와 설정 폐기 완료 |
 | collector | 모듈 추출 완료. 크롤러·중복제거·정규화·`market_aggregate` 집계·임금통계 수집과 파이프라인 내부 API(`/internal/pipeline/**`)까지 구현돼 있다 |
@@ -99,12 +99,12 @@
 | --- | --- |
 | 구매력 지수(PPI) | 품목별 CPI × 소비 가중치(상속 포함)로 개인물가를 누적하는 본 엔진이 배선돼 있다. 협상 목표의 구매력 복구선은 `c8`, 추이 화면 두 계열은 `a10` 이다 |
 | A 레인 | 남은 블록은 관문 2 의 `a9`·`a10`(`US-D8`)뿐이다. 민감 금액 로깅 감사(`a7`, 완료 기준 10번)는 C 사슬에 있다 — [개발 계획 §2](plans/carix-dev-plan.md) |
-| 시장가치 지수(MVI) | 100 고정은 해소됐다(`b18`). 운영 집계는 실제 수집 월(202608~)만 남아 있고 전 사용자 스냅샷을 재계산해 MVI 는 전 구간 표본 부족이다 — 최근 3개월 대 이전 12개월 비교라 수집 이력 15개월 뒤에 값이 난다. 월별 모수는 신규 수집 공고(유량)이고 크롤링 규모 고정 및 유량 정의 정합은 완료됐다(`b21`). 개방창 지수는 게시 기간이 포털 기본값(30일·60일)에 몰려 100 근처에 붙는다 — 재정의는 `b22` |
+| 시장가치 지수(MVI) | 100 고정은 해소됐다(`b18`). 운영 집계는 실제 수집 월(202608~)만 남아 있고 전 사용자 스냅샷을 재계산해 MVI 는 전 구간 표본 부족이다 — 최근 3개월 대 이전 12개월 비교라 수집 이력 15개월 뒤에 값이 난다. 월별 모수는 신규 수집 공고(유량)이고 크롤링 규모 고정 및 유량 정의 정합은 완료됐다(`b21`) |
 | collector | 없음. 임금통계 적재의 출처 기록·승격 규칙·폴백 단일 연도화까지 들어왔다. 관리자 콘솔(`S-16`) UI 연동까지 완료했다. `@Scheduled` 정기 실행은 도입하지 않기로 확정했다 ([데이터 아키텍처 §5](specs/data-architecture.md)) |
 | 프런트엔드 | 없음. UI 일관성 통일은 끝났고 eslint 가 프리미티브 밖 버튼·팔레트·카드 틀을 막는다([ui-unification-plan.md](plans/ui-unification-plan.md) §1) |
 | 검증 | 스냅샷 쓰기 경로는 자문 잠금까지 운영에서 입증됐다([도메인 정의서 §5](specs/domain-logic.md)). MVI `N<10` 표본 부족과 Config Server 임계값 변경은 단위 테스트로 검증했다. 커넥션 풀 예산은 `b17`(읽기 전용 풀 분리)로 완료됐다. 민감 금액 로깅 마스킹 점검, E2E 통합과 완료 기준 10항목 점검이 남았다 |
 | 스냅샷 데이터 결함 | 없음. `market_value_index = 0` 22행은 전부 밀려난 행이고, 월별 최신 `data_version` 만 읽는 유효행에는 0 이 없다 — 원인(최근 3개월 창의 모수 0 을 수요 0 으로 읽던 것)을 고친 뒤의 실행들이 덮었다. `opening_window_index` 가 `NULL` 인데 `rationale.indexStatuses.owi` 는 `OK` 이고 근거는 다 들어있는 행 35개(유효 3)가 남아 있다 — 어느 빌드가 만들었는지 규명하지 못했고 현재 코드 경로로는 재현되지 않는다. 값-상태 불변식(`IndexValueContract`)이 산출기 계약과 쓰기 경계 두 층에서 그 모양을 막고, 읽기 경로는 옛 행을 `계산 대기`로 접는다 |
-| 개방창 지수(OWI) | 없음. 공고 직접 집계·동료집단 완화·상시채용 비율 및 OWI Provider(B `b6`) 구현 완료 ([기능 명세 §4.5](specs/functional-specification.md)) |
+| 채용 활발도(OWI) | 없음. `market_aggregate` 기반 동료집단 채용 비중 추이 재정의·경력 2단계 완화·원천 결합 및 UI 전환(`b22`) 완료 ([기능 명세 §4.5](specs/functional-specification.md)) |
 | 지출 카테고리 Swagger 문구 | `ExpenseItem` 의 `category` 설명이 `TRANSPORTATION`·`HEALTH`·`OTHER` 를 적고 있는데 정본 `ExpenseCategoryEnum` 은 `TRANSPORT`·`MEDICAL`·`LEISURE` 다 — 세 값 모두 실존하지 않는다. 코드 주석만의 문제라 동작은 멀쩡하고 공개 API 문서만 틀렸다. 소관 A (소비 API) |
 | 광역 지역 어휘 두 벌 | `core-api` `PeerGroupFallbackResolver#extractBroadRegion` 은 `서울특별시` 를 만들고 collector `RegionRollup` 은 `서울` 을 만든다. 동료집단 완화 Level 3 의 광역 조회가 `region = 'ALL'` 행으로 떨어져 증상이 가려져 있다. 값 규약 정본은 시/도 17개 한글([API 규격 §3.1](specs/api-specification.md), [ERD](specs/erd.md)). 소관 B (동료집단) |
 | Gateway 세션 검증 필터 | **활성화는 끝났다** — `carix.gateway.session-validation.enabled: true` 가 저장소와 서버 체크아웃 양쪽에 있다(`a37fa47`). 남은 주의점은 되돌릴 때다 — 플래그가 `config/spring/gateway.yml` 에 있어 `.env`(이미지 태그) 롤백으로는 안 꺼진다. 전환·롤백 절차는 [`backend/README.md` 게이트웨이](../backend/README.md). 프런트엔드 소비자 전환도 끝났다(`c16`) — `dashboardMarketApi.ts`(S-11 스냅샷 이력, S-14 추이분석)가 `coreGet` 으로 갈아타 401 이 `UnauthorizedError` 로 오고, 두 화면이 `catch` 에서 `navigate(LOGIN_PATH, { replace: true })` 한다. 호출부가 loader 가 아니라 컴포넌트라 라이브러리 전환만으로는 안 됐다 |

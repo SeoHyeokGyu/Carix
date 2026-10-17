@@ -259,9 +259,9 @@ export default function DashboardHome() {
                 footer={history && <MarketValueTrend history={history} />}
               />
               <IndexCard
-                title="개방창 지수"
+                title="채용 활발도"
                 index={data.openingWindowIndex}
-                baselineHint="기준 100: 전체 시장 중앙 모집 기간"
+                baselineHint="기준 100: 이전 12개월 동료집단 비중"
                 helpContent={<OpeningWindowHelp />}
                 footer={
                   <OpeningWindowBadges meta={data.metadata.openingWindow} />
@@ -282,27 +282,34 @@ export default function DashboardHome() {
 }
 
 /**
- * 개방창 지수 카드의 미니 뱃지 둘 (프런트엔드 설계 Card 4).
+ * 채용 활발도(OWI) 카드의 미니 뱃지 둘 (프런트엔드 설계 Card 4, b22).
  *
- * 문구는 **모집 기간**으로만 쓴다. 원천이 게시한 계획된 마감일이라 "충원 난이도"나
- * "자리가 비어 있다"로 해석하면 안 된다 (기능 명세 §4.5·US-D5).
- *
- * 표본 부족이면 중앙 개방일수가 없고 상시채용 비율만 남는다.
+ * 전체 신규 수집 공고 중 동료집단 공고가 차지하는 최근 3개월 비중과 이전 12개월 비중을 표시한다.
+ * 수집 이력 15개월 전이라 이전 창 표본이 부족하면 최근 비중 뱃지만 남는다.
  */
 function OpeningWindowBadges({
   meta,
 }: {
   meta: DashboardSummary["metadata"]["openingWindow"];
 }) {
-  if (!meta) return null;
+  if (
+    !meta ||
+    (meta.recentSharePercent === null && meta.baselineSharePercent === null)
+  ) {
+    return null;
+  }
 
   return (
     <div className="flex flex-wrap gap-1.5">
-      {meta.medianWindowDays !== null && (
-        <Badge variant="secondary">중앙 {meta.medianWindowDays}일</Badge>
+      {meta.recentSharePercent !== null && (
+        <Badge variant="secondary">
+          최근 비중 {meta.recentSharePercent.toFixed(1)}%
+        </Badge>
       )}
-      {meta.openEndedRate !== null && (
-        <Badge variant="secondary">상시 {meta.openEndedRate.toFixed(1)}%</Badge>
+      {meta.baselineSharePercent !== null && (
+        <Badge variant="secondary">
+          이전 비중 {meta.baselineSharePercent.toFixed(1)}%
+        </Badge>
       )}
     </div>
   );

@@ -578,7 +578,7 @@ describe("대시보드 라우트 및 레이아웃 (Dashboard)", () => {
       expect(screen.getByText("2개월째")).toBeInTheDocument();
     });
 
-    it("구매력 카드는 추이 분석 탭으로, 시장가치 카드는 스킬 분석으로 링크하고 개방창 카드는 링크하지 않는다", async () => {
+    it("구매력 카드는 추이 분석 탭으로, 시장가치 카드는 스킬 분석으로 링크하고 채용 활발도 카드는 링크하지 않는다", async () => {
       vi.spyOn(dashboardApi, "fetchSummary").mockResolvedValue({
         ok: true,
         data: {
@@ -598,9 +598,9 @@ describe("대시보드 라우트 및 레이아웃 (Dashboard)", () => {
       expect(
         screen.getByRole("link", { name: "시장가치 지수 자세히 보기" }),
       ).toHaveAttribute("href", "/dashboard/skills");
-      // 추이 분석에 개방창 탭이 없다 — 지난 판정 표로 보내면 「자세히」가 아니다.
+      // 추이 분석에 채용 활발도 탭이 없다 — 지난 판정 표로 보내면 「자세히」가 아니다.
       expect(
-        screen.queryByRole("link", { name: "개방창 지수 자세히 보기" }),
+        screen.queryByRole("link", { name: "채용 활발도 자세히 보기" }),
       ).not.toBeInTheDocument();
     });
 
@@ -636,7 +636,7 @@ describe("대시보드 라우트 및 레이아웃 (Dashboard)", () => {
       expect(await screen.findByText("로그인 화면")).toBeInTheDocument();
     });
 
-    it("개방창 지수 카드에 값과 근거 뱃지 둘을 그린다", async () => {
+    it("채용 활발도 카드에 값과 근거 뱃지 둘을 그린다", async () => {
       vi.spyOn(dashboardApi, "fetchSummary").mockResolvedValue({
         ok: true,
         data: {
@@ -653,9 +653,9 @@ describe("대시보드 라우트 및 레이아웃 (Dashboard)", () => {
             baseDate: "2026-09-01",
             updateDelayed: false,
             openingWindow: {
-              medianWindowDays: 34,
-              openEndedRate: 21.5,
-              deadlineSampleSize: 86,
+              recentSharePercent: 24.5,
+              baselineSharePercent: 20.7,
+              peerSampleSize: 86,
             },
           },
         },
@@ -663,13 +663,13 @@ describe("대시보드 라우트 및 레이아웃 (Dashboard)", () => {
 
       renderScreen();
 
-      expect(await screen.findByText("개방창 지수")).toBeInTheDocument();
+      expect(await screen.findByText("채용 활발도")).toBeInTheDocument();
       expect(screen.getByText("118.4")).toBeInTheDocument();
-      expect(screen.getByText("중앙 34일")).toBeInTheDocument();
-      expect(screen.getByText("상시 21.5%")).toBeInTheDocument();
+      expect(screen.getByText("최근 비중 24.5%")).toBeInTheDocument();
+      expect(screen.getByText("이전 비중 20.7%")).toBeInTheDocument();
     });
 
-    it("개방창 표본이 부족하면 수치 대신 표본 부족을 두고 상시 뱃지만 남긴다", async () => {
+    it("채용 활발도 표본이 부족하면 수치 대신 표본 부족을 두고 최근 비중 뱃지만 남긴다", async () => {
       vi.spyOn(dashboardApi, "fetchSummary").mockResolvedValue({
         ok: true,
         data: {
@@ -686,9 +686,9 @@ describe("대시보드 라우트 및 레이아웃 (Dashboard)", () => {
             baseDate: "2026-09-01",
             updateDelayed: false,
             openingWindow: {
-              medianWindowDays: null,
-              openEndedRate: 18.0,
-              deadlineSampleSize: 4,
+              recentSharePercent: 24.5,
+              baselineSharePercent: null,
+              peerSampleSize: 4,
             },
           },
         },
@@ -697,8 +697,8 @@ describe("대시보드 라우트 및 레이아웃 (Dashboard)", () => {
       renderScreen();
 
       expect(await screen.findByText("표본 부족")).toBeInTheDocument();
-      expect(screen.getByText("상시 18.0%")).toBeInTheDocument();
-      expect(screen.queryByText(/중앙 .*일/)).not.toBeInTheDocument();
+      expect(screen.getByText("최근 비중 24.5%")).toBeInTheDocument();
+      expect(screen.queryByText(/이전 비중 .*%/)).not.toBeInTheDocument();
     });
 
     /** D4 회귀 — 부분 열화를 첫 계산 전으로 오판하지 않는다. */
@@ -750,7 +750,7 @@ describe("대시보드 라우트 및 레이아웃 (Dashboard)", () => {
     // 가르므로, OWI 절을 지워도 이 하나만으로는 안 잡힌다. OWI 를 다른 열화(표본 부족)로
     // 둬 게이트의 OWI 조건이 실제로 살아있는지(값 0/100 근사가 아니라 indexStatus 를
     // 보는지) 확인한다.
-    it("개방창 지수만 표본 부족이어도 첫 계산 전 화면이 아니다", async () => {
+    it("채용 활발도만 표본 부족이어도 첫 계산 전 화면이 아니다", async () => {
       vi.spyOn(dashboardApi, "fetchSummary").mockResolvedValue({
         ok: true,
         data: {
@@ -769,7 +769,7 @@ describe("대시보드 라우트 및 레이아웃 (Dashboard)", () => {
 
       renderScreen();
 
-      expect(await screen.findByText("개방창 지수")).toBeInTheDocument();
+      expect(await screen.findByText("채용 활발도")).toBeInTheDocument();
       expect(
         screen.queryByText("첫 지수를 계산하고 있습니다"),
       ).not.toBeInTheDocument();

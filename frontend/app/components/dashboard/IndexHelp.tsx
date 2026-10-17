@@ -65,7 +65,7 @@ export function DecisionSignalHelp() {
           결정 신호 (Decision Signal)
         </p>
         <p className="text-carix-text/80">
-          구매력, 시장가치, 개방창 지수와 연봉 격차를 종합 분석하여 도출된 행동
+          구매력, 시장가치, 채용 활발도와 연봉 격차를 종합 분석하여 도출된 행동
           가이드입니다.
         </p>
         <p className="text-carix-text/70 mt-0.5">
@@ -78,27 +78,25 @@ export function DecisionSignalHelp() {
 
 export function OpeningWindowHelp() {
   return (
-    <HelpTooltip label="개방창 지수" align="right">
+    <HelpTooltip label="채용 활발도" align="right">
       <div className="flex flex-col gap-1.5">
-        <p className="font-semibold text-carix-text">개방창 지수 (OWI)</p>
+        <p className="font-semibold text-carix-text">채용 활발도 (OWI)</p>
         <p className="text-carix-text/80">
-          동료집단 채용 공고의 평균 모집 기간을 전체 채용 시장과 비교한 속도
-          지표입니다.
+          전체 신규 수집 공고 중 내 동료집단 공고가 차지하는 최근 3개월 비중을
+          이전 12개월 비중과 비교한 지표입니다.
         </p>
         <ul className="text-carix-text/70 space-y-1 mt-1">
           <li className="flex items-start gap-1.5">
             <span className="shrink-0 px-1.5 py-0.5 rounded bg-carix-info/10 text-carix-info font-semibold text-[10px]">
               100 초과
             </span>
-            <span>모집 기간이 길어 지원 기회가 여유롭거나 상시채용 성향</span>
+            <span>동료집단 채용 공고 비중이 이전 12개월 대비 확대</span>
           </li>
           <li className="flex items-start gap-1.5">
             <span className="shrink-0 px-1.5 py-0.5 rounded bg-carix-warning/10 text-carix-warning font-semibold text-[10px]">
               100 미만
             </span>
-            <span>
-              조기 마감 등 마감이 빠른 집중 채용 경향 (빠른 지원 필요)
-            </span>
+            <span>동료집단 채용 공고 비중이 이전 12개월 대비 축소</span>
           </li>
         </ul>
       </div>

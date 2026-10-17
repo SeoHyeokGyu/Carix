@@ -97,13 +97,15 @@ public record DashboardSummaryResponse(
   }
 
   /**
-   * 개방창 지수의 화면용 근거 (API 규격 §5.1). 저장된 근거 일곱 중 셋만 나간다 — 나머지 넷은 쓰는 화면이 아직 없다.
+   * 채용 활발도(OWI)의 화면용 근거 (API 규격 §5.1, b22). 저장된 근거 일곱 중 셋만 나간다 — 나머지 넷은 쓰는 화면이 아직 없다.
    *
-   * <p>{@code openEndedRate} 는 퍼센트다. 내부 {@code OpeningWindowEvidence.openEndedRatePercent} 와 같은 값이고
-   * 이름만 규격을 따른다.
+   * <p>{@code recentSharePercent}·{@code baselineSharePercent} 는 퍼센트(0.00 ~ 100.00)다.
    */
   public record OpeningWindowSummary(
-      @Schema(example = "34", nullable = true) Integer medianWindowDays,
-      @Schema(description = "상시채용 비율(%)", example = "21.5", nullable = true) Double openEndedRate,
-      @Schema(example = "86", nullable = true) Integer deadlineSampleSize) {}
+      @Schema(description = "최근 3개월 동료집단 채용 비중(%)", example = "24.5", nullable = true)
+          Double recentSharePercent,
+      @Schema(description = "이전 12개월 동료집단 채용 비중(%)", example = "20.8", nullable = true)
+          Double baselineSharePercent,
+      @Schema(description = "최근 3개월 동료집단 표본 수", example = "86", nullable = true)
+          Integer peerSampleSize) {}
 }

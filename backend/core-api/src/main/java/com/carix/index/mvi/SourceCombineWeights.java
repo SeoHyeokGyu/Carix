@@ -9,13 +9,13 @@ import java.util.Set;
  * 큰 표본 수를 넘지 않게 비례로 줄인다 — 원천별로 따로 묶으면 정기 수집 원천 둘이 표본 원천의 2배까지 커진다(프레임 설계 §4.2). 표본 원천이 없으면 상한도 없다.
  * 호출하는 쪽은 스킬마다 그 스킬에 지수를 낸 원천만 넘긴다 — 결합에서 빠진 원천이 상한 몫을 차지하거나 상한을 정하지 않게.
  */
-final class SourceCombineWeights {
+public final class SourceCombineWeights {
 
-  static final Set<String> SAMPLED_SOURCES = Set.of("JOBKOREA", "WANTED");
+  public static final Set<String> SAMPLED_SOURCES = Set.of("JOBKOREA", "WANTED");
 
   private SourceCombineWeights() {}
 
-  static Map<String, Double> of(Map<String, Integer> sampleCounts) {
+  public static Map<String, Double> of(Map<String, Integer> sampleCounts) {
     Map<String, Integer> valid = new LinkedHashMap<>();
     sampleCounts.forEach(
         (source, count) -> {

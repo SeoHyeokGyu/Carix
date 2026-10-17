@@ -210,22 +210,22 @@ public class SnapshotRecalculationService {
   /** 근거를 하나도 못 받았으면 블록 자체를 만들지 않는다. 필드가 전부 {@code null} 인 블록은 "근거가 없다"와 "근거를 모른다"를 같은 모양으로 만든다. */
   private static SnapshotRationale.OpeningWindowEvidence openingWindowEvidence(OwiResult owi) {
     if (owi.peerSampleSize() == null
-        && owi.deadlineSampleSize() == null
-        && owi.medianWindowDays() == null
-        && owi.openEndedRatePercent() == null
+        && owi.baselineSampleSize() == null
+        && owi.recentSharePercent() == null
+        && owi.baselineSharePercent() == null
         && owi.fallbackLevel() == null
         && owi.appliedConditions() == null
-        && owi.marketMedianWindowDays() == null) {
+        && owi.marketSampleSize() == null) {
       return null;
     }
     return new SnapshotRationale.OpeningWindowEvidence(
         owi.peerSampleSize(),
-        owi.deadlineSampleSize(),
-        owi.medianWindowDays(),
-        owi.openEndedRatePercent(),
+        owi.baselineSampleSize(),
+        owi.recentSharePercent(),
+        owi.baselineSharePercent(),
         owi.fallbackLevel(),
         owi.appliedConditions(),
-        owi.marketMedianWindowDays());
+        owi.marketSampleSize());
   }
 
   private void save(

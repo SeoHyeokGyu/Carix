@@ -135,13 +135,13 @@ export default function DashboardGuide() {
               </div>
             </Card>
 
-            {/* 개방창 지수 */}
+            {/* 채용 활발도 */}
             <Card className="p-5 flex flex-col justify-between">
               <div>
                 <CardHeader className="p-0 mb-3">
                   <div className="flex items-center justify-between">
-                    <CardTitle>개방창 지수 (OWI)</CardTitle>
-                    <Badge variant="secondary">채용 모집 속도</Badge>
+                    <CardTitle>채용 활발도 (OWI)</CardTitle>
+                    <Badge variant="secondary">동료집단 채용 비중</Badge>
                   </div>
                   <p className="text-xs text-carix-text/60 mt-1">
                     Opening Window Index
@@ -149,8 +149,10 @@ export default function DashboardGuide() {
                 </CardHeader>
                 <CardContent className="p-0 flex flex-col gap-3 text-xs text-carix-text/80">
                   <p>
-                    동료집단 채용 공고의 <b>평균 모집 기간(등록일~마감일)</b>을
-                    전체 채용 시장의 중앙값과 비교한 시장 속도 지표입니다.
+                    전체 신규 수집 공고 중{" "}
+                    <b>내 동료집단(직군·경력) 공고의 최근 3개월 비중</b>을 이전
+                    12개월(4~15개월 전) 비중과 비교한 시장 내 채용 추이
+                    지표입니다.
                   </p>
                   <div className="rounded-md bg-carix-surface p-2.5 border border-carix-border flex flex-col gap-1.5">
                     <div className="font-medium text-carix-text">
@@ -162,8 +164,8 @@ export default function DashboardGuide() {
                           100 초과
                         </span>
                         <span>
-                          공고 모집 기간이 길어 지원 기회가 여유롭거나 상시채용
-                          성향
+                          전체 채용 시장 내 내 동료집단 공고 비중이 이전
+                          12개월보다 확대
                         </span>
                       </li>
                       <li className="flex items-start gap-2">
@@ -171,7 +173,8 @@ export default function DashboardGuide() {
                           100 미만
                         </span>
                         <span>
-                          공고가 빠르게 마감되는 집중 채용 성향 (빠른 지원 필요)
+                          전체 채용 시장 내 내 동료집단 공고 비중이 이전
+                          12개월보다 축소
                         </span>
                       </li>
                     </ul>
@@ -182,7 +185,7 @@ export default function DashboardGuide() {
           </div>
         </PageSection>
 
-        {/* 2. 결정 신호 (Decision Signal) 안내 */}
+        {/* 2. 결정 신호 (Decision Signal) 해석 */}
         <PageSection title="결정 신호 (Decision Signal) 해석">
           <Card className="p-5">
             <div className="text-xs text-carix-text/80 leading-relaxed mb-4">
@@ -219,10 +222,11 @@ export default function DashboardGuide() {
                 Q. 수치가 100 미만이면 무조건 나쁜 건가요?
               </h3>
               <p className="mt-1 text-xs text-carix-text/70 leading-relaxed">
-                그렇지 않습니다. 개방창 지수(OWI)의 경우 100 미만은 우수
-                기업들이 지원자를 빠르게 확보하기 위해 마감일을 짧게 설정하는
-                경쟁 채용 분위기를 의미할 수도 있습니다. 각 지표는 단독이 아닌
-                다른 지표들과 함께 교차 분석하여 해석하는 것이 좋습니다.
+                그렇지 않습니다. 채용 활발도(OWI)가 100 미만이라도 보유 스킬의
+                시장가치 지수(MVI)가 높다면, 전체 시장에서 동료집단 채용 비중은
+                다소 줄었더라도 내 핵심 스킬을 찾는 수요는 오히려 늘어난 상황일
+                수 있습니다. 각 지표는 단독이 아닌 다른 지표들과 함께 교차
+                분석하여 해석하는 것이 좋습니다.
               </p>
             </Card>
 

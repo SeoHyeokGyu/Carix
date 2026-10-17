@@ -97,13 +97,13 @@ class IndexProviderStubConfigurationTest {
               baseYearMonth,
               new BigDecimal("118.40"),
               IndexStatus.OK,
-              124,
               86,
-              34,
-              new BigDecimal("21.50"),
-              3,
-              "서울 전체 / 경력 MID / 회사규모 무관",
-              29);
+              320,
+              new BigDecimal("24.50"),
+              new BigDecimal("20.69"),
+              1,
+              "전국 / 4~7년 / 회사규모 무관 / 고용형태 무관",
+              351);
     }
   }
 
@@ -128,7 +128,7 @@ class IndexProviderStubConfigurationTest {
         context -> {
           UUID userId = UUID.randomUUID();
           assertThat(context.getBean(OpeningWindowIndexProvider.class).calculate(userId, "202608"))
-              .extracting(OwiResult::value, OwiResult::status, OwiResult::openEndedRatePercent)
+              .extracting(OwiResult::value, OwiResult::status, OwiResult::recentSharePercent)
               .containsExactly(null, IndexStatus.NOT_AVAILABLE, null);
         });
   }

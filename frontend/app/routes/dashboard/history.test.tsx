@@ -207,7 +207,7 @@ describe("S-11 DashboardHistory 라우트", () => {
     );
 
     expect(
-      await screen.findByRole("columnheader", { name: "개방창 지수" }),
+      await screen.findByRole("columnheader", { name: "채용 활발도" }),
     ).toBeInTheDocument();
     const [, july, june] = screen.getAllByRole("row");
     expect(within(july).getByText("108.3")).toBeInTheDocument();

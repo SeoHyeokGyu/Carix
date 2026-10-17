@@ -4,6 +4,7 @@ import com.carix.index.dto.SkillContribution;
 import com.carix.index.dto.SourceCoverage;
 import com.carix.index.dto.TopPriceDriver;
 import com.carix.index.enums.IndexStatus;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
@@ -132,24 +133,27 @@ public record SnapshotRationale(
   }
 
   /**
-   * 개방창 지수의 산출 근거 (기능 명세 §4.5). 일수·비율·표본 수뿐이라 금액 제약에 걸리지 않는다.
+   * 채용 활발도(OWI)의 산출 근거 (기능 명세 §4.5, b22). 비중·표본 수뿐이라 금액 제약에 걸리지 않는다.
    *
-   * <p>화면에 나가는 것은 API 규격 §5.1 의 셋뿐이지만 일곱을 다 저장한다 — 완화 결과는 당시 프로필에 의존해 나중에 재계산하면 같은 값이 안 나온다.
+   * <p>화면에 나가는 것은 API 규격 §5.1 의 셋뿐이지만 일곱을 다 저장한다 — 완화 결과는 당시 프로필에 의존해 나중에 재계산하면 같은 값이 안 나온다. {@code
+   * b22} 이전 스냅샷 행의 구 필드({@code medianWindowDays} 등)도 역직렬화 시 무시되도록 {@link JsonIgnoreProperties} 를
+   * 둔다.
    *
-   * @param peerSampleSize 동료집단 표본 수
-   * @param deadlineSampleSize 마감일 보유 표본 수
-   * @param medianWindowDays 동료집단 중앙 개방일수. 표본 부족이면 {@code null}
-   * @param openEndedRatePercent 상시채용 비율(%). 표본 부족이어도 남는다
-   * @param fallbackLevel 안착한 완화 단계. MVI 완화와 독립이다
+   * @param peerSampleSize 최근 3개월 동료집단 표본 수
+   * @param baselineSampleSize 이전 12개월 동료집단 표본 수
+   * @param recentSharePercent 최근 3개월 동료집단 채용 비중(%). 최근 창 표본 부족이면 {@code null}
+   * @param baselineSharePercent 이전 12개월 동료집단 채용 비중(%). 이전 창 표본 부족이면 {@code null}
+   * @param fallbackLevel 안착한 완화 단계
    * @param appliedConditions 안착 조건 문구
-   * @param marketMedianWindowDays 기준 모수 중앙 개방일수
+   * @param marketSampleSize 최근 3개월 전체시장 공고 수
    */
+  @JsonIgnoreProperties(ignoreUnknown = true)
   public record OpeningWindowEvidence(
       Integer peerSampleSize,
-      Integer deadlineSampleSize,
-      Integer medianWindowDays,
-      BigDecimal openEndedRatePercent,
+      Integer baselineSampleSize,
+      BigDecimal recentSharePercent,
+      BigDecimal baselineSharePercent,
       Integer fallbackLevel,
       String appliedConditions,
-      Integer marketMedianWindowDays) {}
+      Integer marketSampleSize) {}
 }

@@ -95,18 +95,18 @@ describe("IndexCard", () => {
   it("footer 슬롯을 카드 하단에 렌더한다", () => {
     render(
       <IndexCard
-        title="개방창 지수"
+        title="채용 활발도"
         index={{
           value: 118.4,
           changeFromLastMonth: 3.1,
           status: "INCREASED",
           indexStatus: "OK",
         }}
-        footer={<span>중앙 34일</span>}
+        footer={<span>최근 비중 24.5%</span>}
       />,
     );
 
-    expect(screen.getByText("중앙 34일")).toBeInTheDocument();
+    expect(screen.getByText("최근 비중 24.5%")).toBeInTheDocument();
   });
 
   it("detailHref 가 있으면 카드 이름을 담은 자세히 링크를 그린다", () => {
