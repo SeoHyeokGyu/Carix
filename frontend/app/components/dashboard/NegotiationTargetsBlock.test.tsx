@@ -76,6 +76,22 @@ describe("NegotiationTargetsBlock (US-D7)", () => {
     expect(screen.getByText("임금통계 중앙값까지")).toBeInTheDocument();
   });
 
+  it("BELOW 인데 값이 없으면(계약 위반) +0.0% 대신 그 줄을 생략한다", () => {
+    render(
+      <NegotiationTargetsBlock
+        signalCode="NEGOTIATE"
+        targets={{
+          ...TARGETS,
+          toWageStatMedian: { raiseRatePercent: null, status: "BELOW" },
+        }}
+      />,
+    );
+
+    expect(screen.queryByText("+0.0%")).not.toBeInTheDocument();
+    expect(screen.queryByText("임금통계 중앙값까지")).not.toBeInTheDocument();
+    expect(screen.getByText("+4.3%")).toBeInTheDocument();
+  });
+
   it("세 줄 모두 null 이면 아무것도 렌더하지 않는다", () => {
     const { container } = render(
       <NegotiationTargetsBlock

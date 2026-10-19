@@ -33,11 +33,27 @@ class NegotiationTargetCalculatorTest {
     return new PeerSalaryDistribution(salaries, peerSampleSize, 0, "전국");
   }
 
+  /** 스냅샷 판정도 KOSIS 기준선이었던 경우. */
+  private static Target wage(long salary, WageBaseline baseline, String storedBucket) {
+    return NegotiationTargetCalculator.wageLine(salary, baseline, storedBucket, "KOSIS");
+  }
+
+  @Test
+  @DisplayName("임금통계 — 스냅샷 판정이 KOSIS 가 아닌 기준선이었으면 지운다 — 화면 출처 표기와 어긋난다")
+  void wageLine_스냅샷출처_KOSIS아님_null() {
+    WageBaseline now = baseline(60_000_000L, WageStatSource.KOSIS);
+    String bucket = bucketOf(60_000_000L, 50_000_000L);
+
+    assertThat(NegotiationTargetCalculator.wageLine(50_000_000L, now, bucket, "FALLBACK")).isNull();
+    assertThat(NegotiationTargetCalculator.wageLine(50_000_000L, now, bucket, "UNKNOWN")).isNull();
+    assertThat(NegotiationTargetCalculator.wageLine(50_000_000L, now, bucket, null)).isNull();
+  }
+
   @Test
   @DisplayName("임금통계 — 중앙값보다 낮고 저장 구간과 맞으면 BELOW 와 인상률")
   void wageLine_중앙값아래_BELOW() {
     Target t =
-        NegotiationTargetCalculator.wageLine(
+        wage(
             50_000_000L,
             baseline(60_000_000L, WageStatSource.KOSIS),
             bucketOf(60_000_000L, 50_000_000L));
@@ -48,26 +64,21 @@ class NegotiationTargetCalculatorTest {
   @Test
   @DisplayName("임금통계 — 스냅샷 이후 기준선이 바뀌어 구간이 어긋나면 줄을 지운다")
   void wageLine_구간불일치_null() {
-    assertThat(
-            NegotiationTargetCalculator.wageLine(
-                50_000_000L, baseline(60_000_000L, WageStatSource.KOSIS), "NEAR_MARKET"))
+    assertThat(wage(50_000_000L, baseline(60_000_000L, WageStatSource.KOSIS), "NEAR_MARKET"))
         .isNull();
   }
 
   @Test
   @DisplayName("임금통계 — 저장 구간이 없으면 대조할 수 없어 지운다")
   void wageLine_저장구간없음_null() {
-    assertThat(
-            NegotiationTargetCalculator.wageLine(
-                50_000_000L, baseline(60_000_000L, WageStatSource.KOSIS), null))
-        .isNull();
+    assertThat(wage(50_000_000L, baseline(60_000_000L, WageStatSource.KOSIS), null)).isNull();
   }
 
   @Test
   @DisplayName("임금통계 — 상수 기준선(FALLBACK)이면 지운다")
   void wageLine_FALLBACK_null() {
     assertThat(
-            NegotiationTargetCalculator.wageLine(
+            wage(
                 50_000_000L,
                 baseline(60_000_000L, WageStatSource.FALLBACK),
                 bucketOf(60_000_000L, 50_000_000L)))
@@ -78,7 +89,7 @@ class NegotiationTargetCalculatorTest {
   @DisplayName("임금통계 — 출처 불명(UNKNOWN)이면 지운다")
   void wageLine_UNKNOWN_null() {
     assertThat(
-            NegotiationTargetCalculator.wageLine(
+            wage(
                 50_000_000L,
                 baseline(60_000_000L, WageStatSource.UNKNOWN),
                 bucketOf(60_000_000L, 50_000_000L)))
@@ -88,8 +99,7 @@ class NegotiationTargetCalculatorTest {
   @Test
   @DisplayName("임금통계 — 기준선이 없으면 지운다")
   void wageLine_기준선없음_null() {
-    assertThat(NegotiationTargetCalculator.wageLine(50_000_000L, null, "BELOW_MARKET_15_PLUS"))
-        .isNull();
+    assertThat(wage(50_000_000L, null, "BELOW_MARKET_15_PLUS")).isNull();
   }
 
   /** 방어용 — NEGOTIATE·SEEK_JOB 은 격차 5% 이상에서만 나와 구간 대조를 통과하면 운영에서는 나오지 않는다. */
@@ -97,7 +107,7 @@ class NegotiationTargetCalculatorTest {
   @DisplayName("임금통계 — 이미 넘었으면 ABOVE, 인상률 없음")
   void wageLine_상회_ABOVE() {
     assertThat(
-            NegotiationTargetCalculator.wageLine(
+            wage(
                 70_000_000L,
                 baseline(60_000_000L, WageStatSource.KOSIS),
                 bucketOf(60_000_000L, 70_000_000L)))

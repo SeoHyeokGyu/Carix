@@ -174,7 +174,7 @@ class SnapshotReadServiceTest {
     given(repository.findByUserIdOrderByBaseYearMonthDesc(USER_ID))
         .willReturn(List.of(snapshot("202607", "94.20", "117.50", DecisionSignalCode.NEGOTIATE)));
     NegotiationTargets targets = new NegotiationTargets(new Target(20.0, "BELOW"), null, null);
-    given(negotiationTargetService.resolve(USER_ID, "202607", "BELOW_MARKET_15_PLUS"))
+    given(negotiationTargetService.resolve(USER_ID, "202607", "BELOW_MARKET_15_PLUS", null))
         .willReturn(targets);
 
     assertThat(summaryService.resolve(USER_ID, "202607").negotiationTargets()).isEqualTo(targets);
@@ -186,7 +186,7 @@ class SnapshotReadServiceTest {
     given(repository.findByUserIdOrderByBaseYearMonthDesc(USER_ID))
         .willReturn(List.of(snapshot("202607", "94.20", "117.50", DecisionSignalCode.SEEK_JOB)));
     NegotiationTargets targets = new NegotiationTargets(null, null, null);
-    given(negotiationTargetService.resolve(USER_ID, "202607", "BELOW_MARKET_15_PLUS"))
+    given(negotiationTargetService.resolve(USER_ID, "202607", "BELOW_MARKET_15_PLUS", null))
         .willReturn(targets);
 
     assertThat(summaryService.resolve(USER_ID, "202607").negotiationTargets()).isEqualTo(targets);
@@ -199,7 +199,7 @@ class SnapshotReadServiceTest {
         .willReturn(List.of(snapshot("202607", "94.20", "117.50", DecisionSignalCode.STAY)));
 
     assertThat(summaryService.resolve(USER_ID, "202607").negotiationTargets()).isNull();
-    verify(negotiationTargetService, never()).resolve(any(), any(), any());
+    verify(negotiationTargetService, never()).resolve(any(), any(), any(), any());
   }
 
   @Test
@@ -212,7 +212,7 @@ class SnapshotReadServiceTest {
                 snapshot("202606", "94.20", "117.50", DecisionSignalCode.NEGOTIATE)));
 
     assertThat(summaryService.resolve(USER_ID, "202606").negotiationTargets()).isNull();
-    verify(negotiationTargetService, never()).resolve(any(), any(), any());
+    verify(negotiationTargetService, never()).resolve(any(), any(), any(), any());
   }
 
   @Test

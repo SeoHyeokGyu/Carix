@@ -27,11 +27,15 @@ final class NegotiationTargetCalculator {
   private NegotiationTargetCalculator() {}
 
   /**
-   * 공식 임금통계 중앙값까지. KOSIS 실측 기준선만 쓴다. 다시 구한 격차 구간이 스냅샷 판정 때의 구간과 다르면(그 뒤 임금통계가 새로 적재됨) 판정과 모순되므로
-   * 지운다.
+   * 공식 임금통계 중앙값까지. KOSIS 실측 기준선만 쓴다 — 지금 기준선도, 스냅샷 판정 때 기준선도. 판정 때가 상수(FALLBACK)였으면 같은 화면의 출처
+   * 표기({@code metadata.wageStat.source})와 이 줄의 출처가 어긋난다. 다시 구한 격차 구간이 스냅샷 판정 때의 구간과 다르면(그 뒤 임금통계가
+   * 새로 적재됨) 판정과 모순되므로 지운다.
    */
-  static Target wageLine(long currentGross, WageBaseline baseline, String storedGapBucket) {
-    if (baseline == null || baseline.source() != WageStatSource.KOSIS) {
+  static Target wageLine(
+      long currentGross, WageBaseline baseline, String storedGapBucket, String storedWageSource) {
+    if (baseline == null
+        || baseline.source() != WageStatSource.KOSIS
+        || !WageStatSource.KOSIS.name().equals(storedWageSource)) {
       return null;
     }
     BigDecimal ratio = SalaryGapBucket.ratio(baseline.medianGrossSalary(), currentGross);

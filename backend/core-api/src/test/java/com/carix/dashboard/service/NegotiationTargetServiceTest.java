@@ -142,7 +142,7 @@ class NegotiationTargetServiceTest {
   @DisplayName("세 줄 — 임금통계 20%, p75 60%, 2025년 3월 이후 물가 6개월 1%씩 6.2%")
   void 세줄_정상() {
     NegotiationTargets targets =
-        service.resolve(USER_ID, BASE_YM, bucket(60_000_000L, 50_000_000L));
+        service.resolve(USER_ID, BASE_YM, bucket(60_000_000L, 50_000_000L), "KOSIS");
 
     assertThat(targets.toWageStatMedian()).isEqualTo(new Target(20.0, "BELOW"));
     // p75 = get(7) = 8천만 → (80 − 50) / 50
@@ -152,11 +152,24 @@ class NegotiationTargetServiceTest {
   }
 
   @Test
+  @DisplayName("스냅샷 이후 기준선이 바뀌어 격차 구간이 어긋나면 임금통계 줄만 지우고 나머지는 낸다")
+  void 구간불일치_임금통계만null() {
+    // 스냅샷 판정은 15% 이상 구간이었는데 새 기준선(5,300만)으로는 5~15% 구간
+    givenBaseline(53_000_000L);
+
+    NegotiationTargets targets = service.resolve(USER_ID, BASE_YM, "BELOW_MARKET_15_PLUS", "KOSIS");
+
+    assertThat(targets.toWageStatMedian()).isNull();
+    assertThat(targets.toPeerP75()).isEqualTo(new Target(60.0, "BELOW"));
+    assertThat(targets.toPurchasingPowerRecovery()).isNotNull();
+  }
+
+  @Test
   @DisplayName("연봉이 없으면 세 줄 모두 null")
   void 연봉없음_세줄null() {
     given(salaryProvider.currentGrossSalary(USER_ID, BASE_YM)).willReturn(Optional.empty());
 
-    NegotiationTargets targets = service.resolve(USER_ID, BASE_YM, "BELOW_MARKET_15_PLUS");
+    NegotiationTargets targets = service.resolve(USER_ID, BASE_YM, "BELOW_MARKET_15_PLUS", "KOSIS");
 
     assertThat(targets).isEqualTo(new NegotiationTargets(null, null, null));
   }
@@ -167,7 +180,7 @@ class NegotiationTargetServiceTest {
     given(profiles.findByUserId(USER_ID)).willReturn(Optional.empty());
 
     NegotiationTargets targets =
-        service.resolve(USER_ID, BASE_YM, bucket(60_000_000L, 50_000_000L));
+        service.resolve(USER_ID, BASE_YM, bucket(60_000_000L, 50_000_000L), "KOSIS");
 
     assertThat(targets.toWageStatMedian()).isEqualTo(new Target(20.0, "BELOW"));
     assertThat(targets.toPeerP75()).isNull();
@@ -181,7 +194,7 @@ class NegotiationTargetServiceTest {
 
     assertThat(
             service
-                .resolve(USER_ID, BASE_YM, bucket(60_000_000L, 50_000_000L))
+                .resolve(USER_ID, BASE_YM, bucket(60_000_000L, 50_000_000L), "KOSIS")
                 .toPurchasingPowerRecovery())
         .isEqualTo(new RecoveryTarget(null, "NONE", "202509"));
   }
@@ -192,7 +205,7 @@ class NegotiationTargetServiceTest {
     givenCpi("202501", "202506", "0.01");
 
     NegotiationTargets targets =
-        service.resolve(USER_ID, BASE_YM, bucket(60_000_000L, 50_000_000L));
+        service.resolve(USER_ID, BASE_YM, bucket(60_000_000L, 50_000_000L), "KOSIS");
 
     assertThat(targets.toPurchasingPowerRecovery()).isNull();
     assertThat(targets.toWageStatMedian()).isNotNull();
@@ -207,7 +220,7 @@ class NegotiationTargetServiceTest {
     // 202504 ~ 202507 네 달
     assertThat(
             service
-                .resolve(USER_ID, BASE_YM, bucket(60_000_000L, 50_000_000L))
+                .resolve(USER_ID, BASE_YM, bucket(60_000_000L, 50_000_000L), "KOSIS")
                 .toPurchasingPowerRecovery())
         .isEqualTo(new RecoveryTarget(4.1, "BELOW", "202503"));
   }
@@ -219,7 +232,7 @@ class NegotiationTargetServiceTest {
 
     assertThat(
             service
-                .resolve(USER_ID, BASE_YM, bucket(60_000_000L, 50_000_000L))
+                .resolve(USER_ID, BASE_YM, bucket(60_000_000L, 50_000_000L), "KOSIS")
                 .toPurchasingPowerRecovery()
                 .sinceYearMonth())
         .isEqualTo("202501");
@@ -238,7 +251,7 @@ class NegotiationTargetServiceTest {
 
     assertThat(
             service
-                .resolve(USER_ID, BASE_YM, bucket(60_000_000L, 50_000_000L))
+                .resolve(USER_ID, BASE_YM, bucket(60_000_000L, 50_000_000L), "KOSIS")
                 .toPurchasingPowerRecovery())
         .isNull();
   }
@@ -249,7 +262,7 @@ class NegotiationTargetServiceTest {
     given(peers.resolve(any(CareerProfile.class))).willThrow(new IllegalStateException("db down"));
 
     NegotiationTargets targets =
-        service.resolve(USER_ID, BASE_YM, bucket(60_000_000L, 50_000_000L));
+        service.resolve(USER_ID, BASE_YM, bucket(60_000_000L, 50_000_000L), "KOSIS");
 
     assertThat(targets.toPeerP75()).isNull();
     assertThat(targets.toWageStatMedian()).isEqualTo(new Target(20.0, "BELOW"));
@@ -263,7 +276,7 @@ class NegotiationTargetServiceTest {
         .willThrow(new IllegalStateException("db down"));
 
     NegotiationTargets targets =
-        service.resolve(USER_ID, BASE_YM, bucket(60_000_000L, 50_000_000L));
+        service.resolve(USER_ID, BASE_YM, bucket(60_000_000L, 50_000_000L), "KOSIS");
 
     assertThat(targets.toPurchasingPowerRecovery()).isNull();
     assertThat(targets.toWageStatMedian()).isNotNull();
@@ -275,7 +288,7 @@ class NegotiationTargetServiceTest {
     given(salaryProvider.currentGrossSalary(USER_ID, BASE_YM))
         .willThrow(new IllegalStateException("decrypt failed"));
 
-    assertThat(service.resolve(USER_ID, BASE_YM, "BELOW_MARKET_15_PLUS"))
+    assertThat(service.resolve(USER_ID, BASE_YM, "BELOW_MARKET_15_PLUS", "KOSIS"))
         .isEqualTo(new NegotiationTargets(null, null, null));
   }
 
@@ -292,7 +305,7 @@ class NegotiationTargetServiceTest {
             .boxed()
             .toList());
 
-    service.resolve(USER_ID, BASE_YM, bucket(61_234_000L, 54_321_000L));
+    service.resolve(USER_ID, BASE_YM, bucket(61_234_000L, 54_321_000L), "KOSIS");
 
     assertThat(output)
         .doesNotContain(

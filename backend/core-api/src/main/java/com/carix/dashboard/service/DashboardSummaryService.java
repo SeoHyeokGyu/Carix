@@ -145,7 +145,10 @@ public class DashboardSummaryService {
     }
     SnapshotRationale rationale = snapshot.getRationale();
     return negotiationTargetService.resolve(
-        userId, baseYearMonth, rationale == null ? null : rationale.salaryGapBucket());
+        userId,
+        baseYearMonth,
+        rationale == null ? null : rationale.salaryGapBucket(),
+        rationale == null ? null : rationale.wageStatSource());
   }
 
   // --- 결정 신호 ---

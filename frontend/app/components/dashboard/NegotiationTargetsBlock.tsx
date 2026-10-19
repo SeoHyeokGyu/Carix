@@ -56,7 +56,12 @@ export function NegotiationTargetsBlock({
       target: recovery,
     });
   }
-  if (rows.length === 0) return null;
+  // BELOW 인데 값이 없으면 계약 위반이다 — 「+0.0%」를 지어내지 않고 그 줄을 뺀다
+  const visible = rows.filter(
+    (row) =>
+      row.target.status !== "BELOW" || row.target.raiseRatePercent !== null,
+  );
+  if (visible.length === 0) return null;
 
   return (
     <section
@@ -67,7 +72,7 @@ export function NegotiationTargetsBlock({
         {isSeekJob ? "희망 연봉 목표" : "협상 목표 인상률"}
       </h3>
       <dl className="flex flex-col gap-1.5">
-        {rows.map((row) => (
+        {visible.map((row) => (
           <div
             key={row.label}
             className="flex items-baseline justify-between gap-3"
@@ -97,7 +102,7 @@ export function NegotiationTargetsBlock({
 function formatTarget(target: NegotiationTarget): string {
   if (target.status === "ABOVE") return "이미 상회";
   if (target.status === "NONE") return "물가 상승분 없음";
-  return `+${(target.raiseRatePercent ?? 0).toFixed(1)}%`;
+  return `+${target.raiseRatePercent?.toFixed(1)}%`;
 }
 
 /** `202503` → `2025년 3월` */

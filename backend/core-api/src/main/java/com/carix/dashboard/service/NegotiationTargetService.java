@@ -60,9 +60,11 @@ public class NegotiationTargetService {
    * 돈다.
    *
    * @param storedGapBucket 스냅샷 판정 때 저장된 격차 구간. 임금통계 줄을 판정과 대조한다
+   * @param storedWageSource 스냅샷 판정 때 임금통계 기준선 출처. 화면 출처 표기와 맞춘다
    */
   @Transactional(propagation = Propagation.NOT_SUPPORTED)
-  public NegotiationTargets resolve(UUID userId, String baseYearMonth, String storedGapBucket) {
+  public NegotiationTargets resolve(
+      UUID userId, String baseYearMonth, String storedGapBucket, String storedWageSource) {
     Optional<CurrentSalary> salary;
     Optional<CareerProfile> profile;
     try {
@@ -93,7 +95,9 @@ public class NegotiationTargetService {
               : null;
       Optional<WageBaseline> baseline = await(baselineFuture, "wage", userId);
       if (baseline != null) {
-        wage = NegotiationTargetCalculator.wageLine(gross, baseline.orElse(null), storedGapBucket);
+        wage =
+            NegotiationTargetCalculator.wageLine(
+                gross, baseline.orElse(null), storedGapBucket, storedWageSource);
       }
       if (distributionFuture != null) {
         Optional<PeerSalaryDistribution> distribution = await(distributionFuture, "peer", userId);
