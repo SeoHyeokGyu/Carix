@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import type { SalaryDistributionResponse } from "../../lib/dashboardMarketApi";
@@ -182,6 +182,47 @@ describe("SalaryDistributionChart", () => {
 
     expect(screen.getByText("공식 임금통계 기준선 없음")).toBeInTheDocument();
     expect(screen.queryByText(/UNKNOWN/)).not.toBeInTheDocument();
+  });
+
+  it("경력 사다리 모든 구간에 임금통계가 없으면 빈 카드 대신 없음을 보인다", () => {
+    const steps = ["ENTRY", "JUNIOR", "MID", "SENIOR", "LEAD"].map(
+      (bracket) => ({
+        bracket,
+        median: null,
+        raiseFromPrevious: null,
+        source: "UNKNOWN",
+      }),
+    );
+    const mockData: SalaryDistributionResponse = {
+      status: "OK",
+      sampleSize: 12,
+      baseline: null,
+      postingReference: {
+        min: 40_000_000,
+        p25: 52_000_000,
+        median: 68_000_000,
+        p75: 85_000_000,
+        max: 120_000_000,
+        sampleSize: 12,
+        missingRate: 0,
+      },
+      userPosition: null,
+      peerGroup: {
+        fallbackLevel: 1,
+        appliedConditions: "전국 / 경력 4~7년(MID) / 회사규모 무관",
+      },
+      trend: [],
+      careerLadder: { userBracket: "MID", steps },
+    };
+
+    render(<SalaryDistributionChart data={mockData} />);
+
+    const ladder = screen.getByLabelText("경력 사다리");
+    expect(
+      within(ladder).getByText("이 직무의 공식 임금통계 없음"),
+    ).toBeInTheDocument();
+    expect(within(ladder).queryByRole("list")).not.toBeInTheDocument();
+    expect(within(ladder).queryByText(/UNKNOWN/)).not.toBeInTheDocument();
   });
 
   it("공고 표본은 충족하지만 공개된 연봉이 0건일 때 왜곡된 0원 차트 대신 안내 화면을 표시한다", () => {
