@@ -1,10 +1,15 @@
 package com.carix.dashboard.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 
 import com.carix.dashboard.dto.DashboardSummaryResponse;
+import com.carix.dashboard.dto.DashboardSummaryResponse.NegotiationTargets;
+import com.carix.dashboard.dto.DashboardSummaryResponse.Target;
 import com.carix.dashboard.dto.SnapshotHistoryResponse;
 import com.carix.dashboard.dto.TrendListResponse;
 import com.carix.index.dto.SkillContribution;
@@ -37,13 +42,15 @@ class SnapshotReadServiceTest {
   private IndexSnapshotRepository repository;
   private SnapshotQueryService queryService;
   private DashboardSummaryService summaryService;
+  private NegotiationTargetService negotiationTargetService;
   private SnapshotSeriesService seriesService;
 
   @BeforeEach
   void setUp() {
     repository = mock(IndexSnapshotRepository.class);
     queryService = new SnapshotQueryService(repository);
-    summaryService = new DashboardSummaryService(queryService);
+    negotiationTargetService = mock(NegotiationTargetService.class);
+    summaryService = new DashboardSummaryService(queryService, negotiationTargetService);
     seriesService = new SnapshotSeriesService(queryService);
   }
 
@@ -159,6 +166,53 @@ class SnapshotReadServiceTest {
     assertThat(metadata.salaryMissingRate()).isNull();
     assertThat(metadata.peerGroup()).isNull();
     assertThat(metadata.sources()).isEmpty();
+  }
+
+  @Test
+  @DisplayName("summary - 협상 신호의 가장 최근 달이면 협상 목표를 싣는다 (US-D7)")
+  void summary_협상신호_최신달_목표포함() {
+    given(repository.findByUserIdOrderByBaseYearMonthDesc(USER_ID))
+        .willReturn(List.of(snapshot("202607", "94.20", "117.50", DecisionSignalCode.NEGOTIATE)));
+    NegotiationTargets targets = new NegotiationTargets(new Target(20.0, "BELOW"), null, null);
+    given(negotiationTargetService.resolve(USER_ID, "202607", "BELOW_MARKET_15_PLUS"))
+        .willReturn(targets);
+
+    assertThat(summaryService.resolve(USER_ID, "202607").negotiationTargets()).isEqualTo(targets);
+  }
+
+  @Test
+  @DisplayName("summary - 이직 탐색도 협상 목표를 싣는다")
+  void summary_이직신호_목표포함() {
+    given(repository.findByUserIdOrderByBaseYearMonthDesc(USER_ID))
+        .willReturn(List.of(snapshot("202607", "94.20", "117.50", DecisionSignalCode.SEEK_JOB)));
+    NegotiationTargets targets = new NegotiationTargets(null, null, null);
+    given(negotiationTargetService.resolve(USER_ID, "202607", "BELOW_MARKET_15_PLUS"))
+        .willReturn(targets);
+
+    assertThat(summaryService.resolve(USER_ID, "202607").negotiationTargets()).isEqualTo(targets);
+  }
+
+  @Test
+  @DisplayName("summary - 협상·이직 외 신호는 협상 목표를 계산하지 않는다")
+  void summary_STAY_목표null() {
+    given(repository.findByUserIdOrderByBaseYearMonthDesc(USER_ID))
+        .willReturn(List.of(snapshot("202607", "94.20", "117.50", DecisionSignalCode.STAY)));
+
+    assertThat(summaryService.resolve(USER_ID, "202607").negotiationTargets()).isNull();
+    verify(negotiationTargetService, never()).resolve(any(), any(), any());
+  }
+
+  @Test
+  @DisplayName("summary - 과거 달은 협상 목표를 계산하지 않는다 — 재료 시점이 섞인다")
+  void summary_과거달_목표null() {
+    given(repository.findByUserIdOrderByBaseYearMonthDesc(USER_ID))
+        .willReturn(
+            List.of(
+                snapshot("202607", "94.20", "117.50", DecisionSignalCode.NEGOTIATE),
+                snapshot("202606", "94.20", "117.50", DecisionSignalCode.NEGOTIATE)));
+
+    assertThat(summaryService.resolve(USER_ID, "202606").negotiationTargets()).isNull();
+    verify(negotiationTargetService, never()).resolve(any(), any(), any());
   }
 
   @Test

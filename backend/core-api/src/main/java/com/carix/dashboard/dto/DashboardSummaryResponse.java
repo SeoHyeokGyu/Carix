@@ -9,6 +9,8 @@ public record DashboardSummaryResponse(
     IndexDetail purchasingPowerIndex,
     IndexDetail marketValueIndex,
     IndexDetail openingWindowIndex,
+    @Schema(description = "협상 목표 인상률. NEGOTIATE·SEEK_JOB 의 가장 최근 달에만", nullable = true)
+        NegotiationTargets negotiationTargets,
     DecisionSignal decisionSignal,
     SummaryMetadata metadata) {
 

@@ -78,6 +78,7 @@ class DashboardControllerTest {
                 unavailable,
                 unavailable,
                 unavailable,
+                null,
                 new DashboardSummaryResponse.DecisionSignal(
                     "INSUFFICIENT_DATA", "데이터 부족", List.of(), null),
                 new DashboardSummaryResponse.SummaryMetadata(
@@ -287,6 +288,7 @@ class DashboardControllerTest {
             detail,
             detail,
             detail,
+            null,
             new DashboardSummaryResponse.DecisionSignal("SIGNAL_BUY", "매수 신호", List.of(), "2.0.0"),
             new DashboardSummaryResponse.SummaryMetadata(
                 LocalDate.of(2026, 7, 31),
@@ -332,6 +334,7 @@ class DashboardControllerTest {
                 detail,
                 detail,
                 detail,
+                null,
                 new DashboardSummaryResponse.DecisionSignal("HOLD", "유지 신호", List.of(), "2.0.0"),
                 new DashboardSummaryResponse.SummaryMetadata(
                     LocalDate.of(2026, 7, 31),
@@ -369,6 +372,7 @@ class DashboardControllerTest {
                 detail,
                 detail,
                 detail,
+                null,
                 new DashboardSummaryResponse.DecisionSignal("HOLD", "유지 신호", List.of(), "2.0.0"),
                 new DashboardSummaryResponse.SummaryMetadata(
                     LocalDate.now(),
