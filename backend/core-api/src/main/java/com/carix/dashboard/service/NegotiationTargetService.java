@@ -2,6 +2,7 @@ package com.carix.dashboard.service;
 
 import com.carix.dashboard.dto.DashboardSummaryResponse.NegotiationTargets;
 import com.carix.dashboard.dto.DashboardSummaryResponse.RecoveryTarget;
+import com.carix.dashboard.dto.DashboardSummaryResponse.Target;
 import com.carix.datasource.ReadOnlyRoutingContext;
 import com.carix.expense.service.ExpenseWeightResolver;
 import com.carix.index.CurrentSalaryProvider;
@@ -27,7 +28,9 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
@@ -37,6 +40,7 @@ import org.springframework.transaction.annotation.Transactional;
  * <p>연봉과 마지막 변경일은 {@link CurrentSalaryProvider} 로만 얻는다. {@code income_history} 를 직접 읽으면 복호화 경계가 소득
  * 도메인 밖으로 샌다.
  */
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class NegotiationTargetService {
@@ -51,20 +55,30 @@ public class NegotiationTargetService {
   private final ExpenseWeightResolver expenseWeightResolver;
 
   /**
+   * 대시보드 요약의 선택 블록이라 <b>어느 재료가 실패해도 예외를 던지지 않고</b> 그 줄만 {@code null} 로 강등한다. 바깥 요약 트랜잭션에 참여하면 안쪽
+   * 실패가 rollback-only 를 찍어 요약 전체가 커밋에서 깨지므로 트랜잭션을 잇지 않는다({@code NOT_SUPPORTED}) — 각 조회는 자기 트랜잭션에서
+   * 돈다.
+   *
    * @param storedGapBucket 스냅샷 판정 때 저장된 격차 구간. 임금통계 줄을 판정과 대조한다
    */
-  @Transactional(readOnly = true)
+  @Transactional(propagation = Propagation.NOT_SUPPORTED)
   public NegotiationTargets resolve(UUID userId, String baseYearMonth, String storedGapBucket) {
-    Optional<CurrentSalary> salary =
-        currentSalaryProvider.currentGrossSalary(userId, baseYearMonth);
+    Optional<CurrentSalary> salary;
+    Optional<CareerProfile> profile;
+    try {
+      salary = currentSalaryProvider.currentGrossSalary(userId, baseYearMonth);
+      profile = careerProfileRepository.findByUserId(userId);
+    } catch (RuntimeException e) {
+      logFailure("salary", userId, e);
+      return new NegotiationTargets(null, null, null);
+    }
     if (salary.isEmpty()) {
       return new NegotiationTargets(null, null, null);
     }
     long gross = salary.get().grossSalary();
-    Optional<CareerProfile> profile = careerProfileRepository.findByUserId(userId);
 
-    WageBaseline baseline;
-    PeerSalaryDistribution distribution;
+    Target wage = null;
+    Target peer = null;
     // 연봉 분포 화면(SalaryDistributionService)과 같이 읽기 전용 풀에서 병렬로 — 요청 스레드에서 부르면 쓰기 풀을 잡는다(b17).
     try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
       // 임금통계는 MVI 와 같은 기본 프로필로 — 판정이 그 기준선으로 났다
@@ -77,19 +91,49 @@ public class NegotiationTargetService {
               ? executor.submit(
                   readOnly(() -> peerSalaryDistributionResolver.resolve(profile.get())))
               : null;
-      baseline = baselineFuture.get();
-      distribution = distributionFuture == null ? null : distributionFuture.get();
-    } catch (InterruptedException e) {
-      Thread.currentThread().interrupt();
-      throw new IllegalStateException("협상 목표 재료 병렬 조회 중 인터럽트", e);
-    } catch (ExecutionException e) {
-      throw new IllegalStateException("협상 목표 재료 병렬 조회 실패", e.getCause());
+      Optional<WageBaseline> baseline = await(baselineFuture, "wage", userId);
+      if (baseline != null) {
+        wage = NegotiationTargetCalculator.wageLine(gross, baseline.orElse(null), storedGapBucket);
+      }
+      if (distributionFuture != null) {
+        Optional<PeerSalaryDistribution> distribution = await(distributionFuture, "peer", userId);
+        if (distribution != null) {
+          peer = NegotiationTargetCalculator.peerLine(gross, distribution.orElse(null));
+        }
+      }
     }
 
-    return new NegotiationTargets(
-        NegotiationTargetCalculator.wageLine(gross, baseline, storedGapBucket),
-        NegotiationTargetCalculator.peerLine(gross, distribution),
-        recovery(userId, baseYearMonth, salary.get()));
+    RecoveryTarget recovery;
+    try {
+      recovery = recovery(userId, baseYearMonth, salary.get());
+    } catch (RuntimeException e) {
+      logFailure("recovery", userId, e);
+      recovery = null;
+    }
+    return new NegotiationTargets(wage, peer, recovery);
+  }
+
+  /** 결과(값이 null 이면 empty), 실패면 {@code null}. */
+  private static <T> Optional<T> await(Future<T> future, String line, UUID userId) {
+    try {
+      return Optional.ofNullable(future.get());
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      logFailure(line, userId, e);
+      return null;
+    } catch (ExecutionException e) {
+      logFailure(line, userId, e.getCause());
+      return null;
+    }
+  }
+
+  /** 예외 종류만 남긴다 — 메시지·스택에 금액이 실릴 수 있다(완료 기준 10). */
+  private static void logFailure(String line, UUID userId, Throwable e) {
+    log.warn(
+        "negotiation-target line={} userId={} failed: {}",
+        line,
+        userId,
+        e == null ? "unknown" : e.getClass().getName());
   }
 
   /** 마지막 연봉 변경 달부터 기준월(또는 허용 시차 안 마지막 CPI 월)까지 개인물가 누적. 변경이 CPI 수집 전이면 CPI 첫 달로 당기고 그 달을 밝힌다. */

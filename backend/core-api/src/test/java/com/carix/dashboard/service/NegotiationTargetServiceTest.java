@@ -243,6 +243,42 @@ class NegotiationTargetServiceTest {
         .isNull();
   }
 
+  @Test
+  @DisplayName("동료집단 분포 조회가 실패해도 그 줄만 지우고 나머지는 낸다 — 선택 블록이 요약 전체를 깨지 않는다")
+  void p75조회실패_그줄만null() {
+    given(peers.resolve(any(CareerProfile.class))).willThrow(new IllegalStateException("db down"));
+
+    NegotiationTargets targets =
+        service.resolve(USER_ID, BASE_YM, bucket(60_000_000L, 50_000_000L));
+
+    assertThat(targets.toPeerP75()).isNull();
+    assertThat(targets.toWageStatMedian()).isEqualTo(new Target(20.0, "BELOW"));
+    assertThat(targets.toPurchasingPowerRecovery()).isNotNull();
+  }
+
+  @Test
+  @DisplayName("CPI 조회가 실패해도 복구선만 지운다")
+  void CPI조회실패_복구선만null() {
+    given(cpi.monthOverMonth(anyString(), anyString()))
+        .willThrow(new IllegalStateException("db down"));
+
+    NegotiationTargets targets =
+        service.resolve(USER_ID, BASE_YM, bucket(60_000_000L, 50_000_000L));
+
+    assertThat(targets.toPurchasingPowerRecovery()).isNull();
+    assertThat(targets.toWageStatMedian()).isNotNull();
+  }
+
+  @Test
+  @DisplayName("연봉 조회가 실패하면 세 줄 모두 null — 예외를 던지지 않는다")
+  void 연봉조회실패_세줄null() {
+    given(salaryProvider.currentGrossSalary(USER_ID, BASE_YM))
+        .willThrow(new IllegalStateException("decrypt failed"));
+
+    assertThat(service.resolve(USER_ID, BASE_YM, "BELOW_MARKET_15_PLUS"))
+        .isEqualTo(new NegotiationTargets(null, null, null));
+  }
+
   /** 회귀 가드 — 지금 이 경로에는 로그 문장이 없다. 나중에 로그·예외 메시지가 금액을 싣으면 잡는다 (완료 기준 10). */
   @Test
   @DisplayName("연봉·기준선·p75 금액이 로그에 남지 않는다")
