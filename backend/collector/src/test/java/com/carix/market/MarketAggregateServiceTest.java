@@ -32,6 +32,55 @@ class MarketAggregateServiceTest {
         new MarketAggregateService(jobPostingRepository, marketAggregateRepository);
   }
 
+  private JobPosting grouped(UUID group, String externalId, Long salary) {
+    return JobPosting.builder()
+        .source("JOBKOREA")
+        .externalId(externalId)
+        .jobFamily("BACKEND")
+        .experienceMin(3)
+        .salaryMin(salary)
+        .salaryMax(salary)
+        .dedupGroupId(group)
+        .postedStartDate(java.time.LocalDate.of(2026, 8, 1))
+        .firstSeenMonth("202608")
+        .lastSeenMonth("202608")
+        .collectedAt(Instant.now())
+        .build();
+  }
+
+  private MarketAggregate allBackendJunior(List<JobPosting> postings) {
+    org.mockito.Mockito.reset(marketAggregateRepository);
+    when(jobPostingRepository.findAll()).thenReturn(postings);
+    marketAggregateService.aggregateMarketDataForMonth("202608");
+    @SuppressWarnings("unchecked")
+    ArgumentCaptor<List<MarketAggregate>> captor = ArgumentCaptor.forClass(List.class);
+    verify(marketAggregateRepository).saveAll(captor.capture());
+    return captor.getValue().stream()
+        .filter(
+            m ->
+                "ALL".equals(m.getSource())
+                    && "BACKEND".equals(m.getJobFamily())
+                    && "JUNIOR".equals(m.getExperienceBracket())
+                    && m.getSkillId() == null)
+        .findFirst()
+        .orElseThrow();
+  }
+
+  @Test
+  @DisplayName("중복 묶음 대표는 연봉 공개 공고다 — 조회 순서가 바뀌어도 같은 대표 (core-api 와 같은 규약, 데이터 아키텍처 §1.4)")
+  void dedup_대표는_공개연봉_공고_순서무관() {
+    UUID group = UUID.randomUUID();
+    JobPosting undisclosed = grouped(group, "jk-hidden", null);
+    JobPosting disclosed = grouped(group, "jk-open", 50_000_000L);
+
+    MarketAggregate forward = allBackendJunior(List.of(undisclosed, disclosed));
+    MarketAggregate backward = allBackendJunior(List.of(disclosed, undisclosed));
+
+    assertThat(forward.getPostingCount()).isEqualTo(1);
+    assertThat(forward.getSalaryMissingRatePercent()).isEqualByComparingTo("0.00");
+    assertThat(backward.getSalaryMissingRatePercent()).isEqualByComparingTo("0.00");
+  }
+
   @Test
   @DisplayName("aggregateMarketDataForMonth - 직군·경력별 공고수, 스킬 수요율, 중위연봉을 정확하게 계산하여 저장한다")
   void aggregateMarketData_calculatesCorrectly() {

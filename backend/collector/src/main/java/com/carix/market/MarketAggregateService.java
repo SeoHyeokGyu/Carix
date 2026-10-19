@@ -40,6 +40,17 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class MarketAggregateService {
 
+  /**
+   * 중복 묶음의 대표를 고르는 순서 (데이터 아키텍처 §1.4). 공개연봉이 있는 공고 → 게시일이 이른 공고(없으면 뒤) → {@code id}. 조회 순서에 맡기면
+   * 실행마다 대표가 바뀌어 묶음이 어느 경력 구간·결측률에 드는지가 흔들린다. core-api {@code JobPosting.REPRESENTATIVE_ORDER} 와 같은
+   * 순서여야 한다.
+   */
+  static final Comparator<JobPosting> REPRESENTATIVE_ORDER =
+      Comparator.comparing((JobPosting p) -> p.getSalaryMin() == null || p.getSalaryMax() == null)
+          .thenComparing(
+              JobPosting::getPostedStartDate, Comparator.nullsLast(Comparator.naturalOrder()))
+          .thenComparing(JobPosting::getId);
+
   /** 연봉 공개 공고가 하나도 없을 때의 결측률. DDL 기본값과 같은 퍼센트 단위다. */
   private static final BigDecimal HUNDRED_PERCENT = new BigDecimal("100.00");
 
@@ -391,11 +402,13 @@ public class MarketAggregateService {
 
     List<MarketAggregate> results = new ArrayList<>();
 
-    // 중복 제거 적용 시 dedup_group_id 당 대표 공고 1건만 선별
+    // 중복 제거 적용 시 dedup_group_id 당 대표 공고 1건만 선별 — 대표 순서는 REPRESENTATIVE_ORDER
     List<JobPosting> targetPostings;
     if (useDedupGroup) {
       Map<UUID, JobPosting> deduped = new HashMap<>();
-      for (JobPosting p : postings) {
+      List<JobPosting> ordered = new ArrayList<>(postings);
+      ordered.sort(REPRESENTATIVE_ORDER);
+      for (JobPosting p : ordered) {
         UUID key = p.getDedupGroupId() != null ? p.getDedupGroupId() : p.getId();
         deduped.putIfAbsent(key, p);
       }

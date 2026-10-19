@@ -9,6 +9,7 @@ import java.time.YearMonth;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.time.temporal.ChronoUnit;
+import java.util.Comparator;
 import java.util.UUID;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
@@ -137,6 +138,17 @@ public class JobPosting {
     }
     return avg;
   }
+
+  /**
+   * 중복 묶음의 대표를 고르는 순서 (데이터 아키텍처 §1.4). 공개연봉이 있는 공고 → 게시일이 이른 공고(없으면 뒤) → {@code id}. 묶음은 같은 일자리라 한
+   * 원천이라도 연봉을 공개했으면 그 값이 사실이다. 조회 순서에 맡기면 실행마다 대표가 바뀐다. collector {@code MarketAggregateService} 와
+   * 같은 순서여야 한다.
+   */
+  public static final Comparator<JobPosting> REPRESENTATIVE_ORDER =
+      Comparator.comparing((JobPosting p) -> p.disclosedSalary() == null)
+          .thenComparing(
+              JobPosting::getPostedStartDate, Comparator.nullsLast(Comparator.naturalOrder()))
+          .thenComparing(JobPosting::getId);
 
   /** 중복 제거 키. 묶음이 없으면 자기 자신이 하나의 묶음이다. */
   public UUID dedupKey() {

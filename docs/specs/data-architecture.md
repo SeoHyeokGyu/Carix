@@ -136,6 +136,7 @@
 - **원천별 vs 통합 집계 원칙**:
   - 원천별 집계(`JOBKOREA`, `WANTED`, `SARAMIN`, `JUMPIT`): 원본 행 기준(잡코리아·원티드는 그 달 표본만, 사람인·점핏은 수집 경로별 신규 수집 공고)
   - 통합 관점 집계(`ALL`): `dedup_group_id` 기준 고유 공고 수 산출
+- **묶음 대표**: `dedup_group_id` 당 한 건만 남길 때 대표는 **공개연봉이 있는 공고 → 게시일(`posted_start_date`)이 이른 공고(없으면 뒤) → `id`** 순서의 첫 행이다. 묶음은 같은 일자리라 한 원천이라도 연봉을 공개했으면 그 값이 사실이다. 조회 순서에 맡기면 실행마다 대표가 바뀌어 연봉 표본·경력 구간·결측률이 흔들린다. 동료집단 연봉 분포(core-api `JobPosting.REPRESENTATIVE_ORDER`)와 통합 관점 집계(collector `MarketAggregateService.REPRESENTATIVE_ORDER`)가 같은 순서를 쓴다
 
 ### 1.5 문자열 매칭 & 정규식 고속화 엔진
 
