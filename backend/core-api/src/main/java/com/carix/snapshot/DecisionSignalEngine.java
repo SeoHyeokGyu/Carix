@@ -6,7 +6,6 @@ import com.carix.index.dto.PpiResult;
 import com.carix.index.dto.SourceCoverage;
 import com.carix.index.enums.SkillExclusionReason;
 import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.util.List;
 import org.springframework.stereotype.Component;
 
@@ -53,7 +52,8 @@ public class DecisionSignalEngine {
       return new DecisionOutcome(DecisionSignalCode.INSUFFICIENT_DATA, insufficient, null);
     }
 
-    BigDecimal gap = salaryGapRatio(mvi.wageBaseline().medianGrossSalary(), salary.grossSalary());
+    BigDecimal gap =
+        SalaryGapBucket.ratio(mvi.wageBaseline().medianGrossSalary(), salary.grossSalary());
     if (mvi.value() == null) {
       return evaluateWithoutMvi(gap, MVI_NOT_REFLECTED);
     }
@@ -165,11 +165,5 @@ public class DecisionSignalEngine {
         .filter(SourceCoverage::successful)
         .mapToInt(SourceCoverage::sampleCount)
         .sum();
-  }
-
-  /** $(중앙값 - 연봉) / 연봉$. 사용자 연봉이 기준 중앙값보다 낮을 때 양수다 (기술 명세 §2.1). */
-  private static BigDecimal salaryGapRatio(long medianGrossSalary, long currentGrossSalary) {
-    return BigDecimal.valueOf(medianGrossSalary - currentGrossSalary)
-        .divide(BigDecimal.valueOf(currentGrossSalary), 6, RoundingMode.HALF_UP);
   }
 }

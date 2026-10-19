@@ -400,4 +400,61 @@ describe("VerdictHero", () => {
       expect(screen.getByText("Skill-1")).toBeInTheDocument();
     });
   });
+
+  describe("협상 목표 블록 (US-D7)", () => {
+    const NEGOTIATE = {
+      code: "NEGOTIATE",
+      label: "협상 검토",
+      rulesApplied: ["연봉 격차 5~15% 구간"],
+      rationale: "공식 임금통계 중앙값보다 5~15% 낮습니다.",
+    };
+    const TARGETS = {
+      toWageStatMedian: { raiseRatePercent: 8.2, status: "BELOW" as const },
+      toPeerP75: null,
+      toPurchasingPowerRecovery: null,
+    };
+    const RECOMMENDATIONS = {
+      peerGroup: { appliedConditions: "전국 / 경력 MID" },
+      recommendations: [
+        {
+          standardName: "Docker",
+          category: "DEVOPS",
+          demandRate: 0.18,
+          growthTrend: "STABLE",
+          coOccurrence: null,
+          reason: "동료집단 내 공고의 18.0%에서 요구되는 핵심 스택입니다.",
+        },
+      ],
+    };
+
+    it("규칙 칩 뒤, 처방 블록 앞에 놓인다", () => {
+      renderHero(
+        <VerdictHero
+          signal={NEGOTIATE}
+          history={null}
+          recommendations={RECOMMENDATIONS}
+          negotiationTargets={TARGETS}
+          wageBasis="AGE_BAND_PROXY"
+        />,
+      );
+
+      const rules = screen.getByRole("list", { name: "적용 규칙" });
+      const block = screen.getByLabelText("협상 목표");
+      const prescription = screen.getByTestId("skill-prescription-block");
+      expect(
+        rules.compareDocumentPosition(block) & Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy();
+      expect(
+        block.compareDocumentPosition(prescription) &
+          Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy();
+      expect(within(block).getByText("+8.2%")).toBeInTheDocument();
+    });
+
+    it("협상 목표가 없으면 블록이 없다", () => {
+      renderHero(<VerdictHero signal={NEGOTIATE} history={null} />);
+
+      expect(screen.queryByLabelText("협상 목표")).not.toBeInTheDocument();
+    });
+  });
 });

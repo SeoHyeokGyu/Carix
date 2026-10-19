@@ -79,10 +79,32 @@ export interface DashboardMetadata {
   topPriceDriver?: TopPriceDriver | null;
 }
 
+/** `ABOVE`·`NONE` 이면 `raiseRatePercent` 는 null. `NONE` 은 구매력 복구선 전용(상승분 없음). */
+export type NegotiationTargetStatus = "BELOW" | "ABOVE" | "NONE";
+
+export interface NegotiationTarget {
+  raiseRatePercent: number | null;
+  status: NegotiationTargetStatus;
+}
+
+export interface RecoveryTarget extends NegotiationTarget {
+  /** 누적을 시작한 달(YYYYMM) — 마지막 연봉 변경 달, CPI 수집 전이면 CPI 첫 달. */
+  sinceYearMonth: string;
+}
+
+/** 협상 목표 인상률 셋 (기능 명세 US-D7·§4.8). 비율만 — 목표 금액은 싣지 않는다. */
+export interface NegotiationTargets {
+  toWageStatMedian: NegotiationTarget | null;
+  toPeerP75: NegotiationTarget | null;
+  toPurchasingPowerRecovery: RecoveryTarget | null;
+}
+
 export interface DashboardSummary {
   purchasingPowerIndex: IndexValue;
   marketValueIndex: IndexValue;
   openingWindowIndex: IndexValue;
+  /** `NEGOTIATE`·`SEEK_JOB` 의 가장 최근 달에만. */
+  negotiationTargets?: NegotiationTargets | null;
   decisionSignal: DecisionSignal | null;
   metadata: DashboardMetadata;
 }

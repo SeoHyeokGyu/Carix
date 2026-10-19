@@ -5,6 +5,7 @@ import com.carix.dashboard.dto.DashboardSummaryResponse.DataLimitSource;
 import com.carix.dashboard.dto.DashboardSummaryResponse.DecisionSignal;
 import com.carix.dashboard.dto.DashboardSummaryResponse.ExcludedSkill;
 import com.carix.dashboard.dto.DashboardSummaryResponse.IndexDetail;
+import com.carix.dashboard.dto.DashboardSummaryResponse.NegotiationTargets;
 import com.carix.dashboard.dto.DashboardSummaryResponse.PeerGroup;
 import com.carix.dashboard.dto.DashboardSummaryResponse.PriceDriver;
 import com.carix.dashboard.dto.DashboardSummaryResponse.SummaryMetadata;
@@ -20,8 +21,10 @@ import com.carix.snapshot.domain.SnapshotRationale;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.Comparator;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -41,7 +44,11 @@ public class DashboardSummaryService {
   private static final String DIRECTION_DECREASED = "DECREASED";
   private static final String DIRECTION_FLAT = "FLAT";
 
+  private static final Set<DecisionSignalCode> NEGOTIATION_SIGNALS =
+      EnumSet.of(DecisionSignalCode.NEGOTIATE, DecisionSignalCode.SEEK_JOB);
+
   private final SnapshotQueryService snapshotQueryService;
+  private final NegotiationTargetService negotiationTargetService;
 
   @Transactional(readOnly = true)
   public DashboardSummaryResponse resolve(UUID userId, String baseYearMonth) {
@@ -69,6 +76,7 @@ public class DashboardSummaryService {
             snapshot.getOpeningWindowIndex(),
             previous.map(IndexSnapshot::getOpeningWindowIndex).orElse(null),
             statuses.owi()),
+        negotiationTargets(userId, baseYearMonth, snapshot, months),
         decisionSignal(snapshot),
         metadata(snapshot));
   }
@@ -121,6 +129,26 @@ public class DashboardSummaryService {
       return DIRECTION_INCREASED;
     }
     return change < 0 ? DIRECTION_DECREASED : DIRECTION_FLAT;
+  }
+
+  // --- 협상 목표 (US-D7) ---
+
+  /**
+   * 협상·이직 신호이고 가장 최근 스냅샷 달일 때만. 과거 달은 연봉·CPI 는 그 달인데 임금통계·p75 는 오늘 값이라 시점이 섞인다. 기본 기준월은 벽시계 현재월이고
+   * {@code forMonth} 가 그 달만 찾으므로, 이 조건이 실제로 거르는 것은 과거 달을 명시한 요청이다.
+   */
+  private NegotiationTargets negotiationTargets(
+      UUID userId, String baseYearMonth, IndexSnapshot snapshot, List<IndexSnapshot> months) {
+    if (!NEGOTIATION_SIGNALS.contains(snapshot.getDecisionSignal())
+        || !months.get(0).getBaseYearMonth().equals(baseYearMonth)) {
+      return null;
+    }
+    SnapshotRationale rationale = snapshot.getRationale();
+    return negotiationTargetService.resolve(
+        userId,
+        baseYearMonth,
+        rationale == null ? null : rationale.salaryGapBucket(),
+        rationale == null ? null : rationale.wageStatSource());
   }
 
   // --- 결정 신호 ---
@@ -282,6 +310,7 @@ public class DashboardSummaryService {
         unavailable,
         unavailable,
         unavailable,
+        null,
         new DecisionSignal(
             DecisionSignalCode.INSUFFICIENT_DATA.name(),
             DecisionSignalCode.INSUFFICIENT_DATA.label(),
