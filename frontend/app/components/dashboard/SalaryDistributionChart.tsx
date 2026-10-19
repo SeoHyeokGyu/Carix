@@ -874,12 +874,17 @@ export function SalaryDistributionChart({
       <div className="mt-2 rounded-lg bg-carix-bg/40 p-3.5 text-xs text-carix-text/70 border border-carix-border/60 space-y-1.5">
         <p className="flex items-center gap-1.5">
           <span className="font-semibold text-carix-text">📌 판정 기준선:</span>
-          <span>
-            {baseline?.basis ?? "AGE_BAND_PROXY"} ·{" "}
-            {baseline?.source ?? "UNKNOWN"} (
-            {baseline?.wageDefinition ?? "공식 임금통계"}) — 중앙값{" "}
-            {formatKoreanSalary(baseline?.median)}
-          </span>
+          {baseline ? (
+            <span>
+              {baseline.basis ?? "AGE_BAND_PROXY"} ·{" "}
+              {baseline.source ?? "UNKNOWN"} (
+              {baseline.wageDefinition ?? "공식 임금통계"}) — 중앙값{" "}
+              {formatKoreanSalary(baseline.median)}
+            </span>
+          ) : (
+            // 임금통계에 없는 직무(예: 기타)는 기준선이 없다 — 있는 것처럼 기본값을 채우지 않는다
+            <span>공식 임금통계 기준선 없음</span>
+          )}
         </p>
         <p className="flex items-center gap-1.5">
           <span className="font-semibold text-carix-text">

@@ -336,7 +336,7 @@ public class SalaryDistributionService {
         STATUS_INSUFFICIENT_SAMPLE,
         sampleSize,
         PeerGroupFallbackResolver.MIN_SAMPLE_SIZE,
-        baseline == null ? null : toBaselineDto(baseline),
+        toBaselineDto(baseline),
         postingReference,
         null,
         appliedConditions == null
@@ -346,7 +346,11 @@ public class SalaryDistributionService {
         careerLadder);
   }
 
+  /** 기준선을 못 잡으면 {@code null} — 임금통계에 없는 직무(예: {@code OTHER})는 폴백을 다 거쳐도 없다. */
   private SalaryDistributionResponse.WageBaseline toBaselineDto(WageBaseline baseline) {
+    if (baseline == null) {
+      return null;
+    }
     return new SalaryDistributionResponse.WageBaseline(
         "AGE_BAND_PROXY",
         baseline.source() == null ? "UNKNOWN" : baseline.source().name(),
