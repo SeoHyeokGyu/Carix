@@ -322,6 +322,71 @@ class PeerSalaryDistributionResolverTest {
         .findLatestSampledMonth(anyString());
   }
 
+  // --- 중복 묶음 대표 (데이터 아키텍처 §1.4) ---
+
+  private JobPosting grouped(UUID group, UUID id, Long salary, java.time.LocalDate posted) {
+    return JobPosting.builder()
+        .id(id)
+        .region("서울 강남구")
+        .employmentType("FULL_TIME")
+        .salaryMin(salary)
+        .salaryMax(salary)
+        .dedupGroupId(group)
+        .postedStartDate(posted)
+        .build();
+  }
+
+  private PeerSalaryDistribution resolveLevel2(List<JobPosting> candidates) {
+    CareerProfile profile = new CareerProfile(UUID.randomUUID());
+    profile.patch("DEVELOPER", 5, "서울 강남구", "FULL_TIME", "");
+    given(
+            jobPostingRepository.findPeerGroupCandidates(
+                eq("DEVELOPER"), eq("서울 강남구"), eq("FULL_TIME"), isNull(), eq(4), eq(7)))
+        .willReturn(candidates);
+    return resolver.resolve(profile);
+  }
+
+  @Test
+  @DisplayName("중복 묶음 — 연봉을 공개한 공고가 대표다. 비공개 공고가 먼저 와도 그 묶음의 연봉이 표본에 든다")
+  void dedupe_공개연봉_공고가_대표() {
+    UUID group = UUID.randomUUID();
+    List<JobPosting> candidates = new ArrayList<>(createPostings(10, 60_000_000L));
+    candidates.add(0, grouped(group, UUID.randomUUID(), null, java.time.LocalDate.of(2026, 4, 1)));
+    candidates.add(
+        grouped(group, UUID.randomUUID(), 50_000_000L, java.time.LocalDate.of(2026, 5, 1)));
+
+    PeerSalaryDistribution distribution = resolveLevel2(candidates);
+
+    assertThat(distribution.peerSampleSize()).isEqualTo(11);
+    assertThat(distribution.disclosedSalaries()).hasSize(11).contains(50_000_000L);
+  }
+
+  @Test
+  @DisplayName("중복 묶음 — 공개 공고가 여럿이면 게시일이 이른 것, 같으면 id 순. 조회 순서가 바뀌어도 같은 대표다")
+  void dedupe_조회순서와_무관() {
+    UUID group = UUID.randomUUID();
+    UUID smallId = UUID.fromString("00000000-0000-0000-0000-000000000001");
+    UUID largeId = UUID.fromString("00000000-0000-0000-0000-000000000002");
+    List<JobPosting> base = createPostings(10, 60_000_000L);
+    JobPosting later =
+        grouped(group, UUID.randomUUID(), 40_000_000L, java.time.LocalDate.of(2026, 5, 1));
+    JobPosting earlyLargeId =
+        grouped(group, largeId, 80_000_000L, java.time.LocalDate.of(2026, 4, 1));
+    JobPosting earlySmallId =
+        grouped(group, smallId, 70_000_000L, java.time.LocalDate.of(2026, 4, 1));
+
+    List<JobPosting> forward = new ArrayList<>(base);
+    forward.addAll(List.of(later, earlyLargeId, earlySmallId));
+    List<Long> first = resolveLevel2(forward).disclosedSalaries();
+
+    List<JobPosting> backward = new ArrayList<>(forward);
+    java.util.Collections.reverse(backward);
+    List<Long> second = resolveLevel2(backward).disclosedSalaries();
+
+    assertThat(first).contains(70_000_000L).doesNotContain(40_000_000L, 80_000_000L);
+    assertThat(second).isEqualTo(first);
+  }
+
   private JobPosting sampledPosting(String source, String sampledMonth, long salary) {
     return JobPosting.builder()
         .id(UUID.randomUUID())

@@ -252,10 +252,15 @@ public class PeerSalaryDistributionResolver {
         "%s / 경력 %s / %s".formatted(regionLabel, bracketLabel, companySizeLabel(companySize)));
   }
 
-  /** {@code dedup_group_id} 당 대표 1건만 남긴다 (collector 와 같은 규약 — 먼저 만난 행이 대표다). */
+  /**
+   * {@code dedup_group_id} 당 대표 1건만 남긴다 — 대표는 {@link JobPosting#REPRESENTATIVE_ORDER} 의 첫
+   * 행(collector 와 같은 규약).
+   */
   private List<JobPosting> dedupe(List<JobPosting> postings) {
     Map<UUID, JobPosting> byGroup = new LinkedHashMap<>();
-    for (JobPosting posting : postings) {
+    List<JobPosting> ordered = new ArrayList<>(postings);
+    ordered.sort(JobPosting.REPRESENTATIVE_ORDER);
+    for (JobPosting posting : ordered) {
       byGroup.putIfAbsent(posting.dedupKey(), posting);
     }
     return new ArrayList<>(byGroup.values());
