@@ -155,6 +155,35 @@ describe("SalaryDistributionChart", () => {
     expect(screen.getByText(/AGE_BAND_PROXY · KOSIS/)).toBeInTheDocument();
   });
 
+  it("임금통계 기준선이 없으면 각주가 기준선을 지어내지 않는다", () => {
+    const mockData: SalaryDistributionResponse = {
+      status: "OK",
+      sampleSize: 12,
+      baseline: null,
+      postingReference: {
+        min: 40_000_000,
+        p25: 52_000_000,
+        median: 68_000_000,
+        p75: 85_000_000,
+        max: 120_000_000,
+        sampleSize: 12,
+        missingRate: 0,
+      },
+      userPosition: null,
+      peerGroup: {
+        fallbackLevel: 1,
+        appliedConditions: "전국 / 경력 4~7년(MID) / 회사규모 무관",
+      },
+      trend: [],
+      careerLadder: null,
+    };
+
+    render(<SalaryDistributionChart data={mockData} />);
+
+    expect(screen.getByText("공식 임금통계 기준선 없음")).toBeInTheDocument();
+    expect(screen.queryByText(/UNKNOWN/)).not.toBeInTheDocument();
+  });
+
   it("공고 표본은 충족하지만 공개된 연봉이 0건일 때 왜곡된 0원 차트 대신 안내 화면을 표시한다", () => {
     const noDisclosedSalaryData: SalaryDistributionResponse = {
       status: "OK",

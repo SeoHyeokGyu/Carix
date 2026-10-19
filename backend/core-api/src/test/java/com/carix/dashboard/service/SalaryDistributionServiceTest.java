@@ -191,6 +191,23 @@ class SalaryDistributionServiceTest {
   }
 
   @Test
+  @DisplayName("표본이 충분해도 임금통계 기준선이 없으면 기준선만 null 이고 분포는 낸다")
+  void 정상_기준선없음() {
+    List<JobPosting> candidates = new ArrayList<>();
+    for (long salary : new long[] {30, 40, 50, 60, 70, 80, 90, 100, 110, 120}) {
+      candidates.add(posting(UUID.randomUUID(), null, salary * 1_000_000L, salary * 1_000_000L));
+    }
+    givenCandidates(candidates);
+    given(wageBaselineResolver.resolveBaseline(any(CareerProfile.class))).willReturn(null);
+
+    SalaryDistributionResponse response = service.resolve(USER_ID, BASE_YM);
+
+    assertThat(response.status()).isEqualTo("OK");
+    assertThat(response.baseline()).isNull();
+    assertThat(response.postingReference().median()).isNotNull();
+  }
+
+  @Test
   @DisplayName("표본이 충분하면 유효 공개연봉의 5수치를 계산한다")
   void 정상_5수치() {
     List<JobPosting> candidates = new ArrayList<>();
