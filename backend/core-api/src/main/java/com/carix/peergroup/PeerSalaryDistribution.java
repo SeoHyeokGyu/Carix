@@ -60,6 +60,20 @@ public record PeerSalaryDistribution(
     return disclosedSalaries.size() >= PeerGroupFallbackResolver.MIN_SAMPLE_SIZE;
   }
 
+  /**
+   * 공개연봉 75백분위(nearest-rank). 비면 {@code null}.
+   *
+   * <p>연봉 분포 화면 {@code postingReference.p75} 와 같은 식이어야 한다 — 협상 목표(c8)의 「동료집단 상위 25%」가 같은 화면의 p75 와
+   * 어긋나지 않게. 그 식은 B 소유 {@code SalaryDistributionService#buildReference} 에 있고, 일치는 테스트가 고정한다.
+   */
+  public Long p75() {
+    if (disclosedSalaries.isEmpty()) {
+      return null;
+    }
+    int n = disclosedSalaries.size();
+    return disclosedSalaries.get(Math.min(n - 1, (int) Math.floor(n * 0.75)));
+  }
+
   /** 연봉이 공개된 공고 수. 백분위는 이 표본 위에서 매겨진다. */
   public int disclosedSampleSize() {
     return disclosedSalaries.size();

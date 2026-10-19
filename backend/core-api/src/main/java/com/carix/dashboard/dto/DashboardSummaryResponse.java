@@ -85,6 +85,25 @@ public record DashboardSummaryResponse(
 
   public record ExcludedSkill(String skill, String reason) {}
 
+  /**
+   * 협상 목표 인상률 셋 (기능 명세 US-D7·§4.8). 비율만 싣는다 — 목표 금액은 같은 응답의 기준선과 조인하면 연봉이 복원돼 싣지 않고, 어디에도 저장하지 않는다.
+   * 항목 {@code null} 은 근거 없음이다.
+   */
+  public record NegotiationTargets(
+      @Schema(nullable = true) Target toWageStatMedian,
+      @Schema(nullable = true) Target toPeerP75,
+      @Schema(nullable = true) RecoveryTarget toPurchasingPowerRecovery) {}
+
+  public record Target(
+      @Schema(example = "20.0", nullable = true) Double raiseRatePercent,
+      @Schema(allowableValues = {"BELOW", "ABOVE"}) String status) {}
+
+  /** 마지막 연봉 변경 이후 개인물가 상승분. {@code NONE} 은 상승분이 없다는 뜻이다. */
+  public record RecoveryTarget(
+      @Schema(example = "4.3", nullable = true) Double raiseRatePercent,
+      @Schema(allowableValues = {"BELOW", "NONE"}) String status,
+      @Schema(description = "실제로 누적을 시작한 달", example = "202503") String sinceYearMonth) {}
+
   public record WageStatInfo(
       @Schema(example = "ANNUAL_GROSS_MEDIAN") String wageDefinition,
       @Schema(example = "202606") String statVintage,

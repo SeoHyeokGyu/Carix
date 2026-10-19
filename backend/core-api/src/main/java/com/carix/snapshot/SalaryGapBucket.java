@@ -1,6 +1,7 @@
 package com.carix.snapshot;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 
 /**
  * 소득 격차 비율의 저장 구간 (기술 명세 §1.3).
@@ -60,5 +61,14 @@ public enum SalaryGapBucket {
       return BELOW_MARKET_5_TO_15;
     }
     return salaryGapRatio.compareTo(STAY_LOWER) > 0 ? NEAR_MARKET : ABOVE_MARKET_5_PLUS;
+  }
+
+  /**
+   * $(중앙값 - 연봉) / 연봉$. 사용자 연봉이 기준 중앙값보다 낮을 때 양수다 (기술 명세 §2.1). 중앙값까지의 필요 인상률과 같은 값이라 협상 목표(c8)도 이
+   * 식을 쓴다. <b>저장하지 않는다</b> — 위 클래스 주석의 복원 경로.
+   */
+  public static BigDecimal ratio(long medianGrossSalary, long currentGrossSalary) {
+    return BigDecimal.valueOf(medianGrossSalary - currentGrossSalary)
+        .divide(BigDecimal.valueOf(currentGrossSalary), 6, RoundingMode.HALF_UP);
   }
 }
