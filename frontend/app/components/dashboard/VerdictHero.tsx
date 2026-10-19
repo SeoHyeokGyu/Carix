@@ -7,12 +7,16 @@ import { Card } from "@/components/ui/card";
 import { TextLink } from "@/components/ui/text-link";
 import { type Tone, ToneBadge } from "@/components/ui/tone-badge";
 
-import type { DecisionSignal } from "../../lib/api/dashboard";
+import type {
+  DecisionSignal,
+  NegotiationTargets,
+} from "../../lib/api/dashboard";
 import type { SnapshotPoint } from "../../lib/dashboardMarketApi";
 import { resolveDecisionSignal } from "../../lib/decisionSignal";
 import type { SkillRecommendationsResponse } from "../../lib/skillApi";
 import { countSignalStreak } from "../../lib/verdict";
 import { DecisionSignalHelp } from "./IndexHelp";
+import { NegotiationTargetsBlock } from "./NegotiationTargetsBlock";
 import { SignalBadge } from "./SignalBadge";
 
 /** 점이 이보다 많으면 점은 여기서 멈추고 숫자가 나머지를 말한다. */
@@ -35,6 +39,9 @@ interface VerdictHeroProps {
   signal: DecisionSignal | null;
   history: readonly SnapshotPoint[] | null;
   recommendations?: SkillRecommendationsResponse | null;
+  negotiationTargets?: NegotiationTargets | null;
+  /** 임금통계 기준선 성격(`metadata.wageStat.basis`). 협상 목표 임금통계 줄에 붙는다. */
+  wageBasis?: string | null;
 }
 
 /**
@@ -45,6 +52,8 @@ export function VerdictHero({
   signal,
   history,
   recommendations,
+  negotiationTargets,
+  wageBasis,
 }: VerdictHeroProps) {
   const view = resolveDecisionSignal(signal?.code ?? "", signal?.label);
   const title = view.description ?? view.label;
@@ -74,6 +83,13 @@ export function VerdictHero({
                 </li>
               ))}
             </ul>
+          )}
+          {signal && (
+            <NegotiationTargetsBlock
+              signalCode={signal.code}
+              targets={negotiationTargets}
+              wageBasis={wageBasis}
+            />
           )}
           {signal && (
             <SkillPrescriptionBlock

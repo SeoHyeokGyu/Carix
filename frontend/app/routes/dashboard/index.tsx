@@ -233,6 +233,8 @@ export default function DashboardHome() {
             signal={data.decisionSignal}
             history={history}
             recommendations={recommendations}
+            negotiationTargets={data.negotiationTargets}
+            wageBasis={data.metadata.wageStat?.basis}
           />
 
           <PageSection title="이 판정을 만든 지표">
