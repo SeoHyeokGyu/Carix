@@ -64,9 +64,11 @@ describe("S-07 소비 화면", () => {
 
     renderScreen();
 
-    expect(await screen.findByLabelText(/주거·공공요금/)).toHaveValue(750_000);
-    expect(screen.getByLabelText(/식비/)).toHaveValue(250_000);
-    expect(screen.getByLabelText(/교통/)).toHaveValue(null);
+    expect(await screen.findByLabelText(/주거·공공요금/)).toHaveValue(
+      "750,000",
+    );
+    expect(screen.getByLabelText(/식비/)).toHaveValue("250,000");
+    expect(screen.getByLabelText(/교통/)).toHaveValue("");
   });
 
   // 브리프 2 — status: DEFAULT_CPI 인 카테고리에 뱃지가 붙는다.
@@ -118,8 +120,10 @@ describe("S-07 소비 화면", () => {
     renderScreen();
     const user = userEvent.setup();
 
-    expect(await screen.findByLabelText(/주거·공공요금/)).toHaveValue(750_000);
-    expect(screen.getByLabelText(/교통/)).toHaveValue(null);
+    expect(await screen.findByLabelText(/주거·공공요금/)).toHaveValue(
+      "750,000",
+    );
+    expect(screen.getByLabelText(/교통/)).toHaveValue("");
 
     await user.click(screen.getByRole("button", { name: "다음" }));
 
@@ -226,8 +230,12 @@ describe("S-07 소비 화면", () => {
     // 제출된 항목, items.0)에는 붙지 않아야 한다 — 텍스트 존재만으로는 어느
     // 필드에 붙었는지 구분되지 않으므로 aria-describedby 로 필드 착지 자체를
     // 확인한다.
-    expect(transportInput).toHaveAttribute("aria-describedby", errorText.id);
-    expect(foodInput).not.toHaveAttribute("aria-describedby", errorText.id);
+    expect(transportInput.getAttribute("aria-describedby")).toContain(
+      errorText.id,
+    );
+    expect(foodInput.getAttribute("aria-describedby") ?? "").not.toContain(
+      errorText.id,
+    );
     expect(put).not.toHaveBeenCalled();
   });
 
@@ -402,6 +410,6 @@ describe("S-07 소비 화면", () => {
     // 이 오류가 특정 필드가 아니라 폼 전체(_form) 배너로 착지했다는 뜻이다
     // (income.test.tsx 와 같은 패턴 — 텍스트만으로는 착지 위치가 구분되지 않는다).
     expect(banner).not.toHaveAttribute("id");
-    expect(screen.getByLabelText(/주거·공공요금/)).toHaveValue(750_000);
+    expect(screen.getByLabelText(/주거·공공요금/)).toHaveValue("750,000");
   });
 });

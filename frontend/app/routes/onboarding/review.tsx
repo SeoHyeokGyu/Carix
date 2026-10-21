@@ -33,6 +33,7 @@ import { getProfile, type ProfileResponse } from "../../lib/api/profile";
 import { toUserMessage } from "../../lib/apiError";
 import { UnauthorizedError } from "../../lib/coreApi";
 import type { FieldErrors } from "../../lib/fieldErrors";
+import { formatKoreanSalary } from "../../lib/koreanSalary";
 import { advanceOnboarding, resetOnboarding } from "../../lib/onboardingApi";
 import { LOGIN_PATH } from "../../lib/routeGuards";
 import { EXPENSE_CATEGORIES } from "../../lib/schemas/expense";
@@ -359,7 +360,7 @@ export default function Review() {
           <CardContent>
             <p>
               {latestIncome
-                ? `세전 연봉 ${latestIncome.grossSalary.toLocaleString()}원 · 월 실수령액 ${latestIncome.netSalary.toLocaleString()}원`
+                ? `세전 연봉 ${formatKoreanSalary(latestIncome.grossSalary)} · 월 실수령액 ${formatKoreanSalary(latestIncome.netSalary)}`
                 : "입력 필요"}
             </p>
           </CardContent>

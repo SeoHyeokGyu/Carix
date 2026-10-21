@@ -19,6 +19,11 @@ import { ExpenseDonut } from "../../components/expense/ExpenseDonut";
 import { Field } from "../../components/onboarding/Field";
 import { onboardingStepLabel } from "../../components/onboarding/StepIndicator";
 import {
+  formatAmountInput,
+  parseAmountInput,
+  withPlainAmounts,
+} from "../../lib/amountInput";
+import {
   type ExpenseItemStatus,
   listExpenses,
   putExpenses,
@@ -29,6 +34,7 @@ import { UnauthorizedError } from "../../lib/coreApi";
 import { type FieldErrors, toFieldErrors } from "../../lib/fieldErrors";
 import { focusFirstInvalidField } from "../../lib/focusFirstInvalidField";
 import { formDataToObject } from "../../lib/formData";
+import { formatKoreanSalary } from "../../lib/koreanSalary";
 import { advanceOnboarding } from "../../lib/onboardingApi";
 import { isForwardStep, LOGIN_PATH } from "../../lib/routeGuards";
 import {
@@ -67,8 +73,7 @@ function buildItemIndex(
   const index: Record<string, number> = {};
   let cursor = 0;
   for (const category of EXPENSE_CATEGORIES) {
-    const raw = values[category.value];
-    if (typeof raw === "string" && raw !== "" && Number.isFinite(Number(raw))) {
+    if (parseAmountInput(values[category.value] ?? "") !== null) {
       index[category.value] = cursor;
       cursor += 1;
     }
@@ -99,7 +104,7 @@ export async function clientLoader() {
       statuses[item.category] = item.status;
       savedAmounts[item.category] = item.amount;
       if (item.status === "USER_DEFINED") {
-        amounts[item.category] = String(item.amount);
+        amounts[item.category] = formatAmountInput(String(item.amount));
       }
     }
 
@@ -128,7 +133,8 @@ export async function clientAction({ request }: { request: Request }) {
   // 빈 칸은 formDataToObject 가 이미 키를 만들지 않는다(FIX 5, formData.ts) —
   // 여기서 카테고리 고정 순서로 훑으며 "실제로 값이 있는" 카테고리만 items 로
   // 옮긴다. 명시적 "0" 은 유효한 값(진짜 지출 없음)이라 남고, 빈 문자열만 빠진다.
-  const raw = formDataToObject(formData, {
+  const categoryNames = EXPENSE_CATEGORIES.map((category) => category.value);
+  const raw = formDataToObject(withPlainAmounts(formData, categoryNames), {
     numeric: EXPENSE_CATEGORIES.map((category) => category.value),
   });
   const items = EXPENSE_CATEGORIES.filter(
@@ -201,7 +207,8 @@ export default function Expense() {
   // 실수령액 경고는 "지금 저장하면 무엇이 나갈지"만 본다 — 입력칸에 없는(서버가
   // 보간한) 값은 사용자가 지금 선언하는 지출이 아니므로 합계에 넣지 않는다.
   const enteredTotal = EXPENSE_CATEGORIES.reduce(
-    (sum, category) => sum + (Number(amounts[category.value]) || 0),
+    (sum, category) =>
+      sum + (parseAmountInput(amounts[category.value] ?? "") ?? 0),
     0,
   );
   const overBudget = takeHome != null && enteredTotal > takeHome;
@@ -212,13 +219,9 @@ export default function Expense() {
   // 제출하는 자리는 다른 문제다). 그 대체값은 estimated 로 표시해 실제
   // 입력값과 구분한다(프로젝트 공통 규칙 — 색만으로 구분하지 않는다).
   const donutItems = EXPENSE_CATEGORIES.map((category) => {
-    const entered = amounts[category.value];
-    if (
-      typeof entered === "string" &&
-      entered !== "" &&
-      Number.isFinite(Number(entered))
-    ) {
-      return { category: category.value, amount: Number(entered) };
+    const entered = parseAmountInput(amounts[category.value] ?? "");
+    if (entered !== null) {
+      return { category: category.value, amount: entered };
     }
     const saved = savedAmounts[category.value];
     return saved === undefined
@@ -245,12 +248,18 @@ export default function Expense() {
                 index !== undefined ? `items.${index}.amount` : undefined;
               const fieldError = errorKey ? errors?.[errorKey] : undefined;
               const status = statuses[category.value];
+              const entered = parseAmountInput(amounts[category.value] ?? "");
 
               return (
                 <Field
                   key={category.value}
                   id={`amount-${category.value}`}
                   label={`${category.label} (원/월)`}
+                  hint={
+                    entered === null
+                      ? undefined
+                      : `= ${formatKoreanSalary(entered)}`
+                  }
                   error={fieldError}
                 >
                   {(aria) => (
@@ -258,13 +267,15 @@ export default function Expense() {
                       <Input
                         {...aria}
                         name={category.value}
-                        type="number"
+                        type="text"
                         inputMode="numeric"
                         value={amounts[category.value] ?? ""}
                         onChange={(event) =>
                           setAmounts((prev) => ({
                             ...prev,
-                            [category.value]: event.target.value,
+                            [category.value]: formatAmountInput(
+                              event.target.value,
+                            ),
                           }))
                         }
                       />
