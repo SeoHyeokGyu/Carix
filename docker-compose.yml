@@ -13,6 +13,16 @@
 #   - 이 compose의 carix-caddy: Carix 애플리케이션 라우팅 (deploy/caddy/Caddyfile)
 # 라우터가 참조하는 항목은 deploy/caddy/router.caddy 에 있다.
 #
+# 앱 컨테이너의 liveness 헬스체크. 이미지(eclipse-temurin:25-jre)에 curl·wget 이 없어 bash 의
+# /dev/tcp 로 직접 요청한다. readiness·DB 가 아니라 liveness 를 보는 이유: DB 장애에 앱을 재시작해도
+# 고쳐지지 않고 재시작만 반복된다. 응답 없는 JVM(커넥션 고갈·데드락)만 잡는 게 목적이다.
+# autoheal=true 라벨은 호스트의 autoheal 컨테이너가 unhealthy 를 재시작하게 한다.
+x-liveness-timing: &liveness-timing
+  interval: 30s
+  timeout: 5s
+  retries: 3
+  start_period: 120s
+
 services:
   carix-caddy:
     image: caddy:2-alpine
@@ -99,6 +109,11 @@ services:
       - eureka
       - core-api
       - auth-service
+    healthcheck:
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/8080 && printf 'GET /actuator/health/liveness HTTP/1.0\\r\\n\\r\\n' >&3 && grep -q '\"status\":\"UP\"' <&3"]
+      <<: *liveness-timing
+    labels:
+      - autoheal=true
     mem_limit: 700m
     logging:
       driver: json-file
@@ -121,6 +136,11 @@ services:
       - postgres
       - config-server
       - eureka
+    healthcheck:
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/8081 && printf 'GET /api/actuator/health/liveness HTTP/1.0\\r\\n\\r\\n' >&3 && grep -q '\"status\":\"UP\"' <&3"]
+      <<: *liveness-timing
+    labels:
+      - autoheal=true
     mem_limit: 1500m
     logging:
       driver: json-file
@@ -147,6 +167,11 @@ services:
       - postgres
       - config-server
       - eureka
+    healthcheck:
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/8082 && printf 'GET /api/actuator/health/liveness HTTP/1.0\\r\\n\\r\\n' >&3 && grep -q '\"status\":\"UP\"' <&3"]
+      <<: *liveness-timing
+    labels:
+      - autoheal=true
     mem_limit: 1500m
     logging:
       driver: json-file
@@ -170,6 +195,10 @@ services:
       - postgres
       - config-server
       - eureka
+    healthcheck:
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/8083 && printf 'GET /actuator/health/liveness HTTP/1.0\\r\\n\\r\\n' >&3 && grep -q '\"status\":\"UP\"' <&3"]
+      <<: *liveness-timing
+    # 수동 백필·재집계가 몇십 분씩 돈다 — 응답이 늦어도 끊지 않도록 autoheal 대상에서 뺀다
     mem_limit: 1000m
     logging:
       driver: json-file

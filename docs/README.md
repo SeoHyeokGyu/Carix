@@ -108,7 +108,7 @@
 | 지출 카테고리 Swagger 문구 | `ExpenseItem` 의 `category` 설명이 `TRANSPORTATION`·`HEALTH`·`OTHER` 를 적고 있는데 정본 `ExpenseCategoryEnum` 은 `TRANSPORT`·`MEDICAL`·`LEISURE` 다 — 세 값 모두 실존하지 않는다. 코드 주석만의 문제라 동작은 멀쩡하고 공개 API 문서만 틀렸다. 소관 A (소비 API) |
 | 광역 지역 죽은 코드 | 동료집단은 지역 차원을 쓰지 않는다 — `PeerGroupFallbackResolver` 가 `region` 을 늘 `ALL` 로 채우고, `market_aggregate`·`wage_stat_observation` 의 지역 값도 전부 `ALL` 이다. 그래서 `extractBroadRegion`(`서울특별시` 형식)은 `WageBaselineResolver` 에서 `광역 → 전국 → ALL` 순으로 헛조회 두 번만 만들고, `formatConditionText` 는 테스트에서만 불린다. 둘을 걷어내고 기준선을 `ALL` 로 바로 조회하면 된다. 소관 B (동료집단) |
 | 임금통계 연도 시계열 | 출처 컬럼(`source`)과 **쓰기 경로가 섰다** — 수집이 연도별로 출처를 기록하고, 실측만 기존 행을 덮으며, 폴백 vintage 를 고정해 벽시계 드리프트를 막았다. 고정 이전에 쌓인 `base_period=2025` 드리프트 72행은 삭제했다([ERD 운영 스키마 적용 이력](specs/erd.md)). 운영 288행(2020~2025 여섯 해)은 재수집으로 전부 `KOSIS` 실측이다. 읽기 경로(`DefaultWageStatSeriesProvider`, `b13`) 및 경력 사다리 연도 축(`b14`)도 완료됐다. 잔여 지표는 내 상승률 vs 시장(`a9`·`c14`), 임금 vs 개인물가(`a10`) — 일정은 [개발 계획 §2](plans/carix-dev-plan.md) |
-| 운영 감시 | 호스트 자원은 여유가 있다. 프로세스가 죽으면 `restart: unless-stopped` 가 살리고, 배포 직후는 배포 헬스체크와 자동 롤백이 본다. 비는 곳은 배포 뒤 살아 있으나 응답하지 않는 상태다 — Carix 컨테이너에 `healthcheck` 가 없고, 호스트의 `autoheal` 은 `autoheal` 라벨이 붙은 컨테이너만 보는데 Carix 에는 라벨이 없다. 디스크 사용률 알림도 미착수다 |
+| 운영 감시 | 호스트 자원은 여유가 있다. 프로세스가 죽으면 `restart: unless-stopped` 가 살리고, 배포 직후는 배포 헬스체크와 자동 롤백이 본다. 배포 뒤 살아 있으나 응답하지 않는 JVM 은 컨테이너 liveness 헬스체크가 잡고, gateway·auth-service·core-api 는 `autoheal=true` 라벨로 호스트의 `autoheal` 이 재시작한다. collector 는 몇십 분 걸리는 수동 백필을 끊지 않도록 헬스체크만 두고 재시작 대상에서 뺐다. 남은 것은 디스크 사용률 알림이다 |
 
 남은 항목들은 서로 순서 제약이 없다. 각자 소관 블록에서 친다.
 
