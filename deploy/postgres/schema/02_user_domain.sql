@@ -51,7 +51,7 @@ CREATE TABLE core.performance_bonus (
     user_id          uuid NOT NULL,
     paid_month       character varying(6) NOT NULL,
     amount_encrypted character varying(512) NOT NULL,
-    created_at       timestamp with time zone NOT NULL DEFAULT now()
+    created_at       timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 COMMENT ON TABLE core.performance_bonus IS
     '성과급 지급 기록. 같은 달에 여러 건을 받을 수 있어 (user_id, paid_month) 에 유일 제약을 두지 않는다.';
