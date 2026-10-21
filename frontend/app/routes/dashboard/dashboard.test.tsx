@@ -164,6 +164,8 @@ describe("대시보드 라우트 및 레이아웃 (Dashboard)", () => {
             effectiveDate: "2026-03-01",
             changeReason: "INITIAL",
             selectedChangeReason: null,
+            bonusIncluded: true,
+            fixedBonusAnnual: null,
           },
         ]);
       });

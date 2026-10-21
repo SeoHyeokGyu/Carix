@@ -3,6 +3,7 @@ import {
   Form,
   redirect,
   useActionData,
+  useLoaderData,
   useNavigation,
   useSubmit,
 } from "react-router";
@@ -21,11 +22,13 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
+import { getProfile, patchProfile } from "../../lib/api/profile";
 import { toUserMessage } from "../../lib/apiError";
 import { deleteAccount, logout, logoutAll } from "../../lib/authApi";
 import { UnauthorizedError } from "../../lib/coreApi";
 import { resetOnboarding } from "../../lib/onboardingApi";
 import { LOGIN_PATH } from "../../lib/routeGuards";
+import { todayLocalDate } from "../../lib/schemas/profile";
 import { requireSession, setSession } from "../../lib/session";
 
 interface ActionData {
@@ -34,9 +37,43 @@ interface ActionData {
   intent?: string;
 }
 
+export async function clientLoader() {
+  try {
+    const profile = await getProfile();
+    return { hireDate: profile.hireDate };
+  } catch (error) {
+    if (error instanceof UnauthorizedError) throw redirect(LOGIN_PATH);
+    // 이 화면의 본업은 세션·계정 관리다 — 입사일 조회 실패가 로그아웃·탈퇴까지 막으면 안 된다.
+    return { hireDate: null };
+  }
+}
+
 export async function clientAction({ request }: { request: Request }) {
   const formData = await request.formData();
   const intent = formData.get("intent");
+
+  if (intent === "save-hire-date") {
+    const hireDate = String(formData.get("hireDate") ?? "").trim();
+    if (!hireDate) {
+      return {
+        error: "입사일을 선택해 주세요.",
+        intent: "save-hire-date",
+      } satisfies ActionData;
+    }
+    try {
+      await patchProfile({ hireDate });
+      return {
+        successMessage: "입사일을 저장했습니다.",
+        intent: "save-hire-date",
+      } satisfies ActionData;
+    } catch (error) {
+      if (error instanceof UnauthorizedError) throw redirect(LOGIN_PATH);
+      return {
+        error: toUserMessage(error),
+        intent: "save-hire-date",
+      } satisfies ActionData;
+    }
+  }
 
   if (intent === "reset-onboarding") {
     try {
@@ -124,7 +161,16 @@ function useSafeNavigation() {
   }
 }
 
+function useSafeLoaderData() {
+  try {
+    return useLoaderData<typeof clientLoader>();
+  } catch {
+    return undefined;
+  }
+}
+
 export default function MypageProfile() {
+  const loaderData = useSafeLoaderData();
   const actionData = useSafeActionData<typeof clientAction>();
   const navigation = useSafeNavigation();
   const isSubmitting =
@@ -160,6 +206,56 @@ export default function MypageProfile() {
       )}
 
       <div className="mt-8 flex flex-col gap-8">
+        {/* 0. 입사일 — 퇴직금 경계 경고와 성과급 범위 계산에 쓴다 */}
+        <Card data-page-section="">
+          <CardHeader>
+            <CardTitle as="h2">입사일</CardTitle>
+            <CardDescription>
+              현 직장 입사일을 기록하면 퇴직금 경계 경고와 성과급 범위 계산에
+              쓰입니다.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Form method="post" className="flex flex-col gap-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="hire-date" className="text-xs font-semibold">
+                  입사일
+                </Label>
+                <Input
+                  id="hire-date"
+                  name="hireDate"
+                  type="date"
+                  max={todayLocalDate()}
+                  defaultValue={loaderData?.hireDate ?? ""}
+                  key={loaderData?.hireDate ?? "none"}
+                  disabled={isSubmitting}
+                />
+              </div>
+              {actionData?.intent === "save-hire-date" && actionData.error && (
+                <p role="alert" className="text-sm text-carix-danger">
+                  {actionData.error}
+                </p>
+              )}
+              {actionData?.intent === "save-hire-date" &&
+                actionData.successMessage && (
+                  <p role="status" className="text-sm text-carix-text/80">
+                    {actionData.successMessage}
+                  </p>
+                )}
+              <div>
+                <Button
+                  type="submit"
+                  name="intent"
+                  value="save-hire-date"
+                  disabled={isSubmitting}
+                >
+                  입사일 저장
+                </Button>
+              </div>
+            </Form>
+          </CardContent>
+        </Card>
+
         {/* 1. 세션 관리 카드 (US-C1) */}
         <Card data-page-section="">
           <CardHeader>

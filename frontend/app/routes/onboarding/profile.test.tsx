@@ -49,6 +49,7 @@ describe("S-05 프로필 화면", () => {
       region: "부산",
       employmentType: "CONTRACT",
       companySize: null,
+      hireDate: null,
     });
 
     renderScreen();
@@ -67,6 +68,7 @@ describe("S-05 프로필 화면", () => {
       region: null,
       employmentType: null,
       companySize: null,
+      hireDate: null,
     });
     const patch = vi.spyOn(profileApi, "patchProfile").mockResolvedValue({
       jobFamily: "DEVELOPER",
@@ -74,6 +76,7 @@ describe("S-05 프로필 화면", () => {
       region: "서울",
       employmentType: "FULL_TIME",
       companySize: null,
+      hireDate: null,
     });
     const advance = vi
       .spyOn(onboardingApi, "advanceOnboarding")
@@ -111,6 +114,7 @@ describe("S-05 프로필 화면", () => {
       region: null,
       employmentType: null,
       companySize: null,
+      hireDate: null,
     });
     const patch = vi.spyOn(profileApi, "patchProfile");
 
@@ -152,6 +156,7 @@ describe("S-05 프로필 화면", () => {
       region: null,
       employmentType: null,
       companySize: null,
+      hireDate: null,
     });
     vi.spyOn(profileApi, "patchProfile").mockResolvedValue({
       jobFamily: "DEVELOPER",
@@ -159,6 +164,7 @@ describe("S-05 프로필 화면", () => {
       region: "서울",
       employmentType: "FULL_TIME",
       companySize: null,
+      hireDate: null,
     });
     vi.spyOn(onboardingApi, "advanceOnboarding").mockResolvedValue({
       currentStep: "INCOME",
@@ -207,6 +213,7 @@ describe("S-05 프로필 화면", () => {
       region: "서울",
       employmentType: "FULL_TIME",
       companySize: null,
+      hireDate: null,
     });
     const patch = vi.spyOn(profileApi, "patchProfile").mockResolvedValue({
       jobFamily: "DEVELOPER",
@@ -214,6 +221,7 @@ describe("S-05 프로필 화면", () => {
       region: "서울",
       employmentType: "FULL_TIME",
       companySize: null,
+      hireDate: null,
     });
     // 성공값을 준다 — 목킹 없이 두면 가드가 사라졌을 때 이 스파이가 실제
     // advanceOnboarding(진짜 fetch)로 새 나가 요청이 걸린 채 타임아웃으로
@@ -253,6 +261,7 @@ describe("S-05 프로필 화면", () => {
       region: "서울",
       employmentType: "FULL_TIME",
       companySize: null,
+      hireDate: null,
     });
     const patch = vi.spyOn(profileApi, "patchProfile").mockResolvedValue({
       jobFamily: "DEVELOPER",
@@ -260,6 +269,7 @@ describe("S-05 프로필 화면", () => {
       region: "서울",
       employmentType: "FULL_TIME",
       companySize: null,
+      hireDate: null,
     });
     vi.spyOn(onboardingApi, "advanceOnboarding").mockResolvedValue({
       currentStep: "INCOME",
@@ -283,6 +293,7 @@ describe("S-05 프로필 화면", () => {
       region: null,
       employmentType: null,
       companySize: null,
+      hireDate: null,
     });
     const patch = vi.spyOn(profileApi, "patchProfile").mockResolvedValue({
       jobFamily: "DEVELOPER",
@@ -290,6 +301,7 @@ describe("S-05 프로필 화면", () => {
       region: null,
       employmentType: null,
       companySize: null,
+      hireDate: null,
     });
     const advance = vi.spyOn(onboardingApi, "advanceOnboarding");
 
@@ -321,6 +333,7 @@ describe("S-05 프로필 화면", () => {
       region: null,
       employmentType: null,
       companySize: null,
+      hireDate: null,
     });
     vi.spyOn(profileApi, "patchProfile").mockResolvedValue({
       jobFamily: "DEVELOPER",
@@ -328,6 +341,7 @@ describe("S-05 프로필 화면", () => {
       region: null,
       employmentType: null,
       companySize: null,
+      hireDate: null,
     });
 
     renderScreen();
@@ -358,6 +372,7 @@ describe("S-05 프로필 화면", () => {
       region: null,
       employmentType: null,
       companySize: null,
+      hireDate: null,
     });
     vi.spyOn(profileApi, "patchProfile").mockResolvedValue({
       jobFamily: "DEVELOPER",
@@ -365,6 +380,7 @@ describe("S-05 프로필 화면", () => {
       region: "서울",
       employmentType: "FULL_TIME",
       companySize: null,
+      hireDate: null,
     });
     const advance = vi
       .spyOn(onboardingApi, "advanceOnboarding")
@@ -396,6 +412,7 @@ describe("S-05 프로필 화면", () => {
       region: null,
       employmentType: null,
       companySize: null,
+      hireDate: null,
     });
 
     renderScreen();
@@ -429,6 +446,7 @@ describe("S-05 프로필 화면", () => {
       region: null,
       employmentType: null,
       companySize: null,
+      hireDate: null,
     });
     vi.spyOn(profileApi, "patchProfile").mockRejectedValue(
       new UnauthorizedError(),
@@ -459,6 +477,7 @@ describe("S-05 프로필 화면", () => {
       region: null,
       employmentType: null,
       companySize: null,
+      hireDate: null,
     });
     const patch = vi.spyOn(profileApi, "patchProfile").mockRejectedValue({
       code: "SERVER_ERROR",

@@ -50,6 +50,8 @@ describe("S-06 소득 화면", () => {
         effectiveDate: "2023-01-01",
         changeReason: "INITIAL",
         selectedChangeReason: null,
+        bonusIncluded: true,
+        fixedBonusAnnual: null,
       },
       {
         id: "i-2",
@@ -58,6 +60,8 @@ describe("S-06 소득 화면", () => {
         effectiveDate: "2024-01-01",
         changeReason: "RAISE",
         selectedChangeReason: "RAISE",
+        bonusIncluded: true,
+        fixedBonusAnnual: null,
       },
     ]);
 
@@ -80,6 +84,8 @@ describe("S-06 소득 화면", () => {
           effectiveDate: "2024-01-01",
           changeReason: "INITIAL",
           selectedChangeReason: null,
+          bonusIncluded: true,
+          fixedBonusAnnual: null,
         },
       ]);
     const create = vi.spyOn(incomeApi, "createIncome").mockResolvedValue({
@@ -89,6 +95,8 @@ describe("S-06 소득 화면", () => {
       effectiveDate: "2024-01-01",
       changeReason: null,
       selectedChangeReason: null,
+      bonusIncluded: true,
+      fixedBonusAnnual: null,
     });
 
     renderScreen();
@@ -116,6 +124,8 @@ describe("S-06 소득 화면", () => {
         effectiveDate: "2024-01-01",
         changeReason: "INITIAL",
         selectedChangeReason: null,
+        bonusIncluded: true,
+        fixedBonusAnnual: null,
       },
     ]);
     vi.spyOn(incomeApi, "createIncome").mockRejectedValue({
@@ -162,6 +172,8 @@ describe("S-06 소득 화면", () => {
         effectiveDate: "2024-01-01",
         changeReason: "INITIAL",
         selectedChangeReason: null,
+        bonusIncluded: true,
+        fixedBonusAnnual: null,
       },
     ]);
     const advance = vi
@@ -222,6 +234,8 @@ describe("S-06 소득 화면", () => {
         effectiveDate: "2024-01-01",
         changeReason: "INITIAL",
         selectedChangeReason: null,
+        bonusIncluded: true,
+        fixedBonusAnnual: null,
       },
     ]);
     vi.spyOn(onboardingApi, "advanceOnboarding").mockResolvedValue({
@@ -249,6 +263,8 @@ describe("S-06 소득 화면", () => {
         effectiveDate: "2024-01-01",
         changeReason: "INITIAL",
         selectedChangeReason: null,
+        bonusIncluded: true,
+        fixedBonusAnnual: null,
       },
     ]);
     vi.spyOn(onboardingApi, "advanceOnboarding").mockResolvedValue({
@@ -292,6 +308,8 @@ describe("S-06 소득 화면", () => {
         effectiveDate: "2024-01-01",
         changeReason: "INITIAL",
         selectedChangeReason: null,
+        bonusIncluded: true,
+        fixedBonusAnnual: null,
       },
     ]);
     const advance = vi.spyOn(onboardingApi, "advanceOnboarding");
@@ -322,6 +340,8 @@ describe("S-06 소득 화면", () => {
           effectiveDate: "2024-01-01",
           changeReason: "INITIAL",
           selectedChangeReason: null,
+          bonusIncluded: true,
+          fixedBonusAnnual: null,
         },
       ])
       .mockResolvedValueOnce([]);
@@ -347,6 +367,8 @@ describe("S-06 소득 화면", () => {
           effectiveDate: "2024-01-01",
           changeReason: "INITIAL",
           selectedChangeReason: null,
+          bonusIncluded: true,
+          fixedBonusAnnual: null,
         },
       ])
       .mockResolvedValueOnce([
@@ -357,6 +379,8 @@ describe("S-06 소득 화면", () => {
           effectiveDate: "2024-01-01",
           changeReason: "INITIAL",
           selectedChangeReason: null,
+          bonusIncluded: true,
+          fixedBonusAnnual: null,
         },
       ]);
     const update = vi.spyOn(incomeApi, "updateIncome").mockResolvedValue({
@@ -366,6 +390,8 @@ describe("S-06 소득 화면", () => {
       effectiveDate: "2024-01-01",
       changeReason: null,
       selectedChangeReason: null,
+      bonusIncluded: true,
+      fixedBonusAnnual: null,
     });
 
     renderScreen();
@@ -408,6 +434,8 @@ describe("S-06 소득 화면", () => {
           effectiveDate: "2024-01-01",
           changeReason: "INITIAL",
           selectedChangeReason: null,
+          bonusIncluded: true,
+          fixedBonusAnnual: null,
         },
       ])
       .mockResolvedValueOnce([
@@ -418,6 +446,8 @@ describe("S-06 소득 화면", () => {
           effectiveDate: "2024-01-01",
           changeReason: "INITIAL",
           selectedChangeReason: null,
+          bonusIncluded: true,
+          fixedBonusAnnual: null,
         },
       ])
       .mockResolvedValueOnce([]);
@@ -428,6 +458,8 @@ describe("S-06 소득 화면", () => {
       effectiveDate: "2024-01-01",
       changeReason: null,
       selectedChangeReason: null,
+      bonusIncluded: true,
+      fixedBonusAnnual: null,
     });
     const del = vi.spyOn(incomeApi, "deleteIncome").mockResolvedValue(null);
 
@@ -466,6 +498,8 @@ describe("S-06 소득 화면", () => {
         effectiveDate: "2024-01-01",
         changeReason: "INITIAL",
         selectedChangeReason: null,
+        bonusIncluded: true,
+        fixedBonusAnnual: null,
       },
     ]);
     const update = vi.spyOn(incomeApi, "updateIncome").mockRejectedValue({
@@ -565,6 +599,8 @@ describe("S-06 소득 화면", () => {
         effectiveDate: "2024-01-01",
         changeReason: "INITIAL",
         selectedChangeReason: null,
+        bonusIncluded: true,
+        fixedBonusAnnual: null,
       },
     ]);
     vi.spyOn(incomeApi, "deleteIncome").mockRejectedValue({
@@ -608,6 +644,8 @@ describe("S-06 소득 화면", () => {
         effectiveDate: "2023-01-01",
         changeReason: "INITIAL",
         selectedChangeReason: null,
+        bonusIncluded: true,
+        fixedBonusAnnual: null,
       },
     ]);
     const create = vi.spyOn(incomeApi, "createIncome").mockResolvedValue({
@@ -617,6 +655,8 @@ describe("S-06 소득 화면", () => {
       effectiveDate: "2024-01-01",
       changeReason: "RAISE",
       selectedChangeReason: "RAISE",
+      bonusIncluded: true,
+      fixedBonusAnnual: null,
     });
     renderScreen();
     const user = userEvent.setup();
@@ -649,6 +689,8 @@ describe("S-06 소득 화면", () => {
         effectiveDate: "2023-01-01",
         changeReason: "INITIAL",
         selectedChangeReason: null,
+        bonusIncluded: true,
+        fixedBonusAnnual: null,
       },
     ]);
     const create = vi.spyOn(incomeApi, "createIncome").mockResolvedValue({
@@ -658,6 +700,8 @@ describe("S-06 소득 화면", () => {
       effectiveDate: "2025-01-01",
       changeReason: null,
       selectedChangeReason: null,
+      bonusIncluded: true,
+      fixedBonusAnnual: null,
     });
     renderScreen();
     const user = userEvent.setup();
@@ -689,6 +733,8 @@ describe("S-06 소득 화면", () => {
         effectiveDate: "2023-01-01",
         changeReason: "INITIAL",
         selectedChangeReason: null,
+        bonusIncluded: true,
+        fixedBonusAnnual: null,
       },
     ]);
     const create = vi.spyOn(incomeApi, "createIncome").mockResolvedValue({
@@ -698,6 +744,8 @@ describe("S-06 소득 화면", () => {
       effectiveDate: "2024-06-01",
       changeReason: "JOB_CHANGE",
       selectedChangeReason: "JOB_CHANGE",
+      bonusIncluded: true,
+      fixedBonusAnnual: null,
     });
     renderScreen();
     const user = userEvent.setup();
@@ -746,6 +794,8 @@ describe("S-06 소득 화면", () => {
       effectiveDate: "2023-01-01",
       changeReason: "INITIAL" as const,
       selectedChangeReason: "JOB_CHANGE" as const,
+      bonusIncluded: true,
+      fixedBonusAnnual: null,
     };
     vi.spyOn(incomeApi, "listIncome").mockResolvedValue([row]);
     const update = vi.spyOn(incomeApi, "updateIncome").mockResolvedValue(row);
@@ -774,6 +824,8 @@ describe("S-06 소득 화면", () => {
         effectiveDate: "2023-01-01",
         changeReason: "INITIAL",
         selectedChangeReason: null,
+        bonusIncluded: true,
+        fixedBonusAnnual: null,
       },
     ]);
     renderScreen();
@@ -798,6 +850,8 @@ describe("S-06 소득 화면", () => {
         effectiveDate: "2023-01-01",
         changeReason: "INITIAL",
         selectedChangeReason: "JOB_CHANGE",
+        bonusIncluded: true,
+        fixedBonusAnnual: null,
       },
     ]);
     renderScreen();

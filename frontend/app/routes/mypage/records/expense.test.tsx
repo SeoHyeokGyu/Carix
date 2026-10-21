@@ -64,6 +64,8 @@ describe("소비 탭 (S-12)", () => {
         effectiveDate: "2024-01-01",
         changeReason: "INITIAL",
         selectedChangeReason: null,
+        bonusIncluded: true,
+        fixedBonusAnnual: null,
       },
     ]);
   });
