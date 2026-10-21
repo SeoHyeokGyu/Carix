@@ -9,6 +9,7 @@ import static org.mockito.Mockito.verify;
 
 import com.carix.income.domain.IncomeChangeReasonEnum;
 import com.carix.income.domain.IncomeHistory;
+import com.carix.income.dto.BonusTermsRequest;
 import com.carix.income.dto.IncomeRequest;
 import com.carix.income.dto.IncomeResponse;
 import com.carix.income.exception.DuplicateEffectiveDateException;
@@ -28,12 +29,14 @@ class IncomeServiceTest {
   private static final UUID USER_ID = UUID.randomUUID();
 
   private IncomeHistoryRepository repository;
+  private SnapshotRecalculationService snapshotRecalculationService;
   private IncomeService service;
 
   @BeforeEach
   void setUp() {
     repository = mock(IncomeHistoryRepository.class);
-    service = new IncomeService(repository, mock(SnapshotRecalculationService.class));
+    snapshotRecalculationService = mock(SnapshotRecalculationService.class);
+    service = new IncomeService(repository, snapshotRecalculationService);
   }
 
   @Test
@@ -289,5 +292,113 @@ class IncomeServiceTest {
     assertThat(res.changeReason()).isNull();
     assertThat(res.selectedChangeReason()).isNull();
     assertThat(history.getChangeReason()).isNull();
+  }
+
+  private static IncomeHistory row(LocalDate date) {
+    return new IncomeHistory(USER_ID, 60000000L, 4500000L, date, null);
+  }
+
+  private static IncomeHistory rowWithId(UUID id, LocalDate date) {
+    return IncomeHistory.builder()
+        .id(id)
+        .userId(USER_ID)
+        .grossSalary(60000000L)
+        .netSalary(4500000L)
+        .effectiveDate(date)
+        .build();
+  }
+
+  @Test
+  @DisplayName("updateBonusTerms - applyFrom_이후_행에만_적용된다")
+  void applyFrom_이후_행에만_적용된다() {
+    UUID id2024 = UUID.randomUUID();
+    UUID id2025 = UUID.randomUUID();
+    UUID id2026 = UUID.randomUUID();
+    IncomeHistory r2024 = rowWithId(id2024, LocalDate.of(2024, 3, 1));
+    IncomeHistory r2025 = rowWithId(id2025, LocalDate.of(2025, 3, 1));
+    IncomeHistory r2026 = rowWithId(id2026, LocalDate.of(2026, 3, 1));
+    given(repository.findById(id2025)).willReturn(Optional.of(r2025));
+    given(repository.findByUserIdOrderByEffectiveDateDesc(USER_ID))
+        .willReturn(List.of(r2026, r2025, r2024));
+
+    List<IncomeResponse> res =
+        service.updateBonusTerms(USER_ID, new BonusTermsRequest(id2025, false, 6_000_000L));
+
+    assertThat(r2024.isBonusIncluded()).isTrue();
+    assertThat(r2024.getFixedBonusAnnual()).isNull();
+    assertThat(r2025.isBonusIncluded()).isFalse();
+    assertThat(r2025.getFixedBonusAnnual()).isEqualTo(6_000_000L);
+    assertThat(r2026.isBonusIncluded()).isFalse();
+    assertThat(r2026.getFixedBonusAnnual()).isEqualTo(6_000_000L);
+    assertThat(res).hasSize(3);
+    assertThat(res.get(0).bonusIncluded()).isFalse();
+    assertThat(res.get(0).fixedBonusAnnual()).isEqualTo(6_000_000L);
+    assertThat(res.get(2).bonusIncluded()).isTrue();
+    assertThat(res.get(2).fixedBonusAnnual()).isNull();
+  }
+
+  @Test
+  @DisplayName("updateBonusTerms - 상여_조건_변경은_스냅샷_재계산을_부른다")
+  void 상여_조건_변경은_스냅샷_재계산을_부른다() {
+    UUID id = UUID.randomUUID();
+    IncomeHistory r = rowWithId(id, LocalDate.of(2025, 3, 1));
+    given(repository.findById(id)).willReturn(Optional.of(r));
+    given(repository.findByUserIdOrderByEffectiveDateDesc(USER_ID)).willReturn(List.of(r));
+
+    service.updateBonusTerms(USER_ID, new BonusTermsRequest(id, true, null));
+
+    verify(snapshotRecalculationService).recalculateSnapshot(USER_ID, "202503");
+  }
+
+  @Test
+  @DisplayName("updateBonusTerms - 다른_사용자의_행을_applyFrom으로_주면_404")
+  void 다른_사용자의_행을_applyFrom으로_주면_404() {
+    UUID id = UUID.randomUUID();
+    IncomeHistory other =
+        IncomeHistory.builder()
+            .id(id)
+            .userId(UUID.randomUUID())
+            .grossSalary(1L)
+            .effectiveDate(LocalDate.of(2025, 3, 1))
+            .build();
+    given(repository.findById(id)).willReturn(Optional.of(other));
+
+    assertThatThrownBy(
+            () -> service.updateBonusTerms(USER_ID, new BonusTermsRequest(id, true, null)))
+        .isInstanceOf(IncomeNotFoundException.class);
+  }
+
+  @Test
+  @DisplayName("create - 새_행은_직전_행의_상여_조건을_상속한다")
+  void 새_행은_직전_행의_상여_조건을_상속한다() {
+    LocalDate date = LocalDate.of(2026, 3, 1);
+    IncomeHistory prev = row(LocalDate.of(2025, 3, 1));
+    prev.applyBonusTerms(false, 6_000_000L);
+    given(repository.existsByUserIdAndEffectiveDate(USER_ID, date)).willReturn(false);
+    given(repository.findFirstByUserIdAndEffectiveDateBeforeOrderByEffectiveDateDesc(USER_ID, date))
+        .willReturn(Optional.of(prev));
+    given(repository.save(any(IncomeHistory.class))).willAnswer(i -> i.getArgument(0));
+
+    IncomeResponse res =
+        service.create(USER_ID, new IncomeRequest(65000000L, 4800000L, date, null));
+
+    assertThat(res.bonusIncluded()).isFalse();
+    assertThat(res.fixedBonusAnnual()).isEqualTo(6_000_000L);
+  }
+
+  @Test
+  @DisplayName("create - 직전 행이 없으면 기본값이다")
+  void 직전_행이_없으면_기본값() {
+    LocalDate date = LocalDate.of(2024, 3, 1);
+    given(repository.existsByUserIdAndEffectiveDate(USER_ID, date)).willReturn(false);
+    given(repository.findFirstByUserIdAndEffectiveDateBeforeOrderByEffectiveDateDesc(USER_ID, date))
+        .willReturn(Optional.empty());
+    given(repository.save(any(IncomeHistory.class))).willAnswer(i -> i.getArgument(0));
+
+    IncomeResponse res =
+        service.create(USER_ID, new IncomeRequest(65000000L, 4800000L, date, null));
+
+    assertThat(res.bonusIncluded()).isTrue();
+    assertThat(res.fixedBonusAnnual()).isNull();
   }
 }

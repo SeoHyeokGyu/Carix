@@ -2,6 +2,7 @@ package com.carix.income.service;
 
 import com.carix.income.domain.IncomeChangeReasonEnum;
 import com.carix.income.domain.IncomeHistory;
+import com.carix.income.dto.BonusTermsRequest;
 import com.carix.income.dto.IncomeRequest;
 import com.carix.income.dto.IncomeResponse;
 import com.carix.income.exception.DuplicateEffectiveDateException;
@@ -44,14 +45,20 @@ public class IncomeService {
     if (repository.existsByUserIdAndEffectiveDate(userId, request.effectiveDate())) {
       throw new DuplicateEffectiveDateException(request.effectiveDate());
     }
-    var saved =
-        repository.save(
-            new IncomeHistory(
-                userId,
-                request.grossSalary(),
-                request.netSalary(),
-                request.effectiveDate(),
-                request.changeReason()));
+    var created =
+        new IncomeHistory(
+            userId,
+            request.grossSalary(),
+            request.netSalary(),
+            request.effectiveDate(),
+            request.changeReason());
+    // 상여 조건은 연봉 행부터 이어지는 조건이라 새 행은 바로 앞 행의 것을 물려받는다.
+    repository
+        .findFirstByUserIdAndEffectiveDateBeforeOrderByEffectiveDateDesc(
+            userId, request.effectiveDate())
+        .ifPresent(
+            prev -> created.applyBonusTerms(prev.isBonusIncluded(), prev.getFixedBonusAnnual()));
+    var saved = repository.save(created);
     snapshotRecalculationService.recalculateSnapshot(
         userId, YearMonths.of(request.effectiveDate()));
     return toResponse(saved, isEarliest(userId, request.effectiveDate()));
@@ -79,6 +86,25 @@ public class IncomeService {
         request.changeReason());
     snapshotRecalculationService.recalculateSnapshot(userId, fromYearMonth);
     return toResponse(entity, isEarliestExcluding(userId, request.effectiveDate(), id));
+  }
+
+  /** {@code applyFromIncomeId} 행과 그 유효일 이후의 모든 행에 같은 상여 조건을 쓴다. */
+  @Transactional
+  public List<IncomeResponse> updateBonusTerms(UUID userId, BonusTermsRequest request) {
+    var from =
+        repository
+            .findById(request.applyFromIncomeId())
+            .filter(e -> e.getUserId().equals(userId))
+            .orElseThrow(() -> new IncomeNotFoundException(request.applyFromIncomeId()));
+    boolean bonusIncluded = request.bonusIncluded();
+    // 들어 있음이면 따로 받는 금액이 없다 — 컨트롤러가 막지만 서비스도 null 로 고정한다.
+    Long fixedBonusAnnual = bonusIncluded ? null : request.fixedBonusAnnual();
+    repository.findByUserIdOrderByEffectiveDateDesc(userId).stream()
+        .filter(e -> !e.getEffectiveDate().isBefore(from.getEffectiveDate()))
+        .forEach(e -> e.applyBonusTerms(bonusIncluded, fixedBonusAnnual));
+    snapshotRecalculationService.recalculateSnapshot(
+        userId, YearMonths.of(from.getEffectiveDate()));
+    return getHistory(userId);
   }
 
   @Transactional
@@ -125,6 +151,8 @@ public class IncomeService {
         e.getNetSalary() != null ? e.getNetSalary() : 0L,
         e.getEffectiveDate(),
         isEarliest ? IncomeChangeReasonEnum.INITIAL : e.getChangeReason(),
-        e.getChangeReason());
+        e.getChangeReason(),
+        e.isBonusIncluded(),
+        e.getFixedBonusAnnual());
   }
 }

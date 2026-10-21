@@ -143,7 +143,9 @@
         "netSalary": 4200000,
         "effectiveDate": "2026-01-01",
         "changeReason": "JOB_CHANGE",
-        "selectedChangeReason": "JOB_CHANGE"
+        "selectedChangeReason": "JOB_CHANGE",
+        "bonusIncluded": false,
+        "fixedBonusAnnual": 6000000
       },
       {
         "id": "fa91b5c4-2dfb-402a-bf39-44ef8c91361c",
@@ -151,10 +153,13 @@
         "netSalary": 3900000,
         "effectiveDate": "2025-01-01",
         "changeReason": "INITIAL",
-        "selectedChangeReason": null
+        "selectedChangeReason": null,
+        "bonusIncluded": true,
+        "fixedBonusAnnual": null
       }
     ]
     ```
+*   `bonusIncluded` (Boolean): 연봉 계약 금액에 상여가 들어 있는가. `fixedBonusAnnual` (Long, nullable): 계약 금액 밖에서 따로 받는 고정 상여의 연 금액(원). `bonusIncluded` 가 `true` 면 항상 `null` 이다.
 
 ### 4.2 소득 정보 등록
 *   **Endpoint:** `POST /api/v1/income`
@@ -176,6 +181,23 @@
     *   **`INITIAL` 은 저장값이 아니다.** 컬럼(`income_history.change_reason`)에는 `RAISE`·`JOB_CHANGE`·`null` 만 들어가고, 응답의 `changeReason` 은 그 사용자의 `min(effectiveDate)` 행일 때 서버가 `INITIAL` 을 얹은 표시값이다. 요청에 `INITIAL` 을 실으면 `400 INVALID_INPUT` 이다. 저장하면 사용자가 더 이른 과거 이력을 넣을 때마다 값을 행 사이로 옮겨야 하고, 그 갱신이 이미 그 행에 있던 선택값을 덮는다 ([ERD 스키마 설계 주석](erd.md)).
     *   `selectedChangeReason` (String, 응답 전용): 컬럼 원값 그대로(`RAISE`·`JOB_CHANGE`·`null`). 편집 화면이 이것으로 선택 컨트롤을 채운다. `changeReason` 만 내려주면 `INITIAL` 로 가려진 원값을 폼이 볼 수 없어, `PUT` 이 전체 교체인 탓에 다른 필드만 고쳐 저장해도 사용자가 골랐던 값이 지워진다.
 *   **Response (201 Created):** 등록 완료된 단건 반환
+*   새 행의 `bonusIncluded`·`fixedBonusAnnual` 은 요청으로 받지 않고, `effectiveDate` 바로 앞 행의 값을 물려받는다. 앞 행이 없으면 `true`·`null` 이다. 값은 4.3 으로 바꾼다.
+
+### 4.3 상여 조건 일괄 적용
+*   **Endpoint:** `PUT /api/v1/income/bonus-terms`
+*   **Request Body:**
+    ```json
+    {
+      "applyFromIncomeId": "e812d8a4-0cfb-4a5f-9dfb-12d88c91350a",
+      "bonusIncluded": false,
+      "fixedBonusAnnual": 6000000
+    }
+    ```
+*   **필드 규격:**
+    *   `applyFromIncomeId` (UUID, 필수): 이 행과 그 `effectiveDate` 이후의 모든 행에 적용한다. 이전 행은 바꾸지 않는다. 없거나 다른 사용자의 행이면 `404`.
+    *   `bonusIncluded` (Boolean, 필수): 화면 문구 "연봉 계약 금액에 상여가 들어 있나요?" — "들어 있음" / "따로 받음".
+    *   `fixedBonusAnnual` (Long, 0 이상): `bonusIncluded=false` 이면 필수, `true` 이면 보낼 수 없다. 어긋나면 `400 INVALID_INPUT` 이고 `details.fixedBonusAnnual` 에 사유가 실린다.
+*   **Response (200 OK):** 갱신된 전체 소득 이력(4.1 과 같은 형식). 적용 행의 유효월부터 스냅샷 재계산을 트리거한다.
 
 ---
 
