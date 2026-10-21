@@ -1,5 +1,5 @@
 import { RotateCw } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { redirect, useLoaderData, useRevalidator } from "react-router";
 
 import { PageFrame } from "@/components/layout/PageFrame";
@@ -107,6 +107,11 @@ function isFirstCalculation(data: DashboardSummary): boolean {
   );
 }
 
+/** 첫 계산은 비동기라 끝나도 화면이 모른다 — 이 간격으로 다시 조회한다. */
+export const FIRST_CALCULATION_POLL_MS = 5_000;
+/** 2분을 넘기면 멈추고 새로고침을 안내한다 — 계산이 막힌 채로 끝없이 조회하지 않는다. */
+export const FIRST_CALCULATION_MAX_POLLS = 24;
+
 export default function DashboardHome() {
   const loaderData = useLoaderData<typeof clientLoader>();
   const { summary } = loaderData;
@@ -165,6 +170,17 @@ export default function DashboardHome() {
   const data = recalculatedSummary ?? (summary.ok ? summary.data : lastGood);
   const firstCalculation = data !== null && isFirstCalculation(data);
 
+  const [pollCount, setPollCount] = useState(0);
+  const pollExhausted = pollCount >= FIRST_CALCULATION_MAX_POLLS;
+  useEffect(() => {
+    if (!firstCalculation || pollExhausted) return;
+    const timer = setTimeout(() => {
+      setPollCount((count) => count + 1);
+      revalidator.revalidate();
+    }, FIRST_CALCULATION_POLL_MS);
+    return () => clearTimeout(timer);
+  }, [firstCalculation, pollExhausted, pollCount, revalidator]);
+
   return (
     <PageFrame>
       <PageHeader
@@ -218,11 +234,15 @@ export default function DashboardHome() {
       )}
 
       {data && firstCalculation && (
-        <div className="mt-8 rounded-xl border border-dashed border-carix-border bg-carix-surface p-5 text-sm text-carix-text/70 shadow-xs">
+        <div
+          role="status"
+          className="mt-8 rounded-xl border border-dashed border-carix-border bg-carix-surface p-5 text-sm text-carix-text/70 shadow-xs"
+        >
           <p>첫 지수를 계산하고 있습니다</p>
-          <p className="mt-1 text-carix-text/50">
-            계산이 끝나면 이 화면에 자동으로 표시됩니다. 잠시 후 다시 확인해
-            주세요.
+          <p className="mt-1 text-carix-text/70">
+            {pollExhausted
+              ? "계산이 늦어지고 있습니다. 잠시 뒤 새로고침해 주세요."
+              : "보통 1~2분 걸립니다. 끝나면 이 화면에 바로 표시됩니다."}
           </p>
         </div>
       )}
@@ -255,7 +275,7 @@ export default function DashboardHome() {
               <IndexCard
                 title="시장가치 지수"
                 index={data.marketValueIndex}
-                baselineHint="기준 100: 동료집단 임금 중앙값"
+                baselineHint="기준 100: 이전 12개월 스킬 수요"
                 helpContent={<MarketValueHelp />}
                 detailHref="/dashboard/skills"
                 footer={history && <MarketValueTrend history={history} />}

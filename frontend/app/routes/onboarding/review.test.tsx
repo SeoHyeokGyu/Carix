@@ -227,7 +227,7 @@ describe("S-09 검토 화면", () => {
       await screen.findByText(/개발.*경력 5년.*서울.*정규직/),
     ).toBeInTheDocument();
     expect(
-      screen.getByText(/세전 연봉 65,000,000원.*월 실수령액 4,200,000원/),
+      screen.getByText(/세전 연봉 6,500만 원.*월 실수령액 420만 원/),
     ).toBeInTheDocument();
     expect(screen.getByText(/3개 카테고리 입력 완료/)).toBeInTheDocument();
     expect(

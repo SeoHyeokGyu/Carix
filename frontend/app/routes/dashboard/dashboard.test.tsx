@@ -1,7 +1,7 @@
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { createRoutesStub, MemoryRouter } from "react-router";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import * as dashboardApi from "../../lib/api/dashboard";
 import * as expenseApi from "../../lib/api/expense";
@@ -12,7 +12,11 @@ import { resetSession, setSession } from "../../lib/session";
 import * as skillApi from "../../lib/skillApi";
 import { expectHeadingOutline } from "../../test-utils/headingOutline";
 import DashboardHistory from "./history";
-import DashboardHome, { clientLoader } from "./index";
+import DashboardHome, {
+  clientLoader,
+  FIRST_CALCULATION_MAX_POLLS,
+  FIRST_CALCULATION_POLL_MS,
+} from "./index";
 import DashboardLayout, {
   clientLoader as dashboardLayoutLoader,
 } from "./layout";
@@ -246,6 +250,77 @@ describe("대시보드 라우트 및 레이아웃 (Dashboard)", () => {
       expect(
         await screen.findByText("첫 지수를 계산하고 있습니다"),
       ).toBeInTheDocument();
+    });
+
+    describe("첫 계산 대기 중 다시 조회", () => {
+      const PENDING = {
+        ok: true,
+        data: {
+          purchasingPowerIndex: EMPTY_INDEX,
+          marketValueIndex: EMPTY_INDEX,
+          openingWindowIndex: EMPTY_INDEX,
+          decisionSignal: null,
+          metadata: { baseDate: "2026-09-01", updateDelayed: false },
+        },
+      } as never;
+      const READY = {
+        ok: true,
+        data: {
+          purchasingPowerIndex: OK_INDEX,
+          marketValueIndex: OK_INDEX,
+          openingWindowIndex: EMPTY_INDEX,
+          decisionSignal: null,
+          metadata: { baseDate: "2026-09-01", updateDelayed: false },
+        },
+      } as never;
+
+      beforeEach(() => {
+        vi.useFakeTimers({ shouldAdvanceTime: true });
+      });
+
+      afterEach(() => {
+        vi.useRealTimers();
+      });
+
+      it("계산이 끝나면 새로고침 없이 지표를 보여준다", async () => {
+        vi.spyOn(dashboardApi, "fetchSummary")
+          .mockResolvedValueOnce(PENDING)
+          .mockResolvedValue(READY);
+
+        renderScreen();
+        expect(
+          await screen.findByText("첫 지수를 계산하고 있습니다"),
+        ).toBeInTheDocument();
+
+        await vi.advanceTimersByTimeAsync(FIRST_CALCULATION_POLL_MS);
+
+        await waitFor(() =>
+          expect(
+            screen.queryByText("첫 지수를 계산하고 있습니다"),
+          ).not.toBeInTheDocument(),
+        );
+        expect(screen.getByText("구매력 지수")).toBeInTheDocument();
+      });
+
+      it("다시 조회해도 계산이 끝나지 않으면 멈추고 새로고침을 안내한다", async () => {
+        const fetchSummary = vi
+          .spyOn(dashboardApi, "fetchSummary")
+          .mockResolvedValue(PENDING);
+
+        renderScreen();
+        await screen.findByText("첫 지수를 계산하고 있습니다");
+
+        for (let i = 0; i < FIRST_CALCULATION_MAX_POLLS + 2; i++) {
+          await vi.advanceTimersByTimeAsync(FIRST_CALCULATION_POLL_MS);
+        }
+
+        expect(
+          await screen.findByText(/계산이 늦어지고 있습니다/),
+        ).toBeInTheDocument();
+        expect(fetchSummary).toHaveBeenCalledTimes(
+          FIRST_CALCULATION_MAX_POLLS + 1,
+        );
+      });
     });
 
     // 판별력 보강 — "둘 다 null" 만으로는 조건을 못 가른다. 하나만 NOT_AVAILABLE 이고

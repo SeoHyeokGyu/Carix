@@ -17,6 +17,11 @@ import { Input } from "@/components/ui/input";
 import { Field } from "../../components/onboarding/Field";
 import { NativeSelect } from "../../components/onboarding/NativeSelect";
 import {
+  formatAmountInput,
+  parseAmountInput,
+  withPlainAmounts,
+} from "../../lib/amountInput";
+import {
   type DifficultyGrade,
   listScenarios,
   type SavedScenario,
@@ -28,6 +33,7 @@ import { type ApiError, UnauthorizedError } from "../../lib/coreApi";
 import { type FieldErrors, toFieldErrors } from "../../lib/fieldErrors";
 import { focusFirstInvalidField } from "../../lib/focusFirstInvalidField";
 import { formDataToObject } from "../../lib/formData";
+import { formatKoreanSalary } from "../../lib/koreanSalary";
 import { LOGIN_PATH } from "../../lib/routeGuards";
 import {
   scenarioDisplayName,
@@ -81,7 +87,11 @@ export async function clientLoader() {
 export async function clientAction({ request }: { request: Request }) {
   const formData = await request.formData();
 
-  const raw = formDataToObject(formData, {
+  const plain = withPlainAmounts(
+    withPlainAmounts(formData, ["moveTargetGrossSalary"], MANWON),
+    ["moveOneTimeCost"],
+  );
+  const raw = formDataToObject(plain, {
     numeric: [
       "stayExpectedRaiseRate",
       "moveTargetGrossSalary",
@@ -121,6 +131,19 @@ export async function clientAction({ request }: { request: Request }) {
   }
 }
 
+/** 목표 연봉은 소득 화면과 같은 만원 단위로 받는다. */
+const MANWON = 10_000;
+
+function toManwonInput(won: number | undefined): string {
+  return won === undefined
+    ? ""
+    : formatAmountInput(String(Math.round(won / MANWON)));
+}
+
+function toWonInput(won: number | undefined): string {
+  return won === undefined ? "" : formatAmountInput(String(won));
+}
+
 /** 이 수 이상 저장돼 있어야 목록 선택 컨트롤을 보인다(기능 명세 US-S1 — 1건 이하면 감춘다). */
 const MIN_SCENARIOS_FOR_PICKER = 2;
 
@@ -158,6 +181,14 @@ export default function DashboardSimulator() {
   const [isEligible, setIsEligible] = useState<boolean | null>(
     scenario?.inputs.isEligibleForUnemploymentBenefit ?? null,
   );
+  const [targetInput, setTargetInput] = useState(
+    toManwonInput(scenario?.inputs.moveTargetGrossSalary),
+  );
+  const [costInput, setCostInput] = useState(
+    toWonInput(scenario?.inputs.moveOneTimeCost),
+  );
+  const targetManwon = parseAmountInput(targetInput);
+  const cost = parseAmountInput(costInput);
 
   // 계산이 실패하면 fetcher.data 는 {errors} 만 담고 {result} 는 없다 — loader 가
   // 준 이전 결과(scenario.result)로 자연히 폴백해, 실패한 계산이 화면에서 이전
@@ -201,6 +232,8 @@ export default function DashboardSimulator() {
     if (!next || !latest) return;
     setPick({ id, headId: latest.id });
     setIsEligible(next.inputs.isEligibleForUnemploymentBenefit);
+    setTargetInput(toManwonInput(next.inputs.moveTargetGrossSalary));
+    setCostInput(toWonInput(next.inputs.moveOneTimeCost));
     setFormKey((key) => key + 1);
   }
 
@@ -288,17 +321,25 @@ export default function DashboardSimulator() {
 
             <Field
               id="moveTargetGrossSalary"
-              label="이직 시 목표 세전 연봉 (원)"
+              label="이직 시 목표 세전 연봉 (만원)"
+              hint={
+                targetManwon === null
+                  ? undefined
+                  : `= ${(targetManwon * MANWON).toLocaleString("ko-KR")}원`
+              }
               error={errors?.moveTargetGrossSalary}
             >
               {(aria) => (
                 <Input
                   {...aria}
                   name="moveTargetGrossSalary"
-                  type="number"
+                  type="text"
                   inputMode="numeric"
-                  placeholder="예: 72000000"
-                  defaultValue={inputs?.moveTargetGrossSalary ?? ""}
+                  placeholder="예: 7,200"
+                  value={targetInput}
+                  onChange={(e) =>
+                    setTargetInput(formatAmountInput(e.target.value))
+                  }
                 />
               )}
             </Field>
@@ -306,16 +347,20 @@ export default function DashboardSimulator() {
             <Field
               id="moveOneTimeCost"
               label="이직에 드는 일회성 비용 (원)"
+              hint={cost === null ? undefined : `= ${formatKoreanSalary(cost)}`}
               error={errors?.moveOneTimeCost}
             >
               {(aria) => (
                 <Input
                   {...aria}
                   name="moveOneTimeCost"
-                  type="number"
+                  type="text"
                   inputMode="numeric"
-                  placeholder="예: 3000000"
-                  defaultValue={inputs?.moveOneTimeCost ?? ""}
+                  placeholder="예: 3,000,000"
+                  value={costInput}
+                  onChange={(e) =>
+                    setCostInput(formatAmountInput(e.target.value))
+                  }
                 />
               )}
             </Field>

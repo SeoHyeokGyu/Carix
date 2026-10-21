@@ -128,11 +128,11 @@ describe("S-15 시뮬레이터 화면", () => {
     renderScreen();
 
     expect(await screen.findByDisplayValue("A사 오퍼")).toBeInTheDocument();
-    expect(screen.getByLabelText("이직 시 목표 세전 연봉 (원)")).toHaveValue(
-      72_000_000,
+    expect(screen.getByLabelText("이직 시 목표 세전 연봉 (만원)")).toHaveValue(
+      "7,200",
     );
     expect(screen.getByLabelText("이직에 드는 일회성 비용 (원)")).toHaveValue(
-      3_000_000,
+      "3,000,000",
     );
     expect(screen.getByLabelText("예상 구직 공백 (개월, 0~6)")).toHaveValue(2);
     expect(screen.getByRole("radio", { name: "있음" })).toBeChecked();
@@ -166,8 +166,8 @@ describe("S-15 시뮬레이터 화면", () => {
         "아직 계산한 시나리오가 없습니다. 값을 입력하고 계산해 주세요.",
       ),
     ).toBeInTheDocument();
-    expect(screen.getByLabelText("이직 시 목표 세전 연봉 (원)")).toHaveValue(
-      null,
+    expect(screen.getByLabelText("이직 시 목표 세전 연봉 (만원)")).toHaveValue(
+      "",
     );
     expect(screen.getByLabelText("예상 인상률 (%)")).toHaveValue(null);
     expect(screen.getByRole("radio", { name: "있음" })).not.toBeChecked();
@@ -185,8 +185,8 @@ describe("S-15 시뮬레이터 화면", () => {
 
     await user.type(await screen.findByLabelText("예상 인상률 (%)"), "3.5");
     await user.type(
-      screen.getByLabelText("이직 시 목표 세전 연봉 (원)"),
-      "72000000",
+      screen.getByLabelText("이직 시 목표 세전 연봉 (만원)"),
+      "7200",
     );
     await user.type(
       screen.getByLabelText("이직에 드는 일회성 비용 (원)"),
@@ -403,8 +403,8 @@ describe("S-15 시뮬레이터 화면", () => {
 
     await user.type(await screen.findByLabelText("예상 인상률 (%)"), "3.5");
     await user.type(
-      screen.getByLabelText("이직 시 목표 세전 연봉 (원)"),
-      "72000000",
+      screen.getByLabelText("이직 시 목표 세전 연봉 (만원)"),
+      "7200",
     );
     await user.type(
       screen.getByLabelText("이직에 드는 일회성 비용 (원)"),
@@ -438,8 +438,8 @@ describe("S-15 시뮬레이터 화면", () => {
 
     await user.type(await screen.findByLabelText("예상 인상률 (%)"), "3.5");
     await user.type(
-      screen.getByLabelText("이직 시 목표 세전 연봉 (원)"),
-      "72000000",
+      screen.getByLabelText("이직 시 목표 세전 연봉 (만원)"),
+      "7200",
     );
     await user.type(
       screen.getByLabelText("이직에 드는 일회성 비용 (원)"),
@@ -467,8 +467,8 @@ describe("S-15 시뮬레이터 화면", () => {
 
     await user.type(await screen.findByLabelText("예상 인상률 (%)"), "3.5");
     await user.type(
-      screen.getByLabelText("이직 시 목표 세전 연봉 (원)"),
-      "1000",
+      screen.getByLabelText("이직 시 목표 세전 연봉 (만원)"),
+      "999",
     );
     await user.type(
       screen.getByLabelText("이직에 드는 일회성 비용 (원)"),
@@ -478,7 +478,7 @@ describe("S-15 시뮬레이터 화면", () => {
     await user.click(screen.getByRole("radio", { name: "있음" }));
     await user.click(screen.getByRole("button", { name: "계산" }));
 
-    // 라벨("이직 시 목표 세전 연봉 (원)")도 부분 문자열을 포함해 느슨한 정규식은
+    // 라벨("이직 시 목표 세전 연봉 (만원)")도 부분 문자열을 포함해 느슨한 정규식은
     // 다중 매치로 깨진다 — 필드 에러 메시지 전체를 정확히 매칭한다.
     const errorText = await screen.findByText(
       "이직 목표 세전 연봉은 1천만 원~30억 원 사이로 입력해 주세요.",
@@ -486,8 +486,10 @@ describe("S-15 시뮬레이터 화면", () => {
     expect(errorText).toBeInTheDocument();
     expect(simulateSpy).not.toHaveBeenCalled();
 
-    const invalidField = screen.getByLabelText("이직 시 목표 세전 연봉 (원)");
-    expect(invalidField).toHaveAttribute("aria-describedby", errorText.id);
+    const invalidField = screen.getByLabelText("이직 시 목표 세전 연봉 (만원)");
+    expect(invalidField.getAttribute("aria-describedby")).toContain(
+      errorText.id,
+    );
     expect(invalidField).toHaveFocus();
   });
 
@@ -502,8 +504,8 @@ describe("S-15 시뮬레이터 화면", () => {
 
     await user.type(await screen.findByLabelText("예상 인상률 (%)"), "3.5");
     await user.type(
-      screen.getByLabelText("이직 시 목표 세전 연봉 (원)"),
-      "72000000",
+      screen.getByLabelText("이직 시 목표 세전 연봉 (만원)"),
+      "7200",
     );
     await user.type(
       screen.getByLabelText("이직에 드는 일회성 비용 (원)"),
@@ -585,9 +587,9 @@ describe("S-15 시뮬레이터 화면", () => {
 
       expect(screen.getByLabelText("시나리오 이름 (선택)")).toHaveValue("");
       expect(screen.getByLabelText("예상 인상률 (%)")).toHaveValue(5);
-      expect(screen.getByLabelText("이직 시 목표 세전 연봉 (원)")).toHaveValue(
-        80_000_000,
-      );
+      expect(
+        screen.getByLabelText("이직 시 목표 세전 연봉 (만원)"),
+      ).toHaveValue("8,000");
       expect(screen.getByRole("radio", { name: "없음" })).toBeChecked();
       expect(screen.getByText("추정 추가보상")).toBeInTheDocument();
       expect(screen.getByText("17,000,000원")).toBeInTheDocument();

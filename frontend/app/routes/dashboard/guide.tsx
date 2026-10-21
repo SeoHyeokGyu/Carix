@@ -114,9 +114,9 @@ export default function DashboardGuide() {
                 </CardHeader>
                 <CardContent className="p-0 flex flex-col gap-3 text-xs text-carix-text/80">
                   <p>
-                    보유한 스킬들의 <b>채용 시장 수요율</b>과 연차 조건을
-                    반영하여 산출한 내 시장 가치를 고용노동부 공식 임금 통계와
-                    비교합니다.
+                    보유한 스킬들이 최근 3개월 채용공고에서 요구되는{" "}
+                    <b>수요율</b>을 이전 12개월과 비교합니다. 직무 단위로 재므로
+                    경력·지역은 비교에 들어가지 않습니다.
                   </p>
                   <div className="rounded-md bg-carix-surface p-2.5 border border-carix-border flex flex-col gap-1.5">
                     <div className="font-medium text-carix-text">
@@ -127,17 +127,13 @@ export default function DashboardGuide() {
                         <span className="shrink-0 px-1.5 py-0.5 rounded bg-carix-positive/10 text-carix-positive font-semibold text-[11px]">
                           100 초과
                         </span>
-                        <span>
-                          희소/고수요 스킬 보유로 시장 평균 대비 높은 가치 형성
-                        </span>
+                        <span>보유 스킬 수요가 이전 12개월보다 늘었습니다</span>
                       </li>
                       <li className="flex items-start gap-2">
                         <span className="shrink-0 px-1.5 py-0.5 rounded bg-carix-info/10 text-carix-info font-semibold text-[11px]">
                           100 기준
                         </span>
-                        <span>
-                          동료집단(동일 연차·직무) 공식 임금 중앙값 수준
-                        </span>
+                        <span>이전 12개월과 같은 수요입니다</span>
                       </li>
                     </ul>
                   </div>
