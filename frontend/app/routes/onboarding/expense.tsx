@@ -36,6 +36,7 @@ import { focusFirstInvalidField } from "../../lib/focusFirstInvalidField";
 import { formDataToObject } from "../../lib/formData";
 import { formatKoreanSalary } from "../../lib/koreanSalary";
 import { advanceOnboarding } from "../../lib/onboardingApi";
+import { isReturnToReview, REVIEW_PATH } from "../../lib/reviewReturn";
 import { isForwardStep, LOGIN_PATH } from "../../lib/routeGuards";
 import {
   EXPENSE_CATEGORIES,
@@ -175,7 +176,9 @@ export async function clientAction({ request }: { request: Request }) {
       setSession({ ...session, onboardingStep: "SKILLS" });
     }
 
-    return redirect("/onboarding/skills");
+    return redirect(
+      isReturnToReview(request.url) ? REVIEW_PATH : "/onboarding/skills",
+    );
   } catch (error) {
     if (error instanceof UnauthorizedError) throw redirect(LOGIN_PATH);
     return { errors: { _form: toUserMessage(error) } } satisfies ActionData;
@@ -237,7 +240,7 @@ export default function Expense() {
     <PageFrame width="narrow">
       <PageHeader
         title={onboardingStepLabel(3)}
-        description="6대 카테고리의 월 소비 금액을 입력해 주세요. 비워 둔 카테고리는 통계청 평균 소비지출 비중으로 자동 보완됩니다."
+        description="아는 항목만 넣어도 됩니다. 비워 둔 항목은 통계청 평균 소비 비중으로 채웁니다."
       />
       <Card>
         <CardContent>
@@ -266,6 +269,14 @@ export default function Expense() {
                     <div className="flex items-center gap-2">
                       <Input
                         {...aria}
+                        aria-describedby={
+                          [
+                            aria["aria-describedby"],
+                            status ? `status-${category.value}` : null,
+                          ]
+                            .filter(Boolean)
+                            .join(" ") || undefined
+                        }
                         name={category.value}
                         type="text"
                         inputMode="numeric"
@@ -281,6 +292,7 @@ export default function Expense() {
                       />
                       {status && (
                         <Badge
+                          id={`status-${category.value}`}
                           variant={
                             status === "DEFAULT_CPI" ? "secondary" : "outline"
                           }

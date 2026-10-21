@@ -24,7 +24,7 @@ describe("S-06 소득 화면", () => {
     });
   });
 
-  function renderScreen() {
+  function renderScreen(initialEntry = "/onboarding/income") {
     const Stub = createRoutesStub([
       {
         path: "/onboarding/income",
@@ -35,9 +35,10 @@ describe("S-06 소득 화면", () => {
       },
       { path: "/onboarding/expense", Component: () => <div>소비 화면</div> },
       { path: "/onboarding/profile", Component: () => <div>프로필 화면</div> },
+      { path: "/onboarding/review", Component: () => <div>검토 화면</div> },
       { path: "/login", Component: () => <div>로그인 화면</div> },
     ]);
-    return render(<Stub initialEntries={["/onboarding/income"]} />);
+    return render(<Stub initialEntries={[initialEntry]} />);
   }
 
   it("기존 이력이 표에 유효 시작일 내림차순으로 나온다", async () => {
@@ -177,10 +178,79 @@ describe("S-06 소득 화면", () => {
     expect(advance).toHaveBeenCalledWith("EXPENSE");
   });
 
+  it("입력만 하고 「추가」하지 않은 채 '다음' 을 누르면 넘어가지 않고 알려준다", async () => {
+    vi.spyOn(incomeApi, "listIncome").mockResolvedValue([]);
+    const advance = vi.spyOn(onboardingApi, "advanceOnboarding");
+
+    renderScreen();
+    const user = userEvent.setup();
+
+    await user.type(await screen.findByLabelText("세전 연봉 (만원)"), "5000");
+    await user.click(screen.getByRole("button", { name: "다음" }));
+
+    expect(
+      await screen.findByText(
+        "입력한 연봉을 「추가」로 저장한 뒤 넘어가 주세요.",
+      ),
+    ).toBeInTheDocument();
+    expect(screen.getByLabelText("세전 연봉 (만원)")).toHaveValue("5,000");
+    expect(advance).not.toHaveBeenCalled();
+  });
+
+  it("이력이 없으면 '다음' 을 눌러도 넘어가지 않고 알려준다", async () => {
+    vi.spyOn(incomeApi, "listIncome").mockResolvedValue([]);
+    const advance = vi.spyOn(onboardingApi, "advanceOnboarding");
+
+    renderScreen();
+    const user = userEvent.setup();
+
+    await screen.findByLabelText("세전 연봉 (만원)");
+    await user.click(screen.getByRole("button", { name: "다음" }));
+
+    expect(
+      await screen.findByText("연봉을 하나 이상 추가해야 넘어갈 수 있습니다."),
+    ).toBeInTheDocument();
+    expect(advance).not.toHaveBeenCalled();
+  });
+
+  it("검토 화면의 「수정」으로 들어왔으면 '다음' 후 검토 화면으로 돌아간다", async () => {
+    vi.spyOn(incomeApi, "listIncome").mockResolvedValue([
+      {
+        id: "i-1",
+        grossSalary: 50_000_000,
+        netSalary: 3_500_000,
+        effectiveDate: "2024-01-01",
+        changeReason: "INITIAL",
+        selectedChangeReason: null,
+      },
+    ]);
+    vi.spyOn(onboardingApi, "advanceOnboarding").mockResolvedValue({
+      currentStep: "EXPENSE",
+      completed: false,
+    });
+
+    renderScreen("/onboarding/income?from=review");
+    const user = userEvent.setup();
+
+    await screen.findByText("2024-01-01");
+    await user.click(screen.getByRole("button", { name: "다음" }));
+
+    expect(await screen.findByText("검토 화면")).toBeInTheDocument();
+  });
+
   // 회귀 테스트 — guardOnboarding 은 세션 캐시의 onboardingStep 을 읽는다. "다음" 으로
   // 단계를 넘긴 뒤 이 캐시를 갱신하지 않으면 되튕김이 생긴다.
   it("'다음' 성공 후 세션 캐시의 onboardingStep 을 EXPENSE 로 갱신한다", async () => {
-    vi.spyOn(incomeApi, "listIncome").mockResolvedValue([]);
+    vi.spyOn(incomeApi, "listIncome").mockResolvedValue([
+      {
+        id: "i-1",
+        grossSalary: 50_000_000,
+        netSalary: 3_500_000,
+        effectiveDate: "2024-01-01",
+        changeReason: "INITIAL",
+        selectedChangeReason: null,
+      },
+    ]);
     vi.spyOn(onboardingApi, "advanceOnboarding").mockResolvedValue({
       currentStep: "EXPENSE",
       completed: false,
@@ -264,7 +334,7 @@ describe("S-06 소득 화면", () => {
     await user.click(screen.getByRole("button", { name: "삭제" }));
 
     expect(del).toHaveBeenCalledWith("i-1");
-    await screen.findByText("등록된 이력이 없습니다.");
+    await screen.findByText(/아직 추가한 연봉이 없습니다/);
   });
 
   it("수정하면 updateIncome 이 호출되고 표가 새 값으로 갱신된다", async () => {
@@ -384,7 +454,7 @@ describe("S-06 소득 화면", () => {
     await user.click(screen.getByRole("button", { name: "삭제" }));
 
     expect(del).toHaveBeenCalledWith("i-1");
-    await screen.findByText("등록된 이력이 없습니다.");
+    await screen.findByText(/아직 추가한 연봉이 없습니다/);
   });
 
   it("수정이 API 오류로 실패하면 오류를 보여주고 표는 원래 값을 유지한다", async () => {
@@ -523,7 +593,7 @@ describe("S-06 소득 화면", () => {
     vi.spyOn(incomeApi, "listIncome").mockResolvedValue([]);
     renderScreen();
 
-    await screen.findByText("등록된 이력이 없습니다.");
+    await screen.findByText(/아직 추가한 연봉이 없습니다/);
     expect(screen.queryByLabelText("변경 사유")).toBeNull();
   });
 

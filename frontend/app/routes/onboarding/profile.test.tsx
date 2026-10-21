@@ -25,7 +25,7 @@ describe("S-05 프로필 화면", () => {
     });
   });
 
-  function renderScreen() {
+  function renderScreen(initialEntry = "/onboarding/profile") {
     const Stub = createRoutesStub([
       {
         path: "/onboarding/profile",
@@ -35,10 +35,11 @@ describe("S-05 프로필 화면", () => {
         HydrateFallback: () => null,
       },
       { path: "/onboarding/income", Component: () => <div>소득 화면</div> },
+      { path: "/onboarding/review", Component: () => <div>검토 화면</div> },
       { path: "/", Component: () => <div>랜딩 페이지</div> },
       { path: "/login", Component: () => <div>로그인 화면</div> },
     ]);
-    return render(<Stub initialEntries={["/onboarding/profile"]} />);
+    return render(<Stub initialEntries={[initialEntry]} />);
   }
 
   it("저장된 프로필을 초기값으로 보여준다", async () => {
@@ -128,7 +129,7 @@ describe("S-05 프로필 화면", () => {
     // 라벨("총 경력 (년)")도 같은 부분 문자열을 포함해 느슨한 정규식은 다중 매치로 깨진다
     // — 필드 에러 메시지 전체를 정확히 매칭한다.
     const errorText = await screen.findByText(
-      "총 경력은 0~50 사이의 정수로 입력해 주세요.",
+      "총 경력은 0~50 사이의 숫자로 입력해 주세요.",
     );
     expect(errorText).toBeInTheDocument();
     expect(patch).not.toHaveBeenCalled();
@@ -243,6 +244,36 @@ describe("S-05 프로필 화면", () => {
       status: "authenticated",
       onboardingStep: "REVIEW",
     });
+  });
+
+  it("검토 화면의 「수정」으로 들어왔으면 저장 후 검토 화면으로 돌아간다", async () => {
+    vi.spyOn(profileApi, "getProfile").mockResolvedValue({
+      jobFamily: "DEVELOPER",
+      yearsOfExperience: 5,
+      region: "서울",
+      employmentType: "FULL_TIME",
+      companySize: null,
+    });
+    const patch = vi.spyOn(profileApi, "patchProfile").mockResolvedValue({
+      jobFamily: "DEVELOPER",
+      yearsOfExperience: 6,
+      region: "서울",
+      employmentType: "FULL_TIME",
+      companySize: null,
+    });
+    vi.spyOn(onboardingApi, "advanceOnboarding").mockResolvedValue({
+      currentStep: "INCOME",
+      completed: false,
+    });
+
+    renderScreen("/onboarding/profile?from=review");
+    const user = userEvent.setup();
+
+    await screen.findByLabelText("총 경력 (년)");
+    await user.click(screen.getByRole("button", { name: "다음" }));
+
+    expect(await screen.findByText("검토 화면")).toBeInTheDocument();
+    expect(patch).toHaveBeenCalled();
   });
 
   it("저장 후 나가기는 부분 검증만 하고 랜딩 페이지로 이동한다", async () => {

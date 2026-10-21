@@ -65,6 +65,14 @@ export function meta() {
   ];
 }
 
+/** 개월 수를 사람이 기억하는 단위로 읽는다 — 30개월보다 2년 6개월이 떠올리기 쉽다. */
+function formatMonthsAsYears(months: number): string {
+  const years = Math.floor(months / 12);
+  const rest = months % 12;
+  if (years === 0) return `${rest}개월`;
+  return rest === 0 ? `${years}년` : `${years}년 ${rest}개월`;
+}
+
 export default function Skills() {
   const navigate = useNavigate();
 
@@ -81,6 +89,7 @@ export default function Skills() {
   const [searchResults, setSearchResults] = useState<SkillSearchItem[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
+  const [activeIndex, setActiveIndex] = useState(-1);
 
   // 선택된 스킬 및 입력 폼 상태
   const [selectedSkill, setSelectedSkill] = useState<{
@@ -159,6 +168,7 @@ export default function Skills() {
         setIsSearching(true);
         const results = await searchSkills(searchQuery);
         setSearchResults(results);
+        setActiveIndex(-1);
         setShowDropdown(true);
       } catch (err) {
         if (err instanceof UnauthorizedError) {
@@ -191,6 +201,31 @@ export default function Skills() {
     setSearchQuery(item.standardName);
     setShowDropdown(false);
     setErrorMessage(null);
+  };
+
+  const isDropdownOpen = showDropdown && searchQuery.trim().length > 0;
+
+  // 자동완성은 ARIA 콤보박스 패턴을 따른다 — 포커스는 입력칸에 두고 방향키로 고른
+  // 항목을 aria-activedescendant 로 알린다.
+  const handleSearchKeyDown = (
+    event: React.KeyboardEvent<HTMLInputElement>,
+  ) => {
+    if (event.key === "Escape") {
+      setShowDropdown(false);
+      setActiveIndex(-1);
+      return;
+    }
+    if (!isDropdownOpen || searchResults.length === 0) return;
+    if (event.key === "ArrowDown") {
+      event.preventDefault();
+      setActiveIndex((index) => Math.min(searchResults.length - 1, index + 1));
+    } else if (event.key === "ArrowUp") {
+      event.preventDefault();
+      setActiveIndex((index) => Math.max(0, index - 1));
+    } else if (event.key === "Enter" && activeIndex >= 0) {
+      event.preventDefault();
+      handleSelectSkill(searchResults[activeIndex]);
+    }
   };
 
   // 사전에 없는 커스텀 스킬 직접 추가 시작
@@ -352,7 +387,7 @@ export default function Skills() {
     <PageFrame width="narrow">
       <PageHeader
         title={onboardingStepLabel(4)}
-        description="표준 스킬 사전에서 검색해 실무 사용 기간과 마지막 사용일을 기록합니다."
+        description="업무에서 쓰는 기술을 찾아 추가해 주세요."
       />
 
       {/* 3. 피드백 메시지 */}
@@ -389,6 +424,14 @@ export default function Skills() {
               <Input
                 id="skill-search-input"
                 type="search"
+                role="combobox"
+                aria-expanded={isDropdownOpen && searchResults.length > 0}
+                aria-controls="skill-search-listbox"
+                aria-autocomplete="list"
+                aria-activedescendant={
+                  activeIndex >= 0 ? `skill-option-${activeIndex}` : undefined
+                }
+                onKeyDown={handleSearchKeyDown}
                 value={searchQuery}
                 onChange={(e) => {
                   setSearchQuery(e.target.value);
@@ -398,30 +441,50 @@ export default function Skills() {
                 autoComplete="off"
               />
               {isSearching && (
-                <span className="absolute right-3 top-2 text-xs text-carix-text/50">
+                <span className="absolute right-3 top-2 text-xs text-carix-text/70">
                   검색 중...
                 </span>
               )}
             </div>
 
             {/* 자동완성 드롭다운 */}
-            {showDropdown && searchQuery.trim().length > 0 && (
+            <p role="status" className="sr-only">
+              {isDropdownOpen && !isSearching
+                ? searchResults.length > 0
+                  ? `검색 결과 ${searchResults.length}건`
+                  : "검색 결과가 없습니다"
+                : ""}
+            </p>
+            {isDropdownOpen && (
               <div className="absolute z-20 mt-1 max-h-60 w-full overflow-auto rounded-lg border border-carix-border bg-carix-surface py-1 shadow-lg">
                 {searchResults.length > 0 ? (
-                  searchResults.map((item) => (
-                    <Button
-                      key={item.id}
-                      type="button"
-                      variant="ghost"
-                      onClick={() => handleSelectSkill(item)}
-                      className="h-auto w-full justify-between rounded-none px-4 py-2 text-left text-sm whitespace-normal"
-                    >
-                      <span>{item.standardName}</span>
-                      {item.isCustom && (
-                        <ToneBadge tone="warning">사용자 정의</ToneBadge>
-                      )}
-                    </Button>
-                  ))
+                  <ul
+                    id="skill-search-listbox"
+                    role="listbox"
+                    aria-label="스킬 검색 결과"
+                  >
+                    {searchResults.map((item, index) => (
+                      <li
+                        key={item.id}
+                        id={`skill-option-${index}`}
+                        role="option"
+                        aria-selected={index === activeIndex}
+                        onClick={() => handleSelectSkill(item)}
+                        onMouseEnter={() => setActiveIndex(index)}
+                        className={[
+                          "flex w-full cursor-pointer items-center justify-between px-4 py-2 text-left text-sm",
+                          index === activeIndex
+                            ? "bg-carix-info/10 text-carix-text"
+                            : "text-carix-text hover:bg-carix-info/5",
+                        ].join(" ")}
+                      >
+                        <span>{item.standardName}</span>
+                        {item.isCustom && (
+                          <ToneBadge tone="warning">사용자 정의</ToneBadge>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
                 ) : (
                   <div className="px-4 py-3 text-sm text-carix-text/70">
                     <p>
@@ -465,8 +528,8 @@ export default function Skills() {
 
               {selectedSkill.isCustom && (
                 <div className="mb-4 rounded border border-carix-warning/30 bg-carix-warning/5 p-2.5 text-xs text-carix-warning">
-                  ⚠️ 사전에 없는 스킬은 시장 수요 통계가 제공되지 않을 수
-                  있습니다. 직무 카테고리를 선택해 주세요.
+                  사전에 없는 스킬은 시장 수요 통계가 제공되지 않을 수 있습니다.
+                  어느 분야인지 골라 주세요.
                   <div className="mt-2">
                     <label
                       htmlFor="custom-category-select"
@@ -502,6 +565,9 @@ export default function Skills() {
                     max="600"
                     required
                     placeholder="예: 24"
+                    aria-describedby={
+                      months === "" ? undefined : "months-input-hint"
+                    }
                     value={months}
                     onChange={(e) =>
                       setMonths(
@@ -509,6 +575,14 @@ export default function Skills() {
                       )
                     }
                   />
+                  {months !== "" && months > 0 && (
+                    <p
+                      id="months-input-hint"
+                      className="mt-1 text-xs text-muted-foreground"
+                    >
+                      = {formatMonthsAsYears(months)}
+                    </p>
+                  )}
                 </div>
                 <div>
                   <label
@@ -527,11 +601,6 @@ export default function Skills() {
                   />
                 </div>
               </div>
-
-              <p className="mt-3 text-[11px] text-carix-text/50">
-                * 자기평가 숙련도(상/중/하)는 받지 않으며, 실무 사용 기간과
-                최근성을 바탕으로 객관적 가중치를 산출합니다.
-              </p>
 
               <div className="mt-4 flex flex-wrap gap-3">
                 <Button type="submit" disabled={actionLoading || loadError}>

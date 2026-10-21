@@ -33,7 +33,7 @@ describe("S-07 소비 화면", () => {
     vi.spyOn(incomeApi, "listIncome").mockResolvedValue([]);
   });
 
-  function renderScreen() {
+  function renderScreen(initialEntry = "/onboarding/expense") {
     const Stub = createRoutesStub([
       {
         path: "/onboarding/expense",
@@ -44,10 +44,43 @@ describe("S-07 소비 화면", () => {
       },
       { path: "/onboarding/skills", Component: () => <div>스킬 화면</div> },
       { path: "/onboarding/income", Component: () => <div>소득 화면</div> },
+      { path: "/onboarding/review", Component: () => <div>검토 화면</div> },
       { path: "/login", Component: () => <div>로그인 화면</div> },
     ]);
-    return render(<Stub initialEntries={["/onboarding/expense"]} />);
+    return render(<Stub initialEntries={[initialEntry]} />);
   }
+
+  it("검토 화면의 「수정」으로 들어왔으면 저장 후 검토 화면으로 돌아간다", async () => {
+    vi.spyOn(expenseApi, "listExpenses").mockResolvedValue([]);
+    vi.spyOn(expenseApi, "putExpenses").mockResolvedValue(undefined as never);
+    vi.spyOn(onboardingApi, "advanceOnboarding").mockResolvedValue({
+      currentStep: "SKILLS",
+      completed: false,
+    });
+
+    renderScreen("/onboarding/expense?from=review");
+    const user = userEvent.setup();
+
+    await user.type(await screen.findByLabelText(/식비/), "250000");
+    await user.click(screen.getByRole("button", { name: "다음" }));
+
+    expect(await screen.findByText("검토 화면")).toBeInTheDocument();
+  });
+
+  it("상태 뱃지를 입력칸 설명으로 연결해 스크린리더가 함께 읽는다", async () => {
+    vi.spyOn(expenseApi, "listExpenses").mockResolvedValue([
+      {
+        baseYearMonth: currentYearMonth(),
+        summaryStatus: "PARTIALLY_ESTIMATED",
+        items: [{ category: "FOOD", amount: 250_000, status: "DEFAULT_CPI" }],
+      },
+    ] as never);
+
+    renderScreen();
+
+    const food = await screen.findByLabelText(/식비/);
+    expect(food).toHaveAccessibleDescription(/통계청 평균 기준/);
+  });
 
   // 브리프 1 — 저장된 당월 지출이 카테고리별 초기값으로 들어간다.
   it("저장된 당월 지출이 카테고리별 초기값으로 들어간다", async () => {
@@ -220,7 +253,7 @@ describe("S-07 소비 화면", () => {
     await user.click(screen.getByRole("button", { name: "다음" }));
 
     const errorText = await screen.findByText(
-      "0원 이상 5천만 원 이하의 정수로 입력해 주세요.",
+      "0원~5천만 원 사이로 입력해 주세요.",
     );
     expect(errorText).toBeInTheDocument();
 
