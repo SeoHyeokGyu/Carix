@@ -109,7 +109,8 @@
       "yearsOfExperience": 5,
       "region": "서울",
       "employmentType": "FULL_TIME",
-      "companySize": "MEDIUM"
+      "companySize": "MEDIUM",
+      "hireDate": "2022-03-02"
     }
     ```
 
@@ -123,9 +124,11 @@
       "yearsOfExperience": 5,
       "region": "서울",
       "employmentType": "FULL_TIME",
-      "companySize": "MEDIUM"
+      "companySize": "MEDIUM",
+      "hireDate": "2022-03-02"
     }
     ```
+*   `hireDate` 는 현 직장 입사일(`yyyy-MM-dd`)이다. 선택 필드이며 보내지 않거나 `null` 이면 기존 값을 유지한다. 오늘 이후 날짜는 400. 퇴직금 경계 경고와 성과급 범위 계산에 쓰인다.
 *   **Response (200 OK):** (조회 응답과 동일)
 
 ---

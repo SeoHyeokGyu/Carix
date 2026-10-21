@@ -148,7 +148,8 @@ class SnapshotTriggerWiringTest {
         .willReturn(Optional.of(CareerProfile.builder().userId(USER_ID).build()));
     ProfileService service = new ProfileService(repository, recalculation);
 
-    service.patch(USER_ID, new ProfileRequest("DEVELOPER", 5, "서울 강남구", "FULL_TIME", "MEDIUM"));
+    service.patch(
+        USER_ID, new ProfileRequest("DEVELOPER", 5, "서울 강남구", "FULL_TIME", "MEDIUM", null));
 
     verify(recalculation).recalculateSnapshot(eq(USER_ID), eq(YearMonths.current()));
   }

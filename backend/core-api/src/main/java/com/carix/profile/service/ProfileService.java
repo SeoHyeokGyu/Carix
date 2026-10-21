@@ -116,7 +116,7 @@ public class ProfileService {
     return careerProfileRepository
         .findByUserId(userId)
         .map(ProfileService::toResponse)
-        .orElseGet(() -> new ProfileResponse(null, null, null, null, null));
+        .orElseGet(() -> new ProfileResponse(null, null, null, null, null, null));
   }
 
   @Transactional
@@ -131,7 +131,7 @@ public class ProfileService {
         request.region(),
         request.employmentType(),
         request.companySize(),
-        null);
+        request.hireDate());
     // 동료집단 조건이 바뀌면 이후 MVI 가 달라진다. 과거월은 그때의 프로필로 계산된 값이라 다시 쓰지 않는다.
     snapshotRecalculationService.recalculateSnapshot(userId, YearMonths.current());
     return toResponse(profile);
@@ -143,6 +143,7 @@ public class ProfileService {
         profile.getYearsOfExperience(),
         profile.getRegion(),
         profile.getEmploymentType(),
-        profile.getCompanySize());
+        profile.getCompanySize(),
+        profile.getHireDate());
   }
 }
