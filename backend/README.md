@@ -99,8 +99,6 @@ Swagger UI(`/api/swagger-ui`), OpenAPI 문서(`/api/v3/api-docs`)가 모두 그 
 
 Spring Cloud Gateway(WebFlux/reactive). `carix_caddy(:80)`의 업스트림으로, 모든 애플리케이션 트래픽의 라우팅과 필터링을 총괄합니다.
 
-| 경로 | 대상 |
-| --- | --- |
 | 라우트 | 경로 | 대상 | 세션 검증 |
 | --- | --- | --- | --- |
 | `auth` | `/api/v1/auth/**` | `auth-service` (Eureka `lb://`) | 없음 |
@@ -124,8 +122,7 @@ Spring Cloud Gateway(WebFlux/reactive). `carix_caddy(:80)`의 업스트림으로
 열리고, 쿠키 없는 접근에는 API 표면이 닫힙니다.
 
 **플래그를 되돌릴 때는 `.env` 롤백으로 부족합니다** — `config/spring/gateway.yml` 을 직접
-되돌리고 게이트웨이 `/actuator/refresh` 를 다시 호출합니다. 플래그는 이미 켜져 있고
-([문서 맵 「남은 것」](../docs/README.md#남은-것)), 켜는 순서를 지키던 사슬은 끝났습니다.
+되돌리고 게이트웨이 `/actuator/refresh` 를 다시 호출합니다. 플래그는 켜져 있습니다.
 
 인바운드 `X-User-Id` 는 `UserIdHeaderStripGlobalFilter` 가 플래그와 무관하게 전 라우트에서
 벗깁니다. 하류는 이 헤더를 인증된 사용자로 신뢰하므로 출처가 게이트웨이여야 합니다.

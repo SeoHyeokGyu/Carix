@@ -149,7 +149,6 @@ flowchart TD
 - 이력서·GitHub 자동 분석
 - 생성형 AI 추천과 자연어 보고서 생성
 - 실시간 알림과 이메일 리포트
-- 관리자 웹 화면
 - 모든 직군에 대한 범용 스킬 추출
 - 개인의 실제 연봉을 보장하는 예측
 - 자동 입사지원과 채용 중개
@@ -165,13 +164,15 @@ flowchart TD
 | `/login` | 로그인 (이메일·비밀번호) | 공개 |
 | `/register` | 회원가입 (이메일·비밀번호) | 공개 |
 | `/onboarding/{profile,income,expense,skills,review}` | 온보딩 5단계 | 세션 |
-| `/dashboard` | 지표 카드 (OWI 도입 전까지 3종) | 세션 + 온보딩 완료 |
+| `/dashboard` | 판정 히어로와 근거 지표 카드 (구매력·시장가치·채용 활발도) | 세션 + 온보딩 완료 |
 | `/dashboard/history` | 지난 판정 (월별 당시 판정 이력) | 세션 + 온보딩 완료 |
 | `/dashboard/trends` | 추이분석 (소득vs물가·연봉분포) | 세션 + 온보딩 완료 |
 | `/dashboard/skills` | 스킬 분석 (보유 스킬 수요·동료집단 추천 스킬) | 세션 + 온보딩 완료 |
 | `/dashboard/simulator` | 12개월 시뮬레이터 | 세션 + 온보딩 완료 |
+| `/dashboard/guide` | 지표 가이드 (지표 3종·결정 신호·FAQ) | 세션 + 온보딩 완료 |
 | `/mypage/records` | 입력 관리 (소득·소비·스킬 이력) | 세션 |
 | `/mypage/profile` | 세션 관리·계정 삭제 | 세션 |
+| `/admin/data` | 관리자 수집 데이터 (맨 위 데이터 상태 점검 줄, 월별 현황·공고·CPI·임금통계 열람). `/admin` 진입 시 이 화면으로 | 관리자 키 (`X-Admin-Key`) |
 | `/admin/collector` | 수집기 파이프라인 관리 콘솔 (별칭: `/admin/pipeline`) | 관리자 키 (`X-Admin-Key`) |
 
 라우팅 가드: 세션 없으면 랜딩(`/`)으로, 온보딩 미완료면 마지막 미완료 단계로,
@@ -262,12 +263,12 @@ flowchart TD
 
 ## 기술 구성
 
-목표 스택과 현재 반영 여부를 함께 적습니다. MVP 화면(`S-01`~`S-16`)과 백엔드 도메인은
+목표 스택과 현재 반영 여부를 함께 적습니다. MVP 화면(`S-01`~`S-20`)과 백엔드 도메인은
 모두 실제 구현이 있고 실데이터로 동작합니다. 남은 미도입은 Node SSR 과 Spring Batch 입니다.
 
 | 계층 | 기술 | 책임 | 현재 |
 | --- | --- | --- | --- |
-| 프런트엔드 | Vite, React, TypeScript, React Router Framework Mode | UI, 라우팅, SSR·사전 렌더링 | 도입 — `S-01`~`S-16` 전 화면이 실제 API 에 연결돼 동작합니다. `ssr: false` + `/` 사전 렌더링 구성이라 SSR 은 꺼져 있고 가드는 클라이언트에서 돕니다 |
+| 프런트엔드 | Vite, React, TypeScript, React Router Framework Mode | UI, 라우팅, SSR·사전 렌더링 | 도입 — `S-01`~`S-20` 전 화면이 실제 API 에 연결돼 동작합니다. `ssr: false` + `/` 사전 렌더링 구성이라 SSR 은 꺼져 있고 가드는 클라이언트에서 돕니다 |
 | Node SSR | Node.js 24 LTS, Express, `@react-router/express` | HTML 렌더링, SEO metadata, 공개 콘텐츠 | 미도입 — `frontend/server.js`는 `node:http` 정적 파일 서버입니다. 사전 렌더링된 `/` 는 그대로 주고, 나머지 앱 경로는 SPA 셸(`__spa-fallback.html`)로 넘겨 클라이언트가 라우팅합니다 (아래 §렌더링 전략 주석 참조) |
 | 클라이언트 데이터 | React Router 7 `clientLoader`·`clientAction`, Zod | API 상태, 입력 폼, 검증 | 도입 — 프레임워크 loader·action 이 서버 상태를, Zod 스키마가 검증을 맡습니다. TanStack Query·React Hook Form 은 역할이 겹쳐 채택하지 않았습니다 ([프런트엔드 설계 §기술 구성](docs/specs/frontend-design.md)) |
 | UI·시각화 | Tailwind CSS, shadcn/ui, 손수 SVG | 컴포넌트, 스타일, 지수 차트 | 도입 — Tailwind CSS 4(`@tailwindcss/vite`)·shadcn/ui(Button·Input·Card 등, `@/` 경로 별칭 배선 포함). **차트 라이브러리는 쓰지 않습니다** — `S-14` 차트 3종은 손수 SVG 이고 소비 도넛은 CSS `conic-gradient` 입니다 |
@@ -282,7 +283,7 @@ flowchart TD
 | 팀 DB 접근 | OCI Security List IP 허용목록 + Postgres TLS | 팀원 로컬에서 운영 DB에 직접 연결 | 도입 — [DEVELOPMENT.md §3](docs/DEVELOPMENT.md) |
 | 설정 관리 | Spring Cloud Config | 설정 외부화, 런타임 갱신 | 도입 — native(파일시스템) 백엔드 |
 | 서비스 디스커버리 | Eureka | 서비스 등록·조회 | 도입 |
-| API 게이트웨이 | Spring Cloud Gateway | 라우팅, 세션 검증 필터, 상관관계 ID | 도입 — 세션 검증 필터만 기본 비활성입니다. 전환 순서는 [문서 맵 「배포 전 실행 순서」](docs/README.md#남은-것) |
+| API 게이트웨이 | Spring Cloud Gateway | 라우팅, 세션 검증 필터, 상관관계 ID | 도입 — 세션 검증 필터가 켜져 있습니다. 되돌리는 절차는 [`backend/README.md`](backend/README.md) 게이트웨이 절 |
 
 엣지는 2단입니다. 서버의 라우터 Caddy가 80/443과 TLS를 소유하고 호스트명으로 분기하면,
 프로젝트 전용 Caddy가 애플리케이션 라우팅을 맡습니다. 두 계층의 소유권이 다릅니다 — 라우터는
@@ -372,14 +373,12 @@ Node SSR 전환(Express + `@react-router/express`)은 **MVP 범위 밖으로 미
 | 백엔드 통합 | — | **두지 않습니다.** 테스트용 DB를 쓰지 않기로 했습니다. 로컬에 Docker가 없어 Testcontainers 테스트가 어디서도 실행되지 않던 상태라, auth-service의 해당 테스트 10개와 의존성을 제거했습니다 |
 | 프런트 단위·컴포넌트 | Vitest, Testing Library | 도입 — `pnpm test:unit` |
 | API 모킹 | `vi.spyOn`(모듈 함수 직접 모킹) | 도입 — 네트워크 계층을 가로챌 MSW는 채택하지 않았습니다 |
-| 브라우저 E2E | Playwright | 도입 — 랜딩 E2E와 `@axe-core/playwright` 접근성 검사 (`pnpm test:e2e`) |
+| 브라우저 E2E | Playwright | 도입 — 랜딩·온보딩·입력 관리 흐름 E2E, `/dev/primitives` 시각 회귀, `@axe-core/playwright` 접근성 검사 (`pnpm test:e2e`) |
 
 PR 단계 CI(`pr-check.yml`)를 통해 백엔드 전체 테스트(`./gradlew check`) 및 프런트엔드 타입체크·린트·단위테스트(`pnpm`)를 자동 검증합니다. `main` 푸시 시 배포 워크플로(`deploy.yml`)가 동작합니다.
 
 OCI VM에서는 `carix-caddy`, `frontend-node`, `config-server`, `eureka`, `gateway`,
-`auth-service`, `core-api`, `postgres` 컨테이너를 Docker Compose로 운영합니다
-(`collector`는 아직 이 목록에 없습니다 — 상태는
-[`docs/README.md`의 "진행 상태" 절](docs/README.md#진행-상태) 참고). 이미지는 컴포넌트별로
+`auth-service`, `core-api`, `collector`, `postgres` 컨테이너를 Docker Compose로 운영합니다. 이미지는 컴포넌트별로
 GitHub Actions(ARM 러너)가 빌드해
 GHCR에 올리고 서버는 pull만 합니다. 엣지는 2단으로, 서버의 라우터 Caddy가 TLS를 종료하고 호스트명으로 분기하면
 프로젝트 전용 `carix-caddy`가 애플리케이션 라우팅을 맡습니다 (근거는 위 배포 계획·설계서 참조).
@@ -403,7 +402,7 @@ Carix/
 │   ├── infra-edge/            라우터 Caddy·infra compose 참조용 사본 (정본은 서버 ~/infra)
 ├── config/                    CPI 분류 매핑, 기본 지출 가중치
 ├── verification/              데이터 원천 선행 검증 스크립트와 실측 노트
-├── frontend/                  React Router 7 + Vite + Tailwind (S-01~S-16 전 화면 동작 — SSR 미도입)
+├── frontend/                  React Router 7 + Vite + Tailwind (S-01~S-20 전 화면 동작 — SSR 미도입)
 ├── backend/                   Gradle 멀티모듈 — config-server, eureka, gateway, auth-service, core-api, collector
 │                               (Spring Batch 미도입 — collector 는 관리자 콘솔·내부 API 로 구동)
 ├── docs/
@@ -425,7 +424,7 @@ Carix/
   `vite.config.ts`의 프록시가 배포된 게이트웨이로 넘깁니다 — 로컬에 백엔드를 띄우지 않아도
   로그인이 됩니다. 다른 대상으로 보내려면 `CARIX_API_TARGET` 환경변수를 씁니다.
 - **로컬 백엔드:** 로컬에 DB를 띄우지 않고 **OCI의 `carix` DB에 원격 연결**합니다. 접근은 TLS + OCI Security List IP 허용목록입니다. 운영과 개발이 같은 DB입니다(대안 비교·감수한 위험은 [DEVELOPMENT.md §3](docs/DEVELOPMENT.md)).
-- **통합 테스트:** 두지 않습니다. 테스트용 DB를 쓰지 않기로 했고, 컨텍스트를 띄우는 테스트는 연결하지 않는 DataSource로 돌립니다 ([DEVELOPMENT.md §6](docs/DEVELOPMENT.md)). CI는 전 모듈을 `-x test`로 빌드하므로 테스트 자동 실행 지점은 없습니다 — 머지 전 로컬에서 직접 돌립니다.
+- **통합 테스트:** 두지 않습니다. 테스트용 DB를 쓰지 않기로 했고, 컨텍스트를 띄우는 테스트는 연결하지 않는 DataSource로 돌립니다 ([DEVELOPMENT.md §6](docs/DEVELOPMENT.md)). 테스트 자동 실행 지점은 PR 단계 CI(`pr-check.yml`, 모듈별 `./gradlew :{모듈}:check`)뿐이고, 배포 워크플로는 `-x test` 로 빌드만 합니다.
 - 환경 변수는 [`.env.example`](.env.example)을 복사해 `.env`로 채웁니다. API 키·시크릿은 저장소에 커밋하지 않습니다.
 
 버전 기준: 컨테이너는 Java 25, Node.js 24 LTS로 고정합니다 (로컬 개발 머신의 상위 버전과 별개).
@@ -440,14 +439,13 @@ PR 단계에서 `pr-check.yml` 워크플로가 백엔드 테스트와 프런트�
 
 - API 문서: `https://carix.144.24.90.88.sslip.io/api/swagger-ui/index.html`
 - `GET /api/health` — 배포 헬스체크 대상
-- `POST /api/v1/demo/echo` — 데모/검증용. Swagger 및 API 통신 확인 엔드포인트
-- `POST /api/v1/auth/register`, `/login`, `/logout`, `/logout-all`,
-  `GET /api/v1/auth/session` — auth-service
-- `GET /api/v1/skills/search`, `POST /api/v1/user-skills`, `DELETE /api/v1/user-skills/{id}` —
-  구현 완료 (JPA로 `core` 스키마 사용)
-- `/api/v1/dashboard/**`, `/api/v1/income/**`, `/api/v1/expenses/**`, `/api/v1/scenarios/**`,
-  `/api/v1/reference/**`, `/api/v1/profile`, `DELETE /api/v1/users` —
-  고정 응답 스텁 (API 규격 및 명세 우선 확정 단계)
+- `GET /api/v1/demo/thresholds` — Config Server 연동 확인 도구 ([DEVELOPMENT.md](docs/DEVELOPMENT.md))
+- `POST /api/v1/auth/register`, `/login`, `/logout`, `/logout-all`, `/onboarding/reset`,
+  `PATCH /api/v1/auth/onboarding`, `GET /api/v1/auth/session` — auth-service
+- `/api/v1/profile`, `/api/v1/income/**`, `/api/v1/expenses/**`, `/api/v1/skills/**`,
+  `/api/v1/user-skills/**`, `/api/v1/dashboard/**`, `/api/v1/scenarios/**`, `/api/v1/meta/versions`,
+  `DELETE /api/v1/users` — core-api, 전부 실데이터로 응답합니다. 엔드포인트별 계약은
+  [API 규격](docs/specs/api-specification.md)
 
 `collector`의 파이프라인 관리 API(`/internal/pipeline/**`)는 게이트웨이가 라우팅하지 않아
 위 공개 URL 로 도달하지 않습니다. 호출 방법은

@@ -99,22 +99,16 @@
 | --- | --- |
 | 구매력 지수(PPI) | 품목별 CPI × 소비 가중치(상속 포함)로 개인물가를 누적하는 본 엔진이 배선돼 있다. 같은 엔진이 협상 목표의 구매력 복구선(마지막 연봉 변경 이후 개인물가 상승분)을 낸다. 추이 화면 두 계열은 `a10` 이다 |
 | A 레인 | 남은 블록은 관문 2 의 `a9`·`a10`(`US-D8`)뿐이다 — [개발 계획 §2](plans/carix-dev-plan.md) |
-| 시장가치 지수(MVI) | 100 고정은 해소됐다(`b18`). 운영 집계는 실제 수집 월(202608~)만 남아 있고 전 사용자 스냅샷을 재계산해 MVI 는 전 구간 표본 부족이다 — 최근 3개월 대 이전 12개월 비교라 수집 이력 15개월 뒤에 값이 난다. 월별 모수는 신규 수집 공고(유량)이고 크롤링 규모 고정 및 유량 정의 정합은 완료됐다(`b21`) |
+| 시장가치 지수(MVI) | 없음. 운영 스냅샷은 202606 이후 전 월에 값이 난다 — 이전 12개월 창은 잡코리아 무작위 표본 백필(`c24`)로 채웠고, 잡코리아 수요율은 그 표본만 쓴다. 1년 넘은 공고는 원천에서 지워져 그보다 앞선 달은 채우지 못한다. 월 갱신(지난달 백필 → 재집계 → 전 사용자 재계산)은 수동이다 ([데이터 아키텍처 §5](specs/data-architecture.md)) |
 | collector | 없음. 임금통계 적재의 출처 기록·승격 규칙·폴백 단일 연도화까지 들어왔다. 관리자 콘솔(`S-16`) UI 연동까지 완료했다. `@Scheduled` 정기 실행은 도입하지 않기로 확정했다 ([데이터 아키텍처 §5](specs/data-architecture.md)) |
 | 프런트엔드 | 없음. UI 일관성 통일은 끝났고 eslint 가 프리미티브 밖 버튼·팔레트·카드 틀을 막는다([ui-unification-plan.md](plans/ui-unification-plan.md) §1) |
 | 검증 | 스냅샷 쓰기 경로는 자문 잠금까지 운영에서 입증됐다([도메인 정의서 §5](specs/domain-logic.md)). MVI `N<10` 표본 부족과 Config Server 임계값 변경은 단위 테스트로 검증했다. 커넥션 풀 예산은 `b17`(읽기 전용 풀 분리)로 완료됐다. 민감 금액 로깅 마스킹 점검(`a7`)은 끝났고, E2E 통합과 완료 기준 10항목 점검이 남았다 |
 | 스냅샷 데이터 결함 | 없음. `market_value_index = 0` 22행은 전부 밀려난 행이고, 월별 최신 `data_version` 만 읽는 유효행에는 0 이 없다 — 원인(최근 3개월 창의 모수 0 을 수요 0 으로 읽던 것)을 고친 뒤의 실행들이 덮었다. `opening_window_index` 가 `NULL` 인데 `rationale.indexStatuses.owi` 는 `OK` 이고 근거는 다 들어있는 행 35개(유효 3)가 남아 있다 — 어느 빌드가 만들었는지 규명하지 못했고 현재 코드 경로로는 재현되지 않는다. 값-상태 불변식(`IndexValueContract`)이 산출기 계약과 쓰기 경계 두 층에서 그 모양을 막고, 읽기 경로는 옛 행을 `계산 대기`로 접는다 |
 | 채용 활발도(OWI) | 없음. `market_aggregate` 기반 동료집단 채용 비중 추이 재정의·경력 2단계 완화·원천 결합 및 UI 전환(`b22`) 완료 ([기능 명세 §4.5](specs/functional-specification.md)) |
 | 지출 카테고리 Swagger 문구 | `ExpenseItem` 의 `category` 설명이 `TRANSPORTATION`·`HEALTH`·`OTHER` 를 적고 있는데 정본 `ExpenseCategoryEnum` 은 `TRANSPORT`·`MEDICAL`·`LEISURE` 다 — 세 값 모두 실존하지 않는다. 코드 주석만의 문제라 동작은 멀쩡하고 공개 API 문서만 틀렸다. 소관 A (소비 API) |
-| 광역 지역 어휘 두 벌 | `core-api` `PeerGroupFallbackResolver#extractBroadRegion` 은 `서울특별시` 를 만들고 collector `RegionRollup` 은 `서울` 을 만든다. 동료집단 완화 Level 3 의 광역 조회가 `region = 'ALL'` 행으로 떨어져 증상이 가려져 있다. 값 규약 정본은 시/도 17개 한글([API 규격 §3.1](specs/api-specification.md), [ERD](specs/erd.md)). 소관 B (동료집단) |
-| Gateway 세션 검증 필터 | **활성화는 끝났다** — `carix.gateway.session-validation.enabled: true` 가 저장소와 서버 체크아웃 양쪽에 있다(`a37fa47`). 남은 주의점은 되돌릴 때다 — 플래그가 `config/spring/gateway.yml` 에 있어 `.env`(이미지 태그) 롤백으로는 안 꺼진다. 전환·롤백 절차는 [`backend/README.md` 게이트웨이](../backend/README.md). 프런트엔드 소비자 전환도 끝났다(`c16`) — `dashboardMarketApi.ts`(S-11 스냅샷 이력, S-14 추이분석)가 `coreGet` 으로 갈아타 401 이 `UnauthorizedError` 로 오고, 두 화면이 `catch` 에서 `navigate(LOGIN_PATH, { replace: true })` 한다. 호출부가 loader 가 아니라 컴포넌트라 라이브러리 전환만으로는 안 됐다 |
+| 광역 지역 죽은 코드 | 동료집단은 지역 차원을 쓰지 않는다 — `PeerGroupFallbackResolver` 가 `region` 을 늘 `ALL` 로 채우고, `market_aggregate`·`wage_stat_observation` 의 지역 값도 전부 `ALL` 이다. 그래서 `extractBroadRegion`(`서울특별시` 형식)은 `WageBaselineResolver` 에서 `광역 → 전국 → ALL` 순으로 헛조회 두 번만 만들고, `formatConditionText` 는 테스트에서만 불린다. 둘을 걷어내고 기준선을 `ALL` 로 바로 조회하면 된다. 소관 B (동료집단) |
 | 임금통계 연도 시계열 | 출처 컬럼(`source`)과 **쓰기 경로가 섰다** — 수집이 연도별로 출처를 기록하고, 실측만 기존 행을 덮으며, 폴백 vintage 를 고정해 벽시계 드리프트를 막았다. 고정 이전에 쌓인 `base_period=2025` 드리프트 72행은 삭제했다([ERD 운영 스키마 적용 이력](specs/erd.md)). 운영 288행(2020~2025 여섯 해)은 재수집으로 전부 `KOSIS` 실측이다. 읽기 경로(`DefaultWageStatSeriesProvider`, `b13`) 및 경력 사다리 연도 축(`b14`)도 완료됐다. 잔여 지표는 내 상승률 vs 시장(`a9`·`c14`), 임금 vs 개인물가(`a10`) — 일정은 [개발 계획 §2](plans/carix-dev-plan.md) |
-| 운영 감시 | 컨테이너 헬스체크 감시를 이 호스트의 Dozzle(8888)·Dockge(3001)에 붙이는 것과 디스크 사용률 알림이 미착수다. 루트 사용률은 정리 후 81% 이고, 공유 호스트라 스왑 4GB 가 이미 소진된 상태에서 Carix 가 올라가 있다 |
-
-**배포 전 실행 순서는 더 없다.** 이 절이 지키던 사슬은 「검증」의 쓰기 검증 → 「Gateway 세션
-검증 필터」 활성화였고, 근거는 *"플래그를 켜 놓고 돌리면 실패가 401 로 왔을 때 게이트 탓인지
-`jsonb`·자문 잠금 탓인지 갈리지 않는다"* 였다. **양쪽 끝이 모두 지났다** — 필터는 `a37fa47`
-로 켜졌고 서버 체크아웃도 `true` 다. 쓰기 경로는 운영 770행으로 이미 돌았다.
+| 운영 감시 | 호스트 자원은 여유가 있다. 프로세스가 죽으면 `restart: unless-stopped` 가 살리고, 배포 직후는 배포 헬스체크와 자동 롤백이 본다. 비는 곳은 배포 뒤 살아 있으나 응답하지 않는 상태다 — Carix 컨테이너에 `healthcheck` 가 없고, 호스트의 `autoheal` 은 `autoheal` 라벨이 붙은 컨테이너만 보는데 Carix 에는 라벨이 없다. 디스크 사용률 알림도 미착수다 |
 
 남은 항목들은 서로 순서 제약이 없다. 각자 소관 블록에서 친다.
 
