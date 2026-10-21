@@ -139,4 +139,23 @@ class SnapshotRationaleTest {
     assertThat(rationale.openingWindow().recentSharePercent()).isNull();
     assertThat(rationale.openingWindow().baselineSharePercent()).isNull();
   }
+
+  @Test
+  @DisplayName("산식 버전이 없는 이전 행은 1 로 읽고 새 행은 기록된 버전을 읽는다")
+  void ppiFormulaVersion_이전_행은_1() throws Exception {
+    ObjectMapper mapper = new ObjectMapper().registerModule(new JavaTimeModule());
+
+    SnapshotRationale legacy = mapper.readValue("{\"runId\":\"r\"}", SnapshotRationale.class);
+    SnapshotRationale current =
+        mapper.readValue(
+            mapper.writeValueAsString(
+                new SnapshotRationale(
+                    null, null, null, null, null, null, null, null, "r", null, null, null, null,
+                    "2")),
+            SnapshotRationale.class);
+
+    assertThat(legacy.ppiFormulaVersion()).isNull();
+    assertThat(legacy.ppiFormulaVersionOrLegacy()).isEqualTo("1");
+    assertThat(current.ppiFormulaVersionOrLegacy()).isEqualTo("2");
+  }
 }

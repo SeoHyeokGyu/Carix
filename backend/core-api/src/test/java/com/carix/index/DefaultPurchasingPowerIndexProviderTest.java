@@ -293,4 +293,39 @@ class DefaultPurchasingPowerIndexProviderTest {
     assertThat(provider.calculate(userId, "202603").weightStatus())
         .isEqualTo(ExpenseWeightStatus.PARTIALLY_ESTIMATED);
   }
+
+  private IncomeHistory incomeWithBonus(String date, long gross, Long net, Long bonusAnnual) {
+    IncomeHistory h = income(date, gross, net);
+    h.applyBonusTerms(bonusAnnual == null, bonusAnnual);
+    return h;
+  }
+
+  @Test
+  @DisplayName("기준과 현재가 같은 상여 조건이면 상여 전과 같다")
+  void 기준과_현재가_같은_상여조건이면_상여_전과_같다() {
+    givenCpi("202602", "202604", "0.01");
+    givenIncomes(income("2026-02-01", 60_000_000L, null), income("2026-03-01", 66_000_000L, null));
+    BigDecimal before = provider.calculate(userId, "202604").value();
+
+    givenIncomes(
+        incomeWithBonus("2026-02-01", 60_000_000L, null, 6_000_000L),
+        incomeWithBonus("2026-03-01", 66_000_000L, null, 6_600_000L));
+    PpiResult after = provider.calculate(userId, "202604");
+
+    // 비율이 66/60 에서 (66+6.6)/(60+6) 으로 같다 (1.1)
+    assertThat(after.value()).isEqualByComparingTo(before);
+  }
+
+  @Test
+  @DisplayName("현재 행만 따로 받음이면 소득 비율이 오른다")
+  void 현재_행만_따로받음이면_소득비율이_오른다() {
+    givenCpi("202602", "202604", "0");
+    givenIncomes(
+        income("2026-02-01", 60_000_000L, null),
+        incomeWithBonus("2026-03-01", 60_000_000L, null, 6_000_000L));
+
+    PpiResult r = provider.calculate(userId, "202604");
+
+    assertThat(r.value()).isEqualByComparingTo("110.0");
+  }
 }

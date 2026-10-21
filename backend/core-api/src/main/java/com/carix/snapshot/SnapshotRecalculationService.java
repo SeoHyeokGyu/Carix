@@ -2,6 +2,7 @@ package com.carix.snapshot;
 
 import com.carix.datasource.ReadOnlyRoutingContext;
 import com.carix.index.CurrentSalaryProvider;
+import com.carix.index.DefaultPurchasingPowerIndexProvider;
 import com.carix.index.MarketValueIndexProvider;
 import com.carix.index.OpeningWindowIndexProvider;
 import com.carix.index.PurchasingPowerIndexProvider;
@@ -180,7 +181,8 @@ public class SnapshotRecalculationService {
         calc.mvi().wageBaseline() == null || calc.mvi().wageBaseline().source() == null
             ? null
             : calc.mvi().wageBaseline().source().name(),
-        calc.topPriceDriver());
+        calc.topPriceDriver(),
+        DefaultPurchasingPowerIndexProvider.FORMULA_VERSION);
   }
 
   private record MonthCalculation(
