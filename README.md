@@ -246,8 +246,9 @@ flowchart TD
 고용24 채용정보 OpenAPI는 개인회원 계정으로 호출이 차단돼 있어 배제했고, 사람인
 오픈 API도 키 발급 심사 지연으로 폐기했습니다(자세한 내용은
 [`docs/specs/external-api-integration.md`](docs/specs/external-api-integration.md) 참고).
-원천별 이용 조건과 필드 규격은 구현 전 선행 검증에서 확인하며, 검증 결과가 나쁜
-원천은 어댑터 단위로 비활성화합니다.
+API 원천의 이용 조건과 필드 규격은 구현 전 선행 검증에서 확인했습니다. 스크래핑 원천의
+이용약관은 학습·포트폴리오 범위 운영을 전제로 검토하지 않았고, 일반 공개 전에 검토해 결과가
+나쁜 원천은 어댑터 단위로 비활성화합니다([데이터 아키텍처 §3](docs/specs/data-architecture.md)).
 
 향후 기업 안정성 분석이 필요할 경우
 [OpenDART](https://opendart.fss.or.kr/guide/main.do?apiGrpCd=DS001) 연동을 검토합니다.

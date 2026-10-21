@@ -269,7 +269,7 @@ Carix 6 카테고리는 CPI 12대 분류의 N:1 합성이다. 합성은 **변화
 
 `SaraminAdapter`·`JobKoreaAdapter`는 스크래핑으로 구현한다. 채용공고 원천 구성과 파이프라인은
 [데이터 아키텍처 §1](data-architecture.md)을 따른다. 스크래핑 대상 사이트의
-이용약관은 아직 검토하지 않았다 ([데이터 아키텍처 §3](data-architecture.md)).
+이용약관은 검토하지 않기로 했고, 그 전제와 재검토 시점은 [데이터 아키텍처 §3](data-architecture.md)이 갖는다.
 
 #### 상세페이지 급여 표기
 
