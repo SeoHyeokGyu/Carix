@@ -20,7 +20,7 @@ describe("design tokens", () => {
   it("강조 색상 5종 hex를 spec 값 그대로 포함한다", () => {
     expect(css).toContain("#10b981");
     expect(css).toContain("#f97316");
-    expect(css).toContain("#ef4444");
+    expect(css).toContain("#dc2626");
     expect(css).toContain("#4f46e5");
     expect(css).toContain("#a78bfa");
     expect(css).toContain("#6d28d9");

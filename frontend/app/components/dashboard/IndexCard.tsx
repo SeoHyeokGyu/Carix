@@ -86,7 +86,7 @@ export function IndexCard({
             </div>
             <BaselineScale value={value} />
             {baselineHint && (
-              <p className="text-[11px] text-carix-text/50">{baselineHint}</p>
+              <p className="text-[11px] text-carix-text/70">{baselineHint}</p>
             )}
           </div>
         )}

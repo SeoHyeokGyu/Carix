@@ -80,7 +80,7 @@ export function NegotiationTargetsBlock({
             <dt className="flex flex-col text-sm text-carix-text">
               <span>{row.label}</span>
               {row.note && (
-                <span className="text-xs text-carix-text/60">{row.note}</span>
+                <span className="text-xs text-carix-text/70">{row.note}</span>
               )}
             </dt>
             <dd

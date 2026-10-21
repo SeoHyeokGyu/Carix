@@ -80,17 +80,17 @@ export function TrustPanel({
             )}
           {peerConditions && (
             <>
-              <dt className="text-carix-text/60">나와 비교한 사람들</dt>
+              <dt className="text-carix-text/70">나와 비교한 사람들</dt>
               <dd className="text-carix-text">{peerConditions.text}</dd>
             </>
           )}
           {rationale && (
             <>
-              <dt className="text-carix-text/60">판정 근거</dt>
+              <dt className="text-carix-text/70">판정 근거</dt>
               <dd className="text-carix-text">{rationale}</dd>
             </>
           )}
-          <dt className="text-carix-text/60">기준</dt>
+          <dt className="text-carix-text/70">기준</dt>
           <dd className="text-carix-text/70">
             {[
               `기준일 ${metadata.baseDate}`,
@@ -120,7 +120,7 @@ function CoverageRow({
 }) {
   return (
     <>
-      <dt className="text-carix-text/60">{label}</dt>
+      <dt className="text-carix-text/70">{label}</dt>
       <dd className="flex items-center gap-3">
         <span
           aria-hidden="true"
