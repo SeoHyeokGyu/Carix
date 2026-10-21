@@ -142,6 +142,87 @@ describe("대시보드 라우트 및 레이아웃 (Dashboard)", () => {
       );
     });
 
+    describe("성과급 포함 연간 실소득 한 줄", () => {
+      function summaryWith(bonusInclusiveIncome?: unknown) {
+        return {
+          ok: true,
+          data: {
+            purchasingPowerIndex: OK_INDEX,
+            marketValueIndex: OK_INDEX,
+            openingWindowIndex: EMPTY_INDEX,
+            decisionSignal: null,
+            bonusInclusiveIncome,
+            metadata: { baseDate: "2026-09-01", updateDelayed: false },
+          },
+        } as never;
+      }
+
+      it("성과급 포함 줄은 필드가 있을 때만 보인다", async () => {
+        vi.spyOn(dashboardApi, "fetchSummary").mockResolvedValue(
+          summaryWith({
+            recentAnnual: 64_000_000,
+            previousAnnual: 50_000_000,
+            realChangePercent: 3.1,
+            bonusCount: 2,
+          }),
+        );
+
+        renderScreen();
+
+        expect(
+          await screen.findByText(
+            "성과급 포함 연간 실소득 +3.1% (최근 12개월 성과급 2건 반영)",
+          ),
+        ).toBeInTheDocument();
+      });
+
+      it("필드가 없으면 줄이 없다", async () => {
+        vi.spyOn(dashboardApi, "fetchSummary").mockResolvedValue(
+          summaryWith(null),
+        );
+
+        renderScreen();
+
+        await screen.findByText("구매력 지수");
+        expect(screen.queryByText(/성과급 포함 연간 실소득/)).toBeNull();
+      });
+
+      it("실질 변화를 계산하지 못하면 줄이 없다", async () => {
+        vi.spyOn(dashboardApi, "fetchSummary").mockResolvedValue(
+          summaryWith({
+            recentAnnual: 64_000_000,
+            previousAnnual: 0,
+            realChangePercent: null,
+            bonusCount: 1,
+          }),
+        );
+
+        renderScreen();
+
+        await screen.findByText("구매력 지수");
+        expect(screen.queryByText(/성과급 포함 연간 실소득/)).toBeNull();
+      });
+
+      it("음수 변화는 부호를 그대로 보인다", async () => {
+        vi.spyOn(dashboardApi, "fetchSummary").mockResolvedValue(
+          summaryWith({
+            recentAnnual: 48_000_000,
+            previousAnnual: 50_000_000,
+            realChangePercent: -4.2,
+            bonusCount: 0,
+          }),
+        );
+
+        renderScreen();
+
+        expect(
+          await screen.findByText(
+            "성과급 포함 연간 실소득 -4.2% (최근 12개월 성과급 0건 반영)",
+          ),
+        ).toBeInTheDocument();
+      });
+    });
+
     describe("구매력 카드 입력값 한 줄", () => {
       const SUMMARY = {
         ok: true,
