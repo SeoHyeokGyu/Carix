@@ -65,6 +65,29 @@ class BonusInclusiveIncomeCalculatorTest {
   }
 
   @Test
+  @DisplayName("직전_기간을_온전히_덮지_못하면_실질변화는_null")
+  void 직전_기간을_온전히_덮지_못하면_실질변화는_null() {
+    // 기준월 202610 의 18개월 전(202504)부터 시작 -> 직전 12개월(202411~202510) 앞부분이 비어 있다
+    given(incomeRepository.findByUserIdOrderByEffectiveDateDesc(USER_ID))
+        .willReturn(List.of(income(48_000_000L, LocalDate.of(2025, 4, 1))));
+    given(bonusService.list(USER_ID)).willReturn(List.of(bonus("202603", 1_000_000L)));
+    given(inflationService.trailing12m(USER_ID, BASE)).willReturn(Optional.of(comparison("2.00")));
+
+    BonusInclusiveIncome result = calculator.calculate(USER_ID, BASE);
+
+    assertThat(result.realChangePercent()).isNull();
+    assertThat(result.recentAnnual()).isEqualTo(49_000_000L);
+  }
+
+  @Test
+  @DisplayName("24개월_창_밖의_성과급만_있으면_null")
+  void 창_밖의_성과급만_있으면_null() {
+    given(bonusService.list(USER_ID)).willReturn(List.of(bonus("202409", 3_000_000L)));
+
+    assertThat(calculator.calculate(USER_ID, BASE)).isNull();
+  }
+
+  @Test
   @DisplayName("개인물가가_없으면_실질변화는_null")
   void 개인물가가_없으면_실질변화는_null() {
     given(incomeRepository.findByUserIdOrderByEffectiveDateDesc(USER_ID))

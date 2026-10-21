@@ -36,13 +36,18 @@ public class BonusInclusiveIncomeCalculator {
   private final PerformanceBonusService performanceBonusService;
   private final PersonalInflationService personalInflationService;
 
-  /** 성과급 기록이 하나도 없으면 {@code null}. */
+  /** 두 12개월 창(기준월 포함 24개월) 안에 지급된 성과급이 하나도 없으면 {@code null}. */
   public BonusInclusiveIncome calculate(UUID userId, String baseYearMonth) {
-    List<PerformanceBonusResponse> bonuses = performanceBonusService.list(userId);
+    YearMonth base = YearMonth.parse(baseYearMonth, YM);
+    YearMonth windowStart = base.minusMonths(2 * PERIOD_MONTHS - 1);
+    List<PerformanceBonusResponse> bonuses =
+        performanceBonusService.list(userId).stream()
+            .filter(b -> !YearMonth.parse(b.paidMonth(), YM).isBefore(windowStart))
+            .filter(b -> !YearMonth.parse(b.paidMonth(), YM).isAfter(base))
+            .toList();
     if (bonuses.isEmpty()) {
       return null;
     }
-    YearMonth base = YearMonth.parse(baseYearMonth, YM);
     List<IncomeHistory> incomes =
         incomeHistoryRepository.findByUserIdOrderByEffectiveDateDesc(userId);
 
@@ -51,13 +56,14 @@ public class BonusInclusiveIncomeCalculator {
     return new BonusInclusiveIncome(
         recent.total(),
         previous.total(),
-        realChangePercent(userId, baseYearMonth, recent, previous),
+        realChangePercent(
+            userId, baseYearMonth, recent, previous, coversWindow(incomes, windowStart)),
         recent.bonusCount());
   }
 
   private Double realChangePercent(
-      UUID userId, String baseYearMonth, Period recent, Period previous) {
-    if (!previous.hasIncomeRow() || previous.total() <= 0) {
+      UUID userId, String baseYearMonth, Period recent, Period previous, boolean coversPrevious) {
+    if (!coversPrevious || previous.total() <= 0) {
       return null;
     }
     Optional<InflationComparison> inflation =
@@ -77,16 +83,20 @@ public class BonusInclusiveIncomeCalculator {
         .doubleValue();
   }
 
+  /** 소득 행이 직전 12개월 창의 첫날부터 온전히 덮는가. 입력은 효력일 내림차순이라 마지막이 가장 이르다. */
+  private static boolean coversWindow(List<IncomeHistory> incomes, YearMonth windowStart) {
+    return !incomes.isEmpty()
+        && !incomes.get(incomes.size() - 1).getEffectiveDate().isAfter(windowStart.atDay(1));
+  }
+
   /** {@code end} 를 마지막 달로 하는 12개월. */
   private static Period period(
       List<IncomeHistory> incomes, List<PerformanceBonusResponse> bonuses, YearMonth end) {
     YearMonth start = end.minusMonths(PERIOD_MONTHS - 1);
     long grossSum = 0;
-    boolean hasIncomeRow = false;
     for (YearMonth month = start; !month.isAfter(end); month = month.plusMonths(1)) {
       Optional<IncomeHistory> row = effectiveRow(incomes, month.atEndOfMonth());
       if (row.isPresent()) {
-        hasIncomeRow = true;
         grossSum += EffectiveIncome.annualGross(row.get());
       }
     }
@@ -99,8 +109,7 @@ public class BonusInclusiveIncomeCalculator {
         bonusSum += bonus.amount();
       }
     }
-    return new Period(
-        Math.round(grossSum / (double) PERIOD_MONTHS) + bonusSum, bonusCount, hasIncomeRow);
+    return new Period(Math.round(grossSum / (double) PERIOD_MONTHS) + bonusSum, bonusCount);
   }
 
   /** 입력은 효력일 내림차순이다. */
@@ -108,5 +117,5 @@ public class BonusInclusiveIncomeCalculator {
     return incomes.stream().filter(row -> !row.getEffectiveDate().isAfter(asOf)).findFirst();
   }
 
-  private record Period(long total, int bonusCount, boolean hasIncomeRow) {}
+  private record Period(long total, int bonusCount) {}
 }
