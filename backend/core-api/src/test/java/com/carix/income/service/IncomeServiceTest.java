@@ -338,6 +338,23 @@ class IncomeServiceTest {
   }
 
   @Test
+  @DisplayName("updateBonusTerms - 들어있음이면 고정상여는 null 로 저장한다")
+  void 들어있음이면_고정상여는_서비스에서도_null로_저장한다() {
+    UUID id = UUID.randomUUID();
+    IncomeHistory r = rowWithId(id, LocalDate.of(2025, 3, 1));
+    r.applyBonusTerms(false, 6_000_000L);
+    given(repository.findById(id)).willReturn(Optional.of(r));
+    given(repository.findByUserIdOrderByEffectiveDateDesc(USER_ID)).willReturn(List.of(r));
+
+    List<IncomeResponse> res =
+        service.updateBonusTerms(USER_ID, new BonusTermsRequest(id, true, 3_000_000L));
+
+    assertThat(r.isBonusIncluded()).isTrue();
+    assertThat(r.getFixedBonusAnnual()).isNull();
+    assertThat(res.get(0).fixedBonusAnnual()).isNull();
+  }
+
+  @Test
   @DisplayName("updateBonusTerms - 상여_조건_변경은_스냅샷_재계산을_부른다")
   void 상여_조건_변경은_스냅샷_재계산을_부른다() {
     UUID id = UUID.randomUUID();
