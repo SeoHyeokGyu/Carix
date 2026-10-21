@@ -28,9 +28,9 @@ public class KosisCpiClient {
   private static final String ITM_ID = "T"; // 소비자물가지수
   private static final String REGION_NATIONWIDE = "T10"; // objL1: 시도별 = 전국
 
-  /** 지출목적별 12대 분류 코드 (A~L). 총지수 '0'은 cpi-category-map.yml 기준으로 제외한다. */
+  /** 총지수 '0' 과 지출목적별 12대 분류 코드 (A~L). 총지수는 카테고리 합성(cpi-category-map.yml)에 쓰이지 않고 전체 CPI 비교용이다. */
   private static final String[] CATEGORY_CODES = {
-    "A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L"
+    "0", "A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L"
   };
 
   private final String apiKey;
@@ -48,11 +48,11 @@ public class KosisCpiClient {
   }
 
   /**
-   * 지정 연월 구간의 지출목적별 12대 분류 CPI를 조회합니다.
+   * 지정 연월 구간의 총지수와 지출목적별 12대 분류 CPI를 조회합니다.
    *
    * @param startYearMonth 조회 시작 연월 (예: "202401", null/공백 시 최신 1개월)
    * @param endYearMonth 조회 종료 연월 (예: "202412", null/공백 시 startYearMonth와 동일)
-   * @return 연월(yyyyMM) -&gt; (카테고리 코드 A~L -&gt; CPI 값) 맵
+   * @return 연월(yyyyMM) -&gt; (카테고리 코드 0·A~L -&gt; CPI 값) 맵
    */
   public Map<String, Map<String, BigDecimal>> fetchCpiByPeriod(
       String startYearMonth, String endYearMonth) {
