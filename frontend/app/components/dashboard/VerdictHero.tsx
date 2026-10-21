@@ -84,6 +84,11 @@ export function VerdictHero({
               ))}
             </ul>
           )}
+          {signal?.code === "SEEK_JOB" && (
+            <TextLink to="/dashboard/simulator">
+              옮기면 12개월간 얼마가 달라지는지 계산해 보기
+            </TextLink>
+          )}
           {signal && (
             <NegotiationTargetsBlock
               signalCode={signal.code}
@@ -126,7 +131,7 @@ function VerdictPreview({
   return (
     <aside className="flex shrink-0 flex-col gap-4 border-carix-border md:border-l md:pl-6">
       <div className="flex flex-col gap-1.5">
-        <p className="text-xs text-carix-text/60">이 판정이 이어진 기간</p>
+        <p className="text-xs text-carix-text/70">이 판정이 이어진 기간</p>
         <div className="flex items-center gap-2">
           <span aria-hidden="true" className="flex gap-1">
             {Array.from(
@@ -261,7 +266,7 @@ function SkillPrescriptionBlock({
               size="icon-xs"
               onClick={() => setIsCollapsed(!isCollapsed)}
               aria-label={isCollapsed ? "추천 스킬 펼치기" : "추천 스킬 접기"}
-              className="text-carix-text/50 hover:text-carix-text"
+              className="text-carix-text/70 hover:text-carix-text"
             >
               {isCollapsed ? (
                 <ChevronDown className="size-3.5" />
@@ -276,7 +281,7 @@ function SkillPrescriptionBlock({
       {!isCollapsed && (
         <>
           {isInsufficient ? (
-            <p className="text-xs text-carix-text/60">
+            <p className="text-xs text-carix-text/70">
               동료집단 공고 표본이 부족하여 추천 스킬을 산출할 수 없습니다.
             </p>
           ) : (

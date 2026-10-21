@@ -87,6 +87,6 @@ export const INCOME_FIELD_MESSAGES: Record<keyof IncomeInput, string> = {
   grossSalary: `세전 연봉은 ${GROSS_SALARY_RANGE_TEXT}`,
   netSalary: "월 실수령액은 50만 원~2억 원 사이로 입력해 주세요.",
   effectiveDate:
-    "연봉 적용 시작일은 YYYY-MM-DD 형식의 과거~당월 날짜여야 합니다.",
+    "연봉 적용 시작일은 2024-03-01 처럼 입력해 주세요. 다음 달 이후 날짜는 넣을 수 없습니다.",
   changeReason: "변경 사유는 연봉 인상 또는 이직 중에서 골라 주세요.",
 };

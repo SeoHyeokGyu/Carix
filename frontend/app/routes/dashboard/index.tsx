@@ -154,7 +154,7 @@ export default function DashboardHome() {
         setRecalculatedSummary(res.data.summary);
         setLastGood(res.data.summary);
         setRecalculateMessage(
-          `${res.data.recalculatedMonths}개월치 지수가 최신 정보로 재계산되었습니다.`,
+          `${res.data.recalculatedMonths}개월치 지수를 다시 계산했습니다.`,
         );
         revalidator.revalidate();
       } else {
@@ -208,14 +208,17 @@ export default function DashboardHome() {
       />
 
       {recalculateMessage && (
-        <div className="mt-2.5 flex items-center justify-between rounded-md bg-carix-surface px-3 py-2 text-xs text-carix-info border border-carix-border">
+        <div
+          role="status"
+          className="mt-2.5 flex items-center justify-between rounded-md bg-carix-surface px-3 py-2 text-xs text-carix-info border border-carix-border"
+        >
           <span>{recalculateMessage}</span>
           <Button
             type="button"
             variant="ghost"
             size="icon-xs"
             onClick={() => setRecalculateMessage(null)}
-            className="ml-2 text-carix-text/50 hover:text-carix-text"
+            className="ml-2 text-carix-text/70 hover:text-carix-text"
             aria-label="알림 닫기"
           >
             ✕

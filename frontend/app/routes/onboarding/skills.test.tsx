@@ -111,6 +111,72 @@ describe("S-08 Skills 온보딩 화면", () => {
     );
   });
 
+  it("검색 결과를 방향키로 고르고 Enter 로 선택한다", async () => {
+    render(
+      <MemoryRouter>
+        <Skills />
+      </MemoryRouter>,
+    );
+    const user = userEvent.setup();
+
+    const search = await screen.findByRole("combobox", { name: "스킬 검색" });
+    await user.type(search, "k");
+    await screen.findByRole("option", { name: "Kubernetes" });
+    expect(search).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByRole("status")).toHaveTextContent("검색 결과 2건");
+
+    await user.keyboard("{ArrowDown}{ArrowDown}");
+    expect(search).toHaveAttribute("aria-activedescendant", "skill-option-1");
+    expect(screen.getByRole("option", { name: "Kubernetes" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+
+    await user.keyboard("{Enter}");
+    expect(
+      await screen.findByText("Kubernetes", {
+        selector: "span.text-carix-info",
+      }),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
+  });
+
+  it("Esc 를 누르면 검색 결과를 닫는다", async () => {
+    render(
+      <MemoryRouter>
+        <Skills />
+      </MemoryRouter>,
+    );
+    const user = userEvent.setup();
+
+    const search = await screen.findByRole("combobox", { name: "스킬 검색" });
+    await user.type(search, "d");
+    await screen.findByRole("listbox");
+
+    await user.keyboard("{Escape}");
+
+    expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
+    expect(search).toHaveAttribute("aria-expanded", "false");
+  });
+
+  it("실무 사용 기간을 년·개월로 풀어 보여준다", async () => {
+    render(
+      <MemoryRouter>
+        <Skills />
+      </MemoryRouter>,
+    );
+    const user = userEvent.setup();
+
+    await user.type(
+      await screen.findByRole("combobox", { name: "스킬 검색" }),
+      "d",
+    );
+    await user.click(await screen.findByRole("option", { name: "Docker" }));
+    await user.type(screen.getByLabelText(/실무 사용 기간/), "30");
+
+    expect(screen.getByText("= 2년 6개월")).toBeInTheDocument();
+  });
+
   it("스킬 검색 후 선택하여 새 스킬을 등록할 수 있다", async () => {
     vi.mocked(skillApi.createUserSkill).mockResolvedValue({
       id: "u-3",
@@ -138,12 +204,12 @@ describe("S-08 Skills 온보딩 화면", () => {
     // 2. 검색 결과 드롭다운 표시 대기
     await waitFor(() => {
       expect(
-        screen.getByRole("button", { name: "Docker" }),
+        screen.getByRole("option", { name: "Docker" }),
       ).toBeInTheDocument();
     });
 
     // 3. 스킬 선택
-    fireEvent.click(screen.getByRole("button", { name: "Docker" }));
+    fireEvent.click(screen.getByRole("option", { name: "Docker" }));
 
     // 4. 입력 폼에 값 입력
     const monthsInput = screen.getByLabelText(/실무 사용 기간/i);
@@ -186,11 +252,11 @@ describe("S-08 Skills 온보딩 화면", () => {
 
     await waitFor(() => {
       expect(
-        screen.getByRole("button", { name: "Spring Boot" }),
+        screen.getByRole("option", { name: "Spring Boot" }),
       ).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByRole("button", { name: "Spring Boot" }));
+    fireEvent.click(screen.getByRole("option", { name: "Spring Boot" }));
 
     const monthsInput = screen.getByLabelText(/실무 사용 기간/i);
     fireEvent.change(monthsInput, { target: { value: "12" } });

@@ -229,7 +229,7 @@ describe("S-09 검토 화면", () => {
     expect(
       screen.getByText(/세전 연봉 6,500만 원.*월 실수령액 420만 원/),
     ).toBeInTheDocument();
-    expect(screen.getByText(/3개 카테고리 입력 완료/)).toBeInTheDocument();
+    expect(screen.getByText("주거·공공요금 75만 원")).toBeInTheDocument();
     expect(
       screen.getByText(/2개 등록.*Spring Boot.*TypeScript/),
     ).toBeInTheDocument();
@@ -346,7 +346,7 @@ describe("S-09 검토 화면", () => {
       await screen.findByText(/적용 금액을 불러오지 못했습니다/),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: "제출하고 대시보드로" }),
+      screen.getByRole("button", { name: "내 판정 보기" }),
     ).toBeInTheDocument();
   });
 
@@ -378,14 +378,14 @@ describe("S-09 검토 화면", () => {
 
       if (expectBlocked) {
         expect(
-          screen.queryByRole("button", { name: "제출하고 대시보드로" }),
+          screen.queryByRole("button", { name: "내 판정 보기" }),
         ).not.toBeInTheDocument();
         expect(
           screen.getByRole("link", { name: "프로필 완료하러 가기" }),
-        ).toHaveAttribute("href", "/onboarding/profile");
+        ).toHaveAttribute("href", "/onboarding/profile?from=review");
       } else {
         expect(
-          await screen.findByRole("button", { name: "제출하고 대시보드로" }),
+          await screen.findByRole("button", { name: "내 판정 보기" }),
         ).toBeInTheDocument();
         expect(
           screen.queryByRole("link", { name: "프로필 완료하러 가기" }),
@@ -403,20 +403,20 @@ describe("S-09 검토 화면", () => {
     },
   );
 
-  // 브리프 5 — 소득 이력이 없으면 소득 카드가 「입력 필요」로 표시되고 제출이 막힌다.
-  it("소득 이력이 없으면 소득 카드가 입력 필요로 표시되고 제출이 막힌다", async () => {
+  // 브리프 5 — 소득 이력이 없으면 소득 카드가 「아직 입력하지 않았습니다」로 표시되고 제출이 막힌다.
+  it("소득 이력이 없으면 소득 카드가 미입력으로 표시되고 제출이 막힌다", async () => {
     vi.spyOn(incomeApi, "listIncome").mockResolvedValue([]);
 
     renderScreen();
 
     await screen.findByText(/개발.*경력 5년/);
-    expect(screen.getByText("입력 필요")).toBeInTheDocument();
+    expect(screen.getByText("아직 입력하지 않았습니다.")).toBeInTheDocument();
     expect(
-      screen.queryByRole("button", { name: "제출하고 대시보드로" }),
+      screen.queryByRole("button", { name: "내 판정 보기" }),
     ).not.toBeInTheDocument();
     expect(
       screen.getByRole("link", { name: "소득 완료하러 가기" }),
-    ).toHaveAttribute("href", "/onboarding/income");
+    ).toHaveAttribute("href", "/onboarding/income?from=review");
   });
 
   // 브리프 4 — 제출하면 advanceOnboarding("COMPLETED") 후 /dashboard 로 간다.
@@ -429,7 +429,7 @@ describe("S-09 검토 화면", () => {
     const user = userEvent.setup();
 
     await user.click(
-      await screen.findByRole("button", { name: "제출하고 대시보드로" }),
+      await screen.findByRole("button", { name: "내 판정 보기" }),
     );
 
     expect(await screen.findByText("대시보드")).toBeInTheDocument();
@@ -457,7 +457,7 @@ describe("S-09 검토 화면", () => {
     const user = userEvent.setup();
 
     await user.click(
-      await screen.findByRole("button", { name: "제출하고 대시보드로" }),
+      await screen.findByRole("button", { name: "내 판정 보기" }),
     );
 
     expect(await screen.findByRole("alert")).toBeInTheDocument();
@@ -474,7 +474,7 @@ describe("S-09 검토 화면", () => {
     const user = userEvent.setup();
 
     await user.click(
-      await screen.findByRole("button", { name: "제출하고 대시보드로" }),
+      await screen.findByRole("button", { name: "내 판정 보기" }),
     );
     await screen.findByText("대시보드");
 
@@ -496,7 +496,7 @@ describe("S-09 검토 화면", () => {
     const user = userEvent.setup();
 
     await user.click(
-      await screen.findByRole("button", { name: "제출하고 대시보드로" }),
+      await screen.findByRole("button", { name: "내 판정 보기" }),
     );
 
     const banner = await screen.findByRole("alert");
@@ -515,16 +515,16 @@ describe("S-09 검토 화면", () => {
     // 사용자도, 이 테스트도 서로 쉽게 헷갈린다.
     expect(
       screen.getByRole("link", { name: "프로필 정보 수정" }),
-    ).toHaveAttribute("href", "/onboarding/profile");
+    ).toHaveAttribute("href", "/onboarding/profile?from=review");
     expect(
       screen.getByRole("link", { name: "소득 정보 수정" }),
-    ).toHaveAttribute("href", "/onboarding/income");
+    ).toHaveAttribute("href", "/onboarding/income?from=review");
     expect(
       screen.getByRole("link", { name: "소비 정보 수정" }),
-    ).toHaveAttribute("href", "/onboarding/expense");
+    ).toHaveAttribute("href", "/onboarding/expense?from=review");
     expect(
       screen.getByRole("link", { name: "스킬 정보 수정" }),
-    ).toHaveAttribute("href", "/onboarding/skills");
+    ).toHaveAttribute("href", "/onboarding/skills?from=review");
 
     await user.click(screen.getByRole("link", { name: "소비 정보 수정" }));
     expect(await screen.findByText("소비 화면")).toBeInTheDocument();

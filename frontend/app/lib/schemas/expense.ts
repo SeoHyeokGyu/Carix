@@ -29,5 +29,4 @@ export type ExpenseInput = z.infer<typeof expenseSchema>;
  * (`items.N.amount`)로 착지하지만 규칙은 하나뿐이라 메시지도 하나다 — 규칙
  * (위 스키마의 amount 범위)과 나란히 둔다.
  */
-export const EXPENSE_ITEM_AMOUNT_MESSAGE =
-  "0원 이상 5천만 원 이하의 정수로 입력해 주세요.";
+export const EXPENSE_ITEM_AMOUNT_MESSAGE = "0원~5천만 원 사이로 입력해 주세요.";

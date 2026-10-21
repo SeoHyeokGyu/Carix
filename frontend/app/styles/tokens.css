@@ -67,7 +67,7 @@
     --carix-text: #1f2937; /* 텍스트 다크 그레이 */
     --carix-positive: #047857; /* 에메랄드 그린 (접근성 대비 충족) */
     --carix-warning: #c2410c; /* 오렌지 다크 (접근성 대비 충족) */
-    --carix-danger: #ef4444; /* 빨간색 */
+    --carix-danger: #dc2626; /* 빨간색 다크 (흰 배경 4.83:1) */
     --carix-info: #4f46e5; /* 인디고 브랜드 컬러 */
     --carix-action: #6d28d9; /* 바이올렛 (흰색 대비 7.10:1) */
 
@@ -130,7 +130,7 @@
     --carix-text: #1f2937;
     --carix-positive: #047857;
     --carix-warning: #c2410c;
-    --carix-danger: #ef4444;
+    --carix-danger: #dc2626;
     --carix-info: #4f46e5;
     --carix-action: #6d28d9;
   }

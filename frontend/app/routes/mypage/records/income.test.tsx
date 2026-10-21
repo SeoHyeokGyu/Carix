@@ -115,7 +115,7 @@ describe("소득 탭 (S-12)", () => {
     // 이 경로로 화면에 닿을 수 없다 — 실제로 그리는 문구로 고쳤다.
     expect(
       await screen.findByText(
-        "연봉 적용 시작일은 YYYY-MM-DD 형식의 과거~당월 날짜여야 합니다.",
+        "연봉 적용 시작일은 2024-03-01 처럼 입력해 주세요. 다음 달 이후 날짜는 넣을 수 없습니다.",
       ),
     ).toBeInTheDocument();
     expect(incomeApi.createIncome).not.toHaveBeenCalled();

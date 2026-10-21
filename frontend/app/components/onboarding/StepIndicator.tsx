@@ -98,7 +98,7 @@ export function StepIndicator({ current }: StepIndicatorProps) {
                       ? "bg-carix-info text-white shadow-sm ring-2 ring-carix-info/20 group-hover:ring-carix-info/40 group-hover:scale-105"
                       : isCurrent
                         ? "border-2 border-carix-info bg-carix-surface text-carix-info font-bold shadow-md ring-4 ring-carix-info/15 scale-105"
-                        : "border-2 border-carix-border bg-carix-surface text-carix-text/40",
+                        : "border-2 border-carix-border bg-carix-surface text-carix-text/70",
                   ].join(" ")}
                 >
                   {isCompleted ? (
@@ -128,10 +128,11 @@ export function StepIndicator({ current }: StepIndicatorProps) {
                       ? "font-bold text-carix-info"
                       : isCompleted
                         ? "font-medium text-carix-text/80 group-hover:text-carix-info"
-                        : "font-medium text-carix-text/40",
+                        : "font-medium text-carix-text/70",
                   ].join(" ")}
                 >
                   {label}
+                  {isCompleted && <span className="sr-only"> (완료)</span>}
                 </span>
               </div>
             );
@@ -154,7 +155,7 @@ export function StepIndicator({ current }: StepIndicatorProps) {
                   <div
                     className={[
                       "flex flex-col items-center p-1",
-                      isCurrent ? "" : "cursor-not-allowed opacity-80",
+                      isCurrent ? "" : "cursor-not-allowed",
                     ].join(" ")}
                   >
                     {content}

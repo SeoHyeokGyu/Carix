@@ -38,6 +38,7 @@ import { type ApiError, UnauthorizedError } from "../../lib/coreApi";
 import { type FieldErrors, toFieldErrors } from "../../lib/fieldErrors";
 import { focusFirstInvalidField } from "../../lib/focusFirstInvalidField";
 import { advanceOnboarding } from "../../lib/onboardingApi";
+import { isReturnToReview, REVIEW_PATH } from "../../lib/reviewReturn";
 import { isForwardStep, LOGIN_PATH } from "../../lib/routeGuards";
 import {
   INCOME_CHANGE_REASON_HINT,
@@ -95,7 +96,9 @@ export async function clientAction({ request }: { request: Request }) {
         setSession({ ...session, onboardingStep: "EXPENSE" });
       }
 
-      return redirect("/onboarding/expense");
+      return redirect(
+        isReturnToReview(request.url) ? REVIEW_PATH : "/onboarding/expense",
+      );
     } catch (error) {
       if (error instanceof UnauthorizedError) throw redirect(LOGIN_PATH);
       return { errors: { _form: toUserMessage(error) } } satisfies ActionData;
@@ -319,6 +322,24 @@ export default function Income() {
     setNetInput(Number(rawDigits).toLocaleString());
   };
 
+  const [nextBlockedMessage, setNextBlockedMessage] = useState<string | null>(
+    null,
+  );
+
+  // 입력칸에 값을 남긴 채 넘어가면 그 값은 저장되지 않고 사라진다 — 「추가」와
+  // 「다음」이 따로라 사용자가 「다음」 하나로 저장된다고 여기기 쉽다.
+  const handleNextSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+    const hasPendingInput =
+      grossInput !== "" || netInput !== "" || effectiveDateInput !== "";
+    const blocked = hasPendingInput
+      ? "입력한 연봉을 「추가」로 저장한 뒤 넘어가 주세요."
+      : income.length === 0
+        ? "연봉을 하나 이상 추가해야 넘어갈 수 있습니다."
+        : null;
+    setNextBlockedMessage(blocked);
+    if (blocked) event.preventDefault();
+  };
+
   const handleCancel = () => {
     setEditingId(null);
     setGrossInput("");
@@ -343,7 +364,7 @@ export default function Income() {
     <PageFrame width="narrow">
       <PageHeader
         title={onboardingStepLabel(2)}
-        description="동료집단 비교와 구매력 지수(PPI) 추이 계산을 위해 세전 연봉과 월 실수령액, 해당 연봉의 적용 시작일을 입력해 주세요."
+        description="지금 받는 연봉을 넣고 「추가」를 눌러 주세요. 물가와 비교하는 기준이 됩니다."
       />
       <Card>
         <CardContent>
@@ -366,7 +387,7 @@ export default function Income() {
               hint={
                 grossWonHint
                   ? `${grossInput}만 원 (${grossWonHint})`
-                  : "1,000만 원 ~ 300,000만 원 사이로 입력해 주세요. (예: 5,000)"
+                  : "1천만~30억 원 사이로 입력해 주세요. (예: 5,000)"
               }
               error={errors?.grossSalary}
             >
@@ -394,7 +415,7 @@ export default function Income() {
               hint={
                 netWonHint
                   ? `${netInput}만 원 (${netWonHint})`
-                  : "구매력 지수(PPI) 계산에 정확히 반영하기 위해 필수로 입력해야 합니다. (50만 원 ~ 20,000만 원, 예: 350)"
+                  : "물가 대비 실제 생활비 여력을 계산하는 데 씁니다. 50만~2억 원 사이로 입력해 주세요. (예: 350)"
               }
               error={errors?.netSalary}
             >
@@ -414,7 +435,7 @@ export default function Income() {
             <Field
               id="effectiveDate"
               label="연봉 적용 시작일"
-              hint="해당 연봉 계약이 적용되기 시작한 날짜를 입력해 주세요. (과거 시계열 구매력 계산의 기준일로 사용됩니다)"
+              hint="이 연봉을 받기 시작한 날입니다. 예: 2024-03-01. 정확히 모르면 그 달 1일로 넣으세요."
               error={errors?.effectiveDate}
             >
               {(aria) => (
@@ -485,7 +506,7 @@ export default function Income() {
         <CardContent>
           {income.length === 0 ? (
             <p className="text-sm text-muted-foreground">
-              등록된 이력이 없습니다.
+              아직 추가한 연봉이 없습니다. 위에 입력하고 「추가」를 눌러 주세요.
             </p>
           ) : (
             <Table variant="plain">
@@ -514,9 +535,9 @@ export default function Income() {
       </Card>
 
       <div className="mt-6 flex flex-col gap-3">
-        {nextErrors?._form && (
+        {(nextBlockedMessage ?? nextErrors?._form) && (
           <p role="alert" className="text-sm text-carix-danger">
-            {nextErrors._form}
+            {nextBlockedMessage ?? nextErrors?._form}
           </p>
         )}
         {/* 와이어프레임(02-income.html) 순서를 그대로 따른다 — "이전" 이 먼저, "다음"
@@ -532,7 +553,7 @@ export default function Income() {
           >
             이전
           </Link>
-          <Form method="post">
+          <Form method="post" onSubmit={handleNextSubmit}>
             <input type="hidden" name="intent" value="next" />
             <Button type="submit" disabled={isAdvancing}>
               다음

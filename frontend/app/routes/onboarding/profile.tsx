@@ -23,6 +23,7 @@ import { type FieldErrors, toFieldErrors } from "../../lib/fieldErrors";
 import { focusFirstInvalidField } from "../../lib/focusFirstInvalidField";
 import { formDataToObject } from "../../lib/formData";
 import { advanceOnboarding } from "../../lib/onboardingApi";
+import { isReturnToReview, REVIEW_PATH } from "../../lib/reviewReturn";
 import { isForwardStep, LANDING_PATH, LOGIN_PATH } from "../../lib/routeGuards";
 import {
   COMPANY_SIZES,
@@ -93,7 +94,9 @@ export async function clientAction({ request }: { request: Request }) {
       setSession({ ...session, onboardingStep: "INCOME" });
     }
 
-    return redirect("/onboarding/income");
+    return redirect(
+      isReturnToReview(request.url) ? REVIEW_PATH : "/onboarding/income",
+    );
   } catch (error) {
     if (error instanceof UnauthorizedError) throw redirect(LOGIN_PATH);
     return { errors: { _form: toUserMessage(error) } } satisfies ActionData;
@@ -117,7 +120,7 @@ export default function Profile() {
     <PageFrame width="narrow">
       <PageHeader
         title={onboardingStepLabel(1)}
-        description="동료집단 비교를 위해 직군·총 경력·지역·고용 형태를 입력해 주세요."
+        description="나와 같은 직무·경력의 사람들(동료집단)과 비교하는 데 씁니다."
       />
       <Card>
         <CardContent>

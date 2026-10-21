@@ -35,6 +35,7 @@ import { UnauthorizedError } from "../../lib/coreApi";
 import type { FieldErrors } from "../../lib/fieldErrors";
 import { formatKoreanSalary } from "../../lib/koreanSalary";
 import { advanceOnboarding, resetOnboarding } from "../../lib/onboardingApi";
+import { withReturnToReview } from "../../lib/reviewReturn";
 import { LOGIN_PATH } from "../../lib/routeGuards";
 import { EXPENSE_CATEGORIES } from "../../lib/schemas/expense";
 import {
@@ -263,6 +264,8 @@ export async function clientAction({ request }: { request: Request }) {
   }
 }
 
+const NOT_ENTERED = "아직 입력하지 않았습니다.";
+
 export default function Review() {
   const { profile, income, expenses, skills, applied, isCompleted } =
     useLoaderData<typeof clientLoader>();
@@ -298,6 +301,10 @@ export default function Review() {
   const currentExpense = expenses.find(
     (row) => row.baseYearMonth === currentYearMonth(),
   );
+  // 통계청 평균으로 채운 항목은 사용자가 넣은 값이 아니다 — 아래 적용 금액 안내가 따로 밝힌다.
+  const enteredExpenses =
+    currentExpense?.items.filter((item) => item.status === "USER_DEFINED") ??
+    [];
 
   // 부분 저장을 허용한 대가(§3.2)로 이 화면이 완비를 검증한다. 미완인 항목은
   // 제출 버튼 대신 해당 단계로 가는 안내로 대체한다 — 아무 것도 누를 수 없는
@@ -329,7 +336,7 @@ export default function Review() {
             <CardTitle as="h2">프로필</CardTitle>
             <CardAction>
               <Link
-                to="/onboarding/profile"
+                to={withReturnToReview("/onboarding/profile")}
                 aria-label="프로필 정보 수정"
                 className={buttonVariants({ variant: "outline", size: "sm" })}
               >
@@ -338,9 +345,7 @@ export default function Review() {
             </CardAction>
           </CardHeader>
           <CardContent>
-            <p>
-              {profileComplete ? profileSummary : "필수 정보가 비어 있습니다."}
-            </p>
+            <p>{profileComplete ? profileSummary : NOT_ENTERED}</p>
           </CardContent>
         </Card>
 
@@ -349,7 +354,7 @@ export default function Review() {
             <CardTitle as="h2">소득</CardTitle>
             <CardAction>
               <Link
-                to="/onboarding/income"
+                to={withReturnToReview("/onboarding/income")}
                 aria-label="소득 정보 수정"
                 className={buttonVariants({ variant: "outline", size: "sm" })}
               >
@@ -361,7 +366,7 @@ export default function Review() {
             <p>
               {latestIncome
                 ? `세전 연봉 ${formatKoreanSalary(latestIncome.grossSalary)} · 월 실수령액 ${formatKoreanSalary(latestIncome.netSalary)}`
-                : "입력 필요"}
+                : NOT_ENTERED}
             </p>
           </CardContent>
         </Card>
@@ -371,7 +376,7 @@ export default function Review() {
             <CardTitle as="h2">소비</CardTitle>
             <CardAction>
               <Link
-                to="/onboarding/expense"
+                to={withReturnToReview("/onboarding/expense")}
                 aria-label="소비 정보 수정"
                 className={buttonVariants({ variant: "outline", size: "sm" })}
               >
@@ -381,9 +386,14 @@ export default function Review() {
           </CardHeader>
           <CardContent>
             <p>
-              {currentExpense
-                ? `${currentExpense.items.length}개 카테고리 입력 완료`
-                : "입력된 소비 내역이 없습니다."}
+              {enteredExpenses.length > 0
+                ? enteredExpenses
+                    .map(
+                      (item) =>
+                        `${labelFor(EXPENSE_CATEGORIES, item.category)} ${formatKoreanSalary(item.amount)}`,
+                    )
+                    .join(", ")
+                : NOT_ENTERED}
             </p>
           </CardContent>
         </Card>
@@ -393,7 +403,7 @@ export default function Review() {
             <CardTitle as="h2">스킬</CardTitle>
             <CardAction>
               <Link
-                to="/onboarding/skills"
+                to={withReturnToReview("/onboarding/skills")}
                 aria-label="스킬 정보 수정"
                 className={buttonVariants({ variant: "outline", size: "sm" })}
               >
@@ -405,7 +415,7 @@ export default function Review() {
             <p>
               {skills.length > 0
                 ? `${skills.length}개 등록 (${skills.map((skill) => skill.standardName).join(", ")})`
-                : "등록된 스킬이 없습니다."}
+                : NOT_ENTERED}
             </p>
           </CardContent>
         </Card>
@@ -432,7 +442,10 @@ export default function Review() {
             <ul className="flex flex-col gap-1">
               {incompleteSteps.map((step) => (
                 <li key={step.path}>
-                  <Link to={step.path} className="underline">
+                  <Link
+                    to={withReturnToReview(step.path)}
+                    className="underline"
+                  >
                     {step.label} 완료하러 가기
                   </Link>
                 </li>
@@ -479,7 +492,7 @@ export default function Review() {
           ) : (
             canSubmit && (
               <Button type="submit" disabled={isSubmitting}>
-                제출하고 대시보드로
+                내 판정 보기
               </Button>
             )
           )}
