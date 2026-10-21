@@ -21,6 +21,7 @@ import {
   parseAmountInput,
   withPlainAmounts,
 } from "../../lib/amountInput";
+import { listIncome } from "../../lib/api/income";
 import {
   type DifficultyGrade,
   listScenarios,
@@ -76,12 +77,55 @@ function isLikelyMissingIncome(error: unknown): error is ApiError {
 export async function clientLoader() {
   try {
     // 최근 순이라 첫 행이 마지막 시나리오다 — `GET /latest` 를 따로 부르지 않는다.
-    return { scenarios: await listScenarios() };
+    const [scenarios, currentGross] = await Promise.all([
+      listScenarios(),
+      loadCurrentGross(),
+    ]);
+    return { scenarios, currentGross };
   } catch (error) {
     if (error instanceof UnauthorizedError) throw redirect(LOGIN_PATH);
     // 조회 실패는 이 화면에 그릴 자리가 없다 — ErrorBoundary 몫이다(S-05·S-06·S-07 과 동일 판단).
     throw error;
   }
+}
+
+/**
+ * 목표 연봉을 정할 기준으로 보여줄 현재 세전 연봉. 오늘까지 적용이 시작된 이력 중 가장
+ * 늦은 행이다. 참고값이라 조회에 실패해도 화면은 그대로 쓴다 — 401 만 위로 올린다.
+ */
+async function loadCurrentGross(): Promise<number | null> {
+  try {
+    const today = new Date().toISOString().slice(0, 10);
+    const current = (await listIncome())
+      .filter((row) => row.effectiveDate <= today)
+      .sort((a, b) => b.effectiveDate.localeCompare(a.effectiveDate))[0];
+    return current?.grossSalary ?? null;
+  } catch (error) {
+    if (error instanceof UnauthorizedError) throw error;
+    return null;
+  }
+}
+
+/** 결과 차이를 한 문장으로 읽는다. 차이는 이직 보상 − 잔류 보상이다. */
+function differenceSentence(difference: number): string {
+  if (difference === 0) return "두 경우의 12개월 보상이 같습니다";
+  const amount = formatKoreanSalary(Math.abs(difference));
+  return difference > 0
+    ? `옮기면 12개월간 약 ${amount} 더 받습니다`
+    : `남으면 12개월간 약 ${amount} 더 받습니다`;
+}
+
+function targetHint(
+  targetManwon: number | null,
+  currentGross: number | null,
+): string | undefined {
+  if (targetManwon === null) return undefined;
+  const won = targetManwon * MANWON;
+  const base = `= ${won.toLocaleString("ko-KR")}원`;
+  if (currentGross === null || currentGross <= 0) return base;
+  const rate = ((won - currentGross) / currentGross) * 100;
+  const sign = rate > 0 ? "+" : "";
+  return `${base} · 현재보다 ${sign}${rate.toFixed(1)}%`;
 }
 
 export async function clientAction({ request }: { request: Request }) {
@@ -158,7 +202,7 @@ interface Pick {
 }
 
 export default function DashboardSimulator() {
-  const { scenarios } = useLoaderData<typeof clientLoader>();
+  const { scenarios, currentGross } = useLoaderData<typeof clientLoader>();
   const fetcher = useFetcher<ActionData>();
   const formRef = useRef<HTMLFormElement>(null);
 
@@ -252,8 +296,10 @@ export default function DashboardSimulator() {
         <CardHeader>
           <CardTitle as="h2">시나리오 입력</CardTitle>
           <CardDescription>
-            값을 비워 두면 임의로 채우지 않습니다 — 계산에 필요한 값을 직접
-            입력해 주세요.
+            모든 칸을 채워야 계산할 수 있습니다.
+            {currentGross !== null && (
+              <> 현재 세전 연봉은 {formatKoreanSalary(currentGross)}입니다.</>
+            )}
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-6">
@@ -322,11 +368,7 @@ export default function DashboardSimulator() {
             <Field
               id="moveTargetGrossSalary"
               label="이직 시 목표 세전 연봉 (만원)"
-              hint={
-                targetManwon === null
-                  ? undefined
-                  : `= ${(targetManwon * MANWON).toLocaleString("ko-KR")}원`
-              }
+              hint={targetHint(targetManwon, currentGross)}
               error={errors?.moveTargetGrossSalary}
             >
               {(aria) => (
@@ -389,7 +431,7 @@ export default function DashboardSimulator() {
                 id="eligibility-label"
                 className="text-sm font-medium text-carix-text"
               >
-                실업급여 수급 자격
+                실업급여를 받을 수 있나요?
               </span>
               <div
                 role="radiogroup"
@@ -397,8 +439,8 @@ export default function DashboardSimulator() {
                 aria-invalid={Boolean(errors?.isEligibleForUnemploymentBenefit)}
                 aria-describedby={
                   errors?.isEligibleForUnemploymentBenefit
-                    ? "eligibility-error"
-                    : undefined
+                    ? "eligibility-hint eligibility-error"
+                    : "eligibility-hint"
                 }
                 tabIndex={-1}
                 className="flex gap-4"
@@ -424,6 +466,12 @@ export default function DashboardSimulator() {
                   없음
                 </label>
               </div>
+              <p
+                id="eligibility-hint"
+                className="text-xs text-muted-foreground"
+              >
+                본인 의사로 그만두면 대개 받을 수 없습니다.
+              </p>
               {errors?.isEligibleForUnemploymentBenefit && (
                 <p
                   id="eligibility-error"
@@ -471,7 +519,7 @@ export default function DashboardSimulator() {
         <CardHeader>
           <CardTitle as="h2">비교 결과</CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent aria-live="polite">
           {!result && (
             <p className="text-sm text-muted-foreground">
               아직 계산한 시나리오가 없습니다. 값을 입력하고 계산해 주세요.
@@ -483,14 +531,14 @@ export default function DashboardSimulator() {
               <div className="flex items-center gap-2">
                 <Badge>{result.typeLabel}</Badge>
                 <span className="text-lg font-semibold text-carix-text">
-                  {Math.abs(result.difference).toLocaleString()}원
+                  {differenceSentence(result.difference)}
                 </span>
               </div>
 
               <dl className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm text-carix-text">
-                <dt className="text-carix-text/60">잔류 12개월 보상</dt>
+                <dt className="text-carix-text/70">잔류 12개월 보상</dt>
                 <dd>{result.stayCompensation12m.toLocaleString()}원</dd>
-                <dt className="text-carix-text/60">이직 12개월 보상</dt>
+                <dt className="text-carix-text/70">이직 12개월 보상</dt>
                 <dd>{result.moveCompensation12m.toLocaleString()}원</dd>
               </dl>
 

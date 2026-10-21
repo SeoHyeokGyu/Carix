@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { createRoutesStub } from "react-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import * as incomeApi from "../../lib/api/income";
 import * as scenarioApi from "../../lib/api/scenario";
 import { UnauthorizedError } from "../../lib/coreApi";
 import { resetSession, setSession } from "../../lib/session";
@@ -92,6 +93,7 @@ const PICKER = "저장된 시나리오 불러오기";
 describe("S-15 시뮬레이터 화면", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
+    vi.spyOn(incomeApi, "listIncome").mockResolvedValue([]);
     resetSession();
     setSession({
       status: "authenticated",
@@ -138,7 +140,9 @@ describe("S-15 시뮬레이터 화면", () => {
     expect(screen.getByRole("radio", { name: "있음" })).toBeChecked();
 
     expect(screen.getByText("추정 기회비용")).toBeInTheDocument();
-    expect(screen.getByText("1,140,000원")).toBeInTheDocument();
+    expect(
+      screen.getByText("남으면 12개월간 약 114만 원 더 받습니다"),
+    ).toBeInTheDocument();
     expect(screen.getByText(OK_RESULT.warningNote)).toBeInTheDocument();
   });
 
@@ -197,7 +201,9 @@ describe("S-15 시뮬레이터 화면", () => {
     await user.click(screen.getByRole("button", { name: "계산" }));
 
     expect(await screen.findByText("추정 기회비용")).toBeInTheDocument();
-    expect(screen.getByText("1,140,000원")).toBeInTheDocument();
+    expect(
+      screen.getByText("남으면 12개월간 약 114만 원 더 받습니다"),
+    ).toBeInTheDocument();
     expect(screen.getByText(OK_RESULT.warningNote)).toBeInTheDocument();
     expect(simulateSpy).toHaveBeenCalledWith({
       stayExpectedRaiseRate: 3.5,
@@ -522,7 +528,9 @@ describe("S-15 시뮬레이터 화면", () => {
     expect(simulateSpy).not.toHaveBeenCalled();
 
     const group = screen.getByRole("radiogroup");
-    expect(group).toHaveAttribute("aria-describedby", "eligibility-error");
+    expect(group.getAttribute("aria-describedby")).toContain(
+      "eligibility-error",
+    );
     // tabIndex={-1} 가 있어야 focusFirstInvalidField 가 이 그룹을 포커스할 수 있다
     // — 그 속성이 빠지면 이 어서션만 조용히 깨진다(다른 열한 건은 무관).
     expect(group).toHaveFocus();
@@ -592,7 +600,9 @@ describe("S-15 시뮬레이터 화면", () => {
       ).toHaveValue("8,000");
       expect(screen.getByRole("radio", { name: "없음" })).toBeChecked();
       expect(screen.getByText("추정 추가보상")).toBeInTheDocument();
-      expect(screen.getByText("17,000,000원")).toBeInTheDocument();
+      expect(
+        screen.getByText("옮기면 12개월간 약 1,700만 원 더 받습니다"),
+      ).toBeInTheDocument();
       expect(screen.getByText("실업급여 미반영")).toBeInTheDocument();
     });
 
@@ -612,15 +622,21 @@ describe("S-15 시뮬레이터 화면", () => {
       const user = userEvent.setup();
 
       await user.click(await screen.findByRole("button", { name: "계산" }));
-      expect(await screen.findByText("2,220,000원")).toBeInTheDocument();
+      expect(
+        await screen.findByText("남으면 12개월간 약 222만 원 더 받습니다"),
+      ).toBeInTheDocument();
 
       await user.selectOptions(
         screen.getByRole("combobox", { name: PICKER }),
         "s-0",
       );
 
-      expect(screen.getByText("17,000,000원")).toBeInTheDocument();
-      expect(screen.queryByText("2,220,000원")).not.toBeInTheDocument();
+      expect(
+        screen.getByText("옮기면 12개월간 약 1,700만 원 더 받습니다"),
+      ).toBeInTheDocument();
+      expect(
+        screen.queryByText("남으면 12개월간 약 222만 원 더 받습니다"),
+      ).not.toBeInTheDocument();
     });
 
     it("예전 시나리오를 고른 뒤 계산하면 방금 계산한 결과가 보인다", async () => {
@@ -647,8 +663,12 @@ describe("S-15 시뮬레이터 화면", () => {
       );
       await user.click(screen.getByRole("button", { name: "계산" }));
 
-      expect(await screen.findByText("16,000,000원")).toBeInTheDocument();
-      expect(screen.queryByText("17,000,000원")).not.toBeInTheDocument();
+      expect(
+        await screen.findByText("옮기면 12개월간 약 1,600만 원 더 받습니다"),
+      ).toBeInTheDocument();
+      expect(
+        screen.queryByText("옮기면 12개월간 약 1,700만 원 더 받습니다"),
+      ).not.toBeInTheDocument();
       expect(screen.getByText("실업급여 미반영")).toBeInTheDocument();
     });
 
@@ -671,7 +691,7 @@ describe("S-15 시뮬레이터 화면", () => {
 
       const button = await screen.findByRole("button", { name: "계산" });
       await user.click(button);
-      await screen.findByText("2,220,000원");
+      await screen.findByText("남으면 12개월간 약 222만 원 더 받습니다");
 
       expect(screen.getByRole("button", { name: "계산" })).toHaveFocus();
     });
@@ -691,6 +711,62 @@ describe("S-15 시뮬레이터 화면", () => {
 
       await screen.findByText("추정 기회비용");
       expect(screen.getByLabelText("시나리오 이름 (선택)")).toHaveValue("");
+    });
+  });
+  describe("현재 연봉 기준", () => {
+    const INCOME = {
+      id: "i-1",
+      grossSalary: 65_000_000,
+      netSalary: 4_200_000,
+      effectiveDate: "2025-03-01",
+      changeReason: "INITIAL",
+      selectedChangeReason: null,
+    } as never;
+
+    it("현재 세전 연봉을 보여주고 목표 연봉이 현재보다 몇 % 높은지 알려준다", async () => {
+      vi.spyOn(scenarioApi, "listScenarios").mockResolvedValue([]);
+      vi.spyOn(incomeApi, "listIncome").mockResolvedValue([INCOME]);
+
+      renderScreen();
+      const user = userEvent.setup();
+
+      expect(
+        await screen.findByText(/현재 세전 연봉은 6,500만 원입니다/),
+      ).toBeInTheDocument();
+      await user.type(
+        screen.getByLabelText("이직 시 목표 세전 연봉 (만원)"),
+        "7200",
+      );
+      expect(
+        screen.getByText("= 72,000,000원 · 현재보다 +10.8%"),
+      ).toBeInTheDocument();
+    });
+
+    it("소득 조회가 실패해도 화면은 그대로 쓴다", async () => {
+      vi.spyOn(scenarioApi, "listScenarios").mockResolvedValue([]);
+      vi.spyOn(incomeApi, "listIncome").mockRejectedValue(new Error("down"));
+
+      renderScreen();
+
+      expect(
+        await screen.findByText("모든 칸을 채워야 계산할 수 있습니다."),
+      ).toBeInTheDocument();
+    });
+
+    it("두 보상이 같으면 차이 대신 같다고 말한다", async () => {
+      vi.spyOn(scenarioApi, "listScenarios").mockResolvedValue([
+        saved({
+          inputs: SAVED_INPUTS,
+          result: { ...OK_RESULT, difference: 0 },
+          calculatedAt: "2026-09-07T00:00:00Z",
+        }),
+      ] as never);
+
+      renderScreen();
+
+      expect(
+        await screen.findByText("두 경우의 12개월 보상이 같습니다"),
+      ).toBeInTheDocument();
     });
   });
 });

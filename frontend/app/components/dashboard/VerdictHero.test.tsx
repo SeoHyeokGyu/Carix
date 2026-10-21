@@ -51,6 +51,26 @@ const HISTORY = [
 ];
 
 describe("VerdictHero", () => {
+  it("이직 탐색 판정이면 시뮬레이터로 가는 링크를 보인다", () => {
+    renderHero(<VerdictHero signal={SEEK_JOB} history={null} />);
+
+    expect(
+      screen.getByRole("link", {
+        name: "옮기면 12개월간 얼마가 달라지는지 계산해 보기",
+      }),
+    ).toHaveAttribute("href", "/dashboard/simulator");
+  });
+
+  it("이직 탐색이 아니면 시뮬레이터 링크를 보이지 않는다", () => {
+    renderHero(
+      <VerdictHero signal={{ ...SEEK_JOB, code: "STAY" }} history={null} />,
+    );
+
+    expect(
+      screen.queryByRole("link", { name: /계산해 보기/ }),
+    ).not.toBeInTheDocument();
+  });
+
   it("프런트 description 이 판정 문장이고 label 은 상태 뱃지다", () => {
     renderHero(<VerdictHero signal={STAY} history={[]} />);
     const statement = screen.getByTestId("verdict-statement");

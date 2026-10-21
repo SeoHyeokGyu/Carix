@@ -478,7 +478,7 @@ describe("대시보드 라우트 및 레이아웃 (Dashboard)", () => {
 
       expect(recalcSpy).toHaveBeenCalledTimes(1);
       expect(
-        await screen.findByText("8개월치 지수가 최신 정보로 재계산되었습니다."),
+        await screen.findByText("8개월치 지수를 다시 계산했습니다."),
       ).toBeInTheDocument();
       expect(screen.getByText("100.0")).toBeInTheDocument();
     });
