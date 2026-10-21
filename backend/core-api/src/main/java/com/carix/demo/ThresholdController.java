@@ -8,7 +8,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * Config Server 연동 확인용 임시 엔드포인트.
+ * Config Server 연동 확인용 엔드포인트.
  *
  * <p>@RefreshScope 는 필요 없다. ConfigurationPropertiesRebinder 가 주입된 프로퍼티 빈에 같은 인스턴스로 새 값을 다시 바인딩하므로,
  * 이 참조가 그대로여도 갱신된 값을 읽는다.
@@ -18,7 +18,7 @@ import org.springframework.web.bind.annotation.RestController;
  */
 @RestController
 @RequestMapping("/v1/demo")
-@Tag(name = "demo", description = "임시 확인용. 도메인 API 도입 시 제거한다")
+@Tag(name = "demo", description = "Config Server 연동 확인 도구 (DEVELOPMENT.md)")
 public class ThresholdController {
 
   private final IndexThresholdProperties properties;
