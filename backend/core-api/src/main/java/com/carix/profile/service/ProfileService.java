@@ -130,7 +130,8 @@ public class ProfileService {
         request.yearsOfExperience(),
         request.region(),
         request.employmentType(),
-        request.companySize());
+        request.companySize(),
+        null);
     // 동료집단 조건이 바뀌면 이후 MVI 가 달라진다. 과거월은 그때의 프로필로 계산된 값이라 다시 쓰지 않는다.
     snapshotRecalculationService.recalculateSnapshot(userId, YearMonths.current());
     return toResponse(profile);

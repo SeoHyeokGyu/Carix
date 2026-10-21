@@ -7,6 +7,7 @@ erDiagram
     users ||--o| career_profile : has
     users ||--o{ session : establishes
     users ||--o{ income_history : records
+    users ||--o{ performance_bonus : receives
     users ||--o{ expense_history : logs
     users ||--o{ user_skill : possesses
     users ||--o{ skill : creates
@@ -54,6 +55,7 @@ erDiagram
         varchar region
         varchar employment_type
         varchar company_size
+        date hire_date
     }
 
     income_history {
@@ -63,6 +65,16 @@ erDiagram
         varchar net_salary_encrypted
         date effective_date
         varchar change_reason
+        boolean bonus_included
+        varchar fixed_bonus_annual_encrypted
+        timestamp created_at
+    }
+
+    performance_bonus {
+        uuid id PK
+        uuid user_id FK
+        varchar paid_month
+        varchar amount_encrypted
         timestamp created_at
     }
 

@@ -44,7 +44,7 @@ class PeerSalaryDistributionResolverTest {
   @DisplayName("resolve - Level 1 완전 일치로 안착 (회사규모 포함)")
   void resolve_level1Match() {
     CareerProfile profile = new CareerProfile(UUID.randomUUID());
-    profile.patch("DEVELOPER", 5, "서울 강남구", "FULL_TIME", "LARGE");
+    profile.patch("DEVELOPER", 5, "서울 강남구", "FULL_TIME", "LARGE", null);
 
     List<JobPosting> postings = createPostings(12, 60000000L);
     given(
@@ -66,7 +66,7 @@ class PeerSalaryDistributionResolverTest {
   @DisplayName("resolve - companySize가 null이거나 빈칸이면 Level 1을 건너뛰고 Level 2로 안착")
   void resolve_skipLevel1WhenCompanySizeBlank() {
     CareerProfile profile = new CareerProfile(UUID.randomUUID());
-    profile.patch("DEVELOPER", 5, "서울 강남구", "FULL_TIME", "");
+    profile.patch("DEVELOPER", 5, "서울 강남구", "FULL_TIME", "", null);
 
     List<JobPosting> postings = createPostings(10, 55000000L);
     given(
@@ -86,7 +86,7 @@ class PeerSalaryDistributionResolverTest {
   @DisplayName("resolve - 프로필 필드가 null인 경우 기본값 및 지역명 접두사(공백 없는 지역) 처리")
   void resolve_defaultProfileValuesAndSingleWordRegion() {
     CareerProfile profile = new CareerProfile(UUID.randomUUID());
-    profile.patch(null, null, "서울특별시", null, null);
+    profile.patch(null, null, "서울특별시", null, null, null);
 
     List<JobPosting> postings = createPostings(10, 50000000L);
     // yearsOfExperience == null -> 3 -> JUNIOR -> [0, 3]
@@ -106,7 +106,7 @@ class PeerSalaryDistributionResolverTest {
   @DisplayName("resolve - 모든 단계 표본 부족 시 Level 5 결과 반환")
   void resolve_insufficientSamplesAcrossAllLevels() {
     CareerProfile profile = new CareerProfile(UUID.randomUUID());
-    profile.patch("DEVELOPER", 10, "경기 성남시", "FULL_TIME", null);
+    profile.patch("DEVELOPER", 10, "경기 성남시", "FULL_TIME", null, null);
 
     // SENIOR -> [8, 99], adjacent -> MID·SENIOR [4, 99]
     given(
@@ -127,7 +127,7 @@ class PeerSalaryDistributionResolverTest {
       "resolve - 등록월(posted_start_date)별 제시 연봉 추이를 올바르게 집계한다 (표본 부족 시 median=null, 날짜 역전 제외)")
   void resolve_monthlyTrendCalculation() {
     CareerProfile profile = new CareerProfile(UUID.randomUUID());
-    profile.patch("DEVELOPER", 5, "서울 강남구", "FULL_TIME", "LARGE");
+    profile.patch("DEVELOPER", 5, "서울 강남구", "FULL_TIME", "LARGE", null);
 
     List<JobPosting> postings = new ArrayList<>();
 
@@ -217,7 +217,7 @@ class PeerSalaryDistributionResolverTest {
   @DisplayName("resolve - 후보 공고가 전혀 없으면 빈 trend와 fallback 5단계를 반환한다")
   void resolve_emptyPostingsReturnsEmptyTrend() {
     CareerProfile profile = new CareerProfile(UUID.randomUUID());
-    profile.patch("DEVELOPER", 5, "서울 강남구", "FULL_TIME", "LARGE");
+    profile.patch("DEVELOPER", 5, "서울 강남구", "FULL_TIME", "LARGE", null);
 
     given(
             jobPostingRepository.findPeerGroupCandidates(
@@ -233,7 +233,7 @@ class PeerSalaryDistributionResolverTest {
   @DisplayName("resolve - 무작위 표본 월이 있으면 최근·이전 3개월 비교를 싣는다")
   void resolve_attachesTrendComparison() {
     CareerProfile profile = new CareerProfile(UUID.randomUUID());
-    profile.patch("DEVELOPER", 5, "서울 강남구", "FULL_TIME", "LARGE");
+    profile.patch("DEVELOPER", 5, "서울 강남구", "FULL_TIME", "LARGE", null);
     List<JobPosting> postings = new ArrayList<>();
     for (int month = 4; month <= 9; month++) {
       for (int i = 0; i < 10; i++) {
@@ -265,7 +265,7 @@ class PeerSalaryDistributionResolverTest {
   @DisplayName("resolve - 표본 월이 하나도 없으면 비교는 null")
   void resolve_nullComparisonWhenNoBackfill() {
     CareerProfile profile = new CareerProfile(UUID.randomUUID());
-    profile.patch("DEVELOPER", 5, "서울 강남구", "FULL_TIME", "LARGE");
+    profile.patch("DEVELOPER", 5, "서울 강남구", "FULL_TIME", "LARGE", null);
     given(
             jobPostingRepository.findPeerGroupCandidates(
                 eq("DEVELOPER"), eq("서울 강남구"), eq("FULL_TIME"), eq("LARGE"), eq(4), eq(7)))
@@ -279,7 +279,7 @@ class PeerSalaryDistributionResolverTest {
   @DisplayName("resolve - 형식이 깨진 표본 월은 건너뛰고 500 을 내지 않는다")
   void resolve_ignoresMalformedSourceMonth() {
     CareerProfile profile = new CareerProfile(UUID.randomUUID());
-    profile.patch("DEVELOPER", 5, "서울 강남구", "FULL_TIME", "LARGE");
+    profile.patch("DEVELOPER", 5, "서울 강남구", "FULL_TIME", "LARGE", null);
     List<JobPosting> postings = new ArrayList<>();
     for (int month = 4; month <= 9; month++) {
       for (int i = 0; i < 10; i++) {
@@ -311,7 +311,7 @@ class PeerSalaryDistributionResolverTest {
   @DisplayName("resolve - 표본이 모자라면 비교 쿼리를 돌리지 않고 null")
   void resolve_skipsComparisonWhenInsufficient() {
     CareerProfile profile = new CareerProfile(UUID.randomUUID());
-    profile.patch("DEVELOPER", 5, "서울 강남구", "FULL_TIME", "LARGE");
+    profile.patch("DEVELOPER", 5, "서울 강남구", "FULL_TIME", "LARGE", null);
     given(
             jobPostingRepository.findPeerGroupCandidates(
                 eq("DEVELOPER"), eq("서울 강남구"), eq("FULL_TIME"), eq("LARGE"), eq(4), eq(7)))
@@ -338,7 +338,7 @@ class PeerSalaryDistributionResolverTest {
 
   private PeerSalaryDistribution resolveLevel2(List<JobPosting> candidates) {
     CareerProfile profile = new CareerProfile(UUID.randomUUID());
-    profile.patch("DEVELOPER", 5, "서울 강남구", "FULL_TIME", "");
+    profile.patch("DEVELOPER", 5, "서울 강남구", "FULL_TIME", "", null);
     given(
             jobPostingRepository.findPeerGroupCandidates(
                 eq("DEVELOPER"), eq("서울 강남구"), eq("FULL_TIME"), isNull(), eq(4), eq(7)))
@@ -459,7 +459,7 @@ class PeerSalaryDistributionResolverTest {
   @DisplayName("resolve - 공고는 충분해도 공개 연봉이 모자라면 공개 연봉 10건이 되는 단계까지 넓힌다")
   void resolve_settlesAtLevelWithEnoughSalaries() {
     CareerProfile profile = new CareerProfile(UUID.randomUUID());
-    profile.patch("DEVELOPER", 5, "서울 강남구", "FULL_TIME", null);
+    profile.patch("DEVELOPER", 5, "서울 강남구", "FULL_TIME", null, null);
     given(
             jobPostingRepository.findPeerGroupCandidates(
                 eq("DEVELOPER"), eq("서울 강남구"), eq("FULL_TIME"), isNull(), eq(4), eq(7)))
@@ -480,7 +480,7 @@ class PeerSalaryDistributionResolverTest {
   @DisplayName("resolve - 어느 단계도 공개 연봉 10건을 못 채우면 가장 넓은 단계에서 공개 연봉 부족")
   void resolve_widensWhenSalariesShort() {
     CareerProfile profile = new CareerProfile(UUID.randomUUID());
-    profile.patch("DATA", 5, "서울 강남구", "FULL_TIME", null);
+    profile.patch("DATA", 5, "서울 강남구", "FULL_TIME", null, null);
     given(
             jobPostingRepository.findPeerGroupCandidates(
                 anyString(), anyString(), any(), any(), anyInt(), anyInt()))
@@ -498,7 +498,7 @@ class PeerSalaryDistributionResolverTest {
   @DisplayName("resolvePostings - 스킬 추천 사다리는 공개 연봉을 보지 않고 공고 10건에서 멈춘다")
   void resolvePostings_ignoresSalaries() {
     CareerProfile profile = new CareerProfile(UUID.randomUUID());
-    profile.patch("DEVELOPER", 5, "서울 강남구", "FULL_TIME", null);
+    profile.patch("DEVELOPER", 5, "서울 강남구", "FULL_TIME", null, null);
     given(
             jobPostingRepository.findPeerGroupCandidates(
                 eq("DEVELOPER"), eq("서울 강남구"), eq("FULL_TIME"), isNull(), eq(4), eq(7)))
