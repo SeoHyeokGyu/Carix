@@ -328,4 +328,31 @@ class DefaultPurchasingPowerIndexProviderTest {
 
     assertThat(r.value()).isEqualByComparingTo("110.0");
   }
+
+  @Test
+  @DisplayName("현재 행이 연봉 0원이면 따로 받는 상여가 있어도 소득 비율을 내지 않는다")
+  void 현재_행이_연봉_0원이면_상여를_소득으로_세지_않는다() {
+    givenCpi("202602", "202604", "0");
+    givenIncomes(
+        income("2026-02-01", 60_000_000L, null),
+        incomeWithBonus("2026-03-01", 0L, null, 6_000_000L));
+
+    PpiResult r = provider.calculate(userId, "202604");
+
+    assertThat(r.status()).isEqualTo(IndexStatus.NOT_AVAILABLE);
+  }
+
+  @Test
+  @DisplayName("실수령이 양쪽에 있으면 따로 받는 상여를 실효 수령률로 환산해 비교한다")
+  void 실수령_양쪽이면_따로받음_상여를_수령률로_환산한다() {
+    givenCpi("202602", "202604", "0");
+    givenIncomes(
+        income("2026-02-01", 60_000_000L, 4_000_000L),
+        incomeWithBonus("2026-03-01", 60_000_000L, 4_000_000L, 6_000_000L));
+
+    PpiResult r = provider.calculate(userId, "202604");
+
+    // 월 실수령 4_000_000 -> 4_000_000 + 500_000 × 0.8 = 4_400_000
+    assertThat(r.value()).isEqualByComparingTo("110.0");
+  }
 }

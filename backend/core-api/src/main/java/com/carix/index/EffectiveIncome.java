@@ -33,6 +33,9 @@ public final class EffectiveIncome {
 
   private static long separateBonus(IncomeHistory h) {
     Long bonus = h.getFixedBonusAnnual();
-    return h.isBonusIncluded() || bonus == null ? 0L : bonus;
+    if (h.getGrossSalary() <= 0 || h.isBonusIncluded() || bonus == null) {
+      return 0L;
+    }
+    return bonus;
   }
 }

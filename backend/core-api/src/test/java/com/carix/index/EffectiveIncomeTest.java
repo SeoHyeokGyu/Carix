@@ -57,4 +57,12 @@ class EffectiveIncomeTest {
   void 실수령이_없으면_null() {
     assertThat(EffectiveIncome.monthlyNet(income(60_000_000L, null, false, 6_000_000L))).isNull();
   }
+
+  @Test
+  @DisplayName("연봉 0원 행은 따로 받는 상여가 있어도 소득으로 세지 않는다")
+  void 연봉_0원_행은_고정상여를_소득으로_세지_않는다() {
+    IncomeHistory h = income(0L, null, false, 6_000_000L);
+
+    assertThat(EffectiveIncome.annualGross(h)).isZero();
+  }
 }
