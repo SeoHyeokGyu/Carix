@@ -92,11 +92,15 @@ describe("소득 탭 (S-12)", () => {
     );
   });
 
-  it("상여 조건 400 은 고정상여 칸에 붙인다", async () => {
+  it("상여 조건 400 의 details 를 고정상여 칸에 붙인다", async () => {
     vi.mocked(incomeApi.updateBonusTerms).mockRejectedValue({
       code: "INVALID_INPUT",
-      message: "고정상여 입력이 올바르지 않습니다.",
+      message: "입력값 형식이 올바르지 않습니다.",
       status: 400,
+      details: {
+        fixedBonusAnnual:
+          "상여를 따로 받으면 0원보다 큰 고정 상여 금액이 필요합니다.",
+      },
     });
     renderTab();
     const user = userEvent.setup();
@@ -105,8 +109,51 @@ describe("소득 탭 (S-12)", () => {
     await user.type(screen.getByLabelText(/연간 고정상여/), "1500");
     await user.click(screen.getByRole("button", { name: "상여 조건 저장" }));
 
-    await screen.findByText("고정상여 입력이 올바르지 않습니다.");
+    await screen.findByText(
+      "상여를 따로 받으면 0원보다 큰 고정 상여 금액이 필요합니다.",
+    );
     expect(document.getElementById("fixedBonusAnnual-error")).not.toBeNull();
+  });
+
+  it("성과급 400 의 details 를 지급월 칸에 붙인다", async () => {
+    vi.mocked(incomeApi.createBonus).mockRejectedValue({
+      code: "INVALID_INPUT",
+      message: "입력값 형식이 올바르지 않습니다.",
+      status: 400,
+      details: {
+        paidMonth: "아직 오지 않은 달에는 성과급을 기록할 수 없습니다.",
+      },
+    });
+    renderTab();
+    const user = userEvent.setup();
+
+    await user.type(await screen.findByLabelText("지급월"), "2026-03");
+    await user.type(screen.getByLabelText(/^금액/), "500");
+    await user.click(screen.getByRole("button", { name: "성과급 추가" }));
+
+    await screen.findByText(
+      "아직 오지 않은 달에는 성과급을 기록할 수 없습니다.",
+    );
+    expect(document.getElementById("bonusPaidMonth-error")).not.toBeNull();
+  });
+
+  it("details 가 없는 400 은 message 를 폼 공통 오류로 낸다", async () => {
+    vi.mocked(incomeApi.createBonus).mockRejectedValue({
+      code: "INVALID_INPUT",
+      message: "요청 형식이 올바르지 않습니다.",
+      status: 400,
+    });
+    renderTab();
+    const user = userEvent.setup();
+
+    await user.type(await screen.findByLabelText("지급월"), "2026-03");
+    await user.type(screen.getByLabelText(/^금액/), "500");
+    await user.click(screen.getByRole("button", { name: "성과급 추가" }));
+
+    expect(
+      await screen.findByText("요청 형식이 올바르지 않습니다."),
+    ).toBeVisible();
+    expect(document.getElementById("bonusPaidMonth-error")).toBeNull();
   });
 
   it("상여 조건 400 은 들어 있음 선택 상태에서도 화면에 보인다", async () => {

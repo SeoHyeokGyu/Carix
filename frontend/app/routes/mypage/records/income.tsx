@@ -81,6 +81,32 @@ export async function clientLoader() {
   }
 }
 
+/** intent 별로 서버 details 를 붙일 수 있는 칸. */
+const BONUS_FIELDS: Record<string, readonly string[]> = {
+  "bonus-terms": ["fixedBonusAnnual"],
+  "bonus-create": ["paidMonth", "amount"],
+};
+
+/**
+ * 서버 details 의 필드 사유를 화면에 있는 칸에 붙인다. 고정상여 칸은 따로 받음일 때만 보이므로
+ * 들어 있음 선택 상태(예: 낡은 applyFromIncomeId)의 사유는 칸이 없어 null 로 돌려 공통 오류로 낸다.
+ */
+function bonusFieldErrors(
+  intent: string,
+  formData: FormData,
+  error: ApiError,
+): FieldErrors | null {
+  const visible = (BONUS_FIELDS[intent] ?? []).filter(
+    (field) =>
+      field !== "fixedBonusAnnual" || formData.get("bonusIncluded") !== "true",
+  );
+  const entries = visible.flatMap((field) => {
+    const message = error.details?.[field];
+    return message ? [[field, message] as const] : [];
+  });
+  return entries.length > 0 ? Object.fromEntries(entries) : null;
+}
+
 /** 상여 섹션 세 intent. 실패는 화면에 남기고 401 만 로그인으로 보낸다. */
 async function runBonusIntent(
   intent: string,
@@ -110,15 +136,9 @@ async function runBonusIntent(
     return null;
   } catch (error) {
     if (error instanceof UnauthorizedError) throw redirect(LOGIN_PATH);
-    // 상여 조건의 400 은 고정상여 칸이 보일 때(따로 받음)만 그 칸에 붙인다 — 들어 있음이면
-    // 칸이 없으므로(예: 낡은 applyFromIncomeId) 폼 공통 오류로 낸다.
-    if (
-      intent === "bonus-terms" &&
-      isApiError(error) &&
-      error.status === 400 &&
-      formData.get("bonusIncluded") !== "true"
-    ) {
-      return { errors: { fixedBonusAnnual: error.message } };
+    if (isApiError(error) && error.status === 400) {
+      const fieldErrors = bonusFieldErrors(intent, formData, error);
+      if (fieldErrors) return { errors: fieldErrors };
     }
     return { errors: { _form: toUserMessage(error) } };
   }
