@@ -6,7 +6,7 @@
 
 ## 현재 상태
 
-Vite + React Router + Tailwind CSS 기반으로 `S-01`~`S-16` 전 화면이 실제 API 에 연결돼 동작합니다. ESLint, Prettier, 듀얼 테마(Light/Dark), WCAG AA 접근성이 적용돼 있습니다.
+Vite + React Router + Tailwind CSS 기반으로 `S-01`~`S-20` 전 화면이 실제 API 에 연결돼 동작합니다. ESLint, Prettier, 듀얼 테마(Light/Dark), WCAG AA 접근성이 적용돼 있습니다.
 
 `package.json` 스크립트:
 
