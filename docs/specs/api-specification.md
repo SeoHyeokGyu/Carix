@@ -199,6 +199,18 @@
     *   `fixedBonusAnnual` (Long, 0 이상): `bonusIncluded=false` 이면 필수, `true` 이면 보낼 수 없다. 어긋나면 `400 INVALID_INPUT` 이고 `details.fixedBonusAnnual` 에 사유가 실린다.
 *   **Response (200 OK):** 갱신된 전체 소득 이력(4.1 과 같은 형식). 적용 행의 유효월부터 스냅샷 재계산을 트리거한다.
 
+### 4.4 성과급 수령 기록
+*   **Endpoint:** `GET /api/v1/income/bonuses` (지급월 내림차순) · `POST /api/v1/income/bonuses` · `DELETE /api/v1/income/bonuses/{id}`
+*   **Request Body (POST):**
+    ```json
+    { "paidMonth": "202607", "amount": 3000000 }
+    ```
+*   **필드 규격:**
+    *   `paidMonth` (String, 필수): 지급월 `yyyyMM`. 월은 01~12 이고 현재 월(Asia/Seoul)을 넘을 수 없다. 어긋나면 `400 INVALID_INPUT` 이고 `details.paidMonth` 에 사유가 실린다.
+    *   `amount` (Long, 필수): 지급 금액(원), 0 보다 커야 한다. 암호화해 저장하며 응답에는 복호화한 값이 실린다.
+*   같은 달에 여러 건을 기록할 수 있다. 한 건은 지급월·금액 한 쌍이며 수정 API 는 없고, 고치려면 삭제 후 다시 기록한다.
+*   **Response:** `GET` 은 `200 OK` 에 `[{ "id": "...", "paidMonth": "202607", "amount": 3000000 }]`, `POST` 는 `201 Created` 에 기록된 단건, `DELETE` 는 `204 No Content`. 없는 id 이거나 다른 사용자의 기록이면 `404`.
+
 ---
 
 ## 5. 대시보드 및 지표 API

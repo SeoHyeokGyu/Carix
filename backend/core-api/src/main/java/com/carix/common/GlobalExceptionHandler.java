@@ -28,6 +28,15 @@ public class GlobalExceptionHandler {
         .body(ErrorResponse.of("INVALID_INPUT", "입력값 형식이 올바르지 않습니다.", details));
   }
 
+  @ExceptionHandler(com.carix.income.exception.InvalidPaidMonthException.class)
+  public ResponseEntity<ErrorResponse> handleInvalidPaidMonth(
+      com.carix.income.exception.InvalidPaidMonthException e) {
+    return ResponseEntity.badRequest()
+        .body(
+            ErrorResponse.of(
+                "INVALID_INPUT", "입력값 형식이 올바르지 않습니다.", Map.of("paidMonth", e.getMessage())));
+  }
+
   @ExceptionHandler(IllegalArgumentException.class)
   public ResponseEntity<ErrorResponse> handleIllegalArgument(IllegalArgumentException e) {
     return ResponseEntity.status(HttpStatus.BAD_REQUEST)
