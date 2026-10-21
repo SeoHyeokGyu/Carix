@@ -36,13 +36,12 @@ class WageBaselineResolverTest {
   }
 
   @Test
-  @DisplayName("resolveBaseline - 광역 지역 기준선이 존재하면 반환")
-  void resolveBaseline_foundRegional() {
+  @DisplayName("resolveBaseline - 전국 기준선이 존재하면 반환")
+  void resolveBaseline_foundNational() {
     CareerProfile profile = new CareerProfile(UUID.randomUUID());
     profile.patch("DEVELOPER", 5, "서울 강남구", "FULL_TIME", "MEDIUM");
 
     given(fallbackResolver.mapExperienceBracket6(5)).willReturn("MID");
-    given(fallbackResolver.extractBroadRegion("서울 강남구")).willReturn("서울특별시");
 
     WageStatObservation obs =
         WageStatObservation.builder()
@@ -52,7 +51,7 @@ class WageBaselineResolverTest {
             .source(com.carix.wagestat.WageStatSource.KOSIS)
             .build();
 
-    given(repository.findLatestBaseline("DEVELOPER", "MID", "서울특별시")).willReturn(Optional.of(obs));
+    given(repository.findLatestBaseline("DEVELOPER", "MID", "전국")).willReturn(Optional.of(obs));
 
     WageBaseline baseline = resolver.resolveBaseline(profile);
 
@@ -70,7 +69,6 @@ class WageBaselineResolverTest {
     profile.patch("DEVELOPER", 0, "서울 강남구", "FULL_TIME", "MEDIUM");
 
     given(fallbackResolver.mapExperienceBracket6(0)).willReturn("ENTRY");
-    given(fallbackResolver.extractBroadRegion("서울 강남구")).willReturn("서울특별시");
 
     WageStatObservation obs =
         WageStatObservation.builder()
@@ -94,7 +92,6 @@ class WageBaselineResolverTest {
     profile.patch("DEVELOPER", 13, "서울 강남구", "FULL_TIME", "LARGE");
 
     given(fallbackResolver.mapExperienceBracket6(13)).willReturn("LEAD");
-    given(fallbackResolver.extractBroadRegion("서울 강남구")).willReturn("서울특별시");
 
     WageStatObservation obs =
         WageStatObservation.builder()
@@ -112,16 +109,12 @@ class WageBaselineResolverTest {
   }
 
   @Test
-  @DisplayName("resolveBaseline - 광역 지역 없으면 전국 기준 조회 성공")
-  void resolveBaseline_fallbackToNational() {
+  @DisplayName("resolveBaseline - 프로필 값이 비면 기본 직무·경력으로 전국 기준 조회")
+  void resolveBaseline_defaultsToNational() {
     CareerProfile profile = new CareerProfile(UUID.randomUUID());
     profile.patch(null, null, null, null, null);
 
     given(fallbackResolver.mapExperienceBracket6(3)).willReturn("JUNIOR");
-    given(fallbackResolver.extractBroadRegion(null)).willReturn("서울특별시");
-
-    given(repository.findLatestBaseline("DEVELOPER", "JUNIOR", "서울특별시"))
-        .willReturn(Optional.empty());
 
     WageStatObservation obs =
         WageStatObservation.builder()
@@ -145,9 +138,7 @@ class WageBaselineResolverTest {
     profile.patch("DEVELOPER", 5, "서울 강남구", "FULL_TIME", "LARGE");
 
     given(fallbackResolver.mapExperienceBracket6(5)).willReturn("MID");
-    given(fallbackResolver.extractBroadRegion("서울 강남구")).willReturn("서울특별시");
 
-    given(repository.findLatestBaseline("DEVELOPER", "MID", "서울특별시")).willReturn(Optional.empty());
     given(repository.findLatestBaseline("DEVELOPER", "MID", "전국")).willReturn(Optional.empty());
 
     WageStatObservation obs =
@@ -171,7 +162,6 @@ class WageBaselineResolverTest {
   void resolveBaseline_notFound() {
     CareerProfile profile = new CareerProfile(UUID.randomUUID());
     given(fallbackResolver.mapExperienceBracket6(anyInt())).willReturn("JUNIOR");
-    given(fallbackResolver.extractBroadRegion(anyString())).willReturn("서울특별시");
 
     given(repository.findLatestBaseline(anyString(), anyString(), anyString()))
         .willReturn(Optional.empty());
