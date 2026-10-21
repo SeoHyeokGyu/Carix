@@ -185,6 +185,7 @@
     *   `selectedChangeReason` (String, 응답 전용): 컬럼 원값 그대로(`RAISE`·`JOB_CHANGE`·`null`). 편집 화면이 이것으로 선택 컨트롤을 채운다. `changeReason` 만 내려주면 `INITIAL` 로 가려진 원값을 폼이 볼 수 없어, `PUT` 이 전체 교체인 탓에 다른 필드만 고쳐 저장해도 사용자가 골랐던 값이 지워진다.
 *   **Response (201 Created):** 등록 완료된 단건 반환
 *   새 행의 `bonusIncluded`·`fixedBonusAnnual` 은 요청으로 받지 않고, `effectiveDate` 바로 앞 행의 값을 물려받는다. 앞 행이 없으면 `true`·`null` 이다. 값은 4.3 으로 바꾼다.
+*   `PUT /api/v1/income/{id}` 로 `effectiveDate` 를 바꿔도 상여 조건은 다시 상속하지 않는다 — 그 행의 `bonusIncluded`·`fixedBonusAnnual` 은 그대로다.
 
 ### 4.3 상여 조건 일괄 적용
 *   **Endpoint:** `PUT /api/v1/income/bonus-terms`
@@ -199,7 +200,7 @@
 *   **필드 규격:**
     *   `applyFromIncomeId` (UUID, 필수): 이 행과 그 `effectiveDate` 이후의 모든 행에 적용한다. 이전 행은 바꾸지 않는다. 없거나 다른 사용자의 행이면 `404`.
     *   `bonusIncluded` (Boolean, 필수): 화면 문구 "연봉 계약 금액에 상여가 들어 있나요?" — "들어 있음" / "따로 받음".
-    *   `fixedBonusAnnual` (Long, 0 이상): `bonusIncluded=false` 이면 필수, `true` 이면 보낼 수 없다. 어긋나면 `400 INVALID_INPUT` 이고 `details.fixedBonusAnnual` 에 사유가 실린다.
+    *   `fixedBonusAnnual` (Long): `bonusIncluded=false` 이면 0 보다 큰 값이 필수, `true` 이면 보낼 수 없다. 어긋나면 `400 INVALID_INPUT` 이고 `details.fixedBonusAnnual` 에 사유가 실린다.
 *   **Response (200 OK):** 갱신된 전체 소득 이력(4.1 과 같은 형식). 적용 행의 유효월부터 스냅샷 재계산을 트리거한다.
 
 ### 4.4 성과급 수령 기록

@@ -86,8 +86,8 @@ public class IncomeController {
     String conflict =
         included && request.fixedBonusAnnual() != null
             ? "상여가 들어 있으면 고정 상여를 보낼 수 없습니다."
-            : !included && request.fixedBonusAnnual() == null
-                ? "상여를 따로 받으면 고정 상여 금액이 필요합니다."
+            : !included && (request.fixedBonusAnnual() == null || request.fixedBonusAnnual() == 0)
+                ? "상여를 따로 받으면 0원보다 큰 고정 상여 금액이 필요합니다."
                 : null;
     if (conflict != null) {
       return ResponseEntity.badRequest()

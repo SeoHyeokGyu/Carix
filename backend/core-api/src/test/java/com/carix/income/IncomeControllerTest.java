@@ -278,6 +278,20 @@ class IncomeControllerTest {
   }
 
   @Test
+  @DisplayName("PUT /v1/income/bonus-terms - 따로받음인데 금액이 0원이면 400")
+  void 따로받음인데_금액이_0원이면_400() throws Exception {
+    putBonusTerms(
+            """
+            {"applyFromIncomeId": "%s", "bonusIncluded": false, "fixedBonusAnnual": 0}
+            """
+                .formatted(APPLY_FROM))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.details.fixedBonusAnnual").exists());
+
+    verify(incomeService, org.mockito.Mockito.never()).updateBonusTerms(any(), any());
+  }
+
+  @Test
   @DisplayName("PUT /v1/income/bonus-terms - 따로받음인데 금액이 없으면 400")
   void 따로받음인데_금액이_없으면_400() throws Exception {
     putBonusTerms(
