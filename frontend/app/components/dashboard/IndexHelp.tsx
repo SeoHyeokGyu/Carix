@@ -37,7 +37,7 @@ export function MarketValueHelp() {
       <div className="flex flex-col gap-1.5">
         <p className="font-semibold text-carix-text">시장가치 지수 (MVI)</p>
         <p className="text-carix-text/80">
-          보유 스킬과 경력 조건의 시장 가치를 고용노동부 공식 임금 통계와
+          보유 스킬이 최근 3개월 채용공고에서 요구되는 비율을 이전 12개월과
           비교합니다.
         </p>
         <ul className="text-carix-text/70 space-y-1 mt-1">
@@ -45,13 +45,13 @@ export function MarketValueHelp() {
             <span className="shrink-0 px-1.5 py-0.5 rounded bg-carix-positive/10 text-carix-positive font-semibold text-[10px]">
               100 초과
             </span>
-            <span>보유 스킬 수요가 높아 시장 평균 대비 높은 가치 형성</span>
+            <span>보유 스킬 수요가 이전보다 늘었습니다</span>
           </li>
           <li className="flex items-start gap-1.5">
             <span className="shrink-0 px-1.5 py-0.5 rounded bg-carix-info/10 text-carix-info font-semibold text-[10px]">
               100 기준
             </span>
-            <span>동료집단(동일 연차·직무) 공식 임금 중앙값 수준</span>
+            <span>이전 12개월과 같은 수요입니다</span>
           </li>
         </ul>
       </div>

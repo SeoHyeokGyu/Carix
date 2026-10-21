@@ -255,7 +255,7 @@ export default function DashboardHome() {
               <IndexCard
                 title="시장가치 지수"
                 index={data.marketValueIndex}
-                baselineHint="기준 100: 동료집단 임금 중앙값"
+                baselineHint="기준 100: 이전 12개월 스킬 수요"
                 helpContent={<MarketValueHelp />}
                 detailHref="/dashboard/skills"
                 footer={history && <MarketValueTrend history={history} />}
