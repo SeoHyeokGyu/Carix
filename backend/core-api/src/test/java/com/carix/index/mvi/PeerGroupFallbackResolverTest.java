@@ -50,41 +50,6 @@ class PeerGroupFallbackResolverTest {
   }
 
   @Test
-  @DisplayName("조건 문구는 세 구간이 다 모였을 때만 `경력 전체 구간` 이다")
-  void testConditionText_twoBracketsIsNotAllBrackets() {
-    String juniorMid = resolver.formatConditionText("서울특별시", List.of("JUNIOR", "MID"), null, null);
-    String midSenior = resolver.formatConditionText("서울특별시", List.of("MID", "SENIOR"), null, null);
-    String allThree =
-        resolver.formatConditionText("서울특별시", List.of("JUNIOR", "MID", "SENIOR"), null, null);
-
-    assertThat(juniorMid).doesNotContain("경력 전체 구간").contains("JUNIOR·MID (0~7년)");
-    assertThat(midSenior).doesNotContain("경력 전체 구간").contains("MID·SENIOR (4년+)");
-    assertThat(allThree).contains("경력 전체 구간");
-  }
-
-  @Test
-  @DisplayName("단일 브래킷 조건 문구는 그대로 유지된다")
-  void testConditionText_singleBracketUnchanged() {
-    assertThat(resolver.formatConditionText("서울 강남구", List.of("MID"), "FULL_TIME", "MEDIUM"))
-        .isEqualTo("서울 강남구 / MID (4~7년) / MEDIUM / FULL_TIME");
-  }
-
-  @Test
-  @DisplayName("extractBroadRegion 다양한 시/도 변환")
-  void testExtractBroadRegion() {
-    assertThat(resolver.extractBroadRegion(null)).isEqualTo("서울특별시");
-    assertThat(resolver.extractBroadRegion("")).isEqualTo("서울특별시");
-    assertThat(resolver.extractBroadRegion("서울 마포구")).isEqualTo("서울특별시");
-    assertThat(resolver.extractBroadRegion("경기 수원시")).isEqualTo("경기도");
-    assertThat(resolver.extractBroadRegion("인천 연수구")).isEqualTo("인천광역시");
-    assertThat(resolver.extractBroadRegion("부산 진구")).isEqualTo("부산광역시");
-    assertThat(resolver.extractBroadRegion("대구 중구")).isEqualTo("대구광역시");
-    assertThat(resolver.extractBroadRegion("대전 유성구")).isEqualTo("대전광역시");
-    assertThat(resolver.extractBroadRegion("광주 북구")).isEqualTo("광주광역시");
-    assertThat(resolver.extractBroadRegion("제주 서귀포시")).isEqualTo("제주 서귀포시");
-  }
-
-  @Test
   @DisplayName("mapExperienceBracket 연차 매핑 (기존 3구간 호환)")
   void testMapExperienceBracket() {
     assertThat(resolver.mapExperienceBracket(0)).isEqualTo("JUNIOR");
@@ -127,47 +92,6 @@ class PeerGroupFallbackResolverTest {
     assertThat(resolver.getAdjacentBrackets("JUNIOR")).containsExactly("JUNIOR", "MID");
     assertThat(resolver.getAdjacentBrackets("SENIOR")).containsExactly("MID", "SENIOR");
     assertThat(resolver.getAdjacentBrackets("MID")).containsExactly("JUNIOR", "MID", "SENIOR");
-  }
-
-  @Test
-  @DisplayName("formatConditionText - 구 미포함 지역 및 브래킷 문구 포맷팅 검증")
-  void testFormatConditionText() {
-    // 구 미포함 지역
-    String t1 = resolver.formatConditionText("경기도", List.of("JUNIOR"), "FULL_TIME", "LARGE");
-    assertThat(t1).contains("경기도 전체").contains("JUNIOR (0~3년)");
-
-    // 3개 구간 전체
-    String t2 =
-        resolver.formatConditionText("서울 강남구", List.of("JUNIOR", "MID", "SENIOR"), null, null);
-    assertThat(t2).contains("경력 전체 구간").contains("회사규모 무관").contains("고용형태 무관");
-
-    // 2개 구간 (MID - SENIOR)
-    String t3 = resolver.formatConditionText("서울 강남구", List.of("MID", "SENIOR"), "PART_TIME", null);
-    assertThat(t3).contains("MID·SENIOR (4년+)");
-
-    // 단일 구간 ENTRY, SENIOR, LEAD, 기타 문자열
-    assertThat(resolver.formatConditionText("서울 강남구", List.of("ENTRY"), null, null))
-        .contains("ENTRY (0~1년)");
-    assertThat(resolver.formatConditionText("서울 강남구", List.of("SENIOR"), null, null))
-        .contains("SENIOR (8년+)");
-    assertThat(resolver.formatConditionText("서울 강남구", List.of("LEAD"), null, null))
-        .contains("LEAD (12년+)");
-    assertThat(resolver.formatConditionText("서울 강남구", List.of("OTHER"), null, null))
-        .contains("OTHER (OTHER)");
-
-    // 인접 브래킷 범위 포맷팅 분기 커버리지
-    assertThat(resolver.formatConditionText("서울 강남구", List.of("ENTRY", "JUNIOR"), null, null))
-        .contains("ENTRY·JUNIOR (0~3년)");
-    assertThat(resolver.formatConditionText("서울 강남구", List.of("ENTRY", "MID"), null, null))
-        .contains("ENTRY·MID (0~7년)");
-    assertThat(resolver.formatConditionText("서울 강남구", List.of("SENIOR", "LEAD"), null, null))
-        .contains("SENIOR·LEAD (8년+)");
-    assertThat(resolver.formatConditionText("서울 강남구", List.of("LEAD", "UNKNOWN"), null, null))
-        .contains("LEAD (12년+)");
-    assertThat(resolver.formatConditionText("서울 강남구", null, null, null)).contains("경력 전체 구간");
-    assertThat(resolver.formatConditionText("서울 강남구", List.of(), null, null)).contains("경력 전체 구간");
-    assertThat(resolver.formatConditionText("서울 강남구", List.of("CUSTOM1", "CUSTOM2"), null, null))
-        .contains("CUSTOM1·CUSTOM2");
   }
 
   // ---------- MVI 동료집단: 직무 × 경력만 실재한다 ----------

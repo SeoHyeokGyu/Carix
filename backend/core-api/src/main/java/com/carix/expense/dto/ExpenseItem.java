@@ -5,7 +5,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 @Schema(description = "세부 카테고리 지출 항목")
 public record ExpenseItem(
     @Schema(
-            description = "지출 분류 (HOUSING, FOOD, TRANSPORTATION, HEALTH, EDUCATION, OTHER)",
+            description = "지출 분류 (HOUSING, FOOD, TRANSPORT, MEDICAL, EDUCATION, LEISURE)",
             example = "HOUSING")
         String category,
     @Schema(description = "지출 금액 (원)", example = "600000") long amount,

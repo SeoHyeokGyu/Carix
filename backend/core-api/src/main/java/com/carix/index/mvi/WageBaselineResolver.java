@@ -12,7 +12,7 @@ import org.springframework.stereotype.Component;
 /**
  * 공식 임금통계 기준선(WageBaseline) 해석기.
  *
- * <p>사용자의 커리어 프로필(직무, 경력 브래킷, 지역)에 해당하는 공식 임금통계 중앙값을 조회하여 MVI 산출 결과에 기준선 정보를 첨부합니다.
+ * <p>사용자의 커리어 프로필(직무, 경력 브래킷)에 해당하는 공식 임금통계 중앙값을 조회하여 MVI 산출 결과에 기준선 정보를 첨부합니다.
  */
 @Component
 @RequiredArgsConstructor
@@ -35,15 +35,10 @@ public class WageBaselineResolver {
     String jobFamily = profile.getJobFamily() != null ? profile.getJobFamily() : "DEVELOPER";
     int years = profile.getYearsOfExperience() != null ? profile.getYearsOfExperience() : 3;
     String bracket = peerGroupFallbackResolver.mapExperienceBracket6(years);
-    String broadRegion = peerGroupFallbackResolver.extractBroadRegion(profile.getRegion());
 
+    // NOTE: (cjkang) KOSIS 임금통계에 직종 × 지역 차원이 없어 기준선은 전국뿐이다 — 프로필 지역은 쓰지 않는다
     Optional<WageStatObservation> obsOpt =
-        wageStatObservationRepository.findLatestBaseline(jobFamily, bracket, broadRegion);
-
-    if (obsOpt.isEmpty()) {
-      // 광역 지역으로 없을 경우 전국 기준 조회
-      obsOpt = wageStatObservationRepository.findLatestBaseline(jobFamily, bracket, "전국");
-    }
+        wageStatObservationRepository.findLatestBaseline(jobFamily, bracket, "전국");
 
     if (obsOpt.isEmpty()) {
       // 전국 기준도 없으면 collector 저장 형식인 "ALL" 코드로 조회 (임금통계 수집 시 region="ALL" 고정)

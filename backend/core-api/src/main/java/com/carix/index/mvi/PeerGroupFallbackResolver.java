@@ -7,7 +7,6 @@ import com.carix.market.MarketAggregateRepository;
 import com.carix.profile.domain.CareerProfile;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.util.Collection;
 import java.util.List;
 import lombok.Builder;
 import lombok.Getter;
@@ -198,40 +197,6 @@ public class PeerGroupFallbackResolver {
         .build();
   }
 
-  /** 화면 및 메타데이터에 노출할 완화 조건 텍스트를 포맷팅합니다. 예: "서울 전체 / 경력 4~7년(MID) / 회사규모 무관" */
-  public String formatConditionText(
-      String region, Collection<String> brackets, String employmentType, String companySize) {
-
-    String regionText = region.contains("구") ? region : region + " 전체";
-    String bracketText = formatBracketText(brackets);
-    String sizeText = companySize != null ? companySize : "회사규모 무관";
-    String typeText = employmentType != null ? employmentType : "고용형태 무관";
-
-    return String.format("%s / %s / %s / %s", regionText, bracketText, sizeText, typeText);
-  }
-
-  /**
-   * 브래킷 묶음을 화면 문구로 만듭니다. 세 구간이 다 모였을 때만 `경력 전체 구간` 입니다 — 인접 확장으로 두 구간이 된 경우를 전체로 표기하면 화면이 실제보다 넓은
-   * 비교군을 본 것처럼 말하게 됩니다.
-   */
-  private String formatBracketText(Collection<String> brackets) {
-    if (brackets == null || brackets.isEmpty()) {
-      return "경력 전체 구간";
-    }
-    if (brackets.size() == 1) {
-      String b = brackets.iterator().next();
-      return b + " (" + formatBracketYears(b) + ")";
-    }
-    List<String> ordered = BRACKET_6_ORDER.stream().filter(brackets::contains).toList();
-    if (ordered.size() >= BRACKET_6_ORDER.size() || ordered.containsAll(BRACKET_ORDER)) {
-      return "경력 전체 구간";
-    }
-    if (ordered.isEmpty()) {
-      return String.join("·", brackets);
-    }
-    return String.join("·", ordered) + " (" + formatBracketRange(ordered) + ")";
-  }
-
   /** 인접 확장으로 묶인 구간의 연차 범위. 첫 브래킷의 하한과 마지막 브래킷의 상한을 잇습니다. */
   private String formatBracketRange(List<String> ordered) {
     String lowerBound =
@@ -334,30 +299,6 @@ public class PeerGroupFallbackResolver {
       case "SENIOR" -> List.of("MID", "SENIOR");
       default -> BRACKET_ORDER;
     };
-  }
-
-  /** 상세 구 단위 지역명에서 시/도 광역 지역명을 추출합니다. 예: "서울 강남구" -> "서울특별시", "경기 성남시" -> "경기도" */
-  public String extractBroadRegion(String detailRegion) {
-    if (detailRegion == null || detailRegion.isBlank()) {
-      return "서울특별시";
-    }
-    String trimmed = detailRegion.trim();
-    if (trimmed.startsWith("서울")) {
-      return "서울특별시";
-    } else if (trimmed.startsWith("경기")) {
-      return "경기도";
-    } else if (trimmed.startsWith("인천")) {
-      return "인천광역시";
-    } else if (trimmed.startsWith("부산")) {
-      return "부산광역시";
-    } else if (trimmed.startsWith("대구")) {
-      return "대구광역시";
-    } else if (trimmed.startsWith("대전")) {
-      return "대전광역시";
-    } else if (trimmed.startsWith("광주")) {
-      return "광주광역시";
-    }
-    return trimmed;
   }
 
   private String defaultString(String val, String def) {
