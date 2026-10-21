@@ -109,6 +109,24 @@ describe("소득 탭 (S-12)", () => {
     expect(document.getElementById("fixedBonusAnnual-error")).not.toBeNull();
   });
 
+  it("상여 조건 400 은 들어 있음 선택 상태에서도 화면에 보인다", async () => {
+    vi.mocked(incomeApi.updateBonusTerms).mockRejectedValue({
+      code: "INVALID_INPUT",
+      message: "적용할 소득 이력을 찾을 수 없습니다.",
+      status: 400,
+    });
+    renderTab();
+    const user = userEvent.setup();
+
+    await user.click(
+      await screen.findByRole("button", { name: "상여 조건 저장" }),
+    );
+
+    expect(
+      await screen.findByText("적용할 소득 이력을 찾을 수 없습니다."),
+    ).toBeVisible();
+  });
+
   it("성과급을 추가하면 목록을 다시 불러온다", async () => {
     vi.mocked(incomeApi.createBonus).mockResolvedValue({
       id: "b-1",

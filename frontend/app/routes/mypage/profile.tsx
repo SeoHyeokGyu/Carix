@@ -40,11 +40,13 @@ interface ActionData {
 export async function clientLoader() {
   try {
     const profile = await getProfile();
-    return { hireDate: profile.hireDate };
+    return { hireDate: profile.hireDate, loadFailed: false };
   } catch (error) {
     if (error instanceof UnauthorizedError) throw redirect(LOGIN_PATH);
     // 이 화면의 본업은 세션·계정 관리다 — 입사일 조회 실패가 로그아웃·탈퇴까지 막으면 안 된다.
-    return { hireDate: null };
+    // 다만 조용히 넘기면 저장된 입사일을 모른 채 덮어쓸 수 있어 화면이 알리고 저장을 막는다.
+    console.error("입사일 조회 실패", error);
+    return { hireDate: null, loadFailed: true };
   }
 }
 
@@ -231,6 +233,12 @@ export default function MypageProfile() {
                   disabled={isSubmitting}
                 />
               </div>
+              {loaderData?.loadFailed && (
+                <p role="alert" className="text-sm text-carix-danger">
+                  저장된 입사일을 불러오지 못했습니다. 새로고침한 뒤 다시 시도해
+                  주세요.
+                </p>
+              )}
               {actionData?.intent === "save-hire-date" && actionData.error && (
                 <p role="alert" className="text-sm text-carix-danger">
                   {actionData.error}
@@ -247,7 +255,7 @@ export default function MypageProfile() {
                   type="submit"
                   name="intent"
                   value="save-hire-date"
-                  disabled={isSubmitting}
+                  disabled={isSubmitting || loaderData?.loadFailed}
                 >
                   입사일 저장
                 </Button>

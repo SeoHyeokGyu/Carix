@@ -313,6 +313,25 @@ describe("S-13 MypageProfile 라우트", () => {
       ).toBeInTheDocument();
     });
 
+    it("입사일 조회가 실패하면 알리고 저장을 막는다", async () => {
+      const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+      vi.mocked(profileApi.getProfile).mockRejectedValue({
+        code: "UNKNOWN",
+        message: "x",
+        status: 500,
+      });
+      renderWithLoader();
+
+      expect(
+        await screen.findByText(/저장된 입사일을 불러오지 못했습니다/),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByRole("button", { name: "입사일 저장" }),
+      ).toBeDisabled();
+      expect(spy).toHaveBeenCalled();
+      spy.mockRestore();
+    });
+
     it("입사일이 비어 있으면 서버를 부르지 않는다", async () => {
       const formData = new FormData();
       formData.set("intent", "save-hire-date");

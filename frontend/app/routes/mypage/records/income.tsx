@@ -110,8 +110,14 @@ async function runBonusIntent(
     return null;
   } catch (error) {
     if (error instanceof UnauthorizedError) throw redirect(LOGIN_PATH);
-    // 상여 조건의 400 은 고정상여 칸에 붙인다 — 서버가 그 칸의 조합 위반만 400 으로 돌려준다.
-    if (intent === "bonus-terms" && isApiError(error) && error.status === 400) {
+    // 상여 조건의 400 은 고정상여 칸이 보일 때(따로 받음)만 그 칸에 붙인다 — 들어 있음이면
+    // 칸이 없으므로(예: 낡은 applyFromIncomeId) 폼 공통 오류로 낸다.
+    if (
+      intent === "bonus-terms" &&
+      isApiError(error) &&
+      error.status === 400 &&
+      formData.get("bonusIncluded") !== "true"
+    ) {
       return { errors: { fixedBonusAnnual: error.message } };
     }
     return { errors: { _form: toUserMessage(error) } };
