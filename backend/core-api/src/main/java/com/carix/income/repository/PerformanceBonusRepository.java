@@ -10,4 +10,6 @@ public interface PerformanceBonusRepository extends JpaRepository<PerformanceBon
   List<PerformanceBonus> findByUserIdOrderByPaidMonthDesc(UUID userId);
 
   Optional<PerformanceBonus> findByIdAndUserId(UUID id, UUID userId);
+
+  void deleteByUserId(UUID userId);
 }

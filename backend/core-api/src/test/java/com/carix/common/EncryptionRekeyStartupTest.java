@@ -26,7 +26,7 @@ class EncryptionRekeyStartupTest {
   void setUp() {
     service = mock(SensitiveDataRekeyingService.class);
     given(service.checkStatus())
-        .willReturn(new SensitiveDataRekeyingService.RekeyingStatus(2, 0, 1, "v1"));
+        .willReturn(new SensitiveDataRekeyingService.RekeyingStatus(2, 0, 1, 3, "v1"));
   }
 
   @Test
@@ -37,14 +37,14 @@ class EncryptionRekeyStartupTest {
     verify(service, never()).rekeyAll();
     assertThat(output)
         .contains(
-            "rekey-status activeKeyId=v1 incomeHistory=2 expenseItem=0 careerScenario=1 fullyMigrated=false");
+            "rekey-status activeKeyId=v1 incomeHistory=2 expenseItem=0 careerScenario=1 performanceBonus=3 fullyMigrated=false");
   }
 
   @Test
   @DisplayName("플래그가 켜져 있으면 재암호화한 뒤 상태를 남긴다")
   void 재암호화() {
     given(service.rekeyAll())
-        .willReturn(new SensitiveDataRekeyingService.RekeyingResult(2, 0, 1, "v1"));
+        .willReturn(new SensitiveDataRekeyingService.RekeyingResult(2, 0, 1, 3, "v1"));
 
     new EncryptionRekeyStartup(service, true).run();
 

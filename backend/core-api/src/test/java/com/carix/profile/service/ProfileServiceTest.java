@@ -10,6 +10,7 @@ import static org.mockito.Mockito.verify;
 
 import com.carix.expense.repository.ExpenseHistoryRepository;
 import com.carix.income.repository.IncomeHistoryRepository;
+import com.carix.income.repository.PerformanceBonusRepository;
 import com.carix.profile.domain.CareerProfile;
 import com.carix.profile.dto.ProfileRequest;
 import com.carix.profile.repository.CareerProfileRepository;
@@ -38,6 +39,7 @@ class ProfileServiceTest {
   private ExpenseHistoryRepository expenseHistoryRepository;
   private IndexSnapshotRepository indexSnapshotRepository;
   private CareerScenarioRepository careerScenarioRepository;
+  private PerformanceBonusRepository performanceBonusRepository;
   private JdbcTemplate jdbcTemplate;
 
   private ProfileService profileService;
@@ -51,6 +53,7 @@ class ProfileServiceTest {
     expenseHistoryRepository = mock(ExpenseHistoryRepository.class);
     indexSnapshotRepository = mock(IndexSnapshotRepository.class);
     careerScenarioRepository = mock(CareerScenarioRepository.class);
+    performanceBonusRepository = mock(PerformanceBonusRepository.class);
     jdbcTemplate = mock(JdbcTemplate.class);
 
     profileService =
@@ -62,6 +65,7 @@ class ProfileServiceTest {
             expenseHistoryRepository,
             indexSnapshotRepository,
             careerScenarioRepository,
+            performanceBonusRepository,
             jdbcTemplate);
   }
 
@@ -82,6 +86,7 @@ class ProfileServiceTest {
     verify(expenseHistoryRepository).deleteByUserId(USER_ID);
     verify(indexSnapshotRepository).deleteByUserId(USER_ID);
     verify(careerScenarioRepository).deleteByUserId(USER_ID);
+    verify(performanceBonusRepository).deleteByUserId(USER_ID);
   }
 
   @Test

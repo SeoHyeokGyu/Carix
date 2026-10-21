@@ -2,6 +2,7 @@ package com.carix.profile.service;
 
 import com.carix.expense.repository.ExpenseHistoryRepository;
 import com.carix.income.repository.IncomeHistoryRepository;
+import com.carix.income.repository.PerformanceBonusRepository;
 import com.carix.profile.domain.CareerProfile;
 import com.carix.profile.dto.ProfileRequest;
 import com.carix.profile.dto.ProfileResponse;
@@ -31,12 +32,22 @@ public class ProfileService {
   private final ExpenseHistoryRepository expenseHistoryRepository;
   private final IndexSnapshotRepository indexSnapshotRepository;
   private final CareerScenarioRepository careerScenarioRepository;
+  private final PerformanceBonusRepository performanceBonusRepository;
   private final JdbcTemplate jdbcTemplate;
 
   public ProfileService(
       CareerProfileRepository careerProfileRepository,
       SnapshotRecalculationService snapshotRecalculationService) {
-    this(careerProfileRepository, snapshotRecalculationService, null, null, null, null, null, null);
+    this(
+        careerProfileRepository,
+        snapshotRecalculationService,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null);
   }
 
   @org.springframework.beans.factory.annotation.Autowired
@@ -48,6 +59,7 @@ public class ProfileService {
       ExpenseHistoryRepository expenseHistoryRepository,
       IndexSnapshotRepository indexSnapshotRepository,
       CareerScenarioRepository careerScenarioRepository,
+      PerformanceBonusRepository performanceBonusRepository,
       JdbcTemplate jdbcTemplate) {
     this.careerProfileRepository = careerProfileRepository;
     this.snapshotRecalculationService = snapshotRecalculationService;
@@ -56,14 +68,15 @@ public class ProfileService {
     this.expenseHistoryRepository = expenseHistoryRepository;
     this.indexSnapshotRepository = indexSnapshotRepository;
     this.careerScenarioRepository = careerScenarioRepository;
+    this.performanceBonusRepository = performanceBonusRepository;
     this.jdbcTemplate = jdbcTemplate;
   }
 
   /**
    * 사용자 및 개인 데이터 완전 삭제 (US-C2).
    *
-   * <p>프로필, 보유 스킬, 소득/소비 이력, 지수 스냅샷, 커리어 시나리오 및 세션/사용자 행을 영구 삭제한다. 공용 시장 집계(MarketAggregate) 데이터는
-   * 영향을 받지 않는다.
+   * <p>프로필, 보유 스킬, 소득/소비 이력, 성과급 기록, 지수 스냅샷, 커리어 시나리오 및 세션/사용자 행을 영구 삭제한다. 공용 시장
+   * 집계(MarketAggregate) 데이터는 영향을 받지 않는다.
    */
   @Transactional
   public void deleteUser(UUID userId, String email) {
@@ -97,6 +110,7 @@ public class ProfileService {
     if (expenseHistoryRepository != null) expenseHistoryRepository.deleteByUserId(userId);
     if (indexSnapshotRepository != null) indexSnapshotRepository.deleteByUserId(userId);
     if (careerScenarioRepository != null) careerScenarioRepository.deleteByUserId(userId);
+    if (performanceBonusRepository != null) performanceBonusRepository.deleteByUserId(userId);
 
     // 3. auth 스키마 세션 및 사용자 행 삭제 (auth 스키마 접근 가능 시)
     if (jdbcTemplate != null) {

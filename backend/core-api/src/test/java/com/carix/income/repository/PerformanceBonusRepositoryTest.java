@@ -49,4 +49,21 @@ class PerformanceBonusRepositoryTest {
     assertThat(performanceBonusRepository.findByIdAndUserId(saved.getId(), UUID.randomUUID()))
         .isEmpty();
   }
+
+  @Test
+  @DisplayName("deleteByUserId - 해당 사용자의 성과급만 지운다")
+  void deleteByUserId_해당_사용자_행만_지운다() {
+    UUID userId = UUID.randomUUID();
+    UUID otherId = UUID.randomUUID();
+    performanceBonusRepository.save(new PerformanceBonus(userId, "202606", 1L));
+    performanceBonusRepository.save(new PerformanceBonus(userId, "202607", 2L));
+    performanceBonusRepository.save(new PerformanceBonus(otherId, "202606", 3L));
+    performanceBonusRepository.flush();
+
+    performanceBonusRepository.deleteByUserId(userId);
+    performanceBonusRepository.flush();
+
+    assertThat(performanceBonusRepository.findByUserIdOrderByPaidMonthDesc(userId)).isEmpty();
+    assertThat(performanceBonusRepository.findByUserIdOrderByPaidMonthDesc(otherId)).hasSize(1);
+  }
 }
