@@ -6,14 +6,15 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoInteractions;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.carix.common.GlobalExceptionHandler;
 import com.carix.common.usercontext.UserContextArgumentResolver;
 import com.carix.profile.dto.ProfileResponse;
+import com.carix.profile.exception.InvalidHireDateException;
 import com.carix.profile.service.ProfileService;
 import java.time.LocalDate;
 import java.util.UUID;
@@ -37,6 +38,7 @@ class ProfileControllerTest {
     mockMvc =
         MockMvcBuilders.standaloneSetup(new ProfileController(profileService))
             .setCustomArgumentResolvers(new UserContextArgumentResolver())
+            .setControllerAdvice(new GlobalExceptionHandler())
             .build();
   }
 
@@ -80,18 +82,19 @@ class ProfileControllerTest {
   }
 
   @Test
-  @DisplayName("PATCH /v1/profile - 미래 입사일이면 400 Bad Request")
+  @DisplayName("PATCH /v1/profile - 미래 입사일이면 400 과 details.hireDate")
   void 미래_입사일은_400() throws Exception {
-    String future = LocalDate.now().plusDays(1).toString();
+    given(profileService.patch(eq(USER_ID), any()))
+        .willThrow(new InvalidHireDateException("입사일은 오늘 이후일 수 없습니다."));
 
     mockMvc
         .perform(
             patch("/v1/profile")
                 .header("X-User-Id", USER_ID.toString())
                 .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"hireDate\":\"" + future + "\"}"))
-        .andExpect(status().isBadRequest());
-
-    verifyNoInteractions(profileService);
+                .content("{\"hireDate\":\"2999-01-01\"}"))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.code").value("INVALID_INPUT"))
+        .andExpect(jsonPath("$.details.hireDate").value("입사일은 오늘 이후일 수 없습니다."));
   }
 }

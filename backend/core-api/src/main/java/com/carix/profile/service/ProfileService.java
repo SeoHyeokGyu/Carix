@@ -6,12 +6,15 @@ import com.carix.income.repository.PerformanceBonusRepository;
 import com.carix.profile.domain.CareerProfile;
 import com.carix.profile.dto.ProfileRequest;
 import com.carix.profile.dto.ProfileResponse;
+import com.carix.profile.exception.InvalidHireDateException;
 import com.carix.profile.repository.CareerProfileRepository;
 import com.carix.scenario.CareerScenarioRepository;
 import com.carix.skill.repository.UserSkillRepository;
 import com.carix.snapshot.SnapshotRecalculationService;
 import com.carix.snapshot.YearMonths;
 import com.carix.snapshot.repository.IndexSnapshotRepository;
+import java.time.Clock;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 import org.slf4j.Logger;
@@ -34,10 +37,12 @@ public class ProfileService {
   private final CareerScenarioRepository careerScenarioRepository;
   private final PerformanceBonusRepository performanceBonusRepository;
   private final JdbcTemplate jdbcTemplate;
+  private final Clock clock;
 
   public ProfileService(
       CareerProfileRepository careerProfileRepository,
-      SnapshotRecalculationService snapshotRecalculationService) {
+      SnapshotRecalculationService snapshotRecalculationService,
+      Clock clock) {
     this(
         careerProfileRepository,
         snapshotRecalculationService,
@@ -47,7 +52,8 @@ public class ProfileService {
         null,
         null,
         null,
-        null);
+        null,
+        clock);
   }
 
   @org.springframework.beans.factory.annotation.Autowired
@@ -60,7 +66,8 @@ public class ProfileService {
       IndexSnapshotRepository indexSnapshotRepository,
       CareerScenarioRepository careerScenarioRepository,
       PerformanceBonusRepository performanceBonusRepository,
-      JdbcTemplate jdbcTemplate) {
+      JdbcTemplate jdbcTemplate,
+      Clock clock) {
     this.careerProfileRepository = careerProfileRepository;
     this.snapshotRecalculationService = snapshotRecalculationService;
     this.userSkillRepository = userSkillRepository;
@@ -70,6 +77,7 @@ public class ProfileService {
     this.careerScenarioRepository = careerScenarioRepository;
     this.performanceBonusRepository = performanceBonusRepository;
     this.jdbcTemplate = jdbcTemplate;
+    this.clock = clock;
   }
 
   /**
@@ -135,6 +143,9 @@ public class ProfileService {
 
   @Transactional
   public ProfileResponse patch(UUID userId, ProfileRequest request) {
+    if (request.hireDate() != null && request.hireDate().isAfter(LocalDate.now(clock))) {
+      throw new InvalidHireDateException("입사일은 오늘 이후일 수 없습니다.");
+    }
     CareerProfile profile =
         careerProfileRepository
             .findByUserId(userId)

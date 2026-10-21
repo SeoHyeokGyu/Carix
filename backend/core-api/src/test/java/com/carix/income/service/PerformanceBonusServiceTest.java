@@ -11,8 +11,8 @@ import static org.mockito.Mockito.verify;
 import com.carix.income.domain.PerformanceBonus;
 import com.carix.income.dto.PerformanceBonusRequest;
 import com.carix.income.dto.PerformanceBonusResponse;
-import com.carix.income.exception.IncomeNotFoundException;
 import com.carix.income.exception.InvalidPaidMonthException;
+import com.carix.income.exception.PerformanceBonusNotFoundException;
 import com.carix.income.repository.PerformanceBonusRepository;
 import java.time.Clock;
 import java.time.Instant;
@@ -92,7 +92,7 @@ class PerformanceBonusServiceTest {
     given(repository.findByIdAndUserId(id, USER_ID)).willReturn(Optional.empty());
 
     assertThatThrownBy(() -> service.delete(USER_ID, id))
-        .isInstanceOf(IncomeNotFoundException.class);
+        .isInstanceOf(PerformanceBonusNotFoundException.class);
     verify(repository, never()).delete(any(PerformanceBonus.class));
   }
 

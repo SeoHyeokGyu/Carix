@@ -13,8 +13,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.carix.common.GlobalExceptionHandler;
 import com.carix.income.dto.PerformanceBonusRequest;
 import com.carix.income.dto.PerformanceBonusResponse;
-import com.carix.income.exception.IncomeNotFoundException;
 import com.carix.income.exception.InvalidPaidMonthException;
+import com.carix.income.exception.PerformanceBonusNotFoundException;
 import com.carix.income.service.PerformanceBonusService;
 import java.util.List;
 import java.util.UUID;
@@ -128,11 +128,14 @@ class PerformanceBonusControllerTest {
   @DisplayName("DELETE - 남의 기록·없는 id 는 404")
   void 삭제_404() throws Exception {
     UUID id = UUID.randomUUID();
-    org.mockito.Mockito.doThrow(new IncomeNotFoundException(id)).when(service).delete(USER_ID, id);
+    org.mockito.Mockito.doThrow(new PerformanceBonusNotFoundException(id))
+        .when(service)
+        .delete(USER_ID, id);
 
     mockMvc
         .perform(delete("/v1/income/bonuses/" + id).header("X-User-Id", USER_ID.toString()))
         .andExpect(status().isNotFound())
-        .andExpect(jsonPath("$.code").value("NOT_FOUND"));
+        .andExpect(jsonPath("$.code").value("NOT_FOUND"))
+        .andExpect(jsonPath("$.message").value("성과급 기록을 찾을 수 없습니다: " + id));
   }
 }

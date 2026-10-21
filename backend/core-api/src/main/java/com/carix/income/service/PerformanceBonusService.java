@@ -3,8 +3,8 @@ package com.carix.income.service;
 import com.carix.income.domain.PerformanceBonus;
 import com.carix.income.dto.PerformanceBonusRequest;
 import com.carix.income.dto.PerformanceBonusResponse;
-import com.carix.income.exception.IncomeNotFoundException;
 import com.carix.income.exception.InvalidPaidMonthException;
+import com.carix.income.exception.PerformanceBonusNotFoundException;
 import com.carix.income.repository.PerformanceBonusRepository;
 import java.time.Clock;
 import java.time.YearMonth;
@@ -45,7 +45,9 @@ public class PerformanceBonusService {
   @Transactional
   public void delete(UUID userId, UUID id) {
     var bonus =
-        repository.findByIdAndUserId(id, userId).orElseThrow(() -> new IncomeNotFoundException(id));
+        repository
+            .findByIdAndUserId(id, userId)
+            .orElseThrow(() -> new PerformanceBonusNotFoundException(id));
     repository.delete(bonus);
   }
 

@@ -25,6 +25,7 @@ import com.carix.skill.repository.SkillAliasRepository;
 import com.carix.skill.repository.SkillRepository;
 import com.carix.skill.repository.UserSkillRepository;
 import com.carix.skill.service.SkillService;
+import java.time.Clock;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
@@ -146,7 +147,7 @@ class SnapshotTriggerWiringTest {
     CareerProfileRepository repository = mock(CareerProfileRepository.class);
     given(repository.findByUserId(USER_ID))
         .willReturn(Optional.of(CareerProfile.builder().userId(USER_ID).build()));
-    ProfileService service = new ProfileService(repository, recalculation);
+    ProfileService service = new ProfileService(repository, recalculation, Clock.systemUTC());
 
     service.patch(
         USER_ID, new ProfileRequest("DEVELOPER", 5, "서울 강남구", "FULL_TIME", "MEDIUM", null));

@@ -13,12 +13,16 @@ import com.carix.income.repository.IncomeHistoryRepository;
 import com.carix.income.repository.PerformanceBonusRepository;
 import com.carix.profile.domain.CareerProfile;
 import com.carix.profile.dto.ProfileRequest;
+import com.carix.profile.exception.InvalidHireDateException;
 import com.carix.profile.repository.CareerProfileRepository;
 import com.carix.scenario.CareerScenarioRepository;
 import com.carix.skill.repository.UserSkillRepository;
 import com.carix.snapshot.SnapshotRecalculationService;
 import com.carix.snapshot.repository.IndexSnapshotRepository;
+import java.time.Clock;
+import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -31,6 +35,9 @@ import org.springframework.jdbc.core.RowMapper;
 class ProfileServiceTest {
 
   private static final UUID USER_ID = UUID.randomUUID();
+  // 서울 2026-10-22 00:30 = UTC 2026-10-21 15:30 — JVM 기본 TZ 가 UTC 여도 오늘은 10-22 여야 한다
+  private static final Clock CLOCK =
+      Clock.fixed(Instant.parse("2026-10-21T15:30:00Z"), ZoneId.of("Asia/Seoul"));
 
   private CareerProfileRepository careerProfileRepository;
   private SnapshotRecalculationService snapshotRecalculationService;
@@ -66,7 +73,8 @@ class ProfileServiceTest {
             indexSnapshotRepository,
             careerScenarioRepository,
             performanceBonusRepository,
-            jdbcTemplate);
+            jdbcTemplate,
+            CLOCK);
   }
 
   @Test
@@ -123,6 +131,25 @@ class ProfileServiceTest {
 
     assertThat(res.hireDate()).isEqualTo(LocalDate.of(2022, 3, 2));
     assertThat(profileService.get(USER_ID).hireDate()).isEqualTo(LocalDate.of(2022, 3, 2));
+  }
+
+  @Test
+  @DisplayName("patch - 서울 기준 오늘 입사일은 허용하고 내일은 거부한다")
+  void 입사일_미래_판정은_서울_시계_기준() {
+    CareerProfile profile = new CareerProfile(USER_ID);
+    given(careerProfileRepository.findByUserId(USER_ID)).willReturn(Optional.of(profile));
+
+    var res =
+        profileService.patch(
+            USER_ID, new ProfileRequest(null, null, null, null, null, LocalDate.of(2026, 10, 22)));
+    assertThat(res.hireDate()).isEqualTo(LocalDate.of(2026, 10, 22));
+
+    assertThatThrownBy(
+            () ->
+                profileService.patch(
+                    USER_ID,
+                    new ProfileRequest(null, null, null, null, null, LocalDate.of(2026, 10, 23))))
+        .isInstanceOf(InvalidHireDateException.class);
   }
 
   @Test
