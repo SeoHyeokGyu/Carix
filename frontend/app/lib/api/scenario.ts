@@ -153,8 +153,11 @@ export interface SavedScenario {
 export const getContext = () =>
   coreGet<ScenarioContext>("/v1/scenarios/context");
 
-export const evaluate = (req: EvaluateRequest) =>
-  coreSend<EvaluationResponse>("POST", "/v1/scenarios/evaluate", req);
+/** 응답이 약속한 모양이 아니면 숫자를 그리기 전에 여기서 던진다. */
+export const evaluate = async (req: EvaluateRequest) =>
+  evaluationResponseSchema.parse(
+    await coreSend<unknown>("POST", "/v1/scenarios/evaluate", req),
+  );
 
 /** 사용자가 저장을 누를 때만 부른다. 서버가 입력을 다시 평가해 결과와 함께 저장한다. */
 export const saveScenario = (name: string | null, request: EvaluateRequest) =>
@@ -164,8 +167,10 @@ export const putDraft = (req: EvaluateRequest) =>
   coreSend<null>("PUT", "/v1/scenarios/draft", req);
 
 /** 초안이 없으면 서버가 204 를 주고 래퍼가 null 로 돌려준다. */
-export const getDraft = () =>
-  coreGet<EvaluateRequest | null>("/v1/scenarios/draft");
+export const getDraft = async (): Promise<EvaluateRequest | null> => {
+  const draft = await coreGet<unknown>("/v1/scenarios/draft");
+  return draft === null ? null : evaluateRequestSchema.parse(draft);
+};
 
 /**
  * 저장분 전부, 최근 순. 없으면 빈 배열이다. 복호화된 금액이 여러 건 실리므로 로그에 남기지 않는다.

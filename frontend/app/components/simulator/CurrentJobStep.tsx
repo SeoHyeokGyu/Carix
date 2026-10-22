@@ -67,7 +67,10 @@ interface CurrentJobStepProps {
   draft: EvaluateRequest | null;
   /** 미반영 `넣기` 로 들어왔을 때 열고 포커스할 칸. */
   focus?: CurrentJobFocus;
-  onDone: () => void;
+  /** 저장된 초안을 넘긴다. */
+  onDone: (saved: EvaluateRequest) => void;
+  /** 성과급 기록을 마이페이지에 더한 뒤. 호출자가 컨텍스트(성과급 범위)를 다시 읽는다. */
+  onBonusRecorded?: () => void;
 }
 
 export function CurrentJobStep({
@@ -76,6 +79,7 @@ export function CurrentJobStep({
   draft,
   focus,
   onDone,
+  onBonusRecorded,
 }: CurrentJobStepProps) {
   const stay = draft?.stay;
   const noIncome = context.currentAnnualGross === null;
@@ -154,7 +158,7 @@ export function CurrentJobStep({
         bonusSaved = true;
       }
       if (hireDate) await patchProfile({ hireDate });
-      await putDraft({
+      const saved: EvaluateRequest = {
         stay: {
           raisePercent: Number(raise),
           currentGrossOverride: overrideShown ? manInputToWon(override) : null,
@@ -163,8 +167,9 @@ export function CurrentJobStep({
           stockUnvested: manInputToWon(unvested),
         },
         move: draft?.move ?? null,
-      });
-      onDone();
+      };
+      await putDraft(saved);
+      onDone(saved);
     } catch (error) {
       const message = describeError(error);
       setErrors({
@@ -195,6 +200,7 @@ export function CurrentJobStep({
       setRecordNote("성과급 기록을 마이페이지에 저장했습니다.");
       setRecordMonth("");
       setRecordAmount("");
+      onBonusRecorded?.();
     } catch (error) {
       setErrors((prev) => ({
         ...withoutRecordErrors(prev),

@@ -67,7 +67,8 @@ interface MoveConditionsStepProps {
   initialValues?: MoveFormValues;
   /** 입력을 지우지 않고 ② 로 돌아간다. 호출자가 값을 들고 있다가 `initialValues` 로 돌려준다. */
   onBack: (values: MoveFormValues) => void;
-  onDone: () => void;
+  /** 저장된 초안을 넘긴다. */
+  onDone: (saved: EvaluateRequest) => void;
 }
 
 export function MoveConditionsStep({
@@ -148,7 +149,7 @@ export function MoveConditionsStep({
     }
     setSubmitting(true);
     try {
-      await putDraft({
+      const saved: EvaluateRequest = {
         stay: draft.stay,
         move: {
           grossSalary: manInputToWon(values.gross) ?? 0,
@@ -163,8 +164,9 @@ export function MoveConditionsStep({
           signingBonus: manInputToWon(values.signingBonus),
           stockVesting12m: manInputToWon(values.stockVesting),
         },
-      });
-      onDone();
+      };
+      await putDraft(saved);
+      onDone(saved);
     } catch (error) {
       setErrors({ _form: describeError(error) });
     } finally {
