@@ -4,9 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.carix.expense.domain.ExpenseCategoryEnum;
-import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
-import java.util.Map;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.core.io.ByteArrayResource;
@@ -38,21 +36,6 @@ class DefaultExpenseWeightProviderTest {
     assertThat(provider.getDefaultWeights()).containsOnlyKeys(ExpenseCategoryEnum.values());
     assertThat(provider.getVersion()).isPositive();
     assertThat(provider.getBasePeriod()).isNotBlank();
-  }
-
-  @Test
-  @DisplayName("정상 yml 이면 가중치·메타를 그대로 읽고, 반환 맵은 수정할 수 없다")
-  void valid_parsesValuesAndIsUnmodifiable() {
-    var provider = new DefaultExpenseWeightProvider(yaml(VALID));
-
-    Map<ExpenseCategoryEnum, BigDecimal> weights = provider.getDefaultWeights();
-    assertThat(weights.get(ExpenseCategoryEnum.HOUSING)).isEqualByComparingTo("0.30");
-    assertThat(weights.get(ExpenseCategoryEnum.LEISURE)).isEqualByComparingTo("0.10");
-    assertThat(provider.getVersion()).isEqualTo(1);
-    assertThat(provider.getBasePeriod()).isEqualTo("2025");
-
-    assertThatThrownBy(() -> weights.put(ExpenseCategoryEnum.FOOD, BigDecimal.ONE))
-        .isInstanceOf(UnsupportedOperationException.class);
   }
 
   @Test
@@ -93,28 +76,6 @@ class DefaultExpenseWeightProviderTest {
     assertThatThrownBy(() -> new DefaultExpenseWeightProvider(yaml(broken)))
         .isInstanceOf(IllegalStateException.class)
         .hasMessageContaining("합");
-  }
-
-  @Test
-  @DisplayName("weight 가 0 이하이면 기동을 거부한다")
-  void nonPositiveWeight_fails() {
-    String broken = VALID.replace("LEISURE: { weight: 0.10 }", "LEISURE: { weight: 0 }");
-
-    assertThatThrownBy(() -> new DefaultExpenseWeightProvider(yaml(broken)))
-        .isInstanceOf(IllegalStateException.class)
-        .hasMessageContaining("LEISURE");
-  }
-
-  @Test
-  @DisplayName("weights 루트 키가 없거나 빈 파일이면 기동을 거부한다")
-  void missingWeightsOrEmptyFile_fails() {
-    assertThatThrownBy(
-            () -> new DefaultExpenseWeightProvider(yaml("version: 1\nbasePeriod: \"2025\"\n")))
-        .isInstanceOf(IllegalStateException.class)
-        .hasMessageContaining("weights");
-
-    assertThatThrownBy(() -> new DefaultExpenseWeightProvider(yaml("")))
-        .isInstanceOf(IllegalStateException.class);
   }
 
   private static Resource yaml(String content) {

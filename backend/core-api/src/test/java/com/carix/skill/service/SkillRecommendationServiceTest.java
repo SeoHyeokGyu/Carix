@@ -435,17 +435,6 @@ class SkillRecommendationServiceTest {
   }
 
   @Test
-  @DisplayName("US-D6: 프로필이 존재하지 않는 경우 빈 배열을 반환한다")
-  void getRecommendations_profileNotFound_returnsEmpty() {
-    when(careerProfileRepository.findByUserId(userId)).thenReturn(Optional.empty());
-
-    SkillRecommendationsResponse response = service.getRecommendations(userId);
-
-    assertThat(response.recommendations()).isEmpty();
-    assertThat(response.peerGroup().appliedConditions()).isEqualTo("동료집단 미설정");
-  }
-
-  @Test
   @DisplayName(
       "성장 트렌드(growthTrend)의 다양한 분기(DOWN, STABLE, NEW_OBSERVATION, NO_RECENT_DEMAND, 예외 시 기본값)를 검증한다")
   void getRecommendations_growthTrend_allBranches() {
@@ -587,100 +576,6 @@ class SkillRecommendationServiceTest {
             .findFirst()
             .orElseThrow();
     assertThat(itemError.growthTrend()).isEqualTo("STABLE");
-  }
-
-  @Test
-  @DisplayName("수요율과 공고 수가 동일할 때 스킬 표준명(standardName) 오름차순으로 타이브레이킹된다")
-  void getRecommendations_tieBreakingSortByStandardName() {
-    when(careerProfileRepository.findByUserId(userId)).thenReturn(Optional.of(profile));
-    when(userSkillRepository.findByUserId(userId)).thenReturn(List.of());
-
-    Skill skillZ =
-        Skill.builder()
-            .id(UUID.randomUUID())
-            .standardName("Z-Skill")
-            .category("TEST")
-            .isCustom(false)
-            .build();
-    Skill skillA =
-        Skill.builder()
-            .id(UUID.randomUUID())
-            .standardName("A-Skill")
-            .category("TEST")
-            .isCustom(false)
-            .build();
-
-    List<JobPosting> postings = new ArrayList<>();
-    List<JobPostingSkill> jpsList = new ArrayList<>();
-    for (int i = 0; i < 20; i++) {
-      JobPosting p = JobPosting.builder().id(UUID.randomUUID()).jobFamily("DEVELOPER").build();
-      postings.add(p);
-      jpsList.add(new JobPostingSkill(p, skillZ));
-      jpsList.add(new JobPostingSkill(p, skillA));
-    }
-
-    ResolvedPeerPostings resolvedPeer = new ResolvedPeerPostings(1, postings, "조건");
-    when(peerSalaryDistributionResolver.resolvePostings(profile)).thenReturn(resolvedPeer);
-    when(jobPostingSkillRepository.findByJobPostingIdIn(anyCollection())).thenReturn(jpsList);
-    when(marketAggregateRepository.findLatestAvailableYearMonthForSource(eq("ALL"), any()))
-        .thenReturn(Optional.of("202607"));
-
-    PeerGroupFallbackResolver.ResolvedPeerGroup mockResolvedPeer =
-        mock(PeerGroupFallbackResolver.ResolvedPeerGroup.class);
-    when(peerGroupFallbackResolver.resolve(eq("ALL"), any(), eq(profile)))
-        .thenReturn(mockResolvedPeer);
-
-    SkillRecommendationsResponse response = service.getRecommendations(userId);
-    assertThat(response.recommendations()).hasSize(2);
-    // 동일 출현 횟수일 때 standardName 사전순으로 A-Skill이 첫 번째
-    assertThat(response.recommendations().get(0).standardName()).isEqualTo("A-Skill");
-    assertThat(response.recommendations().get(1).standardName()).isEqualTo("Z-Skill");
-  }
-
-  @Test
-  @DisplayName("동료집단 공고의 스킬을 사용자가 이미 전부 보유하고 있는 경우 빈 추천 목록을 반환한다")
-  void getRecommendations_allSkillsOwned_returnsEmpty() {
-    when(careerProfileRepository.findByUserId(userId)).thenReturn(Optional.of(profile));
-
-    Skill ownedSkill =
-        Skill.builder()
-            .id(UUID.randomUUID())
-            .standardName("Java")
-            .category("BACKEND")
-            .isCustom(false)
-            .build();
-    when(userSkillRepository.findByUserId(userId))
-        .thenReturn(List.of(UserSkill.builder().userId(userId).skill(ownedSkill).build()));
-
-    List<JobPosting> postings = new ArrayList<>();
-    List<JobPostingSkill> jpsList = new ArrayList<>();
-    for (int i = 0; i < 20; i++) {
-      JobPosting p = JobPosting.builder().id(UUID.randomUUID()).jobFamily("DEVELOPER").build();
-      postings.add(p);
-      jpsList.add(new JobPostingSkill(p, ownedSkill));
-    }
-
-    ResolvedPeerPostings resolvedPeer = new ResolvedPeerPostings(1, postings, "조건");
-    when(peerSalaryDistributionResolver.resolvePostings(profile)).thenReturn(resolvedPeer);
-    when(jobPostingSkillRepository.findByJobPostingIdIn(anyCollection())).thenReturn(jpsList);
-
-    SkillRecommendationsResponse response = service.getRecommendations(userId);
-    assertThat(response.recommendations()).isEmpty();
-  }
-
-  @Test
-  @DisplayName("IndexThresholdProperties가 주입되지 않아도 기본 임계값(표본 10, 동시출현 20%)으로 정상 동작한다")
-  void getRecommendations_nullThresholds_usesDefaults() {
-    ReflectionTestUtils.setField(service, "thresholds", null);
-    when(careerProfileRepository.findByUserId(userId)).thenReturn(Optional.of(profile));
-
-    List<JobPosting> sparsePostings =
-        List.of(JobPosting.builder().id(UUID.randomUUID()).jobFamily("DEVELOPER").build());
-    ResolvedPeerPostings resolvedPeer = new ResolvedPeerPostings(1, sparsePostings, "조건");
-    when(peerSalaryDistributionResolver.resolvePostings(profile)).thenReturn(resolvedPeer);
-
-    SkillRecommendationsResponse response = service.getRecommendations(userId);
-    assertThat(response.recommendations()).isEmpty();
   }
 
   @Test

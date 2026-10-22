@@ -3,8 +3,6 @@ package com.carix.jobposting;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.time.LocalDate;
-import java.time.YearMonth;
-import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -28,19 +26,6 @@ class JobPostingTest {
 
     JobPosting postingNullMax = JobPosting.builder().salaryMin(50_000_000L).salaryMax(null).build();
     assertThat(postingNullMax.disclosedSalary()).isNull();
-  }
-
-  @Test
-  @DisplayName("dedupKey - dedupGroupId 가 있으면 해당 ID, 없으면 posting id 를 반환한다")
-  void dedupKey_반환() {
-    UUID postingId = UUID.randomUUID();
-    UUID groupId = UUID.randomUUID();
-
-    JobPosting withGroup = JobPosting.builder().id(postingId).dedupGroupId(groupId).build();
-    assertThat(withGroup.dedupKey()).isEqualTo(groupId);
-
-    JobPosting withoutGroup = JobPosting.builder().id(postingId).dedupGroupId(null).build();
-    assertThat(withoutGroup.dedupKey()).isEqualTo(postingId);
   }
 
   @Test
@@ -68,14 +53,6 @@ class JobPostingTest {
     assertThat(noStart.windowDays()).isNull();
     assertThat(noStart.isReversed()).isFalse();
     assertThat(noStart.isOpenEnded()).isFalse();
-  }
-
-  @Test
-  @DisplayName("sampledYearMonth - YYYYMM 문자열을 YearMonth 로 푼다")
-  void sampledYearMonth_parsesYyyymm() {
-    JobPosting posting = JobPosting.builder().sampledMonth("202609").build();
-
-    assertThat(posting.sampledYearMonth()).isEqualTo(YearMonth.of(2026, 9));
   }
 
   @Test

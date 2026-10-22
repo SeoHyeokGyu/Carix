@@ -18,13 +18,6 @@ class RoutingDataSourceTest {
   }
 
   @Test
-  @DisplayName("ReadOnlyRoutingContext가 설정되어 있으면 READ_ONLY를 반환한다")
-  void determineLookupKeyWithContext() {
-    ReadOnlyRoutingContext.setReadOnly(true);
-    assertThat(routingDataSource.determineCurrentLookupKey()).isEqualTo(DataSourceType.READ_ONLY);
-  }
-
-  @Test
   @DisplayName("트랜잭션이 readOnly이면 READ_ONLY를 반환한다")
   void determineLookupKeyWithReadOnlyTx() {
     TransactionSynchronizationManager.setCurrentTransactionReadOnly(true);

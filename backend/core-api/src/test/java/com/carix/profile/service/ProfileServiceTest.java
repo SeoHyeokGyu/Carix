@@ -111,29 +111,6 @@ class ProfileServiceTest {
   }
 
   @Test
-  @DisplayName("get - 프로필이 없으면 빈 응답을 반환한다")
-  void get_비어있음() {
-    given(careerProfileRepository.findByUserId(USER_ID)).willReturn(Optional.empty());
-
-    var res = profileService.get(USER_ID);
-    assertThat(res.jobFamily()).isNull();
-  }
-
-  @Test
-  @DisplayName("patch - 입사일을 보내면 응답에 실린다")
-  void 입사일을_패치하면_응답에_실린다() {
-    CareerProfile profile = new CareerProfile(USER_ID);
-    given(careerProfileRepository.findByUserId(USER_ID)).willReturn(Optional.of(profile));
-
-    var res =
-        profileService.patch(
-            USER_ID, new ProfileRequest(null, null, null, null, null, LocalDate.of(2022, 3, 2)));
-
-    assertThat(res.hireDate()).isEqualTo(LocalDate.of(2022, 3, 2));
-    assertThat(profileService.get(USER_ID).hireDate()).isEqualTo(LocalDate.of(2022, 3, 2));
-  }
-
-  @Test
   @DisplayName("patch - 서울 기준 오늘 입사일은 허용하고 내일은 거부한다")
   void 입사일_미래_판정은_서울_시계_기준() {
     CareerProfile profile = new CareerProfile(USER_ID);

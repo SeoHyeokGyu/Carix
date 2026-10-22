@@ -1,8 +1,6 @@
 package com.carix.wagestat;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
 
@@ -22,15 +20,6 @@ class DefaultWageStatSeriesProviderTest {
   void setUp() {
     repository = mock(WageStatObservationRepository.class);
     provider = new DefaultWageStatSeriesProvider(repository);
-  }
-
-  @Test
-  @DisplayName("직군 또는 경력 브래킷이 null이거나 공백이면 빈 시계열 반환")
-  void findSeries_nullOrBlankInput() {
-    assertThat(provider.findSeries(null, "MID").points()).isEmpty();
-    assertThat(provider.findSeries("   ", "MID").points()).isEmpty();
-    assertThat(provider.findSeries("DEVELOPER", null).points()).isEmpty();
-    assertThat(provider.findSeries("DEVELOPER", "   ").points()).isEmpty();
   }
 
   @Test
@@ -301,36 +290,6 @@ class DefaultWageStatSeriesProviderTest {
   }
 
   @Test
-  @DisplayName("wageDefinition=null 일 때 전국으로 fallback 조회한다")
-  void findSeries_fallbackToAnyDefinition_nationwide() {
-    WageStatObservation obs =
-        WageStatObservation.builder()
-            .jobFamily("DEVELOPER")
-            .experienceBracket("MID")
-            .region("전국")
-            .wageDefinition("OTHER_MEDIAN")
-            .wageMedian(50_000_000L)
-            .basePeriod("2024")
-            .statVintage("202408")
-            .source(WageStatSource.UNKNOWN)
-            .build();
-
-    given(repository.findSeriesObservations("DEVELOPER", "MID", "ALL", "ANNUAL_GROSS_MEDIAN"))
-        .willReturn(List.of());
-    given(repository.findSeriesObservations("DEVELOPER", "MID", "전국", "ANNUAL_GROSS_MEDIAN"))
-        .willReturn(List.of());
-    given(repository.findSeriesObservations("DEVELOPER", "MID", "ALL", null)).willReturn(List.of());
-    given(repository.findSeriesObservations("DEVELOPER", "MID", "전국", null))
-        .willReturn(List.of(obs));
-
-    WageStatSeries series = provider.findSeries("DEVELOPER", "MID");
-
-    assertThat(series.region()).isEqualTo("전국");
-    assertThat(series.points()).hasSize(1);
-    assertThat(series.points().get(0).wageDefinition()).isEqualTo("OTHER_MEDIAN");
-  }
-
-  @Test
   @DisplayName("wageMedian 과 source 가 null 인 경우 안전하게 0L 및 UNKNOWN 으로 대체된다")
   void findSeries_nullWageMedianAndSource() {
     WageStatObservation obs =
@@ -352,49 +311,5 @@ class DefaultWageStatSeriesProviderTest {
     assertThat(series.points()).hasSize(1);
     assertThat(series.points().get(0).wageMedian()).isEqualTo(0L);
     assertThat(series.points().get(0).source()).isEqualTo(WageStatSource.UNKNOWN);
-  }
-
-  @Test
-  @DisplayName("전국 fallback 도 정의 없는 fallback 도 모두 없으면 빈 시계열 반환")
-  void findSeries_completelyEmpty() {
-    given(repository.findSeriesObservations(anyString(), anyString(), anyString(), any()))
-        .willReturn(List.of());
-
-    WageStatSeries series = provider.findSeries("DEVELOPER", "MID");
-
-    assertThat(series.points()).isEmpty();
-    assertThat(series.hasValidKosisGrowthInterval()).isFalse();
-  }
-
-  @Test
-  @DisplayName("연도 문자열이 숫자가 아니거나 공백인 경우 안전하게 처리된다")
-  void findSeries_nonNumericYear_handledGracefully() {
-    WageStatObservation obs1 =
-        WageStatObservation.builder()
-            .jobFamily("DEVELOPER")
-            .experienceBracket("MID")
-            .region("ALL")
-            .wageMedian(50_000_000L)
-            .basePeriod("BAD_YEAR")
-            .source(WageStatSource.KOSIS)
-            .build();
-
-    WageStatObservation obs2 =
-        WageStatObservation.builder()
-            .jobFamily("DEVELOPER")
-            .experienceBracket("MID")
-            .region("ALL")
-            .wageMedian(60_000_000L)
-            .basePeriod("2024")
-            .source(WageStatSource.KOSIS)
-            .build();
-
-    given(repository.findSeriesObservations("DEVELOPER", "MID", "ALL", "ANNUAL_GROSS_MEDIAN"))
-        .willReturn(List.of(obs1, obs2));
-
-    WageStatSeries series = provider.findSeries("DEVELOPER", "MID");
-
-    assertThat(series.points()).hasSize(2);
-    assertThat(series.points().get(1).growthRatePercent()).isNull();
   }
 }

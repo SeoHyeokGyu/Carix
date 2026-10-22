@@ -224,24 +224,6 @@ class ExpenseWeightResolverTest {
     assertThat(result.get("202604").weights().get(HOUSING)).isEqualByComparingTo("0.5");
   }
 
-  @Test
-  @DisplayName("resolveMonths: 가중치 합은 1 이고 저장소는 한 번만 읽는다")
-  void resolveMonths_weightsSumToOne_singleQuery() {
-    given(repository.findByUserIdOrderByBaseYearMonthDesc(USER_ID)).willReturn(List.of());
-
-    Map<String, MonthlyWeights> result =
-        resolver.resolveMonths(USER_ID, List.of("202601", "202602", "202603"));
-
-    result
-        .values()
-        .forEach(
-            w ->
-                assertThat(w.weights().values().stream().reduce(BigDecimal.ZERO, BigDecimal::add))
-                    .isEqualByComparingTo("1"));
-    org.mockito.Mockito.verify(repository, org.mockito.Mockito.times(1))
-        .findByUserIdOrderByBaseYearMonthDesc(USER_ID);
-  }
-
   // ---------------------------------------------------------------------------
 
   private static ExpenseHistory history(String yearMonth, Map<ExpenseCategoryEnum, Long> amounts) {

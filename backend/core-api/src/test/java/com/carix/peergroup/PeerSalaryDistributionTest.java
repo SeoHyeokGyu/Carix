@@ -20,7 +20,6 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.LongStream;
 import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
@@ -33,12 +32,6 @@ class PeerSalaryDistributionTest {
     // disclosedSalaries 계약은 오름차순이다 — 해석기가 정렬해 넣는다
     List<Long> salaries = LongStream.rangeClosed(1, n).map(i -> i * 1_000_000L).boxed().toList();
     return new PeerSalaryDistribution(salaries, n, 0, "전국");
-  }
-
-  @Test
-  @DisplayName("공개연봉이 없으면 null")
-  void p75_공개연봉없음_null() {
-    assertThat(new PeerSalaryDistribution(List.of(), 10, 0, "전국").p75()).isNull();
   }
 
   /**

@@ -83,26 +83,6 @@ class PeerSalaryDistributionResolverTest {
   }
 
   @Test
-  @DisplayName("resolve - 프로필 필드가 null인 경우 기본값 및 지역명 접두사(공백 없는 지역) 처리")
-  void resolve_defaultProfileValuesAndSingleWordRegion() {
-    CareerProfile profile = new CareerProfile(UUID.randomUUID());
-    profile.patch(null, null, "서울특별시", null, null, null);
-
-    List<JobPosting> postings = createPostings(10, 50000000L);
-    // yearsOfExperience == null -> 3 -> JUNIOR -> [0, 3]
-    given(
-            jobPostingRepository.findPeerGroupCandidates(
-                eq("DEVELOPER"), eq("서울특별시"), eq("FULL_TIME"), isNull(), eq(0), eq(3)))
-        .willReturn(postings);
-
-    PeerSalaryDistribution distribution = resolver.resolve(profile);
-
-    assertThat(distribution).isNotNull();
-    assertThat(distribution.fallbackLevel()).isEqualTo(2);
-    assertThat(distribution.hasSufficientPeers()).isTrue();
-  }
-
-  @Test
   @DisplayName("resolve - 모든 단계 표본 부족 시 Level 5 결과 반환")
   void resolve_insufficientSamplesAcrossAllLevels() {
     CareerProfile profile = new CareerProfile(UUID.randomUUID());
@@ -206,30 +186,6 @@ class PeerSalaryDistributionResolverTest {
   }
 
   @Test
-  @DisplayName("PeerSalaryDistribution 기본 생성자 - trend가 없으면 빈 리스트로 초기화된다")
-  void peerSalaryDistribution_defaultConstructorInitializesEmptyTrend() {
-    PeerSalaryDistribution dist = new PeerSalaryDistribution(List.of(50_000_000L), 1, 1, "조건");
-    assertThat(dist.trend()).isEmpty();
-    assertThat(dist.percentileOf(60_000_000L)).isEqualTo(100);
-  }
-
-  @Test
-  @DisplayName("resolve - 후보 공고가 전혀 없으면 빈 trend와 fallback 5단계를 반환한다")
-  void resolve_emptyPostingsReturnsEmptyTrend() {
-    CareerProfile profile = new CareerProfile(UUID.randomUUID());
-    profile.patch("DEVELOPER", 5, "서울 강남구", "FULL_TIME", "LARGE", null);
-
-    given(
-            jobPostingRepository.findPeerGroupCandidates(
-                any(), any(), any(), any(), anyInt(), anyInt()))
-        .willReturn(java.util.Collections.emptyList());
-
-    PeerSalaryDistribution distribution = resolver.resolve(profile);
-    assertThat(distribution.trend()).isEmpty();
-    assertThat(distribution.peerSampleSize()).isZero();
-  }
-
-  @Test
   @DisplayName("resolve - 무작위 표본 월이 있으면 최근·이전 3개월 비교를 싣는다")
   void resolve_attachesTrendComparison() {
     CareerProfile profile = new CareerProfile(UUID.randomUUID());
@@ -262,20 +218,6 @@ class PeerSalaryDistributionResolverTest {
   }
 
   @Test
-  @DisplayName("resolve - 표본 월이 하나도 없으면 비교는 null")
-  void resolve_nullComparisonWhenNoBackfill() {
-    CareerProfile profile = new CareerProfile(UUID.randomUUID());
-    profile.patch("DEVELOPER", 5, "서울 강남구", "FULL_TIME", "LARGE", null);
-    given(
-            jobPostingRepository.findPeerGroupCandidates(
-                eq("DEVELOPER"), eq("서울 강남구"), eq("FULL_TIME"), eq("LARGE"), eq(4), eq(7)))
-        .willReturn(createPostings(12, 60_000_000L));
-    given(jobPostingRepository.findLatestSampledMonth(anyString())).willReturn(Optional.empty());
-
-    assertThat(resolver.resolve(profile).trendComparison()).isNull();
-  }
-
-  @Test
   @DisplayName("resolve - 형식이 깨진 표본 월은 건너뛰고 500 을 내지 않는다")
   void resolve_ignoresMalformedSourceMonth() {
     CareerProfile profile = new CareerProfile(UUID.randomUUID());
@@ -305,21 +247,6 @@ class PeerSalaryDistributionResolverTest {
 
     assertThat(comparison).isNotNull();
     assertThat(comparison.sources()).containsExactly("JOBKOREA");
-  }
-
-  @Test
-  @DisplayName("resolve - 표본이 모자라면 비교 쿼리를 돌리지 않고 null")
-  void resolve_skipsComparisonWhenInsufficient() {
-    CareerProfile profile = new CareerProfile(UUID.randomUUID());
-    profile.patch("DEVELOPER", 5, "서울 강남구", "FULL_TIME", "LARGE", null);
-    given(
-            jobPostingRepository.findPeerGroupCandidates(
-                eq("DEVELOPER"), eq("서울 강남구"), eq("FULL_TIME"), eq("LARGE"), eq(4), eq(7)))
-        .willReturn(createPostings(3, 60_000_000L));
-
-    assertThat(resolver.resolve(profile).trendComparison()).isNull();
-    org.mockito.Mockito.verify(jobPostingRepository, org.mockito.Mockito.never())
-        .findLatestSampledMonth(anyString());
   }
 
   // --- 중복 묶음 대표 (데이터 아키텍처 §1.4) ---

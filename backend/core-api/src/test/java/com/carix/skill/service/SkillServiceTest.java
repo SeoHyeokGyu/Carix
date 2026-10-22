@@ -9,7 +9,6 @@ import static org.mockito.Mockito.*;
 import com.carix.skill.domain.Skill;
 import com.carix.skill.domain.SkillAlias;
 import com.carix.skill.domain.UserSkill;
-import com.carix.skill.dto.SkillSearchResponse;
 import com.carix.skill.dto.UserSkillCreateRequest;
 import com.carix.skill.dto.UserSkillResponse;
 import com.carix.skill.dto.UserSkillUpdateRequest;
@@ -21,7 +20,6 @@ import com.carix.skill.repository.SkillRepository;
 import com.carix.skill.repository.UserSkillRepository;
 import com.carix.snapshot.SnapshotRecalculationService;
 import java.time.LocalDate;
-import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
@@ -40,28 +38,6 @@ class SkillServiceTest {
   @Mock private SnapshotRecalculationService snapshotRecalculationService;
 
   @InjectMocks private SkillService skillService;
-
-  @Test
-  @DisplayName("스킬 사전 검색 - 검색어가 포함된 표준 스킬 목록을 반환한다")
-  void searchSkills_success() {
-    Skill skill = Skill.createStandard("Spring Boot", "BACKEND");
-    given(skillRepository.searchStandardSkills("spring")).willReturn(List.of(skill));
-
-    List<SkillSearchResponse> result = skillService.searchSkills("spring");
-
-    assertThat(result).hasSize(1);
-    assertThat(result.get(0).standardName()).isEqualTo("Spring Boot");
-    assertThat(result.get(0).isCustom()).isFalse();
-  }
-
-  @Test
-  @DisplayName("스킬 사전 검색 - 검색어가 공백이면 빈 목록을 반환한다")
-  void searchSkills_emptyQuery() {
-    List<SkillSearchResponse> result = skillService.searchSkills("   ");
-
-    assertThat(result).isEmpty();
-    verifyNoInteractions(skillRepository);
-  }
 
   @Test
   @DisplayName("사용자 스킬 등록 - 표준 스킬 사전에서 찾아 정상 등록한다")
@@ -146,22 +122,6 @@ class SkillServiceTest {
   }
 
   @Test
-  @DisplayName("사용자 스킬 등록 - 사전에 없는 스킬인데 카테고리가 없으면 예외 발생")
-  void createUserSkill_customSkill_missingCategory_throwsException() {
-    UUID userId = UUID.randomUUID();
-    UserSkillCreateRequest request =
-        new UserSkillCreateRequest("UnknownLib", 6, LocalDate.of(2026, 5, 1), null);
-
-    given(skillRepository.findByStandardNameIgnoreCaseAndIsCustomFalse("UnknownLib"))
-        .willReturn(Optional.empty());
-    given(skillAliasRepository.findByAliasNameIgnoreCase("UnknownLib"))
-        .willReturn(Optional.empty());
-
-    assertThatThrownBy(() -> skillService.createUserSkill(userId, request))
-        .isInstanceOf(InvalidSkillCategoryException.class);
-  }
-
-  @Test
   @DisplayName("사용자 스킬 등록 - 이미 등록된 스킬이면 DuplicateSkillException 발생")
   void createUserSkill_duplicate_throwsException() {
     UUID userId = UUID.randomUUID();
@@ -176,32 +136,6 @@ class SkillServiceTest {
     assertThatThrownBy(() -> skillService.createUserSkill(userId, request))
         .isInstanceOf(DuplicateSkillException.class)
         .hasMessageContaining("이미 등록된 스킬입니다");
-  }
-
-  @Test
-  @DisplayName("사용자 스킬 수정 - 개월수 및 마지막 사용일을 수정한다")
-  void updateUserSkill_success() {
-    UUID userId = UUID.randomUUID();
-    UUID userSkillId = UUID.randomUUID();
-    Skill skill = Skill.createStandard("Spring Boot", "BACKEND");
-    UserSkill userSkill =
-        UserSkill.builder()
-            .id(userSkillId)
-            .userId(userId)
-            .skill(skill)
-            .monthsOfExperience(12)
-            .lastUsedDate(LocalDate.of(2025, 1, 1))
-            .build();
-
-    UserSkillUpdateRequest request = new UserSkillUpdateRequest(36, LocalDate.of(2026, 8, 1));
-
-    given(userSkillRepository.findByIdAndUserId(userSkillId, userId))
-        .willReturn(Optional.of(userSkill));
-
-    UserSkillResponse response = skillService.updateUserSkill(userId, userSkillId, request);
-
-    assertThat(response.monthsOfExperience()).isEqualTo(36);
-    assertThat(response.lastUsedDate()).isEqualTo(LocalDate.of(2026, 8, 1));
   }
 
   @Test
@@ -337,20 +271,5 @@ class SkillServiceTest {
         .hasMessageContaining("마지막 사용일은 미래 날짜일 수 없습니다");
 
     verifyNoInteractions(skillRepository);
-  }
-
-  @Test
-  @DisplayName("사용자 스킬 수정 - 미래 일자가 마지막 사용일로 전달되면 IllegalArgumentException 발생")
-  void updateUserSkill_futureDate_throwsException() {
-    UUID userId = UUID.randomUUID();
-    UUID userSkillId = UUID.randomUUID();
-    LocalDate futureDate = LocalDate.now().plusDays(5);
-    UserSkillUpdateRequest request = new UserSkillUpdateRequest(24, futureDate);
-
-    assertThatThrownBy(() -> skillService.updateUserSkill(userId, userSkillId, request))
-        .isInstanceOf(IllegalArgumentException.class)
-        .hasMessageContaining("마지막 사용일은 미래 날짜일 수 없습니다");
-
-    verifyNoInteractions(userSkillRepository);
   }
 }

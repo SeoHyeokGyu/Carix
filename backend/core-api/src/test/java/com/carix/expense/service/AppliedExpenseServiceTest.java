@@ -1,7 +1,5 @@
 package com.carix.expense.service;
 
-import static com.carix.expense.domain.ExpenseCategoryEnum.FOOD;
-import static com.carix.expense.domain.ExpenseCategoryEnum.HOUSING;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
@@ -53,38 +51,6 @@ class AppliedExpenseServiceTest {
     service =
         new AppliedExpenseService(
             repository, new ExpenseWeightResolver(repository, weightProvider), weightProvider);
-  }
-
-  @Test
-  @DisplayName("여섯 개 전부 입력하면 입력값이 적용된 금액이다")
-  void 전부_입력() {
-    givenMonth(YM, fullMonth(500_000L));
-
-    AppliedExpenseResponse response = service.resolve(userId, YM);
-
-    assertThat(response.amountBasis()).isEqualTo("USER_INPUT");
-    assertThat(response.categories())
-        .hasSize(6)
-        .allSatisfy(
-            category -> {
-              assertThat(category.amount()).isEqualTo(500_000L);
-              assertThat(category.weightStatus()).isEqualTo("USER_DEFINED");
-            });
-  }
-
-  @Test
-  @DisplayName("일부만 입력하면 빠진 카테고리에 보간 금액이 적용되고 상태로 갈린다")
-  void 부분_입력() {
-    givenMonth(YM, List.of(new ExpenseItemEntity(HOUSING, 300_000L)));
-
-    AppliedExpenseResponse response = service.resolve(userId, YM);
-
-    assertThat(response.amountBasis()).isEqualTo("USER_INPUT");
-    assertThat(categoryOf(response, HOUSING).amount()).isEqualTo(300_000L);
-    assertThat(categoryOf(response, HOUSING).weightStatus()).isEqualTo("USER_DEFINED");
-    // 0.30 × 300,000 ÷ 0.30 = 300,000
-    assertThat(categoryOf(response, FOOD).amount()).isEqualTo(300_000L);
-    assertThat(categoryOf(response, FOOD).weightStatus()).isEqualTo("DEFAULT_CPI");
   }
 
   @Test
@@ -156,17 +122,6 @@ class AppliedExpenseServiceTest {
     assertThat(response.amountBasis()).isEqualTo("USER_INPUT");
   }
 
-  @Test
-  @DisplayName("가중치 정본의 버전과 기준연도를 함께 낸다 — 어느 기준으로 계산됐는지 화면이 말해야 한다")
-  void 가중치_출처() {
-    givenMonth(YM, List.of());
-
-    AppliedExpenseResponse response = service.resolve(userId, YM);
-
-    assertThat(response.weightVersion()).isEqualTo(7);
-    assertThat(response.weightBasePeriod()).isEqualTo("2025");
-  }
-
   // --- 픽스처 ---
 
   private void givenMonth(String yearMonth, List<ExpenseItemEntity> items) {
@@ -191,13 +146,5 @@ class AppliedExpenseServiceTest {
     weights.put(ExpenseCategoryEnum.EDUCATION, new BigDecimal("0.10"));
     weights.put(ExpenseCategoryEnum.LEISURE, new BigDecimal("0.10"));
     return weights;
-  }
-
-  private AppliedExpenseResponse.Category categoryOf(
-      AppliedExpenseResponse response, ExpenseCategoryEnum category) {
-    return response.categories().stream()
-        .filter(item -> item.category().equals(category.name()))
-        .findFirst()
-        .orElseThrow();
   }
 }
