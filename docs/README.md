@@ -83,14 +83,14 @@
 | KOSIS 임금통계 기준선 데이터 | 수집 및 보간 완료 — 24계층 누적분포 보간으로 `core.wage_stat_observation`에 충분한 데이터 적재 완료 |
 | OCI 배포 환경 | 구성 완료 — 최소 스캐폴드 기준 빌드 → GHCR → SSH → 헬스체크 전 구간 검증 |
 | Spring Cloud 전환 | 계획 A(멀티모듈·Config Server·Eureka) 구현·운영 검증 완료, 계획 B(Gateway 도입, 요청경로 편입) 구현 완료, 계획 C(auth-service 배포 배선) 구현 완료 |
-| core-api | 사용자 도메인(프로필·소득·소비·스킬)과 지수·스냅샷·시나리오가 JPA로 `core` 스키마 사용. `income_history` 는 변경 사유(`change_reason`)를 담고, 최초 소득 행 여부는 저장하지 않고 `min(effective_date)` 로 읽기 시점에 판정한다 ([ERD 스키마 설계 주석](specs/erd.md)). 고정 응답 스텁은 전부 철거했다 ([개발 계획 §4](plans/carix-dev-plan.md)). 인증은 Spring Security 대신 게이트웨이가 주입한 `X-User-Id` 를 신뢰하고 헤더가 없으면 401 이다. 지수 스냅샷 갱신(Job 4)은 core-api 가 전담 소유 |
+| core-api | 사용자 도메인(프로필·소득·소비·스킬)과 지수·스냅샷·시나리오가 JPA로 `core` 스키마 사용. `income_history` 는 변경 사유(`change_reason`)를 담고, 최초 소득 행 여부는 저장하지 않고 `min(effective_date)` 로 읽기 시점에 판정한다 ([ERD 스키마 설계 주석](specs/erd.md)). 고정 응답 스텁은 전부 철거했다 ([개발 계획 §4](plans/carix-dev-plan.md)). 인증은 Spring Security 대신 게이트웨이가 주입한 `X-User-Id` 를 신뢰하고 헤더가 없으면 401 이다. 지수 스냅샷 갱신(Job 4)은 core-api 가 전담 소유. 소득 이력은 상여 조건(포함 여부·고정상여)을, 별도 테이블은 성과급 수령 기록을 담고 프로필은 입사일을 갖는다 |
 | 지수·스냅샷·시나리오 엔진 | 시장가치 지수(MVI)·스킬 수요 지수·채용 활발도(OWI)·동료집단 완화, 스냅샷 멱등 재계산과 결정 신호 판정, 시나리오 시뮬레이터 실데이터 산출이 모두 구현 완료. 소득·소비·스킬·프로필 변경 시 재계산 트리거가 여덟 경로에 배선돼 있다. 대시보드 `summary`·`trends`·`history`·`salary-distribution` 은 실데이터로 응답한다 |
 | UI 일관성 통일 | P0~P4 완료 — 결정 신호 표현 단일화, 다크 변형의 클래스 전환과 의미 색상 토큰, 공용 표현 계층(`ToneBadge`·`EmptyState`·`LoadingState`), 프리미티브 재정의와 eslint 규범. 계획은 [ui-unification-plan.md](plans/ui-unification-plan.md) |
 | auth-service | 이메일·비밀번호 가입·로그인·세션 조회·로그아웃 구현 완료. 세션 토큰 해시 저장. 매직링크·초대·메일 코드와 설정 폐기 완료 |
-| collector | 모듈 추출 완료. 크롤러·중복제거·정규화·`market_aggregate` 집계·임금통계 수집과 파이프라인 내부 API(`/internal/pipeline/**`)까지 구현돼 있다 |
+| collector | 모듈 추출 완료. 크롤러·중복제거·정규화·`market_aggregate` 집계·임금통계 수집과 파이프라인 내부 API(`/internal/pipeline/**`)까지 구현돼 있다. CPI 수집은 12분류와 함께 총지수를 적재한다 |
 | DB 스키마 소유권 | auth 스키마는 auth-service, core 스키마는 collector(채용공고 5개 테이블·market_aggregate)와 core-api(사용자 도메인 5개 테이블·지수/시나리오)가 공유 (DDL 직접 적용) |
 | 프런트엔드 | React Router + Vite 기반. ESLint/Prettier 코드 스타일 표준화, 라이트/다크 듀얼 테마, WCAG AA 접근성 준수. 테스트 스크립트(`pnpm dev`·`test`·`test:unit`·`test:e2e`) 모두 구비. 공용 계층(`coreApi` 래퍼의 봉투 해제·오류 정규화·401 단일 처리, 세션·진입 가드 loader, shadcn/ui, Zod 스키마)이 서 있다 |
-| 화면 구현 | 랜딩·로그인·가입, 온보딩 5화면, 대시보드 메인, 스킬 분석(`S-18`), 추이분석(차트 2종), 지난 판정(`S-11`), 설정·탈퇴, 12개월 시뮬레이터, 관리자 파이프라인 콘솔, 입력 관리 화면(`S-12` 소득·소비·스킬 탭)이 실제 API 에 연결돼 동작한다 |
+| 화면 구현 | 랜딩·로그인·가입, 온보딩 5화면, 대시보드 메인, 스킬 분석(`S-18`), 추이분석(차트 2종), 지난 판정(`S-11`), 설정·탈퇴, 12개월 시뮬레이터, 관리자 파이프라인 콘솔, 입력 관리 화면(`S-12` 소득·소비·스킬 탭)이 실제 API 에 연결돼 동작한다. 마이페이지에 상여 조건·성과급 목록·입사일, 대시보드에 성과급 포함 실소득 줄이 있다 |
 | 연봉 암호화 및 복호화 경계 | KeyRing 기반 다중 키 관리·무중단 로테이션, 암호문 버전 접두사({keyId}:), 레거시 하위 호환, SensitiveDataRekeyingService 점진적 재암호화, 스냅샷 복호화 경계 및 평문 누출 차단 불변식 검증 완료 ([SECURITY §3.2](SECURITY.md)) |
 
 ### 남은 것
