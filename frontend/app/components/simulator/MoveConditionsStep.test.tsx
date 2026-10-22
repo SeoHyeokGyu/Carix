@@ -14,7 +14,18 @@ vi.mock("../../lib/api/scenario", () => ({
 const draft: EvaluateRequest = { stay: { raisePercent: 3 } };
 
 describe("MoveConditionsStep", () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(scenario.getFeasibility).mockResolvedValue({
+      status: "OK",
+      sampleSize: 30,
+      minRequired: 10,
+      feasibilityScore: 0.5,
+      targetPercentile: 60,
+      difficultyGrade: "REALISTIC",
+      feedbackMessage: null,
+    });
+  });
 
   it("실업급여를 고르지 않고 제출하면 오류가 보이고 저장하지 않는다", async () => {
     const onDone = vi.fn();

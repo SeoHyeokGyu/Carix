@@ -44,6 +44,21 @@ const FOCUS_IDS: Record<CurrentJobFocus, string> = {
 
 const SAVED_NOTE = "마이페이지에 저장됨";
 
+const RECORD_KEYS = ["record", "recordMonth", "recordAmount"];
+
+function withoutRecordErrors(errors: FieldErrors): FieldErrors {
+  return Object.fromEntries(
+    Object.entries(errors).filter(([key]) => !RECORD_KEYS.includes(key)),
+  );
+}
+
+function isPastOrCurrentMonth(yyyymm: string): boolean {
+  if (!/^\d{4}(0[1-9]|1[0-2])$/.test(yyyymm)) return false;
+  const now = new Date();
+  const current = now.getFullYear() * 100 + now.getMonth() + 1;
+  return Number(yyyymm) <= current;
+}
+
 interface CurrentJobStepProps {
   context: ScenarioContext;
   /** 가장 최근 소득 행. 상여 조건은 여기부터 저장한다. 소득 이력이 없으면 null. */
@@ -73,6 +88,7 @@ export function CurrentJobStep({
   const [override, setOverride] = useState(
     wonToManInput(stay?.currentGrossOverride),
   );
+  const [bonusDirty, setBonusDirty] = useState(false);
   const [bonusIncluded, setBonusIncluded] = useState(context.bonusIncluded);
   const [bonusAmount, setBonusAmount] = useState(
     wonToManInput(context.fixedBonusAnnual),
@@ -97,9 +113,7 @@ export function CurrentJobStep({
       ?.focus();
   }, [focus]);
 
-  const bonusChanged =
-    bonusIncluded !== context.bonusIncluded ||
-    (!bonusIncluded && manInputToWon(bonusAmount) !== context.fixedBonusAnnual);
+  const range = context.performanceBonusRange;
   const overrideShown = noIncome || overrideOpen;
 
   const validate = (): FieldErrors => {
@@ -129,20 +143,22 @@ export function CurrentJobStep({
       return;
     }
     setSubmitting(true);
+    let bonusSaved = false;
     try {
-      if (latestIncomeId && bonusChanged) {
+      if (latestIncomeId && bonusDirty) {
         await updateBonusTerms({
           applyFromIncomeId: latestIncomeId,
           bonusIncluded,
           fixedBonusAnnual: bonusIncluded ? null : manInputToWon(bonusAmount),
         });
+        bonusSaved = true;
       }
       if (hireDate) await patchProfile({ hireDate });
       await putDraft({
         stay: {
           raisePercent: Number(raise),
           currentGrossOverride: overrideShown ? manInputToWon(override) : null,
-          performanceBonusEstimate: manInputToWon(estimate),
+          performanceBonusEstimate: range ? null : manInputToWon(estimate),
           stockVesting12m: manInputToWon(vesting),
           stockUnvested: manInputToWon(unvested),
         },
@@ -150,7 +166,12 @@ export function CurrentJobStep({
       });
       onDone();
     } catch (error) {
-      setErrors({ _form: describeError(error) });
+      const message = describeError(error);
+      setErrors({
+        _form: bonusSaved
+          ? `상여 조건은 저장되었습니다. 그 뒤 단계에서 실패했습니다: ${message}`
+          : message,
+      });
     } finally {
       setSubmitting(false);
     }
@@ -158,22 +179,29 @@ export function CurrentJobStep({
 
   const handleRecord = async () => {
     const amount = manInputToWon(recordAmount);
-    if (!/^\d{6}$/.test(recordMonth) || amount === null) {
-      setErrors({ record: "지급 월(yyyyMM)과 금액을 입력해 주세요." });
+    const found: FieldErrors = {};
+    if (!isPastOrCurrentMonth(recordMonth)) {
+      found.recordMonth =
+        "지급 월을 yyyyMM 형식(01~12월, 이번 달까지)으로 입력해 주세요.";
+    }
+    if (amount === null) found.recordAmount = "금액을 입력해 주세요.";
+    if (Object.keys(found).length > 0) {
+      setErrors((prev) => ({ ...withoutRecordErrors(prev), ...found }));
       return;
     }
     try {
-      await createBonus({ paidMonth: recordMonth, amount });
-      setErrors({});
+      await createBonus({ paidMonth: recordMonth, amount: amount ?? 0 });
+      setErrors(withoutRecordErrors);
       setRecordNote("성과급 기록을 마이페이지에 저장했습니다.");
       setRecordMonth("");
       setRecordAmount("");
     } catch (error) {
-      setErrors({ record: describeError(error) });
+      setErrors((prev) => ({
+        ...withoutRecordErrors(prev),
+        record: describeError(error),
+      }));
     }
   };
-
-  const range = context.performanceBonusRange;
 
   return (
     <form
@@ -222,6 +250,22 @@ export function CurrentJobStep({
           error={errors.override}
         />
       )}
+      {overrideOpen && !noIncome && (
+        <div>
+          <Button
+            type="button"
+            variant="ghost"
+            size="xs"
+            onClick={() => {
+              setOverrideOpen(false);
+              setOverride("");
+              setErrors((prev) => ({ ...prev, override: undefined }));
+            }}
+          >
+            취소
+          </Button>
+        </div>
+      )}
 
       <Field
         id="raisePercent"
@@ -255,7 +299,10 @@ export function CurrentJobStep({
                 type="radio"
                 name="bonusIncluded"
                 checked={bonusIncluded}
-                onChange={() => setBonusIncluded(true)}
+                onChange={() => {
+                  setBonusDirty(true);
+                  setBonusIncluded(true);
+                }}
               />
               들어 있음
             </label>
@@ -264,7 +311,10 @@ export function CurrentJobStep({
                 type="radio"
                 name="bonusIncluded"
                 checked={!bonusIncluded}
-                onChange={() => setBonusIncluded(false)}
+                onChange={() => {
+                  setBonusDirty(true);
+                  setBonusIncluded(false);
+                }}
               />
               따로 받음
             </label>
@@ -275,7 +325,10 @@ export function CurrentJobStep({
               label="연간 고정상여 (만원)"
               hint={SAVED_NOTE}
               value={bonusAmount}
-              onChange={setBonusAmount}
+              onChange={(v) => {
+                setBonusDirty(true);
+                setBonusAmount(v);
+              }}
               error={errors.bonusAmount}
             />
           )}
@@ -309,7 +362,11 @@ export function CurrentJobStep({
               성과급 기록 추가 · {SAVED_NOTE}
             </p>
             <div className="flex flex-wrap items-end gap-2">
-              <Field id="recordMonth" label="지급 월 (yyyyMM)">
+              <Field
+                id="recordMonth"
+                label="지급 월 (yyyyMM)"
+                error={errors.recordMonth}
+              >
                 {(aria) => (
                   <Input
                     {...aria}
@@ -325,6 +382,7 @@ export function CurrentJobStep({
                 label="금액 (만원)"
                 value={recordAmount}
                 onChange={setRecordAmount}
+                error={errors.recordAmount}
               />
               <Button type="button" variant="outline" onClick={handleRecord}>
                 기록 추가

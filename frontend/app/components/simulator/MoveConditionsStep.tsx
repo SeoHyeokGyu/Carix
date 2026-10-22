@@ -81,7 +81,10 @@ export function MoveConditionsStep({
   );
   const [errors, setErrors] = useState<FieldErrors>({});
   const [submitting, setSubmitting] = useState(false);
-  const [feasibility, setFeasibility] = useState<string | null>(null);
+  const [feasibility, setFeasibility] = useState<{
+    text: string;
+    isError: boolean;
+  } | null>(null);
   const feasibilityRun = useRef(0);
   const formRef = useRef<HTMLFormElement>(null);
 
@@ -100,13 +103,14 @@ export function MoveConditionsStep({
     try {
       const result = await getFeasibility(gross);
       if (run === feasibilityRun.current) {
-        setFeasibility(feasibilityLine(result));
+        setFeasibility({ text: feasibilityLine(result), isError: false });
       }
     } catch (error) {
       if (run === feasibilityRun.current) {
-        setFeasibility(
-          `이직 가능성을 조회하지 못했습니다. ${describeError(error)}`,
-        );
+        setFeasibility({
+          text: `이직 가능성을 조회하지 못했습니다. ${describeError(error)}`,
+          isError: true,
+        });
       }
     }
   };
@@ -186,7 +190,16 @@ export function MoveConditionsStep({
           />
         </div>
         {feasibility && (
-          <p className="text-sm text-muted-foreground">{feasibility}</p>
+          <p
+            role={feasibility.isError ? "alert" : undefined}
+            className={
+              feasibility.isError
+                ? "text-sm text-carix-danger"
+                : "text-sm text-muted-foreground"
+            }
+          >
+            {feasibility.text}
+          </p>
         )}
       </div>
 
@@ -215,7 +228,12 @@ export function MoveConditionsStep({
         onChange={(v) => set("oneTimeCost", v)}
       />
 
-      <fieldset aria-describedby="benefit-note" className="flex flex-col gap-2">
+      <fieldset
+        aria-describedby={
+          errors.benefitEligible ? "benefit-note benefit-error" : "benefit-note"
+        }
+        className="flex flex-col gap-2"
+      >
         <legend className="mb-2 text-sm font-medium">
           실업급여를 받을 수 있나요?
         </legend>
@@ -243,7 +261,11 @@ export function MoveConditionsStep({
           {BENEFIT_NOTE}
         </p>
         {errors.benefitEligible && (
-          <p role="alert" className="text-sm text-carix-danger">
+          <p
+            id="benefit-error"
+            role="alert"
+            className="text-sm text-carix-danger"
+          >
             {errors.benefitEligible}
           </p>
         )}
