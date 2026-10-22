@@ -3,9 +3,14 @@ package com.carix.scenario;
 import com.carix.common.ApiResult;
 import com.carix.common.ErrorResponse;
 import com.carix.common.usercontext.CurrentUserId;
+import com.carix.scenario.dto.EvaluateRequest;
+import com.carix.scenario.dto.EvaluationResponse;
 import com.carix.scenario.dto.LatestScenarioResponse;
+import com.carix.scenario.dto.ScenarioContextResponse;
 import com.carix.scenario.dto.SimulationRequest;
 import com.carix.scenario.dto.SimulationResponse;
+import com.carix.scenario.evaluation.ScenarioContextService;
+import com.carix.scenario.evaluation.ScenarioEvaluationService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -21,6 +26,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -30,6 +36,8 @@ import org.springframework.web.bind.annotation.RestController;
 public class ScenarioController {
 
   private final ScenarioService scenarioService;
+  private final ScenarioContextService contextService;
+  private final ScenarioEvaluationService evaluationService;
 
   @Operation(
       summary = "잔류 vs 이직 보상 시뮬레이션 계산",
@@ -75,5 +83,45 @@ public class ScenarioController {
         .latest(userId)
         .map(latest -> ResponseEntity.ok(ApiResult.success(latest)))
         .orElseGet(() -> ResponseEntity.noContent().build());
+  }
+
+  @Operation(
+      summary = "시뮬레이터 입력 기본값",
+      description = "현재 소득·기본 인상률·성과급 범위·물가 두 기준·시장 격차를 한 번에 돌려줍니다. 소득 이력이 없으면 해당 값은 null 입니다.")
+  @ApiResponse(responseCode = "200", description = "성공")
+  @GetMapping("/context")
+  public ResponseEntity<ApiResult<ScenarioContextResponse>> getContext(@CurrentUserId UUID userId) {
+
+    return ResponseEntity.ok(ApiResult.success(contextService.context(userId)));
+  }
+
+  @Operation(summary = "목표 연봉의 실현 가능성", description = "저장하지 않고 동료집단 분포 내 백분위만 계산합니다.")
+  @ApiResponse(responseCode = "200", description = "성공")
+  @GetMapping("/feasibility")
+  public ResponseEntity<ApiResult<SimulationResponse.FeasibilityDetail>> getFeasibility(
+      @CurrentUserId UUID userId, @RequestParam long targetGross) {
+
+    if (targetGross < 0) {
+      throw new IllegalArgumentException("targetGross 는 0 이상이어야 합니다.");
+    }
+    return ResponseEntity.ok(
+        ApiResult.success(scenarioService.feasibilityDetail(userId, targetGross)));
+  }
+
+  @Operation(
+      summary = "잔류 vs 이직 세후·실질 평가",
+      description = "48개월 세후·실질 투영, 기대층 범위, 불확실층 주식 줄, 퇴직금 경고, 가정·미반영 목록을 돌려줍니다. 저장하지 않습니다.")
+  @ApiResponses({
+    @ApiResponse(responseCode = "200", description = "계산 성공"),
+    @ApiResponse(
+        responseCode = "400",
+        description = "범위 밖 입력, 또는 소득 이력도 currentGrossOverride 도 없는 경우",
+        content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+  })
+  @PostMapping("/evaluate")
+  public ResponseEntity<ApiResult<EvaluationResponse>> evaluate(
+      @CurrentUserId UUID userId, @Valid @RequestBody EvaluateRequest request) {
+
+    return ResponseEntity.ok(ApiResult.success(evaluationService.evaluate(userId, request)));
   }
 }

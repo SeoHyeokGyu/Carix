@@ -158,6 +158,12 @@ public class ScenarioService {
         STATUS_OK, distribution.percentileOf(targetSalary), distribution.disclosedSampleSize());
   }
 
+  /** 저장하지 않고 목표 연봉의 실현 가능성만 구한다 — 시뮬레이터의 목표 연봉 입력 옆 표시용. */
+  @Transactional(readOnly = true)
+  public SimulationResponse.FeasibilityDetail feasibilityDetail(UUID userId, long targetSalary) {
+    return toFeasibilityDetail(resolveFeasibility(userId, targetSalary));
+  }
+
   private SimulationResponse.FeasibilityDetail toFeasibilityDetail(Feasibility feasibility) {
     if (feasibility.percentile() == null) {
       // 백분위가 없으면 상태도 OK 일 수 없다. 저장분이 어긋나 있어도 화면에 `OK + 전부 null` 을

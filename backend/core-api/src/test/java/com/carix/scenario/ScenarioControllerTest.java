@@ -14,6 +14,8 @@ import com.carix.common.usercontext.UserContextArgumentResolver;
 import com.carix.scenario.dto.LatestScenarioResponse;
 import com.carix.scenario.dto.SimulationRequest;
 import com.carix.scenario.dto.SimulationResponse;
+import com.carix.scenario.evaluation.ScenarioContextService;
+import com.carix.scenario.evaluation.ScenarioEvaluationService;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
@@ -36,7 +38,11 @@ class ScenarioControllerTest {
   void setUp() {
     scenarioService = mock(ScenarioService.class);
     mockMvc =
-        MockMvcBuilders.standaloneSetup(new ScenarioController(scenarioService))
+        MockMvcBuilders.standaloneSetup(
+                new ScenarioController(
+                    scenarioService,
+                    mock(ScenarioContextService.class),
+                    mock(ScenarioEvaluationService.class)))
             .setCustomArgumentResolvers(new UserContextArgumentResolver())
             .setControllerAdvice(new GlobalExceptionHandler())
             .build();
