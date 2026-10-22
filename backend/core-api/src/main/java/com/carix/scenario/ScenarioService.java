@@ -17,7 +17,6 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import tools.jackson.databind.ObjectMapper;
@@ -66,7 +65,12 @@ public class ScenarioService {
     return toListItem(saved);
   }
 
-  /** 편집 중인 입력을 사용자당 1건으로 덮어쓴다. 결과는 저장하지 않는다. */
+  /**
+   * 편집 중인 입력을 사용자당 1건으로 덮어쓴다. 결과는 저장하지 않는다.
+   *
+   * <p>첫 저장이 동시에 두 번 오면 뒤의 삽입이 {@code DataIntegrityViolationException} 으로 실패한다. 실패한 트랜잭션 안에서는 복구할 수
+   * 없어 호출자가 한 번 다시 부른다 — 새 트랜잭션은 먼저 들어간 초안을 찾아 덮어쓴다.
+   */
   @Transactional
   public void saveDraft(UUID userId, EvaluateRequest request) {
     String payload = toJson(new ScenarioPayload(request, null));
@@ -75,18 +79,14 @@ public class ScenarioService {
       existing.get().replacePayload(payload);
       return;
     }
-    try {
-      repository.saveAndFlush(
-          CareerScenario.builder()
-              .userId(userId)
-              .engineVersion(CareerScenario.ENGINE_STAY_OR_MOVE)
-              .draft(true)
-              .payload(payload)
-              .build());
-    } catch (DataIntegrityViolationException e) {
-      // 첫 PUT 이 동시에 두 번 오면 부분 유니크 인덱스가 뒤의 삽입을 막는다. 먼저 들어간 초안을 덮어쓴다
-      repository.findFirstByUserIdAndDraftTrue(userId).orElseThrow(() -> e).replacePayload(payload);
-    }
+    // 즉시 flush 해 부분 유니크 인덱스 위반이 이 트랜잭션 안에서 드러나게 한다. 재시도는 호출자가 트랜잭션 밖에서 한다
+    repository.saveAndFlush(
+        CareerScenario.builder()
+            .userId(userId)
+            .engineVersion(CareerScenario.ENGINE_STAY_OR_MOVE)
+            .draft(true)
+            .payload(payload)
+            .build());
   }
 
   /** 초안이 없으면 empty 다 — 컨트롤러가 204 로 옮긴다. */

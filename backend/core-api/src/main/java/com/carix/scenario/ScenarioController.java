@@ -21,6 +21,7 @@ import jakarta.validation.Valid;
 import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -80,7 +81,12 @@ public class ScenarioController {
   public ResponseEntity<Void> saveDraft(
       @CurrentUserId UUID userId, @Valid @RequestBody EvaluateRequest request) {
 
-    scenarioService.saveDraft(userId, request);
+    try {
+      scenarioService.saveDraft(userId, request);
+    } catch (DataIntegrityViolationException e) {
+      // 첫 PUT 이 동시에 두 번 온 경우. 트랜잭션 밖에서 한 번만 다시 해 먼저 들어간 초안을 덮어쓴다
+      scenarioService.saveDraft(userId, request);
+    }
     return ResponseEntity.noContent().build();
   }
 
