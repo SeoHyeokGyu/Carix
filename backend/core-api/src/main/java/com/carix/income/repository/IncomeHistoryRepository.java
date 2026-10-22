@@ -3,6 +3,7 @@ package com.carix.income.repository;
 import com.carix.income.domain.IncomeHistory;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
 
@@ -23,6 +24,10 @@ public interface IncomeHistoryRepository extends JpaRepository<IncomeHistory, UU
    */
   boolean existsByUserIdAndEffectiveDateBeforeAndIdNot(
       UUID userId, LocalDate effectiveDate, UUID excludeId);
+
+  /** 그 유효일 바로 앞 행 — 새 행이 상여 조건을 물려받는다. */
+  Optional<IncomeHistory> findFirstByUserIdAndEffectiveDateBeforeOrderByEffectiveDateDesc(
+      UUID userId, LocalDate effectiveDate);
 
   void deleteByUserId(UUID userId);
 }

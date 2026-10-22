@@ -12,6 +12,8 @@ function income(effectiveDate: string, grossSalary: number): IncomeResponse {
     effectiveDate,
     changeReason: null,
     selectedChangeReason: null,
+    bonusIncluded: true,
+    fixedBonusAnnual: null,
   };
 }
 

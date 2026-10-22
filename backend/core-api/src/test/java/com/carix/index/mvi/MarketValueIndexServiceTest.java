@@ -64,7 +64,7 @@ class MarketValueIndexServiceTest {
     String baseYearMonth = "202607";
 
     CareerProfile profile = new CareerProfile(userId);
-    profile.patch("DEVELOPER", 5, "서울 강남구", "FULL_TIME", "MEDIUM");
+    profile.patch("DEVELOPER", 5, "서울 강남구", "FULL_TIME", "MEDIUM", null);
 
     Skill skill =
         Skill.builder().id(UUID.randomUUID()).standardName("Java").isCustom(false).build();
@@ -125,7 +125,7 @@ class MarketValueIndexServiceTest {
     String baseYearMonth = "202607";
 
     CareerProfile profile = new CareerProfile(userId);
-    profile.patch("DEVELOPER", 5, "서울 강남구", "FULL_TIME", "MEDIUM");
+    profile.patch("DEVELOPER", 5, "서울 강남구", "FULL_TIME", "MEDIUM", null);
 
     Skill active =
         Skill.builder().id(UUID.randomUUID()).standardName("Java").isCustom(false).build();
@@ -198,7 +198,7 @@ class MarketValueIndexServiceTest {
     String baseYearMonth = "202607";
 
     CareerProfile profile = new CareerProfile(userId);
-    profile.patch("DEVELOPER", 5, "서울 강남구", "FULL_TIME", "MEDIUM");
+    profile.patch("DEVELOPER", 5, "서울 강남구", "FULL_TIME", "MEDIUM", null);
 
     Skill stale =
         Skill.builder().id(UUID.randomUUID()).standardName("COBOL").isCustom(false).build();
@@ -244,7 +244,7 @@ class MarketValueIndexServiceTest {
     String ym = "202607";
 
     CareerProfile profile = new CareerProfile(userId);
-    profile.patch("DEVELOPER", 5, "서울 강남구", "FULL_TIME", "MEDIUM");
+    profile.patch("DEVELOPER", 5, "서울 강남구", "FULL_TIME", "MEDIUM", null);
 
     Skill active =
         Skill.builder().id(UUID.randomUUID()).standardName("Java").isCustom(false).build();
@@ -288,7 +288,7 @@ class MarketValueIndexServiceTest {
     String ym = "202604";
 
     CareerProfile profile = new CareerProfile(userId);
-    profile.patch("DEVELOPER", 5, "서울 강남구", "FULL_TIME", "MEDIUM");
+    profile.patch("DEVELOPER", 5, "서울 강남구", "FULL_TIME", "MEDIUM", null);
 
     Skill onlySkill =
         Skill.builder().id(UUID.randomUUID()).standardName("Spring Boot").isCustom(false).build();
@@ -327,7 +327,7 @@ class MarketValueIndexServiceTest {
     String ym = "202604";
 
     CareerProfile profile = new CareerProfile(userId);
-    profile.patch("DEVELOPER", 5, "서울 강남구", "FULL_TIME", "MEDIUM");
+    profile.patch("DEVELOPER", 5, "서울 강남구", "FULL_TIME", "MEDIUM", null);
 
     Skill onlySkill =
         Skill.builder().id(UUID.randomUUID()).standardName("Spring Boot").isCustom(false).build();
@@ -369,7 +369,7 @@ class MarketValueIndexServiceTest {
     String ym = "202609";
 
     CareerProfile profile = new CareerProfile(userId);
-    profile.patch("DEVELOPER", 5, "서울 강남구", "FULL_TIME", "MEDIUM");
+    profile.patch("DEVELOPER", 5, "서울 강남구", "FULL_TIME", "MEDIUM", null);
     Skill java = Skill.builder().id(UUID.randomUUID()).standardName("Java").isCustom(false).build();
 
     when(careerProfileRepository.findByUserId(userId)).thenReturn(Optional.of(profile));
@@ -406,7 +406,7 @@ class MarketValueIndexServiceTest {
     String ym = "202610";
 
     CareerProfile profile = new CareerProfile(userId);
-    profile.patch("DEVELOPER", 5, "서울 강남구", "FULL_TIME", "MEDIUM");
+    profile.patch("DEVELOPER", 5, "서울 강남구", "FULL_TIME", "MEDIUM", null);
 
     Skill active =
         Skill.builder().id(UUID.randomUUID()).standardName("Java").isCustom(false).build();
@@ -452,7 +452,7 @@ class MarketValueIndexServiceTest {
     String ym = "202610";
 
     CareerProfile profile = new CareerProfile(userId);
-    profile.patch("DEVELOPER", 5, "서울 강남구", "FULL_TIME", "MEDIUM");
+    profile.patch("DEVELOPER", 5, "서울 강남구", "FULL_TIME", "MEDIUM", null);
 
     Skill active =
         Skill.builder().id(UUID.randomUUID()).standardName("Java").isCustom(false).build();
@@ -493,7 +493,7 @@ class MarketValueIndexServiceTest {
     String ym = "202607";
 
     CareerProfile profile = new CareerProfile(userId);
-    profile.patch("DEVELOPER", 5, "서울 강남구", "FULL_TIME", "MEDIUM");
+    profile.patch("DEVELOPER", 5, "서울 강남구", "FULL_TIME", "MEDIUM", null);
 
     Skill active =
         Skill.builder().id(UUID.randomUUID()).standardName("Java").isCustom(false).build();
@@ -892,7 +892,7 @@ class MarketValueIndexServiceTest {
     UUID userId = UUID.randomUUID();
     String ym = "202609";
     CareerProfile profile = new CareerProfile(userId);
-    profile.patch("DEVELOPER", 5, "서울 강남구", "FULL_TIME", "MEDIUM");
+    profile.patch("DEVELOPER", 5, "서울 강남구", "FULL_TIME", "MEDIUM", null);
     Skill java = Skill.builder().id(UUID.randomUUID()).standardName("Java").isCustom(false).build();
 
     when(careerProfileRepository.findByUserId(userId)).thenReturn(Optional.of(profile));
@@ -920,7 +920,7 @@ class MarketValueIndexServiceTest {
     UUID userId = UUID.randomUUID();
     String ym = "202609";
     CareerProfile profile = new CareerProfile(userId);
-    profile.patch("DEVELOPER", 5, "서울 강남구", "FULL_TIME", "MEDIUM");
+    profile.patch("DEVELOPER", 5, "서울 강남구", "FULL_TIME", "MEDIUM", null);
     Skill java = Skill.builder().id(UUID.randomUUID()).standardName("Java").isCustom(false).build();
 
     when(careerProfileRepository.findByUserId(userId)).thenReturn(Optional.of(profile));
@@ -946,7 +946,7 @@ class MarketValueIndexServiceTest {
     UUID userId = UUID.randomUUID();
     String ym = "202609";
     CareerProfile profile = new CareerProfile(userId);
-    profile.patch("DEVELOPER", 5, "서울 강남구", "FULL_TIME", "MEDIUM");
+    profile.patch("DEVELOPER", 5, "서울 강남구", "FULL_TIME", "MEDIUM", null);
     Skill java = Skill.builder().id(UUID.randomUUID()).standardName("Java").isCustom(false).build();
 
     when(careerProfileRepository.findByUserId(userId)).thenReturn(Optional.of(profile));
@@ -992,7 +992,7 @@ class MarketValueIndexServiceTest {
         .thenReturn(Optional.of(latestAvailableYm));
 
     CareerProfile profile = new CareerProfile(userId);
-    profile.patch("DEVELOPER", 5, "서울 강남구", "FULL_TIME", "MEDIUM");
+    profile.patch("DEVELOPER", 5, "서울 강남구", "FULL_TIME", "MEDIUM", null);
 
     Skill skill =
         Skill.builder().id(UUID.randomUUID()).standardName("Java").isCustom(false).build();
@@ -1079,7 +1079,7 @@ class MarketValueIndexServiceTest {
       double jobkoreaIndex,
       double saraminIndex) {
     CareerProfile profile = new CareerProfile(userId);
-    profile.patch("DEVELOPER", 5, "서울 강남구", "FULL_TIME", "MEDIUM");
+    profile.patch("DEVELOPER", 5, "서울 강남구", "FULL_TIME", "MEDIUM", null);
     when(careerProfileRepository.findByUserId(userId)).thenReturn(Optional.of(profile));
     when(userSkillRepository.findByUserId(userId)).thenReturn(List.of(userSkillOf(skill)));
     when(peerGroupFallbackResolver.resolveForSource(eq("JOBKOREA"), any(), any()))
@@ -1257,7 +1257,7 @@ class MarketValueIndexServiceTest {
       Map<Skill, BigDecimal> skillWeights,
       Map<Skill, Map<String, SkillDemandCalculator.SkillDemandResult>> demands) {
     CareerProfile profile = new CareerProfile(userId);
-    profile.patch("DEVELOPER", 5, "서울 강남구", "FULL_TIME", "MEDIUM");
+    profile.patch("DEVELOPER", 5, "서울 강남구", "FULL_TIME", "MEDIUM", null);
     lenient().when(careerProfileRepository.findByUserId(userId)).thenReturn(Optional.of(profile));
     List<UserSkill> userSkills =
         skillWeights.keySet().stream()

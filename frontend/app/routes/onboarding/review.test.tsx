@@ -32,6 +32,7 @@ const COMPLETE_PROFILE: ProfileResponse = {
   region: "서울",
   employmentType: "FULL_TIME",
   companySize: "MEDIUM",
+  hireDate: null,
 };
 
 // 완비 게이트가 실제로 네 필수 필드 전부를 보는지, 그리고 선택 필드
@@ -95,6 +96,8 @@ const ONE_INCOME: incomeApi.IncomeResponse[] = [
     effectiveDate: "2026-01-01",
     changeReason: "INITIAL",
     selectedChangeReason: null,
+    bonusIncluded: true,
+    fixedBonusAnnual: null,
   },
 ];
 

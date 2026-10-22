@@ -1,5 +1,7 @@
 package com.carix.common;
 
+import com.carix.income.exception.InvalidPaidMonthException;
+import com.carix.profile.exception.InvalidHireDateException;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import org.springframework.http.HttpStatus;
@@ -26,6 +28,22 @@ public class GlobalExceptionHandler {
     }
     return ResponseEntity.badRequest()
         .body(ErrorResponse.of("INVALID_INPUT", "입력값 형식이 올바르지 않습니다.", details));
+  }
+
+  @ExceptionHandler(InvalidPaidMonthException.class)
+  public ResponseEntity<ErrorResponse> handleInvalidPaidMonth(InvalidPaidMonthException e) {
+    return ResponseEntity.badRequest()
+        .body(
+            ErrorResponse.of(
+                "INVALID_INPUT", "입력값 형식이 올바르지 않습니다.", Map.of("paidMonth", e.getMessage())));
+  }
+
+  @ExceptionHandler(InvalidHireDateException.class)
+  public ResponseEntity<ErrorResponse> handleInvalidHireDate(InvalidHireDateException e) {
+    return ResponseEntity.badRequest()
+        .body(
+            ErrorResponse.of(
+                "INVALID_INPUT", "입력값 형식이 올바르지 않습니다.", Map.of("hireDate", e.getMessage())));
   }
 
   @ExceptionHandler(IllegalArgumentException.class)
@@ -92,7 +110,8 @@ public class GlobalExceptionHandler {
   @ExceptionHandler({
     com.carix.skill.exception.SkillNotFoundException.class,
     com.carix.skill.exception.UserSkillNotFoundException.class,
-    com.carix.income.exception.IncomeNotFoundException.class
+    com.carix.income.exception.IncomeNotFoundException.class,
+    com.carix.income.exception.PerformanceBonusNotFoundException.class
   })
   public ResponseEntity<ErrorResponse> handleNotFound(RuntimeException e) {
     return ResponseEntity.status(HttpStatus.NOT_FOUND)

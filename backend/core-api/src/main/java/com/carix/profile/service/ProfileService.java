@@ -2,15 +2,19 @@ package com.carix.profile.service;
 
 import com.carix.expense.repository.ExpenseHistoryRepository;
 import com.carix.income.repository.IncomeHistoryRepository;
+import com.carix.income.repository.PerformanceBonusRepository;
 import com.carix.profile.domain.CareerProfile;
 import com.carix.profile.dto.ProfileRequest;
 import com.carix.profile.dto.ProfileResponse;
+import com.carix.profile.exception.InvalidHireDateException;
 import com.carix.profile.repository.CareerProfileRepository;
 import com.carix.scenario.CareerScenarioRepository;
 import com.carix.skill.repository.UserSkillRepository;
 import com.carix.snapshot.SnapshotRecalculationService;
 import com.carix.snapshot.YearMonths;
 import com.carix.snapshot.repository.IndexSnapshotRepository;
+import java.time.Clock;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 import org.slf4j.Logger;
@@ -31,12 +35,25 @@ public class ProfileService {
   private final ExpenseHistoryRepository expenseHistoryRepository;
   private final IndexSnapshotRepository indexSnapshotRepository;
   private final CareerScenarioRepository careerScenarioRepository;
+  private final PerformanceBonusRepository performanceBonusRepository;
   private final JdbcTemplate jdbcTemplate;
+  private final Clock clock;
 
   public ProfileService(
       CareerProfileRepository careerProfileRepository,
-      SnapshotRecalculationService snapshotRecalculationService) {
-    this(careerProfileRepository, snapshotRecalculationService, null, null, null, null, null, null);
+      SnapshotRecalculationService snapshotRecalculationService,
+      Clock clock) {
+    this(
+        careerProfileRepository,
+        snapshotRecalculationService,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        clock);
   }
 
   @org.springframework.beans.factory.annotation.Autowired
@@ -48,7 +65,9 @@ public class ProfileService {
       ExpenseHistoryRepository expenseHistoryRepository,
       IndexSnapshotRepository indexSnapshotRepository,
       CareerScenarioRepository careerScenarioRepository,
-      JdbcTemplate jdbcTemplate) {
+      PerformanceBonusRepository performanceBonusRepository,
+      JdbcTemplate jdbcTemplate,
+      Clock clock) {
     this.careerProfileRepository = careerProfileRepository;
     this.snapshotRecalculationService = snapshotRecalculationService;
     this.userSkillRepository = userSkillRepository;
@@ -56,14 +75,16 @@ public class ProfileService {
     this.expenseHistoryRepository = expenseHistoryRepository;
     this.indexSnapshotRepository = indexSnapshotRepository;
     this.careerScenarioRepository = careerScenarioRepository;
+    this.performanceBonusRepository = performanceBonusRepository;
     this.jdbcTemplate = jdbcTemplate;
+    this.clock = clock;
   }
 
   /**
    * 사용자 및 개인 데이터 완전 삭제 (US-C2).
    *
-   * <p>프로필, 보유 스킬, 소득/소비 이력, 지수 스냅샷, 커리어 시나리오 및 세션/사용자 행을 영구 삭제한다. 공용 시장 집계(MarketAggregate) 데이터는
-   * 영향을 받지 않는다.
+   * <p>프로필, 보유 스킬, 소득/소비 이력, 성과급 기록, 지수 스냅샷, 커리어 시나리오 및 세션/사용자 행을 영구 삭제한다. 공용 시장
+   * 집계(MarketAggregate) 데이터는 영향을 받지 않는다.
    */
   @Transactional
   public void deleteUser(UUID userId, String email) {
@@ -97,6 +118,7 @@ public class ProfileService {
     if (expenseHistoryRepository != null) expenseHistoryRepository.deleteByUserId(userId);
     if (indexSnapshotRepository != null) indexSnapshotRepository.deleteByUserId(userId);
     if (careerScenarioRepository != null) careerScenarioRepository.deleteByUserId(userId);
+    if (performanceBonusRepository != null) performanceBonusRepository.deleteByUserId(userId);
 
     // 3. auth 스키마 세션 및 사용자 행 삭제 (auth 스키마 접근 가능 시)
     if (jdbcTemplate != null) {
@@ -116,11 +138,14 @@ public class ProfileService {
     return careerProfileRepository
         .findByUserId(userId)
         .map(ProfileService::toResponse)
-        .orElseGet(() -> new ProfileResponse(null, null, null, null, null));
+        .orElseGet(() -> new ProfileResponse(null, null, null, null, null, null));
   }
 
   @Transactional
   public ProfileResponse patch(UUID userId, ProfileRequest request) {
+    if (request.hireDate() != null && request.hireDate().isAfter(LocalDate.now(clock))) {
+      throw new InvalidHireDateException("입사일은 오늘 이후일 수 없습니다.");
+    }
     CareerProfile profile =
         careerProfileRepository
             .findByUserId(userId)
@@ -130,7 +155,8 @@ public class ProfileService {
         request.yearsOfExperience(),
         request.region(),
         request.employmentType(),
-        request.companySize());
+        request.companySize(),
+        request.hireDate());
     // 동료집단 조건이 바뀌면 이후 MVI 가 달라진다. 과거월은 그때의 프로필로 계산된 값이라 다시 쓰지 않는다.
     snapshotRecalculationService.recalculateSnapshot(userId, YearMonths.current());
     return toResponse(profile);
@@ -142,6 +168,7 @@ public class ProfileService {
         profile.getYearsOfExperience(),
         profile.getRegion(),
         profile.getEmploymentType(),
-        profile.getCompanySize());
+        profile.getCompanySize(),
+        profile.getHireDate());
   }
 }

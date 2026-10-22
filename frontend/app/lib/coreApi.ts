@@ -13,6 +13,8 @@ export interface ApiError {
   code: string;
   message: string;
   status: number;
+  /** 서버가 필드별로 실은 사유 (`INVALID_INPUT`). 없으면 `undefined`. */
+  details?: Record<string, string>;
 }
 
 /** 401 전용. loader 가 이것을 잡아 로그인으로 보낸다. */
@@ -29,6 +31,14 @@ interface ApiResult<T> {
   message?: string;
 }
 
+function isStringRecord(value: unknown): value is Record<string, string> {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    Object.values(value).every((v) => typeof v === "string")
+  );
+}
+
 async function toApiError(response: Response): Promise<ApiError> {
   try {
     const body = (await response.json()) as Partial<ApiError>;
@@ -37,6 +47,7 @@ async function toApiError(response: Response): Promise<ApiError> {
         code: body.code ?? "UNKNOWN",
         message: body.message,
         status: response.status,
+        ...(isStringRecord(body.details) ? { details: body.details } : {}),
       };
     }
   } catch {

@@ -2,6 +2,7 @@ package com.carix.income;
 
 import com.carix.common.ApiResult;
 import com.carix.common.ErrorResponse;
+import com.carix.income.dto.BonusTermsRequest;
 import com.carix.income.dto.IncomeRequest;
 import com.carix.income.dto.IncomeResponse;
 import com.carix.income.service.IncomeService;
@@ -14,6 +15,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -60,6 +62,41 @@ public class IncomeController {
     ApiResult<IncomeResponse> response =
         ApiResult.success(incomeService.create(userId, request), "소득 정보가 정상적으로 등록되었습니다.");
     return ResponseEntity.status(HttpStatus.CREATED).body(response);
+  }
+
+  @Operation(
+      summary = "상여 조건 일괄 적용",
+      description =
+          "선택한 연봉 행과 그 이후 모든 행에 상여 포함 여부·따로 받는 고정 상여를 적용하고 전체 이력을 반환합니다. 들어 있음이면 고정 상여를 보낼 수 없고, 따로 받음이면 필수입니다.")
+  @ApiResponses({
+    @ApiResponse(responseCode = "200", description = "적용 성공"),
+    @ApiResponse(
+        responseCode = "400",
+        description = "잘못된 입력값",
+        content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+    @ApiResponse(
+        responseCode = "404",
+        description = "기준 행이 없거나 본인 소유가 아님",
+        content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+  })
+  @PutMapping("/bonus-terms")
+  public ResponseEntity<?> updateBonusTerms(
+      @RequestHeader("X-User-Id") UUID userId, @Valid @RequestBody BonusTermsRequest request) {
+    boolean included = Boolean.TRUE.equals(request.bonusIncluded());
+    String conflict =
+        included && request.fixedBonusAnnual() != null
+            ? "상여가 들어 있으면 고정 상여를 보낼 수 없습니다."
+            : !included && (request.fixedBonusAnnual() == null || request.fixedBonusAnnual() == 0)
+                ? "상여를 따로 받으면 0원보다 큰 고정 상여 금액이 필요합니다."
+                : null;
+    if (conflict != null) {
+      return ResponseEntity.badRequest()
+          .body(
+              ErrorResponse.of(
+                  "INVALID_INPUT", "입력값 형식이 올바르지 않습니다.", Map.of("fixedBonusAnnual", conflict)));
+    }
+    return ResponseEntity.ok(
+        ApiResult.success(incomeService.updateBonusTerms(userId, request), "상여 조건이 적용되었습니다."));
   }
 
   @Operation(

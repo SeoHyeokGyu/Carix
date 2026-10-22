@@ -8,6 +8,7 @@ import com.carix.expense.domain.ExpenseCategoryEnum;
 import com.carix.expense.domain.ExpenseHistory;
 import com.carix.expense.domain.ExpenseItemEntity;
 import com.carix.income.domain.IncomeHistory;
+import com.carix.income.domain.PerformanceBonus;
 import com.carix.scenario.domain.CareerScenario;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -252,6 +253,90 @@ class SensitiveDataRekeyingServiceTest {
 
     assertThat(em.find(CareerScenario.class, scenarioId).getCurrentGrossSalary())
         .isEqualTo(61_000_000L);
+  }
+
+  @Test
+  @DisplayName("고정상여 컬럼만 옛 키여도 미전환으로 잡히고 재암호화 뒤 복호화된다 - null 은 건너뛴다")
+  void rekey_migratesFixedBonusColumn() {
+    String legacy = legacyCiphertext(3_000_000L);
+    String activeGross = converter.convertToDatabaseColumn(65_000_000L);
+    UUID withBonus = UUID.randomUUID();
+    UUID withoutBonus = UUID.randomUUID();
+    jdbcTemplate.update(
+        "INSERT INTO core.income_history (id, user_id, gross_salary_encrypted, "
+            + "fixed_bonus_annual_encrypted, effective_date) VALUES (?, ?, ?, ?, ?)",
+        withBonus,
+        UUID.randomUUID(),
+        activeGross,
+        legacy,
+        LocalDate.of(2026, 6, 1));
+    jdbcTemplate.update(
+        "INSERT INTO core.income_history (id, user_id, gross_salary_encrypted, effective_date) "
+            + "VALUES (?, ?, ?, ?)",
+        withoutBonus,
+        UUID.randomUUID(),
+        activeGross,
+        LocalDate.of(2026, 7, 1));
+    em.clear();
+
+    assertThat(rekeyingService.checkStatus().isFullyMigrated()).isFalse();
+    assertThat(rekeyingService.checkStatus().outdatedIncomeHistory()).isEqualTo(1);
+
+    assertThat(rekeyingService.rekeyAll().incomeHistoryUpdated()).isEqualTo(1);
+    em.clear();
+
+    assertThat(rekeyingService.checkStatus().isFullyMigrated()).isTrue();
+    assertThat(em.find(IncomeHistory.class, withBonus).getFixedBonusAnnual()).isEqualTo(3_000_000L);
+    assertThat(em.find(IncomeHistory.class, withoutBonus).getFixedBonusAnnual()).isNull();
+  }
+
+  @Test
+  @DisplayName("성과급 금액도 미전환으로 잡히고 재암호화 뒤 복호화된다")
+  void rekey_migratesPerformanceBonus() {
+    UUID bonusId = UUID.randomUUID();
+    jdbcTemplate.update(
+        "INSERT INTO core.performance_bonus (id, user_id, paid_month, amount_encrypted) "
+            + "VALUES (?, ?, ?, ?)",
+        bonusId,
+        UUID.randomUUID(),
+        "202606",
+        legacyCiphertext(5_000_000L));
+    em.clear();
+
+    SensitiveDataRekeyingService.RekeyingStatus before = rekeyingService.checkStatus();
+    assertThat(before.outdatedPerformanceBonus()).isEqualTo(1);
+    assertThat(before.isFullyMigrated()).isFalse();
+
+    SensitiveDataRekeyingService.RekeyingResult result = rekeyingService.rekeyAll();
+    em.clear();
+
+    assertThat(result.performanceBonusUpdated()).isEqualTo(1);
+    assertThat(rekeyingService.checkStatus().isFullyMigrated()).isTrue();
+    assertThat(em.find(PerformanceBonus.class, bonusId).getAmount()).isEqualTo(5_000_000L);
+  }
+
+  @Test
+  @DisplayName("성과급도 재암호화 도중의 사용자 수정을 덮어쓰지 않는다")
+  void rekeyPerformanceBonus_doesNotOverwriteConcurrentUserWrite() {
+    String legacy = legacyCiphertext(5_000_000L);
+    UUID bonusId = UUID.randomUUID();
+    jdbcTemplate.update(
+        "INSERT INTO core.performance_bonus (id, user_id, paid_month, amount_encrypted) "
+            + "VALUES (?, ?, ?, ?)",
+        bonusId,
+        UUID.randomUUID(),
+        "202606",
+        legacy);
+    racingUserWrite(
+        legacy,
+        "UPDATE core.performance_bonus SET amount_encrypted = ? WHERE id = ?",
+        converter.convertToDatabaseColumn(6_000_000L),
+        bonusId);
+
+    assertThat(rekeyingService.rekeyPerformanceBonus()).isZero();
+    em.clear();
+
+    assertThat(em.find(PerformanceBonus.class, bonusId).getAmount()).isEqualTo(6_000_000L);
   }
 
   /** 재암호화가 {@code legacy} 를 처음 복호화하는 순간, 그 전에 사용자 수정이 커밋된 것처럼 행을 바꾼다. */

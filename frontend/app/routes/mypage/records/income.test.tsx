@@ -23,6 +23,8 @@ const rows: incomeApi.IncomeResponse[] = [
     effectiveDate: "2023-01-01",
     changeReason: "INITIAL",
     selectedChangeReason: null,
+    bonusIncluded: false,
+    fixedBonusAnnual: 12_000_000,
   },
   {
     id: "i-new",
@@ -31,6 +33,8 @@ const rows: incomeApi.IncomeResponse[] = [
     effectiveDate: "2024-01-01",
     changeReason: "RAISE",
     selectedChangeReason: "RAISE",
+    bonusIncluded: true,
+    fixedBonusAnnual: null,
   },
 ];
 
@@ -57,6 +61,164 @@ describe("소득 탭 (S-12)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(incomeApi.listIncome).mockResolvedValue(rows);
+    vi.mocked(incomeApi.listBonuses).mockResolvedValue([]);
+  });
+
+  it("각 소득 행에 상여 조건을 보인다", async () => {
+    renderTab();
+    const newRow = (await screen.findByText("2024-01-01")).closest("tr")!;
+    const oldRow = screen.getByText("2023-01-01").closest("tr")!;
+    expect(within(newRow).getByText("상여 포함")).toBeInTheDocument();
+    expect(
+      within(oldRow).getByText("고정상여 별도 1,200만 원"),
+    ).toBeInTheDocument();
+  });
+
+  it("상여 조건을 저장하면 선택한 행부터 적용하도록 보낸다", async () => {
+    vi.mocked(incomeApi.updateBonusTerms).mockResolvedValue(rows);
+    renderTab();
+    const user = userEvent.setup();
+
+    await user.click(await screen.findByLabelText("따로 받음"));
+    await user.type(screen.getByLabelText(/연간 고정상여/), "1500");
+    await user.click(screen.getByRole("button", { name: "상여 조건 저장" }));
+
+    await waitFor(() =>
+      expect(incomeApi.updateBonusTerms).toHaveBeenCalledWith({
+        applyFromIncomeId: "i-new",
+        bonusIncluded: false,
+        fixedBonusAnnual: 15_000_000,
+      }),
+    );
+  });
+
+  it("상여 조건 400 의 details 를 고정상여 칸에 붙인다", async () => {
+    vi.mocked(incomeApi.updateBonusTerms).mockRejectedValue({
+      code: "INVALID_INPUT",
+      message: "입력값 형식이 올바르지 않습니다.",
+      status: 400,
+      details: {
+        fixedBonusAnnual:
+          "상여를 따로 받으면 0원보다 큰 고정 상여 금액이 필요합니다.",
+      },
+    });
+    renderTab();
+    const user = userEvent.setup();
+
+    await user.click(await screen.findByLabelText("따로 받음"));
+    await user.type(screen.getByLabelText(/연간 고정상여/), "1500");
+    await user.click(screen.getByRole("button", { name: "상여 조건 저장" }));
+
+    await screen.findByText(
+      "상여를 따로 받으면 0원보다 큰 고정 상여 금액이 필요합니다.",
+    );
+    expect(document.getElementById("fixedBonusAnnual-error")).not.toBeNull();
+  });
+
+  it("성과급 400 의 details 를 지급월 칸에 붙인다", async () => {
+    vi.mocked(incomeApi.createBonus).mockRejectedValue({
+      code: "INVALID_INPUT",
+      message: "입력값 형식이 올바르지 않습니다.",
+      status: 400,
+      details: {
+        paidMonth: "아직 오지 않은 달에는 성과급을 기록할 수 없습니다.",
+      },
+    });
+    renderTab();
+    const user = userEvent.setup();
+
+    await user.type(await screen.findByLabelText("지급월"), "2026-03");
+    await user.type(screen.getByLabelText(/^금액/), "500");
+    await user.click(screen.getByRole("button", { name: "성과급 추가" }));
+
+    await screen.findByText(
+      "아직 오지 않은 달에는 성과급을 기록할 수 없습니다.",
+    );
+    expect(document.getElementById("bonusPaidMonth-error")).not.toBeNull();
+  });
+
+  it("details 가 없는 400 은 message 를 폼 공통 오류로 낸다", async () => {
+    vi.mocked(incomeApi.createBonus).mockRejectedValue({
+      code: "INVALID_INPUT",
+      message: "요청 형식이 올바르지 않습니다.",
+      status: 400,
+    });
+    renderTab();
+    const user = userEvent.setup();
+
+    await user.type(await screen.findByLabelText("지급월"), "2026-03");
+    await user.type(screen.getByLabelText(/^금액/), "500");
+    await user.click(screen.getByRole("button", { name: "성과급 추가" }));
+
+    expect(
+      await screen.findByText("요청 형식이 올바르지 않습니다."),
+    ).toBeVisible();
+    expect(document.getElementById("bonusPaidMonth-error")).toBeNull();
+  });
+
+  it("상여 조건 400 은 들어 있음 선택 상태에서도 화면에 보인다", async () => {
+    vi.mocked(incomeApi.updateBonusTerms).mockRejectedValue({
+      code: "INVALID_INPUT",
+      message: "적용할 소득 이력을 찾을 수 없습니다.",
+      status: 400,
+    });
+    renderTab();
+    const user = userEvent.setup();
+
+    await user.click(
+      await screen.findByRole("button", { name: "상여 조건 저장" }),
+    );
+
+    expect(
+      await screen.findByText("적용할 소득 이력을 찾을 수 없습니다."),
+    ).toBeVisible();
+  });
+
+  it("성과급을 추가하면 목록을 다시 불러온다", async () => {
+    vi.mocked(incomeApi.createBonus).mockResolvedValue({
+      id: "b-1",
+      paidMonth: "202603",
+      amount: 5_000_000,
+    });
+    renderTab();
+    const user = userEvent.setup();
+    expect(
+      await screen.findByText(
+        "받은 성과급이 있으면 지급월과 금액을 기록해 두세요",
+      ),
+    ).toBeInTheDocument();
+
+    vi.mocked(incomeApi.listBonuses).mockResolvedValue([
+      { id: "b-1", paidMonth: "202603", amount: 5_000_000 },
+    ]);
+    await user.type(screen.getByLabelText("지급월"), "2026-03");
+    await user.type(screen.getByLabelText(/^금액/), "500");
+    await user.click(screen.getByRole("button", { name: "성과급 추가" }));
+
+    await waitFor(() =>
+      expect(incomeApi.createBonus).toHaveBeenCalledWith({
+        paidMonth: "202603",
+        amount: 5_000_000,
+      }),
+    );
+    expect(await screen.findByText("2026-03")).toBeInTheDocument();
+  });
+
+  it("성과급 삭제는 확인 뒤 해당 id 로 서버를 부른다", async () => {
+    vi.mocked(incomeApi.listBonuses).mockResolvedValue([
+      { id: "b-1", paidMonth: "202603", amount: 5_000_000 },
+    ]);
+    vi.mocked(incomeApi.deleteBonus).mockResolvedValue(null);
+    renderTab();
+    const user = userEvent.setup();
+
+    const row = (await screen.findByText("2026-03")).closest("tr")!;
+    await user.click(within(row).getByRole("button", { name: "삭제" }));
+    await confirmDialog(user, "삭제");
+
+    await waitFor(() =>
+      expect(incomeApi.deleteBonus).toHaveBeenCalledWith("b-1"),
+    );
   });
 
   it("유효 시작일 내림차순으로 그린다", async () => {
@@ -359,6 +521,8 @@ describe("소득 탭 (S-12)", () => {
         ...rows[0],
         changeReason: "INITIAL",
         selectedChangeReason: "JOB_CHANGE",
+        bonusIncluded: true,
+        fixedBonusAnnual: null,
       },
     ]);
     vi.mocked(incomeApi.updateIncome).mockResolvedValue(rows[0]);
@@ -390,6 +554,8 @@ describe("소득 탭 (S-12)", () => {
         effectiveDate: "2025-01-01",
         changeReason: null,
         selectedChangeReason: null,
+        bonusIncluded: true,
+        fixedBonusAnnual: null,
       },
     ]);
     renderTab();
@@ -419,6 +585,8 @@ describe("소득 탭 (S-12)", () => {
         ...rows[0],
         changeReason: "INITIAL",
         selectedChangeReason: "JOB_CHANGE",
+        bonusIncluded: true,
+        fixedBonusAnnual: null,
       },
       rows[1],
     ]);

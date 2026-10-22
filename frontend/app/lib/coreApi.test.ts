@@ -80,6 +80,29 @@ describe("coreApi", () => {
     });
   });
 
+  it("ErrorResponse 의 details 를 ApiError 에 싣는다", async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 400,
+      json: async () => ({
+        code: "INVALID_INPUT",
+        message: "입력값 형식이 올바르지 않습니다.",
+        details: {
+          paidMonth: "아직 오지 않은 달에는 성과급을 기록할 수 없습니다.",
+        },
+      }),
+    } as unknown as Response);
+
+    await expect(coreSend("POST", "/v1/income/bonuses", {})).rejects.toEqual({
+      code: "INVALID_INPUT",
+      message: "입력값 형식이 올바르지 않습니다.",
+      status: 400,
+      details: {
+        paidMonth: "아직 오지 않은 달에는 성과급을 기록할 수 없습니다.",
+      },
+    });
+  });
+
   it("JSON 이 아닌 오류 응답에는 기본 문구를 쓴다", async () => {
     globalThis.fetch = vi.fn().mockResolvedValue({
       ok: false,

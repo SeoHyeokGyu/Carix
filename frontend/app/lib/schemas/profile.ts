@@ -75,3 +75,11 @@ export const PROFILE_FIELD_MESSAGES: Record<keyof ProfileInput, string> = {
   employmentType: "고용 형태를 선택해 주세요.",
   companySize: "회사 규모를 올바르게 선택해 주세요.",
 };
+
+/** 로컬(KST) 달력 기준 오늘 `YYYY-MM-DD`. 입사일 입력의 `max` 로 쓴다 — UTC 변환의 하루 오차를 피한다. */
+export function todayLocalDate(): string {
+  const now = new Date();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  return `${now.getFullYear()}-${month}-${day}`;
+}

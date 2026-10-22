@@ -114,7 +114,7 @@ class PeerGroupFallbackResolverTest {
 
   private static CareerProfile profile(int years) {
     CareerProfile profile = new CareerProfile(UUID.randomUUID());
-    profile.patch("DEVELOPER", years, "서울 강남구", "FULL_TIME", "LARGE");
+    profile.patch("DEVELOPER", years, "서울 강남구", "FULL_TIME", "LARGE", null);
     return profile;
   }
 
@@ -216,7 +216,7 @@ class PeerGroupFallbackResolverTest {
   @DisplayName("프로필 직무가 비어도 기본 직무로 조회한다")
   void blankProfileUsesDefaults() {
     CareerProfile profile = new CareerProfile(UUID.randomUUID());
-    profile.patch("", null, "", "", "   ");
+    profile.patch("", null, "", "", "   ", null);
 
     var result = resolver.resolveForSource("JOBKOREA", profile, "202608");
 

@@ -3,12 +3,18 @@ import userEvent from "@testing-library/user-event";
 import { createRoutesStub } from "react-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import * as profileApi from "../../lib/api/profile";
 import * as authApi from "../../lib/authApi";
 import * as onboardingApi from "../../lib/onboardingApi";
 import * as sessionModule from "../../lib/session";
 import { cancelDialog, confirmDialog } from "../../test-utils/confirmDialog";
 import { expectHeadingOutline } from "../../test-utils/headingOutline";
-import MypageProfile, { clientAction } from "./profile";
+import MypageProfile, { clientAction, clientLoader } from "./profile";
+
+vi.mock("../../lib/api/profile", () => ({
+  getProfile: vi.fn(),
+  patchProfile: vi.fn(),
+}));
 
 vi.mock("../../lib/authApi", () => ({
   deleteAccount: vi.fn(),
@@ -224,6 +230,124 @@ describe("S-13 MypageProfile 라우트", () => {
       expect((response as Response).headers.get("Location")).toBe(
         "/onboarding/profile",
       );
+    });
+  });
+
+  describe("입사일", () => {
+    function renderWithLoader() {
+      const Stub = createRoutesStub([
+        {
+          path: "/mypage/profile",
+          Component: MypageProfile,
+          action: clientAction,
+          loader: clientLoader,
+          HydrateFallback: () => null,
+        },
+        { path: "/login", Component: () => <div>로그인 화면</div> },
+      ]);
+      return render(<Stub initialEntries={["/mypage/profile"]} />);
+    }
+
+    beforeEach(() => {
+      vi.mocked(profileApi.getProfile).mockResolvedValue({
+        jobFamily: "DEVELOPER",
+        yearsOfExperience: 3,
+        region: "서울",
+        employmentType: "FULL_TIME",
+        companySize: null,
+        hireDate: "2022-03-02",
+      });
+    });
+
+    it("저장된 입사일을 채우고 미래 날짜는 고를 수 없게 막는다", async () => {
+      renderWithLoader();
+
+      const input = await screen.findByLabelText("입사일");
+      expect(input).toHaveValue("2022-03-02");
+      expect(input).toHaveAttribute("type", "date");
+      const now = new Date();
+      const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+      expect(input).toHaveAttribute("max", today);
+    });
+
+    it("입사일을 저장하면 hireDate 만 보낸다", async () => {
+      vi.mocked(profileApi.patchProfile).mockResolvedValue({
+        jobFamily: "DEVELOPER",
+        yearsOfExperience: 3,
+        region: "서울",
+        employmentType: "FULL_TIME",
+        companySize: null,
+        hireDate: "2023-05-01",
+      });
+      renderWithLoader();
+      const user = userEvent.setup();
+
+      const input = await screen.findByLabelText("입사일");
+      fireEvent.change(input, { target: { value: "2023-05-01" } });
+      await user.click(screen.getByRole("button", { name: "입사일 저장" }));
+
+      await waitFor(() =>
+        expect(profileApi.patchProfile).toHaveBeenCalledWith({
+          hireDate: "2023-05-01",
+        }),
+      );
+      expect(
+        await screen.findByText("입사일을 저장했습니다."),
+      ).toBeInTheDocument();
+    });
+
+    it("서버가 거부하면 메시지를 보여준다", async () => {
+      vi.mocked(profileApi.patchProfile).mockRejectedValue({
+        code: "INVALID_INPUT",
+        message: "입사일은 오늘 이후일 수 없습니다.",
+        status: 400,
+      });
+      renderWithLoader();
+      const user = userEvent.setup();
+
+      await screen.findByLabelText("입사일");
+      await user.click(screen.getByRole("button", { name: "입사일 저장" }));
+
+      expect(
+        await screen.findByText("입사일은 오늘 이후일 수 없습니다."),
+      ).toBeInTheDocument();
+    });
+
+    it("입사일 조회가 실패하면 알리고 저장을 막는다", async () => {
+      const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+      vi.mocked(profileApi.getProfile).mockRejectedValue({
+        code: "UNKNOWN",
+        message: "x",
+        status: 500,
+      });
+      renderWithLoader();
+
+      expect(
+        await screen.findByText(/저장된 입사일을 불러오지 못했습니다/),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByRole("button", { name: "입사일 저장" }),
+      ).toBeDisabled();
+      expect(spy).toHaveBeenCalled();
+      spy.mockRestore();
+    });
+
+    it("입사일이 비어 있으면 서버를 부르지 않는다", async () => {
+      const formData = new FormData();
+      formData.set("intent", "save-hire-date");
+      formData.set("hireDate", "");
+      const request = new Request("http://localhost/mypage/profile", {
+        method: "POST",
+        body: formData,
+      });
+
+      const result = await clientAction({ request });
+
+      expect(result).toEqual({
+        error: "입사일을 선택해 주세요.",
+        intent: "save-hire-date",
+      });
+      expect(profileApi.patchProfile).not.toHaveBeenCalled();
     });
   });
 });

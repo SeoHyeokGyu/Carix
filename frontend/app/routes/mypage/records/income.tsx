@@ -21,19 +21,26 @@ import {
   TableRow,
 } from "@/components/ui/table";
 
+import { BonusTermsForm } from "../../../components/income/BonusTermsForm";
+import { PerformanceBonusList } from "../../../components/income/PerformanceBonusList";
 import { Field } from "../../../components/onboarding/Field";
 import { NativeSelect } from "../../../components/onboarding/NativeSelect";
 import {
+  createBonus,
   createIncome,
+  deleteBonus,
   deleteIncome,
   type IncomeResponse,
+  listBonuses,
   listIncome,
+  updateBonusTerms,
   updateIncome,
 } from "../../../lib/api/income";
 import { isApiError, toUserMessage } from "../../../lib/apiError";
 import { type ApiError, UnauthorizedError } from "../../../lib/coreApi";
 import { type FieldErrors, toFieldErrors } from "../../../lib/fieldErrors";
 import { focusFirstInvalidField } from "../../../lib/focusFirstInvalidField";
+import { formatKoreanSalary } from "../../../lib/koreanSalary";
 import { LOGIN_PATH } from "../../../lib/routeGuards";
 import {
   INCOME_CHANGE_REASON_HINT,
@@ -45,6 +52,12 @@ import {
 
 type ActionData = { errors: FieldErrors } | null;
 
+/** 표 셀 문구. 따로 받는 고정상여는 금액까지 낸다. */
+function bonusTermsCell(income: IncomeResponse): string {
+  if (income.bonusIncluded) return "상여 포함";
+  return `고정상여 별도 ${formatKoreanSalary(income.fixedBonusAnnual)}`;
+}
+
 /** 유효 시작일 중복은 서버가 409 로 알린다 — `_form` 이 아니라 그 필드에 붙여야 한다. */
 function isConflict(error: unknown): error is ApiError {
   return isApiError(error) && error.status === 409;
@@ -52,11 +65,14 @@ function isConflict(error: unknown): error is ApiError {
 
 export async function clientLoader() {
   try {
-    const income = await listIncome();
+    const [income, bonuses] = await Promise.all([listIncome(), listBonuses()]);
     // 서버 정렬 순서를 신뢰하지 않고 항상 클라이언트에서 다시 정렬한다.
     return {
       income: [...income].sort((a, b) =>
         b.effectiveDate.localeCompare(a.effectiveDate),
+      ),
+      bonuses: [...bonuses].sort((a, b) =>
+        b.paidMonth.localeCompare(a.paidMonth),
       ),
     };
   } catch (error) {
@@ -65,9 +81,80 @@ export async function clientLoader() {
   }
 }
 
+/** intent 별로 서버 details 를 붙일 수 있는 칸. */
+const BONUS_FIELDS: Record<string, readonly string[]> = {
+  "bonus-terms": ["fixedBonusAnnual"],
+  "bonus-create": ["paidMonth", "amount"],
+};
+
+/**
+ * 서버 details 의 필드 사유를 화면에 있는 칸에 붙인다. 고정상여 칸은 따로 받음일 때만 보이므로
+ * 들어 있음 선택 상태(예: 낡은 applyFromIncomeId)의 사유는 칸이 없어 null 로 돌려 공통 오류로 낸다.
+ */
+function bonusFieldErrors(
+  intent: string,
+  formData: FormData,
+  error: ApiError,
+): FieldErrors | null {
+  const visible = (BONUS_FIELDS[intent] ?? []).filter(
+    (field) =>
+      field !== "fixedBonusAnnual" || formData.get("bonusIncluded") !== "true",
+  );
+  const entries = visible.flatMap((field) => {
+    const message = error.details?.[field];
+    return message ? [[field, message] as const] : [];
+  });
+  return entries.length > 0 ? Object.fromEntries(entries) : null;
+}
+
+/** 상여 섹션 세 intent. 실패는 화면에 남기고 401 만 로그인으로 보낸다. */
+async function runBonusIntent(
+  intent: string,
+  formData: FormData,
+): Promise<ActionData> {
+  try {
+    if (intent === "bonus-terms") {
+      const included = formData.get("bonusIncluded") === "true";
+      const amount = String(formData.get("fixedBonusAnnual") ?? "");
+      await updateBonusTerms({
+        applyFromIncomeId: String(formData.get("applyFromIncomeId") ?? ""),
+        bonusIncluded: included,
+        fixedBonusAnnual: amount === "" ? null : Number(amount),
+      });
+    } else if (intent === "bonus-create") {
+      await createBonus({
+        paidMonth: String(formData.get("paidMonth") ?? ""),
+        amount: Number(formData.get("amount")),
+      });
+    } else {
+      const id = formData.get("id");
+      if (typeof id !== "string" || !id) {
+        return { errors: { _form: "삭제할 항목을 찾을 수 없습니다." } };
+      }
+      await deleteBonus(id);
+    }
+    return null;
+  } catch (error) {
+    if (error instanceof UnauthorizedError) throw redirect(LOGIN_PATH);
+    if (isApiError(error) && error.status === 400) {
+      const fieldErrors = bonusFieldErrors(intent, formData, error);
+      if (fieldErrors) return { errors: fieldErrors };
+    }
+    return { errors: { _form: toUserMessage(error) } };
+  }
+}
+
 export async function clientAction({ request }: { request: Request }) {
   const formData = await request.formData();
   const intent = formData.get("intent");
+
+  if (
+    intent === "bonus-terms" ||
+    intent === "bonus-create" ||
+    intent === "bonus-delete"
+  ) {
+    return runBonusIntent(intent, formData);
+  }
 
   if (intent === "delete") {
     const id = formData.get("id");
@@ -153,6 +240,7 @@ function IncomeRow({ income, onEdit }: IncomeRowProps) {
           income.selectedChangeReason,
         )}
       </TableCell>
+      <TableCell>{bonusTermsCell(income)}</TableCell>
       <TableCell>
         <div className="flex flex-col gap-1">
           <div className="flex gap-2">
@@ -198,8 +286,10 @@ function IncomeRow({ income, onEdit }: IncomeRowProps) {
 }
 
 export default function RecordsIncome() {
-  const { income } = useLoaderData<typeof clientLoader>();
+  const { income, bonuses } = useLoaderData<typeof clientLoader>();
   const formFetcher = useFetcher<ActionData>();
+  const termsFetcher = useFetcher<ActionData>();
+  const bonusFetcher = useFetcher<ActionData>();
   const formRef = useRef<HTMLFormElement>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [grossInput, setGrossInput] = useState("");
@@ -263,6 +353,7 @@ export default function RecordsIncome() {
                 <TableHead>세전 연봉</TableHead>
                 <TableHead>월 실수령액</TableHead>
                 <TableHead>변경 사유</TableHead>
+                <TableHead>상여 조건</TableHead>
                 <TableHead>작업</TableHead>
               </TableRow>
             </TableHeader>
@@ -273,6 +364,63 @@ export default function RecordsIncome() {
             </TableBody>
           </Table>
         )}
+      </PageSection>
+
+      {income.length > 0 && (
+        <PageSection title="상여 조건">
+          <Card>
+            {/* 저장 뒤 loader 가 갱신한 행 값으로 폼을 다시 채운다 — 값이 바뀌면 리마운트. */}
+            <BonusTermsForm
+              key={income
+                .map((i) => `${i.id}:${i.bonusIncluded}:${i.fixedBonusAnnual}`)
+                .join()}
+              incomes={income}
+              isSubmitting={termsFetcher.state !== "idle"}
+              errors={termsFetcher.data?.errors}
+              onSubmit={(input) =>
+                termsFetcher.submit(
+                  {
+                    intent: "bonus-terms",
+                    applyFromIncomeId: input.applyFromIncomeId,
+                    bonusIncluded: String(input.bonusIncluded),
+                    fixedBonusAnnual:
+                      input.fixedBonusAnnual === null
+                        ? ""
+                        : String(input.fixedBonusAnnual),
+                  },
+                  { method: "post" },
+                )
+              }
+            />
+          </Card>
+        </PageSection>
+      )}
+
+      <PageSection title="성과급 기록">
+        <Card>
+          <PerformanceBonusList
+            key={bonuses.map((b) => b.id).join()}
+            bonuses={bonuses}
+            isSubmitting={bonusFetcher.state !== "idle"}
+            errors={bonusFetcher.data?.errors}
+            onCreate={(input) =>
+              bonusFetcher.submit(
+                {
+                  intent: "bonus-create",
+                  paidMonth: input.paidMonth,
+                  amount: String(input.amount),
+                },
+                { method: "post" },
+              )
+            }
+            onDelete={(id) =>
+              bonusFetcher.submit(
+                { intent: "bonus-delete", id },
+                { method: "post" },
+              )
+            }
+          />
+        </Card>
       </PageSection>
 
       <PageSection title="소득 추가">

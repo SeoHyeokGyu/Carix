@@ -51,11 +51,12 @@ public class EncryptionRekeyStartup {
     try {
       SensitiveDataRekeyingService.RekeyingStatus status = rekeyingService.checkStatus();
       log.info(
-          "rekey-status activeKeyId={} incomeHistory={} expenseItem={} careerScenario={} fullyMigrated={}",
+          "rekey-status activeKeyId={} incomeHistory={} expenseItem={} careerScenario={} performanceBonus={} fullyMigrated={}",
           status.activeKeyId(),
           status.outdatedIncomeHistory(),
           status.outdatedExpenseItem(),
           status.outdatedCareerScenario(),
+          status.outdatedPerformanceBonus(),
           status.isFullyMigrated());
     } catch (RuntimeException e) {
       log.error("rekey-status-failed reason={}", e.getMessage());

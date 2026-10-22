@@ -29,7 +29,8 @@ import org.springframework.transaction.annotation.Transactional;
  *
  * <ul>
  *   <li>{@code core.income_history} (세전 연봉: {@code gross_salary_encrypted}, 월 실수령액: {@code
- *       net_salary_encrypted})
+ *       net_salary_encrypted}, 고정상여: {@code fixed_bonus_annual_encrypted})
+ *   <li>{@code core.performance_bonus} (성과급 금액: {@code amount_encrypted})
  *   <li>{@code core.expense_item} (월 소비액: {@code amount_encrypted})
  *   <li>{@code core.career_scenario} (시뮬레이션 관련 금액 6개 컬럼)
  * </ul>
@@ -49,17 +50,22 @@ public class SensitiveDataRekeyingService {
    * @param incomeHistoryUpdated 갱신된 소득 이력 행 수
    * @param expenseItemUpdated 갱신된 소비 품목 행 수
    * @param careerScenarioUpdated 갱신된 시뮬레이션 시나리오 행 수
+   * @param performanceBonusUpdated 갱신된 성과급 행 수
    * @param activeKeyId 마이그레이션 목표로 사용된 활성 키 ID
    */
   public record RekeyingResult(
       int incomeHistoryUpdated,
       int expenseItemUpdated,
       int careerScenarioUpdated,
+      int performanceBonusUpdated,
       String activeKeyId) {
 
     /** 전체 갱신된 행 수의 합계 */
     public int totalUpdated() {
-      return incomeHistoryUpdated + expenseItemUpdated + careerScenarioUpdated;
+      return incomeHistoryUpdated
+          + expenseItemUpdated
+          + careerScenarioUpdated
+          + performanceBonusUpdated;
     }
   }
 
@@ -69,24 +75,29 @@ public class SensitiveDataRekeyingService {
    * @param outdatedIncomeHistory 활성 키로 아직 전환되지 않은 소득 이력 행 수
    * @param outdatedExpenseItem 활성 키로 아직 전환되지 않은 소비 품목 행 수
    * @param outdatedCareerScenario 활성 키로 아직 전환되지 않은 시뮬레이션 시나리오 행 수
+   * @param outdatedPerformanceBonus 활성 키로 아직 전환되지 않은 성과급 행 수
    * @param activeKeyId 현재 활성 키 ID
    */
   public record RekeyingStatus(
       long outdatedIncomeHistory,
       long outdatedExpenseItem,
       long outdatedCareerScenario,
+      long outdatedPerformanceBonus,
       String activeKeyId) {
 
     /**
      * 모든 대상 테이블의 암호문이 현재 활성 키로 100% 전환 완료되었는지 여부. 이 값이 {@code true}인 경우에만 이전 구 키를 안전하게 폐기할 수 있다.
      */
     public boolean isFullyMigrated() {
-      return outdatedIncomeHistory == 0 && outdatedExpenseItem == 0 && outdatedCareerScenario == 0;
+      return totalOutdated() == 0;
     }
 
     /** 전체 미전환 행 수의 합계 */
     public long totalOutdated() {
-      return outdatedIncomeHistory + outdatedExpenseItem + outdatedCareerScenario;
+      return outdatedIncomeHistory
+          + outdatedExpenseItem
+          + outdatedCareerScenario
+          + outdatedPerformanceBonus;
     }
   }
 
@@ -105,8 +116,11 @@ public class SensitiveDataRekeyingService {
         jdbcTemplate.queryForObject(
             "SELECT COUNT(*) FROM core.income_history "
                 + "WHERE gross_salary_encrypted NOT LIKE ? "
-                + "OR (net_salary_encrypted IS NOT NULL AND net_salary_encrypted NOT LIKE ?)",
+                + "OR (net_salary_encrypted IS NOT NULL AND net_salary_encrypted NOT LIKE ?) "
+                + "OR (fixed_bonus_annual_encrypted IS NOT NULL "
+                + "AND fixed_bonus_annual_encrypted NOT LIKE ?)",
             Long.class,
+            activePrefix,
             activePrefix,
             activePrefix);
 
@@ -133,15 +147,22 @@ public class SensitiveDataRekeyingService {
             activePrefix,
             activePrefix);
 
+    Long bonus =
+        jdbcTemplate.queryForObject(
+            "SELECT COUNT(*) FROM core.performance_bonus WHERE amount_encrypted NOT LIKE ?",
+            Long.class,
+            activePrefix);
+
     return new RekeyingStatus(
         income != null ? income : 0L,
         expense != null ? expense : 0L,
         scenario != null ? scenario : 0L,
+        bonus != null ? bonus : 0L,
         keyRing.getActiveKeyId());
   }
 
   /**
-   * 모든 대상 테이블(소득, 소비, 시나리오)의 구버전 암호문을 현재 활성 키로 일괄 재암호화한다.
+   * 모든 대상 테이블(소득, 소비, 시나리오, 성과급)의 구버전 암호문을 현재 활성 키로 일괄 재암호화한다.
    *
    * @return 각 테이블별 갱신된 레코드 수 보고서
    */
@@ -149,19 +170,21 @@ public class SensitiveDataRekeyingService {
     int income = rekeyIncomeHistory();
     int expense = rekeyExpenseItem();
     int scenario = rekeyCareerScenario();
+    int bonus = rekeyPerformanceBonus();
 
     log.info(
-        "키 로테이션 재암호화 완료: activeKeyId={}, incomeHistory={}, expenseItem={}, careerScenario={}",
+        "키 로테이션 재암호화 완료: activeKeyId={}, incomeHistory={}, expenseItem={}, careerScenario={}, performanceBonus={}",
         keyRing.getActiveKeyId(),
         income,
         expense,
-        scenario);
+        scenario,
+        bonus);
 
-    return new RekeyingResult(income, expense, scenario, keyRing.getActiveKeyId());
+    return new RekeyingResult(income, expense, scenario, bonus, keyRing.getActiveKeyId());
   }
 
   /**
-   * {@code core.income_history} 테이블의 세전 연봉 및 실수령액을 최신 활성 키로 재암호화한다.
+   * {@code core.income_history} 테이블의 세전 연봉·실수령액·고정상여를 최신 활성 키로 재암호화한다.
    *
    * @return 재암호화된 소득 이력 건수
    */
@@ -169,15 +192,19 @@ public class SensitiveDataRekeyingService {
     String activePrefix = keyRing.getActiveKeyId() + ":%";
 
     return jdbcTemplate.query(
-        "SELECT id, gross_salary_encrypted, net_salary_encrypted FROM core.income_history "
+        "SELECT id, gross_salary_encrypted, net_salary_encrypted, fixed_bonus_annual_encrypted "
+            + "FROM core.income_history "
             + "WHERE gross_salary_encrypted NOT LIKE ? "
-            + "OR (net_salary_encrypted IS NOT NULL AND net_salary_encrypted NOT LIKE ?)",
+            + "OR (net_salary_encrypted IS NOT NULL AND net_salary_encrypted NOT LIKE ?) "
+            + "OR (fixed_bonus_annual_encrypted IS NOT NULL "
+            + "AND fixed_bonus_annual_encrypted NOT LIKE ?)",
         rs -> {
           int count = 0;
           while (rs.next()) {
             UUID id = rs.getObject("id", UUID.class);
             String rawGross = rs.getString("gross_salary_encrypted");
             String rawNet = rs.getString("net_salary_encrypted");
+            String rawFixedBonus = rs.getString("fixed_bonus_annual_encrypted");
 
             // 1. 기존 암호문 복호화 (구 키 또는 레거시 키 자동 판별)
             Long gross = converter.convertToEntityAttribute(rawGross);
@@ -190,20 +217,27 @@ public class SensitiveDataRekeyingService {
               newNet = converter.convertToDatabaseColumn(net);
             }
 
+            String newFixedBonus = rawFixedBonus == null ? null : reencrypt(rawFixedBonus);
+
             // 3. 읽은 암호문이 그대로일 때만 갱신한다 (동시 쓰기 보호)
             count +=
                 jdbcTemplate.update(
-                    "UPDATE core.income_history SET gross_salary_encrypted = ?, net_salary_encrypted = ? "
+                    "UPDATE core.income_history SET gross_salary_encrypted = ?, net_salary_encrypted = ?, "
+                        + "fixed_bonus_annual_encrypted = ? "
                         + "WHERE id = ? AND gross_salary_encrypted = ? "
-                        + "AND net_salary_encrypted IS NOT DISTINCT FROM ?",
+                        + "AND net_salary_encrypted IS NOT DISTINCT FROM ? "
+                        + "AND fixed_bonus_annual_encrypted IS NOT DISTINCT FROM ?",
                     newGross,
                     newNet,
+                    newFixedBonus,
                     id,
                     rawGross,
-                    rawNet);
+                    rawNet,
+                    rawFixedBonus);
           }
           return count;
         },
+        activePrefix,
         activePrefix,
         activePrefix);
   }
@@ -315,6 +349,35 @@ public class SensitiveDataRekeyingService {
         activePrefix,
         activePrefix,
         activePrefix,
+        activePrefix);
+  }
+
+  /**
+   * {@code core.performance_bonus} 테이블의 성과급 금액을 최신 활성 키로 재암호화한다.
+   *
+   * @return 재암호화된 성과급 건수
+   */
+  public int rekeyPerformanceBonus() {
+    String activePrefix = keyRing.getActiveKeyId() + ":%";
+
+    return jdbcTemplate.query(
+        "SELECT id, amount_encrypted FROM core.performance_bonus WHERE amount_encrypted NOT LIKE ?",
+        rs -> {
+          int count = 0;
+          while (rs.next()) {
+            UUID id = rs.getObject("id", UUID.class);
+            String rawAmount = rs.getString("amount_encrypted");
+
+            count +=
+                jdbcTemplate.update(
+                    "UPDATE core.performance_bonus SET amount_encrypted = ? "
+                        + "WHERE id = ? AND amount_encrypted = ?",
+                    reencrypt(rawAmount),
+                    id,
+                    rawAmount);
+          }
+          return count;
+        },
         activePrefix);
   }
 

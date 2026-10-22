@@ -17,4 +17,7 @@ public record IncomeResponse(
             description = "사용자가 고른 값 그대로. 편집 폼이 이것으로 컨트롤을 채운다. INITIAL 이 담기지 않는다.",
             example = "RAISE",
             allowableValues = {"RAISE", "JOB_CHANGE"})
-        IncomeChangeReasonEnum selectedChangeReason) {}
+        IncomeChangeReasonEnum selectedChangeReason,
+    @Schema(description = "연봉 계약 금액에 상여가 들어 있는가", example = "true") boolean bonusIncluded,
+    @Schema(description = "따로 받는 고정 상여의 연 금액 (원). 들어 있음이면 null", example = "6000000")
+        Long fixedBonusAnnual) {}

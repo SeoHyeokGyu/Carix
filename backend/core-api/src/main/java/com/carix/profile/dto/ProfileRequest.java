@@ -3,6 +3,7 @@ package com.carix.profile.dto;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.Size;
+import java.time.LocalDate;
 
 @Schema(description = "커리어 프로필 부분 변경 요청")
 public record ProfileRequest(
@@ -12,4 +13,5 @@ public record ProfileRequest(
     @Min(0) @Schema(example = "5", nullable = true) Integer yearsOfExperience,
     @Size(max = 100) @Schema(example = "SEOUL_GANGNAM", nullable = true) String region,
     @Size(max = 50) @Schema(example = "FULL_TIME", nullable = true) String employmentType,
-    @Size(max = 50) @Schema(example = "MEDIUM", nullable = true) String companySize) {}
+    @Size(max = 50) @Schema(example = "MEDIUM", nullable = true) String companySize,
+    @Schema(example = "2022-03-02", nullable = true) LocalDate hireDate) {}

@@ -39,7 +39,7 @@ class WageBaselineResolverTest {
   @DisplayName("resolveBaseline - 전국 기준선이 존재하면 반환")
   void resolveBaseline_foundNational() {
     CareerProfile profile = new CareerProfile(UUID.randomUUID());
-    profile.patch("DEVELOPER", 5, "서울 강남구", "FULL_TIME", "MEDIUM");
+    profile.patch("DEVELOPER", 5, "서울 강남구", "FULL_TIME", "MEDIUM", null);
 
     given(fallbackResolver.mapExperienceBracket6(5)).willReturn("MID");
 
@@ -66,7 +66,7 @@ class WageBaselineResolverTest {
   @DisplayName("resolveBaseline - 신입(0년) ENTRY 브래킷 기준선 조회 성공")
   void resolveBaseline_entryBracket() {
     CareerProfile profile = new CareerProfile(UUID.randomUUID());
-    profile.patch("DEVELOPER", 0, "서울 강남구", "FULL_TIME", "MEDIUM");
+    profile.patch("DEVELOPER", 0, "서울 강남구", "FULL_TIME", "MEDIUM", null);
 
     given(fallbackResolver.mapExperienceBracket6(0)).willReturn("ENTRY");
 
@@ -89,7 +89,7 @@ class WageBaselineResolverTest {
   @DisplayName("resolveBaseline - 13년차 LEAD 브래킷 기준선 조회 성공")
   void resolveBaseline_leadBracket() {
     CareerProfile profile = new CareerProfile(UUID.randomUUID());
-    profile.patch("DEVELOPER", 13, "서울 강남구", "FULL_TIME", "LARGE");
+    profile.patch("DEVELOPER", 13, "서울 강남구", "FULL_TIME", "LARGE", null);
 
     given(fallbackResolver.mapExperienceBracket6(13)).willReturn("LEAD");
 
@@ -112,7 +112,7 @@ class WageBaselineResolverTest {
   @DisplayName("resolveBaseline - 프로필 값이 비면 기본 직무·경력으로 전국 기준 조회")
   void resolveBaseline_defaultsToNational() {
     CareerProfile profile = new CareerProfile(UUID.randomUUID());
-    profile.patch(null, null, null, null, null);
+    profile.patch(null, null, null, null, null, null);
 
     given(fallbackResolver.mapExperienceBracket6(3)).willReturn("JUNIOR");
 
@@ -135,7 +135,7 @@ class WageBaselineResolverTest {
   @DisplayName("resolveBaseline - 전국 기준도 없으면 ALL 코드로 조회 성공")
   void resolveBaseline_fallbackToAll() {
     CareerProfile profile = new CareerProfile(UUID.randomUUID());
-    profile.patch("DEVELOPER", 5, "서울 강남구", "FULL_TIME", "LARGE");
+    profile.patch("DEVELOPER", 5, "서울 강남구", "FULL_TIME", "LARGE", null);
 
     given(fallbackResolver.mapExperienceBracket6(5)).willReturn("MID");
 

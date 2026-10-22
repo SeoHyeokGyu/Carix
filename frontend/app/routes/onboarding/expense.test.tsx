@@ -203,6 +203,8 @@ describe("S-07 소비 화면", () => {
         effectiveDate: "2024-01-01",
         changeReason: "INITIAL",
         selectedChangeReason: null,
+        bonusIncluded: true,
+        fixedBonusAnnual: null,
       },
     ]);
     vi.spyOn(expenseApi, "listExpenses").mockResolvedValue([]);

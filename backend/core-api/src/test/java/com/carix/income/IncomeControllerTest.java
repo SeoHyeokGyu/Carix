@@ -16,6 +16,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.carix.common.GlobalExceptionHandler;
 import com.carix.income.domain.IncomeChangeReasonEnum;
+import com.carix.income.dto.BonusTermsRequest;
 import com.carix.income.dto.IncomeRequest;
 import com.carix.income.dto.IncomeResponse;
 import com.carix.income.service.IncomeService;
@@ -52,7 +53,8 @@ class IncomeControllerTest {
   void getIncomeHistory() throws Exception {
     UUID id = UUID.randomUUID();
     IncomeResponse res =
-        new IncomeResponse(id, 60000000L, 4500000L, LocalDate.of(2026, 1, 1), null, null);
+        new IncomeResponse(
+            id, 60000000L, 4500000L, LocalDate.of(2026, 1, 1), null, null, true, null);
     given(incomeService.getHistory(USER_ID)).willReturn(List.of(res));
 
     mockMvc
@@ -67,7 +69,7 @@ class IncomeControllerTest {
   void createIncome() throws Exception {
     UUID id = UUID.randomUUID();
     LocalDate date = LocalDate.of(2026, 7, 1);
-    IncomeResponse res = new IncomeResponse(id, 65000000L, 4800000L, date, null, null);
+    IncomeResponse res = new IncomeResponse(id, 65000000L, 4800000L, date, null, null, true, null);
     given(incomeService.create(eq(USER_ID), any(IncomeRequest.class))).willReturn(res);
 
     mockMvc
@@ -93,7 +95,7 @@ class IncomeControllerTest {
   void updateIncome() throws Exception {
     UUID id = UUID.randomUUID();
     LocalDate date = LocalDate.of(2026, 7, 1);
-    IncomeResponse res = new IncomeResponse(id, 70000000L, 5000000L, date, null, null);
+    IncomeResponse res = new IncomeResponse(id, 70000000L, 5000000L, date, null, null, true, null);
     given(incomeService.update(eq(USER_ID), eq(id), any(IncomeRequest.class))).willReturn(res);
 
     mockMvc
@@ -163,7 +165,9 @@ class IncomeControllerTest {
             3800000L,
             LocalDate.of(2024, 1, 1),
             IncomeChangeReasonEnum.INITIAL,
-            IncomeChangeReasonEnum.JOB_CHANGE);
+            IncomeChangeReasonEnum.JOB_CHANGE,
+            true,
+            null);
     given(incomeService.getHistory(USER_ID)).willReturn(List.of(res));
 
     mockMvc
@@ -219,5 +223,100 @@ class IncomeControllerTest {
         .andExpect(status().isBadRequest())
         .andExpect(content().string(org.hamcrest.Matchers.not(containsString("123456789"))))
         .andExpect(content().string(org.hamcrest.Matchers.not(containsString("FOO"))));
+  }
+
+  private static final String APPLY_FROM = "11111111-1111-1111-1111-111111111111";
+
+  private org.springframework.test.web.servlet.ResultActions putBonusTerms(String json)
+      throws Exception {
+    return mockMvc.perform(
+        put("/v1/income/bonus-terms")
+            .header("X-User-Id", USER_ID.toString())
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(json));
+  }
+
+  @Test
+  @DisplayName("PUT /v1/income/bonus-terms - 따로 받음이면 200 과 갱신된 행 목록")
+  void updateBonusTerms() throws Exception {
+    IncomeResponse res =
+        new IncomeResponse(
+            UUID.fromString(APPLY_FROM),
+            60000000L,
+            4500000L,
+            LocalDate.of(2026, 3, 1),
+            null,
+            null,
+            false,
+            6_000_000L);
+    given(incomeService.updateBonusTerms(eq(USER_ID), any(BonusTermsRequest.class)))
+        .willReturn(List.of(res));
+
+    putBonusTerms(
+            """
+            {"applyFromIncomeId": "%s", "bonusIncluded": false, "fixedBonusAnnual": 6000000}
+            """
+                .formatted(APPLY_FROM))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.data[0].bonusIncluded").value(false))
+        .andExpect(jsonPath("$.data[0].fixedBonusAnnual").value(6_000_000L));
+  }
+
+  @Test
+  @DisplayName("PUT /v1/income/bonus-terms - 들어있음인데 고정상여가 있으면 fixedBonusAnnual 필드 400")
+  void 들어있음이면_고정상여는_null로_저장한다() throws Exception {
+    putBonusTerms(
+            """
+            {"applyFromIncomeId": "%s", "bonusIncluded": true, "fixedBonusAnnual": 3000000}
+            """
+                .formatted(APPLY_FROM))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.code").value("INVALID_INPUT"))
+        .andExpect(jsonPath("$.details.fixedBonusAnnual").exists());
+
+    verify(incomeService, org.mockito.Mockito.never()).updateBonusTerms(any(), any());
+  }
+
+  @Test
+  @DisplayName("PUT /v1/income/bonus-terms - 따로받음인데 금액이 0원이면 400")
+  void 따로받음인데_금액이_0원이면_400() throws Exception {
+    putBonusTerms(
+            """
+            {"applyFromIncomeId": "%s", "bonusIncluded": false, "fixedBonusAnnual": 0}
+            """
+                .formatted(APPLY_FROM))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.details.fixedBonusAnnual").exists());
+
+    verify(incomeService, org.mockito.Mockito.never()).updateBonusTerms(any(), any());
+  }
+
+  @Test
+  @DisplayName("PUT /v1/income/bonus-terms - 따로받음인데 금액이 없으면 400")
+  void 따로받음인데_금액이_없으면_400() throws Exception {
+    putBonusTerms(
+            """
+            {"applyFromIncomeId": "%s", "bonusIncluded": false}
+            """
+                .formatted(APPLY_FROM))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.details.fixedBonusAnnual").exists());
+
+    verify(incomeService, org.mockito.Mockito.never()).updateBonusTerms(any(), any());
+  }
+
+  @Test
+  @DisplayName("PUT /v1/income/bonus-terms - 필수 필드 누락·음수 금액은 400")
+  void updateBonusTerms_rejectsInvalid() throws Exception {
+    putBonusTerms("{\"bonusIncluded\": true}")
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.details.applyFromIncomeId").exists());
+    putBonusTerms(
+            """
+            {"applyFromIncomeId": "%s", "bonusIncluded": false, "fixedBonusAnnual": -1}
+            """
+                .formatted(APPLY_FROM))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.details.fixedBonusAnnual").exists());
   }
 }

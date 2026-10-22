@@ -36,4 +36,23 @@ describe("profile API", () => {
       }),
     );
   });
+
+  it("입사일만 보내 저장한다", async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ success: true, data: { hireDate: "2022-03-02" } }),
+    } as unknown as Response);
+
+    await expect(patchProfile({ hireDate: "2022-03-02" })).resolves.toEqual({
+      hireDate: "2022-03-02",
+    });
+    expect(globalThis.fetch).toHaveBeenCalledWith(
+      "/api/v1/profile",
+      expect.objectContaining({
+        method: "PATCH",
+        body: JSON.stringify({ hireDate: "2022-03-02" }),
+      }),
+    );
+  });
 });
