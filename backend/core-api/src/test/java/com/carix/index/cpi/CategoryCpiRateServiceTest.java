@@ -207,4 +207,40 @@ class CategoryCpiRateServiceTest {
         .findFirst()
         .orElseThrow();
   }
+
+  @Test
+  @DisplayName("총지수 전년동월비는 그 달과 12개월 전 총지수 값의 변화율이다")
+  void 총지수_전년동월비() {
+    put("202509", "0", "100.00");
+    put("202609", "0", "102.50");
+
+    assertThat(service.headlineYearOverYear("202609").orElseThrow())
+        .isEqualByComparingTo(new BigDecimal("0.025"));
+  }
+
+  @Test
+  @DisplayName("총지수 행이 한쪽이라도 없으면 빈 값")
+  void 총지수_행이_없으면_empty() {
+    month("202509", "100.00");
+    month("202609", "103.00");
+    put("202609", "0", "103.00");
+
+    assertThat(service.headlineYearOverYear("202609")).isEmpty();
+    assertThat(service.headlineYearOverYear("202412")).isEmpty();
+  }
+
+  @Test
+  @DisplayName("총지수 행이 있어도 카테고리 변화율은 그대로다")
+  void 총지수_행이_있어도_카테고리_변화율은_그대로() {
+    month("202509", "100.00");
+    month("202609", "100.00");
+    put("202609", "G", "103.00");
+    put("202509", "0", "100.00");
+    put("202609", "0", "150.00");
+
+    var rates = service.yearOverYear("202609").orElseThrow();
+
+    assertThat(rates.rates().get(ExpenseCategoryEnum.TRANSPORT)).isEqualByComparingTo("0.03");
+    assertThat(rates.rates().get(ExpenseCategoryEnum.FOOD)).isEqualByComparingTo("0");
+  }
 }

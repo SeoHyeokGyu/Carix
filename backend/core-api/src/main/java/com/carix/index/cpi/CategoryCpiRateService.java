@@ -31,6 +31,9 @@ public class CategoryCpiRateService {
   private static final DateTimeFormatter YM = DateTimeFormatter.ofPattern("yyyyMM");
   private static final int RATE_SCALE = 10;
 
+  /** KOSIS 총지수 코드. 카테고리 계산은 {@link CpiCategoryConfig} 코드만 읽으므로 섞이지 않는다. */
+  private static final String HEADLINE_CATEGORY = "0";
+
   private final CpiObservationRecordRepository repository;
   private final CpiCategoryConfig config;
 
@@ -66,6 +69,26 @@ public class CategoryCpiRateService {
             (category, definition) ->
                 rate(definition, now, before).ifPresent(rate -> rates.put(category, rate)));
     return Optional.of(new CategoryCpiRates(current, rates));
+  }
+
+  /** 총지수({@code '0'}) 전년 동월 대비 변화율. 그 달이나 12개월 전 행이 없으면 빈 값 — 시차 허용 없이 정확히 그 달만 본다. */
+  @Transactional(readOnly = true)
+  public Optional<BigDecimal> headlineYearOverYear(String targetYearMonth) {
+    YearMonth target = YearMonth.parse(targetYearMonth, YM);
+    Optional<BigDecimal> now = headlineValue(YM.format(target));
+    Optional<BigDecimal> before = headlineValue(YM.format(target.minusYears(1)));
+    if (now.isEmpty() || before.isEmpty() || before.get().signum() <= 0) {
+      return Optional.empty();
+    }
+    return Optional.of(
+        now.get().divide(before.get(), RATE_SCALE, RoundingMode.HALF_UP).subtract(BigDecimal.ONE));
+  }
+
+  private Optional<BigDecimal> headlineValue(String yearMonth) {
+    return repository.findByBaseYearMonthIn(List.of(yearMonth)).stream()
+        .filter(row -> HEADLINE_CATEGORY.equals(row.getCategory()))
+        .map(CpiObservationRecord::getCpiValue)
+        .findFirst();
   }
 
   /** {@code onOrBeforeYearMonth} 이하에서 CPI 가 적재된 가장 늦은 달. */

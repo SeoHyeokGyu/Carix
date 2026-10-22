@@ -293,6 +293,7 @@ export default function DashboardHome() {
                 }
               />
             </div>
+            <BonusInclusiveIncomeLine income={data.bonusInclusiveIncome} />
           </PageSection>
 
           <TrustPanel
@@ -303,6 +304,25 @@ export default function DashboardHome() {
         </div>
       )}
     </PageFrame>
+  );
+}
+
+/** 성과급을 포함한 연간 실소득의 실질 변화 한 줄. 성과급 기록이 없거나 변화를 계산하지 못하면 줄이 없다. */
+function BonusInclusiveIncomeLine({
+  income,
+}: {
+  income: DashboardSummary["bonusInclusiveIncome"];
+}) {
+  if (!income || income.realChangePercent == null) {
+    return null;
+  }
+  const change = income.realChangePercent;
+  const signed = `${change > 0 ? "+" : ""}${change.toFixed(1)}%`;
+  return (
+    <p className="mt-3 text-sm text-carix-text/70">
+      성과급 포함 연간 실소득 {signed} (최근 12개월 성과급 {income.bonusCount}건
+      반영)
+    </p>
   );
 }
 

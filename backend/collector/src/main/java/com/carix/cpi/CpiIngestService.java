@@ -11,8 +11,9 @@ import org.springframework.transaction.annotation.Transactional;
 /**
  * KOSIS 지출목적별 소비자물가지수를 수집하여 {@code core.cpi_observation}에 적재하는 서비스.
  *
- * <p>카테고리는 KOSIS 12대 분류 코드(A~L) 원값 그대로 저장한다. Carix 6개 소비 카테고리로의 매핑·가중합성은 이 서비스의 책임이 아니며, Index
- * Engine이 {@code cpi-category-map.yml} / {@code default-expense-weights.yml} 기준으로 계산 시점에 수행한다.
+ * <p>카테고리는 KOSIS 총지수 {@code 0} 과 12대 분류 코드(A~L) 원값 그대로 저장한다. Carix 6개 소비 카테고리로의 매핑·가중합성은 이 서비스의 책임이
+ * 아니며, Index Engine이 {@code cpi-category-map.yml} / {@code default-expense-weights.yml} 기준으로 계산 시점에
+ * 수행한다.
  */
 @Slf4j
 @Service

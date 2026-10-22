@@ -57,6 +57,8 @@
    - 기준월 이전 대상월은 CPI 시차와 무관하게 `NOT_AVAILABLE`.
    - 개인물가 = 기준월부터 Π(1 + Σ 그 달 가중치 × 카테고리 전월 대비 CPI 변화율). 카테고리 합성은 `CategoryCpiRateService`, 가중치는 §1.1.
    - 구매력 지수 = 소득지수 ÷ 개인물가 × 100 (소수 1자리). 소득은 양쪽 실수령액이 있으면 실수령액, 아니면 세전.
+   - 소득 이력 행이 상여를 따로 받는 것으로 표시돼 있으면(`bonus_included = false`) 고정상여 연액을 소득에 더한다 — 지급월 스파이크 없이 연액/12 로 매달 반영한다. 세전은 연봉 + 연액, 실수령은 월 실수령 + 연액/12 × 그 행의 실효 수령률(실수령 × 12 ÷ 연봉). 실수령 우선 선택 규칙은 그대로다. 성과급은 지수에 섞지 않는다.
+   - 산식 버전(`DefaultPurchasingPowerIndexProvider.FORMULA_VERSION`, 현재 `"2"`)을 스냅샷 근거 `ppiFormulaVersion` 에 남긴다. 필드 없는 이전 행은 `"1"` 로 읽고 다시 쓰지 않는다.
    - 기준월부터 12개월 미만은 값과 `INSUFFICIENT_HISTORY`, 이상은 `OK`. 연봉 이력 1건이어도 계산한다.
    - 대상월 CPI 가 없으면 2개월 이내 마지막 CPI 월까지 누적하고 `cpiAsOf` 에 그 달 말일을 담는다. `cpiAsOf` 는 스냅샷 근거(`rationale`)에 기록되고 대시보드에는 따로 표시하지 않는다. 더 늦으면 `UPDATE_DELAYED`.
    - 구간 안 CPI 카테고리 결측은 `NOT_AVAILABLE`.

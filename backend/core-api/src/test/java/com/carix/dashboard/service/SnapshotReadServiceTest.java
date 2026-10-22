@@ -43,6 +43,7 @@ class SnapshotReadServiceTest {
   private SnapshotQueryService queryService;
   private DashboardSummaryService summaryService;
   private NegotiationTargetService negotiationTargetService;
+  private BonusInclusiveIncomeCalculator bonusInclusiveIncomeCalculator;
   private SnapshotSeriesService seriesService;
 
   @BeforeEach
@@ -50,7 +51,10 @@ class SnapshotReadServiceTest {
     repository = mock(IndexSnapshotRepository.class);
     queryService = new SnapshotQueryService(repository);
     negotiationTargetService = mock(NegotiationTargetService.class);
-    summaryService = new DashboardSummaryService(queryService, negotiationTargetService);
+    bonusInclusiveIncomeCalculator = mock(BonusInclusiveIncomeCalculator.class);
+    summaryService =
+        new DashboardSummaryService(
+            queryService, negotiationTargetService, bonusInclusiveIncomeCalculator);
     seriesService = new SnapshotSeriesService(queryService);
   }
 
@@ -69,6 +73,19 @@ class SnapshotReadServiceTest {
     assertThat(response.marketValueIndex().value()).isNull();
     assertThat(response.decisionSignal().code())
         .isEqualTo(DecisionSignalCode.INSUFFICIENT_DATA.name());
+  }
+
+  @Test
+  @DisplayName("summary - 성과급 포함 연간 실소득은 계산기 결과를 그대로 싣는다")
+  void summary_성과급포함소득() {
+    given(repository.findByUserIdOrderByBaseYearMonthDesc(USER_ID))
+        .willReturn(List.of(snapshot("202607", "94.20", "117.50", DecisionSignalCode.STAY)));
+    var income = new DashboardSummaryResponse.BonusInclusiveIncome(25.5, 1);
+    given(bonusInclusiveIncomeCalculator.calculate(USER_ID, "202607")).willReturn(income);
+
+    DashboardSummaryResponse response = summaryService.resolve(USER_ID, "202607");
+
+    assertThat(response.bonusInclusiveIncome()).isEqualTo(income);
   }
 
   @Test

@@ -49,6 +49,7 @@ public class DashboardSummaryService {
 
   private final SnapshotQueryService snapshotQueryService;
   private final NegotiationTargetService negotiationTargetService;
+  private final BonusInclusiveIncomeCalculator bonusInclusiveIncomeCalculator;
 
   @Transactional(readOnly = true)
   public DashboardSummaryResponse resolve(UUID userId, String baseYearMonth) {
@@ -78,6 +79,7 @@ public class DashboardSummaryService {
             statuses.owi()),
         negotiationTargets(userId, baseYearMonth, snapshot, months),
         decisionSignal(snapshot),
+        bonusInclusiveIncomeCalculator.calculate(userId, baseYearMonth),
         metadata(snapshot));
   }
 
@@ -316,6 +318,7 @@ public class DashboardSummaryService {
             DecisionSignalCode.INSUFFICIENT_DATA.label(),
             List.of(),
             null),
+        null,
         new SummaryMetadata(
             null, null, null, false, List.of(), null, null, null, null, null, null, null));
   }

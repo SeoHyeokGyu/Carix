@@ -34,7 +34,10 @@ import java.util.List;
  * @param openingWindow 개방창 지수의 산출 근거. 근거가 하나도 없으면 {@code null}
  * @param wageStatSource 임금통계 기준선 출처. {@code KOSIS}, {@code FALLBACK}, {@code UNKNOWN}
  * @param topPriceDriver 물가 기여도 1위 카테고리 (c12). 산출 불가 또는 이 필드 도입 전 행은 {@code null}. 금액을 담지 않는다
+ * @param ppiFormulaVersion 구매력 지수 산식 버전. 이 필드 도입 전 행은 {@code null} 로 읽히며 {@link
+ *     #ppiFormulaVersionOrLegacy()} 가 {@code "1"} 로 돌려준다. 저장된 행은 다시 쓰지 않는다
  */
+@JsonIgnoreProperties(ignoreUnknown = true)
 public record SnapshotRationale(
     List<String> rulesApplied,
     String salaryGapBucket,
@@ -48,7 +51,42 @@ public record SnapshotRationale(
     IndexStatuses indexStatuses,
     OpeningWindowEvidence openingWindow,
     String wageStatSource,
-    TopPriceDriver topPriceDriver) {
+    TopPriceDriver topPriceDriver,
+    String ppiFormulaVersion) {
+
+  /** 구매력 지수 산식 버전이 없는 행(도입 전)이 읽힐 때의 버전. */
+  public static final String LEGACY_PPI_FORMULA_VERSION = "1";
+
+  public SnapshotRationale(
+      List<String> rulesApplied,
+      String salaryGapBucket,
+      List<SourceCoverage> sourceCoverages,
+      List<SkillContribution> skillContributions,
+      List<String> excludedSkills,
+      LocalDate cpiAsOf,
+      LocalDate aggregateAsOf,
+      String wageStatVintage,
+      String runId,
+      IndexStatuses indexStatuses,
+      OpeningWindowEvidence openingWindow,
+      String wageStatSource,
+      TopPriceDriver topPriceDriver) {
+    this(
+        rulesApplied,
+        salaryGapBucket,
+        sourceCoverages,
+        skillContributions,
+        excludedSkills,
+        cpiAsOf,
+        aggregateAsOf,
+        wageStatVintage,
+        runId,
+        indexStatuses,
+        openingWindow,
+        wageStatSource,
+        topPriceDriver,
+        null);
+  }
 
   public SnapshotRationale(
       List<String> rulesApplied,
@@ -115,6 +153,10 @@ public record SnapshotRationale(
     // 널 체크를 하지 않는다. 세 지수가 모두 null 인 인스턴스는 `value == null` 과 만나
     // NOT_AVAILABLE 로 접히므로(§3.3) 결과가 도입 전 동작과 같다.
     indexStatuses = indexStatuses == null ? IndexStatuses.unknown() : indexStatuses;
+  }
+
+  public String ppiFormulaVersionOrLegacy() {
+    return ppiFormulaVersion == null ? LEGACY_PPI_FORMULA_VERSION : ppiFormulaVersion;
   }
 
   /**

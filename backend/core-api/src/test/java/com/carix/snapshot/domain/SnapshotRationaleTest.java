@@ -139,4 +139,35 @@ class SnapshotRationaleTest {
     assertThat(rationale.openingWindow().recentSharePercent()).isNull();
     assertThat(rationale.openingWindow().baselineSharePercent()).isNull();
   }
+
+  @Test
+  @DisplayName("산식 버전이 없는 이전 행은 1 로 읽고 새 행은 기록된 버전을 읽는다")
+  void ppiFormulaVersion_이전_행은_1() throws Exception {
+    ObjectMapper mapper = new ObjectMapper().registerModule(new JavaTimeModule());
+
+    SnapshotRationale legacy = mapper.readValue("{\"runId\":\"r\"}", SnapshotRationale.class);
+    SnapshotRationale current =
+        mapper.readValue(
+            mapper.writeValueAsString(
+                new SnapshotRationale(
+                    null, null, null, null, null, null, null, null, "r", null, null, null, null,
+                    "2")),
+            SnapshotRationale.class);
+
+    assertThat(legacy.ppiFormulaVersion()).isNull();
+    assertThat(legacy.ppiFormulaVersionOrLegacy()).isEqualTo("1");
+    assertThat(current.ppiFormulaVersionOrLegacy()).isEqualTo("2");
+  }
+
+  @Test
+  @DisplayName("미지의 필드가 있는 행도 읽는다 — 이전 버전으로 되돌려도 새 행이 깨지지 않는다")
+  void 미지의_필드는_무시하고_읽는다() throws Exception {
+    // Hibernate 의 JSON 포맷 매퍼는 기본 ObjectMapper 라 FAIL_ON_UNKNOWN_PROPERTIES 가 켜져 있다
+    ObjectMapper mapper = new ObjectMapper().registerModule(new JavaTimeModule());
+
+    SnapshotRationale rationale =
+        mapper.readValue("{\"runId\":\"r\",\"someFutureField\":\"x\"}", SnapshotRationale.class);
+
+    assertThat(rationale.runId()).isEqualTo("r");
+  }
 }

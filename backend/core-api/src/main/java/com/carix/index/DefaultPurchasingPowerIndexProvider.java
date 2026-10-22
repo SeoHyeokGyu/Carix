@@ -38,6 +38,7 @@ import org.springframework.transaction.annotation.Transactional;
  *   <li>개인물가: 기준월부터 그 달 소비 가중치로 가중한 카테고리 전월 대비 CPI 변화율을 누적한다.
  *   <li>현재월 CPI 가 아직 없으면 허용 시차({@link CategoryCpiRateService#MAX_LAG_MONTHS}) 안의 마지막 CPI 월까지 누적하고
  *       {@code cpiAsOf} 로 밝힌다. 없는 달의 물가를 지어내지 않는다.
+ *   <li>소득은 {@link EffectiveIncome} — 계약 금액 밖에서 따로 받는 고정상여를 연액/12 로 매달 더한다.
  *   <li>연봉이 1건이어도 계산한다 — 연봉이 그대로면 물가만큼 내려간다. 12개월 미만은 값이 있고 상태가 비교 기간 짧음이다.
  * </ul>
  */
@@ -48,6 +49,9 @@ public class DefaultPurchasingPowerIndexProvider implements PurchasingPowerIndex
   private static final DateTimeFormatter YM = DateTimeFormatter.ofPattern("yyyyMM");
   private static final BigDecimal HUNDRED = new BigDecimal("100");
   private static final int FULL_HISTORY_MONTHS = 12;
+
+  /** 산식 버전. 2 부터 별도 고정상여를 연액/12 로 소득에 반영한다. 스냅샷 근거에 남는다. */
+  public static final String FORMULA_VERSION = "2";
 
   private final IncomeHistoryRepository incomeHistoryRepository;
   private final ExpenseWeightResolver expenseWeightResolver;
@@ -144,8 +148,8 @@ public class DefaultPurchasingPowerIndexProvider implements PurchasingPowerIndex
   /** 기준·현재 둘 다 실수령액이 있으면 실수령액, 아니면 둘 다 세전. 한쪽만 섞으면 세율 차이가 구매력 변화로 읽힌다. */
   private static Optional<BigDecimal> incomeRatio(IncomeHistory base, IncomeHistory current) {
     boolean net = positive(base.getNetSalary()) && positive(current.getNetSalary());
-    Long from = net ? base.getNetSalary() : base.getGrossSalary();
-    Long to = net ? current.getNetSalary() : current.getGrossSalary();
+    Long from = net ? EffectiveIncome.monthlyNet(base) : EffectiveIncome.annualGross(base);
+    Long to = net ? EffectiveIncome.monthlyNet(current) : EffectiveIncome.annualGross(current);
     if (!positive(from) || !positive(to)) {
       return Optional.empty();
     }

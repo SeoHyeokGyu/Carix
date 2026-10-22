@@ -99,6 +99,18 @@ export interface NegotiationTargets {
   toPurchasingPowerRecovery: RecoveryTarget | null;
 }
 
+/**
+ * 최근 12개월과 직전 12개월의 소득(월할 연봉·고정상여 + 지급 성과급) 비교.
+ * 기준월 포함 24개월 창에 지급월이 있는 성과급이 없으면 필드 자체가 `null` 이고,
+ * `realChangePercent` 는 직전 12개월 창을 소득 행이 온전히 덮지 못하거나 개인물가가 없으면
+ * `null` 이다. 금액은 싣지 않는다. 지수에는 섞이지 않는다.
+ */
+export interface BonusInclusiveIncome {
+  realChangePercent: number | null;
+  /** 최근 12개월에 지급된 성과급 건수 */
+  bonusCount: number;
+}
+
 export interface DashboardSummary {
   purchasingPowerIndex: IndexValue;
   marketValueIndex: IndexValue;
@@ -106,6 +118,7 @@ export interface DashboardSummary {
   /** `NEGOTIATE`·`SEEK_JOB` 의 가장 최근 달에만. */
   negotiationTargets?: NegotiationTargets | null;
   decisionSignal: DecisionSignal | null;
+  bonusInclusiveIncome?: BonusInclusiveIncome | null;
   metadata: DashboardMetadata;
 }
 
