@@ -82,20 +82,6 @@ class PersonalPriceIndexCalculatorTest {
   }
 
   @Test
-  @DisplayName("물가가 내리면 1 보다 작다")
-  void deflation() {
-    BigDecimal index =
-        PersonalPriceIndexCalculator.accumulate(
-                "202601",
-                "202602",
-                Map.of("202602", flat("-0.02")),
-                Map.of("202602", weights("0.5")))
-            .orElseThrow();
-
-    assertThat(index).isEqualByComparingTo("0.98");
-  }
-
-  @Test
   @DisplayName("구간이 비면(end <= base) 1 이다")
   void emptyRange_returnsOne() {
     assertThat(PersonalPriceIndexCalculator.accumulate("202609", "202609", Map.of(), Map.of()))

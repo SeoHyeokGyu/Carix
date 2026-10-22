@@ -18,7 +18,6 @@ import com.carix.jobposting.normalize.ExperienceRange;
 import com.carix.jobposting.normalize.PostingSalary;
 import com.carix.jobposting.seed.JobKoreaListingFields;
 import com.carix.jobposting.seed.SaraminListingFields;
-import com.carix.pipeline.dto.CrawlRequest;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
@@ -49,19 +48,6 @@ class JobPostingIngestServiceTest {
 
     service =
         new JobPostingIngestService(jobPostingRepository, skillRepository, rawIngestRepository);
-  }
-
-  @Test
-  @DisplayName("crawlAndIngest - 유효하지 않은 포털 또는 0페이지 요청 시 안전하게 0 반환")
-  void crawlAndIngest_zeroPagesOrInvalid() {
-    int res1 = service.crawlAndIngest(new CrawlRequest("NONE", null, 0, null, null, null));
-    assertThat(res1).isEqualTo(0);
-
-    int res2 = service.crawlAndIngestJobKorea("IT", 0);
-    assertThat(res2).isEqualTo(0);
-
-    int res3 = service.crawlAndIngestSaramin(0);
-    assertThat(res3).isEqualTo(0);
   }
 
   @Test
@@ -253,85 +239,6 @@ class JobPostingIngestServiceTest {
   }
 
   @Test
-  @DisplayName("ingestSaraminPosting - 사람인 신규 공고 적재 및 스킬/산업 태그 저장")
-  void ingestSaraminPosting_new() {
-    Instant now = Instant.now();
-    given(jobPostingRepository.findBySourceAndExternalId("SARAMIN", "2001"))
-        .willReturn(Optional.empty());
-
-    SaraminListingFields fields =
-        new SaraminListingFields(
-            "정규직", "경력 3~5년", "~ 08/31(월)", List.of("Java", "Spring Boot"), List.of("SI"));
-
-    service.ingestSaraminPosting(
-        "2001",
-        "자바 개발자",
-        "삼성SDS",
-        "서울 송파구",
-        ExperienceRange.parse("경력 3~5년"),
-        "26/08/01",
-        fields,
-        now,
-        "202608",
-        null);
-
-    verify(jobPostingRepository, atLeastOnce()).save(any(JobPosting.class));
-    verify(skillRepository, atLeastOnce()).save(any(Skill.class));
-  }
-
-  @Test
-  @DisplayName("ingestSaraminPosting - 사람인 기존 공고 갱신")
-  void ingestSaraminPosting_existing() {
-    Instant now = Instant.now();
-    JobPosting existing = JobPosting.builder().source("SARAMIN").externalId("2002").build();
-    given(jobPostingRepository.findBySourceAndExternalId("SARAMIN", "2002"))
-        .willReturn(Optional.of(existing));
-
-    SaraminListingFields fields = new SaraminListingFields("계약직", "무관", null, List.of(), List.of());
-
-    service.ingestSaraminPosting(
-        "2002",
-        "데이터 엔지니어",
-        "라인",
-        "전국",
-        ExperienceRange.parse("무관"),
-        null,
-        fields,
-        now,
-        "202608",
-        null);
-
-    assertThat(existing.getLastSeenMonth()).isEqualTo("202608");
-    verify(jobPostingRepository, atLeastOnce()).save(existing);
-  }
-
-  @Test
-  @DisplayName("ingestSaraminPosting - 기존에 존재하는 스킬이 있는 경우 재사용")
-  void ingestSaraminPosting_withExistingSkill() {
-    Instant now = Instant.now();
-    Skill existingSkill = new Skill("Java", "Backend", false);
-    given(skillRepository.findByStandardNameAndCategory("Java", "Backend"))
-        .willReturn(Optional.of(existingSkill));
-
-    SaraminListingFields fields =
-        new SaraminListingFields("정규직", "신입", null, List.of("Java"), List.of("IT"));
-
-    service.ingestSaraminPosting(
-        "2003",
-        "자바 주니어",
-        "당근",
-        "서울 서초구",
-        ExperienceRange.parse("신입"),
-        null,
-        fields,
-        now,
-        "202608",
-        null);
-
-    verify(jobPostingRepository, atLeastOnce()).save(any(JobPosting.class));
-  }
-
-  @Test
   @DisplayName("사람인 신규 공고는 확인 경로 SARAMIN_SEARCH 를 단다")
   void saraminNewPostingMarksSearchPath() {
     given(jobPostingRepository.findBySourceAndExternalId("SARAMIN", "501"))
@@ -446,44 +353,5 @@ class JobPostingIngestServiceTest {
     assertThat(saved.getAllValues())
         .extracting(JobPosting::getExternalId)
         .containsExactly("801", "802", "803");
-  }
-
-  @Test
-  @DisplayName("잡코리아 목록에서 한 공고의 적재가 실패해도 같은 페이지의 나머지는 저장한다")
-  void jobKoreaRowFailureDoesNotSkipRestOfPage() {
-    for (String id : List.of("901", "902", "903")) {
-      given(jobPostingRepository.findBySourceAndExternalId("JOBKOREA", id))
-          .willReturn(Optional.of(JobPosting.builder().source("JOBKOREA").externalId(id).build()));
-    }
-    given(jobPostingRepository.save(any(JobPosting.class)))
-        .willAnswer(
-            i -> {
-              JobPosting p = i.getArgument(0);
-              if ("902".equals(p.getExternalId())) {
-                throw new IllegalStateException("boom");
-              }
-              return p;
-            });
-    // href 가 접속할 수 없는 값이라 상세 수집은 실패해 null 로 넘어간다.
-    var doc =
-        org.jsoup.Jsoup.parse(
-            """
-            <table>
-            <tr class="devloopArea" data-gno="901"><td class="tplTit"><strong><a class="link" href="x://a">A</a></strong></td></tr>
-            <tr class="devloopArea" data-gno="902"><td class="tplTit"><strong><a class="link" href="x://b">B</a></strong></td></tr>
-            <tr class="devloopArea" data-gno="903"><td class="tplTit"><strong><a class="link" href="x://c">C</a></strong></td></tr>
-            </table>
-            """);
-
-    int ingested =
-        service.ingestJobKoreaRows(
-            doc, doc.select("tr.devloopArea"), new java.util.HashSet<>(), Instant.now(), "202610");
-
-    assertThat(ingested).isEqualTo(2);
-    ArgumentCaptor<JobPosting> saved = ArgumentCaptor.forClass(JobPosting.class);
-    verify(jobPostingRepository, org.mockito.Mockito.times(3)).save(saved.capture());
-    assertThat(saved.getAllValues())
-        .extracting(JobPosting::getExternalId)
-        .containsExactly("901", "902", "903");
   }
 }

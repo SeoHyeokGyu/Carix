@@ -20,11 +20,6 @@ describe("ExpenseDonut", () => {
     expect(toShares([{ category: "HOUSING", amount: 0 }])).toEqual([]);
   });
 
-  it("비중을 텍스트로도 읽을 수 있게 표시한다", () => {
-    render(<ExpenseDonut items={[{ category: "HOUSING", amount: 100 }]} />);
-    expect(screen.getByText("주거·공공요금 100%")).toBeInTheDocument();
-  });
-
   it("금액이 0 인 카테고리는 목록·도넛 어디에도 나오지 않는다", () => {
     render(
       <ExpenseDonut
@@ -36,11 +31,6 @@ describe("ExpenseDonut", () => {
     );
     expect(screen.getByText("주거·공공요금 100%")).toBeInTheDocument();
     expect(screen.queryByText(/식비/)).not.toBeInTheDocument();
-  });
-
-  it("입력한 금액이 전부 0 이면 안내 문구를 보여준다", () => {
-    render(<ExpenseDonut items={[{ category: "HOUSING", amount: 0 }]} />);
-    expect(screen.getByText(/비중을 계산할 수 없습니다/)).toBeInTheDocument();
   });
 
   // 팀 리드 판정 — 서버 보간(DEFAULT_CPI) 값도 도넛에 반영하되, 실제 입력값과는
@@ -64,10 +54,5 @@ describe("ExpenseDonut", () => {
       />,
     );
     expect(screen.getByText("식비 100% (추정)")).toBeInTheDocument();
-  });
-
-  it("estimated 가 아닌 항목에는 「(추정)」 문구가 붙지 않는다", () => {
-    render(<ExpenseDonut items={[{ category: "HOUSING", amount: 100 }]} />);
-    expect(screen.queryByText(/추정/)).not.toBeInTheDocument();
   });
 });

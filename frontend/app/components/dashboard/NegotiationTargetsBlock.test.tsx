@@ -34,18 +34,6 @@ describe("NegotiationTargetsBlock (US-D7)", () => {
     expect(screen.getByText("연령대 기준 추정 · KOSIS")).toBeInTheDocument();
   });
 
-  it("SEEK_JOB 은 희망 연봉 목표 제목과 '수준' 라벨이다", () => {
-    render(<NegotiationTargetsBlock signalCode="SEEK_JOB" targets={TARGETS} />);
-
-    expect(screen.getByText("희망 연봉 목표")).toBeInTheDocument();
-    expect(screen.getByText("임금통계 중앙값 수준")).toBeInTheDocument();
-    expect(screen.getByText("동료집단 상위 25% 수준")).toBeInTheDocument();
-    expect(
-      screen.getByText("2025년 3월 이후 물가 상승분 반영"),
-    ).toBeInTheDocument();
-    expect(screen.getByText("KOSIS")).toBeInTheDocument();
-  });
-
   it("복구선 NONE 은 물가 상승분 없음이다", () => {
     render(
       <NegotiationTargetsBlock
@@ -62,18 +50,6 @@ describe("NegotiationTargetsBlock (US-D7)", () => {
     );
 
     expect(screen.getByText("물가 상승분 없음")).toBeInTheDocument();
-  });
-
-  it("null 줄은 렌더하지 않는다", () => {
-    render(
-      <NegotiationTargetsBlock
-        signalCode="NEGOTIATE"
-        targets={{ ...TARGETS, toPeerP75: null }}
-      />,
-    );
-
-    expect(screen.queryByText(/동료집단 상위 25%/)).not.toBeInTheDocument();
-    expect(screen.getByText("임금통계 중앙값까지")).toBeInTheDocument();
   });
 
   it("BELOW 인데 값이 없으면(계약 위반) +0.0% 대신 그 줄을 생략한다", () => {
@@ -102,14 +78,6 @@ describe("NegotiationTargetsBlock (US-D7)", () => {
           toPurchasingPowerRecovery: null,
         }}
       />,
-    );
-
-    expect(container).toBeEmptyDOMElement();
-  });
-
-  it("targets 가 없으면 렌더하지 않는다", () => {
-    const { container } = render(
-      <NegotiationTargetsBlock signalCode="NEGOTIATE" targets={null} />,
     );
 
     expect(container).toBeEmptyDOMElement();

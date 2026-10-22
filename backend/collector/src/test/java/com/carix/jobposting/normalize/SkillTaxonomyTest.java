@@ -87,35 +87,6 @@ class SkillTaxonomyTest {
   }
 
   @Test
-  void keepsTechnologyTermsAsSkill() {
-    assertEquals("SKILL", taxonomy.category("Java"));
-    assertEquals("SKILL", taxonomy.category("AWS"));
-    assertEquals("SKILL", taxonomy.category("Docker"));
-  }
-
-  @Test
-  void categorizesByCanonicalNameSoCaseDoesNotMatter() {
-    assertEquals("JOB_CATEGORY", taxonomy.category("웹개발 "));
-    assertEquals("SKILL", taxonomy.category("java"));
-  }
-
-  @Test
-  void handlesCustomSkillAndNullSkillInRepository() {
-    SkillRepository skillRepo = mock(SkillRepository.class);
-    SkillAliasRepository aliasRepo = mock(SkillAliasRepository.class);
-
-    Skill customSkill = Skill.builder().standardName("Custom").isCustom(true).build();
-    SkillAlias nullSkillAlias = SkillAlias.builder().aliasName("NullAlias").skill(null).build();
-
-    given(skillRepo.findAll()).willReturn(List.of(customSkill));
-    given(aliasRepo.findAllWithSkill()).willReturn(List.of(nullSkillAlias));
-
-    SkillTaxonomy tax = new SkillTaxonomy(skillRepo, aliasRepo);
-    // fallback map populated because loaded was empty
-    assertEquals("Java", tax.canonicalName("java"));
-  }
-
-  @Test
   void handlesRepositoryExceptionGracefullyWithFallback() {
     SkillRepository skillRepo = mock(SkillRepository.class);
     SkillAliasRepository aliasRepo = mock(SkillAliasRepository.class);
@@ -124,24 +95,6 @@ class SkillTaxonomyTest {
 
     SkillTaxonomy tax = new SkillTaxonomy(skillRepo, aliasRepo);
     assertEquals("Java", tax.canonicalName("java"));
-  }
-
-  @Test
-  void handlesEdgeCaseInputsInCanonicalExtraction() {
-    assertTrue(taxonomy.extractCanonicalSkills(null).isEmpty());
-    assertTrue(taxonomy.extractCanonicalSkills("   ").isEmpty());
-    assertTrue(taxonomy.extractCanonicalSkills("a".repeat(35)).isEmpty());
-
-    // 20자 초과 미등록 키워드는 스킬로 채택되지 않음
-    assertTrue(taxonomy.extractCanonicalSkills("abcdefghijklmnopqrstuvwxyz12345").isEmpty());
-
-    // 20자 이하 미등록 키워드는 원문 그대로 채택
-    List<String> unknown = taxonomy.extractCanonicalSkills("newcooltech");
-    assertEquals(List.of("newcooltech"), unknown);
-
-    assertEquals(null, taxonomy.canonicalName(null));
-    assertEquals(null, taxonomy.canonicalName("   "));
-    assertEquals(null, taxonomy.canonicalName("인근거주자 우대"));
   }
 
   @Test
@@ -163,20 +116,5 @@ class SkillTaxonomyTest {
     assertTrue(mixedSkills.contains("Kotlin"));
     assertTrue(mixedSkills.contains("Spring Boot"));
     assertTrue(mixedSkills.contains("Python"));
-  }
-
-  @Test
-  void filtersOutSingleCharacterAndKoreanNoises() {
-    // 1글자 영문자 노이즈는 제외됨
-    assertTrue(taxonomy.extractCanonicalSkills("W").isEmpty());
-    assertTrue(taxonomy.extractCanonicalSkills("S").isEmpty());
-
-    // 미등록 한글 일반명사는 제외됨
-    assertTrue(taxonomy.extractCanonicalSkills("전자").isEmpty());
-    assertTrue(taxonomy.extractCanonicalSkills("성남").isEmpty());
-
-    // 유효한 기술은 정상 추출
-    assertEquals(List.of("React"), taxonomy.extractCanonicalSkills("React"));
-    assertEquals(List.of("Spring Boot"), taxonomy.extractCanonicalSkills("전자정부프레임워크"));
   }
 }

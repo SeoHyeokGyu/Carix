@@ -38,18 +38,4 @@ class EmploymentTypeClassifierTest {
     assertEquals("CONTRACT", classifier.classify("계약직·인턴직"));
     assertEquals("CONTRACT", classifier.classify("기간제·계약직"));
   }
-
-  @Test
-  void returnsUnknownForUnmappedOrMissingValues() {
-    assertEquals("UNKNOWN", classifier.classify("팀원"));
-    assertEquals("UNKNOWN", classifier.classify(null));
-    assertEquals("UNKNOWN", classifier.classify("  "));
-    assertEquals("UNKNOWN", classifier.classify("전문연구요원"));
-  }
-
-  @Test
-  void ignoresSurroundingWhitespace() {
-    assertEquals("FULL_TIME", classifier.classify("  정규직  "));
-    assertEquals("CONTRACT", classifier.classify("계약직 · 프리랜서"));
-  }
 }

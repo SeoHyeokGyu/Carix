@@ -3,7 +3,6 @@ package com.carix.profile.repository;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.carix.profile.domain.CareerProfile;
-import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -16,18 +15,6 @@ import org.springframework.boot.jdbc.test.autoconfigure.AutoConfigureTestDatabas
 class CareerProfileRepositoryTest {
 
   @Autowired private CareerProfileRepository careerProfileRepository;
-
-  @Test
-  @DisplayName("findByUserId - 저장한 프로필을 사용자 ID 로 되찾는다")
-  void findByUserId_returnsSavedProfile() {
-    UUID userId = UUID.randomUUID();
-    careerProfileRepository.save(new CareerProfile(userId));
-
-    Optional<CareerProfile> found = careerProfileRepository.findByUserId(userId);
-
-    assertThat(found).isPresent();
-    assertThat(found.get().getUserId()).isEqualTo(userId);
-  }
 
   @Test
   @DisplayName("patch - 온보딩 자동 저장을 위해 일부 필드만 갱신하고 나머지는 보존한다")

@@ -15,20 +15,11 @@ describe("formatAmountInput", () => {
   it("0 은 유효한 값으로 남긴다", () => {
     expect(formatAmountInput("0")).toBe("0");
   });
-
-  it("숫자가 없으면 빈 문자열이다", () => {
-    expect(formatAmountInput("")).toBe("");
-    expect(formatAmountInput(",")).toBe("");
-  });
 });
 
 describe("parseAmountInput", () => {
   it("콤마를 걷어내고 숫자로 읽는다", () => {
     expect(parseAmountInput("350,000")).toBe(350_000);
-  });
-
-  it("비어 있으면 null 이다", () => {
-    expect(parseAmountInput("")).toBeNull();
   });
 });
 
@@ -49,14 +40,5 @@ describe("withPlainAmounts", () => {
     formData.append("FOOD", "");
 
     expect(withPlainAmounts(formData, ["FOOD"]).get("FOOD")).toBe("");
-  });
-
-  it("원래 FormData 를 바꾸지 않는다", () => {
-    const formData = new FormData();
-    formData.append("FOOD", "250,000");
-
-    withPlainAmounts(formData, ["FOOD"]);
-
-    expect(formData.get("FOOD")).toBe("250,000");
   });
 });

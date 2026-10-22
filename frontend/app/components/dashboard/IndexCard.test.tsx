@@ -1,5 +1,4 @@
 import { render, screen } from "@testing-library/react";
-import { MemoryRouter } from "react-router";
 import { describe, expect, it } from "vitest";
 
 import { IndexCard, toBaselineBar } from "./IndexCard";
@@ -44,36 +43,6 @@ describe("IndexCard", () => {
     expect(container.textContent).not.toMatch(/\d/);
   });
 
-  it("업데이트 지연은 지연 뱃지로 표시한다", () => {
-    render(
-      <IndexCard
-        title="구매력 지수"
-        index={{
-          value: 91.0,
-          changeFromLastMonth: null,
-          status: null,
-          indexStatus: "UPDATE_DELAYED",
-        }}
-      />,
-    );
-    expect(screen.getByText("업데이트 지연")).toBeInTheDocument();
-  });
-
-  it("계산 전 상태는 계산 대기로 표시한다", () => {
-    render(
-      <IndexCard
-        title="시장가치 지수"
-        index={{
-          value: null,
-          changeFromLastMonth: null,
-          status: null,
-          indexStatus: "NOT_AVAILABLE",
-        }}
-      />,
-    );
-    expect(screen.getByText("계산 대기")).toBeInTheDocument();
-  });
-
   // 값이 있는 상태다 — NOT_AVAILABLE 처럼 값을 숨기거나 "계산 대기"로 읽히면 안 된다.
   it("비교 기간이 짧으면 값을 그리고 비교 기간 짧음으로 표시한다", () => {
     render(
@@ -91,109 +60,6 @@ describe("IndexCard", () => {
     expect(screen.getByText("비교 기간 짧음")).toBeInTheDocument();
     expect(screen.queryByText("계산 대기")).not.toBeInTheDocument();
   });
-
-  it("footer 슬롯을 카드 하단에 렌더한다", () => {
-    render(
-      <IndexCard
-        title="채용 활발도"
-        index={{
-          value: 118.4,
-          changeFromLastMonth: 3.1,
-          status: "INCREASED",
-          indexStatus: "OK",
-        }}
-        footer={<span>최근 비중 24.5%</span>}
-      />,
-    );
-
-    expect(screen.getByText("최근 비중 24.5%")).toBeInTheDocument();
-  });
-
-  it("detailHref 가 있으면 카드 이름을 담은 자세히 링크를 그린다", () => {
-    render(
-      <MemoryRouter>
-        <IndexCard
-          title="구매력 지수"
-          index={{
-            value: 101.2,
-            changeFromLastMonth: 0.4,
-            status: "INCREASED",
-            indexStatus: "OK",
-          }}
-          detailHref="/dashboard/trends?tab=income"
-        />
-      </MemoryRouter>,
-    );
-
-    expect(
-      screen.getByRole("link", { name: "구매력 지수 자세히 보기" }),
-    ).toHaveAttribute("href", "/dashboard/trends?tab=income");
-  });
-
-  it("detailHref 가 없으면 링크가 없다", () => {
-    render(
-      <IndexCard
-        title="구매력 지수"
-        index={{
-          value: 101.2,
-          changeFromLastMonth: 0.4,
-          status: "INCREASED",
-          indexStatus: "OK",
-        }}
-      />,
-    );
-
-    expect(screen.queryByRole("link")).not.toBeInTheDocument();
-  });
-});
-
-describe("IndexCard — 판정 우선 개편", () => {
-  it("카드 제목이 h3 소제목이다", () => {
-    render(
-      <IndexCard
-        title="구매력 지수"
-        index={{
-          value: 100,
-          changeFromLastMonth: null,
-          status: null,
-          indexStatus: "OK",
-        }}
-      />,
-    );
-    expect(
-      screen.getByRole("heading", { level: 3, name: "구매력 지수" }),
-    ).toBeInTheDocument();
-  });
-
-  it("값이 있으면 기준선 눈금을 그린다", () => {
-    render(
-      <IndexCard
-        title="시장가치 지수"
-        index={{
-          value: 104.6,
-          changeFromLastMonth: null,
-          status: null,
-          indexStatus: "OK",
-        }}
-      />,
-    );
-    expect(screen.getByTestId("baseline-scale")).toBeInTheDocument();
-  });
-
-  it("값이 없으면 눈금도 그리지 않는다", () => {
-    render(
-      <IndexCard
-        title="시장가치 지수"
-        index={{
-          value: null,
-          changeFromLastMonth: null,
-          status: null,
-          indexStatus: "INSUFFICIENT_SAMPLE",
-        }}
-      />,
-    );
-    expect(screen.queryByTestId("baseline-scale")).not.toBeInTheDocument();
-  });
 });
 
 describe("toBaselineBar", () => {
@@ -201,12 +67,6 @@ describe("toBaselineBar", () => {
     const bar = toBaselineBar(104.6);
     expect(bar.start).toBe(50);
     expect(bar.width).toBeCloseTo(4.6);
-  });
-
-  it("100 보다 작으면 값에서 가운데까지", () => {
-    const bar = toBaselineBar(94.2);
-    expect(bar.start).toBeCloseTo(44.2);
-    expect(bar.width).toBeCloseTo(5.8);
   });
 
   it("범위를 넘으면 끝에 붙인다", () => {

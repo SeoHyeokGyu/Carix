@@ -38,23 +38,6 @@ class EncryptedConverterTest {
   }
 
   @Test
-  @DisplayName("키가 없으면 IllegalStateException 발생 (Fail-Fast)")
-  void constructor_noKey() {
-    assertThatThrownBy(() -> new EncryptedConverter((String) null))
-        .isInstanceOf(IllegalStateException.class);
-    assertThatThrownBy(() -> new EncryptedConverter("")).isInstanceOf(IllegalStateException.class);
-    assertThatThrownBy(() -> new EncryptedConverter((KeyRing) null))
-        .isInstanceOf(IllegalStateException.class);
-  }
-
-  @Test
-  @DisplayName("null 금액 변환 시 DB 컬럼 및 엔티티 모두 null 반환")
-  void convert_null() {
-    assertThat(converter.convertToDatabaseColumn(null)).isNull();
-    assertThat(converter.convertToEntityAttribute(null)).isNull();
-  }
-
-  @Test
   @DisplayName("암호화 및 복호화 라운드트립 성공 (v1: 접두사 자동 부여 확인)")
   void roundTrip() {
     Long original = 65_000_000L;

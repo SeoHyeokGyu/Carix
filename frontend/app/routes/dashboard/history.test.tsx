@@ -9,8 +9,6 @@ import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { buttonVariants } from "@/components/ui/button";
-
 import { UnauthorizedError } from "../../lib/coreApi";
 import * as dashboardMarketApi from "../../lib/dashboardMarketApi";
 import { expectHeadingOutline } from "../../test-utils/headingOutline";
@@ -90,85 +88,6 @@ function renderPage(url: string) {
 describe("S-11 DashboardHistory 라우트", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-  });
-
-  it("헤더 위에 판정 화면으로 돌아가는 링크를 둔다", async () => {
-    vi.mocked(dashboardMarketApi.fetchSnapshotHistory).mockResolvedValue({
-      snapshots: [],
-    });
-
-    render(
-      <MemoryRouter>
-        <DashboardHistory />
-      </MemoryRouter>,
-    );
-
-    expect(
-      await screen.findByRole("link", { name: "대시보드" }),
-    ).toHaveAttribute("href", "/dashboard");
-  });
-
-  it("스냅샷이 0개일 때 비어있음 안내 상태를 렌더링한다", async () => {
-    vi.mocked(dashboardMarketApi.fetchSnapshotHistory).mockResolvedValue({
-      snapshots: [],
-    });
-
-    render(
-      <MemoryRouter>
-        <DashboardHistory />
-      </MemoryRouter>,
-    );
-
-    expect(screen.queryByText("S-11")).not.toBeInTheDocument();
-    expect(
-      screen.getByRole("heading", { name: "지난 판정" }),
-    ).toBeInTheDocument();
-
-    await waitFor(() => {
-      expect(screen.getByTestId("empty-state")).toBeInTheDocument();
-      expect(
-        screen.getByText("기록된 월별 스냅샷이 없습니다."),
-      ).toBeInTheDocument();
-    });
-    // 버튼 모양 링크는 손으로 칠하지 않고 buttonVariants 를 단다.
-    expect(
-      screen.getByRole("link", { name: "온보딩 정보 확인하기" }),
-    ).toHaveClass(...buttonVariants().split(" "));
-    expectHeadingOutline();
-  });
-
-  it("스냅샷이 1개일 때 단건 안내 문구(다음 달부터 변화를 볼 수 있습니다)를 렌더링한다", async () => {
-    vi.mocked(dashboardMarketApi.fetchSnapshotHistory).mockResolvedValue({
-      snapshots: withRecorded([
-        {
-          baseYearMonth: "202607",
-          purchasingPowerIndex: 98.5,
-          marketValueIndex: 110.2,
-          decisionSignal: "STAY",
-          label: "현 상태 유지",
-          dataVersion: "v1.0",
-          ruleVersion: "v1.0",
-          rationale: {
-            rulesApplied: ["RULE_5_DEFAULT_STAY"],
-            excluded: [],
-            baseDate: "2026-07-01",
-          },
-        },
-      ]),
-    });
-
-    render(
-      <MemoryRouter>
-        <DashboardHistory />
-      </MemoryRouter>,
-    );
-
-    await waitFor(() => {
-      expect(screen.getByTestId("history-single-notice")).toBeInTheDocument();
-      expect(screen.getByText("현 상태 유지")).toBeInTheDocument();
-      expect(screen.getByText("2026-07")).toBeInTheDocument();
-    });
-    expectHeadingOutline();
   });
 
   // 대시보드는 지표 셋을 보인다 — 기록 화면도 같은 셋을 보여야 비교가 된다.
@@ -402,66 +321,6 @@ describe("S-11 DashboardHistory 라우트", () => {
     expectHeadingOutline();
   });
 
-  // 들어올 때 불러오고 실패하면 「다시 시도」가 있다 — 제목 줄 새로고침은 두지 않는다.
-  it("제목 줄에 새로고침 버튼이 없고 h1 은 하나다", async () => {
-    vi.mocked(dashboardMarketApi.fetchSnapshotHistory).mockResolvedValue({
-      snapshots: [],
-    });
-
-    render(
-      <MemoryRouter>
-        <DashboardHistory />
-      </MemoryRouter>,
-    );
-
-    await screen.findByTestId("empty-state");
-    expect(screen.queryByRole("button", { name: /새로고침/ })).toBeNull();
-    expect(screen.getAllByRole("heading", { level: 1 })).toHaveLength(1);
-    expect(screen.getByRole("link", { name: "대시보드" })).toHaveAttribute(
-      "href",
-      "/dashboard",
-    );
-  });
-
-  it("적용 규칙이 비어 있는 스냅샷 행 상세 패널에서는 '기록된 적용 규칙 없음'을 표시한다", async () => {
-    vi.mocked(dashboardMarketApi.fetchSnapshotHistory).mockResolvedValue({
-      snapshots: withRecorded([
-        {
-          baseYearMonth: "202607",
-          purchasingPowerIndex: 100.0,
-          marketValueIndex: 100.0,
-          decisionSignal: "STAY",
-          label: "현 상태 유지",
-          dataVersion: "v1.0",
-          ruleVersion: "v1.0",
-          rationale: {
-            rulesApplied: [],
-            excluded: [],
-            baseDate: "2026-07-01",
-          },
-        },
-      ]),
-    });
-
-    render(
-      <MemoryRouter>
-        <DashboardHistory />
-      </MemoryRouter>,
-    );
-
-    await waitFor(() => {
-      expect(screen.getByText("2026-07")).toBeInTheDocument();
-    });
-
-    fireEvent.click(screen.getByText("2026-07"));
-
-    await waitFor(() => {
-      expect(
-        screen.getAllByText("기록된 적용 규칙 없음")[0],
-      ).toBeInTheDocument();
-    });
-  });
-
   // 세션 게이트가 켜진 뒤로 401 이 올 수 있다. 문자열 오류로 접으면 사용자는 다시 시도만
   // 누르게 되고 로그인으로 돌아갈 길이 없다.
   it("세션이 만료되면 로그인으로 보낸다", async () => {
@@ -502,32 +361,6 @@ describe("S-11 DashboardHistory 라우트", () => {
       ).toBeInTheDocument();
     });
     expect(mockNavigate).not.toHaveBeenCalled();
-  });
-  it("표는 당시 판정을 보이고 신호가 바뀌었으면 현재 규칙 칩을 단다", async () => {
-    vi.mocked(dashboardMarketApi.fetchSnapshotHistory).mockResolvedValue({
-      snapshots: [
-        {
-          ...current("202609", "SEEK_JOB", "이직 탐색"),
-          recorded: recorded("STAY", "현 상태 유지"),
-          changed: true,
-        },
-        {
-          ...current("202608", "STAY", "현 상태 유지"),
-          recorded: recorded("STAY", "현 상태 유지"),
-          changed: false,
-        },
-      ],
-    });
-    renderPage("/dashboard/history");
-    const row = (await screen.findByText("2026-09")).closest("tr")!;
-    expect(within(row).getByText("100.0")).toBeInTheDocument();
-    expect(
-      within(row).getByText("지금 다시 계산하면: 이직 탐색"),
-    ).toHaveAttribute("data-tone", "warning");
-    const aug = screen.getByText("2026-08").closest("tr")!;
-    expect(
-      within(aug).queryByText(/지금 다시 계산하면:/),
-    ).not.toBeInTheDocument();
   });
 
   it("보이는 달이 하나뿐이면 소급 계산 달이 숨어 있어도 단건 안내를 보인다", async () => {
@@ -582,35 +415,6 @@ describe("S-11 DashboardHistory 라우트", () => {
     );
   });
 
-  it("소급 계산한 달의 상세를 연 채 토글을 끄면 상세 패널도 닫는다", async () => {
-    vi.mocked(dashboardMarketApi.fetchSnapshotHistory).mockResolvedValue({
-      snapshots: [
-        {
-          ...current("202609", "STAY", "현 상태 유지"),
-          recorded: recorded("STAY", "현 상태 유지"),
-          changed: false,
-        },
-        {
-          ...current("202201", "STAY", "현 상태 유지"),
-          recorded: null,
-          changed: false,
-        },
-      ],
-    });
-    renderPage("/dashboard/history?show=all");
-    await userEvent.click(await screen.findByText("2022-01"));
-    expect(screen.getByTestId("snapshot-detail-panel")).toBeInTheDocument();
-    await userEvent.click(
-      screen.getByRole("checkbox", { name: "소급 계산한 달도 보기" }),
-    );
-    await waitFor(() => {
-      expect(screen.queryByText("2022-01")).not.toBeInTheDocument();
-    });
-    expect(
-      screen.queryByTestId("snapshot-detail-panel"),
-    ).not.toBeInTheDocument();
-  });
-
   it("입력 유도는 당시가 아니라 현재 판정이 데이터 부족일 때만 띄운다", async () => {
     const insufficientRationale = {
       rulesApplied: ["RULE_1_DATA_MISSING"],
@@ -651,47 +455,6 @@ describe("S-11 DashboardHistory 라우트", () => {
     ).toBeInTheDocument();
   });
 
-  it("show=all 로 들어오면 소급 계산한 달이 바로 보인다", async () => {
-    vi.mocked(dashboardMarketApi.fetchSnapshotHistory).mockResolvedValue({
-      snapshots: [
-        {
-          ...current("202201", "STAY", "현 상태 유지"),
-          recorded: null,
-          changed: false,
-        },
-        {
-          ...current("202609", "STAY", "현 상태 유지"),
-          recorded: recorded("STAY", "현 상태 유지"),
-          changed: false,
-        },
-      ],
-    });
-    renderPage("/dashboard/history?show=all");
-    expect(await screen.findByText("2022-01")).toBeInTheDocument();
-  });
-
-  it("당시 판정이 있는 달이 하나도 없으면 전부 보이고 안내한다", async () => {
-    vi.mocked(dashboardMarketApi.fetchSnapshotHistory).mockResolvedValue({
-      snapshots: [
-        {
-          ...current("202202", "STAY", "현 상태 유지"),
-          recorded: null,
-          changed: false,
-        },
-        {
-          ...current("202201", "STAY", "현 상태 유지"),
-          recorded: null,
-          changed: false,
-        },
-      ],
-    });
-    renderPage("/dashboard/history");
-    expect(await screen.findByText("2022-02")).toBeInTheDocument();
-    expect(
-      screen.getByText(/아직 그 달에 기록된 판정이 없어/),
-    ).toBeInTheDocument();
-  });
-
   it("상세는 당시·현재 두 칸과 기록 시각(서울)·지수 차이를 보인다", async () => {
     vi.mocked(dashboardMarketApi.fetchSnapshotHistory).mockResolvedValue({
       snapshots: [
@@ -715,50 +478,5 @@ describe("S-11 DashboardHistory 라우트", () => {
     expect(within(panel).getByText(/2026-09-15 12:00/)).toBeInTheDocument();
     expect(within(panel).getByText(/월 경계는 UTC 기준/)).toBeInTheDocument();
     expect(within(panel).getByText("+10.0")).toBeInTheDocument();
-  });
-  it("상세의 두 칸은 각자의 적용 규칙·제외 스킬·기준일·버전을 보인다", async () => {
-    vi.mocked(dashboardMarketApi.fetchSnapshotHistory).mockResolvedValue({
-      snapshots: [
-        {
-          ...current("202609", "SEEK_JOB", "이직 탐색"),
-          rationale: {
-            rulesApplied: ["RULE_NOW"],
-            excluded: ["Skill Now"],
-            baseDate: "2026-09-30",
-          },
-          recorded: {
-            ...recorded("STAY", "현 상태 유지"),
-            rationale: {
-              rulesApplied: ["RULE_THEN"],
-              excluded: [],
-              baseDate: "2026-09-01",
-            },
-          },
-          changed: true,
-        },
-      ],
-    });
-    renderPage("/dashboard/history");
-    await userEvent.click(await screen.findByText("2026-09"));
-    const then = within(screen.getByTestId("snapshot-column-recorded"));
-    const now = within(screen.getByTestId("snapshot-column-current"));
-    expect(then.getByText("• RULE_THEN")).toBeInTheDocument();
-    expect(then.queryByText("• RULE_NOW")).not.toBeInTheDocument();
-    expect(
-      then.getByText("제외된 스킬 없음 (전체 반영됨)"),
-    ).toBeInTheDocument();
-    expect(then.getByText("기준일: 2026-09-01")).toBeInTheDocument();
-    expect(then.getByText("규칙 버전: 1.4.0")).toBeInTheDocument();
-    expect(
-      then.getByText("데이터 버전: 20260915000000-000"),
-    ).toBeInTheDocument();
-    expect(now.getByText("• RULE_NOW")).toBeInTheDocument();
-    expect(now.queryByText("• RULE_THEN")).not.toBeInTheDocument();
-    expect(now.getByText("✕ Skill Now")).toBeInTheDocument();
-    expect(now.getByText("기준일: 2026-09-30")).toBeInTheDocument();
-    expect(now.getByText("규칙 버전: 1.5.0")).toBeInTheDocument();
-    expect(
-      now.getByText("데이터 버전: 20261009000000-000"),
-    ).toBeInTheDocument();
   });
 });

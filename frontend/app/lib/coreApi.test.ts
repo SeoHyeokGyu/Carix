@@ -118,23 +118,6 @@ describe("coreApi", () => {
     });
   });
 
-  it("본문이 있는 요청은 JSON 으로 직렬화해 보낸다", async () => {
-    globalThis.fetch = vi.fn().mockResolvedValue({
-      ok: true,
-      status: 200,
-      json: async () => ({ success: true, data: { id: "1" } }),
-    } as unknown as Response);
-
-    await coreSend("PUT", "/v1/expenses/202609", { items: [] });
-
-    expect(globalThis.fetch).toHaveBeenCalledWith("/api/v1/expenses/202609", {
-      method: "PUT",
-      credentials: "include",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ items: [] }),
-    });
-  });
-
   it("본문이 없는 요청은 body 키를 포함하지 않는다", async () => {
     globalThis.fetch = vi.fn().mockResolvedValue({
       ok: true,

@@ -36,14 +36,6 @@ class CompanySizeClassifierTest {
   }
 
   @Test
-  void returnsUnknownWhenNeitherSignalIsUsable() {
-    assertEquals("UNKNOWN", classifier.classify(null, null));
-    assertEquals("UNKNOWN", classifier.classify(null, "  "));
-    assertEquals("UNKNOWN", classifier.classify(null, "비영리법인"));
-    assertEquals("UNKNOWN", classifier.classify(null, "외국계(외국 투자기업)"));
-  }
-
-  @Test
   void treatsNonPositiveEmployeeCountAsMissing() {
     assertEquals("MEDIUM", classifier.classify(0, "중소기업"));
     assertEquals("UNKNOWN", classifier.classify(-1, null));

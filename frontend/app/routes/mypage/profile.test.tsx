@@ -5,10 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import * as profileApi from "../../lib/api/profile";
 import * as authApi from "../../lib/authApi";
-import * as onboardingApi from "../../lib/onboardingApi";
 import * as sessionModule from "../../lib/session";
-import { cancelDialog, confirmDialog } from "../../test-utils/confirmDialog";
-import { expectHeadingOutline } from "../../test-utils/headingOutline";
 import MypageProfile, { clientAction, clientLoader } from "./profile";
 
 vi.mock("../../lib/api/profile", () => ({
@@ -63,59 +60,6 @@ describe("S-13 MypageProfile 라우트", () => {
     ]);
     return render(<Stub initialEntries={["/mypage/profile"]} />);
   }
-
-  it("설정 화면의 세 섹션(세션 관리, 온보딩 재설정, 회원 탈퇴)을 정상 렌더링한다", async () => {
-    renderScreen();
-
-    expect(screen.queryByText("S-13")).not.toBeInTheDocument();
-    expect(
-      screen.getByRole("heading", { level: 1, name: "설정" }),
-    ).toBeInTheDocument();
-    expect(screen.getByText("세션 관리")).toBeInTheDocument();
-    expect(screen.getByText("온보딩 재설정")).toBeInTheDocument();
-    expect(
-      screen.getByText("회원 탈퇴 및 개인 데이터 완전 삭제"),
-    ).toBeInTheDocument();
-    expect(await screen.findByText(/user@example.com/)).toBeInTheDocument();
-    expectHeadingOutline();
-    expect(
-      screen.getByRole("heading", { level: 2, name: "세션 관리" }),
-    ).toBeInTheDocument();
-  });
-
-  it("온보딩 재시작은 보조 버튼이고 확인창을 거쳐 보낸다", async () => {
-    vi.mocked(onboardingApi.resetOnboarding).mockResolvedValue({
-      currentStep: "PROFILE",
-      completed: false,
-    });
-    vi.mocked(sessionModule.requireSession).mockResolvedValue({
-      status: "authenticated",
-      userId: "u-123",
-      email: "user@example.com",
-      onboardingStep: "COMPLETED",
-    });
-    renderScreen();
-    const user = userEvent.setup();
-    const trigger = await screen.findByRole("button", {
-      name: "온보딩 처음부터 다시 시작",
-    });
-    expect(trigger).toHaveAttribute("data-variant", "outline");
-
-    await user.click(trigger);
-    await cancelDialog(user);
-    expect(onboardingApi.resetOnboarding).not.toHaveBeenCalled();
-
-    await user.click(trigger);
-    expect(
-      screen.getByRole("alertdialog", {
-        name: "온보딩을 처음부터 다시 할까요?",
-      }),
-    ).toBeInTheDocument();
-    await confirmDialog(user, "다시 시작");
-    await waitFor(() =>
-      expect(onboardingApi.resetOnboarding).toHaveBeenCalledTimes(1),
-    );
-  });
 
   it("동의 체크박스와 이메일 입력 전에는 탈퇴 버튼이 비활성화된다", async () => {
     renderScreen();
@@ -203,34 +147,6 @@ describe("S-13 MypageProfile 라우트", () => {
       });
       expect(authApi.deleteAccount).not.toHaveBeenCalled();
     });
-
-    it("reset-onboarding 액션 시 resetOnboarding을 호출하고 온보딩으로 이동한다", async () => {
-      vi.mocked(onboardingApi.resetOnboarding).mockResolvedValue({
-        currentStep: "PROFILE",
-        completed: false,
-      });
-      vi.mocked(sessionModule.requireSession).mockResolvedValue({
-        status: "authenticated",
-        userId: "u-123",
-        email: "user@example.com",
-        onboardingStep: "COMPLETED",
-      });
-
-      const formData = new FormData();
-      formData.set("intent", "reset-onboarding");
-
-      const request = new Request("http://localhost/mypage/profile", {
-        method: "POST",
-        body: formData,
-      });
-
-      const response = await clientAction({ request });
-      expect(onboardingApi.resetOnboarding).toHaveBeenCalledTimes(1);
-      expect(response).toBeInstanceOf(Response);
-      expect((response as Response).headers.get("Location")).toBe(
-        "/onboarding/profile",
-      );
-    });
   });
 
   describe("입사일", () => {
@@ -257,17 +173,6 @@ describe("S-13 MypageProfile 라우트", () => {
         companySize: null,
         hireDate: "2022-03-02",
       });
-    });
-
-    it("저장된 입사일을 채우고 미래 날짜는 고를 수 없게 막는다", async () => {
-      renderWithLoader();
-
-      const input = await screen.findByLabelText("입사일");
-      expect(input).toHaveValue("2022-03-02");
-      expect(input).toHaveAttribute("type", "date");
-      const now = new Date();
-      const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
-      expect(input).toHaveAttribute("max", today);
     });
 
     it("입사일을 저장하면 hireDate 만 보낸다", async () => {

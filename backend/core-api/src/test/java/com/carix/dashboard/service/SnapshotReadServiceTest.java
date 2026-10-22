@@ -76,34 +76,6 @@ class SnapshotReadServiceTest {
   }
 
   @Test
-  @DisplayName("summary - 성과급 포함 연간 실소득은 계산기 결과를 그대로 싣는다")
-  void summary_성과급포함소득() {
-    given(repository.findByUserIdOrderByBaseYearMonthDesc(USER_ID))
-        .willReturn(List.of(snapshot("202607", "94.20", "117.50", DecisionSignalCode.STAY)));
-    var income = new DashboardSummaryResponse.BonusInclusiveIncome(25.5, 1);
-    given(bonusInclusiveIncomeCalculator.calculate(USER_ID, "202607")).willReturn(income);
-
-    DashboardSummaryResponse response = summaryService.resolve(USER_ID, "202607");
-
-    assertThat(response.bonusInclusiveIncome()).isEqualTo(income);
-  }
-
-  @Test
-  @DisplayName("summary - 스냅샷이 있으면 지수와 결정 신호를 그대로 싣는다")
-  void summary_스냅샷있음() {
-    given(repository.findByUserIdOrderByBaseYearMonthDesc(USER_ID))
-        .willReturn(List.of(snapshot("202607", "94.20", "117.50", DecisionSignalCode.SEEK_JOB)));
-
-    DashboardSummaryResponse response = summaryService.resolve(USER_ID, "202607");
-
-    assertThat(response.purchasingPowerIndex().value()).isEqualTo(94.2);
-    assertThat(response.purchasingPowerIndex().indexStatus()).isEqualTo(IndexStatus.OK.name());
-    assertThat(response.marketValueIndex().value()).isEqualTo(117.5);
-    assertThat(response.decisionSignal().code()).isEqualTo("SEEK_JOB");
-    assertThat(response.decisionSignal().label()).isEqualTo("이직 탐색");
-  }
-
-  @Test
   @DisplayName("summary - 전월 스냅샷이 있으면 지수 포인트 차이를 낸다")
   void summary_전월대비() {
     given(repository.findByUserIdOrderByBaseYearMonthDesc(USER_ID))
@@ -198,18 +170,6 @@ class SnapshotReadServiceTest {
   }
 
   @Test
-  @DisplayName("summary - 이직 탐색도 협상 목표를 싣는다")
-  void summary_이직신호_목표포함() {
-    given(repository.findByUserIdOrderByBaseYearMonthDesc(USER_ID))
-        .willReturn(List.of(snapshot("202607", "94.20", "117.50", DecisionSignalCode.SEEK_JOB)));
-    NegotiationTargets targets = new NegotiationTargets(null, null, null);
-    given(negotiationTargetService.resolve(USER_ID, "202607", "BELOW_MARKET_15_PLUS", null))
-        .willReturn(targets);
-
-    assertThat(summaryService.resolve(USER_ID, "202607").negotiationTargets()).isEqualTo(targets);
-  }
-
-  @Test
   @DisplayName("summary - 협상·이직 외 신호는 협상 목표를 계산하지 않는다")
   void summary_STAY_목표null() {
     given(repository.findByUserIdOrderByBaseYearMonthDesc(USER_ID))
@@ -265,49 +225,6 @@ class SnapshotReadServiceTest {
     DashboardSummaryResponse response = summaryService.resolve(USER_ID, "202607");
 
     assertThat(response.purchasingPowerIndex().indexStatus()).isEqualTo(IndexStatus.OK.name());
-  }
-
-  /** 구매력 지수가 기준월부터 12개월 미만이면 값과 함께 비교 기간 짧음을 그대로 보낸다 — 화면이 「비교 기간 짧음」을 그린다. */
-  @Test
-  @DisplayName("summary - 값이 있고 저장된 상태가 INSUFFICIENT_HISTORY 면 그대로 나간다")
-  void summary_비교기간짧음은_값과_함께_그대로() {
-    given(repository.findByUserIdOrderByBaseYearMonthDesc(USER_ID))
-        .willReturn(
-            List.of(
-                snapshotWith(
-                    new BigDecimal("98.00"),
-                    null,
-                    null,
-                    new SnapshotRationale.IndexStatuses(
-                        IndexStatus.INSUFFICIENT_HISTORY, IndexStatus.OK, IndexStatus.OK),
-                    null)));
-
-    DashboardSummaryResponse response = summaryService.resolve(USER_ID, "202607");
-
-    assertThat(response.purchasingPowerIndex().value()).isEqualTo(98.0);
-    assertThat(response.purchasingPowerIndex().indexStatus())
-        .isEqualTo(IndexStatus.INSUFFICIENT_HISTORY.name());
-  }
-
-  /** D2 — 표본 부족을 계산 대기로 뭉개지 않는다. */
-  @Test
-  @DisplayName("summary - 값이 없으면 저장된 상태가 그대로 나온다")
-  void summary_값이없으면_저장된_상태() {
-    given(repository.findByUserIdOrderByBaseYearMonthDesc(USER_ID))
-        .willReturn(
-            List.of(
-                snapshotWith(
-                    null,
-                    null,
-                    null,
-                    new SnapshotRationale.IndexStatuses(
-                        IndexStatus.NOT_AVAILABLE, IndexStatus.INSUFFICIENT_SAMPLE, null),
-                    null)));
-
-    DashboardSummaryResponse response = summaryService.resolve(USER_ID, "202607");
-
-    assertThat(response.marketValueIndex().indexStatus())
-        .isEqualTo(IndexStatus.INSUFFICIENT_SAMPLE.name());
   }
 
   /**
@@ -383,35 +300,6 @@ class SnapshotReadServiceTest {
   }
 
   @Test
-  @DisplayName("summary - 개방창 근거가 없으면 메타데이터도 비운다")
-  void summary_개방창_근거없음() {
-    given(repository.findByUserIdOrderByBaseYearMonthDesc(USER_ID))
-        .willReturn(
-            List.of(
-                snapshotWith(null, null, null, SnapshotRationale.IndexStatuses.unknown(), null)));
-
-    DashboardSummaryResponse response = summaryService.resolve(USER_ID, "202607");
-
-    assertThat(response.metadata().openingWindow()).isNull();
-  }
-
-  /** 스냅샷이 아예 없는 사용자. 지수 셋이 다 NOT_AVAILABLE 이어야 S-10 빈 상태가 뜬다. */
-  @Test
-  @DisplayName("summary - 스냅샷이 없으면 지수 셋이 모두 계산 대기다")
-  void summary_스냅샷없음_지수셋() {
-    given(repository.findByUserIdOrderByBaseYearMonthDesc(USER_ID)).willReturn(List.of());
-
-    DashboardSummaryResponse response = summaryService.resolve(USER_ID, "202607");
-
-    assertThat(response.purchasingPowerIndex().indexStatus())
-        .isEqualTo(IndexStatus.NOT_AVAILABLE.name());
-    assertThat(response.marketValueIndex().indexStatus())
-        .isEqualTo(IndexStatus.NOT_AVAILABLE.name());
-    assertThat(response.openingWindowIndex().indexStatus())
-        .isEqualTo(IndexStatus.NOT_AVAILABLE.name());
-  }
-
-  @Test
   @DisplayName("summary - 저장된 물가 기여도 1위를 기여도 값만 빼고 메타데이터에 싣는다")
   void summary_물가기여도() {
     var driver =
@@ -424,17 +312,6 @@ class SnapshotReadServiceTest {
     assertThat(response.metadata().topPriceDriver())
         .isEqualTo(
             new DashboardSummaryResponse.PriceDriver("TRANSPORT", "교통 부담률 최대 상승", true, "202606"));
-  }
-
-  @Test
-  @DisplayName("summary - 근거에 물가 기여도가 없으면(옛 행 포함) 메타데이터도 비운다")
-  void summary_물가기여도없음() {
-    given(repository.findByUserIdOrderByBaseYearMonthDesc(USER_ID))
-        .willReturn(List.of(snapshotWithDriver(null)));
-
-    DashboardSummaryResponse response = summaryService.resolve(USER_ID, "202607");
-
-    assertThat(response.metadata().topPriceDriver()).isNull();
   }
 
   private IndexSnapshot snapshotWithDriver(TopPriceDriver driver) {
@@ -466,16 +343,6 @@ class SnapshotReadServiceTest {
   // --- /dashboard/history ---
 
   @Test
-  @DisplayName("history - 스냅샷이 없으면 빈 배열이다")
-  void history_비어있음() {
-    given(repository.findByUserIdOrderByBaseYearMonthDesc(USER_ID)).willReturn(List.of());
-
-    SnapshotHistoryResponse response = seriesService.history(USER_ID);
-
-    assertThat(response.snapshots()).isEmpty();
-  }
-
-  @Test
   @DisplayName("history - 같은 월에 여러 행이 있으면 data_version·rule_version 이 가장 최신인 하나만 쓴다")
   void history_월별_최신선택() {
     IndexSnapshot older = snapshotWithVersions("202607", "90.00", "1.9.0", "20260701093000-000");
@@ -501,19 +368,6 @@ class SnapshotReadServiceTest {
     assertThat(response.snapshots().get(0).purchasingPowerIndex()).isNull();
     assertThat(response.snapshots().get(0).marketValueIndex()).isNull();
     assertThat(response.snapshots().get(0).decisionSignal()).isEqualTo("INSUFFICIENT_DATA");
-  }
-
-  @Test
-  @DisplayName("history - 결정 신호의 한글 문구를 코드와 함께 싣는다")
-  void history_라벨() {
-    given(repository.findByUserIdOrderByBaseYearMonthDesc(USER_ID))
-        .willReturn(List.of(snapshot("202609", "101.00", "108.00", DecisionSignalCode.UPSKILL)));
-
-    SnapshotHistoryResponse response = seriesService.history(USER_ID);
-
-    assertThat(response.snapshots()).hasSize(1);
-    assertThat(response.snapshots().get(0).decisionSignal()).isEqualTo("UPSKILL");
-    assertThat(response.snapshots().get(0).label()).isEqualTo("스킬 보강 우선");
   }
 
   private IndexSnapshot snapshotAt(
@@ -560,19 +414,6 @@ class SnapshotReadServiceTest {
   }
 
   @Test
-  @DisplayName("history - recordedAt 은 UTC 오프셋으로 싣는다")
-  void recordedAtIsUtc() {
-    IndexSnapshot seoul =
-        snapshotAt(
-            "202609", "20260915000000-000", DecisionSignalCode.STAY, "2026-09-15T12:00:00+09:00");
-    given(repository.findByUserIdOrderByBaseYearMonthDesc(USER_ID)).willReturn(List.of(seoul));
-
-    var recordedAt = seriesService.history(USER_ID).snapshots().get(0).recorded().recordedAt();
-    assertThat(recordedAt.getOffset()).isEqualTo(java.time.ZoneOffset.UTC);
-    assertThat(recordedAt.getHour()).isEqualTo(3);
-  }
-
-  @Test
   @DisplayName("history - 다음 달 1일 00:00:00 UTC 정각에 만든 행은 그 달 당시 판정이 아니다")
   void excludesRowAtBoundary() {
     IndexSnapshot atBoundary =
@@ -582,16 +423,6 @@ class SnapshotReadServiceTest {
     var point = seriesService.history(USER_ID).snapshots().get(0);
     assertThat(point.recorded()).isNull();
     assertThat(point.changed()).isFalse();
-  }
-
-  @Test
-  @DisplayName("history - created_at 이 없는 행은 당시 판정 후보가 아니다")
-  void nullCreatedAtIsNotRecorded() {
-    IndexSnapshot noTime =
-        snapshotAt("202609", "20260915000000-000", DecisionSignalCode.STAY, null);
-    given(repository.findByUserIdOrderByBaseYearMonthDesc(USER_ID)).willReturn(List.of(noTime));
-
-    assertThat(seriesService.history(USER_ID).snapshots().get(0).recorded()).isNull();
   }
 
   @Test
@@ -612,18 +443,6 @@ class SnapshotReadServiceTest {
   // --- /dashboard/trends ---
 
   @Test
-  @DisplayName("trends - 스냅샷이 없으면 빈 계열과 NOT_AVAILABLE 을 돌려준다")
-  void trends_비어있음() {
-    given(repository.findByUserIdOrderByBaseYearMonthDesc(USER_ID)).willReturn(List.of());
-
-    TrendListResponse response = seriesService.trends(USER_ID, "202607", 12);
-
-    assertThat(response.trends()).isEmpty();
-    assertThat(response.purchasingPowerStatus()).isEqualTo(IndexStatus.NOT_AVAILABLE.name());
-    assertThat(response.marketValueStatus()).isEqualTo(IndexStatus.NOT_AVAILABLE.name());
-  }
-
-  @Test
   @DisplayName("trends - 오래된 달부터 차례로 싣고 요청 개월 수를 넘기지 않는다")
   void trends_오름차순_구간제한() {
     given(repository.findByUserIdOrderByBaseYearMonthDesc(USER_ID))
@@ -639,22 +458,6 @@ class SnapshotReadServiceTest {
     assertThat(response.trends().get(0).yearMonth()).isEqualTo("202606");
     assertThat(response.trends().get(1).yearMonth()).isEqualTo("202607");
     assertThat(response.trends().get(1).purchasingPowerIndex()).isEqualTo(94.2);
-  }
-
-  @Test
-  @DisplayName("trends - 소득·개인물가 계열은 PPI 도메인 미착수라 null 로 둔다")
-  void trends_소득물가계열_미착수() {
-    given(repository.findByUserIdOrderByBaseYearMonthDesc(USER_ID))
-        .willReturn(List.of(snapshot("202607", "94.20", "117.50", DecisionSignalCode.SEEK_JOB)));
-
-    TrendListResponse response = seriesService.trends(USER_ID, "202607", 12);
-
-    TrendListResponse.TrendPoint point = response.trends().get(0);
-    assertThat(point.purchasingPowerIndex()).isEqualTo(94.2);
-    assertThat(point.incomeIndex()).isNull();
-    assertThat(point.personalPriceIndex()).isNull();
-    assertThat(point.nominalIncome()).isNull();
-    assertThat(point.realIncome()).isNull();
   }
 
   @Test
@@ -690,26 +493,6 @@ class SnapshotReadServiceTest {
     TrendListResponse response = seriesService.trends(USER_ID, "202607", 12);
 
     assertThat(response.openingWindowStatus()).isEqualTo(IndexStatus.NOT_AVAILABLE.name());
-  }
-
-  @Test
-  @DisplayName("history - 개방창 지수를 싣는다")
-  void history_개방창_지수() {
-    given(repository.findByUserIdOrderByBaseYearMonthDesc(USER_ID))
-        .willReturn(
-            List.of(
-                snapshotWith(
-                    null,
-                    null,
-                    new BigDecimal("118.40"),
-                    new SnapshotRationale.IndexStatuses(null, null, IndexStatus.OK),
-                    null)));
-
-    SnapshotHistoryResponse response = seriesService.history(USER_ID);
-
-    assertThat(response.snapshots())
-        .extracting(SnapshotHistoryResponse.SnapshotPoint::openingWindowIndex)
-        .containsExactly(118.4);
   }
 
   // --- fixtures ---

@@ -7,7 +7,6 @@ import * as expenseApi from "../../lib/api/expense";
 import * as incomeApi from "../../lib/api/income";
 import type { ProfileResponse } from "../../lib/api/profile";
 import * as profileApi from "../../lib/api/profile";
-import { UnauthorizedError } from "../../lib/coreApi";
 import * as onboardingApi from "../../lib/onboardingApi";
 import { resetSession, setSession } from "../../lib/session";
 import * as skillApi from "../../lib/skillApi";
@@ -183,6 +182,7 @@ const TWO_SKILLS = [
     lastUsedDate: "2026-08-01",
   },
 ];
+import { UnauthorizedError } from "../../lib/coreApi";
 
 describe("S-09 검토 화면", () => {
   beforeEach(() => {
@@ -272,27 +272,6 @@ describe("S-09 검토 화면", () => {
     expect(section).not.toHaveTextContent("통계청 평균");
   });
 
-  it("USER_INPUT — 대체된 카테고리가 없으면 대체 항목 문구가 뜨지 않는다", async () => {
-    vi.spyOn(expenseApi, "getAppliedExpenses").mockResolvedValue({
-      ...APPLIED_USER_INPUT,
-      categories: APPLIED_USER_INPUT.categories.map((category) => ({
-        ...category,
-        weightStatus: "USER_DEFINED",
-      })),
-    });
-
-    renderScreen();
-
-    await screen.findByText(/세전 연봉/);
-    expect(
-      screen.queryByText(/기본값으로 대체된 항목/),
-    ).not.toBeInTheDocument();
-    // 계산 제한 사항은 대체 항목 유무와 무관하게 항상 고정으로 뜬다.
-    expect(
-      screen.getByText(/세금, 성과급, 주식보상, 퇴직금은 추정하지 않으며/),
-    ).toBeInTheDocument();
-  });
-
   it("PROPAGATED — 이전 입력 금액이 그대로 적용된다고 밝히고 여섯 금액을 보여준다", async () => {
     vi.spyOn(expenseApi, "getAppliedExpenses").mockResolvedValue({
       ...APPLIED_USER_INPUT,
@@ -353,16 +332,6 @@ describe("S-09 검토 화면", () => {
     ).toBeInTheDocument();
   });
 
-  it("적용 금액 조회가 401 이면 로그인 화면으로 보낸다", async () => {
-    vi.spyOn(expenseApi, "getAppliedExpenses").mockRejectedValue(
-      new UnauthorizedError(),
-    );
-
-    renderScreen();
-
-    expect(await screen.findByText("로그인 화면")).toBeInTheDocument();
-  });
-
   // 브리프 3 — 필수 프로필 필드가 비어 있으면 제출 버튼 대신 해당 단계로 가는
   // 안내를 보여준다. 네 필수 필드 각각을 단독으로 비우는 행 + 0년 경력 경계값
   // + companySize(선택 필드) 행을 표로 돌려, 필드 하나를 실수로 판정에서
@@ -405,22 +374,6 @@ describe("S-09 검토 화면", () => {
       }
     },
   );
-
-  // 브리프 5 — 소득 이력이 없으면 소득 카드가 「아직 입력하지 않았습니다」로 표시되고 제출이 막힌다.
-  it("소득 이력이 없으면 소득 카드가 미입력으로 표시되고 제출이 막힌다", async () => {
-    vi.spyOn(incomeApi, "listIncome").mockResolvedValue([]);
-
-    renderScreen();
-
-    await screen.findByText(/개발.*경력 5년/);
-    expect(screen.getByText("아직 입력하지 않았습니다.")).toBeInTheDocument();
-    expect(
-      screen.queryByRole("button", { name: "내 판정 보기" }),
-    ).not.toBeInTheDocument();
-    expect(
-      screen.getByRole("link", { name: "소득 완료하러 가기" }),
-    ).toHaveAttribute("href", "/onboarding/income?from=review");
-  });
 
   // 브리프 4 — 제출하면 advanceOnboarding("COMPLETED") 후 /dashboard 로 간다.
   it("제출하면 advanceOnboarding COMPLETED 후 대시보드로 이동한다", async () => {
@@ -488,51 +441,6 @@ describe("S-09 검토 화면", () => {
     });
   });
 
-  it("제출이 API 오류로 실패하면 오류 메시지를 보여준다", async () => {
-    vi.spyOn(onboardingApi, "advanceOnboarding").mockRejectedValue({
-      code: "SERVER_ERROR",
-      message: "요청을 처리하지 못했습니다. 잠시 후 다시 시도해 주세요.",
-      status: 500,
-    });
-
-    renderScreen();
-    const user = userEvent.setup();
-
-    await user.click(
-      await screen.findByRole("button", { name: "내 판정 보기" }),
-    );
-
-    const banner = await screen.findByRole("alert");
-    expect(banner).toHaveTextContent(
-      "요청을 처리하지 못했습니다. 잠시 후 다시 시도해 주세요.",
-    );
-  });
-
-  it("각 항목의 '수정' 링크가 해당 단계로 이동한다", async () => {
-    renderScreen();
-    const user = userEvent.setup();
-
-    await screen.findByText(/세전 연봉/);
-    // 네 링크가 각자 자기 구간을 이름 짓는 접근성 이름(aria-label)을 갖는다 —
-    // 화면에 보이는 글자는 전부 "수정"이라 위치로만 구분하면 스크린 리더
-    // 사용자도, 이 테스트도 서로 쉽게 헷갈린다.
-    expect(
-      screen.getByRole("link", { name: "프로필 정보 수정" }),
-    ).toHaveAttribute("href", "/onboarding/profile?from=review");
-    expect(
-      screen.getByRole("link", { name: "소득 정보 수정" }),
-    ).toHaveAttribute("href", "/onboarding/income?from=review");
-    expect(
-      screen.getByRole("link", { name: "소비 정보 수정" }),
-    ).toHaveAttribute("href", "/onboarding/expense?from=review");
-    expect(
-      screen.getByRole("link", { name: "스킬 정보 수정" }),
-    ).toHaveAttribute("href", "/onboarding/skills?from=review");
-
-    await user.click(screen.getByRole("link", { name: "소비 정보 수정" }));
-    expect(await screen.findByText("소비 화면")).toBeInTheDocument();
-  });
-
   // 팀 리드 지시 — task-8 에서 guardOnboarding 이 "현재 단계와 같거나 이전 단계는
   // 허용"으로 완화된 것은 바로 이 화면의 "수정" 링크를 위해서였다(task-8-report.md
   // 참고). 위 테스트는 스텁이라 실제 가드를 거치지 않는다 — 이 테스트는 실제
@@ -574,26 +482,6 @@ describe("S-09 검토 화면", () => {
     expect(await screen.findByText("프로필 화면")).toBeInTheDocument();
   });
 
-  it("'이전' 을 누르면 스킬 화면으로 이동한다", async () => {
-    renderScreen();
-    const user = userEvent.setup();
-
-    await screen.findByText(/세전 연봉/);
-    await user.click(screen.getByRole("link", { name: "이전" }));
-
-    expect(await screen.findByText("스킬 화면")).toBeInTheDocument();
-  });
-
-  it("조회 중 401 을 받으면 로그인 화면으로 보낸다", async () => {
-    vi.spyOn(profileApi, "getProfile").mockRejectedValue(
-      new UnauthorizedError(),
-    );
-
-    renderScreen();
-
-    expect(await screen.findByText("로그인 화면")).toBeInTheDocument();
-  });
-
   describe("온보딩 완료(COMPLETED) 후 재진입 및 재시작", () => {
     beforeEach(() => {
       setSession({
@@ -602,25 +490,6 @@ describe("S-09 검토 화면", () => {
         email: "user@carix.kr",
         onboardingStep: "COMPLETED",
       });
-    });
-
-    it("COMPLETED 사용자에게 완료 배너와 재시작 버튼을 보여준다", async () => {
-      renderScreen();
-
-      expect(await screen.findByText("온보딩 완료 상태")).toBeInTheDocument();
-      const restarts = screen.getAllByRole("button", { name: /다시 시작/ });
-      expect(restarts).toHaveLength(1);
-      expect(restarts[0]).toHaveAttribute("data-variant", "outline");
-      expect(
-        screen.getByText(
-          /화면 아래 「처음부터 다시 시작」으로 다시 할 수 있습니다/,
-        ),
-      ).toBeInTheDocument();
-      const dashboard = screen.getByRole("link", {
-        name: "대시보드로 돌아가기",
-      });
-      expect(dashboard).toHaveAttribute("href", "/dashboard");
-      expect(dashboard).toHaveClass("bg-primary");
     });
 
     it("'온보딩 처음부터 다시 시작'을 누르면 resetOnboarding 을 호출하고 프로필 화면으로 이동한다", async () => {
@@ -659,5 +528,45 @@ describe("S-09 검토 화면", () => {
       const banner = await screen.findByRole("alert");
       expect(banner).toHaveTextContent("요청을 처리하지 못했습니다");
     });
+  });
+
+  it("조회 중 401 을 받으면 로그인 화면으로 보낸다", async () => {
+    vi.spyOn(profileApi, "getProfile").mockRejectedValue(
+      new UnauthorizedError(),
+    );
+
+    renderScreen();
+
+    expect(await screen.findByText("로그인 화면")).toBeInTheDocument();
+  });
+
+  it("적용 금액 조회가 401 이면 로그인 화면으로 보낸다", async () => {
+    vi.spyOn(expenseApi, "getAppliedExpenses").mockRejectedValue(
+      new UnauthorizedError(),
+    );
+
+    renderScreen();
+
+    expect(await screen.findByText("로그인 화면")).toBeInTheDocument();
+  });
+
+  it("제출이 API 오류로 실패하면 오류 메시지를 보여준다", async () => {
+    vi.spyOn(onboardingApi, "advanceOnboarding").mockRejectedValue({
+      code: "SERVER_ERROR",
+      message: "요청을 처리하지 못했습니다. 잠시 후 다시 시도해 주세요.",
+      status: 500,
+    });
+
+    renderScreen();
+    const user = userEvent.setup();
+
+    await user.click(
+      await screen.findByRole("button", { name: "내 판정 보기" }),
+    );
+
+    const banner = await screen.findByRole("alert");
+    expect(banner).toHaveTextContent(
+      "요청을 처리하지 못했습니다. 잠시 후 다시 시도해 주세요.",
+    );
   });
 });

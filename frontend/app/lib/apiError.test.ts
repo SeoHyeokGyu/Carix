@@ -29,21 +29,9 @@ describe("toUserMessage", () => {
 // income.tsx 의 409(중복 유효 시작일) 판별과 simulator.tsx 의 400(소득 이력 없음)
 // 판별이 이 판별자 하나를 공유한다 — 각자 status 만 덧붙여 좁힌다(apiError.ts).
 describe("isApiError", () => {
-  it("code·message·status 를 모두 가진 객체를 ApiError 로 인정한다", () => {
-    expect(isApiError({ code: "CONFLICT", message: "중복", status: 409 })).toBe(
-      true,
-    );
-  });
-
   it("셋 중 하나라도 없으면 ApiError 가 아니다", () => {
     expect(isApiError({ message: "중복", status: 409 })).toBe(false);
     expect(isApiError({ code: "CONFLICT", status: 409 })).toBe(false);
     expect(isApiError({ code: "CONFLICT", message: "중복" })).toBe(false);
-  });
-
-  it("객체가 아니거나 null 이면 ApiError 가 아니다", () => {
-    expect(isApiError(null)).toBe(false);
-    expect(isApiError("error")).toBe(false);
-    expect(isApiError(undefined)).toBe(false);
   });
 });

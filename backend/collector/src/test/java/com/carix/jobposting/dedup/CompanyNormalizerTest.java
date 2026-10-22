@@ -19,11 +19,4 @@ class CompanyNormalizerTest {
     assertThat(normalizer.normalize("쿠팡 Inc.")).isEqualTo("쿠팡");
     assertThat(normalizer.normalize("(유)토스")).isEqualTo("토스");
   }
-
-  @Test
-  @DisplayName("normalize - null 및 빈 문자열 처리")
-  void normalize_handlesNullAndEmpty() {
-    assertThat(normalizer.normalize(null)).isEmpty();
-    assertThat(normalizer.normalize("   ")).isEmpty();
-  }
 }

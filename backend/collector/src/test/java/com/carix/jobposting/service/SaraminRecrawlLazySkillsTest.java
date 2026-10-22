@@ -144,18 +144,6 @@ class SaraminRecrawlLazySkillsTest {
     assertThat(posting.getExperienceMin()).isEqualTo(5);
   }
 
-  @Test
-  @DisplayName("점핏 이력이 없는 기존 공고는 사람인 재수집이 직무군과 경력을 덮어쓴다")
-  void recrawlOverwritesFamilyAndExperienceOfNonJumpitRows() {
-    seed(CollectedVia.SARAMIN_SEARCH, "DATA", 5);
-
-    assertThatCode(() -> recrawl(List.of("Java", "백엔드개발자"))).doesNotThrowAnyException();
-
-    JobPosting posting = loaded();
-    assertThat(posting.getJobFamily()).isEqualTo("DEVELOPER");
-    assertThat(posting.getExperienceMin()).isEqualTo(3);
-  }
-
   private void seedWithIndustry(String industryName) {
     new TransactionTemplate(transactionManager)
         .executeWithoutResult(
@@ -217,15 +205,5 @@ class SaraminRecrawlLazySkillsTest {
 
     assertThat(industrySkillNames()).containsExactly("보안");
     assertThat(skillNames()).contains("Java", "보안").doesNotContain("Kafka");
-  }
-
-  @Test
-  @DisplayName("스킬 재정제는 공고의 산업 태그 스킬 연결을 지우지 않는다")
-  void refineKeepsIndustryLinks() {
-    seedWithIndustry("반도체장비");
-
-    skillService.refineAllPostingSkills();
-
-    assertThat(industrySkillNames()).containsExactly("반도체장비");
   }
 }

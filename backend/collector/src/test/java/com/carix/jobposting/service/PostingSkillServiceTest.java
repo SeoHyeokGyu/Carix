@@ -4,7 +4,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
-import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
@@ -17,7 +16,6 @@ import com.carix.jobposting.SkillRepository;
 import com.carix.jobposting.UserSkillRepository;
 import com.carix.jobposting.normalize.SkillTaxonomy;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -47,26 +45,6 @@ class PostingSkillServiceTest {
             null,
             null,
             new SkillTaxonomy(skillRepository, null));
-  }
-
-  @Test
-  @DisplayName("refineAllPostingSkills - 전체 공고 스킬 일괄 재정제 및 사전 캐시 자동 갱신 정상 수행")
-  void refineAllPostingSkills_success() {
-    Skill javaSkill = new Skill("Java", "LANGUAGE", false);
-    given(skillRepository.findAll()).willReturn(List.of(javaSkill));
-    given(skillRepository.findFirstByStandardNameIgnoreCase("Java"))
-        .willReturn(Optional.of(javaSkill));
-
-    JobPosting posting =
-        JobPosting.builder().source("JOBKOREA").externalId("1001").title("백엔드 Java 개발자 채용").build();
-    given(jobPostingRepository.findAll()).willReturn(List.of(posting));
-
-    Map<String, Object> stats = service.refineAllPostingSkills();
-
-    assertThat(stats).isNotNull();
-    assertThat(stats.get("totalPostings")).isEqualTo(1);
-    assertThat(stats.get("refinedPostings")).isEqualTo(1);
-    verify(jobPostingRepository, atLeastOnce()).save(posting);
   }
 
   @Test

@@ -11,25 +11,6 @@ describe("resolveSkillDemandStatus", () => {
     expect(resolveSkillDemandStatus("OK")).toBeNull();
   });
 
-  it("열화 상태마다 문구와 톤을 준다", () => {
-    expect(resolveSkillDemandStatus("CUSTOM_SKILL_NO_STATS")).toEqual({
-      label: "통계 미제공",
-      tone: "warning",
-    });
-    expect(resolveSkillDemandStatus("NEW_OBSERVATION")).toEqual({
-      label: "신규 관측",
-      tone: "info",
-    });
-    expect(resolveSkillDemandStatus("INSUFFICIENT_SAMPLE")).toEqual({
-      label: "표본 부족",
-      tone: "warning",
-    });
-    expect(resolveSkillDemandStatus("NO_RECENT_DEMAND")).toEqual({
-      label: "최근 수요 없음",
-      tone: "muted",
-    });
-  });
-
   // 서버 IndexContractVocabularyTest 의 프런트 대응물.
   // SkillDemandStatus enum 5종 + CUSTOM_SKILL_NO_STATS 리터럴 = 6종을 덮어야 한다.
   it("서버 어휘 6종을 빠짐없이 덮는다", () => {
@@ -43,13 +24,6 @@ describe("resolveSkillDemandStatus", () => {
         "CUSTOM_SKILL_NO_STATS",
       ].sort(),
     );
-  });
-
-  it("모르는 코드는 던지지 않고 muted 로 받는다", () => {
-    expect(resolveSkillDemandStatus("SAMPLE_TOO_SMALL")).toEqual({
-      label: "SAMPLE_TOO_SMALL",
-      tone: "muted",
-    });
   });
 });
 

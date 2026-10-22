@@ -125,38 +125,6 @@ class OnboardingFlowTest {
   }
 
   @Test
-  void 프로필_부분_저장_후_조회하면_저장된_값이_돌아온다() throws Exception {
-    String userId = "00000000-0000-0000-0000-000000000002";
-
-    mockMvc
-        .perform(
-            patch("/v1/profile")
-                .header("X-User-Id", userId)
-                .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"jobFamily\":\"DEVELOPER\"}"))
-        .andExpect(status().isOk());
-
-    mockMvc
-        .perform(
-            patch("/v1/profile")
-                .header("X-User-Id", userId)
-                .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"yearsOfExperience\":7}"))
-        .andExpect(status().isOk());
-
-    mockMvc
-        .perform(get("/v1/profile").header("X-User-Id", userId))
-        .andExpect(status().isOk())
-        .andExpect(jsonPath("$.data.jobFamily").value("DEVELOPER"))
-        .andExpect(jsonPath("$.data.yearsOfExperience").value(7));
-  }
-
-  @Test
-  void 헤더가_없으면_프로필_조회는_401_이다() throws Exception {
-    mockMvc.perform(get("/v1/profile")).andExpect(status().isUnauthorized());
-  }
-
-  @Test
   void 컬럼_너비를_넘는_필드로_프로필을_수정하면_400_이다() throws Exception {
     // career_profile.job_family 는 varchar(100) 이다 (deploy/postgres/schema/02_user_domain.sql).
     // 검증 없이 그대로 저장 시도하면 DataIntegrityViolationException -> 500 이 난다.

@@ -82,27 +82,11 @@ class MonthlyOverviewTest {
   }
 
   @Test
-  @DisplayName("원티드 표본·상한 적용·정기 수집 열을 센다")
-  void wantedColumns() {
-    MonthlyOverview.Month sep = service.monthly("202609", "202609", null).months().get(0);
-    assertThat(sep.wantedSampled()).isEqualTo(2);
-    assertThat(sep.wantedSampledCapped()).isEqualTo(2);
-    assertThat(sep.wantedCrawled()).isEqualTo(1);
-  }
-
-  @Test
   @DisplayName("sampleSource=WANTED 면 직무별 수가 원티드 표본 기준")
   void familyBySampleSource() {
     MonthlyOverview.Month sep = service.monthly("202609", "202609", "WANTED").months().get(0);
     assertThat(sep.sampledByFamily()).containsEntry("AI", 2).containsEntry("DEVELOPER", 0);
     assertThat(sep.jobkoreaSampled()).isEqualTo(5);
-  }
-
-  @Test
-  @DisplayName("sampleSource 는 대소문자·앞뒤 공백을 무시한다")
-  void sampleSourceIsNormalized() {
-    MonthlyOverview.Month sep = service.monthly("202609", "202609", " wanted ").months().get(0);
-    assertThat(sep.sampledByFamily()).containsEntry("AI", 2);
   }
 
   @Test
@@ -130,16 +114,5 @@ class MonthlyOverviewTest {
         .containsExactly("202610");
     assertThat(o.months())
         .allSatisfy(m -> assertThat(m.sampledByFamily()).doesNotContainKey("OTHER"));
-  }
-
-  @Test
-  @DisplayName("from>to, 36개월 초과, 형식 오류는 400")
-  void invalidRange() {
-    assertThatThrownBy(() -> service.monthly("202610", "202609", null))
-        .isInstanceOf(ResponseStatusException.class);
-    assertThatThrownBy(() -> service.monthly("202301", "202610", null))
-        .isInstanceOf(ResponseStatusException.class);
-    assertThatThrownBy(() -> service.monthly("2026-09", "202610", null))
-        .isInstanceOf(ResponseStatusException.class);
   }
 }

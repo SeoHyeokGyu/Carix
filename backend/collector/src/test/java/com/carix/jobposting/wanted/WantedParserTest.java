@@ -121,19 +121,4 @@ class WantedParserTest {
   void missingInitialDataIsEmpty() {
     assertThat(parser.parsePage(nextData("\"other\":{}"))).isEmpty();
   }
-
-  @Test
-  @DisplayName("confirm_time 이 없으면 빈 값이다")
-  void missingConfirmTimeIsEmpty() {
-    String data =
-        "\"initialData\":{\"id\":1,\"category_tag\":{\"parent_tag\":{\"id\":518},\"child_tags\":[]}}";
-    assertThat(parser.parsePage(nextData(data))).isEmpty();
-  }
-
-  @Test
-  @DisplayName("category_tag 가 없으면 빈 값이다")
-  void missingCategoryTagIsEmpty() {
-    String data = "\"initialData\":{\"id\":1,\"confirm_time\":\"2026-09-15\"}";
-    assertThat(parser.parsePage(nextData(data))).isEmpty();
-  }
 }

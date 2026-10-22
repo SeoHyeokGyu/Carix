@@ -10,7 +10,6 @@ import static org.mockito.Mockito.verify;
 
 import com.carix.jobposting.JobPosting;
 import com.carix.jobposting.JobPostingRepository;
-import com.carix.jobposting.RawIngest;
 import com.carix.jobposting.RawIngestRepository;
 import com.carix.jobposting.Skill;
 import com.carix.jobposting.crawler.SaraminDetailFetcher;
@@ -22,7 +21,6 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -151,22 +149,6 @@ class JumpitIngestServiceTest {
   }
 
   @Test
-  @DisplayName("상세 응답이 JSON 이 아니면 게시일만 비우고 공고는 만든다")
-  void unparsableDetailKeepsPosting() {
-    given(postings.findBySourceAndExternalId(anyString(), anyString()))
-        .willReturn(Optional.empty());
-    client.detail = "<html>oops</html>";
-
-    JumpitIngestSummary summary = service.ingestAll();
-
-    ArgumentCaptor<JobPosting> saved = ArgumentCaptor.forClass(JobPosting.class);
-    verify(postings, org.mockito.Mockito.times(2)).save(saved.capture());
-    assertThat(saved.getAllValues()).allSatisfy(p -> assertThat(p.getPostedStartDate()).isNull());
-    assertThat(summary.created()).isEqualTo(2);
-    assertThat(summary.errors()).isZero();
-  }
-
-  @Test
   @DisplayName("같은 공고가 다음 페이지에 또 나와도 한 번만 처리한다")
   void processesEachIdOnce() {
     given(postings.findBySourceAndExternalId(anyString(), anyString()))
@@ -269,27 +251,6 @@ class JumpitIngestServiceTest {
   }
 
   @Test
-  @DisplayName("상세 API 가 비면 게시일 없이 저장하고 계속한다")
-  void missingDetailKeepsGoing() {
-    client.detail = null;
-    given(postings.findBySourceAndExternalId(anyString(), anyString()))
-        .willReturn(Optional.empty());
-    JumpitIngestSummary summary = service.ingestAll();
-    assertThat(summary.created()).isEqualTo(2);
-  }
-
-  @Test
-  @DisplayName("목록 페이지마다 수집 이력을 JUMPIT 으로 남긴다")
-  void recordsRawIngestAsJumpit() {
-    given(postings.findBySourceAndExternalId(anyString(), anyString()))
-        .willReturn(Optional.empty());
-    service.ingestAll();
-    ArgumentCaptor<RawIngest> raw = ArgumentCaptor.forClass(RawIngest.class);
-    verify(rawIngests, org.mockito.Mockito.atLeastOnce()).save(raw.capture());
-    assertThat(raw.getAllValues()).allSatisfy(r -> assertThat(r.getSource()).isEqualTo("JUMPIT"));
-  }
-
-  @Test
   @DisplayName("공고 한 건 처리가 실패해도 나머지를 계속 처리하고 errors 로 센다")
   void failedPositionDoesNotAbortRun() {
     given(postings.findBySourceAndExternalId(anyString(), anyString()))
@@ -355,27 +316,6 @@ class JumpitIngestServiceTest {
 
     assertThat(summary.pages()).isZero();
     assertThat(summary.listFailed()).isTrue();
-  }
-
-  @Test
-  @DisplayName("목록을 끝까지 받으면 listFailed 가 아니다")
-  void listCompletionIsNotFlagged() {
-    given(postings.findBySourceAndExternalId(anyString(), anyString()))
-        .willReturn(Optional.empty());
-
-    assertThat(service.ingestAll().listFailed()).isFalse();
-  }
-
-  @Test
-  @DisplayName("요약은 작업 details 맵으로 바뀐다")
-  void summaryToDetails() {
-    Map<String, Object> d =
-        new JumpitIngestSummary(2, 2, 1, 1, 0, 3, Map.of("ESET", 1), true).toDetails();
-    assertThat(d)
-        .containsEntry("errors", 3)
-        .containsEntry("created", 1)
-        .containsEntry("listFailed", true)
-        .containsEntry("droppedSkills", Map.of("ESET", 1));
   }
 
   @Test

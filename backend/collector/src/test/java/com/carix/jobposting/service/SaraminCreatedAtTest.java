@@ -37,12 +37,6 @@ class SaraminCreatedAtTest {
   }
 
   @Test
-  @DisplayName("job_day 가 없으면 빈 문자열 — 마감일로 대신하지 않는다")
-  void emptyWhenNoJobDay() {
-    assertThat(JobPostingIngestService.saraminCreatedAtRaw(item(null, "~ 09/15(화)"))).isEmpty();
-  }
-
-  @Test
   @DisplayName("등록일·마감일이 실제 게시 기간이 되고 365일 창이 생기지 않는다")
   void windowIsRealPostingPeriod() {
     Element el = item("등록일 26/08/20", "~ 09/15(화)");

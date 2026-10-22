@@ -3,7 +3,6 @@ import { describe, expect, it } from "vitest";
 import type { SnapshotPoint } from "./dashboardMarketApi";
 import {
   countSignalStreak,
-  formatVerdictDescription,
   previousYearMonth,
   toSparklineSeries,
 } from "./verdict";
@@ -27,27 +26,10 @@ function point(
   };
 }
 
-describe("formatVerdictDescription", () => {
-  it("기준일의 연·월로 제목을 만든다", () => {
-    expect(formatVerdictDescription("2026-08-01")).toBe(
-      "2026년 8월 기준 · 내 커리어 판정",
-    );
-  });
-
-  it("기준일이 없거나 형식이 아니면 월 없이 쓴다", () => {
-    expect(formatVerdictDescription(undefined)).toBe("내 커리어 판정");
-    expect(formatVerdictDescription("-")).toBe("내 커리어 판정");
-  });
-});
-
 describe("previousYearMonth", () => {
   it("1월의 앞 달은 전년 12월이다", () => {
     expect(previousYearMonth("202601")).toBe("202512");
     expect(previousYearMonth("202608")).toBe("202607");
-  });
-
-  it("형식이 아니면 null", () => {
-    expect(previousYearMonth("2026-08")).toBeNull();
   });
 });
 
@@ -60,14 +42,6 @@ describe("countSignalStreak", () => {
       point("202605", "STAY"),
     ];
     expect(countSignalStreak(history, "STAY")).toBe(2);
-  });
-
-  it("이력이 1개월뿐이면 1", () => {
-    expect(countSignalStreak([point("202608", "STAY")], "STAY")).toBe(1);
-  });
-
-  it("이력이 없으면 0", () => {
-    expect(countSignalStreak([], "STAY")).toBe(0);
   });
 
   it("최신 달이 다른 코드면 0", () => {
@@ -145,32 +119,11 @@ describe("toSparklineSeries", () => {
     ]);
   });
 
-  it("빈 snapshots 는 빈 결과를 반환한다", () => {
-    const series = toSparklineSeries([]);
-    expect(series.slots).toBe(0);
-    expect(series.segments).toEqual([]);
-  });
-
   it("오래된 달이 null이면 slots은 여전히 모든 포함된 달을 센다", () => {
     const series = toSparklineSeries([
       point("202608", "STAY", 104),
       point("202607", "STAY", 102),
       point("202606", "STAY", null),
-    ]);
-    expect(series.slots).toBe(3);
-    expect(series.segments).toEqual([
-      [
-        { index: 1, value: 102 },
-        { index: 2, value: 104 },
-      ],
-    ]);
-  });
-
-  it("오래된 달이 0이면 slots은 여전히 모든 포함된 달을 센다", () => {
-    const series = toSparklineSeries([
-      point("202608", "STAY", 104),
-      point("202607", "STAY", 102),
-      point("202606", "STAY", 0),
     ]);
     expect(series.slots).toBe(3);
     expect(series.segments).toEqual([

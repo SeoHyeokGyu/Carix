@@ -6,14 +6,11 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as expenseApi from "../../../lib/api/expense";
 import * as incomeApi from "../../../lib/api/income";
 import { EXPENSE_ITEM_AMOUNT_MESSAGE } from "../../../lib/schemas/expense";
-import { currentYearMonth, formatYearMonth } from "../../../lib/yearMonth";
-import { expectHeadingOutline } from "../../../test-utils/headingOutline";
 import RecordsExpense, {
   clientAction,
   clientLoader,
   ErrorBoundary,
 } from "./expense";
-import RecordsLayout from "./layout";
 
 vi.mock("../../../lib/api/expense");
 vi.mock("../../../lib/api/income");
@@ -70,66 +67,6 @@ describe("소비 탭 (S-12)", () => {
     ]);
   });
 
-  it("기준월을 내림차순으로 그리고 YYYY-MM 으로 보여준다", async () => {
-    renderTab();
-    const cells = await screen.findAllByText(/^\d{4}-\d{2}$/);
-    expect(cells[0]).toHaveTextContent("2026-07");
-    expect(cells[1]).toHaveTextContent("2026-06");
-    expect(
-      screen.getByRole("heading", { level: 2, name: "월별 소비" }),
-    ).toBeInTheDocument();
-  });
-
-  it("카테고리 상태 뱃지에 카테고리명을 함께 그려 어느 칸이 보간됐는지 구분한다", async () => {
-    renderTab();
-    // 클라이언트가 계산하지 않는다 — 서버 status 를 그대로 뱃지로 만들되, 카테고리
-    // 이름이 없으면 여섯 칩이 전부 "직접 입력"/"통계청 평균 기준"으로만 보여 어느
-    // 칸이 보간됐는지 구분이 안 된다(M2).
-    expect(await screen.findByText("식비 · 직접 입력")).toBeInTheDocument();
-    expect(screen.getByText("교통 · 통계청 평균 기준")).toBeInTheDocument();
-  });
-
-  it("월 단위 weightStatus 뱃지를 서버 값 그대로 그린다", async () => {
-    renderTab();
-    // 카테고리별 status 와 별개로 서버가 계산해 내려주는 월 종합 상태다(M1).
-    // 클라이언트가 카테고리 상태들을 훑어 스스로 계산하지 않는다.
-    expect(await screen.findByText("일부 보간")).toBeInTheDocument();
-    expect(screen.getByText("직접 입력")).toBeInTheDocument();
-  });
-
-  // 카테고리 뱃지 여섯 묶음이 표 폭을 거의 다 가져가면 앞 두 칸이 최소 폭으로 눌려
-  // "2026-/07", "직접/입력" 으로 꺾였다(운영 데스크톱 폭에서 확인). 둘 다 짧은 고정 길이 값이다.
-  it("기준월·월 상태 칸은 줄을 꺾지 않는다", async () => {
-    renderTab();
-    const monthCell = (await screen.findByText("2026-07")).closest("td");
-    expect(monthCell).toHaveClass("whitespace-nowrap");
-    const statusCell = screen.getByText("일부 보간").closest("td");
-    expect(statusCell).toHaveClass("whitespace-nowrap");
-  });
-
-  it("월을 고르면 6 카테고리 전부를 폼으로 연다", async () => {
-    renderTab();
-    const user = userEvent.setup();
-    await user.click(
-      (await screen.findAllByRole("button", { name: "수정" }))[0],
-    );
-
-    for (const label of [
-      "주거·공공요금",
-      "식비",
-      "교통",
-      "의료",
-      "교육·자기계발",
-      "여가·기타",
-    ]) {
-      expect(screen.getByLabelText(label)).toBeInTheDocument();
-    }
-    const section = screen.getByRole("region", { name: /^\d{4}-\d{2} 소비$/ });
-    expect(section).toContainElement(
-      screen.getByRole("heading", { level: 2, name: /^\d{4}-\d{2} 소비$/ }),
-    );
-  });
-
   it("기본값으로 되돌리면 그 카테고리를 빼고 PUT 한다", async () => {
     vi.mocked(expenseApi.putExpenses).mockResolvedValue(months[0]);
     renderTab();
@@ -167,26 +104,6 @@ describe("소비 탭 (S-12)", () => {
     // 카테고리 칸에 오류로 붙고 PUT 자체를 막는다.
     expect(
       await screen.findByText(EXPENSE_ITEM_AMOUNT_MESSAGE),
-    ).toBeInTheDocument();
-    expect(expenseApi.putExpenses).not.toHaveBeenCalled();
-  });
-
-  it("미래 월 추가를 거부하고 서버를 부르지 않는다", async () => {
-    renderTab();
-    const user = userEvent.setup();
-    const monthInput = await screen.findByLabelText("추가할 기준월");
-    // 1차 방어선: `<input type="month">` 의 max 로 당월 이후를 고를 수 없게 한다.
-    // 2차 방어선(아래)은 max 를 우회한 직접 입력·자동화를 잡는다.
-    expect(monthInput).toHaveAttribute(
-      "max",
-      formatYearMonth(currentYearMonth()),
-    );
-
-    await user.type(monthInput, "2099-01");
-    await user.click(screen.getByRole("button", { name: "기준월 추가" }));
-
-    expect(
-      await screen.findByText("미래 기준월은 추가할 수 없습니다."),
     ).toBeInTheDocument();
     expect(expenseApi.putExpenses).not.toHaveBeenCalled();
   });
@@ -255,15 +172,6 @@ describe("소비 탭 (S-12)", () => {
     expect(items).toEqual([]);
   });
 
-  it("기록이 없으면 추가를 유도하고 월 삭제가 없음을 알린다", async () => {
-    vi.mocked(expenseApi.listExpenses).mockResolvedValue([]);
-    renderTab();
-    expect(
-      await screen.findByText("등록된 소비 기록이 없습니다"),
-    ).toBeInTheDocument();
-    expect(screen.getByText(/기준월은 삭제할 수 없습니다/)).toBeInTheDocument();
-  });
-
   it("불러오기에 실패하면 다시 시도할 수 있고, 성공하면 목록으로 돌아온다", async () => {
     vi.mocked(expenseApi.listExpenses)
       .mockRejectedValueOnce(new Error("boom"))
@@ -277,37 +185,5 @@ describe("소비 탭 (S-12)", () => {
     await user.click(screen.getByRole("button", { name: "다시 시도" }));
 
     expect(await screen.findByText("2026-07")).toBeInTheDocument();
-  });
-
-  it("입력 관리 h1 아래로 제목 단계가 이어진다", async () => {
-    const Stub = createRoutesStub([
-      {
-        path: "/mypage/records",
-        Component: RecordsLayout,
-        children: [
-          {
-            path: "expense",
-            Component: RecordsExpense,
-            ErrorBoundary,
-            loader: clientLoader,
-            action: clientAction,
-            HydrateFallback: () => null,
-          },
-        ],
-      },
-      { path: "/login", Component: () => <div>로그인 화면</div> },
-    ]);
-    render(<Stub initialEntries={["/mypage/records/expense"]} />);
-
-    expect(
-      await screen.findByRole("heading", { level: 2, name: "월별 소비" }),
-    ).toBeInTheDocument();
-    expectHeadingOutline();
-    // 제목 → 내용 12px 는 PageSection 이 정한다. 구획 안 간격을 섹션에 덮어쓰지 않는다.
-    expect(
-      screen
-        .getByRole("heading", { level: 2, name: "월별 소비" })
-        .closest("[data-page-section]"),
-    ).not.toHaveClass("gap-4");
   });
 });

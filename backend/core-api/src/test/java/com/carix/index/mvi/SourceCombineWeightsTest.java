@@ -17,14 +17,6 @@ class SourceCombineWeightsTest {
   }
 
   @Test
-  @DisplayName("정기 수집 원천이 표본 원천보다 작으면 그대로다")
-  void belowCapUnchanged() {
-    assertThat(SourceCombineWeights.of(Map.of("JOBKOREA", 400, "SARAMIN", 120)))
-        .containsEntry("JOBKOREA", 400.0)
-        .containsEntry("SARAMIN", 120.0);
-  }
-
-  @Test
   @DisplayName("표본 원천이 없으면 정기 수집 원천은 그대로다")
   void noSampledSourceNoCap() {
     assertThat(SourceCombineWeights.of(Map.of("SARAMIN", 2000))).containsEntry("SARAMIN", 2000.0);
@@ -60,10 +52,10 @@ class SourceCombineWeightsTest {
   }
 
   @Test
-  @DisplayName("정기 수집 합계가 상한 이하면 그대로다")
-  void regularPoolBelowCapUnchanged() {
-    assertThat(SourceCombineWeights.of(Map.of("WANTED", 200, "SARAMIN", 90, "JUMPIT", 30)))
-        .containsEntry("SARAMIN", 90.0)
-        .containsEntry("JUMPIT", 30.0);
+  @DisplayName("정기 수집 원천이 표본 원천보다 작으면 그대로다")
+  void belowCapUnchanged() {
+    assertThat(SourceCombineWeights.of(Map.of("JOBKOREA", 400, "SARAMIN", 120)))
+        .containsEntry("JOBKOREA", 400.0)
+        .containsEntry("SARAMIN", 120.0);
   }
 }

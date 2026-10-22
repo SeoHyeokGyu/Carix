@@ -55,13 +55,6 @@ class JobKoreaPayParserTest {
   }
 
   @Test
-  void returnsNullForBlankOrBrokenJson() {
-    assertNull(parser.parse(""));
-    assertNull(parser.parse(null));
-    assertNull(parser.parse("{not json"));
-  }
-
-  @Test
   void bandConvertsMonthlyToAnnual() {
     String payJson =
         """

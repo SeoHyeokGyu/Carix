@@ -329,6 +329,8 @@ erDiagram
 | 2026-10-09 | `core.job_posting` | 원티드 표본이 목표 250 에 못 미친 9개월(202507·202508·202509·202510·202602~202606)을 요청 상한 6,000 으로 다시 채웠다(달마다 부족분만 `perMonthTarget`). 509건이 더해져 202507~202608 은 달마다 250건, 202609 는 267건이다. 202604 실행 중 배포로 collector 가 재시작돼 작업이 사라졌고, 남은 부족분으로 다시 돌렸다 |
 | 2026-10-09 | `core.market_aggregate`·`core.index_snapshot` | 원천별 측정 프레임(규칙 1.5.0)을 적용했다 — 전체 재집계(`{"all":true}`, 182,737행)로 `SARAMIN` 행이 사람인 검색 경로 공고만 세게 되고 `JUMPIT` 행이 새로 생겼다. 사용자 3명을 재계산해 모두 기준월 202610·규칙 1.5.0·`STAY` 다. 스키마 변경은 없다 |
 | 2026-10-22 | `core.income_history`·`core.career_profile`·`core.performance_bonus` | 상여 조건 컬럼 `bonus_included boolean NOT NULL DEFAULT true`·`fixed_bonus_annual_encrypted varchar(512)`(nullable), 입사일 `career_profile.hire_date date`(nullable)를 더하고 `core.performance_bonus` 테이블과 `performance_bonus_user_month_idx (user_id, paid_month)` 를 만들었다. 기존 `income_history` 3행은 `bonus_included = true`, `career_profile` 3행은 `hire_date` 가 `NULL` 이다. 한 트랜잭션(`ON_ERROR_STOP=1`)으로 새 코드 배포 전에 적용했다. 신규 환경용 실행 정본(`deploy/postgres/schema/02_user_domain.sql`)에도 같은 정의가 있다 |
+| 2026-10-22 | `core.cpi_observation` | KOSIS `DT_1J22001` 총지수(`objL2=0`)를 `category = '0'` 으로 백필했다 — collector `POST /internal/pipeline/cpi` 를 기존 카테고리 범위와 같은 `202001`~`202609` 로 실행해 81행이 들어갔다(전체 1,053행). 첫 CPI 월이 그대로라 구매력 지수 기준월은 바뀌지 않았다 |
+| 2026-10-22 | `core.index_snapshot` | 구매력 산식 2(별도 고정상여 월할 반영) 배포 뒤 전 사용자 재계산(사용자별 `POST /api/v1/dashboard/recalculate`, 최초 소득월부터)을 했다. 3명, 새 행 125(근거 `ppiFormulaVersion = "2"`), 이전 행 4,193 은 보존했다. 고정상여를 따로 받는 소득 행이 없어 구매력 지수와 판정은 바뀌지 않았다 |
 
 > **`core.wage_stat_observation.source` 는 쓰기 경로까지 들어왔다.** 수집이 연도별로 출처를
 > 기록하고, KOSIS 실측만 기존 행을 덮는다 — 폴백 상수는 기존 행을 건드리지 않는다. 컬럼 도입

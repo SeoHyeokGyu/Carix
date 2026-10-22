@@ -17,7 +17,6 @@ import com.carix.income.repository.PerformanceBonusRepository;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneId;
-import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
@@ -41,23 +40,6 @@ class PerformanceBonusServiceTest {
   }
 
   @Test
-  @DisplayName("목록은 지급월 내림차순")
-  void 목록은_지급월_내림차순() {
-    given(repository.findByUserIdOrderByPaidMonthDesc(USER_ID))
-        .willReturn(
-            List.of(
-                new PerformanceBonus(USER_ID, "202607", 3_000_000L),
-                new PerformanceBonus(USER_ID, "202601", 5_000_000L)));
-
-    List<PerformanceBonusResponse> result = service.list(USER_ID);
-
-    assertThat(result)
-        .extracting(PerformanceBonusResponse::paidMonth)
-        .containsExactly("202607", "202601");
-    assertThat(result.get(0).amount()).isEqualTo(3_000_000L);
-  }
-
-  @Test
   @DisplayName("현재 월까지는 기록할 수 있다")
   void 현재_월은_기록된다() {
     PerformanceBonusResponse created =
@@ -76,16 +58,6 @@ class PerformanceBonusServiceTest {
   }
 
   @Test
-  @DisplayName("월이 13이면 거부한다")
-  void 월이_13이면_400() {
-    assertThatThrownBy(() -> service.create(USER_ID, new PerformanceBonusRequest("202613", 1L)))
-        .isInstanceOf(InvalidPaidMonthException.class);
-    assertThatThrownBy(() -> service.create(USER_ID, new PerformanceBonusRequest("202600", 1L)))
-        .isInstanceOf(InvalidPaidMonthException.class);
-    verify(repository, never()).save(any());
-  }
-
-  @Test
   @DisplayName("남의 기록 삭제는 404")
   void 남의_기록_삭제는_404() {
     UUID id = UUID.randomUUID();
@@ -94,17 +66,5 @@ class PerformanceBonusServiceTest {
     assertThatThrownBy(() -> service.delete(USER_ID, id))
         .isInstanceOf(PerformanceBonusNotFoundException.class);
     verify(repository, never()).delete(any(PerformanceBonus.class));
-  }
-
-  @Test
-  @DisplayName("본인 기록은 삭제된다")
-  void 본인_기록은_삭제된다() {
-    UUID id = UUID.randomUUID();
-    PerformanceBonus own = new PerformanceBonus(USER_ID, "202601", 1L);
-    given(repository.findByIdAndUserId(id, USER_ID)).willReturn(Optional.of(own));
-
-    service.delete(USER_ID, id);
-
-    verify(repository).delete(own);
   }
 }

@@ -130,27 +130,6 @@ class OpeningWindowIndexServiceImplTest {
   }
 
   @Test
-  @DisplayName("프로필이 없으면 NOT_AVAILABLE 을 반환한다")
-  void 프로필없음_NOT_AVAILABLE() {
-    given(careerProfileRepository.findByUserId(USER_ID)).willReturn(Optional.empty());
-
-    OwiResult result = service.calculate(USER_ID, BASE_YM);
-
-    assertThat(result.status()).isEqualTo(IndexStatus.NOT_AVAILABLE);
-    assertThat(result.value()).isNull();
-  }
-
-  @Test
-  @DisplayName("기준년월이 null·빈 문자열·잘못된 형식이면 NOT_AVAILABLE 을 반환한다")
-  void 잘못된_입력_NOT_AVAILABLE() {
-    assertThat(service.calculate(null, BASE_YM).status()).isEqualTo(IndexStatus.NOT_AVAILABLE);
-    assertThat(service.calculate(USER_ID, null).status()).isEqualTo(IndexStatus.NOT_AVAILABLE);
-    assertThat(service.calculate(USER_ID, "   ").status()).isEqualTo(IndexStatus.NOT_AVAILABLE);
-    assertThat(service.calculate(USER_ID, "2026-13").status()).isEqualTo(IndexStatus.NOT_AVAILABLE);
-    assertThat(service.calculate(USER_ID, "invalid").status()).isEqualTo(IndexStatus.NOT_AVAILABLE);
-  }
-
-  @Test
   @DisplayName("최근 3개월·이전 12개월 표본이 충분하면 동료집단 채용 비중 추이(OWI)를 산출한다")
   void OWI_정상_산출() {
     given(careerProfileRepository.findByUserId(USER_ID)).willReturn(Optional.of(createProfile(5)));

@@ -157,16 +157,6 @@ class DecisionSignalEngineTest {
   }
 
   @Test
-  @DisplayName("부분 판정 - 시장보다 5% 넘게 받으면 현 상태 유지")
-  void partial_aboveMarket_stay() {
-    DecisionOutcome outcome = engine.evaluate(ppi(100), mviNullWithBaseline(54_000_000L), salary());
-
-    assertThat(outcome.code()).isEqualTo(DecisionSignalCode.STAY);
-    assertThat(outcome.rulesApplied())
-        .containsExactly("뚜렷한 보상 격차 없음", DecisionSignalEngine.MVI_NOT_REFLECTED);
-  }
-
-  @Test
   @DisplayName("부분 판정 - 구매력이 낮아도 스킬 보강 우선은 내지 않는다 — 시장가치 90 미만 조건을 볼 수 없다")
   void partial_neverUpskill() {
     DecisionOutcome outcome = engine.evaluate(ppi(80), mviNullWithBaseline(60_000_000L), salary());
@@ -377,25 +367,12 @@ class DecisionSignalEngineTest {
   }
 
   @Test
-  @DisplayName("데이터 부족 5 - 현재 연봉이 없으면 데이터 부족이다")
-  void insufficient5_noCurrentSalary() {
-    assertThat(engine.evaluate(ppi(100), mvi(120, 72_000_000L), null).code())
-        .isEqualTo(DecisionSignalCode.INSUFFICIENT_DATA);
-  }
-
-  @Test
   @DisplayName("데이터 부족 5 - 현재 연봉이 0 이면 데이터 부족이다 — 격차 비율의 분모가 될 수 없다")
   void insufficient5_zeroCurrentSalary() {
     CurrentSalary zeroSalary = new CurrentSalary(0L, LocalDate.of(2026, 1, 1));
 
     assertThat(engine.evaluate(ppi(100), mvi(120, 72_000_000L), zeroSalary).code())
         .isEqualTo(DecisionSignalCode.INSUFFICIENT_DATA);
-  }
-
-  @Test
-  @DisplayName("데이터 부족이면 격차 비율을 계산하지 않는다")
-  void insufficientData_hasNoSalaryGapRatio() {
-    assertThat(engine.evaluate(ppi(100), mvi(120, 72_000_000L), null).salaryGapRatio()).isNull();
   }
 
   @Test

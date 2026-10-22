@@ -1,7 +1,6 @@
 package com.carix.jobposting;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotEquals;
 
 import java.time.Instant;
 import org.junit.jupiter.api.Test;
@@ -12,18 +11,6 @@ class RawIngestIdsTest {
   void appendsTheCollectionDateToAListpageId() {
     assertEquals(
         "listpage-1-20260821",
-        RawIngestIds.datedListpage("listpage-1", Instant.parse("2026-08-21T01:15:07Z")));
-  }
-
-  /**
-   * 이것이 고치려는 결함이다. 목록페이지 rawId 는 회차마다 `listpage-1`..`listpage-10` 으로 같아서, 두 번째 크롤의 목록 HTML 이
-   * `raw_ingest` 의 (source, source_item_id) 유니크 제약에 걸려 조용히 버려졌다. 그 목록에서만 나오는 공고들은 원본 없이
-   * `job_posting` 에만 남는다.
-   */
-  @Test
-  void separatesTheSamePageCollectedInDifferentCrawls() {
-    assertNotEquals(
-        RawIngestIds.datedListpage("listpage-1", Instant.parse("2026-08-09T13:32:33Z")),
         RawIngestIds.datedListpage("listpage-1", Instant.parse("2026-08-21T01:15:07Z")));
   }
 

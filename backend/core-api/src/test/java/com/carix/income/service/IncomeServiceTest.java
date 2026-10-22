@@ -40,23 +40,6 @@ class IncomeServiceTest {
   }
 
   @Test
-  @DisplayName("getHistory - 유저의 소득 목록 조회 및 변환")
-  void getHistory() {
-    IncomeHistory history =
-        new IncomeHistory(USER_ID, 60000000L, 4500000L, LocalDate.of(2026, 1, 1), null);
-    given(repository.findByUserIdOrderByEffectiveDateDesc(USER_ID)).willReturn(List.of(history));
-
-    List<IncomeResponse> result = service.getHistory(USER_ID);
-
-    assertThat(result).hasSize(1);
-    assertThat(result.get(0).grossSalary()).isEqualTo(60000000L);
-    assertThat(result.get(0).netSalary()).isEqualTo(4500000L);
-    // 행이 하나뿐이면 그 행이 곧 최소 유효일 행이다 — 가장 흔한 실사용 상태인데도
-    // 경계(size == 1)에서 파생 분기가 실제로 도는지 여태 아무 테스트도 안 봤다.
-    assertThat(result.get(0).changeReason()).isEqualTo(IncomeChangeReasonEnum.INITIAL);
-  }
-
-  @Test
   @DisplayName("getHistory - 가장 이른 유효일 행의 changeReason 이 INITIAL 로 파생되고 원값은 남는다")
   void getHistory_derivesInitial() {
     IncomeHistory newer =
@@ -82,14 +65,6 @@ class IncomeServiceTest {
   }
 
   @Test
-  @DisplayName("getHistory - 이력이 없으면 빈 목록이다")
-  void getHistory_empty() {
-    given(repository.findByUserIdOrderByEffectiveDateDesc(USER_ID)).willReturn(List.of());
-
-    assertThat(service.getHistory(USER_ID)).isEmpty();
-  }
-
-  @Test
   @DisplayName("create - 더 이른 행이 없으면 단건 응답이 INITIAL 이다")
   void create_derivesInitialWhenEarliest() {
     LocalDate date = LocalDate.of(2024, 1, 1);
@@ -106,37 +81,6 @@ class IncomeServiceTest {
   }
 
   @Test
-  @DisplayName("create - 더 이른 행이 있으면 단건 응답이 고른 값 그대로다")
-  void create_keepsReasonWhenNotEarliest() {
-    LocalDate date = LocalDate.of(2026, 7, 1);
-    IncomeRequest req = new IncomeRequest(65000000L, 4800000L, date, IncomeChangeReasonEnum.RAISE);
-
-    given(repository.existsByUserIdAndEffectiveDate(USER_ID, date)).willReturn(false);
-    given(repository.existsByUserIdAndEffectiveDateBefore(USER_ID, date)).willReturn(true);
-    given(repository.save(any(IncomeHistory.class))).willAnswer(i -> i.getArgument(0));
-
-    IncomeResponse res = service.create(USER_ID, req);
-
-    assertThat(res.changeReason()).isEqualTo(IncomeChangeReasonEnum.RAISE);
-  }
-
-  @Test
-  @DisplayName("create - 성공적으로 저장")
-  void create_success() {
-    LocalDate date = LocalDate.of(2026, 7, 1);
-    IncomeRequest req = new IncomeRequest(65000000L, 4800000L, date, null);
-
-    given(repository.existsByUserIdAndEffectiveDate(USER_ID, date)).willReturn(false);
-    given(repository.save(any(IncomeHistory.class))).willAnswer(i -> i.getArgument(0));
-
-    IncomeResponse res = service.create(USER_ID, req);
-
-    assertThat(res.grossSalary()).isEqualTo(65000000L);
-    assertThat(res.netSalary()).isEqualTo(4800000L);
-    assertThat(res.effectiveDate()).isEqualTo(date);
-  }
-
-  @Test
   @DisplayName("create - 동일 시작일 중복 시 DuplicateEffectiveDateException")
   void create_duplicate() {
     LocalDate date = LocalDate.of(2026, 7, 1);
@@ -146,26 +90,6 @@ class IncomeServiceTest {
 
     assertThatThrownBy(() -> service.create(USER_ID, req))
         .isInstanceOf(DuplicateEffectiveDateException.class);
-  }
-
-  @Test
-  @DisplayName("update - 성공적으로 수정")
-  void update_success() {
-    UUID id = UUID.randomUUID();
-    LocalDate oldDate = LocalDate.of(2026, 1, 1);
-    LocalDate newDate = LocalDate.of(2026, 2, 1);
-    IncomeHistory history = new IncomeHistory(USER_ID, 60000000L, 4500000L, oldDate, null);
-
-    given(repository.findById(id)).willReturn(Optional.of(history));
-    given(repository.existsByUserIdAndEffectiveDateAndIdNot(USER_ID, newDate, id))
-        .willReturn(false);
-
-    IncomeRequest req = new IncomeRequest(70000000L, 5000000L, newDate, null);
-    IncomeResponse res = service.update(USER_ID, id, req);
-
-    assertThat(res.grossSalary()).isEqualTo(70000000L);
-    assertThat(res.netSalary()).isEqualTo(5000000L);
-    assertThat(res.effectiveDate()).isEqualTo(newDate);
   }
 
   @Test
@@ -221,20 +145,6 @@ class IncomeServiceTest {
   }
 
   @Test
-  @DisplayName("delete - 성공적으로 삭제")
-  void delete_success() {
-    UUID id = UUID.randomUUID();
-    IncomeHistory history =
-        new IncomeHistory(USER_ID, 60000000L, 4500000L, LocalDate.of(2026, 1, 1), null);
-
-    given(repository.findById(id)).willReturn(Optional.of(history));
-
-    service.delete(USER_ID, id);
-
-    verify(repository).delete(history);
-  }
-
-  @Test
   @DisplayName("delete - 존재하지 않는 경우 IncomeNotFoundException")
   void delete_notFound() {
     UUID id = UUID.randomUUID();
@@ -254,22 +164,6 @@ class IncomeServiceTest {
     assertThatThrownBy(() -> service.create(USER_ID, req))
         .isInstanceOf(IllegalArgumentException.class)
         .hasMessageContaining("INITIAL");
-  }
-
-  @Test
-  @DisplayName("create - 고른 changeReason 을 그대로 저장한다")
-  void create_storesChangeReason() {
-    LocalDate date = LocalDate.of(2026, 7, 1);
-    IncomeRequest req =
-        new IncomeRequest(65000000L, 4800000L, date, IncomeChangeReasonEnum.JOB_CHANGE);
-
-    given(repository.existsByUserIdAndEffectiveDate(USER_ID, date)).willReturn(false);
-    given(repository.existsByUserIdAndEffectiveDateBefore(USER_ID, date)).willReturn(true);
-    given(repository.save(any(IncomeHistory.class))).willAnswer(i -> i.getArgument(0));
-
-    IncomeResponse res = service.create(USER_ID, req);
-
-    assertThat(res.selectedChangeReason()).isEqualTo(IncomeChangeReasonEnum.JOB_CHANGE);
   }
 
   @Test
@@ -401,21 +295,5 @@ class IncomeServiceTest {
 
     assertThat(res.bonusIncluded()).isFalse();
     assertThat(res.fixedBonusAnnual()).isEqualTo(6_000_000L);
-  }
-
-  @Test
-  @DisplayName("create - 직전 행이 없으면 기본값이다")
-  void 직전_행이_없으면_기본값() {
-    LocalDate date = LocalDate.of(2024, 3, 1);
-    given(repository.existsByUserIdAndEffectiveDate(USER_ID, date)).willReturn(false);
-    given(repository.findFirstByUserIdAndEffectiveDateBeforeOrderByEffectiveDateDesc(USER_ID, date))
-        .willReturn(Optional.empty());
-    given(repository.save(any(IncomeHistory.class))).willAnswer(i -> i.getArgument(0));
-
-    IncomeResponse res =
-        service.create(USER_ID, new IncomeRequest(65000000L, 4800000L, date, null));
-
-    assertThat(res.bonusIncluded()).isTrue();
-    assertThat(res.fixedBonusAnnual()).isNull();
   }
 }

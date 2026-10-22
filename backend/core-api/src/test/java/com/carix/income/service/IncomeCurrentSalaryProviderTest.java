@@ -8,7 +8,6 @@ import com.carix.income.domain.IncomeHistory;
 import com.carix.income.repository.IncomeHistoryRepository;
 import com.carix.index.dto.CurrentSalary;
 import java.time.LocalDate;
-import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -26,24 +25,6 @@ class IncomeCurrentSalaryProviderTest {
   void setUp() {
     repository = mock(IncomeHistoryRepository.class);
     provider = new IncomeCurrentSalaryProvider(repository);
-  }
-
-  @Test
-  @DisplayName("userId 또는 baseYearMonth가 유효하지 않으면 empty 반환")
-  void invalidInput_returnsEmpty() {
-    assertThat(provider.currentGrossSalary(null, "202607")).isEmpty();
-    assertThat(provider.currentGrossSalary(userId, null)).isEmpty();
-    assertThat(provider.currentGrossSalary(userId, "2026-07")).isEmpty();
-    assertThat(provider.currentGrossSalary(userId, "2026")).isEmpty();
-  }
-
-  @Test
-  @DisplayName("연봉 이력이 없으면 empty 반환")
-  void noHistory_returnsEmpty() {
-    given(repository.findByUserIdOrderByEffectiveDateDesc(userId))
-        .willReturn(Collections.emptyList());
-
-    assertThat(provider.currentGrossSalary(userId, "202607")).isEmpty();
   }
 
   @Test

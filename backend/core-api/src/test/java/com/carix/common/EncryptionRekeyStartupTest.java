@@ -30,17 +30,6 @@ class EncryptionRekeyStartupTest {
   }
 
   @Test
-  @DisplayName("플래그가 꺼져 있으면 재암호화하지 않고 남은 행 수만 한 줄로 남긴다")
-  void 상태만(CapturedOutput output) {
-    new EncryptionRekeyStartup(service, false).run();
-
-    verify(service, never()).rekeyAll();
-    assertThat(output)
-        .contains(
-            "rekey-status activeKeyId=v1 incomeHistory=2 expenseItem=0 careerScenario=1 performanceBonus=3 fullyMigrated=false");
-  }
-
-  @Test
   @DisplayName("플래그가 켜져 있으면 재암호화한 뒤 상태를 남긴다")
   void 재암호화() {
     given(service.rekeyAll())
@@ -63,6 +52,17 @@ class EncryptionRekeyStartupTest {
 
     assertThat(output).contains("rekey-failed").contains("복호화 실패");
     assertThat(output).contains("rekey-status activeKeyId=v1");
+  }
+
+  @Test
+  @DisplayName("플래그가 꺼져 있으면 재암호화하지 않고 남은 행 수만 한 줄로 남긴다")
+  void 상태만(CapturedOutput output) {
+    new EncryptionRekeyStartup(service, false).run();
+
+    verify(service, never()).rekeyAll();
+    assertThat(output)
+        .contains(
+            "rekey-status activeKeyId=v1 incomeHistory=2 expenseItem=0 careerScenario=1 performanceBonus=3 fullyMigrated=false");
   }
 
   @Test

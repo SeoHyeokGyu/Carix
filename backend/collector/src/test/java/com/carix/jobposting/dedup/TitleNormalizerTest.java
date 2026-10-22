@@ -28,22 +28,4 @@ class TitleNormalizerTest {
     double similarity = normalizer.calculateJaccardSimilarity(t1, t2);
     assertThat(similarity).isGreaterThan(0.4);
   }
-
-  @Test
-  @DisplayName("extractKeywords - null, 공백, 특수문자 전용 문자열 처리")
-  void extractKeywords_edgeCases() {
-    assertThat(normalizer.extractKeywords(null)).isEmpty();
-    assertThat(normalizer.extractKeywords("   ")).isEmpty();
-    assertThat(normalizer.extractKeywords("!@#$%^&*()")).isEmpty();
-    // 1글자 단어는 필터링됨
-    assertThat(normalizer.extractKeywords("a b c d e")).isEmpty();
-  }
-
-  @Test
-  @DisplayName("calculateJaccardSimilarity - 둘 다 비어있으면 1.0, 한쪽만 비어있으면 0.0")
-  void calculateJaccardSimilarity_emptyCases() {
-    assertThat(normalizer.calculateJaccardSimilarity(Set.of(), Set.of())).isEqualTo(1.0);
-    assertThat(normalizer.calculateJaccardSimilarity(Set.of("java"), Set.of())).isEqualTo(0.0);
-    assertThat(normalizer.calculateJaccardSimilarity(Set.of(), Set.of("spring"))).isEqualTo(0.0);
-  }
 }

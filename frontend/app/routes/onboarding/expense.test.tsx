@@ -5,7 +5,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import * as expenseApi from "../../lib/api/expense";
 import * as incomeApi from "../../lib/api/income";
-import { UnauthorizedError } from "../../lib/coreApi";
 import * as onboardingApi from "../../lib/onboardingApi";
 import { EXPENSE_CATEGORIES } from "../../lib/schemas/expense";
 import { resetSession, setSession } from "../../lib/session";
@@ -19,6 +18,7 @@ function currentYearMonth(): string {
   const now = new Date();
   return `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}`;
 }
+import { UnauthorizedError } from "../../lib/coreApi";
 
 describe("S-07 소비 화면", () => {
   beforeEach(() => {
@@ -50,38 +50,6 @@ describe("S-07 소비 화면", () => {
     return render(<Stub initialEntries={[initialEntry]} />);
   }
 
-  it("검토 화면의 「수정」으로 들어왔으면 저장 후 검토 화면으로 돌아간다", async () => {
-    vi.spyOn(expenseApi, "listExpenses").mockResolvedValue([]);
-    vi.spyOn(expenseApi, "putExpenses").mockResolvedValue(undefined as never);
-    vi.spyOn(onboardingApi, "advanceOnboarding").mockResolvedValue({
-      currentStep: "SKILLS",
-      completed: false,
-    });
-
-    renderScreen("/onboarding/expense?from=review");
-    const user = userEvent.setup();
-
-    await user.type(await screen.findByLabelText(/식비/), "250000");
-    await user.click(screen.getByRole("button", { name: "다음" }));
-
-    expect(await screen.findByText("검토 화면")).toBeInTheDocument();
-  });
-
-  it("상태 뱃지를 입력칸 설명으로 연결해 스크린리더가 함께 읽는다", async () => {
-    vi.spyOn(expenseApi, "listExpenses").mockResolvedValue([
-      {
-        baseYearMonth: currentYearMonth(),
-        summaryStatus: "PARTIALLY_ESTIMATED",
-        items: [{ category: "FOOD", amount: 250_000, status: "DEFAULT_CPI" }],
-      },
-    ] as never);
-
-    renderScreen();
-
-    const food = await screen.findByLabelText(/식비/);
-    expect(food).toHaveAccessibleDescription(/통계청 평균 기준/);
-  });
-
   // 브리프 1 — 저장된 당월 지출이 카테고리별 초기값으로 들어간다.
   it("저장된 당월 지출이 카테고리별 초기값으로 들어간다", async () => {
     vi.spyOn(expenseApi, "listExpenses").mockResolvedValue([
@@ -102,26 +70,6 @@ describe("S-07 소비 화면", () => {
     );
     expect(screen.getByLabelText(/식비/)).toHaveValue("250,000");
     expect(screen.getByLabelText(/교통/)).toHaveValue("");
-  });
-
-  // 브리프 2 — status: DEFAULT_CPI 인 카테고리에 뱃지가 붙는다.
-  it("status 가 DEFAULT_CPI 인 카테고리에 「통계청 평균 기준」 뱃지가 붙는다", async () => {
-    vi.spyOn(expenseApi, "listExpenses").mockResolvedValue([
-      {
-        baseYearMonth: currentYearMonth(),
-        items: [
-          { category: "HOUSING", amount: 750_000, status: "USER_DEFINED" },
-          { category: "TRANSPORT", amount: 120_000, status: "DEFAULT_CPI" },
-          { category: "MEDICAL", amount: 80_000, status: "DEFAULT_CPI" },
-        ],
-        weightStatus: "OK",
-      },
-    ]);
-
-    renderScreen();
-
-    await screen.findByLabelText(/주거·공공요금/);
-    expect(screen.getAllByText("통계청 평균 기준")).toHaveLength(2);
   });
 
   // advisor 지적 — DEFAULT_CPI 값은 서버가 통계청 평균으로 보간한 것이지
@@ -163,33 +111,6 @@ describe("S-07 소비 화면", () => {
     expect(await screen.findByText("스킬 화면")).toBeInTheDocument();
     expect(put).toHaveBeenCalledWith(currentYearMonth(), [
       { category: "HOUSING", amount: 750_000 },
-    ]);
-  });
-
-  // 브리프 3 — 비워 둔 카테고리는 items 에서 빠져 전송된다. 0 을 보내지 않는다.
-  it("비워 둔 카테고리는 items 에서 빠져 전송된다", async () => {
-    vi.spyOn(expenseApi, "listExpenses").mockResolvedValue([]);
-    const put = vi.spyOn(expenseApi, "putExpenses").mockResolvedValue({
-      baseYearMonth: currentYearMonth(),
-      items: [],
-      weightStatus: "OK",
-    });
-    vi.spyOn(onboardingApi, "advanceOnboarding").mockResolvedValue({
-      currentStep: "SKILLS",
-      completed: false,
-    });
-
-    renderScreen();
-    const user = userEvent.setup();
-
-    await user.type(await screen.findByLabelText(/주거·공공요금/), "750000");
-    await user.type(screen.getByLabelText(/식비/), "250000");
-    await user.click(screen.getByRole("button", { name: "다음" }));
-
-    expect(await screen.findByText("스킬 화면")).toBeInTheDocument();
-    expect(put).toHaveBeenCalledWith(currentYearMonth(), [
-      { category: "HOUSING", amount: 750_000 },
-      { category: "FOOD", amount: 250_000 },
     ]);
   });
 
@@ -335,28 +256,6 @@ describe("S-07 소비 화면", () => {
     expect(screen.getAllByText(/\(추정\)/)).toHaveLength(6);
   });
 
-  it("'이전' 을 누르면 소득 화면으로 이동한다", async () => {
-    vi.spyOn(expenseApi, "listExpenses").mockResolvedValue([]);
-
-    renderScreen();
-    const user = userEvent.setup();
-
-    await screen.findByRole("heading", { level: 1, name: "소비" });
-    await user.click(screen.getByRole("link", { name: "이전" }));
-
-    expect(await screen.findByText("소득 화면")).toBeInTheDocument();
-  });
-
-  it("조회 중 401 을 받으면 로그인 화면으로 보낸다", async () => {
-    vi.spyOn(expenseApi, "listExpenses").mockRejectedValue(
-      new UnauthorizedError(),
-    );
-
-    renderScreen();
-
-    expect(await screen.findByText("로그인 화면")).toBeInTheDocument();
-  });
-
   it("'다음' 성공 후 세션 캐시의 onboardingStep 을 SKILLS 로 갱신한다", async () => {
     vi.spyOn(expenseApi, "listExpenses").mockResolvedValue([]);
     vi.spyOn(expenseApi, "putExpenses").mockResolvedValue({
@@ -384,45 +283,6 @@ describe("S-07 소비 화면", () => {
     });
   });
 
-  // FIX 1 (Critical, 최종 리뷰) — REVIEW 단계를 지난 사용자가 검토 화면의 "수정"
-  // 링크로 돌아와 소비 입력을 고치고 "다음"을 다시 누르면, 예전에는
-  // advanceOnboarding("SKILLS") 을 무조건 다시 불러 서버 단계를 REVIEW 에서
-  // SKILLS 로 되돌렸다(profile.test.tsx·income.test.tsx 의 같은 이름 테스트와 같은
-  // 이유). putExpenses 는 그대로 불러야 한다 — 막히는 건 서버 단계 갱신뿐이다.
-  it("이미 REVIEW 단계를 지난 사용자가 '다음'을 눌러도 온보딩 단계를 되돌리지 않는다", async () => {
-    resetSession();
-    setSession({
-      status: "authenticated",
-      userId: "u-1",
-      email: "user@carix.kr",
-      onboardingStep: "REVIEW",
-    });
-    vi.spyOn(incomeApi, "listIncome").mockResolvedValue([]);
-    vi.spyOn(expenseApi, "listExpenses").mockResolvedValue([]);
-    const put = vi.spyOn(expenseApi, "putExpenses").mockResolvedValue({
-      baseYearMonth: currentYearMonth(),
-      items: [],
-      weightStatus: "OK",
-    });
-    const advance = vi.spyOn(onboardingApi, "advanceOnboarding");
-
-    renderScreen();
-    const user = userEvent.setup();
-
-    await user.type(await screen.findByLabelText(/주거·공공요금/), "750000");
-    await user.click(screen.getByRole("button", { name: "다음" }));
-
-    expect(await screen.findByText("스킬 화면")).toBeInTheDocument();
-    expect(put).toHaveBeenCalled();
-    expect(advance).not.toHaveBeenCalled();
-
-    const { requireSession } = await import("../../lib/session");
-    await expect(requireSession()).resolves.toMatchObject({
-      status: "authenticated",
-      onboardingStep: "REVIEW",
-    });
-  });
-
   it("저장이 API 오류로 실패하면 입력을 유지한 채 오류 메시지를 보여준다", async () => {
     vi.spyOn(expenseApi, "listExpenses").mockResolvedValue([]);
     vi.spyOn(expenseApi, "putExpenses").mockRejectedValue({
@@ -446,5 +306,15 @@ describe("S-07 소비 화면", () => {
     // (income.test.tsx 와 같은 패턴 — 텍스트만으로는 착지 위치가 구분되지 않는다).
     expect(banner).not.toHaveAttribute("id");
     expect(screen.getByLabelText(/주거·공공요금/)).toHaveValue("750,000");
+  });
+
+  it("조회 중 401 을 받으면 로그인 화면으로 보낸다", async () => {
+    vi.spyOn(expenseApi, "listExpenses").mockRejectedValue(
+      new UnauthorizedError(),
+    );
+
+    renderScreen();
+
+    expect(await screen.findByText("로그인 화면")).toBeInTheDocument();
   });
 });

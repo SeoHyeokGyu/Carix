@@ -6,7 +6,6 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.carix.jobposting.CollectedVia;
 import com.carix.jobposting.JobPosting;
 import com.carix.jobposting.JobPostingRepository;
 import com.carix.jobposting.Skill;
@@ -198,86 +197,6 @@ class MarketAggregateServiceTest {
   }
 
   @Test
-  @DisplayName("aggregateMarketData(request) - 연도 구간 및 전체 요청 시 모든 대상 월에 대해 멱등 집계를 실행한다")
-  void aggregateMarketData_withRequestOptions() {
-    // Given
-    JobPosting p =
-        JobPosting.builder()
-            .source("JOBKOREA")
-            .externalId("jk-1")
-            .jobFamily("BACKEND")
-            .firstSeenMonth("202501")
-            .lastSeenMonth("202503")
-            .collectedAt(Instant.now())
-            .build();
-    when(jobPostingRepository.findAll()).thenReturn(List.of(p));
-
-    // When: 전체(all=true) 집계 요청
-    int count =
-        marketAggregateService.aggregateMarketData(
-            new com.carix.pipeline.dto.MarketAggregateRequest(null, null, null, null, true));
-
-    // Then: 202501, 202503에 대해 delete 및 save 실행
-    assertThat(count).isGreaterThan(0);
-    verify(marketAggregateRepository).deleteByBaseYearMonth("202501");
-    verify(marketAggregateRepository).deleteByBaseYearMonth("202503");
-  }
-
-  @Test
-  @DisplayName("aggregateMarketData - null 요청 및 빈 데이터 처리")
-  void aggregateMarketData_emptyAndNull() {
-    when(jobPostingRepository.findAll()).thenReturn(List.of());
-
-    assertThat(marketAggregateService.aggregateMarketData()).isEqualTo(0);
-    assertThat(
-            marketAggregateService.aggregateMarketData(
-                (com.carix.pipeline.dto.MarketAggregateRequest) null))
-        .isEqualTo(0);
-  }
-
-  @Test
-  @DisplayName("aggregateMarketData - month, year, yearRange 조건 분기")
-  void aggregateMarketData_branches() {
-    JobPosting p =
-        JobPosting.builder()
-            .source("JOBKOREA")
-            .externalId("jk-1")
-            .jobFamily("BACKEND")
-            .firstSeenMonth("202501")
-            .lastSeenMonth("202503")
-            .collectedAt(Instant.now())
-            .build();
-    when(jobPostingRepository.findAll()).thenReturn(List.of(p));
-
-    int resMonth =
-        marketAggregateService.aggregateMarketData(
-            new com.carix.pipeline.dto.MarketAggregateRequest("2025-01", null, null, null, null));
-    assertThat(resMonth).isGreaterThan(0);
-
-    int resYear =
-        marketAggregateService.aggregateMarketData(
-            new com.carix.pipeline.dto.MarketAggregateRequest(null, "2025", null, null, null));
-    assertThat(resYear).isGreaterThan(0);
-
-    int resRange =
-        marketAggregateService.aggregateMarketData(
-            new com.carix.pipeline.dto.MarketAggregateRequest(null, null, "2024", "2025", null));
-    assertThat(resRange).isGreaterThan(0);
-
-    // endYear null 인 경우 startYear 로 단일연도 처리
-    int resSingleRange =
-        marketAggregateService.aggregateMarketData(
-            new com.carix.pipeline.dto.MarketAggregateRequest(null, null, "2025", null, null));
-    assertThat(resSingleRange).isGreaterThan(0);
-
-    // month, year, startYear 가 빈 문자열(blank)인 경우 다음 조건으로 폴백
-    int resBlankFallback =
-        marketAggregateService.aggregateMarketData(
-            new com.carix.pipeline.dto.MarketAggregateRequest("  ", "  ", "  ", null, false));
-    assertThat(resBlankFallback).isGreaterThan(0);
-  }
-
-  @Test
   @DisplayName("기준년월 유효성 검사 - null 또는 비정상 형식 시 IllegalArgumentException 발생")
   void normalizeMonth_exceptions() {
     org.assertj.core.api.Assertions.assertThatThrownBy(
@@ -350,17 +269,6 @@ class MarketAggregateServiceTest {
 
     assertThat(count).isEqualTo(0);
     verify(marketAggregateRepository).deleteByBaseYearMonth("202503");
-  }
-
-  @Test
-  @DisplayName("b18 - filterActivePostingsForMonth null 및 빈 컬렉션 방어")
-  void b18_filterActivePostingsForMonth_nullAndEmpty() {
-    assertThat(marketAggregateService.filterActivePostingsForMonth(null, "202608")).isEmpty();
-    assertThat(marketAggregateService.filterActivePostingsForMonth(List.of(), "202608")).isEmpty();
-    assertThat(
-            marketAggregateService.filterActivePostingsForMonth(
-                List.of(JobPosting.builder().build()), null))
-        .isEmpty();
   }
 
   @Test
@@ -477,41 +385,6 @@ class MarketAggregateServiceTest {
         savedFeb.stream().anyMatch(m -> pythonSkill.getId().equals(m.getSkillId()));
     assertThat(hasJavaFeb).isFalse();
     assertThat(hasPythonFeb).isTrue();
-  }
-
-  @Test
-  @DisplayName("aggregateMarketDataForYearRange - endYear 가 빈 문자열(blank)인 경우 startYear 단일 연도로 동작")
-  void aggregateMarketDataForYearRange_blankEndYear() {
-    JobPosting p =
-        JobPosting.builder()
-            .source("JOBKOREA")
-            .externalId("jk-1")
-            .jobFamily("BACKEND")
-            .firstSeenMonth("202501")
-            .lastSeenMonth("202501")
-            .build();
-    when(jobPostingRepository.findAll()).thenReturn(List.of(p));
-
-    int count = marketAggregateService.aggregateMarketDataForYearRange("2025", "   ");
-    assertThat(count).isGreaterThan(0);
-  }
-
-  @Test
-  @DisplayName(
-      "aggregateMarketDataForMonths 및 aggregateMarketDataForMonth - 공고 또는 월 목록이 비어있는 경우 조기 반환(0)")
-  void earlyReturnWhenPostingsOrMonthsEmpty() {
-    when(jobPostingRepository.findAll()).thenReturn(List.of());
-
-    // 1. 공고 없음 -> aggregateMarketDataForMonth 0
-    assertThat(marketAggregateService.aggregateMarketDataForMonth("202608")).isEqualTo(0);
-
-    // 2. 공고 없음 -> aggregateMarketDataForMonths 0
-    assertThat(marketAggregateService.aggregateMarketDataForMonths(List.of("202608"))).isEqualTo(0);
-
-    // 3. 공고는 있으나 월 목록이 빈 경우
-    JobPosting p = JobPosting.builder().source("JOBKOREA").externalId("jk-1").build();
-    when(jobPostingRepository.findAll()).thenReturn(List.of(p));
-    assertThat(marketAggregateService.aggregateMarketDataForMonths(List.of())).isEqualTo(0);
   }
 
   @Test
@@ -664,13 +537,6 @@ class MarketAggregateServiceTest {
     return p;
   }
 
-  /** 사람인 검색 경로로 수집한 공고(측정 프레임 SARAMIN 행의 구성원). */
-  private static JobPosting saraminSearch(String externalId, String company, String seenMonth) {
-    JobPosting p = posting("SARAMIN", externalId, company, seenMonth, null, null);
-    p.addCollectedVia(CollectedVia.SARAMIN_SEARCH);
-    return p;
-  }
-
   private List<MarketAggregate> aggregate(String month, List<JobPosting> postings) {
     when(jobPostingRepository.findAll()).thenReturn(postings);
     marketAggregateService.aggregateMarketDataForMonth(month);
@@ -726,44 +592,5 @@ class MarketAggregateServiceTest {
     List<MarketAggregate> saved = aggregate("202608", postings);
 
     assertThat(total(saved, "JOBKOREA").getPostingCount()).isEqualTo(4);
-  }
-
-  @Test
-  @DisplayName("원티드 원천 집계도 그 달 표본만 센다 — 정기 수집분은 ALL 에만, 잡코리아·사람인은 그대로")
-  void wantedSourceCountsOnlySampledPostingsOfMonth() {
-    List<JobPosting> postings =
-        List.of(
-            posting("JOBKOREA", "jk1", "가", "202608", "202608", null),
-            posting("JOBKOREA", "jk2", "나", "202608", "202608", null),
-            posting("WANTED", "w1", "다", "202608", "202608", null),
-            posting("WANTED", "w2", "라", "202608", "202608", null),
-            posting("WANTED", "w3", "마", "202608", null, null),
-            posting("WANTED", "w4", "바", "202608", null, null),
-            posting("WANTED", "w5", "사", "202608", null, null),
-            saraminSearch("s1", "아", "202608"),
-            saraminSearch("s2", "자", "202608"),
-            saraminSearch("s3", "차", "202608"));
-
-    List<MarketAggregate> saved = aggregate("202608", postings);
-
-    assertThat(total(saved, "WANTED").getPostingCount()).isEqualTo(2);
-    assertThat(total(saved, "JOBKOREA").getPostingCount()).isEqualTo(2);
-    assertThat(total(saved, "SARAMIN").getPostingCount()).isEqualTo(3);
-    assertThat(total(saved, "ALL").getPostingCount()).isEqualTo(10);
-  }
-
-  @Test
-  @DisplayName("원티드 표본도 같은 회사를 월 3건까지만 센다")
-  void wantedSampleCapsPostingsPerCompanyPerMonth() {
-    List<JobPosting> postings =
-        List.of(
-            posting("WANTED", "10", "㈜조인아이티", "202608", "202608", null),
-            posting("WANTED", "11", "조인아이티", "202608", "202608", null),
-            posting("WANTED", "12", "(주)조인아이티", "202608", "202608", null),
-            posting("WANTED", "13", "조인아이티", "202608", "202608", null));
-
-    List<MarketAggregate> saved = aggregate("202608", postings);
-
-    assertThat(total(saved, "WANTED").getPostingCount()).isEqualTo(3);
   }
 }

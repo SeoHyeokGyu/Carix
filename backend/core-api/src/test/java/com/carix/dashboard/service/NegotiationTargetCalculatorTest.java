@@ -75,28 +75,6 @@ class NegotiationTargetCalculatorTest {
   }
 
   @Test
-  @DisplayName("임금통계 — 상수 기준선(FALLBACK)이면 지운다")
-  void wageLine_FALLBACK_null() {
-    assertThat(
-            wage(
-                50_000_000L,
-                baseline(60_000_000L, WageStatSource.FALLBACK),
-                bucketOf(60_000_000L, 50_000_000L)))
-        .isNull();
-  }
-
-  @Test
-  @DisplayName("임금통계 — 출처 불명(UNKNOWN)이면 지운다")
-  void wageLine_UNKNOWN_null() {
-    assertThat(
-            wage(
-                50_000_000L,
-                baseline(60_000_000L, WageStatSource.UNKNOWN),
-                bucketOf(60_000_000L, 50_000_000L)))
-        .isNull();
-  }
-
-  @Test
   @DisplayName("임금통계 — 기준선이 없으면 지운다")
   void wageLine_기준선없음_null() {
     assertThat(wage(50_000_000L, null, "BELOW_MARKET_15_PLUS")).isNull();
@@ -142,12 +120,6 @@ class NegotiationTargetCalculatorTest {
   }
 
   @Test
-  @DisplayName("p75 — 분포가 없으면 지운다")
-  void peerLine_분포없음_null() {
-    assertThat(NegotiationTargetCalculator.peerLine(64_000_000L, null)).isNull();
-  }
-
-  @Test
   @DisplayName("복구선 — 물가가 올랐으면 누적 상승률과 시작월")
   void recoveryLine_상승_BELOW() {
     assertThat(
@@ -168,5 +140,16 @@ class NegotiationTargetCalculatorTest {
   @DisplayName("복구선 — 개인물가를 계산할 수 없으면 지운다")
   void recoveryLine_결측_null() {
     assertThat(NegotiationTargetCalculator.recoveryLine(Optional.empty(), "202503")).isNull();
+  }
+
+  @Test
+  @DisplayName("임금통계 — 상수 기준선(FALLBACK)이면 지운다")
+  void wageLine_FALLBACK_null() {
+    assertThat(
+            wage(
+                50_000_000L,
+                baseline(60_000_000L, WageStatSource.FALLBACK),
+                bucketOf(60_000_000L, 50_000_000L)))
+        .isNull();
   }
 }

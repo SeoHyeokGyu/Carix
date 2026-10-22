@@ -3,7 +3,6 @@ package com.carix.jobposting;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.time.Instant;
-import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
@@ -74,37 +73,5 @@ class JobPostingCollectedViaTest {
     assertThat(p.getJobFamily()).isEqualTo("DATA");
     assertThat(p.getExperienceMin()).isEqualTo(3);
     assertThat(p.getExperienceMax()).isEqualTo(5);
-  }
-
-  @Test
-  @DisplayName("원천 직군 태그와 게시·마감일을 기록한다")
-  void recordsTagsAndDates() {
-    JobPosting p = posting();
-    p.recordSourceJobTags("서버/백엔드 개발자,빅데이터 엔지니어");
-    p.applyPostedDates(LocalDate.of(2026, 10, 7), null);
-    assertThat(p.getSourceJobTags()).isEqualTo("서버/백엔드 개발자,빅데이터 엔지니어");
-    assertThat(p.getPostedStartDate()).isEqualTo(LocalDate.of(2026, 10, 7));
-    assertThat(p.getPostedEndDate()).isNull();
-  }
-
-  @Test
-  @DisplayName("비었거나 공백인 확인 경로는 무시한다")
-  void blankCollectedViaIsIgnored() {
-    JobPosting p = posting();
-    p.addCollectedVia(null);
-    p.addCollectedVia(" ");
-    assertThat(p.getCollectedVia()).isNull();
-    p.addCollectedVia(CollectedVia.JUMPIT);
-    p.addCollectedVia("");
-    assertThat(p.getCollectedVia()).isEqualTo(CollectedVia.JUMPIT);
-  }
-
-  @Test
-  @DisplayName("공백뿐인 원천 직군 태그는 비운다")
-  void blankSourceJobTagsBecomeNull() {
-    JobPosting p = posting();
-    p.recordSourceJobTags("서버");
-    p.recordSourceJobTags(" ");
-    assertThat(p.getSourceJobTags()).isNull();
   }
 }

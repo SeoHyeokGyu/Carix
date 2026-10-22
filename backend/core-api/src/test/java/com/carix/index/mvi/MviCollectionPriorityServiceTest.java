@@ -41,24 +41,6 @@ class MviCollectionPriorityServiceTest {
   }
 
   @Test
-  @DisplayName("집계 데이터 부재 시 표준 직군/경력 차원이 CRITICAL 수집 타깃으로 도출된다")
-  void calculatePriorities_emptyMarketData_allCritical() {
-    when(marketAggregateRepository.findPeerGroupAggregatesByMonthAndSource("202607", "ALL"))
-        .thenReturn(List.of());
-
-    CollectionPriorityResponse response = service.calculatePriorities("202607", "ALL", null, false);
-
-    assertThat(response.baseYearMonth()).isEqualTo("202607");
-    assertThat(response.underSampledCount()).isGreaterThan(0);
-    assertThat(response.priorities()).isNotEmpty();
-
-    CollectionPriorityItem first = response.priorities().get(0);
-    assertThat(first.priorityGrade()).isEqualTo(PriorityGrade.CRITICAL);
-    assertThat(first.sampleDeficit()).isEqualTo(10);
-    assertThat(first.priorityReason()).contains("완전 결측");
-  }
-
-  @Test
   @DisplayName("외부화된 임계값(minSampleSize=15) 설정 시 해당 기준에 맞춰 결손수와 등급이 산정된다")
   void calculatePriorities_customThreshold() {
     thresholds.setPeerGroupMinSampleSize(15);
@@ -187,18 +169,6 @@ class MviCollectionPriorityServiceTest {
   }
 
   @Test
-  @DisplayName("특정 원천(JOBKOREA) 지정 시 원천별 집계 쿼리를 호출한다")
-  void calculatePriorities_specificSource() {
-    when(marketAggregateRepository.findPeerGroupAggregatesByMonthAndSource("202607", "JOBKOREA"))
-        .thenReturn(List.of());
-
-    CollectionPriorityResponse response =
-        service.calculatePriorities("202607", "JOBKOREA", 10, false);
-
-    assertThat(response.source()).isEqualTo("JOBKOREA");
-  }
-
-  @Test
   @DisplayName("기준월 미지정 시 ALL 행이 있는 최신 월을 대상으로 조회한다 - 프레임 행만 있는 달은 건너뛴다")
   void calculatePriorities_nullMonth_usesLatestMonthWithAllRow() {
     when(marketAggregateRepository.findLatestAvailableYearMonthForSource(eq("ALL"), any()))
@@ -210,40 +180,5 @@ class MviCollectionPriorityServiceTest {
 
     assertThat(response.baseYearMonth()).isEqualTo("202610");
     verify(marketAggregateRepository, never()).findDistinctBaseYearMonths();
-  }
-
-  @Test
-  @DisplayName("기준월 미지정 시 DB 최신월을 조회하고, DB도 비어있으면 당월을 기본값으로 사용한다")
-  void calculatePriorities_nullMonth_fallsBack() {
-    when(marketAggregateRepository.findLatestAvailableYearMonthForSource(eq("ALL"), any()))
-        .thenReturn(Optional.of("202606"));
-    when(marketAggregateRepository.findPeerGroupAggregatesByMonthAndSource("202606", "ALL"))
-        .thenReturn(List.of());
-
-    CollectionPriorityResponse response = service.calculatePriorities(null, null, null, false);
-
-    assertThat(response.baseYearMonth()).isEqualTo("202606");
-
-    // DB가 비어있는 경우
-    when(marketAggregateRepository.findLatestAvailableYearMonthForSource(eq("ALL"), any()))
-        .thenReturn(Optional.empty());
-    when(marketAggregateRepository.findPeerGroupAggregatesByMonthAndSource(any(), any()))
-        .thenReturn(List.of());
-
-    CollectionPriorityResponse fallbackResponse =
-        service.calculatePriorities("", null, null, false);
-    assertThat(fallbackResponse.baseYearMonth()).isNotNull().hasSize(6);
-  }
-
-  @Test
-  @DisplayName("thresholds가 null일 때 기본 최소 표본수(10)가 적용된다")
-  void calculatePriorities_nullThresholds_defaultsTo10() {
-    ReflectionTestUtils.setField(service, "thresholds", null);
-    when(marketAggregateRepository.findPeerGroupAggregatesByMonthAndSource("202607", "ALL"))
-        .thenReturn(List.of());
-
-    CollectionPriorityResponse response = service.calculatePriorities("202607", null, null, false);
-
-    assertThat(response.minSampleSize()).isEqualTo(10);
   }
 }

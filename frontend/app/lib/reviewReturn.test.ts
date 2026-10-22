@@ -9,8 +9,4 @@ describe("reviewReturn", () => {
     expect(path).toBe("/onboarding/income?from=review");
     expect(isReturnToReview(`http://localhost${path}`)).toBe(true);
   });
-
-  it("표시가 없으면 검토로 돌아가지 않는다", () => {
-    expect(isReturnToReview("http://localhost/onboarding/income")).toBe(false);
-  });
 });

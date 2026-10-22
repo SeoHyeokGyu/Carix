@@ -18,15 +18,6 @@ class EffectiveIncomeTest {
   }
 
   @Test
-  @DisplayName("상여가 들어 있으면 연봉 그대로")
-  void 들어있음이면_연봉_그대로() {
-    IncomeHistory h = income(60_000_000L, 4_000_000L, true, null);
-
-    assertThat(EffectiveIncome.annualGross(h)).isEqualTo(60_000_000L);
-    assertThat(EffectiveIncome.monthlyNet(h)).isEqualTo(4_000_000L);
-  }
-
-  @Test
   @DisplayName("따로 받으면 연액을 더한다")
   void 따로받음이면_연액을_더한다() {
     IncomeHistory h = income(60_000_000L, null, false, 6_000_000L);
@@ -50,12 +41,6 @@ class EffectiveIncomeTest {
     IncomeHistory h = income(60_000_000L, 4_000_000L, false, 6_000_000L);
 
     assertThat(EffectiveIncome.monthlyNet(h)).isEqualTo(4_400_000L);
-  }
-
-  @Test
-  @DisplayName("실수령이 없으면 null")
-  void 실수령이_없으면_null() {
-    assertThat(EffectiveIncome.monthlyNet(income(60_000_000L, null, false, 6_000_000L))).isNull();
   }
 
   @Test

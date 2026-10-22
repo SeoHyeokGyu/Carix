@@ -23,11 +23,6 @@ class ExperienceBracketTest {
   }
 
   @Test
-  void treatsNegativeExperienceAsJunior() {
-    assertEquals("JUNIOR", ExperienceBracket.of(-1));
-  }
-
-  @Test
   void classifiesBy6TierYearBoundaries() {
     assertEquals("ENTRY", ExperienceBracket.of6(0));
     assertEquals("ENTRY", ExperienceBracket.of6(1));

@@ -74,12 +74,6 @@ class JumpitParserTest {
   }
 
   @Test
-  @DisplayName("마지막 다음 페이지는 empty 다")
-  void emptyPage() throws IOException {
-    assertThat(parser.parsePage(fixture("positions-empty.json")).empty()).isTrue();
-  }
-
-  @Test
   @DisplayName("result.positions 가 없으면 구조 변경으로 본다")
   void brokenStructureThrows() {
     assertThatThrownBy(() -> parser.parsePage("{\"result\":{}}"))

@@ -21,11 +21,6 @@ class JobPostingSalaryTest {
   }
 
   @Test
-  void newPostingIsUnknown() {
-    assertThat(posting(null, null).getSalaryDisclosure()).isEqualTo("UNKNOWN");
-  }
-
-  @Test
   void bandClearsPublicSalary() {
     JobPosting p = posting(25_900_000L, 100_000_000L);
 

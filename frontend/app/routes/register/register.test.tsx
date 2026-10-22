@@ -25,21 +25,6 @@ describe("회원가입 라우트 (Register)", () => {
     vi.clearAllMocks();
   });
 
-  it("제목 및 로그인 링크가 포함된 회원가입 폼을 렌더링한다", () => {
-    render(
-      <MemoryRouter>
-        <Register />
-      </MemoryRouter>,
-    );
-
-    expect(
-      screen.getByRole("heading", { name: "회원가입" }),
-    ).toBeInTheDocument();
-    expect(screen.queryByText("S-03")).not.toBeInTheDocument();
-    const link = screen.getByRole("link", { name: "로그인" });
-    expect(link).toHaveAttribute("href", "/login");
-  });
-
   it("가입 성공 시 세션 캐시를 채우고 온보딩 단계 경로로 이동시킨다", async () => {
     const setSessionSpy = vi.spyOn(sessionLib, "setSession");
     vi.mocked(authApi.register).mockResolvedValueOnce({

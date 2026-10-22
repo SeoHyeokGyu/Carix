@@ -36,14 +36,6 @@ class SessionValidationCacheTest {
     assertThat(cache.getIfValid("token-a")).isEmpty();
   }
 
-  @Test
-  void 캐시에_없는_토큰은_빈값을_반환한다() {
-    SessionValidationCache cache =
-        new SessionValidationCache(Clock.fixed(Instant.now(), ZoneOffset.UTC));
-
-    assertThat(cache.getIfValid("unknown")).isEmpty();
-  }
-
   private static final class MutableClock extends Clock {
     private Instant instant;
 

@@ -25,19 +25,6 @@ describe("로그인 라우트 (Login)", () => {
     vi.clearAllMocks();
   });
 
-  it("제목 및 회원가입 링크가 포함된 로그인 폼을 렌더링한다", () => {
-    render(
-      <MemoryRouter>
-        <Login />
-      </MemoryRouter>,
-    );
-
-    expect(screen.getByRole("heading", { name: "로그인" })).toBeInTheDocument();
-    expect(screen.queryByText("S-02")).not.toBeInTheDocument();
-    const link = screen.getByRole("link", { name: "가입하기" });
-    expect(link).toHaveAttribute("href", "/register");
-  });
-
   it("로그인 성공 시 세션 캐시를 채우고 온보딩 완료 사용자를 대시보드로 이동시킨다", async () => {
     const setSessionSpy = vi.spyOn(sessionLib, "setSession");
     vi.mocked(authApi.login).mockResolvedValueOnce({

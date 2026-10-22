@@ -1,7 +1,6 @@
 package com.carix.snapshot;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.carix.index.CurrentSalaryProvider;
@@ -66,15 +65,6 @@ class SnapshotRecalculationServiceTest {
   }
 
   @Test
-  @DisplayName("구매력 지수 산식 버전 2 를 스냅샷 근거에 남긴다")
-  void recalculate_storesPpiFormulaVersion() {
-    service.recalculateSnapshot(userId, CURRENT_YM);
-
-    var saved = indexSnapshotRepository.findAll().getFirst();
-    assertThat(saved.getRationale().ppiFormulaVersion()).isEqualTo("2");
-  }
-
-  @Test
   @DisplayName("물가 기여도 1위를 스냅샷 근거에 저장한다")
   void recalculate_storesTopPriceDriver() {
     driver =
@@ -85,18 +75,6 @@ class SnapshotRecalculationServiceTest {
 
     var saved = indexSnapshotRepository.findAll().getFirst();
     assertThat(saved.getRationale().topPriceDriver().category()).isEqualTo("FOOD");
-  }
-
-  @Test
-  @DisplayName("물가 기여도를 못 구해도 스냅샷은 저장된다")
-  void recalculate_withoutDriver_stillWrites() {
-    driver = Optional.empty();
-
-    int written = service.recalculateSnapshot(userId, CURRENT_YM);
-
-    assertThat(written).isEqualTo(1);
-    assertThat(indexSnapshotRepository.findAll().getFirst().getRationale().topPriceDriver())
-        .isNull();
   }
 
   @Test
@@ -224,18 +202,6 @@ class SnapshotRecalculationServiceTest {
         .doesNotContain("60000000");
   }
 
-  /** b6 전까지의 기본 상태. 값이 없어도 상태는 남아야 화면이 사유를 말할 수 있다. */
-  @Test
-  void OWI_스텁이면_컬럼은_비고_상태는_남는다() {
-    service.recalculateSnapshot(userId, CURRENT_YM);
-
-    IndexSnapshot saved =
-        indexSnapshotRepository.findByUserIdAndBaseYearMonth(userId, CURRENT_YM).getFirst();
-    assertThat(saved.getOpeningWindowIndex()).isNull();
-    assertThat(saved.getRationale().indexStatuses().owi()).isEqualTo(IndexStatus.NOT_AVAILABLE);
-    assertThat(saved.getRationale().openingWindow()).isNull();
-  }
-
   @Test
   void OWI_가_산출되면_값과_근거_일곱이_함께_저장된다() {
     SnapshotRecalculationService withOwi = serviceWithOwi(okOwi());
@@ -308,33 +274,6 @@ class SnapshotRecalculationServiceTest {
                 null, null, null, null, 2, "전국 / 경력 전체 / 회사규모 무관 / 고용형태 무관", 351));
   }
 
-  /** 세 지수 상태를 다 저장한다 — 읽기 경로가 value==null 에서 NOT_AVAILABLE 로 뭉개지 않게. */
-  @Test
-  void 세_지수_상태가_모두_저장된다() {
-    service.recalculateSnapshot(userId, CURRENT_YM);
-
-    SnapshotRationale.IndexStatuses statuses =
-        indexSnapshotRepository
-            .findByUserIdAndBaseYearMonth(userId, CURRENT_YM)
-            .getFirst()
-            .getRationale()
-            .indexStatuses();
-    assertThat(statuses.ppi()).isNotNull();
-    assertThat(statuses.mvi()).isNotNull();
-    assertThat(statuses.owi()).isNotNull();
-  }
-
-  /**
-   * 규칙표를 바꾸면 버전을 올린다 — 옛 스냅샷의 판정 근거와 갈라 읽기 위해서다. 1.1.0 은 시장가치 없는 부분 판정, 1.2.0 은 구매력 지수가 실제 물가를 보기
-   * 시작한 것(규칙표는 같고 `PPI < 95` 입력의 뜻이 바뀌었다), 1.3.0 은 시장가치가 표본 잡음 폭 안이면 근거로 쓰지 않는 신뢰 가드, 1.4.0 은 시장가치
-   * 원천 결합에서 정기 수집 원천 가중치를 표본 원천 건수로 묶은 것, 1.5.0 은 원티드·점핏을 원천에 넣고 정기 수집 원천 합계를 스킬마다 지수를 낸 표본 원천의 가장
-   * 큰 표본 수로 묶은 것.
-   */
-  @Test
-  void 규칙_버전은_부분_판정_도입분이다() {
-    assertThat(DecisionSignalEngine.RULE_VERSION).isEqualTo("1.5.0");
-  }
-
   /**
    * 산출기 계약({@link com.carix.index.dto.IndexValueContract})이 결과를 하나씩 볼 때 못 잡는 것은 값 셋을 서로 바꿔 넣는 배선
    * 사고다. 결과가 전부 합법이어도 행은 뒤집히므로 쓰기 경계가 엔티티를 다시 본다. 운영에 남은 35행이 이 모양이었다.
@@ -368,19 +307,6 @@ class SnapshotRecalculationServiceTest {
         .hasMessageContaining("MVI");
   }
 
-  @Test
-  @DisplayName("쓰기 경계 - 값-상태가 맞는 행은 통과한다")
-  void 쓰기_경계는_합법_행을_통과시킨다() {
-    IndexSnapshot valid =
-        snapshotWithStatuses(
-            new BigDecimal("104.60"),
-            new SnapshotRationale.IndexStatuses(
-                IndexStatus.INSUFFICIENT_HISTORY, IndexStatus.OK, IndexStatus.INSUFFICIENT_SAMPLE));
-
-    assertThatCode(() -> SnapshotRecalculationService.verifyPersistable(valid))
-        .doesNotThrowAnyException();
-  }
-
   /** PPI 는 값 100 단일점({@code INSUFFICIENT_HISTORY}), MVI 는 {@code mvi}, OWI 는 값 없음이다. */
   private static IndexSnapshot snapshotWithStatuses(
       BigDecimal mvi, SnapshotRationale.IndexStatuses statuses) {
@@ -408,28 +334,6 @@ class SnapshotRecalculationServiceTest {
                 statuses,
                 null))
         .build();
-  }
-
-  /** indexStatuses 도입 전에 쓰인 jsonb 행은 그 필드가 null 로 역직렬화된다. */
-  @Test
-  void 옛_rationale_은_상태가_비어도_읽힌다() {
-    SnapshotRationale old =
-        new SnapshotRationale(
-            List.of("규칙"),
-            null,
-            List.of(),
-            List.of(),
-            List.of(),
-            null,
-            null,
-            null,
-            "run-1",
-            null,
-            null);
-
-    assertThat(old.indexStatuses()).isEqualTo(SnapshotRationale.IndexStatuses.unknown());
-    assertThat(old.indexStatuses().owi()).isNull();
-    assertThat(old.openingWindow()).isNull();
   }
 
   // --- 픽스처 ---

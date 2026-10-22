@@ -14,7 +14,7 @@
 
 | 원천 | 역할 | 비고 |
 | --- | --- | --- |
-| KOSIS CPI (지출목적별) | 개인물가 → 구매력 지수 | 공식 통계 |
+| KOSIS CPI (지출목적별) | 개인물가 → 구매력 지수 | 공식 통계. 지출목적 12분류와 총지수(`'0'`)를 함께 적재한다. 총지수는 카테고리 합성에 쓰이지 않고 개인물가와 견주는 비교에만 쓰인다 |
 | 잡코리아 채용공고 스크래핑 | 스킬 수요율 원천 1 | 개발·데이터·AI 직군 채용공고 수집 |
 | 사람인 채용공고 스크래핑 | 스킬 수요율 원천 2 | IT 공고 커버리지 보완 |
 | 점핏 채용공고 목록 | 스킬 수요율 원천 4 | 점핏 공고 번호는 사람인 공고 번호라 공고 행은 `SARAMIN`, 수집 이력(`raw_ingest`)은 `JUMPIT` 이다. 시장 집계에서는 확인 경로 `JUMPIT` 인 공고가 별도 원천 `JUMPIT` 행이 된다 |
@@ -356,7 +356,7 @@ stateDiagram-v2
     [*] --> KosisReader : 관리자 수동 기동 (통계청 공표 일정 기준)
     KosisReader --> RawIngest : 원문 응답 raw_ingest 보존
     RawIngest --> KosisProcessor : KOSIS API 연월별 데이터 (JSON)
-    KosisProcessor --> KosisWriter : Carix 6대 소비 카테고리 매핑 & 기본 가중치 보정
+    KosisProcessor --> KosisWriter : 12분류와 총지수('0') 원값 보존 (6대 카테고리 합성은 읽는 쪽)
     KosisWriter --> cpi_observation : DB 벌크 삽입 (bulk insert)
     cpi_observation --> [*]
 ```

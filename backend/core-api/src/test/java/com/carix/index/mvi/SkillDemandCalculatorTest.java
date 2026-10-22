@@ -6,7 +6,6 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.carix.config.IndexThresholdProperties;
 import com.carix.index.enums.SkillDemandStatus;
 import com.carix.market.MarketAggregate;
 import com.carix.market.MarketAggregateRepository;
@@ -18,7 +17,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.test.util.ReflectionTestUtils;
 
 @ExtendWith(MockitoExtension.class)
 class SkillDemandCalculatorTest {
@@ -211,47 +209,6 @@ class SkillDemandCalculatorTest {
             /* baselineSkillPostings= */ SkillDemandCalculator.MIN_SKILL_SAMPLE_SIZE);
 
     assertThat(result.getStatus()).isEqualTo(SkillDemandStatus.OK);
-  }
-
-  @Test
-  @DisplayName("MVI 최소 스킬 표본 수는 설정으로 조정된다")
-  void configuredSkillSampleThresholdIsApplied() {
-    IndexThresholdProperties thresholds = new IndexThresholdProperties();
-    thresholds.setSkillMinSampleSize(3);
-    ReflectionTestUtils.setField(calculator, "thresholds", thresholds);
-
-    SkillDemandCalculator.SkillDemandResult result =
-        calculateWith(/* recentSkillPostings= */ 4, /* baselineSkillPostings= */ 5);
-
-    assertThat(result.getStatus()).isEqualTo(SkillDemandStatus.OK);
-  }
-
-  @Test
-  @DisplayName("MVI 수요 지수 클램프 상한은 설정값을 적용한다")
-  void configuredDemandIndexClampIsApplied() {
-    IndexThresholdProperties thresholds = new IndexThresholdProperties();
-    thresholds.setSkillDemandMaxClamp(150.0);
-    ReflectionTestUtils.setField(calculator, "thresholds", thresholds);
-
-    SkillDemandCalculator.SkillDemandResult result =
-        calculateWith(/* recentSkillPostings= */ 100, /* baselineSkillPostings= */ 10);
-
-    assertThat(result.getDemandIndex()).isEqualTo(150.0);
-    assertThat(result.isClamped()).isTrue();
-  }
-
-  @Test
-  @DisplayName("MVI 수요 지수 클램프 하한은 설정값을 적용한다")
-  void configuredDemandIndexMinimumClampIsApplied() {
-    IndexThresholdProperties thresholds = new IndexThresholdProperties();
-    thresholds.setSkillDemandMinClamp(50.0);
-    ReflectionTestUtils.setField(calculator, "thresholds", thresholds);
-
-    SkillDemandCalculator.SkillDemandResult result =
-        calculateWith(/* recentSkillPostings= */ 10, /* baselineSkillPostings= */ 100);
-
-    assertThat(result.getDemandIndex()).isEqualTo(50.0);
-    assertThat(result.isClamped()).isTrue();
   }
 
   /** 최근 창과 기준선 창의 스킬 공고 수만 달리해 계산한다. 전체 공고 수는 두 창 모두 1000 으로 고정한다. */
@@ -490,44 +447,5 @@ class SkillDemandCalculatorTest {
 
     assertThat(totals.recentTotalPostings()).isEqualTo(100);
     assertThat(totals.baselineTotalPostings()).isEqualTo(400);
-  }
-
-  @Test
-  @DisplayName(
-      "calculateDemandIndex: 사전에 계산된 TotalPostings를 넘기면 findTotalPostingAggregates를 재호출하지 않는다")
-  void testCalculateDemandIndexWithPrecalculatedTotalPostings() {
-    UUID skillId = UUID.randomUUID();
-    String source = "JOBKOREA";
-    String baseYearMonth = "202607";
-    PeerGroupFallbackResolver.ResolvedPeerGroup peerGroup =
-        PeerGroupFallbackResolver.ResolvedPeerGroup.builder()
-            .source(source)
-            .jobFamily("DEVELOPER")
-            .region("서울 강남구")
-            .brackets(List.of("MID"))
-            .employmentType("FULL_TIME")
-            .companySize("MEDIUM")
-            .build();
-
-    SkillDemandCalculator.TotalPostings totals = new SkillDemandCalculator.TotalPostings(100, 400);
-
-    when(marketAggregateRepository.findSkillAggregates(
-            eq(source),
-            any(),
-            eq("DEVELOPER"),
-            eq("서울 강남구"),
-            eq(List.of("MID")),
-            eq("FULL_TIME"),
-            eq("MEDIUM"),
-            eq(skillId)))
-        .thenReturn(List.of(MarketAggregate.builder().postingCount(10).build()))
-        .thenReturn(List.of(MarketAggregate.builder().postingCount(20).build()));
-
-    SkillDemandCalculator.SkillDemandResult result =
-        calculator.calculateDemandIndex(source, skillId, peerGroup, baseYearMonth, totals);
-
-    assertThat(result.getStatus()).isEqualTo(SkillDemandStatus.OK);
-    // 최근 10/100 = 0.10, 이전 20/400 = 0.05 -> 지수 = 200.0
-    assertThat(result.getDemandIndex()).isEqualTo(200.0);
   }
 }

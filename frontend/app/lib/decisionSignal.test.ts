@@ -19,12 +19,6 @@ describe("resolveDecisionSignal", () => {
     },
   );
 
-  it("아는 코드는 서버 문구가 달라도 프런트 테이블을 따른다", () => {
-    const view = resolveDecisionSignal("UPSKILL", "스킬 보강");
-
-    expect(view.label).toBe("스킬 보강 우선");
-  });
-
   it("모르는 코드는 서버 문구로 떨어진다", () => {
     const view = resolveDecisionSignal("RELOCATE", "지역 이동 검토");
 

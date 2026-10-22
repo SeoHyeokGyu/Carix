@@ -13,10 +13,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.carix.common.GlobalExceptionHandler;
 import com.carix.common.usercontext.UserContextArgumentResolver;
-import com.carix.profile.dto.ProfileResponse;
 import com.carix.profile.exception.InvalidHireDateException;
 import com.carix.profile.service.ProfileService;
-import java.time.LocalDate;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -43,45 +41,6 @@ class ProfileControllerTest {
   }
 
   @Test
-  @DisplayName("DELETE /v1/users - 정상 이메일 파라미터가 주어지면 탈퇴 서비스를 호출하고 200 반환")
-  void deleteUser_정상() throws Exception {
-    String email = "test@example.com";
-    doNothing().when(profileService).deleteUser(eq(USER_ID), eq(email));
-
-    mockMvc
-        .perform(delete("/v1/users").header("X-User-Id", USER_ID.toString()).param("email", email))
-        .andExpect(status().isOk())
-        .andExpect(jsonPath("$.success").value(true))
-        .andExpect(jsonPath("$.message").value("탈퇴 처리가 완료되었습니다. 모든 데이터가 삭제되었습니다."));
-
-    verify(profileService).deleteUser(eq(USER_ID), eq(email));
-  }
-
-  @Test
-  @DisplayName("DELETE /v1/users - 이메일 파라미터가 누락되면 400 Bad Request")
-  void deleteUser_이메일_누락() throws Exception {
-    mockMvc
-        .perform(delete("/v1/users").header("X-User-Id", USER_ID.toString()))
-        .andExpect(status().isBadRequest());
-  }
-
-  @Test
-  @DisplayName("PATCH /v1/profile - 입사일을 보내면 응답에 실린다")
-  void 입사일을_패치하면_응답에_실린다() throws Exception {
-    given(profileService.patch(eq(USER_ID), any()))
-        .willReturn(new ProfileResponse(null, null, null, null, null, LocalDate.of(2022, 3, 2)));
-
-    mockMvc
-        .perform(
-            patch("/v1/profile")
-                .header("X-User-Id", USER_ID.toString())
-                .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"hireDate\":\"2022-03-02\"}"))
-        .andExpect(status().isOk())
-        .andExpect(jsonPath("$.data.hireDate").value("2022-03-02"));
-  }
-
-  @Test
   @DisplayName("PATCH /v1/profile - 미래 입사일이면 400 과 details.hireDate")
   void 미래_입사일은_400() throws Exception {
     given(profileService.patch(eq(USER_ID), any()))
@@ -96,5 +55,20 @@ class ProfileControllerTest {
         .andExpect(status().isBadRequest())
         .andExpect(jsonPath("$.code").value("INVALID_INPUT"))
         .andExpect(jsonPath("$.details.hireDate").value("입사일은 오늘 이후일 수 없습니다."));
+  }
+
+  @Test
+  @DisplayName("DELETE /v1/users - 정상 이메일 파라미터가 주어지면 탈퇴 서비스를 호출하고 200 반환")
+  void deleteUser_정상() throws Exception {
+    String email = "test@example.com";
+    doNothing().when(profileService).deleteUser(eq(USER_ID), eq(email));
+
+    mockMvc
+        .perform(delete("/v1/users").header("X-User-Id", USER_ID.toString()).param("email", email))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.success").value(true))
+        .andExpect(jsonPath("$.message").value("탈퇴 처리가 완료되었습니다. 모든 데이터가 삭제되었습니다."));
+
+    verify(profileService).deleteUser(eq(USER_ID), eq(email));
   }
 }

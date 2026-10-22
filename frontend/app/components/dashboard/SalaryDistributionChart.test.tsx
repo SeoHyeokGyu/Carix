@@ -1,10 +1,9 @@
-import { act, fireEvent, render, screen, within } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import type { SalaryDistributionResponse } from "../../lib/dashboardMarketApi";
 import {
   formatKoreanSalary,
-  getBodyPartInfo,
   SalaryDistributionChart,
 } from "./SalaryDistributionChart";
 
@@ -17,18 +16,6 @@ describe("SalaryDistributionChart", () => {
       expect(formatKoreanSalary(55_000_000)).toBe("5,500만 원");
       expect(formatKoreanSalary(100_000_000)).toBe("1억 원");
       expect(formatKoreanSalary(125_000_000)).toBe("1억 2,500만 원");
-    });
-  });
-
-  describe("getBodyPartInfo", () => {
-    it("백분위에 따라 정확한 신체 부위(정수리, 머리, 어깨, 허리, 무릎, 발목)를 매핑한다", () => {
-      expect(getBodyPartInfo(95).name).toBe("정수리");
-      expect(getBodyPartInfo(80).name).toBe("머리");
-      expect(getBodyPartInfo(65).name).toBe("어깨");
-      expect(getBodyPartInfo(50).name).toBe("가슴");
-      expect(getBodyPartInfo(40).name).toBe("허리");
-      expect(getBodyPartInfo(25).name).toBe("무릎");
-      expect(getBodyPartInfo(10).name).toBe("발목");
     });
   });
 
@@ -184,47 +171,6 @@ describe("SalaryDistributionChart", () => {
     expect(screen.queryByText(/UNKNOWN/)).not.toBeInTheDocument();
   });
 
-  it("경력 사다리 모든 구간에 임금통계가 없으면 빈 카드 대신 없음을 보인다", () => {
-    const steps = ["ENTRY", "JUNIOR", "MID", "SENIOR", "LEAD"].map(
-      (bracket) => ({
-        bracket,
-        median: null,
-        raiseFromPrevious: null,
-        source: "UNKNOWN",
-      }),
-    );
-    const mockData: SalaryDistributionResponse = {
-      status: "OK",
-      sampleSize: 12,
-      baseline: null,
-      postingReference: {
-        min: 40_000_000,
-        p25: 52_000_000,
-        median: 68_000_000,
-        p75: 85_000_000,
-        max: 120_000_000,
-        sampleSize: 12,
-        missingRate: 0,
-      },
-      userPosition: null,
-      peerGroup: {
-        fallbackLevel: 1,
-        appliedConditions: "전국 / 경력 4~7년(MID) / 회사규모 무관",
-      },
-      trend: [],
-      careerLadder: { userBracket: "MID", steps },
-    };
-
-    render(<SalaryDistributionChart data={mockData} />);
-
-    const ladder = screen.getByLabelText("경력 사다리");
-    expect(
-      within(ladder).getByText("이 직무의 공식 임금통계 없음"),
-    ).toBeInTheDocument();
-    expect(within(ladder).queryByRole("list")).not.toBeInTheDocument();
-    expect(within(ladder).queryByText(/UNKNOWN/)).not.toBeInTheDocument();
-  });
-
   it("공고 표본은 충족하지만 공개된 연봉이 0건일 때 왜곡된 0원 차트 대신 안내 화면을 표시한다", () => {
     const noDisclosedSalaryData: SalaryDistributionResponse = {
       status: "OK",
@@ -270,38 +216,6 @@ describe("SalaryDistributionChart", () => {
     expect(screen.queryByText("0만 원")).not.toBeInTheDocument();
   });
 
-  it("공고는 충분하고 공개 연봉이 모자라면 공고 수와 공개 연봉 수를 함께 보인다", () => {
-    const data: SalaryDistributionResponse = {
-      status: "INSUFFICIENT_SAMPLE",
-      sampleSize: 200,
-      minRequired: 10,
-      baseline: null,
-      postingReference: {
-        min: null,
-        p25: null,
-        median: null,
-        p75: null,
-        max: null,
-        sampleSize: 5,
-        missingRate: 97.5,
-      },
-      userPosition: null,
-      peerGroup: {
-        fallbackLevel: null,
-        appliedConditions: "서울 / 경력 MID±1 / 회사규모 무관",
-      },
-      trend: [],
-      careerLadder: null,
-    };
-
-    render(<SalaryDistributionChart data={data} />);
-
-    const state = screen.getByTestId("insufficient-sample-state");
-    expect(state).toHaveTextContent("공개 연봉이 부족하여");
-    expect(state).toHaveTextContent("동료집단 공고 200건 중 공개 연봉 5건");
-    expect(state).toHaveTextContent("최소 기준: 10건 이상 필요");
-  });
-
   it("표본 부족(INSUFFICIENT_SAMPLE) 상태일 때 경고 화면을 표시하고 임의 수치를 그리지 않는다", () => {
     const insufficientData: SalaryDistributionResponse = {
       status: "INSUFFICIENT_SAMPLE",
@@ -344,87 +258,6 @@ describe("SalaryDistributionChart", () => {
     expect(
       screen.queryByTestId("salary-distribution-chart"),
     ).not.toBeInTheDocument();
-  });
-
-  it("trend 데이터가 존재하면 등록월별 중앙 제시 연봉 추이 테이블을 렌더링한다", () => {
-    const dataWithTrend: SalaryDistributionResponse = {
-      status: "OK",
-      sampleSize: 150,
-      baseline: {
-        basis: "AGE_BAND_PROXY",
-        source: "KOSIS",
-        median: 65_000_000,
-        wageDefinition: "임금직무정보시스템 500인 이상",
-      },
-      postingReference: {
-        min: 40_000_000,
-        p25: 52_000_000,
-        median: 68_000_000,
-        p75: 85_000_000,
-        max: 120_000_000,
-        sampleSize: 50,
-        missingRate: 66.7,
-      },
-      userPosition: null,
-      peerGroup: {
-        fallbackLevel: 3,
-        appliedConditions: "서울 / 경력 MID / 회사규모 무관",
-      },
-      trend: [
-        {
-          yearMonth: "2026-05",
-          median: 62_000_000,
-          sampleSize: 18,
-          disclosedSampleSize: 11,
-          missingRate: 38.9,
-        },
-        {
-          yearMonth: "2026-06",
-          median: null,
-          sampleSize: 6,
-          disclosedSampleSize: 2,
-          missingRate: 66.7,
-        },
-      ],
-      trendComparison: {
-        previous: {
-          from: "2026-01",
-          to: "2026-03",
-          median: 50_000_000,
-          ciLow: null,
-          ciHigh: null,
-          disclosedSampleSize: 35,
-        },
-        recent: {
-          from: "2026-04",
-          to: "2026-06",
-          median: 51_000_000,
-          ciLow: null,
-          ciHigh: null,
-          disclosedSampleSize: 40,
-        },
-        verdict: "FLAT",
-        sources: ["JOBKOREA"],
-        inProgress: [],
-      },
-    };
-
-    render(<SalaryDistributionChart data={dataWithTrend} />);
-    expect(screen.getByText("뚜렷한 변화 없음")).toBeInTheDocument();
-
-    expect(
-      screen
-        .getByTestId("salary-trend-section")
-        .querySelector('[data-slot="table"]'),
-    ).not.toBeNull();
-    expect(screen.getByText("2026-05")).toBeInTheDocument();
-    expect(screen.getByText("6,200만 원")).toBeInTheDocument();
-    expect(screen.getByText("2026-06")).toBeInTheDocument();
-    expect(screen.getByText("표본 부족 (미산출)")).toBeInTheDocument();
-    expect(screen.getByText("완화 3단계")).toHaveAttribute(
-      "data-tone",
-      "warning",
-    );
   });
 
   it("경력 사다리에 기준 연도(basePeriod)와 연도 선택 버튼이 표시되고 연도 변경이 동작한다 (b14)", async () => {

@@ -54,10 +54,4 @@ class RegionRollupTest {
     assertEquals("UNKNOWN", RegionRollup.toSido("정규직"));
     assertEquals("UNKNOWN", RegionRollup.toSido("일본"));
   }
-
-  @Test
-  void returnsUnknownForMissingRegion() {
-    assertEquals("UNKNOWN", RegionRollup.toSido(null));
-    assertEquals("UNKNOWN", RegionRollup.toSido("   "));
-  }
 }

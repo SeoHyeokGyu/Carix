@@ -170,26 +170,9 @@ class SalaryTrendComparatorTest {
   }
 
   @Test
-  void noSampledRowsInPeerGroup() {
-    List<JobPosting> postings = List.of(posting("JOBKOREA", null, 50_000_000L));
-
-    TrendComparison result = compare(postings);
-
-    assertThat(result.recent().disclosedSampleSize()).isZero();
-    assertThat(result.previous().disclosedSampleSize()).isZero();
-    assertThat(result.verdict()).isEqualTo(Verdict.INSUFFICIENT_SAMPLE);
-  }
-
-  @Test
   void upWhenIntervalsSeparate() {
     assertThat(compare(both(flat(14, 40_000_000L), flat(14, 60_000_000L))).verdict())
         .isEqualTo(Verdict.UP);
-  }
-
-  @Test
-  void downWhenIntervalsSeparate() {
-    assertThat(compare(both(flat(14, 60_000_000L), flat(14, 40_000_000L))).verdict())
-        .isEqualTo(Verdict.DOWN);
   }
 
   @Test

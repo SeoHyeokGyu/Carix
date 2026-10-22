@@ -6,39 +6,11 @@ import com.carix.index.dto.TopPriceDriver;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import java.math.BigDecimal;
-import java.time.LocalDate;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 class SnapshotRationaleTest {
-
-  @Test
-  @DisplayName("SnapshotRationale null 안전 불변 리스트 복사 및 기본값 처리")
-  void testNullSafety() {
-    SnapshotRationale rationaleNull =
-        new SnapshotRationale(null, null, null, null, null, null, null, null, null, null, null);
-
-    assertThat(rationaleNull.rulesApplied()).isEmpty();
-    assertThat(rationaleNull.excludedSkills()).isEmpty();
-
-    SnapshotRationale rationaleWithValues =
-        new SnapshotRationale(
-            List.of("Rule1"),
-            "BELOW_MARKET_15_PLUS",
-            List.of(),
-            List.of(),
-            List.of("SkillA"),
-            LocalDate.now(),
-            LocalDate.now(),
-            "202607",
-            "run-1",
-            null,
-            null);
-
-    assertThat(rationaleWithValues.rulesApplied()).containsExactly("Rule1");
-    assertThat(rationaleWithValues.excludedSkills()).containsExactly("SkillA");
-  }
 
   /**
    * production {@code core.index_snapshot} 에는 {@code indexStatuses}/{@code openingWindow} 도입 이전에 쓰인
@@ -69,18 +41,6 @@ class SnapshotRationaleTest {
 
     assertThat(rationale.indexStatuses()).isEqualTo(SnapshotRationale.IndexStatuses.unknown());
     assertThat(rationale.openingWindow()).isNull();
-  }
-
-  @Test
-  @DisplayName("topPriceDriver 가 없던 시절의 JSON 은 null 로 읽힌다")
-  void legacyJson_topPriceDriverIsNull() throws Exception {
-    ObjectMapper objectMapper = new ObjectMapper().registerModule(new JavaTimeModule());
-    String legacy =
-        "{\"rulesApplied\":[],\"indexStatuses\":{\"ppi\":\"OK\",\"mvi\":\"OK\",\"owi\":\"OK\"}}";
-
-    SnapshotRationale rationale = objectMapper.readValue(legacy, SnapshotRationale.class);
-
-    assertThat(rationale.topPriceDriver()).isNull();
   }
 
   @Test

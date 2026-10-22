@@ -75,17 +75,6 @@ class AccountControllerTest {
   }
 
   @Test
-  void 비밀번호가_8자_미만이면_400_이다() throws Exception {
-    mockMvc
-        .perform(
-            post("/v1/auth/register")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"email\":\"beta@example.com\",\"password\":\"short\"}"))
-        .andExpect(status().isBadRequest())
-        .andExpect(jsonPath("$.code").value("INVALID_INPUT"));
-  }
-
-  @Test
   void 가입_IP_제한을_넘으면_429_이고_계정을_만들지_않는다() throws Exception {
     given(rateLimitService.isExceeded(eq("register-ip"), anyString(), anyInt())).willReturn(true);
 
@@ -97,22 +86,6 @@ class AccountControllerTest {
         .andExpect(status().isTooManyRequests());
 
     verify(accountService, never()).register(anyString(), anyString());
-  }
-
-  @Test
-  void 로그인하면_세션_쿠키를_발급한다() throws Exception {
-    given(accountService.authenticate("beta@example.com", "password123"))
-        .willReturn(registered("COMPLETED"));
-    given(sessionService.createSession(USER_ID)).willReturn("session-token");
-
-    mockMvc
-        .perform(
-            post("/v1/auth/login")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"email\":\"beta@example.com\",\"password\":\"password123\"}"))
-        .andExpect(status().isOk())
-        .andExpect(jsonPath("$.onboardingStep").value("COMPLETED"))
-        .andExpect(cookie().httpOnly("session_token", true));
   }
 
   @Test

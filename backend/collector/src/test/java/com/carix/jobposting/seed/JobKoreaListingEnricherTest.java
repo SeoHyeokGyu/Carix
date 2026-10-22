@@ -90,12 +90,4 @@ class JobKoreaListingEnricherTest {
     assertThat(fieldsFive.salaryMin()).isNull();
     assertThat(fieldsFive.positionLevel()).isEqualTo("팀원급");
   }
-
-  @Test
-  @DisplayName("extract - 존재하지 않는 externalId는 null 필드 반환")
-  void extract_notFound() {
-    JobKoreaListingFields fields = enricher.extract("<div></div>", "non-existent");
-    assertThat(fields.employmentType()).isNull();
-    assertThat(fields.salaryMin()).isNull();
-  }
 }

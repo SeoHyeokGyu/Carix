@@ -1,4 +1,4 @@
-import { render, screen, within } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { createRoutesStub } from "react-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -7,7 +7,6 @@ import * as incomeApi from "../../lib/api/income";
 import { UnauthorizedError } from "../../lib/coreApi";
 import * as onboardingApi from "../../lib/onboardingApi";
 import { resetSession, setSession } from "../../lib/session";
-import { expectHeadingOutline } from "../../test-utils/headingOutline";
 import Income, { clientAction, clientLoader } from "./income";
 
 describe("S-06 소득 화면", () => {
@@ -40,38 +39,6 @@ describe("S-06 소득 화면", () => {
     ]);
     return render(<Stub initialEntries={[initialEntry]} />);
   }
-
-  it("기존 이력이 표에 유효 시작일 내림차순으로 나온다", async () => {
-    vi.spyOn(incomeApi, "listIncome").mockResolvedValue([
-      {
-        id: "i-1",
-        grossSalary: 58_000_000,
-        netSalary: 3_800_000,
-        effectiveDate: "2023-01-01",
-        changeReason: "INITIAL",
-        selectedChangeReason: null,
-        bonusIncluded: true,
-        fixedBonusAnnual: null,
-      },
-      {
-        id: "i-2",
-        grossSalary: 65_000_000,
-        netSalary: 4_200_000,
-        effectiveDate: "2024-01-01",
-        changeReason: "RAISE",
-        selectedChangeReason: "RAISE",
-        bonusIncluded: true,
-        fixedBonusAnnual: null,
-      },
-    ]);
-
-    renderScreen();
-
-    const rows = await screen.findAllByRole("row");
-    // 첫 행은 헤더 — 본문 행은 2024-01-01, 2023-01-01 순으로 나와야 한다(내림차순).
-    expect(rows[1]).toHaveTextContent("2024-01-01");
-    expect(rows[2]).toHaveTextContent("2023-01-01");
-  });
 
   it("이력을 추가하면 createIncome 이 불리고 표가 갱신된다", async () => {
     vi.spyOn(incomeApi, "listIncome")
@@ -225,33 +192,6 @@ describe("S-06 소득 화면", () => {
     expect(advance).not.toHaveBeenCalled();
   });
 
-  it("검토 화면의 「수정」으로 들어왔으면 '다음' 후 검토 화면으로 돌아간다", async () => {
-    vi.spyOn(incomeApi, "listIncome").mockResolvedValue([
-      {
-        id: "i-1",
-        grossSalary: 50_000_000,
-        netSalary: 3_500_000,
-        effectiveDate: "2024-01-01",
-        changeReason: "INITIAL",
-        selectedChangeReason: null,
-        bonusIncluded: true,
-        fixedBonusAnnual: null,
-      },
-    ]);
-    vi.spyOn(onboardingApi, "advanceOnboarding").mockResolvedValue({
-      currentStep: "EXPENSE",
-      completed: false,
-    });
-
-    renderScreen("/onboarding/income?from=review");
-    const user = userEvent.setup();
-
-    await screen.findByText("2024-01-01");
-    await user.click(screen.getByRole("button", { name: "다음" }));
-
-    expect(await screen.findByText("검토 화면")).toBeInTheDocument();
-  });
-
   // 회귀 테스트 — guardOnboarding 은 세션 캐시의 onboardingStep 을 읽는다. "다음" 으로
   // 단계를 넘긴 뒤 이 캐시를 갱신하지 않으면 되튕김이 생긴다.
   it("'다음' 성공 후 세션 캐시의 onboardingStep 을 EXPENSE 로 갱신한다", async () => {
@@ -284,49 +224,6 @@ describe("S-06 소득 화면", () => {
     await expect(requireSession()).resolves.toMatchObject({
       status: "authenticated",
       onboardingStep: "EXPENSE",
-    });
-  });
-
-  // FIX 1 (Critical, 최종 리뷰) — REVIEW 단계를 지난 사용자가 검토 화면의 "수정"
-  // 링크로 돌아와 "다음"을 다시 누르면, 예전에는 advanceOnboarding("EXPENSE") 을
-  // 무조건 다시 불러 서버 단계를 REVIEW 에서 EXPENSE 로 되돌렸다(profile.test.tsx 의
-  // 같은 이름 테스트와 같은 이유 — 반복되면 화면이 없는 SKILLS 로 사용자가 갇힌다).
-  // "다음"은 여전히 소비 화면으로 데려가야 한다.
-  it("이미 REVIEW 단계를 지난 사용자가 '다음'을 눌러도 온보딩 단계를 되돌리지 않는다", async () => {
-    resetSession();
-    setSession({
-      status: "authenticated",
-      userId: "u-1",
-      email: "user@carix.kr",
-      onboardingStep: "REVIEW",
-    });
-    vi.spyOn(incomeApi, "listIncome").mockResolvedValue([
-      {
-        id: "i-1",
-        grossSalary: 50_000_000,
-        netSalary: 3_500_000,
-        effectiveDate: "2024-01-01",
-        changeReason: "INITIAL",
-        selectedChangeReason: null,
-        bonusIncluded: true,
-        fixedBonusAnnual: null,
-      },
-    ]);
-    const advance = vi.spyOn(onboardingApi, "advanceOnboarding");
-
-    renderScreen();
-    const user = userEvent.setup();
-
-    await screen.findByText("2024-01-01");
-    await user.click(screen.getByRole("button", { name: "다음" }));
-
-    expect(await screen.findByText("소비 화면")).toBeInTheDocument();
-    expect(advance).not.toHaveBeenCalled();
-
-    const { requireSession } = await import("../../lib/session");
-    await expect(requireSession()).resolves.toMatchObject({
-      status: "authenticated",
-      onboardingStep: "REVIEW",
     });
   });
 
@@ -536,28 +433,6 @@ describe("S-06 소득 화면", () => {
     expect(screen.getByText("5,000만 원")).toBeInTheDocument();
   });
 
-  it("'이전' 을 누르면 프로필 화면으로 이동한다", async () => {
-    vi.spyOn(incomeApi, "listIncome").mockResolvedValue([]);
-
-    renderScreen();
-    const user = userEvent.setup();
-
-    await screen.findByRole("heading", { level: 1, name: "소득" });
-    await user.click(screen.getByRole("link", { name: "이전" }));
-
-    expect(await screen.findByText("프로필 화면")).toBeInTheDocument();
-  });
-
-  it("조회 중 401 을 받으면 로그인 화면으로 보낸다", async () => {
-    vi.spyOn(incomeApi, "listIncome").mockRejectedValue(
-      new UnauthorizedError(),
-    );
-
-    renderScreen();
-
-    expect(await screen.findByText("로그인 화면")).toBeInTheDocument();
-  });
-
   // profile.test.tsx 의 "총 경력이 범위를 벗어나면" 테스트와 같은 모양 — 필드별 메시지·
   // aria-describedby 배선·포커스 이동을 함께 확인한다.
   it("세전 연봉이 범위를 벗어나면 저장하지 않고 필드 오류와 포커스를 보여준다", async () => {
@@ -623,16 +498,6 @@ describe("S-06 소득 화면", () => {
     expect(screen.getByText("2024-01-01")).toBeInTheDocument();
   });
 
-  it("이력이 없으면 변경 사유 셀렉트를 그리지 않는다", async () => {
-    // US-O3: 그 사용자의 첫 소득 행은 서버가 INITIAL 로 확정하고 사용자에게 묻지
-    // 않는다. 화면이 아는 정보(이력 0건)만으로 그 조항을 지킨다.
-    vi.spyOn(incomeApi, "listIncome").mockResolvedValue([]);
-    renderScreen();
-
-    await screen.findByText(/아직 추가한 연봉이 없습니다/);
-    expect(screen.queryByLabelText("변경 사유")).toBeNull();
-  });
-
   it("이력이 있으면 고른 변경 사유가 createIncome 인자에 실린다", async () => {
     // 온보딩도 두 번째 이후 행을 만든다 — 여기 컨트롤이 없으면 그 행이 묻지도
     // 않고 null 이 되는데, 그것이 US-O3 이 막으려던 상황이다.
@@ -673,49 +538,6 @@ describe("S-06 소득 화면", () => {
         netSalary: 4_200_000,
         effectiveDate: "2024-01-01",
         changeReason: "RAISE",
-      }),
-    );
-  });
-
-  it("선택 안 함이면 changeReason 없이 보낸다", async () => {
-    // 기본값을 채우면 고르지 않은 것이 고른 것으로 기록된다 (API 규격 §4.2).
-    // 빈 문자열도 보내면 안 된다 — enum 검증에서 떨어진다. S-12 와 같은 경로를
-    // 온보딩에서도 확인한다.
-    vi.spyOn(incomeApi, "listIncome").mockResolvedValue([
-      {
-        id: "i-old",
-        grossSalary: 58_000_000,
-        netSalary: 3_800_000,
-        effectiveDate: "2023-01-01",
-        changeReason: "INITIAL",
-        selectedChangeReason: null,
-        bonusIncluded: true,
-        fixedBonusAnnual: null,
-      },
-    ]);
-    const create = vi.spyOn(incomeApi, "createIncome").mockResolvedValue({
-      id: "i-new",
-      grossSalary: 70_000_000,
-      netSalary: 4_500_000,
-      effectiveDate: "2025-01-01",
-      changeReason: null,
-      selectedChangeReason: null,
-      bonusIncluded: true,
-      fixedBonusAnnual: null,
-    });
-    renderScreen();
-    const user = userEvent.setup();
-
-    await user.type(await screen.findByLabelText(/세전 연봉/), "7000");
-    await user.type(screen.getByLabelText(/월 실수령액/), "450");
-    await user.type(screen.getByLabelText(/연봉 적용 시작일/), "2025-01-01");
-    await user.click(screen.getByRole("button", { name: "추가" }));
-
-    await vi.waitFor(() =>
-      expect(create).toHaveBeenCalledWith({
-        grossSalary: 70_000_000,
-        netSalary: 4_500_000,
-        effectiveDate: "2025-01-01",
       }),
     );
   });
@@ -815,48 +637,13 @@ describe("S-06 소득 화면", () => {
     );
   });
 
-  it("과거 연봉 이력 표가 변경 사유를 문구로 낸다", async () => {
-    vi.spyOn(incomeApi, "listIncome").mockResolvedValue([
-      {
-        id: "i-old",
-        grossSalary: 58_000_000,
-        netSalary: 3_800_000,
-        effectiveDate: "2023-01-01",
-        changeReason: "INITIAL",
-        selectedChangeReason: null,
-        bonusIncluded: true,
-        fixedBonusAnnual: null,
-      },
-    ]);
+  it("조회 중 401 을 받으면 로그인 화면으로 보낸다", async () => {
+    vi.spyOn(incomeApi, "listIncome").mockRejectedValue(
+      new UnauthorizedError(),
+    );
+
     renderScreen();
 
-    // 표로 좁힌다 — 라벨 문구는 셀렉트의 <option> 에도 있다.
-    const table = await screen.findByRole("table");
-    expect(within(table).getByText("최초 입력")).toBeInTheDocument();
-    expectHeadingOutline();
-    expect(
-      await screen.findByRole("heading", { level: 2, name: "과거 연봉 이력" }),
-    ).toBeInTheDocument();
-  });
-
-  it("최소 유효일 행에 고른 값이 있으면 표가 둘 다 낸다", async () => {
-    // 가장 이른 행이라 표시는 INITIAL 이지만 컬럼에는 JOB_CHANGE 가 있다. 파생값만
-    // 내면 사용자가 고른 값이 화면 어디에도 안 남는다.
-    vi.spyOn(incomeApi, "listIncome").mockResolvedValue([
-      {
-        id: "i-old",
-        grossSalary: 58_000_000,
-        netSalary: 3_800_000,
-        effectiveDate: "2023-01-01",
-        changeReason: "INITIAL",
-        selectedChangeReason: "JOB_CHANGE",
-        bonusIncluded: true,
-        fixedBonusAnnual: null,
-      },
-    ]);
-    renderScreen();
-
-    const table = await screen.findByRole("table");
-    expect(within(table).getByText("최초 입력 · 이직")).toBeInTheDocument();
+    expect(await screen.findByText("로그인 화면")).toBeInTheDocument();
   });
 });

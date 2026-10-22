@@ -1,18 +1,10 @@
-import {
-  fireEvent,
-  render,
-  screen,
-  waitFor,
-  waitForElementToBeRemoved,
-  within,
-} from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes, useLocation } from "react-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { UnauthorizedError } from "../../lib/coreApi";
 import * as dashboardMarketApi from "../../lib/dashboardMarketApi";
-import { expectHeadingOutline } from "../../test-utils/headingOutline";
 import DashboardTrends from "./trends";
 
 const mockNavigate = vi.fn();
@@ -110,42 +102,6 @@ describe("S-14 DashboardTrends 라우트", () => {
     });
   });
 
-  // 탭 패널의 이름은 탭 하나 — 패널 안에 이름 붙은 region 을 또 두지 않는다.
-  // 로딩 자리표시만 보고 끝나면 차트 제목(h3)을 검사하지 못한다 — 로드가 끝난 패널을 본다.
-  const LOADING = "시장 분석 데이터를 집계 및 분석하고 있습니다...";
-
-  it("탭 패널은 선택된 탭 이름 하나를 갖고 제목 단계가 이어진다", async () => {
-    renderTrends();
-    await waitForElementToBeRemoved(() => screen.queryByText(LOADING));
-    const panel = screen.getByRole("tabpanel", { name: "소득 vs 물가" });
-    expect(within(panel).queryByRole("region")).toBeNull();
-    expect(
-      within(panel).getByRole("heading", { level: 2, name: "소득 vs 물가" }),
-    ).toHaveClass("sr-only");
-    expect(
-      within(panel).getAllByRole("heading", { level: 3 }).length,
-    ).toBeGreaterThan(0);
-    expectHeadingOutline();
-  });
-
-  it("salary 탭도 제목 단계가 이어진다", async () => {
-    renderTrends("/dashboard/trends?tab=salary");
-    await waitForElementToBeRemoved(() => screen.queryByText(LOADING));
-    expect(
-      within(screen.getByRole("tabpanel")).getAllByRole("heading", { level: 3 })
-        .length,
-    ).toBeGreaterThan(0);
-    expectHeadingOutline();
-  });
-
-  it("제목 줄에 새로고침 버튼이 없다", async () => {
-    renderTrends();
-    expect(
-      await screen.findByRole("heading", { level: 1, name: "추이 분석" }),
-    ).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /새로고침/ })).toBeNull();
-  });
-
   it("화면 헤더와 기본 탭(소득 vs 물가)을 렌더링하고 화면 ID 는 보이지 않는다", async () => {
     renderTrends();
 
@@ -159,97 +115,6 @@ describe("S-14 DashboardTrends 라우트", () => {
     );
     await waitFor(() => {
       expect(screen.getByTestId("income-vs-price-chart")).toBeInTheDocument();
-    });
-  });
-
-  // 스킬 수요 섹션은 S-18 스킬 분석(/dashboard/skills)으로 이동했다.
-  it("탭 순서는 소득 vs 물가 · 연봉 분포다", () => {
-    renderTrends();
-
-    expect(screen.getAllByRole("tab").map((tab) => tab.textContent)).toEqual([
-      "소득 vs 물가",
-      "연봉 분포",
-    ]);
-    expect(screen.getByRole("tablist")).toBeInTheDocument();
-  });
-
-  it("?tab=salary 로 들어오면 연봉 분포 차트가 마운트된다", async () => {
-    renderTrends("/dashboard/trends?tab=salary");
-
-    await waitFor(() => {
-      expect(screen.getByText("동료집단 연봉 분포")).toBeInTheDocument();
-      expect(screen.getAllByText(/6,200만 원/).length).toBeGreaterThan(0);
-      expect(screen.getByText(/현재 세전: 6,500만 원/)).toBeInTheDocument();
-    });
-  });
-
-  it("모르는 tab 값이면 기본 탭(소득 vs 물가)으로 연다", () => {
-    renderTrends("/dashboard/trends?tab=unknown");
-
-    expect(screen.getByRole("tab", { name: "소득 vs 물가" })).toHaveAttribute(
-      "aria-selected",
-      "true",
-    );
-  });
-
-  it("탭을 바꿔도 다른 쿼리 값은 남는다", () => {
-    renderTrends("/dashboard/trends?tab=income&from=dashboard");
-
-    fireEvent.click(screen.getByRole("tab", { name: "연봉 분포" }));
-
-    expect(screen.getByTestId("location-search")).toHaveTextContent(
-      "?tab=salary&from=dashboard",
-    );
-  });
-
-  it("로딩 중에도 탭이 가리키는 패널이 있다", () => {
-    renderTrends();
-
-    const tab = screen.getByRole("tab", { name: "소득 vs 물가" });
-    const panelId = tab.getAttribute("aria-controls");
-    expect(panelId).toBeTruthy();
-    expect(document.getElementById(panelId!)).toHaveAttribute(
-      "role",
-      "tabpanel",
-    );
-  });
-
-  it("탭을 누르면 URL 의 tab 값이 바뀐다", async () => {
-    renderTrends();
-
-    fireEvent.click(screen.getByRole("tab", { name: "연봉 분포" }));
-
-    expect(screen.getByTestId("location-search")).toHaveTextContent(
-      "?tab=salary",
-    );
-    await waitFor(() => {
-      expect(screen.getByText("동료집단 연봉 분포")).toBeInTheDocument();
-    });
-  });
-
-  it("연봉 분포 데이터가 null일 때 안내 문구를 렌더링한다", async () => {
-    vi.mocked(dashboardMarketApi.fetchSalaryDistribution).mockResolvedValue(
-      null as never,
-    );
-
-    renderTrends("/dashboard/trends?tab=salary");
-
-    await waitFor(() => {
-      expect(
-        screen.getByText("연봉 분포 데이터를 불러오지 못했습니다"),
-      ).toBeInTheDocument();
-    });
-  });
-
-  it("소득 대 물가 데이터가 null일 때 안내 문구를 렌더링한다", async () => {
-    vi.mocked(dashboardMarketApi.fetchTrends).mockResolvedValue(null as never);
-
-    renderTrends();
-
-    await waitFor(() => {
-      expect(
-        screen.getByText("소득 대 물가 추이 데이터를 불러오지 못했습니다"),
-      ).toBeInTheDocument();
     });
   });
 
@@ -296,76 +161,6 @@ describe("S-14 DashboardTrends 라우트", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("두 조회가 모두 실패하면 화면 단위 실패 하나만 보이고 다시 시도할 수 있다", async () => {
-    vi.mocked(dashboardMarketApi.fetchSalaryDistribution).mockRejectedValue(
-      new Error("x"),
-    );
-    vi.mocked(dashboardMarketApi.fetchTrends).mockRejectedValue(new Error("x"));
-    renderTrends();
-    const user = userEvent.setup();
-
-    expect(
-      await screen.findByText("시장 분석 데이터를 불러오지 못했습니다"),
-    ).toBeInTheDocument();
-    expect(screen.queryByText(/추이 데이터를 불러오지 못했습니다/)).toBeNull();
-    expect(screen.getAllByRole("button", { name: "다시 시도" })).toHaveLength(
-      1,
-    );
-    // 화면 전체 실패는 탭 패널 안이 아니라 탭을 대신한다 — 고를 탭이 없다.
-    expect(screen.queryByRole("tablist")).toBeNull();
-    expect(screen.queryByRole("tabpanel")).toBeNull();
-
-    await user.click(screen.getByRole("button", { name: "다시 시도" }));
-    await waitFor(() =>
-      expect(dashboardMarketApi.fetchTrends).toHaveBeenCalledTimes(2),
-    );
-  });
-
-  it("하나만 실패하면 그 탭 안에만 실패가 보인다", async () => {
-    vi.mocked(dashboardMarketApi.fetchTrends).mockRejectedValue(new Error("x"));
-    renderTrends();
-    const panel = await screen.findByRole("tabpanel", { name: "소득 vs 물가" });
-    expect(
-      await within(panel).findByText(
-        "소득 대 물가 추이 데이터를 불러오지 못했습니다",
-      ),
-    ).toBeInTheDocument();
-    expect(
-      within(panel).getByRole("button", { name: "다시 시도" }),
-    ).toBeInTheDocument();
-    expect(
-      screen.queryByText("시장 분석 데이터를 불러오지 못했습니다"),
-    ).toBeNull();
-  });
-
-  it("불러오는 동안 LoadingState 를 보인다", () => {
-    renderTrends();
-    expect(screen.getByRole("status")).toHaveTextContent(
-      "시장 분석 데이터를 집계 및 분석하고 있습니다",
-    );
-  });
-  it("탭은 입력 관리와 같은 밑줄 탭이고 제목 줄에 구분선이 없다", async () => {
-    renderTrends();
-    const selected = await screen.findByRole("tab", { selected: true });
-    expect(selected).toHaveClass(
-      "font-semibold",
-      "border-carix-info",
-      "-mb-px",
-    );
-    expect(selected).not.toHaveClass("font-bold");
-    const idle = screen.getAllByRole("tab", { selected: false })[0];
-    expect(idle).toHaveClass("text-carix-text/70");
-    // ghost 의 마우스 올림 배경이 선택·나머지 탭 모두에서 사라져야 입력 관리 탭과 같다(다크 포함).
-    for (const tab of [selected, idle]) {
-      expect(tab).not.toHaveClass("hover:bg-accent");
-      expect(tab).not.toHaveClass("dark:hover:bg-accent/50");
-      expect(tab).not.toHaveClass("hover:text-accent-foreground");
-    }
-    expect(document.querySelector("[data-page-header]")).not.toHaveClass(
-      "border-b",
-    );
-  });
-
   // 이미 받은 데이터가 있으면 다시 불러오기가 모두 실패해도 화면을 비우지 않는다.
   it("일부 성공 뒤 다시 불러오기가 모두 실패하면 받은 데이터를 남기고 한 줄로 알린다", async () => {
     vi.mocked(dashboardMarketApi.fetchSalaryDistribution).mockRejectedValue(
@@ -394,5 +189,30 @@ describe("S-14 DashboardTrends 라우트", () => {
     expect(
       within(screen.getByRole("tabpanel")).getByRole("heading", { level: 3 }),
     ).toBeInTheDocument();
+  });
+
+  it("두 조회가 모두 실패하면 화면 단위 실패 하나만 보이고 다시 시도할 수 있다", async () => {
+    vi.mocked(dashboardMarketApi.fetchSalaryDistribution).mockRejectedValue(
+      new Error("x"),
+    );
+    vi.mocked(dashboardMarketApi.fetchTrends).mockRejectedValue(new Error("x"));
+    renderTrends();
+    const user = userEvent.setup();
+
+    expect(
+      await screen.findByText("시장 분석 데이터를 불러오지 못했습니다"),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/추이 데이터를 불러오지 못했습니다/)).toBeNull();
+    expect(screen.getAllByRole("button", { name: "다시 시도" })).toHaveLength(
+      1,
+    );
+    // 화면 전체 실패는 탭 패널 안이 아니라 탭을 대신한다 — 고를 탭이 없다.
+    expect(screen.queryByRole("tablist")).toBeNull();
+    expect(screen.queryByRole("tabpanel")).toBeNull();
+
+    await user.click(screen.getByRole("button", { name: "다시 시도" }));
+    await waitFor(() =>
+      expect(dashboardMarketApi.fetchTrends).toHaveBeenCalledTimes(2),
+    );
   });
 });

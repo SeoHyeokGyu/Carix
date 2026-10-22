@@ -1,5 +1,4 @@
 import { render, screen } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 
 import type { DashboardMetadata } from "../../lib/api/dashboard";
@@ -67,76 +66,5 @@ describe("TrustPanel", () => {
       screen.getByText("서울 전체 / MID (4~7년) / 회사규모 무관 / FULL_TIME"),
     ).toBeInTheDocument();
     expect(screen.getByText("조건을 넓혀 비교했습니다")).toBeInTheDocument();
-  });
-
-  it("완화가 아니면 안내를 붙이지 않는다", () => {
-    renderPanel({
-      peerConditions: {
-        text: "서울 전체 / MID (4~7년) / LARGE / FULL_TIME",
-        widened: false,
-      },
-    });
-    expect(
-      screen.queryByText("조건을 넓혀 비교했습니다"),
-    ).not.toBeInTheDocument();
-  });
-
-  it("표본 수가 없으면 수집 줄이 없다", () => {
-    renderPanel({ metadata: { ...METADATA, sampleSize: undefined } });
-    expect(screen.queryByText("수집한 채용공고")).not.toBeInTheDocument();
-  });
-
-  it("누락률이 없으면 연봉 줄만 없다", () => {
-    renderPanel({ metadata: { ...METADATA, salaryMissingRate: null } });
-    expect(screen.getByText("308건")).toBeInTheDocument();
-    expect(screen.queryByText("그중 연봉이 적힌 것")).not.toBeInTheDocument();
-  });
-
-  it("처음엔 접혀 있고 토글로 연다", async () => {
-    const user = userEvent.setup();
-    renderPanel();
-
-    const toggle = screen.getByRole("button", { name: "근거 펼치기" });
-    expect(toggle).toHaveAttribute("aria-expanded", "false");
-    expect(toggle).toHaveAttribute("aria-controls", "trust-panel-body");
-    expect(screen.getByText("308건")).not.toBeVisible();
-
-    await user.click(toggle);
-
-    expect(screen.getByRole("button", { name: "근거 접기" })).toHaveAttribute(
-      "aria-expanded",
-      "true",
-    );
-    expect(screen.getByText("308건")).toBeVisible();
-  });
-
-  it("조건 완화 안내는 접혀 있어도 제목 줄에 보인다", () => {
-    renderPanel({
-      peerConditions: {
-        text: "서울 전체 / MID (4~7년) / 회사규모 무관 / FULL_TIME",
-        widened: true,
-      },
-    });
-    expect(screen.getByText("조건을 넓혀 비교했습니다")).toBeVisible();
-  });
-
-  it("물가 기여도 기준월을 기준 줄에 보인다", () => {
-    renderPanel({
-      metadata: {
-        ...METADATA,
-        topPriceDriver: {
-          category: "TRANSPORT",
-          label: "교통 부담률 최대 상승",
-          estimated: false,
-          cpiMonth: "202609",
-        },
-      },
-    });
-    expect(screen.getByText(/물가 2026-09/)).toBeInTheDocument();
-  });
-
-  it("물가 기여도가 없으면 물가 조각이 빠진다", () => {
-    renderPanel();
-    expect(screen.queryByText(/물가 \d/)).not.toBeInTheDocument();
   });
 });

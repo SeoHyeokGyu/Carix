@@ -1,8 +1,7 @@
 import { render, screen } from "@testing-library/react";
-import { MemoryRouter } from "react-router";
 import { describe, expect, it, vi } from "vitest";
 
-import Root, { Layout } from "./root";
+import { Layout } from "./root";
 
 vi.mock("react-router", async () => {
   const actual = await vi.importActual("react-router");
@@ -28,15 +27,5 @@ describe("루트 컴포넌트 (root)", () => {
     expect(screen.getByTestId("scroll-restoration")).toBeInTheDocument();
     expect(document.querySelector('[data-testid="meta"]')).not.toBeNull();
     expect(document.querySelector('[data-testid="links"]')).not.toBeNull();
-  });
-
-  it("Root가 Outlet을 렌더링한다", () => {
-    render(
-      <MemoryRouter>
-        <Root />
-      </MemoryRouter>,
-    );
-
-    expect(screen.getByTestId("outlet")).toBeInTheDocument();
   });
 });

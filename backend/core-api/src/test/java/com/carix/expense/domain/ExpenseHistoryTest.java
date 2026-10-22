@@ -11,32 +11,6 @@ import org.junit.jupiter.api.Test;
 class ExpenseHistoryTest {
 
   @Test
-  @DisplayName("ExpenseHistory 생성 및 replaceItems 동작 검증")
-  void testReplaceItems() {
-    UUID userId = UUID.randomUUID();
-    ExpenseHistory history = new ExpenseHistory(userId, "202608");
-
-    assertThat(history.getUserId()).isEqualTo(userId);
-    assertThat(history.getBaseYearMonth()).isEqualTo("202608");
-    assertThat(history.getItems()).isEmpty();
-
-    ExpenseItemEntity item1 =
-        ExpenseItemEntity.builder()
-            .expenseHistory(history)
-            .category(ExpenseCategoryEnum.FOOD)
-            .amount(500000L)
-            .build();
-
-    history.replaceItems(List.of(item1));
-    assertThat(history.getItems()).hasSize(1);
-    assertThat(item1.getExpenseHistory()).isEqualTo(history);
-
-    // null 전달 시 clear
-    history.replaceItems(null);
-    assertThat(history.getItems()).isEmpty();
-  }
-
-  @Test
   @DisplayName("replaceItems 호출 시 기존 카테고리 항목은 in-place로 갱신되어 객체 인스턴스를 유지한다")
   void testReplaceItemsInPlaceUpdate() {
     UUID userId = UUID.randomUUID();

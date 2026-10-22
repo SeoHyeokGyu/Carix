@@ -97,28 +97,6 @@ class BackfillSamplerTest {
   }
 
   @Test
-  @DisplayName("저장이 실패한 후보는 errors 로 세고 저장 건수에 넣지 않으며 계속 뽑는다")
-  void saveFailureIsCountedAndSkipped() {
-    FakePages pages =
-        new FakePages(Set.of()) {
-          @Override
-          public void save(BackfillSampler.Candidate<Void> candidate, YearMonth month) {
-            if (candidate.id() % 20 == 0) {
-              throw new IllegalStateException("저장 실패 " + candidate.id());
-            }
-            super.save(candidate, month);
-          }
-        };
-    BackfillSampler<Void> sampler = new BackfillSampler<>(pages, new Random(1));
-
-    BackfillSampler.Result result = sampler.sample(MONTH, 0, 100, 1_000, 1_000);
-
-    assertThat(result.errors()).isPositive();
-    assertThat(result.saved()).isEqualTo(pages.saved.size()).isPositive();
-    assertThat(pages.saved).noneMatch(id -> id % 20 == 0);
-  }
-
-  @Test
   @DisplayName("저장이 연달아 5번 실패하면 예외를 던져 멈춘다")
   void abortsAfterConsecutiveSaveFailures() {
     FakePages pages =

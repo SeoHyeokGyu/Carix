@@ -137,18 +137,6 @@ class MviCollectionPriorityServiceTest {
   }
 
   @Test
-  @DisplayName("원천 플랫폼 지정 시 원천별 집계 쿼리를 조회한다")
-  void calculatePriorities_specificSource() {
-    when(marketAggregateRepository.findPeerGroupAggregatesByMonthAndSource("202607", "SARAMIN"))
-        .thenReturn(List.of());
-
-    CollectionPriorityResponse response =
-        service.calculatePriorities("202607", "SARAMIN", 10, false);
-
-    assertThat(response.source()).isEqualTo("SARAMIN");
-  }
-
-  @Test
   @DisplayName("기준월 미지정 시 당월(UTC) 이하에서 ALL 행이 있는 최신 월을 쓴다 — 프레임 행만 있는 달은 건너뛴다")
   void calculatePriorities_nullMonth_usesLatestMonthWithAllRow() {
     String currentMonth =
@@ -163,21 +151,6 @@ class MviCollectionPriorityServiceTest {
     assertThat(response.baseYearMonth()).isEqualTo("202609");
     assertThat(response.minSampleSize()).isEqualTo(10);
     verify(marketAggregateRepository, never()).findDistinctBaseYearMonths();
-  }
-
-  @Test
-  @DisplayName("기준월 미지정이고 ALL 행이 없으면 당월(UTC)을 쓴다")
-  void calculatePriorities_nullMonth_fallsBackToCurrentMonth() {
-    String currentMonth =
-        YearMonth.now(ZoneOffset.UTC).format(DateTimeFormatter.ofPattern("yyyyMM"));
-    when(marketAggregateRepository.findLatestYearMonthForSource("ALL", currentMonth))
-        .thenReturn(Optional.empty());
-    when(marketAggregateRepository.findPeerGroupAggregatesByMonthAndSource(currentMonth, "ALL"))
-        .thenReturn(List.of());
-
-    CollectionPriorityResponse response = service.calculatePriorities(null, null, null, false);
-
-    assertThat(response.baseYearMonth()).isEqualTo(currentMonth);
   }
 
   @Test

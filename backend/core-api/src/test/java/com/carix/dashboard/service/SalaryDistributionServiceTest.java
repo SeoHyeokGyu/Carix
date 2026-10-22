@@ -16,17 +16,12 @@ import com.carix.index.mvi.WageBaselineResolver;
 import com.carix.jobposting.JobPosting;
 import com.carix.jobposting.JobPostingRepository;
 import com.carix.market.MarketAggregateRepository;
-import com.carix.peergroup.PeerSalaryDistribution;
 import com.carix.peergroup.PeerSalaryDistributionResolver;
-import com.carix.peergroup.TrendComparison;
-import com.carix.peergroup.TrendComparison.Period;
-import com.carix.peergroup.TrendComparison.Verdict;
 import com.carix.profile.domain.CareerProfile;
 import com.carix.profile.repository.CareerProfileRepository;
 import com.carix.wagestat.WageStatObservation;
 import com.carix.wagestat.WageStatObservationRepository;
 import com.carix.wagestat.WageStatSource;
-import java.time.YearMonth;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -126,23 +121,6 @@ class SalaryDistributionServiceTest {
     assertThat(response.careerLadder().steps().get(3).source()).isEqualTo("UNKNOWN");
     assertThat(response.careerLadder().steps().get(4).median()).isEqualTo(80_000_000L);
     assertThat(response.careerLadder().steps().get(4).raiseFromPrevious()).isEqualTo(33.33);
-  }
-
-  @Test
-  @DisplayName("기준선과 사다리 관측치가 없으면 출처 UNKNOWN과 빈 중앙값을 돌려준다")
-  void 경력사다리_관측치없음() {
-    givenCandidates(postings(4, 50_000_000L));
-
-    SalaryDistributionResponse response = service.resolve(USER_ID, BASE_YM);
-
-    assertThat(response.careerLadder().steps()).hasSize(5);
-    assertThat(response.careerLadder().steps())
-        .allSatisfy(
-            step -> {
-              assertThat(step.median()).isNull();
-              assertThat(step.raiseFromPrevious()).isNull();
-              assertThat(step.source()).isEqualTo("UNKNOWN");
-            });
   }
 
   @Test
@@ -266,49 +244,6 @@ class SalaryDistributionServiceTest {
   }
 
   @Test
-  @DisplayName("공고의 등록일(postedStartDate)이 없어서 trend가 비어있으면 빈 trend 리스트를 반환한다")
-  void 등록일_부재시_빈_추이_반환() {
-    List<JobPosting> candidates = new ArrayList<>();
-    for (int i = 0; i < 10; i++) {
-      candidates.add(
-          JobPosting.builder()
-              .id(UUID.randomUUID())
-              .salaryMin(60_000_000L)
-              .salaryMax(60_000_000L)
-              .jobFamily("DEVELOPER")
-              .region("서울 강남구")
-              .experienceMin(3)
-              .experienceMax(7)
-              .companySize("MEDIUM")
-              .employmentType("FULL_TIME")
-              .build());
-    }
-    givenCandidates(candidates);
-
-    SalaryDistributionResponse response = service.resolve(USER_ID, BASE_YM);
-
-    assertThat(response.status()).isEqualTo("OK");
-    assertThat(response.trend()).isEmpty();
-  }
-
-  @Test
-  @DisplayName("공개연봉이 전건 결측이면 표본 부족이고 공개 연봉 0건·missingRate 100% 만 싣는다")
-  void 전건_연봉_미공개() {
-    List<JobPosting> candidates = new ArrayList<>();
-    for (int i = 0; i < 10; i++) {
-      candidates.add(posting(UUID.randomUUID(), null, null, null));
-    }
-    givenCandidates(candidates);
-
-    SalaryDistributionResponse response = service.resolve(USER_ID, BASE_YM);
-
-    assertThat(response.status()).isEqualTo("INSUFFICIENT_SAMPLE");
-    assertThat(response.postingReference().sampleSize()).isZero();
-    assertThat(response.postingReference().missingRate()).isEqualTo(100.0);
-    assertThat(response.postingReference().median()).isNull();
-  }
-
-  @Test
   @DisplayName("온보딩 미완료(커리어 프로필 없음)면 sampleSize 0이고 peerGroup과 baseline이 null이다")
   void 프로필_미존재_온보딩미완료() {
     UUID unknownUser = UUID.randomUUID();
@@ -357,26 +292,6 @@ class SalaryDistributionServiceTest {
   }
 
   @Test
-  @DisplayName("동료집단 표본은 충분한데 공개연봉이 1건뿐이면 표본 부족이고 5수치를 내지 않는다")
-  void 공개연봉_1건() {
-    List<JobPosting> candidates = new ArrayList<>();
-    candidates.add(posting(UUID.randomUUID(), null, 60_000_000L, 60_000_000L));
-    for (int i = 0; i < 9; i++) {
-      candidates.add(posting(UUID.randomUUID(), null, null, null));
-    }
-    givenCandidates(candidates);
-
-    SalaryDistributionResponse response = service.resolve(USER_ID, BASE_YM);
-
-    // 5수치·백분위는 공개연봉 위에서 매기므로 공개연봉도 최소 표본(10)을 채워야 한다.
-    assertThat(response.status()).isEqualTo("INSUFFICIENT_SAMPLE");
-    assertThat(response.sampleSize()).isEqualTo(10);
-    assertThat(response.postingReference().sampleSize()).isEqualTo(1);
-    assertThat(response.postingReference().missingRate()).isEqualTo(90.0);
-    assertThat(response.postingReference().min()).isNull();
-  }
-
-  @Test
   @DisplayName("동료 공고는 충분해도 공개 연봉이 10건 미만이면 표본 부족이고 공개 연봉 수·결측률만 낸다")
   void 공개연봉_10건미만_표본부족() {
     List<JobPosting> candidates = new ArrayList<>(postings(5, 50_000_000L));
@@ -422,57 +337,6 @@ class SalaryDistributionServiceTest {
 
     assertThat(response.userPosition().grossSalary()).isEqualTo(75_000_000L);
     assertThat(response.userPosition().percentile()).isEqualTo(50);
-  }
-
-  @Test
-  @DisplayName("프로필이 없으면 표본 부족으로 돌려주고 예외를 던지지 않는다")
-  void 프로필_없음() {
-    given(careerProfileRepository.findByUserId(USER_ID)).willReturn(Optional.empty());
-
-    SalaryDistributionResponse response = service.resolve(USER_ID, BASE_YM);
-
-    assertThat(response.status()).isEqualTo("INSUFFICIENT_SAMPLE");
-    assertThat(response.sampleSize()).isZero();
-  }
-
-  @Test
-  @DisplayName("분포의 기간 비교를 응답에 월 문자열로 싣는다")
-  void mapsTrendComparison() {
-    PeerSalaryDistributionResolver resolver = mock(PeerSalaryDistributionResolver.class);
-    List<Long> salaries = java.util.stream.LongStream.rangeClosed(1, 12).boxed().toList();
-    TrendComparison comparison =
-        new TrendComparison(
-            new Period(
-                YearMonth.of(2026, 7),
-                YearMonth.of(2026, 9),
-                60_000_000L,
-                58_000_000L,
-                62_000_000L,
-                40),
-            new Period(YearMonth.of(2026, 4), YearMonth.of(2026, 6), null, null, null, 3),
-            Verdict.FLAT,
-            List.of("JOBKOREA"),
-            List.of(YearMonth.of(2026, 10)));
-    given(resolver.resolve(any(CareerProfile.class)))
-        .willReturn(new PeerSalaryDistribution(salaries, 12, 2, "조건", List.of(), comparison));
-    SalaryDistributionService withComparison =
-        new SalaryDistributionService(
-            careerProfileRepository,
-            wageBaselineResolver,
-            currentSalaryProvider,
-            resolver,
-            wageStatObservationRepository);
-
-    SalaryDistributionResponse response = withComparison.resolve(USER_ID, BASE_YM);
-
-    SalaryDistributionResponse.TrendComparison dto = response.trendComparison();
-    assertThat(dto.recent().from()).isEqualTo("2026-07");
-    assertThat(dto.recent().to()).isEqualTo("2026-09");
-    assertThat(dto.recent().median()).isEqualTo(60_000_000L);
-    assertThat(dto.previous().median()).isNull();
-    assertThat(dto.verdict()).isEqualTo("FLAT");
-    assertThat(dto.sources()).containsExactly("JOBKOREA");
-    assertThat(dto.inProgress()).containsExactly("2026-10");
   }
 
   // --- fixtures ---

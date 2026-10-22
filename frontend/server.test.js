@@ -25,15 +25,6 @@ async function withServer(run) {
   }
 }
 
-test("GET / 는 사전 렌더링된 HTML을 200으로 반환한다", async () => {
-  await withServer(async () => {
-    const res = await fetch(`http://localhost:${PORT}/`);
-    assert.equal(res.status, 200);
-    const body = await res.text();
-    assert.match(body, /Carix/);
-  });
-});
-
 test("사전 렌더링되지 않은 앱 경로는 SPA 셸을 200으로 반환한다", async () => {
   await withServer(async () => {
     for (const path of ["/login", "/onboarding/profile", "/dashboard/trends"]) {

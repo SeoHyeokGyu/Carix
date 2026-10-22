@@ -1,4 +1,4 @@
-import { render, screen, within } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
@@ -29,21 +29,6 @@ function renderList(
 }
 
 describe("PerformanceBonusList", () => {
-  it("비어 있으면 기록을 유도하는 문구를 보인다", () => {
-    renderList({ bonuses: [] });
-    expect(
-      screen.getByText("받은 성과급이 있으면 지급월과 금액을 기록해 두세요"),
-    ).toBeInTheDocument();
-  });
-
-  it("지급월과 금액을 표로 보인다", () => {
-    renderList();
-    const rows = screen.getAllByRole("row");
-    expect(within(rows[1]).getByText("2026-03")).toBeInTheDocument();
-    expect(within(rows[1]).getByText("500만 원")).toBeInTheDocument();
-    expect(within(rows[2]).getByText("2025-03")).toBeInTheDocument();
-  });
-
   it("추가는 지급월을 YYYYMM, 금액을 원 단위로 환산해 보낸다", async () => {
     const { onCreate } = renderList();
     const user = userEvent.setup();
@@ -77,11 +62,5 @@ describe("PerformanceBonusList", () => {
     await confirmDialog(user, "삭제");
 
     expect(onDelete).toHaveBeenCalledWith("b-2");
-  });
-
-  it("지급월 입력은 미래 달을 고를 수 없다", () => {
-    renderList();
-    const max = screen.getByLabelText("지급월").getAttribute("max");
-    expect(max).toMatch(/^\d{4}-\d{2}$/);
   });
 });

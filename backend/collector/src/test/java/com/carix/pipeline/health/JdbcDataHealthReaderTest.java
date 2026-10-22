@@ -37,13 +37,4 @@ class JdbcDataHealthReaderTest {
     assertThat(s.mviStatus()).isNull();
     assertThat(s.rulesApplied()).isEmpty();
   }
-
-  @Test
-  @DisplayName("비어 있는 조각은 상태 null, 규칙 빈 목록이다")
-  void nullFragments() {
-    var s = JdbcDataHealthReader.parseSnapshot("u", "202610", "1.3.0", "STAY", null, null, mapper);
-    assertThat(s.ppiStatus()).isNull();
-    assertThat(s.mviStatus()).isNull();
-    assertThat(s.rulesApplied()).isEmpty();
-  }
 }

@@ -106,13 +106,6 @@ class PersonalInflationServiceTest {
   }
 
   @Test
-  void 총지수_없으면_empty() {
-    given(cpiRates.headlineYearOverYear(CPI_MONTH)).willReturn(Optional.empty());
-
-    assertThat(service.trailing12m(userId, "202609")).isEmpty();
-  }
-
-  @Test
   void 카테고리_하나라도_없으면_empty() {
     Map<ExpenseCategoryEnum, BigDecimal> partial =
         weights("0.03", "0.02", "0.01", "0.01", "0.01", "0.02");

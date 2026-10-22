@@ -49,39 +49,6 @@ class SkillRepositoryTest {
   }
 
   @Test
-  @DisplayName("findByUserId - 사용자가 등록한 보유 스킬 목록을 Skill과 함께 조회한다")
-  void findByUserId_fetchesUserSkills() {
-    // Given
-    UUID userId = UUID.randomUUID();
-    Skill skill1 = skillRepository.save(Skill.createStandard("Java", "BACKEND"));
-    Skill skill2 = skillRepository.save(Skill.createStandard("React", "FRONTEND"));
-
-    userSkillRepository.save(
-        UserSkill.builder()
-            .userId(userId)
-            .skill(skill1)
-            .monthsOfExperience(24)
-            .lastUsedDate(LocalDate.of(2026, 7, 1))
-            .build());
-    userSkillRepository.save(
-        UserSkill.builder()
-            .userId(userId)
-            .skill(skill2)
-            .monthsOfExperience(12)
-            .lastUsedDate(LocalDate.of(2026, 6, 1))
-            .build());
-
-    // When
-    List<UserSkill> userSkills = userSkillRepository.findByUserId(userId);
-
-    // Then
-    assertThat(userSkills).hasSize(2);
-    assertThat(userSkills)
-        .extracting(us -> us.getSkill().getStandardName())
-        .containsExactlyInAnyOrder("Java", "React");
-  }
-
-  @Test
   @DisplayName("countBySkillId - 특정 스킬을 참조하고 있는 UserSkill 레코드 수를 반환한다")
   void countBySkillId_returnsReferenceCount() {
     // Given

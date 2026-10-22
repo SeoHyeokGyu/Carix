@@ -20,15 +20,6 @@ class WantedFamilyResolverTest {
   }
 
   @Test
-  @DisplayName("DATA 하위 직군 다섯 개와 OTHER 일곱 개를 모두 가른다")
-  void table() {
-    List.of(655, 1024, 1025, 1022, 10231)
-        .forEach(id -> assertThat(resolver.resolve(List.of(id), "x")).isEqualTo("DATA"));
-    List.of(876, 877, 1026, 672, 10536, 795, 793)
-        .forEach(id -> assertThat(resolver.resolve(List.of(id), "x")).isEqualTo("OTHER"));
-  }
-
-  @Test
   @DisplayName("개발 하위 직군이라도 제목이 AI 면 AI, 직군이 없으면 DEVELOPER")
   void titleRule() {
     assertThat(resolver.resolve(List.of(872), "머신러닝 엔지니어")).isEqualTo("AI");

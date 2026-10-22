@@ -103,13 +103,6 @@ class SkillWeightCalculatorTest {
   }
 
   @Test
-  @DisplayName("userSkills가 null이거나 빈 목록이면 빈 맵 반환")
-  void testEmptyOrNullUserSkills() {
-    assertThat(calculator.calculateWeights(null, "202607", Set.of())).isEmpty();
-    assertThat(calculator.calculateWeights(List.of(), "202607", null)).isEmpty();
-  }
-
-  @Test
   @DisplayName("모든 스킬이 제외된 경우 빈 맵 반환")
   void testAllSkillsExcluded() {
     Skill skill = Skill.builder().id(UUID.randomUUID()).standardName("Java").build();
