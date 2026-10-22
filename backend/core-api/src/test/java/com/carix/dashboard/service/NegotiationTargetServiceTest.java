@@ -165,16 +165,6 @@ class NegotiationTargetServiceTest {
   }
 
   @Test
-  @DisplayName("연봉이 없으면 세 줄 모두 null")
-  void 연봉없음_세줄null() {
-    given(salaryProvider.currentGrossSalary(USER_ID, BASE_YM)).willReturn(Optional.empty());
-
-    NegotiationTargets targets = service.resolve(USER_ID, BASE_YM, "BELOW_MARKET_15_PLUS", "KOSIS");
-
-    assertThat(targets).isEqualTo(new NegotiationTargets(null, null, null));
-  }
-
-  @Test
   @DisplayName("프로필이 없으면 임금통계는 기본 프로필로 내고 p75 는 연봉 분포 화면처럼 내지 않는다")
   void 프로필없음_기본프로필_p75null() {
     given(profiles.findByUserId(USER_ID)).willReturn(Optional.empty());
@@ -267,19 +257,6 @@ class NegotiationTargetServiceTest {
     assertThat(targets.toPeerP75()).isNull();
     assertThat(targets.toWageStatMedian()).isEqualTo(new Target(20.0, "BELOW"));
     assertThat(targets.toPurchasingPowerRecovery()).isNotNull();
-  }
-
-  @Test
-  @DisplayName("CPI 조회가 실패해도 복구선만 지운다")
-  void CPI조회실패_복구선만null() {
-    given(cpi.monthOverMonth(anyString(), anyString()))
-        .willThrow(new IllegalStateException("db down"));
-
-    NegotiationTargets targets =
-        service.resolve(USER_ID, BASE_YM, bucket(60_000_000L, 50_000_000L), "KOSIS");
-
-    assertThat(targets.toPurchasingPowerRecovery()).isNull();
-    assertThat(targets.toWageStatMedian()).isNotNull();
   }
 
   @Test

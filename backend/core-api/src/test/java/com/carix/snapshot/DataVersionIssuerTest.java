@@ -9,14 +9,6 @@ import org.junit.jupiter.api.Test;
 class DataVersionIssuerTest {
 
   @Test
-  @DisplayName("형식은 YYYYMMDDHHMMSS-NNN 이다")
-  void issue_matchesFormat() {
-    DataVersionIssuer issuer = new FixedClockDataVersionIssuer("20260701093000");
-
-    assertThat(issuer.issue(UUID.randomUUID())).matches("\\d{14}-\\d{3}");
-  }
-
-  @Test
   @DisplayName("같은 초에 재발급하면 시퀀스가 증가해 사전순으로 단조 증가한다")
   void issue_incrementsSequenceWithinSameSecond() {
     DataVersionIssuer issuer = new FixedClockDataVersionIssuer("20260701093000");

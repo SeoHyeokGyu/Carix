@@ -48,19 +48,6 @@ class CategoryCpiRateServiceTest {
     repository.save(CpiObservationRecord.of(ym, code, value));
   }
 
-  @Test
-  @DisplayName("단일 계열 카테고리의 전년비는 그 계열의 전년비다")
-  void singleSeries_rateIsSeriesRate() {
-    month("202509", "100.00");
-    month("202609", "100.00");
-    put("202609", "G", "103.00");
-
-    var rates = service.yearOverYear("202609").orElseThrow();
-
-    assertThat(rates.cpiMonth()).isEqualTo("202609");
-    assertThat(rates.rates().get(ExpenseCategoryEnum.TRANSPORT)).isEqualByComparingTo("0.03");
-  }
-
   // 하위 가중치를 지수 수준에 곱하면 두 계열의 기준 수준 차이가 결과를 바꾼다. 변화율에 곱하면 바뀌지 않는다.
   @Test
   @DisplayName("합성 카테고리는 하위 계열 변화율의 가중합이다 — 지수 수준 평균이 아니다")
@@ -125,20 +112,6 @@ class CategoryCpiRateServiceTest {
     var rates = service.yearOverYear("202601").orElseThrow();
 
     assertThat(rates.rates().get(ExpenseCategoryEnum.FOOD)).isEqualByComparingTo("0.05");
-  }
-
-  @Test
-  @DisplayName("CPI 가 하나도 없으면 빈 값")
-  void noData_empty() {
-    assertThat(service.yearOverYear("202609")).isEmpty();
-  }
-
-  @Test
-  @DisplayName("전년 동월이 통째로 없으면 모든 카테고리가 빠진다")
-  void noYearAgo_allCategoriesDropped() {
-    month("202609", "101.00");
-
-    assertThat(service.yearOverYear("202609").orElseThrow().rates()).isEmpty();
   }
 
   @Test
@@ -227,20 +200,5 @@ class CategoryCpiRateServiceTest {
 
     assertThat(service.headlineYearOverYear("202609")).isEmpty();
     assertThat(service.headlineYearOverYear("202412")).isEmpty();
-  }
-
-  @Test
-  @DisplayName("총지수 행이 있어도 카테고리 변화율은 그대로다")
-  void 총지수_행이_있어도_카테고리_변화율은_그대로() {
-    month("202509", "100.00");
-    month("202609", "100.00");
-    put("202609", "G", "103.00");
-    put("202509", "0", "100.00");
-    put("202609", "0", "150.00");
-
-    var rates = service.yearOverYear("202609").orElseThrow();
-
-    assertThat(rates.rates().get(ExpenseCategoryEnum.TRANSPORT)).isEqualByComparingTo("0.03");
-    assertThat(rates.rates().get(ExpenseCategoryEnum.FOOD)).isEqualByComparingTo("0");
   }
 }

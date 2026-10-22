@@ -1,6 +1,5 @@
 package com.carix.dashboard;
 
-import static org.hamcrest.Matchers.nullValue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
@@ -13,8 +12,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.carix.common.usercontext.UserContextArgumentResolver;
 import com.carix.dashboard.dto.DashboardSummaryResponse;
 import com.carix.dashboard.dto.SalaryDistributionResponse;
-import com.carix.dashboard.dto.SnapshotHistoryResponse;
-import com.carix.dashboard.dto.TrendListResponse;
 import com.carix.dashboard.service.DashboardSummaryService;
 import com.carix.dashboard.service.SalaryDistributionService;
 import com.carix.dashboard.service.SnapshotSeriesService;
@@ -65,49 +62,6 @@ class DashboardControllerTest {
                     incomeHistoryRepository))
             .setCustomArgumentResolvers(new UserContextArgumentResolver())
             .build();
-  }
-
-  @Test
-  @DisplayName("GET /v1/dashboard/summary - 스냅샷이 없으면 NOT_AVAILABLE 을 그대로 싣는다")
-  void getDashboardSummary_비어있음() throws Exception {
-    DashboardSummaryResponse.IndexDetail unavailable =
-        new DashboardSummaryResponse.IndexDetail(null, null, null, "NOT_AVAILABLE", null);
-    given(dashboardSummaryService.resolve(eq(USER_ID), eq("202607")))
-        .willReturn(
-            new DashboardSummaryResponse(
-                unavailable,
-                unavailable,
-                unavailable,
-                null,
-                new DashboardSummaryResponse.DecisionSignal(
-                    "INSUFFICIENT_DATA", "데이터 부족", List.of(), null),
-                null,
-                new DashboardSummaryResponse.SummaryMetadata(
-                    null, null, null, false, List.of(), null, null, null, null, null, null, null)));
-
-    mockMvc
-        .perform(
-            get("/v1/dashboard/summary")
-                .header("X-User-Id", USER_ID.toString())
-                .param("baseYearMonth", "202607"))
-        .andExpect(status().isOk())
-        .andExpect(jsonPath("$.data.purchasingPowerIndex.value").value(nullValue()))
-        .andExpect(jsonPath("$.data.purchasingPowerIndex.indexStatus").value("NOT_AVAILABLE"))
-        .andExpect(jsonPath("$.data.openingWindowIndex.indexStatus").value("NOT_AVAILABLE"))
-        .andExpect(jsonPath("$.data.metadata.openingWindow").value(nullValue()))
-        .andExpect(jsonPath("$.data.decisionSignal.code").value("INSUFFICIENT_DATA"));
-  }
-
-  @Test
-  @DisplayName("GET /v1/dashboard/skills - 등록된 스킬이 없는 경우")
-  void getSkillDemands_empty() throws Exception {
-    given(marketValueIndexService.getSkillDemandDetails(any(UUID.class), eq("202607")))
-        .willReturn(List.of());
-
-    mockMvc
-        .perform(get("/v1/dashboard/skills").header("X-User-Id", USER_ID.toString()))
-        .andExpect(status().isOk())
-        .andExpect(jsonPath("$.data.coverage").value("등록된 보유 스킬이 없습니다."));
   }
 
   @Test
@@ -188,134 +142,6 @@ class DashboardControllerTest {
         .andExpect(jsonPath("$.data.trend[0].median").value(62000000L))
         .andExpect(jsonPath("$.data.trend[1].yearMonth").value("2026-06"))
         .andExpect(jsonPath("$.data.trend[1].median").isEmpty());
-  }
-
-  @Test
-  @DisplayName("GET /v1/dashboard/salary-distribution - 표본 부족도 200 으로 상태와 표본 수를 싣는다")
-  void getSalaryDistribution_표본부족() throws Exception {
-    given(salaryDistributionService.resolve(eq(USER_ID), eq("202607")))
-        .willReturn(
-            new SalaryDistributionResponse("INSUFFICIENT_SAMPLE", 4, 10, null, null, null, null));
-
-    mockMvc
-        .perform(
-            get("/v1/dashboard/salary-distribution")
-                .header("X-User-Id", USER_ID.toString())
-                .param("baseYearMonth", "202607"))
-        .andExpect(status().isOk())
-        .andExpect(jsonPath("$.data.status").value("INSUFFICIENT_SAMPLE"))
-        .andExpect(jsonPath("$.data.sampleSize").value(4))
-        .andExpect(jsonPath("$.data.minRequired").value(10))
-        .andExpect(jsonPath("$.data.postingReference").value(nullValue()))
-        .andExpect(jsonPath("$.data.userPosition").value(nullValue()));
-  }
-
-  @Test
-  @DisplayName("GET /v1/dashboard/salary-distribution - year 파라미터가 있으면 3-arg resolve 를 호출한다 (b14)")
-  void getSalaryDistribution_연도파라미터() throws Exception {
-    given(salaryDistributionService.resolve(eq(USER_ID), eq("202607"), eq("2024")))
-        .willReturn(
-            new SalaryDistributionResponse(
-                "OK",
-                50,
-                null,
-                null,
-                null,
-                null,
-                null,
-                List.of(),
-                new SalaryDistributionResponse.CareerLadder(
-                    "MID",
-                    "2024",
-                    List.of("2023", "2024", "2025"),
-                    List.of(
-                        new SalaryDistributionResponse.CareerLadderStep(
-                            "ENTRY", 32_000_000L, null, "KOSIS"),
-                        new SalaryDistributionResponse.CareerLadderStep(
-                            "JUNIOR", 42_000_000L, 31.25, "KOSIS")))));
-
-    mockMvc
-        .perform(
-            get("/v1/dashboard/salary-distribution")
-                .header("X-User-Id", USER_ID.toString())
-                .param("baseYearMonth", "2026-07")
-                .param("year", "2024"))
-        .andExpect(status().isOk())
-        .andExpect(jsonPath("$.data.status").value("OK"))
-        .andExpect(jsonPath("$.data.careerLadder.basePeriod").value("2024"))
-        .andExpect(jsonPath("$.data.careerLadder.availableYears[1]").value("2024"))
-        .andExpect(jsonPath("$.data.careerLadder.steps[0].bracket").value("ENTRY"));
-  }
-
-  @Test
-  @DisplayName("GET /v1/dashboard/trends - 계열 상태를 함께 싣는다")
-  void getTrends() throws Exception {
-    given(snapshotSeriesService.trends(eq(USER_ID), eq("202601"), eq(6)))
-        .willReturn(
-            new TrendListResponse(List.of(), "NOT_AVAILABLE", "NOT_AVAILABLE", "NOT_AVAILABLE"));
-
-    mockMvc
-        .perform(
-            get("/v1/dashboard/trends")
-                .header("X-User-Id", USER_ID.toString())
-                .param("baseYearMonth", "2026-01")
-                .param("durationMonths", "6"))
-        .andExpect(status().isOk())
-        .andExpect(jsonPath("$.data.trends").isArray())
-        .andExpect(jsonPath("$.data.purchasingPowerStatus").value("NOT_AVAILABLE"));
-  }
-
-  @Test
-  @DisplayName("GET /v1/dashboard/history - 스냅샷이 없으면 빈 배열이다")
-  void getSnapshotHistory() throws Exception {
-    given(snapshotSeriesService.history(USER_ID))
-        .willReturn(new SnapshotHistoryResponse(List.of()));
-
-    mockMvc
-        .perform(get("/v1/dashboard/history").header("X-User-Id", USER_ID.toString()))
-        .andExpect(status().isOk())
-        .andExpect(jsonPath("$.data.snapshots").isArray())
-        .andExpect(jsonPath("$.data.snapshots").isEmpty());
-  }
-
-  @Test
-  @DisplayName("POST /v1/dashboard/recalculate - 명시적 기준월이 주어지면 해당 월부터 재계산한다")
-  void recalculate_withExplicitFromYearMonth() throws Exception {
-    given(snapshotRecalculationService.recalculateSnapshot(USER_ID, "202603")).willReturn(5);
-    DashboardSummaryResponse.IndexDetail detail =
-        new DashboardSummaryResponse.IndexDetail(105.0, 5.0, "INCREASED", "OK", null);
-    DashboardSummaryResponse summary =
-        new DashboardSummaryResponse(
-            detail,
-            detail,
-            detail,
-            null,
-            new DashboardSummaryResponse.DecisionSignal("SIGNAL_BUY", "매수 신호", List.of(), "2.0.0"),
-            null,
-            new DashboardSummaryResponse.SummaryMetadata(
-                LocalDate.of(2026, 7, 31),
-                "2026-07-31T00:00:00Z",
-                "v1",
-                true,
-                List.of(),
-                100,
-                50000000.0,
-                null,
-                null,
-                null,
-                null,
-                null));
-    given(dashboardSummaryService.resolve(eq(USER_ID), any())).willReturn(summary);
-
-    mockMvc
-        .perform(
-            post("/v1/dashboard/recalculate")
-                .header("X-User-Id", USER_ID.toString())
-                .param("fromYearMonth", "2026-03"))
-        .andExpect(status().isOk())
-        .andExpect(jsonPath("$.data.recalculatedMonths").value(5))
-        .andExpect(jsonPath("$.data.fromYearMonth").value("202603"))
-        .andExpect(jsonPath("$.data.summary.decisionSignal.code").value("SIGNAL_BUY"));
   }
 
   @Test

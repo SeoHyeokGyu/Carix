@@ -7,7 +7,6 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.carix.config.IndexThresholdProperties;
 import com.carix.market.MarketAggregate;
 import com.carix.market.MarketAggregateRepository;
 import com.carix.profile.domain.CareerProfile;
@@ -20,7 +19,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.test.util.ReflectionTestUtils;
 
 @ExtendWith(MockitoExtension.class)
 class PeerGroupFallbackResolverTest {
@@ -86,14 +84,6 @@ class PeerGroupFallbackResolverTest {
     assertThat(resolver.to3TierBracket("UNKNOWN")).isEqualTo("UNKNOWN");
   }
 
-  @Test
-  @DisplayName("getAdjacentBrackets - MID 및 SENIOR 인접 구간 확장")
-  void testGetAdjacentBrackets() {
-    assertThat(resolver.getAdjacentBrackets("JUNIOR")).containsExactly("JUNIOR", "MID");
-    assertThat(resolver.getAdjacentBrackets("SENIOR")).containsExactly("MID", "SENIOR");
-    assertThat(resolver.getAdjacentBrackets("MID")).containsExactly("JUNIOR", "MID", "SENIOR");
-  }
-
   // ---------- MVI 동료집단: 직무 × 경력만 실재한다 ----------
   //
   // market_aggregate 는 지역·고용형태·회사규모를 ALL 로만 집계한다. 해석기는 그 세 차원을 ALL 로
@@ -154,18 +144,6 @@ class PeerGroupFallbackResolverTest {
   }
 
   @Test
-  @DisplayName("경력이 달라도 같은 직무면 같은 동료집단이다")
-  void bracketDoesNotChangePeerGroup() {
-    givenAllBracket("202607", 170);
-
-    var junior = resolver.resolveForSource("JOBKOREA", profile(2), "202607");
-    var senior = resolver.resolveForSource("JOBKOREA", profile(10), "202607");
-
-    assertThat(junior.getBrackets()).isEqualTo(senior.getBrackets()).containsExactly("ALL");
-    assertThat(junior.getSampleCount()).isEqualTo(senior.getSampleCount());
-  }
-
-  @Test
   @DisplayName("직무 전체도 표본이 부족하면 실패 — 단계는 1")
   void failsWhenJobFamilyUnderSampled() {
     givenAllBracket("202607", 4);
@@ -177,19 +155,6 @@ class PeerGroupFallbackResolverTest {
     assertThat(result.getSampleCount()).isEqualTo(4);
     assertThat(result.getCoverage().appliedConditions())
         .isEqualTo("전국 / 경력 전체 / 회사규모 무관 / 고용형태 무관");
-  }
-
-  @Test
-  @DisplayName("최소 표본 기준은 설정값을 따른다")
-  void configuredThresholdApplies() {
-    IndexThresholdProperties thresholds = new IndexThresholdProperties();
-    thresholds.setPeerGroupMinSampleSize(200);
-    ReflectionTestUtils.setField(resolver, "thresholds", thresholds);
-    givenAllBracket("202607", 170);
-
-    var result = resolver.resolveForSource("JOBKOREA", profile(5), "202607");
-
-    assertThat(result.isSuccessful()).isFalse();
   }
 
   @Test

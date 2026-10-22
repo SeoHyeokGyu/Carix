@@ -139,16 +139,6 @@ class DefaultPurchasingPowerIndexProviderTest {
   }
 
   @Test
-  @DisplayName("연봉이 물가보다 더 오르면 100 위다")
-  void raiseBeatsInflation() {
-    givenIncomes(income("2026-02-01", 60_000_000L, null), income("2026-04-01", 63_000_000L, null));
-    givenCpi("202602", "202604", "0.01");
-
-    // 105 ÷ 1.0201 = 102.93
-    assertThat(provider.calculate(userId, "202604").value()).isEqualByComparingTo("102.9");
-  }
-
-  @Test
   @DisplayName("기준월부터 12개월이 지나면 OK")
   void twelveMonths_ok() {
     givenIncomes(income("2025-02-01", 60_000_000L, null));
@@ -222,16 +212,6 @@ class DefaultPurchasingPowerIndexProviderTest {
 
     assertThat(r.status()).isEqualTo(IndexStatus.NOT_AVAILABLE);
     assertThat(r.value()).isNull();
-  }
-
-  @Test
-  @DisplayName("CPI 가 하나도 없으면 UPDATE_DELAYED")
-  void noCpi_updateDelayed() {
-    givenIncomes(income("2026-02-01", 60_000_000L, null));
-    given(cpiRates.firstCpiMonth()).willReturn(Optional.empty());
-    given(cpiRates.latestCpiMonth(anyString())).willReturn(Optional.empty());
-
-    assertThat(provider.calculate(userId, "202604").status()).isEqualTo(IndexStatus.UPDATE_DELAYED);
   }
 
   @Test

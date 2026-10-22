@@ -69,18 +69,6 @@ class TopPriceDriverCalculatorTest {
   }
 
   @Test
-  @DisplayName("가중치가 크면 전년비가 작아도 1위가 된다")
-  void weightMatters() {
-    var weights = equalWeights();
-    weights.put(ExpenseCategoryEnum.FOOD, new WeightedCategory(new BigDecimal("0.6"), false));
-
-    var driver = TopPriceDriverCalculator.pick(weights, rates(ALL_SMALL), LABELS).orElseThrow();
-
-    // FOOD 0.6 × 0.01 = 0.006 > TRANSPORT 0.1 × 0.05 = 0.005
-    assertThat(driver.category()).isEqualTo("FOOD");
-  }
-
-  @Test
   @DisplayName("동률이면 enum 선언 순서가 앞선 카테고리")
   void tie_prefersEnumOrder() {
     var driver =

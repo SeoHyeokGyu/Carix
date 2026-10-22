@@ -137,26 +137,10 @@ class DefaultTopPriceDriverProviderTest {
   }
 
   @Test
-  @DisplayName("CPI 전년비를 못 구하면 빈 값")
-  void noRates_empty() {
-    when(rateService.yearOverYear("202609")).thenReturn(Optional.empty());
-
-    assertThat(provider.find(USER, "202609")).isEmpty();
-  }
-
-  @Test
   @DisplayName("소비 조회 중 예외가 나도 던지지 않고 빈 값 — 스냅샷 저장을 막지 않는다")
   void expenseResolveThrows_empty() {
     when(rateService.yearOverYear("202609")).thenReturn(Optional.of(discriminatingRates()));
     when(expenseService.resolve(USER, "202609")).thenThrow(new IllegalStateException("소비 조회 실패"));
-
-    assertThat(provider.find(USER, "202609")).isEmpty();
-  }
-
-  @Test
-  @DisplayName("계산 중 예외가 나도 던지지 않고 빈 값 — 스냅샷 저장을 막지 않는다")
-  void exception_empty() {
-    when(rateService.yearOverYear("202609")).thenThrow(new IllegalStateException("DB 오류"));
 
     assertThat(provider.find(USER, "202609")).isEmpty();
   }

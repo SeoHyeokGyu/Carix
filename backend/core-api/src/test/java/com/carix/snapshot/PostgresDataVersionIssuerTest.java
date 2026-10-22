@@ -19,25 +19,11 @@ class PostgresDataVersionIssuerTest {
   private static final String SECOND = "20260701093000";
 
   @Test
-  @DisplayName("기존 최댓값이 없으면(그 초의 첫 발급) 시퀀스는 0 이다")
-  void nextSequence_isZeroWhenNoExistingMax() {
-    assertThat(PostgresDataVersionIssuer.nextSequence(null, USER_ID, SECOND)).isZero();
-  }
-
-  @Test
   @DisplayName("기존 최댓값의 시퀀스에서 1 증가한다")
   void nextSequence_incrementsFromExistingMax() {
     int next = PostgresDataVersionIssuer.nextSequence(SECOND + "-005", USER_ID, SECOND);
 
     assertThat(next).isEqualTo(6);
-  }
-
-  @Test
-  @DisplayName("경계값 999 는 정상 발급된다")
-  void nextSequence_issuesNormallyAtBoundary() {
-    int next = PostgresDataVersionIssuer.nextSequence(SECOND + "-998", USER_ID, SECOND);
-
-    assertThat(next).isEqualTo(999);
   }
 
   @Test

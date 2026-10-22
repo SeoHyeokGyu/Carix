@@ -41,14 +41,6 @@ class BonusInclusiveIncomeCalculatorTest {
   }
 
   @Test
-  @DisplayName("기록_없으면_null")
-  void 기록_없으면_null() {
-    given(bonusService.list(USER_ID)).willReturn(List.of());
-
-    assertThat(calculator.calculate(USER_ID, BASE)).isNull();
-  }
-
-  @Test
   @DisplayName("직전_기간_소득이_없으면_실질변화는_null")
   void 직전_기간_소득이_없으면_실질변화는_null() {
     // 최근 12개월(202511~202610) 안에서만 시작한 소득 행

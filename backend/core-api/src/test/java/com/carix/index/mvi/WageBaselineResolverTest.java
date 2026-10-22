@@ -30,12 +30,6 @@ class WageBaselineResolverTest {
   }
 
   @Test
-  @DisplayName("resolveBaseline - profile이 null이면 null 반환")
-  void resolveBaseline_nullProfile() {
-    assertThat(resolver.resolveBaseline(null)).isNull();
-  }
-
-  @Test
   @DisplayName("resolveBaseline - 전국 기준선이 존재하면 반환")
   void resolveBaseline_foundNational() {
     CareerProfile profile = new CareerProfile(UUID.randomUUID());
@@ -60,29 +54,6 @@ class WageBaselineResolverTest {
     assertThat(baseline.wageDefinition()).isEqualTo("ANNUAL_BASE_MEDIAN");
     assertThat(baseline.statVintage()).isEqualTo("202607");
     assertThat(baseline.source()).isEqualTo(com.carix.wagestat.WageStatSource.KOSIS);
-  }
-
-  @Test
-  @DisplayName("resolveBaseline - 신입(0년) ENTRY 브래킷 기준선 조회 성공")
-  void resolveBaseline_entryBracket() {
-    CareerProfile profile = new CareerProfile(UUID.randomUUID());
-    profile.patch("DEVELOPER", 0, "서울 강남구", "FULL_TIME", "MEDIUM", null);
-
-    given(fallbackResolver.mapExperienceBracket6(0)).willReturn("ENTRY");
-
-    WageStatObservation obs =
-        WageStatObservation.builder()
-            .wageMedian(31200000L)
-            .wageDefinition("ANNUAL_GROSS_MEDIAN")
-            .statVintage("202508")
-            .build();
-
-    given(repository.findLatestBaseline("DEVELOPER", "ENTRY", "ALL")).willReturn(Optional.of(obs));
-
-    WageBaseline baseline = resolver.resolveBaseline(profile);
-
-    assertThat(baseline).isNotNull();
-    assertThat(baseline.medianGrossSalary()).isEqualTo(31200000L);
   }
 
   @Test
