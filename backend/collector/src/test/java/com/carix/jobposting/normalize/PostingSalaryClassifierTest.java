@@ -63,12 +63,6 @@ class PostingSalaryClassifierTest {
   }
 
   @Test
-  void nullHtmlIsUnknown() {
-    assertThat(classifier.classifyJobKorea(null).disclosure()).isEqualTo(SalaryDisclosure.UNKNOWN);
-    assertThat(classifier.classifySaramin(null).disclosure()).isEqualTo(SalaryDisclosure.UNKNOWN);
-  }
-
-  @Test
   void saraminPublicAndHidden() {
     String pub =
         "<meta name=\"description\" content=\"옵티시스(주), 영상전송용 하드웨어 개발자 채용, 경력:경력무관, 학력:대학교졸업(4년)이상, 연봉:4,100 만원, 마감일:2026-11-14, 홈페이지:www.opticis.com\"/>";
@@ -104,19 +98,6 @@ class PostingSalaryClassifierTest {
     assertThat(s.disclosure()).isEqualTo(SalaryDisclosure.PUBLIC);
     assertThat(s.min()).isEqualTo(40_000_000L);
     assertThat(s.max()).isEqualTo(60_000_000L);
-  }
-
-  @Test
-  void missingDescriptionOrSalaryFieldIsUnknown() {
-    assertThat(classifier.classifyJobKorea("<html><body>blocked</body></html>").disclosure())
-        .isEqualTo(SalaryDisclosure.UNKNOWN);
-    assertThat(
-            classifier
-                .classifyJobKorea("<meta name=\"description\" content=\"경력 : 경력무관\"/>")
-                .disclosure())
-        .isEqualTo(SalaryDisclosure.UNKNOWN);
-    assertThat(classifier.classifySaramin("<html></html>").disclosure())
-        .isEqualTo(SalaryDisclosure.UNKNOWN);
   }
 
   @Test

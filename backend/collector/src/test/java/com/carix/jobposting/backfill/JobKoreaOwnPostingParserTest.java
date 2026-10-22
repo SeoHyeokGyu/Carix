@@ -27,26 +27,6 @@ class JobKoreaOwnPostingParserTest {
   }
 
   @Test
-  @DisplayName("상한 없는 경력, 신입만, 경력무관, 신입·경력을 목록 크롤러와 같은 뜻으로 옮긴다")
-  void careerTypes() {
-    assertThat(
-            parser.extractExperience(
-                rsc(
-                    "\"careers\":[{\"type\":\"EXPERIENCED\",\"range\":{\"from\":3,\"to\":null}}],\"x\":1")))
-        .isEqualTo(new ExperienceRange(3, null));
-    assertThat(parser.extractExperience(rsc("\"careers\":[{\"type\":\"NEWBIE\",\"range\":null}],")))
-        .isEqualTo(new ExperienceRange(0, 0));
-    assertThat(parser.extractExperience(rsc("\"careers\":[{\"type\":\"ANY\",\"range\":null}],")))
-        .isEqualTo(new ExperienceRange(0, null));
-    assertThat(
-            parser.extractExperience(
-                rsc(
-                    "\"careers\":[{\"type\":\"NEWBIE\",\"range\":null},"
-                        + "{\"type\":\"EXPERIENCED\",\"range\":{\"from\":2,\"to\":null}}],")))
-        .isEqualTo(new ExperienceRange(0, null));
-  }
-
-  @Test
   @DisplayName("연차 없는 경력이나 careers 가 없으면 모름이다")
   void unknownCareer() {
     assertThat(

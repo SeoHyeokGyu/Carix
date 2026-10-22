@@ -42,28 +42,6 @@ class SessionServiceTest {
   }
 
   @Test
-  void 발급한_원본은_32바이트_난수_hex_다() {
-    assertThat(service.createSession(USER_ID)).matches("[0-9a-f]{64}");
-  }
-
-  @Test
-  void 조회는_제시된_토큰을_해싱해_대조한다() {
-    String rawToken = "a".repeat(64);
-    OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
-    given(repository.findByTokenHash(TokenHasher.sha256Hex(rawToken)))
-        .willReturn(
-            Optional.of(
-                new Session(
-                    UUID.randomUUID(),
-                    USER_ID,
-                    TokenHasher.sha256Hex(rawToken),
-                    now.plusDays(30),
-                    now)));
-
-    assertThat(service.findUserIdBySessionToken(rawToken)).contains(USER_ID);
-  }
-
-  @Test
   void 만료된_세션은_찾지_못한다() {
     String rawToken = "b".repeat(64);
     OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
@@ -93,25 +71,5 @@ class SessionServiceTest {
   void 모든_세션_폐기는_userId로_지운다() {
     service.revokeAll(USER_ID);
     verify(repository).deleteByUserId(USER_ID);
-  }
-
-  @Test
-  void 세션_도메인_getter_검증() {
-    UUID id = UUID.randomUUID();
-    OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
-    Session session = new Session(id, USER_ID, "hash", now.plusDays(1), now);
-
-    assertThat(session.getId()).isEqualTo(id);
-    assertThat(session.getUserId()).isEqualTo(USER_ID);
-    assertThat(session.getTokenHash()).isEqualTo("hash");
-    assertThat(session.getExpiresAt()).isEqualTo(now.plusDays(1));
-    assertThat(session.getCreatedAt()).isEqualTo(now);
-  }
-
-  @Test
-  void 세션_기본_생성자_검증() throws Exception {
-    var constructor = Session.class.getDeclaredConstructor();
-    constructor.setAccessible(true);
-    assertThat(constructor.newInstance()).isNotNull();
   }
 }

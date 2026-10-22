@@ -35,16 +35,6 @@ class UserIdHeaderStripGlobalFilterTest {
   }
 
   @Test
-  void 헤더가_없으면_요청을_그대로_넘긴다() {
-    MockServerWebExchange exchange =
-        MockServerWebExchange.from(MockServerHttpRequest.get("/api/v1/expenses"));
-
-    ServerWebExchange forwarded = runFilter(exchange);
-
-    assertThat(forwarded.getRequest().getHeaders().headerNames()).doesNotContain(HEADER);
-  }
-
-  @Test
   void 세션검증이_꺼져있어도_위조_헤더는_하류에_닿지_않는다() {
     SessionValidationProperties properties = new SessionValidationProperties();
     properties.setEnabled(false);

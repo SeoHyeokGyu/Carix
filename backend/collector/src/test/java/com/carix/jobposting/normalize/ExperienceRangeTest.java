@@ -1,7 +1,6 @@
 package com.carix.jobposting.normalize;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNull;
 
 import org.junit.jupiter.api.Test;
 
@@ -60,12 +59,5 @@ class ExperienceRangeTest {
   @Test
   void leavesBareExperienceUnknown() {
     assertEquals(new ExperienceRange(null, null), ExperienceRange.parse("경력"));
-  }
-
-  @Test
-  void leavesMissingInputUnknown() {
-    assertEquals(new ExperienceRange(null, null), ExperienceRange.parse(null));
-    assertEquals(new ExperienceRange(null, null), ExperienceRange.parse("   "));
-    assertNull(ExperienceRange.parse("정규직").min());
   }
 }

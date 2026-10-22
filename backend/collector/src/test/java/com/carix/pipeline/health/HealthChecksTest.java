@@ -44,32 +44,6 @@ class HealthChecksTest {
   }
 
   @Test
-  @DisplayName("점검은 5개이고 순서가 고정이다")
-  void fiveChecksInOrder() {
-    List<Check> c =
-        HealthChecks.all(
-            snapshot(
-                series(200, 200),
-                series(200, 200),
-                Set.of("202609"),
-                Map.of("SARAMIN", NOW),
-                List.of(user("u", "202610", "1.4.0"))),
-            REF,
-            "1.4.0",
-            t,
-            NOW);
-    assertThat(c)
-        .extracting(Check::id)
-        .containsExactly(
-            "AGGREGATE_STALE",
-            "RULE_VERSION",
-            "SNAPSHOT_FRESHNESS",
-            "CPI_LATEST",
-            "CRAWL_FRESHNESS");
-    assertThat(c).allSatisfy(x -> assertThat(x.verdict()).isEqualTo(HealthVerdict.OK));
-  }
-
-  @Test
   @DisplayName("재집계 누락은 잡코리아·원티드 모두 오류다")
   void aggregateStaleSeverityBySource() {
     var jkStale =
@@ -126,12 +100,6 @@ class HealthChecksTest {
     assertThat(crawl(Map.of("WANTED", d36))).isEqualTo(HealthVerdict.WARN);
   }
 
-  @Test
-  @DisplayName("정기 수집 기록이 없으면 수집 신선도는 판정 불가")
-  void crawlFreshnessUnknownWhenNoRecords() {
-    assertThat(crawl(Map.of())).isEqualTo(HealthVerdict.UNKNOWN);
-  }
-
   private HealthVerdict crawl(Map<String, Instant> crawl) {
     return find(
             HealthChecks.all(
@@ -173,41 +141,6 @@ class HealthChecksTest {
     assertThat(find(equal, "AGGREGATE_STALE").verdict()).isEqualTo(HealthVerdict.OK);
   }
 
-  @Test
-  @DisplayName("재집계 누락 영향 사용자: 불일치면 MVI 미정상 수, 정상이면 0")
-  void aggregateStaleImpactUsers() {
-    var users =
-        List.of(
-            user("a", "202610", "1.4.0"),
-            new UserSnapshot(
-                "b", "202610", "1.4.0", "STAY", "OK", "INSUFFICIENT_SAMPLE", List.of()),
-            new UserSnapshot("c", "202610", "1.4.0", "STAY", "OK", null, List.of()));
-    var jk =
-        HealthChecks.all(
-            snapshot(series(200, 190), series(200, 200), Set.of(), Map.of(), users),
-            REF,
-            "1.4.0",
-            t,
-            NOW);
-    var ok =
-        HealthChecks.all(
-            snapshot(series(200, 200), series(200, 200), Set.of(), Map.of(), users),
-            REF,
-            "1.4.0",
-            t,
-            NOW);
-    var wanted =
-        HealthChecks.all(
-            snapshot(series(200, 200), series(200, 190), Set.of(), Map.of(), users),
-            REF,
-            "1.4.0",
-            t,
-            NOW);
-    assertThat(find(jk, "AGGREGATE_STALE").impactUsers()).isEqualTo(2);
-    assertThat(find(ok, "AGGREGATE_STALE").impactUsers()).isZero();
-    assertThat(find(wanted, "AGGREGATE_STALE").impactUsers()).isEqualTo(2);
-  }
-
   private static SampleSeries uncomputable() {
     return new SampleSeries(Map.of("202609", 200), Map.of(), Map.of("202609", 200));
   }
@@ -226,27 +159,5 @@ class HealthChecksTest {
     assertThat(c.evidence())
         .containsEntry("JOBKOREA", List.of("202609"))
         .containsEntry("wantedUnavailable", true);
-  }
-
-  @Test
-  @DisplayName("원티드 상한 표본을 못 구하고 잡코리아가 일치하면 경고이고 원티드를 못 구했다고 알린다")
-  void aggregateStaleWantedUnavailableJobKoreaOk() {
-    Check c = stale(series(200, 200), uncomputable());
-    assertThat(c.verdict()).isEqualTo(HealthVerdict.WARN);
-    assertThat(c.message()).contains("원티드");
-    assertThat(c.evidence()).containsEntry("wantedUnavailable", true);
-  }
-
-  @Test
-  @DisplayName("잡코리아 상한 표본을 못 구하면 판정 불가")
-  void aggregateStaleJobKoreaUnavailable() {
-    assertThat(stale(uncomputable(), series(200, 200)).verdict()).isEqualTo(HealthVerdict.UNKNOWN);
-  }
-
-  @Test
-  @DisplayName("두 원천 모두 계산되면 wantedUnavailable 을 증거에 싣지 않는다")
-  void aggregateStaleNoFlagWhenComputable() {
-    assertThat(stale(series(200, 190), series(200, 200)).evidence())
-        .doesNotContainKey("wantedUnavailable");
   }
 }

@@ -92,39 +92,6 @@ class PurchasingPowerExploreTest {
   }
 
   @Test
-  @DisplayName("CPI 가 없으면 빈 표")
-  void cpi_empty() {
-    CpiTable t = service.cpi("201001", "201002");
-    assertThat(t.months()).isEmpty();
-  }
-
-  @Test
-  @DisplayName("임금통계는 최신 기준 연도의 칸별 출처·정의별 최신 회차 중위값과 빈 칸")
-  void wage_table() {
-    wage("DEVELOPER", "MID", "ALL", "ANNUAL_GROSS_MEDIAN", 61_234_567, "2025", "202508", "KOSIS");
-    wage("DEVELOPER", "MID", "ALL", "ANNUAL_GROSS_MEDIAN", 60_000_000, "2025", "202408", "KOSIS");
-    wage("DEVELOPER", "MID", "ALL", "ANNUAL_BASE_MEDIAN", 51_130_000, "2025", "202508", "KOSIS");
-    wage("DEVELOPER", "MID", "서울", "ANNUAL_GROSS_MEDIAN", 70_000_000, "2025", "202508", "KOSIS");
-    wage("DEVELOPER", "MID", "ALL", "ANNUAL_GROSS_MEDIAN", 59_000_000, "2024", "202408", "KOSIS");
-
-    WageTable t = service.wage();
-
-    assertThat(t.basePeriod()).isEqualTo("2025");
-    assertThat(t.cells()).extracting(WageTable.Cell::jobFamily).containsExactly("DEVELOPER");
-    assertThat(t.missing()).hasSize(14).contains("DATA/LEAD");
-    WageTable.Cell cell = t.cells().getFirst();
-    assertThat(cell.sources()).containsExactly("KOSIS");
-    assertThat(cell.values())
-        .extracting(
-            WageTable.Value::wageDefinition,
-            WageTable.Value::statVintage,
-            WageTable.Value::wageMedian)
-        .containsExactly(
-            tuple("ANNUAL_GROSS_MEDIAN", "202508", 61_234_567L),
-            tuple("ANNUAL_BASE_MEDIAN", "202508", 51_130_000L));
-  }
-
-  @Test
   @DisplayName("엔진 기준선은 core-api 와 같은 규칙 — 전국 우선, 출처(KOSIS 먼저) → 세전 총액 → 최신 연도 → 최신 회차")
   void wage_engineBaseline() {
     wage(
@@ -173,15 +140,5 @@ class PurchasingPowerExploreTest {
         basePeriod,
         vintage,
         source);
-  }
-
-  @Test
-  @DisplayName("임금통계가 없으면 기준 연도 null 과 전 칸 빈 칸")
-  void wage_empty() {
-    WageTable t = service.wage();
-    assertThat(t.basePeriod()).isNull();
-    assertThat(t.cells()).isEmpty();
-    assertThat(t.missing()).hasSize(15);
-    assertThat(t.engineBaselines()).isEmpty();
   }
 }

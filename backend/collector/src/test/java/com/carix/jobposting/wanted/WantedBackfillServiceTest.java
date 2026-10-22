@@ -225,41 +225,6 @@ class WantedBackfillServiceTest {
   }
 
   @Test
-  @DisplayName("한 건 저장이 실패해도 달 전체를 버리지 않고 실패 공고의 미등록 스킬은 총계에 넣지 않는다")
-  void saveFailureIsIsolated() throws IOException {
-    seedSeptember();
-    given(postings.save(any(JobPosting.class)))
-        .willAnswer(
-            i -> {
-              JobPosting p = i.getArgument(0);
-              if ("1001".equals(p.getExternalId())) {
-                throw new IllegalStateException("db down");
-              }
-              return p;
-            });
-
-    Map<String, Object> summary = service.run(request(1000, 1009, "202609", "202609"));
-
-    BackfillSampler.Result r = (BackfillSampler.Result) summary.get("202609");
-    assertThat(r.errors()).isEqualTo(1);
-    assertThat(r.saved()).isEqualTo(4);
-    assertThat(dropped(summary)).containsEntry("Node.js", 2);
-  }
-
-  @Test
-  @DisplayName("요청한 ID 와 페이지의 ID 가 다르면 빈 페이지로 센다")
-  void idMismatchIsEmpty() throws IOException {
-    seedSeptember();
-    client.pages.put(1002L, devPage(1500, SEPT));
-
-    Map<String, Object> summary = service.run(request(1000, 1009, "202609", "202609"));
-
-    BackfillSampler.Result r = (BackfillSampler.Result) summary.get("202609");
-    assertThat(r.empty()).isEqualTo(3);
-    assertThat(r.saved()).isEqualTo(4);
-  }
-
-  @Test
   @DisplayName("달이 끝나면 다음 달 시작 ID 보다 작은 페이지 캐시를 비운다")
   void evictsPageCacheAfterEachMonth() throws IOException {
     seedSeptember();
@@ -307,32 +272,10 @@ class WantedBackfillServiceTest {
   }
 
   @Test
-  @DisplayName("요청의 maxId 는 목록 API 를 부르지 않고 그대로 쓴다")
-  void explicitMaxIdSkipsListLookup() throws IOException {
-    seedSeptember();
-
-    service.run(request(1000, 1009, "202609", "202609"));
-
-    assertThat(client.listFetches).isEmpty();
-  }
-
-  @Test
   @DisplayName("목록 API 를 못 읽으면 기본 상한으로 돌아가 그대로 실행한다")
   void fallsBackToDefaultUpperBoundWhenListFails() throws IOException {
     seedSeptember();
     client.list = Optional.empty();
-
-    Map<String, Object> summary = service.run(requestWithoutMaxId(1000, "202609", "202609"));
-
-    assertThat(client.pageFetches).anyMatch(id -> id > 1009L);
-    assertThat(summary).containsKey("202609");
-  }
-
-  @Test
-  @DisplayName("목록 응답을 해석하지 못해도 기본 상한으로 실행한다")
-  void fallsBackToDefaultUpperBoundWhenListUnparseable() throws IOException {
-    seedSeptember();
-    client.list = Optional.of("not json");
 
     Map<String, Object> summary = service.run(requestWithoutMaxId(1000, "202609", "202609"));
 

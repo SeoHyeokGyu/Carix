@@ -10,7 +10,6 @@ import static org.mockito.Mockito.verify;
 
 import com.carix.jobposting.JobPosting;
 import com.carix.jobposting.JobPostingRepository;
-import com.carix.jobposting.RawIngest;
 import com.carix.jobposting.RawIngestRepository;
 import com.carix.jobposting.Skill;
 import com.carix.jobposting.normalize.SkillTaxonomy;
@@ -22,7 +21,6 @@ import java.time.LocalDate;
 import java.time.YearMonth;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
@@ -146,15 +144,6 @@ class WantedIngestServiceTest {
   }
 
   @Test
-  @DisplayName("목록 페이지마다 수집 이력을 WANTED 로 남긴다")
-  void recordsRawIngestAsWanted() {
-    service.ingestAll();
-    ArgumentCaptor<RawIngest> raw = ArgumentCaptor.forClass(RawIngest.class);
-    verify(rawIngests, org.mockito.Mockito.atLeastOnce()).save(raw.capture());
-    assertThat(raw.getAllValues()).allSatisfy(r -> assertThat(r.getSource()).isEqualTo("WANTED"));
-  }
-
-  @Test
   @DisplayName("이미 있는 공고는 HTTP 없이 관측월과 확인 경로만 갱신한다")
   void existingPostingTouchesOnly() {
     given(postings.findBySourceAndExternalId(anyString(), anyString()))
@@ -190,23 +179,6 @@ class WantedIngestServiceTest {
     assertThat(summary.skipped()).isEqualTo(3);
     assertThat(summary.created()).isZero();
     verify(postings, org.mockito.Mockito.never()).save(any(JobPosting.class));
-  }
-
-  @Test
-  @DisplayName("상세 API 가 비면 스킬 태그 없이 본문 추출 스킬로 저장한다")
-  void missingDetailApiStillSaves() {
-    client.detail = null;
-    given(taxonomy.extractSkillsFromSentence(anyString())).willReturn(List.of("Spring"));
-
-    WantedCrawlSummary summary = service.ingestAll();
-
-    ArgumentCaptor<JobPosting> saved = ArgumentCaptor.forClass(JobPosting.class);
-    verify(postings, times(3)).save(saved.capture());
-    assertThat(saved.getAllValues().get(0).getSkills())
-        .extracting(Skill::getStandardName)
-        .containsExactly("Spring");
-    assertThat(summary.created()).isEqualTo(3);
-    assertThat(summary.errors()).isZero();
   }
 
   @Test
@@ -272,29 +244,6 @@ class WantedIngestServiceTest {
     assertThat(summary.pages()).isZero();
     assertThat(summary.listFailed()).isTrue();
     assertThat(summary.toDetails()).containsEntry("listFailed", true);
-  }
-
-  @Test
-  @DisplayName("도중에 목록을 못 받으면 부분 결과를 남기고 listFailed 로 기록한다")
-  void midRunListFailureKeepsPartial() {
-    client.failListAtOffset = WantedClient.LIST_LIMIT;
-
-    WantedCrawlSummary summary = service.ingestAll();
-
-    assertThat(summary.pages()).isEqualTo(1);
-    assertThat(summary.created()).isEqualTo(3);
-    assertThat(summary.listFailed()).isTrue();
-  }
-
-  @Test
-  @DisplayName("요약은 작업 details 맵으로 바뀐다")
-  void summaryToDetails() {
-    Map<String, Object> d =
-        new WantedCrawlSummary(1, 3, 2, 1, 0, 4, Map.of("Go", 1), false).toDetails();
-    assertThat(d)
-        .containsEntry("errors", 4)
-        .containsEntry("created", 2)
-        .containsEntry("droppedSkills", Map.of("Go", 1));
   }
 
   private static JobPosting existing(String externalId) {

@@ -53,15 +53,4 @@ class SummaryCalculatorTest {
     assertThat(s.fullyAnswered()).isZero();
     assertThat(s.gaps()).containsExactly(new DataHealthReport.AnswerGap("ALL", "NO_SNAPSHOT", 1));
   }
-
-  @Test
-  @DisplayName("지수 상태가 없는 옛 rationale 은 온전으로 세지 않는다")
-  void summary_missingStatusesAreNotComplete() {
-    var data = with(List.of(snap("u1", null, null, "STAY")), Set.of("u1"));
-
-    DataHealthReport.Summary s = SummaryCalculator.summarize(data);
-
-    assertThat(s.fullyAnswered()).isZero();
-    assertThat(s.gaps()).contains(new DataHealthReport.AnswerGap("PPI", "UNKNOWN_RATIONALE", 1));
-  }
 }

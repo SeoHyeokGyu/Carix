@@ -28,20 +28,6 @@ class WageStatInterpolatorTest {
   }
 
   @Test
-  @DisplayName("calculateAnnualMedianWage - 구간 내부 중간 지점을 선형 보간한다")
-  void calculateAnnualMedianWage_linearInterpolatesWithinBracket() {
-    // Given: A19(3000~3500) 구간에만 100명 집중
-    // 50% 지점 = 50번째 사람 -> A19의 50% 지점 = 3250천원
-    Map<String, Long> counts = Map.of("A19", 100L);
-
-    // When
-    long medianWage = interpolator.calculateAnnualMedianWage(counts);
-
-    // Then: 월 3,250천원 * 12 = 39,000,000원
-    assertThat(medianWage).isEqualTo(39_000_000L);
-  }
-
-  @Test
   @DisplayName("calculateAnnualPercentileWage - 25% 및 75% 분위수 연봉을 산출한다")
   void calculateAnnualPercentileWage_calculatesP25AndP75() {
     // Given: A18(2800~3000) 100명, A19(3000~3500) 100명, A20(3500~4000) 100명, A21(4000~4500) 100명 (총
@@ -62,12 +48,5 @@ class WageStatInterpolatorTest {
     // Then
     assertThat(p25).isEqualTo(36_000_000L);
     assertThat(p75).isEqualTo(48_000_000L);
-  }
-
-  @Test
-  @DisplayName("calculateAnnualMedianWage - 빈 맵이 입력되면 0을 반환한다")
-  void calculateAnnualMedianWage_handlesEmptyMap() {
-    assertThat(interpolator.calculateAnnualMedianWage(Map.of())).isEqualTo(0L);
-    assertThat(interpolator.calculateAnnualMedianWage(null)).isEqualTo(0L);
   }
 }

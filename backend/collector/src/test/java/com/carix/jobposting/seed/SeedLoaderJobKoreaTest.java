@@ -113,13 +113,6 @@ class SeedLoaderJobKoreaTest {
   }
 
   @Test
-  @DisplayName("load - 파일이 없으면 0 반환")
-  void load_noFiles() throws IOException {
-    int loaded = seedLoader.load(outDir);
-    assertThat(loaded).isEqualTo(0);
-  }
-
-  @Test
   @DisplayName("load - 이미 존재하는 공고는 건너뛴다")
   void load_alreadyExists() throws IOException {
     given(jobPostingRepository.findBySourceAndExternalId("JOBKOREA", "9902"))

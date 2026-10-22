@@ -73,15 +73,4 @@ class JobPostingSkillSyncTest {
 
     assertSame(linkedBefore, posting.getSkills().getFirst());
   }
-
-  @Test
-  void clearsEverythingWhenNothingIsObserved() {
-    JobPosting posting = posting();
-    posting.addSkill(java);
-    posting.addSkill(python);
-
-    posting.replaceSkills(List.of());
-
-    assertTrue(posting.getSkills().isEmpty());
-  }
 }

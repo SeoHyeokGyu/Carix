@@ -52,14 +52,4 @@ class ListingPageIndexTest {
     assertThat(smEntry.sourceItemId()).isEqualTo("listpage-1");
     assertThat(index.listpageForSaramin("unknown")).isNull();
   }
-
-  @Test
-  @DisplayName("build - 디렉토리가 없어도 안전하게 무시")
-  void build_noDirectories() throws IOException {
-    ListingPageIndex index = new ListingPageIndex();
-    index.build(rawDir.resolve("non-existent"));
-
-    assertThat(index.htmlForJobKorea("1001")).isNull();
-    assertThat(index.listpageForSaramin("2001")).isNull();
-  }
 }

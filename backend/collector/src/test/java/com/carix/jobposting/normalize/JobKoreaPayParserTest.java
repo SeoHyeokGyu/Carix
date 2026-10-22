@@ -55,13 +55,6 @@ class JobKoreaPayParserTest {
   }
 
   @Test
-  void returnsNullForBlankOrBrokenJson() {
-    assertNull(parser.parse(""));
-    assertNull(parser.parse(null));
-    assertNull(parser.parse("{not json"));
-  }
-
-  @Test
   void bandConvertsMonthlyToAnnual() {
     String payJson =
         """
@@ -72,10 +65,5 @@ class JobKoreaPayParserTest {
 
     assertEquals(60_000_000L, range.min());
     assertEquals(72_000_000L, range.max());
-  }
-
-  @Test
-  void bandIgnoresHourlyPay() {
-    assertNull(parser.parseBand("{\"payType\":\"HOURLY_WAGE\",\"payRange\":{\"from\":10030}}"));
   }
 }

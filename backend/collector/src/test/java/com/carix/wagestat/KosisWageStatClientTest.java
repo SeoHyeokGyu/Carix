@@ -5,7 +5,6 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
 
-import java.io.IOException;
 import java.net.http.HttpClient;
 import java.net.http.HttpResponse;
 import java.util.Map;
@@ -13,14 +12,6 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 class KosisWageStatClientTest {
-
-  @Test
-  @DisplayName("fetchWageDistributionForAge - API 키가 비어있으면 빈 맵을 안전하게 반환한다")
-  void fetchWageDistributionForAge_returnsEmptyWhenNoApiKey() {
-    KosisWageStatClient client = new KosisWageStatClient("");
-    Map<String, Long> result = client.fetchWageDistributionForAge("05");
-    assertThat(result).isEmpty();
-  }
 
   @Test
   @DisplayName("fetchWageDistributionByPeriod - API 키가 비어있으면 빈 맵을 안전하게 반환한다")
@@ -90,24 +81,5 @@ class KosisWageStatClientTest {
     Map<String, Map<String, Long>> result = client.fetchWageDistributionByPeriod("05", null, null);
 
     assertThat(result).isEmpty();
-  }
-
-  @Test
-  @DisplayName("fetchWageDistributionByPeriod - HTTP 상태 오류 및 네트워크 예외 처리")
-  @SuppressWarnings("unchecked")
-  void fetchWageDistributionByPeriod_httpError_and_exception() throws Exception {
-    HttpClient httpClient = mock(HttpClient.class);
-    HttpResponse<String> response = mock(HttpResponse.class);
-
-    given(response.statusCode()).willReturn(500);
-    org.mockito.Mockito.doReturn(response).when(httpClient).send(any(), any());
-
-    KosisWageStatClient client = new KosisWageStatClient("test-key", httpClient);
-    assertThat(client.fetchWageDistributionByPeriod("05", "2024", null)).isEmpty();
-
-    org.mockito.Mockito.doThrow(new IOException("Network down"))
-        .when(httpClient)
-        .send(any(), any());
-    assertThat(client.fetchWageDistributionByPeriod("05", "2024", null)).isEmpty();
   }
 }

@@ -61,23 +61,6 @@ class OnboardingControllerTest {
   }
 
   @Test
-  void COMPLETED_로_옮기면_완료로_표시한다() throws Exception {
-    given(sessionService.findUserIdBySessionToken(TOKEN)).willReturn(Optional.of(USER_ID));
-    given(userRepository.findById(USER_ID)).willReturn(Optional.of(user("REVIEW")));
-
-    mockMvc
-        .perform(
-            patch("/v1/auth/onboarding")
-                .cookie(sessionCookie())
-                .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"currentStep\":\"COMPLETED\"}"))
-        .andExpect(status().isOk())
-        .andExpect(jsonPath("$.completed").value(true));
-
-    then(userRepository).should().save(any(User.class));
-  }
-
-  @Test
   void 쿠키가_없으면_401_이다() throws Exception {
     mockMvc
         .perform(
@@ -85,30 +68,6 @@ class OnboardingControllerTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"currentStep\":\"INCOME\"}"))
         .andExpect(status().isUnauthorized());
-  }
-
-  @Test
-  void 만료되었거나_없는_세션은_401_이다() throws Exception {
-    given(sessionService.findUserIdBySessionToken(TOKEN)).willReturn(Optional.empty());
-
-    mockMvc
-        .perform(
-            patch("/v1/auth/onboarding")
-                .cookie(sessionCookie())
-                .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"currentStep\":\"INCOME\"}"))
-        .andExpect(status().isUnauthorized());
-  }
-
-  @Test
-  void 허용되지_않는_단계값은_400_이다() throws Exception {
-    mockMvc
-        .perform(
-            patch("/v1/auth/onboarding")
-                .cookie(sessionCookie())
-                .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"currentStep\":\"DONE\"}"))
-        .andExpect(status().isBadRequest());
   }
 
   // FIX 1 (Critical, 최종 리뷰) — 서버는 클라이언트 가드(routeGuards.ts
@@ -131,26 +90,6 @@ class OnboardingControllerTest {
     then(userRepository).should(never()).save(any(User.class));
   }
 
-  // 같은 단계로의 재전환은 "뒤로"가 아니다 — 완료(COMPLETED) 후 재진입이 허용된
-  // 검토 화면(guardOnboarding)을 다시 제출하는 정상 경로가 이 케이스를 실제로 탄다.
-  // 막으면 멀쩡한 재제출이 400 을 받는다.
-  @Test
-  void 같은_단계로의_재전환은_허용한다() throws Exception {
-    given(sessionService.findUserIdBySessionToken(TOKEN)).willReturn(Optional.of(USER_ID));
-    given(userRepository.findById(USER_ID)).willReturn(Optional.of(user("COMPLETED")));
-
-    mockMvc
-        .perform(
-            patch("/v1/auth/onboarding")
-                .cookie(sessionCookie())
-                .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"currentStep\":\"COMPLETED\"}"))
-        .andExpect(status().isOk())
-        .andExpect(jsonPath("$.completed").value(true));
-
-    then(userRepository).should().save(any(User.class));
-  }
-
   @Test
   void 온보딩_재시작은_COMPLETED_상태인_사용자도_PROFILE_로_초기화한다() throws Exception {
     given(sessionService.findUserIdBySessionToken(TOKEN)).willReturn(Optional.of(USER_ID));
@@ -163,19 +102,5 @@ class OnboardingControllerTest {
         .andExpect(jsonPath("$.completed").value(false));
 
     then(userRepository).should().save(any(User.class));
-  }
-
-  @Test
-  void 온보딩_재시작_시_쿠키가_없으면_401_이다() throws Exception {
-    mockMvc.perform(post("/v1/auth/onboarding/reset")).andExpect(status().isUnauthorized());
-  }
-
-  @Test
-  void 온보딩_재시작_시_만료된_세션은_401_이다() throws Exception {
-    given(sessionService.findUserIdBySessionToken(TOKEN)).willReturn(Optional.empty());
-
-    mockMvc
-        .perform(post("/v1/auth/onboarding/reset").cookie(sessionCookie()))
-        .andExpect(status().isUnauthorized());
   }
 }

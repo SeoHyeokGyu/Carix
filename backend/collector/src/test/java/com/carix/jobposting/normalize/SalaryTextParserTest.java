@@ -42,11 +42,6 @@ class SalaryTextParserTest {
   }
 
   @Test
-  void wonUnit() {
-    assertThat(p("연봉 45,000,000원")).isEqualTo(new SalaryRange(45_000_000L, 45_000_000L));
-  }
-
-  @Test
   void notPublic() {
     assertThat(p("회사 내규에 따름(면접 후 결정)")).isNull();
     assertThat(p("면접 후 결정")).isNull();

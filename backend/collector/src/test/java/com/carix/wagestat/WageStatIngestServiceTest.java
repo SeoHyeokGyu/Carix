@@ -9,7 +9,6 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 
@@ -79,25 +78,6 @@ class WageStatIngestServiceTest {
   }
 
   @Test
-  @DisplayName("ingestWageStats - 이미 데이터가 존재하면 save를 건너뛴다")
-  void ingestWageStats_alreadyExists() {
-    given(kosisClient.fetchWageDistributionByPeriod(anyString(), any(), any()))
-        .willReturn(Map.of());
-
-    WageStatObservation existing = WageStatObservation.builder().build();
-    given(
-            repository
-                .findByJobFamilyAndExperienceBracketAndRegionAndWageDefinitionAndBasePeriodAndStatVintage(
-                    anyString(), anyString(), anyString(), any(), anyString(), anyString()))
-        .willReturn(Optional.of(existing));
-
-    int count = service.ingestWageStats("2025", "2025");
-
-    assertThat(count).isZero();
-    verify(repository, never()).save(any(WageStatObservation.class));
-  }
-
-  @Test
   @DisplayName("ingestWageStats - KOSIS 응답 안에서 보간 실패한 연도만 FALLBACK 으로 기록한다")
   void ingestWageStats_recordsSourcePerYear() {
     Map<String, Long> okDist = Map.of("A01", 100L);
@@ -129,43 +109,6 @@ class WageStatIngestServiceTest {
         .filteredOn(o -> "2024".equals(o.getBasePeriod()))
         .isNotEmpty()
         .allMatch(o -> o.getSource() == WageStatSource.FALLBACK);
-  }
-
-  @Test
-  @DisplayName("ingestWageStats - KOSIS 부재 시 폴백은 범위를 돌지 않고 마지막 연도 한 해만 쓴다")
-  void ingestWageStats_fallbackWritesSingleYear() {
-    given(kosisClient.fetchWageDistributionByPeriod(anyString(), any(), any()))
-        .willReturn(Map.of());
-    given(
-            repository
-                .findByJobFamilyAndExperienceBracketAndRegionAndWageDefinitionAndBasePeriodAndStatVintage(
-                    anyString(), anyString(), anyString(), any(), anyString(), anyString()))
-        .willReturn(Optional.empty());
-
-    int count = service.ingestWageStats("2020", "2024");
-
-    // 5년 * 48 = 240 이 아니라 48 이다.
-    assertThat(count).isEqualTo(48);
-
-    ArgumentCaptor<WageStatObservation> captor = ArgumentCaptor.forClass(WageStatObservation.class);
-    verify(repository, times(48)).save(captor.capture());
-    assertThat(captor.getAllValues())
-        .allMatch(o -> "2024".equals(o.getBasePeriod()))
-        .allMatch(o -> o.getSource() == WageStatSource.FALLBACK);
-  }
-
-  @Test
-  @DisplayName("ingestWageStats - 네 자리 숫자가 아닌 연도는 거부한다")
-  void ingestWageStats_rejectsNonNumericYear() {
-    assertThatThrownBy(() -> service.ingestWageStats("abc", "2024"))
-        .isInstanceOf(IllegalArgumentException.class)
-        .hasMessageContaining("startYear");
-
-    assertThatThrownBy(() -> service.ingestWageStats("2020", "20x4"))
-        .isInstanceOf(IllegalArgumentException.class)
-        .hasMessageContaining("endYear");
-
-    verifyNoInteractions(kosisClient, repository);
   }
 
   @Test

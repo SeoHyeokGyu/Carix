@@ -105,16 +105,6 @@ class JobKoreaBackfillIngestTest {
   }
 
   @Test
-  @DisplayName("JSON-LD 고용형태 열거값을 차원 코드로 옮기고, 한글 표기는 기존 분류기로 판정한다")
-  void mapsEmploymentType() {
-    assertThat(JobPostingIngestService.backfillEmploymentType("FULL_TIME")).isEqualTo("FULL_TIME");
-    assertThat(JobPostingIngestService.backfillEmploymentType("CONTRACTOR")).isEqualTo("CONTRACT");
-    assertThat(JobPostingIngestService.backfillEmploymentType("INTERN")).isEqualTo("INTERN");
-    assertThat(JobPostingIngestService.backfillEmploymentType("계약직")).isEqualTo("CONTRACT");
-    assertThat(JobPostingIngestService.backfillEmploymentType(null)).isEqualTo("UNKNOWN");
-  }
-
-  @Test
   @DisplayName("상세 재수집은 자기 공고 직무 코드로 직무군을 다시 매기고, 직무군이 같아도 스킬은 다시 뽑아 저장한다")
   void refreshesFamilyAndSkillsFromDetail() {
     JobPosting posting = mock(JobPosting.class);

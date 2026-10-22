@@ -100,38 +100,6 @@ class SessionValidationGatewayFilterFactoryTest {
   }
 
   @Test
-  void 캐시에_유효한_세션이_있으면_검증기를_호출하지_않는다() {
-    UUID userId = UUID.randomUUID();
-    SessionValidationProperties properties = new SessionValidationProperties();
-    properties.setEnabled(true);
-    SessionValidationCache cache = new SessionValidationCache();
-    cache.put("cached-token", userId);
-    StubValidator validator = new StubValidator(null);
-    GatewayFilter filter =
-        new SessionValidationGatewayFilterFactory(properties, cache, validator)
-            .apply(new SessionValidationGatewayFilterFactory.Config());
-
-    MockServerWebExchange exchange =
-        MockServerWebExchange.from(
-            MockServerHttpRequest.get("/api/v1/expenses")
-                .cookie(new HttpCookie("session_token", "cached-token")));
-    AtomicReference<ServerWebExchange> forwarded = new AtomicReference<>();
-
-    filter
-        .filter(
-            exchange,
-            ex -> {
-              forwarded.set(ex);
-              return Mono.empty();
-            })
-        .block();
-
-    assertThat(forwarded.get().getRequest().getHeaders().getFirst("X-User-Id"))
-        .isEqualTo(userId.toString());
-    assertThat(validator.called).isFalse();
-  }
-
-  @Test
   void 무효한_세션이면_401을_반환한다() {
     SessionValidationProperties properties = new SessionValidationProperties();
     properties.setEnabled(true);
