@@ -92,6 +92,20 @@ class PersonalInflationServiceTest {
   }
 
   @Test
+  void 모든_카테고리_기여가_0이면_원인_카테고리를_비운다() {
+    given(weightResolver.resolveMonths(userId, List.of(CPI_MONTH)))
+        .willReturn(
+            Map.of(
+                CPI_MONTH,
+                new MonthlyWeights(weights("0.2", "0.25", "0.15", "0.1", "0.1", "0.2"), Map.of())));
+
+    InflationComparison result = service.trailing12m(userId, "202609").orElseThrow();
+
+    assertThat(result.topGapCategory()).isNull();
+    assertThat(result.topGapContributionPp()).isNull();
+  }
+
+  @Test
   void 총지수_없으면_empty() {
     given(cpiRates.headlineYearOverYear(CPI_MONTH)).willReturn(Optional.empty());
 

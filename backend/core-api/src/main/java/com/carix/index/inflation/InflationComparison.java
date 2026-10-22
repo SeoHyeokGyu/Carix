@@ -8,8 +8,8 @@ import java.math.BigDecimal;
  *
  * @param cpiMonth 사용한 CPI 기준월 {@code YYYYMM}
  * @param gapPp 개인물가 - 총지수, 표시되는 두 값의 차이 (%p)
- * @param topGapCategory 평균 소비구조 대비 가중치 차이가 격차에 가장 크게 기여한 카테고리
- * @param topGapContributionPp 그 카테고리의 기여 (%p). 부호가 있다
+ * @param topGapCategory 평균 소비구조 대비 가중치 차이가 격차에 가장 크게 기여한 카테고리. 모든 카테고리의 기여가 0 이면 null
+ * @param topGapContributionPp 그 카테고리의 기여 (%p). 부호가 있다. 카테고리가 null 이면 null
  */
 public record InflationComparison(
     String cpiMonth,

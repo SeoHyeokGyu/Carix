@@ -78,7 +78,8 @@ public class PersonalInflationService {
       BigDecimal rate = rates.get(category);
       personal = personal.add(weight.multiply(rate));
       BigDecimal contribution = weight.subtract(defaults.get(category)).multiply(rate);
-      if (topCategory == null || contribution.abs().compareTo(topContribution.abs()) > 0) {
+      if (contribution.signum() != 0
+          && (topCategory == null || contribution.abs().compareTo(topContribution.abs()) > 0)) {
         topCategory = category;
         topContribution = contribution;
       }
@@ -93,7 +94,7 @@ public class PersonalInflationService {
             headlinePct,
             personalPct.subtract(headlinePct),
             topCategory,
-            percent(topContribution)));
+            topCategory == null ? null : percent(topContribution)));
   }
 
   private static boolean hasAll(Map<ExpenseCategoryEnum, BigDecimal> byCategory) {
