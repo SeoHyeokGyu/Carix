@@ -8,7 +8,7 @@ function signed(value: number): string {
 }
 
 /** 원 → 만원 반올림. 부호를 붙인다. */
-function signedMan(won: number): string {
+export function signedMan(won: number): string {
   return `${signed(Math.round(won / MAN_WON))}만`;
 }
 

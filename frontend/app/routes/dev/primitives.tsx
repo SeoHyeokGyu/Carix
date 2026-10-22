@@ -30,6 +30,9 @@ import { TONE_CLASS, ToneBadge } from "@/components/ui/tone-badge";
 import { SalaryDistributionChart } from "../../components/dashboard/SalaryDistributionChart";
 import { SignalBadge } from "../../components/dashboard/SignalBadge";
 import { NativeSelect } from "../../components/onboarding/NativeSelect";
+import { CumulativeChart } from "../../components/simulator/CumulativeChart";
+import { FirstYearWaterfall } from "../../components/simulator/FirstYearWaterfall";
+import { RaiseAxis } from "../../components/simulator/RaiseAxis";
 import type { SalaryDistributionResponse } from "../../lib/dashboardMarketApi";
 
 /**
@@ -95,6 +98,25 @@ const SALARY_FIXTURE: SalaryDistributionResponse = {
   },
   trend: null,
 };
+
+const SIM_MONTHS = 48;
+const SIM_GAP_MONTHS = 3;
+const SIM_STAY_MONTHLY = 2_800_000;
+const SIM_MOVE_MONTHLY = 3_300_000;
+const SIM_ONE_TIME_COST = 3_000_000;
+
+/** 시뮬레이터 그림 고정 데이터 — 공백 3개월 뒤 월 50만 원씩 앞서는 모양. */
+const SIM_STAY_CUMULATIVE = Array.from(
+  { length: SIM_MONTHS },
+  (_, i) => SIM_STAY_MONTHLY * (i + 1),
+);
+const SIM_MOVE_CUMULATIVE = Array.from(
+  { length: SIM_MONTHS },
+  (_, i) =>
+    SIM_MOVE_MONTHLY * Math.max(0, i + 1 - SIM_GAP_MONTHS) - SIM_ONE_TIME_COST,
+);
+const SIM_CROSSOVER_MONTH =
+  SIM_MOVE_CUMULATIVE.findIndex((v, i) => v >= SIM_STAY_CUMULATIVE[i]) + 1;
 
 function Section({
   id,
@@ -415,6 +437,36 @@ function Gallery() {
 
       <Section id="gallery-chart-marker" title="연봉 분포 마커 링">
         <SalaryDistributionChart data={SALARY_FIXTURE} />
+      </Section>
+
+      <Section id="gallery-simulator-charts" title="시뮬레이터 그림">
+        <div className="grid max-w-2xl gap-8">
+          <RaiseAxis
+            expectedPercent={4}
+            breakevenPersonal={3.2}
+            breakevenGovernment={2.5}
+            offerEquivalentPercent={9}
+          />
+          <RaiseAxis
+            expectedPercent={1.5}
+            breakevenPersonal={null}
+            breakevenGovernment={2.5}
+          />
+          <CumulativeChart
+            stay={SIM_STAY_CUMULATIVE}
+            move={SIM_MOVE_CUMULATIVE}
+            crossoverMonth={SIM_CROSSOVER_MONTH}
+          />
+          <FirstYearWaterfall
+            firstYear={{
+              salaryDiff: 6_000_000,
+              gap: -8_400_000,
+              oneTimeCost: -SIM_ONE_TIME_COST,
+              benefit: 5_000_000,
+              total: -400_000,
+            }}
+          />
+        </div>
       </Section>
     </div>
   );
