@@ -74,6 +74,20 @@ management:
         include: health,info,refresh
 
 carix:
+  tax:
+    # 세후 연봉 추정(TakeHomeEstimator)의 근로자 부담 요율. 공시값이므로 해마다 갱신하고 rates-as-of 를 함께 바꾼다.
+    # 소득공제·세율 구간표는 법령 고정 표라 코드에 있다. Config Server 의 core-api.yml 이 덮어쓸 수 있다.
+    # 출처: 국민연금공단 https://www.nps.or.kr (보험료율 9.5% 중 근로자 4.75%, 기준소득월액 2026-07 적용 하한 41만·상한 659만),
+    #       국민건강보험공단 https://www.nhis.or.kr (7.19% 중 근로자 3.595%, 장기요양 = 건강보험료 x 13.14%),
+    #       근로복지공단 고용보험 https://www.comwel.or.kr (근로자 0.9%),
+    #       국세청 https://www.nts.go.kr / 소득세법 제47조·제55조·제59조 (근로소득공제·세율·근로소득세액공제)
+    rates-as-of: "2026"
+    national-pension-rate: 0.0475
+    pension-income-floor: 410000
+    pension-income-cap: 6590000
+    health-rate: 0.03595
+    long-term-care-ratio: 0.1314
+    employment-rate: 0.009
   scenario:
     unemployment:
       # 도메인 정의서 §4.1 의 가정치다. 법정 공시값이 아니므로 고용보험 공시 기준이 바뀌면
