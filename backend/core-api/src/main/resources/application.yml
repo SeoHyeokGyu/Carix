@@ -74,6 +74,14 @@ management:
         include: health,info,refresh
 
 carix:
+  inflation:
+    # 앞으로 12개월 물가 가정의 한국은행 전망치(%). 시뮬레이터 실질 환산의 기준이며 개인물가 기준은 여기에 지난 12개월
+    # 개인물가-총지수 차이를 더한 값이다. 보고서가 나올 때마다 forecast-percent 와 as-of 를 함께 바꾼다.
+    # 출처: 한국은행 경제전망보고서(2026-08-27 발표) 2027년 소비자물가 상승률 2.3% 전망,
+    #       https://www.bok.or.kr (KDI 경제정보센터 전재 https://eiec.kdi.re.kr/policy/materialView.do?num=285904)
+    forecast-percent: 2.3
+    as-of: "2026-08"
+    source: "한국은행 경제전망보고서"
   tax:
     # 세후 연봉 추정(TakeHomeEstimator)의 근로자 부담 요율. 공시값이므로 해마다 갱신하고 rates-as-of 를 함께 바꾼다.
     # 소득공제·세율 구간표는 법령 고정 표라 코드에 있다. Config Server 의 core-api.yml 이 덮어쓸 수 있다.
