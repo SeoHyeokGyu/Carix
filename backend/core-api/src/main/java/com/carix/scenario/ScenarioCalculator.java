@@ -13,9 +13,6 @@ import org.springframework.stereotype.Component;
 @Component
 public class ScenarioCalculator {
 
-  /** 소정급여일수를 월로 단순화한 상한 (도메인 정의서 §4.1 — 평균 150일). */
-  private static final int MAX_BENEFIT_MONTHS = 5;
-
   private static final int MONTHS_PER_YEAR = 12;
 
   private static final String GAIN = "ESTIMATED_GAIN";
@@ -80,7 +77,7 @@ public class ScenarioCalculator {
 
   /** {@code min(U, 5) × 일지급액 × 30}. */
   private long totalBenefit(long grossSalary, int unemploymentMonths) {
-    int months = Math.min(unemploymentMonths, MAX_BENEFIT_MONTHS);
+    int months = UnemploymentBenefitAssumption.benefitMonths(unemploymentMonths);
     return months * assumption.monthlyBenefit(grossSalary);
   }
 

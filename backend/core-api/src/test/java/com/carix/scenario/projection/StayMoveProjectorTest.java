@@ -1,6 +1,8 @@
 package com.carix.scenario.projection;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.offset;
+import static org.assertj.core.api.Assertions.within;
 
 import com.carix.scenario.UnemploymentBenefitAssumption;
 import com.carix.scenario.projection.ProjectionResult.FirstYear;
@@ -31,6 +33,10 @@ class StayMoveProjectorTest {
     assertThat(first.total()).isEqualTo(result.moveCumulative()[11] - result.stayCumulative()[11]);
     assertThat(first.salaryDiff() + first.gap() + first.oneTimeCost() + first.benefit())
         .isEqualTo(first.total());
+    // 공백·비용이 없는 같은 시나리오가 독립 기준이다 (잔차로 맞춰지는 합 검증만으로는 항 오류가 가려진다)
+    ProjectionResult noGap = projector.project(input(70_000_000L, 0, 0L, true));
+    assertThat(first.salaryDiff()).isCloseTo(noGap.firstYear().total(), within(5L));
+    assertThat(first.gap()).isCloseTo(-noGap.moveCumulative()[1], within(5L));
     assertThat(first.gap()).isNegative();
     assertThat(first.oneTimeCost()).isNegative();
     assertThat(first.benefit()).isPositive();
@@ -57,7 +63,6 @@ class StayMoveProjectorTest {
 
     ProjectionInput atBreakeven =
         new ProjectionInput(60_000_000L, breakeven / 100, null, 0, 0L, false, INFLATION, 1.0);
-    assertThat(projector.project(atBreakeven).stayRealChangePercent())
-        .isCloseTo(0.0, org.assertj.core.data.Offset.offset(0.1));
+    assertThat(projector.project(atBreakeven).stayRealChangePercent()).isCloseTo(0.0, offset(0.1));
   }
 }

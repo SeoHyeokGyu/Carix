@@ -14,7 +14,6 @@ public class StayMoveProjector {
 
   private static final int MONTHS_PER_YEAR = 12;
   private static final int FIRST_YEAR_MONTHS = 12;
-  private static final int MAX_BENEFIT_MONTHS = 5;
 
   private static final double BREAKEVEN_LOWER = -0.5;
   private static final double BREAKEVEN_UPPER = 1.0;
@@ -53,24 +52,26 @@ public class StayMoveProjector {
         equalizingRaisePercent(in, sum(move)));
   }
 
-  /** 잔류 1년차 세후 실질 변화가 0 이 되는 인상률(%). 구간 안에 해가 없으면 null. */
+  /** 잔류 1년차 세후 실질 변화가 0 이 되는 인상률(%). 구간 안에 해가 없거나 현재 세후가 0 이하면 null. */
   public Double breakevenRaisePercent(long currentAnnualGross, double inflationRate) {
-    double current = estimator.annualNet(currentAnnualGross);
+    if (estimator.annualNet(currentAnnualGross) <= 0) {
+      return null;
+    }
     return solvePercent(
         BREAKEVEN_LOWER,
         BREAKEVEN_UPPER,
-        rate ->
-            estimator.annualNet(Math.round(currentAnnualGross * (1 + rate)))
-                    / (1 + inflationRate)
-                    / current
-                - 1);
+        rate -> realChange(currentAnnualGross, rate, inflationRate));
   }
 
   private double stayRealChangePercent(ProjectionInput in) {
-    double current = estimator.annualNet(in.currentAnnualGross());
-    double firstYear =
-        estimator.annualNet(Math.round(in.currentAnnualGross() * (1 + in.raiseRate())));
-    return (firstYear / (1 + in.inflationRate()) / current - 1) * 100;
+    return realChange(in.currentAnnualGross(), in.raiseRate(), in.inflationRate()) * 100;
+  }
+
+  /** (인상 후 1년차 세후 ÷ (1+π)) ÷ 현재 세후 − 1. */
+  private double realChange(long currentAnnualGross, double raiseRate, double inflationRate) {
+    double current = estimator.annualNet(currentAnnualGross);
+    double firstYear = estimator.annualNet(Math.round(currentAnnualGross * (1 + raiseRate)));
+    return firstYear / (1 + inflationRate) / current - 1;
   }
 
   /** 잔류 월별 실질 세후. 연봉 = G₀ × (1+r)^(k+1). */
@@ -154,7 +155,8 @@ public class StayMoveProjector {
   }
 
   private double benefit(int m, ProjectionInput in) {
-    if (!in.benefitEligible() || m > Math.min(in.unemploymentMonths(), MAX_BENEFIT_MONTHS)) {
+    if (!in.benefitEligible()
+        || m > UnemploymentBenefitAssumption.benefitMonths(in.unemploymentMonths())) {
       return 0;
     }
     return benefitAssumption.monthlyBenefit(in.currentAnnualGross());

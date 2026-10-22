@@ -16,6 +16,9 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 public record UnemploymentBenefitAssumption(
     long dailyUpperLimit, long dailyLowerLimit, String assumptionAsOf) {
 
+  /** 소정급여일수를 월로 단순화한 상한 (도메인 정의서 §4.1 — 평균 150일). */
+  private static final int MAX_BENEFIT_MONTHS = 5;
+
   private static final int DAYS_PER_YEAR = 365;
   private static final int DAYS_PER_MONTH = 30;
   private static final double BENEFIT_RATE = 0.6;
@@ -29,5 +32,10 @@ public record UnemploymentBenefitAssumption(
   /** 일지급액 × 30. 수급 개월수를 곱하는 쪽은 호출자다. */
   public long monthlyBenefit(long grossSalary) {
     return dailyBenefit(grossSalary) * DAYS_PER_MONTH;
+  }
+
+  /** 급여가 지급되는 개월수: {@code min(공백 개월수, 5)}. */
+  public static int benefitMonths(int unemploymentMonths) {
+    return Math.min(unemploymentMonths, MAX_BENEFIT_MONTHS);
   }
 }
