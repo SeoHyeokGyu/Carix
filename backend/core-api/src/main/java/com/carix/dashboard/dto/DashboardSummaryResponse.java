@@ -12,7 +12,7 @@ public record DashboardSummaryResponse(
     @Schema(description = "협상 목표 인상률. NEGOTIATE·SEEK_JOB 의 가장 최근 달에만", nullable = true)
         NegotiationTargets negotiationTargets,
     DecisionSignal decisionSignal,
-    @Schema(description = "성과급 포함 연간 실소득. 성과급 기록이 없으면 null", nullable = true)
+    @Schema(description = "성과급 포함 연간 실소득. 기준월 포함 24개월 창에 지급월이 있는 성과급이 없으면 null", nullable = true)
         BonusInclusiveIncome bonusInclusiveIncome,
     SummaryMetadata metadata) {
 
@@ -83,14 +83,13 @@ public record DashboardSummaryResponse(
   /**
    * 최근 12개월과 직전 12개월의 소득(월할 연봉·고정상여 + 지급 성과급) 비교. 금액은 12개월 합계이고 지수에는 섞지 않는다.
    *
+   * <p>소득 금액은 싣지 않는다 — 연봉 복원 경로를 만들지 않는다.
+   *
    * @param bonusCount 최근 12개월에 지급된 성과급 건수
-   * @param realChangePercent 개인물가로 디플레이트한 실질 변화(%). 직전 12개월 소득이나 개인물가가 없으면 null
+   * @param realChangePercent 개인물가로 디플레이트한 실질 변화(%). 직전 12개월 창을 소득 행이 온전히 덮지 못하거나 개인물가가 없으면 null
    */
   public record BonusInclusiveIncome(
-      long recentAnnual,
-      long previousAnnual,
-      @Schema(example = "3.1", nullable = true) Double realChangePercent,
-      int bonusCount) {}
+      @Schema(example = "3.1", nullable = true) Double realChangePercent, int bonusCount) {}
 
   public record DataLimitSource(String source, int sampleSize) {}
 

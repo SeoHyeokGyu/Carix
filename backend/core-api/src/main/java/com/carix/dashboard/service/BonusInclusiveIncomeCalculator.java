@@ -54,8 +54,6 @@ public class BonusInclusiveIncomeCalculator {
     Period recent = period(incomes, bonuses, base);
     Period previous = period(incomes, bonuses, base.minusMonths(PERIOD_MONTHS));
     return new BonusInclusiveIncome(
-        recent.total(),
-        previous.total(),
         realChangePercent(
             userId, baseYearMonth, recent, previous, coversWindow(incomes, windowStart)),
         recent.bonusCount());

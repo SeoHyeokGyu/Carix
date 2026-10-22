@@ -160,8 +160,6 @@ describe("대시보드 라우트 및 레이아웃 (Dashboard)", () => {
       it("성과급 포함 줄은 필드가 있을 때만 보인다", async () => {
         vi.spyOn(dashboardApi, "fetchSummary").mockResolvedValue(
           summaryWith({
-            recentAnnual: 64_000_000,
-            previousAnnual: 50_000_000,
             realChangePercent: 3.1,
             bonusCount: 2,
           }),
@@ -190,8 +188,6 @@ describe("대시보드 라우트 및 레이아웃 (Dashboard)", () => {
       it("실질 변화를 계산하지 못하면 줄이 없다", async () => {
         vi.spyOn(dashboardApi, "fetchSummary").mockResolvedValue(
           summaryWith({
-            recentAnnual: 64_000_000,
-            previousAnnual: 0,
             realChangePercent: null,
             bonusCount: 1,
           }),
@@ -206,8 +202,6 @@ describe("대시보드 라우트 및 레이아웃 (Dashboard)", () => {
       it("음수 변화는 부호를 그대로 보인다", async () => {
         vi.spyOn(dashboardApi, "fetchSummary").mockResolvedValue(
           summaryWith({
-            recentAnnual: 48_000_000,
-            previousAnnual: 50_000_000,
             realChangePercent: -4.2,
             bonusCount: 0,
           }),

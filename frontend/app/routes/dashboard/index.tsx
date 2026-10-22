@@ -313,7 +313,7 @@ function BonusInclusiveIncomeLine({
 }: {
   income: DashboardSummary["bonusInclusiveIncome"];
 }) {
-  if (!income || income.realChangePercent === null) {
+  if (!income || income.realChangePercent == null) {
     return null;
   }
   const change = income.realChangePercent;

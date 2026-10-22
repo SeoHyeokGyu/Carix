@@ -80,8 +80,7 @@ class SnapshotReadServiceTest {
   void summary_성과급포함소득() {
     given(repository.findByUserIdOrderByBaseYearMonthDesc(USER_ID))
         .willReturn(List.of(snapshot("202607", "94.20", "117.50", DecisionSignalCode.STAY)));
-    var income =
-        new DashboardSummaryResponse.BonusInclusiveIncome(64_000_000L, 50_000_000L, 25.5, 1);
+    var income = new DashboardSummaryResponse.BonusInclusiveIncome(25.5, 1);
     given(bonusInclusiveIncomeCalculator.calculate(USER_ID, "202607")).willReturn(income);
 
     DashboardSummaryResponse response = summaryService.resolve(USER_ID, "202607");

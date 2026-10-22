@@ -11,6 +11,7 @@ import com.carix.income.repository.IncomeHistoryRepository;
 import com.carix.income.service.PerformanceBonusService;
 import com.carix.index.inflation.InflationComparison;
 import com.carix.index.inflation.PersonalInflationService;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
@@ -58,8 +59,6 @@ class BonusInclusiveIncomeCalculatorTest {
 
     BonusInclusiveIncome result = calculator.calculate(USER_ID, BASE);
 
-    assertThat(result.recentAnnual()).isEqualTo(64_000_000L);
-    assertThat(result.previousAnnual()).isZero();
     assertThat(result.realChangePercent()).isNull();
     assertThat(result.bonusCount()).isEqualTo(1);
   }
@@ -76,7 +75,6 @@ class BonusInclusiveIncomeCalculatorTest {
     BonusInclusiveIncome result = calculator.calculate(USER_ID, BASE);
 
     assertThat(result.realChangePercent()).isNull();
-    assertThat(result.recentAnnual()).isEqualTo(49_000_000L);
   }
 
   @Test
@@ -98,7 +96,6 @@ class BonusInclusiveIncomeCalculatorTest {
     BonusInclusiveIncome result = calculator.calculate(USER_ID, BASE);
 
     assertThat(result.realChangePercent()).isNull();
-    assertThat(result.recentAnnual()).isEqualTo(49_000_000L);
   }
 
   @Test
@@ -120,8 +117,6 @@ class BonusInclusiveIncomeCalculatorTest {
 
     BonusInclusiveIncome result = calculator.calculate(USER_ID, BASE);
 
-    assertThat(result.recentAnnual()).isEqualTo(64_000_000L);
-    assertThat(result.previousAnnual()).isEqualTo(50_000_000L);
     // (64/50) / 1.02 - 1 = 25.49%
     assertThat(result.realChangePercent()).isEqualTo(25.5);
     assertThat(result.bonusCount()).isEqualTo(1);
@@ -134,12 +129,25 @@ class BonusInclusiveIncomeCalculatorTest {
     row.applyBonusTerms(false, 12_000_000L);
     given(incomeRepository.findByUserIdOrderByEffectiveDateDesc(USER_ID)).willReturn(List.of(row));
     given(bonusService.list(USER_ID)).willReturn(List.of(bonus("202603", 1_000_000L)));
-    given(inflationService.trailing12m(USER_ID, BASE)).willReturn(Optional.empty());
+    given(inflationService.trailing12m(USER_ID, BASE)).willReturn(Optional.of(comparison("0.00")));
 
     BonusInclusiveIncome result = calculator.calculate(USER_ID, BASE);
 
-    assertThat(result.recentAnnual()).isEqualTo(61_000_000L);
-    assertThat(result.previousAnnual()).isEqualTo(60_000_000L);
+    // 최근 (48+12)M + 1M 성과급 = 61M, 직전 60M -> 61/60 - 1 = 1.67%
+    assertThat(result.realChangePercent()).isEqualTo(1.7);
+  }
+
+  @Test
+  @DisplayName("응답에 원 단위 연봉 금액 필드를 싣지 않는다")
+  void 응답에_연봉_금액_필드를_싣지_않는다() throws Exception {
+    given(incomeRepository.findByUserIdOrderByEffectiveDateDesc(USER_ID))
+        .willReturn(List.of(income(48_000_000L, LocalDate.of(2020, 1, 1))));
+    given(bonusService.list(USER_ID)).willReturn(List.of(bonus("202603", 1_000_000L)));
+    given(inflationService.trailing12m(USER_ID, BASE)).willReturn(Optional.of(comparison("2.00")));
+
+    String json = new ObjectMapper().writeValueAsString(calculator.calculate(USER_ID, BASE));
+
+    assertThat(json).doesNotContain("recentAnnual").doesNotContain("previousAnnual");
   }
 
   private static IncomeHistory income(long gross, LocalDate effectiveDate) {
