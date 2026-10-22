@@ -1,5 +1,6 @@
 package com.carix.scenario.dto;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.DecimalMax;
@@ -10,10 +11,12 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.PositiveOrZero;
 
 @Schema(description = "세후·실질 평가 요청. 저장하지 않는다")
+@JsonIgnoreProperties(ignoreUnknown = true)
 public record EvaluateRequest(
     @NotNull @Valid Stay stay,
     @Schema(description = "이직 입력. 없으면 잔류만 평가한다", nullable = true) @Valid Move move) {
 
+  @JsonIgnoreProperties(ignoreUnknown = true)
   public record Stay(
       @NotNull
           @DecimalMin("-100")
@@ -29,6 +32,7 @@ public record EvaluateRequest(
       @PositiveOrZero @Schema(description = "이직하면 포기하는 미베스팅 주식 평가액 (원)", nullable = true)
           Long stockUnvested) {}
 
+  @JsonIgnoreProperties(ignoreUnknown = true)
   public record Move(
       @NotNull @PositiveOrZero @Schema(description = "이직 세전 연봉 (원)", example = "72000000")
           Long grossSalary,

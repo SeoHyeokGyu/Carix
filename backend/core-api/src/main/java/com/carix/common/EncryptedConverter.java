@@ -122,6 +122,11 @@ public class EncryptedConverter implements AttributeConverter<Long, String> {
    */
   @Override
   public Long convertToEntityAttribute(String dbData) {
-    return dbData == null ? null : Long.parseLong(delegate.convertToEntityAttribute(dbData));
+    if (dbData == null) return null;
+    try {
+      return Long.parseLong(delegate.convertToEntityAttribute(dbData));
+    } catch (NumberFormatException e) {
+      throw new IllegalStateException("복호화 실패", e);
+    }
   }
 }

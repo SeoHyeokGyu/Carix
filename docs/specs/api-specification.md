@@ -595,7 +595,7 @@
 
 ### 6.1 시나리오 저장
 *   **Endpoint:** `POST /api/v1/scenarios`
-*   **저장은 사용자가 누를 때만 일어난다.** 평가(§6.6 `evaluate`)와 초안(§6.2)은 결과를 남기지 않는다. 종전의 자동 저장 경로 `POST /scenarios/simulate`·`GET /scenarios/latest` 는 없다.
+*   **저장은 사용자가 누를 때만 일어난다.** 평가(§6.6 `evaluate`)와 초안(§6.2)은 결과를 남기지 않는다.
 *   **Request Body:**
     ```json
     {

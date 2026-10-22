@@ -17,6 +17,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import tools.jackson.databind.ObjectMapper;
@@ -74,13 +75,18 @@ public class ScenarioService {
       existing.get().replacePayload(payload);
       return;
     }
-    repository.save(
-        CareerScenario.builder()
-            .userId(userId)
-            .engineVersion(CareerScenario.ENGINE_STAY_OR_MOVE)
-            .draft(true)
-            .payload(payload)
-            .build());
+    try {
+      repository.saveAndFlush(
+          CareerScenario.builder()
+              .userId(userId)
+              .engineVersion(CareerScenario.ENGINE_STAY_OR_MOVE)
+              .draft(true)
+              .payload(payload)
+              .build());
+    } catch (DataIntegrityViolationException e) {
+      // 첫 PUT 이 동시에 두 번 오면 부분 유니크 인덱스가 뒤의 삽입을 막는다. 먼저 들어간 초안을 덮어쓴다
+      repository.findFirstByUserIdAndDraftTrue(userId).orElseThrow(() -> e).replacePayload(payload);
+    }
   }
 
   /** 초안이 없으면 empty 다 — 컨트롤러가 204 로 옮긴다. */

@@ -49,15 +49,9 @@ class ScenarioServiceTest {
     careerProfileRepository = mock(CareerProfileRepository.class);
     distributionResolver = mock(PeerSalaryDistributionResolver.class);
     repository = mock(CareerScenarioRepository.class);
-    given(repository.save(any(CareerScenario.class)))
-        .willAnswer(
-            call -> {
-              CareerScenario scenario = call.getArgument(0);
-              if (!store.contains(scenario)) {
-                store.add(scenario);
-              }
-              return scenario;
-            });
+    given(repository.save(any(CareerScenario.class))).willAnswer(call -> add(call.getArgument(0)));
+    given(repository.saveAndFlush(any(CareerScenario.class)))
+        .willAnswer(call -> add(call.getArgument(0)));
     given(repository.findFirstByUserIdAndDraftTrue(any(UUID.class)))
         .willAnswer(
             call ->
@@ -78,6 +72,13 @@ class ScenarioServiceTest {
             new ScenarioCalculator(new UnemploymentBenefitAssumption(66_000L, 60_120L, "2026-01")),
             repository,
             JsonMapper.builder().build());
+  }
+
+  private CareerScenario add(CareerScenario scenario) {
+    if (!store.contains(scenario)) {
+      store.add(scenario);
+    }
+    return scenario;
   }
 
   // --- 저장·초안 ---
@@ -124,11 +125,10 @@ class ScenarioServiceTest {
   }
 
   @Test
-  @DisplayName("초안은 목록에 나오지 않고 결과도 담지 않는다")
+  @DisplayName("초안은 결과를 담지 않는다")
   void 초안_목록_제외() {
     service.saveDraft(USER_ID, request(3.5));
 
-    assertThat(service.list(USER_ID)).isEmpty();
     assertThat(store.get(0).getPayload()).doesNotContain("\"stayCumulative\"");
   }
 

@@ -2,10 +2,7 @@ package com.carix.scenario;
 
 import org.springframework.stereotype.Component;
 
-/**
- * 결과 유형 판정과 엔진 1 저장분의 실업급여 안내 문구. 엔진 1 의 12개월 계산은 명시 저장 전환으로 사라졌고, 계산은 {@code StayMoveProjector} 가
- * 한다.
- */
+/** 결과 유형 판정과 엔진 1 저장분의 실업급여 안내 문구. 계산은 {@code StayMoveProjector} 가 한다. */
 @Component
 public class ScenarioCalculator {
 

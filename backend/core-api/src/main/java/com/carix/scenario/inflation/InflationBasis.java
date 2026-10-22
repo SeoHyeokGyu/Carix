@@ -1,6 +1,7 @@
 package com.carix.scenario.inflation;
 
 import com.carix.expense.domain.ExpenseCategoryEnum;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import java.math.BigDecimal;
 
 /**
@@ -14,6 +15,7 @@ import java.math.BigDecimal;
  * @param asOf 전망 기준월 {@code yyyy-MM}
  * @param source 전망 출처
  */
+@JsonIgnoreProperties(ignoreUnknown = true)
 public record InflationBasis(
     BigDecimal governmentPercent,
     BigDecimal personalPercent,
