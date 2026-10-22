@@ -1,13 +1,21 @@
 package com.carix.scenario;
 
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.carix.common.GlobalExceptionHandler;
 import com.carix.common.usercontext.UserContextArgumentResolver;
+import com.carix.scenario.dto.EvaluateRequest;
 import com.carix.scenario.dto.ScenarioListItem;
 import com.carix.scenario.dto.ScenarioListItem.LegacyScenario;
 import com.carix.scenario.dto.SimulationRequest;
@@ -20,6 +28,8 @@ import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
@@ -87,6 +97,38 @@ class ScenarioControllerTest {
   @DisplayName("GET /v1/scenarios - X-User-Id 가 없으면 401 이다")
   void list_인증없음() throws Exception {
     mockMvc.perform(get("/v1/scenarios")).andExpect(status().isUnauthorized());
+  }
+
+  @Test
+  @DisplayName("PUT /v1/scenarios/draft - 동시 첫 저장 충돌은 한 번 다시 해 204, 다시 충돌하면 오류가 전파된다")
+  void saveDraft_동시저장_재시도() throws Exception {
+    String body = "{\"stay\":{\"raisePercent\":3}}";
+    doThrow(new DataIntegrityViolationException("uk_draft"))
+        .doNothing()
+        .when(scenarioService)
+        .saveDraft(eq(USER_ID), any(EvaluateRequest.class));
+
+    mockMvc
+        .perform(
+            put("/v1/scenarios/draft")
+                .header("X-User-Id", USER_ID.toString())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(body))
+        .andExpect(status().isNoContent());
+    verify(scenarioService, times(2)).saveDraft(eq(USER_ID), any(EvaluateRequest.class));
+
+    doThrow(new DataIntegrityViolationException("uk_draft"))
+        .when(scenarioService)
+        .saveDraft(eq(USER_ID), any(EvaluateRequest.class));
+
+    assertThatThrownBy(
+            () ->
+                mockMvc.perform(
+                    put("/v1/scenarios/draft")
+                        .header("X-User-Id", USER_ID.toString())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body)))
+        .hasRootCauseInstanceOf(DataIntegrityViolationException.class);
   }
 
   private SimulationResponse response() {
