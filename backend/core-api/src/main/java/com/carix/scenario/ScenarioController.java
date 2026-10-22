@@ -114,7 +114,7 @@ public class ScenarioController {
     return ResponseEntity.ok(ApiResult.success(contextService.context(userId)));
   }
 
-  @Operation(summary = "목표 연봉의 실현 가능성", description = "저장하지 않고 동료집단 분포 내 백분위만 계산합니다.")
+  @Operation(summary = "이직 연봉의 실현 가능성", description = "저장하지 않고 동료집단 분포 내 백분위만 계산합니다.")
   @ApiResponse(responseCode = "200", description = "성공")
   @GetMapping("/feasibility")
   public ResponseEntity<ApiResult<SimulationResponse.FeasibilityDetail>> getFeasibility(

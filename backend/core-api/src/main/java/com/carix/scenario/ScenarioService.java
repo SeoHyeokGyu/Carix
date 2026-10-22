@@ -22,7 +22,7 @@ import org.springframework.transaction.annotation.Transactional;
 import tools.jackson.databind.ObjectMapper;
 
 /**
- * 시나리오 명시 저장·초안·목록 (API 규격 §6.1~§6.3)과 목표 연봉의 실현 가능성.
+ * 시나리오 명시 저장·초안·목록 (API 규격 §6.1~§6.3)과 이직 연봉의 실현 가능성.
  *
  * <p>엔진 2 는 요청·결과 JSON 을 {@code payload_encrypted} 한 컬럼에 둔다. 엔진 1 행은 새로 만들지 않고 목록에서 저장한 값 그대로 읽는다.
  *
@@ -124,7 +124,7 @@ public class ScenarioService {
   // --- 실현 가능성 ---
 
   /**
-   * 목표 연봉의 동료집단 내 백분위.
+   * 이직 연봉의 동료집단 내 백분위.
    *
    * <p>두 기준을 모두 넘어야 산출한다 — 동료집단 공고 {@code >= MIN_SAMPLE_SIZE}, 그리고 그중 <b>공개연봉도</b> {@code >=
    * MIN_SAMPLE_SIZE}. 규격 §5.2 의 최소 표본은 동료집단에만 걸리는데, 그쪽 5수치는 규격이 참고 표시 전용으로 두는 반면 백분위는 분포 모양에 대한
@@ -146,7 +146,7 @@ public class ScenarioService {
         STATUS_OK, distribution.percentileOf(targetSalary), distribution.disclosedSampleSize());
   }
 
-  /** 저장하지 않고 목표 연봉의 실현 가능성만 구한다 — 시뮬레이터의 목표 연봉 입력 옆 표시용. */
+  /** 저장하지 않고 이직 연봉의 실현 가능성만 구한다 — 시뮬레이터의 이직 연봉 입력 옆 표시용. */
   @Transactional(readOnly = true)
   public SimulationResponse.FeasibilityDetail feasibilityDetail(UUID userId, long targetSalary) {
     return toFeasibilityDetail(resolveFeasibility(userId, targetSalary));
@@ -197,7 +197,7 @@ public class ScenarioService {
   }
 
   private String feedback(int percentile) {
-    return "목표 연봉은 동료집단 내 상위 %d%% 수준의 %s 목표입니다. %s"
+    return "이직 연봉은 동료집단 내 상위 %d%% 수준의 %s 목표입니다. %s"
         .formatted(
             100 - percentile,
             gradeLabel(percentile),

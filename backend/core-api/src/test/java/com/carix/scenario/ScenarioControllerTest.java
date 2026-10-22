@@ -102,6 +102,6 @@ class ScenarioControllerTest {
         "추정 기회비용",
         "이 계산에는 세금, 성과급, 퇴직금 등이 포함되지 않은 단순 세전 기준 시뮬레이션입니다.",
         new SimulationResponse.FeasibilityDetail(
-            "OK", 42, null, 31, 69, "CHALLENGING", "목표 연봉은 동료집단 내 상위 31% 수준의 도전적인 목표입니다."));
+            "OK", 42, null, 31, 69, "CHALLENGING", "이직 연봉은 동료집단 내 상위 31% 수준의 도전적인 목표입니다."));
   }
 }
