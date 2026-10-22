@@ -3,6 +3,22 @@ import { toUserMessage } from "./apiError";
 import { UnauthorizedError } from "./coreApi";
 
 const WON_PER_MAN = 10_000;
+const MIN_RAISE_PERCENT = -100;
+const MAX_RAISE_PERCENT = 100;
+
+/** 예상 인상률 칸 검증. ①과 결과 화면이 같은 규칙을 쓴다(API 의 `raisePercent` −100~100). */
+export function raisePercentError(value: string): string | undefined {
+  const n = Number(value);
+  if (
+    value.trim() === "" ||
+    !Number.isFinite(n) ||
+    n < MIN_RAISE_PERCENT ||
+    n > MAX_RAISE_PERCENT
+  ) {
+    return `인상률은 ${MIN_RAISE_PERCENT}~${MAX_RAISE_PERCENT} 사이 숫자로 입력해 주세요.`;
+  }
+  return undefined;
+}
 
 /** 만원 단위 입력칸 → 원. 비어 있으면 null. */
 export function manInputToWon(value: string): number | null {

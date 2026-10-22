@@ -10,6 +10,7 @@ import {
   putDraft,
 } from "../../lib/api/scenario";
 import type { FieldErrors } from "../../lib/fieldErrors";
+import type { MoveFocus } from "../../lib/simulatorFocus";
 import {
   describeError,
   manInputToWon,
@@ -17,9 +18,16 @@ import {
 } from "../../lib/simulatorForm";
 import { Field } from "../onboarding/Field";
 import { ManAmountField } from "./ManAmountField";
+import { useFillFocus } from "./useFillFocus";
 
 const MAX_GAP_MONTHS = 6;
 const BENEFIT_NOTE = "본인 의사로 그만두면 대개 받을 수 없습니다.";
+
+const FOCUS_SELECTORS: Record<MoveFocus, string> = {
+  performanceBonus: "#performanceBonus",
+  signingBonus: "#signingBonus",
+  stockVesting: "#stockVesting",
+};
 
 /** 입력칸 문자열 묶음. 이전 단계로 갔다 와도 유지하도록 호출자가 들고 있을 수 있다. */
 export interface MoveFormValues {
@@ -65,6 +73,10 @@ interface MoveConditionsStepProps {
   /** ① 에서 저장된 초안. 잔류 입력을 그대로 이어 담는다. */
   draft: EvaluateRequest;
   initialValues?: MoveFormValues;
+  /** 미반영 `넣기` 로 들어왔을 때 열고 포커스할 칸. */
+  focus?: MoveFocus;
+  /** 초안 저장. 호출자가 다른 초안 저장과 순서를 맞춘다. 실패는 던진다. */
+  saveDraft?: (draft: EvaluateRequest) => Promise<unknown>;
   /** 입력을 지우지 않고 ② 로 돌아간다. 호출자가 값을 들고 있다가 `initialValues` 로 돌려준다. */
   onBack: (values: MoveFormValues) => void;
   /** 저장된 초안을 넘긴다. */
@@ -74,6 +86,8 @@ interface MoveConditionsStepProps {
 export function MoveConditionsStep({
   draft,
   initialValues,
+  focus,
+  saveDraft = putDraft,
   onBack,
   onDone,
 }: MoveConditionsStepProps) {
@@ -88,6 +102,7 @@ export function MoveConditionsStep({
   } | null>(null);
   const feasibilityRun = useRef(0);
   const formRef = useRef<HTMLFormElement>(null);
+  const detailsRef = useFillFocus(focus && FOCUS_SELECTORS[focus]);
 
   const set = <K extends keyof MoveFormValues>(
     key: K,
@@ -119,7 +134,7 @@ export function MoveConditionsStep({
   const validate = (): FieldErrors => {
     const next: FieldErrors = {};
     const gross = manInputToWon(values.gross);
-    if (gross === null || gross === 0) {
+    if (gross === null) {
       next.gross = "이직 연봉을 입력해 주세요.";
     }
     const gap = Number(values.gapMonths);
@@ -165,7 +180,7 @@ export function MoveConditionsStep({
           stockVesting12m: manInputToWon(values.stockVesting),
         },
       };
-      await putDraft(saved);
+      await saveDraft(saved);
       onDone(saved);
     } catch (error) {
       setErrors({ _form: describeError(error) });
@@ -273,7 +288,7 @@ export function MoveConditionsStep({
         )}
       </fieldset>
 
-      <details className="rounded-lg border px-4 py-3">
+      <details ref={detailsRef} className="rounded-lg border px-4 py-3">
         <summary className="cursor-pointer text-sm font-medium">
           상여·성과급·사이닝·주식 (선택)
         </summary>

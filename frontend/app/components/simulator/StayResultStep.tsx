@@ -2,12 +2,14 @@ import { Button } from "@/components/ui/button";
 
 import type { EvaluationResponse } from "../../lib/api/scenario";
 import {
-  inflationNote,
+  marketGapLine,
   severanceNote,
   stayHeadline,
 } from "../../lib/simulatorCopy";
 import { AssumptionsPanel } from "./AssumptionsPanel";
+import { InflationBasisNote } from "./InflationBasisNote";
 import { RaiseAxis } from "./RaiseAxis";
+import { SaveScenarioForm } from "./SaveScenarioForm";
 import { UnreflectedNotice } from "./UnreflectedNotice";
 
 interface StayResultStepProps {
@@ -16,6 +18,10 @@ interface StayResultStepProps {
   raisePercent: number;
   onFill: (code: string) => void;
   onCompare: () => void;
+  /** 잔류만 저장한다. 실패는 던진다 — 저장 폼이 문장으로 보인다. */
+  onSave: (name: string | null) => Promise<void>;
+  /** 재계산 중이라 화면 결과와 입력이 어긋난 동안 저장을 막는다. */
+  saveBlocked: boolean;
 }
 
 function pct(value: number): string {
@@ -28,9 +34,10 @@ export function StayResultStep({
   raisePercent,
   onFill,
   onCompare,
+  onSave,
+  saveBlocked,
 }: StayResultStepProps) {
   const { stay, inflation, severance } = result;
-  const note = inflationNote(inflation);
   const personal = stay.breakevenPersonalPercent;
   const government = stay.breakevenGovernmentPercent;
 
@@ -60,16 +67,16 @@ export function StayResultStep({
           )}
         </li>
         {stay.marketGapPercent !== null && (
-          <li>
-            시장 중앙값 대비 {stay.marketGapPercent > 0 ? "+" : ""}
-            {pct(stay.marketGapPercent)} (세전 기준)
-          </li>
+          <li>{marketGapLine(stay.marketGapPercent)}</li>
         )}
-        {note && <li className="text-muted-foreground">{note}</li>}
         {severance && <li>{severanceNote(severance)}</li>}
       </ul>
 
+      <InflationBasisNote inflation={inflation} stay={stay} />
+
       <UnreflectedNotice codes={result.unreflected} onFill={onFill} />
+
+      <SaveScenarioForm onSave={onSave} blocked={saveBlocked} />
 
       <AssumptionsPanel assumptions={result.assumptions} />
 

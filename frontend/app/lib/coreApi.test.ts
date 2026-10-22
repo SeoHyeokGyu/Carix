@@ -43,7 +43,7 @@ describe("coreApi", () => {
       },
     } as unknown as Response);
 
-    await expect(coreGet("/v1/scenarios/latest")).resolves.toBeNull();
+    await expect(coreGet("/v1/scenarios/draft")).resolves.toBeNull();
   });
 
   it("401 이면 UnauthorizedError 를 던진다", async () => {

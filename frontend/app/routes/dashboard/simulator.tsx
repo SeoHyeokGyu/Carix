@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import {
   redirect,
   useLoaderData,
@@ -8,25 +8,23 @@ import {
 
 import { PageFrame } from "@/components/layout/PageFrame";
 import { PageHeader } from "@/components/layout/PageHeader";
-import { Button } from "@/components/ui/button";
 
-import {
-  type CurrentJobFocus,
-  CurrentJobStep,
-  focusTargetOf,
-} from "../../components/simulator/CurrentJobStep";
+import { CurrentJobStep } from "../../components/simulator/CurrentJobStep";
 import {
   MoveConditionsStep,
   type MoveFormValues,
 } from "../../components/simulator/MoveConditionsStep";
 import { ResultView } from "../../components/simulator/ResultView";
+import { SavedScenarioList } from "../../components/simulator/SavedScenarioList";
 import { SimulatorSteps } from "../../components/simulator/SimulatorSteps";
-import { StayResultStep } from "../../components/simulator/StayResultStep";
+import {
+  EvaluationFallback,
+  StayView,
+} from "../../components/simulator/StayView";
+import { useEvaluation } from "../../components/simulator/useEvaluation";
 import { listIncome } from "../../lib/api/income";
 import {
-  evaluate,
   type EvaluateRequest,
-  type EvaluationResponse,
   getContext,
   getDraft,
   listScenarios,
@@ -37,6 +35,7 @@ import {
 } from "../../lib/api/scenario";
 import { UnauthorizedError } from "../../lib/coreApi";
 import { LOGIN_PATH } from "../../lib/routeGuards";
+import { type FillTarget, fillTargetOf } from "../../lib/simulatorFocus";
 import { describeError } from "../../lib/simulatorForm";
 import { initialStep, type SimulatorStep } from "../../lib/simulatorStep";
 
@@ -67,7 +66,12 @@ export async function clientLoader() {
       [...income].sort((a, b) =>
         b.effectiveDate.localeCompare(a.effectiveDate),
       )[0]?.id ?? null;
-    return { context, draft, scenarios, latestIncomeId };
+    // 초안 없이 다시 온 사용자는 가장 최근 새 방식 저장분으로 들어간다. 목록은 이미 최근 순이다.
+    const adopted =
+      draft ??
+      scenarios.find((s) => s.engineVersion === 2 && s.request)?.request ??
+      null;
+    return { context, draft: adopted, scenarios, latestIncomeId };
   } catch (error) {
     if (error instanceof UnauthorizedError) throw redirect(LOGIN_PATH);
     throw error;
@@ -84,57 +88,6 @@ function reachableStep(
   return step;
 }
 
-/** `request` 가 어느 입력에 대한 평가인지 함께 들고 있어, 초안이 바뀌면 낡은 결과로 알아본다. */
-interface Evaluation {
-  request: EvaluateRequest | null;
-  result: EvaluationResponse | null;
-  error: string | null;
-}
-
-const NO_EVALUATION: Evaluation = { request: null, result: null, error: null };
-
-function useEvaluation(
-  active: boolean,
-  draft: EvaluateRequest | null,
-  onUnauthorized: () => void,
-) {
-  const [evaluation, setEvaluation] = useState<Evaluation>(NO_EVALUATION);
-  const stale = active && draft !== null && evaluation.request !== draft;
-  const unauthorized = useRef(onUnauthorized);
-  useEffect(() => {
-    unauthorized.current = onUnauthorized;
-  });
-
-  useEffect(() => {
-    if (!stale || !draft) return;
-    let cancelled = false;
-    evaluate(draft)
-      .then((result) => {
-        if (!cancelled) setEvaluation({ request: draft, result, error: null });
-      })
-      .catch((error: unknown) => {
-        if (cancelled) return;
-        if (error instanceof UnauthorizedError) return unauthorized.current();
-        setEvaluation((prev) => ({
-          request: draft,
-          result: prev.result,
-          error: describeError(error),
-        }));
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [stale, draft]);
-
-  return {
-    evaluation,
-    // 낡은 입력에 대한 실패 문장은 지금 입력과 무관하다.
-    error: evaluation.request === draft ? evaluation.error : null,
-    pending: stale,
-    retry: () => setEvaluation(NO_EVALUATION),
-  };
-}
-
 export default function DashboardSimulator() {
   const loaded = useLoaderData<typeof clientLoader>();
   const navigate = useNavigate();
@@ -144,7 +97,7 @@ export default function DashboardSimulator() {
   const [draft, setDraft] = useState<EvaluateRequest | null>(loaded.draft);
   const [scenarios, setScenarios] = useState<SavedScenario[]>(loaded.scenarios);
   const [moveValues, setMoveValues] = useState<MoveFormValues | undefined>();
-  const [focus, setFocus] = useState<CurrentJobFocus | undefined>();
+  const [focus, setFocus] = useState<FillTarget | undefined>();
   const [notice, setNotice] = useState<string | null>(null);
   // 저장된 시나리오를 불러오는 것처럼 초안이 밖에서 바뀔 때 상단 입력칸을 새로 그린다.
   const [version, setVersion] = useState(0);
@@ -152,7 +105,11 @@ export default function DashboardSimulator() {
   const putQueue = useRef<Promise<void>>(Promise.resolve());
 
   const step = reachableStep(initialStep(params, draft), draft);
-  const goTo = (next: SimulatorStep) => setParams({ step: next });
+  /** 넣기로 갈 때만 포커스를 싣는다. 다른 이동은 남은 포커스를 비운다. */
+  const goTo = (next: SimulatorStep, nextFocus?: FillTarget) => {
+    setFocus(nextFocus);
+    setParams({ step: next });
+  };
   const toLogin = () => navigate(LOGIN_PATH, { replace: true });
 
   const { evaluation, error, pending, retry } = useEvaluation(
@@ -161,29 +118,33 @@ export default function DashboardSimulator() {
     toLogin,
   );
 
+  /** 앞선 저장 뒤에 이어 보낸다. 실패는 호출자에게 던지되 뒤 저장의 줄은 끊지 않는다. */
+  const queueDraft = (next: EvaluateRequest): Promise<void> => {
+    const run = putQueue.current.then(() => putDraft(next)).then(() => {});
+    putQueue.current = run.catch(() => {});
+    return run;
+  };
+
   const replaceDraft = (next: EvaluateRequest, persist: boolean) => {
     setDraft(next);
     setNotice(null);
     if (!persist) return;
-    putQueue.current = putQueue.current
-      .then(() => putDraft(next))
-      .then(() => undefined)
-      .catch((error: unknown) => {
-        if (error instanceof UnauthorizedError) return toLogin();
-        setNotice(`초안을 저장하지 못했습니다: ${describeError(error)}`);
-      });
+    queueDraft(next).catch((error: unknown) => {
+      if (error instanceof UnauthorizedError) return toLogin();
+      setNotice(`초안을 저장하지 못했습니다: ${describeError(error)}`);
+    });
   };
 
   const adopt = (next: EvaluateRequest, to: SimulatorStep) => {
     setVersion((v) => v + 1);
+    setMoveValues(undefined);
     replaceDraft(next, true);
     goTo(to);
   };
 
   const fill = (code: string) => {
-    const target = focusTargetOf(code);
-    setFocus(target);
-    goTo(target ? "current" : "move");
+    const target = fillTargetOf(code);
+    if (target) goTo(target.step, target);
   };
 
   const refreshContext = () => {
@@ -195,11 +156,20 @@ export default function DashboardSimulator() {
     });
   };
 
-  const save = async (name: string | null) => {
-    if (!draft) return;
-    const saved = await saveScenario(name, draft);
+  const save = async (name: string | null, request: EvaluateRequest) => {
+    const saved = await saveScenario(name, request);
     setScenarios((prev) => [saved, ...prev]);
   };
+
+  const savedList = (
+    <SavedScenarioList
+      scenarios={scenarios}
+      onLoad={(request) => adopt(request, request.move ? "result" : "stay")}
+      onRecalculate={(request) => adopt(request, "current")}
+    />
+  );
+  // 저장분이 이전 방식뿐이라 채택할 초안이 없으면 ① 위에 목록을 먼저 보인다
+  const listOnTop = draft === null && scenarios.length > 0;
 
   return (
     <PageFrame width="narrow">
@@ -216,42 +186,56 @@ export default function DashboardSimulator() {
         )}
 
         {step === "current" && (
-          <CurrentJobStep
-            context={context}
-            latestIncomeId={loaded.latestIncomeId}
-            draft={draft}
-            focus={focus}
-            onBonusRecorded={refreshContext}
-            onDone={(saved) => {
-              replaceDraft(saved, false);
-              refreshContext();
-              goTo("stay");
-            }}
-          />
+          <>
+            {listOnTop && savedList}
+            <CurrentJobStep
+              key={version}
+              context={context}
+              latestIncomeId={loaded.latestIncomeId}
+              draft={draft}
+              focus={focus?.step === "current" ? focus.field : undefined}
+              saveDraft={queueDraft}
+              onBonusRecorded={refreshContext}
+              onDone={(saved) => {
+                replaceDraft(saved, false);
+                refreshContext();
+                goTo("stay");
+              }}
+            />
+            {!listOnTop && savedList}
+          </>
         )}
 
         {step === "stay" && draft && (
-          <StayView
-            evaluation={evaluation}
-            error={error}
-            pending={pending}
-            raisePercent={draft.stay.raisePercent}
-            onRetry={retry}
-            onFill={fill}
-            onCompare={() => goTo("move")}
-          />
+          <>
+            <StayView
+              evaluation={evaluation}
+              error={error}
+              pending={pending}
+              raisePercent={draft.stay.raisePercent}
+              onRetry={retry}
+              onFill={fill}
+              onCompare={() => goTo("move")}
+              onSave={(name) => save(name, { stay: draft.stay, move: null })}
+            />
+            {savedList}
+          </>
         )}
 
         {step === "move" && draft && (
           <MoveConditionsStep
+            key={version}
             draft={draft}
             initialValues={moveValues}
+            focus={focus?.step === "move" ? focus.field : undefined}
+            saveDraft={queueDraft}
             onBack={(values) => {
               setMoveValues(values);
               goTo("stay");
             }}
             onDone={(saved) => {
               replaceDraft(saved, false);
+              setMoveValues(undefined);
               goTo("result");
             }}
           />
@@ -267,11 +251,16 @@ export default function DashboardSimulator() {
                 pending={pending}
                 notice={error}
                 scenarios={scenarios}
-                onEdit={(next) => replaceDraft(next, true)}
+                onEdit={(next) => {
+                  setMoveValues(undefined);
+                  replaceDraft(next, true);
+                }}
                 onFullConditions={() => goTo("current")}
                 onFill={fill}
-                onSave={save}
-                onLoadScenario={(request) => adopt(request, "result")}
+                onSave={(name) => save(name, draft)}
+                onLoadScenario={(request) =>
+                  adopt(request, request.move ? "result" : "stay")
+                }
                 onRecalculate={(request) => adopt(request, "current")}
               />
             ) : (
@@ -285,77 +274,5 @@ export default function DashboardSimulator() {
         )}
       </div>
     </PageFrame>
-  );
-}
-
-function EvaluationFallback({
-  error,
-  pending,
-  onRetry,
-}: {
-  error: string | null;
-  pending: boolean;
-  onRetry: () => void;
-}) {
-  if (error) {
-    return (
-      <div className="flex flex-col items-start gap-3">
-        <p role="alert" className="text-sm text-carix-danger">
-          {error}
-        </p>
-        <Button type="button" variant="outline" onClick={onRetry}>
-          다시 시도
-        </Button>
-      </div>
-    );
-  }
-  return (
-    <p role="status" className="text-sm text-muted-foreground">
-      {pending ? "계산하는 중입니다." : "결과를 불러오는 중입니다."}
-    </p>
-  );
-}
-
-function StayView({
-  evaluation,
-  error,
-  pending,
-  raisePercent,
-  onRetry,
-  onFill,
-  onCompare,
-}: {
-  evaluation: Evaluation;
-  error: string | null;
-  pending: boolean;
-  raisePercent: number;
-  onRetry: () => void;
-  onFill: (code: string) => void;
-  onCompare: () => void;
-}) {
-  if (!evaluation.result) {
-    return (
-      <EvaluationFallback error={error} pending={pending} onRetry={onRetry} />
-    );
-  }
-  return (
-    <>
-      {pending && (
-        <p role="status" className="text-sm text-muted-foreground">
-          다시 계산하는 중
-        </p>
-      )}
-      {error && (
-        <p role="alert" className="text-sm text-carix-danger">
-          {error}
-        </p>
-      )}
-      <StayResultStep
-        result={evaluation.result}
-        raisePercent={raisePercent}
-        onFill={onFill}
-        onCompare={onCompare}
-      />
-    </>
   );
 }

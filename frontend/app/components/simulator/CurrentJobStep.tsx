@@ -1,9 +1,9 @@
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
-import { createBonus, updateBonusTerms } from "../../lib/api/income";
+import { updateBonusTerms } from "../../lib/api/income";
 import { patchProfile } from "../../lib/api/profile";
 import {
   type EvaluateRequest,
@@ -12,52 +12,25 @@ import {
 } from "../../lib/api/scenario";
 import type { FieldErrors } from "../../lib/fieldErrors";
 import { formatKoreanSalary } from "../../lib/koreanSalary";
+import type { CurrentJobFocus } from "../../lib/simulatorFocus";
 import {
   describeError,
   manInputToWon,
+  raisePercentError,
   wonToManInput,
 } from "../../lib/simulatorForm";
 import { Field } from "../onboarding/Field";
+import { BonusRecordForm } from "./BonusRecordForm";
 import { ManAmountField } from "./ManAmountField";
+import { useFillFocus } from "./useFillFocus";
 
-export type CurrentJobFocus = "performanceBonus" | "stock" | "hireDate";
-
-/** 미반영 코드가 가리키는 입력칸. 이 단계에서 채울 수 없는 코드는 undefined. */
-export function focusTargetOf(code: string): CurrentJobFocus | undefined {
-  switch (code) {
-    case "PERFORMANCE_BONUS":
-      return "performanceBonus";
-    case "STOCK":
-      return "stock";
-    case "HIRE_DATE":
-      return "hireDate";
-    default:
-      return undefined;
-  }
-}
-
-const FOCUS_IDS: Record<CurrentJobFocus, string> = {
-  performanceBonus: "performanceBonusEstimate, #recordMonth",
-  stock: "stockVesting12m",
-  hireDate: "hireDate",
+const FOCUS_SELECTORS: Record<CurrentJobFocus, string> = {
+  performanceBonus: "#performanceBonusEstimate, #recordMonth",
+  stock: "#stockVesting12m",
+  hireDate: "#hireDate",
 };
 
 const SAVED_NOTE = "마이페이지에 저장됨";
-
-const RECORD_KEYS = ["record", "recordMonth", "recordAmount"];
-
-function withoutRecordErrors(errors: FieldErrors): FieldErrors {
-  return Object.fromEntries(
-    Object.entries(errors).filter(([key]) => !RECORD_KEYS.includes(key)),
-  );
-}
-
-function isPastOrCurrentMonth(yyyymm: string): boolean {
-  if (!/^\d{4}(0[1-9]|1[0-2])$/.test(yyyymm)) return false;
-  const now = new Date();
-  const current = now.getFullYear() * 100 + now.getMonth() + 1;
-  return Number(yyyymm) <= current;
-}
 
 interface CurrentJobStepProps {
   context: ScenarioContext;
@@ -67,6 +40,8 @@ interface CurrentJobStepProps {
   draft: EvaluateRequest | null;
   /** 미반영 `넣기` 로 들어왔을 때 열고 포커스할 칸. */
   focus?: CurrentJobFocus;
+  /** 초안 저장. 호출자가 다른 초안 저장과 순서를 맞춘다. 실패는 던진다. */
+  saveDraft?: (draft: EvaluateRequest) => Promise<unknown>;
   /** 저장된 초안을 넘긴다. */
   onDone: (saved: EvaluateRequest) => void;
   /** 성과급 기록을 마이페이지에 더한 뒤. 호출자가 컨텍스트(성과급 범위)를 다시 읽는다. */
@@ -78,6 +53,7 @@ export function CurrentJobStep({
   latestIncomeId,
   draft,
   focus,
+  saveDraft = putDraft,
   onDone,
   onBonusRecorded,
 }: CurrentJobStepProps) {
@@ -103,28 +79,18 @@ export function CurrentJobStep({
   const [vesting, setVesting] = useState(wonToManInput(stay?.stockVesting12m));
   const [unvested, setUnvested] = useState(wonToManInput(stay?.stockUnvested));
   const [hireDate, setHireDate] = useState("");
-  const [recordMonth, setRecordMonth] = useState("");
-  const [recordAmount, setRecordAmount] = useState("");
-  const [recordNote, setRecordNote] = useState<string | null>(null);
   const [errors, setErrors] = useState<FieldErrors>({});
   const [submitting, setSubmitting] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
-
-  useEffect(() => {
-    if (!focus) return;
-    formRef.current
-      ?.querySelector<HTMLElement>(`#${FOCUS_IDS[focus]}`)
-      ?.focus();
-  }, [focus]);
+  const detailsRef = useFillFocus(focus && FOCUS_SELECTORS[focus]);
 
   const range = context.performanceBonusRange;
   const overrideShown = noIncome || overrideOpen;
 
   const validate = (): FieldErrors => {
     const next: FieldErrors = {};
-    if (raise.trim() === "" || !Number.isFinite(Number(raise))) {
-      next.raisePercent = "예상 인상률을 숫자로 입력해 주세요.";
-    }
+    const raiseError = raisePercentError(raise);
+    if (raiseError) next.raisePercent = raiseError;
     if (overrideShown && manInputToWon(override) === null) {
       next.override = "세전 연봉을 입력해 주세요.";
     }
@@ -168,7 +134,7 @@ export function CurrentJobStep({
         },
         move: draft?.move ?? null,
       };
-      await putDraft(saved);
+      await saveDraft(saved);
       onDone(saved);
     } catch (error) {
       const message = describeError(error);
@@ -179,33 +145,6 @@ export function CurrentJobStep({
       });
     } finally {
       setSubmitting(false);
-    }
-  };
-
-  const handleRecord = async () => {
-    const amount = manInputToWon(recordAmount);
-    const found: FieldErrors = {};
-    if (!isPastOrCurrentMonth(recordMonth)) {
-      found.recordMonth =
-        "지급 월을 yyyyMM 형식(01~12월, 이번 달까지)으로 입력해 주세요.";
-    }
-    if (amount === null) found.recordAmount = "금액을 입력해 주세요.";
-    if (Object.keys(found).length > 0) {
-      setErrors((prev) => ({ ...withoutRecordErrors(prev), ...found }));
-      return;
-    }
-    try {
-      await createBonus({ paidMonth: recordMonth, amount: amount ?? 0 });
-      setErrors(withoutRecordErrors);
-      setRecordNote("성과급 기록을 마이페이지에 저장했습니다.");
-      setRecordMonth("");
-      setRecordAmount("");
-      onBonusRecorded?.();
-    } catch (error) {
-      setErrors((prev) => ({
-        ...withoutRecordErrors(prev),
-        record: describeError(error),
-      }));
     }
   };
 
@@ -249,7 +188,7 @@ export function CurrentJobStep({
           hint={
             noIncome
               ? "소득 이력이 없어 직접 입력합니다. 저장되지 않습니다."
-              : "이번 계산에만 쓰고 저장하지 않습니다."
+              : "따로 받는 고정상여가 있으면 더한 연 금액입니다. 이번 계산에만 쓰고 저장하지 않습니다."
           }
           value={override}
           onChange={setOverride}
@@ -341,10 +280,7 @@ export function CurrentJobStep({
         </>
       )}
 
-      <details
-        open={focus !== undefined || undefined}
-        className="rounded-lg border px-4 py-3"
-      >
+      <details ref={detailsRef} className="rounded-lg border px-4 py-3">
         <summary className="cursor-pointer text-sm font-medium">
           성과급·주식·입사일 (선택)
         </summary>
@@ -363,44 +299,10 @@ export function CurrentJobStep({
               onChange={setEstimate}
             />
           )}
-          <div className="flex flex-col gap-2">
-            <p className="text-xs text-muted-foreground">
-              성과급 기록 추가 · {SAVED_NOTE}
-            </p>
-            <div className="flex flex-wrap items-end gap-2">
-              <Field
-                id="recordMonth"
-                label="지급 월 (yyyyMM)"
-                error={errors.recordMonth}
-              >
-                {(aria) => (
-                  <Input
-                    {...aria}
-                    value={recordMonth}
-                    inputMode="numeric"
-                    placeholder="202603"
-                    onChange={(e) => setRecordMonth(e.target.value)}
-                  />
-                )}
-              </Field>
-              <ManAmountField
-                id="recordAmount"
-                label="금액 (만원)"
-                value={recordAmount}
-                onChange={setRecordAmount}
-                error={errors.recordAmount}
-              />
-              <Button type="button" variant="outline" onClick={handleRecord}>
-                기록 추가
-              </Button>
-            </div>
-            {errors.record && (
-              <p role="alert" className="text-sm text-carix-danger">
-                {errors.record}
-              </p>
-            )}
-            {recordNote && <p className="text-sm">{recordNote}</p>}
-          </div>
+          <BonusRecordForm
+            savedNote={SAVED_NOTE}
+            onRecorded={onBonusRecorded}
+          />
           <ManAmountField
             id="stockVesting12m"
             label="앞으로 12개월 베스팅 주식 (만원)"

@@ -1,39 +1,26 @@
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 
 import type {
   EvaluateRequest,
   EvaluationResponse,
   SavedScenario,
 } from "../../lib/api/scenario";
-import type { FieldErrors } from "../../lib/fieldErrors";
 import {
-  inflationNote,
   moveAdvice,
   moveHeadline,
   severanceNote,
   signedMan,
 } from "../../lib/simulatorCopy";
-import {
-  describeError,
-  manInputToWon,
-  wonToManInput,
-} from "../../lib/simulatorForm";
-import { Field } from "../onboarding/Field";
 import { AssumptionsPanel } from "./AssumptionsPanel";
 import { CumulativeChart } from "./CumulativeChart";
 import { FirstYearWaterfall } from "./FirstYearWaterfall";
-import { ManAmountField } from "./ManAmountField";
+import { InflationBasisNote } from "./InflationBasisNote";
+import { QuickEdit } from "./QuickEdit";
 import { SavedScenarioList } from "./SavedScenarioList";
+import { SaveScenarioForm } from "./SaveScenarioForm";
 import { UnreflectedNotice } from "./UnreflectedNotice";
-
-const EDIT_DEBOUNCE_MS = 400;
-const MAX_GAP_MONTHS = 6;
-const MIN_RAISE_PERCENT = -100;
-const MAX_RAISE_PERCENT = 100;
 
 type MoveInput = NonNullable<EvaluateRequest["move"]>;
 type MoveView = NonNullable<EvaluationResponse["move"]>;
@@ -58,191 +45,6 @@ interface ResultViewProps {
 
 function pct(value: number): string {
   return `${value.toFixed(1)}%`;
-}
-
-function parseEdit(
-  raise: string,
-  gross: string,
-  gap: string,
-): { errors: FieldErrors; value: [number, number, number] | null } {
-  const errors: FieldErrors = {};
-  const raiseNumber = Number(raise);
-  const grossWon = manInputToWon(gross);
-  const gapNumber = Number(gap);
-  if (
-    raise.trim() === "" ||
-    !Number.isFinite(raiseNumber) ||
-    raiseNumber < MIN_RAISE_PERCENT ||
-    raiseNumber > MAX_RAISE_PERCENT
-  ) {
-    errors.raise = `인상률은 ${MIN_RAISE_PERCENT}~${MAX_RAISE_PERCENT} 사이 숫자로 입력해 주세요.`;
-  }
-  if (grossWon === null) errors.gross = "이직 연봉을 입력해 주세요.";
-  if (
-    gap.trim() === "" ||
-    !Number.isInteger(gapNumber) ||
-    gapNumber < 0 ||
-    gapNumber > MAX_GAP_MONTHS
-  ) {
-    errors.gap = `공백은 0~${MAX_GAP_MONTHS}개월로 입력해 주세요.`;
-  }
-  if (Object.keys(errors).length > 0) return { errors, value: null };
-  return { errors, value: [raiseNumber, grossWon ?? 0, gapNumber] };
-}
-
-/** 결과 화면 상단의 핵심 입력 세 칸. 바꾸면 400ms 뒤 호출자에게 알린다. */
-function QuickEdit({
-  draft,
-  onEdit,
-  onFullConditions,
-  onDirtyChange,
-}: Pick<ResultViewProps, "draft" | "onEdit" | "onFullConditions"> & {
-  /** 입력칸이 초안과 다르거나 올바르지 않은 동안 참. */
-  onDirtyChange: (dirty: boolean) => void;
-}) {
-  const [raise, setRaise] = useState(String(draft.stay.raisePercent));
-  const [gross, setGross] = useState(wonToManInput(draft.move.grossSalary));
-  const [gap, setGap] = useState(String(draft.move.unemploymentMonths));
-  const latest = useRef({ draft, onEdit });
-  useEffect(() => {
-    latest.current = { draft, onEdit };
-  });
-
-  const { errors, value } = parseEdit(raise, gross, gap);
-  const [nextRaise, nextGross, nextGap] = value ?? [];
-  const dirty =
-    value === null ||
-    nextRaise !== draft.stay.raisePercent ||
-    nextGross !== draft.move.grossSalary ||
-    nextGap !== draft.move.unemploymentMonths;
-  useEffect(() => {
-    onDirtyChange(dirty);
-  }, [dirty, onDirtyChange]);
-
-  useEffect(() => {
-    if (nextRaise === undefined) return;
-    const { draft: current, onEdit: edit } = latest.current;
-    if (
-      nextRaise === current.stay.raisePercent &&
-      nextGross === current.move.grossSalary &&
-      nextGap === current.move.unemploymentMonths
-    ) {
-      return;
-    }
-    const timer = setTimeout(
-      () =>
-        edit({
-          stay: { ...current.stay, raisePercent: nextRaise },
-          move: {
-            ...current.move,
-            grossSalary: nextGross ?? 0,
-            unemploymentMonths: nextGap ?? 0,
-          },
-        }),
-      EDIT_DEBOUNCE_MS,
-    );
-    return () => clearTimeout(timer);
-  }, [nextRaise, nextGross, nextGap]);
-
-  return (
-    <div className="flex flex-col gap-3 rounded-lg border px-4 py-3">
-      <div className="grid gap-3 sm:grid-cols-3">
-        <Field id="quickRaise" label="예상 인상률 (%)" error={errors.raise}>
-          {(aria) => (
-            <Input
-              {...aria}
-              type="text"
-              inputMode="decimal"
-              value={raise}
-              onChange={(e) => setRaise(e.target.value)}
-            />
-          )}
-        </Field>
-        <ManAmountField
-          id="quickGross"
-          label="이직 연봉 (만원)"
-          value={gross}
-          onChange={setGross}
-          error={errors.gross}
-        />
-        <Field id="quickGap" label="공백 (개월)" error={errors.gap}>
-          {(aria) => (
-            <Input
-              {...aria}
-              type="text"
-              inputMode="numeric"
-              value={gap}
-              onChange={(e) => setGap(e.target.value)}
-            />
-          )}
-        </Field>
-      </div>
-      <div>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={onFullConditions}
-        >
-          전체 조건
-        </Button>
-      </div>
-    </div>
-  );
-}
-
-function SaveForm({
-  onSave,
-  blocked,
-}: Pick<ResultViewProps, "onSave"> & { blocked: boolean }) {
-  const [name, setName] = useState("");
-  const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(
-    null,
-  );
-
-  const submit = async () => {
-    setSaving(true);
-    setMessage(null);
-    try {
-      await onSave(name.trim() === "" ? null : name.trim());
-      setName("");
-      setMessage({ ok: true, text: "시나리오를 저장했습니다." });
-    } catch (error) {
-      setMessage({ ok: false, text: describeError(error) });
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  return (
-    <div className="flex flex-col gap-2">
-      <Field id="scenarioName" label="시나리오 이름 (선택)">
-        {(aria) => (
-          <Input
-            {...aria}
-            type="text"
-            placeholder="예: A사 오퍼 제안"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-          />
-        )}
-      </Field>
-      <div>
-        <Button type="button" disabled={saving || blocked} onClick={submit}>
-          시나리오 저장
-        </Button>
-      </div>
-      {message && (
-        <p
-          role={message.ok ? "status" : "alert"}
-          className={message.ok ? "text-sm" : "text-sm text-carix-danger"}
-        >
-          {message.text}
-        </p>
-      )}
-    </div>
-  );
 }
 
 function SectionTitle({ children }: { children: string }) {
@@ -320,12 +122,17 @@ function IfYouStay({
   move: MoveView;
 }) {
   const personal = result.stay.breakevenPersonalPercent;
+  // 개인물가를 못 구하면 정부 전망 기준 하나만 보인다
+  const breakeven = personal ?? result.stay.breakevenGovernmentPercent;
   return (
     <section className="flex flex-col gap-2">
       <SectionTitle>3 · 남는다면</SectionTitle>
       <ul className="flex flex-col gap-1.5 text-sm">
-        {personal !== null && (
-          <li>물가를 이기는 최소 인상률 {pct(personal)} (개인물가 기준)</li>
+        {breakeven !== null && (
+          <li>
+            물가를 이기는 최소 인상률 {pct(breakeven)} (
+            {personal !== null ? "개인물가 기준" : "정부 전망 기준"})
+          </li>
         )}
         {move.equalizingRaisePercent !== null && (
           <li>
@@ -333,6 +140,7 @@ function IfYouStay({
           </li>
         )}
       </ul>
+      <InflationBasisNote inflation={result.inflation} stay={result.stay} />
     </section>
   );
 }
@@ -346,7 +154,6 @@ export function ResultView(props: ResultViewProps) {
     move.crossoverMonth,
   );
   const advice = moveAdvice(move.crossoverMonth);
-  const inflation = inflationNote(result.inflation);
   const feasibility = move.feasibility;
 
   return (
@@ -377,17 +184,11 @@ export function ResultView(props: ResultViewProps) {
         </div>
         {note && <p className="text-sm">{note}</p>}
         {advice && <p className="text-sm font-medium">{advice}</p>}
-        {inflation && (
-          <p className="text-sm text-muted-foreground">{inflation}</p>
+        {feasibility.status === "OK" && feasibility.feedbackMessage && (
+          <p className="text-sm text-muted-foreground">
+            {feasibility.feedbackMessage}
+          </p>
         )}
-        {feasibility.status === "OK" &&
-          feasibility.targetPercentile !== null && (
-            <p className="text-sm text-muted-foreground">
-              이직 연봉은 비슷한 조건 공개연봉의 상위{" "}
-              {feasibility.targetPercentile}% 입니다.
-              {feasibility.feedbackMessage && ` ${feasibility.feedbackMessage}`}
-            </p>
-          )}
       </section>
 
       <LongRun move={move} />
@@ -400,7 +201,7 @@ export function ResultView(props: ResultViewProps) {
 
       <UnreflectedNotice codes={result.unreflected} onFill={props.onFill} />
 
-      <SaveForm onSave={props.onSave} blocked={editDirty || pending} />
+      <SaveScenarioForm onSave={props.onSave} blocked={editDirty || pending} />
 
       <SavedScenarioList
         scenarios={props.scenarios}
