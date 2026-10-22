@@ -33,13 +33,11 @@ final class NegotiationTargetCalculator {
    */
   static Target wageLine(
       long currentGross, WageBaseline baseline, String storedGapBucket, String storedWageSource) {
-    if (baseline == null
-        || baseline.source() != WageStatSource.KOSIS
-        || !WageStatSource.KOSIS.name().equals(storedWageSource)) {
+    if (!WageStatSource.KOSIS.name().equals(storedWageSource)) {
       return null;
     }
-    BigDecimal ratio = SalaryGapBucket.ratio(baseline.medianGrossSalary(), currentGross);
-    if (!SalaryGapBucket.of(ratio).name().equals(storedGapBucket)) {
+    BigDecimal ratio = SalaryGapBucket.officialRatio(baseline, currentGross);
+    if (ratio == null || !SalaryGapBucket.of(ratio).name().equals(storedGapBucket)) {
       return null;
     }
     return target(ratio);

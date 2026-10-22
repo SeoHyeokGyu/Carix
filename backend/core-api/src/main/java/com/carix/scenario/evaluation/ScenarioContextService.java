@@ -14,7 +14,7 @@ import com.carix.scenario.dto.ScenarioContextResponse;
 import com.carix.scenario.dto.ScenarioContextResponse.BonusRange;
 import com.carix.scenario.inflation.InflationAssumptions;
 import com.carix.snapshot.SalaryGapBucket;
-import com.carix.wagestat.WageStatSource;
+import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.time.YearMonth;
@@ -74,17 +74,10 @@ public class ScenarioContextService {
   }
 
   private Double marketGapPercent(UUID userId, Optional<CareerProfile> profile, long gross) {
-    if (gross <= 0) {
-      return null;
-    }
     WageBaseline baseline =
         wageBaselineResolver.resolveBaseline(profile.orElseGet(() -> new CareerProfile(userId)));
-    if (baseline == null || baseline.source() != WageStatSource.KOSIS) {
-      return null;
-    }
-    return Math.round(
-            SalaryGapBucket.ratio(baseline.medianGrossSalary(), gross).doubleValue() * PERCENT * 10)
-        / 10.0;
+    BigDecimal ratio = SalaryGapBucket.officialRatio(baseline, gross);
+    return ratio == null ? null : Math.round(ratio.doubleValue() * PERCENT * 10) / 10.0;
   }
 
   /** 최신 행의 변경 사유가 인상일 때만 (최신÷직전 − 1). 최신이 이직이면 그 점프는 인상률이 아니라 null. 직전 행의 사유는 보지 않는다. */

@@ -1,5 +1,7 @@
 package com.carix.snapshot;
 
+import com.carix.index.dto.WageBaseline;
+import com.carix.wagestat.WageStatSource;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 
@@ -70,5 +72,16 @@ public enum SalaryGapBucket {
   public static BigDecimal ratio(long medianGrossSalary, long currentGrossSalary) {
     return BigDecimal.valueOf(medianGrossSalary - currentGrossSalary)
         .divide(BigDecimal.valueOf(currentGrossSalary), 6, RoundingMode.HALF_UP);
+  }
+
+  /**
+   * 공식 임금통계(KOSIS) 중앙값 대비 격차 비율. 연봉이 0 이하이거나, 기준선이 없거나, 상수 기준선뿐(KOSIS 가 아님)이면 {@code null} — 근거 없는
+   * 격차를 만들지 않는다. 대시보드와 시뮬레이터가 같은 규칙으로 쓴다.
+   */
+  public static BigDecimal officialRatio(WageBaseline baseline, long currentGrossSalary) {
+    if (currentGrossSalary <= 0 || baseline == null || baseline.source() != WageStatSource.KOSIS) {
+      return null;
+    }
+    return ratio(baseline.medianGrossSalary(), currentGrossSalary);
   }
 }
