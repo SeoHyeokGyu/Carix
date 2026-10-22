@@ -18,3 +18,18 @@ export function niceTicks(min: number, max: number, targetTicks = 4): number[] {
   }
   return ticks;
 }
+
+const MAN_WON = 10_000;
+const EOK_IN_MAN = 10_000;
+
+/** 부호 붙인 금액 라벨. 1억(10,000만) 부터 억 단위 — `lib/koreanSalary.ts` 와 같은 경계. */
+export function amountLabel(won: number): string {
+  const man = Math.round(won / MAN_WON);
+  const sign = man > 0 ? "+" : man < 0 ? "-" : "";
+  const abs = Math.abs(man);
+  if (abs >= EOK_IN_MAN) {
+    const eok = Math.round((abs / EOK_IN_MAN) * 100) / 100;
+    return `${sign}${eok.toLocaleString("ko-KR")}억`;
+  }
+  return `${sign}${abs.toLocaleString("ko-KR")}만`;
+}

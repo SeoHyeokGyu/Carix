@@ -448,6 +448,12 @@ function Gallery() {
             offerEquivalentPercent={9}
           />
           <RaiseAxis
+            expectedPercent={4}
+            breakevenPersonal={3.2}
+            breakevenGovernment={2.5}
+            offerEquivalentPercent={25}
+          />
+          <RaiseAxis
             expectedPercent={1.5}
             breakevenPersonal={null}
             breakevenGovernment={2.5}

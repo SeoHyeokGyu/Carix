@@ -1,12 +1,12 @@
 import { useState } from "react";
 
-import { signedMan } from "../../lib/simulatorCopy";
-import { niceTicks } from "./chartScale";
+import { amountLabel, niceTicks } from "./chartScale";
 
 const WIDTH = 640;
 const HEIGHT = 300;
 const PAD = { left: 60, right: 18, top: 24, bottom: 34 };
 const MONTHS_PER_YEAR = 12;
+const Y_PADDING_RATIO = 0.07;
 const TOOLTIP_W = 196;
 const TOOLTIP_H = 44;
 
@@ -30,9 +30,10 @@ export function CumulativeChart({
   const all = [0, ...stay, ...move];
   const lo = Math.min(...all);
   const hi = Math.max(...all);
-  const ticks = niceTicks(lo, hi, 4);
-  const yMin = Math.min(lo, ticks[0]);
-  const yMax = Math.max(hi, ticks[ticks.length - 1]);
+  const pad = (hi - lo || 1) * Y_PADDING_RATIO;
+  const yMin = lo - pad;
+  const yMax = hi + pad;
+  const ticks = niceTicks(yMin, yMax, 4);
 
   const plotW = WIDTH - PAD.left - PAD.right;
   const plotH = HEIGHT - PAD.top - PAD.bottom;
@@ -59,10 +60,10 @@ export function CumulativeChart({
   const last = months - 1;
   const ariaLabel = [
     `잔류와 이직의 ${months}개월 누적 세후 보상 비교 그래프.`,
-    `${months}개월 시점 잔류 ${signedMan(stay[last])}원, 이직 ${signedMan(move[last])}원.`,
+    `${months}개월 시점 잔류 ${amountLabel(stay[last])}원, 이직 ${amountLabel(move[last])}원.`,
     crossAt !== null
       ? `이직 누적이 ${crossAt}개월째 잔류 누적을 따라잡습니다.`
-      : `${Math.floor(months / MONTHS_PER_YEAR)}년 안에 역전되지 않습니다.`,
+      : "비교 기간 안에 이직 누적이 잔류 누적을 따라잡지 못합니다.",
   ].join(" ");
 
   const onMove = (event: React.PointerEvent<SVGSVGElement>) => {
@@ -126,7 +127,7 @@ export function CumulativeChart({
               fontSize={11}
               className="fill-carix-text/60"
             >
-              {t === 0 ? "0" : signedMan(t)}
+              {t === 0 ? "0" : amountLabel(t)}
             </text>
           </g>
         ))}
@@ -252,8 +253,8 @@ export function CumulativeChart({
               fontSize={12}
               className="fill-carix-text"
             >
-              잔류 {signedMan(stay[pointer - 1])} · 이직{" "}
-              {signedMan(move[pointer - 1])}
+              잔류 {amountLabel(stay[pointer - 1])} · 이직{" "}
+              {amountLabel(move[pointer - 1])}
             </text>
           </g>
         )}

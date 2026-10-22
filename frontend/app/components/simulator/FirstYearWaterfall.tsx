@@ -1,6 +1,5 @@
 import type { EvaluationResponse } from "../../lib/api/scenario";
-import { signedMan } from "../../lib/simulatorCopy";
-import { niceTicks } from "./chartScale";
+import { amountLabel, niceTicks } from "./chartScale";
 
 type FirstYear = NonNullable<EvaluationResponse["move"]>["firstYear"];
 
@@ -8,6 +7,7 @@ const WIDTH = 640;
 const HEIGHT = 300;
 const PAD = { left: 56, right: 16, top: 34, bottom: 44 };
 const BAR_RATIO = 0.56;
+const LABEL_CLEARANCE = 12;
 
 interface Step {
   key: string;
@@ -65,9 +65,9 @@ export function FirstYearWaterfall({ firstYear }: { firstYear: FirstYear }) {
 
   const parts = steps
     .filter((s) => !s.isTotal)
-    .map((s) => `${s.label} ${signedMan(s.to - s.from)}`)
+    .map((s) => `${s.label} ${amountLabel(s.to - s.from)}`)
     .join(", ");
-  const ariaLabel = `이직 첫해 12개월 누적 차이 계단 그림. 잔류를 0 으로 놓고 ${parts}, 합계 ${signedMan(firstYear.total)}원.`;
+  const ariaLabel = `이직 첫해 12개월 누적 차이 계단 그림. 잔류를 0 으로 놓고 ${parts}, 합계 ${amountLabel(firstYear.total)}원.`;
   const verdict =
     firstYear.total >= 0
       ? "첫해에 이직이 잔류보다 앞섭니다"
@@ -99,7 +99,7 @@ export function FirstYearWaterfall({ firstYear }: { firstYear: FirstYear }) {
               fontSize={11}
               className="fill-carix-text/60"
             >
-              {t === 0 ? "잔류 = 0" : signedMan(t)}
+              {t === 0 ? "잔류 = 0" : amountLabel(t)}
             </text>
           </g>
         ))}
@@ -124,7 +124,15 @@ export function FirstYearWaterfall({ firstYear }: { firstYear: FirstYear }) {
             : isGain
               ? "fill-carix-positive/45"
               : "fill-carix-danger/45";
-          const labelAbove = isGain;
+          const baseY = y(0);
+          const rawLabelY = isGain ? top - 7 : bottom + 15;
+          // 기준선 가까이 걸친 라벨은 선 반대쪽으로 비켜 선과 겹치지 않게 한다.
+          const labelY =
+            Math.abs(rawLabelY - 4 - baseY) < LABEL_CLEARANCE
+              ? isGain
+                ? baseY - 6
+                : baseY + 15
+              : rawLabelY;
           const next = steps[i + 1];
           return (
             <g key={s.key}>
@@ -132,8 +140,8 @@ export function FirstYearWaterfall({ firstYear }: { firstYear: FirstYear }) {
                 <line
                   x1={x(i) + barW}
                   x2={x(i + 1)}
-                  y1={y(s.to)}
-                  y2={y(s.to)}
+                  y1={y(next.isTotal ? firstYear.total : s.to)}
+                  y2={y(next.isTotal ? firstYear.total : s.to)}
                   className="stroke-carix-text/35"
                   strokeDasharray="3 3"
                 />
@@ -148,13 +156,13 @@ export function FirstYearWaterfall({ firstYear }: { firstYear: FirstYear }) {
               />
               <text
                 x={x(i) + barW / 2}
-                y={labelAbove ? top - 7 : bottom + 15}
+                y={labelY}
                 textAnchor="middle"
                 fontSize={s.isTotal ? 14 : 12}
                 fontWeight={s.isTotal ? 700 : 600}
                 className="fill-carix-text"
               >
-                {signedMan(delta)}
+                {amountLabel(delta)}
               </text>
               <text
                 x={x(i) + barW / 2}
@@ -171,8 +179,8 @@ export function FirstYearWaterfall({ firstYear }: { firstYear: FirstYear }) {
         })}
       </svg>
       <figcaption className="mt-2 text-sm text-carix-text/70">
-        {verdict} — 합계 {signedMan(firstYear.total)}원. 잔류 첫해를 0 으로 놓고
-        항목별로 더하고 뺀 값입니다.
+        {verdict} — 합계 {amountLabel(firstYear.total)}원. 잔류 첫해를 0 으로
+        놓고 항목별로 더하고 뺀 값입니다.
       </figcaption>
     </figure>
   );

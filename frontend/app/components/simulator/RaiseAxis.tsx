@@ -4,6 +4,7 @@ const PAD_X = 28;
 const BAND_TOP = 70;
 const BAND_H = 34;
 const DOMAIN_MARGIN = 2;
+const LABEL_FONT = 12;
 
 export interface RaiseAxisProps {
   expectedPercent: number;
@@ -34,15 +35,74 @@ export function RaiseAxis({
   const max = Math.max(...values) + DOMAIN_MARGIN;
   const plotW = WIDTH - PAD_X * 2;
   const x = (v: number) => PAD_X + ((v - min) / (max - min)) * plotW;
-  const anchorFor = (px: number) =>
-    px < 90 ? "start" : px > WIDTH - 90 ? "end" : "middle";
-  // 손익분기 선 둘의 이름이 겹치지 않게 왼쪽 선 이름은 왼쪽으로, 오른쪽 선 이름은 오른쪽으로 편다.
-  const labelX = (value: number, anchor: string) =>
-    x(value) + (anchor === "end" ? -6 : anchor === "start" ? 6 : 0);
-  const breakevenAnchor = (value: number, other: number | null) => {
-    if (other === null || other === value) return anchorFor(x(value));
-    return value < other ? "end" : "start";
+  /** 라벨이 그림 가장자리를 넘으면 앵커를 뒤집거나 안쪽으로 민다. 글자 폭은 어림이다. */
+  const fit = (
+    px: number,
+    text: string,
+    preferred: "start" | "middle" | "end",
+    gap = 0,
+  ) => {
+    const width = [...text].reduce(
+      (sum, ch) => sum + (ch.charCodeAt(0) > 127 ? 1 : 0.6) * LABEL_FONT,
+      0,
+    );
+    const offset = preferred === "end" ? -gap : preferred === "start" ? gap : 0;
+    const left =
+      preferred === "end"
+        ? px + offset - width
+        : preferred === "middle"
+          ? px - width / 2
+          : px + offset;
+    if (preferred === "end" && left < PAD_X) {
+      return { x: px + gap, anchor: "start" as const };
+    }
+    if (preferred === "start" && left + width > WIDTH - PAD_X) {
+      return { x: px - gap, anchor: "end" as const };
+    }
+    if (preferred === "middle") {
+      if (left < PAD_X) return { x: PAD_X, anchor: "start" as const };
+      if (left + width > WIDTH - PAD_X) {
+        return { x: WIDTH - PAD_X, anchor: "end" as const };
+      }
+    }
+    return { x: px + offset, anchor: preferred };
   };
+  // 손익분기 선 둘의 이름이 겹치지 않게 왼쪽 선 이름은 왼쪽으로, 오른쪽 선 이름은 오른쪽으로 편다.
+  const breakevenLabel = (value: number, other: number | null, text: string) =>
+    fit(
+      x(value),
+      text,
+      other === null || other === value
+        ? "middle"
+        : value < other
+          ? "end"
+          : "start",
+      6,
+    );
+  const personalText =
+    breakevenPersonal !== null ? `개인물가 기준 ${pct(breakevenPersonal)}` : "";
+  const governmentText =
+    breakevenGovernment !== null
+      ? `정부 전망 기준 ${pct(breakevenGovernment)}`
+      : "";
+  const personalLabel =
+    breakevenPersonal !== null
+      ? breakevenLabel(breakevenPersonal, breakevenGovernment, personalText)
+      : null;
+  const governmentLabel =
+    breakevenGovernment !== null
+      ? breakevenLabel(breakevenGovernment, breakevenPersonal, governmentText)
+      : null;
+  const offerText =
+    offerEquivalentPercent != null
+      ? `이직 제안 ${pct(offerEquivalentPercent)}`
+      : "";
+  const offerLabel =
+    offerEquivalentPercent != null
+      ? fit(x(offerEquivalentPercent), offerText, "middle")
+      : null;
+  const expectedText = `기대 인상률 ${pct(expectedPercent)}`;
+  const expectedLabel = fit(x(expectedPercent), expectedText, "middle");
 
   // 손익분기가 둘이면 개인 기준으로 손해·이득을 가르고, 개인 기준이 없으면 정부 기준 하나로 가른다.
   const split = breakevenPersonal ?? breakevenGovernment;
@@ -110,7 +170,12 @@ export function RaiseAxis({
               fontSize={12}
               fontWeight={600}
               className="fill-carix-danger"
-              display={splitX - PAD_X < 70 ? "none" : undefined}
+              display={
+                splitX - PAD_X < 70 ||
+                Math.abs(x(expectedPercent) - (splitX - 28)) < 24
+                  ? "none"
+                  : undefined
+              }
             >
               손해
             </text>
@@ -121,7 +186,12 @@ export function RaiseAxis({
               fontSize={12}
               fontWeight={600}
               className="fill-carix-positive"
-              display={PAD_X + plotW - splitX < 70 ? "none" : undefined}
+              display={
+                PAD_X + plotW - splitX < 70 ||
+                Math.abs(x(expectedPercent) - (splitX + 22)) < 24
+                  ? "none"
+                  : undefined
+              }
             >
               이득
             </text>
@@ -139,19 +209,13 @@ export function RaiseAxis({
               className="stroke-carix-text"
             />
             <text
-              x={labelX(
-                breakevenPersonal,
-                breakevenAnchor(breakevenPersonal, breakevenGovernment),
-              )}
+              x={personalLabel?.x}
               y={bandBottom + 40}
-              textAnchor={breakevenAnchor(
-                breakevenPersonal,
-                breakevenGovernment,
-              )}
+              textAnchor={personalLabel?.anchor}
               fontSize={12}
               className="fill-carix-text"
             >
-              개인물가 기준 {pct(breakevenPersonal)}
+              {personalText}
             </text>
           </g>
         )}
@@ -167,19 +231,13 @@ export function RaiseAxis({
               className="stroke-carix-text"
             />
             <text
-              x={labelX(
-                breakevenGovernment,
-                breakevenAnchor(breakevenGovernment, breakevenPersonal),
-              )}
+              x={governmentLabel?.x}
               y={bandBottom + (showGovernmentDashed ? 62 : 40)}
-              textAnchor={breakevenAnchor(
-                breakevenGovernment,
-                breakevenPersonal,
-              )}
+              textAnchor={governmentLabel?.anchor}
               fontSize={12}
               className="fill-carix-text/80"
             >
-              정부 전망 기준 {pct(breakevenGovernment)}
+              {governmentText}
             </text>
           </g>
         )}
@@ -191,14 +249,14 @@ export function RaiseAxis({
               className="fill-carix-info"
             />
             <text
-              x={x(offerEquivalentPercent)}
+              x={offerLabel?.x}
               y={BAND_TOP - 40}
-              textAnchor={anchorFor(x(offerEquivalentPercent))}
+              textAnchor={offerLabel?.anchor}
               fontSize={12}
               fontWeight={600}
               className="fill-carix-info"
             >
-              이직 제안 {pct(offerEquivalentPercent)}
+              {offerText}
             </text>
           </g>
         )}
@@ -212,14 +270,14 @@ export function RaiseAxis({
             className="fill-carix-action stroke-carix-surface"
           />
           <text
-            x={x(expectedPercent)}
+            x={expectedLabel.x}
             y={BAND_TOP - 20}
-            textAnchor={anchorFor(x(expectedPercent))}
+            textAnchor={expectedLabel.anchor}
             fontSize={13}
             fontWeight={700}
             className="fill-carix-action"
           >
-            기대 인상률 {pct(expectedPercent)}
+            {expectedText}
           </text>
         </g>
       </svg>
