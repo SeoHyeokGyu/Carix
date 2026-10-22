@@ -101,7 +101,10 @@ public class ScenarioContextService {
     return Math.round(ratio * PERCENT * 10) / 10.0;
   }
 
-  /** 올해를 뺀 최근 3개 연도 중 입사 연도 이후 연도별 합. 기록 없는 해는 0 이다. 대상 연도가 없으면 null. */
+  /**
+   * 올해를 뺀 최근 3개 연도 중 입사 연도 이후 연도별 합. 기록 없는 해는 0 이다. 대상 연도가 없거나 대상 연도 안 기록이 한 건도 없으면 null — 0 범위를 내면
+   * 화면이 예상치 입력을 감추고 성과급을 반영된 것으로 본다.
+   */
   private BonusRange performanceBonusRange(
       UUID userId, LocalDate today, LocalDate hireDate, List<IncomeHistory> history) {
     Integer startYear = firstEligibleYear(hireDate, history);
@@ -110,14 +113,14 @@ public class ScenarioContextService {
     }
     List<PerformanceBonusResponse> bonuses = performanceBonusService.list(userId);
     int thisYear = YearMonth.from(today).getYear();
-    long[] yearlySums =
+    long[] years =
         LongStream.rangeClosed(thisYear - BONUS_LOOKBACK_YEARS, thisYear - 1)
             .filter(year -> year >= startYear)
-            .map(year -> sumOfYear(bonuses, year))
             .toArray();
-    if (yearlySums.length == 0) {
+    if (years.length == 0 || LongStream.of(years).noneMatch(year -> hasRecord(bonuses, year))) {
       return null;
     }
+    long[] yearlySums = LongStream.of(years).map(year -> sumOfYear(bonuses, year)).toArray();
     LongSummaryStatistics stats = LongStream.of(yearlySums).summaryStatistics();
     return new BonusRange(stats.getMin(), Math.round(stats.getAverage()), yearlySums.length);
   }
@@ -132,6 +135,11 @@ public class ScenarioContextService {
         .min(Integer::compare)
         .map(year -> year + 1)
         .orElse(null);
+  }
+
+  private static boolean hasRecord(List<PerformanceBonusResponse> bonuses, long year) {
+    String prefix = Long.toString(year);
+    return bonuses.stream().anyMatch(b -> b.paidMonth().startsWith(prefix));
   }
 
   private static long sumOfYear(List<PerformanceBonusResponse> bonuses, long year) {

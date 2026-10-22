@@ -82,11 +82,14 @@ public class ScenarioEvaluationService {
         overridden
             ? contextService.marketGapPercent(userId, currentGross)
             : context.marketGapPercent();
+    // 개인물가가 없으면 내 기준 손익분기는 정부 전망 값의 복사본이라 "개인물가 기준" 으로 보이지 않게 비운다
     StayView stayView =
         new StayView(
             result.stayRealChangePercent(),
             stayGovernmentChange,
-            projector.breakevenRaisePercent(currentGross, inflation),
+            basis.personalPercent() == null
+                ? null
+                : projector.breakevenRaisePercent(currentGross, inflation),
             projector.breakevenRaisePercent(currentGross, governmentInflation),
             marketGap);
 

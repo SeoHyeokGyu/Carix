@@ -115,4 +115,18 @@ class ScenarioContextServiceTest {
     // 대상은 2025 (6,000,000) 만 — 2024 는 입사 연도, 2023 은 입사 전, 2026 은 올해
     assertThat(range).isEqualTo(new ScenarioContextResponse.BonusRange(6_000_000L, 6_000_000L, 1));
   }
+
+  @Test
+  void 대상_연도에_성과급_기록이_없으면_범위는_null() {
+    CareerProfile profile = new CareerProfile(USER_ID);
+    profile.patch(null, null, null, null, null, LocalDate.parse("2023-05-01"));
+    given(profileRepository.findByUserId(USER_ID)).willReturn(Optional.of(profile));
+    given(incomeRepository.findByUserIdOrderByEffectiveDateDesc(USER_ID))
+        .willReturn(List.of(row(60_000_000L, "2023-05-01", null)));
+    // 대상은 2024·2025 — 입사 연도(2023)와 올해(2026) 기록만 있다
+    given(bonusService.list(USER_ID))
+        .willReturn(List.of(bonus("202312", 9_000_000L), bonus("202603", 7_000_000L)));
+
+    assertThat(service.context(USER_ID).performanceBonusRange()).isNull();
+  }
 }

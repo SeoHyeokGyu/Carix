@@ -22,7 +22,7 @@ public record EvaluationResponse(
   public record StayView(
       @Schema(description = "내 기준 물가로 본 실질 소득 변화(%)") double realChangePercent,
       @Schema(description = "정부 전망 물가로 본 실질 소득 변화(%)") double realChangeGovernmentPercent,
-      @Schema(description = "내 기준 물가에서 실질 변화가 0 이 되는 인상률(%)", nullable = true)
+      @Schema(description = "내 기준 물가에서 실질 변화가 0 이 되는 인상률(%). 개인물가를 못 구하면 null", nullable = true)
           Double breakevenPersonalPercent,
       @Schema(description = "정부 전망 물가에서 실질 변화가 0 이 되는 인상률(%)", nullable = true)
           Double breakevenGovernmentPercent,
