@@ -14,6 +14,7 @@ import {
   MoveConditionsStep,
   type MoveFormValues,
 } from "../../components/simulator/MoveConditionsStep";
+import { OverrideNotice } from "../../components/simulator/OverrideNotice";
 import { ResultView } from "../../components/simulator/ResultView";
 import { SavedScenarioList } from "../../components/simulator/SavedScenarioList";
 import { SimulatorSteps } from "../../components/simulator/SimulatorSteps";
@@ -67,15 +68,28 @@ export async function clientLoader() {
         b.effectiveDate.localeCompare(a.effectiveDate),
       )[0]?.id ?? null;
     // 초안 없이 다시 온 사용자는 가장 최근 새 방식 저장분으로 들어간다. 목록은 이미 최근 순이다.
-    const adopted =
-      draft ??
+    const latestSaved =
       scenarios.find((s) => s.engineVersion === 2 && s.request)?.request ??
       null;
+    const adopted =
+      draft ?? (latestSaved && withoutStaleOverride(latestSaved, context));
     return { context, draft: adopted, scenarios, latestIncomeId };
   } catch (error) {
     if (error instanceof UnauthorizedError) throw redirect(LOGIN_PATH);
     throw error;
   }
+}
+
+/**
+ * 저장분을 초안으로 가져올 때 옛 "이번만 바꾸기" 연봉을 비운다. 소득 이력이 있으면 그 연봉이 기준이고,
+ * 없으면 덮어쓴 값이 유일한 연봉 입력이라 남긴다.
+ */
+function withoutStaleOverride(
+  request: EvaluateRequest,
+  context: ScenarioContext,
+): EvaluateRequest {
+  if (context.currentAnnualGross === null) return request;
+  return { ...request, stay: { ...request.stay, currentGrossOverride: null } };
 }
 
 /** 초안이 받쳐 주지 못하는 단계로는 들어가지 않는다. 결과는 이직 입력이 있어야 한다. */
@@ -138,7 +152,7 @@ export default function DashboardSimulator() {
   const adopt = (next: EvaluateRequest, to: SimulatorStep) => {
     setVersion((v) => v + 1);
     setMoveValues(undefined);
-    replaceDraft(next, true);
+    replaceDraft(withoutStaleOverride(next, context), true);
     goTo(to);
   };
 
@@ -208,6 +222,7 @@ export default function DashboardSimulator() {
 
         {step === "stay" && draft && (
           <>
+            <OverrideNotice gross={draft.stay.currentGrossOverride} />
             <StayView
               evaluation={evaluation}
               error={error}
@@ -243,6 +258,7 @@ export default function DashboardSimulator() {
 
         {step === "result" && draft?.move && (
           <>
+            <OverrideNotice gross={draft.stay.currentGrossOverride} />
             {evaluation.result?.move ? (
               <ResultView
                 key={version}

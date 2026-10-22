@@ -173,4 +173,31 @@ describe("이직 시뮬레이터 라우트", () => {
 
     expect(scenario.saveScenario).toHaveBeenCalledWith(null, draft);
   });
+  it("소득 이력이 있으면 저장분을 채택할 때 옛 이번만 바꾸기 연봉을 비운다", async () => {
+    const saved: EvaluateRequest = {
+      ...draft,
+      stay: { raisePercent: 3, currentGrossOverride: 80_000_000 },
+    };
+    vi.mocked(scenario.listScenarios).mockResolvedValue([
+      {
+        id: "s1",
+        name: null,
+        engineVersion: 2,
+        calculatedAt: "2026-10-22T00:00:00Z",
+        request: saved,
+        result: evaluation,
+        legacy: null,
+      },
+    ]);
+    vi.mocked(scenario.evaluate).mockResolvedValue(evaluation);
+
+    renderRoute();
+    await screen.findByRole("button", { name: "시나리오 저장" });
+
+    expect(scenario.evaluate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        stay: expect.objectContaining({ currentGrossOverride: null }),
+      }),
+    );
+  });
 });
