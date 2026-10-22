@@ -278,7 +278,7 @@ erDiagram
 > | `job_posting.source_job_tags` | 원천의 직군 태그 원본(`text`, nullable). 점핏은 `jobCategory`(쉼표로 여러 분류), 원티드는 개발 하위 직군 `{태그 ID}:{이름}` 쉼표 목록이고 직무군 판정 근거로 보존한다. 점핏이 보강하지 않은 사람인 행·잡코리아 행은 `NULL`. 관리자 공고 탐색·상세만 읽는다 |
 > | `job_posting.collected_via` | 공고를 확인한 수집 경로 목록(`varchar(128)`, 쉼표 구분·중복 없음). 값은 `JOBKOREA_LIST`·`JOBKOREA_BACKFILL`·`JOBKOREA_SEED`·`SARAMIN_SEARCH`·`JUMPIT`·`WANTED_LIST`·`WANTED_BACKFILL` 이고 사람인 시드 행은 `SARAMIN_SEARCH` 로 센다. 관리자 공고 탐색·상세만 읽는다 |
 > | `job_posting.dedup_rule_version` | 중복제거 규칙 버전. 규칙을 바꿔 재집계할 때 어느 행이 옛 규칙 산물인지 가리려던 컬럼인데 읽는 코드가 없다 |
-> | `cpi_observation` 전체 | `collector` 가 적재하고 `core-api` 의 물가 기여도 뱃지(`c12`)와 구매력 지수 엔진(`a2`)이 읽는다 |
+> | `cpi_observation` 전체 | `collector` 가 적재하고 `core-api` 의 물가 기여도 뱃지(`c12`)·구매력 지수 엔진(`a2`)·개인물가 비교 서비스가 읽는다 |
 >
 > **`wage_stat_observation.wage_median` 은 경력별 실측이 아니다.** KOSIS 연령대를 경력구간으로
 > 프록시한 값이고(`25~29세 → JUNIOR`, `WageStatIngestService.AGE_CODE_TO_EXPERIENCE_BRACKET`),

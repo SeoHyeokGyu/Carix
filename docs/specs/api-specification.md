@@ -1190,7 +1190,7 @@
     *   **Query Parameters:** `month`(`YYYYMM`, 선택 — 비면 `ALL` 집계 행이 있는 당월(UTC) 이하 최신 월, 그것도 없으면 당월), `source`(`ALL` 기본·`JOBKOREA`·`SARAMIN` 등 집계 원천), `minSampleSize`(기본 10), `underSampledOnly`(기본 `false` — `true` 면 표본 부족 항목만).
 
 ### 8.17 KOSIS 소비자물가지수 수집
-*   `POST /internal/pipeline/cpi` — 통계청 지출목적별 소비자물가지수(`DT_1J22001`) 12대 분류를 받아 `core.cpi_observation` 에 적재한다. 비동기로 실행하며 `JobExecution` 으로 진행을 본다(§8.5).
+*   `POST /internal/pipeline/cpi` — 통계청 지출목적별 소비자물가지수(`DT_1J22001`) 12대 분류와 총지수(`category = '0'`)를 받아 `core.cpi_observation` 에 적재한다. 비동기로 실행하며 `JobExecution` 으로 진행을 본다(§8.5).
     *   **Request Body (선택):** `startYearMonth`·`endYearMonth`(`YYYYMM`). 비우면 최신 1개월이다.
     *   **Response (202 Accepted):** 작업 ID 를 돌려준다(§8.1 과 같은 형식).
 

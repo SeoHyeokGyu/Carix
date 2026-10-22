@@ -169,7 +169,7 @@ public class CollectorPipelineController {
   /**
    * [POST /internal/pipeline/cpi] KOSIS 소비자물가지수 수집 및 적재.
    *
-   * <p>통계청 OpenAPI(지출목적별 소비자물가지수 {@code DT_1J22001})를 호출하여 12대 분류 CPI를 수집하고 {@code
+   * <p>통계청 OpenAPI(지출목적별 소비자물가지수 {@code DT_1J22001})를 호출하여 12대 분류와 총지수 CPI를 수집하고 {@code
    * core.cpi_observation}에 적재합니다. startYearMonth/endYearMonth를 지정하여 과거 연월을 백필할 수 있습니다.
    *
    * @param request 수집 대상 연월 범위 (null 또는 미지정 시 최신 1개월)
