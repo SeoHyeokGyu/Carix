@@ -154,7 +154,7 @@
 
 이 절은 파이프라인 재설계가 **바꾼 것만** 갖는다. 구매력 지수는
 [도메인 정의서 §1](domain-logic.md)과 [기능 명세 §4.3](functional-specification.md),
-동료집단 완화는 [도메인 정의서 §2](domain-logic.md), 12개월 시나리오는
+동료집단 완화는 [도메인 정의서 §2](domain-logic.md), 잔류·이직 시나리오는
 [기능 명세 §12.5](functional-specification.md)가 갖는다.
 
 ### 2.1 스킬 수요 지수 (구 시장가치 지수)
@@ -291,7 +291,7 @@ flowchart TD
     %% 5. 프런트엔드 (Bottom)
     subgraph Frontend ["React 웹 프런트엔드 - Vite + Node SSR"]
         UI["대시보드 / 온보딩 화면"]
-        Sim["12개월 시뮬레이터 UI"]
+        Sim["잔류·이직 시뮬레이터 UI"]
     end
 
     %% 관리자 -> 개별 Job 트리거

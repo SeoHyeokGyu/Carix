@@ -661,7 +661,7 @@
             "type": "ESTIMATED_OPPORTUNITY_COST",
             "typeLabel": "추정 기회비용",
             "warningNote": "이 계산에는 세금, 성과급, 퇴직금 등이 포함되지 않은 단순 세전 기준 시뮬레이션입니다.",
-            "feasibility": { "status": "OK", "sampleSize": 42, "minRequired": null, "feasibilityScore": 31, "targetPercentile": 69, "difficultyGrade": "CHALLENGING", "feedbackMessage": "목표 연봉은 동료집단 내 상위 31% 수준의 도전적인 목표입니다. 시장 평균 범위 내에 위치하여 원만히 조율 가능한 수준입니다." }
+            "feasibility": { "status": "OK", "sampleSize": 42, "minRequired": null, "feasibilityScore": 31, "targetPercentile": 69, "difficultyGrade": "CHALLENGING", "feedbackMessage": "이직 연봉은 동료집단 내 상위 31% 수준의 도전적인 목표입니다. 시장 평균 범위 내에 위치하여 원만히 조율 가능한 수준입니다." }
           }
         }
       }
@@ -692,18 +692,18 @@
 *   **`GET /api/v1/scenarios/context`** — 입력 기본값.
     *   `currentAnnualGross`(고정상여 포함 세전 연 소득), `monthlyNet`, `hireDate`, `bonusIncluded`, `fixedBonusAnnual` — 소득 이력이 없으면 해당 값은 `null`.
     *   `defaultRaisePercent` — 최신 소득 행의 변경 사유가 `RAISE` 일 때만 (최신÷직전 − 1)×100, 아니면 `null`. 직전 행의 사유는 보지 않는다(이직 뒤 첫 인상도 인상이다).
-    *   `performanceBonusRange {min, average, years}` — 올해를 뺀 최근 3개 연도 중 입사 연도 다음 해부터의 연도별 합(기록 없는 해는 0). 입사일이 없으면 첫 소득 행 연도 다음 해부터. 대상 연도가 없으면 `null`.
+    *   `performanceBonusRange {min, average, years}` — 올해를 뺀 최근 3개 연도 중 입사 연도 다음 해부터의 연도별 합(기록 없는 해는 0). 입사일이 없으면 첫 소득 행 연도 다음 해부터. 대상 연도가 없거나 대상 연도 안 기록이 한 건도 없으면 `null` — 이때 화면은 예상치 입력을 보이고 `PERFORMANCE_BONUS` 가 미반영으로 뜬다.
     *   `inflation` — 한국은행 전망(`governmentPercent`)과 개인물가(`personalPercent`, 계산 불가면 `null`), 격차 `gapPp`·`topGapCategory`·`similar`(|격차| < 0.3%p), `asOf`·`source`.
     *   `marketGapPercent` — 공식 임금통계(KOSIS) 중앙값 대비 격차(%, **세전·명목**). 양수면 중앙값이 더 높다. 상수 기준선뿐이거나 기준선이 없으면 `null`.
-*   **`GET /api/v1/scenarios/feasibility?targetGross={원}`** — 이직 목표 연봉이 §5.2 동료집단 공고 분포에서 몇 번째 백분위(`targetPercentile`)인지로 실현 난이도를 낸다. 음수면 400.
+*   **`GET /api/v1/scenarios/feasibility?targetGross={원}`** — 이직 연봉이 §5.2 동료집단 공고 분포에서 몇 번째 백분위(`targetPercentile`)인지로 실현 난이도를 낸다. 음수면 400.
     *   `difficultyGrade` 는 `EASY`/`REALISTIC`/`CHALLENGING`/`VERY_HIGH_CHALLENGE`. 표본이 모자라면 `status` 가 `INSUFFICIENT_SAMPLE` 이고 `feasibilityScore`·`targetPercentile`·`difficultyGrade`·`feedbackMessage` 가 전부 `null` 이다 — 백분위를 임의 분포로 지어내지 않는다.
     *   `sampleSize` 는 백분위를 매긴 **공개연봉** 표본 수이고 `minRequired` 는 표본 부족일 때만 채운다. 산출 조건은 동료집단 공고 수와 그중 공개연봉 건수가 **둘 다** `minRequired` 이상인 것이다(§5.2 연봉 분포와 같은 기준).
 *   **`POST /api/v1/scenarios/evaluate`** — 본문 `stay`(필수: `raisePercent` −100~100, 선택: `currentGrossOverride`, `performanceBonusEstimate`, `stockVesting12m`, `stockUnvested`), `move`(선택: `grossSalary`, `unemploymentMonths` 0~6, `oneTimeCost`, `benefitEligible`, `bonusIncluded`, `fixedBonusAnnual`, `performanceBonusExpected`, `signingBonus`, `stockVesting12m`).
-    *   `stay`: `realChangePercent`(내 기준 물가)·`realChangeGovernmentPercent`, `breakevenPersonalPercent`·`breakevenGovernmentPercent`(실질 변화가 0 이 되는 인상률, 해가 없으면 `null`), `marketGapPercent`. 개인물가를 못 구하면 두 기준 값이 같다.
+    *   `stay`: `realChangePercent`(내 기준 물가)·`realChangeGovernmentPercent`, `breakevenPersonalPercent`·`breakevenGovernmentPercent`(실질 변화가 0 이 되는 인상률, 해가 없으면 `null`), `marketGapPercent`(양수면 중앙값이 더 높다 = 덜 받는다). 개인물가를 못 구하면 실질 변화 두 값이 같고 `breakevenPersonalPercent` 는 `null` 이다.
     *   `move`(이직 입력이 있을 때만): `stayCumulative`·`moveCumulative`(48개월 누적), `crossoverMonth`, `firstYear`(`salaryDiff`+`gap`+`oneTimeCost`+`benefit` = `total`), `expectedRange {min,max}`(성과급·사이닝 첫해 차이, 결론에 더하지 않음), `stock`(불확실층, 입력이 없으면 `null` — `firstYear` 에 영향 없음), `equalizingRaisePercent`, `feasibility`.
     *   `typeLabel` — 이직이 있을 때 `firstYear.total` 부호로 `추정 추가보상` / `추정 기회비용`.
     *   `severance {monthsToAnniversary, estimatedAmount}` — 근속 12개월 미만이고 1년까지 남은 개월(남은 날이 있으면 올림)이 3 이하일 때만. 금액 = 현재 연봉 ÷ 12.
-    *   `assumptions [{code,text}]` — 세금 가정(본인 1인·비과세/연말정산 미반영·요율 기준연도), 실수령 보정 여부, 물가 출처, 4년 유지 가정, 이직이 있으면 `NEW_JOB_SEVERANCE`, 사이닝이 있으면 `SIGNING_CLAWBACK`, 개인물가 불가면 `PERSONAL_INFLATION_UNAVAILABLE`. `unreflected [코드]` — 비어서 반영되지 않은 입력(`PERFORMANCE_BONUS`·`STOCK`·`HIRE_DATE`·`MOVE_PERFORMANCE_BONUS`·`SIGNING_BONUS`·`MOVE_STOCK`).
+    *   `assumptions [{code,text}]` — 세금 가정(본인 1인·비과세/연말정산 미반영·요율 기준연도), 실수령 보정 여부, 물가 출처, 4년 유지 가정, 이직이 있으면 `NEW_JOB_SEVERANCE`, 사이닝이 있으면 `SIGNING_CLAWBACK`, 개인물가 불가면 `PERSONAL_INFLATION_UNAVAILABLE`, 퇴직금 경고가 있으면 `SEVERANCE_ESTIMATE`, 주식 입력이 있으면 `STOCK_VALUE`. `unreflected [코드]` — 비어서 반영되지 않은 입력(`PERFORMANCE_BONUS`·`STOCK`·`HIRE_DATE`·`MOVE_PERFORMANCE_BONUS`·`SIGNING_BONUS`·`MOVE_STOCK`).
     *   400 — 범위 밖 입력, 소득 이력도 `currentGrossOverride` 도 없는 경우, 현재 연봉의 세후가 0 이하인 경우.
 
 ### 7.1 지출 이력
