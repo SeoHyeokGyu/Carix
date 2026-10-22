@@ -2,12 +2,6 @@ package com.carix.common;
 
 import jakarta.persistence.AttributeConverter;
 import jakarta.persistence.Converter;
-import java.nio.charset.StandardCharsets;
-import java.security.SecureRandom;
-import java.util.Base64;
-import javax.crypto.Cipher;
-import javax.crypto.spec.GCMParameterSpec;
-import javax.crypto.spec.SecretKeySpec;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
@@ -21,14 +15,14 @@ import org.springframework.stereotype.Component;
  *   <li>{@code core.income_history.gross_salary_encrypted} (세전 연봉)
  *   <li>{@code core.income_history.net_salary_encrypted} (월 실수령액)
  *   <li>{@code core.expense_item.amount_encrypted} (월 소비액)
- *   <li>{@code core.career_scenario.*_encrypted} (시뮬레이터 금액 컬럼 6종)
+ *   <li>{@code core.career_scenario.*_encrypted} (엔진 1 시뮬레이터 금액 컬럼 6종)
  * </ul>
  *
  * <p><b>암호화 및 보안 설계 특성:</b>
  *
  * <ul>
  *   <li><b>알고리즘:</b> {@code AES/GCM/NoPadding} (AEAD 모드로 기밀성과 무결성을 동시 보장).
- *   <li><b>초기화 벡터 (IV):</b> 12바이트(96비트) 암호학적 난수({@link SecureRandom})를 매 암호화마다 생성하여 암호문 앞에 결합.
+ *   <li><b>초기화 벡터 (IV):</b> 12바이트(96비트) 암호학적 난수({@code SecureRandom})를 매 암호화마다 생성하여 암호문 앞에 결합.
  *   <li><b>인증 태그:</b> 128비트 태그가 암호문 뒤에 결합되어 변조 시 복호화 실패({@code AEADBadTagException}) 발생.
  *   <li><b>포맷 규격:</b> {@code {keyId}:{Base64(IV + CipherText + Tag)}} (예: {@code v2:ab12...}).
  *   <li><b>하위 호환성 (Backward Compatibility):</b> 콜론({@code :}) 접두사가 없는 과거 레거시 데이터는 {@link
@@ -43,17 +37,11 @@ import org.springframework.stereotype.Component;
 @Component
 public class EncryptedConverter implements AttributeConverter<Long, String> {
 
-  /** AES-GCM 암호화 변환 알고리즘 */
-  private static final String ALGO = "AES/GCM/NoPadding";
-
-  /** GCM 인증 태그 비트 길이 (128비트 표준) */
-  private static final int TAG_BITS = 128;
-
-  /** GCM 권장 IV 바이트 길이 (12바이트 = 96비트) */
-  private static final int IV_LEN = 12;
-
   /** 다중 대칭키 관리자 */
   private final KeyRing keyRing;
+
+  /** 암호화 본체. 문자열 컬럼용 {@link EncryptedStringConverter} 와 같은 알고리즘·포맷이다 */
+  private final EncryptedStringConverter delegate;
 
   /**
    * 스프링 의존성 주입용 메인 생성자.
@@ -78,6 +66,7 @@ public class EncryptedConverter implements AttributeConverter<Long, String> {
     } else {
       this.keyRing = new KeyRing(keysConfig, activeKeyIdConfig, legacyKeyConfig);
     }
+    this.delegate = new EncryptedStringConverter(this.keyRing);
   }
 
   /**
@@ -90,6 +79,7 @@ public class EncryptedConverter implements AttributeConverter<Long, String> {
       throw new IllegalStateException("KeyRing 은 null 일 수 없습니다.");
     }
     this.keyRing = keyRing;
+    this.delegate = new EncryptedStringConverter(keyRing);
   }
 
   /**
@@ -117,28 +107,7 @@ public class EncryptedConverter implements AttributeConverter<Long, String> {
    */
   @Override
   public String convertToDatabaseColumn(Long attribute) {
-    if (attribute == null) return null;
-    try {
-      // 1. 매 암호화마다 고유한 12바이트 암호학적 난수 IV 생성 (IV 재사용 절대 금지)
-      byte[] iv = new byte[IV_LEN];
-      new SecureRandom().nextBytes(iv);
-
-      // 2. AES-GCM 암호화 초기화 및 실행
-      Cipher cipher = Cipher.getInstance(ALGO);
-      cipher.init(Cipher.ENCRYPT_MODE, keyRing.getActiveKey(), new GCMParameterSpec(TAG_BITS, iv));
-      byte[] cipherText =
-          cipher.doFinal(String.valueOf(attribute).getBytes(StandardCharsets.UTF_8));
-
-      // 3. [IV(12바이트)][암호문 + 인증태그(16바이트)] 결합
-      byte[] combined = new byte[iv.length + cipherText.length];
-      System.arraycopy(iv, 0, combined, 0, iv.length);
-      System.arraycopy(cipherText, 0, combined, iv.length, cipherText.length);
-
-      // 4. 활성 키 식별자 접두사와 함께 Base64 문자열로 직렬화하여 반환
-      return keyRing.getActiveKeyId() + ":" + Base64.getEncoder().encodeToString(combined);
-    } catch (Exception e) {
-      throw new IllegalStateException("암호화 실패", e);
-    }
+    return attribute == null ? null : delegate.convertToDatabaseColumn(String.valueOf(attribute));
   }
 
   /**
@@ -153,34 +122,6 @@ public class EncryptedConverter implements AttributeConverter<Long, String> {
    */
   @Override
   public Long convertToEntityAttribute(String dbData) {
-    if (dbData == null) return null;
-    try {
-      SecretKeySpec key;
-      String cipherBase64;
-
-      // 1. 버전 식별자 접두사({keyId}:) 유무 판별
-      int colonIdx = dbData.indexOf(':');
-      if (colonIdx > 0) {
-        String keyId = dbData.substring(0, colonIdx);
-        cipherBase64 = dbData.substring(colonIdx + 1);
-        key = keyRing.getKey(keyId);
-      } else {
-        // 콜론이 없는 과거 레거시 암호문 (v1 키로 폴백)
-        key = keyRing.getLegacyKey();
-        cipherBase64 = dbData;
-      }
-
-      // 2. Base64 디코딩 후 [IV(12바이트)] 와 [암호문+태그] 분리
-      byte[] combined = Base64.getDecoder().decode(cipherBase64);
-      byte[] iv = java.util.Arrays.copyOfRange(combined, 0, IV_LEN);
-      byte[] cipherText = java.util.Arrays.copyOfRange(combined, IV_LEN, combined.length);
-
-      // 3. AES-GCM 복호화 및 무결성 검증 (태그 불일치 시 복호화 실패)
-      Cipher cipher = Cipher.getInstance(ALGO);
-      cipher.init(Cipher.DECRYPT_MODE, key, new GCMParameterSpec(TAG_BITS, iv));
-      return Long.parseLong(new String(cipher.doFinal(cipherText), StandardCharsets.UTF_8));
-    } catch (Exception e) {
-      throw new IllegalStateException("복호화 실패", e);
-    }
+    return dbData == null ? null : Long.parseLong(delegate.convertToEntityAttribute(dbData));
   }
 }

@@ -1,27 +1,30 @@
 package com.carix.scenario;
 
-import com.carix.index.CurrentSalaryProvider;
-import com.carix.index.dto.CurrentSalary;
 import com.carix.index.mvi.PeerGroupFallbackResolver;
 import com.carix.peergroup.PeerSalaryDistribution;
 import com.carix.peergroup.PeerSalaryDistributionResolver;
 import com.carix.profile.domain.CareerProfile;
 import com.carix.profile.repository.CareerProfileRepository;
 import com.carix.scenario.domain.CareerScenario;
-import com.carix.scenario.dto.LatestScenarioResponse;
+import com.carix.scenario.dto.EvaluateRequest;
+import com.carix.scenario.dto.EvaluationResponse;
+import com.carix.scenario.dto.ScenarioListItem;
+import com.carix.scenario.dto.ScenarioListItem.LegacyScenario;
+import com.carix.scenario.dto.ScenarioPayload;
 import com.carix.scenario.dto.SimulationRequest;
 import com.carix.scenario.dto.SimulationResponse;
-import com.carix.snapshot.YearMonths;
-import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import tools.jackson.databind.ObjectMapper;
 
 /**
- * 잔류 vs 이직 시나리오 시뮬레이션 (API 규격 §6.1·§6.2).
+ * 시나리오 명시 저장·초안·목록 (API 규격 §6.1~§6.3)과 목표 연봉의 실현 가능성.
+ *
+ * <p>엔진 2 는 요청·결과 JSON 을 {@code payload_encrypted} 한 컬럼에 둔다. 엔진 1 행은 새로 만들지 않고 목록에서 저장한 값 그대로 읽는다.
  *
  * <p>실현 가능성은 {@link PeerSalaryDistributionResolver} 가 낸 실제 동료집단 공고 분포에서 나온다. 종전 구현은 {@code min=45M,
  * p25=58M, median=65M, p75=74M, max=95M} 을 코드에 박고 보간했는데, 그 다섯 값의 출처가 없어 백분위와 피드백 문구가 근거 없는 수치였다 —
@@ -43,68 +46,60 @@ public class ScenarioService {
 
   private final CareerProfileRepository careerProfileRepository;
   private final PeerSalaryDistributionResolver peerSalaryDistributionResolver;
-  private final CurrentSalaryProvider currentSalaryProvider;
   private final ScenarioCalculator calculator;
   private final CareerScenarioRepository repository;
+  private final ObjectMapper objectMapper;
 
-  /** 계산하고 저장한다. 규격 §6.1 이 "계산 성공 시 입력 가정과 결과를 저장합니다" 를 요구한다. */
+  /** 입력과 평가 결과를 한 행으로 저장한다. 결과는 호출자가 방금 평가한 값이다 — 저장 후 입력 가정이 바뀌어도 사용자가 저장한 시점에 본 결과가 남는다. */
   @Transactional
-  public SimulationResponse simulate(UUID userId, SimulationRequest request) {
-    long currentSalary = resolveCurrentSalary(userId, request.currentGrossSalary());
-
-    ScenarioOutcome outcome =
-        calculator.calculate(
-            currentSalary,
-            request.stayExpectedRaiseRate(),
-            request.moveTargetGrossSalary(),
-            request.moveOneTimeCost(),
-            request.expectedUnemploymentMonths(),
-            request.isEligibleForUnemploymentBenefit());
-
-    Feasibility feasibility = resolveFeasibility(userId, request.moveTargetGrossSalary());
-    String name = normalizeName(request.scenarioName());
-
+  public ScenarioListItem save(
+      UUID userId, String name, EvaluateRequest request, EvaluationResponse result) {
     CareerScenario saved =
         repository.save(
             CareerScenario.builder()
                 .userId(userId)
-                .scenarioName(name)
-                .currentGrossSalary(currentSalary)
-                .stayExpectedRaiseRate(BigDecimal.valueOf(request.stayExpectedRaiseRate()))
-                .moveTargetGrossSalary(request.moveTargetGrossSalary())
-                .moveOneTimeCost(request.moveOneTimeCost())
-                .expectedUnemploymentMonths(request.expectedUnemploymentMonths())
-                .eligibleForUnemploymentBenefit(request.isEligibleForUnemploymentBenefit())
-                .stayCompensation12m(outcome.stayCompensation12m())
-                .moveCompensation12m(outcome.moveCompensation12m())
-                .estimatedUnemploymentBenefit(outcome.estimatedUnemploymentBenefit())
-                .difference(outcome.difference())
-                .feasibilityStatus(feasibility.status())
-                .feasibilityPercentile(feasibility.percentile())
-                .feasibilitySampleSize(feasibility.sampleSize())
+                .scenarioName(normalizeName(name))
+                .engineVersion(CareerScenario.ENGINE_STAY_OR_MOVE)
+                .payload(toJson(new ScenarioPayload(request, result)))
                 .build());
-
-    return toResponse(saved.getId(), name, outcome, feasibility);
+    return toListItem(saved);
   }
 
-  /** 저장된 시나리오가 없으면 empty 다 — 컨트롤러가 204 로 옮긴다 (규격 §6.2). */
-  @Transactional(readOnly = true)
-  public Optional<LatestScenarioResponse> latest(UUID userId) {
-    return repository.findFirstByUserIdOrderByCalculatedAtDescIdDesc(userId).map(this::toLatest);
+  /** 편집 중인 입력을 사용자당 1건으로 덮어쓴다. 결과는 저장하지 않는다. */
+  @Transactional
+  public void saveDraft(UUID userId, EvaluateRequest request) {
+    String payload = toJson(new ScenarioPayload(request, null));
+    Optional<CareerScenario> existing = repository.findFirstByUserIdAndDraftTrue(userId);
+    if (existing.isPresent()) {
+      existing.get().replacePayload(payload);
+      return;
+    }
+    repository.save(
+        CareerScenario.builder()
+            .userId(userId)
+            .engineVersion(CareerScenario.ENGINE_STAY_OR_MOVE)
+            .draft(true)
+            .payload(payload)
+            .build());
   }
 
-  /** 저장된 시나리오 전부, 최근 순 (규격 §6.3). 응답에 복호화된 금액이 여러 건 실리므로 로그에 남기지 않는다 (완료 기준 10번). */
+  /** 초안이 없으면 empty 다 — 컨트롤러가 204 로 옮긴다. */
   @Transactional(readOnly = true)
-  public List<LatestScenarioResponse> list(UUID userId) {
-    return repository.findByUserIdOrderByCalculatedAtDescIdDesc(userId).stream()
-        .map(this::toLatest)
+  public Optional<EvaluateRequest> draft(UUID userId) {
+    return repository
+        .findFirstByUserIdAndDraftTrue(userId)
+        .map(draft -> fromJson(draft.getPayload()).request());
+  }
+
+  /** 저장된 시나리오 전부(초안 제외), 최근 순 (규격 §6.3). 응답에 복호화된 금액이 여러 건 실리므로 로그에 남기지 않는다 (완료 기준 10번). */
+  @Transactional(readOnly = true)
+  public List<ScenarioListItem> list(UUID userId) {
+    return repository.findByUserIdAndDraftFalseOrderByCalculatedAtDescIdDesc(userId).stream()
+        .map(this::toListItem)
         .toList();
   }
 
-  /**
-   * 이름은 선택이다. 비었거나 공백뿐이면 이름 없이 저장한다 — 목록이 계산 시각으로 라벨을 만든다 (기능 명세 US-S1). 종전에는 "기본 시나리오" 를 채워 넣어 이름
-   * 없는 행이 생기지 않았다.
-   */
+  /** 이름은 선택이다. 비었거나 공백뿐이면 이름 없이 저장한다 — 목록이 계산 시각으로 라벨을 만든다 (기능 명세 US-S1). */
   private static String normalizeName(String requested) {
     if (requested == null || requested.isBlank()) {
       return null;
@@ -112,25 +107,12 @@ public class ScenarioService {
     return requested.strip();
   }
 
-  // --- 연봉 ---
+  private String toJson(ScenarioPayload payload) {
+    return objectMapper.writeValueAsString(payload);
+  }
 
-  /**
-   * 시뮬레이션에 쓸 현재 연봉.
-   *
-   * <p>입력값이 있으면 그것이다 — 규격 §6.1 이 "가상 시뮬레이션을 위해 임의의 세전 연봉을 지정" 하도록 허용한다. 없으면 소득 이력에서 온다.
-   *
-   * <p>둘 다 없으면 400 이다. 데이터 부재 상태가 아니라, 호출자가 {@code currentGrossSalary} 를 넣으면 바로 풀리는 입력 문제다.
-   */
-  private long resolveCurrentSalary(UUID userId, Long requested) {
-    if (requested != null) {
-      return requested;
-    }
-    Optional<CurrentSalary> stored =
-        currentSalaryProvider.currentGrossSalary(userId, YearMonths.current());
-    if (stored.isEmpty()) {
-      throw new IllegalArgumentException("소득 이력이 없습니다. currentGrossSalary 를 직접 입력해 주세요.");
-    }
-    return stored.get().grossSalary();
+  private ScenarioPayload fromJson(String json) {
+    return objectMapper.readValue(json, ScenarioPayload.class);
   }
 
   // --- 실현 가능성 ---
@@ -220,24 +202,31 @@ public class ScenarioService {
 
   // --- 매핑 ---
 
-  private SimulationResponse toResponse(
-      UUID id, String name, ScenarioOutcome outcome, Feasibility feasibility) {
-    return new SimulationResponse(
-        id,
-        name,
-        outcome.stayCompensation12m(),
-        outcome.moveCompensation12m(),
-        outcome.estimatedUnemploymentBenefit(),
-        outcome.unemploymentBenefitNote(),
-        outcome.difference(),
-        outcome.type(),
-        outcome.typeLabel(),
-        WARNING_NOTE,
-        toFeasibilityDetail(feasibility));
+  private ScenarioListItem toListItem(CareerScenario scenario) {
+    int engineVersion = Integer.parseInt(scenario.getEngineVersion());
+    if (CareerScenario.ENGINE_STAY_OR_MOVE.equals(scenario.getEngineVersion())) {
+      ScenarioPayload payload = fromJson(scenario.getPayload());
+      return new ScenarioListItem(
+          scenario.getId(),
+          scenario.getScenarioName(),
+          engineVersion,
+          scenario.getCalculatedAt(),
+          payload.request(),
+          payload.result(),
+          null);
+    }
+    return new ScenarioListItem(
+        scenario.getId(),
+        scenario.getScenarioName(),
+        engineVersion,
+        scenario.getCalculatedAt(),
+        null,
+        null,
+        toLegacy(scenario));
   }
 
   /**
-   * 저장분을 규격 §6.2 형태로 되살린다.
+   * 엔진 1 저장분을 규격 §6.2 형태로 되살린다.
    *
    * <p>실현 가능성은 저장한 백분위에서 등급·점수·문구를 다시 만든다. 백분위 자체를 다시 구하지 않는 이유는 동료집단 분포가 그 시점의 공고에 의존해, 나중에 재계산하면
    * 사용자가 실제로 본 판단이 나오지 않아서다.
@@ -245,7 +234,7 @@ public class ScenarioService {
    * <p>{@code unemploymentBenefitNote} 의 기준 시점만은 <b>현재</b> 설정값이다. 가정치가 갱신되면 과거 시나리오의 안내도 새 시점을 가리킨다
    * — 금액은 저장분 그대로이므로 숫자가 바뀌지는 않는다.
    */
-  private LatestScenarioResponse toLatest(CareerScenario scenario) {
+  private LegacyScenario toLegacy(CareerScenario scenario) {
     SimulationRequest inputs =
         new SimulationRequest(
             scenario.getScenarioName(),
@@ -274,13 +263,7 @@ public class ScenarioService {
                     scenario.getFeasibilityStatus(),
                     scenario.getFeasibilityPercentile(),
                     scenario.getFeasibilitySampleSize())));
-
-    return new LatestScenarioResponse(
-        scenario.getId(),
-        scenario.getScenarioName(),
-        inputs,
-        result,
-        scenario.getCalculatedAt() == null ? null : scenario.getCalculatedAt().toInstant());
+    return new LegacyScenario(inputs, result);
   }
 
   /** 산출 결과. {@code percentile} 이 {@code null} 이면 표본이 모자라 매기지 못한 것이다. */

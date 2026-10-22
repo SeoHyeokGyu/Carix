@@ -593,154 +593,89 @@
 
 ## 6. 시나리오 시뮬레이터 API
 
-### 6.1 잔류 vs 이직 시뮬레이션 계산
-*   **Endpoint:** `POST /api/v1/scenarios/simulate`
+### 6.1 시나리오 저장
+*   **Endpoint:** `POST /api/v1/scenarios`
+*   **저장은 사용자가 누를 때만 일어난다.** 평가(§6.6 `evaluate`)와 초안(§6.2)은 결과를 남기지 않는다. 종전의 자동 저장 경로 `POST /scenarios/simulate`·`GET /scenarios/latest` 는 없다.
 *   **Request Body:**
     ```json
     {
-      "scenarioName": "A사 오퍼 제안",
-      "currentGrossSalary": 60000000,
-      "stayExpectedRaiseRate": 3.5,
-      "moveTargetGrossSalary": 72000000,
-      "moveOneTimeCost": 3000000,
-      "expectedUnemploymentMonths": 2,
-      "isEligibleForUnemploymentBenefit": true
-    }
-    ```
-    *(`scenarioName`: 선택 입력. 저장할 가상 시나리오의 별칭. 생략하거나 공백뿐이면 이름 없이(`null`) 저장되고, 앞뒤 공백은 잘린다. 응답의 `scenarioName` 도 그때 `null` 이다)*
-    *(`currentGrossSalary`: 선택 입력. 생략 시 사용자의 최신 소득 이력 값을 사용하며, 가상 시뮬레이션을 위해 임의의 세전 연봉을 지정하여 테스트할 수 있습니다. 생략했는데 소득 이력도 없으면 `400 INVALID_INPUT` 입니다 — 호출자가 이 필드를 채우면 바로 해소되는 입력 문제라 상태값으로 표현하지 않습니다)*
-    *(실업급여의 평균임금은 이 시뮬레이션에 실제 사용한 연봉을 따릅니다. 가상 연봉을 넣으면 실업급여도 그 값을 기준으로 계산됩니다 — 한 응답 안에서 잔류 보상과 실업급여가 서로 다른 연봉을 기준으로 나오지 않도록 합니다)*
-    *(`stayExpectedRaiseRate`: 서버는 -100.0 ~ 100.0 을 벗어나면 `400` 입니다. **정본은
-    [기능 명세 §3](functional-specification.md)의 -50 ~ +100 입니다** — 화면(Zod)이 이 좁은
-    범위를 걸어 두 규격을 동시에 만족시킵니다. 서버 검증은 아직 넓은 범위 그대로라 API 를
-    직접 부르면 범위 밖 값이 저장될 수 있습니다(`SimulationRequest` 의 `@DecimalMin("-100.0")`·`@DecimalMax("100.0")`).
-    저장 정밀도는 소수점 두 자리라 그 아래는 반올림됩니다)*
-    *(`expectedUnemploymentMonths`: 0~6. `isEligibleForUnemploymentBenefit` 기본값 true, false면 실업급여 0으로 계산하고 `실업급여 미반영` 안내 표시. 공식은 [도메인 정의서 §4](domain-logic.md)를 따릅니다)*
-*   **Response (200 OK):**
-    ```json
-    {
-      "id": "e812d8a4-0cfb-4a5f-9dfb-12d88c91350c",
-      "scenarioName": "A사 오퍼 제안",
-      "stayCompensation12m": 62100000,
-      "moveCompensation12m": 60960000,
-      "estimatedUnemploymentBenefit": 3960000,
-      "unemploymentBenefitNote": "가정 기반 추정 (기준 시점: 2026-01)",
-      "difference": -1140000,
-      "type": "ESTIMATED_OPPORTUNITY_COST",
-      "typeLabel": "추정 기회비용",
-      "warningNote": "이 계산에는 세금, 성과급, 퇴직금 등이 포함되지 않은 단순 세전 기준 시뮬레이션입니다.",
-      "feasibility": {
-        "status": "OK",
-        "sampleSize": 42,
-        "minRequired": null,
-        "feasibilityScore": 31,
-        "targetPercentile": 69,
-        "difficultyGrade": "CHALLENGING",
-        "feedbackMessage": "목표 연봉은 동료집단 내 상위 31% 수준의 도전적인 목표입니다. 시장 평균 범위 내에 위치하여 원만히 조율 가능한 수준입니다."
+      "name": "A사 오퍼 제안",
+      "request": {
+        "stay": { "raisePercent": 3.5, "currentGrossOverride": null, "performanceBonusEstimate": null, "stockVesting12m": null, "stockUnvested": null },
+        "move": { "grossSalary": 72000000, "unemploymentMonths": 2, "oneTimeCost": 3000000, "benefitEligible": true, "bonusIncluded": false }
       }
     }
     ```
-    *(예시 산출: 잔류 = 60,000,000 × 1.035 = 62,100,000. 이직 = 72,000,000 × 10/12 + 실업급여 3,960,000 − 3,000,000 = 60,960,000. 차이 = −1,140,000)*
-    *(`unemploymentBenefitNote`: 실업급여 상·하한이 법정 공시값이 아닌 가정치이므로 기준 시점과 함께 알린다([도메인 정의서 §4.1](domain-logic.md)). 수급 자격이 없으면 `실업급여 미반영`)*
-    *(`feasibility`: 이직 목표 연봉이 §5.2 동료집단 공고 분포에서 몇 번째 백분위(`targetPercentile`)에 해당하는지로 실현 난이도를 계산해 함께 반환한다. `difficultyGrade`는 `EASY`/`REALISTIC`/`CHALLENGING`/`VERY_HIGH_CHALLENGE` 중 하나)*
-    *(`feasibility.status`: 표본이 모자라면 `INSUFFICIENT_SAMPLE` 이고 `feasibilityScore`·`targetPercentile`·`difficultyGrade`·`feedbackMessage` 가 전부 `null` 이다. 백분위를 임의 분포로 지어내지 않는다. `sampleSize` 는 백분위를 매긴 **공개연봉** 표본 수이고, `minRequired` 는 표본 부족일 때만 채운다)*
-    *(산출 조건: 동료집단 공고 수와 그중 공개연봉 건수가 **둘 다** `minRequired` 이상이어야 한다. §5.2 연봉 분포와 같은 기준이며, 동료집단 완화도 공개연봉이 모자라면 한 단계 더 넓힌다)*
-*   **결과 타입 매핑 (고정):**
+    *(`name`: 선택, 100자 이하. 생략하거나 공백뿐이면 이름 없이(`null`) 저장되고 앞뒤 공백은 잘린다. `request` 는 §6.6 `evaluate` 본문과 같고 같은 검증을 받는다)*
+    *(서버가 `request` 를 다시 평가해 그 결과를 함께 저장한다. 클라이언트가 보낸 결과를 믿지 않는다. 평가가 400 이면 저장도 400 이다)*
+*   **Response (201 Created):** 목록의 한 항목(§6.3)과 같다. 엔진 2 이므로 `engineVersion` 이 `2` 이고 `request`·`result` 가 채워지며 `legacy` 는 `null` 이다.
+*   **암호화:** `request`·`result` 는 `{request, result}` JSON 한 덩어리로 `career_scenario.payload_encrypted` 에 AES-256-GCM 암호문으로 저장된다. 평문 컬럼은 `scenario_name` 뿐이다 ([SECURITY §3.1](../SECURITY.md)).
+
+### 6.2 초안
+편집 중인 입력을 다시 열 때 복원하는 용도다. 사용자당 1건이고 목록(§6.3)에 나오지 않는다. 결과는 저장하지 않는다.
+*   **`PUT /api/v1/scenarios/draft`** — 본문은 §6.6 `evaluate` 와 같다. `204 No Content`. 이미 있으면 덮어쓴다.
+*   **`GET /api/v1/scenarios/draft`** — `200 OK` 에 저장해 둔 `evaluate` 본문 그대로, 초안이 없으면 `204 No Content`. 다른 사용자의 초안은 보이지 않는다.
+*   사용자당 1건은 운영 DB 의 부분 유니크 인덱스(`career_scenario_user_draft_idx`)와 서비스가 함께 지킨다.
+
+### 6.3 저장된 시나리오 목록 조회
+*   **Endpoint:** `GET /api/v1/scenarios`
+*   **Response (200 OK):** 초안을 뺀 저장분 전부를 `calculatedAt DESC, id DESC` 로 반환한다. 저장분이 없으면 빈 배열 `[]` 이다 — 204 가 아니다.
+*   **비교 화면은 만들지 않는다.** `S-15` 안의 선택 컨트롤로 과거 입력 가정을 불러오는 데까지다. 같은 목록이 12개월 뒤 사후 검증(예측 vs 실제 소득)의 읽기 경로이기도 하다.
+*   **응답에 복호화된 금액이 여러 건 실린다.** 본인 데이터라 노출 문제는 아니지만 로그·분석 이벤트에 남기지 않는다 (완료 기준 10번).
+    ```json
+    [
+      {
+        "id": "e812d8a4-0cfb-4a5f-9dfb-12d88c91350c",
+        "name": "A사 오퍼 제안",
+        "engineVersion": 2,
+        "calculatedAt": "2026-10-21T17:00:00Z",
+        "request": { "stay": { "raisePercent": 3.5 }, "move": { "grossSalary": 72000000, "unemploymentMonths": 2, "oneTimeCost": 3000000, "benefitEligible": true, "bonusIncluded": false } },
+        "result": { "stay": { "...": "§6.6 evaluate 응답과 같다" }, "move": { "...": "..." } },
+        "legacy": null
+      },
+      {
+        "id": "0b6c1d2e-7a4f-4c31-9a58-3e2f6d1b9c70",
+        "name": null,
+        "engineVersion": 1,
+        "calculatedAt": "2026-07-18T17:00:00Z",
+        "request": null,
+        "result": null,
+        "legacy": {
+          "inputs": {
+            "scenarioName": null,
+            "currentGrossSalary": 60000000,
+            "stayExpectedRaiseRate": 3.5,
+            "moveTargetGrossSalary": 72000000,
+            "moveOneTimeCost": 3000000,
+            "expectedUnemploymentMonths": 2,
+            "isEligibleForUnemploymentBenefit": true
+          },
+          "result": {
+            "id": "0b6c1d2e-7a4f-4c31-9a58-3e2f6d1b9c70",
+            "scenarioName": null,
+            "stayCompensation12m": 62100000,
+            "moveCompensation12m": 60960000,
+            "estimatedUnemploymentBenefit": 3960000,
+            "unemploymentBenefitNote": "가정 기반 추정 (기준 시점: 2026-01)",
+            "difference": -1140000,
+            "type": "ESTIMATED_OPPORTUNITY_COST",
+            "typeLabel": "추정 기회비용",
+            "warningNote": "이 계산에는 세금, 성과급, 퇴직금 등이 포함되지 않은 단순 세전 기준 시뮬레이션입니다.",
+            "feasibility": { "status": "OK", "sampleSize": 42, "minRequired": null, "feasibilityScore": 31, "targetPercentile": 69, "difficultyGrade": "CHALLENGING", "feedbackMessage": "목표 연봉은 동료집단 내 상위 31% 수준의 도전적인 목표입니다. 시장 평균 범위 내에 위치하여 원만히 조율 가능한 수준입니다." }
+          }
+        }
+      }
+    ]
+    ```
+*   **`engineVersion`:** `2` 는 세후·실질 평가(§6.6)로 저장한 행이고 `request`·`result` 를 채운다. `1` 은 이전 방식(세전 12개월 비교)으로 저장한 행이며 **새로 만들지 않는다.** `legacy` 에 저장한 값 그대로 담기고 다시 계산하지 않는다. 화면은 `legacy` 를 읽기 전용으로 보여 준다.
+*   **`legacy.result` 의 규약 (엔진 1):**
+    *(`feasibility` 는 저장한 백분위에서 등급·점수·문구를 다시 만든 값이다. 백분위 자체를 재계산하지 않는 이유는 동료집단 분포가 그 시점의 공고에 의존해, 나중에 다시 구하면 사용자가 실제로 본 판단이 나오지 않기 때문이다)*
+    *(`unemploymentBenefitNote` 의 기준 시점은 **현재** 가정치를 가리킨다. 금액은 저장분 그대로이므로 숫자는 바뀌지 않는다)*
 
 | 조건 | `type` | `typeLabel` |
 | --- | --- | --- |
 | `difference >= 0` | `ESTIMATED_GAIN` | 추정 추가보상 |
 | `difference < 0` | `ESTIMATED_OPPORTUNITY_COST` | 추정 기회비용 |
-
-*   계산 성공 시 입력 가정과 결과를 사용자별 시나리오(`CareerScenario`) 목록에 저장합니다.
-
-### 6.2 최근 시나리오 조회
-*   **Endpoint:** `GET /api/v1/scenarios/latest`
-*   **Response (200 OK):** 6.1의 요청 필드와 응답 필드를 합친 단건. 저장된 시나리오가 없으면 `204 No Content`. `calculated_at DESC, id DESC` 순 첫 행 반환.
-    ```json
-    {
-      "id": "e812d8a4-0cfb-4a5f-9dfb-12d88c91350c",
-      "scenarioName": "A사 오퍼 제안",
-      "inputs": {
-        "scenarioName": "A사 오퍼 제안",
-        "currentGrossSalary": 60000000,
-        "stayExpectedRaiseRate": 3.5,
-        "moveTargetGrossSalary": 72000000,
-        "moveOneTimeCost": 3000000,
-        "expectedUnemploymentMonths": 2,
-        "isEligibleForUnemploymentBenefit": true
-      },
-      "result": {
-        "id": "e812d8a4-0cfb-4a5f-9dfb-12d88c91350c",
-        "scenarioName": "A사 오퍼 제안",
-        "stayCompensation12m": 62100000,
-        "moveCompensation12m": 60960000,
-        "estimatedUnemploymentBenefit": 3960000,
-        "unemploymentBenefitNote": "가정 기반 추정 (기준 시점: 2026-01)",
-        "difference": -1140000,
-        "type": "ESTIMATED_OPPORTUNITY_COST",
-        "typeLabel": "추정 기회비용",
-        "warningNote": "이 계산에는 세금, 성과급, 퇴직금 등이 포함되지 않은 단순 세전 기준 시뮬레이션입니다.",
-        "feasibility": {
-          "status": "OK",
-          "sampleSize": 42,
-          "minRequired": null,
-          "feasibilityScore": 31,
-          "targetPercentile": 69,
-          "difficultyGrade": "CHALLENGING",
-          "feedbackMessage": "목표 연봉은 동료집단 내 상위 31% 수준의 도전적인 목표입니다. 시장 평균 범위 내에 위치하여 원만히 조율 가능한 수준입니다."
-        }
-      },
-      "calculatedAt": "2026-07-18T17:00:00Z"
-    }
-    ```
-    *(`inputs`·`result`가 각각 §6.1 요청·응답 레코드 전체를 그대로 담으므로 `scenarioName`은 최상위·`inputs` 양쪽에, `id`·`scenarioName`은 최상위·`result` 양쪽에 중복 노출된다)*
-    *(`result.feasibility` 는 저장한 백분위에서 등급·점수·문구를 다시 만든 값이다. 백분위 자체를 재계산하지 않는 이유는 동료집단 분포가 그 시점의 공고에 의존해, 나중에 다시 구하면 사용자가 실제로 본 판단이 나오지 않기 때문이다)*
-    *(`result.unemploymentBenefitNote` 의 기준 시점은 **현재** 가정치를 가리킨다. 금액은 저장분 그대로이므로 숫자는 바뀌지 않는다)*
-
-### 6.3 저장된 시나리오 목록 조회 (복원용)
-*   **MVP 포함, 다만 용도는 복원이다.** `career_scenario` 는 `scenario_name` 을 받고 `UNIQUE` 가 없어 행이 쌓이는데 조회가 §6.2 `latest` 하나뿐이라 **이름을 붙여도 다시 볼 수 없었다** — 쓰기 전용 컬럼이었다. 이 엔드포인트가 그 읽기 경로다 ([기능 명세 US-S1](functional-specification.md)).
-*   **비교 화면은 만들지 않는다.** `S-15` 안의 선택 컨트롤로 과거 입력 가정을 불러오는 데까지다.
-*   같은 목록이 12개월 뒤 사후 검증(예측 vs 실제 소득)의 읽기 경로이기도 하다 — 그때 백엔드를 새로 만들지 않는다.
-*   **응답에 복호화된 금액이 여러 건 실린다.** 본인 데이터라 노출 문제는 아니지만 로그·분석 이벤트에 남기지 않는다 (완료 기준 10번).
-*   **Endpoint:** `GET /api/v1/scenarios`
-*   **Response (200 OK):** 저장된 모든 시나리오 리스트를 `calculatedAt DESC, id DESC`(§6.2 와 같은 순서) 로 반환합니다. 첫 행이 §6.2 `latest` 와 같다. 저장분이 없으면 빈 배열 `[]` 이다 — 204 가 아니다.
-    ```json
-    [
-      {
-        "id": "e812d8a4-0cfb-4a5f-9dfb-12d88c91350c",
-        "scenarioName": "A사 오퍼 제안",
-        "inputs": {
-          "scenarioName": "A사 오퍼 제안",
-          "currentGrossSalary": 60000000,
-          "stayExpectedRaiseRate": 3.5,
-          "moveTargetGrossSalary": 72000000,
-          "moveOneTimeCost": 3000000,
-          "expectedUnemploymentMonths": 2,
-          "isEligibleForUnemploymentBenefit": true
-        },
-        "result": {
-          "id": "e812d8a4-0cfb-4a5f-9dfb-12d88c91350c",
-          "scenarioName": "A사 오퍼 제안",
-          "stayCompensation12m": 62100000,
-          "moveCompensation12m": 60960000,
-          "estimatedUnemploymentBenefit": 3960000,
-          "difference": -1140000,
-          "type": "ESTIMATED_OPPORTUNITY_COST",
-          "typeLabel": "추정 기회비용",
-          "warningNote": "이 계산에는 세금, 성과급, 퇴직금 등이 포함되지 않은 단순 세전 기준 시뮬레이션입니다.",
-          "feasibility": {
-            "feasibilityScore": 31,
-            "targetPercentile": 69,
-            "difficultyGrade": "CHALLENGING",
-            "feedbackMessage": "목표 연봉은 동료집단 내 상위 31% 수준의 도전적인 목표입니다. 시장 평균 범위 내에 위치하여 원만히 조율 가능한 수준입니다."
-          }
-        },
-        "calculatedAt": "2026-07-18T17:00:00Z"
-      }
-    ]
-    ```
-    *(구조는 §6.2와 동일 — `inputs`·`result` 내부 필드 중복은 §6.2 설명 참조)*
 
 ### 6.4 가상 시나리오 이력 삭제
 *   **`MVP 범위 밖`** — 시나리오 이력 삭제 화면이 없다. 계정 삭제는 `DELETE /users` 연쇄로 처리한다 ([개발 계획 §4](../plans/carix-dev-plan.md)). `core-api` 에 구현이 없다 — 고정값을 돌려주던 스텁은 철거했다. 아래 규격은 재도입 시의 계약으로만 남긴다.
@@ -752,7 +687,7 @@
 *   **옛 배제 근거는 틀렸다.** MVP 규격 §2.3 이 막는 것은 **확정적 연봉 예측**인데 이 엔드포인트는 연봉을 예측하지 않았다 — 인상률을 사용자가 넣고 시스템은 재계산만 했다. `S-15` 시뮬레이터가 같은 구조로 이미 MVP 에 있다. 실제 사유는 규격이 먼저 적은 쪽, **대응 스토리·화면이 없다**였다. 아래 규격은 폐기된 계약의 기록으로만 남긴다.
 
 ### 6.6 세후·실질 평가 (저장하지 않음)
-시뮬레이터 화면이 부르는 세 엔드포인트다. 모두 인증 필요이고 계산 결과를 저장하지 않는다. 금액은 원, 세후·실질(선택된 물가 기준으로 디플레이트)이며, 결론 숫자와 계단은 **확정층**(연봉·별도 고정상여·공백·일회성 비용·실업급여)만이다.
+시뮬레이터 화면이 부르는 세 엔드포인트다. 모두 인증 필요이고 계산 결과를 저장하지 않는다(저장은 §6.1). 금액은 원, 세후·실질(선택된 물가 기준으로 디플레이트)이며, 결론 숫자와 계단은 **확정층**(연봉·별도 고정상여·공백·일회성 비용·실업급여)만이다.
 
 *   **`GET /api/v1/scenarios/context`** — 입력 기본값.
     *   `currentAnnualGross`(고정상여 포함 세전 연 소득), `monthlyNet`, `hireDate`, `bonusIncluded`, `fixedBonusAnnual` — 소득 이력이 없으면 해당 값은 `null`.
@@ -760,7 +695,9 @@
     *   `performanceBonusRange {min, average, years}` — 올해를 뺀 최근 3개 연도 중 입사 연도 다음 해부터의 연도별 합(기록 없는 해는 0). 입사일이 없으면 첫 소득 행 연도 다음 해부터. 대상 연도가 없으면 `null`.
     *   `inflation` — 한국은행 전망(`governmentPercent`)과 개인물가(`personalPercent`, 계산 불가면 `null`), 격차 `gapPp`·`topGapCategory`·`similar`(|격차| < 0.3%p), `asOf`·`source`.
     *   `marketGapPercent` — 공식 임금통계(KOSIS) 중앙값 대비 격차(%, **세전·명목**). 양수면 중앙값이 더 높다. 상수 기준선뿐이거나 기준선이 없으면 `null`.
-*   **`GET /api/v1/scenarios/feasibility?targetGross={원}`** — §6.1 의 `feasibility` 와 같은 객체. 표본 부족이면 안의 값이 `null`, 음수면 400.
+*   **`GET /api/v1/scenarios/feasibility?targetGross={원}`** — 이직 목표 연봉이 §5.2 동료집단 공고 분포에서 몇 번째 백분위(`targetPercentile`)인지로 실현 난이도를 낸다. 음수면 400.
+    *   `difficultyGrade` 는 `EASY`/`REALISTIC`/`CHALLENGING`/`VERY_HIGH_CHALLENGE`. 표본이 모자라면 `status` 가 `INSUFFICIENT_SAMPLE` 이고 `feasibilityScore`·`targetPercentile`·`difficultyGrade`·`feedbackMessage` 가 전부 `null` 이다 — 백분위를 임의 분포로 지어내지 않는다.
+    *   `sampleSize` 는 백분위를 매긴 **공개연봉** 표본 수이고 `minRequired` 는 표본 부족일 때만 채운다. 산출 조건은 동료집단 공고 수와 그중 공개연봉 건수가 **둘 다** `minRequired` 이상인 것이다(§5.2 연봉 분포와 같은 기준).
 *   **`POST /api/v1/scenarios/evaluate`** — 본문 `stay`(필수: `raisePercent` −100~100, 선택: `currentGrossOverride`, `performanceBonusEstimate`, `stockVesting12m`, `stockUnvested`), `move`(선택: `grossSalary`, `unemploymentMonths` 0~6, `oneTimeCost`, `benefitEligible`, `bonusIncluded`, `fixedBonusAnnual`, `performanceBonusExpected`, `signingBonus`, `stockVesting12m`).
     *   `stay`: `realChangePercent`(내 기준 물가)·`realChangeGovernmentPercent`, `breakevenPersonalPercent`·`breakevenGovernmentPercent`(실질 변화가 0 이 되는 인상률, 해가 없으면 `null`), `marketGapPercent`. 개인물가를 못 구하면 두 기준 값이 같다.
     *   `move`(이직 입력이 있을 때만): `stayCumulative`·`moveCumulative`(48개월 누적), `crossoverMonth`, `firstYear`(`salaryDiff`+`gap`+`oneTimeCost`+`benefit` = `total`), `expectedRange {min,max}`(성과급·사이닝 첫해 차이, 결론에 더하지 않음), `stock`(불확실층, 입력이 없으면 `null` — `firstYear` 에 영향 없음), `equalizingRaisePercent`, `feasibility`.

@@ -1,6 +1,10 @@
 package com.carix.common;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -32,7 +36,8 @@ import org.springframework.transaction.annotation.Transactional;
  *       net_salary_encrypted}, 고정상여: {@code fixed_bonus_annual_encrypted})
  *   <li>{@code core.performance_bonus} (성과급 금액: {@code amount_encrypted})
  *   <li>{@code core.expense_item} (월 소비액: {@code amount_encrypted})
- *   <li>{@code core.career_scenario} (시뮬레이션 관련 금액 6개 컬럼)
+ *   <li>{@code core.career_scenario} (엔진 1 금액 6개 컬럼, 엔진 2 요청·결과 JSON {@code payload_encrypted}. 행
+ *       종류에 따라 비는 컬럼은 건너뛴다)
  * </ul>
  */
 @Slf4j
@@ -40,7 +45,21 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class SensitiveDataRekeyingService {
 
+  private static final List<String> SCENARIO_AMOUNT_COLUMNS =
+      List.of(
+          "current_gross_salary_encrypted",
+          "move_target_gross_salary_encrypted",
+          "stay_compensation_12m_encrypted",
+          "move_compensation_12m_encrypted",
+          "estimated_unemployment_benefit_encrypted",
+          "difference_encrypted");
+
+  /** 엔진 1 금액 컬럼들과 엔진 2 payload. 행마다 한쪽만 채워져 있다 */
+  private static final List<String> SCENARIO_COLUMNS =
+      Stream.concat(SCENARIO_AMOUNT_COLUMNS.stream(), Stream.of("payload_encrypted")).toList();
+
   private final EncryptedConverter converter;
+  private final EncryptedStringConverter stringConverter;
   private final KeyRing keyRing;
   private final JdbcTemplate jdbcTemplate;
 
@@ -132,20 +151,9 @@ public class SensitiveDataRekeyingService {
 
     Long scenario =
         jdbcTemplate.queryForObject(
-            "SELECT COUNT(*) FROM core.career_scenario "
-                + "WHERE current_gross_salary_encrypted NOT LIKE ? "
-                + "OR move_target_gross_salary_encrypted NOT LIKE ? "
-                + "OR stay_compensation_12m_encrypted NOT LIKE ? "
-                + "OR move_compensation_12m_encrypted NOT LIKE ? "
-                + "OR estimated_unemployment_benefit_encrypted NOT LIKE ? "
-                + "OR difference_encrypted NOT LIKE ?",
+            "SELECT COUNT(*) FROM core.career_scenario WHERE " + outdatedScenarioCondition(),
             Long.class,
-            activePrefix,
-            activePrefix,
-            activePrefix,
-            activePrefix,
-            activePrefix,
-            activePrefix);
+            scenarioPrefixArgs(activePrefix));
 
     Long bonus =
         jdbcTemplate.queryForObject(
@@ -275,81 +283,72 @@ public class SensitiveDataRekeyingService {
   }
 
   /**
-   * {@code core.career_scenario} 테이블의 6개 시뮬레이션 금액 컬럼을 최신 활성 키로 재암호화한다.
+   * {@code core.career_scenario} 테이블의 암호화 컬럼(엔진 1 금액 6개, 엔진 2 payload)을 최신 활성 키로 재암호화한다.
+   *
+   * <p>엔진 1 행은 payload 가, 엔진 2 행은 금액 컬럼이 비어 있다. 빈 컬럼은 그대로 두고 채워진 컬럼만 바꾼다.
    *
    * @return 재암호화된 시나리오 레코드 건수
    */
   public int rekeyCareerScenario() {
     String activePrefix = keyRing.getActiveKeyId() + ":%";
+    String columns = String.join(", ", SCENARIO_COLUMNS);
 
     return jdbcTemplate.query(
-        "SELECT id, current_gross_salary_encrypted, move_target_gross_salary_encrypted, "
-            + "stay_compensation_12m_encrypted, move_compensation_12m_encrypted, "
-            + "estimated_unemployment_benefit_encrypted, difference_encrypted "
-            + "FROM core.career_scenario "
-            + "WHERE current_gross_salary_encrypted NOT LIKE ? "
-            + "OR move_target_gross_salary_encrypted NOT LIKE ? "
-            + "OR stay_compensation_12m_encrypted NOT LIKE ? "
-            + "OR move_compensation_12m_encrypted NOT LIKE ? "
-            + "OR estimated_unemployment_benefit_encrypted NOT LIKE ? "
-            + "OR difference_encrypted NOT LIKE ?",
+        "SELECT id, " + columns + " FROM core.career_scenario WHERE " + outdatedScenarioCondition(),
         rs -> {
           int count = 0;
           while (rs.next()) {
             UUID id = rs.getObject("id", UUID.class);
+            List<String> raws = new ArrayList<>();
+            for (String column : SCENARIO_COLUMNS) {
+              raws.add(rs.getString(column));
+            }
 
-            // 6개 암호화 금액 컬럼 각각에 대해 복호화 후 신규 활성 키로 재암호화
-            String rawCurrentGross = rs.getString("current_gross_salary_encrypted");
-            String rawMoveTargetGross = rs.getString("move_target_gross_salary_encrypted");
-            String rawStayComp = rs.getString("stay_compensation_12m_encrypted");
-            String rawMoveComp = rs.getString("move_compensation_12m_encrypted");
-            String rawUnemployment = rs.getString("estimated_unemployment_benefit_encrypted");
-            String rawDiff = rs.getString("difference_encrypted");
-            String newCurrentGross = reencrypt(rawCurrentGross);
-            String newMoveTargetGross = reencrypt(rawMoveTargetGross);
-            String newStayComp = reencrypt(rawStayComp);
-            String newMoveComp = reencrypt(rawMoveComp);
-            String newUnemployment = reencrypt(rawUnemployment);
-            String newDiff = reencrypt(rawDiff);
+            List<Object> args = new ArrayList<>();
+            for (int i = 0; i < raws.size(); i++) {
+              args.add(reencryptScenarioColumn(SCENARIO_COLUMNS.get(i), raws.get(i)));
+            }
+            args.add(id);
+            args.addAll(raws);
 
+            // 읽은 암호문이 그대로일 때만 갱신한다 (동시 쓰기 보호). 빈 컬럼은 NULL 끼리 같다고 본다
             count +=
                 jdbcTemplate.update(
                     "UPDATE core.career_scenario SET "
-                        + "current_gross_salary_encrypted = ?, "
-                        + "move_target_gross_salary_encrypted = ?, "
-                        + "stay_compensation_12m_encrypted = ?, "
-                        + "move_compensation_12m_encrypted = ?, "
-                        + "estimated_unemployment_benefit_encrypted = ?, "
-                        + "difference_encrypted = ? "
-                        + "WHERE id = ? "
-                        + "AND current_gross_salary_encrypted = ? "
-                        + "AND move_target_gross_salary_encrypted = ? "
-                        + "AND stay_compensation_12m_encrypted = ? "
-                        + "AND move_compensation_12m_encrypted = ? "
-                        + "AND estimated_unemployment_benefit_encrypted = ? "
-                        + "AND difference_encrypted = ?",
-                    newCurrentGross,
-                    newMoveTargetGross,
-                    newStayComp,
-                    newMoveComp,
-                    newUnemployment,
-                    newDiff,
-                    id,
-                    rawCurrentGross,
-                    rawMoveTargetGross,
-                    rawStayComp,
-                    rawMoveComp,
-                    rawUnemployment,
-                    rawDiff);
+                        + SCENARIO_COLUMNS.stream()
+                            .map(column -> column + " = ?")
+                            .collect(Collectors.joining(", "))
+                        + " WHERE id = ? AND "
+                        + SCENARIO_COLUMNS.stream()
+                            .map(column -> column + " IS NOT DISTINCT FROM ?")
+                            .collect(Collectors.joining(" AND ")),
+                    args.toArray());
           }
           return count;
         },
-        activePrefix,
-        activePrefix,
-        activePrefix,
-        activePrefix,
-        activePrefix,
-        activePrefix);
+        scenarioPrefixArgs(activePrefix));
+  }
+
+  /** 채워진 컬럼 중 하나라도 활성 키 접두사가 아니면 미전환이다. */
+  private static String outdatedScenarioCondition() {
+    return SCENARIO_COLUMNS.stream()
+        .map(column -> "(" + column + " IS NOT NULL AND " + column + " NOT LIKE ?)")
+        .collect(Collectors.joining(" OR "));
+  }
+
+  private static Object[] scenarioPrefixArgs(String activePrefix) {
+    return SCENARIO_COLUMNS.stream().map(column -> activePrefix).toArray();
+  }
+
+  private String reencryptScenarioColumn(String column, String ciphertext) {
+    if (ciphertext == null) {
+      return null;
+    }
+    if (SCENARIO_AMOUNT_COLUMNS.contains(column)) {
+      return reencrypt(ciphertext);
+    }
+    return stringConverter.convertToDatabaseColumn(
+        stringConverter.convertToEntityAttribute(ciphertext));
   }
 
   /**

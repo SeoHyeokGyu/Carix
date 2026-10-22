@@ -456,9 +456,9 @@ sequenceDiagram
     Core-->>Web: 구매력/시장가치/결정신호 반환
     Web-->>User: 화면에 차트 및 지표 렌더링
     User->>Web: 이직 시뮬레이션 시도 (목표액, 비용 조정)
-    Web->>GW: POST /api/v1/scenarios/simulate (시뮬레이션 요청)
+    Web->>GW: POST /api/v1/scenarios/evaluate (평가 요청, 저장하지 않음)
     GW->>Core: 라우팅 (/api/v1/**)
-    Note over Core: 공백 기간·실업급여 반영 세전 비교 연산
+    Note over Core: 공백 기간·실업급여 반영 세후·실질 비교 연산
     Core-->>Web: 추정 추가보상/기회비용 결과 반환
     Web-->>User: 시뮬레이션 비교 차트 표시
 ```

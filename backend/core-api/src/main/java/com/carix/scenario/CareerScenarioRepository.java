@@ -9,17 +9,15 @@ import org.springframework.data.jpa.repository.JpaRepository;
 public interface CareerScenarioRepository extends JpaRepository<CareerScenario, UUID> {
 
   /**
-   * 가장 최근 시나리오 1건 (API 규격 §6.2 — {@code calculated_at DESC, id DESC} 순 첫 행).
+   * 저장분 전부(초안 제외), 최근 순 (API 규격 §6.3).
    *
    * <p>{@code id} 를 2차 정렬로 두는 이유는 {@code calculated_at} 이 {@code CURRENT_TIMESTAMP} 기본값이라 같은 트랜잭션에서
-   * 두 행이 들어가면 값이 같아서다. 그때 순서가 정해지지 않으면 조회가 흔들린다.
+   * 두 행이 들어가면 값이 같아서다. 그때 순서가 정해지지 않으면 목록이 흔들린다.
    */
-  Optional<CareerScenario> findFirstByUserIdOrderByCalculatedAtDescIdDesc(UUID userId);
+  List<CareerScenario> findByUserIdAndDraftFalseOrderByCalculatedAtDescIdDesc(UUID userId);
 
-  /**
-   * 저장분 전부, 최근 순 (API 규격 §6.3). 정렬은 {@link #findFirstByUserIdOrderByCalculatedAtDescIdDesc} 와 같다.
-   */
-  List<CareerScenario> findByUserIdOrderByCalculatedAtDescIdDesc(UUID userId);
+  /** 사용자의 초안. 운영 DB 는 부분 유니크 인덱스가 1건을 보장하지만 H2 는 못 잡으므로 서비스도 1건만 만든다. */
+  Optional<CareerScenario> findFirstByUserIdAndDraftTrue(UUID userId);
 
   void deleteByUserId(UUID userId);
 }

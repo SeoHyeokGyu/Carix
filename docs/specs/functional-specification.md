@@ -529,7 +529,7 @@ OWI           = 최근 3개월 동료집단 비중 ÷ 이전 12개월(4~15개월
 | S-11 이력 | US-D4 | `GET /dashboard/history` | `index_snapshot` |
 | S-14 추이분석 | US-D3, US-D8 | `GET /trends`, `/salary-distribution`, `/wage-growth` | `market_aggregate`, `wage_stat_observation`, `income_history` |
 | S-18 스킬 분석 | US-D6, US-D9 | `GET /dashboard/skills`, `GET /skills/recommendations` | `market_aggregate`, `job_posting_skill`, `skill`, `user_skill` |
-| S-15 시뮬레이터 | US-S1 | `POST /scenarios/simulate`, `GET /scenarios/latest`, `GET /scenarios` | `career_scenario` |
+| S-15 시뮬레이터 | US-S1 | `POST /scenarios/evaluate`, `POST /scenarios`, `PUT·GET /scenarios/draft`, `GET /scenarios` | `career_scenario` |
 | S-12 입력 관리 | US-R1 | `PUT`·`DELETE /income`·`/user-skills`, `PUT /expenses/{ym}` | `income_history`(`change_reason`), `expense_*`, `user_skill` |
 | S-13 설정/탈퇴 | US-C1, US-C2 | `POST /auth/logout`·`/logout-all`, `DELETE /users` | `session`, 전 개인 테이블 |
 | S-16 파이프라인 콘솔 | US-M1 | `POST /internal/pipeline/*`, `GET /internal/pipeline/jobs`, `/stats` | `raw_ingest`, `job_posting`, `wage_stat_observation`, `market_aggregate` |

@@ -200,8 +200,8 @@ gantt
 > - **의존성 규약:** `b7`(브래킷 수정)은 차단이 아닌 배포 전 결정 항목이며, OWI 산출기(`b6`)는 이미 준비된 C 의 스냅샷 스키마(`c6`) 위에서 B 가 값을 공급한다. 정확한 선후와 기간은 간트를 따른다.
 
 > **완료 기준 10번(민감 금액 로그 미기록)은 전 레인 공통이다**
-> (기능 명세 §7). `POST /scenarios/simulate` 요청 본문의
-> `currentGrossSalary`·`moveTargetGrossSalary` 와 스냅샷 재계산의 복호화 경로
+> (기능 명세 §7). `POST /scenarios/evaluate`·`POST /scenarios` 요청 본문의
+> `currentGrossOverride`·`move.grossSalary` 와 스냅샷 재계산의 복호화 경로
 > 등에서 금액이 평문으로 로그에 찍히면 안 된다.
 
 ### 남은 블록 상세

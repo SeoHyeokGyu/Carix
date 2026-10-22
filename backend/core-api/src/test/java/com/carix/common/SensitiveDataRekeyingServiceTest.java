@@ -38,11 +38,17 @@ import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
  */
 @DataJpaTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
-@Import({SensitiveDataRekeyingService.class, KeyRing.class, EncryptedConverter.class})
+@Import({
+  SensitiveDataRekeyingService.class,
+  KeyRing.class,
+  EncryptedConverter.class,
+  EncryptedStringConverter.class
+})
 class SensitiveDataRekeyingServiceTest {
 
   @Autowired private SensitiveDataRekeyingService rekeyingService;
   @MockitoSpyBean private EncryptedConverter converter;
+  @Autowired private EncryptedStringConverter stringConverter;
   @Autowired private KeyRing keyRing;
   @Autowired private JdbcTemplate jdbcTemplate;
   @Autowired private TestEntityManager em;
@@ -253,6 +259,38 @@ class SensitiveDataRekeyingServiceTest {
 
     assertThat(em.find(CareerScenario.class, scenarioId).getCurrentGrossSalary())
         .isEqualTo(61_000_000L);
+  }
+
+  @Test
+  @DisplayName("엔진 2 시나리오는 payload 만 옛 키여도 미전환으로 잡히고 재암호화 뒤 복호화된다 - 빈 금액 컬럼은 건너뛴다")
+  void rekey_migratesScenarioPayload() {
+    String json = "{\"request\":{\"move\":{\"grossSalary\":72000000}}}";
+    String encrypted = stringConverter.convertToDatabaseColumn(json);
+    String legacyPayload = encrypted.substring(encrypted.indexOf(':') + 1);
+    UUID scenarioId = UUID.randomUUID();
+    jdbcTemplate.update(
+        "INSERT INTO core.career_scenario (id, user_id, engine_version, is_draft, payload_encrypted, "
+            + "calculated_at) VALUES (?, ?, ?, ?, ?, ?)",
+        scenarioId,
+        UUID.randomUUID(),
+        "2",
+        false,
+        legacyPayload,
+        OffsetDateTime.now());
+    em.clear();
+
+    assertThat(rekeyingService.checkStatus().outdatedCareerScenario()).isEqualTo(1);
+    assertThat(rekeyingService.rekeyCareerScenario()).isEqualTo(1);
+    em.clear();
+
+    assertThat(rekeyingService.checkStatus().isFullyMigrated()).isTrue();
+    assertThat(em.find(CareerScenario.class, scenarioId).getPayload()).isEqualTo(json);
+    String stored =
+        jdbcTemplate.queryForObject(
+            "SELECT payload_encrypted FROM core.career_scenario WHERE id = ?",
+            String.class,
+            scenarioId);
+    assertThat(stored).startsWith(keyRing.getActiveKeyId() + ":");
   }
 
   @Test

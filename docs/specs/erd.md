@@ -228,6 +228,9 @@ erDiagram
         varchar feasibility_status
         int feasibility_percentile "표본 부족이면 NULL"
         int feasibility_sample_size
+        varchar engine_version "1 이전 방식, 2 세후 평가"
+        boolean is_draft "사용자당 1건"
+        text payload_encrypted "엔진 2 요청·결과 JSON 암호문"
         timestamp calculated_at
     }
 ```
@@ -291,6 +294,13 @@ erDiagram
 평문이면 `stay_compensation_12m` 을 `stay_expected_raise_rate` 로 나눠 현재 연봉이 원
 단위까지 복원되어, 연봉을 암호화한 이유가 이 테이블에서 사라진다. 금액으로 조회·정렬하는 인덱스가
 없어 질의 비용은 없다.
+
+**`career_scenario` 는 두 엔진의 행이 섞인다.** `engine_version = '1'` 은 이전 방식(세전 12개월
+비교)으로 저장한 행으로 위 엔진 1 컬럼을 쓰고 새로 만들지 않는다. `'2'` 는 세후·실질 평가로
+저장한 행으로 요청·결과 JSON 을 `payload_encrypted` 한 컬럼에 암호문으로 두고 엔진 1 컬럼은
+`NULL` 이다 — 그래서 엔진 1 컬럼의 `NOT NULL` 은 풀려 있다. `is_draft = true` 행은 편집 중인
+입력(`result` 없음)이며 사용자당 1건을 부분 유니크 인덱스 `career_scenario_user_draft_idx` 가
+지킨다(H2 는 부분 인덱스를 못 만들어 서비스도 1건만 만든다).
 
 실현 가능성은 재계산하지 않고 저장한다. 동료집단 분포는 그 시점의 공고에 의존해 나중에 다시
 구하면 사용자가 실제로 본 판단이 나오지 않는다.
