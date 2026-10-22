@@ -66,6 +66,15 @@ class SnapshotRecalculationServiceTest {
   }
 
   @Test
+  @DisplayName("구매력 지수 산식 버전 2 를 스냅샷 근거에 남긴다")
+  void recalculate_storesPpiFormulaVersion() {
+    service.recalculateSnapshot(userId, CURRENT_YM);
+
+    var saved = indexSnapshotRepository.findAll().getFirst();
+    assertThat(saved.getRationale().ppiFormulaVersion()).isEqualTo("2");
+  }
+
+  @Test
   @DisplayName("물가 기여도 1위를 스냅샷 근거에 저장한다")
   void recalculate_storesTopPriceDriver() {
     driver =

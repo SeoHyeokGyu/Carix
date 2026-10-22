@@ -158,4 +158,16 @@ class SnapshotRationaleTest {
     assertThat(legacy.ppiFormulaVersionOrLegacy()).isEqualTo("1");
     assertThat(current.ppiFormulaVersionOrLegacy()).isEqualTo("2");
   }
+
+  @Test
+  @DisplayName("미지의 필드가 있는 행도 읽는다 — 이전 버전으로 되돌려도 새 행이 깨지지 않는다")
+  void 미지의_필드는_무시하고_읽는다() throws Exception {
+    // Hibernate 의 JSON 포맷 매퍼는 기본 ObjectMapper 라 FAIL_ON_UNKNOWN_PROPERTIES 가 켜져 있다
+    ObjectMapper mapper = new ObjectMapper().registerModule(new JavaTimeModule());
+
+    SnapshotRationale rationale =
+        mapper.readValue("{\"runId\":\"r\",\"someFutureField\":\"x\"}", SnapshotRationale.class);
+
+    assertThat(rationale.runId()).isEqualTo("r");
+  }
 }

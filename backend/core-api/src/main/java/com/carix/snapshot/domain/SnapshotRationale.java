@@ -37,6 +37,7 @@ import java.util.List;
  * @param ppiFormulaVersion 구매력 지수 산식 버전. 이 필드 도입 전 행은 {@code null} 로 읽히며 {@link
  *     #ppiFormulaVersionOrLegacy()} 가 {@code "1"} 로 돌려준다. 저장된 행은 다시 쓰지 않는다
  */
+@JsonIgnoreProperties(ignoreUnknown = true)
 public record SnapshotRationale(
     List<String> rulesApplied,
     String salaryGapBucket,
