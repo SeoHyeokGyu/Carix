@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   redirect,
   useLoaderData,
@@ -100,6 +100,10 @@ function useEvaluation(
 ) {
   const [evaluation, setEvaluation] = useState<Evaluation>(NO_EVALUATION);
   const stale = active && draft !== null && evaluation.request !== draft;
+  const unauthorized = useRef(onUnauthorized);
+  useEffect(() => {
+    unauthorized.current = onUnauthorized;
+  });
 
   useEffect(() => {
     if (!stale || !draft) return;
@@ -110,7 +114,7 @@ function useEvaluation(
       })
       .catch((error: unknown) => {
         if (cancelled) return;
-        if (error instanceof UnauthorizedError) return onUnauthorized();
+        if (error instanceof UnauthorizedError) return unauthorized.current();
         setEvaluation((prev) => ({
           request: draft,
           result: prev.result,
@@ -120,10 +124,12 @@ function useEvaluation(
     return () => {
       cancelled = true;
     };
-  }, [stale, draft, onUnauthorized]);
+  }, [stale, draft]);
 
   return {
     evaluation,
+    // 낡은 입력에 대한 실패 문장은 지금 입력과 무관하다.
+    error: evaluation.request === draft ? evaluation.error : null,
     pending: stale,
     retry: () => setEvaluation(NO_EVALUATION),
   };
@@ -142,12 +148,14 @@ export default function DashboardSimulator() {
   const [notice, setNotice] = useState<string | null>(null);
   // 저장된 시나리오를 불러오는 것처럼 초안이 밖에서 바뀔 때 상단 입력칸을 새로 그린다.
   const [version, setVersion] = useState(0);
+  // 초안 저장을 순서대로 보내, 늦게 끝난 앞선 요청이 최신 초안을 덮지 않게 한다.
+  const putQueue = useRef<Promise<void>>(Promise.resolve());
 
   const step = reachableStep(initialStep(params, draft), draft);
   const goTo = (next: SimulatorStep) => setParams({ step: next });
   const toLogin = () => navigate(LOGIN_PATH, { replace: true });
 
-  const { evaluation, pending, retry } = useEvaluation(
+  const { evaluation, error, pending, retry } = useEvaluation(
     step === "stay" || step === "result",
     draft,
     toLogin,
@@ -157,10 +165,13 @@ export default function DashboardSimulator() {
     setDraft(next);
     setNotice(null);
     if (!persist) return;
-    putDraft(next).catch((error: unknown) => {
-      if (error instanceof UnauthorizedError) return toLogin();
-      setNotice(`초안을 저장하지 못했습니다: ${describeError(error)}`);
-    });
+    putQueue.current = putQueue.current
+      .then(() => putDraft(next))
+      .then(() => undefined)
+      .catch((error: unknown) => {
+        if (error instanceof UnauthorizedError) return toLogin();
+        setNotice(`초안을 저장하지 못했습니다: ${describeError(error)}`);
+      });
   };
 
   const adopt = (next: EvaluateRequest, to: SimulatorStep) => {
@@ -213,6 +224,7 @@ export default function DashboardSimulator() {
             onBonusRecorded={refreshContext}
             onDone={(saved) => {
               replaceDraft(saved, false);
+              refreshContext();
               goTo("stay");
             }}
           />
@@ -221,6 +233,7 @@ export default function DashboardSimulator() {
         {step === "stay" && draft && (
           <StayView
             evaluation={evaluation}
+            error={error}
             pending={pending}
             raisePercent={draft.stay.raisePercent}
             onRetry={retry}
@@ -251,7 +264,8 @@ export default function DashboardSimulator() {
                 key={version}
                 draft={{ ...draft, move: draft.move }}
                 result={{ ...evaluation.result, move: evaluation.result.move }}
-                notice={evaluation.error}
+                pending={pending}
+                notice={error}
                 scenarios={scenarios}
                 onEdit={(next) => replaceDraft(next, true)}
                 onFullConditions={() => goTo("current")}
@@ -262,7 +276,7 @@ export default function DashboardSimulator() {
               />
             ) : (
               <EvaluationFallback
-                error={evaluation.error}
+                error={error}
                 pending={pending}
                 onRetry={retry}
               />
@@ -304,6 +318,7 @@ function EvaluationFallback({
 
 function StayView({
   evaluation,
+  error,
   pending,
   raisePercent,
   onRetry,
@@ -311,6 +326,7 @@ function StayView({
   onCompare,
 }: {
   evaluation: Evaluation;
+  error: string | null;
   pending: boolean;
   raisePercent: number;
   onRetry: () => void;
@@ -319,18 +335,19 @@ function StayView({
 }) {
   if (!evaluation.result) {
     return (
-      <EvaluationFallback
-        error={evaluation.error}
-        pending={pending}
-        onRetry={onRetry}
-      />
+      <EvaluationFallback error={error} pending={pending} onRetry={onRetry} />
     );
   }
   return (
     <>
-      {evaluation.error && (
+      {pending && (
+        <p role="status" className="text-sm text-muted-foreground">
+          다시 계산하는 중
+        </p>
+      )}
+      {error && (
         <p role="alert" className="text-sm text-carix-danger">
-          {evaluation.error}
+          {error}
         </p>
       )}
       <StayResultStep

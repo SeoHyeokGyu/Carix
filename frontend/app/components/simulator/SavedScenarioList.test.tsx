@@ -2,7 +2,10 @@ import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import type { SavedScenario } from "../../lib/api/scenario";
+import * as scenarioApi from "../../lib/api/scenario";
 import { SavedScenarioList } from "./SavedScenarioList";
+
+vi.mock("../../lib/api/scenario", () => ({ evaluate: vi.fn() }));
 
 const legacy: SavedScenario = {
   id: "old",
@@ -59,6 +62,7 @@ describe("SavedScenarioList", () => {
     expect(screen.getByText("이전 방식(세전 기준)")).toBeInTheDocument();
     expect(screen.getByText(/61,800,000원/)).toBeInTheDocument();
     expect(screen.getByText(/64,166,667원/)).toBeInTheDocument();
+    expect(scenarioApi.evaluate).not.toHaveBeenCalled();
     expect(onLoad).not.toHaveBeenCalled();
   });
 });

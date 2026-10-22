@@ -224,7 +224,7 @@ DB 스키마는 [ERD](erd.md), REST 계약은 [API 규격](api-specification.md)
 - Given 동료집단 추천 스킬 섹션 / When 표시 / Then 결정 신호와 무관하게 동료집단 적용 조건(`appliedConditions`)과 미보유 추천 스킬 전체 목록(스킬명, 카테고리, 수요율, 추세 뱃지, 동시출현·수요율 근거 문구)을 표시한다. 동료집단 표본 부족 등으로 추천 목록이 비어 있으면 `표본 부족` 안내를 표시한다.
 - Given 두 조회(`GET /dashboard/skills`, `GET /skills/recommendations`) 중 하나만 실패 / When 화면 표시 / Then 성공한 섹션은 그대로 표시하고 실패한 섹션 자리에서만 `다시 시도` 버튼을 제공하며, 둘 다 실패하고 이전 데이터도 없으면 화면 단위 오류 상태를 표시한다.
 
-### 2.4 12개월 시나리오 (SCEN)
+### 2.4 잔류·이직 시나리오 (SCEN)
 
 **US-S1. 잔류 vs 이직 비교 (S-15)**
 

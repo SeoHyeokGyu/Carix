@@ -32,6 +32,8 @@ import { UnreflectedNotice } from "./UnreflectedNotice";
 
 const EDIT_DEBOUNCE_MS = 400;
 const MAX_GAP_MONTHS = 6;
+const MIN_RAISE_PERCENT = -100;
+const MAX_RAISE_PERCENT = 100;
 
 type MoveInput = NonNullable<EvaluateRequest["move"]>;
 type MoveView = NonNullable<EvaluationResponse["move"]>;
@@ -41,6 +43,8 @@ interface ResultViewProps {
   result: EvaluationResponse & { move: MoveView };
   /** 평가 요청이 진행 중이거나 직전 요청이 실패했을 때 결과 영역에 보일 문장. */
   notice: string | null;
+  /** 입력이 바뀌어 결과를 다시 계산하는 중. */
+  pending: boolean;
   scenarios: readonly SavedScenario[];
   /** 상단 세 칸을 고쳤을 때. 호출자가 초안 저장과 재평가를 맡는다. */
   onEdit: (next: EvaluateRequest) => void;
@@ -65,8 +69,13 @@ function parseEdit(
   const raiseNumber = Number(raise);
   const grossWon = manInputToWon(gross);
   const gapNumber = Number(gap);
-  if (raise.trim() === "" || !Number.isFinite(raiseNumber)) {
-    errors.raise = "인상률을 숫자로 입력해 주세요.";
+  if (
+    raise.trim() === "" ||
+    !Number.isFinite(raiseNumber) ||
+    raiseNumber < MIN_RAISE_PERCENT ||
+    raiseNumber > MAX_RAISE_PERCENT
+  ) {
+    errors.raise = `인상률은 ${MIN_RAISE_PERCENT}~${MAX_RAISE_PERCENT} 사이 숫자로 입력해 주세요.`;
   }
   if (grossWon === null) errors.gross = "이직 연봉을 입력해 주세요.";
   if (
@@ -86,7 +95,11 @@ function QuickEdit({
   draft,
   onEdit,
   onFullConditions,
-}: Pick<ResultViewProps, "draft" | "onEdit" | "onFullConditions">) {
+  onDirtyChange,
+}: Pick<ResultViewProps, "draft" | "onEdit" | "onFullConditions"> & {
+  /** 입력칸이 초안과 다르거나 올바르지 않은 동안 참. */
+  onDirtyChange: (dirty: boolean) => void;
+}) {
   const [raise, setRaise] = useState(String(draft.stay.raisePercent));
   const [gross, setGross] = useState(wonToManInput(draft.move.grossSalary));
   const [gap, setGap] = useState(String(draft.move.unemploymentMonths));
@@ -97,6 +110,14 @@ function QuickEdit({
 
   const { errors, value } = parseEdit(raise, gross, gap);
   const [nextRaise, nextGross, nextGap] = value ?? [];
+  const dirty =
+    value === null ||
+    nextRaise !== draft.stay.raisePercent ||
+    nextGross !== draft.move.grossSalary ||
+    nextGap !== draft.move.unemploymentMonths;
+  useEffect(() => {
+    onDirtyChange(dirty);
+  }, [dirty, onDirtyChange]);
 
   useEffect(() => {
     if (nextRaise === undefined) return;
@@ -170,7 +191,10 @@ function QuickEdit({
   );
 }
 
-function SaveForm({ onSave }: Pick<ResultViewProps, "onSave">) {
+function SaveForm({
+  onSave,
+  blocked,
+}: Pick<ResultViewProps, "onSave"> & { blocked: boolean }) {
   const [name, setName] = useState("");
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(
@@ -205,7 +229,7 @@ function SaveForm({ onSave }: Pick<ResultViewProps, "onSave">) {
         )}
       </Field>
       <div>
-        <Button type="button" disabled={saving} onClick={submit}>
+        <Button type="button" disabled={saving || blocked} onClick={submit}>
           시나리오 저장
         </Button>
       </div>
@@ -314,7 +338,8 @@ function IfYouStay({
 }
 
 export function ResultView(props: ResultViewProps) {
-  const { draft, result, notice } = props;
+  const { draft, result, notice, pending } = props;
+  const [editDirty, setEditDirty] = useState(false);
   const { move } = result;
   const { headline, note } = moveHeadline(
     move.firstYear.total,
@@ -330,7 +355,14 @@ export function ResultView(props: ResultViewProps) {
         draft={draft}
         onEdit={props.onEdit}
         onFullConditions={props.onFullConditions}
+        onDirtyChange={setEditDirty}
       />
+
+      {pending && (
+        <p role="status" className="text-sm text-muted-foreground">
+          다시 계산하는 중
+        </p>
+      )}
 
       {notice && (
         <p role="alert" className="text-sm text-carix-danger">
@@ -368,7 +400,7 @@ export function ResultView(props: ResultViewProps) {
 
       <UnreflectedNotice codes={result.unreflected} onFill={props.onFill} />
 
-      <SaveForm onSave={props.onSave} />
+      <SaveForm onSave={props.onSave} blocked={editDirty || pending} />
 
       <SavedScenarioList
         scenarios={props.scenarios}
