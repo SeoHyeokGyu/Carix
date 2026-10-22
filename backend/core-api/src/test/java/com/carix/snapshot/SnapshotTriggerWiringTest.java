@@ -10,12 +10,17 @@ import com.carix.income.domain.IncomeHistory;
 import com.carix.income.dto.IncomeRequest;
 import com.carix.income.repository.IncomeHistoryRepository;
 import com.carix.income.service.IncomeService;
+import com.carix.profile.domain.CareerProfile;
+import com.carix.profile.dto.ProfileRequest;
+import com.carix.profile.repository.CareerProfileRepository;
+import com.carix.profile.service.ProfileService;
 import com.carix.skill.domain.Skill;
 import com.carix.skill.domain.UserSkill;
 import com.carix.skill.repository.SkillAliasRepository;
 import com.carix.skill.repository.SkillRepository;
 import com.carix.skill.repository.UserSkillRepository;
 import com.carix.skill.service.SkillService;
+import java.time.Clock;
 import java.time.LocalDate;
 import java.util.Optional;
 import java.util.UUID;
@@ -83,6 +88,49 @@ class SnapshotTriggerWiringTest {
             recalculation);
 
     service.deleteUserSkill(USER_ID, userSkill.getId());
+
+    verify(recalculation).recalculateSnapshot(eq(USER_ID), eq(YearMonths.current()));
+  }
+
+  @Test
+  @DisplayName("소득 등록 - 유효 시작월부터 재계산한다")
+  void 소득_등록() {
+    IncomeHistoryRepository repository = mock(IncomeHistoryRepository.class);
+    given(repository.existsByUserIdAndEffectiveDate(any(), any())).willReturn(false);
+    given(repository.save(any(IncomeHistory.class)))
+        .willAnswer(invocation -> invocation.getArgument(0));
+    IncomeService service = new IncomeService(repository, recalculation);
+
+    service.create(
+        USER_ID, new IncomeRequest(60_000_000L, 4_000_000L, LocalDate.of(2026, 3, 15), null));
+
+    verify(recalculation).recalculateSnapshot(USER_ID, "202603");
+  }
+
+  @Test
+  @DisplayName("소득 삭제 - 지운 행의 유효월부터 재계산한다")
+  void 소득_삭제() {
+    IncomeHistoryRepository repository = mock(IncomeHistoryRepository.class);
+    IncomeHistory entity =
+        new IncomeHistory(USER_ID, 60_000_000L, 4_000_000L, LocalDate.of(2026, 4, 1), null);
+    given(repository.findById(any())).willReturn(Optional.of(entity));
+    IncomeService service = new IncomeService(repository, recalculation);
+
+    service.delete(USER_ID, entity.getId());
+
+    verify(recalculation).recalculateSnapshot(USER_ID, "202604");
+  }
+
+  @Test
+  @DisplayName("프로필 변경 - 동료집단이 바뀌므로 변경 시점의 달부터 재계산한다")
+  void 프로필_변경() {
+    CareerProfileRepository repository = mock(CareerProfileRepository.class);
+    given(repository.findByUserId(USER_ID))
+        .willReturn(Optional.of(CareerProfile.builder().userId(USER_ID).build()));
+    ProfileService service = new ProfileService(repository, recalculation, Clock.systemUTC());
+
+    service.patch(
+        USER_ID, new ProfileRequest("DEVELOPER", 5, "서울 강남구", "FULL_TIME", "MEDIUM", null));
 
     verify(recalculation).recalculateSnapshot(eq(USER_ID), eq(YearMonths.current()));
   }

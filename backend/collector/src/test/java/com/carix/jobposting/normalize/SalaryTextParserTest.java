@@ -107,4 +107,9 @@ class SalaryTextParserTest {
     assertThat(p("연봉 3억")).isEqualTo(new SalaryRange(300_000_000L, 300_000_000L));
     assertThat(p("월급 1,500만원")).isEqualTo(new SalaryRange(180_000_000L, 180_000_000L));
   }
+
+  @Test
+  void wonUnit() {
+    assertThat(p("연봉 45,000,000원")).isEqualTo(new SalaryRange(45_000_000L, 45_000_000L));
+  }
 }

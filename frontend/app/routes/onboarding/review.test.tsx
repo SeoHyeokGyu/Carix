@@ -182,6 +182,7 @@ const TWO_SKILLS = [
     lastUsedDate: "2026-08-01",
   },
 ];
+import { UnauthorizedError } from "../../lib/coreApi";
 
 describe("S-09 검토 화면", () => {
   beforeEach(() => {
@@ -527,5 +528,45 @@ describe("S-09 검토 화면", () => {
       const banner = await screen.findByRole("alert");
       expect(banner).toHaveTextContent("요청을 처리하지 못했습니다");
     });
+  });
+
+  it("조회 중 401 을 받으면 로그인 화면으로 보낸다", async () => {
+    vi.spyOn(profileApi, "getProfile").mockRejectedValue(
+      new UnauthorizedError(),
+    );
+
+    renderScreen();
+
+    expect(await screen.findByText("로그인 화면")).toBeInTheDocument();
+  });
+
+  it("적용 금액 조회가 401 이면 로그인 화면으로 보낸다", async () => {
+    vi.spyOn(expenseApi, "getAppliedExpenses").mockRejectedValue(
+      new UnauthorizedError(),
+    );
+
+    renderScreen();
+
+    expect(await screen.findByText("로그인 화면")).toBeInTheDocument();
+  });
+
+  it("제출이 API 오류로 실패하면 오류 메시지를 보여준다", async () => {
+    vi.spyOn(onboardingApi, "advanceOnboarding").mockRejectedValue({
+      code: "SERVER_ERROR",
+      message: "요청을 처리하지 못했습니다. 잠시 후 다시 시도해 주세요.",
+      status: 500,
+    });
+
+    renderScreen();
+    const user = userEvent.setup();
+
+    await user.click(
+      await screen.findByRole("button", { name: "내 판정 보기" }),
+    );
+
+    const banner = await screen.findByRole("alert");
+    expect(banner).toHaveTextContent(
+      "요청을 처리하지 못했습니다. 잠시 후 다시 시도해 주세요.",
+    );
   });
 });

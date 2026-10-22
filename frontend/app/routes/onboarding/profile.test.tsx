@@ -351,4 +351,42 @@ describe("S-05 프로필 화면", () => {
 
     expect(await screen.findByText("로그인 화면")).toBeInTheDocument();
   });
+
+  it("저장이 API 오류로 실패하면 입력을 유지한 채 오류 메시지를 보여준다", async () => {
+    vi.spyOn(profileApi, "getProfile").mockResolvedValue({
+      jobFamily: null,
+      yearsOfExperience: null,
+      region: null,
+      employmentType: null,
+      companySize: null,
+      hireDate: null,
+    });
+    const patch = vi.spyOn(profileApi, "patchProfile").mockRejectedValue({
+      code: "SERVER_ERROR",
+      message: "요청을 처리하지 못했습니다. 잠시 후 다시 시도해 주세요.",
+      status: 500,
+    });
+    const advance = vi.spyOn(onboardingApi, "advanceOnboarding");
+
+    renderScreen();
+    const user = userEvent.setup();
+
+    await user.selectOptions(
+      await screen.findByLabelText("주 직무"),
+      "DEVELOPER",
+    );
+    await user.selectOptions(screen.getByLabelText("희망 근무 지역"), "서울");
+    await user.selectOptions(screen.getByLabelText("고용 형태"), "FULL_TIME");
+    await user.type(screen.getByLabelText("총 경력 (년)"), "5");
+    await user.click(screen.getByRole("button", { name: "다음" }));
+
+    const banner = await screen.findByRole("alert");
+    expect(banner).toHaveTextContent(
+      "요청을 처리하지 못했습니다. 잠시 후 다시 시도해 주세요.",
+    );
+    // 화면을 벗어나지 않았다 — 입력한 값이 그대로 남아 있다.
+    expect(screen.getByLabelText("주 직무")).toHaveValue("DEVELOPER");
+    expect(patch).toHaveBeenCalled();
+    expect(advance).not.toHaveBeenCalled();
+  });
 });

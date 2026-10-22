@@ -72,4 +72,21 @@ class SessionServiceTest {
     service.revokeAll(USER_ID);
     verify(repository).deleteByUserId(USER_ID);
   }
+
+  @Test
+  void 조회는_제시된_토큰을_해싱해_대조한다() {
+    String rawToken = "a".repeat(64);
+    OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
+    given(repository.findByTokenHash(TokenHasher.sha256Hex(rawToken)))
+        .willReturn(
+            Optional.of(
+                new Session(
+                    UUID.randomUUID(),
+                    USER_ID,
+                    TokenHasher.sha256Hex(rawToken),
+                    now.plusDays(30),
+                    now)));
+
+    assertThat(service.findUserIdBySessionToken(rawToken)).contains(USER_ID);
+  }
 }

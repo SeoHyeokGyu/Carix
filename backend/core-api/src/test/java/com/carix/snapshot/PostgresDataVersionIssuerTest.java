@@ -42,4 +42,10 @@ class PostgresDataVersionIssuerTest {
     assertThat(PostgresDataVersionIssuer.format(SECOND, 42)).isEqualTo(SECOND + "-042");
     assertThat(PostgresDataVersionIssuer.format(SECOND, 999)).isEqualTo(SECOND + "-999");
   }
+
+  @Test
+  @DisplayName("기존 최댓값이 없으면(그 초의 첫 발급) 시퀀스는 0 이다")
+  void nextSequence_isZeroWhenNoExistingMax() {
+    assertThat(PostgresDataVersionIssuer.nextSequence(null, USER_ID, SECOND)).isZero();
+  }
 }

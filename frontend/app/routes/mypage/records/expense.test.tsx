@@ -171,4 +171,19 @@ describe("소비 탭 (S-12)", () => {
     expect(wire).toBe("202607");
     expect(items).toEqual([]);
   });
+
+  it("불러오기에 실패하면 다시 시도할 수 있고, 성공하면 목록으로 돌아온다", async () => {
+    vi.mocked(expenseApi.listExpenses)
+      .mockRejectedValueOnce(new Error("boom"))
+      .mockResolvedValueOnce(months);
+    renderTab();
+    const user = userEvent.setup();
+
+    expect(
+      await screen.findByText("소비 이력을 불러오지 못했습니다"),
+    ).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "다시 시도" }));
+
+    expect(await screen.findByText("2026-07")).toBeInTheDocument();
+  });
 });

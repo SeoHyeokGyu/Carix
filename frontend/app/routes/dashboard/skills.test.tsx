@@ -8,6 +8,7 @@ import * as skillApi from "../../lib/skillApi";
 import DashboardSkills from "./skills";
 
 const mockNavigate = vi.fn();
+import userEvent from "@testing-library/user-event";
 
 vi.mock("react-router", async () => {
   const actual = await vi.importActual("react-router");
@@ -135,5 +136,29 @@ describe("S-18 DashboardSkills (스킬 분석) 라우트", () => {
     expect(
       screen.queryByText("스킬 시장 데이터를 불러오지 못했습니다"),
     ).toBeNull();
+  });
+
+  it("두 조회가 모두 실패하고 이전 데이터가 없으면 화면 단위 실패 하나만 보이고 다시 시도할 수 있다", async () => {
+    vi.mocked(dashboardMarketApi.fetchSkillDemands).mockRejectedValue(
+      new Error("x"),
+    );
+    vi.mocked(skillApi.fetchSkillRecommendations).mockRejectedValue(
+      new Error("x"),
+    );
+
+    renderSkills();
+    const user = userEvent.setup();
+
+    expect(
+      await screen.findByText("스킬 시장 데이터를 불러오지 못했습니다"),
+    ).toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: "다시 시도" })).toHaveLength(
+      1,
+    );
+
+    await user.click(screen.getByRole("button", { name: "다시 시도" }));
+    await waitFor(() =>
+      expect(dashboardMarketApi.fetchSkillDemands).toHaveBeenCalledTimes(2),
+    );
   });
 });

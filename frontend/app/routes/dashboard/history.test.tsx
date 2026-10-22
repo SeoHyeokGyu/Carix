@@ -454,4 +454,29 @@ describe("S-11 DashboardHistory 라우트", () => {
       await screen.findByRole("link", { name: "소득 정보 입력하기" }),
     ).toBeInTheDocument();
   });
+
+  it("상세는 당시·현재 두 칸과 기록 시각(서울)·지수 차이를 보인다", async () => {
+    vi.mocked(dashboardMarketApi.fetchSnapshotHistory).mockResolvedValue({
+      snapshots: [
+        {
+          ...current("202609", "SEEK_JOB", "이직 탐색"),
+          recorded: recorded("STAY", "현 상태 유지", 100),
+          changed: true,
+        },
+        {
+          ...current("202608", "STAY", "현 상태 유지"),
+          recorded: recorded("STAY", "현 상태 유지"),
+          changed: false,
+        },
+      ],
+    });
+    renderPage("/dashboard/history");
+    await userEvent.click(await screen.findByText("2026-09"));
+    const panel = screen.getByTestId("snapshot-detail-panel");
+    expect(within(panel).getByText("당시")).toBeInTheDocument();
+    expect(within(panel).getByText("현재 규칙")).toBeInTheDocument();
+    expect(within(panel).getByText(/2026-09-15 12:00/)).toBeInTheDocument();
+    expect(within(panel).getByText(/월 경계는 UTC 기준/)).toBeInTheDocument();
+    expect(within(panel).getByText("+10.0")).toBeInTheDocument();
+  });
 });

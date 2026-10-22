@@ -112,4 +112,11 @@ class EncryptedConverterTest {
     assertThatThrownBy(() -> converter.convertToEntityAttribute("v99:some-invalid-data"))
         .isInstanceOf(IllegalStateException.class);
   }
+
+  @Test
+  @DisplayName("잘못된 암호문 복호화 시 IllegalStateException 발생")
+  void decrypt_invalid() {
+    assertThatThrownBy(() -> converter.convertToEntityAttribute("invalid-data"))
+        .isInstanceOf(IllegalStateException.class);
+  }
 }

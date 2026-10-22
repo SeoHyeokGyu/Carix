@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { UnauthorizedError } from "../coreApi";
-import { fetchSummary } from "./dashboard";
+import { fetchSummary, recalculateDashboard } from "./dashboard";
 
 describe("dashboard API", () => {
   const originalFetch = globalThis.fetch;
@@ -37,6 +37,20 @@ describe("dashboard API", () => {
         message: "요청을 처리하지 못했습니다.",
         status: 502,
       },
+    });
+  });
+
+  describe("recalculateDashboard", () => {
+    it("401 이면 UnauthorizedError 를 던진다", async () => {
+      globalThis.fetch = vi.fn().mockResolvedValue({
+        ok: false,
+        status: 401,
+        json: async () => ({}),
+      } as unknown as Response);
+
+      await expect(recalculateDashboard()).rejects.toBeInstanceOf(
+        UnauthorizedError,
+      );
     });
   });
 });

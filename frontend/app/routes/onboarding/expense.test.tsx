@@ -18,6 +18,7 @@ function currentYearMonth(): string {
   const now = new Date();
   return `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}`;
 }
+import { UnauthorizedError } from "../../lib/coreApi";
 
 describe("S-07 소비 화면", () => {
   beforeEach(() => {
@@ -305,5 +306,15 @@ describe("S-07 소비 화면", () => {
     // (income.test.tsx 와 같은 패턴 — 텍스트만으로는 착지 위치가 구분되지 않는다).
     expect(banner).not.toHaveAttribute("id");
     expect(screen.getByLabelText(/주거·공공요금/)).toHaveValue("750,000");
+  });
+
+  it("조회 중 401 을 받으면 로그인 화면으로 보낸다", async () => {
+    vi.spyOn(expenseApi, "listExpenses").mockRejectedValue(
+      new UnauthorizedError(),
+    );
+
+    renderScreen();
+
+    expect(await screen.findByText("로그인 화면")).toBeInTheDocument();
   });
 });

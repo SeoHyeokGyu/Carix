@@ -141,4 +141,15 @@ class NegotiationTargetCalculatorTest {
   void recoveryLine_결측_null() {
     assertThat(NegotiationTargetCalculator.recoveryLine(Optional.empty(), "202503")).isNull();
   }
+
+  @Test
+  @DisplayName("임금통계 — 상수 기준선(FALLBACK)이면 지운다")
+  void wageLine_FALLBACK_null() {
+    assertThat(
+            wage(
+                50_000_000L,
+                baseline(60_000_000L, WageStatSource.FALLBACK),
+                bucketOf(60_000_000L, 50_000_000L)))
+        .isNull();
+  }
 }

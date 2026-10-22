@@ -592,6 +592,18 @@ describe("대시보드 라우트 및 레이아웃 (Dashboard)", () => {
         screen.queryByText("이 판정이 이어진 기간"),
       ).not.toBeInTheDocument();
     });
+
+    it("이력 조회가 401 이면 로그인 화면으로 보낸다", async () => {
+      vi.spyOn(dashboardApi, "fetchSummary").mockResolvedValue({
+        ok: true,
+        data: OK_DATA,
+      } as never);
+      vi.spyOn(dashboardMarketApi, "fetchSnapshotHistory").mockRejectedValue(
+        new UnauthorizedError(),
+      );
+      renderScreen();
+      expect(await screen.findByText("로그인 화면")).toBeInTheDocument();
+    });
   });
 
   describe("DashboardLayout (대시보드 공통 레이아웃)", () => {

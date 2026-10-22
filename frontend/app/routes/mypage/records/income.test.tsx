@@ -318,4 +318,48 @@ describe("소득 탭 (S-12)", () => {
       }),
     );
   });
+
+  it("불러오기에 실패하면 다시 시도할 수 있고, 성공하면 목록으로 돌아온다", async () => {
+    vi.mocked(incomeApi.listIncome)
+      .mockRejectedValueOnce(new Error("boom"))
+      .mockResolvedValueOnce(rows);
+    renderTab();
+    const user = userEvent.setup();
+
+    expect(
+      await screen.findByText("소득 이력을 불러오지 못했습니다"),
+    ).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "다시 시도" }));
+
+    expect(await screen.findByText("2024-01-01")).toBeInTheDocument();
+  });
+
+  it("표시값이 INITIAL 인 행을 수정해도 저장된 원값이 그대로 실려 간다", async () => {
+    // 가장 이른 행이라 표시는 INITIAL 이지만 컬럼에는 JOB_CHANGE 가 있다. 폼이
+    // 표시값만 보면 셀렉트가 비고, PUT 이 전체 교체라 그 JOB_CHANGE 가 지워진다.
+    vi.mocked(incomeApi.listIncome).mockResolvedValue([
+      {
+        ...rows[0],
+        changeReason: "INITIAL",
+        selectedChangeReason: "JOB_CHANGE",
+        bonusIncluded: true,
+        fixedBonusAnnual: null,
+      },
+    ]);
+    vi.mocked(incomeApi.updateIncome).mockResolvedValue(rows[0]);
+    renderTab();
+    const user = userEvent.setup();
+
+    await user.click(await screen.findByRole("button", { name: "수정" }));
+    expect(screen.getByLabelText("변경 사유")).toHaveValue("JOB_CHANGE");
+
+    await user.click(screen.getByRole("button", { name: "저장" }));
+
+    await waitFor(() =>
+      expect(incomeApi.updateIncome).toHaveBeenCalledWith(
+        "i-old",
+        expect.objectContaining({ changeReason: "JOB_CHANGE" }),
+      ),
+    );
+  });
 });

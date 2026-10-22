@@ -91,4 +91,29 @@ class KeyRingTest {
         .isInstanceOf(IllegalStateException.class);
     assertThatThrownBy(() -> new KeyRing("", "", "")).isInstanceOf(IllegalStateException.class);
   }
+
+  @Test
+  @DisplayName("active-key-id 미지정 시 v1 이 있으면 v1을 기본값으로 사용")
+  void multiKeyConfig_defaultsToV1() {
+    String key1 = generateKey((byte) 1);
+    String key2 = generateKey((byte) 2);
+    String config = "v1:" + key1 + ",v2:" + key2;
+
+    KeyRing keyRing = new KeyRing(config, null, null);
+
+    assertThat(keyRing.getActiveKeyId()).isEqualTo("v1");
+  }
+
+  @Test
+  @DisplayName("v1 이 없는 다중 키 목록에서 active-key-id 미지정 시 첫 번째 키를 기본값으로 사용")
+  void multiKeyConfig_withoutV1_defaultsToFirstKey() {
+    String keyA = generateKey((byte) 1);
+    String keyB = generateKey((byte) 2);
+    String config = "alpha:" + keyA + ",beta:" + keyB;
+
+    KeyRing keyRing = new KeyRing(config, null, null);
+
+    assertThat(keyRing.getActiveKeyId()).isEqualTo("alpha");
+    assertThat(keyRing.getLegacyKeyId()).isEqualTo("alpha");
+  }
 }

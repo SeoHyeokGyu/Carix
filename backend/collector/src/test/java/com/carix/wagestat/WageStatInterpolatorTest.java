@@ -49,4 +49,18 @@ class WageStatInterpolatorTest {
     assertThat(p25).isEqualTo(36_000_000L);
     assertThat(p75).isEqualTo(48_000_000L);
   }
+
+  @Test
+  @DisplayName("calculateAnnualMedianWage - 구간 내부 중간 지점을 선형 보간한다")
+  void calculateAnnualMedianWage_linearInterpolatesWithinBracket() {
+    // Given: A19(3000~3500) 구간에만 100명 집중
+    // 50% 지점 = 50번째 사람 -> A19의 50% 지점 = 3250천원
+    Map<String, Long> counts = Map.of("A19", 100L);
+
+    // When
+    long medianWage = interpolator.calculateAnnualMedianWage(counts);
+
+    // Then: 월 3,250천원 * 12 = 39,000,000원
+    assertThat(medianWage).isEqualTo(39_000_000L);
+  }
 }

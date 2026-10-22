@@ -4,6 +4,7 @@ import { createRoutesStub } from "react-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import * as incomeApi from "../../lib/api/income";
+import { UnauthorizedError } from "../../lib/coreApi";
 import * as onboardingApi from "../../lib/onboardingApi";
 import { resetSession, setSession } from "../../lib/session";
 import Income, { clientAction, clientLoader } from "./income";
@@ -634,5 +635,15 @@ describe("S-06 소득 화면", () => {
         expect.objectContaining({ changeReason: "JOB_CHANGE" }),
       ),
     );
+  });
+
+  it("조회 중 401 을 받으면 로그인 화면으로 보낸다", async () => {
+    vi.spyOn(incomeApi, "listIncome").mockRejectedValue(
+      new UnauthorizedError(),
+    );
+
+    renderScreen();
+
+    expect(await screen.findByText("로그인 화면")).toBeInTheDocument();
   });
 });

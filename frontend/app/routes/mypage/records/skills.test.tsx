@@ -232,4 +232,19 @@ describe("스킬 탭 (S-12)", () => {
     expect(await screen.findByText("검색하지 못했습니다.")).toBeInTheDocument();
     expect(screen.queryByText("TypeScript")).not.toBeInTheDocument();
   });
+
+  it("불러오기에 실패하면 다시 시도할 수 있고, 성공하면 목록으로 돌아온다", async () => {
+    vi.mocked(skillApi.fetchUserSkills)
+      .mockRejectedValueOnce(new Error("boom"))
+      .mockResolvedValueOnce(skills);
+    renderTab();
+    const user = userEvent.setup();
+
+    expect(
+      await screen.findByText("스킬 이력을 불러오지 못했습니다"),
+    ).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "다시 시도" }));
+
+    expect(await screen.findByText("Spring Boot")).toBeInTheDocument();
+  });
 });

@@ -1,8 +1,9 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { MemoryRouter } from "react-router";
+import { createRoutesStub, MemoryRouter } from "react-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { UnauthorizedError } from "../../lib/coreApi";
 import * as skillApi from "../../lib/skillApi";
 import { confirmDialog } from "../../test-utils/confirmDialog";
 import Skills from "./skills";
@@ -316,5 +317,43 @@ describe("S-08 Skills 온보딩 화면", () => {
     expect(screen.getByText("Spring Boot")).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "알림 닫기" }));
     expect(screen.queryByRole("alert")).toBeNull();
+  });
+
+  it("스킬 목록 조회 중 401 을 받으면 로그인 화면으로 보낸다", async () => {
+    vi.mocked(skillApi.fetchUserSkills).mockRejectedValue(
+      new UnauthorizedError(),
+    );
+
+    const Stub = createRoutesStub([
+      { path: "/onboarding/skills", Component: Skills },
+      { path: "/login", Component: () => <div>로그인 화면</div> },
+    ]);
+    render(<Stub initialEntries={["/onboarding/skills"]} />);
+
+    expect(await screen.findByText("로그인 화면")).toBeInTheDocument();
+  });
+
+  it("목록 불러오기에 실패하면 목록 자리에 다시 시도를 두고, 성공하면 목록이 뜬다", async () => {
+    const loaded = await skillApi.fetchUserSkills(); // beforeEach 의 기본 목 목록
+    vi.mocked(skillApi.fetchUserSkills)
+      .mockRejectedValueOnce(new Error("x"))
+      .mockResolvedValueOnce(loaded);
+    render(
+      <MemoryRouter>
+        <Skills />
+      </MemoryRouter>,
+    );
+    const user = userEvent.setup();
+
+    expect(
+      await screen.findByText("스킬 목록을 불러오지 못했습니다"),
+    ).toBeInTheDocument();
+    // 보여 줄 데이터가 없는 실패라 한 줄 알림은 겹쳐 띄우지 않는다.
+    expect(screen.queryByRole("alert")).toBeNull();
+    // 목록을 모르는 채로는 다음 단계로 넘어가지 못한다.
+    expect(screen.getByRole("button", { name: "다음" })).toBeDisabled();
+    await user.click(screen.getByRole("button", { name: "다시 시도" }));
+    expect(await screen.findByText("Spring Boot")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "다음" })).toBeEnabled();
   });
 });

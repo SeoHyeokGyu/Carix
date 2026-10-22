@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { UnauthorizedError } from "./coreApi";
-import { advanceOnboarding } from "./onboardingApi";
+import { advanceOnboarding, resetOnboarding } from "./onboardingApi";
 
 describe("onboardingApi", () => {
   const originalFetch = globalThis.fetch;
@@ -30,5 +30,20 @@ describe("onboardingApi", () => {
     await expect(advanceOnboarding("INCOME")).rejects.toBeInstanceOf(
       UnauthorizedError,
     );
+  });
+
+  describe("resetOnboarding", () => {
+    it("401 이면 UnauthorizedError 를 던진다", async () => {
+      globalThis.fetch = vi.fn().mockResolvedValue({
+        ok: false,
+        status: 401,
+        json: async () => ({
+          code: "UNAUTHORIZED",
+          message: "인증이 필요합니다.",
+        }),
+      } as unknown as Response);
+
+      await expect(resetOnboarding()).rejects.toBeInstanceOf(UnauthorizedError);
+    });
   });
 });
