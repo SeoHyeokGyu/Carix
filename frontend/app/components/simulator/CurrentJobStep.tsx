@@ -86,6 +86,8 @@ export function CurrentJobStep({
 
   const range = context.performanceBonusRange;
   const overrideShown = noIncome || overrideOpen;
+  // 덮어쓴 연봉은 상여까지 더한 금액이라 상여 조건을 따로 묻지도 저장하지도 않는다.
+  const overrideActive = overrideShown && manInputToWon(override) !== null;
 
   const validate = (): FieldErrors => {
     const next: FieldErrors = {};
@@ -115,7 +117,7 @@ export function CurrentJobStep({
     setSubmitting(true);
     let bonusSaved = false;
     try {
-      if (latestIncomeId && bonusDirty) {
+      if (latestIncomeId && bonusDirty && !overrideActive) {
         await updateBonusTerms({
           applyFromIncomeId: latestIncomeId,
           bonusIncluded,
@@ -230,7 +232,12 @@ export function CurrentJobStep({
         )}
       </Field>
 
-      {latestIncomeId && (
+      {latestIncomeId && overrideActive && (
+        <p className="text-sm text-muted-foreground">
+          덮어쓴 연봉은 따로 받는 고정상여까지 더한 연 금액으로 계산합니다.
+        </p>
+      )}
+      {latestIncomeId && !overrideActive && (
         <>
           <fieldset className="flex flex-col gap-2">
             <legend className="mb-2 text-sm font-medium">
