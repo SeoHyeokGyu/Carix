@@ -96,7 +96,11 @@ export function CurrentJobStep({
     if (overrideShown && manInputToWon(override) === null) {
       next.override = "세전 연봉을 입력해 주세요.";
     }
-    if (!bonusIncluded && manInputToWon(bonusAmount) === null) {
+    if (
+      !overrideActive &&
+      !bonusIncluded &&
+      manInputToWon(bonusAmount) === null
+    ) {
       next.bonusAmount = "연간 고정상여 금액을 입력해 주세요.";
     }
     return next;

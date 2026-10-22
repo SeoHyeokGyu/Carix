@@ -74,6 +74,9 @@ public class ScenarioContextService {
   }
 
   private Double marketGapPercent(UUID userId, Optional<CareerProfile> profile, long gross) {
+    if (gross <= 0) {
+      return null;
+    }
     WageBaseline baseline =
         wageBaselineResolver.resolveBaseline(profile.orElseGet(() -> new CareerProfile(userId)));
     BigDecimal ratio = SalaryGapBucket.officialRatio(baseline, gross);
