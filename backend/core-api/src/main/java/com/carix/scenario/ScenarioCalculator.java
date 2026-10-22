@@ -16,9 +16,6 @@ public class ScenarioCalculator {
   /** 소정급여일수를 월로 단순화한 상한 (도메인 정의서 §4.1 — 평균 150일). */
   private static final int MAX_BENEFIT_MONTHS = 5;
 
-  private static final int DAYS_PER_YEAR = 365;
-  private static final int DAYS_PER_MONTH = 30;
-  private static final double BENEFIT_RATE = 0.6;
   private static final int MONTHS_PER_YEAR = 12;
 
   private static final String GAIN = "ESTIMATED_GAIN";
@@ -84,14 +81,7 @@ public class ScenarioCalculator {
   /** {@code min(U, 5) × 일지급액 × 30}. */
   private long totalBenefit(long grossSalary, int unemploymentMonths) {
     int months = Math.min(unemploymentMonths, MAX_BENEFIT_MONTHS);
-    return months * dailyBenefit(grossSalary) * DAYS_PER_MONTH;
-  }
-
-  /** {@code min(상한, max(하한, 0.6 × 연봉/365))}. */
-  private long dailyBenefit(long grossSalary) {
-    long sixtyPercent = Math.round(BENEFIT_RATE * grossSalary / DAYS_PER_YEAR);
-    return Math.min(
-        assumption.dailyUpperLimit(), Math.max(assumption.dailyLowerLimit(), sixtyPercent));
+    return months * assumption.monthlyBenefit(grossSalary);
   }
 
   /** 저장분을 되살릴 때도 쓰므로 공개한다. 기준 시점은 항상 <b>현재</b> 설정값이다. */

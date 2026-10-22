@@ -14,4 +14,20 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  */
 @ConfigurationProperties(prefix = "carix.scenario.unemployment")
 public record UnemploymentBenefitAssumption(
-    long dailyUpperLimit, long dailyLowerLimit, String assumptionAsOf) {}
+    long dailyUpperLimit, long dailyLowerLimit, String assumptionAsOf) {
+
+  private static final int DAYS_PER_YEAR = 365;
+  private static final int DAYS_PER_MONTH = 30;
+  private static final double BENEFIT_RATE = 0.6;
+
+  /** {@code min(상한, max(하한, 0.6 × 연봉/365))}. */
+  public long dailyBenefit(long grossSalary) {
+    long sixtyPercent = Math.round(BENEFIT_RATE * grossSalary / DAYS_PER_YEAR);
+    return Math.min(dailyUpperLimit, Math.max(dailyLowerLimit, sixtyPercent));
+  }
+
+  /** 일지급액 × 30. 수급 개월수를 곱하는 쪽은 호출자다. */
+  public long monthlyBenefit(long grossSalary) {
+    return dailyBenefit(grossSalary) * DAYS_PER_MONTH;
+  }
+}
