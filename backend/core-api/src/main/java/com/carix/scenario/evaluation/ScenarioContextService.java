@@ -87,14 +87,14 @@ public class ScenarioContextService {
         / 10.0;
   }
 
-  /** 최신 행이 인상이고 그 직전 행이 이직이 아닐 때만 (최신÷직전 − 1). 이직 직후의 점프는 인상률이 아니다. */
+  /** 최신 행의 변경 사유가 인상일 때만 (최신÷직전 − 1). 최신이 이직이면 그 점프는 인상률이 아니라 null. 직전 행의 사유는 보지 않는다. */
   private static Double defaultRaisePercent(List<IncomeHistory> history) {
     if (history.size() < 2 || history.get(0).getChangeReason() != IncomeChangeReasonEnum.RAISE) {
       return null;
     }
     IncomeHistory previous = history.get(1);
     long previousGross = EffectiveIncome.annualGross(previous);
-    if (previous.getChangeReason() == IncomeChangeReasonEnum.JOB_CHANGE || previousGross <= 0) {
+    if (previousGross <= 0) {
       return null;
     }
     double ratio = EffectiveIncome.annualGross(history.get(0)) / (double) previousGross - 1;

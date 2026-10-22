@@ -83,6 +83,15 @@ class ScenarioContextServiceTest {
                 row(60_000_000L, "2025-03-01", IncomeChangeReasonEnum.RAISE)));
 
     assertThat(service.context(USER_ID).defaultRaisePercent()).isEqualTo(10.0);
+
+    // 이직 뒤 첫 인상은 진짜 인상이다
+    given(incomeRepository.findByUserIdOrderByEffectiveDateDesc(USER_ID))
+        .willReturn(
+            List.of(
+                row(63_000_000L, "2026-03-01", IncomeChangeReasonEnum.RAISE),
+                row(60_000_000L, "2025-03-01", IncomeChangeReasonEnum.JOB_CHANGE)));
+
+    assertThat(service.context(USER_ID).defaultRaisePercent()).isEqualTo(5.0);
   }
 
   @Test

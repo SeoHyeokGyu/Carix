@@ -225,9 +225,16 @@ public class ScenarioEvaluationService {
     if (hireDate == null) {
       return null;
     }
-    long tenureMonths = ChronoUnit.MONTHS.between(hireDate, LocalDate.now(clock));
-    long remaining = MONTHS_PER_YEAR - tenureMonths;
-    if (tenureMonths < 0 || remaining <= 0 || remaining > SEVERANCE_WARNING_MONTHS) {
+    LocalDate today = LocalDate.now(clock);
+    LocalDate anniversary = hireDate.plusYears(1);
+    if (!today.isBefore(anniversary)) {
+      return null;
+    }
+    long remaining = ChronoUnit.MONTHS.between(today, anniversary);
+    if (today.plusMonths(remaining).isBefore(anniversary)) {
+      remaining++; // 남은 날이 있는 달은 한 달로 센다
+    }
+    if (remaining > SEVERANCE_WARNING_MONTHS) {
       return null;
     }
     return new SeveranceWarning((int) remaining, currentGross / MONTHS_PER_YEAR);
