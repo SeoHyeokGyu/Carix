@@ -154,7 +154,7 @@
 
 이 절은 파이프라인 재설계가 **바꾼 것만** 갖는다. 구매력 지수는
 [도메인 정의서 §1](domain-logic.md)과 [기능 명세 §4.3](functional-specification.md),
-동료집단 완화는 [도메인 정의서 §2](domain-logic.md), 12개월 시나리오는
+동료집단 완화는 [도메인 정의서 §2](domain-logic.md), 잔류·이직 시나리오는
 [기능 명세 §12.5](functional-specification.md)가 갖는다.
 
 ### 2.1 스킬 수요 지수 (구 시장가치 지수)
@@ -291,7 +291,7 @@ flowchart TD
     %% 5. 프런트엔드 (Bottom)
     subgraph Frontend ["React 웹 프런트엔드 - Vite + Node SSR"]
         UI["대시보드 / 온보딩 화면"]
-        Sim["12개월 시뮬레이터 UI"]
+        Sim["잔류·이직 시뮬레이터 UI"]
     end
 
     %% 관리자 -> 개별 Job 트리거
@@ -456,9 +456,9 @@ sequenceDiagram
     Core-->>Web: 구매력/시장가치/결정신호 반환
     Web-->>User: 화면에 차트 및 지표 렌더링
     User->>Web: 이직 시뮬레이션 시도 (목표액, 비용 조정)
-    Web->>GW: POST /api/v1/scenarios/simulate (시뮬레이션 요청)
+    Web->>GW: POST /api/v1/scenarios/evaluate (평가 요청, 저장하지 않음)
     GW->>Core: 라우팅 (/api/v1/**)
-    Note over Core: 공백 기간·실업급여 반영 세전 비교 연산
+    Note over Core: 공백 기간·실업급여 반영 세후·실질 비교 연산
     Core-->>Web: 추정 추가보상/기회비용 결과 반환
     Web-->>User: 시뮬레이션 비교 차트 표시
 ```

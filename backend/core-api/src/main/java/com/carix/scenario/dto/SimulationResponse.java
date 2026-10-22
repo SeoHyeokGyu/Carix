@@ -1,9 +1,11 @@
 package com.carix.scenario.dto;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.util.UUID;
 
 @Schema(description = "시뮬레이션 결과 응답")
+@JsonIgnoreProperties(ignoreUnknown = true)
 public record SimulationResponse(
     @Schema(description = "시나리오 고유 ID") UUID id,
     @Schema(description = "시나리오 이름. 이름 없이 저장했으면 null", nullable = true) String scenarioName,
@@ -29,6 +31,7 @@ public record SimulationResponse(
    * <p>동료집단 공고 분포에서 나온다(API 규격 §6.1). 표본이 모자라면 객체 자체는 남고 안의 값이 {@code null} 이 되며 {@code status} 가
    * 사유를 말한다 — 지수와 같은 규약이다. 임의 분포로 백분위를 지어내지 않는다 ([MVP 규격 §13] 데이터가 없는 기능을 추정값으로 채워 출시하지 않는다).
    */
+  @JsonIgnoreProperties(ignoreUnknown = true)
   public record FeasibilityDetail(
       @Schema(
               description = "산출 상태",

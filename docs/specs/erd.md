@@ -228,6 +228,9 @@ erDiagram
         varchar feasibility_status
         int feasibility_percentile "표본 부족이면 NULL"
         int feasibility_sample_size
+        varchar engine_version "1 이전 방식, 2 세후 평가"
+        boolean is_draft "사용자당 1건"
+        text payload_encrypted "엔진 2 요청·결과 JSON 암호문"
         timestamp calculated_at
     }
 ```
@@ -292,6 +295,13 @@ erDiagram
 단위까지 복원되어, 연봉을 암호화한 이유가 이 테이블에서 사라진다. 금액으로 조회·정렬하는 인덱스가
 없어 질의 비용은 없다.
 
+**`career_scenario` 는 두 엔진의 행이 섞인다.** `engine_version = '1'` 은 이전 방식(세전 12개월
+비교)으로 저장한 행으로 위 엔진 1 컬럼을 쓰고 새로 만들지 않는다. `'2'` 는 세후·실질 평가로
+저장한 행으로 요청·결과 JSON 을 `payload_encrypted` 한 컬럼에 암호문으로 두고 엔진 1 컬럼은
+`NULL` 이다 — 그래서 엔진 1 컬럼의 `NOT NULL` 은 풀려 있다. `is_draft = true` 행은 편집 중인
+입력(`result` 없음)이며 사용자당 1건을 부분 유니크 인덱스 `career_scenario_user_draft_idx` 가
+지킨다(H2 는 부분 인덱스를 못 만들어 서비스도 1건만 만든다).
+
 실현 가능성은 재계산하지 않고 저장한다. 동료집단 분포는 그 시점의 공고에 의존해 나중에 다시
 구하면 사용자가 실제로 본 판단이 나오지 않는다.
 
@@ -331,6 +341,7 @@ erDiagram
 | 2026-10-22 | `core.income_history`·`core.career_profile`·`core.performance_bonus` | 상여 조건 컬럼 `bonus_included boolean NOT NULL DEFAULT true`·`fixed_bonus_annual_encrypted varchar(512)`(nullable), 입사일 `career_profile.hire_date date`(nullable)를 더하고 `core.performance_bonus` 테이블과 `performance_bonus_user_month_idx (user_id, paid_month)` 를 만들었다. 기존 `income_history` 3행은 `bonus_included = true`, `career_profile` 3행은 `hire_date` 가 `NULL` 이다. 한 트랜잭션(`ON_ERROR_STOP=1`)으로 새 코드 배포 전에 적용했다. 신규 환경용 실행 정본(`deploy/postgres/schema/02_user_domain.sql`)에도 같은 정의가 있다 |
 | 2026-10-22 | `core.cpi_observation` | KOSIS `DT_1J22001` 총지수(`objL2=0`)를 `category = '0'` 으로 백필했다 — collector `POST /internal/pipeline/cpi` 를 기존 카테고리 범위와 같은 `202001`~`202609` 로 실행해 81행이 들어갔다(전체 1,053행). 첫 CPI 월이 그대로라 구매력 지수 기준월은 바뀌지 않았다 |
 | 2026-10-22 | `core.index_snapshot` | 구매력 산식 2(별도 고정상여 월할 반영) 배포 뒤 전 사용자 재계산(사용자별 `POST /api/v1/dashboard/recalculate`, 최초 소득월부터)을 했다. 3명, 새 행 125(근거 `ppiFormulaVersion = "2"`), 이전 행 4,193 은 보존했다. 고정상여를 따로 받는 소득 행이 없어 구매력 지수와 판정은 바뀌지 않았다 |
+| 2026-10-22 | `core.career_scenario` | 시뮬레이터 엔진 2 를 위해 `engine_version varchar(10) NOT NULL DEFAULT '1'`·`is_draft boolean NOT NULL DEFAULT false`·`payload_encrypted text` 를 더하고, 엔진 1 전용 11개 컬럼의 `NOT NULL` 을 풀고, 사용자당 초안 1건을 보장하는 부분 유니크 인덱스 `career_scenario_user_draft_idx (user_id) WHERE is_draft` 와 테이블·`payload_encrypted` 주석을 더했다. 기존 5행은 `engine_version = '1'`, `is_draft = false` 다. 적용 뒤 `NOT NULL` 은 `id`·`user_id`·`engine_version`·`is_draft`·`calculated_at` 만 남았다. 한 트랜잭션(`ON_ERROR_STOP=1`)으로 새 코드 배포 전에 적용했다. 신규 환경용 실행 정본(`deploy/postgres/schema/04_snapshot_and_scenario.sql`)에도 같은 정의가 있다 |
 
 > **`core.wage_stat_observation.source` 는 쓰기 경로까지 들어왔다.** 수집이 연도별로 출처를
 > 기록하고, KOSIS 실측만 기존 행을 덮는다 — 폴백 상수는 기존 행을 건드리지 않는다. 컬럼 도입

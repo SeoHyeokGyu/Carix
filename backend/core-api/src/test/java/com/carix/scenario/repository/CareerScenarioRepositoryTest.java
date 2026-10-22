@@ -48,34 +48,17 @@ class CareerScenarioRepositoryTest {
   }
 
   @Test
-  @DisplayName("최근 1건은 calculated_at 이 가장 늦은 행이다")
-  void 최근_1건() {
-    UUID userId = UUID.randomUUID();
-    CareerScenario older = repository.saveAndFlush(scenario(userId, 61_000_000L));
-    CareerScenario newer = repository.saveAndFlush(scenario(userId, 63_000_000L));
-
-    // 시각을 엔티티가 채우므로 두 행이 실제로 벌어진다. DB 기본값에 맡겼다면 H2 스키마에 기본값이 없어
-    // 둘 다 NULL 이 되고, 이 정렬은 검증되지 않은 채 운영에서만 돌았을 것이다
-    assertThat(older.getCalculatedAt()).isBefore(newer.getCalculatedAt());
-    testEntityManager.clear();
-
-    CareerScenario latest =
-        repository.findFirstByUserIdOrderByCalculatedAtDescIdDesc(userId).orElseThrow();
-
-    assertThat(latest.getId()).isEqualTo(newer.getId());
-    assertThat(latest.getStayCompensation12m()).isEqualTo(63_000_000L);
-  }
-
-  @Test
-  @DisplayName("목록은 calculated_at 내림차순이고 본인 행만 담는다")
+  @DisplayName("목록은 calculated_at 내림차순이고 본인 행만 담으며 초안은 뺀다")
   void 목록_정렬() {
     UUID userId = UUID.randomUUID();
     CareerScenario older = repository.saveAndFlush(scenario(userId, 61_000_000L));
     CareerScenario newer = repository.saveAndFlush(scenario(userId, 63_000_000L));
     repository.saveAndFlush(scenario(UUID.randomUUID(), 64_000_000L));
+    repository.saveAndFlush(draft(userId, "{}"));
     testEntityManager.clear();
 
-    List<CareerScenario> list = repository.findByUserIdOrderByCalculatedAtDescIdDesc(userId);
+    List<CareerScenario> list =
+        repository.findByUserIdAndDraftFalseOrderByCalculatedAtDescIdDesc(userId);
 
     assertThat(list)
         .extracting(CareerScenario::getId)
@@ -83,12 +66,35 @@ class CareerScenarioRepositoryTest {
   }
 
   @Test
-  @DisplayName("다른 사용자의 시나리오는 보이지 않는다")
-  void 사용자_격리() {
-    repository.saveAndFlush(scenario(UUID.randomUUID(), 62_100_000L));
+  @DisplayName("저장하면 결과가 함께 암호화 저장된다 - payload 컬럼에 연봉 평문이 없다")
+  void 저장하면_결과가_함께_암호화_저장된다() {
+    UUID userId = UUID.randomUUID();
+    String json =
+        "{\"request\":{\"stay\":{\"currentGrossOverride\":60000000},"
+            + "\"move\":{\"grossSalary\":72000000}},"
+            + "\"result\":{\"firstYear\":{\"total\":-1140000}}}";
+    CareerScenario saved =
+        repository.saveAndFlush(
+            CareerScenario.builder()
+                .userId(userId)
+                .engineVersion(CareerScenario.ENGINE_STAY_OR_MOVE)
+                .payload(json)
+                .build());
+    testEntityManager.clear();
 
-    assertThat(repository.findFirstByUserIdOrderByCalculatedAtDescIdDesc(UUID.randomUUID()))
-        .isEmpty();
+    Object stored =
+        testEntityManager
+            .getEntityManager()
+            .createNativeQuery("select payload_encrypted from core.career_scenario where id = ?1")
+            .setParameter(1, saved.getId())
+            .getSingleResult();
+    assertThat(stored.toString())
+        .doesNotContain("72000000")
+        .doesNotContain("60000000")
+        .doesNotContain("grossSalary")
+        .contains(":");
+
+    assertThat(repository.findById(saved.getId()).orElseThrow().getPayload()).isEqualTo(json);
   }
 
   @Test
@@ -131,6 +137,15 @@ class CareerScenarioRepositoryTest {
     CareerScenario reloaded = repository.findById(saved.getId()).orElseThrow();
 
     assertThat(reloaded.getStayExpectedRaiseRate()).isEqualByComparingTo("3.46");
+  }
+
+  private CareerScenario draft(UUID userId, String payload) {
+    return CareerScenario.builder()
+        .userId(userId)
+        .engineVersion(CareerScenario.ENGINE_STAY_OR_MOVE)
+        .draft(true)
+        .payload(payload)
+        .build();
   }
 
   private CareerScenario scenarioWithRate(UUID userId, BigDecimal rate) {

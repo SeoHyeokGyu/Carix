@@ -3,9 +3,14 @@ package com.carix.scenario;
 import com.carix.common.ApiResult;
 import com.carix.common.ErrorResponse;
 import com.carix.common.usercontext.CurrentUserId;
-import com.carix.scenario.dto.LatestScenarioResponse;
-import com.carix.scenario.dto.SimulationRequest;
+import com.carix.scenario.dto.EvaluateRequest;
+import com.carix.scenario.dto.EvaluationResponse;
+import com.carix.scenario.dto.SaveScenarioRequest;
+import com.carix.scenario.dto.ScenarioContextResponse;
+import com.carix.scenario.dto.ScenarioListItem;
 import com.carix.scenario.dto.SimulationResponse;
+import com.carix.scenario.evaluation.ScenarioContextService;
+import com.carix.scenario.evaluation.ScenarioEvaluationService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -16,11 +21,15 @@ import jakarta.validation.Valid;
 import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -30,50 +39,108 @@ import org.springframework.web.bind.annotation.RestController;
 public class ScenarioController {
 
   private final ScenarioService scenarioService;
+  private final ScenarioContextService contextService;
+  private final ScenarioEvaluationService evaluationService;
 
   @Operation(
-      summary = "잔류 vs 이직 보상 시뮬레이션 계산",
-      description = "입력한 인상률 및 이직 목표 연봉, 공백 기간 등의 변수를 대입해 시나리오 시뮬레이션을 수행하고 결과를 저장합니다.")
+      summary = "시나리오 저장",
+      description = "입력을 서버에서 다시 평가해 결과와 함께 명시적으로 저장합니다. 요청·결과 JSON 은 암호화돼 저장됩니다.")
   @ApiResponses({
-    @ApiResponse(responseCode = "200", description = "계산 성공"),
+    @ApiResponse(responseCode = "201", description = "저장 성공"),
     @ApiResponse(
         responseCode = "400",
-        description = "잘못된 범위값 입력, 또는 currentGrossSalary 를 생략했는데 소득 이력도 없는 경우",
+        description = "범위 밖 입력, 또는 소득 이력도 currentGrossOverride 도 없는 경우",
         content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
   })
-  @PostMapping("/simulate")
-  public ResponseEntity<ApiResult<SimulationResponse>> simulateScenarios(
-      @CurrentUserId UUID userId, @Valid @RequestBody SimulationRequest request) {
+  @PostMapping
+  public ResponseEntity<ApiResult<ScenarioListItem>> saveScenario(
+      @CurrentUserId UUID userId, @Valid @RequestBody SaveScenarioRequest request) {
 
-    return ResponseEntity.ok(
-        ApiResult.success(scenarioService.simulate(userId, request), "시뮬레이션 모의계산이 완료되었습니다."));
+    EvaluationResponse result = evaluationService.evaluate(userId, request.request());
+    ScenarioListItem saved =
+        scenarioService.save(userId, request.name(), request.request(), result);
+    return ResponseEntity.status(HttpStatus.CREATED)
+        .body(ApiResult.success(saved, "시나리오가 저장되었습니다."));
   }
 
   @Operation(
       summary = "저장된 시나리오 목록 조회",
-      description = "저장한 시나리오 전부를 최근 순으로 반환합니다. 시뮬레이터가 과거 입력 가정을 불러오는 복원용입니다. 없으면 빈 배열입니다.")
+      description =
+          "저장한 시나리오 전부(초안 제외)를 최근 순으로 반환합니다. 엔진 2 는 request·result, 이전 방식(엔진 1)은 legacy 에 저장값 그대로입니다. 없으면 빈 배열입니다.")
   @ApiResponse(responseCode = "200", description = "성공")
   @GetMapping
-  public ResponseEntity<ApiResult<List<LatestScenarioResponse>>> listScenarios(
+  public ResponseEntity<ApiResult<List<ScenarioListItem>>> listScenarios(
       @CurrentUserId UUID userId) {
 
     return ResponseEntity.ok(ApiResult.success(scenarioService.list(userId)));
   }
 
-  @Operation(
-      summary = "최근 시뮬레이션 시나리오 조회",
-      description = "가장 마지막으로 시뮬레이션하여 저장한 시나리오의 입력 파라미터 및 계산 결과를 반환합니다.")
+  @Operation(summary = "초안 저장", description = "편집 중인 입력을 사용자당 1건으로 덮어씁니다. 결과는 저장하지 않습니다.")
+  @ApiResponse(responseCode = "204", description = "저장 성공 (No Content)")
+  @PutMapping("/draft")
+  public ResponseEntity<Void> saveDraft(
+      @CurrentUserId UUID userId, @Valid @RequestBody EvaluateRequest request) {
+
+    try {
+      scenarioService.saveDraft(userId, request);
+    } catch (DataIntegrityViolationException e) {
+      // 첫 PUT 이 동시에 두 번 온 경우. 트랜잭션 밖에서 한 번만 다시 해 먼저 들어간 초안을 덮어쓴다
+      scenarioService.saveDraft(userId, request);
+    }
+    return ResponseEntity.noContent().build();
+  }
+
+  @Operation(summary = "초안 조회", description = "저장해 둔 편집 중 입력을 반환합니다.")
   @ApiResponses({
     @ApiResponse(responseCode = "200", description = "성공"),
-    @ApiResponse(responseCode = "204", description = "저장된 시나리오가 없는 경우 (No Content)")
+    @ApiResponse(responseCode = "204", description = "초안이 없는 경우 (No Content)")
   })
-  @GetMapping("/latest")
-  public ResponseEntity<ApiResult<LatestScenarioResponse>> getLatestScenario(
-      @CurrentUserId UUID userId) {
+  @GetMapping("/draft")
+  public ResponseEntity<ApiResult<EvaluateRequest>> getDraft(@CurrentUserId UUID userId) {
 
     return scenarioService
-        .latest(userId)
-        .map(latest -> ResponseEntity.ok(ApiResult.success(latest)))
+        .draft(userId)
+        .map(draft -> ResponseEntity.ok(ApiResult.success(draft)))
         .orElseGet(() -> ResponseEntity.noContent().build());
+  }
+
+  @Operation(
+      summary = "시뮬레이터 입력 기본값",
+      description = "현재 소득·기본 인상률·성과급 범위·물가 두 기준·시장 격차를 한 번에 돌려줍니다. 소득 이력이 없으면 해당 값은 null 입니다.")
+  @ApiResponse(responseCode = "200", description = "성공")
+  @GetMapping("/context")
+  public ResponseEntity<ApiResult<ScenarioContextResponse>> getContext(@CurrentUserId UUID userId) {
+
+    return ResponseEntity.ok(ApiResult.success(contextService.context(userId)));
+  }
+
+  @Operation(summary = "이직 연봉의 실현 가능성", description = "저장하지 않고 동료집단 분포 내 백분위만 계산합니다.")
+  @ApiResponse(responseCode = "200", description = "성공")
+  @GetMapping("/feasibility")
+  public ResponseEntity<ApiResult<SimulationResponse.FeasibilityDetail>> getFeasibility(
+      @CurrentUserId UUID userId, @RequestParam long targetGross) {
+
+    if (targetGross < 0) {
+      throw new IllegalArgumentException("targetGross 는 0 이상이어야 합니다.");
+    }
+    return ResponseEntity.ok(
+        ApiResult.success(scenarioService.feasibilityDetail(userId, targetGross)));
+  }
+
+  @Operation(
+      summary = "잔류 vs 이직 세후·실질 평가",
+      description = "48개월 세후·실질 투영, 기대층 범위, 불확실층 주식 줄, 퇴직금 경고, 가정·미반영 목록을 돌려줍니다. 저장하지 않습니다.")
+  @ApiResponses({
+    @ApiResponse(responseCode = "200", description = "계산 성공"),
+    @ApiResponse(
+        responseCode = "400",
+        description = "범위 밖 입력, 또는 소득 이력도 currentGrossOverride 도 없는 경우",
+        content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+  })
+  @PostMapping("/evaluate")
+  public ResponseEntity<ApiResult<EvaluationResponse>> evaluate(
+      @CurrentUserId UUID userId, @Valid @RequestBody EvaluateRequest request) {
+
+    return ResponseEntity.ok(ApiResult.success(evaluationService.evaluate(userId, request)));
   }
 }

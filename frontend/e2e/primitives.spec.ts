@@ -24,6 +24,7 @@ const SECTIONS = [
   "primitives-composed",
   "primitives-table",
   "gallery-inputs",
+  "gallery-simulator-charts",
   // gallery-chart-marker 는 스크린샷하지 않는다 — B 소유 차트 전체를 C 베이스라인에 묶게 된다.
   // 마커 링은 아래 computed-style 단언이 지킨다.
 ];

@@ -55,7 +55,9 @@ Carix는 연봉·실수령액·소비 금액 등 민감한 개인 재무 정보�
   `expense_item.amount_encrypted`, 그리고 `career_scenario` 의 금액 컬럼 여섯
   (`current_gross_salary_encrypted`, `move_target_gross_salary_encrypted`,
   `stay_compensation_12m_encrypted`, `move_compensation_12m_encrypted`,
-  `estimated_unemployment_benefit_encrypted`, `difference_encrypted`).
+  `estimated_unemployment_benefit_encrypted`, `difference_encrypted`), 그리고 세후 평가로 저장한
+  시나리오의 요청·결과 JSON `career_scenario.payload_encrypted`(문자열 컨버터, 같은 키·포맷).
+  엔진 1 컬럼과 payload 는 행 종류에 따라 한쪽만 채워지고 비는 컬럼은 `NULL` 이다.
 - `career_scenario` 를 포함하는 이유는 파생값도 원본을 되돌리기 때문이다.
   `stay_compensation_12m = 현재연봉 × (1 + stay_expected_raise_rate/100)` 이므로 두 값이
   평문이면 나눗셈 한 번으로 연봉이 원 단위까지 복원된다. 금액이 아닌 컬럼
@@ -74,7 +76,7 @@ Carix는 연봉·실수령액·소비 금액 등 민감한 개인 재무 정보�
   - 하위 호환: 콜론(`:`) 접두사가 없는 레거시 암호문은 레거시 키(`v1`)로 자동 복호화.
 - **무중단 키 로테이션 및 재암호화 절차**:
   1. `CARIX_ENCRYPTION_KEYS`에 신규 키를 추가하고 `CARIX_ENCRYPTION_ACTIVE_KEY_ID`를 신규 키로 지정해 배포한다 (신규 쓰기는 즉시 신규 키로 암호화, 구 암호문은 이전 키로 정상 복호화).
-  2. `CARIX_ENCRYPTION_REKEY_ON_STARTUP=true` 로 core-api 를 재기동한다. 기동이 끝난 뒤 `SensitiveDataRekeyingService.rekeyAll()` 이 `income_history`, `expense_item`, `career_scenario`, `performance_bonus` 의 구 암호문(접두사 없는 레거시 포함)을 활성 키로 재암호화한다. 이미 활성 키로 된 행은 건너뛰므로 플래그를 켜 둔 채 재기동해도 비용이 거의 없다.
+  2. `CARIX_ENCRYPTION_REKEY_ON_STARTUP=true` 로 core-api 를 재기동한다. 기동이 끝난 뒤 `SensitiveDataRekeyingService.rekeyAll()` 이 `income_history`, `expense_item`, `career_scenario`(금액 컬럼과 `payload_encrypted`), `performance_bonus` 의 구 암호문(접두사 없는 레거시 포함)을 활성 키로 재암호화한다. 이미 활성 키로 된 행은 건너뛰므로 플래그를 켜 둔 채 재기동해도 비용이 거의 없다.
   3. core-api 는 기동할 때마다 `rekey-status activeKeyId=… incomeHistory=… expenseItem=… careerScenario=… performanceBonus=… fullyMigrated=…` 한 줄을 남긴다. `fullyMigrated=true`(잔여 0건)를 확인한 뒤 구 키를 환경변수에서 폐기하고 플래그를 끈다.
   - 재암호화는 서비스가 요청을 받는 동안 돈다. 행마다 읽은 암호문이 그대로일 때만 갱신해 그사이 사용자가 고친 값을 옛 값으로 덮어쓰지 않는다.
   - 재암호화나 상태 조회가 실패해도 기동을 막지 않는다. `rekey-failed`·`rekey-status-failed` 로그와 미전환 건수로 드러난다. 로그에는 키 ID·건수·예외 문구만 남고 금액과 키 값은 남지 않는다.
