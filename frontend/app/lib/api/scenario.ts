@@ -1,64 +1,178 @@
+import { z } from "zod";
+
 import { coreGet, coreSend } from "../coreApi";
-import type { ScenarioInput } from "../schemas/scenario";
 
-export type FeasibilityStatus = "OK" | "INSUFFICIENT_SAMPLE";
-export type DifficultyGrade =
-  "EASY" | "REALISTIC" | "CHALLENGING" | "VERY_HIGH_CHALLENGE";
-export type ScenarioType = "ESTIMATED_GAIN" | "ESTIMATED_OPPORTUNITY_COST";
+const amount = z.number().int().nonnegative().nullish();
 
-/**
- * 표본이 부족하면(`INSUFFICIENT_SAMPLE`) 백분위·점수·등급·안내문 넷 모두 `null` 이다
- * — 백분위를 임의 분포로 지어내지 않기 위한 서버 규약(API 규격 §6.1)을 타입으로
- * 그대로 옮긴다.
- */
-export interface ScenarioFeasibility {
-  status: FeasibilityStatus;
-  sampleSize: number;
-  minRequired: number | null;
-  feasibilityScore: number | null;
-  targetPercentile: number | null;
-  difficultyGrade: DifficultyGrade | null;
-  feedbackMessage: string | null;
+const staySchema = z.object({
+  raisePercent: z.number(),
+  currentGrossOverride: amount,
+  performanceBonusEstimate: amount,
+  stockVesting12m: amount,
+  stockUnvested: amount,
+});
+
+const moveSchema = z.object({
+  grossSalary: z.number().int().nonnegative(),
+  unemploymentMonths: z.number().int().min(0).max(6),
+  oneTimeCost: z.number().int().nonnegative(),
+  benefitEligible: z.boolean(),
+  bonusIncluded: z.boolean(),
+  fixedBonusAnnual: amount,
+  performanceBonusExpected: amount,
+  signingBonus: amount,
+  stockVesting12m: amount,
+});
+
+/** `POST /v1/scenarios/evaluate` 본문이자 초안·저장 입력 (API 규격 §6.6). `move` 가 없으면 잔류만 본다. */
+export const evaluateRequestSchema = z.object({
+  stay: staySchema,
+  move: moveSchema.nullish(),
+});
+export type EvaluateRequest = z.infer<typeof evaluateRequestSchema>;
+
+const inflationBasisSchema = z.object({
+  governmentPercent: z.number(),
+  /** 개인물가를 계산할 수 없으면 null. */
+  personalPercent: z.number().nullable(),
+  gapPp: z.number().nullable(),
+  topGapCategory: z.string().nullable(),
+  similar: z.boolean(),
+  asOf: z.string(),
+  source: z.string(),
+});
+export type InflationBasis = z.infer<typeof inflationBasisSchema>;
+
+const feasibilitySchema = z.object({
+  status: z.enum(["OK", "INSUFFICIENT_SAMPLE"]),
+  sampleSize: z.number(),
+  minRequired: z.number().nullable(),
+  feasibilityScore: z.number().nullable(),
+  targetPercentile: z.number().nullable(),
+  difficultyGrade: z
+    .enum(["EASY", "REALISTIC", "CHALLENGING", "VERY_HIGH_CHALLENGE"])
+    .nullable(),
+  feedbackMessage: z.string().nullable(),
+});
+export type Feasibility = z.infer<typeof feasibilitySchema>;
+
+const rangeSchema = z.object({ min: z.number(), max: z.number() });
+
+const moveViewSchema = z.object({
+  stayCumulative: z.array(z.number()),
+  moveCumulative: z.array(z.number()),
+  crossoverMonth: z.number().int().nullable(),
+  firstYear: z.object({
+    salaryDiff: z.number(),
+    gap: z.number(),
+    oneTimeCost: z.number(),
+    benefit: z.number(),
+    total: z.number(),
+  }),
+  expectedRange: rangeSchema,
+  stock: z
+    .object({
+      stayVesting12m: z.number().nullable(),
+      forfeitedUnvested: z.number().nullable(),
+      moveVesting12m: z.number().nullable(),
+    })
+    .nullable(),
+  equalizingRaisePercent: z.number().nullable(),
+  feasibility: feasibilitySchema,
+});
+
+export const evaluationResponseSchema = z.object({
+  stay: z.object({
+    realChangePercent: z.number(),
+    realChangeGovernmentPercent: z.number(),
+    breakevenPersonalPercent: z.number().nullable(),
+    breakevenGovernmentPercent: z.number().nullable(),
+    marketGapPercent: z.number().nullable(),
+  }),
+  move: moveViewSchema.nullable(),
+  inflation: inflationBasisSchema,
+  assumptions: z.array(z.object({ code: z.string(), text: z.string() })),
+  unreflected: z.array(z.string()),
+  severance: z
+    .object({ monthsToAnniversary: z.number(), estimatedAmount: z.number() })
+    .nullable(),
+  typeLabel: z.string().nullable(),
+});
+export type EvaluationResponse = z.infer<typeof evaluationResponseSchema>;
+
+export interface ScenarioContext {
+  currentAnnualGross: number | null;
+  monthlyNet: number | null;
+  hireDate: string | null;
+  bonusIncluded: boolean;
+  fixedBonusAnnual: number | null;
+  defaultRaisePercent: number | null;
+  performanceBonusRange: { min: number; average: number; years: number } | null;
+  inflation: InflationBasis;
+  /** 세전·명목 기준 시장 중앙값 격차(%). 산출 불가면 null. */
+  marketGapPercent: number | null;
 }
 
-export interface SimulationResult {
-  id: string;
-  /** 이름 없이 계산했으면 null 이다 — 목록 라벨은 계산 시각으로 만든다(`scenarioLabel.ts`). */
-  scenarioName: string | null;
-  stayCompensation12m: number;
-  moveCompensation12m: number;
-  estimatedUnemploymentBenefit: number;
-  unemploymentBenefitNote: string;
-  difference: number;
-  type: ScenarioType;
-  typeLabel: string;
-  warningNote: string;
-  feasibility: ScenarioFeasibility;
+/** 엔진 1 로 저장된 행. 저장한 값 그대로이며 다시 계산하지 않는다 (API 규격 §6.3). */
+export interface LegacyScenario {
+  inputs: {
+    scenarioName: string | null;
+    currentGrossSalary: number;
+    stayExpectedRaiseRate: number;
+    moveTargetGrossSalary: number;
+    moveOneTimeCost: number;
+    expectedUnemploymentMonths: number;
+    isEligibleForUnemploymentBenefit: boolean;
+  };
+  result: {
+    id: string;
+    scenarioName: string | null;
+    stayCompensation12m: number;
+    moveCompensation12m: number;
+    estimatedUnemploymentBenefit: number;
+    unemploymentBenefitNote: string;
+    difference: number;
+    type: "ESTIMATED_GAIN" | "ESTIMATED_OPPORTUNITY_COST";
+    typeLabel: string;
+    warningNote: string;
+    feasibility: Feasibility;
+  };
 }
 
-/**
- * 저장분의 입력 가정. 요청(`ScenarioInput`)과 달리 이름이 null 로 올 수 있고, 계산에 실제로
- * 쓴 현재 연봉이 함께 실린다.
- */
-export type SavedScenarioInputs = Omit<ScenarioInput, "scenarioName"> & {
-  scenarioName: string | null;
-  currentGrossSalary: number;
-};
-
-/** 저장된 시나리오 한 건 (API 규격 §6.3). */
+/** `engineVersion` 2 는 `request`·`result`, 1 은 `legacy` 만 채워진다. */
 export interface SavedScenario {
   id: string;
-  scenarioName: string | null;
-  inputs: SavedScenarioInputs;
-  result: SimulationResult;
+  name: string | null;
+  engineVersion: 1 | 2;
   calculatedAt: string;
+  request: EvaluateRequest | null;
+  result: EvaluationResponse | null;
+  legacy: LegacyScenario | null;
 }
 
+export const getContext = () =>
+  coreGet<ScenarioContext>("/v1/scenarios/context");
+
+export const evaluate = (req: EvaluateRequest) =>
+  coreSend<EvaluationResponse>("POST", "/v1/scenarios/evaluate", req);
+
+/** 사용자가 저장을 누를 때만 부른다. 서버가 입력을 다시 평가해 결과와 함께 저장한다. */
+export const saveScenario = (name: string | null, request: EvaluateRequest) =>
+  coreSend<SavedScenario>("POST", "/v1/scenarios", { name, request });
+
+export const putDraft = (req: EvaluateRequest) =>
+  coreSend<null>("PUT", "/v1/scenarios/draft", req);
+
+/** 초안이 없으면 서버가 204 를 주고 래퍼가 null 로 돌려준다. */
+export const getDraft = () =>
+  coreGet<EvaluateRequest | null>("/v1/scenarios/draft");
+
 /**
- * 저장분 전부, 최근 순이다 — 첫 행이 마지막 시나리오라 `GET /latest` 를 따로 부르지 않는다.
- * 없으면 빈 배열(200)이다. 복호화된 금액이 여러 건 실리므로 로그에 남기지 않는다(완료 기준 10번).
+ * 저장분 전부, 최근 순. 없으면 빈 배열이다. 복호화된 금액이 여러 건 실리므로 로그에 남기지 않는다.
  */
 export const listScenarios = () => coreGet<SavedScenario[]>("/v1/scenarios");
 
-export const simulate = (input: ScenarioInput) =>
-  coreSend<SimulationResult>("POST", "/v1/scenarios/simulate", input);
+export const getFeasibility = (targetGross: number) =>
+  coreGet<Feasibility>(
+    `/v1/scenarios/feasibility?targetGross=${encodeURIComponent(targetGross)}`,
+  );
