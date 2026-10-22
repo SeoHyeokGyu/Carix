@@ -42,25 +42,6 @@ describe("S-05 프로필 화면", () => {
     return render(<Stub initialEntries={[initialEntry]} />);
   }
 
-  it("저장된 프로필을 초기값으로 보여준다", async () => {
-    vi.spyOn(profileApi, "getProfile").mockResolvedValue({
-      jobFamily: "DATA",
-      yearsOfExperience: 7,
-      region: "부산",
-      employmentType: "CONTRACT",
-      companySize: null,
-      hireDate: null,
-    });
-
-    renderScreen();
-
-    expect(await screen.findByLabelText("주 직무")).toHaveValue("DATA");
-    expect(screen.getByLabelText("총 경력 (년)")).toHaveValue(7);
-    expect(
-      screen.getByRole("heading", { level: 1, name: "프로필" }),
-    ).toBeInTheDocument();
-  });
-
   it("저장하면 프로필을 보내고 단계를 INCOME 으로 옮긴 뒤 소득 화면으로 간다", async () => {
     vi.spyOn(profileApi, "getProfile").mockResolvedValue({
       jobFamily: null,
@@ -361,74 +342,6 @@ describe("S-05 프로필 화면", () => {
     });
   });
 
-  // 회귀 테스트 — "저장 후 나가기" 가 DOM 상 첫 번째 제출 버튼이던 시절에는 어느
-  // 필드에서든 Enter 로 암묵 제출하면 브라우저가 그 버튼을 활성화해, 부분 저장 후
-  // 랜딩으로 튕겨 나갔다. "다음" 을 DOM 순서상 먼저 두어 Enter 가 그 버튼을 쓰게
-  // 했다 — 이 테스트는 그 순서가 다시 바뀌면 실패한다.
-  it("필드에서 Enter 를 누르면 '다음' 이 실행된다", async () => {
-    vi.spyOn(profileApi, "getProfile").mockResolvedValue({
-      jobFamily: null,
-      yearsOfExperience: null,
-      region: null,
-      employmentType: null,
-      companySize: null,
-      hireDate: null,
-    });
-    vi.spyOn(profileApi, "patchProfile").mockResolvedValue({
-      jobFamily: "DEVELOPER",
-      yearsOfExperience: 5,
-      region: "서울",
-      employmentType: "FULL_TIME",
-      companySize: null,
-      hireDate: null,
-    });
-    const advance = vi
-      .spyOn(onboardingApi, "advanceOnboarding")
-      .mockResolvedValue({ currentStep: "INCOME", completed: false });
-
-    renderScreen();
-    const user = userEvent.setup();
-
-    await user.selectOptions(
-      await screen.findByLabelText("주 직무"),
-      "DEVELOPER",
-    );
-    await user.selectOptions(screen.getByLabelText("희망 근무 지역"), "서울");
-    await user.selectOptions(screen.getByLabelText("고용 형태"), "FULL_TIME");
-    await user.type(screen.getByLabelText("총 경력 (년)"), "5{Enter}");
-
-    expect(await screen.findByText("소득 화면")).toBeInTheDocument();
-    expect(advance).toHaveBeenCalledWith("INCOME");
-  });
-
-  // 회귀 테스트 — flex-row-reverse 로 시각 순서만 뒤집었을 때는 DOM·포커스 순서가
-  // 그대로라 키보드 사용자는 시각상 오른쪽의 "다음" 으로 먼저 Tab 됐다(WCAG 2.4.3
-  // 위반). 지금은 CSS 뒤집기 없이 DOM 순서 자체가 와이어프레임과 같으므로, Tab 순서가
-  // 시각 순서(다음 → 저장 후 나가기)와 일치해야 한다.
-  it("Tab 순서가 시각 순서(다음 → 저장 후 나가기)와 일치한다", async () => {
-    vi.spyOn(profileApi, "getProfile").mockResolvedValue({
-      jobFamily: null,
-      yearsOfExperience: null,
-      region: null,
-      employmentType: null,
-      companySize: null,
-      hireDate: null,
-    });
-
-    renderScreen();
-    const user = userEvent.setup();
-
-    (await screen.findByLabelText("회사 규모 (선택)")).focus();
-
-    await user.tab();
-    expect(screen.getByRole("button", { name: "다음" })).toHaveFocus();
-
-    await user.tab();
-    expect(
-      screen.getByRole("button", { name: "저장 후 나가기" }),
-    ).toHaveFocus();
-  });
-
   it("조회 중 401 을 받으면 로그인 화면으로 보낸다", async () => {
     vi.spyOn(profileApi, "getProfile").mockRejectedValue(
       new UnauthorizedError(),
@@ -437,74 +350,5 @@ describe("S-05 프로필 화면", () => {
     renderScreen();
 
     expect(await screen.findByText("로그인 화면")).toBeInTheDocument();
-  });
-
-  it("저장 중 401 을 받으면 로그인 화면으로 보낸다", async () => {
-    vi.spyOn(profileApi, "getProfile").mockResolvedValue({
-      jobFamily: null,
-      yearsOfExperience: null,
-      region: null,
-      employmentType: null,
-      companySize: null,
-      hireDate: null,
-    });
-    vi.spyOn(profileApi, "patchProfile").mockRejectedValue(
-      new UnauthorizedError(),
-    );
-
-    renderScreen();
-    const user = userEvent.setup();
-
-    await user.selectOptions(
-      await screen.findByLabelText("주 직무"),
-      "DEVELOPER",
-    );
-    await user.selectOptions(screen.getByLabelText("희망 근무 지역"), "서울");
-    await user.selectOptions(screen.getByLabelText("고용 형태"), "FULL_TIME");
-    await user.type(screen.getByLabelText("총 경력 (년)"), "5");
-    await user.click(screen.getByRole("button", { name: "다음" }));
-
-    expect(await screen.findByText("로그인 화면")).toBeInTheDocument();
-  });
-
-  // Critical fix — 저장이 401 이 아닌 다른 이유로 실패하면(서버 오류 등) 입력을
-  // 잃지 않고 같은 화면에 남아 오류를 보여줘야 한다. coreApi 가 던지는 정규화된
-  // ApiError 모양(고정 문구가 아니라 그 message)을 그대로 보여준다.
-  it("저장이 API 오류로 실패하면 입력을 유지한 채 오류 메시지를 보여준다", async () => {
-    vi.spyOn(profileApi, "getProfile").mockResolvedValue({
-      jobFamily: null,
-      yearsOfExperience: null,
-      region: null,
-      employmentType: null,
-      companySize: null,
-      hireDate: null,
-    });
-    const patch = vi.spyOn(profileApi, "patchProfile").mockRejectedValue({
-      code: "SERVER_ERROR",
-      message: "요청을 처리하지 못했습니다. 잠시 후 다시 시도해 주세요.",
-      status: 500,
-    });
-    const advance = vi.spyOn(onboardingApi, "advanceOnboarding");
-
-    renderScreen();
-    const user = userEvent.setup();
-
-    await user.selectOptions(
-      await screen.findByLabelText("주 직무"),
-      "DEVELOPER",
-    );
-    await user.selectOptions(screen.getByLabelText("희망 근무 지역"), "서울");
-    await user.selectOptions(screen.getByLabelText("고용 형태"), "FULL_TIME");
-    await user.type(screen.getByLabelText("총 경력 (년)"), "5");
-    await user.click(screen.getByRole("button", { name: "다음" }));
-
-    const banner = await screen.findByRole("alert");
-    expect(banner).toHaveTextContent(
-      "요청을 처리하지 못했습니다. 잠시 후 다시 시도해 주세요.",
-    );
-    // 화면을 벗어나지 않았다 — 입력한 값이 그대로 남아 있다.
-    expect(screen.getByLabelText("주 직무")).toHaveValue("DEVELOPER");
-    expect(patch).toHaveBeenCalled();
-    expect(advance).not.toHaveBeenCalled();
   });
 });

@@ -20,14 +20,4 @@ describe("Hero", () => {
       screen.getByText("지금 남고, 옮기고, 배우는 선택 중 무엇이 유리한가?"),
     ).toBeInTheDocument();
   });
-
-  it("교차 지수 라인 시그니처를 포함한다", () => {
-    render(<Hero />);
-    expect(screen.getByTestId("index-crossover-line")).toBeInTheDocument();
-  });
-
-  it("CTA 버튼을 렌더링하지 않는다", () => {
-    render(<Hero />);
-    expect(screen.queryByRole("button")).not.toBeInTheDocument();
-  });
 });

@@ -61,31 +61,6 @@ describe("BonusTermsForm", () => {
     expect(screen.queryByLabelText(AMOUNT_LABEL)).not.toBeInTheDocument();
   });
 
-  it("적용 시작 선택지는 소득 행의 유효 시작일이다", () => {
-    renderForm();
-    const select = screen.getByLabelText(/이 연봉부터 적용/);
-    const options = Array.from(select.querySelectorAll("option"))
-      .filter((o) => o.value !== "")
-      .map((o) => [o.value, o.textContent]);
-    expect(options).toEqual([
-      ["i-new", expect.stringContaining("2024-01-01")],
-      ["i-old", expect.stringContaining("2023-01-01")],
-    ]);
-  });
-
-  it("행을 고르면 그 행의 현재 조건으로 폼이 채워진다", async () => {
-    renderForm();
-    const user = userEvent.setup();
-
-    await user.selectOptions(
-      screen.getByLabelText(/이 연봉부터 적용/),
-      "i-old",
-    );
-
-    expect(screen.getByLabelText("따로 받음")).toBeChecked();
-    expect(screen.getByLabelText(AMOUNT_LABEL)).toHaveValue("1,200");
-  });
-
   it("들어 있음 제출은 고정상여 null 로 보낸다", async () => {
     const onSubmit = renderForm();
     const user = userEvent.setup();

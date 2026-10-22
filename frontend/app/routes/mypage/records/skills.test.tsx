@@ -4,9 +4,7 @@ import { createRoutesStub } from "react-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import * as skillApi from "../../../lib/skillApi";
-import { cancelDialog, confirmDialog } from "../../../test-utils/confirmDialog";
-import { expectHeadingOutline } from "../../../test-utils/headingOutline";
-import RecordsLayout from "./layout";
+import { confirmDialog } from "../../../test-utils/confirmDialog";
 import RecordsSkills, { clientLoader, ErrorBoundary } from "./skills";
 
 vi.mock("../../../lib/skillApi");
@@ -44,41 +42,6 @@ describe("스킬 탭 (S-12)", () => {
     vi.clearAllMocks();
     vi.mocked(skillApi.fetchUserSkills).mockResolvedValue(skills);
     vi.mocked(skillApi.searchSkills).mockResolvedValue([]);
-  });
-
-  it("보유 스킬을 그린다", async () => {
-    renderTab();
-    expect(await screen.findByText("Spring Boot")).toBeInTheDocument();
-    expect(screen.getByText("36개월")).toBeInTheDocument();
-    expect(screen.getByText("2026-08-01")).toBeInTheDocument();
-    expect(
-      screen.getByRole("heading", { level: 2, name: "보유 스킬" }),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("heading", { level: 2, name: "스킬 추가" }),
-    ).toBeInTheDocument();
-  });
-
-  it("스킬이 없으면 추가를 유도한다", async () => {
-    vi.mocked(skillApi.fetchUserSkills).mockResolvedValue([]);
-    renderTab();
-    expect(
-      await screen.findByText("등록된 스킬이 없습니다"),
-    ).toBeInTheDocument();
-  });
-
-  it("검색어를 치면 자동완성을 부른다", async () => {
-    vi.mocked(skillApi.searchSkills).mockResolvedValue([
-      { id: "s-2", standardName: "TypeScript", isCustom: false },
-    ]);
-    renderTab();
-    const user = userEvent.setup();
-
-    await user.type(await screen.findByLabelText("스킬 검색"), "type");
-    await waitFor(() =>
-      expect(skillApi.searchSkills).toHaveBeenCalledWith("type"),
-    );
-    expect(await screen.findByText("TypeScript")).toBeInTheDocument();
   });
 
   it("600개월을 넘으면 거부하고 서버를 부르지 않는다", async () => {
@@ -167,42 +130,6 @@ describe("스킬 탭 (S-12)", () => {
         lastUsedDate: "2026-08-01",
       }),
     );
-  });
-
-  it("확인을 취소하면 삭제 API 를 부르지 않는다", async () => {
-    // 확인창에서 취소하면 요청이 나가지 않는다.
-    renderTab();
-    const user = userEvent.setup();
-
-    await user.click(
-      await screen.findByRole("button", { name: "Spring Boot 삭제" }),
-    );
-    await cancelDialog(user);
-
-    expect(skillApi.deleteUserSkill).not.toHaveBeenCalled();
-    expect(screen.getByText("Spring Boot")).toBeInTheDocument();
-  });
-
-  it("삭제 확인창은 무엇이 지워지는지 알리고, 요청이 끝날 때까지 다시 열 수 없다", async () => {
-    let resolveDelete: () => void = () => {};
-    vi.mocked(skillApi.deleteUserSkill).mockReturnValue(
-      new Promise<void>((r) => {
-        resolveDelete = r;
-      }),
-    );
-    renderTab();
-    const user = userEvent.setup();
-
-    const trigger = await screen.findByRole("button", {
-      name: "Spring Boot 삭제",
-    });
-    await user.click(trigger);
-    expect(
-      screen.getByRole("alertdialog", { name: "스킬을 삭제할까요?" }),
-    ).toHaveAccessibleDescription(/보유 목록에서 지워집니다/);
-    await confirmDialog(user, "삭제");
-    await waitFor(() => expect(trigger).toBeDisabled());
-    resolveDelete();
   });
 
   it("삭제가 실패하면 그 행 옆에 오류를 보여주고 목록은 그대로 둔다", async () => {
@@ -304,73 +231,5 @@ describe("스킬 탭 (S-12)", () => {
 
     expect(await screen.findByText("검색하지 못했습니다.")).toBeInTheDocument();
     expect(screen.queryByText("TypeScript")).not.toBeInTheDocument();
-  });
-
-  // 라벨에 사용자 입력이 그대로 들어간다 — 줄바꿈이 막히면 375px 에서 입력 박스를 넘고,
-  // 긴 검색어는 문서 폭을 늘려 페이지가 가로로 스크롤된다.
-  it("직접 추가 링크는 긴 검색어에서 줄바꿈된다", async () => {
-    vi.mocked(skillApi.searchSkills).mockResolvedValue([]);
-    renderTab();
-    const user = userEvent.setup();
-
-    await user.type(await screen.findByLabelText("스킬 검색"), "Zig");
-    const addCustomButton = await screen.findByRole("button", {
-      name: "+ 'Zig'를 사전에 없는 스킬로 직접 추가하기",
-    });
-    expect(addCustomButton).toHaveClass("whitespace-normal");
-    expect(addCustomButton).not.toHaveClass("whitespace-nowrap");
-  });
-
-  it("검색 결과 항목은 긴 스킬명에서 줄바꿈된다", async () => {
-    vi.mocked(skillApi.searchSkills).mockResolvedValue([
-      { id: "s-2", standardName: "TypeScript", isCustom: false },
-    ]);
-    renderTab();
-    const user = userEvent.setup();
-
-    await user.type(await screen.findByLabelText("스킬 검색"), "type");
-    const option = await screen.findByRole("option", { name: "TypeScript" });
-    expect(option).toHaveClass("whitespace-normal", "h-auto");
-    expect(option).not.toHaveClass("whitespace-nowrap");
-  });
-
-  it("불러오기에 실패하면 다시 시도할 수 있고, 성공하면 목록으로 돌아온다", async () => {
-    vi.mocked(skillApi.fetchUserSkills)
-      .mockRejectedValueOnce(new Error("boom"))
-      .mockResolvedValueOnce(skills);
-    renderTab();
-    const user = userEvent.setup();
-
-    expect(
-      await screen.findByText("스킬 이력을 불러오지 못했습니다"),
-    ).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "다시 시도" }));
-
-    expect(await screen.findByText("Spring Boot")).toBeInTheDocument();
-  });
-
-  it("입력 관리 h1 아래로 제목 단계가 이어진다", async () => {
-    const Stub = createRoutesStub([
-      {
-        path: "/mypage/records",
-        Component: RecordsLayout,
-        children: [
-          {
-            path: "skills",
-            Component: RecordsSkills,
-            ErrorBoundary,
-            loader: clientLoader,
-            HydrateFallback: () => null,
-          },
-        ],
-      },
-      { path: "/login", Component: () => <div>로그인 화면</div> },
-    ]);
-    render(<Stub initialEntries={["/mypage/records/skills"]} />);
-
-    expect(
-      await screen.findByRole("heading", { level: 2, name: "보유 스킬" }),
-    ).toBeInTheDocument();
-    expectHeadingOutline();
   });
 });

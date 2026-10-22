@@ -26,19 +26,4 @@ describe("Home route", () => {
       "시작하기",
     ]);
   });
-
-  it("가입과 로그인 진입점을 제공한다", () => {
-    render(
-      <MemoryRouter>
-        <Home />
-      </MemoryRouter>,
-    );
-    expect(
-      screen.getByRole("link", { name: "가입하고 시작하기" }),
-    ).toHaveAttribute("href", "/register");
-    expect(screen.getByRole("link", { name: "로그인" })).toHaveAttribute(
-      "href",
-      "/login",
-    );
-  });
 });

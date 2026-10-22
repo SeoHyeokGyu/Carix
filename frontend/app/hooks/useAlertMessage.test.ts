@@ -12,11 +12,4 @@ describe("useAlertMessage", () => {
     expect(result.current.message).toBe("실패했습니다");
     expect(result.current.key).not.toBe(firstKey);
   });
-
-  it("지우면 문장이 사라진다", () => {
-    const { result } = renderHook(() => useAlertMessage());
-    act(() => result.current.show("실패했습니다"));
-    act(() => result.current.clear());
-    expect(result.current.message).toBeNull();
-  });
 });

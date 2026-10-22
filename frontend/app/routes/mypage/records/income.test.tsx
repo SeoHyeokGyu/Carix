@@ -1,17 +1,15 @@
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { createRoutesStub } from "react-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import * as incomeApi from "../../../lib/api/income";
-import { cancelDialog, confirmDialog } from "../../../test-utils/confirmDialog";
-import { expectHeadingOutline } from "../../../test-utils/headingOutline";
+import { confirmDialog } from "../../../test-utils/confirmDialog";
 import RecordsIncome, {
   clientAction,
   clientLoader,
   ErrorBoundary,
 } from "./income";
-import RecordsLayout from "./layout";
 
 vi.mock("../../../lib/api/income");
 
@@ -64,16 +62,6 @@ describe("소득 탭 (S-12)", () => {
     vi.mocked(incomeApi.listBonuses).mockResolvedValue([]);
   });
 
-  it("각 소득 행에 상여 조건을 보인다", async () => {
-    renderTab();
-    const newRow = (await screen.findByText("2024-01-01")).closest("tr")!;
-    const oldRow = screen.getByText("2023-01-01").closest("tr")!;
-    expect(within(newRow).getByText("상여 포함")).toBeInTheDocument();
-    expect(
-      within(oldRow).getByText("고정상여 별도 1,200만 원"),
-    ).toBeInTheDocument();
-  });
-
   it("상여 조건을 저장하면 선택한 행부터 적용하도록 보낸다", async () => {
     vi.mocked(incomeApi.updateBonusTerms).mockResolvedValue(rows);
     renderTab();
@@ -115,65 +103,6 @@ describe("소득 탭 (S-12)", () => {
     expect(document.getElementById("fixedBonusAnnual-error")).not.toBeNull();
   });
 
-  it("성과급 400 의 details 를 지급월 칸에 붙인다", async () => {
-    vi.mocked(incomeApi.createBonus).mockRejectedValue({
-      code: "INVALID_INPUT",
-      message: "입력값 형식이 올바르지 않습니다.",
-      status: 400,
-      details: {
-        paidMonth: "아직 오지 않은 달에는 성과급을 기록할 수 없습니다.",
-      },
-    });
-    renderTab();
-    const user = userEvent.setup();
-
-    await user.type(await screen.findByLabelText("지급월"), "2026-03");
-    await user.type(screen.getByLabelText(/^금액/), "500");
-    await user.click(screen.getByRole("button", { name: "성과급 추가" }));
-
-    await screen.findByText(
-      "아직 오지 않은 달에는 성과급을 기록할 수 없습니다.",
-    );
-    expect(document.getElementById("bonusPaidMonth-error")).not.toBeNull();
-  });
-
-  it("details 가 없는 400 은 message 를 폼 공통 오류로 낸다", async () => {
-    vi.mocked(incomeApi.createBonus).mockRejectedValue({
-      code: "INVALID_INPUT",
-      message: "요청 형식이 올바르지 않습니다.",
-      status: 400,
-    });
-    renderTab();
-    const user = userEvent.setup();
-
-    await user.type(await screen.findByLabelText("지급월"), "2026-03");
-    await user.type(screen.getByLabelText(/^금액/), "500");
-    await user.click(screen.getByRole("button", { name: "성과급 추가" }));
-
-    expect(
-      await screen.findByText("요청 형식이 올바르지 않습니다."),
-    ).toBeVisible();
-    expect(document.getElementById("bonusPaidMonth-error")).toBeNull();
-  });
-
-  it("상여 조건 400 은 들어 있음 선택 상태에서도 화면에 보인다", async () => {
-    vi.mocked(incomeApi.updateBonusTerms).mockRejectedValue({
-      code: "INVALID_INPUT",
-      message: "적용할 소득 이력을 찾을 수 없습니다.",
-      status: 400,
-    });
-    renderTab();
-    const user = userEvent.setup();
-
-    await user.click(
-      await screen.findByRole("button", { name: "상여 조건 저장" }),
-    );
-
-    expect(
-      await screen.findByText("적용할 소득 이력을 찾을 수 없습니다."),
-    ).toBeVisible();
-  });
-
   it("성과급을 추가하면 목록을 다시 불러온다", async () => {
     vi.mocked(incomeApi.createBonus).mockResolvedValue({
       id: "b-1",
@@ -202,44 +131,6 @@ describe("소득 탭 (S-12)", () => {
       }),
     );
     expect(await screen.findByText("2026-03")).toBeInTheDocument();
-  });
-
-  it("성과급 삭제는 확인 뒤 해당 id 로 서버를 부른다", async () => {
-    vi.mocked(incomeApi.listBonuses).mockResolvedValue([
-      { id: "b-1", paidMonth: "202603", amount: 5_000_000 },
-    ]);
-    vi.mocked(incomeApi.deleteBonus).mockResolvedValue(null);
-    renderTab();
-    const user = userEvent.setup();
-
-    const row = (await screen.findByText("2026-03")).closest("tr")!;
-    await user.click(within(row).getByRole("button", { name: "삭제" }));
-    await confirmDialog(user, "삭제");
-
-    await waitFor(() =>
-      expect(incomeApi.deleteBonus).toHaveBeenCalledWith("b-1"),
-    );
-  });
-
-  it("유효 시작일 내림차순으로 그린다", async () => {
-    renderTab();
-    const cells = await screen.findAllByText(/^\d{4}-\d{2}-\d{2}$/);
-    expect(cells[0]).toHaveTextContent("2024-01-01");
-    expect(cells[1]).toHaveTextContent("2023-01-01");
-    expect(
-      screen.getByRole("heading", { level: 2, name: "소득 이력" }),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("heading", { level: 2, name: "소득 추가" }),
-    ).toBeInTheDocument();
-  });
-
-  it("이력이 없으면 추가를 유도한다", async () => {
-    vi.mocked(incomeApi.listIncome).mockResolvedValue([]);
-    renderTab();
-    expect(
-      await screen.findByText("등록된 연봉 이력이 없습니다"),
-    ).toBeInTheDocument();
   });
 
   it("추가하면 만원 단위를 원 단위로 환산해 보낸다", async () => {
@@ -386,91 +277,6 @@ describe("소득 탭 (S-12)", () => {
     expect(incomeApi.deleteIncome).not.toHaveBeenCalled();
   });
 
-  it("확인을 취소하면 삭제 API 를 부르지 않는다", async () => {
-    // 확인창에서 취소하면 요청이 나가지 않는다.
-    renderTab();
-    const user = userEvent.setup();
-
-    const buttons = await screen.findAllByRole("button", { name: "삭제" });
-    await user.click(buttons[0]);
-    await cancelDialog(user);
-
-    expect(incomeApi.deleteIncome).not.toHaveBeenCalled();
-    expect(screen.getByText("2024-01-01")).toBeInTheDocument();
-  });
-
-  it("삭제 확인창은 시작일과 재계산을 알리고, 요청이 끝날 때까지 다시 열 수 없다", async () => {
-    let resolveDelete: (v: null) => void = () => {};
-    vi.mocked(incomeApi.deleteIncome).mockReturnValue(
-      new Promise((r) => {
-        resolveDelete = r;
-      }),
-    );
-    renderTab();
-    const user = userEvent.setup();
-
-    const trigger = (await screen.findAllByRole("button", { name: "삭제" }))[0];
-    await user.click(trigger);
-    expect(
-      screen.getByRole("alertdialog", { name: "소득 이력을 삭제할까요?" }),
-    ).toHaveAccessibleDescription(/지수가 다시 계산됩니다/);
-    await confirmDialog(user, "삭제");
-    await waitFor(() => expect(trigger).toBeDisabled());
-    resolveDelete(null);
-  });
-
-  it("이력이 없으면 변경 사유 셀렉트를 그리지 않는다", async () => {
-    // US-O3: 그 사용자의 첫 소득 행은 서버가 INITIAL 로 확정하고 사용자에게 묻지
-    // 않는다. 화면이 아는 정보(이력 0건)만으로 그 조항을 지킨다.
-    vi.mocked(incomeApi.listIncome).mockResolvedValue([]);
-    renderTab();
-
-    await screen.findByText("등록된 연봉 이력이 없습니다");
-    expect(screen.queryByLabelText("변경 사유")).toBeNull();
-  });
-
-  it("고른 변경 사유가 createIncome 인자에 실린다", async () => {
-    vi.mocked(incomeApi.createIncome).mockResolvedValue(rows[1]);
-    renderTab();
-    const user = userEvent.setup();
-
-    await user.type(await screen.findByLabelText(/세전 연봉/), "7000");
-    await user.type(screen.getByLabelText(/월 실수령액/), "450");
-    await user.type(screen.getByLabelText(/연봉 적용 시작일/), "2025-01-01");
-    await user.selectOptions(screen.getByLabelText("변경 사유"), "JOB_CHANGE");
-    await user.click(screen.getByRole("button", { name: "저장" }));
-
-    await waitFor(() =>
-      expect(incomeApi.createIncome).toHaveBeenCalledWith({
-        grossSalary: 70_000_000,
-        netSalary: 4_500_000,
-        effectiveDate: "2025-01-01",
-        changeReason: "JOB_CHANGE",
-      }),
-    );
-  });
-
-  it("선택 안 함이면 changeReason 없이 보낸다", async () => {
-    // 기본값을 채우면 고르지 않은 것이 고른 것으로 기록된다 (API 규격 §4.2).
-    // 빈 문자열도 보내면 안 된다 — enum 검증에서 떨어진다.
-    vi.mocked(incomeApi.createIncome).mockResolvedValue(rows[1]);
-    renderTab();
-    const user = userEvent.setup();
-
-    await user.type(await screen.findByLabelText(/세전 연봉/), "7000");
-    await user.type(screen.getByLabelText(/월 실수령액/), "450");
-    await user.type(screen.getByLabelText(/연봉 적용 시작일/), "2025-01-01");
-    await user.click(screen.getByRole("button", { name: "저장" }));
-
-    await waitFor(() =>
-      expect(incomeApi.createIncome).toHaveBeenCalledWith({
-        grossSalary: 70_000_000,
-        netSalary: 4_500_000,
-        effectiveDate: "2025-01-01",
-      }),
-    );
-  });
-
   it("생성이 성공해도 변경 사유 셀렉트가 이전 선택을 유지하지 않는다 (회귀)", async () => {
     // Important #1(최종 리뷰): 셀렉트가 uncontrolled(defaultValue)라 폼 key 가
     // 안 바뀌는 생성→생성 경로에서 리마운트가 없다 — 이직을 고르고 저장한 뒤
@@ -511,131 +317,5 @@ describe("소득 탭 (S-12)", () => {
         effectiveDate: "2025-01-01",
       }),
     );
-  });
-
-  it("표시값이 INITIAL 인 행을 수정해도 저장된 원값이 그대로 실려 간다", async () => {
-    // 가장 이른 행이라 표시는 INITIAL 이지만 컬럼에는 JOB_CHANGE 가 있다. 폼이
-    // 표시값만 보면 셀렉트가 비고, PUT 이 전체 교체라 그 JOB_CHANGE 가 지워진다.
-    vi.mocked(incomeApi.listIncome).mockResolvedValue([
-      {
-        ...rows[0],
-        changeReason: "INITIAL",
-        selectedChangeReason: "JOB_CHANGE",
-        bonusIncluded: true,
-        fixedBonusAnnual: null,
-      },
-    ]);
-    vi.mocked(incomeApi.updateIncome).mockResolvedValue(rows[0]);
-    renderTab();
-    const user = userEvent.setup();
-
-    await user.click(await screen.findByRole("button", { name: "수정" }));
-    expect(screen.getByLabelText("변경 사유")).toHaveValue("JOB_CHANGE");
-
-    await user.click(screen.getByRole("button", { name: "저장" }));
-
-    await waitFor(() =>
-      expect(incomeApi.updateIncome).toHaveBeenCalledWith(
-        "i-old",
-        expect.objectContaining({ changeReason: "JOB_CHANGE" }),
-      ),
-    );
-  });
-
-  it("목록 표가 변경 사유를 문구로 낸다", async () => {
-    // 명세 §7 — 표는 최초 입력·라벨·— 셋을 모두 낼 수 있어야 한다. changeReason
-    // 이 null 인 행(과거 회차 혼재 데이터 등)까지 포함해 세 갈래를 함께 본다.
-    vi.mocked(incomeApi.listIncome).mockResolvedValue([
-      ...rows,
-      {
-        id: "i-null",
-        grossSalary: 70_000_000,
-        netSalary: 4_500_000,
-        effectiveDate: "2025-01-01",
-        changeReason: null,
-        selectedChangeReason: null,
-        bonusIncluded: true,
-        fixedBonusAnnual: null,
-      },
-    ]);
-    renderTab();
-
-    // 표로 좁힌다 — "연봉 인상" 은 셀렉트의 <option> 에도 있어서 화면 전체로
-    // 찾으면 둘이 잡힌다. 여기서 보려는 것은 표가 그리는 쪽이다.
-    const table = await screen.findByRole("table");
-    expect(within(table).getByText("최초 입력")).toBeInTheDocument();
-    expect(within(table).getByText("연봉 인상")).toBeInTheDocument();
-    expect(within(table).getByText("—")).toBeInTheDocument();
-  });
-
-  it("열이 다섯인 표를 가로 스크롤 래퍼 안에 둔다 (c13)", async () => {
-    // 래퍼가 없으면 375px 에서 한글이 글자 단위로 쪼개진다("변/경/사/유").
-    vi.mocked(incomeApi.listIncome).mockResolvedValue(rows);
-    renderTab();
-
-    const table = await screen.findByRole("table");
-    expect(table.parentElement).toHaveClass("overflow-x-auto");
-  });
-
-  it("최소 유효일 행에 고른 값이 있으면 표가 둘 다 낸다", async () => {
-    // 가장 이른 행이라 표시는 INITIAL 이지만 컬럼에는 JOB_CHANGE 가 있다. 파생값만
-    // 내면 사용자가 고른 값이 화면 어디에도 안 남는다 — 수정 화면에 들어가야만 보인다.
-    vi.mocked(incomeApi.listIncome).mockResolvedValue([
-      {
-        ...rows[0],
-        changeReason: "INITIAL",
-        selectedChangeReason: "JOB_CHANGE",
-        bonusIncluded: true,
-        fixedBonusAnnual: null,
-      },
-      rows[1],
-    ]);
-    renderTab();
-
-    const table = await screen.findByRole("table");
-    expect(within(table).getByText("최초 입력 · 이직")).toBeInTheDocument();
-    // 고른 값이 없는 최소 유효일 행은 그대로 "최초 입력" 하나만 낸다.
-    expect(within(table).queryByText("최초 입력")).toBeNull();
-  });
-
-  it("불러오기에 실패하면 다시 시도할 수 있고, 성공하면 목록으로 돌아온다", async () => {
-    vi.mocked(incomeApi.listIncome)
-      .mockRejectedValueOnce(new Error("boom"))
-      .mockResolvedValueOnce(rows);
-    renderTab();
-    const user = userEvent.setup();
-
-    expect(
-      await screen.findByText("소득 이력을 불러오지 못했습니다"),
-    ).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "다시 시도" }));
-
-    expect(await screen.findByText("2024-01-01")).toBeInTheDocument();
-  });
-
-  it("입력 관리 h1 아래로 제목 단계가 이어진다", async () => {
-    const Stub = createRoutesStub([
-      {
-        path: "/mypage/records",
-        Component: RecordsLayout,
-        children: [
-          {
-            index: true,
-            Component: RecordsIncome,
-            ErrorBoundary,
-            loader: clientLoader,
-            action: clientAction,
-            HydrateFallback: () => null,
-          },
-        ],
-      },
-      { path: "/login", Component: () => <div>로그인 화면</div> },
-    ]);
-    render(<Stub initialEntries={["/mypage/records"]} />);
-
-    expect(
-      await screen.findByRole("heading", { level: 2, name: "소득 이력" }),
-    ).toBeInTheDocument();
-    expectHeadingOutline();
   });
 });

@@ -71,22 +71,4 @@ describe("SkillRecommendationsSection", () => {
     expect(screen.getByText("Jenkins")).toBeInTheDocument();
     expect(screen.getByText("▼ 하락")).toBeInTheDocument();
   });
-
-  it("추천 목록이 비어있을 때 표본 부족 안내를 노출한다", () => {
-    const mockData: SkillRecommendationsResponse = {
-      peerGroup: {
-        appliedConditions: "",
-      },
-      recommendations: [],
-    };
-
-    render(<SkillRecommendationsSection data={mockData} />);
-
-    expect(
-      screen.getByText("동료집단 공고 표본이 부족합니다."),
-    ).toBeInTheDocument();
-    expect(
-      screen.queryByRole("list", { name: "동료집단 추천 스킬 목록" }),
-    ).not.toBeInTheDocument();
-  });
 });

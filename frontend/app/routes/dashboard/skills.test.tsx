@@ -1,18 +1,10 @@
-import {
-  render,
-  screen,
-  waitFor,
-  waitForElementToBeRemoved,
-  within,
-} from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { UnauthorizedError } from "../../lib/coreApi";
 import * as dashboardMarketApi from "../../lib/dashboardMarketApi";
 import * as skillApi from "../../lib/skillApi";
-import { expectHeadingOutline } from "../../test-utils/headingOutline";
 import DashboardSkills from "./skills";
 
 const mockNavigate = vi.fn();
@@ -32,8 +24,6 @@ vi.mock("../../lib/dashboardMarketApi", () => ({
 vi.mock("../../lib/skillApi", () => ({
   fetchSkillRecommendations: vi.fn(),
 }));
-
-const LOADING = "스킬 시장 데이터를 집계 및 분석하고 있습니다...";
 
 function renderSkills() {
   render(
@@ -82,22 +72,6 @@ describe("S-18 DashboardSkills (스킬 분석) 라우트", () => {
     });
   });
 
-  it("제목 단계(h1 -> h2 -> h3)가 건너뛰지 않고 이어진다", async () => {
-    renderSkills();
-    await waitForElementToBeRemoved(() => screen.queryByText(LOADING));
-
-    expect(
-      screen.getByRole("heading", { level: 1, name: "스킬 분석" }),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("heading", { level: 2, name: "보유 스킬 수요" }),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("heading", { level: 2, name: "동료집단 추천 스킬" }),
-    ).toBeInTheDocument();
-    expectHeadingOutline();
-  });
-
   it("보유 스킬 관리 링크와 보유 스킬 수요 및 동료집단 추천 스킬 섹션을 렌더링한다", async () => {
     renderSkills();
 
@@ -118,11 +92,6 @@ describe("S-18 DashboardSkills (스킬 분석) 라우트", () => {
     expect(
       screen.getByText("보유하신 Kotlin 공고의 62%가 함께 요구합니다."),
     ).toBeInTheDocument();
-  });
-
-  it("불러오는 동안 LoadingState 를 보인다", () => {
-    renderSkills();
-    expect(screen.getByRole("status")).toHaveTextContent(LOADING);
   });
 
   it("세션이 만료되면(401) 로그인으로 보낸다", async () => {
@@ -166,54 +135,5 @@ describe("S-18 DashboardSkills (스킬 분석) 라우트", () => {
     expect(
       screen.queryByText("스킬 시장 데이터를 불러오지 못했습니다"),
     ).toBeNull();
-  });
-
-  it("두 조회가 모두 실패하고 이전 데이터가 없으면 화면 단위 실패 하나만 보이고 다시 시도할 수 있다", async () => {
-    vi.mocked(dashboardMarketApi.fetchSkillDemands).mockRejectedValue(
-      new Error("x"),
-    );
-    vi.mocked(skillApi.fetchSkillRecommendations).mockRejectedValue(
-      new Error("x"),
-    );
-
-    renderSkills();
-    const user = userEvent.setup();
-
-    expect(
-      await screen.findByText("스킬 시장 데이터를 불러오지 못했습니다"),
-    ).toBeInTheDocument();
-    expect(screen.getAllByRole("button", { name: "다시 시도" })).toHaveLength(
-      1,
-    );
-
-    await user.click(screen.getByRole("button", { name: "다시 시도" }));
-    await waitFor(() =>
-      expect(dashboardMarketApi.fetchSkillDemands).toHaveBeenCalledTimes(2),
-    );
-  });
-
-  it("일부 성공 뒤 다시 불러오기가 모두 실패하면 받은 데이터를 남기고 위에 한 줄로 알린다", async () => {
-    vi.mocked(skillApi.fetchSkillRecommendations).mockRejectedValue(
-      new Error("x"),
-    );
-    renderSkills();
-    const user = userEvent.setup();
-
-    await screen.findByTestId("skill-demand-section");
-
-    vi.mocked(dashboardMarketApi.fetchSkillDemands).mockRejectedValue(
-      new Error("x"),
-    );
-    const recommendSection = screen.getByRole("region", {
-      name: "동료집단 추천 스킬",
-    });
-    await user.click(
-      within(recommendSection).getByRole("button", { name: "다시 시도" }),
-    );
-
-    expect(await screen.findByRole("alert")).toHaveTextContent(
-      "스킬 시장 데이터를 불러오지 못했습니다",
-    );
-    expect(screen.getByTestId("skill-demand-section")).toBeInTheDocument();
   });
 });

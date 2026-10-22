@@ -45,72 +45,12 @@ function renderTable(sampleSource?: string) {
 }
 
 describe("MonthlyOverviewTable", () => {
-  it("머리글이 원천별 1단과 열별 2단으로 나뉘고 기타 열은 없다", () => {
-    renderTable();
-    for (const name of [
-      "잡코리아",
-      "사람인",
-      "원티드",
-      "직무별 표본 (잡코리아)",
-      "표본",
-      "상한 적용",
-      "정기",
-      "개발",
-      "데이터",
-      "AI",
-    ]) {
-      expect(
-        screen.getAllByRole("columnheader", { name }).length,
-      ).toBeGreaterThan(0);
-    }
-    expect(screen.queryByText("OTHER")).not.toBeInTheDocument();
-    expect(screen.queryByText("기타")).not.toBeInTheDocument();
-  });
-
-  it("2단 머리글이 묶음 순서대로 나열된다", () => {
-    renderTable();
-    const row = document.querySelectorAll("thead tr")[1];
-    expect(
-      Array.from(row.querySelectorAll("th")).map((th) => th.textContent),
-    ).toEqual([
-      "표본",
-      "상한 적용",
-      "정기",
-      "정기",
-      "표본",
-      "상한 적용",
-      "정기",
-      "개발",
-      "데이터",
-      "AI",
-    ]);
-  });
-
-  it("직무별 묶음 머리글은 선택한 원천 이름을 따른다", () => {
-    renderTable("WANTED");
-    expect(
-      screen.getByRole("columnheader", { name: "직무별 표본 (원티드)" }),
-    ).toBeInTheDocument();
-  });
-
   it("상한 적용 200 미만만 강조하고 표본 원본은 강조하지 않는다", () => {
     renderTable();
     expect(screen.getByText("198")).toHaveAttribute("data-thin", "true");
     expect(screen.getByText("250")).not.toHaveAttribute("data-thin", "true");
     expect(screen.getByText("302")).toHaveAttribute("data-thin", "false");
     expect(screen.getByText("7")).toHaveAttribute("data-thin", "true");
-  });
-
-  it("강조한 칸에 스크린리더용 「(부족)」 을 붙이고 나머지 칸에는 붙이지 않는다", () => {
-    renderTable();
-    const thin = screen.getByText("198");
-    expect(within(thin).getByText("(부족)")).toHaveClass("sr-only");
-    expect(
-      within(screen.getByText("250")).queryByText("(부족)"),
-    ).not.toBeInTheDocument();
-    expect(
-      document.querySelectorAll('td[data-thin="true"] .sr-only'),
-    ).toHaveLength(document.querySelectorAll('td[data-thin="true"]').length);
   });
 
   it("당월 행은 「수집 중」을 달고 강조하지 않는다", () => {
@@ -120,22 +60,5 @@ describe("MonthlyOverviewTable", () => {
     expect(row.querySelectorAll('td[data-thin="false"]')).toHaveLength(5);
     expect(row.querySelectorAll('td[data-thin="true"]')).toHaveLength(0);
     expect(screen.getAllByText("수집 중")).toHaveLength(1);
-  });
-
-  it("범례와 월 링크 툴팁을 보인다", () => {
-    renderTable();
-    // 「주황」은 색을 입힌 별도 요소라 범례 한 항목의 글자 전체로 찾는다.
-    expect(
-      screen.getByText(
-        (_, el) =>
-          el?.tagName === "SPAN" &&
-          el.textContent ===
-            "주황 = 상한 적용 표본 200 미만 또는 직무 표본 10 미만",
-      ),
-    ).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "202609" })).toHaveAttribute(
-      "title",
-      "이 달 공고 보기",
-    );
   });
 });

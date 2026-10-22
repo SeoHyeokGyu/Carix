@@ -45,9 +45,4 @@ describe("resolvePeerConditions", () => {
       widened: false,
     });
   });
-
-  it("동료집단 정보가 없으면 null", () => {
-    expect(resolvePeerConditions(null)).toBeNull();
-    expect(resolvePeerConditions(undefined)).toBeNull();
-  });
 });

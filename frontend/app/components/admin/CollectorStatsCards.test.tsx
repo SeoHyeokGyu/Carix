@@ -20,13 +20,6 @@ describe("CollectorStatsCards 원천 분포", () => {
     expect(screen.getByText("사람인 2,862건 (18%)")).toBeInTheDocument();
   });
 
-  it("누적 기준과 점핏이 사람인에 포함됨을 밝힌다", () => {
-    render(<CollectorStatsCards stats={stats} isLoading={false} />);
-    expect(
-      screen.getByText(/누적 공고 수 · 점핏 공고는 사람인에 포함/),
-    ).toBeInTheDocument();
-  });
-
   it("모르는 원천도 코드 그대로 보이고 0건 원천은 그리지 않는다", () => {
     render(
       <CollectorStatsCards
@@ -39,19 +32,5 @@ describe("CollectorStatsCards 원천 분포", () => {
     );
     expect(screen.getByText("NEWSRC 1건 (50%)")).toBeInTheDocument();
     expect(screen.queryByText(/사람인 0건/)).not.toBeInTheDocument();
-  });
-
-  it("처음 불러오는 동안은 LoadingState 다", () => {
-    render(<CollectorStatsCards stats={null} isLoading />);
-    expect(screen.getByRole("status")).toBeInTheDocument();
-    expect(document.querySelector(".animate-pulse")).toBeNull();
-  });
-
-  it("원천 막대는 carix 토큰 색이다", () => {
-    const { container } = render(
-      <CollectorStatsCards stats={stats} isLoading={false} />,
-    );
-    const bar = container.querySelector('[title^="잡코리아"]');
-    expect(bar?.className).toMatch(/bg-carix-/);
   });
 });

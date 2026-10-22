@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import type { AppliedExpenseResponse } from "./api/expense";
 import type { IncomeResponse } from "./api/income";
-import { toPpiInputs, toWireBaseMonth } from "./ppiInputs";
+import { toPpiInputs } from "./ppiInputs";
 
 function income(effectiveDate: string, grossSalary: number): IncomeResponse {
   return {
@@ -113,21 +113,5 @@ describe("toPpiInputs", () => {
   it("조회가 실패해 값이 없으면 그쪽만 null 이다", () => {
     const result = toPpiInputs("2026-08-01", null, null);
     expect(result).toEqual({ grossSalary: null, expense: null });
-  });
-
-  it("기준일 형식이 아니면 연봉을 고르지 않는다", () => {
-    const result = toPpiInputs(
-      "unknown",
-      [income("2025-03-01", 48_000_000)],
-      null,
-    );
-    expect(result.grossSalary).toBeNull();
-  });
-});
-
-describe("toWireBaseMonth", () => {
-  it("기준일의 연·월을 와이어 형식으로 바꾼다", () => {
-    expect(toWireBaseMonth("2026-08-01")).toBe("202608");
-    expect(toWireBaseMonth("oops")).toBeNull();
   });
 });

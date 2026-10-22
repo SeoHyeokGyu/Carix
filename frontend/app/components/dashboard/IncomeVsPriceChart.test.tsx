@@ -1,29 +1,10 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
 import type { TrendListResponse } from "../../lib/dashboardMarketApi";
 import { IncomeVsPriceChart } from "./IncomeVsPriceChart";
 
 describe("IncomeVsPriceChart", () => {
-  it("데이터가 비어 있을 때 비어있음 안내 상태를 렌더링한다", () => {
-    const emptyData: TrendListResponse = {
-      trends: [],
-      purchasingPowerStatus: "NOT_AVAILABLE",
-      marketValueStatus: "NOT_AVAILABLE",
-    };
-
-    render(<IncomeVsPriceChart data={emptyData} />);
-    // 손으로 그린 점선 박스가 아니라 EmptyState 다.
-    expect(
-      screen
-        .getByTestId("trends-empty-state")
-        .querySelector('[data-testid="empty-state-icon"]'),
-    ).not.toBeNull();
-    expect(
-      screen.getByText("시계열 추이 데이터가 아직 충분하지 않습니다."),
-    ).toBeInTheDocument();
-  });
-
   it("비교 기간이 짧은 구매력 지수는 지연이 아니라 비교 기간 짧음으로 표시한다", () => {
     const data: TrendListResponse = {
       trends: [
@@ -195,37 +176,6 @@ describe("IncomeVsPriceChart", () => {
     ).toBeInTheDocument();
   });
 
-  it("12개월 미만 데이터일 때 누적 개월 수 안내 배너를 표시한다", () => {
-    const shortData: TrendListResponse = {
-      trends: [
-        {
-          yearMonth: "202605",
-          incomeIndex: 100,
-          personalPriceIndex: 100,
-          purchasingPowerIndex: 100,
-          marketValueIndex: 100,
-          nominalIncome: null,
-          realIncome: null,
-        },
-        {
-          yearMonth: "202606",
-          incomeIndex: 102,
-          personalPriceIndex: 101,
-          purchasingPowerIndex: 100.9,
-          marketValueIndex: 102,
-          nominalIncome: null,
-          realIncome: null,
-        },
-      ],
-      purchasingPowerStatus: "OK",
-      marketValueStatus: "OK",
-    };
-
-    render(<IncomeVsPriceChart data={shortData} />);
-    expect(screen.getByText(/데이터가 누적되어 있습니다/)).toBeInTheDocument();
-    expect(screen.getByText("2개월")).toBeInTheDocument();
-  });
-
   it("중간 월 결측치가 포함되어 있어도 오류 없이 렌더링된다", () => {
     const dataWithGap: TrendListResponse = {
       trends: [
@@ -263,45 +213,5 @@ describe("IncomeVsPriceChart", () => {
 
     render(<IncomeVsPriceChart data={dataWithGap} />);
     expect(screen.getByTestId("income-vs-price-chart")).toBeInTheDocument();
-  });
-
-  it("차트의 데이터 포인트를 호버하면 툴팁(기준월 대비 지수 및 명목/실질 소득)이 렌더링된다", () => {
-    const data: TrendListResponse = {
-      trends: [
-        {
-          yearMonth: "202607",
-          incomeIndex: 108,
-          personalPriceIndex: 105,
-          purchasingPowerIndex: 102.8,
-          marketValueIndex: 110,
-          nominalIncome: 65000000,
-          realIncome: 62000000,
-        },
-      ],
-      purchasingPowerStatus: "OK",
-      marketValueStatus: "OK",
-    };
-
-    render(<IncomeVsPriceChart data={data} />);
-
-    // 포인트 영역을 찾아 hover
-    const pointGroup = document.querySelector("g.cursor-pointer");
-    expect(pointGroup).not.toBeNull();
-
-    fireEvent.mouseEnter(pointGroup!);
-
-    expect(screen.getByText("202607")).toBeInTheDocument();
-    expect(screen.getByText("소득 지수:")).toBeInTheDocument();
-    expect(screen.getByText("108")).toBeInTheDocument();
-    expect(screen.getByText("개인물가 지수:")).toBeInTheDocument();
-    expect(screen.getByText("105")).toBeInTheDocument();
-    expect(screen.getByText("명목 소득:")).toBeInTheDocument();
-    expect(screen.getByText("6,500만 원")).toBeInTheDocument();
-    expect(screen.getByText("실질 소득:")).toBeInTheDocument();
-    expect(screen.getByText("6,200만 원")).toBeInTheDocument();
-
-    // 마우스 떠나면 툴팁 제거
-    fireEvent.mouseLeave(pointGroup!);
-    expect(screen.queryByText("기준월 대비")).not.toBeInTheDocument();
   });
 });

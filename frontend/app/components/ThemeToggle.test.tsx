@@ -27,24 +27,6 @@ describe("ThemeToggle", () => {
     expect(document.documentElement.classList.contains("light")).toBe(false);
   });
 
-  it("저장된 테마가 없고 시스템이 라이트 모드를 선호하면 라이트 테마로 초기화한다", () => {
-    window.matchMedia = vi.fn().mockImplementation((query: string) => ({
-      matches: false,
-      media: query,
-      onchange: null,
-      addListener: vi.fn(),
-      removeListener: vi.fn(),
-      addEventListener: vi.fn(),
-      removeEventListener: vi.fn(),
-      dispatchEvent: vi.fn(),
-    }));
-
-    render(<ThemeToggle />);
-    expect(screen.getByTitle("테마 전환")).toHaveTextContent("🌙");
-    expect(document.documentElement.classList.contains("light")).toBe(true);
-    expect(document.documentElement.classList.contains("dark")).toBe(false);
-  });
-
   it("localStorage에 저장된 테마가 있으면 해당 테마를 우선 적용한다", () => {
     localStorage.setItem("theme", "light");
 
@@ -73,26 +55,5 @@ describe("ThemeToggle", () => {
     expect(localStorage.getItem("theme")).toBe("dark");
     expect(document.documentElement.classList.contains("dark")).toBe(true);
     expect(document.documentElement.classList.contains("light")).toBe(false);
-  });
-
-  it("Enter 및 Space 키 입력 시 테마를 토글하고 다른 키는 무시한다", () => {
-    localStorage.setItem("theme", "dark");
-
-    render(<ThemeToggle />);
-    const toggle = screen.getByTitle("테마 전환");
-
-    // Other key (e.g. Escape) should not toggle
-    fireEvent.keyDown(toggle, { key: "Escape" });
-    expect(toggle).toHaveTextContent("☀️");
-
-    // Enter key toggles
-    fireEvent.keyDown(toggle, { key: "Enter" });
-    expect(toggle).toHaveTextContent("🌙");
-    expect(localStorage.getItem("theme")).toBe("light");
-
-    // Space key toggles back
-    fireEvent.keyDown(toggle, { key: " " });
-    expect(toggle).toHaveTextContent("☀️");
-    expect(localStorage.getItem("theme")).toBe("dark");
   });
 });

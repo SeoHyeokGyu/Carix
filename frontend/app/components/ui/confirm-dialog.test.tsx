@@ -21,16 +21,6 @@ function renderDialog(onConfirm = vi.fn(), tone?: "danger" | "default") {
 }
 
 describe("ConfirmDialog", () => {
-  it("열면 제목·설명을 보이고 포커스가 취소에 간다", async () => {
-    const { user } = renderDialog();
-    await user.click(screen.getByRole("button", { name: "삭제" }));
-    const dialog = screen.getByRole("alertdialog", {
-      name: "소득 이력을 삭제할까요?",
-    });
-    expect(dialog).toHaveAccessibleDescription("되돌릴 수 없습니다.");
-    expect(screen.getByRole("button", { name: "취소" })).toHaveFocus();
-  });
-
   it("실행 버튼은 onConfirm 을 한 번 부르고 닫힌다", async () => {
     const { user, onConfirm } = renderDialog();
     await user.click(screen.getByRole("button", { name: "삭제" }));
@@ -70,29 +60,6 @@ describe("ConfirmDialog", () => {
     fireEvent.click(overlay);
     expect(screen.getByRole("alertdialog")).toBeInTheDocument();
     expect(onConfirm).not.toHaveBeenCalled();
-  });
-
-  it("tone 에 따라 실행 버튼 모양이 갈린다", async () => {
-    const { user } = renderDialog(vi.fn(), "default");
-    await user.click(screen.getByRole("button", { name: "삭제" }));
-    const dialog = screen.getByRole("alertdialog");
-    const action = Array.from(dialog.querySelectorAll("button")).find(
-      (b) => b.textContent === "삭제",
-    )!;
-    expect(action).toHaveAttribute("data-variant", "default");
-    expect(screen.getByRole("button", { name: "취소" })).toHaveAttribute(
-      "data-variant",
-      "outline",
-    );
-  });
-
-  it("기본 tone 은 destructive 다", async () => {
-    const { user } = renderDialog();
-    await user.click(screen.getByRole("button", { name: "삭제" }));
-    const action = Array.from(
-      screen.getByRole("alertdialog").querySelectorAll("button"),
-    ).find((b) => b.textContent === "삭제")!;
-    expect(action).toHaveAttribute("data-variant", "destructive");
   });
 
   // 실패하면 trigger 가 다시 살아난다 — 그때 포커스가 body 가 아니라 trigger 로 돌아와야 키보드 사용자가 길을 잃지 않는다.

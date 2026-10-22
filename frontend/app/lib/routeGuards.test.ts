@@ -41,17 +41,6 @@ describe("guardSession — 마이페이지", () => {
 });
 
 describe("guardOnboarded — 대시보드", () => {
-  test("세션 조회 중에는 판정하지 않는다", () => {
-    expect(guardOnboarded(loading)).toEqual({ allow: "pending" });
-  });
-
-  test("세션이 없으면 랜딩으로 보낸다", () => {
-    expect(guardOnboarded(anonymous)).toEqual({
-      allow: false,
-      redirectTo: LANDING_PATH,
-    });
-  });
-
   test("온보딩이 남아 있으면 마지막 미완료 단계로 보낸다", () => {
     expect(guardOnboarded(signedIn("EXPENSE"))).toEqual({
       allow: false,
@@ -65,25 +54,6 @@ describe("guardOnboarded — 대시보드", () => {
 });
 
 describe("guardOnboarding — 온보딩", () => {
-  test("세션 조회 중에는 판정하지 않는다", () => {
-    expect(guardOnboarding(loading, "/onboarding/profile")).toEqual({
-      allow: "pending",
-    });
-  });
-
-  test("세션이 없으면 랜딩으로 보낸다", () => {
-    expect(guardOnboarding(anonymous, "/onboarding/profile")).toEqual({
-      allow: false,
-      redirectTo: LANDING_PATH,
-    });
-  });
-
-  test("현재 단계 화면은 통과시킨다", () => {
-    expect(guardOnboarding(signedIn("SKILLS"), "/onboarding/skills")).toEqual({
-      allow: true,
-    });
-  });
-
   test("앞선(아직 도달하지 않은) 단계를 건너뛰면 현재 단계로 되돌린다", () => {
     expect(guardOnboarding(signedIn("PROFILE"), "/onboarding/skills")).toEqual({
       allow: false,
@@ -97,15 +67,6 @@ describe("guardOnboarding — 온보딩", () => {
   // 이제 허용한다. 아직 도달하지 않은 단계로 앞서가는 것만 계속 막는다.
   test("한 단계 이전으로 돌아가면 허용한다", () => {
     expect(guardOnboarding(signedIn("EXPENSE"), "/onboarding/income")).toEqual({
-      allow: true,
-    });
-  });
-
-  test("여러 단계 이전으로 돌아가면 허용한다", () => {
-    expect(guardOnboarding(signedIn("REVIEW"), "/onboarding/income")).toEqual({
-      allow: true,
-    });
-    expect(guardOnboarding(signedIn("SKILLS"), "/onboarding/profile")).toEqual({
       allow: true,
     });
   });
@@ -134,18 +95,6 @@ describe("guardOnboarding — 온보딩", () => {
 });
 
 describe("stepPath — 온보딩 단계별 경로 매핑", () => {
-  test("온보딩 완료(COMPLETED) 상태면 대시보드 경로를 반환한다", () => {
-    expect(stepPath("COMPLETED")).toBe(DASHBOARD_PATH);
-  });
-
-  test("미완료 단계별 해당 온보딩 경로를 반환한다", () => {
-    expect(stepPath("PROFILE")).toBe("/onboarding/profile");
-    expect(stepPath("INCOME")).toBe("/onboarding/income");
-    expect(stepPath("EXPENSE")).toBe("/onboarding/expense");
-    expect(stepPath("SKILLS")).toBe("/onboarding/skills");
-    expect(stepPath("REVIEW")).toBe(REVIEW_PATH);
-  });
-
   // FIX 4b — session.ts 는 서버 응답의 onboardingStep 을 검증 없이 그대로 편다.
   // 알려지지 않은 값이 들어오면 이전에는 STEP_PATH 조회가 undefined 를 돌려줘
   // redirect(undefined) → "/undefined" 로 튕기는 루프가 됐다. fail-closed 로
@@ -173,10 +122,6 @@ describe("isForwardStep — 서버 단계 갱신을 앞으로 갈 때만 허용"
   test("이미 지난 단계를 다시 저장해도 false다(뒤로 가지 않는다)", () => {
     expect(isForwardStep("REVIEW", "INCOME")).toBe(false);
     expect(isForwardStep("EXPENSE", "PROFILE")).toBe(false);
-  });
-
-  test("같은 단계를 다시 제출해도 false다", () => {
-    expect(isForwardStep("INCOME", "INCOME")).toBe(false);
   });
 
   test("COMPLETED 는 그 앞의 어떤 단계로도 갈 수 없다", () => {

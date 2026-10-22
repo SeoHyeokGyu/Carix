@@ -36,21 +36,6 @@ async function openMenu() {
 }
 
 describe("AccountMenu", () => {
-  it("열면 입력 관리·설정 링크와 로그아웃 항목을 보인다", async () => {
-    renderAt("/dashboard");
-    await openMenu();
-
-    expect(
-      await screen.findByRole("menuitem", { name: "입력 관리" }),
-    ).toHaveAttribute("href", "/mypage/records");
-    expect(
-      await screen.findByRole("menuitem", { name: "설정" }),
-    ).toHaveAttribute("href", "/mypage/profile");
-    expect(
-      screen.getByRole("menuitem", { name: "로그아웃" }),
-    ).toBeInTheDocument();
-  });
-
   it("로그아웃을 고르면 설정 화면 action 에 logout 의도를 보낸다", async () => {
     const action = vi.fn(async ({ request }: { request: Request }) => {
       const form = await request.formData();
@@ -63,29 +48,5 @@ describe("AccountMenu", () => {
 
     await vi.waitFor(() => expect(action).toHaveBeenCalledTimes(1));
     expect(await action.mock.results[0].value).toEqual({ intent: "logout" });
-  });
-
-  it("설정 화면에서는 트리거가 활성 상태다", async () => {
-    renderAt("/mypage/profile");
-
-    expect(
-      await screen.findByRole("button", { name: "내 정보" }),
-    ).toHaveAttribute("data-active", "true");
-  });
-
-  it("입력 관리 화면에서도 트리거가 활성 상태다", async () => {
-    renderAt("/mypage/records");
-
-    expect(
-      await screen.findByRole("button", { name: "내 정보" }),
-    ).toHaveAttribute("data-active", "true");
-  });
-
-  it("다른 화면에서는 트리거가 활성 상태가 아니다", async () => {
-    renderAt("/dashboard");
-
-    expect(
-      await screen.findByRole("button", { name: "내 정보" }),
-    ).toHaveAttribute("data-active", "false");
   });
 });

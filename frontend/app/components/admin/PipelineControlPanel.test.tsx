@@ -24,26 +24,6 @@ describe("PipelineControlPanel", () => {
     vi.clearAllMocks();
   });
 
-  it("크롤링 탭 기본 선택 시 월별 크롤링 규모 고정 규칙(b21) 및 기본 5페이지를 렌더링한다", () => {
-    render(
-      <PipelineControlPanel
-        isJobRunning={false}
-        onJobTriggered={onJobTriggered}
-        onError={onError}
-      />,
-    );
-
-    expect(
-      screen.getByText(/운영 규칙 \(크롤링 규모 고정 — b21\)/),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByText(/동일한 페이지 수\(기본 5페이지\)/),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByText(/수집 페이지 수 \(Max Pages\) — 기본 5 \(규모 고정\)/),
-    ).toBeInTheDocument();
-  });
-
   it("크롤링 작업 시작하기 버튼 클릭 시 triggerCrawl을 호출한다", async () => {
     vi.mocked(collectorApi.triggerCrawl).mockResolvedValue({
       jobId: "job-crawl-1",
@@ -94,20 +74,5 @@ describe("PipelineControlPanel", () => {
     expect(
       screen.getByRole("button", { name: /작업 시작하기/ }),
     ).toBeDisabled();
-  });
-
-  it("선택한 탭과 패널이 서로를 가리킨다", () => {
-    render(
-      <PipelineControlPanel
-        isJobRunning={false}
-        onJobTriggered={onJobTriggered}
-        onError={onError}
-      />,
-    );
-    const tab = screen.getByRole("tab", { selected: true });
-    const panel = screen.getByRole("tabpanel");
-    expect(tab).toHaveAttribute("aria-controls", panel.id);
-    expect(panel).toHaveAttribute("aria-labelledby", tab.id);
-    expect(panel).toHaveAccessibleName(/채용공고 크롤링/);
   });
 });

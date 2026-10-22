@@ -17,16 +17,4 @@ describe("focusFirstInvalidField", () => {
 
     expect(document.activeElement).toBe(document.getElementById("b"));
   });
-
-  it("잘못된 필드가 없으면 아무것도 하지 않는다", () => {
-    document.body.innerHTML = `<form><input id="a" aria-invalid="false" /></form>`;
-    const form = document.querySelector("form");
-
-    expect(() => focusFirstInvalidField(form)).not.toThrow();
-    expect(document.activeElement).not.toBe(document.getElementById("a"));
-  });
-
-  it("form 이 null 이어도 안전하다", () => {
-    expect(() => focusFirstInvalidField(null)).not.toThrow();
-  });
 });

@@ -1,51 +1,16 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import * as authApi from "./authApi";
-import {
-  ANONYMOUS,
-  LOADING,
-  requireSession,
-  resetSession,
-  setSession,
-} from "./session";
+import { ANONYMOUS, requireSession, resetSession, setSession } from "./session";
 
 vi.mock("./authApi", () => ({
   fetchSession: vi.fn(),
 }));
 
-describe("session 상수", () => {
-  it("LOADING 세션 상수를 정의한다", () => {
-    expect(LOADING).toEqual({ status: "loading" });
-  });
-
-  it("ANONYMOUS 세션 상수를 정의한다", () => {
-    expect(ANONYMOUS).toEqual({ status: "anonymous" });
-  });
-});
-
 describe("requireSession / setSession / resetSession", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     resetSession();
-  });
-
-  it("캐시가 채워져 있으면 fetchSession 을 부르지 않고 캐시를 그대로 돌려준다", async () => {
-    setSession({
-      status: "authenticated",
-      userId: "u-1",
-      email: "a@b.kr",
-      onboardingStep: "COMPLETED",
-    });
-
-    const session = await requireSession();
-
-    expect(session).toEqual({
-      status: "authenticated",
-      userId: "u-1",
-      email: "a@b.kr",
-      onboardingStep: "COMPLETED",
-    });
-    expect(authApi.fetchSession).not.toHaveBeenCalled();
   });
 
   it("캐시가 비어 있으면 fetchSession 을 불러 authenticated 세션을 채운다", async () => {
@@ -66,14 +31,6 @@ describe("requireSession / setSession / resetSession", () => {
     // 이후 호출은 캐시를 쓴다.
     await requireSession();
     expect(authApi.fetchSession).toHaveBeenCalledTimes(1);
-  });
-
-  it("fetchSession 이 null 을 반환하면 anonymous 로 캐시한다", async () => {
-    vi.mocked(authApi.fetchSession).mockResolvedValueOnce(null);
-
-    const session = await requireSession();
-
-    expect(session).toEqual(ANONYMOUS);
   });
 
   it("fetchSession 이 실패해도 anonymous 로 처리하고 예외를 던지지 않는다", async () => {

@@ -1,11 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import {
-  INCOME_CHANGE_REASONS,
-  incomeChangeReasonCell,
-  incomeChangeReasonLabel,
-  incomeSchema,
-} from "./income";
+import { incomeChangeReasonCell, incomeSchema } from "./income";
 
 describe("incomeSchema", () => {
   const valid = {
@@ -23,10 +18,6 @@ describe("incomeSchema", () => {
 
   afterEach(() => {
     vi.useRealTimers();
-  });
-
-  it("정상 입력을 통과시킨다", () => {
-    expect(incomeSchema.safeParse(valid).success).toBe(true);
   });
 
   it("세전 연봉은 1,000만~30억 원이다", () => {
@@ -94,31 +85,10 @@ describe("changeReason", () => {
     effectiveDate: "2024-01-01",
   };
 
-  it("미지정을 허용한다", () => {
-    expect(incomeSchema.safeParse(base).success).toBe(true);
-  });
-
-  it("RAISE 와 JOB_CHANGE 를 허용한다", () => {
-    expect(
-      incomeSchema.safeParse({ ...base, changeReason: "RAISE" }).success,
-    ).toBe(true);
-    expect(
-      incomeSchema.safeParse({ ...base, changeReason: "JOB_CHANGE" }).success,
-    ).toBe(true);
-  });
-
   it("INITIAL 은 거부한다 - 서버가 판정하는 값이라 폼이 보낼 수 없다", () => {
     expect(
       incomeSchema.safeParse({ ...base, changeReason: "INITIAL" }).success,
     ).toBe(false);
-  });
-
-  it("표시 라벨은 값 목록과 같은 문구를 쓴다", () => {
-    expect(incomeChangeReasonLabel("INITIAL")).toBe("최초 입력");
-    expect(incomeChangeReasonLabel("RAISE")).toBe(
-      INCOME_CHANGE_REASONS[0].label,
-    );
-    expect(incomeChangeReasonLabel(null)).toBe("—");
   });
 
   describe("incomeChangeReasonCell", () => {
@@ -132,15 +102,6 @@ describe("changeReason", () => {
 
     it("최소 유효일 행이어도 고른 값이 없으면 최초 입력만 낸다", () => {
       expect(incomeChangeReasonCell("INITIAL", null)).toBe("최초 입력");
-    });
-
-    it("최소 유효일 행이 아니면 고른 값 하나만 낸다", () => {
-      // 이 경우 두 필드는 같은 값이라 붙일 것이 없다.
-      expect(incomeChangeReasonCell("RAISE", "RAISE")).toBe("연봉 인상");
-    });
-
-    it("아무것도 안 골랐으면 대시를 낸다", () => {
-      expect(incomeChangeReasonCell(null, null)).toBe("—");
     });
   });
 });

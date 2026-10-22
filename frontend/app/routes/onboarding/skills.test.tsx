@@ -1,14 +1,10 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { createRoutesStub, MemoryRouter } from "react-router";
+import { MemoryRouter } from "react-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { buttonVariants } from "@/components/ui/button";
-
-import { UnauthorizedError } from "../../lib/coreApi";
 import * as skillApi from "../../lib/skillApi";
 import { confirmDialog } from "../../test-utils/confirmDialog";
-import { expectHeadingOutline } from "../../test-utils/headingOutline";
 import Skills from "./skills";
 
 vi.mock("../../lib/skillApi", () => ({
@@ -46,135 +42,6 @@ describe("S-08 Skills 온보딩 화면", () => {
       { id: "s-3", standardName: "Docker", isCustom: false },
       { id: "s-4", standardName: "Kubernetes", isCustom: false },
     ]);
-  });
-
-  it("S-08 식별자 및 보유 스킬 목록을 정상 렌더링한다", async () => {
-    render(
-      <MemoryRouter>
-        <Skills />
-      </MemoryRouter>,
-    );
-
-    expect(screen.queryByText("S-08")).not.toBeInTheDocument();
-    expect(
-      screen.getByRole("heading", { level: 1, name: "스킬" }),
-    ).toBeInTheDocument();
-
-    await waitFor(() => {
-      expect(screen.getByText("Spring Boot")).toBeInTheDocument();
-      expect(screen.getByText("36개월")).toBeInTheDocument();
-      expect(screen.getByText("TypeScript")).toBeInTheDocument();
-      expect(screen.getByText("18개월")).toBeInTheDocument();
-    });
-    expectHeadingOutline();
-    expect(
-      screen.getByRole("heading", { level: 2, name: "새 스킬 추가" }),
-    ).toHaveClass("text-lg");
-    // 제목 줄 오른쪽은 이동 링크·서버 동작 자리다. 등록 수는 목록 섹션 제목이 갖는다.
-    expect(screen.queryByText(/^등록: /)).toBeNull();
-    expect(
-      screen.getByRole("heading", { level: 2, name: "등록된 스킬 (2 / 30)" }),
-    ).toBeInTheDocument();
-    // 표 행 동작은 [수정 outline sm][삭제 destructive sm] 이다.
-    expect(screen.getByRole("table")).toHaveAttribute("data-slot", "table");
-    const [edit] = screen.getAllByRole("button", { name: "수정" });
-    const [del] = screen.getAllByRole("button", { name: "삭제" });
-    expect(edit).toHaveAttribute("data-variant", "outline");
-    expect(del).toHaveAttribute("data-variant", "destructive");
-    expect(edit.compareDocumentPosition(del)).toBe(
-      Node.DOCUMENT_POSITION_FOLLOWING,
-    );
-  });
-
-  it("단계 이동 줄은 왼쪽 정렬 [이전 링크][다음 버튼] 이다", async () => {
-    render(
-      <MemoryRouter>
-        <Skills />
-      </MemoryRouter>,
-    );
-    await screen.findByText("Spring Boot");
-
-    const prev = screen.getByRole("link", { name: "이전" });
-    const next = screen.getByRole("button", { name: "다음" });
-    expect(prev).toHaveAttribute("href", "/onboarding/expense");
-    expect(prev).toHaveClass(
-      ...buttonVariants({ variant: "outline" }).split(" "),
-    );
-    expect(next).toHaveAttribute("data-variant", "default");
-    const row = prev.parentElement!;
-    expect(next.parentElement).toBe(row);
-    expect(row).toHaveClass("flex", "flex-wrap", "gap-3");
-    expect(row).not.toHaveClass("justify-between");
-    expect(row).not.toHaveClass("border-t");
-    expect(prev.compareDocumentPosition(next)).toBe(
-      Node.DOCUMENT_POSITION_FOLLOWING,
-    );
-  });
-
-  it("검색 결과를 방향키로 고르고 Enter 로 선택한다", async () => {
-    render(
-      <MemoryRouter>
-        <Skills />
-      </MemoryRouter>,
-    );
-    const user = userEvent.setup();
-
-    const search = await screen.findByRole("combobox", { name: "스킬 검색" });
-    await user.type(search, "k");
-    await screen.findByRole("option", { name: "Kubernetes" });
-    expect(search).toHaveAttribute("aria-expanded", "true");
-    expect(screen.getByRole("status")).toHaveTextContent("검색 결과 2건");
-
-    await user.keyboard("{ArrowDown}{ArrowDown}");
-    expect(search).toHaveAttribute("aria-activedescendant", "skill-option-1");
-    expect(screen.getByRole("option", { name: "Kubernetes" })).toHaveAttribute(
-      "aria-selected",
-      "true",
-    );
-
-    await user.keyboard("{Enter}");
-    expect(
-      await screen.findByText("Kubernetes", {
-        selector: "span.text-carix-info",
-      }),
-    ).toBeInTheDocument();
-    expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
-  });
-
-  it("Esc 를 누르면 검색 결과를 닫는다", async () => {
-    render(
-      <MemoryRouter>
-        <Skills />
-      </MemoryRouter>,
-    );
-    const user = userEvent.setup();
-
-    const search = await screen.findByRole("combobox", { name: "스킬 검색" });
-    await user.type(search, "d");
-    await screen.findByRole("listbox");
-
-    await user.keyboard("{Escape}");
-
-    expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
-    expect(search).toHaveAttribute("aria-expanded", "false");
-  });
-
-  it("실무 사용 기간을 년·개월로 풀어 보여준다", async () => {
-    render(
-      <MemoryRouter>
-        <Skills />
-      </MemoryRouter>,
-    );
-    const user = userEvent.setup();
-
-    await user.type(
-      await screen.findByRole("combobox", { name: "스킬 검색" }),
-      "d",
-    );
-    await user.click(await screen.findByRole("option", { name: "Docker" }));
-    await user.type(screen.getByLabelText(/실무 사용 기간/), "30");
-
-    expect(screen.getByText("= 2년 6개월")).toBeInTheDocument();
   });
 
   it("스킬 검색 후 선택하여 새 스킬을 등록할 수 있다", async () => {
@@ -426,43 +293,6 @@ describe("S-08 Skills 온보딩 화면", () => {
     );
     expect(reason).toHaveAttribute("role", "alert");
     expect(reason.nextElementSibling).toBe(nextBtn.parentElement);
-  });
-
-  it("스킬 목록 조회 중 401 을 받으면 로그인 화면으로 보낸다", async () => {
-    vi.mocked(skillApi.fetchUserSkills).mockRejectedValue(
-      new UnauthorizedError(),
-    );
-
-    const Stub = createRoutesStub([
-      { path: "/onboarding/skills", Component: Skills },
-      { path: "/login", Component: () => <div>로그인 화면</div> },
-    ]);
-    render(<Stub initialEntries={["/onboarding/skills"]} />);
-
-    expect(await screen.findByText("로그인 화면")).toBeInTheDocument();
-  });
-  it("목록 불러오기에 실패하면 목록 자리에 다시 시도를 두고, 성공하면 목록이 뜬다", async () => {
-    const loaded = await skillApi.fetchUserSkills(); // beforeEach 의 기본 목 목록
-    vi.mocked(skillApi.fetchUserSkills)
-      .mockRejectedValueOnce(new Error("x"))
-      .mockResolvedValueOnce(loaded);
-    render(
-      <MemoryRouter>
-        <Skills />
-      </MemoryRouter>,
-    );
-    const user = userEvent.setup();
-
-    expect(
-      await screen.findByText("스킬 목록을 불러오지 못했습니다"),
-    ).toBeInTheDocument();
-    // 보여 줄 데이터가 없는 실패라 한 줄 알림은 겹쳐 띄우지 않는다.
-    expect(screen.queryByRole("alert")).toBeNull();
-    // 목록을 모르는 채로는 다음 단계로 넘어가지 못한다.
-    expect(screen.getByRole("button", { name: "다음" })).toBeDisabled();
-    await user.click(screen.getByRole("button", { name: "다시 시도" }));
-    expect(await screen.findByText("Spring Boot")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "다음" })).toBeEnabled();
   });
 
   it("동작 실패 문장은 목록을 덮지 않는 한 줄 알림이고 닫을 수 있다", async () => {

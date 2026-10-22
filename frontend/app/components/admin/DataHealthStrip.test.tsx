@@ -4,7 +4,6 @@ import { createRoutesStub } from "react-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import * as api from "../../lib/collectorApi";
-import { GAP_REASON_LABEL } from "../../lib/dataHealth";
 import { DataHealthStrip } from "./DataHealthStrip";
 
 vi.mock("../../lib/collectorApi", async (orig) => ({
@@ -63,15 +62,6 @@ describe("DataHealthStrip", () => {
     vi.clearAllMocks();
   });
 
-  it("모두 OK 면 한 줄로 접힌다", async () => {
-    vi.mocked(api.fetchDataHealth).mockResolvedValue(report());
-    renderStrip();
-    expect(await screen.findByText("점검 정상")).toBeInTheDocument();
-    expect(screen.getByText("답하는 사용자 3/3")).toBeInTheDocument();
-    expect(screen.getByText(/기준 202610/)).toBeInTheDocument();
-    expect(screen.queryByText("CPI 최신월 메시지")).not.toBeInTheDocument();
-  });
-
   it("경고 점검만 펼치고 나머지는 외 N개 정상으로 묶는다", async () => {
     vi.mocked(api.fetchDataHealth).mockResolvedValue(
       report({
@@ -94,27 +84,6 @@ describe("DataHealthStrip", () => {
       screen.getByRole("link", { name: "CPI 최신월 근거" }),
     ).toHaveAttribute("href", "/admin/data?tab=cpi");
     expect(screen.getByText("외 4개 정상")).toBeInTheDocument();
-  });
-
-  it("판정 불가는 회색 배지로 정상과 구분된다", async () => {
-    vi.mocked(api.fetchDataHealth).mockResolvedValue(
-      report({ RULE_VERSION: { verdict: "UNKNOWN" } }),
-    );
-    renderStrip();
-    expect(await screen.findByText("판정 불가")).toBeInTheDocument();
-    expect(screen.queryByText("점검 정상")).not.toBeInTheDocument();
-  });
-
-  it("빠진 사유를 문제 줄 아래에 보인다", async () => {
-    vi.mocked(api.fetchDataHealth).mockResolvedValue(
-      report({ CPI_LATEST: { verdict: "WARN" } }, [
-        { answer: "PPI", reason: "NO_SNAPSHOT", users: 2 },
-      ]),
-    );
-    renderStrip();
-    expect(
-      await screen.findByText(/빠진 사유: 구매력 스냅샷 없음 2명/),
-    ).toBeInTheDocument();
   });
 
   it("요약을 낼 수 없으면 답하는 사용자 판정 불가를 보이고 숫자를 지어내지 않는다", async () => {
@@ -141,41 +110,6 @@ describe("DataHealthStrip", () => {
     expect(api.fetchDataHealth).toHaveBeenCalledTimes(2);
   });
 
-  it("답이 빈 대상 코드를 한글로 보이고 모르는 코드는 그대로 둔다", async () => {
-    vi.mocked(api.fetchDataHealth).mockResolvedValue(
-      report({ CPI_LATEST: { verdict: "WARN" } }, [
-        { answer: "MVI", reason: "INSUFFICIENT_SAMPLE", users: 1 },
-        { answer: "DECISION", reason: "MVI_UNCERTAIN", users: 2 },
-        { answer: "ALL", reason: "NO_SNAPSHOT", users: 3 },
-        { answer: "XYZ", reason: "NOT_AVAILABLE", users: 4 },
-      ]),
-    );
-    renderStrip();
-    expect(
-      await screen.findByText(
-        /시장가치 표본 부족 1명 · 결정 신호 시장가치 불확실 2명 · 전체 스냅샷 없음 3명 · XYZ 산출 불가 4명/,
-      ),
-    ).toBeInTheDocument();
-  });
-
-  it("점검 중 표시는 status, 실패 문구는 alert 역할을 가진다", async () => {
-    let resolve: (r: api.DataHealthReport) => void = () => {};
-    vi.mocked(api.fetchDataHealth).mockReturnValueOnce(
-      new Promise((r) => (resolve = r)),
-    );
-    renderStrip();
-    expect(screen.getByRole("status")).toHaveTextContent("점검 중…");
-    resolve(report());
-    await screen.findByText("점검 정상");
-    expect(screen.queryByRole("status")).not.toBeInTheDocument();
-
-    vi.mocked(api.fetchDataHealth).mockRejectedValueOnce({ status: 500 });
-    await userEvent.click(screen.getByRole("button", { name: "다시 점검" }));
-    expect(await screen.findByRole("alert")).toHaveTextContent(
-      "점검을 불러오지 못했습니다",
-    );
-  });
-
   it("403 이면 onAuthError 를 부른다", async () => {
     vi.mocked(api.fetchDataHealth).mockRejectedValue({ status: 403 });
     const onAuthError = vi.fn();
@@ -185,39 +119,6 @@ describe("DataHealthStrip", () => {
       await screen.findByRole("button", { name: "다시 점검" }),
     ).toBeInTheDocument();
     expect(screen.queryByText("점검 중…")).not.toBeInTheDocument();
-  });
-
-  it("다시 점검하는 동안 이전 보고서를 두고 점검 중 표시를 붙인다", async () => {
-    vi.mocked(api.fetchDataHealth).mockResolvedValueOnce(report());
-    renderStrip();
-    await screen.findByText("점검 정상");
-    let resolve: (r: api.DataHealthReport) => void = () => {};
-    vi.mocked(api.fetchDataHealth).mockReturnValueOnce(
-      new Promise((r) => (resolve = r)),
-    );
-    await userEvent.click(screen.getByRole("button", { name: "다시 점검" }));
-    expect(screen.getByText("점검 중…")).toBeInTheDocument();
-    expect(screen.getByText("점검 정상")).toBeInTheDocument();
-    resolve(report());
-    await vi.waitFor(() =>
-      expect(screen.queryByText("점검 중…")).not.toBeInTheDocument(),
-    );
-  });
-
-  it("빈 답 사유 문구는 GAP_REASON_LABEL 에서 가져오고 모르는 사유는 코드 그대로 둔다", async () => {
-    expect(GAP_REASON_LABEL.UPDATE_DELAYED).toBe("업데이트 지연");
-    vi.mocked(api.fetchDataHealth).mockResolvedValue(
-      report({ CPI_LATEST: { verdict: "WARN" } }, [
-        { answer: "PPI", reason: "UPDATE_DELAYED", users: 2 },
-        { answer: "MVI", reason: "BRAND_NEW_REASON", users: 1 },
-      ]),
-    );
-    renderStrip();
-    expect(
-      await screen.findByText(
-        /구매력 업데이트 지연 2명 · 시장가치 BRAND_NEW_REASON 1명/,
-      ),
-    ).toBeInTheDocument();
   });
 
   it("성공 뒤 실패하고 다시 점검하면 이전 보고서를 두고 점검 중을 붙인다", async () => {

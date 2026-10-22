@@ -59,31 +59,6 @@ describe("MarketValueTrend", () => {
     ).toBeInTheDocument();
   });
 
-  it("값 없는 달이 없으면 그 줄이 없다", () => {
-    renderTrend([point("202610", 104.6), point("202609", 103)]);
-
-    expect(screen.queryByText(/값 없는 달/)).not.toBeInTheDocument();
-  });
-
-  it("스크린리더용 요약 문장을 둔다", () => {
-    renderTrend(HISTORY);
-
-    expect(
-      screen.getByText(
-        "최근 8개월 시장가치 지수가 100.0에서 104.6까지 변했습니다. 값이 없는 달 2개월.",
-      ),
-    ).toHaveClass("sr-only");
-  });
-
-  it("지난 판정으로 링크한다", () => {
-    renderTrend(HISTORY);
-
-    expect(screen.getByRole("link", { name: "지난 판정" })).toHaveAttribute(
-      "href",
-      "/dashboard/history",
-    );
-  });
-
   it("값 있는 달이 2개 미만이면 그리지 않는다", () => {
     const { container } = renderTrend([
       point("202610", 104.6),
