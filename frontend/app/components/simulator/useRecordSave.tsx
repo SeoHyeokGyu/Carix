@@ -26,10 +26,16 @@ export function useRecordSave<P>(
   const lastRequested = useRef<{ key: string; payload: P } | null>(
     saved === null ? null : { key: JSON.stringify(saved), payload: saved },
   );
+  // 렌더에서 비교할 마지막 요청 키. ref 는 같은 이벤트 안의 중복 판단용이다.
+  const [requestedKey, setRequestedKey] = useState(() =>
+    saved === null ? null : JSON.stringify(saved),
+  );
 
   const run = (payload: P) => {
     const ticket = ++seq.current;
-    lastRequested.current = { key: JSON.stringify(payload), payload };
+    const key = JSON.stringify(payload);
+    lastRequested.current = { key, payload };
+    setRequestedKey(key);
     setStatus("saving");
     tracker.begin();
     chain.current = chain.current.then(async () => {
@@ -60,7 +66,10 @@ export function useRecordSave<P>(
     if (lastRequested.current) run(lastRequested.current.payload);
   };
 
-  return { status, submit, retry };
+  /** 이 값이 마지막으로 보냈거나(또는 처음 저장돼 있던) 값인가. 아니면 화면 답이 아직 저장되지 않은 것이다. */
+  const isRequested = (payload: P) => requestedKey === JSON.stringify(payload);
+
+  return { status, submit, retry, isRequested };
 }
 
 interface RecordSaveNoteProps {

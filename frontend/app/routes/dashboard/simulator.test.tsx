@@ -1,7 +1,7 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { createRoutesStub } from "react-router";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import * as incomeApi from "../../lib/api/income";
 import type {
@@ -138,6 +138,9 @@ describe("이직 시뮬레이터 라우트", () => {
     vi.mocked(scenario.evaluate).mockResolvedValue(evaluation);
     vi.mocked(incomeApi.listIncome).mockResolvedValue([]);
   });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
 
   it("컨텍스트 조회가 401 이면 로그인으로 보낸다", async () => {
     vi.mocked(scenario.getContext).mockRejectedValue(new UnauthorizedError());
@@ -238,6 +241,58 @@ describe("이직 시뮬레이터 라우트", () => {
 
     await waitFor(() =>
       expect(scenario.putDraft).toHaveBeenLastCalledWith(stayOnly),
+    );
+  });
+
+  // 스펙 「실패로 보는 것」 1 — 상여 금액은 칸을 벗어날 때 저장된다. 그 전에 결과가 새 금액을 반영한 것처럼 보이면 안 된다.
+  it("저장 전 따로 받는 상여 금액은 결과를 흐리게 두고, 저장된 뒤 다시 계산해 선명하게 한다", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    vi.mocked(scenario.getContext).mockResolvedValue({
+      ...context,
+      bonusIncluded: false,
+      fixedBonusAnnual: 5_000_000,
+    });
+    vi.mocked(scenario.getDraft).mockResolvedValue(stayOnly);
+    vi.mocked(incomeApi.listIncome).mockResolvedValue([
+      {
+        id: "i-1",
+        grossSalary: 60_000_000,
+        netSalary: 48_000_000,
+        effectiveDate: "2026-01-01",
+        changeReason: null,
+        selectedChangeReason: null,
+        bonusIncluded: false,
+        fixedBonusAnnual: 5_000_000,
+      },
+    ]);
+    vi.mocked(incomeApi.updateBonusTerms).mockResolvedValue([]);
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+
+    const { container } = renderRoute();
+    const amount = await screen.findByLabelText(/연간 고정상여/);
+    const resultArea = () => container.querySelector("[aria-busy]");
+    await waitFor(() =>
+      expect(resultArea()).toHaveAttribute("aria-busy", "false"),
+    );
+
+    await user.clear(amount);
+    await user.type(amount, "600");
+    act(() => {
+      vi.advanceTimersByTime(400);
+    });
+
+    expect(resultArea()).toHaveAttribute("aria-busy", "true");
+    expect(screen.queryByText(/소득 기록에 저장됨/)).not.toBeInTheDocument();
+
+    await user.tab();
+
+    expect(incomeApi.updateBonusTerms).toHaveBeenCalledWith({
+      applyFromIncomeId: "i-1",
+      bonusIncluded: false,
+      fixedBonusAnnual: 6_000_000,
+    });
+    await waitFor(() =>
+      expect(resultArea()).toHaveAttribute("aria-busy", "false"),
     );
   });
 });

@@ -201,6 +201,8 @@ export default function DashboardSimulator() {
   const [version, setVersion] = useState(0);
   const [revision, setRevision] = useState(0);
   const [recordSaving, setRecordSaving] = useState(false);
+  // ① 의 "따로 받음" 금액이 저장 전이면 결과는 이전 기록 기준이다.
+  const [bonusUnsaved, setBonusUnsaved] = useState(false);
   const [invalid, setInvalid] = useState<Record<SimulatorStep, boolean>>({
     current: false,
     move: false,
@@ -375,7 +377,7 @@ export default function DashboardSimulator() {
     show(to);
   };
 
-  const dimmed = pending || recordSaving || invalid[step];
+  const dimmed = pending || recordSaving || bonusUnsaved || invalid[step];
   const result = evaluation.result;
   const override = (
     <OverrideNotice gross={request?.stay.currentGrossOverride} />
@@ -439,6 +441,7 @@ export default function DashboardSimulator() {
               refreshContext();
             }}
             onBonusRecorded={refreshContext}
+            onBonusUnsaved={setBonusUnsaved}
           />
           <ResultArea
             hint={

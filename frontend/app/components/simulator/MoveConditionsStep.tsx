@@ -324,7 +324,11 @@ export function MoveConditionsStep({
                 type="radio"
                 name="moveBonusIncluded"
                 checked={!values.bonusIncluded}
-                onChange={() => set("bonusIncluded", false)}
+                onChange={() => {
+                  // 금액 칸이 비어 무효가 되면 결과가 "입력을 고치면" 이라 말하므로 칸 오류도 함께 보인다.
+                  touch("fixedBonus");
+                  set("bonusIncluded", false);
+                }}
               />
               따로 받음
             </label>

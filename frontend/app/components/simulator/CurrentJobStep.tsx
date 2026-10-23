@@ -45,6 +45,8 @@ const FOCUS_SELECTORS: Record<CurrentJobFocus, string> = {
 
 const SAVED_NOTE = "마이페이지에 저장됨";
 const BONUS_AMOUNT_REQUIRED = "연간 고정상여 금액을 입력해 주세요.";
+const BONUS_IDLE_NOTE = "마이페이지 소득 기록에 저장됩니다";
+const BONUS_UNSAVED_NOTE = "칸을 벗어나면 저장됩니다";
 
 type Stay = EvaluateRequest["stay"];
 
@@ -73,6 +75,11 @@ interface CurrentJobStepProps {
   onRecordSaved: () => void;
   /** 성과급 기록을 마이페이지에 더한 뒤. 호출자가 컨텍스트(성과급 범위)를 다시 읽는다. */
   onBonusRecorded?: () => void;
+  /**
+   * 화면의 "따로 받음" 금액이 아직 저장되지 않았는지. 금액은 칸을 벗어날 때 저장되고 계산은 저장된
+   * 기록을 쓰므로, 그 전까지 호출자가 결과를 흐리게 둔다.
+   */
+  onBonusUnsaved?: (unsaved: boolean) => void;
 }
 
 export function CurrentJobStep({
@@ -86,6 +93,7 @@ export function CurrentJobStep({
   onRecordSaving,
   onRecordSaved,
   onBonusRecorded,
+  onBonusUnsaved,
 }: CurrentJobStepProps) {
   const stay = initial?.stay;
   const noIncome = context.currentAnnualGross === null;
@@ -113,9 +121,9 @@ export function CurrentJobStep({
   const formRef = useRef<HTMLFormElement>(null);
   const detailsRef = useFillFocus(focus && FOCUS_SELECTORS[focus]);
 
-  const callbacks = useRef({ onRecordSaving, onRecordSaved });
+  const callbacks = useRef({ onRecordSaving, onRecordSaved, onBonusUnsaved });
   useEffect(() => {
-    callbacks.current = { onRecordSaving, onRecordSaved };
+    callbacks.current = { onRecordSaving, onRecordSaved, onBonusUnsaved };
   });
   // 상여 조건·입사일 저장을 함께 센다. 모두 끝나야 평가 보류를 푼다.
   const inFlight = useRef(0);
@@ -152,6 +160,22 @@ export function CurrentJobStep({
   // 덮어쓴 연봉은 상여까지 더한 금액이라 상여 조건을 따로 묻지도 저장하지도 않는다.
   const overrideActive = overrideShown && manInputToWon(override) !== null;
   const bonusAsked = latestIncomeId !== null && !overrideActive;
+  const bonusAmountWon = manInputToWon(bonusAmount);
+  // 빈 금액은 칸 오류로 이미 무효라 따로 세지 않는다.
+  const bonusUnsaved =
+    latestIncomeId !== null &&
+    !overrideActive &&
+    !bonusIncluded &&
+    bonusAmountWon !== null &&
+    !bonusSave.isRequested({
+      applyFromIncomeId: latestIncomeId,
+      bonusIncluded: false,
+      fixedBonusAnnual: bonusAmountWon,
+    });
+
+  useEffect(() => {
+    callbacks.current.onBonusUnsaved?.(bonusUnsaved);
+  }, [bonusUnsaved]);
 
   const validate = (): FieldErrors => {
     const next: FieldErrors = {};
@@ -364,9 +388,9 @@ export function CurrentJobStep({
             <legend className="mb-2 text-sm font-medium">
               연봉 계약 금액에 상여가 들어 있나요?{" "}
               <RecordSaveNote
-                status={bonusSave.status}
+                status={bonusUnsaved ? "idle" : bonusSave.status}
                 target="소득 기록"
-                idleNote="마이페이지 소득 기록에 저장됩니다"
+                idleNote={bonusUnsaved ? BONUS_UNSAVED_NOTE : BONUS_IDLE_NOTE}
                 staleNote="결과는 이전 답 기준입니다."
                 onRetry={bonusSave.retry}
               />
