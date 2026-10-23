@@ -197,7 +197,7 @@ public class ScenarioService {
   }
 
   private String feedback(int percentile) {
-    return "이직 연봉은 동료집단 내 상위 %d%% 수준의 %s 목표입니다. %s"
+    return "새 회사 연봉은 동료집단 내 상위 %d%% 수준의 %s 목표입니다. %s"
         .formatted(
             100 - percentile,
             gradeLabel(percentile),

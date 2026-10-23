@@ -5,7 +5,7 @@ type FirstYear = NonNullable<EvaluationResponse["move"]>["firstYear"];
 
 const WIDTH = 640;
 const HEIGHT = 300;
-const PAD = { left: 56, right: 16, top: 34, bottom: 44 };
+const PAD = { left: 92, right: 16, top: 34, bottom: 44 };
 const BAR_RATIO = 0.56;
 const LABEL_CLEARANCE = 12;
 
