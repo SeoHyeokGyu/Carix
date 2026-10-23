@@ -342,13 +342,23 @@ describe("대시보드 라우트 및 레이아웃 (Dashboard)", () => {
         renderScreen();
         await screen.findByText("첫 지수를 계산하고 있습니다");
 
-        for (let i = 0; i < FIRST_CALCULATION_MAX_POLLS + 2; i++) {
+        // NOTE: (cjkang) 재조회가 끝나 revalidator 상태가 바뀌면 타이머가 다시 시작된다. 부하가 걸려 그 시점이
+        // 진행 구간 한가운데로 밀리면 구간 하나를 건너뛰므로, 횟수를 고정하지 않고 안내가 뜰 때까지 진행한다.
+        const exhausted = () => screen.queryByText(/계산이 늦어지고 있습니다/);
+        for (
+          let i = 0;
+          i < FIRST_CALCULATION_MAX_POLLS * 3 && !exhausted();
+          i++
+        ) {
           await vi.advanceTimersByTimeAsync(FIRST_CALCULATION_POLL_MS);
         }
 
-        expect(
-          await screen.findByText(/계산이 늦어지고 있습니다/),
-        ).toBeInTheDocument();
+        expect(exhausted()).toBeInTheDocument();
+        expect(fetchSummary).toHaveBeenCalledTimes(
+          FIRST_CALCULATION_MAX_POLLS + 1,
+        );
+        // 멈춘 뒤에는 더 조회하지 않는다.
+        await vi.advanceTimersByTimeAsync(FIRST_CALCULATION_POLL_MS * 3);
         expect(fetchSummary).toHaveBeenCalledTimes(
           FIRST_CALCULATION_MAX_POLLS + 1,
         );
