@@ -1,17 +1,33 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { act, createRef } from "react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { EvaluateRequest } from "../../lib/api/scenario";
 import * as scenario from "../../lib/api/scenario";
 import { MoveConditionsStep } from "./MoveConditionsStep";
+import type { StepFormHandle } from "./useDebouncedEmit";
 
 vi.mock("../../lib/api/scenario", () => ({
-  putDraft: vi.fn(),
   getFeasibility: vi.fn(),
 }));
 
-const draft: EvaluateRequest = { stay: { raisePercent: 3 } };
+type Move = NonNullable<EvaluateRequest["move"]>;
+
+function renderStep() {
+  const ref = createRef<StepFormHandle<Move>>();
+  const onChange = vi.fn();
+  render(<MoveConditionsStep ref={ref} initial={null} onChange={onChange} />);
+  return { ref, onChange };
+}
+
+function flush(ref: React.RefObject<StepFormHandle<Move> | null>) {
+  let result: Move | null = null;
+  act(() => {
+    result = ref.current!.flush();
+  });
+  return result as Move | null;
+}
 
 describe("MoveConditionsStep", () => {
   beforeEach(() => {
@@ -27,20 +43,47 @@ describe("MoveConditionsStep", () => {
     });
   });
 
-  it("실업급여를 고르지 않고 제출하면 오류가 보이고 저장하지 않는다", async () => {
-    const onDone = vi.fn();
-    render(
-      <MoveConditionsStep draft={draft} onBack={vi.fn()} onDone={onDone} />,
-    );
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("실업급여를 고르지 않으면 flush 가 null 이고 반영하지 않는다", async () => {
+    const { ref, onChange } = renderStep();
     const user = userEvent.setup();
 
     await user.type(screen.getByLabelText(/새 회사 연봉/), "7000");
-    await user.click(screen.getByRole("button", { name: "비교 결과 보기" }));
 
+    expect(flush(ref)).toBeNull();
+    expect(onChange).not.toHaveBeenCalled();
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "실업급여 여부를 선택해 주세요.",
     );
-    expect(scenario.putDraft).not.toHaveBeenCalled();
-    expect(onDone).not.toHaveBeenCalled();
+  });
+
+  it("값을 바꾸고 400ms 안에 flush 하면 방금 값이 반영된다", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const { ref, onChange } = renderStep();
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+
+    await user.click(screen.getByRole("radio", { name: "받음" }));
+    await user.type(screen.getByLabelText(/새 회사 연봉/), "7000");
+    act(() => {
+      vi.advanceTimersByTime(100);
+    });
+
+    expect(flush(ref)).toEqual(
+      expect.objectContaining({ grossSalary: 70_000_000 }),
+    );
+    expect(onChange).toHaveBeenLastCalledWith(
+      expect.objectContaining({ grossSalary: 70_000_000 }),
+      "edit",
+    );
+    const calls = onChange.mock.calls.length;
+
+    act(() => {
+      vi.advanceTimersByTime(400);
+    });
+
+    expect(onChange).toHaveBeenCalledTimes(calls);
   });
 });
