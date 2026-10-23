@@ -105,7 +105,8 @@ export function SavedScenarioMenu({
         </Button>
       </PopoverTrigger>
       <PopoverContent
-        align="start"
+        align="end"
+        collisionPadding={16}
         onCloseAutoFocus={(event) => {
           if (chosen.current) event.preventDefault();
           chosen.current = false;

@@ -113,7 +113,8 @@ function IfYouStay({
         )}
         {move.equalizingRaisePercent !== null && (
           <li>
-            이직과 4년 누적이 같아지는 인상률 {pct(move.equalizingRaisePercent)}
+            새 회사와 4년 누적이 같아지는 인상률{" "}
+            {pct(move.equalizingRaisePercent)}
           </li>
         )}
       </ul>
