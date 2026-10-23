@@ -65,6 +65,8 @@ interface CurrentJobStepProps {
   focus?: CurrentJobFocus;
   /** 유효한 입력. 처음 그릴 때 유효하면 `mount` 로 바로, 이후 편집은 400ms 뒤 `edit`. */
   onChange: (stay: Stay, source: EmitSource) => void;
+  /** 편집·flush 결과가 무효일 때. 계산 요청은 직전 값으로 남고, 호출자가 결과를 흐리게 한다. */
+  onInvalid?: () => void;
   /** 상여 조건·입사일 기록 저장이 진행 중인지. 진행 중에는 호출자가 평가를 미룬다. */
   onRecordSaving: (saving: boolean) => void;
   /** 상여 조건·입사일 기록 저장이 성공한 뒤. 호출자가 맥락을 다시 읽고 재평가한다. */
@@ -80,6 +82,7 @@ export function CurrentJobStep({
   initial,
   focus,
   onChange,
+  onInvalid,
   onRecordSaving,
   onRecordSaved,
   onBonusRecorded,
@@ -170,7 +173,10 @@ export function CurrentJobStep({
   const compute = (): Stay | null => {
     const found = validate();
     setErrors(pickRevealed(found));
-    if (Object.keys(found).length > 0) return null;
+    if (Object.keys(found).length > 0) {
+      onInvalid?.();
+      return null;
+    }
     return {
       raisePercent: Number(raise),
       currentGrossOverride: overrideShown ? manInputToWon(override) : null,

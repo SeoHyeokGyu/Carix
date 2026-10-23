@@ -1,12 +1,6 @@
-import { useState } from "react";
-
 import { Badge } from "@/components/ui/badge";
 
-import type {
-  EvaluateRequest,
-  EvaluationResponse,
-  SavedScenario,
-} from "../../lib/api/scenario";
+import type { EvaluationResponse } from "../../lib/api/scenario";
 import {
   moveAdvice,
   moveHeadline,
@@ -17,30 +11,13 @@ import { AssumptionsPanel } from "./AssumptionsPanel";
 import { CumulativeChart } from "./CumulativeChart";
 import { FirstYearWaterfall } from "./FirstYearWaterfall";
 import { InflationBasisNote } from "./InflationBasisNote";
-import { QuickEdit } from "./QuickEdit";
-import { SavedScenarioList } from "./SavedScenarioList";
-import { SaveScenarioForm } from "./SaveScenarioForm";
 import { UnreflectedNotice } from "./UnreflectedNotice";
 
-type MoveInput = NonNullable<EvaluateRequest["move"]>;
 type MoveView = NonNullable<EvaluationResponse["move"]>;
 
 interface ResultViewProps {
-  draft: EvaluateRequest & { move: MoveInput };
   result: EvaluationResponse & { move: MoveView };
-  /** 평가 요청이 진행 중이거나 직전 요청이 실패했을 때 결과 영역에 보일 문장. */
-  notice: string | null;
-  /** 입력이 바뀌어 결과를 다시 계산하는 중. */
-  pending: boolean;
-  scenarios: readonly SavedScenario[];
-  /** 상단 세 칸을 고쳤을 때. 호출자가 초안 저장과 재평가를 맡는다. */
-  onEdit: (next: EvaluateRequest) => void;
-  onFullConditions: () => void;
   onFill: (code: string) => void;
-  /** 저장 실패는 던진다 — 이 화면이 문장으로 보인다. */
-  onSave: (name: string | null) => Promise<void>;
-  onLoadScenario: (request: EvaluateRequest) => void;
-  onRecalculate: (request: EvaluateRequest) => void;
 }
 
 function pct(value: number): string {
@@ -145,9 +122,8 @@ function IfYouStay({
   );
 }
 
-export function ResultView(props: ResultViewProps) {
-  const { draft, result, notice, pending } = props;
-  const [editDirty, setEditDirty] = useState(false);
+/** ② 새 회사 입력 아래의 비교 결과. */
+export function ResultView({ result, onFill }: ResultViewProps) {
   const { move } = result;
   const { headline, note } = moveHeadline(
     move.firstYear.total,
@@ -158,25 +134,6 @@ export function ResultView(props: ResultViewProps) {
 
   return (
     <div className="flex flex-col gap-8">
-      <QuickEdit
-        draft={draft}
-        onEdit={props.onEdit}
-        onFullConditions={props.onFullConditions}
-        onDirtyChange={setEditDirty}
-      />
-
-      {pending && (
-        <p role="status" className="text-sm text-muted-foreground">
-          다시 계산하는 중
-        </p>
-      )}
-
-      {notice && (
-        <p role="alert" className="text-sm text-carix-danger">
-          {notice}
-        </p>
-      )}
-
       <section aria-live="polite" className="flex flex-col gap-2">
         <div className="flex flex-wrap items-center gap-3">
           <h2 className="text-2xl font-semibold">{headline}</h2>
@@ -199,15 +156,7 @@ export function ResultView(props: ResultViewProps) {
         <p className="text-sm font-medium">{severanceNote(result.severance)}</p>
       )}
 
-      <UnreflectedNotice codes={result.unreflected} onFill={props.onFill} />
-
-      <SaveScenarioForm onSave={props.onSave} blocked={editDirty || pending} />
-
-      <SavedScenarioList
-        scenarios={props.scenarios}
-        onLoad={props.onLoadScenario}
-        onRecalculate={props.onRecalculate}
-      />
+      <UnreflectedNotice codes={result.unreflected} onFill={onFill} />
 
       <AssumptionsPanel assumptions={result.assumptions} />
     </div>

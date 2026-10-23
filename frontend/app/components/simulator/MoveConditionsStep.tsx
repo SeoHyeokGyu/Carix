@@ -84,6 +84,8 @@ interface MoveConditionsStepProps {
   focus?: MoveFocus;
   /** 유효한 입력. 처음 그릴 때 유효하면 `mount` 로 바로, 이후 편집은 400ms 뒤 `edit`. */
   onChange: (move: Move, source: EmitSource) => void;
+  /** 편집·flush 결과가 무효일 때. 계산 요청은 직전 값으로 남고, 호출자가 결과를 흐리게 한다. */
+  onInvalid?: () => void;
 }
 
 export function MoveConditionsStep({
@@ -91,6 +93,7 @@ export function MoveConditionsStep({
   initial,
   focus,
   onChange,
+  onInvalid,
 }: MoveConditionsStepProps) {
   const [values, setValues] = useState<MoveFormValues>(
     initial?.move ? fromDraft(initial.move) : EMPTY_VALUES,
@@ -157,7 +160,10 @@ export function MoveConditionsStep({
   const compute = (): Move | null => {
     const found = validate();
     setErrors(pickRevealed(found));
-    if (Object.keys(found).length > 0) return null;
+    if (Object.keys(found).length > 0) {
+      onInvalid?.();
+      return null;
+    }
     return {
       grossSalary: manInputToWon(values.gross) ?? 0,
       unemploymentMonths: Number(values.gapMonths),

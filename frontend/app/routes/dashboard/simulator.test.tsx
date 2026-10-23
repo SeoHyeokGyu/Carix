@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { createRoutesStub } from "react-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -113,24 +113,30 @@ function renderRoute() {
   return render(<Stub initialEntries={["/dashboard/simulator"]} />);
 }
 
+const stayOnly: EvaluateRequest = { stay: { raisePercent: 3 }, move: null };
+
+function savedScenario(request: EvaluateRequest, name: string | null) {
+  return {
+    id: "s1",
+    name,
+    engineVersion: 2 as const,
+    calculatedAt: "2026-10-22T00:00:00Z",
+    request,
+    result: evaluation,
+    legacy: null,
+  };
+}
+
 describe("이직 시뮬레이터 라우트", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    window.scrollTo = vi.fn();
     vi.mocked(scenario.getContext).mockResolvedValue(context);
     vi.mocked(scenario.getDraft).mockResolvedValue(null);
     vi.mocked(scenario.listScenarios).mockResolvedValue([]);
     vi.mocked(scenario.putDraft).mockResolvedValue(null);
+    vi.mocked(scenario.evaluate).mockResolvedValue(evaluation);
     vi.mocked(incomeApi.listIncome).mockResolvedValue([]);
-  });
-
-  it("초안이 없으면 현 직장 단계로 시작한다", async () => {
-    renderRoute();
-
-    expect(
-      await screen.findByRole("button", {
-        name: "남으면 어떻게 되는지 보기",
-      }),
-    ).toBeInTheDocument();
   });
 
   it("컨텍스트 조회가 401 이면 로그인으로 보낸다", async () => {
@@ -152,52 +158,86 @@ describe("이직 시뮬레이터 라우트", () => {
     );
   });
 
-  it("시나리오 저장 버튼을 누르기 전에는 저장하지 않는다", async () => {
-    vi.mocked(scenario.getDraft).mockResolvedValue(draft);
-    vi.mocked(scenario.evaluate).mockResolvedValue(evaluation);
-    vi.mocked(scenario.saveScenario).mockResolvedValue({
-      id: "s1",
-      name: "A사",
-      engineVersion: 2,
-      calculatedAt: "2026-10-22T00:00:00Z",
-      request: draft,
-      result: evaluation,
-      legacy: null,
-    });
+  // 스펙 「빌더 점검 후 정한 것」 4 — 들어오기만 해도 서버 초안이 써지면 다른 기기의 초안을 덮는다.
+  it("처음 들어오면 기본 인상률로 평가만 하고 서버 초안은 쓰지 않는다", async () => {
+    renderRoute();
+
+    await waitFor(() =>
+      expect(scenario.evaluate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          stay: expect.objectContaining({ raisePercent: 3 }),
+        }),
+      ),
+    );
+    expect(scenario.putDraft).not.toHaveBeenCalled();
+  });
+
+  // 초안 저장은 입력 컴포넌트에서 라우트로 옮겨 왔다(옛 CurrentJobStep 테스트의 새 위치).
+  it("초안 저장이 실패하면 오류를 보인다", async () => {
+    vi.mocked(scenario.putDraft).mockRejectedValue(new Error("저장 서버 오류"));
 
     renderRoute();
-    const save = await screen.findByRole("button", { name: "시나리오 저장" });
-    expect(scenario.saveScenario).not.toHaveBeenCalled();
+    await userEvent
+      .setup()
+      .click(
+        await screen.findByRole("button", { name: "새 회사와 비교하기 →" }),
+      );
 
-    await userEvent.setup().click(save);
-
-    expect(scenario.saveScenario).toHaveBeenCalledWith(null, draft);
+    expect(
+      await screen.findByText(/초안을 저장하지 못했습니다/),
+    ).toBeInTheDocument();
   });
+
   it("소득 이력이 있으면 저장분을 채택할 때 옛 이번만 바꾸기 연봉을 비운다", async () => {
     const saved: EvaluateRequest = {
       ...draft,
       stay: { raisePercent: 3, currentGrossOverride: 80_000_000 },
     };
     vi.mocked(scenario.listScenarios).mockResolvedValue([
-      {
-        id: "s1",
-        name: null,
-        engineVersion: 2,
-        calculatedAt: "2026-10-22T00:00:00Z",
-        request: saved,
-        result: evaluation,
-        legacy: null,
-      },
+      savedScenario(saved, null),
     ]);
-    vi.mocked(scenario.evaluate).mockResolvedValue(evaluation);
 
     renderRoute();
-    await screen.findByRole("button", { name: "시나리오 저장" });
 
-    expect(scenario.evaluate).toHaveBeenCalledWith(
+    await waitFor(() =>
+      expect(scenario.evaluate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          stay: expect.objectContaining({ currentGrossOverride: null }),
+        }),
+      ),
+    );
+    expect(scenario.evaluate).not.toHaveBeenCalledWith(
       expect.objectContaining({
-        stay: expect.objectContaining({ currentGrossOverride: null }),
+        stay: expect.objectContaining({ currentGrossOverride: 80_000_000 }),
       }),
+    );
+  });
+
+  // 불러오기가 입력 중이던 초안을 덮어도 되돌릴 수 있어야 한다(스펙 「실패로 보는 것」).
+  it("불러온 뒤 되돌리면 직전 계산 요청을 서버 초안에 다시 저장한다", async () => {
+    vi.mocked(scenario.getDraft).mockResolvedValue(stayOnly);
+    vi.mocked(scenario.listScenarios).mockResolvedValue([
+      savedScenario(draft, "B사"),
+    ]);
+    const user = userEvent.setup();
+
+    renderRoute();
+    await user.click(
+      await screen.findByRole("button", { name: "저장된 시나리오 1" }),
+    );
+    await user.click(await screen.findByRole("button", { name: "불러오기" }));
+    await waitFor(() =>
+      expect(scenario.putDraft).toHaveBeenLastCalledWith(
+        expect.objectContaining({ move: draft.move }),
+      ),
+    );
+
+    await user.click(
+      screen.getByRole("button", { name: "이전 입력으로 되돌리기" }),
+    );
+
+    await waitFor(() =>
+      expect(scenario.putDraft).toHaveBeenLastCalledWith(stayOnly),
     );
   });
 });
