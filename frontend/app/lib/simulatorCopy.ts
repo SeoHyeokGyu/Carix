@@ -21,7 +21,7 @@ export function signedPct(pct: number): string {
 }
 
 export function stayHeadline(pct: number): string {
-  return `남으면 실질 소득 ${signedPct(pct)}`;
+  return `지금 회사 실질 소득 ${signedPct(pct)}`;
 }
 
 /** 격차는 (중앙값 − 내 연봉) / 내 연봉 이라 양수면 시장보다 덜 받는다. 대시보드 값과 같은 세전·명목이다. */
@@ -36,7 +36,7 @@ export function moveHeadline(
   firstYearTotal: number,
   crossoverMonth: number | null,
 ): { headline: string; note: string | null } {
-  const first = `이직 첫해 ${signedMan(firstYearTotal)}`;
+  const first = `새 회사 첫해 ${signedMan(firstYearTotal)}`;
   if (crossoverMonth === null) {
     return { headline: first, note: "비교 기간 4년 안에 역전되지 않습니다" };
   }
@@ -46,7 +46,7 @@ export function moveHeadline(
 /** 역전이 있을 때만 조언을 낸다. */
 export function moveAdvice(crossoverMonth: number | null): string | null {
   if (crossoverMonth === null) return null;
-  return `새 직장을 ${crossoverMonth}개월 이상 다닐 생각이면 이직이 유리합니다`;
+  return `새 회사를 ${crossoverMonth}개월 이상 다닐 생각이면 옮기는 쪽이 유리합니다`;
 }
 
 export function inflationNote(basis: InflationBasis): string | null {
@@ -94,9 +94,9 @@ const UNREFLECTED_LABELS: Record<string, string> = {
   PERFORMANCE_BONUS: "성과급",
   STOCK: "주식",
   HIRE_DATE: "입사일",
-  MOVE_PERFORMANCE_BONUS: "이직처 성과급",
+  MOVE_PERFORMANCE_BONUS: "새 회사 성과급",
   SIGNING_BONUS: "사이닝 보너스",
-  MOVE_STOCK: "이직처 주식",
+  MOVE_STOCK: "새 회사 주식",
 };
 
 /** 모르는 코드는 숨기지 않고 코드 그대로 보인다. */

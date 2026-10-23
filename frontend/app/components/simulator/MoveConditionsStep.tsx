@@ -1,15 +1,14 @@
-import { useRef, useState } from "react";
+import { type Ref, useImperativeHandle, useRef, useState } from "react";
 
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
 import {
   type EvaluateRequest,
   type Feasibility,
   getFeasibility,
-  putDraft,
 } from "../../lib/api/scenario";
 import type { FieldErrors } from "../../lib/fieldErrors";
+import { focusFirstInvalidField } from "../../lib/focusFirstInvalidField";
 import type { MoveFocus } from "../../lib/simulatorFocus";
 import {
   describeError,
@@ -18,7 +17,13 @@ import {
 } from "../../lib/simulatorForm";
 import { Field } from "../onboarding/Field";
 import { ManAmountField } from "./ManAmountField";
+import {
+  type EmitSource,
+  type StepFormHandle,
+  useDebouncedEmit,
+} from "./useDebouncedEmit";
 import { useFillFocus } from "./useFillFocus";
+import { useRevealedErrors } from "./useRevealedErrors";
 
 const MAX_GAP_MONTHS = 6;
 const BENEFIT_NOTE = "본인 의사로 그만두면 대개 받을 수 없습니다.";
@@ -29,8 +34,10 @@ const FOCUS_SELECTORS: Record<MoveFocus, string> = {
   stockVesting: "#stockVesting",
 };
 
-/** 입력칸 문자열 묶음. 이전 단계로 갔다 와도 유지하도록 호출자가 들고 있을 수 있다. */
-export interface MoveFormValues {
+type Move = NonNullable<EvaluateRequest["move"]>;
+
+/** 입력칸 문자열 묶음. */
+interface MoveFormValues {
   gross: string;
   gapMonths: string;
   oneTimeCost: string;
@@ -55,7 +62,7 @@ const EMPTY_VALUES: MoveFormValues = {
   stockVesting: "",
 };
 
-function fromDraft(move: NonNullable<EvaluateRequest["move"]>): MoveFormValues {
+function fromDraft(move: Move): MoveFormValues {
   return {
     gross: wonToManInput(move.grossSalary),
     gapMonths: String(move.unemploymentMonths),
@@ -70,32 +77,29 @@ function fromDraft(move: NonNullable<EvaluateRequest["move"]>): MoveFormValues {
 }
 
 interface MoveConditionsStepProps {
-  /** ① 에서 저장된 초안. 잔류 입력을 그대로 이어 담는다. */
-  draft: EvaluateRequest;
-  initialValues?: MoveFormValues;
+  ref?: Ref<StepFormHandle<Move>>;
+  /** 이미 있는 계산 요청. 처음 그릴 때 `move` 만 읽는다. */
+  initial: EvaluateRequest | null;
   /** 미반영 `넣기` 로 들어왔을 때 열고 포커스할 칸. */
   focus?: MoveFocus;
-  /** 초안 저장. 호출자가 다른 초안 저장과 순서를 맞춘다. 실패는 던진다. */
-  saveDraft?: (draft: EvaluateRequest) => Promise<unknown>;
-  /** 입력을 지우지 않고 ② 로 돌아간다. 호출자가 값을 들고 있다가 `initialValues` 로 돌려준다. */
-  onBack: (values: MoveFormValues) => void;
-  /** 저장된 초안을 넘긴다. */
-  onDone: (saved: EvaluateRequest) => void;
+  /** 유효한 입력. 처음 그릴 때 유효하면 `mount` 로 바로, 이후 편집은 400ms 뒤 `edit`. */
+  onChange: (move: Move, source: EmitSource) => void;
+  /** 편집·flush 결과가 무효일 때. 계산 요청은 직전 값으로 남고, 호출자가 결과를 흐리게 한다. */
+  onInvalid?: () => void;
 }
 
 export function MoveConditionsStep({
-  draft,
-  initialValues,
+  ref,
+  initial,
   focus,
-  saveDraft = putDraft,
-  onBack,
-  onDone,
+  onChange,
+  onInvalid,
 }: MoveConditionsStepProps) {
   const [values, setValues] = useState<MoveFormValues>(
-    initialValues ?? (draft.move ? fromDraft(draft.move) : EMPTY_VALUES),
+    initial?.move ? fromDraft(initial.move) : EMPTY_VALUES,
   );
-  const [errors, setErrors] = useState<FieldErrors>({});
-  const [submitting, setSubmitting] = useState(false);
+  const { errors, setErrors, touch, revealAll, pickRevealed } =
+    useRevealedErrors();
   const [feasibility, setFeasibility] = useState<{
     text: string;
     isError: boolean;
@@ -107,7 +111,10 @@ export function MoveConditionsStep({
   const set = <K extends keyof MoveFormValues>(
     key: K,
     value: MoveFormValues[K],
-  ) => setValues((prev) => ({ ...prev, [key]: value }));
+  ) => {
+    touch(key);
+    setValues((prev) => ({ ...prev, [key]: value }));
+  };
 
   const checkFeasibility = async () => {
     const gross = manInputToWon(values.gross);
@@ -135,7 +142,7 @@ export function MoveConditionsStep({
     const next: FieldErrors = {};
     const gross = manInputToWon(values.gross);
     if (gross === null) {
-      next.gross = "이직 연봉을 입력해 주세요.";
+      next.gross = "새 회사 연봉을 입력해 주세요.";
     }
     const gap = Number(values.gapMonths);
     if (!Number.isInteger(gap) || gap < 0 || gap > MAX_GAP_MONTHS) {
@@ -150,49 +157,55 @@ export function MoveConditionsStep({
     return next;
   };
 
-  const handleSubmit = async (event: React.FormEvent) => {
-    event.preventDefault();
+  const compute = (): Move | null => {
     const found = validate();
-    setErrors(found);
+    setErrors(pickRevealed(found));
     if (Object.keys(found).length > 0) {
-      requestAnimationFrame(() =>
-        formRef.current
-          ?.querySelector<HTMLElement>('[aria-invalid="true"]')
-          ?.focus(),
-      );
+      onInvalid?.();
+      return null;
+    }
+    return {
+      grossSalary: manInputToWon(values.gross) ?? 0,
+      unemploymentMonths: Number(values.gapMonths),
+      oneTimeCost: manInputToWon(values.oneTimeCost) ?? 0,
+      benefitEligible: values.benefitEligible === true,
+      bonusIncluded: values.bonusIncluded,
+      fixedBonusAnnual: values.bonusIncluded
+        ? null
+        : manInputToWon(values.fixedBonus),
+      performanceBonusExpected: manInputToWon(values.performanceBonus),
+      signingBonus: manInputToWon(values.signingBonus),
+      stockVesting12m: manInputToWon(values.stockVesting),
+    };
+  };
+
+  const debounced = useDebouncedEmit(compute, [values], onChange);
+
+  const flush = (): Move | null => {
+    revealAll();
+    const value = debounced.flush();
+    if (value === null) {
+      setErrors(validate());
+      requestAnimationFrame(() => focusFirstInvalidField(formRef.current));
+    }
+    return value;
+  };
+
+  useImperativeHandle(ref, () => ({ flush }));
+
+  const handleKeyDown = (event: React.KeyboardEvent<HTMLFormElement>) => {
+    if (event.key !== "Enter" || !(event.target instanceof HTMLInputElement)) {
       return;
     }
-    setSubmitting(true);
-    try {
-      const saved: EvaluateRequest = {
-        stay: draft.stay,
-        move: {
-          grossSalary: manInputToWon(values.gross) ?? 0,
-          unemploymentMonths: Number(values.gapMonths),
-          oneTimeCost: manInputToWon(values.oneTimeCost) ?? 0,
-          benefitEligible: values.benefitEligible === true,
-          bonusIncluded: values.bonusIncluded,
-          fixedBonusAnnual: values.bonusIncluded
-            ? null
-            : manInputToWon(values.fixedBonus),
-          performanceBonusExpected: manInputToWon(values.performanceBonus),
-          signingBonus: manInputToWon(values.signingBonus),
-          stockVesting12m: manInputToWon(values.stockVesting),
-        },
-      };
-      await saveDraft(saved);
-      onDone(saved);
-    } catch (error) {
-      setErrors({ _form: describeError(error) });
-    } finally {
-      setSubmitting(false);
-    }
+    event.preventDefault();
+    flush();
   };
 
   return (
     <form
       ref={formRef}
-      onSubmit={handleSubmit}
+      onSubmit={(event) => event.preventDefault()}
+      onKeyDown={handleKeyDown}
       noValidate
       className="flex flex-col gap-6"
     >
@@ -200,7 +213,7 @@ export function MoveConditionsStep({
         <div onBlur={checkFeasibility}>
           <ManAmountField
             id="gross"
-            label="이직 연봉 (세전, 만원)"
+            label="새 회사 연봉 (세전, 만원)"
             value={values.gross}
             onChange={(v) => set("gross", v)}
             error={errors.gross}
@@ -223,7 +236,7 @@ export function MoveConditionsStep({
       <Field
         id="gapMonths"
         label="예상 공백 (개월)"
-        hint="퇴사 후 새 직장 출근까지 쉬는 기간입니다."
+        hint="퇴사 후 새 회사 출근까지 쉬는 기간입니다."
         error={errors.gapMonths}
       >
         {(aria) => (
@@ -295,7 +308,7 @@ export function MoveConditionsStep({
         <div className="mt-4 flex flex-col gap-4">
           <fieldset className="flex flex-col gap-2">
             <legend className="mb-2 text-sm font-medium">
-              이직 연봉에 상여가 들어 있나요?
+              새 회사 연봉에 상여가 들어 있나요?
             </legend>
             <label className="flex items-center gap-2 text-sm">
               <input
@@ -311,7 +324,11 @@ export function MoveConditionsStep({
                 type="radio"
                 name="moveBonusIncluded"
                 checked={!values.bonusIncluded}
-                onChange={() => set("bonusIncluded", false)}
+                onChange={() => {
+                  // 금액 칸이 비어 무효가 되면 결과가 "입력을 고치면" 이라 말하므로 칸 오류도 함께 보인다.
+                  touch("fixedBonus");
+                  set("bonusIncluded", false);
+                }}
               />
               따로 받음
             </label>
@@ -345,21 +362,6 @@ export function MoveConditionsStep({
           />
         </div>
       </details>
-
-      {errors._form && (
-        <p role="alert" className="text-sm text-carix-danger">
-          {errors._form}
-        </p>
-      )}
-
-      <div className="flex items-center gap-3">
-        <Button type="button" variant="ghost" onClick={() => onBack(values)}>
-          ← 이전
-        </Button>
-        <Button type="submit" disabled={submitting}>
-          비교 결과 보기
-        </Button>
-      </div>
     </form>
   );
 }

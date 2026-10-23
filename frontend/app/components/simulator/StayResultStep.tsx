@@ -9,7 +9,6 @@ import {
 import { AssumptionsPanel } from "./AssumptionsPanel";
 import { InflationBasisNote } from "./InflationBasisNote";
 import { RaiseAxis } from "./RaiseAxis";
-import { SaveScenarioForm } from "./SaveScenarioForm";
 import { UnreflectedNotice } from "./UnreflectedNotice";
 
 interface StayResultStepProps {
@@ -17,25 +16,48 @@ interface StayResultStepProps {
   /** 사용자가 입력한 예상 인상률(%). */
   raisePercent: number;
   onFill: (code: string) => void;
-  onCompare: () => void;
-  /** 잔류만 저장한다. 실패는 던진다 — 저장 폼이 문장으로 보인다. */
-  onSave: (name: string | null) => Promise<void>;
-  /** 재계산 중이라 화면 결과와 입력이 어긋난 동안 저장을 막는다. */
-  saveBlocked: boolean;
 }
 
 function pct(value: number): string {
   return `${value.toFixed(1)}%`;
 }
 
-/** ② 남으면. 이 화면 자체가 완결된 결과다. */
+interface EvaluationFallbackProps {
+  error: string | null;
+  pending: boolean;
+  onRetry: () => void;
+}
+
+/** 아직 보일 결과가 없을 때 결과 자리. 실패면 오류와 다시 시도, 아니면 계산 중. */
+export function EvaluationFallback({
+  error,
+  pending,
+  onRetry,
+}: EvaluationFallbackProps) {
+  if (error) {
+    return (
+      <div className="flex flex-col items-start gap-3">
+        <p role="alert" className="text-sm text-carix-danger">
+          {error}
+        </p>
+        <Button type="button" variant="outline" onClick={onRetry}>
+          다시 시도
+        </Button>
+      </div>
+    );
+  }
+  return (
+    <p role="status" className="text-sm text-muted-foreground">
+      {pending ? "계산하는 중입니다." : "결과를 불러오는 중입니다."}
+    </p>
+  );
+}
+
+/** ① 지금 회사 입력 아래의 결과. 미반영은 호출자가 지금 회사 항목만 넘긴다. */
 export function StayResultStep({
   result,
   raisePercent,
   onFill,
-  onCompare,
-  onSave,
-  saveBlocked,
 }: StayResultStepProps) {
   const { stay, inflation, severance } = result;
   const personal = stay.breakevenPersonalPercent;
@@ -76,15 +98,7 @@ export function StayResultStep({
 
       <UnreflectedNotice codes={result.unreflected} onFill={onFill} />
 
-      <SaveScenarioForm onSave={onSave} blocked={saveBlocked} />
-
       <AssumptionsPanel assumptions={result.assumptions} />
-
-      <div>
-        <Button type="button" variant="secondary" onClick={onCompare}>
-          이직과 비교하기
-        </Button>
-      </div>
     </div>
   );
 }

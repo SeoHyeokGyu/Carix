@@ -1,12 +1,6 @@
-import { useState } from "react";
-
 import { Badge } from "@/components/ui/badge";
 
-import type {
-  EvaluateRequest,
-  EvaluationResponse,
-  SavedScenario,
-} from "../../lib/api/scenario";
+import type { EvaluationResponse } from "../../lib/api/scenario";
 import {
   moveAdvice,
   moveHeadline,
@@ -17,30 +11,13 @@ import { AssumptionsPanel } from "./AssumptionsPanel";
 import { CumulativeChart } from "./CumulativeChart";
 import { FirstYearWaterfall } from "./FirstYearWaterfall";
 import { InflationBasisNote } from "./InflationBasisNote";
-import { QuickEdit } from "./QuickEdit";
-import { SavedScenarioList } from "./SavedScenarioList";
-import { SaveScenarioForm } from "./SaveScenarioForm";
 import { UnreflectedNotice } from "./UnreflectedNotice";
 
-type MoveInput = NonNullable<EvaluateRequest["move"]>;
 type MoveView = NonNullable<EvaluationResponse["move"]>;
 
 interface ResultViewProps {
-  draft: EvaluateRequest & { move: MoveInput };
   result: EvaluationResponse & { move: MoveView };
-  /** 평가 요청이 진행 중이거나 직전 요청이 실패했을 때 결과 영역에 보일 문장. */
-  notice: string | null;
-  /** 입력이 바뀌어 결과를 다시 계산하는 중. */
-  pending: boolean;
-  scenarios: readonly SavedScenario[];
-  /** 상단 세 칸을 고쳤을 때. 호출자가 초안 저장과 재평가를 맡는다. */
-  onEdit: (next: EvaluateRequest) => void;
-  onFullConditions: () => void;
   onFill: (code: string) => void;
-  /** 저장 실패는 던진다 — 이 화면이 문장으로 보인다. */
-  onSave: (name: string | null) => Promise<void>;
-  onLoadScenario: (request: EvaluateRequest) => void;
-  onRecalculate: (request: EvaluateRequest) => void;
 }
 
 function pct(value: number): string {
@@ -67,8 +44,8 @@ function LongRun({ move }: { move: MoveView }) {
       />
       <p className="text-sm">
         {move.crossoverMonth === null
-          ? "비교 기간 4년 동안 이직 누적이 잔류 누적을 넘지 못합니다."
-          : `${move.crossoverMonth}개월째부터 이직 누적이 잔류 누적을 넘어섭니다.`}{" "}
+          ? "비교 기간 4년 동안 새 회사 누적이 지금 회사 누적을 넘지 못합니다."
+          : `${move.crossoverMonth}개월째부터 새 회사 누적이 지금 회사 누적을 넘어섭니다.`}{" "}
         4년 끝의 누적 차이는 {signedMan(end)}입니다.
       </p>
     </section>
@@ -99,8 +76,8 @@ function FirstYear({ move }: { move: MoveView }) {
       )}
       {stock && (
         <p className="text-sm text-muted-foreground">
-          주식(합계에 넣지 않음): 잔류 12개월 베스팅{" "}
-          {signedMan(stock.stayVesting12m ?? 0)}, 이직 12개월 베스팅{" "}
+          주식(합계에 넣지 않음): 지금 회사 12개월 베스팅{" "}
+          {signedMan(stock.stayVesting12m ?? 0)}, 새 회사 12개월 베스팅{" "}
           {signedMan(stock.moveVesting12m ?? 0)}
         </p>
       )}
@@ -126,7 +103,7 @@ function IfYouStay({
   const breakeven = personal ?? result.stay.breakevenGovernmentPercent;
   return (
     <section className="flex flex-col gap-2">
-      <SectionTitle>3 · 남는다면</SectionTitle>
+      <SectionTitle>3 · 지금 회사에 남는다면</SectionTitle>
       <ul className="flex flex-col gap-1.5 text-sm">
         {breakeven !== null && (
           <li>
@@ -136,7 +113,8 @@ function IfYouStay({
         )}
         {move.equalizingRaisePercent !== null && (
           <li>
-            이직과 4년 누적이 같아지는 인상률 {pct(move.equalizingRaisePercent)}
+            새 회사와 4년 누적이 같아지는 인상률{" "}
+            {pct(move.equalizingRaisePercent)}
           </li>
         )}
       </ul>
@@ -145,9 +123,8 @@ function IfYouStay({
   );
 }
 
-export function ResultView(props: ResultViewProps) {
-  const { draft, result, notice, pending } = props;
-  const [editDirty, setEditDirty] = useState(false);
+/** ② 새 회사 입력 아래의 비교 결과. */
+export function ResultView({ result, onFill }: ResultViewProps) {
   const { move } = result;
   const { headline, note } = moveHeadline(
     move.firstYear.total,
@@ -158,25 +135,6 @@ export function ResultView(props: ResultViewProps) {
 
   return (
     <div className="flex flex-col gap-8">
-      <QuickEdit
-        draft={draft}
-        onEdit={props.onEdit}
-        onFullConditions={props.onFullConditions}
-        onDirtyChange={setEditDirty}
-      />
-
-      {pending && (
-        <p role="status" className="text-sm text-muted-foreground">
-          다시 계산하는 중
-        </p>
-      )}
-
-      {notice && (
-        <p role="alert" className="text-sm text-carix-danger">
-          {notice}
-        </p>
-      )}
-
       <section aria-live="polite" className="flex flex-col gap-2">
         <div className="flex flex-wrap items-center gap-3">
           <h2 className="text-2xl font-semibold">{headline}</h2>
@@ -199,15 +157,7 @@ export function ResultView(props: ResultViewProps) {
         <p className="text-sm font-medium">{severanceNote(result.severance)}</p>
       )}
 
-      <UnreflectedNotice codes={result.unreflected} onFill={props.onFill} />
-
-      <SaveScenarioForm onSave={props.onSave} blocked={editDirty || pending} />
-
-      <SavedScenarioList
-        scenarios={props.scenarios}
-        onLoad={props.onLoadScenario}
-        onRecalculate={props.onRecalculate}
-      />
+      <UnreflectedNotice codes={result.unreflected} onFill={onFill} />
 
       <AssumptionsPanel assumptions={result.assumptions} />
     </div>

@@ -1,9 +1,10 @@
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
 import type { SavedScenario } from "../../lib/api/scenario";
 import * as scenarioApi from "../../lib/api/scenario";
-import { SavedScenarioList } from "./SavedScenarioList";
+import { legacyToRequest, SavedScenarioMenu } from "./SavedScenarioMenu";
 
 vi.mock("../../lib/api/scenario", () => ({ evaluate: vi.fn() }));
 
@@ -48,21 +49,32 @@ const legacy: SavedScenario = {
   },
 };
 
-describe("SavedScenarioList", () => {
-  it("엔진 1 항목은 다시 계산하지 않고 저장 결과에 이전 방식 표식을 붙인다", () => {
+describe("SavedScenarioMenu", () => {
+  it("엔진 1 항목은 다시 계산하지 않고 저장 결과에 이전 방식 표식을 붙인다", async () => {
     const onLoad = vi.fn();
+    const onRecalculate = vi.fn();
     render(
-      <SavedScenarioList
+      <SavedScenarioMenu
         scenarios={[legacy]}
         onLoad={onLoad}
-        onRecalculate={vi.fn()}
+        onRecalculate={onRecalculate}
       />,
     );
 
-    expect(screen.getByText("이전 방식(세전 기준)")).toBeInTheDocument();
-    expect(screen.getByText(/61,800,000원/)).toBeInTheDocument();
-    expect(screen.getByText(/64,166,667원/)).toBeInTheDocument();
+    await userEvent.click(
+      screen.getByRole("button", { name: "저장된 시나리오 1" }),
+    );
+
+    expect(screen.getByText("이전 방식")).toBeInTheDocument();
+    expect(screen.getByText("차이 +237만")).toBeInTheDocument();
     expect(scenarioApi.evaluate).not.toHaveBeenCalled();
     expect(onLoad).not.toHaveBeenCalled();
+
+    await userEvent.click(screen.getByRole("button", { name: "다시 계산" }));
+
+    expect(onRecalculate).toHaveBeenCalledWith(
+      legacyToRequest(legacy.legacy!),
+      "예전 오퍼 · 2026-05-01",
+    );
   });
 });

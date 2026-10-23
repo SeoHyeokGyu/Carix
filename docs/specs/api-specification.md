@@ -661,7 +661,7 @@
             "type": "ESTIMATED_OPPORTUNITY_COST",
             "typeLabel": "추정 기회비용",
             "warningNote": "이 계산에는 세금, 성과급, 퇴직금 등이 포함되지 않은 단순 세전 기준 시뮬레이션입니다.",
-            "feasibility": { "status": "OK", "sampleSize": 42, "minRequired": null, "feasibilityScore": 31, "targetPercentile": 69, "difficultyGrade": "CHALLENGING", "feedbackMessage": "이직 연봉은 동료집단 내 상위 31% 수준의 도전적인 목표입니다. 시장 평균 범위 내에 위치하여 원만히 조율 가능한 수준입니다." }
+            "feasibility": { "status": "OK", "sampleSize": 42, "minRequired": null, "feasibilityScore": 31, "targetPercentile": 69, "difficultyGrade": "CHALLENGING", "feedbackMessage": "새 회사 연봉은 동료집단 내 상위 31% 수준의 도전적인 목표입니다. 시장 평균 범위 내에 위치하여 원만히 조율 가능한 수준입니다." }
           }
         }
       }

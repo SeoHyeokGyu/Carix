@@ -5,7 +5,7 @@ type FirstYear = NonNullable<EvaluationResponse["move"]>["firstYear"];
 
 const WIDTH = 640;
 const HEIGHT = 300;
-const PAD = { left: 56, right: 16, top: 34, bottom: 44 };
+const PAD = { left: 92, right: 16, top: 34, bottom: 44 };
 const BAR_RATIO = 0.56;
 const LABEL_CLEARANCE = 12;
 
@@ -67,11 +67,11 @@ export function FirstYearWaterfall({ firstYear }: { firstYear: FirstYear }) {
     .filter((s) => !s.isTotal)
     .map((s) => `${s.label} ${amountLabel(s.to - s.from)}`)
     .join(", ");
-  const ariaLabel = `이직 첫해 12개월 누적 차이 계단 그림. 잔류를 0 으로 놓고 ${parts}, 합계 ${amountLabel(firstYear.total)}원.`;
+  const ariaLabel = `새 회사 첫해 12개월 누적 차이 계단 그림. 지금 회사를 0 으로 놓고 ${parts}, 합계 ${amountLabel(firstYear.total)}원.`;
   const verdict =
     firstYear.total >= 0
-      ? "첫해에 이직이 잔류보다 앞섭니다"
-      : "첫해에는 잔류가 앞섭니다";
+      ? "첫해에 새 회사가 지금 회사보다 앞섭니다"
+      : "첫해에는 지금 회사가 앞섭니다";
 
   return (
     <figure className="m-0">
@@ -99,7 +99,7 @@ export function FirstYearWaterfall({ firstYear }: { firstYear: FirstYear }) {
               fontSize={11}
               className="fill-carix-text/60"
             >
-              {t === 0 ? "잔류 = 0" : amountLabel(t)}
+              {t === 0 ? "지금 회사 = 0" : amountLabel(t)}
             </text>
           </g>
         ))}
@@ -179,8 +179,8 @@ export function FirstYearWaterfall({ firstYear }: { firstYear: FirstYear }) {
         })}
       </svg>
       <figcaption className="mt-2 text-sm text-carix-text/70">
-        {verdict} — 합계 {amountLabel(firstYear.total)}원. 잔류 첫해를 0 으로
-        놓고 항목별로 더하고 뺀 값입니다.
+        {verdict} — 합계 {amountLabel(firstYear.total)}원. 지금 회사 첫해를 0
+        으로 놓고 항목별로 더하고 뺀 값입니다.
       </figcaption>
     </figure>
   );

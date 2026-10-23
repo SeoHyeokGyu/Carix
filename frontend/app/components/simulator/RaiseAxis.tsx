@@ -11,7 +11,7 @@ export interface RaiseAxisProps {
   /** 개인물가 기준 손익분기 인상률(%). 계산 못 하면 null. */
   breakevenPersonal: number | null;
   breakevenGovernment: number | null;
-  /** 이직 제안이 현 연봉 대비 몇 %인지. */
+  /** 새 회사 제안이 현 연봉 대비 몇 %인지. */
   offerEquivalentPercent?: number | null;
 }
 
@@ -95,7 +95,7 @@ export function RaiseAxis({
       : null;
   const offerText =
     offerEquivalentPercent != null
-      ? `이직 제안 ${pct(offerEquivalentPercent)}`
+      ? `새 회사 제안 ${pct(offerEquivalentPercent)}`
       : "";
   const offerLabel =
     offerEquivalentPercent != null
@@ -120,7 +120,7 @@ export function RaiseAxis({
       ? `정부 전망 기준 손익분기 ${pct(breakevenGovernment)}`
       : null,
     offerEquivalentPercent != null
-      ? `이직 제안은 현 연봉 대비 ${pct(offerEquivalentPercent)}`
+      ? `새 회사 제안은 현 연봉 대비 ${pct(offerEquivalentPercent)}`
       : null,
   ].filter((f): f is string => f !== null);
 
@@ -136,7 +136,7 @@ export function RaiseAxis({
     <figure className="m-0">
       <svg
         role="img"
-        aria-label={`잔류 시 인상률 축. ${facts.join(", ")}.`}
+        aria-label={`지금 회사 인상률 축. ${facts.join(", ")}.`}
         viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
         className="h-auto w-full"
       >
