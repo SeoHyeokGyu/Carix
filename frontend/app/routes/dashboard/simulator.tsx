@@ -215,6 +215,8 @@ export default function DashboardSimulator() {
   const moveForm = useRef<StepFormHandle<Move>>(null);
   const currentHeading = useRef<HTMLHeadingElement>(null);
   const moveHeading = useRef<HTMLHeadingElement>(null);
+  const headingOf = (which: SimulatorStep) =>
+    which === "current" ? currentHeading : moveHeading;
   // 이동을 마친 뒤 할 일. 쿼리 반영이 렌더 뒤에 오므로 단계가 실제로 바뀐 다음 처리한다.
   const arrival = useRef<{ step: SimulatorStep; toField: boolean } | null>(
     null,
@@ -367,13 +369,28 @@ export default function DashboardSimulator() {
     setSaveOpen(null);
     commit(next);
     persisted.current = true;
-    // NOTE: (cjkang) 초안 삭제 API 가 없어 null 로 되돌릴 때는 서버 초안을 그대로 둔다.
+    // NOTE: (cjkang) 초안 삭제 API 가 없어 null 로 되돌릴 때는 여기서 서버 초안을 쓰지 않는다. 다만 이미
+    // persisted 라, 새로 그려진 ① 이 기본 인상률로 유효하면 그 mount 값이 서버 초안을 덮는다. 다시
+    // 들어올 때 불러왔던 저장분이 되살아나는 것은 기본 인상률이 없어 ① 이 무효일 때뿐이다.
     if (next) saveDraft(next);
   };
-  const { adopt, undo, notice: adoptNotice } = useUndoableAdopt(replaceRequest);
+  // 알림 안에 포커스가 있는 채로 사라지면 포커스가 body 로 빠진다. 지금 단계 제목으로 옮긴다.
+  const undoNoticeRef = useRef<HTMLDivElement>(null);
+  const keepFocusOffNotice = () => {
+    if (undoNoticeRef.current?.contains(document.activeElement)) {
+      headingOf(step).current?.focus();
+    }
+  };
+  const {
+    adopt,
+    undo,
+    notice: adoptNotice,
+  } = useUndoableAdopt(replaceRequest, keepFocusOffNotice);
 
   const load = (next: EvaluateRequest, title: string, to: SimulatorStep) => {
     adopt(withoutStaleOverride(next, context), requestRef.current, title);
+    // 단계가 바뀌면 도착 처리가 제목으로 포커스를 옮긴다. 같은 단계면 메뉴가 트리거로 돌려주지 않으니 여기서 옮긴다.
+    if (to === step) headingOf(to).current?.focus();
     show(to);
   };
 
@@ -407,11 +424,19 @@ export default function DashboardSimulator() {
           onSelect={(next) => goTo(next)}
         />
         {adoptNotice && (
-          <InlineAlert
-            tone="info"
-            message={`「${adoptNotice.name ?? "저장분"}」을 불러왔습니다.`}
-            action={{ label: "이전 입력으로 되돌리기", onClick: undo }}
-          />
+          <div ref={undoNoticeRef}>
+            <InlineAlert
+              tone="info"
+              message={`「${adoptNotice.name ?? "저장분"}」을 불러왔습니다.`}
+              action={{
+                label: "이전 입력으로 되돌리기",
+                onClick: () => {
+                  keepFocusOffNotice();
+                  undo();
+                },
+              }}
+            />
+          </div>
         )}
         {notice && (
           <InlineAlert message={notice} onDismiss={() => setNotice(null)} />

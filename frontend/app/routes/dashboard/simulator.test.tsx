@@ -219,8 +219,15 @@ describe("이직 시뮬레이터 라우트", () => {
   // 불러오기가 입력 중이던 초안을 덮어도 되돌릴 수 있어야 한다(스펙 「실패로 보는 것」).
   it("불러온 뒤 되돌리면 직전 계산 요청을 서버 초안에 다시 저장한다", async () => {
     vi.mocked(scenario.getDraft).mockResolvedValue(stayOnly);
+    // 메뉴로 불러올 때도 옛 이번만 바꾸기 연봉을 비워야 한다 — 소득 이력이 있으면 그 연봉이 기준이다.
     vi.mocked(scenario.listScenarios).mockResolvedValue([
-      savedScenario(draft, "B사"),
+      savedScenario(
+        {
+          ...draft,
+          stay: { raisePercent: 3, currentGrossOverride: 80_000_000 },
+        },
+        "B사",
+      ),
     ]);
     const user = userEvent.setup();
 
@@ -231,7 +238,10 @@ describe("이직 시뮬레이터 라우트", () => {
     await user.click(await screen.findByRole("button", { name: "불러오기" }));
     await waitFor(() =>
       expect(scenario.putDraft).toHaveBeenLastCalledWith(
-        expect.objectContaining({ move: draft.move }),
+        expect.objectContaining({
+          move: draft.move,
+          stay: expect.objectContaining({ currentGrossOverride: null }),
+        }),
       ),
     );
 

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -87,9 +87,12 @@ export function SavedScenarioMenu({
   onRecalculate,
 }: SavedScenarioMenuProps) {
   const [open, setOpen] = useState(false);
+  // 줄을 골라 닫을 때는 포커스를 트리거로 돌리지 않는다 — 라우트가 이동한 단계 제목으로 옮긴다.
+  const chosen = useRef(false);
   if (scenarios.length === 0) return null;
 
   const choose = (row: RowView, rowTitle: string) => {
+    chosen.current = true;
     setOpen(false);
     (row.legacy ? onRecalculate : onLoad)(row.request, rowTitle);
   };
@@ -98,11 +101,15 @@ export function SavedScenarioMenu({
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <Button type="button" variant="outline" size="sm">
-          저장된 시나리오 {scenarios.length}
+          저장된 시나리오 {scenarios.length} <span aria-hidden="true">▾</span>
         </Button>
       </PopoverTrigger>
       <PopoverContent
         align="start"
+        onCloseAutoFocus={(event) => {
+          if (chosen.current) event.preventDefault();
+          chosen.current = false;
+        }}
         className="max-h-80 w-[calc(100vw-2rem)] overflow-y-auto p-2 sm:w-96"
       >
         <ul className="flex flex-col gap-1">
