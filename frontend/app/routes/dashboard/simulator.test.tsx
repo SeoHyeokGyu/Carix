@@ -305,4 +305,44 @@ describe("이직 시뮬레이터 라우트", () => {
       expect(resultArea()).toHaveAttribute("aria-busy", "false"),
     );
   });
+
+  // 금액 칸은 만원 단위로 채워진다. 만원 단위가 아닌 저장 상여를 "고친 값"으로 읽으면 손대지 않아도
+  // 결과가 흐려지고, 칸을 벗어나면 반올림한 값이 기록에 저장된다.
+  it("만원 단위가 아닌 저장 상여는 손대지 않으면 결과를 흐리지도 다시 저장하지도 않는다", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    vi.mocked(scenario.getContext).mockResolvedValue({
+      ...context,
+      bonusIncluded: false,
+      fixedBonusAnnual: 5_555_555,
+    });
+    vi.mocked(scenario.getDraft).mockResolvedValue(stayOnly);
+    vi.mocked(incomeApi.listIncome).mockResolvedValue([
+      {
+        id: "i-1",
+        grossSalary: 60_000_000,
+        netSalary: 48_000_000,
+        effectiveDate: "2026-01-01",
+        changeReason: null,
+        selectedChangeReason: null,
+        bonusIncluded: false,
+        fixedBonusAnnual: 5_555_555,
+      },
+    ]);
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+
+    const { container } = renderRoute();
+    const amount = await screen.findByLabelText(/연간 고정상여/);
+    const resultArea = () => container.querySelector("[aria-busy]");
+    await waitFor(() => expect(resultArea()).not.toBeNull());
+    act(() => {
+      vi.advanceTimersByTime(400);
+    });
+
+    expect(resultArea()).toHaveAttribute("aria-busy", "false");
+
+    await user.click(amount);
+    await user.tab();
+
+    expect(incomeApi.updateBonusTerms).not.toHaveBeenCalled();
+  });
 });

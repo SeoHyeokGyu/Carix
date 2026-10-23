@@ -136,6 +136,8 @@ export function CurrentJobStep({
       if (--inFlight.current === 0) callbacks.current.onRecordSaving(false);
     },
   };
+  // 저장된 금액은 칸과 같은 만원 단위로 맞춰 둔다. 만원 단위가 아닌 기록을 손대지 않은 칸과 다르다고 보면
+  // 결과가 흐려지고, 칸을 벗어날 때 반올림한 값이 기록에 저장된다.
   const bonusSave = useRecordSave<BonusTerms>(
     updateBonusTerms,
     tracker,
@@ -146,7 +148,7 @@ export function CurrentJobStep({
           bonusIncluded: context.bonusIncluded,
           fixedBonusAnnual: context.bonusIncluded
             ? null
-            : context.fixedBonusAnnual,
+            : manInputToWon(wonToManInput(context.fixedBonusAnnual)),
         },
   );
   const hireDateSave = useRecordSave<string>(
