@@ -34,7 +34,7 @@ describe("MoveConditionsStep", () => {
     );
     const user = userEvent.setup();
 
-    await user.type(screen.getByLabelText(/이직 연봉/), "7000");
+    await user.type(screen.getByLabelText(/새 회사 연봉/), "7000");
     await user.click(screen.getByRole("button", { name: "비교 결과 보기" }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent(

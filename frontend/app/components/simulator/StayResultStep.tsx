@@ -18,7 +18,7 @@ interface StayResultStepProps {
   raisePercent: number;
   onFill: (code: string) => void;
   onCompare: () => void;
-  /** 잔류만 저장한다. 실패는 던진다 — 저장 폼이 문장으로 보인다. */
+  /** 지금 회사만 저장한다. 실패는 던진다 — 저장 폼이 문장으로 보인다. */
   onSave: (name: string | null) => Promise<void>;
   /** 재계산 중이라 화면 결과와 입력이 어긋난 동안 저장을 막는다. */
   saveBlocked: boolean;

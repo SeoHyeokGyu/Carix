@@ -59,9 +59,9 @@ function LegacyBody({
         <span>차이 {signedMan(result.difference)}</span>
       </div>
       <dl className="grid grid-cols-2 gap-x-4 gap-y-1 text-muted-foreground">
-        <dt>잔류 12개월 보상</dt>
+        <dt>지금 회사 12개월 보상</dt>
         <dd>{result.stayCompensation12m.toLocaleString("ko-KR")}원</dd>
-        <dt>이직 12개월 보상</dt>
+        <dt>새 회사 12개월 보상</dt>
         <dd>{result.moveCompensation12m.toLocaleString("ko-KR")}원</dd>
       </dl>
       <div>
@@ -106,7 +106,8 @@ export function SavedScenarioList({
                 <div className="mt-2 flex flex-wrap items-center gap-3 text-sm">
                   {request.move && (
                     <span className="text-muted-foreground">
-                      이직 연봉 {formatKoreanSalary(request.move.grossSalary)}
+                      새 회사 연봉{" "}
+                      {formatKoreanSalary(request.move.grossSalary)}
                     </span>
                   )}
                   <Button

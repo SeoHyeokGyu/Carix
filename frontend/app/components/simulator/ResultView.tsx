@@ -67,8 +67,8 @@ function LongRun({ move }: { move: MoveView }) {
       />
       <p className="text-sm">
         {move.crossoverMonth === null
-          ? "비교 기간 4년 동안 이직 누적이 잔류 누적을 넘지 못합니다."
-          : `${move.crossoverMonth}개월째부터 이직 누적이 잔류 누적을 넘어섭니다.`}{" "}
+          ? "비교 기간 4년 동안 새 회사 누적이 지금 회사 누적을 넘지 못합니다."
+          : `${move.crossoverMonth}개월째부터 새 회사 누적이 지금 회사 누적을 넘어섭니다.`}{" "}
         4년 끝의 누적 차이는 {signedMan(end)}입니다.
       </p>
     </section>
@@ -99,8 +99,8 @@ function FirstYear({ move }: { move: MoveView }) {
       )}
       {stock && (
         <p className="text-sm text-muted-foreground">
-          주식(합계에 넣지 않음): 잔류 12개월 베스팅{" "}
-          {signedMan(stock.stayVesting12m ?? 0)}, 이직 12개월 베스팅{" "}
+          주식(합계에 넣지 않음): 지금 회사 12개월 베스팅{" "}
+          {signedMan(stock.stayVesting12m ?? 0)}, 새 회사 12개월 베스팅{" "}
           {signedMan(stock.moveVesting12m ?? 0)}
         </p>
       )}
@@ -126,7 +126,7 @@ function IfYouStay({
   const breakeven = personal ?? result.stay.breakevenGovernmentPercent;
   return (
     <section className="flex flex-col gap-2">
-      <SectionTitle>3 · 남는다면</SectionTitle>
+      <SectionTitle>3 · 지금 회사에 남는다면</SectionTitle>
       <ul className="flex flex-col gap-1.5 text-sm">
         {breakeven !== null && (
           <li>

@@ -70,7 +70,7 @@ function fromDraft(move: NonNullable<EvaluateRequest["move"]>): MoveFormValues {
 }
 
 interface MoveConditionsStepProps {
-  /** ① 에서 저장된 초안. 잔류 입력을 그대로 이어 담는다. */
+  /** ① 에서 저장된 초안. 지금 회사 입력을 그대로 이어 담는다. */
   draft: EvaluateRequest;
   initialValues?: MoveFormValues;
   /** 미반영 `넣기` 로 들어왔을 때 열고 포커스할 칸. */
@@ -135,7 +135,7 @@ export function MoveConditionsStep({
     const next: FieldErrors = {};
     const gross = manInputToWon(values.gross);
     if (gross === null) {
-      next.gross = "이직 연봉을 입력해 주세요.";
+      next.gross = "새 회사 연봉을 입력해 주세요.";
     }
     const gap = Number(values.gapMonths);
     if (!Number.isInteger(gap) || gap < 0 || gap > MAX_GAP_MONTHS) {
@@ -200,7 +200,7 @@ export function MoveConditionsStep({
         <div onBlur={checkFeasibility}>
           <ManAmountField
             id="gross"
-            label="이직 연봉 (세전, 만원)"
+            label="새 회사 연봉 (세전, 만원)"
             value={values.gross}
             onChange={(v) => set("gross", v)}
             error={errors.gross}
@@ -223,7 +223,7 @@ export function MoveConditionsStep({
       <Field
         id="gapMonths"
         label="예상 공백 (개월)"
-        hint="퇴사 후 새 직장 출근까지 쉬는 기간입니다."
+        hint="퇴사 후 새 회사 출근까지 쉬는 기간입니다."
         error={errors.gapMonths}
       >
         {(aria) => (
@@ -295,7 +295,7 @@ export function MoveConditionsStep({
         <div className="mt-4 flex flex-col gap-4">
           <fieldset className="flex flex-col gap-2">
             <legend className="mb-2 text-sm font-medium">
-              이직 연봉에 상여가 들어 있나요?
+              새 회사 연봉에 상여가 들어 있나요?
             </legend>
             <label className="flex items-center gap-2 text-sm">
               <input

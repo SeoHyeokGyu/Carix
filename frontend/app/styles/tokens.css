@@ -170,3 +170,7 @@
     stroke-dashoffset: 0;
   }
 }
+
+html {
+  scrollbar-gutter: stable;
+}

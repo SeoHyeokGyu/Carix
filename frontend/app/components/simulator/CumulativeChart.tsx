@@ -14,7 +14,7 @@ export interface CumulativeChartProps {
   /** 월별 누적(원). 인덱스 i 는 i+1 개월째. */
   stay: readonly number[];
   move: readonly number[];
-  /** 이직 누적이 잔류 누적 이상이 되는 첫 달(1 부터). 없으면 null. */
+  /** 새 회사 누적이 지금 회사 누적 이상이 되는 첫 달(1 부터). 없으면 null. */
   crossoverMonth: number | null;
 }
 
@@ -59,11 +59,11 @@ export function CumulativeChart({
 
   const last = months - 1;
   const ariaLabel = [
-    `잔류와 이직의 ${months}개월 누적 세후 보상 비교 그래프.`,
-    `${months}개월 시점 잔류 ${amountLabel(stay[last])}원, 이직 ${amountLabel(move[last])}원.`,
+    `지금 회사와 새 회사의 ${months}개월 누적 세후 보상 비교 그래프.`,
+    `${months}개월 시점 지금 회사 ${amountLabel(stay[last])}원, 새 회사 ${amountLabel(move[last])}원.`,
     crossAt !== null
-      ? `이직 누적이 ${crossAt}개월째 잔류 누적을 따라잡습니다.`
-      : "비교 기간 안에 이직 누적이 잔류 누적을 따라잡지 못합니다.",
+      ? `새 회사 누적이 ${crossAt}개월째 지금 회사 누적을 따라잡습니다.`
+      : "비교 기간 안에 새 회사 누적이 지금 회사 누적을 따라잡지 못합니다.",
   ].join(" ");
 
   const onMove = (event: React.PointerEvent<SVGSVGElement>) => {
@@ -175,7 +175,7 @@ export function CumulativeChart({
           fontWeight={600}
           className="fill-carix-text/70"
         >
-          잔류
+          지금 회사
         </text>
         <text
           x={x(months) - 4}
@@ -185,7 +185,7 @@ export function CumulativeChart({
           fontWeight={700}
           className="fill-carix-action"
         >
-          이직
+          새 회사
         </text>
 
         {crossAt !== null && (
@@ -253,7 +253,7 @@ export function CumulativeChart({
               fontSize={12}
               className="fill-carix-text"
             >
-              잔류 {amountLabel(stay[pointer - 1])} · 이직{" "}
+              지금 회사 {amountLabel(stay[pointer - 1])} · 새 회사{" "}
               {amountLabel(move[pointer - 1])}
             </text>
           </g>
@@ -261,8 +261,8 @@ export function CumulativeChart({
       </svg>
       <figcaption className="mt-2 text-sm text-carix-text/70">
         {crossAt !== null
-          ? `이직 누적이 ${crossAt}개월째에 잔류 누적을 따라잡습니다.`
-          : "비교 기간 안에 이직 누적이 잔류 누적을 따라잡지 못합니다."}{" "}
+          ? `새 회사 누적이 ${crossAt}개월째에 지금 회사 누적을 따라잡습니다.`
+          : "비교 기간 안에 새 회사 누적이 지금 회사 누적을 따라잡지 못합니다."}{" "}
         옅게 칠한 구간은 첫 12개월입니다.
       </figcaption>
     </figure>

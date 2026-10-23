@@ -270,7 +270,7 @@ public class ScenarioEvaluationService {
               "SEVERANCE_ESTIMATE", "퇴직금은 현재 연봉÷12 로 어림했습니다. 퇴직소득세는 무시했고 평균임금보다 적게 잡힙니다."));
     }
     if (move != null) {
-      list.add(new Assumption("NEW_JOB_SEVERANCE", "새 직장을 1년 안에 나가면 그곳 퇴직금도 없습니다"));
+      list.add(new Assumption("NEW_JOB_SEVERANCE", "새 회사를 1년 안에 나가면 그곳 퇴직금도 없습니다"));
       if (move.signingBonus() != null && move.signingBonus() > 0) {
         list.add(new Assumption("SIGNING_CLAWBACK", "조기 퇴사 시 사이닝 보너스를 돌려줘야 할 수 있습니다"));
       }
