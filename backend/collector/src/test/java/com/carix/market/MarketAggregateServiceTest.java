@@ -9,13 +9,17 @@ import static org.mockito.Mockito.when;
 import com.carix.jobposting.JobPosting;
 import com.carix.jobposting.JobPostingRepository;
 import com.carix.jobposting.Skill;
+import com.carix.pipeline.dto.MarketAggregateRequest;
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import org.springframework.test.util.ReflectionTestUtils;
 
 class MarketAggregateServiceTest {
 
@@ -592,5 +596,308 @@ class MarketAggregateServiceTest {
     List<MarketAggregate> saved = aggregate("202608", postings);
 
     assertThat(total(saved, "JOBKOREA").getPostingCount()).isEqualTo(4);
+  }
+
+  @Test
+  @DisplayName("b25: 다차원(지역·회사규모·고용형태) 슬라이스가 올바르게 롤업되어 모수 행 및 시도별 스킬 행이 생성된다")
+  void b25_multiDimensionalAggregationGeneratesExpectedSlices() {
+    Skill python = Skill.builder().id(UUID.randomUUID()).standardName("Python").build();
+    JobPosting p =
+        JobPosting.builder()
+            .source("JOBKOREA")
+            .externalId("jk-multi-1")
+            .jobFamily("DEVELOPER")
+            .experienceMin(5) // MID
+            .region("서울 강남구")
+            .employmentType("FULL_TIME")
+            .companySize("LARGE")
+            .salaryMin(60_000_000L)
+            .salaryMax(80_000_000L)
+            .sampledMonth("202608")
+            .firstSeenMonth("202608")
+            .lastSeenMonth("202608")
+            .collectedAt(Instant.now())
+            .build();
+    p.addSkill(python);
+
+    List<MarketAggregate> saved = aggregate("202608", List.of(p));
+
+    // 1) 5차원 완전 일치 모수 행 (DEVELOPER / MID / 서울 / FULL_TIME / LARGE)
+    MarketAggregate fullDimensionPeer =
+        saved.stream()
+            .filter(
+                m ->
+                    "JOBKOREA".equals(m.getSource())
+                        && "DEVELOPER".equals(m.getJobFamily())
+                        && "MID".equals(m.getExperienceBracket())
+                        && "서울".equals(m.getRegion())
+                        && "FULL_TIME".equals(m.getEmploymentType())
+                        && "LARGE".equals(m.getCompanySize())
+                        && m.getSkillId() == null)
+            .findFirst()
+            .orElseThrow();
+    assertThat(fullDimensionPeer.getPostingCount()).isEqualTo(1);
+    assertThat(fullDimensionPeer.getSalaryMissingRatePercent()).isEqualByComparingTo("0.00");
+
+    // 2) 회사규모 완화 모수 행 (companySize = 'ALL')
+    boolean hasRelaxedCompanySize =
+        saved.stream()
+            .anyMatch(
+                m ->
+                    "JOBKOREA".equals(m.getSource())
+                        && "DEVELOPER".equals(m.getJobFamily())
+                        && "MID".equals(m.getExperienceBracket())
+                        && "서울".equals(m.getRegion())
+                        && "FULL_TIME".equals(m.getEmploymentType())
+                        && "ALL".equals(m.getCompanySize())
+                        && m.getSkillId() == null);
+    assertThat(hasRelaxedCompanySize).isTrue();
+
+    // 3) 전국 완화 기본 모수 행 (region = 'ALL', companySize = 'ALL', employmentType = 'ALL')
+    boolean hasNationwideBase =
+        saved.stream()
+            .anyMatch(
+                m ->
+                    "JOBKOREA".equals(m.getSource())
+                        && "DEVELOPER".equals(m.getJobFamily())
+                        && "MID".equals(m.getExperienceBracket())
+                        && "ALL".equals(m.getRegion())
+                        && "ALL".equals(m.getEmploymentType())
+                        && "ALL".equals(m.getCompanySize())
+                        && m.getSkillId() == null);
+    assertThat(hasNationwideBase).isTrue();
+
+    // 4) 시도별 스킬 행 생성 (region = '서울', bracket = 'ALL', skill = python)
+    boolean hasRegionalSkillRow =
+        saved.stream()
+            .anyMatch(
+                m ->
+                    "JOBKOREA".equals(m.getSource())
+                        && "DEVELOPER".equals(m.getJobFamily())
+                        && "ALL".equals(m.getExperienceBracket())
+                        && "서울".equals(m.getRegion())
+                        && "ALL".equals(m.getEmploymentType())
+                        && "ALL".equals(m.getCompanySize())
+                        && python.getId().equals(m.getSkillId()));
+    assertThat(hasRegionalSkillRow).isTrue();
+  }
+
+  @Test
+  @DisplayName("aggregateMarketData 요청 DTO 분기 검증 (null, month, year, startYear-endYear, all)")
+  void aggregateMarketData_requestBranches() {
+    JobPosting p = grouped(UUID.randomUUID(), "100", 50_000_000L);
+    when(jobPostingRepository.findAll()).thenReturn(List.of(p));
+
+    // 1) request == null -> aggregateAllMarketData
+    int c1 = marketAggregateService.aggregateMarketData(null);
+    assertThat(c1).isGreaterThanOrEqualTo(0);
+
+    // 2) month 지정
+    int c2 =
+        marketAggregateService.aggregateMarketData(
+            new MarketAggregateRequest("202608", null, null, null, null));
+    assertThat(c2).isGreaterThanOrEqualTo(0);
+
+    // 3) year 지정
+    int c3 =
+        marketAggregateService.aggregateMarketData(
+            new MarketAggregateRequest(null, "2026", null, null, null));
+    assertThat(c3).isGreaterThanOrEqualTo(0);
+
+    // 4) startYear, endYear 지정
+    int c4 =
+        marketAggregateService.aggregateMarketData(
+            new MarketAggregateRequest(null, null, "2026", "2026", null));
+    assertThat(c4).isGreaterThanOrEqualTo(0);
+
+    // 5) startYear 지정, endYear null
+    int c5 =
+        marketAggregateService.aggregateMarketData(
+            new MarketAggregateRequest(null, null, "2026", null, null));
+    assertThat(c5).isGreaterThanOrEqualTo(0);
+
+    // 6) all == true
+    int c6 =
+        marketAggregateService.aggregateMarketData(
+            new MarketAggregateRequest(null, null, null, null, true));
+    assertThat(c6).isGreaterThanOrEqualTo(0);
+
+    // 7) 빈 request -> fallback aggregateAllMarketData
+    int c7 =
+        marketAggregateService.aggregateMarketData(
+            new MarketAggregateRequest(null, null, null, null, false));
+    assertThat(c7).isGreaterThanOrEqualTo(0);
+  }
+
+  @Test
+  @DisplayName("공고가 비어있을 때의 집계 분기 검증 (모든 집계 진입점에서 0 반환)")
+  void aggregate_withEmptyPostings_returnsZero() {
+    when(jobPostingRepository.findAll()).thenReturn(List.of());
+
+    assertThat(marketAggregateService.aggregateAllMarketData()).isEqualTo(0);
+    assertThat(marketAggregateService.aggregateMarketDataForMonth("202608")).isEqualTo(0);
+    assertThat(marketAggregateService.aggregateMarketDataForMonths(List.of())).isEqualTo(0);
+    assertThat(marketAggregateService.aggregateMarketDataForMonths(List.of("202608"))).isEqualTo(0);
+  }
+
+  @Test
+  @DisplayName("filterActivePostingsForMonth null 및 빈 목록 분기 검증")
+  void filterActivePostingsForMonth_branches() {
+    assertThat(marketAggregateService.filterActivePostingsForMonth(null, "202608")).isEmpty();
+    assertThat(marketAggregateService.filterActivePostingsForMonth(List.of(), "202608")).isEmpty();
+    assertThat(
+            marketAggregateService.filterActivePostingsForMonth(
+                List.of(grouped(UUID.randomUUID(), "1", null)), null))
+        .isEmpty();
+  }
+
+  @Test
+  @DisplayName("isPostingActiveInMonth 분기 검증 (null, startMonth null, startMonth > endMonth 등)")
+  void isPostingActiveInMonth_branches() {
+    assertThat(marketAggregateService.isPostingActiveInMonth(null, "202608")).isFalse();
+    assertThat(
+            marketAggregateService.isPostingActiveInMonth(
+                grouped(UUID.randomUUID(), "1", null), null))
+        .isFalse();
+
+    // startMonth 가 null 인 공고 (firstSeenMonth, postedStartDate, sampledMonth, collectedAt 모두 없음)
+    JobPosting noDatePosting = JobPosting.builder().externalId("nodate").build();
+    assertThat(marketAggregateService.isPostingActiveInMonth(noDatePosting, "202608")).isFalse();
+
+    // startMonth > endMonth 인 역전된 공고
+    JobPosting inversedPosting =
+        JobPosting.builder()
+            .externalId("inv")
+            .firstSeenMonth("202609")
+            .lastSeenMonth("202607")
+            .build();
+    // startMonth 가 endMonth 보다 크면 endMonth = startMonth 로 교정됨
+    assertThat(marketAggregateService.isPostingActiveInMonth(inversedPosting, "202609")).isTrue();
+    assertThat(marketAggregateService.isPostingActiveInMonth(inversedPosting, "202608")).isFalse();
+  }
+
+  @Test
+  @DisplayName("extractActiveMonths 다양한 날짜 조건 및 분기 검증")
+  void extractActiveMonths_branches() {
+    // 1) sampledMonth 포함 + 정상 36개월 이내 구간
+    JobPosting p1 =
+        JobPosting.builder()
+            .externalId("p1")
+            .sampledMonth("202608")
+            .firstSeenMonth("202608")
+            .lastSeenMonth("202609")
+            .build();
+
+    // 2) 36개월 초과 장기 구간
+    JobPosting p2 =
+        JobPosting.builder()
+            .externalId("p2")
+            .firstSeenMonth("202001")
+            .lastSeenMonth("202501")
+            .build();
+
+    // 3) 파싱 예외 발생하는 잘못된 날짜 문자열 (6자리 숫자이나 월 범위 13 초과)
+    JobPosting p3 = JobPosting.builder().externalId("p3").firstSeenMonth("202613").build();
+
+    Set<String> months =
+        ReflectionTestUtils.invokeMethod(
+            marketAggregateService, "extractActiveMonths", List.of(p1, p2, p3));
+    assertThat(months).contains("202608", "202609", "202001", "202501", "202613");
+
+    // 4) 빈 공고 목록 -> 현재 연월 폴백
+    Set<String> emptyMonths =
+        ReflectionTestUtils.invokeMethod(marketAggregateService, "extractActiveMonths", List.of());
+    assertThat(emptyMonths).isNotEmpty();
+  }
+
+  @Test
+  @DisplayName("determineBracket 및 normalizeDimension 분기 검증")
+  void dimensionHelperBranches() {
+    // determineBracket: null, 0, 2, 5, 10, 15
+    assertThat(
+            ReflectionTestUtils.<String>invokeMethod(
+                marketAggregateService, "determineBracket", (Integer) null))
+        .isEqualTo("ENTRY");
+    assertThat(
+            ReflectionTestUtils.<String>invokeMethod(marketAggregateService, "determineBracket", 0))
+        .isEqualTo("ENTRY");
+    assertThat(
+            ReflectionTestUtils.<String>invokeMethod(marketAggregateService, "determineBracket", 2))
+        .isEqualTo("JUNIOR");
+    assertThat(
+            ReflectionTestUtils.<String>invokeMethod(marketAggregateService, "determineBracket", 5))
+        .isEqualTo("MID");
+    assertThat(
+            ReflectionTestUtils.<String>invokeMethod(
+                marketAggregateService, "determineBracket", 10))
+        .isEqualTo("SENIOR");
+    assertThat(
+            ReflectionTestUtils.<String>invokeMethod(
+                marketAggregateService, "determineBracket", 15))
+        .isEqualTo("LEAD");
+
+    // normalizeDimension: null, blank, UNKNOWN, ALL, normal
+    assertThat(
+            ReflectionTestUtils.<String>invokeMethod(
+                marketAggregateService, "normalizeDimension", (String) null))
+        .isNull();
+    assertThat(
+            ReflectionTestUtils.<String>invokeMethod(
+                marketAggregateService, "normalizeDimension", "   "))
+        .isNull();
+    assertThat(
+            ReflectionTestUtils.<String>invokeMethod(
+                marketAggregateService, "normalizeDimension", "UNKNOWN"))
+        .isNull();
+    assertThat(
+            ReflectionTestUtils.<String>invokeMethod(
+                marketAggregateService, "normalizeDimension", "ALL"))
+        .isNull();
+    assertThat(
+            ReflectionTestUtils.<String>invokeMethod(
+                marketAggregateService, "normalizeDimension", " FULL_TIME "))
+        .isEqualTo("FULL_TIME");
+  }
+
+  @Test
+  @DisplayName("calculateSalaryMissingRate 및 countDisclosedPostings 분기 검증")
+  void salaryMetricsBranches() {
+    // calculateSalaryMissingRate: total=0, disclosed=0, total=disclosed, partial
+    assertThat(
+            ReflectionTestUtils.<BigDecimal>invokeMethod(
+                marketAggregateService, "calculateSalaryMissingRate", 0, 0))
+        .isEqualByComparingTo(BigDecimal.valueOf(100.00));
+    assertThat(
+            ReflectionTestUtils.<BigDecimal>invokeMethod(
+                marketAggregateService, "calculateSalaryMissingRate", 0, 10))
+        .isEqualByComparingTo(BigDecimal.valueOf(100.00));
+    assertThat(
+            ReflectionTestUtils.<BigDecimal>invokeMethod(
+                marketAggregateService, "calculateSalaryMissingRate", 10, 10))
+        .isEqualByComparingTo(BigDecimal.valueOf(0.00));
+    assertThat(
+            ReflectionTestUtils.<BigDecimal>invokeMethod(
+                marketAggregateService, "calculateSalaryMissingRate", 3, 10))
+        .isEqualByComparingTo(BigDecimal.valueOf(70.00));
+
+    // countDisclosedPostings: null salaryMin or null salaryMax
+    JobPosting pNoMin = JobPosting.builder().salaryMax(5000L).build();
+    JobPosting pNoMax = JobPosting.builder().salaryMin(3000L).build();
+    JobPosting pBoth = JobPosting.builder().salaryMin(3000L).salaryMax(5000L).build();
+    int count =
+        ReflectionTestUtils.invokeMethod(
+            marketAggregateService, "countDisclosedPostings", List.of(pNoMin, pNoMax, pBoth));
+    assertThat(count).isEqualTo(1);
+  }
+
+  @Test
+  @DisplayName("externalIdOrder 파싱 예외 처리 분기 검증")
+  void externalIdOrder_handlesNumberFormatException() {
+    JobPosting p1 = JobPosting.builder().externalId("non-numeric").build();
+    JobPosting p2 = JobPosting.builder().externalId("12345").build();
+    long o1 = ReflectionTestUtils.invokeMethod(MarketAggregateService.class, "externalIdOrder", p1);
+    long o2 = ReflectionTestUtils.invokeMethod(MarketAggregateService.class, "externalIdOrder", p2);
+    assertThat(o1).isEqualTo(Long.MAX_VALUE);
+    assertThat(o2).isEqualTo(12345L);
   }
 }

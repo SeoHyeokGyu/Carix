@@ -95,8 +95,7 @@ MVI 는 완화 단계가 하나다. 직무 전체도 표본이 부족하면 더 
       AND region = 'ALL' AND employment_type = 'ALL' AND company_size = 'ALL'
     ```
 
-collector 가 지역·규모·고용형태 행을 만들기 시작하면 쿼리는 해당 값과 `ALL` 을 **동시에** 잡지 않도록 정확 일치로
-바꿔야 한다 — 함께 잡으면 같은 공고가 두 번 합산된다(개발 계획 `b25`).
+collector 가 지역·규모·고용형태 행을 다차원으로 집계하며(`b25`), 쿼리는 해당 값과 `ALL` 을 동시에 잡지 않고 정확 일치(`((:val IS NULL AND m.val = 'ALL') OR m.val = :val)`)로 매칭하여 동일 공고의 중복 합산을 원천 차단한다. 지역 표기는 17개 광역시도 2글자 표준(`RegionRollup` & `PeerGroupFallbackResolver.normalizeRegion`)으로 통일되어 있다.
 
 ### 2.2 메타데이터 반환 규격
 지표 API 응답에 실제 적용된 단계와 **실제 조회 조건** 문구를 함께 반환한다. MVI 는 **"전국 / 경력 전체 / 회사규모 무관 /

@@ -31,10 +31,10 @@ public interface MarketAggregateRepository extends JpaRepository<MarketAggregate
       WHERE m.source = :source
         AND m.baseYearMonth = :baseYearMonth
         AND m.jobFamily = :jobFamily
-        AND (m.region = :region OR m.region = 'ALL')
+        AND ((:region IS NULL AND m.region = 'ALL') OR m.region = :region)
         AND m.experienceBracket = :experienceBracket
-        AND ((:employmentType IS NULL AND m.employmentType IS NULL) OR m.employmentType = :employmentType OR m.employmentType = 'ALL')
-        AND ((:companySize IS NULL AND m.companySize IS NULL) OR m.companySize = :companySize OR m.companySize = 'ALL')
+        AND ((:employmentType IS NULL AND m.employmentType = 'ALL') OR m.employmentType = :employmentType)
+        AND ((:companySize IS NULL AND m.companySize = 'ALL') OR m.companySize = :companySize)
         AND m.skillId IS NULL
       """)
   Optional<MarketAggregate> findPeerGroupAggregate(
@@ -53,10 +53,10 @@ public interface MarketAggregateRepository extends JpaRepository<MarketAggregate
       WHERE m.source = :source
         AND m.baseYearMonth = :baseYearMonth
         AND m.jobFamily = :jobFamily
-        AND (m.region = :region OR m.region = 'ALL')
+        AND ((:region IS NULL AND m.region = 'ALL') OR m.region = :region)
         AND m.experienceBracket IN :brackets
-        AND ((:employmentType IS NULL AND m.employmentType IS NULL) OR m.employmentType = :employmentType OR m.employmentType = 'ALL')
-        AND ((:companySize IS NULL AND m.companySize IS NULL) OR m.companySize = :companySize OR m.companySize = 'ALL')
+        AND ((:employmentType IS NULL AND m.employmentType = 'ALL') OR m.employmentType = :employmentType)
+        AND ((:companySize IS NULL AND m.companySize = 'ALL') OR m.companySize = :companySize)
         AND m.skillId IS NULL
       """)
   List<MarketAggregate> findPeerGroupAggregatesByBrackets(
@@ -75,10 +75,10 @@ public interface MarketAggregateRepository extends JpaRepository<MarketAggregate
       WHERE m.source = :source
         AND m.baseYearMonth IN :months
         AND m.jobFamily = :jobFamily
-        AND (m.region = :region OR m.region = 'ALL')
+        AND ((:region IS NULL AND m.region = 'ALL') OR m.region = :region)
         AND m.experienceBracket IN :brackets
-        AND ((:employmentType IS NULL AND m.employmentType IS NULL) OR m.employmentType = :employmentType OR m.employmentType = 'ALL')
-        AND ((:companySize IS NULL AND m.companySize IS NULL) OR m.companySize = :companySize OR m.companySize = 'ALL')
+        AND ((:employmentType IS NULL AND m.employmentType = 'ALL') OR m.employmentType = :employmentType)
+        AND ((:companySize IS NULL AND m.companySize = 'ALL') OR m.companySize = :companySize)
         AND m.skillId = :skillId
       """)
   List<MarketAggregate> findSkillAggregates(
@@ -101,10 +101,10 @@ public interface MarketAggregateRepository extends JpaRepository<MarketAggregate
       WHERE m.source = :source
         AND m.baseYearMonth IN :months
         AND m.jobFamily = :jobFamily
-        AND (m.region = :region OR m.region = 'ALL')
+        AND ((:region IS NULL AND m.region = 'ALL') OR m.region = :region)
         AND m.experienceBracket IN :brackets
-        AND ((:employmentType IS NULL AND m.employmentType IS NULL) OR m.employmentType = :employmentType OR m.employmentType = 'ALL')
-        AND ((:companySize IS NULL AND m.companySize IS NULL) OR m.companySize = :companySize OR m.companySize = 'ALL')
+        AND ((:employmentType IS NULL AND m.employmentType = 'ALL') OR m.employmentType = :employmentType)
+        AND ((:companySize IS NULL AND m.companySize = 'ALL') OR m.companySize = :companySize)
         AND m.skillId IS NULL
       """)
   List<MarketAggregate> findTotalPostingAggregates(
@@ -149,7 +149,14 @@ public interface MarketAggregateRepository extends JpaRepository<MarketAggregate
   List<String> findDistinctBaseYearMonths();
 
   @Query(
-      "SELECT m FROM MarketAggregate m WHERE m.baseYearMonth = :baseYearMonth AND m.source = :source AND m.skillId IS NULL")
+      """
+      SELECT m FROM MarketAggregate m
+      WHERE m.baseYearMonth = :baseYearMonth
+        AND m.source = :source
+        AND m.skillId IS NULL
+        AND m.employmentType = 'ALL'
+        AND m.companySize = 'ALL'
+      """)
   List<MarketAggregate> findPeerGroupAggregatesByMonthAndSource(
       @Param("baseYearMonth") String baseYearMonth, @Param("source") String source);
 }

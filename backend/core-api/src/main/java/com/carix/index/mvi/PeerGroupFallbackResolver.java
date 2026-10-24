@@ -8,6 +8,8 @@ import com.carix.profile.domain.CareerProfile;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
@@ -80,6 +82,110 @@ public class PeerGroupFallbackResolver {
 
   /** 집계 차원 중 collector 가 나누지 않는 것(지역·고용형태·회사규모)의 값. */
   public static final String DIMENSION_ALL = "ALL";
+
+  private static final Set<String> SIDO =
+      Set.of(
+          "서울", "부산", "대구", "인천", "광주", "대전", "울산", "세종", "경기", "강원", "충북", "충남", "전북", "전남", "경북",
+          "경남", "제주");
+
+  private static final Map<String, String> FULL_NAMES =
+      Map.ofEntries(
+          Map.entry("서울특별시", "서울"),
+          Map.entry("서울시", "서울"),
+          Map.entry("SEOUL", "서울"),
+          Map.entry("부산광역시", "부산"),
+          Map.entry("대구광역시", "대구"),
+          Map.entry("인천광역시", "인천"),
+          Map.entry("광주광역시", "광주"),
+          Map.entry("대전광역시", "대전"),
+          Map.entry("울산광역시", "울산"),
+          Map.entry("세종특별자치시", "세종"),
+          Map.entry("세종시", "세종"),
+          Map.entry("경기도", "경기"),
+          Map.entry("강원특별자치도", "강원"),
+          Map.entry("강원도", "강원"),
+          Map.entry("충청북도", "충북"),
+          Map.entry("충청남도", "충남"),
+          Map.entry("전북특별자치도", "전북"),
+          Map.entry("전라북도", "전북"),
+          Map.entry("전라남도", "전남"),
+          Map.entry("경상북도", "경북"),
+          Map.entry("경상남도", "경남"),
+          Map.entry("제주특별자치도", "제주"),
+          Map.entry("제주도", "제주"));
+
+  /** 사용자 프로필이나 공고의 지역 문자열을 17개 2글자 시도 코드로 정규화합니다. 일치하지 않거나 무관/전국인 경우 'ALL'을 반환합니다 (b25 선행 2). */
+  public static String normalizeRegion(String rawRegion) {
+    if (rawRegion == null
+        || rawRegion.isBlank()
+        || "ALL".equalsIgnoreCase(rawRegion)
+        || "전국".equals(rawRegion)) {
+      return DIMENSION_ALL;
+    }
+    String stripped = rawRegion.strip();
+    if (stripped.startsWith("SEOUL_") || stripped.equalsIgnoreCase("SEOUL")) {
+      return "서울";
+    }
+    if (stripped.startsWith("GYEONGGI_") || stripped.equalsIgnoreCase("GYEONGGI")) {
+      return "경기";
+    }
+    String[] tokens = stripped.split("\\s+");
+    String head = tokens[0];
+    if ("전남광주".equals(head)) {
+      if (tokens.length < 2) {
+        return DIMENSION_ALL;
+      }
+      return tokens[1].endsWith("구") ? "광주" : "전남";
+    }
+    if (head.endsWith("전체") && head.length() > 2) {
+      head = head.substring(0, head.length() - 2);
+    }
+    String mapped = FULL_NAMES.getOrDefault(head, head);
+    return SIDO.contains(mapped) ? mapped : DIMENSION_ALL;
+  }
+
+  /** 다차원 동료집단 비교 조건 문구를 조립합니다 (b25). */
+  public String formatConditionText(
+      String region, List<String> tiers, String companySize, String employmentType) {
+    String regionText = formatRegionText(region);
+    String yearsText = formatTierYears(tiers);
+    String sizeText = formatCompanySizeText(companySize);
+    String empText = formatEmploymentTypeText(employmentType);
+    return String.format("%s / %s / %s / %s", regionText, yearsText, sizeText, empText);
+  }
+
+  public String formatRegionText(String region) {
+    return (region == null || DIMENSION_ALL.equals(region)) ? "전국" : region;
+  }
+
+  public String formatCompanySizeText(String companySize) {
+    if (companySize == null
+        || DIMENSION_ALL.equals(companySize)
+        || "UNKNOWN".equalsIgnoreCase(companySize)) {
+      return "회사규모 무관";
+    }
+    return switch (companySize.toUpperCase()) {
+      case "LARGE" -> "대기업";
+      case "MEDIUM" -> "중소·중견기업";
+      case "STARTUP" -> "스타트업";
+      default -> companySize;
+    };
+  }
+
+  public String formatEmploymentTypeText(String employmentType) {
+    if (employmentType == null
+        || DIMENSION_ALL.equals(employmentType)
+        || "UNKNOWN".equalsIgnoreCase(employmentType)) {
+      return "고용형태 무관";
+    }
+    return switch (employmentType.toUpperCase()) {
+      case "FULL_TIME" -> "정규직";
+      case "CONTRACT" -> "계약직";
+      case "FREELANCE" -> "프리랜서";
+      case "INTERN" -> "인턴";
+      default -> employmentType;
+    };
+  }
 
   /**
    * MVI 스킬 수요율의 동료집단 — 직무 × 경력 전체(지역·고용형태·규모 무관).
