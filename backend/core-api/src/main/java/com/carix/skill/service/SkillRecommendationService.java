@@ -3,6 +3,7 @@ package com.carix.skill.service;
 import com.carix.config.IndexThresholdProperties;
 import com.carix.datasource.ReadOnlyRouting;
 import com.carix.datasource.ReadOnlyRoutingContext;
+import com.carix.index.enums.SkillDemandStatus;
 import com.carix.index.mvi.PeerGroupFallbackResolver;
 import com.carix.index.mvi.SkillDemandCalculator;
 import com.carix.index.mvi.SkillDemandCalculator.SkillDemandResult;
@@ -143,16 +144,15 @@ public class SkillRecommendationService {
     Set<UUID> ownedSkillIds = extractOwnedSkillIds(initialData.userSkills());
     PeerSkillMapping peerSkillMapping = buildPeerSkillMapping(peerPostings);
 
-    // 4. 미보유 후보 스킬 수요율 산출 및 정렬 (limit 적용)
-    List<CandidateRanking> rankedCandidates =
-        rankCandidateSkills(
+    // 4. 미보유 후보 스킬 출현 빈도 집계
+    Map<UUID, Integer> candidateCounts =
+        aggregateCandidateCounts(
             peerPostings,
             peerSkillMapping.postingToSkillIds(),
             peerSkillMapping.skillCatalog(),
-            ownedSkillIds,
-            effectiveLimit);
+            ownedSkillIds);
 
-    if (rankedCandidates.isEmpty()) {
+    if (candidateCounts.isEmpty()) {
       return new SkillRecommendationsResponse(peerGroupInfo, List.of());
     }
 
@@ -160,13 +160,19 @@ public class SkillRecommendationService {
     BaseSkillInfo baseSkillInfo =
         resolveBaseSkill(initialData.userSkills(), peerSkillMapping.postingToSkillIds());
 
-    // 6. 후보 스킬별 성장 추세 병렬 평가
-    Map<UUID, String> growthTrends = fetchGrowthTrends(rankedCandidates, profile);
+    // 6. 후보 스킬별 성장 추세 병렬 평가 및 다중 기준 랭킹 (b23: 수요 상승률 우선, 표본 부족 시 수요율 폴백)
+    List<CandidateRanking> rankedCandidates =
+        rankCandidatesWithGrowth(
+            candidateCounts,
+            peerSkillMapping.skillCatalog(),
+            peerPostings.size(),
+            profile,
+            effectiveLimit);
 
     // 7. 동시출현율 계산 및 추천 아이템 조립
     List<SkillRecommendationItem> items =
         buildRecommendationItems(
-            rankedCandidates, baseSkillInfo, peerSkillMapping.postingToSkillIds(), growthTrends);
+            rankedCandidates, baseSkillInfo, peerSkillMapping.postingToSkillIds());
 
     return new SkillRecommendationsResponse(peerGroupInfo, items);
   }
@@ -265,66 +271,6 @@ public class SkillRecommendationService {
   }
 
   /**
-   * 사용자가 보유하지 않은 후보 스킬들의 수요율(Demand Rate)을 계산하고, 수요율 내림차순 -> 공고 수 내림차순 -> 표준명 오름차순으로 정렬하여 상위 목록을
-   * 선별합니다.
-   *
-   * @param peerPostings 동료집단 공고 목록
-   * @param postingToSkillIds 공고별 스킬 ID 매핑
-   * @param skillCatalog 스킬 메타데이터 캐시
-   * @param ownedSkillIds 사용자 보유 스킬 ID 세트
-   * @param effectiveLimit 최대 후보 선별 개수
-   * @return 랭킹이 적용된 후보 스킬 목록
-   */
-  private List<CandidateRanking> rankCandidateSkills(
-      List<JobPosting> peerPostings,
-      Map<UUID, Set<UUID>> postingToSkillIds,
-      Map<UUID, Skill> skillCatalog,
-      Set<UUID> ownedSkillIds,
-      int effectiveLimit) {
-    int totalPeerCount = peerPostings.size();
-    Map<UUID, Integer> candidateCounts = new HashMap<>();
-
-    // 1) 동료집단 공고를 순회하며 사용자가 미보유한 표준 스킬의 출현 횟수 집계
-    for (JobPosting posting : peerPostings) {
-      Set<UUID> skillsInPosting = postingToSkillIds.getOrDefault(posting.getId(), Set.of());
-      for (UUID sId : skillsInPosting) {
-        if (ownedSkillIds.contains(sId)) {
-          continue; // 이미 보유한 기술은 추천 후보에서 제외
-        }
-        Skill skill = skillCatalog.get(sId);
-        if (skill == null || skill.isCustom()) {
-          continue; // 커스텀 스킬은 동료집단 공통 추천 대상에서 제외
-        }
-        candidateCounts.put(sId, candidateCounts.getOrDefault(sId, 0) + 1);
-      }
-    }
-
-    // 추천 가능한 미보유 후보 스킬이 없으면 빈 목록 반환
-    if (candidateCounts.isEmpty()) {
-      return List.of();
-    }
-
-    // 2) 출현 빈도 기반 수요율 계산 및 다중 기준 정렬 후 상위 후보 선별
-    // - 정렬 우선순위: 수요율 내림차순 -> 공고 수 내림차순 -> 표준명 오름차순(동률 타이브레이킹)
-    // - 소수점 3자리 반올림 (예: 0.123)
-    return candidateCounts.entrySet().stream()
-        .map(
-            entry -> {
-              UUID sId = entry.getKey();
-              int count = entry.getValue();
-              double roundedDemandRate = roundToThreeDecimals((double) count / totalPeerCount);
-              return new CandidateRanking(skillCatalog.get(sId), count, roundedDemandRate);
-            })
-        .sorted(
-            Comparator.comparingDouble(CandidateRanking::demandRate)
-                .thenComparingInt(CandidateRanking::postingCount)
-                .reversed()
-                .thenComparing(c -> c.skill().getStandardName()))
-        .limit(effectiveLimit)
-        .toList();
-  }
-
-  /**
    * 사용자 보유 표준 스킬 중 동료집단 공고에서 가장 빈번하게 등장하는 기준 스킬(Base Skill)을 도출합니다.
    *
    * @param userSkills 사용자 보유 스킬 목록
@@ -333,7 +279,6 @@ public class SkillRecommendationService {
    */
   private BaseSkillInfo resolveBaseSkill(
       List<UserSkill> userSkills, Map<UUID, Set<UUID>> postingToSkillIds) {
-    // 1) 사용자 보유 스킬 중 커스텀 스킬을 제외한 표준 기술 목록 추출
     List<Skill> ownedStandardSkills =
         userSkills.stream()
             .map(UserSkill::getSkill)
@@ -343,7 +288,6 @@ public class SkillRecommendationService {
     Skill baseSkill = null;
     int maxBasePostings = 0;
 
-    // 2) 동료집단 공고에서 가장 많이 요구되는 사용자의 핵심 보유 기술을 기준 스킬로 선정
     for (Skill ownedSkill : ownedStandardSkills) {
       int count = countSkillPostings(ownedSkill.getId(), postingToSkillIds);
       if (count > maxBasePostings) {
@@ -372,37 +316,89 @@ public class SkillRecommendationService {
   }
 
   /**
-   * 가상 스레드(Virtual Thread)를 활용하여 상위 후보 스킬들의 성장 추세(UP/DOWN/STABLE)를 병렬로 계산합니다.
+   * 동료집단 공고를 순회하며 사용자가 미보유한 표준 스킬의 출현 횟수를 집계합니다.
    *
-   * @param rankedCandidates 랭킹화된 후보 스킬 목록
-   * @param profile 사용자 커리어 프로필
-   * @return 스킬 ID별 성장 추세 매핑
+   * @param peerPostings 동료집단 공고 목록
+   * @param postingToSkillIds 공고별 스킬 ID 매핑
+   * @param skillCatalog 스킬 메타데이터 캐시
+   * @param ownedSkillIds 사용자 보유 스킬 ID 세트
+   * @return 미보유 표준 스킬 ID별 출현 공고 수 매핑
    */
-  private Map<UUID, String> fetchGrowthTrends(
-      List<CandidateRanking> rankedCandidates, CareerProfile profile) {
-    // 1) 시장 통계 최신 기준 연월 및 사용자 프로필 기반 동료집단 세그먼트 도출
+  private Map<UUID, Integer> aggregateCandidateCounts(
+      List<JobPosting> peerPostings,
+      Map<UUID, Set<UUID>> postingToSkillIds,
+      Map<UUID, Skill> skillCatalog,
+      Set<UUID> ownedSkillIds) {
+    Map<UUID, Integer> candidateCounts = new HashMap<>();
+
+    for (JobPosting posting : peerPostings) {
+      Set<UUID> skillsInPosting = postingToSkillIds.getOrDefault(posting.getId(), Set.of());
+      for (UUID sId : skillsInPosting) {
+        if (ownedSkillIds.contains(sId)) {
+          continue; // 이미 보유한 기술은 추천 후보에서 제외
+        }
+        Skill skill = skillCatalog.get(sId);
+        if (skill == null || skill.isCustom()) {
+          continue; // 커스텀 스킬은 동료집단 공통 추천 대상에서 제외
+        }
+        candidateCounts.put(sId, candidateCounts.getOrDefault(sId, 0) + 1);
+      }
+    }
+    return candidateCounts;
+  }
+
+  /**
+   * 미보유 후보 스킬들의 성장 추세를 병렬로 평가하고, b23 수요 상승률 기준 다중 우선순위로 랭킹을 산출합니다.
+   *
+   * <p>정렬 우선순위: 1. Tier 1 (상승 스킬): OK 상태 & 수요 지수 > 100.0 (지수 내림차순 -> 수요율 내림차순 -> 공고수 내림차순 -> 표준명
+   * 오름차순) 2. Tier 2 (표본 부족 폴백): INSUFFICIENT_SAMPLE / NEW_OBSERVATION 등 (수요율 내림차순 -> 공고수 -> 표준명) 3.
+   * Tier 3 (보합/하락 스킬): OK 상태 & 수요 지수 <= 100.0 또는 NO_RECENT_DEMAND (지수 내림차순 -> 수요율 -> 공고수 -> 표준명)
+   *
+   * @param candidateCounts 후보 스킬별 공고 수
+   * @param skillCatalog 스킬 캐시
+   * @param totalPeerCount 동료집단 총 공고 수
+   * @param profile 사용자 커리어 프로필
+   * @param effectiveLimit 최대 반환 개수
+   * @return 다중 기준 정렬 및 슬라이싱된 최종 후보 스킬 목록
+   */
+  private List<CandidateRanking> rankCandidatesWithGrowth(
+      Map<UUID, Integer> candidateCounts,
+      Map<UUID, Skill> skillCatalog,
+      int totalPeerCount,
+      CareerProfile profile,
+      int effectiveLimit) {
     String baseYearMonth = resolveBaseYearMonth();
     PeerGroupFallbackResolver.ResolvedPeerGroup resolvedPeerGroup =
         peerGroupFallbackResolver.resolve("ALL", baseYearMonth, profile);
 
-    // 2) 경량 가상 스레드(Virtual Thread)를 통해 각 후보 스킬의 MVI 수요 지수 및 트렌드를 병렬 계산
     try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
-      List<Map.Entry<UUID, Future<String>>> trendFutures = new ArrayList<>(rankedCandidates.size());
-      for (CandidateRanking candidate : rankedCandidates) {
-        UUID cId = candidate.skill().getId();
-        trendFutures.add(
+      List<Map.Entry<CandidatePartial, Future<EvaluatedGrowth>>> futures =
+          new ArrayList<>(candidateCounts.size());
+
+      for (Map.Entry<UUID, Integer> entry : candidateCounts.entrySet()) {
+        UUID sId = entry.getKey();
+        int count = entry.getValue();
+        double roundedDemandRate = roundToThreeDecimals((double) count / totalPeerCount);
+        CandidatePartial partial =
+            new CandidatePartial(skillCatalog.get(sId), count, roundedDemandRate);
+
+        futures.add(
             Map.entry(
-                cId,
+                partial,
                 submitReadOnly(
-                    executor, () -> evaluateGrowthTrend(cId, baseYearMonth, resolvedPeerGroup))));
+                    executor, () -> evaluateGrowth(sId, baseYearMonth, resolvedPeerGroup))));
       }
 
-      // 3) 병렬 작업 완료 대기 및 결과 매핑 수집
-      Map<UUID, String> growthTrends = new HashMap<>();
-      for (var entry : trendFutures) {
-        growthTrends.put(entry.getKey(), entry.getValue().get());
+      List<CandidateRanking> evaluated = new ArrayList<>(futures.size());
+      for (var entry : futures) {
+        CandidatePartial p = entry.getKey();
+        EvaluatedGrowth g = entry.getValue().get();
+        evaluated.add(
+            new CandidateRanking(
+                p.skill(), p.postingCount(), p.demandRate(), g.demandResult(), g.growthTrend()));
       }
-      return growthTrends;
+
+      return evaluated.stream().sorted(CANDIDATE_COMPARATOR).limit(effectiveLimit).toList();
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
       throw new RuntimeException("후보 스킬 트렌드 병렬 계산 중 인터럽트 발생", e);
@@ -412,33 +408,63 @@ public class SkillRecommendationService {
   }
 
   /**
+   * 단일 스킬의 월별 시장 수요 지수(MVI)를 계산하고 성장 트렌드를 평가합니다.
+   *
+   * @param skillId 스킬 ID
+   * @param baseYearMonth 기준 연월 (yyyyMM)
+   * @param resolvedPeerGroup 동료집단 세그먼트
+   * @return 계산된 성장 지수 결과 및 트렌드 문자열
+   */
+  private EvaluatedGrowth evaluateGrowth(
+      UUID skillId,
+      String baseYearMonth,
+      PeerGroupFallbackResolver.ResolvedPeerGroup resolvedPeerGroup) {
+    try {
+      SkillDemandResult demandResult =
+          skillDemandCalculator.calculate(skillId, baseYearMonth, resolvedPeerGroup);
+      if (demandResult == null) {
+        return new EvaluatedGrowth(null, TREND_STABLE);
+      }
+
+      String trend =
+          switch (demandResult.getStatus()) {
+            case OK -> resolveOkDemandTrend(demandResult.getDemandIndex());
+            case NEW_OBSERVATION -> TREND_UP;
+            case NO_RECENT_DEMAND -> TREND_DOWN;
+            default -> TREND_STABLE;
+          };
+      return new EvaluatedGrowth(demandResult, trend);
+    } catch (Exception e) {
+      log.debug("스킬({}) 성장 트렌드 계산 중 예외 발생, 기본값 STABLE 사용: {}", skillId, e.getMessage());
+      return new EvaluatedGrowth(null, TREND_STABLE);
+    }
+  }
+
+  /**
    * 기준 스킬과의 동시출현율(Co-occurrence Rate)을 계산하고 최종 스킬 추천 항목 목록을 조립합니다.
    *
-   * @param rankedCandidates 후보 스킬 목록
+   * @param rankedCandidates 랭킹이 적용된 후보 스킬 목록
    * @param baseSkillInfo 기준 스킬 정보
    * @param postingToSkillIds 공고별 스킬 ID 매핑
-   * @param growthTrends 후보 스킬별 성장 추세 매핑
    * @return 추천 스킬 항목 목록
    */
   private List<SkillRecommendationItem> buildRecommendationItems(
       List<CandidateRanking> rankedCandidates,
       BaseSkillInfo baseSkillInfo,
-      Map<UUID, Set<UUID>> postingToSkillIds,
-      Map<UUID, String> growthTrends) {
+      Map<UUID, Set<UUID>> postingToSkillIds) {
     List<SkillRecommendationItem> items = new ArrayList<>();
 
     for (CandidateRanking candidate : rankedCandidates) {
       Skill candSkill = candidate.skill();
       RecommendationReason reason =
           resolveRecommendationReason(candidate, baseSkillInfo, postingToSkillIds);
-      String growthTrend = growthTrends.getOrDefault(candSkill.getId(), TREND_STABLE);
 
       items.add(
           new SkillRecommendationItem(
               candSkill.getStandardName(),
               candSkill.getCategory(),
               candidate.demandRate(),
-              growthTrend,
+              candidate.growthTrend(),
               reason.coOccurrence(),
               reason.reason()));
     }
@@ -533,35 +559,43 @@ public class SkillRecommendationService {
   }
 
   /**
-   * 단일 스킬의 월별 시장 수요 지수(MVI)를 기반으로 성장 트렌드를 평가합니다.
+   * b23 수요 상승률 기반 다중 기준 랭킹 비교자.
    *
-   * @param skillId 스킬 ID
-   * @param baseYearMonth 기준 연월 (yyyyMM)
-   * @param resolvedPeerGroup 동료집단 세그먼트
-   * @return 성장 트렌드 ("UP", "DOWN", "STABLE")
+   * <p>1. Tier 1 (상승 스킬, OK 상태 & 지수 > 100.0): 지수 내림차순 -> 수요율 내림차순 -> 공고수 내림차순 -> 표준명 오름차순 2. Tier 2
+   * (표본 부족 폴백): 수요율 내림차순 -> 공고수 내림차순 -> 표준명 오름차순 3. Tier 3 (보합/하락 스킬): 지수 내림차순 -> 수요율 내림차순 -> 공고수
+   * 내림차순 -> 표준명 오름차순
    */
-  private String evaluateGrowthTrend(
-      UUID skillId,
-      String baseYearMonth,
-      PeerGroupFallbackResolver.ResolvedPeerGroup resolvedPeerGroup) {
-    try {
-      SkillDemandResult demandResult =
-          skillDemandCalculator.calculate(skillId, baseYearMonth, resolvedPeerGroup);
-      if (demandResult == null) {
-        return TREND_STABLE;
-      }
-
-      return switch (demandResult.getStatus()) {
-        case OK -> resolveOkDemandTrend(demandResult.getDemandIndex());
-        case NEW_OBSERVATION -> TREND_UP;
-        case NO_RECENT_DEMAND -> TREND_DOWN;
-        default -> TREND_STABLE;
+  private static final Comparator<CandidateRanking> CANDIDATE_COMPARATOR =
+      (c1, c2) -> {
+        int t1 = c1.tier();
+        int t2 = c2.tier();
+        if (t1 != t2) {
+          return Integer.compare(t1, t2);
+        }
+        if (t1 == 1) {
+          int cmp = Double.compare(c2.effectiveDemandIndex(), c1.effectiveDemandIndex());
+          if (cmp != 0) return cmp;
+          cmp = Double.compare(c2.demandRate(), c1.demandRate());
+          if (cmp != 0) return cmp;
+          cmp = Integer.compare(c2.postingCount(), c1.postingCount());
+          if (cmp != 0) return cmp;
+          return c1.skill().getStandardName().compareTo(c2.skill().getStandardName());
+        } else if (t1 == 2) {
+          int cmp = Double.compare(c2.demandRate(), c1.demandRate());
+          if (cmp != 0) return cmp;
+          cmp = Integer.compare(c2.postingCount(), c1.postingCount());
+          if (cmp != 0) return cmp;
+          return c1.skill().getStandardName().compareTo(c2.skill().getStandardName());
+        } else {
+          int cmp = Double.compare(c2.effectiveDemandIndex(), c1.effectiveDemandIndex());
+          if (cmp != 0) return cmp;
+          cmp = Double.compare(c2.demandRate(), c1.demandRate());
+          if (cmp != 0) return cmp;
+          cmp = Integer.compare(c2.postingCount(), c1.postingCount());
+          if (cmp != 0) return cmp;
+          return c1.skill().getStandardName().compareTo(c2.skill().getStandardName());
+        }
       };
-    } catch (Exception e) {
-      log.debug("스킬({}) 성장 트렌드 계산 중 예외 발생, 기본값 STABLE 사용: {}", skillId, e.getMessage());
-    }
-    return TREND_STABLE;
-  }
 
   /**
    * 정상(OK) 상태인 MVI 수요 지수 값에 따라 성장 추세(UP, DOWN, STABLE)를 판정합니다.
@@ -628,13 +662,49 @@ public class SkillRecommendationService {
   }
 
   /**
-   * 동료집단 공고 분석을 통해 수요율과 순위가 산출된 미보유 후보 스킬 정보.
+   * 동료집단 공고 분석 후 성장 지표가 평가된 미보유 후보 스킬 정보.
    *
    * @param skill 후보 스킬 엔티티
    * @param postingCount 해당 스킬이 요구된 동료집단 공고 수
    * @param demandRate 동료집단 전체 대비 수요율 (0.000 ~ 1.000)
+   * @param demandResult 3개월 대 12개월 수요 지수 결과
+   * @param growthTrend 성장 추세 (UP / DOWN / STABLE)
    */
-  private record CandidateRanking(Skill skill, int postingCount, double demandRate) {}
+  private record CandidateRanking(
+      Skill skill,
+      int postingCount,
+      double demandRate,
+      SkillDemandResult demandResult,
+      String growthTrend) {
+
+    int tier() {
+      if (demandResult != null
+          && demandResult.getStatus() == SkillDemandStatus.OK
+          && demandResult.getDemandIndex() > 100.0) {
+        return 1; // 최근 3개월 대 이전 12개월 수요 상승 스킬
+      }
+      if (demandResult == null
+          || demandResult.getStatus() == SkillDemandStatus.INSUFFICIENT_SAMPLE
+          || demandResult.getStatus() == SkillDemandStatus.NEW_OBSERVATION
+          || demandResult.getStatus() == SkillDemandStatus.NO_RECENT_COVERAGE) {
+        return 2; // 표본 부족 / 15개월 수집 이력 미달 / 신규 관측 폴백 (수요율 기준 정렬)
+      }
+      return 3; // 보합 또는 하락 스킬 (demandIndex <= 100.0 또는 NO_RECENT_DEMAND)
+    }
+
+    double effectiveDemandIndex() {
+      if (demandResult != null && demandResult.getStatus() == SkillDemandStatus.OK) {
+        return demandResult.getDemandIndex();
+      }
+      return 0.0;
+    }
+  }
+
+  /** 성장 추세 평가 전 후보 스킬의 초기 집계 정보. */
+  private record CandidatePartial(Skill skill, int postingCount, double demandRate) {}
+
+  /** 후보 스킬의 성장 지표 평가 결과. */
+  private record EvaluatedGrowth(SkillDemandResult demandResult, String growthTrend) {}
 
   /**
    * 추천 사유 생성 결과 (동시출현 정보 및 사유 안내 문구).
