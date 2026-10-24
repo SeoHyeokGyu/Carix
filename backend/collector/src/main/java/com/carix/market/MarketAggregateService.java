@@ -5,6 +5,7 @@ import com.carix.jobposting.JobPosting;
 import com.carix.jobposting.JobPostingRepository;
 import com.carix.jobposting.JobPostingSkill;
 import com.carix.jobposting.dedup.CompanyNormalizer;
+import com.carix.jobposting.normalize.RegionRollup;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
@@ -417,47 +418,75 @@ public class MarketAggregateService {
       targetPostings = postings;
     }
 
-    // 직군 목록 ("ALL" 포함)
-    Set<String> jobFamilies = new HashSet<>();
-    jobFamilies.add("ALL");
-    targetPostings.forEach(
-        p -> {
-          if (p.getJobFamily() != null) jobFamilies.add(p.getJobFamily());
-        });
+    // b25: 다차원(직무 × 경력 × 광역시도 × 고용형태 × 회사규모) 슬라이스 롤업 생성
+    Map<SliceKey, List<JobPosting>> sliceMap = new LinkedHashMap<>();
 
-    // 경력 구간 목록
-    List<String> brackets = List.of("ALL", "ENTRY", "JUNIOR", "MID", "SENIOR", "LEAD");
+    for (JobPosting p : targetPostings) {
+      List<String> jfs =
+          p.getJobFamily() != null ? List.of("ALL", p.getJobFamily()) : List.of("ALL");
+      String br = determineBracket(p.getExperienceMin());
+      List<String> brs = br != null ? List.of("ALL", br) : List.of("ALL");
+      String sido = RegionRollup.toSido(p.getRegion());
+      List<String> rgs =
+          (sido != null && !RegionRollup.UNKNOWN.equals(sido))
+              ? List.of("ALL", sido)
+              : List.of("ALL");
+      String emp = normalizeDimension(p.getEmploymentType());
+      List<String> emps = emp != null ? List.of("ALL", emp) : List.of("ALL");
+      String cs = normalizeDimension(p.getCompanySize());
+      List<String> css = cs != null ? List.of("ALL", cs) : List.of("ALL");
 
-    for (String jf : jobFamilies) {
-      for (String bracket : brackets) {
-        List<JobPosting> slice = filterSlice(targetPostings, jf, bracket);
-        if (slice.isEmpty()) {
-          continue;
+      for (String jf : jfs) {
+        for (String b : brs) {
+          for (String rg : rgs) {
+            for (String e : emps) {
+              for (String c : css) {
+                sliceMap
+                    .computeIfAbsent(new SliceKey(jf, b, rg, e, c), k -> new ArrayList<>())
+                    .add(p);
+              }
+            }
+          }
         }
+      }
+    }
 
-        int totalPostingsInSlice = slice.size();
+    for (Map.Entry<SliceKey, List<JobPosting>> entry : sliceMap.entrySet()) {
+      SliceKey key = entry.getKey();
+      List<JobPosting> slice = entry.getValue();
+      int totalPostingsInSlice = slice.size();
 
-        // 1) 직군/경력 슬라이스의 전체 메트릭 (skill_id = null)
-        int sliceDisclosed = countDisclosedPostings(slice);
-        BigDecimal sliceMissingRate =
-            calculateSalaryMissingRate(sliceDisclosed, totalPostingsInSlice);
-        results.add(
-            MarketAggregate.builder()
-                .source(source)
-                .baseYearMonth(baseYearMonth)
-                .jobFamily(jf)
-                .region("ALL")
-                .experienceBracket(bracket)
-                .employmentType("ALL")
-                .companySize("ALL")
-                .skillId(null)
-                .postingCount(totalPostingsInSlice)
-                .totalAggregatePostings(totalPostingsInSlice)
-                .demandRate(BigDecimal.ONE.setScale(4, RoundingMode.HALF_UP))
-                .salaryMissingRatePercent(sliceMissingRate)
-                .build());
+      // 1) 전체 메트릭 (skill_id = null)
+      int sliceDisclosed = countDisclosedPostings(slice);
+      BigDecimal sliceMissingRate =
+          calculateSalaryMissingRate(sliceDisclosed, totalPostingsInSlice);
+      results.add(
+          MarketAggregate.builder()
+              .source(source)
+              .baseYearMonth(baseYearMonth)
+              .jobFamily(key.jobFamily())
+              .region(key.region())
+              .experienceBracket(key.experienceBracket())
+              .employmentType(key.employmentType())
+              .companySize(key.companySize())
+              .skillId(null)
+              .postingCount(totalPostingsInSlice)
+              .totalAggregatePostings(totalPostingsInSlice)
+              .demandRate(BigDecimal.ONE.setScale(4, RoundingMode.HALF_UP))
+              .salaryMissingRatePercent(sliceMissingRate)
+              .build());
 
-        // 2) 슬라이스 내 개별 스킬별 수요 지수 계산
+      // 2) 스킬 행 생성 (도메인 정의서 §2.3: 전국 jf×bracket 또는 시도별 jf 스킬 집계로 한정하여 행 폭발 방지)
+      boolean generateSkillRows =
+          ("ALL".equals(key.region())
+                  && "ALL".equals(key.employmentType())
+                  && "ALL".equals(key.companySize()))
+              || ("ALL".equals(key.experienceBracket())
+                  && "ALL".equals(key.employmentType())
+                  && "ALL".equals(key.companySize())
+                  && !"ALL".equals(key.region()));
+
+      if (generateSkillRows) {
         Map<UUID, Integer> skillPostingCounts = new HashMap<>();
         Map<UUID, Integer> skillDisclosedCounts = new HashMap<>();
 
@@ -480,9 +509,9 @@ public class MarketAggregateService {
           }
         }
 
-        for (Map.Entry<UUID, Integer> entry : skillPostingCounts.entrySet()) {
-          UUID skillId = entry.getKey();
-          int skillCount = entry.getValue();
+        for (Map.Entry<UUID, Integer> skillEntry : skillPostingCounts.entrySet()) {
+          UUID skillId = skillEntry.getKey();
+          int skillCount = skillEntry.getValue();
           BigDecimal demandRate =
               BigDecimal.valueOf((double) skillCount / totalPostingsInSlice)
                   .setScale(4, RoundingMode.HALF_UP);
@@ -494,11 +523,11 @@ public class MarketAggregateService {
               MarketAggregate.builder()
                   .source(source)
                   .baseYearMonth(baseYearMonth)
-                  .jobFamily(jf)
-                  .region("ALL")
-                  .experienceBracket(bracket)
-                  .employmentType("ALL")
-                  .companySize("ALL")
+                  .jobFamily(key.jobFamily())
+                  .region(key.region())
+                  .experienceBracket(key.experienceBracket())
+                  .employmentType(key.employmentType())
+                  .companySize(key.companySize())
                   .skillId(skillId)
                   .postingCount(skillCount)
                   .totalAggregatePostings(totalPostingsInSlice)
@@ -512,25 +541,32 @@ public class MarketAggregateService {
     return results;
   }
 
-  private List<JobPosting> filterSlice(
-      List<JobPosting> postings, String jobFamily, String bracket) {
-    return postings.stream()
-        .filter(p -> "ALL".equals(jobFamily) || jobFamily.equalsIgnoreCase(p.getJobFamily()))
-        .filter(p -> "ALL".equals(bracket) || matchesBracket(p.getExperienceMin(), bracket))
-        .collect(Collectors.toList());
+  private String determineBracket(Integer expMin) {
+    if (expMin == null) return "ENTRY";
+    int min = expMin;
+    if (min == 0) return "ENTRY";
+    if (min <= 3) return "JUNIOR";
+    if (min <= 7) return "MID";
+    if (min <= 12) return "SENIOR";
+    return "LEAD";
   }
 
-  private boolean matchesBracket(Integer expMin, String bracket) {
-    int min = expMin != null ? expMin : 0;
-    return switch (bracket) {
-      case "ENTRY" -> min == 0;
-      case "JUNIOR" -> min >= 1 && min <= 3;
-      case "MID" -> min >= 4 && min <= 7;
-      case "SENIOR" -> min >= 8 && min <= 12;
-      case "LEAD" -> min >= 13;
-      default -> true;
-    };
+  private String normalizeDimension(String val) {
+    if (val == null
+        || val.isBlank()
+        || "UNKNOWN".equalsIgnoreCase(val)
+        || "ALL".equalsIgnoreCase(val)) {
+      return null;
+    }
+    return val.strip();
   }
+
+  private record SliceKey(
+      String jobFamily,
+      String experienceBracket,
+      String region,
+      String employmentType,
+      String companySize) {}
 
   private int countDisclosedPostings(List<JobPosting> postings) {
     int count = 0;

@@ -7,6 +7,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.carix.config.IndexThresholdProperties;
 import com.carix.market.MarketAggregate;
 import com.carix.market.MarketAggregateRepository;
 import com.carix.profile.domain.CareerProfile;
@@ -19,6 +20,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.test.util.ReflectionTestUtils;
 
 @ExtendWith(MockitoExtension.class)
 class PeerGroupFallbackResolverTest {
@@ -188,5 +190,175 @@ class PeerGroupFallbackResolverTest {
     assertThat(result.getJobFamily()).isEqualTo("DEVELOPER");
     assertThat(result.getRegion()).isEqualTo("ALL");
     assertThat(result.getBrackets()).containsExactly("ALL");
+  }
+
+  @Test
+  @DisplayName("b25: normalizeRegion 은 다양한 지역 표기(구 단위, 정식 명칭, 레거시 영문)를 17개 시도 코드로 통일한다")
+  void testNormalizeRegion() {
+    assertThat(PeerGroupFallbackResolver.normalizeRegion("서울 강남구")).isEqualTo("서울");
+    assertThat(PeerGroupFallbackResolver.normalizeRegion("서울특별시")).isEqualTo("서울");
+    assertThat(PeerGroupFallbackResolver.normalizeRegion("서울시")).isEqualTo("서울");
+    assertThat(PeerGroupFallbackResolver.normalizeRegion("SEOUL_GANGNAM")).isEqualTo("서울");
+    assertThat(PeerGroupFallbackResolver.normalizeRegion("경기 성남시 분당구")).isEqualTo("경기");
+    assertThat(PeerGroupFallbackResolver.normalizeRegion("경기도")).isEqualTo("경기");
+    assertThat(PeerGroupFallbackResolver.normalizeRegion("세종특별자치시")).isEqualTo("세종");
+    assertThat(PeerGroupFallbackResolver.normalizeRegion("부산전체")).isEqualTo("부산");
+    assertThat(PeerGroupFallbackResolver.normalizeRegion("전남광주 광산구")).isEqualTo("광주");
+    assertThat(PeerGroupFallbackResolver.normalizeRegion("전남광주 담양군")).isEqualTo("전남");
+    assertThat(PeerGroupFallbackResolver.normalizeRegion("전남광주")).isEqualTo("ALL");
+    assertThat(PeerGroupFallbackResolver.normalizeRegion("제주특별자치도")).isEqualTo("제주");
+    assertThat(PeerGroupFallbackResolver.normalizeRegion("강원특별자치도")).isEqualTo("강원");
+    assertThat(PeerGroupFallbackResolver.normalizeRegion("충청북도")).isEqualTo("충북");
+    assertThat(PeerGroupFallbackResolver.normalizeRegion("전북특별자치도")).isEqualTo("전북");
+    assertThat(PeerGroupFallbackResolver.normalizeRegion("경상남도")).isEqualTo("경남");
+    assertThat(PeerGroupFallbackResolver.normalizeRegion("해외")).isEqualTo("ALL");
+    assertThat(PeerGroupFallbackResolver.normalizeRegion("전국")).isEqualTo("ALL");
+    assertThat(PeerGroupFallbackResolver.normalizeRegion("ALL")).isEqualTo("ALL");
+    assertThat(PeerGroupFallbackResolver.normalizeRegion("")).isEqualTo("ALL");
+    assertThat(PeerGroupFallbackResolver.normalizeRegion(null)).isEqualTo("ALL");
+  }
+
+  @Test
+  @DisplayName("b25: formatConditionText 는 다차원 조건(지역, 규모, 고용형태)의 모든 옵션을 올바르게 한글 라벨로 조립한다")
+  void testFormatConditionText() {
+    String text1 = resolver.formatConditionText("서울", List.of("MID"), "LARGE", "FULL_TIME");
+    assertThat(text1).isEqualTo("서울 / 4~7년 / 대기업 / 정규직");
+
+    String text2 = resolver.formatConditionText("ALL", List.of("JUNIOR", "MID"), "ALL", "ALL");
+    assertThat(text2).isEqualTo("전국 / 0~7년 / 회사규모 무관 / 고용형태 무관");
+
+    assertThat(resolver.formatCompanySizeText("MEDIUM")).isEqualTo("중소·중견기업");
+    assertThat(resolver.formatCompanySizeText("STARTUP")).isEqualTo("스타트업");
+    assertThat(resolver.formatCompanySizeText("ETC")).isEqualTo("ETC");
+    assertThat(resolver.formatCompanySizeText(null)).isEqualTo("회사규모 무관");
+
+    assertThat(resolver.formatEmploymentTypeText("CONTRACT")).isEqualTo("계약직");
+    assertThat(resolver.formatEmploymentTypeText("FREELANCE")).isEqualTo("프리랜서");
+    assertThat(resolver.formatEmploymentTypeText("INTERN")).isEqualTo("인턴");
+    assertThat(resolver.formatEmploymentTypeText("ETC")).isEqualTo("ETC");
+    assertThat(resolver.formatEmploymentTypeText(null)).isEqualTo("고용형태 무관");
+  }
+
+  @Test
+  @DisplayName("thresholds 주입 시 최소 표본 수가 변경되고 분기 처리가 정상 동작한다")
+  void testMinSampleSizeWithCustomThresholds() {
+    IndexThresholdProperties props = new IndexThresholdProperties();
+    props.setPeerGroupMinSampleSize(25);
+    ReflectionTestUtils.setField(resolver, "thresholds", props);
+
+    givenAllBracket("202607", 20); // 25 미만이므로 실패해야 함
+    var result = resolver.resolveForSource("JOBKOREA", profile(5), "202607");
+    assertThat(result.isSuccessful()).isFalse();
+
+    // 원복
+    ReflectionTestUtils.setField(resolver, "thresholds", null);
+  }
+
+  @Test
+  @DisplayName("resolve 메서드의 source 인자 분기 (null, 특정 원천, 둘 다 실패 케이스)")
+  void testResolveSourceBranches() {
+    // 1) source == null -> 잡코리아 성공 시 잡코리아 반환
+    when(marketAggregateRepository.findPeerGroupAggregatesByBrackets(
+            "JOBKOREA", "202607", "DEVELOPER", "ALL", List.of("ALL"), "ALL", "ALL"))
+        .thenReturn(List.of(row("ALL", 20)));
+    var r1 = resolver.resolve(null, "202607", profile(5));
+    assertThat(r1.isSuccessful()).isTrue();
+    assertThat(r1.getSource()).isEqualTo("JOBKOREA");
+
+    // 2) 특정 소스 직접 지정 ("SARAMIN")
+    when(marketAggregateRepository.findPeerGroupAggregatesByBrackets(
+            "SARAMIN", "202607", "DEVELOPER", "ALL", List.of("ALL"), "ALL", "ALL"))
+        .thenReturn(List.of(row("ALL", 15)));
+    var r2 = resolver.resolve("SARAMIN", "202607", profile(5));
+    assertThat(r2.isSuccessful()).isTrue();
+    assertThat(r2.getSource()).isEqualTo("SARAMIN");
+
+    // 3) source == "ALL" 인데 잡코리아와 사람인 둘 다 실패한 경우 -> jk 반환
+    when(marketAggregateRepository.findPeerGroupAggregatesByBrackets(
+            "JOBKOREA", "202607", "DEVELOPER", "ALL", List.of("ALL"), "ALL", "ALL"))
+        .thenReturn(List.of(row("ALL", 2)));
+    when(marketAggregateRepository.findPeerGroupAggregatesByBrackets(
+            "SARAMIN", "202607", "DEVELOPER", "ALL", List.of("ALL"), "ALL", "ALL"))
+        .thenReturn(List.of(row("ALL", 3)));
+    var r3 = resolver.resolve("ALL", "202607", profile(5));
+    assertThat(r3.isSuccessful()).isFalse();
+    assertThat(r3.getSource()).isEqualTo("JOBKOREA");
+  }
+
+  @Test
+  @DisplayName("toCollectorBrackets 분기 검증 (null, empty, ALL 포함, 정상 목록)")
+  void testToCollectorBracketsBranches() {
+    assertThat(resolver.toCollectorBrackets(null)).containsExactly("ALL");
+    assertThat(resolver.toCollectorBrackets(List.of())).containsExactly("ALL");
+    assertThat(resolver.toCollectorBrackets(List.of("ALL"))).containsExactly("ALL");
+    assertThat(resolver.toCollectorBrackets(List.of("JUNIOR", "MID")))
+        .containsExactly("ENTRY", "JUNIOR", "MID");
+    assertThat(resolver.toCollectorBrackets(List.of("SENIOR"))).containsExactly("SENIOR", "LEAD");
+  }
+
+  @Test
+  @DisplayName("formatBracketYears 및 formatBracketRange 모든 브랜치 검증")
+  void testBracketFormattingBranches() {
+    // formatBracketYears private 메서드 검증
+    assertThat(ReflectionTestUtils.<String>invokeMethod(resolver, "formatBracketYears", "ENTRY"))
+        .isEqualTo("0~1년");
+    assertThat(ReflectionTestUtils.<String>invokeMethod(resolver, "formatBracketYears", "JUNIOR"))
+        .isEqualTo("0~3년");
+    assertThat(ReflectionTestUtils.<String>invokeMethod(resolver, "formatBracketYears", "MID"))
+        .isEqualTo("4~7년");
+    assertThat(ReflectionTestUtils.<String>invokeMethod(resolver, "formatBracketYears", "SENIOR"))
+        .isEqualTo("8년+");
+    assertThat(ReflectionTestUtils.<String>invokeMethod(resolver, "formatBracketYears", "LEAD"))
+        .isEqualTo("12년+");
+    assertThat(ReflectionTestUtils.<String>invokeMethod(resolver, "formatBracketYears", "CUSTOM"))
+        .isEqualTo("CUSTOM");
+
+    // formatBracketRange private 메서드 검증
+    assertThat(
+            ReflectionTestUtils.<String>invokeMethod(
+                resolver, "formatBracketRange", List.of("ENTRY", "JUNIOR")))
+        .isEqualTo("0~3년");
+    assertThat(
+            ReflectionTestUtils.<String>invokeMethod(
+                resolver, "formatBracketRange", List.of("MID", "MID")))
+        .isEqualTo("4~7년");
+    assertThat(
+            ReflectionTestUtils.<String>invokeMethod(
+                resolver, "formatBracketRange", List.of("MID", "SENIOR")))
+        .isEqualTo("4년+");
+    assertThat(
+            ReflectionTestUtils.<String>invokeMethod(
+                resolver, "formatBracketRange", List.of("SENIOR", "LEAD")))
+        .isEqualTo("8년+");
+    assertThat(
+            ReflectionTestUtils.<String>invokeMethod(
+                resolver, "formatBracketRange", List.of("LEAD", "LEAD")))
+        .isEqualTo("12년+");
+  }
+
+  @Test
+  @DisplayName("buildCompositeResolvedResult 표본수 0건 시 결측률 100% 분기 검증")
+  void testBuildCompositeResolvedResultZeroSample() {
+    PeerGroupFallbackResolver.ResolvedPeerGroup result =
+        ReflectionTestUtils.invokeMethod(
+            resolver,
+            "buildCompositeResolvedResult",
+            "JOBKOREA",
+            1,
+            List.of(row("ALL", 0)),
+            List.of("ALL"));
+    assertThat(result).isNotNull();
+    assertThat(result.getCoverage().salaryMissingRatePercent())
+        .isEqualByComparingTo(BigDecimal.valueOf(100.00));
+  }
+
+  @Test
+  @DisplayName("normalizeRegion 추가 분기 검증 (SEOUL, GYEONGGI 단독, 전남광주 비구 단위 등)")
+  void testNormalizeRegionAdditionalBranches() {
+    assertThat(PeerGroupFallbackResolver.normalizeRegion("SEOUL")).isEqualTo("서울");
+    assertThat(PeerGroupFallbackResolver.normalizeRegion("GYEONGGI")).isEqualTo("경기");
+    assertThat(PeerGroupFallbackResolver.normalizeRegion("GYEONGGI_SUWON")).isEqualTo("경기");
+    assertThat(PeerGroupFallbackResolver.normalizeRegion("전체")).isEqualTo("ALL");
+    assertThat(PeerGroupFallbackResolver.normalizeRegion("전남광주 송정면")).isEqualTo("전남");
   }
 }

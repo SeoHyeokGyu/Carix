@@ -25,7 +25,14 @@ public interface MarketAggregateRepository extends JpaRepository<MarketAggregate
       @Param("source") String source, @Param("baseYearMonth") String baseYearMonth);
 
   @Query(
-      "SELECT m FROM MarketAggregate m WHERE m.baseYearMonth = :baseYearMonth AND m.source = :source AND m.skillId IS NULL")
+      """
+      SELECT m FROM MarketAggregate m
+      WHERE m.baseYearMonth = :baseYearMonth
+        AND m.source = :source
+        AND m.skillId IS NULL
+        AND m.employmentType = 'ALL'
+        AND m.companySize = 'ALL'
+      """)
   List<MarketAggregate> findPeerGroupAggregatesByMonthAndSource(
       @Param("baseYearMonth") String baseYearMonth, @Param("source") String source);
 
