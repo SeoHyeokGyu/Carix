@@ -1,4 +1,4 @@
-import { act, render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { createRoutesStub } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -7,6 +7,7 @@ import * as incomeApi from "../../lib/api/income";
 import type {
   EvaluateRequest,
   EvaluationResponse,
+  SavedScenario,
   ScenarioContext,
 } from "../../lib/api/scenario";
 import * as scenario from "../../lib/api/scenario";
@@ -100,7 +101,7 @@ const evaluation: EvaluationResponse = {
   typeLabel: "남으면 추정 이득",
 };
 
-function renderRoute() {
+function renderRoute(entry = "/dashboard/simulator") {
   const Stub = createRoutesStub([
     {
       path: "/dashboard/simulator",
@@ -110,22 +111,73 @@ function renderRoute() {
     },
     { path: "/login", Component: () => <div>로그인 화면</div> },
   ]);
-  return render(<Stub initialEntries={["/dashboard/simulator"]} />);
+  return render(<Stub initialEntries={[entry]} />);
 }
 
 const stayOnly: EvaluateRequest = { stay: { raisePercent: 3 }, move: null };
 
-function savedScenario(request: EvaluateRequest, name: string | null) {
+function savedScenario(
+  request: EvaluateRequest,
+  name: string | null,
+): SavedScenario {
   return {
     id: "s1",
     name,
-    engineVersion: 2 as const,
+    engineVersion: 2,
     calculatedAt: "2026-10-22T00:00:00Z",
     request,
     result: evaluation,
     legacy: null,
   };
 }
+
+const legacyScenario: SavedScenario = {
+  id: "l1",
+  name: "옛 계산",
+  engineVersion: 1,
+  calculatedAt: "2025-05-01T00:00:00Z",
+  request: null,
+  result: null,
+  legacy: {
+    inputs: {
+      scenarioName: "옛 계산",
+      currentGrossSalary: 55_000_000,
+      stayExpectedRaiseRate: 4,
+      moveTargetGrossSalary: 80_000_000,
+      moveOneTimeCost: 0,
+      expectedUnemploymentMonths: 1,
+      isEligibleForUnemploymentBenefit: false,
+    },
+    result: {
+      id: "r1",
+      scenarioName: "옛 계산",
+      stayCompensation12m: 0,
+      moveCompensation12m: 0,
+      estimatedUnemploymentBenefit: 0,
+      unemploymentBenefitNote: "",
+      difference: 1_000_000,
+      type: "ESTIMATED_GAIN",
+      typeLabel: "옮기면 추정 이득",
+      warningNote: "",
+      feasibility: evaluation.move!.feasibility,
+    },
+  },
+};
+
+/** 남을 때 결과·비교 결과가 각각 들어 있는 결과 자리(흐림 표시를 가진 가장 가까운 조상). */
+const stayArea = () =>
+  screen.getByText(/지금 회사 실질 소득/).closest("[aria-busy]");
+const compareArea = () =>
+  screen.getByText("따라잡는 시점").closest("[aria-busy]");
+
+const fakeTimerUser = () => {
+  vi.useFakeTimers({ shouldAdvanceTime: true });
+  return userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+};
+const debounce = () =>
+  act(() => {
+    vi.advanceTimersByTime(400);
+  });
 
 describe("이직 시뮬레이터 라우트", () => {
   beforeEach(() => {
@@ -178,17 +230,236 @@ describe("이직 시뮬레이터 라우트", () => {
   // 초안 저장은 입력 컴포넌트에서 라우트로 옮겨 왔다(옛 CurrentJobStep 테스트의 새 위치).
   it("초안 저장이 실패하면 오류를 보인다", async () => {
     vi.mocked(scenario.putDraft).mockRejectedValue(new Error("저장 서버 오류"));
+    const user = fakeTimerUser();
 
     renderRoute();
-    await userEvent
-      .setup()
-      .click(
-        await screen.findByRole("button", { name: "새 회사와 비교하기 →" }),
-      );
+    const raise = await screen.findByLabelText(/올해 예상 인상률/);
+    await user.clear(raise);
+    await user.type(raise, "5");
+    debounce();
 
     expect(
       await screen.findByText(/초안을 저장하지 못했습니다/),
     ).toBeInTheDocument();
+  });
+
+  it("초안에 오퍼가 있으면 오퍼 입력 카드, 없으면 빈 카드로 시작한다", async () => {
+    vi.mocked(scenario.getDraft).mockResolvedValue(draft);
+    const first = renderRoute();
+
+    expect(await screen.findByLabelText(/새 회사 연봉/)).toBeInTheDocument();
+    expect(screen.queryByText("받은 오퍼가 있나요?")).not.toBeInTheDocument();
+    first.unmount();
+
+    vi.mocked(scenario.getDraft).mockResolvedValue(stayOnly);
+    renderRoute();
+
+    expect(await screen.findByText("받은 오퍼가 있나요?")).toBeInTheDocument();
+    expect(screen.queryByLabelText(/새 회사 연봉/)).not.toBeInTheDocument();
+  });
+
+  // 실업급여는 기본값이 없다. 안 고른 채 비교가 나오면 받지 못하는 사람에게 실업급여를 더한 결과가 된다.
+  it("실업급여를 안 고르면 비교 대신 안내가 보인다", async () => {
+    vi.mocked(scenario.getDraft).mockResolvedValue(stayOnly);
+    const user = fakeTimerUser();
+
+    renderRoute();
+    await user.click(await screen.findByRole("button", { name: "오퍼 넣기" }));
+    await user.type(screen.getByLabelText(/새 회사 연봉/), "7200");
+    debounce();
+
+    expect(
+      await screen.findByText(
+        "실업급여를 받을 수 있는지 고르면 비교가 나옵니다",
+      ),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("따라잡는 시점")).not.toBeInTheDocument();
+  });
+
+  // 스펙 「동작」 재계산 — 오퍼만 무효면 지금 회사 결과는 최신이라 흐리지 않는다.
+  it("오퍼만_무효면_남을_때_결과는_선명하고_비교만_흐리다", async () => {
+    vi.mocked(scenario.getDraft).mockResolvedValue(draft);
+    const user = fakeTimerUser();
+
+    renderRoute();
+    await screen.findByText("따라잡는 시점");
+    await waitFor(() =>
+      expect(compareArea()).toHaveAttribute("aria-busy", "false"),
+    );
+    const gap = screen.getByLabelText(/쉬는 기간/);
+    await user.clear(gap);
+    await user.type(gap, "9");
+    debounce();
+
+    expect(compareArea()).toHaveAttribute("aria-busy", "true");
+    expect(
+      within(compareArea() as HTMLElement).getByText(
+        "입력을 고치면 다시 계산합니다",
+      ),
+    ).toBeInTheDocument();
+    expect(stayArea()).toHaveAttribute("aria-busy", "false");
+    expect(
+      within(stayArea() as HTMLElement).queryByText(
+        "입력을 고치면 다시 계산합니다",
+      ),
+    ).not.toBeInTheDocument();
+  });
+
+  it("빈_오퍼_카드면_지금_회사만_저장한다", async () => {
+    vi.mocked(scenario.getDraft).mockResolvedValue(stayOnly);
+    vi.mocked(scenario.saveScenario).mockResolvedValue(
+      savedScenario(stayOnly, null),
+    );
+    const user = userEvent.setup();
+
+    renderRoute();
+    await user.click(await screen.findByRole("button", { name: "오퍼 넣기" }));
+    await user.click(
+      screen.getAllByRole("button", { name: "시나리오 저장" })[0],
+    );
+    await user.click(await screen.findByRole("button", { name: "저장" }));
+
+    expect(scenario.saveScenario).toHaveBeenCalledWith(
+      null,
+      expect.objectContaining({
+        stay: expect.objectContaining({ raisePercent: 3 }),
+        move: null,
+      }),
+    );
+    // 저장 팝오버는 성공하면 닫히므로 확인 문장은 라우트가 남긴다.
+    expect(await screen.findByText("시나리오를 저장했습니다.")).toHaveAttribute(
+      "role",
+      "status",
+    );
+  });
+
+  // 직전에 유효했던 오퍼로 몰래 저장하지 않는다(스펙 「동작」 저장 버튼).
+  it("오퍼가 무효면 저장하지 않는다", async () => {
+    vi.mocked(scenario.getDraft).mockResolvedValue(draft);
+    const user = fakeTimerUser();
+
+    renderRoute();
+    const gap = await screen.findByLabelText(/쉬는 기간/);
+    await user.clear(gap);
+    await user.type(gap, "9");
+    debounce();
+    await user.click(
+      screen.getAllByRole("button", { name: "시나리오 저장" })[0],
+    );
+
+    expect(screen.queryByLabelText(/시나리오 이름/)).not.toBeInTheDocument();
+    expect(scenario.saveScenario).not.toHaveBeenCalled();
+  });
+
+  it("지우기_뒤_되돌리면_오퍼가_돌아온다", async () => {
+    vi.mocked(scenario.getDraft).mockResolvedValue(draft);
+    const user = userEvent.setup();
+
+    renderRoute();
+    await user.click(
+      await screen.findByRole("button", { name: "새 회사 오퍼 지우기" }),
+    );
+    expect(await screen.findByText("받은 오퍼가 있나요?")).toBeInTheDocument();
+    await waitFor(() =>
+      expect(scenario.putDraft).toHaveBeenLastCalledWith(
+        expect.objectContaining({ move: null }),
+      ),
+    );
+
+    await user.click(
+      screen.getByRole("button", { name: "이전 입력으로 되돌리기" }),
+    );
+
+    expect(await screen.findByLabelText(/새 회사 연봉/)).toHaveValue("7,000");
+  });
+
+  it("지금_회사만_저장분을_불러오면_빈_카드가_되고_되돌리면_열린다", async () => {
+    vi.mocked(scenario.getDraft).mockResolvedValue(draft);
+    vi.mocked(scenario.listScenarios).mockResolvedValue([
+      savedScenario(stayOnly, "남는 안"),
+    ]);
+    const user = userEvent.setup();
+
+    renderRoute();
+    await user.click(
+      await screen.findByRole("button", { name: "저장된 시나리오 1" }),
+    );
+    await user.click(await screen.findByRole("button", { name: "불러오기" }));
+    expect(await screen.findByText("받은 오퍼가 있나요?")).toBeInTheDocument();
+
+    await user.click(
+      screen.getByRole("button", { name: "이전 입력으로 되돌리기" }),
+    );
+
+    expect(await screen.findByLabelText(/새 회사 연봉/)).toHaveValue("7,000");
+  });
+
+  // NOTE: (cjkang) 새 회사 쪽 미반영(`넣기`)은 비교 결과에만 있어 오퍼 카드가 닫힌 채로는 누를 수 없다.
+  // 그래서 열린 카드의 접힌 칸으로 보내는 경로를 본다 — 라우트가 대상 카드를 잘못 고르면 포커스가 안 간다.
+  it("새 회사 쪽 넣기는 오퍼 카드의 접힌 칸을 펼치고 포커스한다", async () => {
+    vi.mocked(scenario.getDraft).mockResolvedValue(draft);
+    vi.mocked(scenario.evaluate).mockResolvedValue({
+      ...evaluation,
+      unreflected: ["SIGNING_BONUS"],
+    });
+    const user = userEvent.setup();
+
+    renderRoute();
+    await user.click(
+      await screen.findByRole("button", { name: "사이닝 보너스 넣기" }),
+    );
+
+    await waitFor(() =>
+      expect(screen.getByLabelText(/사이닝 보너스 \(만원\)/)).toHaveFocus(),
+    );
+  });
+
+  it("오퍼를 먼저 채우고 지금 회사 연봉을 나중에 넣어도 오퍼가 계산에 들어간다", async () => {
+    vi.mocked(scenario.getContext).mockResolvedValue({
+      ...context,
+      currentAnnualGross: null,
+    });
+    const user = fakeTimerUser();
+
+    renderRoute();
+    await user.click(await screen.findByRole("button", { name: "오퍼 넣기" }));
+    await user.type(screen.getByLabelText(/새 회사 연봉/), "7200");
+    await user.click(screen.getByRole("radio", { name: "못 받음" }));
+    debounce();
+    await user.type(screen.getByLabelText(/현재 세전 연봉/), "6000");
+    debounce();
+
+    await waitFor(() =>
+      expect(vi.mocked(scenario.evaluate).mock.lastCall?.[0]).toMatchObject({
+        move: { grossSalary: 72_000_000 },
+      }),
+    );
+  });
+
+  it("예전 계산 저장분을 다시 계산하면 두 카드가 채워진다", async () => {
+    vi.mocked(scenario.getDraft).mockResolvedValue(stayOnly);
+    vi.mocked(scenario.listScenarios).mockResolvedValue([legacyScenario]);
+    const user = userEvent.setup();
+
+    renderRoute();
+    await user.click(
+      await screen.findByRole("button", { name: "저장된 시나리오 1" }),
+    );
+    await user.click(await screen.findByRole("button", { name: "다시 계산" }));
+
+    const offerGross = await screen.findByLabelText(/새 회사 연봉/);
+    expect(offerGross).toHaveValue("8,000");
+    expect(offerGross).toBeVisible();
+    expect(screen.getByLabelText(/올해 예상 인상률/)).toHaveValue("4");
+  });
+
+  it("예전 ?step= 링크로 들어와도 한 화면이 열린다", async () => {
+    vi.mocked(scenario.getDraft).mockResolvedValue(stayOnly);
+
+    renderRoute("/dashboard/simulator?step=move");
+
+    expect(await screen.findByLabelText(/올해 예상 인상률/)).toBeVisible();
+    expect(screen.getByText("받은 오퍼가 있나요?")).toBeVisible();
   });
 
   it("소득 이력이 있으면 저장분을 채택할 때 옛 이번만 바꾸기 연봉을 비운다", async () => {

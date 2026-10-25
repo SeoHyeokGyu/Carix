@@ -18,9 +18,9 @@ import { signedMan } from "../../lib/simulatorCopy";
 
 interface SavedScenarioMenuProps {
   scenarios: readonly SavedScenario[];
-  /** 새 방식 항목: 저장한 요청으로 다시 평가해 결과 화면을 연다. title 은 줄 제목이다. */
+  /** 새 방식 항목: 저장한 요청으로 두 카드를 채워 다시 평가한다. title 은 줄 제목이다. */
   onLoad: (request: EvaluateRequest, title: string) => void;
-  /** 이전 방식 항목: 그 입력을 새 방식 요청으로 옮겨 ① 부터 다시 시작한다. */
+  /** 이전 방식 항목: 그 입력을 새 방식 요청으로 옮겨 두 카드를 채운다. */
   onRecalculate: (request: EvaluateRequest, title: string) => void;
 }
 
@@ -87,7 +87,7 @@ export function SavedScenarioMenu({
   onRecalculate,
 }: SavedScenarioMenuProps) {
   const [open, setOpen] = useState(false);
-  // 줄을 골라 닫을 때는 포커스를 트리거로 돌리지 않는다 — 라우트가 이동한 단계 제목으로 옮긴다.
+  // 줄을 골라 닫을 때는 포커스를 트리거로 돌리지 않는다 — 라우트가 페이지 제목으로 옮긴다.
   const chosen = useRef(false);
   if (scenarios.length === 0) return null;
 

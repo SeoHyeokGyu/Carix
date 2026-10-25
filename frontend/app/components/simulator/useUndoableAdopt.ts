@@ -6,11 +6,11 @@ import type { EvaluateRequest } from "../../lib/api/scenario";
 export const UNDO_NOTICE_MS = 8000;
 
 export interface AdoptNotice {
-  name: string | null;
+  message: string;
 }
 
 /**
- * 저장분을 불러올 때 직전 계산 요청을 기억해 두었다가 되돌린다. 알림은 하나만 — 새 불러오기가
+ * 저장분 불러오기·오퍼 지우기처럼 계산 요청을 통째로 바꿀 때 직전 요청을 기억해 두었다가 되돌린다. 알림은 하나만 — 새 채택이
  * 이전 것을 대체하고, 되돌릴 값도 그때의 직전 요청으로 바뀐다.
  * `beforeExpire` 는 알림이 시간이 다 돼 사라지기 직전에 부른다(알림 안 포커스를 옮길 기회).
  */
@@ -40,12 +40,12 @@ export function useUndoableAdopt(
     (
       next: EvaluateRequest,
       current: EvaluateRequest | null,
-      name: string | null,
+      message: string,
     ) => {
       clearTimer();
       previous.current = { request: current };
       applyRef.current(next);
-      setNotice({ name });
+      setNotice({ message });
       timer.current = setTimeout(() => {
         timer.current = null;
         previous.current = null;
