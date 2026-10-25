@@ -117,12 +117,13 @@ export function CompareResult({
           role="note"
           className="flex flex-col gap-1 text-sm font-medium text-carix-warning"
         >
-          {warnings.map((text) => (
-            <p key={text}>{text}</p>
+          {warnings.map((text, i) => (
+            <p key={i}>{text}</p>
           ))}
           {forfeited > 0 && (
             <p>
-              옮기면 아직 못 받은 주식 {amountLabel(forfeited)}원을 포기합니다.
+              옮기면 아직 못 받은 주식{" "}
+              {amountLabel(forfeited).replace(/^[+-]/, "")}원을 포기합니다.
               합계에는 넣지 않았습니다.
             </p>
           )}
