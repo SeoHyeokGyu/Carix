@@ -23,6 +23,7 @@ export function UnreflectedNotice({ codes, onFill }: UnreflectedNoticeProps) {
               type="button"
               variant="outline"
               size="xs"
+              className="min-h-11"
               aria-label={`${label} 넣기`}
               onClick={() => onFill(code)}
             >

@@ -311,6 +311,7 @@ export function CurrentJobStep({
                 type="button"
                 variant="ghost"
                 size="xs"
+                className="min-h-11"
                 onClick={() => setOverrideOpen(true)}
               >
                 이번만 바꾸기
