@@ -13,21 +13,21 @@ import { Button } from "@/components/ui/button";
 import { InlineAlert } from "@/components/ui/inline-alert";
 import { cn } from "@/lib/utils";
 
+import { AssumptionsPanel } from "../../components/simulator/AssumptionsPanel";
+import { CompareResult } from "../../components/simulator/CompareResult";
 import { CurrentJobStep } from "../../components/simulator/CurrentJobStep";
+import { EvaluationFallback } from "../../components/simulator/EvaluationFallback";
+import { InflationBasisNote } from "../../components/simulator/InflationBasisNote";
 import {
   BLANK_OFFER,
   MoveConditionsStep,
   type OfferEmit,
 } from "../../components/simulator/MoveConditionsStep";
 import { OverrideNotice } from "../../components/simulator/OverrideNotice";
-import { ResultView } from "../../components/simulator/ResultView";
 import { SavedScenarioMenu } from "../../components/simulator/SavedScenarioMenu";
 import { SaveScenarioForm } from "../../components/simulator/SaveScenarioForm";
 import { SimulatorSteps } from "../../components/simulator/SimulatorSteps";
-import {
-  EvaluationFallback,
-  StayResultStep,
-} from "../../components/simulator/StayResultStep";
+import { StayOutcome } from "../../components/simulator/StayOutcome";
 import { StepNavBar } from "../../components/simulator/StepNavBar";
 import { StepSection } from "../../components/simulator/StepSection";
 import type {
@@ -59,13 +59,6 @@ import {
 } from "../../lib/simulatorStep";
 
 type Stay = EvaluateRequest["stay"];
-
-/** ① 결과에는 지금 회사 쪽 미반영만 보인다. 새 회사 항목은 ② 에서 묻는다. */
-const CURRENT_UNREFLECTED: ReadonlySet<string> = new Set([
-  "PERFORMANCE_BONUS",
-  "STOCK",
-  "HIRE_DATE",
-]);
 
 export function meta() {
   return [
@@ -488,16 +481,17 @@ export default function DashboardSimulator() {
             {result && request && (
               <>
                 {override}
-                <StayResultStep
-                  result={{
-                    ...result,
-                    unreflected: result.unreflected.filter((code) =>
-                      CURRENT_UNREFLECTED.has(code),
-                    ),
-                  }}
+                <StayOutcome
+                  result={result}
                   raisePercent={request.stay.raisePercent}
                   onFill={fill}
+                  live
                 />
+                <InflationBasisNote
+                  inflation={result.inflation}
+                  stay={result.stay}
+                />
+                <AssumptionsPanel assumptions={result.assumptions} />
               </>
             )}
           </ResultArea>
@@ -557,10 +551,16 @@ export default function DashboardSimulator() {
             {result?.move ? (
               <>
                 {override}
-                <ResultView
+                <CompareResult
                   result={{ ...result, move: result.move }}
+                  expectedRaisePercent={request?.stay.raisePercent ?? 0}
                   onFill={fill}
                 />
+                <InflationBasisNote
+                  inflation={result.inflation}
+                  stay={result.stay}
+                />
+                <AssumptionsPanel assumptions={result.assumptions} />
               </>
             ) : null}
           </ResultArea>

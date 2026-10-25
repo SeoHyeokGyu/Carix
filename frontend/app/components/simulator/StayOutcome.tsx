@@ -1,71 +1,49 @@
-import { Button } from "@/components/ui/button";
-
 import type { EvaluationResponse } from "../../lib/api/scenario";
 import {
   marketGapLine,
   severanceNote,
   stayHeadline,
 } from "../../lib/simulatorCopy";
-import { AssumptionsPanel } from "./AssumptionsPanel";
-import { InflationBasisNote } from "./InflationBasisNote";
 import { RaiseAxis } from "./RaiseAxis";
 import { UnreflectedNotice } from "./UnreflectedNotice";
 
-interface StayResultStepProps {
+/** 지금 회사 카드 안에는 지금 회사 쪽 미반영만 보인다. 새 회사 항목은 오퍼 카드 쪽 소관이다. */
+const CURRENT_UNREFLECTED: ReadonlySet<string> = new Set([
+  "PERFORMANCE_BONUS",
+  "STOCK",
+  "HIRE_DATE",
+]);
+
+interface StayOutcomeProps {
   result: EvaluationResponse;
   /** 사용자가 입력한 예상 인상률(%). */
   raisePercent: number;
   onFill: (code: string) => void;
+  /** 결과가 바뀔 때 스크린리더에 알릴지. `aria-live` 는 화면에서 한 곳만 켠다. */
+  live: boolean;
 }
 
 function pct(value: number): string {
   return `${value.toFixed(1)}%`;
 }
 
-interface EvaluationFallbackProps {
-  error: string | null;
-  pending: boolean;
-  onRetry: () => void;
-}
-
-/** 아직 보일 결과가 없을 때 결과 자리. 실패면 오류와 다시 시도, 아니면 계산 중. */
-export function EvaluationFallback({
-  error,
-  pending,
-  onRetry,
-}: EvaluationFallbackProps) {
-  if (error) {
-    return (
-      <div className="flex flex-col items-start gap-3">
-        <p role="alert" className="text-sm text-carix-danger">
-          {error}
-        </p>
-        <Button type="button" variant="outline" onClick={onRetry}>
-          다시 시도
-        </Button>
-      </div>
-    );
-  }
-  return (
-    <p role="status" className="text-sm text-muted-foreground">
-      {pending ? "계산하는 중입니다." : "결과를 불러오는 중입니다."}
-    </p>
-  );
-}
-
-/** ① 지금 회사 입력 아래의 결과. 미반영은 호출자가 지금 회사 항목만 넘긴다. */
-export function StayResultStep({
+/** 지금 회사 카드 안의 남을 때 결과. */
+export function StayOutcome({
   result,
   raisePercent,
   onFill,
-}: StayResultStepProps) {
-  const { stay, inflation, severance } = result;
+  live,
+}: StayOutcomeProps) {
+  const { stay, severance } = result;
   const personal = stay.breakevenPersonalPercent;
   const government = stay.breakevenGovernmentPercent;
 
   return (
     <div className="flex flex-col gap-6">
-      <h2 className="text-2xl font-semibold">
+      <h2
+        className="text-2xl font-semibold"
+        aria-live={live ? "polite" : undefined}
+      >
         {stayHeadline(stay.realChangePercent)}
       </h2>
 
@@ -94,11 +72,12 @@ export function StayResultStep({
         {severance && <li>{severanceNote(severance)}</li>}
       </ul>
 
-      <InflationBasisNote inflation={inflation} stay={stay} />
-
-      <UnreflectedNotice codes={result.unreflected} onFill={onFill} />
-
-      <AssumptionsPanel assumptions={result.assumptions} />
+      <UnreflectedNotice
+        codes={result.unreflected.filter((code) =>
+          CURRENT_UNREFLECTED.has(code),
+        )}
+        onFill={onFill}
+      />
     </div>
   );
 }
