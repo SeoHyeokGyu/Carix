@@ -9,7 +9,7 @@ import {
 } from "../../lib/simulatorCopy";
 import { AssumptionsPanel } from "./AssumptionsPanel";
 import { CumulativeChart } from "./CumulativeChart";
-import { FirstYearWaterfall } from "./FirstYearWaterfall";
+import { FirstYearBars } from "./FirstYearBars";
 import { InflationBasisNote } from "./InflationBasisNote";
 import { UnreflectedNotice } from "./UnreflectedNotice";
 
@@ -57,7 +57,7 @@ function FirstYear({ move }: { move: MoveView }) {
   return (
     <section className="flex flex-col gap-3">
       <SectionTitle>2 · 첫해 내역</SectionTitle>
-      <FirstYearWaterfall firstYear={move.firstYear} />
+      <FirstYearBars firstYear={move.firstYear} />
       <p className="text-sm">
         첫해 합계 {signedMan(move.firstYear.total)} — 연봉 차이{" "}
         {signedMan(move.firstYear.salaryDiff)}, 쉬는 기간 소득{" "}
