@@ -12,6 +12,12 @@ const MONTHS_PER_YEAR = 12;
 const Y_PADDING_RATIO = 0.12;
 const TOOLTIP_W = 150;
 const TOOLTIP_H = 40;
+// 툴팁이 오른쪽 끝값 라벨 자리(PAD.right)까지 넘어가도 되는 여유.
+const TOOLTIP_OVERHANG = 40;
+// 차이가 전부 0 이어도 눈금이 쓸 만한 간격이 되게 하는 최소 범위(원).
+const FLAT_SPAN = 1_000_000;
+// 글자(12 단위)가 넓은 컨테이너에서 16px 을 넘게 커지지 않도록 그림 폭을 제한한다.
+const MAX_WIDTH_CLASS = "max-w-[480px]";
 
 export interface CumulativeChartProps {
   /** 월별 누적(원). 인덱스 i 는 i+1 개월째. */
@@ -33,7 +39,7 @@ export function CumulativeChart({
 
   const lo = Math.min(...gap, 0);
   const hi = Math.max(...gap, 0);
-  const pad = (hi - lo || 1) * Y_PADDING_RATIO;
+  const pad = (hi - lo || FLAT_SPAN) * Y_PADDING_RATIO;
   const ticks = niceTicks(lo - pad, hi + pad, 4);
   const yMin = Math.min(lo - pad, ticks[0]);
   const yMax = Math.max(hi + pad, ticks[ticks.length - 1]);
@@ -75,7 +81,7 @@ export function CumulativeChart({
     pointer === null
       ? 0
       : Math.min(
-          WIDTH - PAD.right - TOOLTIP_W + 40,
+          WIDTH - PAD.right - TOOLTIP_W + TOOLTIP_OVERHANG,
           Math.max(PAD.left, x(pointer) + 10),
         );
 
@@ -85,7 +91,7 @@ export function CumulativeChart({
         role="img"
         aria-label={ariaLabel}
         viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
-        className="h-auto w-full touch-pan-y"
+        className={`h-auto w-full touch-pan-y ${MAX_WIDTH_CLASS}`}
         onPointerMove={onMove}
         onPointerLeave={() => setPointer(null)}
       >
