@@ -211,6 +211,10 @@ describe("이직 시뮬레이터 라우트", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "요청을 처리하지 못했습니다",
     );
+    // 오류는 남을 때 결과 자리에만 보인다. 비교 자리가 끝나지 않는 로딩 문장을 남기면 안 된다.
+    expect(
+      screen.queryByText("결과를 불러오는 중입니다."),
+    ).not.toBeInTheDocument();
   });
 
   // 스펙 「빌더 점검 후 정한 것」 4 — 들어오기만 해도 서버 초안이 써지면 다른 기기의 초안을 덮는다.
@@ -402,6 +406,9 @@ describe("이직 시뮬레이터 라우트", () => {
       ...evaluation,
       unreflected: ["SIGNING_BONUS"],
     });
+    vi.mocked(scenario.listScenarios).mockResolvedValue([
+      savedScenario(draft, "B사"),
+    ]);
     const user = userEvent.setup();
 
     renderRoute();
@@ -411,6 +418,14 @@ describe("이직 시뮬레이터 라우트", () => {
 
     await waitFor(() =>
       expect(screen.getByLabelText(/사이닝 보너스 \(만원\)/)).toHaveFocus(),
+    );
+
+    // 불러오기로 다시 그려진 오퍼 입력이 지난 `넣기` 대상을 다시 잡아 포커스를 빼앗으면 안 된다.
+    await user.click(screen.getByRole("button", { name: "저장된 시나리오 1" }));
+    await user.click(await screen.findByRole("button", { name: "불러오기" }));
+
+    await waitFor(() =>
+      expect(screen.getByRole("heading", { level: 1 })).toHaveFocus(),
     );
   });
 

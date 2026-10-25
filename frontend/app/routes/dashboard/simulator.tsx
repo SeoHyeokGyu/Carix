@@ -134,6 +134,8 @@ interface ResultAreaProps {
   /** 평가 오류. 두 영역이 같은 오류를 두 번 알리지 않도록 한 영역에만 넘긴다. */
   error: string | null;
   onRetry: () => void;
+  /** `다시 계산하는 중` 을 스크린리더에 알릴지. 두 영역이 같은 문장을 함께 알리지 않도록 한 곳만 켠다. */
+  announcePending?: boolean;
 }
 
 /** 입력 아래 결과 자리. 다시 계산하는 동안·입력이 무효인 동안 직전 결과를 흐리게 남긴다. */
@@ -145,6 +147,7 @@ function ResultArea({
   pending,
   error,
   onRetry,
+  announcePending = true,
 }: ResultAreaProps) {
   if (hint !== null) {
     return <p className="text-sm text-muted-foreground">{hint}</p>;
@@ -162,7 +165,10 @@ function ResultArea({
         </p>
       ) : (
         pending && (
-          <p role="status" className="text-sm text-muted-foreground">
+          <p
+            role={announcePending ? "status" : undefined}
+            className="text-sm text-muted-foreground"
+          >
             다시 계산하는 중
           </p>
         )
@@ -331,6 +337,8 @@ export default function DashboardSimulator() {
     setInvalid({ current: false, offer: false });
     setOfferMissing(null);
     setOfferOpen(next?.move != null);
+    // 다시 그려지는 입력이 지난 `넣기` 대상을 마운트 때 다시 잡아 포커스를 빼앗지 않게 한다.
+    setFocus(undefined);
     pendingOffer.current = null;
     commit(next);
     persisted.current = true;
@@ -369,6 +377,7 @@ export default function DashboardSimulator() {
       pendingOffer.current = null;
       setInvalid((prev) => ({ ...prev, offer: false }));
       setOfferMissing(null);
+      setFocus(undefined);
       setOfferOpen(false);
       return;
     }
@@ -386,6 +395,7 @@ export default function DashboardSimulator() {
     offerOpen && request?.move && result?.move
       ? { ...result, move: result.move }
       : null;
+  const offerHint = request?.move ? null : compareHint(false, offerMissing);
   const saveButton = (variant: "default" | "outline") => (
     <SaveScenarioButton
       onOpen={openSave}
@@ -501,14 +511,16 @@ export default function DashboardSimulator() {
           </OfferCard>
         </div>
 
-        {offerOpen && (
+        {/* 계산 중·오류 대체 표시는 남을 때 결과 자리가 맡는다. 비교 자리는 안내나 결과가 있을 때만. */}
+        {offerOpen && (offerHint !== null || compare !== null) && (
           <ResultArea
-            hint={request?.move ? null : compareHint(false, offerMissing)}
+            hint={offerHint}
             invalid={invalid.offer}
             dimmed={stayDimmed || invalid.offer}
             pending={pending}
             error={null}
             onRetry={retry}
+            announcePending={false}
           >
             {compare && (
               <CompareResult
@@ -532,7 +544,7 @@ export default function DashboardSimulator() {
           </>
         )}
 
-        <div className="sticky bottom-0 -mx-4 flex justify-end border-t border-carix-border bg-carix-bg/95 px-4 py-3 backdrop-blur-md sm:static sm:mx-0 sm:border-0 sm:bg-transparent sm:px-0 sm:py-0 sm:backdrop-blur-none">
+        <div className="sticky bottom-0 -mx-6 flex justify-end border-t border-carix-border bg-carix-bg/95 px-6 py-3 backdrop-blur-md sm:static sm:mx-0 sm:border-0 sm:bg-transparent sm:px-0 sm:py-0 sm:backdrop-blur-none">
           {saveButton("outline")}
         </div>
       </div>
