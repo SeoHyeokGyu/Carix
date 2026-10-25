@@ -134,6 +134,8 @@ interface ResultAreaProps {
   /** 평가 오류. 두 영역이 같은 오류를 두 번 알리지 않도록 한 영역에만 넘긴다. */
   error: string | null;
   onRetry: () => void;
+  /** 오류 자체는 다른 영역이 알릴 때, 이 영역의 직전 결과가 지금 입력의 결과가 아님을 적는 한 줄. */
+  failedNote?: string | null;
   /** `다시 계산하는 중` 을 스크린리더에 알릴지. 두 영역이 같은 문장을 함께 알리지 않도록 한 곳만 켠다. */
   announcePending?: boolean;
 }
@@ -147,6 +149,7 @@ function ResultArea({
   pending,
   error,
   onRetry,
+  failedNote = null,
   announcePending = true,
 }: ResultAreaProps) {
   if (hint !== null) {
@@ -174,6 +177,7 @@ function ResultArea({
         )
       )}
       {error && <InlineAlert message={error} onRetry={onRetry} />}
+      {failedNote && <p className="text-sm text-carix-danger">{failedNote}</p>}
       <div className={cn("transition-opacity", dimmed && "opacity-60")}>
         {children}
       </div>
@@ -302,6 +306,8 @@ export default function DashboardSimulator() {
     (!offerOpen || offerForm.current?.flush() != null);
 
   const openSave = () => {
+    // 같은 문장을 다시 넣으면 다음 저장 성공이 알려지지 않는다.
+    setSavedMessage(null);
     if (!flushForms()) return false;
     startPersisting();
     return true;
@@ -395,7 +401,9 @@ export default function DashboardSimulator() {
     offerOpen && request?.move && result?.move
       ? { ...result, move: result.move }
       : null;
-  const offerHint = request?.move ? null : compareHint(false, offerMissing);
+  // 지금 회사 요청이 없으면 그쪽 안내가 먼저다. 먼저 채운 오퍼에 다시 넣으라고 하지 않는다.
+  const offerHint =
+    request === null || request.move ? null : compareHint(false, offerMissing);
   const saveButton = (variant: "default" | "outline") => (
     <SaveScenarioButton
       onOpen={openSave}
@@ -516,9 +524,14 @@ export default function DashboardSimulator() {
           <ResultArea
             hint={offerHint}
             invalid={invalid.offer}
-            dimmed={stayDimmed || invalid.offer}
+            dimmed={stayDimmed || invalid.offer || error !== null}
             pending={pending}
             error={null}
+            failedNote={
+              error !== null
+                ? "계산하지 못했습니다 — 위 오류를 확인하세요"
+                : null
+            }
             onRetry={retry}
             announcePending={false}
           >

@@ -309,6 +309,32 @@ describe("이직 시뮬레이터 라우트", () => {
     ).not.toBeInTheDocument();
   });
 
+  // 평가가 실패해도 직전 결과는 남는다. 비교 자리가 그 결과를 지금 입력의 결과처럼 보이면 안 된다.
+  it("다시 계산이 실패하면 직전 비교를 흐리고 실패를 적는다", async () => {
+    vi.mocked(scenario.getDraft).mockResolvedValue(draft);
+    const user = fakeTimerUser();
+
+    renderRoute();
+    await screen.findByText("따라잡는 시점");
+    await waitFor(() =>
+      expect(compareArea()).toHaveAttribute("aria-busy", "false"),
+    );
+    vi.mocked(scenario.evaluate).mockRejectedValue(new Error("평가 서버 오류"));
+    const gap = screen.getByLabelText(/쉬는 기간/);
+    await user.clear(gap);
+    await user.type(gap, "2");
+    debounce();
+
+    await screen.findByRole("alert");
+    expect(compareArea()).toHaveAttribute("aria-busy", "true");
+    expect(
+      within(compareArea() as HTMLElement).getByText(
+        "계산하지 못했습니다 — 위 오류를 확인하세요",
+      ),
+    ).toBeInTheDocument();
+    expect(screen.getAllByRole("alert")).toHaveLength(1);
+  });
+
   it("빈_오퍼_카드면_지금_회사만_저장한다", async () => {
     vi.mocked(scenario.getDraft).mockResolvedValue(stayOnly);
     vi.mocked(scenario.saveScenario).mockResolvedValue(
@@ -335,6 +361,14 @@ describe("이직 시뮬레이터 라우트", () => {
       "role",
       "status",
     );
+
+    // 두 번째 저장도 다시 알린다 — 팝오버를 열면 지난 확인 문장을 지운다.
+    await user.click(
+      screen.getAllByRole("button", { name: "시나리오 저장" })[0],
+    );
+    expect(
+      screen.queryByText("시나리오를 저장했습니다."),
+    ).not.toBeInTheDocument();
   });
 
   // 직전에 유효했던 오퍼로 몰래 저장하지 않는다(스펙 「동작」 저장 버튼).
@@ -449,6 +483,34 @@ describe("이직 시뮬레이터 라우트", () => {
         move: { grossSalary: 72_000_000 },
       }),
     );
+  });
+
+  it("지금 회사 연봉 전에 채운 오퍼는 지운 뒤 되살아나지 않는다", async () => {
+    vi.mocked(scenario.getContext).mockResolvedValue({
+      ...context,
+      currentAnnualGross: null,
+    });
+    const user = fakeTimerUser();
+
+    renderRoute();
+    await user.click(await screen.findByRole("button", { name: "오퍼 넣기" }));
+    await user.type(screen.getByLabelText(/새 회사 연봉/), "7200");
+    await user.click(screen.getByRole("radio", { name: "못 받음" }));
+    debounce();
+    // 지금 회사 요청이 없을 때는 비교 안내 대신 지금 회사 안내만 보인다.
+    expect(
+      screen.queryByText(/넣으면 비교가 나옵니다|고르면 비교가 나옵니다/),
+    ).not.toBeInTheDocument();
+    await user.click(
+      screen.getByRole("button", { name: "새 회사 오퍼 지우기" }),
+    );
+    await user.type(screen.getByLabelText(/현재 세전 연봉/), "6000");
+    debounce();
+
+    await waitFor(() => expect(scenario.evaluate).toHaveBeenCalled());
+    expect(
+      vi.mocked(scenario.evaluate).mock.lastCall?.[0].move ?? null,
+    ).toBeNull();
   });
 
   it("예전 계산 저장분을 다시 계산하면 두 카드가 채워진다", async () => {
