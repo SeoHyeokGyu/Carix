@@ -29,23 +29,64 @@
   </div>
   <p class="note">아바타 클릭 시에만 드롭다운이 열린다 — 와이어프레임에서는 항상 펼친 상태로 표시.</p>
 
-  <h1>12개월 시뮬레이터</h1>
-
-  <div class="card">
-    <label>예상 인상률 (%)</label>
-    <input type="number" />
-    <label>이직 시 목표 세전 연봉 (만원)</label>
-    <input type="number" />
-    <label>이직에 드는 일회성 비용 (원)</label>
-    <input type="number" />
-    <label>예상 구직 공백 (개월, 0~6)</label>
-    <input type="number" min="0" max="6" />
-    <div style="margin-top:14px;"><button class="btn btn-primary">계산</button></div>
-    <div class="alert alert-warning" style="margin-top:14px;">
-      <strong>남으면 추정 이득</strong> 약 640만원<br />
-      잔류 보상과 이직 보상의 차이입니다. 세금·성과급·주식보상·퇴직금은 포함하지 않습니다.
+  <div style="display:flex;justify-content:space-between;align-items:flex-end;gap:12px;margin-top:72px;">
+    <div>
+      <h1 style="margin:0;">이직 시뮬레이터</h1>
+      <p class="note" style="margin:4px 0 0;">지금 회사와 받은 오퍼를 세후·실질 소득으로 나란히 비교합니다.</p>
+    </div>
+    <div style="display:flex;gap:8px;">
+      <button class="btn">저장된 시나리오 2 ▾</button>
+      <button class="btn btn-primary">시나리오 저장</button>
     </div>
   </div>
+
+  <div class="grid-2" style="margin-top:20px;">
+    <div class="card">
+      <h3>지금 회사</h3>
+      <label>세전 연봉 (소득 이력)</label>
+      <div style="font-weight:600;">5,000만 원 <a href="#" style="font-size:12px;font-weight:400;">이번만 바꾸기</a></div>
+      <label>올해 예상 인상률 (%)</label>
+      <input type="number" value="3.5" />
+      <label>연봉 계약 금액에 고정상여가 들어 있나요?</label>
+      <div style="font-size:13px;">◉ 들어 있음 ○ 따로 받음 <span class="note">마이페이지 소득 이력에 저장됩니다</span></div>
+      <p class="note">▸ 성과급·주식·입사일 (선택)</p>
+      <hr style="border:none;border-top:1px solid #e5e7eb;margin:14px 0;" />
+      <div style="font-size:16px;font-weight:700;">지금 회사 실질 소득 +1.1%</div>
+      <div style="font-size:13px;margin-top:6px;">물가를 이기는 최소 인상률 2.2% (개인물가 기준), 2.5% (한국은행 전망 기준)<br />시장 중앙값보다 4.6% 높음 (세전 기준)</div>
+    </div>
+
+    <div class="card">
+      <h3>새 회사 오퍼 <a href="#" style="float:right;font-size:12px;font-weight:400;">지우기</a></h3>
+      <label>새 회사 연봉 (세전, 만원)</label>
+      <input type="number" value="7200" />
+      <p class="note" style="margin:6px 0 0;">새 회사 연봉은 동료집단 상위 10% 수준으로, 최상위권입니다.</p>
+      <label>쉬는 기간 (개월)</label>
+      <input type="number" value="2" min="0" max="6" />
+      <label>일회성 비용 (만원)</label>
+      <input type="number" value="300" />
+      <label>실업급여를 받을 수 있나요? (기본값 없음)</label>
+      <div style="font-size:13px;">○ 받음 ◉ 못 받음</div>
+      <p class="note">▸ 상여·성과급·사이닝·주식 (선택)</p>
+    </div>
+  </div>
+
+  <p class="note">오퍼가 없으면 오른쪽 카드는 점선 빈 상태 — 「받은 오퍼가 있나요?」 + 「오퍼 넣기」. 이때 결론·차트 없이 왼쪽 결과만 보인다.</p>
+
+  <p class="note" style="margin-bottom:4px;">새 회사 첫해 +212만, 10개월째 따라잡음</p>
+  <h2 style="margin-top:0;">새 회사를 10개월 이상 다닐 생각이면 옮기는 쪽이 유리합니다</h2>
+  <div class="grid-3">
+    <div class="card"><div class="note">따라잡는 시점</div><div style="font-size:22px;font-weight:700;">10개월째</div></div>
+    <div class="card"><div class="note">4년 누적 차이</div><div style="font-size:22px;font-weight:700;">+4,601만</div><div class="note">첫해만 보면 +212만</div></div>
+    <div class="card"><div class="note">4년 누적이 같아지는 인상률</div><div style="font-size:22px;font-weight:700;">14.9%</div><div class="note">지금 회사에서 이만큼 오르면 4년 누적이 같아집니다 · 올해 예상 3.5%</div></div>
+  </div>
+  <div class="alert alert-warning">새 회사를 1년 안에 나가면 그곳 퇴직금도 없습니다</div>
+
+  <div class="grid-2">
+    <div class="card"><h3>새 회사로 옮겼을 때 누적 차이</h3><p class="note">새 회사 누적 − 지금 회사 누적 한 선. 0 아래 음영, 따라잡는 달에 점과 「M개월」, 오른쪽 끝에 4년 끝 값.</p></div>
+    <div class="card"><h3>첫해 내역</h3><p class="note">가로 증감 막대: 연봉 차이 · 쉬는 기간 소득 · 일회성 비용 · 실업급여(0 이면 숨김) · 합계.</p></div>
+  </div>
+
+  <p class="note">아래: 물가 기준 표시와 출처, 접힌 「계산 근거·가정」. 결과 배지(옮기면/남으면 추정 이득)는 화면에 두지 않는다.</p>
 </div>
 </body>
 </html>

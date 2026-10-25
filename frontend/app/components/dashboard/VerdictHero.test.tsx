@@ -55,7 +55,7 @@ describe("VerdictHero", () => {
 
     expect(
       screen.getByRole("link", {
-        name: "옮기면 12개월간 얼마가 달라지는지 계산해 보기",
+        name: "옮기면 4년간 얼마가 달라지는지 지금 회사와 비교해 보기",
       }),
     ).toHaveAttribute("href", "/dashboard/simulator");
   });
