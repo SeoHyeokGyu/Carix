@@ -12,10 +12,10 @@ class ScenarioRulesTest {
       new UnemploymentBenefitAssumption(66_000L, 60_120L, "2026-01");
 
   @Test
-  @DisplayName("차이가 정확히 0이면 추가보상, 음수면 기회비용이다")
+  @DisplayName("차이가 정확히 0이면 옮기면 추정 이득, 음수면 남으면 추정 이득이다")
   void 결과유형_경계() {
-    assertThat(ScenarioCalculator.typeLabelOf(0)).isEqualTo("추정 추가보상");
-    assertThat(ScenarioCalculator.typeLabelOf(-1)).isEqualTo("추정 기회비용");
+    assertThat(ScenarioCalculator.typeLabelOf(0)).isEqualTo("옮기면 추정 이득");
+    assertThat(ScenarioCalculator.typeLabelOf(-1)).isEqualTo("남으면 추정 이득");
   }
 
   @Test

@@ -59,7 +59,7 @@ export function CumulativeChart({
 
   const last = months - 1;
   const ariaLabel = [
-    `지금 회사와 새 회사의 ${months}개월 누적 세후 보상 비교 그래프.`,
+    `지금 회사와 새 회사의 ${months}개월 누적 세후 소득 비교 그래프.`,
     `${months}개월 시점 지금 회사 ${amountLabel(stay[last])}원, 새 회사 ${amountLabel(move[last])}원.`,
     crossAt !== null
       ? `새 회사 누적이 ${crossAt}개월째 지금 회사 누적을 따라잡습니다.`

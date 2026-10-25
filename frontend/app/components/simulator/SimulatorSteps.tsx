@@ -63,7 +63,9 @@ export function SimulatorSteps({
                 {item.label}
                 {done && <span className="sr-only">(완료)</span>}
                 {item.optional && (
-                  <span className="text-xs text-muted-foreground">선택</span>
+                  <span className="text-xs text-muted-foreground">
+                    선택 입력
+                  </span>
                 )}
               </Button>
               {i < ITEMS.length - 1 && (

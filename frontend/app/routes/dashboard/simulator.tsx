@@ -503,7 +503,7 @@ export default function DashboardSimulator() {
                 variant="outline"
                 onClick={() => openSave("current")}
               >
-                이 결과 저장
+                지금 회사만 저장
               </Button>
             }
             right={

@@ -82,7 +82,7 @@ public class ScenarioEvaluationService {
         overridden
             ? contextService.marketGapPercent(userId, currentGross)
             : context.marketGapPercent();
-    // 개인물가가 없으면 내 기준 손익분기는 정부 전망 값의 복사본이라 "개인물가 기준" 으로 보이지 않게 비운다
+    // 개인물가가 없으면 내 기준 손익분기는 한국은행 전망 값의 복사본이라 "개인물가 기준" 으로 보이지 않게 비운다
     StayView stayView =
         new StayView(
             result.stayRealChangePercent(),
@@ -261,7 +261,7 @@ public class ScenarioEvaluationService {
       list.add(
           new Assumption(
               InflationAssumptions.PERSONAL_INFLATION_UNAVAILABLE,
-              "개인물가를 계산할 수 없어 정부 전망을 사용했습니다."));
+              "개인물가를 계산할 수 없어 한국은행 전망을 사용했습니다."));
     }
     list.add(new Assumption("HORIZON_HOLD", "4년 동안 인상률과 물가가 지금 입력한 값으로 유지된다고 가정했습니다."));
     if (severance) {

@@ -6,7 +6,7 @@ describe("moveHeadline", () => {
   it("역전_없으면_4년_문구", () => {
     expect(moveHeadline(-3_000_000, null)).toEqual({
       headline: "새 회사 첫해 -300만",
-      note: "비교 기간 4년 안에 역전되지 않습니다",
+      note: "4년 안에 새 회사 누적이 지금 회사 누적을 따라잡지 못합니다",
     });
     expect(moveAdvice(null)).toBeNull();
   });

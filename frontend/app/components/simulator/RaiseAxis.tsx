@@ -8,10 +8,10 @@ const LABEL_FONT = 12;
 
 export interface RaiseAxisProps {
   expectedPercent: number;
-  /** 개인물가 기준 손익분기 인상률(%). 계산 못 하면 null. */
+  /** 물가를 이기는 최소 인상률(%), 개인물가 기준. 계산 못 하면 null. */
   breakevenPersonal: number | null;
   breakevenGovernment: number | null;
-  /** 새 회사 제안이 현 연봉 대비 몇 %인지. */
+  /** 새 회사 연봉이 지금 회사 연봉 대비 몇 % 인상인지. */
   offerEquivalentPercent?: number | null;
 }
 
@@ -67,7 +67,7 @@ export function RaiseAxis({
     }
     return { x: px + offset, anchor: preferred };
   };
-  // 손익분기 선 둘의 이름이 겹치지 않게 왼쪽 선 이름은 왼쪽으로, 오른쪽 선 이름은 오른쪽으로 편다.
+  // 최소 인상률 선 둘(개인물가·한국은행 전망)의 이름이 겹치지 않게 왼쪽 선 이름은 왼쪽으로, 오른쪽 선 이름은 오른쪽으로 편다.
   const breakevenLabel = (value: number, other: number | null, text: string) =>
     fit(
       x(value),
@@ -83,7 +83,7 @@ export function RaiseAxis({
     breakevenPersonal !== null ? `개인물가 기준 ${pct(breakevenPersonal)}` : "";
   const governmentText =
     breakevenGovernment !== null
-      ? `정부 전망 기준 ${pct(breakevenGovernment)}`
+      ? `한국은행 전망 기준 ${pct(breakevenGovernment)}`
       : "";
   const personalLabel =
     breakevenPersonal !== null
@@ -95,16 +95,16 @@ export function RaiseAxis({
       : null;
   const offerText =
     offerEquivalentPercent != null
-      ? `새 회사 제안 ${pct(offerEquivalentPercent)}`
+      ? `새 회사 연봉 ${pct(offerEquivalentPercent)}`
       : "";
   const offerLabel =
     offerEquivalentPercent != null
       ? fit(x(offerEquivalentPercent), offerText, "middle")
       : null;
-  const expectedText = `기대 인상률 ${pct(expectedPercent)}`;
+  const expectedText = `예상 인상률 ${pct(expectedPercent)}`;
   const expectedLabel = fit(x(expectedPercent), expectedText, "middle");
 
-  // 손익분기가 둘이면 개인 기준으로 손해·이득을 가르고, 개인 기준이 없으면 정부 기준 하나로 가른다.
+  // 최소 인상률이 둘이면 개인물가 기준으로 손해·이득을 가르고, 개인물가 기준이 없으면 한국은행 전망 기준 하나로 가른다.
   const split = breakevenPersonal ?? breakevenGovernment;
   const splitX = split === null ? null : x(split);
   const showGovernmentDashed =
@@ -112,25 +112,25 @@ export function RaiseAxis({
   const bandBottom = BAND_TOP + BAND_H;
 
   const facts = [
-    `기대 인상률 ${pct(expectedPercent)}`,
+    `예상 인상률 ${pct(expectedPercent)}`,
     breakevenPersonal !== null
-      ? `개인물가 기준 손익분기 ${pct(breakevenPersonal)}`
+      ? `물가를 이기는 최소 인상률 (개인물가 기준) ${pct(breakevenPersonal)}`
       : null,
     breakevenGovernment !== null
-      ? `정부 전망 기준 손익분기 ${pct(breakevenGovernment)}`
+      ? `물가를 이기는 최소 인상률 (한국은행 전망 기준) ${pct(breakevenGovernment)}`
       : null,
     offerEquivalentPercent != null
-      ? `새 회사 제안은 현 연봉 대비 ${pct(offerEquivalentPercent)}`
+      ? `새 회사 연봉은 지금 회사 대비 ${pct(offerEquivalentPercent)}`
       : null,
   ].filter((f): f is string => f !== null);
 
   const aboveBreakeven = split !== null && expectedPercent >= split;
   const caption =
     split === null
-      ? "손익분기 인상률을 계산할 수 없어 기대 인상률만 보입니다."
+      ? "물가를 이기는 최소 인상률을 계산할 수 없어 예상 인상률만 보입니다."
       : aboveBreakeven
-        ? `기대 인상률 ${pct(expectedPercent)}가 손익분기 ${pct(split)}를 넘어 실질 소득이 늘어납니다.`
-        : `기대 인상률 ${pct(expectedPercent)}가 손익분기 ${pct(split)}에 못 미쳐 실질 소득이 줄어듭니다.`;
+        ? `예상 인상률 ${pct(expectedPercent)}가 물가를 이기는 최소 인상률 ${pct(split)}를 넘어 실질 소득이 늘어납니다.`
+        : `예상 인상률 ${pct(expectedPercent)}가 물가를 이기는 최소 인상률 ${pct(split)}에 못 미쳐 실질 소득이 줄어듭니다.`;
 
   return (
     <figure className="m-0">

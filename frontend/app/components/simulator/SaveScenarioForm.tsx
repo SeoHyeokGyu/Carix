@@ -53,7 +53,7 @@ export function SaveScenarioForm({ onSave, blocked }: SaveScenarioFormProps) {
           <Input
             {...aria}
             type="text"
-            placeholder="예: A사 오퍼 제안"
+            placeholder="예: A사 오퍼"
             value={name}
             onChange={(e) => setName(e.target.value)}
           />

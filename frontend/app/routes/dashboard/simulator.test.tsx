@@ -97,7 +97,7 @@ const evaluation: EvaluationResponse = {
   assumptions: [],
   unreflected: [],
   severance: null,
-  typeLabel: "추정 기회비용",
+  typeLabel: "남으면 추정 이득",
 };
 
 function renderRoute() {
@@ -292,7 +292,7 @@ describe("이직 시뮬레이터 라우트", () => {
     });
 
     expect(resultArea()).toHaveAttribute("aria-busy", "true");
-    expect(screen.queryByText(/소득 기록에 저장됨/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/소득 이력에 저장됨/)).not.toBeInTheDocument();
 
     await user.tab();
 

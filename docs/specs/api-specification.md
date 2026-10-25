@@ -659,9 +659,9 @@
             "unemploymentBenefitNote": "가정 기반 추정 (기준 시점: 2026-01)",
             "difference": -1140000,
             "type": "ESTIMATED_OPPORTUNITY_COST",
-            "typeLabel": "추정 기회비용",
+            "typeLabel": "남으면 추정 이득",
             "warningNote": "이 계산에는 세금, 성과급, 퇴직금 등이 포함되지 않은 단순 세전 기준 시뮬레이션입니다.",
-            "feasibility": { "status": "OK", "sampleSize": 42, "minRequired": null, "feasibilityScore": 31, "targetPercentile": 69, "difficultyGrade": "CHALLENGING", "feedbackMessage": "새 회사 연봉은 동료집단 내 상위 31% 수준의 도전적인 목표입니다. 시장 평균 범위 내에 위치하여 원만히 조율 가능한 수준입니다." }
+            "feasibility": { "status": "OK", "sampleSize": 42, "minRequired": null, "feasibilityScore": 31, "targetPercentile": 69, "difficultyGrade": "CHALLENGING", "feedbackMessage": "새 회사 연봉은 동료집단 상위 31% 수준으로, 높은 편입니다." }
           }
         }
       }
@@ -674,8 +674,8 @@
 
 | 조건 | `type` | `typeLabel` |
 | --- | --- | --- |
-| `difference >= 0` | `ESTIMATED_GAIN` | 추정 추가보상 |
-| `difference < 0` | `ESTIMATED_OPPORTUNITY_COST` | 추정 기회비용 |
+| `difference >= 0` | `ESTIMATED_GAIN` | 옮기면 추정 이득 |
+| `difference < 0` | `ESTIMATED_OPPORTUNITY_COST` | 남으면 추정 이득 |
 
 ### 6.4 가상 시나리오 이력 삭제
 *   **`MVP 범위 밖`** — 시나리오 이력 삭제 화면이 없다. 계정 삭제는 `DELETE /users` 연쇄로 처리한다 ([개발 계획 §4](../plans/carix-dev-plan.md)). `core-api` 에 구현이 없다 — 고정값을 돌려주던 스텁은 철거했다. 아래 규격은 재도입 시의 계약으로만 남긴다.
@@ -701,7 +701,7 @@
 *   **`POST /api/v1/scenarios/evaluate`** — 본문 `stay`(필수: `raisePercent` −100~100, 선택: `currentGrossOverride`, `performanceBonusEstimate`, `stockVesting12m`, `stockUnvested`), `move`(선택: `grossSalary`, `unemploymentMonths` 0~6, `oneTimeCost`, `benefitEligible`, `bonusIncluded`, `fixedBonusAnnual`, `performanceBonusExpected`, `signingBonus`, `stockVesting12m`).
     *   `stay`: `realChangePercent`(내 기준 물가)·`realChangeGovernmentPercent`, `breakevenPersonalPercent`·`breakevenGovernmentPercent`(실질 변화가 0 이 되는 인상률, 해가 없으면 `null`), `marketGapPercent`(양수면 중앙값이 더 높다 = 덜 받는다). 개인물가를 못 구하면 실질 변화 두 값이 같고 `breakevenPersonalPercent` 는 `null` 이다.
     *   `move`(이직 입력이 있을 때만): `stayCumulative`·`moveCumulative`(48개월 누적), `crossoverMonth`, `firstYear`(`salaryDiff`+`gap`+`oneTimeCost`+`benefit` = `total`), `expectedRange {min,max}`(성과급·사이닝 첫해 차이, 결론에 더하지 않음), `stock`(불확실층, 입력이 없으면 `null` — `firstYear` 에 영향 없음), `equalizingRaisePercent`, `feasibility`.
-    *   `typeLabel` — 이직이 있을 때 `firstYear.total` 부호로 `추정 추가보상` / `추정 기회비용`.
+    *   `typeLabel` — 이직이 있을 때 `firstYear.total` 부호로 `옮기면 추정 이득` / `남으면 추정 이득`.
     *   `severance {monthsToAnniversary, estimatedAmount}` — 근속 12개월 미만이고 1년까지 남은 개월(남은 날이 있으면 올림)이 3 이하일 때만. 금액 = 현재 연봉 ÷ 12.
     *   `assumptions [{code,text}]` — 세금 가정(본인 1인·비과세/연말정산 미반영·요율 기준연도), 실수령 보정 여부, 물가 출처, 4년 유지 가정, 이직이 있으면 `NEW_JOB_SEVERANCE`, 사이닝이 있으면 `SIGNING_CLAWBACK`, 개인물가 불가면 `PERSONAL_INFLATION_UNAVAILABLE`, 퇴직금 경고가 있으면 `SEVERANCE_ESTIMATE`, 주식 입력이 있으면 `STOCK_VALUE`. `unreflected [코드]` — 비어서 반영되지 않은 입력(`PERFORMANCE_BONUS`·`STOCK`·`HIRE_DATE`·`MOVE_PERFORMANCE_BONUS`·`SIGNING_BONUS`·`MOVE_STOCK`).
     *   400 — 범위 밖 입력, 소득 이력도 `currentGrossOverride` 도 없는 경우, 현재 연봉의 세후가 0 이하인 경우.

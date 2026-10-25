@@ -131,7 +131,7 @@ export function MoveConditionsStep({
     } catch (error) {
       if (run === feasibilityRun.current) {
         setFeasibility({
-          text: `이직 가능성을 조회하지 못했습니다. ${describeError(error)}`,
+          text: `오퍼 연봉 수준을 조회하지 못했습니다. ${describeError(error)}`,
           isError: true,
         });
       }
@@ -146,7 +146,7 @@ export function MoveConditionsStep({
     }
     const gap = Number(values.gapMonths);
     if (!Number.isInteger(gap) || gap < 0 || gap > MAX_GAP_MONTHS) {
-      next.gapMonths = `공백은 0~${MAX_GAP_MONTHS}개월로 입력해 주세요.`;
+      next.gapMonths = `쉬는 기간은 0~${MAX_GAP_MONTHS}개월로 입력해 주세요.`;
     }
     if (values.benefitEligible === null) {
       next.benefitEligible = "실업급여 여부를 선택해 주세요.";
@@ -235,8 +235,8 @@ export function MoveConditionsStep({
 
       <Field
         id="gapMonths"
-        label="예상 공백 (개월)"
-        hint="퇴사 후 새 회사 출근까지 쉬는 기간입니다."
+        label="쉬는 기간 (개월)"
+        hint="퇴사 후 새 회사 출근까지입니다."
         error={errors.gapMonths}
       >
         {(aria) => (
@@ -308,7 +308,7 @@ export function MoveConditionsStep({
         <div className="mt-4 flex flex-col gap-4">
           <fieldset className="flex flex-col gap-2">
             <legend className="mb-2 text-sm font-medium">
-              새 회사 연봉에 상여가 들어 있나요?
+              새 회사 연봉에 고정상여가 들어 있나요?
             </legend>
             <label className="flex items-center gap-2 text-sm">
               <input
@@ -356,7 +356,7 @@ export function MoveConditionsStep({
           />
           <ManAmountField
             id="stockVesting"
-            label="앞으로 12개월 베스팅 주식 (만원)"
+            label="1년 안에 받을 주식 (만원)"
             value={values.stockVesting}
             onChange={(v) => set("stockVesting", v)}
           />
@@ -368,6 +368,6 @@ export function MoveConditionsStep({
 
 function feasibilityLine(f: Feasibility): string {
   if (f.status !== "OK")
-    return "표본이 부족해 이직 가능성을 판단하지 못했습니다.";
+    return "표본이 부족해 오퍼 연봉 수준을 판단하지 못했습니다.";
   return f.feedbackMessage ?? "";
 }

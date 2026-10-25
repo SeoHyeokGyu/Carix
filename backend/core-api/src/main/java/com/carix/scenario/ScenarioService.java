@@ -42,7 +42,7 @@ public class ScenarioService {
   private static final int GRADE_REALISTIC_FROM = 30;
   private static final int GRADE_CHALLENGING_FROM = 60;
   private static final int GRADE_VERY_HIGH_FROM = 85;
-  private static final int TOP_TIER_FROM = 75;
+  private static final int MEDIAN_PERCENTILE = 50;
 
   private final CareerProfileRepository careerProfileRepository;
   private final PeerSalaryDistributionResolver peerSalaryDistributionResolver;
@@ -188,22 +188,28 @@ public class ScenarioService {
 
   private String gradeLabel(int percentile) {
     if (percentile < GRADE_REALISTIC_FROM) {
-      return "무난하게 달성 가능한";
+      return "시장 평균보다 낮은 편";
     }
     if (percentile < GRADE_CHALLENGING_FROM) {
-      return "실현 가능한 적정선 수준의";
+      return "시장 평균 범위";
     }
-    return percentile < GRADE_VERY_HIGH_FROM ? "도전적인" : "매우 공격적인 최상위권";
+    return percentile < GRADE_VERY_HIGH_FROM ? "높은 편" : "최상위권";
   }
 
+  /**
+   * 받은 오퍼의 위치를 알린다. 절반보다 아래면 상위 대신 하위로 읽는다. 백분위는 반올림 값이라 양 끝(0·100)에서 "하위 0%"·"상위 0%" 처럼 말이 안 되는
+   * 위치가 나오므로 "1% 미만" 으로 읽는다.
+   */
   private String feedback(int percentile) {
-    return "새 회사 연봉은 동료집단 내 상위 %d%% 수준의 %s 목표입니다. %s"
-        .formatted(
-            100 - percentile,
-            gradeLabel(percentile),
-            percentile >= TOP_TIER_FROM
-                ? "동료집단 내에서 상위권 연봉에 속하며 충분한 스킬 요건을 증명해야 할 수 있습니다."
-                : "시장 평균 범위 내에 위치하여 원만히 조율 가능한 수준입니다.");
+    String position =
+        percentile >= MEDIAN_PERCENTILE
+            ? "상위 %s".formatted(share(100 - percentile))
+            : "하위 %s".formatted(share(percentile));
+    return "새 회사 연봉은 동료집단 %s 수준으로, %s입니다.".formatted(position, gradeLabel(percentile));
+  }
+
+  private static String share(int percent) {
+    return percent < 1 ? "1% 미만" : percent + "%";
   }
 
   // --- 매핑 ---

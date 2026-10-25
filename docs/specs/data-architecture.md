@@ -459,6 +459,6 @@ sequenceDiagram
     Web->>GW: POST /api/v1/scenarios/evaluate (평가 요청, 저장하지 않음)
     GW->>Core: 라우팅 (/api/v1/**)
     Note over Core: 공백 기간·실업급여 반영 세후·실질 비교 연산
-    Core-->>Web: 추정 추가보상/기회비용 결과 반환
+    Core-->>Web: 옮기면·남으면 추정 이득 결과 반환
     Web-->>User: 시뮬레이션 비교 차트 표시
 ```

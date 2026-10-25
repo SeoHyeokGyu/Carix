@@ -45,7 +45,7 @@ const FOCUS_SELECTORS: Record<CurrentJobFocus, string> = {
 
 const SAVED_NOTE = "마이페이지에 저장됨";
 const BONUS_AMOUNT_REQUIRED = "연간 고정상여 금액을 입력해 주세요.";
-const BONUS_IDLE_NOTE = "마이페이지 소득 기록에 저장됩니다";
+const BONUS_IDLE_NOTE = "마이페이지 소득 이력에 저장됩니다";
 const BONUS_UNSAVED_NOTE = "칸을 벗어나면 저장됩니다";
 
 type Stay = EvaluateRequest["stay"];
@@ -381,17 +381,17 @@ export function CurrentJobStep({
 
       {latestIncomeId && overrideActive && (
         <p className="text-sm text-muted-foreground">
-          덮어쓴 연봉은 따로 받는 고정상여까지 더한 연 금액으로 계산합니다.
+          이번만 바꾼 연봉은 따로 받는 고정상여까지 더한 연 금액으로 계산합니다.
         </p>
       )}
       {latestIncomeId && !overrideActive && (
         <>
           <fieldset className="flex flex-col gap-2">
             <legend className="mb-2 text-sm font-medium">
-              연봉 계약 금액에 상여가 들어 있나요?{" "}
+              연봉 계약 금액에 고정상여가 들어 있나요?{" "}
               <RecordSaveNote
                 status={bonusUnsaved ? "idle" : bonusSave.status}
-                target="소득 기록"
+                target="소득 이력"
                 idleNote={bonusUnsaved ? BONUS_UNSAVED_NOTE : BONUS_IDLE_NOTE}
                 staleNote="결과는 이전 답 기준입니다."
                 onRetry={bonusSave.retry}
@@ -458,13 +458,14 @@ export function CurrentJobStep({
           />
           <ManAmountField
             id="stockVesting12m"
-            label="앞으로 12개월 베스팅 주식 (만원)"
+            label="1년 안에 받을 주식 (만원)"
             value={vesting}
             onChange={setVesting}
           />
           <ManAmountField
             id="stockUnvested"
-            label="미베스팅 잔여 주식 (만원)"
+            label="아직 못 받은 주식 (만원)"
+            hint="새 회사로 옮기면 받지 못하는 몫입니다."
             value={unvested}
             onChange={setUnvested}
           />

@@ -16,15 +16,15 @@ public record EvaluationResponse(
     List<Assumption> assumptions,
     @Schema(description = "넣지 않아 계산에 반영되지 않은 항목 코드") List<String> unreflected,
     @Schema(description = "근속 1년 직전일 때만", nullable = true) SeveranceWarning severance,
-    @Schema(description = "추정 추가보상 / 추정 기회비용. 이직이 있을 때만", nullable = true) String typeLabel) {
+    @Schema(description = "옮기면 추정 이득 / 남으면 추정 이득. 이직이 있을 때만", nullable = true) String typeLabel) {
 
   @JsonIgnoreProperties(ignoreUnknown = true)
   public record StayView(
       @Schema(description = "내 기준 물가로 본 실질 소득 변화(%)") double realChangePercent,
-      @Schema(description = "정부 전망 물가로 본 실질 소득 변화(%)") double realChangeGovernmentPercent,
+      @Schema(description = "한국은행 전망 물가로 본 실질 소득 변화(%)") double realChangeGovernmentPercent,
       @Schema(description = "내 기준 물가에서 실질 변화가 0 이 되는 인상률(%). 개인물가를 못 구하면 null", nullable = true)
           Double breakevenPersonalPercent,
-      @Schema(description = "정부 전망 물가에서 실질 변화가 0 이 되는 인상률(%)", nullable = true)
+      @Schema(description = "한국은행 전망 물가에서 실질 변화가 0 이 되는 인상률(%)", nullable = true)
           Double breakevenGovernmentPercent,
       @Schema(description = "임금통계 중앙값 대비 격차(%, 세전). 산출 불가면 null", nullable = true)
           Double marketGapPercent) {}

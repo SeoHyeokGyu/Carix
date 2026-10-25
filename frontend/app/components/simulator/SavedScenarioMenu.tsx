@@ -62,7 +62,7 @@ function rowView(item: SavedScenario): RowView | null {
   if (item.engineVersion === 1 && legacy) {
     return {
       legacy: true,
-      summary: `차이 ${signedMan(legacy.result.difference)}`,
+      summary: `세전 12개월 차이 ${signedMan(legacy.result.difference)}`,
       actionLabel: "다시 계산",
       request: legacyToRequest(legacy),
     };
@@ -126,7 +126,7 @@ export function SavedScenarioMenu({
                 <div className="flex min-w-0 flex-col gap-1">
                   <p className="truncate text-sm font-medium">{rowTitle}</p>
                   <p className="flex items-center gap-2 text-xs text-muted-foreground">
-                    {row.legacy && <Badge variant="secondary">이전 방식</Badge>}
+                    {row.legacy && <Badge variant="secondary">예전 계산</Badge>}
                     <span>{row.summary}</span>
                   </p>
                 </div>

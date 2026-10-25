@@ -22,7 +22,7 @@ interface Step {
 export function waterfallSteps(firstYear: FirstYear): Step[] {
   const deltas = [
     { key: "salaryDiff", label: "연봉 차이", value: firstYear.salaryDiff },
-    { key: "gap", label: "공백", value: firstYear.gap },
+    { key: "gap", label: "쉬는 기간 소득", value: firstYear.gap },
     { key: "oneTimeCost", label: "일회성 비용", value: firstYear.oneTimeCost },
     { key: "benefit", label: "실업급여", value: firstYear.benefit },
   ].filter((d) => d.key !== "benefit" || d.value !== 0);

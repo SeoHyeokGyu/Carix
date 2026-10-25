@@ -36,7 +36,7 @@ function LongRun({ move }: { move: MoveView }) {
       : 0;
   return (
     <section className="flex flex-col gap-3">
-      <SectionTitle>1 · 길게 보면</SectionTitle>
+      <SectionTitle>1 · 4년 누적</SectionTitle>
       <CumulativeChart
         stay={move.stayCumulative}
         move={move.moveCumulative}
@@ -44,8 +44,8 @@ function LongRun({ move }: { move: MoveView }) {
       />
       <p className="text-sm">
         {move.crossoverMonth === null
-          ? "비교 기간 4년 동안 새 회사 누적이 지금 회사 누적을 넘지 못합니다."
-          : `${move.crossoverMonth}개월째부터 새 회사 누적이 지금 회사 누적을 넘어섭니다.`}{" "}
+          ? "4년 안에 새 회사 누적이 지금 회사 누적을 따라잡지 못합니다."
+          : `${move.crossoverMonth}개월째 새 회사 누적이 지금 회사 누적을 따라잡습니다.`}{" "}
         4년 끝의 누적 차이는 {signedMan(end)}입니다.
       </p>
     </section>
@@ -56,11 +56,11 @@ function FirstYear({ move }: { move: MoveView }) {
   const { expectedRange, stock } = move;
   return (
     <section className="flex flex-col gap-3">
-      <SectionTitle>2 · 첫해 증감</SectionTitle>
+      <SectionTitle>2 · 첫해 내역</SectionTitle>
       <FirstYearWaterfall firstYear={move.firstYear} />
       <p className="text-sm">
         첫해 합계 {signedMan(move.firstYear.total)} — 연봉 차이{" "}
-        {signedMan(move.firstYear.salaryDiff)}, 공백{" "}
+        {signedMan(move.firstYear.salaryDiff)}, 쉬는 기간 소득{" "}
         {signedMan(move.firstYear.gap)}, 일회성 비용{" "}
         {signedMan(move.firstYear.oneTimeCost)}
         {move.firstYear.benefit !== 0 &&
@@ -76,8 +76,8 @@ function FirstYear({ move }: { move: MoveView }) {
       )}
       {stock && (
         <p className="text-sm text-muted-foreground">
-          주식(합계에 넣지 않음): 지금 회사 12개월 베스팅{" "}
-          {signedMan(stock.stayVesting12m ?? 0)}, 새 회사 12개월 베스팅{" "}
+          1년 안에 받을 주식(합계에 넣지 않음): 지금 회사{" "}
+          {signedMan(stock.stayVesting12m ?? 0)}, 새 회사{" "}
           {signedMan(stock.moveVesting12m ?? 0)}
         </p>
       )}
@@ -99,16 +99,16 @@ function IfYouStay({
   move: MoveView;
 }) {
   const personal = result.stay.breakevenPersonalPercent;
-  // 개인물가를 못 구하면 정부 전망 기준 하나만 보인다
+  // 개인물가를 못 구하면 한국은행 전망 기준 하나만 보인다
   const breakeven = personal ?? result.stay.breakevenGovernmentPercent;
   return (
     <section className="flex flex-col gap-2">
-      <SectionTitle>3 · 지금 회사에 남는다면</SectionTitle>
+      <SectionTitle>3 · 남을 때</SectionTitle>
       <ul className="flex flex-col gap-1.5 text-sm">
         {breakeven !== null && (
           <li>
             물가를 이기는 최소 인상률 {pct(breakeven)} (
-            {personal !== null ? "개인물가 기준" : "정부 전망 기준"})
+            {personal !== null ? "개인물가 기준" : "한국은행 전망 기준"})
           </li>
         )}
         {move.equalizingRaisePercent !== null && (

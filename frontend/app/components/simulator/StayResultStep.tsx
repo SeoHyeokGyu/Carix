@@ -84,7 +84,7 @@ export function StayResultStep({
           {government !== null && (
             <>
               {personal !== null ? ", " : " · 물가를 이기는 최소 인상률 "}
-              {pct(government)} (정부 전망 기준)
+              {pct(government)} (한국은행 전망 기준)
             </>
           )}
         </li>
