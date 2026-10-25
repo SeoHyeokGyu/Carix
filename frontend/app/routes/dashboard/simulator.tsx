@@ -14,7 +14,11 @@ import { InlineAlert } from "@/components/ui/inline-alert";
 import { cn } from "@/lib/utils";
 
 import { CurrentJobStep } from "../../components/simulator/CurrentJobStep";
-import { MoveConditionsStep } from "../../components/simulator/MoveConditionsStep";
+import {
+  BLANK_OFFER,
+  MoveConditionsStep,
+  type OfferEmit,
+} from "../../components/simulator/MoveConditionsStep";
 import { OverrideNotice } from "../../components/simulator/OverrideNotice";
 import { ResultView } from "../../components/simulator/ResultView";
 import { SavedScenarioMenu } from "../../components/simulator/SavedScenarioMenu";
@@ -55,7 +59,6 @@ import {
 } from "../../lib/simulatorStep";
 
 type Stay = EvaluateRequest["stay"];
-type Move = NonNullable<EvaluateRequest["move"]>;
 
 /** ① 결과에는 지금 회사 쪽 미반영만 보인다. 새 회사 항목은 ② 에서 묻는다. */
 const CURRENT_UNREFLECTED: ReadonlySet<string> = new Set([
@@ -212,7 +215,7 @@ export default function DashboardSimulator() {
   const [notice, setNotice] = useState<string | null>(null);
 
   const currentForm = useRef<StepFormHandle<Stay>>(null);
-  const moveForm = useRef<StepFormHandle<Move>>(null);
+  const moveForm = useRef<StepFormHandle<OfferEmit>>(null);
   const currentHeading = useRef<HTMLHeadingElement>(null);
   const moveHeading = useRef<HTMLHeadingElement>(null);
   const headingOf = (which: SimulatorStep) =>
@@ -294,11 +297,13 @@ export default function DashboardSimulator() {
     update({ stay, move: requestRef.current?.move ?? null }, source);
   };
 
-  const onMoveChange = (move: Move, source: EmitSource) => {
+  const onMoveChange = (offer: OfferEmit, source: EmitSource) => {
     markValid("move");
     const prev = requestRef.current;
     // ② 는 ① 계산 요청이 있어야 열린다. 없으면 담을 곳이 없다.
-    if (prev) update({ ...prev, move }, source);
+    if (prev) {
+      update({ ...prev, move: offer === BLANK_OFFER ? null : offer }, source);
+    }
   };
 
   /** 이동만 한다. 떠나는 단계의 입력 반영은 호출자가 맡는다. */

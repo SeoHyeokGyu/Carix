@@ -3,30 +3,35 @@ import userEvent from "@testing-library/user-event";
 import { act, createRef } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { EvaluateRequest } from "../../lib/api/scenario";
 import * as scenario from "../../lib/api/scenario";
-import { MoveConditionsStep } from "./MoveConditionsStep";
+import { MoveConditionsStep, type OfferEmit } from "./MoveConditionsStep";
 import type { StepFormHandle } from "./useDebouncedEmit";
 
 vi.mock("../../lib/api/scenario", () => ({
   getFeasibility: vi.fn(),
 }));
 
-type Move = NonNullable<EvaluateRequest["move"]>;
-
 function renderStep() {
-  const ref = createRef<StepFormHandle<Move>>();
+  const ref = createRef<StepFormHandle<OfferEmit>>();
   const onChange = vi.fn();
-  render(<MoveConditionsStep ref={ref} initial={null} onChange={onChange} />);
-  return { ref, onChange };
+  const onInvalid = vi.fn();
+  render(
+    <MoveConditionsStep
+      ref={ref}
+      initial={null}
+      onChange={onChange}
+      onInvalid={onInvalid}
+    />,
+  );
+  return { ref, onChange, onInvalid };
 }
 
-function flush(ref: React.RefObject<StepFormHandle<Move> | null>) {
-  let result: Move | null = null;
+function flush(ref: React.RefObject<StepFormHandle<OfferEmit> | null>) {
+  let result: OfferEmit | null = null;
   act(() => {
     result = ref.current!.flush();
   });
-  return result as Move | null;
+  return result as OfferEmit | null;
 }
 
 describe("MoveConditionsStep", () => {
@@ -54,7 +59,11 @@ describe("MoveConditionsStep", () => {
     await user.type(screen.getByLabelText(/새 회사 연봉/), "7000");
 
     expect(flush(ref)).toBeNull();
-    expect(onChange).not.toHaveBeenCalled();
+    // 처음 그릴 때 빈 폼은 "blank" 로 한 번 나간다. 오퍼 값은 나가면 안 된다.
+    expect(onChange).not.toHaveBeenCalledWith(
+      expect.objectContaining({ grossSalary: expect.anything() }),
+      expect.anything(),
+    );
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "실업급여 여부를 선택해 주세요.",
     );
@@ -85,5 +94,47 @@ describe("MoveConditionsStep", () => {
     });
 
     expect(onChange).toHaveBeenCalledTimes(calls);
+  });
+
+  it("모든 칸을 비우면 오류 없이 비어 있음을 낸다", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const { onChange } = renderStep();
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    const gross = screen.getByLabelText(/새 회사 연봉/);
+
+    await user.type(gross, "7200");
+    await user.clear(gross);
+    act(() => {
+      vi.advanceTimersByTime(400);
+    });
+
+    expect(onChange).toHaveBeenLastCalledWith("blank", "edit");
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  it("연봉만 넣고 실업급여를 안 고르면 benefit 으로 무효", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const { onInvalid } = renderStep();
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+
+    await user.type(screen.getByLabelText(/새 회사 연봉/), "7200");
+    act(() => {
+      vi.advanceTimersByTime(400);
+    });
+
+    expect(onInvalid).toHaveBeenLastCalledWith("benefit");
+  });
+
+  it("일회성 비용만 넣고 연봉이 비면 gross 로 무효", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const { onInvalid } = renderStep();
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+
+    await user.type(screen.getByLabelText(/일회성 비용/), "300");
+    act(() => {
+      vi.advanceTimersByTime(400);
+    });
+
+    expect(onInvalid).toHaveBeenLastCalledWith("gross");
   });
 });

@@ -9,6 +9,7 @@ import {
 } from "../../lib/api/scenario";
 import type { FieldErrors } from "../../lib/fieldErrors";
 import { focusFirstInvalidField } from "../../lib/focusFirstInvalidField";
+import type { OfferMissing } from "../../lib/simulatorCompare";
 import type { MoveFocus } from "../../lib/simulatorFocus";
 import {
   describeError,
@@ -36,6 +37,10 @@ const FOCUS_SELECTORS: Record<MoveFocus, string> = {
 
 type Move = NonNullable<EvaluateRequest["move"]>;
 
+/** 모든 칸이 비어 있다 — 오퍼가 없다는 뜻이지 입력 오류가 아니다. */
+export const BLANK_OFFER = "blank" as const;
+export type OfferEmit = Move | typeof BLANK_OFFER;
+
 /** 입력칸 문자열 묶음. */
 interface MoveFormValues {
   gross: string;
@@ -62,6 +67,29 @@ const EMPTY_VALUES: MoveFormValues = {
   stockVesting: "",
 };
 
+function isBlankOffer(values: MoveFormValues): boolean {
+  return (
+    [
+      values.gross,
+      values.oneTimeCost,
+      values.fixedBonus,
+      values.performanceBonus,
+      values.signingBonus,
+      values.stockVesting,
+    ].every((v) => v.trim() === "") &&
+    values.benefitEligible === null &&
+    (values.gapMonths.trim() === "" || values.gapMonths.trim() === "0")
+  );
+}
+
+function missingOf(found: FieldErrors): OfferMissing {
+  if (found.gross) return "gross";
+  const keys = Object.keys(found);
+  return keys.length === 1 && keys[0] === "benefitEligible"
+    ? "benefit"
+    : "other";
+}
+
 function fromDraft(move: Move): MoveFormValues {
   return {
     gross: wonToManInput(move.grossSalary),
@@ -77,15 +105,15 @@ function fromDraft(move: Move): MoveFormValues {
 }
 
 interface MoveConditionsStepProps {
-  ref?: Ref<StepFormHandle<Move>>;
+  ref?: Ref<StepFormHandle<OfferEmit>>;
   /** 이미 있는 계산 요청. 처음 그릴 때 `move` 만 읽는다. */
   initial: EvaluateRequest | null;
   /** 미반영 `넣기` 로 들어왔을 때 열고 포커스할 칸. */
   focus?: MoveFocus;
   /** 유효한 입력. 처음 그릴 때 유효하면 `mount` 로 바로, 이후 편집은 400ms 뒤 `edit`. */
-  onChange: (move: Move, source: EmitSource) => void;
-  /** 편집·flush 결과가 무효일 때. 계산 요청은 직전 값으로 남고, 호출자가 결과를 흐리게 한다. */
-  onInvalid?: () => void;
+  onChange: (offer: OfferEmit, source: EmitSource) => void;
+  /** 편집·flush 결과가 무효일 때. 무엇이 빠졌는지 함께 알린다. 계산 요청은 직전 값으로 남고, 호출자가 결과를 흐리게 한다. */
+  onInvalid?: (missing: OfferMissing) => void;
 }
 
 export function MoveConditionsStep({
@@ -157,11 +185,15 @@ export function MoveConditionsStep({
     return next;
   };
 
-  const compute = (): Move | null => {
+  const compute = (): OfferEmit | null => {
+    if (isBlankOffer(values)) {
+      setErrors({});
+      return BLANK_OFFER;
+    }
     const found = validate();
     setErrors(pickRevealed(found));
     if (Object.keys(found).length > 0) {
-      onInvalid?.();
+      onInvalid?.(missingOf(found));
       return null;
     }
     return {
@@ -181,7 +213,7 @@ export function MoveConditionsStep({
 
   const debounced = useDebouncedEmit(compute, [values], onChange);
 
-  const flush = (): Move | null => {
+  const flush = (): OfferEmit | null => {
     revealAll();
     const value = debounced.flush();
     if (value === null) {
