@@ -701,7 +701,7 @@
 *   **`POST /api/v1/scenarios/evaluate`** — 본문 `stay`(필수: `raisePercent` −100~100, 선택: `currentGrossOverride`, `performanceBonusEstimate`, `stockVesting12m`, `stockUnvested`), `move`(선택: `grossSalary`, `unemploymentMonths` 0~6, `oneTimeCost`, `benefitEligible`, `bonusIncluded`, `fixedBonusAnnual`, `performanceBonusExpected`, `signingBonus`, `stockVesting12m`).
     *   `stay`: `realChangePercent`(내 기준 물가)·`realChangeGovernmentPercent`, `breakevenPersonalPercent`·`breakevenGovernmentPercent`(실질 변화가 0 이 되는 인상률, 해가 없으면 `null`), `marketGapPercent`(양수면 중앙값이 더 높다 = 덜 받는다). 개인물가를 못 구하면 실질 변화 두 값이 같고 `breakevenPersonalPercent` 는 `null` 이다.
     *   `move`(이직 입력이 있을 때만): `stayCumulative`·`moveCumulative`(48개월 누적), `crossoverMonth`, `firstYear`(`salaryDiff`+`gap`+`oneTimeCost`+`benefit` = `total`), `expectedRange {min,max}`(성과급·사이닝 첫해 차이, 결론에 더하지 않음), `stock`(불확실층, 입력이 없으면 `null` — `firstYear` 에 영향 없음), `equalizingRaisePercent`, `feasibility`.
-    *   `typeLabel` — 이직이 있을 때 `firstYear.total` 부호로 `옮기면 추정 이득` / `남으면 추정 이득`.
+    *   `typeLabel` — 이직이 있을 때 `firstYear.total` 부호로 `옮기면 추정 이득` / `남으면 추정 이득`. 화면에는 표시하지 않는다(결론 문장과 어긋날 수 있어서).
     *   `severance {monthsToAnniversary, estimatedAmount}` — 근속 12개월 미만이고 1년까지 남은 개월(남은 날이 있으면 올림)이 3 이하일 때만. 금액 = 현재 연봉 ÷ 12.
     *   `assumptions [{code,text}]` — 세금 가정(본인 1인·비과세/연말정산 미반영·요율 기준연도), 실수령 보정 여부, 물가 출처, 4년 유지 가정, 이직이 있으면 `NEW_JOB_SEVERANCE`, 사이닝이 있으면 `SIGNING_CLAWBACK`, 개인물가 불가면 `PERSONAL_INFLATION_UNAVAILABLE`, 퇴직금 경고가 있으면 `SEVERANCE_ESTIMATE`, 주식 입력이 있으면 `STOCK_VALUE`. `unreflected [코드]` — 비어서 반영되지 않은 입력(`PERFORMANCE_BONUS`·`STOCK`·`HIRE_DATE`·`MOVE_PERFORMANCE_BONUS`·`SIGNING_BONUS`·`MOVE_STOCK`).
     *   400 — 범위 밖 입력, 소득 이력도 `currentGrossOverride` 도 없는 경우, 현재 연봉의 세후가 0 이하인 경우.
