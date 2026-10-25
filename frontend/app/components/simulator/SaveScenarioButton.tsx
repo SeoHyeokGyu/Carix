@@ -40,7 +40,7 @@ export function SaveScenarioButton({
   return (
     <Popover open={open} onOpenChange={handleOpenChange}>
       <PopoverTrigger asChild>
-        <Button type="button" variant={variant}>
+        <Button type="button" variant={variant} className="min-h-11">
           시나리오 저장
         </Button>
       </PopoverTrigger>

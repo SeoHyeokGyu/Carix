@@ -11,6 +11,7 @@ export function compareHint(
   if (hasMove) return null;
   if (missing === "benefit")
     return "실업급여를 받을 수 있는지 고르면 비교가 나옵니다";
+  if (missing === "other") return "입력을 고치면 비교가 나옵니다";
   return "새 회사 연봉과 실업급여 여부를 넣으면 비교가 나옵니다";
 }
 

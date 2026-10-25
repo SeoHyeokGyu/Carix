@@ -18,7 +18,12 @@ export function EvaluationFallback({
         <p role="alert" className="text-sm text-carix-danger">
           {error}
         </p>
-        <Button type="button" variant="outline" onClick={onRetry}>
+        <Button
+          type="button"
+          variant="outline"
+          className="min-h-11"
+          onClick={onRetry}
+        >
           다시 시도
         </Button>
       </div>

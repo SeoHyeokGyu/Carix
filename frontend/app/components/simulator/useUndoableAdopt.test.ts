@@ -26,11 +26,11 @@ describe("useUndoableAdopt", () => {
     const { result } = renderHook(() => useUndoableAdopt(apply));
 
     act(() => result.current.adopt(B, A, "「B사」을 불러왔습니다."));
-    expect(apply).toHaveBeenLastCalledWith(B);
+    expect(apply).toHaveBeenLastCalledWith(B, "all");
     expect(result.current.notice?.message).toBe("「B사」을 불러왔습니다.");
 
     act(() => result.current.undo());
-    expect(apply).toHaveBeenLastCalledWith(A);
+    expect(apply).toHaveBeenLastCalledWith(A, "all");
     expect(result.current.notice).toBeNull();
   });
 
@@ -41,7 +41,7 @@ describe("useUndoableAdopt", () => {
     act(() => result.current.adopt(B, null, "「저장분」을 불러왔습니다."));
     act(() => result.current.undo());
 
-    expect(apply).toHaveBeenLastCalledWith(null);
+    expect(apply).toHaveBeenLastCalledWith(null, "all");
   });
 
   it("8초 뒤 알림이 닫힌다", () => {

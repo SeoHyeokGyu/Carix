@@ -166,7 +166,9 @@ const legacyScenario: SavedScenario = {
 
 /** 남을 때 결과·비교 결과가 각각 들어 있는 결과 자리(흐림 표시를 가진 가장 가까운 조상). */
 const stayArea = () =>
-  screen.getByText(/지금 회사 실질 소득/).closest("[aria-busy]");
+  screen
+    .getByRole("heading", { name: /지금 회사 실질 소득/ })
+    .closest("[aria-busy]");
 const compareArea = () =>
   screen.getByText("따라잡는 시점").closest("[aria-busy]");
 
@@ -269,6 +271,8 @@ describe("이직 시뮬레이터 라우트", () => {
 
     renderRoute();
     await user.click(await screen.findByRole("button", { name: "오퍼 넣기" }));
+    // 누른 버튼이 사라지므로 포커스를 첫 입력칸으로 옮긴다. 안 옮기면 body 로 빠진다.
+    expect(screen.getByLabelText(/새 회사 연봉/)).toHaveFocus();
     await user.type(screen.getByLabelText(/새 회사 연봉/), "7200");
     debounce();
 
@@ -398,6 +402,8 @@ describe("이직 시뮬레이터 라우트", () => {
       await screen.findByRole("button", { name: "새 회사 오퍼 지우기" }),
     );
     expect(await screen.findByText("받은 오퍼가 있나요?")).toBeInTheDocument();
+    // 누른 `지우기` 가 사라지므로 포커스를 `오퍼 넣기` 로 옮긴다.
+    expect(screen.getByRole("button", { name: "오퍼 넣기" })).toHaveFocus();
     await waitFor(() =>
       expect(scenario.putDraft).toHaveBeenLastCalledWith(
         expect.objectContaining({ move: null }),
@@ -692,5 +698,110 @@ describe("이직 시뮬레이터 라우트", () => {
     await user.tab();
 
     expect(incomeApi.updateBonusTerms).not.toHaveBeenCalled();
+  });
+
+  // 지우기는 오퍼 카드만 다시 그린다. 지금 회사 카드까지 다시 그리면 디바운스 전 편집이 사라지고,
+  // 되돌리기가 지운 뒤 고친 지금 회사 값을 지우기 전 값으로 덮는다.
+  it("지우기와 그 되돌리기는 지금 회사 입력을 건드리지 않는다", async () => {
+    vi.mocked(scenario.getDraft).mockResolvedValue(draft);
+    const user = fakeTimerUser();
+
+    renderRoute();
+    const raise = await screen.findByLabelText(/올해 예상 인상률/);
+    await user.clear(raise);
+    await user.type(raise, "5");
+    await user.click(
+      screen.getByRole("button", { name: "새 회사 오퍼 지우기" }),
+    );
+    expect(screen.getByLabelText(/올해 예상 인상률/)).toHaveValue("5");
+    debounce();
+
+    await user.click(
+      screen.getByRole("button", { name: "이전 입력으로 되돌리기" }),
+    );
+
+    expect(await screen.findByLabelText(/새 회사 연봉/)).toHaveValue("7,000");
+    expect(screen.getByLabelText(/올해 예상 인상률/)).toHaveValue("5");
+    await waitFor(() =>
+      expect(vi.mocked(scenario.evaluate).mock.lastCall?.[0]).toMatchObject({
+        stay: { raisePercent: 5 },
+        move: { grossSalary: 70_000_000 },
+      }),
+    );
+  });
+
+  it("유효한 오퍼가 있으면 오퍼까지 저장한다", async () => {
+    vi.mocked(scenario.getDraft).mockResolvedValue(draft);
+    vi.mocked(scenario.saveScenario).mockResolvedValue(
+      savedScenario(draft, null),
+    );
+    const user = userEvent.setup();
+
+    renderRoute();
+    await screen.findByText("따라잡는 시점");
+    await user.click(
+      screen.getAllByRole("button", { name: "시나리오 저장" })[0],
+    );
+    await user.click(await screen.findByRole("button", { name: "저장" }));
+
+    expect(scenario.saveScenario).toHaveBeenCalledWith(
+      null,
+      expect.objectContaining({
+        move: expect.objectContaining({ grossSalary: 70_000_000 }),
+      }),
+    );
+  });
+
+  // 기록 저장이 끝나기 전에 평가하면 저장 전 기록으로 계산한 결과가 최신처럼 보인다.
+  it("상여 기록을 저장하는 동안에는 다시 계산하지 않고, 저장이 끝나면 계산한다", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    vi.mocked(scenario.getContext).mockResolvedValue({
+      ...context,
+      bonusIncluded: false,
+      fixedBonusAnnual: 5_000_000,
+    });
+    vi.mocked(scenario.getDraft).mockResolvedValue(stayOnly);
+    vi.mocked(incomeApi.listIncome).mockResolvedValue([
+      {
+        id: "i-1",
+        grossSalary: 60_000_000,
+        netSalary: 48_000_000,
+        effectiveDate: "2026-01-01",
+        changeReason: null,
+        selectedChangeReason: null,
+        bonusIncluded: false,
+        fixedBonusAnnual: 5_000_000,
+      },
+    ]);
+    let finishSave: (value: []) => void = () => {};
+    vi.mocked(incomeApi.updateBonusTerms).mockReturnValue(
+      new Promise((resolve) => {
+        finishSave = resolve;
+      }),
+    );
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+
+    renderRoute();
+    const amount = await screen.findByLabelText(/연간 고정상여/);
+    await waitFor(() => expect(scenario.evaluate).toHaveBeenCalled());
+    await user.clear(amount);
+    await user.type(amount, "600");
+    debounce();
+    await user.tab();
+    expect(incomeApi.updateBonusTerms).toHaveBeenCalled();
+    const before = vi.mocked(scenario.evaluate).mock.calls.length;
+
+    const raise = screen.getByLabelText(/올해 예상 인상률/);
+    await user.clear(raise);
+    await user.type(raise, "5");
+    debounce();
+    expect(scenario.evaluate).toHaveBeenCalledTimes(before);
+
+    await act(async () => finishSave([]));
+    await waitFor(() =>
+      expect(vi.mocked(scenario.evaluate).mock.lastCall?.[0]).toMatchObject({
+        stay: { raisePercent: 5 },
+      }),
+    );
   });
 });

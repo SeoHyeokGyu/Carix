@@ -32,6 +32,9 @@ export function marketGapLine(gapPercent: number): string {
   return `시장 중앙값보다 ${size}% ${side} (세전 기준)`;
 }
 
+const NO_CATCH_UP =
+  "4년 안에 새 회사 누적이 지금 회사 누적을 따라잡지 못합니다";
+
 export function moveHeadline(
   firstYearTotal: number,
   crossoverMonth: number | null,
@@ -39,8 +42,8 @@ export function moveHeadline(
   const first = `새 회사 첫해 ${signedMan(firstYearTotal)}`;
   if (crossoverMonth === null) {
     return {
-      headline: first,
-      note: "4년 안에 새 회사 누적이 지금 회사 누적을 따라잡지 못합니다",
+      headline: `${first}, 4년 안에 못 따라잡음`,
+      note: NO_CATCH_UP,
     };
   }
   return {
@@ -53,6 +56,11 @@ export function moveHeadline(
 export function moveAdvice(crossoverMonth: number | null): string | null {
   if (crossoverMonth === null) return null;
   return `새 회사를 ${crossoverMonth}개월 이상 다닐 생각이면 옮기는 쪽이 유리합니다`;
+}
+
+/** 비교 결론의 큰 줄. 역전이 있으면 조언, 없으면 따라잡지 못한다는 문장. */
+export function moveConclusion(crossoverMonth: number | null): string {
+  return moveAdvice(crossoverMonth) ?? NO_CATCH_UP;
 }
 
 export function inflationNote(basis: InflationBasis): string | null {

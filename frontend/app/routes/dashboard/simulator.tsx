@@ -28,7 +28,10 @@ import type {
   StepFormHandle,
 } from "../../components/simulator/useDebouncedEmit";
 import { useEvaluation } from "../../components/simulator/useEvaluation";
-import { useUndoableAdopt } from "../../components/simulator/useUndoableAdopt";
+import {
+  type AdoptScope,
+  useUndoableAdopt,
+} from "../../components/simulator/useUndoableAdopt";
 import { listIncome } from "../../lib/api/income";
 import {
   type EvaluateRequest,
@@ -48,6 +51,7 @@ import {
   type OfferMissing,
   splitAssumptions,
 } from "../../lib/simulatorCompare";
+import { moveConclusion, stayHeadline } from "../../lib/simulatorCopy";
 import { type FillTarget, fillTargetOf } from "../../lib/simulatorFocus";
 import { describeError } from "../../lib/simulatorForm";
 
@@ -207,8 +211,10 @@ export default function DashboardSimulator() {
   // 들어오기만 해서는 서버 초안을 쓰지 않는다. 처음 값을 바꾸거나 저장 버튼을 누르면 켠다.
   const persisted = useRef(false);
   const [queueDraft] = useState(() => createDraftQueue(putDraft));
-  // 불러오기·되돌리기·지우기로 계산 요청이 밖에서 바뀔 때 두 카드 입력칸을 새로 그린다.
+  // 불러오기·되돌리기로 계산 요청이 밖에서 바뀔 때 두 카드 입력칸을 새로 그린다. 오퍼 지우기와 그 되돌리기는
+  // 오퍼 카드만 다시 그린다 — 지금 회사 카드의 펼친 칸과 디바운스 전 편집을 남긴다.
   const [version, setVersion] = useState(0);
+  const [offerVersion, setOfferVersion] = useState(0);
   const [revision, setRevision] = useState(0);
   const [offerOpen, setOfferOpen] = useState(() => loaded.draft?.move != null);
   const [recordSaving, setRecordSaving] = useState(false);
@@ -293,8 +299,6 @@ export default function DashboardSimulator() {
   const fill = (code: string) => {
     const target = fillTargetOf(code);
     if (!target) return;
-    // 새로 마운트되는 오퍼 입력은 마운트 때 그 칸을 펼치고 포커스한다.
-    if (target.card === "offer" && !offerOpen) setOfferOpen(true);
     // 같은 칸을 다시 눌러도 포커스가 가도록 한 번 비웠다가 넣는다.
     flushSync(() => setFocus(undefined));
     setFocus(target);
@@ -337,11 +341,27 @@ export default function DashboardSimulator() {
     });
   };
 
-  /** 불러오기·되돌리기·지우기. 남아 있던 입력값은 버리고 계산 요청으로 두 카드를 새로 그린다. */
-  const replaceRequest = (next: EvaluateRequest | null) => {
-    setVersion((v) => v + 1);
-    setInvalid({ current: false, offer: false });
+  /**
+   * 불러오기·되돌리기·지우기. 남아 있던 입력값은 버리고 계산 요청으로 카드를 새로 그린다. `offer` 면 오퍼만 바꾸고
+   * 지금 회사는 지금 요청의 값을 둔다 — 지우기를 되돌릴 때 지운 뒤 고친 지금 회사 값을 덮지 않는다.
+   */
+  const replaceRequest = (
+    requested: EvaluateRequest | null,
+    scope: AdoptScope,
+  ) => {
+    const stay = requestRef.current?.stay;
+    const next =
+      scope === "offer" && requested && stay
+        ? { stay, move: requested.move ?? null }
+        : requested;
+    setOfferVersion((v) => v + 1);
     setOfferMissing(null);
+    if (scope === "offer") {
+      setInvalid((prev) => ({ ...prev, offer: false }));
+    } else {
+      setVersion((v) => v + 1);
+      setInvalid({ current: false, offer: false });
+    }
     setOfferOpen(next?.move != null);
     // 다시 그려지는 입력이 지난 `넣기` 대상을 마운트 때 다시 잡아 포커스를 빼앗지 않게 한다.
     setFocus(undefined);
@@ -391,16 +411,23 @@ export default function DashboardSimulator() {
       { stay: current.stay, move: null },
       current,
       "새 회사 오퍼를 지웠습니다.",
+      "offer",
     );
   };
 
   const stayDimmed = pending || recordSaving || bonusUnsaved || invalid.current;
   const result = evaluation.result;
-  // 비교 결과를 그릴 때만 그 결론이 알림 자리가 된다. 알림(aria-live)은 화면에 한 곳뿐이다.
   const compare =
     offerOpen && request?.move && result?.move
       ? { ...result, move: result.move }
       : null;
+  // 결과 알림(aria-live)은 화면에 한 곳뿐이다. 비교가 보이면 그 결론, 아니면 남을 때 결과 첫 줄.
+  // 결과와 함께 마운트되는 자리는 첫 값을 읽지 않으므로 늘 마운트된 이 자리가 읽는다.
+  const announcement = compare
+    ? moveConclusion(compare.move.crossoverMonth)
+    : result
+      ? stayHeadline(result.stay.realChangePercent)
+      : "";
   // 지금 회사 요청이 없으면 그쪽 안내가 먼저다. 먼저 채운 오퍼에 다시 넣으라고 하지 않는다.
   const offerHint =
     request === null || request.move ? null : compareHint(false, offerMissing);
@@ -433,6 +460,9 @@ export default function DashboardSimulator() {
         }
       />
       <div data-page-section="" className="flex flex-col gap-6">
+        <p aria-live="polite" className="sr-only">
+          {announcement}
+        </p>
         {adoptNotice && (
           <div ref={undoNoticeRef}>
             <InlineAlert
@@ -440,6 +470,7 @@ export default function DashboardSimulator() {
               message={adoptNotice.message}
               action={{
                 label: "이전 입력으로 되돌리기",
+                className: "min-h-11",
                 onClick: () => {
                   keepFocusOffNotice();
                   undo();
@@ -495,7 +526,6 @@ export default function DashboardSimulator() {
                       result={result}
                       raisePercent={request.stay.raisePercent}
                       onFill={fill}
-                      live={compare === null}
                     />
                   </>
                 )}
@@ -509,7 +539,7 @@ export default function DashboardSimulator() {
             onClear={clearOffer}
           >
             <MoveConditionsStep
-              key={version}
+              key={offerVersion}
               ref={offerForm}
               initial={request}
               focus={focus?.card === "offer" ? focus.field : undefined}

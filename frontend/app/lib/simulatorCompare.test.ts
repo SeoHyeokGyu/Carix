@@ -17,10 +17,14 @@ describe("compareHint", () => {
       "실업급여를 받을 수 있는지 고르면 비교가 나옵니다",
     );
   });
-  it("결과가 없고 연봉이 비었거나 다른 칸이 무효면 연봉 안내가 우선", () => {
+  it("결과가 없고 연봉이 비었으면 연봉 안내", () => {
     const hint = "새 회사 연봉과 실업급여 여부를 넣으면 비교가 나옵니다";
     expect(compareHint(false, "gross")).toBe(hint);
     expect(compareHint(false, null)).toBe(hint);
+  });
+  // 연봉·실업급여를 이미 채운 사람에게 그 둘을 넣으라고 하면 무엇을 고칠지 모른다.
+  it("결과가 없고 다른 칸이 무효면 입력을 고치라는 안내", () => {
+    expect(compareHint(false, "other")).toBe("입력을 고치면 비교가 나옵니다");
   });
 });
 

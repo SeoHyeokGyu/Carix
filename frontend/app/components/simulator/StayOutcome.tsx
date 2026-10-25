@@ -19,8 +19,6 @@ interface StayOutcomeProps {
   /** 사용자가 입력한 예상 인상률(%). */
   raisePercent: number;
   onFill: (code: string) => void;
-  /** 결과가 바뀔 때 스크린리더에 알릴지. `aria-live` 는 화면에서 한 곳만 켠다. */
-  live: boolean;
 }
 
 function pct(value: number): string {
@@ -32,7 +30,6 @@ export function StayOutcome({
   result,
   raisePercent,
   onFill,
-  live,
 }: StayOutcomeProps) {
   const { stay, severance } = result;
   const personal = stay.breakevenPersonalPercent;
@@ -40,10 +37,7 @@ export function StayOutcome({
 
   return (
     <div className="flex flex-col gap-6">
-      <h2
-        className="text-2xl font-semibold"
-        aria-live={live ? "polite" : undefined}
-      >
+      <h2 className="text-2xl font-semibold">
         {stayHeadline(stay.realChangePercent)}
       </h2>
 

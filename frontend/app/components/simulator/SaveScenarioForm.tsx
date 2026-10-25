@@ -55,7 +55,12 @@ export function SaveScenarioForm({ onSave, blocked }: SaveScenarioFormProps) {
         )}
       </Field>
       <div>
-        <Button type="button" disabled={saving || blocked} onClick={submit}>
+        <Button
+          type="button"
+          className="min-h-11"
+          disabled={saving || blocked}
+          onClick={submit}
+        >
           저장
         </Button>
       </div>
