@@ -25,12 +25,12 @@ describe("useUndoableAdopt", () => {
     const apply = vi.fn();
     const { result } = renderHook(() => useUndoableAdopt(apply));
 
-    act(() => result.current.adopt(B, A, "B사"));
-    expect(apply).toHaveBeenLastCalledWith(B);
-    expect(result.current.notice?.name).toBe("B사");
+    act(() => result.current.adopt(B, A, "「B사」을 불러왔습니다."));
+    expect(apply).toHaveBeenLastCalledWith(B, "all");
+    expect(result.current.notice?.message).toBe("「B사」을 불러왔습니다.");
 
     act(() => result.current.undo());
-    expect(apply).toHaveBeenLastCalledWith(A);
+    expect(apply).toHaveBeenLastCalledWith(A, "all");
     expect(result.current.notice).toBeNull();
   });
 
@@ -38,17 +38,17 @@ describe("useUndoableAdopt", () => {
     const apply = vi.fn();
     const { result } = renderHook(() => useUndoableAdopt(apply));
 
-    act(() => result.current.adopt(B, null, null));
+    act(() => result.current.adopt(B, null, "「저장분」을 불러왔습니다."));
     act(() => result.current.undo());
 
-    expect(apply).toHaveBeenLastCalledWith(null);
+    expect(apply).toHaveBeenLastCalledWith(null, "all");
   });
 
   it("8초 뒤 알림이 닫힌다", () => {
     vi.useFakeTimers();
     const { result } = renderHook(() => useUndoableAdopt(vi.fn()));
 
-    act(() => result.current.adopt(B, A, "B사"));
+    act(() => result.current.adopt(B, A, "「B사」을 불러왔습니다."));
     act(() => vi.advanceTimersByTime(UNDO_NOTICE_MS - 1));
     expect(result.current.notice).not.toBeNull();
 

@@ -32,15 +32,24 @@ export function marketGapLine(gapPercent: number): string {
   return `시장 중앙값보다 ${size}% ${side} (세전 기준)`;
 }
 
+const NO_CATCH_UP =
+  "4년 안에 새 회사 누적이 지금 회사 누적을 따라잡지 못합니다";
+
 export function moveHeadline(
   firstYearTotal: number,
   crossoverMonth: number | null,
 ): { headline: string; note: string | null } {
   const first = `새 회사 첫해 ${signedMan(firstYearTotal)}`;
   if (crossoverMonth === null) {
-    return { headline: first, note: "비교 기간 4년 안에 역전되지 않습니다" };
+    return {
+      headline: `${first}, 4년 안에 못 따라잡음`,
+      note: NO_CATCH_UP,
+    };
   }
-  return { headline: `${first}, ${crossoverMonth}개월째 역전`, note: null };
+  return {
+    headline: `${first}, ${crossoverMonth}개월째 따라잡음`,
+    note: null,
+  };
 }
 
 /** 역전이 있을 때만 조언을 낸다. */
@@ -49,12 +58,17 @@ export function moveAdvice(crossoverMonth: number | null): string | null {
   return `새 회사를 ${crossoverMonth}개월 이상 다닐 생각이면 옮기는 쪽이 유리합니다`;
 }
 
+/** 비교 결론의 큰 줄. 역전이 있으면 조언, 없으면 따라잡지 못한다는 문장. */
+export function moveConclusion(crossoverMonth: number | null): string {
+  return moveAdvice(crossoverMonth) ?? NO_CATCH_UP;
+}
+
 export function inflationNote(basis: InflationBasis): string | null {
   if (basis.personalPercent === null) {
-    return "개인물가를 계산할 수 없어 정부 전망을 사용했습니다";
+    return "개인물가를 계산할 수 없어 한국은행 전망을 사용했습니다";
   }
   if (basis.similar && basis.gapPp !== null) {
-    return `정부 전망과 차이 ${Math.abs(basis.gapPp).toFixed(1)}%p — 소비구조가 평균과 비슷합니다`;
+    return `개인물가와 한국은행 전망 차이 ${Math.abs(basis.gapPp).toFixed(1)}%p — 소비구조가 평균과 비슷합니다`;
   }
   return null;
 }
@@ -72,14 +86,14 @@ export function inflationGapLine(basis: InflationBasis): string | null {
   if (basis.personalPercent === null || basis.gapPp === null || basis.similar) {
     return null;
   }
-  const head = `개인물가 ${basis.personalPercent.toFixed(1)}% · 정부 전망 ${basis.governmentPercent.toFixed(1)}% — 차이 ${Math.abs(basis.gapPp).toFixed(1)}%p`;
+  const head = `개인물가 ${basis.personalPercent.toFixed(1)}% · 한국은행 전망 ${basis.governmentPercent.toFixed(1)}% — 차이 ${Math.abs(basis.gapPp).toFixed(1)}%p`;
   if (basis.topGapCategory === null) return head;
   return `${head}, ${categoryLabel(basis.topGapCategory)} 비중 때문`;
 }
 
 /** 물가 출처와 기준 시점. 설정값이 오래돼도 시점을 그대로 보인다. */
 export function inflationSource(basis: InflationBasis): string {
-  return `정부 전망: ${basis.source} (${basis.asOf} 발표)`;
+  return `출처: ${basis.source} (${basis.asOf} 발표)`;
 }
 
 export function severanceNote(w: {

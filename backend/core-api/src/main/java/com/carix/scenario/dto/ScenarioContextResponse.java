@@ -16,7 +16,7 @@ public record ScenarioContextResponse(
         Double defaultRaisePercent,
     @Schema(description = "최근 3개 연도 성과급 범위. 대상 연도가 없으면 null", nullable = true)
         BonusRange performanceBonusRange,
-    @Schema(description = "정부 전망과 개인물가 두 기준") InflationBasis inflation,
+    @Schema(description = "한국은행 전망과 개인물가 두 기준") InflationBasis inflation,
     @Schema(
             description = "공식 임금통계 중앙값 대비 격차(%, 세전·명목). 양수면 중앙값이 더 높다. 산출 불가면 null",
             nullable = true)

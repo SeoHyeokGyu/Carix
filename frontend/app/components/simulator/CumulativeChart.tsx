@@ -1,14 +1,23 @@
 import { useState } from "react";
 
+import { cumulativeGap } from "../../lib/simulatorCompare";
 import { amountLabel, niceTicks } from "./chartScale";
 
-const WIDTH = 640;
-const HEIGHT = 300;
-const PAD = { left: 60, right: 18, top: 24, bottom: 34 };
+// 좁은 화면(약 340px)에서 viewBox 와 거의 1:1 로 그려져 글자가 12px 안팎이 되게 폭을 줄였다.
+const WIDTH = 360;
+const HEIGHT = 240;
+const PAD = { left: 52, right: 56, top: 22, bottom: 30 };
+const FONT = 12;
 const MONTHS_PER_YEAR = 12;
-const Y_PADDING_RATIO = 0.07;
-const TOOLTIP_W = 196;
-const TOOLTIP_H = 44;
+const Y_PADDING_RATIO = 0.12;
+const TOOLTIP_W = 150;
+const TOOLTIP_H = 40;
+// 툴팁이 오른쪽 끝값 라벨 자리(PAD.right)까지 넘어가도 되는 여유.
+const TOOLTIP_OVERHANG = 40;
+// 차이가 전부 0 이어도 눈금이 쓸 만한 간격이 되게 하는 최소 범위(원).
+const FLAT_SPAN = 1_000_000;
+// 글자(12 단위)가 넓은 컨테이너에서 16px 을 넘게 커지지 않도록 그림 폭을 제한한다.
+const MAX_WIDTH_CLASS = "max-w-[480px]";
 
 export interface CumulativeChartProps {
   /** 월별 누적(원). 인덱스 i 는 i+1 개월째. */
@@ -24,47 +33,41 @@ export function CumulativeChart({
   crossoverMonth,
 }: CumulativeChartProps) {
   const [pointer, setPointer] = useState<number | null>(null);
-  const months = Math.min(stay.length, move.length);
+  const gap = cumulativeGap(stay, move);
+  const months = gap.length;
   if (months === 0) return null;
 
-  const all = [0, ...stay, ...move];
-  const lo = Math.min(...all);
-  const hi = Math.max(...all);
-  const pad = (hi - lo || 1) * Y_PADDING_RATIO;
-  const yMin = lo - pad;
-  const yMax = hi + pad;
-  const ticks = niceTicks(yMin, yMax, 4);
+  const lo = Math.min(...gap, 0);
+  const hi = Math.max(...gap, 0);
+  const pad = (hi - lo || FLAT_SPAN) * Y_PADDING_RATIO;
+  const ticks = niceTicks(lo - pad, hi + pad, 4);
+  const yMin = Math.min(lo - pad, ticks[0]);
+  const yMax = Math.max(hi + pad, ticks[ticks.length - 1]);
 
   const plotW = WIDTH - PAD.left - PAD.right;
   const plotH = HEIGHT - PAD.top - PAD.bottom;
   const x = (month: number) => PAD.left + (month / months) * plotW;
   const y = (v: number) =>
     PAD.top + plotH - ((v - yMin) / (yMax - yMin || 1)) * plotH;
-  const line = (series: readonly number[]) =>
-    [
-      `${x(0)},${y(0)}`,
-      ...series.slice(0, months).map((v, i) => `${x(i + 1)},${y(v)}`),
-    ].join(" ");
+  const points = [
+    `${x(0)},${y(0)}`,
+    ...gap.map((v, i) => `${x(i + 1)},${y(v)}`),
+  ].join(" ");
 
   const yearMarks = Array.from(
     { length: Math.floor(months / MONTHS_PER_YEAR) },
     (_, i) => (i + 1) * MONTHS_PER_YEAR,
   );
-  const shadeEnd = Math.min(MONTHS_PER_YEAR, months);
 
   const crossAt =
     crossoverMonth !== null && crossoverMonth >= 1 && crossoverMonth <= months
       ? crossoverMonth
       : null;
 
-  const last = months - 1;
-  const ariaLabel = [
-    `지금 회사와 새 회사의 ${months}개월 누적 세후 보상 비교 그래프.`,
-    `${months}개월 시점 지금 회사 ${amountLabel(stay[last])}원, 새 회사 ${amountLabel(move[last])}원.`,
-    crossAt !== null
-      ? `새 회사 누적이 ${crossAt}개월째 지금 회사 누적을 따라잡습니다.`
-      : "비교 기간 안에 새 회사 누적이 지금 회사 누적을 따라잡지 못합니다.",
-  ].join(" ");
+  const endValue = gap[months - 1];
+  const ariaLabel = `새 회사로 옮겼을 때 누적 차이 그래프. ${
+    crossAt !== null ? `${crossAt}개월째 따라잡음` : "4년 안에 못 따라잡음"
+  }, 4년 끝 ${amountLabel(endValue)}원.`;
 
   const onMove = (event: React.PointerEvent<SVGSVGElement>) => {
     const rect = event.currentTarget.getBoundingClientRect();
@@ -78,7 +81,7 @@ export function CumulativeChart({
     pointer === null
       ? 0
       : Math.min(
-          WIDTH - PAD.right - TOOLTIP_W,
+          WIDTH - PAD.right - TOOLTIP_W + TOOLTIP_OVERHANG,
           Math.max(PAD.left, x(pointer) + 10),
         );
 
@@ -88,25 +91,19 @@ export function CumulativeChart({
         role="img"
         aria-label={ariaLabel}
         viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
-        className="h-auto w-full touch-pan-y"
+        className={`h-auto w-full touch-pan-y ${MAX_WIDTH_CLASS}`}
         onPointerMove={onMove}
         onPointerLeave={() => setPointer(null)}
       >
-        <rect
-          x={x(0)}
-          y={PAD.top}
-          width={x(shadeEnd) - x(0)}
-          height={plotH}
-          className="fill-carix-info/10"
-        />
-        <text
-          x={x(0) + 6}
-          y={PAD.top + 13}
-          fontSize={11}
-          className="fill-carix-text/55"
-        >
-          첫 12개월
-        </text>
+        {yMin < 0 && (
+          <rect
+            x={PAD.left}
+            y={y(0)}
+            width={plotW}
+            height={y(yMin) - y(0)}
+            className="fill-carix-danger/10"
+          />
+        )}
         {ticks.map((t) => (
           <g key={t}>
             <line
@@ -115,17 +112,17 @@ export function CumulativeChart({
               y1={y(t)}
               y2={y(t)}
               className={
-                t === 0 ? "stroke-carix-text/50" : "stroke-carix-border"
+                t === 0 ? "stroke-carix-text/70" : "stroke-carix-border"
               }
-              strokeWidth={1}
+              strokeWidth={t === 0 ? 1.5 : 1}
             />
             <text
-              x={PAD.left - 8}
+              x={PAD.left - 6}
               y={y(t)}
               textAnchor="end"
               dominantBaseline="central"
-              fontSize={11}
-              className="fill-carix-text/60"
+              fontSize={FONT}
+              className="fill-carix-text/70"
             >
               {t === 0 ? "0" : amountLabel(t)}
             </text>
@@ -143,9 +140,9 @@ export function CumulativeChart({
             />
             <text
               x={x(m)}
-              y={HEIGHT - 12}
+              y={HEIGHT - 10}
               textAnchor="middle"
-              fontSize={12}
+              fontSize={FONT}
               className="fill-carix-text/70"
             >
               {m / MONTHS_PER_YEAR}년
@@ -154,54 +151,37 @@ export function CumulativeChart({
         ))}
 
         <polyline
-          points={line(stay)}
-          fill="none"
-          strokeWidth={2}
-          strokeLinejoin="round"
-          className="stroke-carix-text/55"
-        />
-        <polyline
-          points={line(move)}
+          points={points}
           fill="none"
           strokeWidth={3}
           strokeLinejoin="round"
           className="stroke-carix-action"
         />
         <text
-          x={x(months) - 4}
-          y={y(stay[last]) + (stay[last] <= move[last] ? 16 : -8)}
-          textAnchor="end"
-          fontSize={12}
-          fontWeight={600}
-          className="fill-carix-text/70"
-        >
-          지금 회사
-        </text>
-        <text
-          x={x(months) - 4}
-          y={y(move[last]) + (move[last] < stay[last] ? 16 : -8)}
-          textAnchor="end"
-          fontSize={12}
+          x={x(months) + 5}
+          y={y(endValue)}
+          dominantBaseline="central"
+          fontSize={FONT}
           fontWeight={700}
           className="fill-carix-action"
         >
-          새 회사
+          {amountLabel(endValue)}
         </text>
 
         {crossAt !== null && (
           <g>
             <circle
               cx={x(crossAt)}
-              cy={y(move[crossAt - 1])}
-              r={7}
+              cy={y(gap[crossAt - 1])}
+              r={6}
               strokeWidth={2.5}
               className="fill-carix-surface stroke-carix-action"
             />
             <text
               x={x(crossAt)}
-              y={y(move[crossAt - 1]) - 14}
+              y={y(gap[crossAt - 1]) - 12}
               textAnchor="middle"
-              fontSize={13}
+              fontSize={FONT}
               fontWeight={700}
               className="fill-carix-action"
             >
@@ -221,49 +201,42 @@ export function CumulativeChart({
             />
             <circle
               cx={x(pointer)}
-              cy={y(stay[pointer - 1])}
-              r={4}
-              className="fill-carix-text/70"
-            />
-            <circle
-              cx={x(pointer)}
-              cy={y(move[pointer - 1])}
+              cy={y(gap[pointer - 1])}
               r={4}
               className="fill-carix-action"
             />
             <rect
               x={tipX}
-              y={PAD.top + 18}
+              y={PAD.top + 4}
               width={TOOLTIP_W}
               height={TOOLTIP_H}
               rx={6}
               className="fill-carix-surface stroke-carix-border"
             />
             <text
-              x={tipX + 10}
-              y={PAD.top + 34}
-              fontSize={11}
+              x={tipX + 8}
+              y={PAD.top + 20}
+              fontSize={FONT}
               className="fill-carix-text/70"
             >
-              {pointer}개월째
+              {pointer}개월째 차이
             </text>
             <text
-              x={tipX + 10}
-              y={PAD.top + 51}
-              fontSize={12}
+              x={tipX + 8}
+              y={PAD.top + 37}
+              fontSize={FONT}
+              fontWeight={700}
               className="fill-carix-text"
             >
-              지금 회사 {amountLabel(stay[pointer - 1])} · 새 회사{" "}
-              {amountLabel(move[pointer - 1])}
+              {amountLabel(gap[pointer - 1])}
             </text>
           </g>
         )}
       </svg>
       <figcaption className="mt-2 text-sm text-carix-text/70">
         {crossAt !== null
-          ? `새 회사 누적이 ${crossAt}개월째에 지금 회사 누적을 따라잡습니다.`
-          : "비교 기간 안에 새 회사 누적이 지금 회사 누적을 따라잡지 못합니다."}{" "}
-        옅게 칠한 구간은 첫 12개월입니다.
+          ? `처음엔 쉬는 기간 때문에 내려갔다가 ${crossAt}개월째 따라잡습니다.`
+          : "4년 안에 0 위로 올라오지 못합니다."}
       </figcaption>
     </figure>
   );

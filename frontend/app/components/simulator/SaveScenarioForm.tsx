@@ -17,8 +17,8 @@ interface SaveScenarioFormProps {
 }
 
 /**
- * 이동 줄의 저장 버튼을 누르면 펼쳐지는 이름 칸. 펼치면 이름 칸에 포커스하고, `저장` 을 누를 때만 저장한다.
- * ① 과 ② 가 함께 쓴다.
+ * `시나리오 저장` 팝오버 안의 이름 칸. 열리면 이름 칸에 포커스하고, `저장` 을 누를 때만 저장한다.
+ * 성공하면 팝오버가 닫히므로 확인 문장은 라우트가 보인다. 여기서는 실패만 보인다.
  */
 export function SaveScenarioForm({ onSave, blocked }: SaveScenarioFormProps) {
   const rootRef = useRef<HTMLDivElement>(null);
@@ -27,20 +27,15 @@ export function SaveScenarioForm({ onSave, blocked }: SaveScenarioFormProps) {
   }, []);
   const [name, setName] = useState("");
   const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(
-    null,
-  );
+  const [error, setError] = useState<string | null>(null);
 
   const submit = async () => {
     setSaving(true);
-    setMessage(null);
+    setError(null);
     try {
-      const saved = await onSave(name.trim() === "" ? null : name.trim());
-      if (!saved) return;
-      setName("");
-      setMessage({ ok: true, text: "시나리오를 저장했습니다." });
-    } catch (error) {
-      setMessage({ ok: false, text: describeError(error) });
+      await onSave(name.trim() === "" ? null : name.trim());
+    } catch (failure) {
+      setError(describeError(failure));
     } finally {
       setSaving(false);
     }
@@ -53,23 +48,25 @@ export function SaveScenarioForm({ onSave, blocked }: SaveScenarioFormProps) {
           <Input
             {...aria}
             type="text"
-            placeholder="예: A사 오퍼 제안"
+            placeholder="예: A사 오퍼"
             value={name}
             onChange={(e) => setName(e.target.value)}
           />
         )}
       </Field>
       <div>
-        <Button type="button" disabled={saving || blocked} onClick={submit}>
+        <Button
+          type="button"
+          className="min-h-11"
+          disabled={saving || blocked}
+          onClick={submit}
+        >
           저장
         </Button>
       </div>
-      {message && (
-        <p
-          role={message.ok ? "status" : "alert"}
-          className={message.ok ? "text-sm" : "text-sm text-carix-danger"}
-        >
-          {message.text}
+      {error && (
+        <p role="alert" className="text-sm text-carix-danger">
+          {error}
         </p>
       )}
     </div>

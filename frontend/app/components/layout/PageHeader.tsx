@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import type { ReactNode, Ref } from "react";
 
 import { TextLink } from "@/components/ui/text-link";
 import { cn } from "@/lib/utils";
@@ -13,6 +13,8 @@ export type PageHeaderProps = {
   actions?: ReactNode;
   /** 바로 아래가 탭이면 구분선. */
   divider?: boolean;
+  /** 주면 제목이 스크립트 포커스를 받을 수 있다(탭 순서에는 들지 않음). 사라지는 알림에서 포커스를 옮길 곳. */
+  titleRef?: Ref<HTMLHeadingElement>;
 };
 
 export function PageHeader({
@@ -21,6 +23,7 @@ export function PageHeader({
   back,
   actions,
   divider = false,
+  titleRef,
 }: PageHeaderProps) {
   return (
     <header
@@ -34,7 +37,11 @@ export function PageHeader({
       )}
       <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-3">
         <div>
-          <h1 className="font-display text-2xl font-bold text-carix-text sm:text-3xl">
+          <h1
+            ref={titleRef}
+            tabIndex={titleRef ? -1 : undefined}
+            className="font-display text-2xl font-bold text-carix-text sm:text-3xl"
+          >
             {title}
           </h1>
           {description && (

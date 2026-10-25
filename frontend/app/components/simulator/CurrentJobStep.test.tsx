@@ -109,7 +109,7 @@ describe("CurrentJobStep", () => {
 
     expect(onRecordSaved).toHaveBeenCalledTimes(1);
     expect(onRecordSaving).toHaveBeenLastCalledWith(false);
-    expect(screen.getByText("✓ 소득 기록에 저장됨")).toBeInTheDocument();
+    expect(screen.getByText("✓ 소득 이력에 저장됨")).toBeInTheDocument();
   });
 
   it("기록 저장이 실패하면 재평가를 알리지 않고 다시 시도를 보인다", async () => {
@@ -124,14 +124,14 @@ describe("CurrentJobStep", () => {
     await user.tab();
 
     expect(
-      await screen.findByText("소득 기록에 저장하지 못했습니다."),
+      await screen.findByText("소득 이력에 저장하지 못했습니다."),
     ).toBeInTheDocument();
     expect(onRecordSaved).not.toHaveBeenCalled();
     expect(onRecordSaving).toHaveBeenLastCalledWith(false);
 
     await user.click(screen.getByRole("button", { name: "다시 시도" }));
 
-    expect(await screen.findByText("✓ 소득 기록에 저장됨")).toBeInTheDocument();
+    expect(await screen.findByText("✓ 소득 이력에 저장됨")).toBeInTheDocument();
     expect(income.updateBonusTerms).toHaveBeenCalledTimes(2);
     expect(income.updateBonusTerms).toHaveBeenLastCalledWith({
       applyFromIncomeId: "i-1",

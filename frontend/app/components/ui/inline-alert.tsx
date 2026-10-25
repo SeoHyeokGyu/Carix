@@ -12,8 +12,8 @@ export type InlineAlertProps = {
   onDismiss?: () => void;
   /** 기본은 실패(`danger`). `info` 는 되돌리기 안내처럼 실패가 아닌 알림 — 색을 쓰지 않고 status 로 읽힌다. */
   tone?: "danger" | "info";
-  /** 「다시 시도」 가 아닌 동작 버튼 하나. */
-  action?: { label: string; onClick: () => void };
+  /** 「다시 시도」 가 아닌 동작 버튼 하나. `className` 은 그 버튼에 더한다(터치 영역 등). */
+  action?: { label: string; onClick: () => void; className?: string };
 };
 
 /**
@@ -47,6 +47,7 @@ export function InlineAlert({
           type="button"
           variant="outline"
           size="sm"
+          className={action.className}
           onClick={action.onClick}
         >
           {action.label}

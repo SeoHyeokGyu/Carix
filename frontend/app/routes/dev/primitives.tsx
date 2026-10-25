@@ -31,7 +31,7 @@ import { SalaryDistributionChart } from "../../components/dashboard/SalaryDistri
 import { SignalBadge } from "../../components/dashboard/SignalBadge";
 import { NativeSelect } from "../../components/onboarding/NativeSelect";
 import { CumulativeChart } from "../../components/simulator/CumulativeChart";
-import { FirstYearWaterfall } from "../../components/simulator/FirstYearWaterfall";
+import { FirstYearBars } from "../../components/simulator/FirstYearBars";
 import { RaiseAxis } from "../../components/simulator/RaiseAxis";
 import type { SalaryDistributionResponse } from "../../lib/dashboardMarketApi";
 
@@ -463,7 +463,7 @@ function Gallery() {
             move={SIM_MOVE_CUMULATIVE}
             crossoverMonth={SIM_CROSSOVER_MONTH}
           />
-          <FirstYearWaterfall
+          <FirstYearBars
             firstYear={{
               salaryDiff: 6_000_000,
               gap: -8_400_000,

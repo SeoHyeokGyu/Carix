@@ -276,7 +276,7 @@ class ScenarioServiceTest {
         List.of(new EvaluationResponse.Assumption("TAX", "본인 1인 기준")),
         List.of("STOCK"),
         null,
-        "추정 추가보상");
+        "옮기면 추정 이득");
   }
 
   /** 공개연봉을 {@code from} 부터 50만원씩 올려 {@code disclosed} 건 만든다. */
@@ -292,6 +292,21 @@ class ScenarioServiceTest {
     CareerProfile profile = CareerProfile.builder().userId(USER_ID).build();
     given(careerProfileRepository.findByUserId(USER_ID)).willReturn(Optional.of(profile));
     given(distributionResolver.resolve(profile)).willReturn(distribution);
+  }
+
+  @Test
+  @DisplayName("오퍼 위치 문장은 백분위 50 부터 상위, 그 아래는 하위로 읽고 양 끝은 1% 미만이다")
+  void 오퍼_위치_문장의_상위_하위_경계() {
+    assertThat(feedbackFor(50)).startsWith("새 회사 연봉은 동료집단 상위 50% 수준");
+    assertThat(feedbackFor(49)).startsWith("새 회사 연봉은 동료집단 하위 49% 수준");
+    assertThat(feedbackFor(0)).startsWith("새 회사 연봉은 동료집단 하위 1% 미만 수준");
+    assertThat(feedbackFor(100)).startsWith("새 회사 연봉은 동료집단 상위 1% 미만 수준");
+  }
+
+  private String feedbackFor(int percentile) {
+    store.clear();
+    store.add(legacyScenario("경계", "OK", percentile));
+    return service.list(USER_ID).get(0).legacy().result().feasibility().feedbackMessage();
   }
 
   private CareerScenario legacyScenario(String name, String status, Integer percentile) {

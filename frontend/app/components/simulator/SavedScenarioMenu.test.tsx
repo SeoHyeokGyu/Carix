@@ -34,7 +34,7 @@ const legacy: SavedScenario = {
       unemploymentBenefitNote: "",
       difference: 2_366_667,
       type: "ESTIMATED_GAIN",
-      typeLabel: "추정 추가보상",
+      typeLabel: "옮기면 추정 이득",
       warningNote: "",
       feasibility: {
         status: "INSUFFICIENT_SAMPLE",
@@ -50,7 +50,7 @@ const legacy: SavedScenario = {
 };
 
 describe("SavedScenarioMenu", () => {
-  it("엔진 1 항목은 다시 계산하지 않고 저장 결과에 이전 방식 표식을 붙인다", async () => {
+  it("엔진 1 항목은 다시 계산하지 않고 저장 결과에 예전 계산 표식을 붙인다", async () => {
     const onLoad = vi.fn();
     const onRecalculate = vi.fn();
     render(
@@ -65,8 +65,8 @@ describe("SavedScenarioMenu", () => {
       screen.getByRole("button", { name: "저장된 시나리오 1" }),
     );
 
-    expect(screen.getByText("이전 방식")).toBeInTheDocument();
-    expect(screen.getByText("차이 +237만")).toBeInTheDocument();
+    expect(screen.getByText("예전 계산")).toBeInTheDocument();
+    expect(screen.getByText("세전 12개월 차이 +237만")).toBeInTheDocument();
     expect(scenarioApi.evaluate).not.toHaveBeenCalled();
     expect(onLoad).not.toHaveBeenCalled();
 

@@ -1,37 +1,37 @@
-import { type ReactNode, useEffect, useRef, useState } from "react";
+import { type ReactNode, useId, useRef, useState } from "react";
 import { flushSync } from "react-dom";
-import {
-  redirect,
-  useLoaderData,
-  useNavigate,
-  useSearchParams,
-} from "react-router";
+import { redirect, useLoaderData, useNavigate } from "react-router";
 
 import { PageFrame } from "@/components/layout/PageFrame";
 import { PageHeader } from "@/components/layout/PageHeader";
-import { Button } from "@/components/ui/button";
+import { Card, CardTitle } from "@/components/ui/card";
 import { InlineAlert } from "@/components/ui/inline-alert";
 import { cn } from "@/lib/utils";
 
+import { AssumptionsPanel } from "../../components/simulator/AssumptionsPanel";
+import { CompareResult } from "../../components/simulator/CompareResult";
 import { CurrentJobStep } from "../../components/simulator/CurrentJobStep";
-import { MoveConditionsStep } from "../../components/simulator/MoveConditionsStep";
-import { OverrideNotice } from "../../components/simulator/OverrideNotice";
-import { ResultView } from "../../components/simulator/ResultView";
-import { SavedScenarioMenu } from "../../components/simulator/SavedScenarioMenu";
-import { SaveScenarioForm } from "../../components/simulator/SaveScenarioForm";
-import { SimulatorSteps } from "../../components/simulator/SimulatorSteps";
+import { EvaluationFallback } from "../../components/simulator/EvaluationFallback";
+import { InflationBasisNote } from "../../components/simulator/InflationBasisNote";
 import {
-  EvaluationFallback,
-  StayResultStep,
-} from "../../components/simulator/StayResultStep";
-import { StepNavBar } from "../../components/simulator/StepNavBar";
-import { StepSection } from "../../components/simulator/StepSection";
+  BLANK_OFFER,
+  MoveConditionsStep,
+  type OfferEmit,
+} from "../../components/simulator/MoveConditionsStep";
+import { OfferCard } from "../../components/simulator/OfferCard";
+import { OverrideNotice } from "../../components/simulator/OverrideNotice";
+import { SavedScenarioMenu } from "../../components/simulator/SavedScenarioMenu";
+import { SaveScenarioButton } from "../../components/simulator/SaveScenarioButton";
+import { StayOutcome } from "../../components/simulator/StayOutcome";
 import type {
   EmitSource,
   StepFormHandle,
 } from "../../components/simulator/useDebouncedEmit";
 import { useEvaluation } from "../../components/simulator/useEvaluation";
-import { useUndoableAdopt } from "../../components/simulator/useUndoableAdopt";
+import {
+  type AdoptScope,
+  useUndoableAdopt,
+} from "../../components/simulator/useUndoableAdopt";
 import { listIncome } from "../../lib/api/income";
 import {
   type EvaluateRequest,
@@ -46,35 +46,29 @@ import {
 import { UnauthorizedError } from "../../lib/coreApi";
 import { createDraftQueue } from "../../lib/draftQueue";
 import { LOGIN_PATH } from "../../lib/routeGuards";
+import {
+  compareHint,
+  type OfferMissing,
+  splitAssumptions,
+} from "../../lib/simulatorCompare";
+import { moveConclusion, stayHeadline } from "../../lib/simulatorCopy";
 import { type FillTarget, fillTargetOf } from "../../lib/simulatorFocus";
 import { describeError } from "../../lib/simulatorForm";
-import {
-  initialStep,
-  type SimulatorStep,
-  stepStatus,
-} from "../../lib/simulatorStep";
 
 type Stay = EvaluateRequest["stay"];
 type Move = NonNullable<EvaluateRequest["move"]>;
-
-/** ① 결과에는 지금 회사 쪽 미반영만 보인다. 새 회사 항목은 ② 에서 묻는다. */
-const CURRENT_UNREFLECTED: ReadonlySet<string> = new Set([
-  "PERFORMANCE_BONUS",
-  "STOCK",
-  "HIRE_DATE",
-]);
 
 export function meta() {
   return [
     { title: "이직 시뮬레이터 | Carix" },
     {
       name: "description",
-      content: "남을 때와 옮길 때의 세후 실질 소득을 비교합니다",
+      content: SUBTITLE,
     },
   ];
 }
 
-/** 이 라우트가 직접 상태를 들고 있으므로 쿼리(`?step=`)가 바뀌어도 다시 불러오지 않는다. */
+/** 이 라우트가 직접 상태를 들고 있으므로 쿼리가 바뀌어도 다시 불러오지 않는다. */
 export function shouldRevalidate() {
   return false;
 }
@@ -136,16 +130,21 @@ function sameRequest(a: EvaluateRequest, b: EvaluateRequest): boolean {
 interface ResultAreaProps {
   /** 결과를 낼 계산 요청이 아직 없을 때의 안내. 있으면 이것만 보인다. */
   hint: string | null;
-  /** 이 단계의 결과가 있으면 그린다. 없으면 대체 표시. */
+  /** 이 영역의 결과가 있으면 그린다. 없으면 대체 표시. */
   children: ReactNode | null;
   invalid: boolean;
   dimmed: boolean;
   pending: boolean;
+  /** 평가 오류. 두 영역이 같은 오류를 두 번 알리지 않도록 한 영역에만 넘긴다. */
   error: string | null;
   onRetry: () => void;
+  /** 오류 자체는 다른 영역이 알릴 때, 이 영역의 직전 결과가 지금 입력의 결과가 아님을 적는 한 줄. */
+  failedNote?: string | null;
+  /** `다시 계산하는 중` 을 스크린리더에 알릴지. 두 영역이 같은 문장을 함께 알리지 않도록 한 곳만 켠다. */
+  announcePending?: boolean;
 }
 
-/** 단계 입력 아래 결과 자리. 다시 계산하는 동안·입력이 무효인 동안 직전 결과를 흐리게 남긴다. */
+/** 입력 아래 결과 자리. 다시 계산하는 동안·입력이 무효인 동안 직전 결과를 흐리게 남긴다. */
 function ResultArea({
   hint,
   children,
@@ -154,6 +153,8 @@ function ResultArea({
   pending,
   error,
   onRetry,
+  failedNote = null,
+  announcePending = true,
 }: ResultAreaProps) {
   if (hint !== null) {
     return <p className="text-sm text-muted-foreground">{hint}</p>;
@@ -171,12 +172,16 @@ function ResultArea({
         </p>
       ) : (
         pending && (
-          <p role="status" className="text-sm text-muted-foreground">
+          <p
+            role={announcePending ? "status" : undefined}
+            className="text-sm text-muted-foreground"
+          >
             다시 계산하는 중
           </p>
         )
       )}
       {error && <InlineAlert message={error} onRetry={onRetry} />}
+      {failedNote && <p className="text-sm text-carix-danger">{failedNote}</p>}
       <div className={cn("transition-opacity", dimmed && "opacity-60")}>
         {children}
       </div>
@@ -184,56 +189,46 @@ function ResultArea({
   );
 }
 
+const SUBTITLE =
+  "지금 회사와 받은 오퍼를 세후·실질 소득으로 나란히 비교합니다.";
+const SAVED_MESSAGE = "시나리오를 저장했습니다.";
+const NO_STAY_HINT =
+  "올해 예상 인상률과 연봉을 넣으면 지금 회사 결과가 나옵니다";
+
 export default function DashboardSimulator() {
   const loaded = useLoaderData<typeof clientLoader>();
   const navigate = useNavigate();
-  const [params, setParams] = useSearchParams();
+  const currentHeadingId = useId();
 
   const [context, setContext] = useState<ScenarioContext>(loaded.context);
   const [scenarios, setScenarios] = useState<SavedScenario[]>(loaded.scenarios);
   // 계산 요청. 렌더용 상태와, 같은 이벤트 안에서 바로 읽을 ref 를 함께 둔다.
   const [request, setRequest] = useState<EvaluateRequest | null>(loaded.draft);
   const requestRef = useRef(request);
-  // 들어오기만 해서는 서버 초안을 쓰지 않는다. 처음 값을 바꾸거나 이동·저장 버튼을 누르면 켠다.
+  // 지금 회사 계산 요청이 아직 없을 때(소득 이력이 없어 연봉을 안 넣음) 먼저 채운 오퍼. 두 카드가 함께 보여
+  // 오퍼부터 채우는 사람이 있으므로 버리지 않고 첫 지금 회사 값과 합친다.
+  const pendingOffer = useRef<Move | null>(null);
+  // 들어오기만 해서는 서버 초안을 쓰지 않는다. 처음 값을 바꾸거나 저장 버튼을 누르면 켠다.
   const persisted = useRef(false);
   const [queueDraft] = useState(() => createDraftQueue(putDraft));
-  // 불러오기·되돌리기로 계산 요청이 밖에서 바뀔 때 두 단계 입력칸을 새로 그린다.
+  // 불러오기·되돌리기로 계산 요청이 밖에서 바뀔 때 두 카드 입력칸을 새로 그린다. 오퍼 지우기와 그 되돌리기는
+  // 오퍼 카드만 다시 그린다 — 지금 회사 카드의 펼친 칸과 디바운스 전 편집을 남긴다.
   const [version, setVersion] = useState(0);
+  const [offerVersion, setOfferVersion] = useState(0);
   const [revision, setRevision] = useState(0);
+  const [offerOpen, setOfferOpen] = useState(() => loaded.draft?.move != null);
   const [recordSaving, setRecordSaving] = useState(false);
-  // ① 의 "따로 받음" 금액이 저장 전이면 결과는 이전 기록 기준이다.
+  // 지금 회사의 "따로 받음" 금액이 저장 전이면 결과는 이전 기록 기준이다.
   const [bonusUnsaved, setBonusUnsaved] = useState(false);
-  const [invalid, setInvalid] = useState<Record<SimulatorStep, boolean>>({
-    current: false,
-    move: false,
-  });
+  const [invalid, setInvalid] = useState({ current: false, offer: false });
+  const [offerMissing, setOfferMissing] = useState<OfferMissing | null>(null);
   const [focus, setFocus] = useState<FillTarget | undefined>();
-  const [saveOpen, setSaveOpen] = useState<SimulatorStep | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [savedMessage, setSavedMessage] = useState<string | null>(null);
 
   const currentForm = useRef<StepFormHandle<Stay>>(null);
-  const moveForm = useRef<StepFormHandle<Move>>(null);
-  const currentHeading = useRef<HTMLHeadingElement>(null);
-  const moveHeading = useRef<HTMLHeadingElement>(null);
-  const headingOf = (which: SimulatorStep) =>
-    which === "current" ? currentHeading : moveHeading;
-  // 이동을 마친 뒤 할 일. 쿼리 반영이 렌더 뒤에 오므로 단계가 실제로 바뀐 다음 처리한다.
-  const arrival = useRef<{ step: SimulatorStep; toField: boolean } | null>(
-    null,
-  );
-
-  // 쿼리가 없으면 처음 들어올 때의 초안으로 단계를 정해 두고, 그 뒤 계산 요청이 바뀌어도 단계가 저절로 바뀌지 않게 한다.
-  const [entryStep] = useState(() => initialStep(params, loaded.draft));
-  const step = initialStep(
-    params.has("step") ? params : new URLSearchParams({ step: entryStep }),
-    request,
-  );
-  // ① 이 무효인 동안은 계산 요청이 직전 값으로 남아도 ② 를 누를 수 없게 보인다(스펙 공통 머리).
-  const baseStatus = stepStatus(request);
-  const status = {
-    ...baseStatus,
-    moveReachable: baseStatus.moveReachable && !invalid.current,
-  };
+  const offerForm = useRef<StepFormHandle<OfferEmit>>(null);
+  const titleRef = useRef<HTMLHeadingElement>(null);
   const toLogin = () => navigate(LOGIN_PATH, { replace: true });
 
   const { evaluation, error, pending, retry } = useEvaluation(
@@ -242,16 +237,6 @@ export default function DashboardSimulator() {
     toLogin,
     { revision, paused: recordSaving },
   );
-
-  useEffect(() => {
-    const next = arrival.current;
-    if (!next || next.step !== step) return;
-    arrival.current = null;
-    // 넣기로 온 경우는 입력 컴포넌트가 그 칸을 펼치고 포커스한다.
-    if (next.toField) return;
-    window.scrollTo({ top: 0 });
-    (step === "current" ? currentHeading : moveHeading).current?.focus();
-  }, [step]);
 
   const saveDraft = (next: EvaluateRequest) => {
     queueDraft(next).catch((error: unknown) => {
@@ -264,9 +249,10 @@ export default function DashboardSimulator() {
     requestRef.current = next;
     setRequest(next);
     setNotice(null);
+    setSavedMessage(null);
   };
 
-  /** 이동·저장 버튼을 누른 때부터 초안을 저장한다. 처음이면 지금 계산 요청을 바로 저장한다. */
+  /** 저장 버튼을 누른 때부터 초안을 저장한다. 처음이면 지금 계산 요청을 바로 저장한다. */
   const startPersisting = () => {
     if (persisted.current) return;
     persisted.current = true;
@@ -284,72 +270,65 @@ export default function DashboardSimulator() {
     }
   };
 
-  const markValid = (which: SimulatorStep) =>
+  const markValid = (which: keyof typeof invalid) =>
     setInvalid((prev) => (prev[which] ? { ...prev, [which]: false } : prev));
-  const markInvalid = (which: SimulatorStep) =>
+  const markInvalid = (which: keyof typeof invalid) =>
     setInvalid((prev) => (prev[which] ? prev : { ...prev, [which]: true }));
 
   const onStayChange = (stay: Stay, source: EmitSource) => {
     markValid("current");
-    update({ stay, move: requestRef.current?.move ?? null }, source);
+    const move = requestRef.current?.move ?? pendingOffer.current;
+    pendingOffer.current = null;
+    update({ stay, move }, source);
   };
 
-  const onMoveChange = (move: Move, source: EmitSource) => {
-    markValid("move");
+  const onOfferChange = (offer: OfferEmit, source: EmitSource) => {
+    markValid("offer");
+    setOfferMissing(null);
+    const move = offer === BLANK_OFFER ? null : offer;
     const prev = requestRef.current;
-    // ② 는 ① 계산 요청이 있어야 열린다. 없으면 담을 곳이 없다.
     if (prev) update({ ...prev, move }, source);
+    else pendingOffer.current = move;
   };
 
-  /** 이동만 한다. 떠나는 단계의 입력 반영은 호출자가 맡는다. */
-  const show = (next: SimulatorStep, target?: FillTarget) => {
-    setSaveOpen(null);
-    setFocus(target);
-    if (next === step) return;
-    arrival.current = { step: next, toField: target !== undefined };
-    setParams({ step: next });
-  };
-
-  /**
-   * ① 을 떠날 때는 대기 중인 편집을 먼저 반영하고, 무효면 이동하지 않는다(flush 가 첫 오류 칸으로 포커스).
-   * ② 에서 ① 로는 늘 갈 수 있다 — 두 입력은 마운트된 채라 ② 의 대기 편집은 숨겨진 뒤에도 반영된다.
-   */
-  const goTo = (next: SimulatorStep, target?: FillTarget) => {
-    if (next === step) return show(next, target);
-    if (step === "current") {
-      if (!currentForm.current?.flush()) return;
-      startPersisting();
-    }
-    show(next, target);
+  const onOfferInvalid = (missing: OfferMissing) => {
+    markInvalid("offer");
+    setOfferMissing(missing);
   };
 
   const fill = (code: string) => {
     const target = fillTargetOf(code);
     if (!target) return;
-    if (target.step !== step) return goTo(target.step, target);
     // 같은 칸을 다시 눌러도 포커스가 가도록 한 번 비웠다가 넣는다.
     flushSync(() => setFocus(undefined));
     setFocus(target);
   };
 
-  const formOf = (which: SimulatorStep) =>
-    which === "current" ? currentForm : moveForm;
+  /** 대기 중인 편집을 반영한다. 무효면 false — flush 가 첫 오류 칸으로 포커스한다. */
+  const flushForms = () =>
+    currentForm.current?.flush() != null &&
+    (!offerOpen || offerForm.current?.flush() != null);
 
-  /** 이동 줄의 저장 버튼. 입력이 무효면 저장 칸을 열지 않는다. */
-  const openSave = (which: SimulatorStep) => {
-    if (!formOf(which).current?.flush()) return;
+  const openSave = () => {
+    // 같은 문장을 다시 넣으면 다음 저장 성공이 알려지지 않는다.
+    setSavedMessage(null);
+    if (!flushForms()) return false;
     startPersisting();
-    setSaveOpen(which);
+    return true;
   };
 
-  const save = async (name: string | null, which: SimulatorStep) => {
-    if (!formOf(which).current?.flush()) return false;
+  const save = async (name: string | null) => {
+    if (!flushForms()) return false;
     const current = requestRef.current;
     if (!current) return false;
-    const payload =
-      which === "current" ? { stay: current.stay, move: null } : current;
+    // 비어 있는 열린 카드는 flush 로 이미 move 가 null 이다.
+    const payload = {
+      stay: current.stay,
+      move: offerOpen ? (current.move ?? null) : null,
+    };
     const saved = await saveScenario(name, payload);
     setScenarios((prev) => [saved, ...prev]);
+    setSavedMessage(SAVED_MESSAGE);
     return true;
   };
 
@@ -362,23 +341,43 @@ export default function DashboardSimulator() {
     });
   };
 
-  /** 불러오기·되돌리기. 남아 있던 입력값은 버리고 계산 요청으로 입력칸을 새로 그린다. */
-  const replaceRequest = (next: EvaluateRequest | null) => {
-    setVersion((v) => v + 1);
-    setInvalid({ current: false, move: false });
-    setSaveOpen(null);
+  /**
+   * 불러오기·되돌리기·지우기. 남아 있던 입력값은 버리고 계산 요청으로 카드를 새로 그린다. `offer` 면 오퍼만 바꾸고
+   * 지금 회사는 지금 요청의 값을 둔다 — 지우기를 되돌릴 때 지운 뒤 고친 지금 회사 값을 덮지 않는다.
+   */
+  const replaceRequest = (
+    requested: EvaluateRequest | null,
+    scope: AdoptScope,
+  ) => {
+    const stay = requestRef.current?.stay;
+    const next =
+      scope === "offer" && requested && stay
+        ? { stay, move: requested.move ?? null }
+        : requested;
+    setOfferVersion((v) => v + 1);
+    setOfferMissing(null);
+    if (scope === "offer") {
+      setInvalid((prev) => ({ ...prev, offer: false }));
+    } else {
+      setVersion((v) => v + 1);
+      setInvalid({ current: false, offer: false });
+    }
+    setOfferOpen(next?.move != null);
+    // 다시 그려지는 입력이 지난 `넣기` 대상을 마운트 때 다시 잡아 포커스를 빼앗지 않게 한다.
+    setFocus(undefined);
+    pendingOffer.current = null;
     commit(next);
     persisted.current = true;
     // NOTE: (cjkang) 초안 삭제 API 가 없어 null 로 되돌릴 때는 여기서 서버 초안을 쓰지 않는다. 다만 이미
-    // persisted 라, 새로 그려진 ① 이 기본 인상률로 유효하면 그 mount 값이 서버 초안을 덮는다. 다시
-    // 들어올 때 불러왔던 저장분이 되살아나는 것은 기본 인상률이 없어 ① 이 무효일 때뿐이다.
+    // persisted 라, 새로 그려진 지금 회사 카드가 기본 인상률로 유효하면 그 mount 값이 서버 초안을 덮는다.
+    // 다시 들어올 때 불러왔던 저장분이 되살아나는 것은 기본 인상률이 없어 지금 회사 입력이 무효일 때뿐이다.
     if (next) saveDraft(next);
   };
-  // 알림 안에 포커스가 있는 채로 사라지면 포커스가 body 로 빠진다. 지금 단계 제목으로 옮긴다.
+  // 알림 안에 포커스가 있는 채로 사라지면 포커스가 body 로 빠진다. 페이지 제목으로 옮긴다.
   const undoNoticeRef = useRef<HTMLDivElement>(null);
   const keepFocusOffNotice = () => {
     if (undoNoticeRef.current?.contains(document.activeElement)) {
-      headingOf(step).current?.focus();
+      titleRef.current?.focus();
     }
   };
   const {
@@ -387,49 +386,91 @@ export default function DashboardSimulator() {
     notice: adoptNotice,
   } = useUndoableAdopt(replaceRequest, keepFocusOffNotice);
 
-  const load = (next: EvaluateRequest, title: string, to: SimulatorStep) => {
-    adopt(withoutStaleOverride(next, context), requestRef.current, title);
-    // 단계가 바뀌면 도착 처리가 제목으로 포커스를 옮긴다. 같은 단계면 메뉴가 트리거로 돌려주지 않으니 여기서 옮긴다.
-    if (to === step) headingOf(to).current?.focus();
-    show(to);
+  const load = (next: EvaluateRequest, title: string) => {
+    adopt(
+      withoutStaleOverride(next, context),
+      requestRef.current,
+      `「${title}」을 불러왔습니다.`,
+    );
+    // 메뉴는 고른 뒤 포커스를 트리거로 돌려주지 않는다.
+    titleRef.current?.focus();
   };
 
-  const dimmed = pending || recordSaving || bonusUnsaved || invalid[step];
+  const clearOffer = () => {
+    const current = requestRef.current;
+    // 계산 요청에 담긴 오퍼가 없으면 되돌릴 것도 없다. 카드만 닫는다.
+    if (!current?.move) {
+      pendingOffer.current = null;
+      setInvalid((prev) => ({ ...prev, offer: false }));
+      setOfferMissing(null);
+      setFocus(undefined);
+      setOfferOpen(false);
+      return;
+    }
+    adopt(
+      { stay: current.stay, move: null },
+      current,
+      "새 회사 오퍼를 지웠습니다.",
+      "offer",
+    );
+  };
+
+  const stayDimmed = pending || recordSaving || bonusUnsaved || invalid.current;
   const result = evaluation.result;
-  const override = (
-    <OverrideNotice gross={request?.stay.currentGrossOverride} />
+  const compare =
+    offerOpen && request?.move && result?.move
+      ? { ...result, move: result.move }
+      : null;
+  // 결과 알림(aria-live)은 화면에 한 곳뿐이다. 비교가 보이면 그 결론, 아니면 남을 때 결과 첫 줄.
+  // 결과와 함께 마운트되는 자리는 첫 값을 읽지 않으므로 늘 마운트된 이 자리가 읽는다.
+  const announcement = compare
+    ? moveConclusion(compare.move.crossoverMonth)
+    : result
+      ? stayHeadline(result.stay.realChangePercent)
+      : "";
+  // 지금 회사 요청이 없으면 그쪽 안내가 먼저다. 먼저 채운 오퍼에 다시 넣으라고 하지 않는다.
+  const offerHint =
+    request === null || request.move ? null : compareHint(false, offerMissing);
+  const saveButton = (variant: "default" | "outline") => (
+    <SaveScenarioButton
+      onOpen={openSave}
+      onSave={save}
+      blocked={pending || recordSaving}
+      variant={variant}
+    />
   );
 
   return (
-    <PageFrame width="narrow">
+    <PageFrame width="wide">
       <PageHeader
         title="이직 시뮬레이터"
-        description="남을 때와 옮길 때의 세후·실질 소득을 비교합니다."
+        titleRef={titleRef}
+        description={SUBTITLE}
         actions={
-          scenarios.length > 0 ? (
-            <SavedScenarioMenu
-              scenarios={scenarios}
-              onLoad={(next, title) =>
-                load(next, title, next.move ? "move" : "current")
-              }
-              onRecalculate={(next, title) => load(next, title, "current")}
-            />
-          ) : undefined
+          <>
+            {scenarios.length > 0 && (
+              <SavedScenarioMenu
+                scenarios={scenarios}
+                onLoad={load}
+                onRecalculate={load}
+              />
+            )}
+            {saveButton("default")}
+          </>
         }
       />
       <div data-page-section="" className="flex flex-col gap-6">
-        <SimulatorSteps
-          current={step}
-          status={status}
-          onSelect={(next) => goTo(next)}
-        />
+        <p aria-live="polite" className="sr-only">
+          {announcement}
+        </p>
         {adoptNotice && (
           <div ref={undoNoticeRef}>
             <InlineAlert
               tone="info"
-              message={`「${adoptNotice.name ?? "저장분"}」을 불러왔습니다.`}
+              message={adoptNotice.message}
               action={{
                 label: "이전 입력으로 되돌리기",
+                className: "min-h-11",
                 onClick: () => {
                   keepFocusOffNotice();
                   undo();
@@ -441,147 +482,114 @@ export default function DashboardSimulator() {
         {notice && (
           <InlineAlert message={notice} onDismiss={() => setNotice(null)} />
         )}
+        {savedMessage && (
+          <p role="status" className="text-sm text-muted-foreground">
+            {savedMessage}
+          </p>
+        )}
 
-        <StepSection
-          title="지금 회사"
-          headingRef={currentHeading}
-          hidden={step !== "current"}
-        >
-          <CurrentJobStep
-            key={version}
-            ref={currentForm}
-            context={context}
-            latestIncomeId={loaded.latestIncomeId}
-            initial={request}
-            focus={
-              step === "current" && focus?.step === "current"
-                ? focus.field
-                : undefined
-            }
-            onChange={onStayChange}
-            onInvalid={() => markInvalid("current")}
-            onRecordSaving={setRecordSaving}
-            onRecordSaved={() => {
-              setRevision((r) => r + 1);
-              refreshContext();
-            }}
-            onBonusRecorded={refreshContext}
-            onBonusUnsaved={setBonusUnsaved}
-          />
+        <div className="grid items-start gap-5 md:grid-cols-2">
+          <section aria-labelledby={currentHeadingId}>
+            <Card>
+              <CardTitle as="h2" id={currentHeadingId}>
+                지금 회사
+              </CardTitle>
+              <CurrentJobStep
+                key={version}
+                ref={currentForm}
+                context={context}
+                latestIncomeId={loaded.latestIncomeId}
+                initial={request}
+                focus={focus?.card === "current" ? focus.field : undefined}
+                onChange={onStayChange}
+                onInvalid={() => markInvalid("current")}
+                onRecordSaving={setRecordSaving}
+                onRecordSaved={() => {
+                  setRevision((r) => r + 1);
+                  refreshContext();
+                }}
+                onBonusRecorded={refreshContext}
+                onBonusUnsaved={setBonusUnsaved}
+              />
+              <ResultArea
+                hint={request === null ? NO_STAY_HINT : null}
+                invalid={invalid.current}
+                dimmed={stayDimmed}
+                pending={pending}
+                error={error}
+                onRetry={retry}
+              >
+                {result && request && (
+                  <>
+                    <OverrideNotice gross={request.stay.currentGrossOverride} />
+                    <StayOutcome
+                      result={result}
+                      raisePercent={request.stay.raisePercent}
+                      onFill={fill}
+                    />
+                  </>
+                )}
+              </ResultArea>
+            </Card>
+          </section>
+
+          <OfferCard
+            open={offerOpen}
+            onOpen={() => setOfferOpen(true)}
+            onClear={clearOffer}
+          >
+            <MoveConditionsStep
+              key={offerVersion}
+              ref={offerForm}
+              initial={request}
+              focus={focus?.card === "offer" ? focus.field : undefined}
+              onChange={onOfferChange}
+              onInvalid={onOfferInvalid}
+            />
+          </OfferCard>
+        </div>
+
+        {/* 계산 중·오류 대체 표시는 남을 때 결과 자리가 맡는다. 비교 자리는 안내나 결과가 있을 때만. */}
+        {offerOpen && (offerHint !== null || compare !== null) && (
           <ResultArea
-            hint={
-              request === null
-                ? "올해 예상 인상률과 연봉을 넣으면 지금 회사 결과가 나옵니다"
+            hint={offerHint}
+            invalid={invalid.offer}
+            dimmed={stayDimmed || invalid.offer || error !== null}
+            pending={pending}
+            error={null}
+            failedNote={
+              error !== null
+                ? "계산하지 못했습니다 — 위 오류를 확인하세요"
                 : null
             }
-            invalid={invalid.current}
-            dimmed={dimmed}
-            pending={pending}
-            error={error}
             onRetry={retry}
+            announcePending={false}
           >
-            {result && request && (
-              <>
-                {override}
-                <StayResultStep
-                  result={{
-                    ...result,
-                    unreflected: result.unreflected.filter((code) =>
-                      CURRENT_UNREFLECTED.has(code),
-                    ),
-                  }}
-                  raisePercent={request.stay.raisePercent}
-                  onFill={fill}
-                />
-              </>
+            {compare && (
+              <CompareResult
+                result={compare}
+                expectedRaisePercent={request?.stay.raisePercent ?? 0}
+                onFill={fill}
+              />
             )}
           </ResultArea>
-          <StepNavBar
-            left={
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => openSave("current")}
-              >
-                이 결과 저장
-              </Button>
-            }
-            right={
-              <Button type="button" onClick={() => goTo("move")}>
-                새 회사와 비교하기 →
-              </Button>
-            }
-          />
-          {saveOpen === "current" && (
-            <SaveScenarioForm
-              onSave={(name) => save(name, "current")}
-              blocked={pending || recordSaving}
-            />
-          )}
-        </StepSection>
+        )}
 
-        <StepSection
-          title="새 회사"
-          headingRef={moveHeading}
-          hidden={step !== "move"}
-        >
-          <MoveConditionsStep
-            key={version}
-            ref={moveForm}
-            initial={request}
-            focus={
-              step === "move" && focus?.step === "move"
-                ? focus.field
-                : undefined
-            }
-            onChange={onMoveChange}
-            onInvalid={() => markInvalid("move")}
-          />
-          <ResultArea
-            hint={
-              request?.move
-                ? null
-                : "새 회사 연봉과 실업급여 여부를 넣으면 비교가 나옵니다"
-            }
-            invalid={invalid.move}
-            dimmed={dimmed}
-            pending={pending}
-            error={error}
-            onRetry={retry}
-          >
-            {result?.move ? (
-              <>
-                {override}
-                <ResultView
-                  result={{ ...result, move: result.move }}
-                  onFill={fill}
-                />
-              </>
-            ) : null}
-          </ResultArea>
-          <StepNavBar
-            left={
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => goTo("current")}
-              >
-                ← 지금 회사
-              </Button>
-            }
-            right={
-              <Button type="button" onClick={() => openSave("move")}>
-                시나리오 저장
-              </Button>
-            }
-          />
-          {saveOpen === "move" && (
-            <SaveScenarioForm
-              onSave={(name) => save(name, "move")}
-              blocked={pending || recordSaving}
+        {result && (
+          <>
+            <InflationBasisNote
+              inflation={result.inflation}
+              stay={result.stay}
             />
-          )}
-        </StepSection>
+            <AssumptionsPanel
+              assumptions={splitAssumptions(result.assumptions).rest}
+            />
+          </>
+        )}
+
+        <div className="sticky bottom-0 -mx-6 flex justify-end border-t border-carix-border bg-carix-bg/95 px-6 py-3 backdrop-blur-md sm:static sm:mx-0 sm:border-0 sm:bg-transparent sm:px-0 sm:py-0 sm:backdrop-blur-none">
+          {saveButton("outline")}
+        </div>
       </div>
     </PageFrame>
   );

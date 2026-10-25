@@ -28,7 +28,7 @@ export function InflationBasisNote({
           <p>{gapLine}</p>
           <p>
             실질 소득 변화: 개인물가 기준 {signedPct(stay.realChangePercent)} ·
-            정부 전망 기준 {signedPct(stay.realChangeGovernmentPercent)}
+            한국은행 전망 기준 {signedPct(stay.realChangeGovernmentPercent)}
           </p>
         </>
       )}

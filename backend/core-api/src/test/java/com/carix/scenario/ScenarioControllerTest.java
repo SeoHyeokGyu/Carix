@@ -141,9 +141,9 @@ class ScenarioControllerTest {
         "가정 기반 추정 (기준 시점: 2026-01)",
         -1_140_000L,
         "ESTIMATED_OPPORTUNITY_COST",
-        "추정 기회비용",
+        "남으면 추정 이득",
         "이 계산에는 세금, 성과급, 퇴직금 등이 포함되지 않은 단순 세전 기준 시뮬레이션입니다.",
         new SimulationResponse.FeasibilityDetail(
-            "OK", 42, null, 31, 69, "CHALLENGING", "새 회사 연봉은 동료집단 내 상위 31% 수준의 도전적인 목표입니다."));
+            "OK", 42, null, 31, 69, "CHALLENGING", "새 회사 연봉은 동료집단 상위 31% 수준으로, 높은 편입니다."));
   }
 }

@@ -21,7 +21,7 @@ public record SimulationResponse(
             description = "결과 유형 코드 (ESTIMATED_GAIN / ESTIMATED_OPPORTUNITY_COST)",
             example = "ESTIMATED_OPPORTUNITY_COST")
         String type,
-    @Schema(description = "결과 유형 라벨명", example = "추정 기회비용") String typeLabel,
+    @Schema(description = "결과 유형 라벨명", example = "남으면 추정 이득") String typeLabel,
     @Schema(description = "주의 사항 텍스트", example = "이 계산에는 세금, 성과급...") String warningNote,
     @Schema(description = "목표 연봉의 시장 실현 가능성 분석 정보") FeasibilityDetail feasibility) {
 

@@ -8,12 +8,12 @@ interface UnreflectedNoticeProps {
   onFill: (code: string) => void;
 }
 
-/** `미반영: 성과급 [넣기] 주식 [넣기]` */
+/** `아직 안 넣은 항목: 성과급 [넣기] 주식 [넣기]` */
 export function UnreflectedNotice({ codes, onFill }: UnreflectedNoticeProps) {
   if (codes.length === 0) return null;
   return (
     <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
-      <span className="font-medium">미반영:</span>
+      <span className="font-medium">아직 안 넣은 항목:</span>
       {codes.map((code) => {
         const label = unreflectedLabel(code);
         return (
@@ -23,6 +23,7 @@ export function UnreflectedNotice({ codes, onFill }: UnreflectedNoticeProps) {
               type="button"
               variant="outline"
               size="xs"
+              className="min-h-11"
               aria-label={`${label} 넣기`}
               onClick={() => onFill(code)}
             >

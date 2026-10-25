@@ -74,7 +74,7 @@ export function useRecordSave<P>(
 
 interface RecordSaveNoteProps {
   status: RecordSaveStatus;
-  /** "소득 기록" / "프로필" */
+  /** "소득 이력" / "프로필" */
   target: string;
   /** 아직 저장하지 않았을 때의 안내. 없으면 아무것도 그리지 않는다. */
   idleNote?: string;
