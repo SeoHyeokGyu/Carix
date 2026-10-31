@@ -1,6 +1,8 @@
 import { type ReactNode, useState } from "react";
 
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { NativeSelect } from "@/components/ui/native-select";
 
 import {
   fromMonthInput,
@@ -8,7 +10,7 @@ import {
   POSTING_SORTS,
   toMonthInput,
 } from "../../../lib/dataExplore";
-import { CONTROL, FIELD } from "./exploreStyles";
+import { FIELD } from "./exploreStyles";
 
 type Apply = (next: Record<string, string | undefined>) => void;
 
@@ -50,18 +52,13 @@ function Select({
 }) {
   return (
     <Field label={label}>
-      <select
+      <NativeSelect
         aria-label={label}
         value={value}
         onChange={(e) => onPick(name, e.target.value)}
-        className={CONTROL}
-      >
-        {options.map(([v, text]) => (
-          <option key={v} value={v}>
-            {text}
-          </option>
-        ))}
-      </select>
+        className="h-8 text-xs bg-carix-surface text-carix-text"
+        options={options.map(([v, text]) => ({ value: v, label: text }))}
+      />
     </Field>
   );
 }
@@ -117,13 +114,13 @@ export function PostingsFilters({
         }}
       >
         <Field label="월">
-          <input
+          <Input
             type="month"
             aria-label="월"
             value={month}
             onChange={(e) => setMonth(e.target.value)}
             onBlur={applyIfDirty}
-            className={CONTROL}
+            className="h-8 text-xs bg-carix-surface text-carix-text md:text-xs"
           />
         </Field>
         <Select
@@ -164,23 +161,23 @@ export function PostingsFilters({
           ]}
         />
         <Field label="회사">
-          <input
+          <Input
             aria-label="회사"
             value={company}
             onChange={(e) => setCompany(e.target.value)}
             onBlur={applyIfDirty}
             placeholder="회사명 일부"
-            className={CONTROL}
+            className="h-8 text-xs bg-carix-surface text-carix-text md:text-xs"
           />
         </Field>
         <Field label="스킬">
-          <input
+          <Input
             aria-label="스킬"
             value={skill}
             onChange={(e) => setSkill(e.target.value)}
             onBlur={applyIfDirty}
             placeholder="정확히 일치"
-            className={CONTROL}
+            className="h-8 text-xs bg-carix-surface text-carix-text md:text-xs"
           />
         </Field>
         <Select

@@ -5,12 +5,13 @@ import { PageFrame } from "@/components/layout/PageFrame";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
+import { NativeSelect } from "@/components/ui/native-select";
 
 import { AdminHeader } from "../../components/admin/AdminHeader";
 import { AdminKeyModal } from "../../components/admin/AdminKeyModal";
 import { DataHealthStrip } from "../../components/admin/DataHealthStrip";
 import { CpiView } from "../../components/admin/explore/CpiView";
-import { CONTROL, FIELD } from "../../components/admin/explore/exploreStyles";
+import { FIELD } from "../../components/admin/explore/exploreStyles";
 import { LoadingNotice } from "../../components/admin/explore/LoadingNotice";
 import { MonthlyOverviewTable } from "../../components/admin/explore/MonthlyOverviewTable";
 import { PeriodFilter } from "../../components/admin/explore/PeriodFilter";
@@ -237,15 +238,16 @@ export default function DataExplorePage() {
             <div className="flex flex-wrap items-end gap-3">
               <label className={FIELD}>
                 직무별 표본 원천
-                <select
+                <NativeSelect
                   aria-label="직무별 표본 원천"
                   value={sampleSource}
                   onChange={(e) => update({ sampleSource: e.target.value })}
-                  className={CONTROL}
-                >
-                  <option value="JOBKOREA">잡코리아</option>
-                  <option value="WANTED">원티드</option>
-                </select>
+                  className="h-8 text-xs bg-carix-surface text-carix-text"
+                  options={[
+                    { value: "JOBKOREA", label: "잡코리아" },
+                    { value: "WANTED", label: "원티드" },
+                  ]}
+                />
               </label>
               {periodFilter}
             </div>

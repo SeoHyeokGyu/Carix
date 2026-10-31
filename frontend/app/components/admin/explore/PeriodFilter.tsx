@@ -1,11 +1,13 @@
 import { useState } from "react";
 
+import { Input } from "@/components/ui/input";
+
 import {
   fromMonthInput,
   periodError,
   toMonthInput,
 } from "../../../lib/dataExplore";
-import { CONTROL, FIELD } from "./exploreStyles";
+import { FIELD } from "./exploreStyles";
 
 /**
  * 월별 현황·CPI 의 기간 입력. URL 에 기간이 없으면 응답이 실제로 보여 준 범위를 채운다.
@@ -36,24 +38,24 @@ export function PeriodFilter({
       <div role="group" aria-labelledby="period-label" className={FIELD}>
         <span id="period-label">기간</span>
         <span className="flex items-center gap-2 text-carix-text">
-          <input
+          <Input
             type="month"
             aria-label="시작 월"
             value={toMonthInput(from ?? shown?.from)}
             onChange={(e) =>
               change(fromMonthInput(e.target.value), to ?? shown?.to)
             }
-            className={CONTROL}
+            className="h-8 w-36 text-xs bg-carix-surface text-carix-text md:text-xs"
           />
           ~
-          <input
+          <Input
             type="month"
             aria-label="끝 월"
             value={toMonthInput(to ?? shown?.to)}
             onChange={(e) =>
               change(from ?? shown?.from, fromMonthInput(e.target.value))
             }
-            className={CONTROL}
+            className="h-8 w-36 text-xs bg-carix-surface text-carix-text md:text-xs"
           />
         </span>
       </div>
