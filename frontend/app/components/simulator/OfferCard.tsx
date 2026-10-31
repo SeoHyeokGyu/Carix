@@ -3,16 +3,28 @@ import { type ReactNode, useEffect, useId, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardTitle } from "@/components/ui/card";
 
+import {
+  SCENARIO_TEMPLATES,
+  type ScenarioTemplate,
+} from "../../lib/simulatorTemplates";
+
 interface OfferCardProps {
   open: boolean;
   onOpen: () => void;
   onClear: () => void;
+  onSelectTemplate?: (template: ScenarioTemplate) => void;
   /** 오퍼 입력. 열려 있을 때만 마운트한다 — 닫으면 입력값을 버린다. */
   children: ReactNode;
 }
 
 /** 받은 오퍼가 없으면 점선 안내 카드, 있으면 `새 회사 오퍼` 입력 카드. */
-export function OfferCard({ open, onOpen, onClear, children }: OfferCardProps) {
+export function OfferCard({
+  open,
+  onOpen,
+  onClear,
+  onSelectTemplate,
+  children,
+}: OfferCardProps) {
   const headingId = useId();
   const sectionRef = useRef<HTMLElement>(null);
   const openButtonRef = useRef<HTMLButtonElement>(null);
@@ -37,22 +49,48 @@ export function OfferCard({ open, onOpen, onClear, children }: OfferCardProps) {
   if (!open) {
     return (
       <section ref={sectionRef} aria-labelledby={headingId}>
-        <Card className="items-start border-dashed bg-transparent shadow-none">
-          <CardTitle as="h2" id={headingId}>
-            받은 오퍼가 있나요?
-          </CardTitle>
-          <p className="text-sm text-muted-foreground">
-            새 회사 연봉을 넣으면 지금 회사와 나란히 비교합니다. 없으면 왼쪽
-            결과만으로 충분합니다.
-          </p>
-          <Button
-            ref={openButtonRef}
-            type="button"
-            className="min-h-11"
-            onClick={press(onOpen)}
-          >
-            오퍼 넣기
-          </Button>
+        <Card className="items-start border-dashed bg-transparent shadow-none gap-4">
+          <div>
+            <CardTitle as="h2" id={headingId}>
+              받은 오퍼가 있나요?
+            </CardTitle>
+            <p className="text-sm text-muted-foreground mt-1">
+              새 회사 연봉을 넣으면 지금 회사와 나란히 비교합니다. 없으면 왼쪽
+              결과만으로 충분합니다.
+            </p>
+          </div>
+          <div className="flex flex-col sm:flex-row flex-wrap items-start sm:items-center gap-3">
+            <Button
+              ref={openButtonRef}
+              type="button"
+              className="min-h-11"
+              onClick={press(onOpen)}
+            >
+              오퍼 넣기
+            </Button>
+            {onSelectTemplate && (
+              <div className="flex flex-wrap items-center gap-1.5">
+                <span className="text-xs text-muted-foreground mr-1">
+                  또는 템플릿:
+                </span>
+                {SCENARIO_TEMPLATES.map((tmpl) => (
+                  <Button
+                    key={tmpl.id}
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      onOpen();
+                      onSelectTemplate(tmpl);
+                    }}
+                    className="h-8 text-xs"
+                  >
+                    {tmpl.name}
+                  </Button>
+                ))}
+              </div>
+            )}
+          </div>
         </Card>
       </section>
     );
