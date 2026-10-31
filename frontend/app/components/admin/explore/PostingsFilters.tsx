@@ -136,6 +136,7 @@ export function PostingsFilters({
             ["JOBKOREA", "잡코리아"],
             ["SARAMIN", "사람인"],
             ["WANTED", "원티드"],
+            ["PROGRAMMERS", "프로그래머스"],
           ]}
         />
         <Select
