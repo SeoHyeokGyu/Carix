@@ -1,7 +1,7 @@
+import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 
 import { formatAmountInput } from "../../lib/amountInput";
-import { Field } from "../onboarding/Field";
 
 interface ManAmountFieldProps {
   id: string;

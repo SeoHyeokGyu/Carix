@@ -10,6 +10,7 @@ import { PageSection } from "@/components/layout/PageSection";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
+import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import {
   Table,
@@ -21,7 +22,6 @@ import {
 } from "@/components/ui/table";
 import { type Tone, ToneBadge } from "@/components/ui/tone-badge";
 
-import { Field } from "../../../components/onboarding/Field";
 import {
   type ExpenseItemStatus,
   listExpenses,

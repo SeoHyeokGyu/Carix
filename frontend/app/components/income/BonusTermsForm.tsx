@@ -1,14 +1,14 @@
 import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
+import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { NativeSelect } from "@/components/ui/native-select";
 
 import { formatAmountInput, parseAmountInput } from "../../lib/amountInput";
 import type { BonusTermsInput, IncomeResponse } from "../../lib/api/income";
 import type { FieldErrors } from "../../lib/fieldErrors";
 import { formatKoreanSalary } from "../../lib/koreanSalary";
-import { Field } from "../onboarding/Field";
-import { NativeSelect } from "../onboarding/NativeSelect";
 
 const WON_PER_MAN = 10_000;
 const MISSING_AMOUNT_MESSAGE = "연간 고정상여 금액을 입력해 주세요.";

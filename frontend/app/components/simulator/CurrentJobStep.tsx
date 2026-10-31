@@ -7,6 +7,7 @@ import {
 } from "react";
 
 import { Button } from "@/components/ui/button";
+import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 
 import { updateBonusTerms } from "../../lib/api/income";
@@ -21,7 +22,6 @@ import {
   raisePercentError,
   wonToManInput,
 } from "../../lib/simulatorForm";
-import { Field } from "../onboarding/Field";
 import { BonusRecordForm } from "./BonusRecordForm";
 import { ManAmountField } from "./ManAmountField";
 import {

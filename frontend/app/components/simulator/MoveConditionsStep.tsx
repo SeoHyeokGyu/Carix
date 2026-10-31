@@ -1,5 +1,6 @@
 import { type Ref, useImperativeHandle, useRef, useState } from "react";
 
+import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 
 import {
@@ -16,7 +17,6 @@ import {
   manInputToWon,
   wonToManInput,
 } from "../../lib/simulatorForm";
-import { Field } from "../onboarding/Field";
 import { ManAmountField } from "./ManAmountField";
 import {
   type EmitSource,

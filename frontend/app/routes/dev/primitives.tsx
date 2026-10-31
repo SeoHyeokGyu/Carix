@@ -16,6 +16,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { InlineAlert } from "@/components/ui/inline-alert";
 import { Input } from "@/components/ui/input";
 import { LoadingState } from "@/components/ui/loading-state";
+import { NativeSelect } from "@/components/ui/native-select";
 import {
   Table,
   TableBody,
@@ -29,7 +30,6 @@ import { TONE_CLASS, ToneBadge } from "@/components/ui/tone-badge";
 
 import { SalaryDistributionChart } from "../../components/dashboard/SalaryDistributionChart";
 import { SignalBadge } from "../../components/dashboard/SignalBadge";
-import { NativeSelect } from "../../components/onboarding/NativeSelect";
 import { CumulativeChart } from "../../components/simulator/CumulativeChart";
 import { FirstYearBars } from "../../components/simulator/FirstYearBars";
 import { RaiseAxis } from "../../components/simulator/RaiseAxis";

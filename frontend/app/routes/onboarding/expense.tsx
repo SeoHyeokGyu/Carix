@@ -13,10 +13,10 @@ import { PageHeader } from "@/components/layout/PageHeader";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 
 import { ExpenseDonut } from "../../components/expense/ExpenseDonut";
-import { Field } from "../../components/onboarding/Field";
 import { onboardingStepLabel } from "../../components/onboarding/StepIndicator";
 import {
   formatAmountInput,

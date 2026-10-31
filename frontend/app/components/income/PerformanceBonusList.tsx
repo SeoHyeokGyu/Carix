@@ -3,6 +3,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { EmptyState } from "@/components/ui/empty-state";
+import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import {
   Table,
@@ -22,7 +23,6 @@ import {
   formatYearMonth,
   toWireYearMonth,
 } from "../../lib/yearMonth";
-import { Field } from "../onboarding/Field";
 
 const WON_PER_MAN = 10_000;
 

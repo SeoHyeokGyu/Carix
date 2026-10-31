@@ -13,7 +13,9 @@ import { PageFrame } from "@/components/layout/PageFrame";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { NativeSelect } from "@/components/ui/native-select";
 import {
   Table,
   TableBody,
@@ -23,8 +25,6 @@ import {
   TableRow,
 } from "@/components/ui/table";
 
-import { Field } from "../../components/onboarding/Field";
-import { NativeSelect } from "../../components/onboarding/NativeSelect";
 import { onboardingStepLabel } from "../../components/onboarding/StepIndicator";
 import {
   createIncome,
