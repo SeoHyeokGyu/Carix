@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
+import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 
 import { describeError } from "../../lib/simulatorForm";
-import { Field } from "../onboarding/Field";
 
 interface SaveScenarioFormProps {
   /**

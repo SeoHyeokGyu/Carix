@@ -4,6 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { HEADING } from "@/components/ui/heading";
+import { Input } from "@/components/ui/input";
+import { NativeSelect } from "@/components/ui/native-select";
 import {
   TAB_ACTIVE,
   TAB_IDLE,
@@ -211,10 +213,14 @@ export function PipelineControlPanel({
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2">
               <div>
-                <label className="block text-xs font-medium text-carix-text mb-1">
+                <label
+                  htmlFor="portal-select"
+                  className="block text-xs font-medium text-carix-text mb-1"
+                >
                   대상 포털 (Portal)
                 </label>
-                <select
+                <NativeSelect
+                  id="portal-select"
                   value={portal}
                   onChange={(e) =>
                     setPortal(
@@ -227,7 +233,7 @@ export function PipelineControlPanel({
                         | "PROGRAMMERS",
                     )
                   }
-                  className="w-full rounded-md border border-carix-border bg-carix-bg px-3 py-1.5 text-xs text-carix-text"
+                  className="w-full h-8 text-xs bg-carix-bg text-carix-text"
                 >
                   <option value="ALL">
                     전체 포털 (5대 포털 일괄 비동기 수집)
@@ -239,7 +245,7 @@ export function PipelineControlPanel({
                   <option value="PROGRAMMERS">
                     프로그래머스 (Programmers)
                   </option>
-                </select>
+                </NativeSelect>
               </div>
 
               {portal === "ALL" ? (
@@ -268,13 +274,13 @@ export function PipelineControlPanel({
                     <label className="block text-xs font-medium text-carix-text mb-1">
                       수집 페이지 수 (Max Pages) — 기본 5 (규모 고정)
                     </label>
-                    <input
+                    <Input
                       type="number"
                       min={1}
                       max={50}
                       value={maxPages}
                       onChange={(e) => setMaxPages(Number(e.target.value))}
-                      className="w-full rounded-md border border-carix-border bg-carix-bg px-3 py-1.5 text-xs text-carix-text"
+                      className="w-full h-8 text-xs bg-carix-bg text-carix-text md:text-xs"
                     />
                   </div>
 
@@ -282,14 +288,14 @@ export function PipelineControlPanel({
                     <label className="block text-xs font-medium text-carix-text mb-1">
                       요청 지연 간격 (Delay ms)
                     </label>
-                    <input
+                    <Input
                       type="number"
                       min={100}
                       max={5000}
                       step={100}
                       value={delayMs}
                       onChange={(e) => setDelayMs(Number(e.target.value))}
-                      className="w-full rounded-md border border-carix-border bg-carix-bg px-3 py-1.5 text-xs text-carix-text"
+                      className="w-full h-8 text-xs bg-carix-bg text-carix-text md:text-xs"
                     />
                   </div>
                 </>
@@ -383,12 +389,12 @@ export function PipelineControlPanel({
                     <label className="block text-xs font-medium text-carix-text mb-1">
                       시작 연도
                     </label>
-                    <input
+                    <Input
                       type="text"
                       placeholder="2020"
                       value={startYear}
                       onChange={(e) => setStartYear(e.target.value)}
-                      className="w-28 rounded-md border border-carix-border bg-carix-bg px-3 py-1.5 text-xs text-carix-text"
+                      className="w-28 h-8 text-xs bg-carix-bg text-carix-text md:text-xs"
                     />
                   </div>
                   <span className="text-carix-text/50 pt-5">~</span>
@@ -396,12 +402,12 @@ export function PipelineControlPanel({
                     <label className="block text-xs font-medium text-carix-text mb-1">
                       종료 연도
                     </label>
-                    <input
+                    <Input
                       type="text"
                       placeholder="2024"
                       value={endYear}
                       onChange={(e) => setEndYear(e.target.value)}
-                      className="w-28 rounded-md border border-carix-border bg-carix-bg px-3 py-1.5 text-xs text-carix-text"
+                      className="w-28 h-8 text-xs bg-carix-bg text-carix-text md:text-xs"
                     />
                   </div>
                 </div>
@@ -453,12 +459,12 @@ export function PipelineControlPanel({
                     <label className="block text-xs font-medium text-carix-text mb-1">
                       시작 연월 (YYYYMM)
                     </label>
-                    <input
+                    <Input
                       type="text"
                       placeholder="202401"
                       value={cpiStartYearMonth}
                       onChange={(e) => setCpiStartYearMonth(e.target.value)}
-                      className="w-32 rounded-md border border-carix-border bg-carix-bg px-3 py-1.5 text-xs text-carix-text"
+                      className="w-32 h-8 text-xs bg-carix-bg text-carix-text md:text-xs"
                     />
                   </div>
                   <span className="text-carix-text/50 pt-5">~</span>
@@ -466,12 +472,12 @@ export function PipelineControlPanel({
                     <label className="block text-xs font-medium text-carix-text mb-1">
                       종료 연월 (YYYYMM)
                     </label>
-                    <input
+                    <Input
                       type="text"
                       placeholder="202412"
                       value={cpiEndYearMonth}
                       onChange={(e) => setCpiEndYearMonth(e.target.value)}
-                      className="w-32 rounded-md border border-carix-border bg-carix-bg px-3 py-1.5 text-xs text-carix-text"
+                      className="w-32 h-8 text-xs bg-carix-bg text-carix-text md:text-xs"
                     />
                   </div>
                 </div>
@@ -558,12 +564,12 @@ export function PipelineControlPanel({
                   <label className="block text-xs font-medium text-carix-text mb-1">
                     대상 년월 (YYYY-MM)
                   </label>
-                  <input
+                  <Input
                     type="text"
                     value={aggMonth}
                     onChange={(e) => setAggMonth(e.target.value)}
                     placeholder="2024-05"
-                    className="w-36 rounded-md border border-carix-border bg-carix-bg px-3 py-1.5 text-xs text-carix-text"
+                    className="w-36 h-8 text-xs bg-carix-bg text-carix-text md:text-xs"
                   />
                 </div>
               )}
@@ -573,12 +579,12 @@ export function PipelineControlPanel({
                   <label className="block text-xs font-medium text-carix-text mb-1">
                     대상 연도 (YYYY)
                   </label>
-                  <input
+                  <Input
                     type="text"
                     value={aggYear}
                     onChange={(e) => setAggYear(e.target.value)}
                     placeholder="2024"
-                    className="w-36 rounded-md border border-carix-border bg-carix-bg px-3 py-1.5 text-xs text-carix-text"
+                    className="w-36 h-8 text-xs bg-carix-bg text-carix-text md:text-xs"
                   />
                 </div>
               )}
@@ -589,12 +595,12 @@ export function PipelineControlPanel({
                     <label className="block text-xs font-medium text-carix-text mb-1">
                       시작 연도
                     </label>
-                    <input
+                    <Input
                       type="text"
                       value={aggStartYear}
                       onChange={(e) => setAggStartYear(e.target.value)}
                       placeholder="2020"
-                      className="w-28 rounded-md border border-carix-border bg-carix-bg px-3 py-1.5 text-xs text-carix-text"
+                      className="w-28 h-8 text-xs bg-carix-bg text-carix-text md:text-xs"
                     />
                   </div>
                   <span className="text-carix-text/50 pt-5">~</span>
@@ -602,12 +608,12 @@ export function PipelineControlPanel({
                     <label className="block text-xs font-medium text-carix-text mb-1">
                       종료 연도
                     </label>
-                    <input
+                    <Input
                       type="text"
                       value={aggEndYear}
                       onChange={(e) => setAggEndYear(e.target.value)}
                       placeholder="2024"
-                      className="w-28 rounded-md border border-carix-border bg-carix-bg px-3 py-1.5 text-xs text-carix-text"
+                      className="w-28 h-8 text-xs bg-carix-bg text-carix-text md:text-xs"
                     />
                   </div>
                 </div>
@@ -633,12 +639,12 @@ export function PipelineControlPanel({
               <label className="block text-xs font-medium text-carix-text mb-1">
                 데이터 디렉토리 경로 (미입력 시 기본 경로 자동 탐색)
               </label>
-              <input
+              <Input
                 type="text"
                 placeholder="예: data/output 또는 backend/collector/data/output"
                 value={seedDataDir}
                 onChange={(e) => setSeedDataDir(e.target.value)}
-                className="w-full max-w-lg rounded-md border border-carix-border bg-carix-bg px-3 py-1.5 text-xs text-carix-text"
+                className="w-full max-w-lg h-8 text-xs bg-carix-bg text-carix-text md:text-xs"
               />
             </div>
           </div>

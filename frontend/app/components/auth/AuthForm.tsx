@@ -1,8 +1,10 @@
 import { type FormEvent, type ReactNode, useState } from "react";
 
 import { Button } from "@/components/ui/button";
-
-import type { ApiError } from "../../lib/authApi";
+import { InlineAlert } from "@/components/ui/inline-alert";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import type { ApiError } from "@/lib/authApi";
 
 interface AuthFormProps {
   screenId: string;
@@ -61,22 +63,24 @@ export function AuthForm({
         </p>
 
         <form onSubmit={handleSubmit} className="mt-8 flex flex-col gap-4">
-          <label className="flex flex-col gap-1.5 text-sm font-medium text-carix-text">
-            이메일
-            <input
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor={`${screenId}-email`}>이메일</Label>
+            <Input
+              id={`${screenId}-email`}
               type="email"
               name="email"
               required
               autoComplete="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="rounded-lg border border-carix-border bg-carix-bg px-3 py-2 text-base font-normal text-carix-text outline-none focus:border-carix-info focus:ring-2 focus:ring-carix-info/30"
+              className="bg-carix-bg text-base font-normal text-carix-text md:text-base"
             />
-          </label>
+          </div>
 
-          <label className="flex flex-col gap-1.5 text-sm font-medium text-carix-text">
-            비밀번호
-            <input
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor={`${screenId}-password`}>비밀번호</Label>
+            <Input
+              id={`${screenId}-password`}
               type="password"
               name="password"
               required
@@ -84,21 +88,14 @@ export function AuthForm({
               autoComplete={passwordAutoComplete}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="rounded-lg border border-carix-border bg-carix-bg px-3 py-2 text-base font-normal text-carix-text outline-none focus:border-carix-info focus:ring-2 focus:ring-carix-info/30"
+              className="bg-carix-bg text-base font-normal text-carix-text md:text-base"
             />
             <span className="text-xs font-normal text-carix-text/60">
               8자 이상. 문자 구성은 제한하지 않습니다.
             </span>
-          </label>
+          </div>
 
-          {error ? (
-            <p
-              role="alert"
-              className="rounded-lg bg-carix-danger/10 px-3 py-2 text-sm text-carix-danger"
-            >
-              {error}
-            </p>
-          ) : null}
+          {error ? <InlineAlert message={error} /> : null}
 
           <Button
             type="submit"

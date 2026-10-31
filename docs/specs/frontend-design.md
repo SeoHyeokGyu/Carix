@@ -204,6 +204,8 @@ OCI VM에서 다음 컨테이너를 Docker Compose로 운영한다.
 | `Table` | 표. 기본은 틀이 있고, 이미 `Card` 안이면 `variant="plain"`. 좁은 폭은 가로 스크롤 |
 | `EmptyState` | 빈 상태·열화 상태. 카드 안이면 `variant="plain"`, 제목 계층은 `headingLevel`. 불러오기 실패는 `tone="danger"` 에 「다시 시도」 버튼을 늘 둔다 |
 | `LoadingState` | 불러오는 중 |
+| `Input` | 텍스트·숫자·월 등 단일 폼 입력 필드 |
+| `Field` | 라벨 + 입력 슬롯 + 힌트·오류 문단 묶음 (`aria-describedby` 로 접근성 보장) |
 | `NativeSelect` | 선택 필드 (Radix `Select` 는 쓰지 않는다) |
 
 **버튼 줄 배치**

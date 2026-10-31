@@ -11,10 +11,10 @@ import { PageFrame } from "@/components/layout/PageFrame";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { NativeSelect } from "@/components/ui/native-select";
 
-import { Field } from "../../components/onboarding/Field";
-import { NativeSelect } from "../../components/onboarding/NativeSelect";
 import { onboardingStepLabel } from "../../components/onboarding/StepIndicator";
 import { getProfile, patchProfile } from "../../lib/api/profile";
 import { toUserMessage } from "../../lib/apiError";

@@ -11,6 +11,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { InlineAlert } from "@/components/ui/inline-alert";
 import { Input } from "@/components/ui/input";
 import { LoadingState } from "@/components/ui/loading-state";
+import { NativeSelect } from "@/components/ui/native-select";
 import {
   Table,
   TableBody,
@@ -21,7 +22,6 @@ import {
 } from "@/components/ui/table";
 import { ToneBadge } from "@/components/ui/tone-badge";
 
-import { NativeSelect } from "../../components/onboarding/NativeSelect";
 import { onboardingStepLabel } from "../../components/onboarding/StepIndicator";
 import { useAlertMessage } from "../../hooks/useAlertMessage";
 import { toUserMessage } from "../../lib/apiError";

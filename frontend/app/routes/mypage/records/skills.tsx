@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { EmptyState } from "@/components/ui/empty-state";
+import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import {
   Table,
@@ -21,7 +22,6 @@ import {
   TableRow,
 } from "@/components/ui/table";
 
-import { Field } from "../../../components/onboarding/Field";
 import { toUserMessage } from "../../../lib/apiError";
 import { UnauthorizedError } from "../../../lib/coreApi";
 import { LOGIN_PATH } from "../../../lib/routeGuards";

@@ -197,7 +197,7 @@ describe("소득 탭 (S-12)", () => {
     // _form 문단엔 id 가 없어 `errorText.id` 가 `""` 이고
     // `stringContaining("")` 은 항상 참이기 때문이다(힌트 id 는 항상 붙어
     // 있어 aria-describedby 자체는 비지 않는다). `<Field>` 가 오류를
-    // `${id}-error` 로 렌더링하므로(app/components/onboarding/Field.tsx),
+    // `${id}-error` 로 렌더링하므로(app/components/ui/field.tsx),
     // effectiveDate 필드 착지는 그 id 를 가진 요소가 실제로 존재하고 그
     // 안에 이 메시지가 있는지로 직접 확인해야 한다 — _form 배너로 떨어지면
     // 이 id 를 가진 요소 자체가 생기지 않는다.

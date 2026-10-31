@@ -11,7 +11,9 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { EmptyState } from "@/components/ui/empty-state";
+import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { NativeSelect } from "@/components/ui/native-select";
 import {
   Table,
   TableBody,
@@ -23,8 +25,6 @@ import {
 
 import { BonusTermsForm } from "../../../components/income/BonusTermsForm";
 import { PerformanceBonusList } from "../../../components/income/PerformanceBonusList";
-import { Field } from "../../../components/onboarding/Field";
-import { NativeSelect } from "../../../components/onboarding/NativeSelect";
 import {
   createBonus,
   createIncome,
