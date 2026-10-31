@@ -163,6 +163,7 @@ const PORTAL_SOURCE: Record<string, string> = {
   SARAMIN: "SARAMIN",
   JUMPIT: "SARAMIN",
   WANTED: "WANTED",
+  PROGRAMMERS: "PROGRAMMERS",
 };
 
 /**

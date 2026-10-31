@@ -27,6 +27,7 @@ const COLLECTED_VIA_LABEL: Record<string, string> = {
   JUMPIT: "점핏",
   WANTED_LIST: "원티드 목록",
   WANTED_BACKFILL: "원티드 표본",
+  PROGRAMMERS: "프로그래머스",
 };
 
 function formatCollectedVia(p: PostingItem): string {
