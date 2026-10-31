@@ -18,6 +18,7 @@
 | 잡코리아 채용공고 스크래핑 | 스킬 수요율 원천 1 | 개발·데이터·AI 직군 채용공고 수집 |
 | 사람인 채용공고 스크래핑 | 스킬 수요율 원천 2 | IT 공고 커버리지 보완 |
 | 점핏 채용공고 목록 | 스킬 수요율 원천 4 | 점핏 공고 번호는 사람인 공고 번호라 공고 행은 `SARAMIN`, 수집 이력(`raw_ingest`)은 `JUMPIT` 이다. 시장 집계에서는 확인 경로 `JUMPIT` 인 공고가 별도 원천 `JUMPIT` 행이 된다 |
+| 프로그래머스 채용공고 목록 | 스킬 수요율 원천 5 | 개발자 전용 채용공고 및 기술 태그 수집. 공고 행 및 시장 집계는 `PROGRAMMERS` 다 |
 | 원티드 채용공고 | 스킬 수요율 원천 3 | 개발(518) 직군 정기 수집 + 무작위 ID 표본. 공고 행은 `WANTED` |
 | 임금직무정보시스템 또는 KOSIS 직종별 임금 | 연봉 기준선 | 공식 통계 (제공 여부·결측 수준은 선행 검증 대상) |
 
@@ -100,11 +101,13 @@
 - **원티드 표본.** 표본 원천은 잡코리아·원티드 둘이다. 원티드는 `POST /internal/pipeline/backfill` 의 `source=WANTED` 로 지난달 공고 번호 구간(게시일 이분 탐색)에서 무작위로 열어 개발(518) 직군의 AI·DATA·DEVELOPER 대표 직무만 표본으로 삼는다(월 목표 250·같은 회사 월 3건 상한). 판정은 공고 페이지 한 번으로 하고 스킬 태그는 페이지에 없어 새로 만들 표본 공고만 상세 API 를 더 연다(이미 있는 행은 표본 표시만 달고 열지 않는다). 정기 수집이 건너뛴 페이지(상위 태그가 518 이 아님·`__NEXT_DATA__` 없음·번호 불일치)는 행을 남기지 않아 다음 실행에서 다시 연다. `sampled_month` 는 게시월이다. 정기 수집(`portal=WANTED`)은 개발 목록을 끝까지 돌아 새 공고를 만들고 이미 있는 공고는 마지막 관측월만 갱신한다. 원천 호출·직무 대응표는 [외부 연동 §3.5](external-api-integration.md), 요청·요약 형식은 [API 명세 §8.1](api-specification.md)·[§8.15](api-specification.md)가 소관이다.
   - `market_aggregate` 의 `WANTED` 행은 그 달 원티드 표본만, 같은 회사 월 3건까지 센다. 정기 수집된 원티드 공고는 통합(`ALL`) 행에만 들어간다.
   - 매달 운영(지난달 백필 — 잡코리아·원티드, 정기 수집, 점핏 수집, 재집계, 재계산) 뒤 관리자 「수집 데이터」(`/admin/data`) 맨 위 점검 줄에서 표본·집계·스냅샷이 맞는지 확인하고, 이상이 있으면 점검 줄의 「근거」로 같은 화면의 원본을 연다.
-- **수집 경로(`collected_via`).** 공고 행마다 확인한 경로를 쉼표로 쌓는다(중복 없음). 값은 `JOBKOREA_LIST`(정기 수집)·`JOBKOREA_BACKFILL`(표본 백필)·`JOBKOREA_SEED`(시드)·`SARAMIN_SEARCH`(사람인 정기 수집, 사람인 시드 행 포함)·`JUMPIT`·`WANTED_LIST`(원티드 정기 수집)·`WANTED_BACKFILL`(원티드 표본 백필) 이다. 원천 항목 ID 와 달리 공고 행에 남아 관리자 화면이 확인 경로를 보인다.
-- **점핏 보강.** `POST /internal/pipeline/crawl` 의 `portal=JUMPIT` 이 점핏 목록을 끝까지 순회한다(`ALL` 은 잡코리아·사람인만 돈다). 점핏 공고 번호로 `SARAMIN` 행을 찾는다. 외부 API 규격은 [외부 연동 §3.4](external-api-integration.md)가 소관이다.
+- **수집 경로(`collected_via`).** 공고 행마다 확인한 경로를 쉼표로 쌓는다(중복 없음). 값은 `JOBKOREA_LIST`(정기 수집)·`JOBKOREA_BACKFILL`(표본 백필)·`JOBKOREA_SEED`(시드)·`SARAMIN_SEARCH`(사람인 정기 수집, 사람인 시드 행 포함)·`JUMPIT`·`WANTED_LIST`(원티드 정기 수집)·`WANTED_BACKFILL`(원티드 표본 백필)·`PROGRAMMERS`(프로그래머스 정기 수집) 이다. 원천 항목 ID 와 달리 공고 행에 남아 관리자 화면이 확인 경로를 보인다.
+- **점핏 보강.** `POST /internal/pipeline/crawl` 의 `portal=JUMPIT`(또는 `ALL`)이 점핏 목록을 끝까지 순회한다. 점핏 공고 번호로 `SARAMIN` 행을 찾는다. 외부 API 규격은 [외부 연동 §3.4](external-api-integration.md)가 소관이다.
   - 있는 공고는 점핏 기술 스택을 스킬로 **더하고**(기존 스킬 유지) 직무군·경력은 비어 있을 때만 채운다. 급여는 건드리지 않는다. `collected_via` 에 `JUMPIT` 을 더한다. 사람인 정기 수집은 `JUMPIT` 이 든 공고의 스킬을 대체하지 않고 더하기만 하고, 직무군·경력은 비어 있을 때만 채운다.
   - 없는 공고는 `SARAMIN` 행으로 새로 만든다. 게시일은 점핏 상세 API 에서, 급여는 사람인 상세페이지에서 읽는다. 첫 관측월은 수집 월이다.
   - 기술 스택은 스킬 사전(별칭)에 있는 값만 스킬로 삼고 없는 값은 버린다 — 스킬 수요율의 분모를 흐리지 않는다. 버린 값의 빈도는 작업 요약 `droppedSkills` 로 남아 사전 보강 근거가 된다. 점핏으로 확인한 공고는 `JUMPIT`·`ALL` 시장 집계 행으로 들어가고, 사람인 검색 경로로도 확인됐으면 `SARAMIN` 행에도 들어간다.
+- **프로그래머스 수집.** `POST /internal/pipeline/crawl` 의 `portal=PROGRAMMERS`(또는 `ALL`)가 프로그래머스 채용 목록을 순회해 새 공고를 만들고 이미 있는 공고는 마지막 관측월만 갱신한다. 기술 태그(`position_tags`)는 스킬 사전에 있는 값만 스킬로 삼고 없는 값은 버리며 `droppedSkills` 로 센다. `PROGRAMMERS`·`ALL` 시장 집계 행으로 들어간다. 외부 API 규격은 [외부 연동 §3.6](external-api-integration.md)이 소관이다.
+- **일괄 비동기 병렬 수집(`portal=ALL`).** `portal=ALL` 은 5개 포털(`JOBKOREA`·`SARAMIN`·`JUMPIT`·`WANTED`·`PROGRAMMERS`)을 가상 스레드(`CompletableFuture`)로 동시에 실행한다. 개별 포털 실패는 격리해 다른 포털 수집을 중단하지 않으며, 5개 포털이 모두 실패했을 때만 작업이 `FAILED` 로 끝난다.
 - **잡코리아 직무군 판정.** 정기 수집·시드·백필이 같은 규칙을 쓴다 — 두 창의 모집단이 다르면 판정 방식 차이만으로
   수요율이 움직인다. 자기 공고의 직무 분류 코드(`category.jobClassificationCodes`)가 IT 블록이면 제목으로
   AI·DATA·DEVELOPER 를 가르고(직무명이 제목에 없으면 DEVELOPER, 기계·전기 등 비소프트웨어 공학은 OTHER),
@@ -114,7 +117,7 @@
   수집 당시의 사전으로, 백필분은 백필 당시의 사전으로 저장되므로 두 창을 비교하기 전에 기존 잡코리아 공고를
   상세페이지로 다시 열어 같은 추출로 맞춘다(`POST /internal/pipeline/reclassify-jobkorea` — 직무군과 스킬을 함께
   다시 매긴다). 원문을 보관하지 않아(§1.6) 다시 받는 수밖에 없고, 열리지 않는 공고는 그대로 둔다.
-- **사전에 없는 기술명.** 잡코리아·사람인 태그의 사전에 없는 기술명은 새 스킬 후보로 스킬 테이블에 들이고, 점핏 기술 스택의 사전에 없는 값은 버리며 작업 요약 `droppedSkills` 로만 센다.
+- **사전에 없는 기술명.** 잡코리아·사람인 태그의 사전에 없는 기술명은 새 스킬 후보로 스킬 테이블에 들이고, 점핏·원티드·프로그래머스의 사전에 없는 값은 버리며 작업 요약 `droppedSkills` 로만 센다.
 - **급여 공개 판정.** 잡코리아 정기 수집·시드·백필이 같은 판정기를 쓴다. 상세페이지 `<meta name="description">` 의
   「급여」 문구에 금액(연봉·월급, 월급은 ×12)이 있으면 `PUBLIC` 으로 `salary_min/max` 에 담고(연 1천만~3억, 월급은 월 1,500만원 이하만 — 「월급 4,000~8,000만원」·「연봉 30,000만원」 같은 원문 오기는 판정 전으로 둔다), 금액 없이 회사내규·면접 후·협의면
   상세페이지 `pay` 블록의 검색 구간을 `salary_band_*` 에 담아 `BAND`, 그 구간도 없으면 `NONE` 이다. 급여 문구를 못 읽으면
@@ -134,7 +137,7 @@
   2. **제목 정규화 (`TitleNormalizer`)**: 불용어(채용, 모집, 신입, 경력 등)를 제외한 핵심 키워드 토큰화
   3. **유사도 및 클러스터링**: 동일 정규화 회사명 내에서 Jaccard 유사도 $\ge 0.4$ 또는 부분집합 포함 관계 시 Union-Find 알고리즘으로 단일 `dedup_group_id` 클러스터링 (단독 공고는 자체 UUID 부여)
 - **원천별 vs 통합 집계 원칙**:
-  - 원천별 집계(`JOBKOREA`, `WANTED`, `SARAMIN`, `JUMPIT`): 원본 행 기준(잡코리아·원티드는 그 달 표본만, 사람인·점핏은 수집 경로별 신규 수집 공고)
+  - 원천별 집계(`JOBKOREA`, `WANTED`, `SARAMIN`, `JUMPIT`, `PROGRAMMERS`): 원본 행 기준(잡코리아·원티드는 그 달 표본만, 사람인·점핏·프로그래머스는 수집 경로별 신규 수집 공고)
   - 통합 관점 집계(`ALL`): `dedup_group_id` 기준 고유 공고 수 산출
 - **묶음 대표**: `dedup_group_id` 당 한 건만 남길 때 대표는 **공개연봉이 있는 공고 → 게시일(`posted_start_date`)이 이른 공고(없으면 뒤) → `id`** 순서의 첫 행이다. 묶음은 같은 일자리라 한 원천이라도 연봉을 공개했으면 그 값이 사실이다. 조회 순서에 맡기면 실행마다 대표가 바뀌어 연봉 표본·경력 구간·결측률이 흔들린다. 동료집단 연봉 분포(core-api `JobPosting.REPRESENTATIVE_ORDER`)와 통합 관점 집계(collector `MarketAggregateService.REPRESENTATIVE_ORDER`)가 같은 순서를 쓴다
 
@@ -217,7 +220,7 @@
 사람인 API 를 폐기하며 전제가 사라졌고(§1.1), CPI 카테고리 매핑은 `CpiIngestService` 가,
 최소 표본 기준(`N ≥ 10`)은 [기능 명세 §6](functional-specification.md)이 가져갔다.
 
-스크래핑 대상 네 사이트(잡코리아·사람인·원티드·점핏, §1.1)의 이용약관은 **검토하지 않기로
+스크래핑 대상 다섯 사이트(잡코리아·사람인·원티드·점핏·프로그래머스, §1.1)의 이용약관은 **검토하지 않기로
 했다.** 학습·포트폴리오 범위에서 홍보·모집 없이 운영한다는 전제다. 이 전제가 깨지면 — 일반
 사용자를 모으는 공개 베타나 상용화 — 그 전에 검토하고, 결과가 나쁜 원천은 어댑터 단위로 끈다.
 API 원천의 이용 조건은 결론이 나 있다 (`verification/notes/source-availability.md`).
@@ -239,7 +242,7 @@ API 원천의 이용 조건은 결론이 나 있다 (`verification/notes/source-
 
 ## 4. 전체 서비스 아키텍처 및 흐름도
 
-사용자의 실시간 요청을 처리하는 **API 영역**과 관리자가 관리자 화면(Admin UI/API)에서 직접 구동해 대량의 외부 데이터를 수집·가공하는 **수집/집계 파이프라인(collector) 영역**이 유기적으로 연결된 데이터 파이프라인 구조입니다. 가로 너비를 최소화하고 세로 흐름을 따라 배치되었습니다.
+사용자의 실시간 요청을 처리하는 **API 영역**과 관리자가 관리자 화면(Admin UI/API)에서 직접 구동해 외부 데이터를 수집·가공하는 **수집/집계 파이프라인(collector) 영역**을 연결한 구조다.
 
 ```mermaid
 flowchart TD
@@ -249,16 +252,15 @@ flowchart TD
     %% 1. 외부 데이터 및 수집 (Top Right)
     subgraph External ["외부 원천"]
         Kosis["KOSIS 물가통계 API"]
-        JobKorea["잡코리아 채용정보 스크래핑"]
-        Saramin["사람인 채용정보 스크래핑"]
+        Postings["5대 채용포털 스크래핑<br>(잡코리아·사람인·점핏·원티드·프로그래머스)"]
         WageStat["임금통계 API"]
     end
 
     %% 2. 수집 및 집계 파이프라인 프로세서 (Down 1)
     subgraph Collector ["collector 모듈 (수집 & 집계 파이프라인 - 관리자 직접 구동)"]
         AdminTrigger["파이프라인 진입점 (/internal/pipeline/*)"]
-        Job1["CPI 수집 Job (/internal/pipeline/crawl)"]
-        Job2["구인공고 수집 & 스킬 파싱 Job - 잡코리아/사람인"]
+        Job1["CPI 수집 Job (/internal/pipeline/cpi)"]
+        Job2["구인공고 수집 & 스킬 파싱 Job (/internal/pipeline/crawl)"]
         Job2b["임금통계 수집 Job (/internal/pipeline/wage-stat)"]
         Job3["시장 데이터 통계 집계 Job (/internal/pipeline/aggregate)"]
     end
@@ -302,12 +304,10 @@ flowchart TD
 
     %% 외부 -> 수집 연동
     Kosis -->|"데이터 응답"| Job1
-    JobKorea -->|"본문 텍스트 응답"| Job2
-    Saramin -->|"공고 응답"| Job2
+    Postings -->|"공고 응답"| Job2
     WageStat -->|"임금통계 응답"| Job2b
     Job1 -->|"API 호출"| Kosis
-    Job2 -->|"스크래핑"| JobKorea
-    Job2 -->|"스크래핑"| Saramin
+    Job2 -->|"비동기 병렬 스크래핑"| Postings
     Job2b -->|"API 호출"| WageStat
     Job2b -->|"정규화 적재"| RawDB
 
@@ -344,12 +344,12 @@ flowchart TD
 
 ## 5. 수집·집계 파이프라인 (관리자 직접 구동)
 
-외부 수집 데이터는 **관리자 화면에서 직접 구동하는 방식(Admin UI/API)**으로만 실행됩니다. 파이프라인 Job(CPI 수집, 공고 수집·파싱, 임금통계 수집, 집계)을 내부 API(`/internal/pipeline/**`)로 관리자가 트리거합니다.
+외부 수집 데이터는 **관리자 화면에서 직접 구동하는 방식(Admin UI/API)**으로만 실행한다. 파이프라인 Job(CPI 수집, 공고 수집·파싱, 임금통계 수집, 집계)을 내부 API(`/internal/pipeline/**`)로 관리자가 트리거한다.
 
-**`@Scheduled` 정기 실행은 도입하지 않기로 확정했습니다.** 정기 실행에는 수집 실패 재시도, 중복 실행 방지, 실패 관측 경로가 함께 따라오는데 MVP 표본 규모에서 그만한 값을 하지 않습니다. 정기 실행이 필요해지면 그때 다시 판단합니다.
+**`@Scheduled` 정기 실행은 도입하지 않기로 확정했다.** 정기 실행에는 수집 실패 재시도, 중복 실행 방지, 실패 관측 경로가 함께 따라오는데 MVP 표본 규모에서 그만한 값을 하지 않는다. 정기 실행이 필요해지면 그때 다시 판단한다.
 
 ### 5.1 Job 1: CPI 소비자물가지수 수집 (관리자 직접 구동, 월 1회 권장)
-통계청 공표 일정에 맞춰 관리자가 관리자 화면에서 직접 기동합니다.
+통계청 공표 일정에 맞춰 관리자가 관리자 화면에서 직접 기동한다.
 
 ```mermaid
 stateDiagram-v2
@@ -362,11 +362,11 @@ stateDiagram-v2
 ```
 
 ### 5.2 Job 2: 구인공고 수집 및 스킬 정규화 (관리자 직접 구동, 일·주 1회 권장)
-가장 많은 연산과 파싱이 필요한 핵심 수집 파이프라인입니다. 잡코리아와 사람인 어댑터가 동일 구조로 실행되며, 관리자가 트리거 시 수집 후 원천 간 중복 공고를 `dedup_group_id`로 매칭합니다. 파싱된 스킬은 `job_posting_skill`에 공고별로 저장합니다.
+가장 많은 연산과 파싱이 필요한 핵심 수집 파이프라인이다. 5개 포털(잡코리아·사람인·점핏·원티드·프로그래머스) 어댑터를 단건 또는 가상 스레드 기반 일괄 비동기 병렬로 실행하며, 수집 후 원천 간 중복 공고를 `dedup_group_id`로 매칭한다. 파싱된 스킬은 `job_posting_skill`에 공고별로 저장한다.
 
 ```mermaid
 flowchart TD
-    Start([관리자 트리거로 Job 시작]) --> Reader[원천별 API Reader - 잡코리아/사람인: <br>IT/개발 직군 목록 조회]
+    Start([관리자 트리거로 Job 시작]) --> Reader[원천별 Reader - 5대 채용 포털: <br>IT/개발 직군 목록·상세 조회]
     Reader --> Filter[Duplicate Filter: <br>원천 공고ID 중복 및 만료공고 제외 <br>+ 원천 간 dedup_group 매칭]
     Filter --> DetailReader[Detail Reader: <br>공고별 상세 본문 및 연봉 수집]
     
@@ -383,7 +383,7 @@ flowchart TD
 ```
 
 ### 5.3 Job 3(시장 데이터 집계) 및 Job 4(사용자 스냅샷 갱신 — core-api 전담)
-Job 3(원천별 집계)은 `collector`가 실행하며, Job 4(사용자 스냅샷 갱신)는 `core-api` 안에서 사용자 프로필·소득·소비·스킬 변경 시 **트랜잭션 안의 동기 직접 호출**(`recalculateSnapshot(userId, fromYm)`)로 실행됩니다. 스케줄러나 비동기 이벤트는 쓰지 않습니다 ([도메인 정의서 §5](domain-logic.md)). 사용자 스냅샷 계산 및 저장은 `core-api`가 전담 소유합니다. 아래 흐름도는 두 Job의 연쇄 데이터 흐름을 표현한 것입니다. 수집된 원천 공고 및 CPI 데이터를 사용자의 동료집단(Peer Group) 단위로 그룹핑하고 통계를 집계한 뒤 사용자 스냅샷을 갱신합니다.
+Job 3(원천별 집계)은 `collector`가 실행하며, Job 4(사용자 스냅샷 갱신)는 `core-api` 안에서 사용자 프로필·소득·소비·스킬 변경 시 **트랜잭션 안의 동기 직접 호출**(`recalculateSnapshot(userId, fromYm)`)로 실행한다. 스케줄러나 비동기 이벤트는 쓰지 않는다 ([도메인 정의서 §5](domain-logic.md)). 사용자 스냅샷 계산 및 저장은 `core-api`가 전담 소유한다. 수집된 원천 공고 및 CPI 데이터를 동료집단(Peer Group) 단위로 그룹핑하고 통계를 집계한 뒤 사용자 스냅샷을 갱신한다.
 
 롤업 집합(GROUPING SETS) 열거 — 롤업 차원은 `employment_type`, `company_size`, `skill_id` 3개이며, 원천×월×직무×지역×경력구간마다 다음 6개 집합을 생성합니다 (`NULL` = 전체 롤업, 원천 미상 `'UNKNOWN'`은 세분 값의 하나로 취급):
 
@@ -424,7 +424,7 @@ flowchart TD
 
 ## 6. 사용자 경험 시나리오 흐름
 
-방문자가 가입 없이 유입되어 의사결정 시뮬레이션을 받기까지의 API 통신 순서입니다.
+방문자가 가입 없이 유입되어 의사결정 시뮬레이션을 받기까지의 API 통신 순서다.
 
 ```mermaid
 sequenceDiagram

@@ -7,12 +7,12 @@
 
 ## Carix란?
 
-연봉이 올라도 물가가 더 빠르게 오르면 생활 수준은 낮아질 수 있습니다. 같은
-스킬을 오래 사용해도 시장 수요가 줄면 커리어의 선택지는 좁아질 수 있습니다.
+연봉이 올라도 물가가 더 빠르게 오르면 생활 수준은 낮아질 수 있다. 같은
+스킬을 오래 사용해도 시장 수요가 줄면 커리어의 선택지는 좁아질 수 있다.
 
 Carix는 명목연봉이나 채용공고 수처럼 분리된 숫자를 보여주는 데서 그치지
-않습니다. 개인의 소득 변화와 소비 구조, 노동시장의 스킬 수요와 공개연봉을
-연결해 다음 세 가지 질문에 답하는 것을 목표로 합니다.
+않는다. 개인의 소득 변화와 소비 구조, 노동시장의 스킬 수요와 공개연봉을
+연결해 다음 세 가지 질문에 답하는 것을 목표로 한다.
 
 1. 내 실질 구매력은 좋아지고 있는가?
 2. 시장에서 내 스킬의 가치는 오르고 있는가?
@@ -23,14 +23,14 @@ Carix는 명목연봉이나 채용공고 수처럼 분리된 숫자를 보여주
 | 지수 | 설명 | 주요 입력 |
 | --- | --- | --- |
 | 구매력 지수 | 연봉 상승률에서 개인 소비구조를 반영한 물가 상승 영향을 제거 | 연봉 이력, 소비 비중, 품목별 CPI |
-| 시장가치 지수 | 동일 직군 안에서 보유 스킬의 채용 수요 변화를 추적 | 경력, 지역, 보유 스킬, 채용공고(잡코리아·사람인·원티드·점핏, 스크래핑) |
+| 시장가치 지수 | 동일 직군 안에서 보유 스킬의 채용 수요 변화를 추적 | 경력, 지역, 보유 스킬, 채용공고(잡코리아·사람인·원티드·점핏·프로그래머스, 스크래핑) |
 | 결정 신호 | 지표와 데이터 신뢰도를 규칙으로 조합해 다음 검토 행동을 제시 | 현재 보상, 시장 격차, 스킬 추세 |
 
-두 지수를 하나의 불투명한 점수로 합치지 않고 결정 신호와 함께 공개합니다. 서로
-다른 방향으로 움직이는 지표를 함께 해석하는 것이 Carix의 핵심입니다.
+두 지수를 하나의 불투명한 점수로 합치지 않고 결정 신호와 함께 공개한다. 서로
+다른 방향으로 움직이는 지표를 함께 해석하는 것이 Carix의 핵심이다.
 
 예를 들어 구매력은 하락하지만 시장가치는 상승한다면, 소비 절감만 권하기보다
-연봉협상이나 이직을 검토할 시점으로 해석할 수 있습니다.
+연봉협상이나 이직을 검토할 시점으로 해석한다.
 
 ## 데이터 연결 구조
 
@@ -38,14 +38,12 @@ Carix는 명목연봉이나 채용공고 수처럼 분리된 숫자를 보여주
 flowchart TD
     Input[개인 입력<br>연봉 이력 + 소비 비중 + 경력 + 지역 + 보유 스킬]
     Kosis[KOSIS CPI<br>품목별 물가]
-    JobKorea[잡코리아 공고<br>스크래핑]
-    Saramin[사람인 공고<br>스크래핑]
+    Postings[채용공고 스크래핑<br>잡코리아·사람인·원티드·점핏·프로그래머스]
     Wage[임금통계<br>직종별 연봉 기준선]
     
     Input --> Output[구매력 지수 + 시장가치 지수 + 결정 신호]
     Kosis --> Output
-    JobKorea --> Output
-    Saramin --> Output
+    Postings --> Output
     Wage --> Output
     
     Output --> Scenario[잔류·이직 시나리오와 행동 제안]
@@ -60,7 +58,7 @@ flowchart TD
 ```
 
 전체 소비자물가지수를 그대로 적용하지 않고 주거, 식비, 교통, 교육 등 사용자의
-소비 비중을 반영합니다.
+소비 비중을 반영한다.
 
 ### 스킬 시장가치 계산
 
@@ -69,12 +67,12 @@ flowchart TD
 연봉 격차 = (공식 임금통계 중앙값 - 사용자 세전연봉) ÷ 사용자 세전연봉
 ```
 
-연봉 격차는 사용자 연봉이 시장 중앙값보다 낮을 때 양수입니다 (결정 규칙표와 동일 규약).
+연봉 격차는 사용자 연봉이 시장 중앙값보다 낮을 때 양수다 (결정 규칙표와 동일 규약).
 
 공고 수 자체가 아니라 동일 직군·경력 안에서 차지하는 비율을 사용해 전체
-채용시장 규모 변화에 따른 왜곡을 줄입니다. 연봉 비교 기준선은 결측률이 높은 공고
-공개연봉 대신 공식 임금통계를 사용하며, 공고 공개연봉은 표본이 충분할 때 참고
-범위로만 병기합니다.
+채용시장 규모 변화에 따른 왜곡을 줄인다. 연봉 비교 기준선은 결측률이 높은 공고
+공개연봉 대신 공식 임금통계를 쓰며, 공고 공개연봉은 표본이 충분할 때 참고
+범위로만 병기한다.
 
 ## 주요 기능
 
@@ -93,20 +91,20 @@ flowchart TD
 결정 신호      이직 탐색
 
 연봉은 3년간 6.0% 올랐지만 개인물가는 12.4% 상승해
-실질 구매력은 감소했습니다. (106.0 ÷ 112.4 × 100 ≈ 94)
+실질 구매력은 감소했다. (106.0 ÷ 112.4 × 100 ≈ 94)
 
 보유 스킬의 채용 수요는 같은 기간 증가했고, 현재 연봉은
-동일 조건의 공식 임금통계 중앙값보다 낮습니다. 소비 절감보다
-연봉협상 또는 이직 준비의 기대효과가 더 큰 상태입니다.
+동일 조건의 공식 임금통계 중앙값보다 낮다. 소비 절감보다
+연봉협상 또는 이직 준비의 기대효과가 더 큰 상태다.
 ```
 
 수치는 진단 근거와 표본 수를 함께 제공하며, 확정적인 연봉 예측이나 재무 조언으로
-표현하지 않습니다.
+표현하지 않는다.
 
 ## MVP 범위
 
-첫 번째 버전은 개발·데이터·AI 직군에 집중합니다. 가입 절차 없이 링크로 들어와 바로
-써 보고, 결과를 이어서 보고 싶을 때만 계정을 만듭니다.
+첫 번째 버전은 개발·데이터·AI 직군에 집중한다. 가입 절차 없이 링크로 들어와 바로
+써 보고, 결과를 이어서 보고 싶을 때만 계정을 만든다.
 
 ### 계정과 온보딩
 
@@ -178,7 +176,7 @@ flowchart TD
 | `/admin/collector` | 수집기 파이프라인 관리 콘솔 (별칭: `/admin/pipeline`) | 관리자 키 (`X-Admin-Key`) |
 
 라우팅 가드: 세션 없으면 랜딩(`/`)으로, 온보딩 미완료면 마지막 미완료 단계로,
-온보딩 완료 후 `/onboarding/*` 접근은 `/dashboard`로 이동합니다
+온보딩 완료 후 `/onboarding/*` 접근은 `/dashboard`로 이동한다
 (검토 화면 `/onboarding/review`는 재진입 허용).
 
 ### 핵심 동작 규칙
@@ -221,8 +219,8 @@ flowchart TD
 | 이직 일회성 비용 | 0 ~ 1억 원 |
 | 보유 스킬 수 | 1 ~ 30개 |
 
-미래 날짜(유효 시작일, 마지막 사용일)는 거부합니다. 값은 후보이며 베타
-피드백으로 조정합니다.
+미래 날짜(유효 시작일, 마지막 사용일)는 거부한다. 값은 후보이며 베타
+피드백으로 조정한다.
 
 ### 계산 경계 규칙
 
@@ -236,49 +234,49 @@ flowchart TD
 
 전체 사용자 스토리와 인수 조건은
 [`docs/specs/functional-specification.md`](docs/specs/functional-specification.md)를
-참고하세요.
+참고한다.
 
 ## 데이터 출처
 
 - [KOSIS 공유서비스](https://kosis.kr/openapi/index/index.jsp): 소비자물가와 국가통계
-- 잡코리아·사람인·원티드·점핏 채용공고 (스크래핑): 직종, 지역, 경력, 스킬 태그, 일부 급여
+- 잡코리아·사람인·원티드·점핏·프로그래머스 채용공고 (스크래핑): 직종, 지역, 경력, 스킬 태그, 일부 급여
 - 임금직무정보시스템 또는 KOSIS 직종별 임금통계: 연봉 격차 판정 기준선
 - 사용자 직접 입력: 연봉 이력, 소비 비중, 경력, 지역, 보유 스킬
 
 고용24 채용정보 OpenAPI는 개인회원 계정으로 호출이 차단돼 있어 배제했고, 사람인
-오픈 API도 키 발급 심사 지연으로 폐기했습니다(자세한 내용은
+오픈 API도 키 발급 심사 지연으로 폐기했다(상세는
 [`docs/specs/external-api-integration.md`](docs/specs/external-api-integration.md) 참고).
-API 원천의 이용 조건과 필드 규격은 구현 전 선행 검증에서 확인했습니다. 스크래핑 원천의
+API 원천의 이용 조건과 필드 규격은 구현 전 선행 검증에서 확인했다. 스크래핑 원천의
 이용약관은 학습·포트폴리오 범위 운영을 전제로 검토하지 않았고, 일반 공개 전에 검토해 결과가
-나쁜 원천은 어댑터 단위로 비활성화합니다([데이터 아키텍처 §3](docs/specs/data-architecture.md)).
+나쁜 원천은 어댑터 단위로 비활성화한다([데이터 아키텍처 §3](docs/specs/data-architecture.md)).
 
 향후 기업 안정성 분석이 필요할 경우
-[OpenDART](https://opendart.fss.or.kr/guide/main.do?apiGrpCd=DS001) 연동을 검토합니다.
+[OpenDART](https://opendart.fss.or.kr/guide/main.do?apiGrpCd=DS001) 연동을 검토한다.
 
 ## 데이터 원칙과 한계
 
-- 과거 API 목록은 아이디어 참고용으로만 사용하고 구현 전 공식 문서와 샘플 응답을 다시 확인합니다.
-- 공개연봉이 없는 공고는 연봉 통계에서 제외하고 표본 수와 결측률을 함께 표시합니다.
-- 스크래핑 기반 채용공고 데이터는 전체 노동시장의 완전한 표본이 아니므로 결과를 `시장 평균`으로 단정하지 않습니다.
-- 스킬 수요 변화는 인과관계가 아닌 관측된 공고 비율의 변화로 설명합니다.
-- 개인 데이터는 지수 계산에 필요한 최소 범위만 수집하고 민감정보 저장 여부를 명확히 고지합니다.
-- 외부 API 중단과 스키마 변경에 대비해 수집 시점과 출처를 기록합니다.
+- 과거 API 목록은 아이디어 참고용으로만 사용하고 구현 전 공식 문서와 샘플 응답을 다시 확인한다.
+- 공개연봉이 없는 공고는 연봉 통계에서 제외하고 표본 수와 결측률을 함께 표시한다.
+- 스크래핑 기반 채용공고 데이터는 전체 노동시장의 완전한 표본이 아니므로 결과를 `시장 평균`으로 단정하지 않는다.
+- 스킬 수요 변화는 인과관계가 아닌 관측된 공고 비율의 변화로 설명한다.
+- 개인 데이터는 지수 계산에 필요한 최소 범위만 수집하고 민감정보 저장 여부를 명확히 고지한다.
+- 외부 API 중단과 스키마 변경에 대비해 수집 시점과 출처를 기록한다.
 
 ## 기술 구성
 
-목표 스택과 현재 반영 여부를 함께 적습니다. MVP 화면(`S-01`~`S-20`)과 백엔드 도메인은
-모두 실제 구현이 있고 실데이터로 동작합니다. 남은 미도입은 Node SSR 과 Spring Batch 입니다.
+목표 스택과 현재 반영 여부를 함께 적는다. MVP 화면(`S-01`~`S-20`)과 백엔드 도메인은
+모두 실제 구현이 있고 실데이터로 동작한다. 남은 미도입은 Node SSR 과 Spring Batch 다.
 
 | 계층 | 기술 | 책임 | 현재 |
 | --- | --- | --- | --- |
-| 프런트엔드 | Vite, React, TypeScript, React Router Framework Mode | UI, 라우팅, SSR·사전 렌더링 | 도입 — `S-01`~`S-20` 전 화면이 실제 API 에 연결돼 동작합니다. `ssr: false` + `/` 사전 렌더링 구성이라 SSR 은 꺼져 있고 가드는 클라이언트에서 돕니다 |
-| Node SSR | Node.js 24 LTS, Express, `@react-router/express` | HTML 렌더링, SEO metadata, 공개 콘텐츠 | 미도입 — `frontend/server.js`는 `node:http` 정적 파일 서버입니다. 사전 렌더링된 `/` 는 그대로 주고, 나머지 앱 경로는 SPA 셸(`__spa-fallback.html`)로 넘겨 클라이언트가 라우팅합니다 (아래 §렌더링 전략 주석 참조) |
-| 클라이언트 데이터 | React Router 7 `clientLoader`·`clientAction`, Zod | API 상태, 입력 폼, 검증 | 도입 — 프레임워크 loader·action 이 서버 상태를, Zod 스키마가 검증을 맡습니다. TanStack Query·React Hook Form 은 역할이 겹쳐 채택하지 않았습니다 ([프런트엔드 설계 §기술 구성](docs/specs/frontend-design.md)) |
-| UI·시각화 | Tailwind CSS, shadcn/ui, 손수 SVG | 컴포넌트, 스타일, 지수 차트 | 도입 — Tailwind CSS 4(`@tailwindcss/vite`)·shadcn/ui(Button·Input·Card 등, `@/` 경로 별칭 배선 포함). **차트 라이브러리는 쓰지 않습니다** — `S-14` 차트 3종은 손수 SVG 이고 소비 도넛은 CSS `conic-gradient` 입니다 |
-| 백엔드 | Java 25, Spring Boot 4.1, Gradle 멀티모듈 | 인증, 도메인 로직, REST API, 데이터 접근 | 도입 — auth-service(인증), core-api(프로필·소득·소비·스킬·지수·스냅샷·시나리오·대시보드), collector(수집·정규화·집계)가 모두 실데이터로 동작합니다. 고정 응답 스텁은 전부 철거했습니다 |
+| 프런트엔드 | Vite, React, TypeScript, React Router Framework Mode | UI, 라우팅, SSR·사전 렌더링 | 도입 — `S-01`~`S-20` 전 화면이 실제 API 에 연결돼 동작한다. `ssr: false` + `/` 사전 렌더링 구성이라 SSR 은 꺼져 있고 가드는 클라이언트에서 돈다 |
+| Node SSR | Node.js 24 LTS, Express, `@react-router/express` | HTML 렌더링, SEO metadata, 공개 콘텐츠 | 미도입 — `frontend/server.js`는 `node:http` 정적 파일 서버다. 사전 렌더링된 `/` 는 그대로 주고, 나머지 앱 경로는 SPA 셸(`__spa-fallback.html`)로 넘겨 클라이언트가 라우팅한다 (아래 §렌더링 전략 참조) |
+| 클라이언트 데이터 | React Router 7 `clientLoader`·`clientAction`, Zod | API 상태, 입력 폼, 검증 | 도입 — 프레임워크 loader·action 이 서버 상태를, Zod 스키마가 검증을 맡는다. TanStack Query·React Hook Form 은 역할이 겹쳐 채택하지 않았다 ([프런트엔드 설계 §기술 구성](docs/specs/frontend-design.md)) |
+| UI·시각화 | Tailwind CSS, shadcn/ui, 손수 SVG | 컴포넌트, 스타일, 지수 차트 | 도입 — Tailwind CSS 4(`@tailwindcss/vite`)·shadcn/ui(Button·Input·Card 등, `@/` 경로 별칭 배선 포함). **차트 라이브러리는 쓰지 않는다** — `S-14` 차트 3종은 손수 SVG 이고 소비 도넛은 CSS `conic-gradient` 다 |
+| 백엔드 | Java 25, Spring Boot 4.1, Gradle 멀티모듈 | 인증, 도메인 로직, REST API, 데이터 접근 | 도입 — auth-service(인증), core-api(프로필·소득·소비·스킬·지수·스냅샷·시나리오·대시보드), collector(수집·정규화·집계)가 모두 실데이터로 동작한다. 고정 응답 스텁은 전부 철거했다 |
 | API 문서 | springdoc-openapi | OpenAPI 문서, Swagger UI | 도입 |
 | 데이터 접근 | Spring Data JPA, Flyway | 영속화, 스키마 마이그레이션 | 모듈별로 다름 — auth-service(`auth` 스키마)는 Flyway 로 관리. `core` 스키마는 collector 와 core-api 가 공유하며 **Flyway 를 쓰지 않고 DDL 을 직접 적용**한다(정본은 [`deploy/postgres/schema/`](deploy/postgres/schema/), 절차는 [DEVELOPMENT.md §3.2](docs/DEVELOPMENT.md)). 셋 다 JPA 로 매핑돼 있다 |
-| 데이터 수집 | Spring Batch | 외부 원천 수집·집계 | 미도입 — collector 가 관리자 콘솔(`S-16`)과 내부 API(`/internal/pipeline/**`)로 직접 구동합니다. 재시도·청크·잡 이력이 실제로 필요해질 때 도입합니다 |
+| 데이터 수집 | Spring Batch | 외부 원천 수집·집계 | 미도입 — collector 가 관리자 콘솔(`S-16`)과 내부 API(`/internal/pipeline/**`)로 직접 구동하며, 5개 포털 일괄 수집은 가상 스레드로 병렬 처리한다. 재시도·청크·잡 이력이 실제로 필요해질 때 도입한다 |
 | 데이터베이스 | PostgreSQL 16 | 영속화 | 도입 — `auth` 스키마 3테이블, `core` 스키마에 채용공고·시장집계·사용자 도메인·지수·시나리오까지 전부 존재 |
 | 엣지 — 라우터 | Caddy 2 (`infra_caddy`) | 80/443 소유, TLS 종료·자동 발급, 호스트명 분기 | 도입 — **이 저장소 밖**(`~/infra`, 타 프로젝트와 공유) |
 | 엣지 — 앱 라우팅 | Caddy 2 (`carix_caddy`) | `gateway:8080`으로 균일 전달(경로 분기는 Gateway가 수행), 압축, 캐시 헤더 | 도입 |
@@ -286,47 +284,47 @@ API 원천의 이용 조건과 필드 규격은 구현 전 선행 검증에서 �
 | 팀 DB 접근 | OCI Security List IP 허용목록 + Postgres TLS | 팀원 로컬에서 운영 DB에 직접 연결 | 도입 — [DEVELOPMENT.md §3](docs/DEVELOPMENT.md) |
 | 설정 관리 | Spring Cloud Config | 설정 외부화, 런타임 갱신 | 도입 — native(파일시스템) 백엔드 |
 | 서비스 디스커버리 | Eureka | 서비스 등록·조회 | 도입 |
-| API 게이트웨이 | Spring Cloud Gateway | 라우팅, 세션 검증 필터, 상관관계 ID | 도입 — 세션 검증 필터가 켜져 있습니다. 되돌리는 절차는 [`backend/README.md`](backend/README.md) 게이트웨이 절 |
+| API 게이트웨이 | Spring Cloud Gateway | 라우팅, 세션 검증 필터, 상관관계 ID | 도입 — 세션 검증 필터가 켜져 있다. 되돌리는 절차는 [`backend/README.md`](backend/README.md) 게이트웨이 절 |
 
-엣지는 2단입니다. 서버의 라우터 Caddy가 80/443과 TLS를 소유하고 호스트명으로 분기하면,
-프로젝트 전용 Caddy가 애플리케이션 라우팅을 맡습니다. 두 계층의 소유권이 다릅니다 — 라우터는
-`~/infra` 스택이 소유해 다른 프로젝트와 공유하고, 앱 라우팅만 이 저장소가 소유합니다.
+엣지는 2단이다. 서버의 라우터 Caddy가 80/443과 TLS를 소유하고 호스트명으로 분기하면,
+프로젝트 전용 Caddy가 애플리케이션 라우팅을 맡는다. 두 계층의 소유권이 다르다 — 라우터는
+`~/infra` 스택이 소유해 다른 프로젝트와 공유하고, 앱 라우팅만 이 저장소가 소유한다.
 
-프록시로 Caddy를 쓰는 이유는 계층별로 다릅니다 — 라우터는 ACME 자동화, 앱 라우팅은 업스트림
-재해석입니다. 아래 「채택 사유」의 Caddy 두 행이 각각을 적습니다.
+프록시로 Caddy를 쓰는 이유는 계층별로 다르다 — 라우터는 ACME 자동화, 앱 라우팅은 업스트림
+재해석이다. 아래 「채택 사유」의 Caddy 두 행이 각각을 적는다.
 
 ### 채택 사유
 
 | 기술 | 사유 |
 | --- | --- |
-| Vite + React + React Router (Next.js 대체) | Next.js는 풀스택 프레임워크라 Node 계층이 API·데이터로 번지기 쉽고 Spring Boot와 역할 경계가 흐려집니다. Node는 HTML SSR·SEO만 맡깁니다 (자세한 배경은 [프런트엔드 설계](docs/specs/frontend-design.md)) |
+| Vite + React + React Router (Next.js 대체) | Next.js는 풀스택 프레임워크라 Node 계층이 API·데이터로 번지기 쉽고 Spring Boot와 역할 경계가 흐려진다. Node는 HTML SSR·SEO만 맡긴다 (자세한 배경은 [프런트엔드 설계](docs/specs/frontend-design.md)) |
 | Node SSR (Express) | 공개 랜딩·콘텐츠의 SEO와 로그인 후 대시보드의 상호작용성을 한 앱에서 지원하기 위해 |
-| React Router 7 `clientLoader`·`clientAction` (TanStack Query 대체) | 프레임워크가 조회·제출·재검증을 이미 갖고 있어 별도 서버 상태 캐시를 얹으면 역할이 겹칩니다 |
-| Zod (React Hook Form 없이) | 입력 검증을 프런트·백엔드 양쪽에서 하되, 프런트 스키마를 한 곳에 둡니다. `clientAction`이 제출을 받고 Zod가 파싱하면 React Hook Form이 더할 역할이 제어 컴포넌트 상태 관리뿐이라 넣지 않았습니다 |
-| 차트 라이브러리 없음 | 지수·트렌드 차트가 핵심 화면이지만 필요한 표현(인체 실루엣 분포, 누적 막대)이 범용 차트 라이브러리의 기본형과 맞지 않아 손수 SVG 로 그립니다. 번들도 늘지 않습니다 |
-| Java 25 | 최신 LTS. Spring Boot 4.x의 하한(17)보다 높고 가상 스레드·AOT 캐시(Java 25+ 전용) 등 최신 LTS 기능을 씁니다 |
-| Spring Boot 4.1 | 스캐폴드 시점의 최신 GA. Spring Initializr 기본값이며 3.x는 더 이상 제공되지 않습니다 |
-| springdoc-openapi 3.0.3 | Boot 4 대응 라인입니다. 2.x는 Boot 3용이라 호환되지 않습니다 |
-| Spring Data JPA | 영속화 매핑. 스키마는 `auth`만 Flyway로 코드 관리하고, `core`는 마이그레이션 파일 관리 부담이 이득보다 크다고 보고 DDL 직접 적용으로 두었습니다 |
-| Spring Batch | 외부 원천(KOSIS·채용공고 포털 등) 수집이 재시도·청크 처리·잡 이력을 요구합니다 |
-| PostgreSQL | 표준 오픈소스 RDBMS로, 복잡한 통계 계산 쿼리 및 JSONB 원천 데이터 저장, 안정적 트랜잭션을 지원합니다 |
-| Docker·PostgreSQL 서버 전용 | 로컬 개발 환경의 의존성을 최소화하고, 임베디드 DB(H2)와의 방언/기능 불일치(Drift) 위험을 방지하기 위해 서버 인프라를 직접 활용합니다 |
-| Caddy (라우터) | 인증서 자동 발급·갱신이 기본 동작이라 ACME 파이프라인을 직접 구성하지 않습니다 |
-| Caddy (앱 라우팅) | 업스트림을 요청마다 재해석해 배포 시 컨테이너 IP가 바뀌어도 영향이 없습니다. nginx는 별도 우회가 필요합니다 |
-| GitHub Actions ARM 러너 | 서버가 `aarch64`라 QEMU 에뮬레이션 없이 네이티브로 빌드합니다 |
-| GHCR | `GITHUB_TOKEN`이 자동 제공돼 시크릿이 늘지 않고, pull 시 바뀐 레이어만 전송됩니다 |
-| 서버는 pull만 | 서버가 메모리 압박이 있는 공유 호스트라 빌드를 올리지 않습니다 |
-| 이미지 태그 = 컴포넌트 변경 커밋 | `.env` 두 줄로 어떤 코드가 돌고 있는지 확정되고, 재기동해도 같은 이미지가 뜹니다 |
-| Spring Cloud Gateway·Config·Eureka | 학습·포트폴리오가 주목적인 프로젝트이며, 이 셋을 실제로 운영해 보는 것이 성과물입니다. 서비스 경계는 그 셋이 모두 동작하는 최소 구성(auth 분리)으로 잡았습니다 ([설계서](docs/specs/spring-cloud-architecture.md)) |
-| Config Server native 백엔드 | 파일시스템 설정 디렉터리를 직접 읽어 자격증명 관리 복잡성을 줄이고 배포 동기화와 안정적으로 결합합니다 |
+| React Router 7 `clientLoader`·`clientAction` (TanStack Query 대체) | 프레임워크가 조회·제출·재검증을 이미 갖고 있어 별도 서버 상태 캐시를 얹으면 역할이 겹친다 |
+| Zod (React Hook Form 없이) | 입력 검증을 프런트·백엔드 양쪽에서 하되, 프런트 스키마를 한 곳에 둔다. `clientAction`이 제출을 받고 Zod가 파싱하면 React Hook Form이 더할 역할이 제어 컴포넌트 상태 관리뿐이라 넣지 않았다 |
+| 차트 라이브러리 없음 | 지수·트렌드 차트가 핵심 화면이지만 필요한 표현(인체 실루엣 분포, 누적 막대)이 범용 차트 라이브러리의 기본형과 맞지 않아 손수 SVG 로 그린다. 번들도 늘지 않는다 |
+| Java 25 | 최신 LTS. Spring Boot 4.x의 하한(17)보다 높고 가상 스레드·AOT 캐시(Java 25+ 전용) 등 최신 LTS 기능을 쓴다 |
+| Spring Boot 4.1 | 스캐폴드 시점의 최신 GA. Spring Initializr 기본값이며 3.x는 더 이상 제공되지 않는다 |
+| springdoc-openapi 3.0.3 | Boot 4 대응 라인이다. 2.x는 Boot 3용이라 호환되지 않는다 |
+| Spring Data JPA | 영속화 매핑. 스키마는 `auth`만 Flyway로 코드 관리하고, `core`는 마이그레이션 파일 관리 부담이 이득보다 크다고 보고 DDL 직접 적용으로 두었다 |
+| Spring Batch | 외부 원천(KOSIS·채용공고 포털 등) 수집이 재시도·청크 처리·잡 이력을 요구한다 |
+| PostgreSQL | 표준 오픈소스 RDBMS로, 복잡한 통계 계산 쿼리 및 JSONB 원천 데이터 저장, 안정적 트랜잭션을 지원한다 |
+| Docker·PostgreSQL 서버 전용 | 로컬 개발 환경의 의존성을 최소화하고, 임베디드 DB(H2)와의 방언/기능 불일치(Drift) 위험을 방지하기 위해 서버 인프라를 직접 활용한다 |
+| Caddy (라우터) | 인증서 자동 발급·갱신이 기본 동작이라 ACME 파이프라인을 직접 구성하지 않는다 |
+| Caddy (앱 라우팅) | 업스트림을 요청마다 재해석해 배포 시 컨테이너 IP가 바뀌어도 영향이 없다. nginx는 별도 우회가 필요하다 |
+| GitHub Actions ARM 러너 | 서버가 `aarch64`라 QEMU 에뮬레이션 없이 네이티브로 빌드한다 |
+| GHCR | `GITHUB_TOKEN`이 자동 제공돼 시크릿이 늘지 않고, pull 시 바뀐 레이어만 전송된다 |
+| 서버는 pull만 | 서버가 메모리 압박이 있는 공유 호스트라 빌드를 올리지 않는다 |
+| 이미지 태그 = 컴포넌트 변경 커밋 | `.env` 두 줄로 어떤 코드가 돌고 있는지 확정되고, 재기동해도 같은 이미지가 뜬다 |
+| Spring Cloud Gateway·Config·Eureka | 학습·포트폴리오가 주목적인 프로젝트이며, 이 셋을 실제로 운영해 보는 것이 성과물이다. 서비스 경계는 그 셋이 모두 동작하는 최소 구성(auth 분리)으로 잡았다 ([설계서](docs/specs/spring-cloud-architecture.md)) |
+| Config Server native 백엔드 | 파일시스템 설정 디렉터리를 직접 읽어 자격증명 관리 복잡성을 줄이고 배포 동기화와 안정적으로 결합한다 |
 
 인증 방식(이메일·비밀번호 + 서버 세션)의 근거는 [SECURITY.md §1](docs/SECURITY.md),
-연봉 기준선 선택은 [외부 API 연동 명세](docs/specs/external-api-integration.md)를 참조합니다(재검토 진행 중).
+연봉 기준선 선택은 [외부 API 연동 명세](docs/specs/external-api-integration.md)를 참조한다.
 
-> **왜 2단인가.** 이 호스트는 여러 프로젝트를 함께 돌립니다. 80/443은 한 컨테이너만 바인딩할 수
+> **왜 2단인가.** 이 호스트는 여러 프로젝트를 함께 돌린다. 80/443은 한 컨테이너만 바인딩할 수
 > 있고 Let's Encrypt는 그 두 포트로만 검증하러 오므로, 포트를 나누면 한쪽이 정상 인증서를 받지
-> 못합니다. 라우터를 한 단 두면 모든 프로젝트가 정상 TLS를 쓰면서 각자 자기 저장소에서 라우팅을
-> 소유합니다. 초안의 단일 `nginx`를 이 구조로 대체했습니다.
+> 못한다. 라우터를 한 단 두면 모든 프로젝트가 정상 TLS를 쓰면서 각자 자기 저장소에서 라우팅을
+> 소유한다. 초안의 단일 `nginx`를 이 구조로 대체했다.
 
 ```mermaid
 flowchart TD
@@ -347,48 +345,48 @@ flowchart TD
     CoreApi -.-> Eureka
 ```
 
-단일 진입점인 `carix_caddy(:80)`는 모든 애플리케이션 요청을 `gateway:8080`으로 포워딩하며, Spring Cloud Gateway가 경로 기반 라우팅 및 필터링을 수행합니다:
+단일 진입점인 `carix_caddy(:80)`는 모든 애플리케이션 요청을 `gateway:8080`으로 포워딩하며, Spring Cloud Gateway가 경로 기반 라우팅 및 필터링을 수행한다:
 - `/api/v1/auth/**` ➡️ `auth-service:8081` (가입·로그인·세션)
 - `/api/v1/**` ➡️ `core-api:8082` (도메인 API)
 - `/**` (그 외) ➡️ `frontend-node:3000` (UI 화면 및 정적 에셋)
 
-동일 출처에서 화면과 API를 제공해 CORS 구성을 최소화합니다. TLS 인증서 발급·갱신은 **호스트 라우터 Caddy(`infra_caddy`)만** 담당하고, 프로젝트 전용 `carix_caddy`는 `auto_https off`로 평문 :80만 처리합니다. 세션 검증 필터는 게이트웨이 설정(`carix.gateway.session-validation.enabled`)을 통해 단계적으로 제어됩니다 (상세는 [Spring Cloud 아키텍처](docs/specs/spring-cloud-architecture.md) 참조).
+동일 출처에서 화면과 API를 제공해 CORS 구성을 최소화한다. TLS 인증서 발급·갱신은 **호스트 라우터 Caddy(`infra_caddy`)만** 담당하고, 프로젝트 전용 `carix_caddy`는 `auto_https off`로 평문 :80만 처리한다. 세션 검증 필터는 게이트웨이 설정(`carix.gateway.session-validation.enabled`)을 통해 단계적으로 제어된다 (상세는 [Spring Cloud 아키텍처](docs/specs/spring-cloud-architecture.md) 참조).
 
-Node 서버는 HTML과 SEO를 담당하고 Spring Boot는 인증과 비즈니스 로직을 담당합니다. Node 서버는 DB에 직접 접근하거나 Spring Boot 로직을 복제하지 않습니다. `/assets/*`는 장기 캐시 헤더를 붙여 `frontend-node`로 넘깁니다.
+Node 서버는 HTML과 SEO를 담당하고 Spring Boot는 인증과 비즈니스 로직을 담당한다. Node 서버는 DB에 직접 접근하거나 Spring Boot 로직을 복제하지 않는다. `/assets/*`는 장기 캐시 헤더를 붙여 `frontend-node`로 넘긴다.
 
 ### 렌더링 전략
 
-MVP는 빌드 시점 사전 렌더링만 씁니다(`prerender: ["/"]`, `ssr: false`). 사전 렌더링된 `/` 는
+MVP는 빌드 시점 사전 렌더링만 쓴다(`prerender: ["/"]`, `ssr: false`). 사전 렌더링된 `/` 는
 그대로 주고 나머지 앱 경로는 SPA 셸로 넘겨 클라이언트가 라우팅하며, 진입 가드도 클라이언트에서
-돕니다.
+돈다.
 
-Node SSR 전환(Express + `@react-router/express`)은 **MVP 범위 밖으로 미뤘습니다.** `S-05`~`S-15`는
+Node SSR 전환(Express + `@react-router/express`)은 **MVP 범위 밖으로 미뤘다.** `S-05`~`S-15`는
 전부 세션을 요구해 SEO 대상이 아니고 진입 가드가 이미 클라이언트에서 동작하므로, 남는 실익이 초기
-로드뿐인데 최장 경로에 2주를 더합니다. 결정과 근거는
+로드뿐인데 최장 경로에 2주를 더한다. 결정과 근거는
 [프런트엔드 설계 §렌더링 전략](docs/specs/frontend-design.md)에 있고, 전환 시 적용할 화면별
-구성도 같은 절에 있습니다.
+구성도 같은 절에 있다.
 
 ### 테스트
 
 | 대상 | 기술 | 현재 |
 | --- | --- | --- |
 | 백엔드 단위·슬라이스 | JUnit 5, Spring Boot Test, MockMvc | 도입 |
-| 백엔드 통합 | — | **두지 않습니다.** 테스트용 DB를 쓰지 않기로 했습니다. 로컬에 Docker가 없어 Testcontainers 테스트가 어디서도 실행되지 않던 상태라, auth-service의 해당 테스트 10개와 의존성을 제거했습니다 |
+| 백엔드 통합 | — | **두지 않는다.** 테스트용 DB를 쓰지 않기로 했다. 로컬에 Docker가 없어 Testcontainers 테스트가 어디서도 실행되지 않던 상태라, auth-service의 해당 테스트 10개와 의존성을 제거했다 |
 | 프런트 단위·컴포넌트 | Vitest, Testing Library | 도입 — `pnpm test:unit` |
-| API 모킹 | `vi.spyOn`(모듈 함수 직접 모킹) | 도입 — 네트워크 계층을 가로챌 MSW는 채택하지 않았습니다 |
+| API 모킹 | `vi.spyOn`(모듈 함수 직접 모킹) | 도입 — 네트워크 계층을 가로챌 MSW는 채택하지 않았다 |
 | 브라우저 E2E | Playwright | 도입 — 랜딩·온보딩·입력 관리 흐름 E2E, `/dev/primitives` 시각 회귀, `@axe-core/playwright` 접근성 검사 (`pnpm test:e2e`) |
 
-PR 단계 CI(`pr-check.yml`)를 통해 백엔드 전체 테스트(`./gradlew check`) 및 프런트엔드 타입체크·린트·단위테스트(`pnpm`)를 자동 검증합니다. `main` 푸시 시 배포 워크플로(`deploy.yml`)가 동작합니다.
+PR 단계 CI(`pr-check.yml`)를 통해 백엔드 전체 테스트(`./gradlew check`) 및 프런트엔드 타입체크·린트·단위테스트(`pnpm`)를 자동 검증한다. `main` 푸시 시 배포 워크플로(`deploy.yml`)가 동작한다.
 
 OCI VM에서는 `carix-caddy`, `frontend-node`, `config-server`, `eureka`, `gateway`,
-`auth-service`, `core-api`, `collector`, `postgres` 컨테이너를 Docker Compose로 운영합니다. 이미지는 컴포넌트별로
+`auth-service`, `core-api`, `collector`, `postgres` 컨테이너를 Docker Compose로 운영한다. 이미지는 컴포넌트별로
 GitHub Actions(ARM 러너)가 빌드해
-GHCR에 올리고 서버는 pull만 합니다. 엣지는 2단으로, 서버의 라우터 Caddy가 TLS를 종료하고 호스트명으로 분기하면
-프로젝트 전용 `carix-caddy`가 애플리케이션 라우팅을 맡습니다 (근거는 위 배포 계획·설계서 참조).
+GHCR에 올리고 서버는 pull만 한다. 엣지는 2단으로, 서버의 라우터 Caddy가 TLS를 종료하고 호스트명으로 분기하면
+프로젝트 전용 `carix-caddy`가 애플리케이션 라우팅을 맡는다 (근거는 위 배포 계획·설계서 참조).
 
 ## 프로젝트 상태
 
-진행 상태는 [`docs/README.md`의 "진행 상태" 절](docs/README.md#진행-상태)에서 확인하세요.
+진행 상태는 [`docs/README.md`의 "진행 상태" 절](docs/README.md#진행-상태)을 참고한다.
 
 ## 저장소 구성
 
@@ -420,25 +418,25 @@ Carix/
 
 ## 개발 환경
 
-로컬 개발은 순수 코드 중심이며, **Docker와 PostgreSQL은 OCI 서버에서만 기동**합니다.
+로컬 개발은 순수 코드 중심이며, **Docker와 PostgreSQL은 OCI 서버에서만 기동**한다.
 
-- **docker-compose.yml은 OCI 배포 전용**입니다. 로컬에서 `docker compose up`으로 사용하지 않습니다.
-- **로컬 프런트엔드:** Vite dev server(`pnpm dev`)를 띄웁니다. Docker 불필요. `/api` 요청은
-  `vite.config.ts`의 프록시가 배포된 게이트웨이로 넘깁니다 — 로컬에 백엔드를 띄우지 않아도
-  로그인이 됩니다. 다른 대상으로 보내려면 `CARIX_API_TARGET` 환경변수를 씁니다.
-- **로컬 백엔드:** 로컬에 DB를 띄우지 않고 **OCI의 `carix` DB에 원격 연결**합니다. 접근은 TLS + OCI Security List IP 허용목록입니다. 운영과 개발이 같은 DB입니다(대안 비교·감수한 위험은 [DEVELOPMENT.md §3](docs/DEVELOPMENT.md)).
-- **통합 테스트:** 두지 않습니다. 테스트용 DB를 쓰지 않기로 했고, 컨텍스트를 띄우는 테스트는 연결하지 않는 DataSource로 돌립니다 ([DEVELOPMENT.md §6](docs/DEVELOPMENT.md)). 테스트 자동 실행 지점은 PR 단계 CI(`pr-check.yml`, 모듈별 `./gradlew :{모듈}:check`)뿐이고, 배포 워크플로는 `-x test` 로 빌드만 합니다.
-- 환경 변수는 [`.env.example`](.env.example)을 복사해 `.env`로 채웁니다. API 키·시크릿은 저장소에 커밋하지 않습니다.
+- **docker-compose.yml은 OCI 배포 전용**이다. 로컬에서 `docker compose up`으로 사용하지 않는다.
+- **로컬 프런트엔드:** Vite dev server(`pnpm dev`)를 띄운다. Docker 불필요. `/api` 요청은
+  `vite.config.ts`의 프록시가 배포된 게이트웨이로 넘긴다 — 로컬에 백엔드를 띄우지 않아도
+  로그인이 된다. 다른 대상으로 보내려면 `CARIX_API_TARGET` 환경변수를 쓴다.
+- **로컬 백엔드:** 로컬에 DB를 띄우지 않고 **OCI의 `carix` DB에 원격 연결**한다. 접근은 TLS + OCI Security List IP 허용목록이다. 운영과 개발이 같은 DB다(대안 비교·감수한 위험은 [DEVELOPMENT.md §3](docs/DEVELOPMENT.md)).
+- **통합 테스트:** 두지 않는다. 테스트용 DB를 쓰지 않기로 했고, 컨텍스트를 띄우는 테스트는 연결하지 않는 DataSource로 돌린다 ([DEVELOPMENT.md §6](docs/DEVELOPMENT.md)). 테스트 자동 실행 지점은 PR 단계 CI(`pr-check.yml`, 모듈별 `./gradlew :{모듈}:check`)뿐이고, 배포 워크플로는 `-x test` 로 빌드만 한다.
+- 환경 변수는 [`.env.example`](.env.example)을 복사해 `.env`로 채운다. API 키·시크릿은 저장소에 커밋하지 않는다.
 
-버전 기준: 컨테이너는 Java 25, Node.js 24 LTS로 고정합니다 (로컬 개발 머신의 상위 버전과 별개).
+버전 기준: 컨테이너는 Java 25, Node.js 24 LTS로 고정한다 (로컬 개발 머신의 상위 버전과 별개).
 
 구체적인 실행 절차(런타임 설치, DB 접근, dev server, 테스트)는
 [`docs/DEVELOPMENT.md`](docs/DEVELOPMENT.md)를, 배포는
-[`.github/workflows/deploy.yml`](.github/workflows/deploy.yml)를 참조합니다.
+[`.github/workflows/deploy.yml`](.github/workflows/deploy.yml)을 참조한다.
 
-PR 단계에서 `pr-check.yml` 워크플로가 백엔드 테스트와 프런트엔드 lint·타입체크·단위테스트를 자동 검증합니다.
+PR 단계에서 `pr-check.yml` 워크플로가 백엔드 테스트와 프런트엔드 lint·타입체크·단위테스트를 자동 검증한다.
 
-현재 제공하는 엔드포인트는 다음과 같습니다 (계층별 도입 현황은 위 기술 구성 표 참조).
+현재 제공하는 엔드포인트는 다음과 같다 (계층별 도입 현황은 위 기술 구성 표 참조).
 
 - API 문서: `https://carix.144.24.90.88.sslip.io/api/swagger-ui/index.html`
 - `GET /api/health` — 배포 헬스체크 대상
@@ -447,23 +445,23 @@ PR 단계에서 `pr-check.yml` 워크플로가 백엔드 테스트와 프런트�
   `PATCH /api/v1/auth/onboarding`, `GET /api/v1/auth/session` — auth-service
 - `/api/v1/profile`, `/api/v1/income/**`, `/api/v1/expenses/**`, `/api/v1/skills/**`,
   `/api/v1/user-skills/**`, `/api/v1/dashboard/**`, `/api/v1/scenarios/**`, `/api/v1/meta/versions`,
-  `DELETE /api/v1/users` — core-api, 전부 실데이터로 응답합니다. 엔드포인트별 계약은
+  `DELETE /api/v1/users` — core-api, 전부 실데이터로 응답한다. 엔드포인트별 계약은
   [API 규격](docs/specs/api-specification.md)
 
 `collector`의 파이프라인 관리 API(`/internal/pipeline/**`)는 게이트웨이가 라우팅하지 않아
-위 공개 URL 로 도달하지 않습니다. 호출 방법은
-[DEVELOPMENT.md §5](docs/DEVELOPMENT.md)를 참조하세요.
+위 공개 URL 로 도달하지 않는다. 호출 방법은
+[DEVELOPMENT.md §5](docs/DEVELOPMENT.md)를 참조한다.
 
 ## 협업 방식
 
-- `main`에 직접 작업하지 않고 기능 브랜치를 사용합니다.
-- **`main` 머지는 곧 운영 배포입니다.** PR 단계 CI(`pr-check.yml`) 통과 및 리뷰 후 병합합니다.
-- 변경 사항은 Pull Request로 공유하고 리뷰 후 병합합니다.
-- 브랜치 이름은 `feature/`, `fix/`, `docs/`, `chore/` 접두사를 권장합니다.
-- 커밋은 변경 목적이 드러나는 작은 단위로 작성합니다.
-- API 키와 개인정보는 저장소에 커밋하지 않습니다.
+- `main`에 직접 작업하지 않고 기능 브랜치를 사용한다.
+- **`main` 머지는 곧 운영 배포다.** PR 단계 CI(`pr-check.yml`) 통과 및 리뷰 후 병합한다.
+- 변경 사항은 Pull Request로 공유하고 리뷰 후 병합한다.
+- 브랜치 이름은 `feature/`, `fix/`, `docs/`, `chore/` 접두사를 권장한다.
+- 커밋은 변경 목적이 드러나는 작은 단위로 작성한다.
+- API 키와 개인정보는 저장소에 커밋하지 않는다.
 
-전체 문서는 **[문서 맵(`docs/README.md`)](docs/README.md)**에서 주제별로 탐색할 수 있습니다. 정본은 `docs/specs/`·`docs/plans/`입니다.
+전체 문서는 **[문서 맵(`docs/README.md`)](docs/README.md)**에서 주제별로 탐색할 수 있다. 정본은 `docs/specs/`·`docs/plans/`다.
 
-설계 기준(제품 기능·데이터 아키텍처)은 위 문서 맵의 해당 표를 따릅니다. 두 계보가 하이브리드로 정리된 배경은 [기능 명세서 §6.1](docs/specs/functional-specification.md) 참고.
+설계 기준(제품 기능·데이터 아키텍처)은 위 문서 맵의 해당 표를 따른다. 두 계보가 하이브리드로 정리된 배경은 [기능 명세서 §6.1](docs/specs/functional-specification.md) 참고.
 

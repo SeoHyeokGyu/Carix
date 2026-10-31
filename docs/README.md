@@ -22,7 +22,7 @@
 
 | 문서 | 내용 |
 | --- | --- |
-| [데이터 아키텍처와 실행 흐름](specs/data-architecture.md) | 원천 4개·RawIngest·dedup·임금통계 기준선, 서비스 흐름도와 Job 1~4 구성 |
+| [데이터 아키텍처와 실행 흐름](specs/data-architecture.md) | 공고 5원천·CPI·임금통계 기준선·RawIngest·dedup, 서비스 흐름도와 Job 1~4 구성 |
 | [데이터베이스 ERD](specs/erd.md) | 엔티티 관계도(Mermaid), 스키마 설계 주석, 운영 적용 이력 |
 | [도메인 계산 정의](specs/domain-logic.md) | 지수·시나리오 계산 공식, 가중치 전파, 완화 알고리즘 |
 | [프런트엔드 설계](specs/frontend-design.md) | Vite·React·Node SSR 구성, 렌더링 전략, 배포 단위, 비주얼 테마·레이아웃·시각화 컴포넌트 |
@@ -87,7 +87,7 @@
 | 지수·스냅샷·시나리오 엔진 | 시장가치 지수(MVI)·스킬 수요 지수·수요 상승률 기준 스킬 추천(`b23`)·채용 활발도(OWI)·동료집단 완화(`b25`), 스냅샷 멱등 재계산과 결정 신호 판정, 시나리오 시뮬레이터 실데이터 산출이 모두 구현 완료. 소득·소비·스킬·프로필 변경 시 재계산 트리거가 여덟 경로에 배선돼 있다. 대시보드 `summary`·`trends`·`history`·`salary-distribution` 은 실데이터로 응답한다 |
 | UI 일관성 통일 | P0~P4 완료 — 결정 신호 표현 단일화, 다크 변형의 클래스 전환과 의미 색상 토큰, 공용 표현 계층(`ToneBadge`·`EmptyState`·`LoadingState`), 프리미티브 재정의와 eslint 규범. 계획은 [ui-unification-plan.md](plans/ui-unification-plan.md) |
 | auth-service | 이메일·비밀번호 가입·로그인·세션 조회·로그아웃 구현 완료. 세션 토큰 해시 저장. 매직링크·초대·메일 코드와 설정 폐기 완료 |
-| collector | 모듈 추출 완료. 크롤러·중복제거·정규화·`market_aggregate` 다차원(직무×경력×지역×고용형태×회사규모) 집계(`b25`)·임금통계 수집과 파이프라인 내부 API(`/internal/pipeline/**`)까지 구현돼 있다. CPI 수집은 12분류와 함께 총지수를 적재한다 |
+| collector | 모듈 추출 완료. 5대 포털(잡코리아·사람인·점핏·원티드·프로그래머스) 일괄 비동기 병렬 크롤러·중복제거·정규화·`market_aggregate` 다차원(직무×경력×지역×고용형태×회사규모) 집계(`b25`)·임금통계 수집과 파이프라인 내부 API(`/internal/pipeline/**`)까지 구현돼 있다. CPI 수집은 12분류와 함께 총지수를 적재한다 |
 | DB 스키마 소유권 | auth 스키마는 auth-service, core 스키마는 collector(채용공고 5개 테이블·market_aggregate)와 core-api(사용자 도메인 5개 테이블·지수/시나리오)가 공유 (DDL 직접 적용) |
 | 프런트엔드 | React Router + Vite 기반. ESLint/Prettier 코드 스타일 표준화, 라이트/다크 듀얼 테마, WCAG AA 접근성 준수. 테스트 스크립트(`pnpm dev`·`test`·`test:unit`·`test:e2e`) 모두 구비. 공용 계층(`coreApi` 래퍼의 봉투 해제·오류 정규화·401 단일 처리, 세션·진입 가드 loader, shadcn/ui, Zod 스키마)이 서 있다 |
 | 화면 구현 | 랜딩·로그인·가입, 온보딩 5화면, 대시보드 메인, 스킬 분석(`S-18`), 추이분석(차트 2종), 지난 판정(`S-11`), 설정·탈퇴, 이직 시뮬레이터(지금 회사·오퍼 한 화면 비교), 관리자 파이프라인 콘솔, 입력 관리 화면(`S-12` 소득·소비·스킬 탭)이 실제 API 에 연결돼 동작한다. 마이페이지에 상여 조건·성과급 목록·입사일, 대시보드에 성과급 포함 실소득 줄이 있다 |
