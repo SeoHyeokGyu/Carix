@@ -22,6 +22,7 @@ import { OfferCard } from "../../components/simulator/OfferCard";
 import { OverrideNotice } from "../../components/simulator/OverrideNotice";
 import { SavedScenarioMenu } from "../../components/simulator/SavedScenarioMenu";
 import { SaveScenarioButton } from "../../components/simulator/SaveScenarioButton";
+import { ScenarioTemplateMenu } from "../../components/simulator/ScenarioTemplateMenu";
 import { StayOutcome } from "../../components/simulator/StayOutcome";
 import type {
   EmitSource,
@@ -54,6 +55,7 @@ import {
 import { moveConclusion, stayHeadline } from "../../lib/simulatorCopy";
 import { type FillTarget, fillTargetOf } from "../../lib/simulatorFocus";
 import { describeError } from "../../lib/simulatorForm";
+import type { ScenarioTemplate } from "../../lib/simulatorTemplates";
 
 type Stay = EvaluateRequest["stay"];
 type Move = NonNullable<EvaluateRequest["move"]>;
@@ -396,6 +398,32 @@ export default function DashboardSimulator() {
     titleRef.current?.focus();
   };
 
+  const loadTemplate = (template: ScenarioTemplate) => {
+    const current = requestRef.current;
+    const baseSalary =
+      current?.stay.currentGrossOverride ??
+      context.currentAnnualGross ??
+      50_000_000;
+    const nextStay = current?.stay ?? {
+      raisePercent: context.defaultRaisePercent ?? 3,
+      currentGrossOverride: baseSalary,
+    };
+    const nextMove = template.createMove(baseSalary);
+    const nextRequest: EvaluateRequest = {
+      stay: nextStay,
+      move: nextMove,
+    };
+
+    setOfferOpen(true);
+    adopt(
+      nextRequest,
+      current,
+      `「${template.name}」 템플릿을 적용했습니다.`,
+      "offer",
+    );
+    titleRef.current?.focus();
+  };
+
   const clearOffer = () => {
     const current = requestRef.current;
     // 계산 요청에 담긴 오퍼가 없으면 되돌릴 것도 없다. 카드만 닫는다.
@@ -448,6 +476,10 @@ export default function DashboardSimulator() {
         description={SUBTITLE}
         actions={
           <>
+            <ScenarioTemplateMenu
+              currentSalary={context.currentAnnualGross}
+              onSelect={loadTemplate}
+            />
             {scenarios.length > 0 && (
               <SavedScenarioMenu
                 scenarios={scenarios}
@@ -537,6 +569,7 @@ export default function DashboardSimulator() {
             open={offerOpen}
             onOpen={() => setOfferOpen(true)}
             onClear={clearOffer}
+            onSelectTemplate={loadTemplate}
           >
             <MoveConditionsStep
               key={offerVersion}

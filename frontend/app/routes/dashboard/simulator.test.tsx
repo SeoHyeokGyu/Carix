@@ -804,4 +804,44 @@ describe("이직 시뮬레이터 라우트", () => {
       }),
     );
   });
+
+  it("상단 시나리오 템플릿 메뉴에서 템플릿을 선택하면 오퍼 카드가 열리고 해당 조건이 적용된다", async () => {
+    vi.mocked(scenario.getDraft).mockResolvedValue(stayOnly);
+    const user = userEvent.setup();
+
+    renderRoute();
+    await screen.findByText("지금 회사");
+
+    // 상단 템플릿 메뉴 열기
+    await user.click(screen.getByRole("button", { name: /시나리오 템플릿/ }));
+    // 첫 번째 템플릿('안정적 연봉 점프')의 '적용' 버튼 클릭
+    const applyButtons = screen.getAllByRole("button", { name: "적용" });
+    await user.click(applyButtons[0]);
+
+    // 오퍼 카드가 열리고 템플릿 적용 알림 및 연봉 값이 반영되었는지 검증
+    expect(
+      await screen.findByText(/「안정적 연봉 점프」 템플릿을 적용했습니다/),
+    ).toBeInTheDocument();
+    expect(await screen.findByLabelText(/새 회사 연봉/)).toHaveValue("6,900");
+  });
+
+  it("닫힌 오퍼 카드의 템플릿 버튼을 클릭하면 오퍼가 열리고 템플릿 조건이 반영된다", async () => {
+    vi.mocked(scenario.getDraft).mockResolvedValue(stayOnly);
+    const user = userEvent.setup();
+
+    renderRoute();
+    await screen.findByText("받은 오퍼가 있나요?");
+
+    // 닫힌 카드 내부의 '스타트업 보상 (스톡·사이닝)' 버튼 클릭 (6,000만 원 기준 +5% -> 6,300만 원)
+    await user.click(
+      screen.getByRole("button", { name: "스타트업 보상 (스톡·사이닝)" }),
+    );
+
+    expect(
+      await screen.findByText(
+        /「스타트업 보상 \(스톡·사이닝\)」 템플릿을 적용했습니다/,
+      ),
+    ).toBeInTheDocument();
+    expect(await screen.findByLabelText(/새 회사 연봉/)).toHaveValue("6,300");
+  });
 });
