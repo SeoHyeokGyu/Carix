@@ -68,7 +68,12 @@ public class MarketAggregateService {
               p ->
                   "SARAMIN".equals(p.getSource())
                       && p.hasCollectedVia(CollectedVia.SARAMIN_SEARCH)),
-          new FrameSource("JUMPIT", p -> p.hasCollectedVia(CollectedVia.JUMPIT)));
+          new FrameSource("JUMPIT", p -> p.hasCollectedVia(CollectedVia.JUMPIT)),
+          new FrameSource(
+              "PROGRAMMERS",
+              p ->
+                  "PROGRAMMERS".equals(p.getSource())
+                      || p.hasCollectedVia(CollectedVia.PROGRAMMERS)));
 
   private static final DateTimeFormatter YYYYMM = DateTimeFormatter.ofPattern("yyyyMM");
 

@@ -19,6 +19,7 @@ import com.carix.pipeline.dto.JobExecutionResponse;
 import com.carix.pipeline.dto.JobStatusResponse;
 import com.carix.pipeline.dto.MarketAggregateRequest;
 import com.carix.pipeline.dto.PipelineStatsResponse;
+import com.carix.pipeline.dto.PortalCrawlResult;
 import com.carix.pipeline.dto.SeedLoadRequest;
 import com.carix.pipeline.dto.WageStatRequest;
 import com.carix.wagestat.WageStatIngestService;
@@ -70,6 +71,7 @@ public class CollectorPipelineService {
   private final JumpitIngestService jumpitIngestService;
   private final WantedIngestService wantedIngestService;
   private final com.carix.jobposting.wanted.WantedBackfillService wantedBackfillService;
+  private final com.carix.jobposting.programmers.ProgrammersIngestService programmersIngestService;
 
   private final AtomicBoolean isJobRunning = new AtomicBoolean(false);
   private final Map<String, JobState> jobHistory =
@@ -104,6 +106,12 @@ public class CollectorPipelineService {
                 request != null && request.portal() != null
                     ? request.portal().toUpperCase()
                     : "ALL";
+
+            if ("ALL".equals(portal)) {
+              runAllPortalsParallel(jobId, state, request);
+              return;
+            }
+
             if ("JUMPIT".equals(portal)) {
               JumpitIngestSummary summary = jumpitIngestService.ingestAll();
               if (summary.pages() == 0 && summary.listFailed()) {
@@ -140,6 +148,25 @@ public class CollectorPipelineService {
               log.info("[작업:{}] 원티드 수집 완료: {}", jobId, summary);
               return;
             }
+            if ("PROGRAMMERS".equals(portal)) {
+              var summary =
+                  programmersIngestService.ingest(request != null ? request.maxPages() : null);
+              if (summary.pages() == 0 && summary.listFailed()) {
+                state.fail("프로그래머스 목록을 받지 못했습니다");
+                log.error("[작업:{}] 프로그래머스 목록 수집 실패: {}", jobId, summary);
+                return;
+              }
+              if (summary.created() + summary.seen() == 0 && summary.errors() > 0) {
+                state.fail("프로그래머스 수집에서 모든 공고 처리에 실패했습니다 (errors=" + summary.errors() + ")");
+                log.error("[작업:{}] 프로그래머스 수집 전부 실패: {}", jobId, summary);
+                return;
+              }
+              Map<String, Object> details = new java.util.LinkedHashMap<>(summary.toDetails());
+              details.put("portal", portal);
+              state.complete(details);
+              log.info("[작업:{}] 프로그래머스 수집 완료: {}", jobId, summary);
+              return;
+            }
             int ingested = jobPostingIngestService.crawlAndIngest(request);
             state.complete(Map.of("ingestedJobPostings", ingested, "portal", portal));
             log.info("[작업:{}] 채용공고 크롤링 완료. 총 {}건의 공고가 DB에 적재되었습니다.", jobId, ingested);
@@ -154,6 +181,149 @@ public class CollectorPipelineService {
 
     return new JobExecutionResponse(
         jobId, "CRAWL", "ACCEPTED", "크롤링 작업이 수락되어 백그라운드에서 시작되었습니다.", now);
+  }
+
+  private void runAllPortalsParallel(String jobId, JobState state, CrawlRequest request) {
+    log.info("[작업:{}] 5대 포털(잡코리아, 사람인, 점핏, 원티드, 프로그래머스) 일괄 비동기 크롤링을 시작합니다.", jobId);
+
+    CompletableFuture<PortalCrawlResult> jkFuture =
+        CompletableFuture.supplyAsync(() -> executeJobKorea(request), executor);
+    CompletableFuture<PortalCrawlResult> smFuture =
+        CompletableFuture.supplyAsync(() -> executeSaramin(request), executor);
+    CompletableFuture<PortalCrawlResult> jpFuture =
+        CompletableFuture.supplyAsync(this::executeJumpit, executor);
+    CompletableFuture<PortalCrawlResult> wtFuture =
+        CompletableFuture.supplyAsync(this::executeWanted, executor);
+    CompletableFuture<PortalCrawlResult> pgFuture =
+        CompletableFuture.supplyAsync(() -> executeProgrammers(request), executor);
+
+    CompletableFuture.allOf(jkFuture, smFuture, jpFuture, wtFuture, pgFuture).join();
+
+    List<PortalCrawlResult> results =
+        List.of(
+            jkFuture.join(), smFuture.join(), jpFuture.join(), wtFuture.join(), pgFuture.join());
+
+    Map<String, Object> portalsMap = new LinkedHashMap<>();
+    int totalCreated = 0;
+    int totalSeenOrEnriched = 0;
+    int totalErrors = 0;
+    int failedCount = 0;
+
+    for (PortalCrawlResult r : results) {
+      Map<String, Object> portalInfo = new LinkedHashMap<>();
+      portalInfo.put("status", r.status());
+      portalInfo.put("created", r.created());
+      portalInfo.put("seenOrEnriched", r.seenOrEnriched());
+      portalInfo.put("errors", r.errors());
+      if (r.errorMessage() != null) {
+        portalInfo.put("errorMessage", r.errorMessage());
+      }
+      if (r.extraDetails() != null && !r.extraDetails().isEmpty()) {
+        portalInfo.put("details", r.extraDetails());
+      }
+      portalsMap.put(r.portal(), portalInfo);
+
+      totalCreated += r.created();
+      totalSeenOrEnriched += r.seenOrEnriched();
+      totalErrors += r.errors();
+      if ("FAILED".equals(r.status())) {
+        failedCount++;
+      }
+    }
+
+    Map<String, Object> details = new LinkedHashMap<>();
+    details.put("portal", "ALL");
+    details.put("portals", portalsMap);
+    details.put("totalCreated", totalCreated);
+    details.put("totalSeenOrEnriched", totalSeenOrEnriched);
+    details.put("totalErrors", totalErrors);
+    details.put("successCount", results.size() - failedCount);
+    details.put("failedCount", failedCount);
+
+    if (failedCount == results.size()) {
+      state.fail("모든 포털 수집에 실패했습니다");
+      log.error("[작업:{}] 전체 포털 크롤링 실패 (전부 실패): {}", jobId, details);
+    } else {
+      state.complete(details);
+      log.info(
+          "[작업:{}] 전체 포털 크롤링 완료: 성공 {}건, 실패 {}건", jobId, results.size() - failedCount, failedCount);
+    }
+  }
+
+  private PortalCrawlResult executeJobKorea(CrawlRequest request) {
+    try {
+      int maxPages = request != null && request.maxPages() != null ? request.maxPages() : 5;
+      int ingested = jobPostingIngestService.crawlAndIngestJobKorea("IT개발", maxPages);
+      return PortalCrawlResult.success("JOBKOREA", ingested, 0, 0, Map.of("ingested", ingested));
+    } catch (Exception e) {
+      log.error("[JOBKOREA] 크롤링 실패: {}", e.getMessage(), e);
+      return PortalCrawlResult.failed("JOBKOREA", e.getMessage());
+    }
+  }
+
+  private PortalCrawlResult executeSaramin(CrawlRequest request) {
+    try {
+      int maxPages = request != null && request.maxPages() != null ? request.maxPages() : 5;
+      int ingested = jobPostingIngestService.crawlAndIngestSaramin(maxPages);
+      return PortalCrawlResult.success("SARAMIN", ingested, 0, 0, Map.of("ingested", ingested));
+    } catch (Exception e) {
+      log.error("[SARAMIN] 크롤링 실패: {}", e.getMessage(), e);
+      return PortalCrawlResult.failed("SARAMIN", e.getMessage());
+    }
+  }
+
+  private PortalCrawlResult executeJumpit() {
+    try {
+      JumpitIngestSummary summary = jumpitIngestService.ingestAll();
+      if (summary.pages() == 0 && summary.listFailed()) {
+        return PortalCrawlResult.failed("JUMPIT", "점핏 목록을 받지 못했습니다");
+      }
+      if (summary.created() + summary.enriched() == 0 && summary.errors() > 0) {
+        return PortalCrawlResult.failed(
+            "JUMPIT", "모든 공고 처리에 실패했습니다 (errors=" + summary.errors() + ")");
+      }
+      return PortalCrawlResult.success(
+          "JUMPIT", summary.created(), summary.enriched(), summary.errors(), summary.toDetails());
+    } catch (Exception e) {
+      log.error("[JUMPIT] 크롤링 실패: {}", e.getMessage(), e);
+      return PortalCrawlResult.failed("JUMPIT", e.getMessage());
+    }
+  }
+
+  private PortalCrawlResult executeWanted() {
+    try {
+      WantedCrawlSummary summary = wantedIngestService.ingestAll();
+      if (summary.pages() == 0 && summary.listFailed()) {
+        return PortalCrawlResult.failed("WANTED", "원티드 목록을 받지 못했습니다");
+      }
+      if (summary.created() + summary.seen() == 0 && summary.errors() > 0) {
+        return PortalCrawlResult.failed(
+            "WANTED", "모든 공고 처리에 실패했습니다 (errors=" + summary.errors() + ")");
+      }
+      return PortalCrawlResult.success(
+          "WANTED", summary.created(), summary.seen(), summary.errors(), summary.toDetails());
+    } catch (Exception e) {
+      log.error("[WANTED] 크롤링 실패: {}", e.getMessage(), e);
+      return PortalCrawlResult.failed("WANTED", e.getMessage());
+    }
+  }
+
+  private PortalCrawlResult executeProgrammers(CrawlRequest request) {
+    try {
+      var summary = programmersIngestService.ingest(request != null ? request.maxPages() : null);
+      if (summary.pages() == 0 && summary.listFailed()) {
+        return PortalCrawlResult.failed("PROGRAMMERS", "프로그래머스 목록을 받지 못했습니다");
+      }
+      if (summary.created() + summary.seen() == 0 && summary.errors() > 0) {
+        return PortalCrawlResult.failed(
+            "PROGRAMMERS", "모든 공고 처리에 실패했습니다 (errors=" + summary.errors() + ")");
+      }
+      return PortalCrawlResult.success(
+          "PROGRAMMERS", summary.created(), summary.seen(), summary.errors(), summary.toDetails());
+    } catch (Exception e) {
+      log.error("[PROGRAMMERS] 크롤링 실패: {}", e.getMessage(), e);
+      return PortalCrawlResult.failed("PROGRAMMERS", e.getMessage());
+    }
   }
 
   /**

@@ -10,6 +10,7 @@ public final class CollectedVia {
   public static final String JUMPIT = "JUMPIT";
   public static final String WANTED_LIST = "WANTED_LIST";
   public static final String WANTED_BACKFILL = "WANTED_BACKFILL";
+  public static final String PROGRAMMERS = "PROGRAMMERS";
 
   private CollectedVia() {}
 }

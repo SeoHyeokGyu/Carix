@@ -339,14 +339,14 @@ CONFIG_SERVER_URL=http://144.24.90.88:8890 EUREKA_URL=http://144.24.90.88:8761/e
 
 #### Collector 파이프라인 관리 (관리자 콘솔 `/admin/collector` & API)
 
-`collector`는 관리자가 관리자 콘솔 화면(`S-16`, `/admin/collector` 또는 `/admin/pipeline`) 또는 관리 전용 API(`/api/v1/admin/collector/**` / `http://localhost:8083/internal/pipeline/**`)를 통해 직접 수동으로 파이프라인을 구동하고 모니터링하며, 필요 시 Spring Scheduler(`@Scheduled`)를 통한 정기 자동 실행 도입도 함께 고려합니다. 모든 API 호출 시 `X-Admin-Key: <ADMIN_SECRET_KEY>` 헤더가 필요합니다:
+`collector`는 관리자가 관리자 콘솔 화면(`S-16`, `/admin/collector` 또는 `/admin/pipeline`) 또는 관리 전용 API(`/api/v1/admin/collector/**` / `http://localhost:8083/internal/pipeline/**`)로 직접 파이프라인을 구동하고 모니터링한다. 모든 API 호출 시 `X-Admin-Key: <ADMIN_SECRET_KEY>` 헤더가 필요하다:
 
 | 메서드 & 경로 | 설명 | 호출 예시 |
 | --- | --- | --- |
-| `POST /internal/pipeline/crawl` | 잡코리아/사람인 웹 스크래핑 & DB 실시간 직접 적재 | `curl -X POST http://localhost:8083/internal/pipeline/crawl -H "X-Admin-Key: carix-admin-secret-dev-key" -H "Content-Type: application/json" -d '{"portal": "ALL", "maxPages": 5}'` |
+| `POST /internal/pipeline/crawl` | 5개 포털(잡코리아·사람인·점핏·원티드·프로그래머스) 일괄 비동기 병렬 수집 또는 단건 수집 & DB 적재 | `curl -X POST http://localhost:8083/internal/pipeline/crawl -H "X-Admin-Key: carix-admin-secret-dev-key" -H "Content-Type: application/json" -d '{"portal": "ALL", "maxPages": 5}'` |
 | `POST /internal/pipeline/cpi` | KOSIS 지출목적별 소비자물가지수(12대 분류와 총지수, 전국) 적재. 기간 지정 백필 지원, 미지정 시 최신 1개월만 적재. **매월 공표(첫째 주) 뒤 전월분을 적재한다** — 두 달 넘게 빠지면 `S-10` 물가 기여도 뱃지가 사라진다. 이미 있는 행은 건너뛴다 | `curl -X POST http://localhost:8083/internal/pipeline/cpi -H "X-Admin-Key: carix-admin-secret-dev-key"`<br>`curl -X POST http://localhost:8083/internal/pipeline/cpi -H "X-Admin-Key: carix-admin-secret-dev-key" -H "Content-Type: application/json" -d '{"startYearMonth": "202608", "endYearMonth": "202609"}'` |
 | `POST /internal/pipeline/wage-stat` | KOSIS 임금 통계 수집 & 24구간 누적분포 보간 적재 (기간 지정 백필 지원) | `curl -X POST http://localhost:8083/internal/pipeline/wage-stat -H "X-Admin-Key: carix-admin-secret-dev-key"`<br>`curl -X POST http://localhost:8083/internal/pipeline/wage-stat -H "X-Admin-Key: carix-admin-secret-dev-key" -H "Content-Type: application/json" -d '{"startYear": "2020", "endYear": "2024"}'` |
-| `POST /internal/pipeline/dedup` | 원천 간(잡코리아-사람인) 채용공고 중복제거(dedup_group_id) | `curl -X POST http://localhost:8083/internal/pipeline/dedup -H "X-Admin-Key: carix-admin-secret-dev-key"` |
+| `POST /internal/pipeline/dedup` | 원천 간 채용공고 중복제거(`dedup_group_id`) | `curl -X POST http://localhost:8083/internal/pipeline/dedup -H "X-Admin-Key: carix-admin-secret-dev-key"` |
 | `POST /internal/pipeline/aggregate` | 월별 채용 시장 데이터 다차원 사전 집계 (P50 연봉, 스킬수요율) | `curl -X POST "http://localhost:8083/internal/pipeline/aggregate?month=2026-08" -H "X-Admin-Key: carix-admin-secret-dev-key"` |
 | `POST /internal/pipeline/seed-load` | 파일시스템 스냅샷 시드 파일 DB 적재 | `curl -X POST http://localhost:8083/internal/pipeline/seed-load -H "X-Admin-Key: carix-admin-secret-dev-key"` |
 | `GET /internal/pipeline/jobs/{jobId}` | 특정 비동기 파이프라인 작업 상태 조회 | `curl http://localhost:8083/internal/pipeline/jobs/{jobId} -H "X-Admin-Key: carix-admin-secret-dev-key"` |

@@ -58,4 +58,24 @@ class SourceCombineWeightsTest {
         .containsEntry("JOBKOREA", 400.0)
         .containsEntry("SARAMIN", 120.0);
   }
+
+  @Test
+  @DisplayName("프로그래머스도 정기 수집 원천 풀에 포함되어 상한 적용을 받는다")
+  void programmersIncludedInRegularPool() {
+    // cap = max(100, 60) = 100. regularTotal = 100(SARAMIN) + 60(JUMPIT) + 40(PROGRAMMERS) = 200.
+    // scale = 100/200 = 0.5
+    assertThat(
+            SourceCombineWeights.of(
+                Map.of(
+                    "JOBKOREA", 60,
+                    "WANTED", 100,
+                    "SARAMIN", 100,
+                    "JUMPIT", 60,
+                    "PROGRAMMERS", 40)))
+        .containsEntry("JOBKOREA", 60.0)
+        .containsEntry("WANTED", 100.0)
+        .containsEntry("SARAMIN", 50.0)
+        .containsEntry("JUMPIT", 30.0)
+        .containsEntry("PROGRAMMERS", 20.0);
+  }
 }

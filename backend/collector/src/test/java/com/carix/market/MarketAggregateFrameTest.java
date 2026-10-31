@@ -157,5 +157,30 @@ class MarketAggregateFrameTest {
     assertThat(total(rows, "JOBKOREA")).hasValue(1);
     assertThat(total(rows, "SARAMIN")).isEmpty();
     assertThat(total(rows, "JUMPIT")).isEmpty();
+    assertThat(total(rows, "PROGRAMMERS")).isEmpty();
+  }
+
+  @Test
+  @DisplayName("PROGRAMMERS 행은 프로그래머스 공고를 독립 프레임으로 센다")
+  void programmersFrame() {
+    JobPosting p =
+        JobPosting.builder()
+            .source("PROGRAMMERS")
+            .externalId("prog-1")
+            .jobFamily("DEVELOPER")
+            .experienceMin(3)
+            .firstSeenMonth("202609")
+            .lastSeenMonth("202609")
+            .companyName("테크기업")
+            .collectedAt(Instant.now())
+            .build();
+    p.addCollectedVia(CollectedVia.PROGRAMMERS);
+
+    var rows = aggregate("202609", p);
+    assertThat(total(rows, "PROGRAMMERS")).hasValue(1);
+    assertThat(total(rows, "ALL")).hasValue(1);
+    assertThat(total(rows, "JOBKOREA")).isEmpty();
+    assertThat(total(rows, "SARAMIN")).isEmpty();
+    assertThat(total(rows, "JUMPIT")).isEmpty();
   }
 }

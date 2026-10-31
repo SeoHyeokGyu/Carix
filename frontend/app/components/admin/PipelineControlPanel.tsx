@@ -44,7 +44,7 @@ export function PipelineControlPanel({
 
   // 크롤링 폼 상태
   const [portal, setPortal] = useState<
-    "ALL" | "JOBKOREA" | "SARAMIN" | "JUMPIT" | "WANTED"
+    "ALL" | "JOBKOREA" | "SARAMIN" | "JUMPIT" | "WANTED" | "PROGRAMMERS"
   >("ALL");
   const [maxPages, setMaxPages] = useState<number>(5);
   const [delayMs, setDelayMs] = useState<number>(500);
@@ -219,20 +219,35 @@ export function PipelineControlPanel({
                   onChange={(e) =>
                     setPortal(
                       e.target.value as
-                        "ALL" | "JOBKOREA" | "SARAMIN" | "JUMPIT" | "WANTED",
+                        | "ALL"
+                        | "JOBKOREA"
+                        | "SARAMIN"
+                        | "JUMPIT"
+                        | "WANTED"
+                        | "PROGRAMMERS",
                     )
                   }
                   className="w-full rounded-md border border-carix-border bg-carix-bg px-3 py-1.5 text-xs text-carix-text"
                 >
-                  <option value="ALL">전체 포털 (잡코리아 + 사람인)</option>
+                  <option value="ALL">
+                    전체 포털 (5대 포털 일괄 비동기 수집)
+                  </option>
                   <option value="JOBKOREA">잡코리아 (JobKorea)</option>
                   <option value="SARAMIN">사람인 (Saramin)</option>
                   <option value="JUMPIT">점핏 (Jumpit)</option>
                   <option value="WANTED">원티드 (Wanted)</option>
+                  <option value="PROGRAMMERS">
+                    프로그래머스 (Programmers)
+                  </option>
                 </select>
               </div>
 
-              {portal === "JUMPIT" ? (
+              {portal === "ALL" ? (
+                <p className="sm:col-span-2 self-end text-xs text-carix-text/60">
+                  잡코리아·사람인·점핏·원티드·프로그래머스 5개 포털을 가상
+                  스레드로 동시에 비동기 병렬 수집합니다.
+                </p>
+              ) : portal === "JUMPIT" ? (
                 <p className="sm:col-span-2 self-end text-xs text-carix-text/60">
                   점핏은 목록 전체를 순회합니다(약 30분, 그동안 다른 작업은
                   대기).
@@ -241,6 +256,11 @@ export function PipelineControlPanel({
                 <p className="sm:col-span-2 self-end text-xs text-carix-text/60">
                   원티드는 개발 공고 목록 전체를 순회합니다(첫 실행 약 1시간
                   30분, 이후 신규만). 그동안 다른 작업은 대기
+                </p>
+              ) : portal === "PROGRAMMERS" ? (
+                <p className="sm:col-span-2 self-end text-xs text-carix-text/60">
+                  프로그래머스는 개발자 공고 목록을 순회하여 기술 태그 및
+                  메타데이터를 수집합니다.
                 </p>
               ) : (
                 <>

@@ -32,7 +32,7 @@ export interface JobExecutionResponse {
 }
 
 export interface CrawlRequest {
-  portal?: "JOBKOREA" | "SARAMIN" | "JUMPIT" | "WANTED" | "ALL";
+  portal?: "JOBKOREA" | "SARAMIN" | "JUMPIT" | "WANTED" | "PROGRAMMERS" | "ALL";
   maxPages?: number;
   delayMs?: number;
 }

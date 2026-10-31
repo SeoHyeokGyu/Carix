@@ -367,6 +367,7 @@ public class DataExploreService {
       case "JOBKOREA" -> "https://www.jobkorea.co.kr/Recruit/GI_Read/" + externalId;
       case "SARAMIN" -> "https://www.saramin.co.kr/zf_user/jobs/relay/view?rec_idx=" + externalId;
       case "WANTED" -> "https://www.wanted.co.kr/wd/" + externalId;
+      case "PROGRAMMERS" -> "https://career.programmers.co.kr/job_positions/" + externalId;
       default -> null;
     };
   }

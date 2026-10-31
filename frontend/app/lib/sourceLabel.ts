@@ -3,6 +3,7 @@ const LABELS: Record<string, string> = {
   SARAMIN: "사람인",
   WANTED: "원티드",
   JUMPIT: "점핏",
+  PROGRAMMERS: "프로그래머스",
 };
 
 /** 공고 원천 코드를 사용자 화면 표시명으로 바꾼다. */
