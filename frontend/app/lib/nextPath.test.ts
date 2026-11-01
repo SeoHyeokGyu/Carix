@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 
-import { safeNextPath, withNext } from "./nextPath";
+import { safeNextPath, stripResumeParams, withNext } from "./nextPath";
 
 describe("safeNextPath — 돌아갈 경로", () => {
   test.each([
@@ -31,5 +31,17 @@ describe("withNext", () => {
     expect(withNext("/register", "/dashboard/simulator?resumeSave=1")).toBe(
       "/register?next=%2Fdashboard%2Fsimulator%3FresumeSave%3D1",
     );
+  });
+});
+
+describe("stripResumeParams", () => {
+  test("저장 재개 쿼리는 지우고 다른 쿼리는 남긴다", () => {
+    expect(
+      stripResumeParams("/dashboard/simulator?resumeSave=1&name=A&tab=x#t"),
+    ).toBe("/dashboard/simulator?tab=x#t");
+    expect(stripResumeParams("/dashboard/simulator?resumeSave=1&name=A")).toBe(
+      "/dashboard/simulator",
+    );
+    expect(stripResumeParams("/mypage/profile")).toBe("/mypage/profile");
   });
 });

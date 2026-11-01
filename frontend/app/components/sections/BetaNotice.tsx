@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { InlineAlert } from "@/components/ui/inline-alert";
 
 import { BETA_NOTICE } from "../../content/landing";
+import { toUserMessage } from "../../lib/apiError";
 import { startGuest } from "../../lib/authApi";
 import { stepPath } from "../../lib/routeGuards";
 import { setSession } from "../../lib/session";
@@ -24,10 +25,7 @@ export function BetaNotice() {
       setSession({ status: "authenticated", ...response });
       void navigate(stepPath(response.onboardingStep), { replace: true });
     } catch (caught) {
-      setError(
-        (caught as { message?: string }).message ??
-          "요청을 처리하지 못했습니다. 잠시 후 다시 시도해 주세요.",
-      );
+      setError(toUserMessage(caught));
       setStarting(false);
     }
   }

@@ -5,7 +5,7 @@ import { TextLink } from "@/components/ui/text-link";
 import { AuthForm } from "../../components/auth/AuthForm";
 import { SessionPending } from "../../components/layout/SessionPending";
 import { register } from "../../lib/authApi";
-import { safeNextPath, withNext } from "../../lib/nextPath";
+import { safeNextPath, stripResumeParams, withNext } from "../../lib/nextPath";
 import { LOGIN_PATH, stepPath } from "../../lib/routeGuards";
 import { requireSession, setSession } from "../../lib/session";
 
@@ -24,7 +24,9 @@ export default function Register() {
   const { guest } = useLoaderData<typeof clientLoader>();
   const [searchParams] = useSearchParams();
   const next = safeNextPath(searchParams.get("next"));
-  const loginPath = next ? withNext(LOGIN_PATH, next) : LOGIN_PATH;
+  const loginPath = next
+    ? withNext(LOGIN_PATH, stripResumeParams(next))
+    : LOGIN_PATH;
 
   async function handleRegister(email: string, password: string) {
     const response = await register(email, password);

@@ -86,7 +86,8 @@ DB 스키마는 [ERD](erd.md), REST 계약은 [API 규격](api-specification.md)
 > 처음 온 사람으로서, 이메일과 비밀번호만으로 바로 계정을 만들고 싶다.
 
 - Given 세션 없는 방문자 / When S-03에서 이메일·비밀번호 제출 / Then 계정과 세션(30일)을 만들고 `/onboarding/profile`로 이동한다.
-- Given 게스트 세션 / When S-03에서 가입 / Then 같은 사용자의 정식 계정(세션 30일)으로 전환해 입력한 데이터를 유지하고, 돌아갈 경로(`next`, 앱 내부 경로만)가 있으면 그곳으로, 없으면 `/onboarding/profile`로 이동한다.
+- Given 게스트 세션 / When S-03에서 가입 / Then 같은 사용자의 정식 계정(세션 30일)으로 전환해 입력한 데이터를 유지하고, 돌아갈 경로(`next`, 앱 내부 경로만)가 있으면 그곳으로, 없으면 현재 온보딩 단계 경로(완료했으면 `/dashboard`)로 이동한다.
+- Given 게스트 세션 / When 이미 쓰이는 이메일로 가입 / Then 409로 `이미 사용 중인 이메일입니다`와 로그인 링크를 보이고, 로그인하면 체험 중 입력한 내용이 이어지지 않는다고 고지한다. 로그인 링크의 돌아갈 경로에서는 저장 재개 쿼리를 뗀다. 게스트 행은 바뀌지 않는다.
 - Given 이미 쓰이는 이메일 / When 제출 / Then `이미 사용 중인 이메일입니다`를 표시한다. 여기서는 존재 여부를 숨기지 않는다 — 숨기면 사용자가 가입 실패 원인을 알 수 없다.
 - Given 8자 미만 비밀번호 / When 제출 / Then 길이 오류를 표시한다. 문자 구성은 강제하지 않는다.
 - Given 같은 IP에서 연속 요청 / When 제한(IP당 20회/시간) 초과 / Then 만들지 않고 잠시 후 다시 시도하라고 안내한다.
@@ -97,6 +98,7 @@ DB 스키마는 [ERD](erd.md), REST 계약은 [API 규격](api-specification.md)
 - Given 등록된 이메일·비밀번호 / When S-02에서 제출 / Then 새 세션(30일)을 만들고 온보딩 미완료면 마지막 단계로, 완료면 `/dashboard`로 이동한다.
 - Given 없는 이메일 또는 틀린 비밀번호 / When 제출 / Then 어느 쪽인지 구분하지 않고 같은 오류를 표시한다 (계정 열거 방지).
 - Given 연속 실패 / When 제한(이메일당 10회/시간, IP당 30회/시간) 초과 / Then 잠시 후 다시 시도하라고 안내한다.
+- Given 게스트 세션 / When S-02를 연다 / Then 다른 계정으로 로그인하면 체험 내용이 이어지지 않는다는 경고를 보이고, 로그인에 성공하면 그 게스트 세션을 폐기한다.
 - 비밀번호 재설정은 제공하지 않는다. 메일 발송 경로가 없기 때문이다.
 
 ### 2.2 온보딩 (ONBD)
@@ -538,7 +540,7 @@ OWI           = 최근 3개월 동료집단 비중 ÷ 이전 12개월(4~15개월
 
 | 화면 | 스토리 | 주요 API | 주요 테이블 |
 | --- | --- | --- | --- |
-| S-01~03 랜딩·로그인·가입 | US-A1, US-A2 | `POST /auth/register`, `/auth/login` | `session`, `users` |
+| S-01~03 랜딩·로그인·가입 | US-A1, US-A2 | `POST /auth/guest`, `/auth/register`, `/auth/login` | `session`, `users` |
 | S-05 프로필 | US-O2 | `PATCH /profile` | `career_profile` |
 | S-06 소득 | US-O3 | `POST /income`, `PUT /income/{id}` | `income_history` |
 | S-07 소비 | US-O4 | `PUT /expenses/{ym}` | `expense_history`, `expense_item` |

@@ -152,4 +152,20 @@ describe("회원가입 라우트 (Register)", () => {
       "/login?next=%2Fdashboard",
     );
   });
+
+  // 저장 재개 쿼리를 로그인으로 넘기면, 이미 쓰인 이메일의 기존 계정으로 로그인한 뒤
+  // 그 계정 draft 가 게스트의 시나리오 이름으로 저장된다.
+  it("로그인_링크는_저장_재개_쿼리를_떼고_경로만_넘긴다", async () => {
+    renderRegister(
+      "/register?next=%2Fdashboard%2Fsimulator%3FresumeSave%3D1%26name%3DA",
+    );
+
+    const links = await screen.findAllByRole("link", { name: /로그인/ });
+    for (const link of links) {
+      expect(link).toHaveAttribute(
+        "href",
+        "/login?next=%2Fdashboard%2Fsimulator",
+      );
+    }
+  });
 });

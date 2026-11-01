@@ -19,3 +19,14 @@ export function safeNextPath(raw: string | null | undefined): string | null {
 export function withNext(path: string, next: string): string {
   return `${path}?next=${encodeURIComponent(next)}`;
 }
+
+/**
+ * 가입 화면에서 로그인 화면으로 넘기는 `next` 에서 저장 재개 쿼리를 지운다. 게스트가
+ * 저장하려던 시나리오 이름이 기존 계정으로 로그인한 뒤 그 계정에 저장되는 것을 막는다.
+ */
+export function stripResumeParams(next: string): string {
+  const url = new URL(next, PROBE_ORIGIN);
+  url.searchParams.delete("resumeSave");
+  url.searchParams.delete("name");
+  return `${url.pathname}${url.search}${url.hash}`;
+}
