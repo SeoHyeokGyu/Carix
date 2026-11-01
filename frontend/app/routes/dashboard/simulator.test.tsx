@@ -1,6 +1,7 @@
 import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { createRoutesStub } from "react-router";
+import { StrictMode } from "react";
+import { createRoutesStub, useLocation } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import * as incomeApi from "../../lib/api/income";
@@ -12,6 +13,7 @@ import type {
 } from "../../lib/api/scenario";
 import * as scenario from "../../lib/api/scenario";
 import { UnauthorizedError } from "../../lib/coreApi";
+import { resetSession, type Session, setSession } from "../../lib/session";
 import DashboardSimulator, { clientLoader } from "./simulator";
 
 vi.mock("../../lib/api/scenario", () => ({
@@ -101,17 +103,29 @@ const evaluation: EvaluationResponse = {
   typeLabel: "남으면 추정 이득",
 };
 
-function renderRoute(entry = "/dashboard/simulator") {
+function Where() {
+  const { pathname, search } = useLocation();
+  return <div data-testid="where">{pathname + search}</div>;
+}
+
+function renderRoute(entry = "/dashboard/simulator", strict = false) {
   const Stub = createRoutesStub([
     {
       path: "/dashboard/simulator",
-      Component: DashboardSimulator,
+      Component: () => (
+        <>
+          <DashboardSimulator />
+          <Where />
+        </>
+      ),
       loader: clientLoader,
       HydrateFallback: () => null,
     },
     { path: "/login", Component: () => <div>로그인 화면</div> },
+    { path: "/register", Component: Where },
   ]);
-  return render(<Stub initialEntries={[entry]} />);
+  const ui = <Stub initialEntries={[entry]} />;
+  return render(strict ? <StrictMode>{ui}</StrictMode> : ui);
 }
 
 const stayOnly: EvaluateRequest = { stay: { raisePercent: 3 }, move: null };
@@ -181,6 +195,15 @@ const debounce = () =>
     vi.advanceTimersByTime(400);
   });
 
+const member: Session = {
+  status: "authenticated",
+  userId: "u1",
+  email: "a@b.c",
+  onboardingStep: "COMPLETED",
+  guest: false,
+};
+const guest: Session = { ...member, email: null, guest: true };
+
 describe("이직 시뮬레이터 라우트", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -191,9 +214,11 @@ describe("이직 시뮬레이터 라우트", () => {
     vi.mocked(scenario.putDraft).mockResolvedValue(null);
     vi.mocked(scenario.evaluate).mockResolvedValue(evaluation);
     vi.mocked(incomeApi.listIncome).mockResolvedValue([]);
+    setSession(member);
   });
   afterEach(() => {
     vi.useRealTimers();
+    resetSession();
   });
 
   it("컨텍스트 조회가 401 이면 로그인으로 보낸다", async () => {
@@ -843,5 +868,71 @@ describe("이직 시뮬레이터 라우트", () => {
       ),
     ).toBeInTheDocument();
     expect(await screen.findByLabelText(/새 회사 연봉/)).toHaveValue("6,300");
+  });
+
+  // 게스트의 저장은 서버에 시나리오를 만들지 않는다. 초안만 확정하고 가입 뒤 이어서 저장한다.
+  it("게스트가_저장하면_초안을_보낸_뒤_가입으로_간다", async () => {
+    setSession(guest);
+    vi.mocked(scenario.getDraft).mockResolvedValue(draft);
+    const user = userEvent.setup();
+
+    renderRoute();
+    await screen.findByText("따라잡는 시점");
+    await user.click(
+      screen.getAllByRole("button", { name: "시나리오 저장" })[0],
+    );
+    await user.type(
+      await screen.findByLabelText("시나리오 이름 (선택)"),
+      "A안",
+    );
+    await user.click(await screen.findByRole("button", { name: "저장" }));
+
+    expect(await screen.findByTestId("where")).toHaveTextContent(
+      "/register?next=%2Fdashboard%2Fsimulator%3FresumeSave%3D1%26name%3D" +
+        encodeURIComponent(encodeURIComponent("A안")),
+    );
+    expect(scenario.saveScenario).not.toHaveBeenCalled();
+    expect(scenario.putDraft).toHaveBeenCalledWith(
+      expect.objectContaining({
+        move: expect.objectContaining({ grossSalary: 70_000_000 }),
+      }),
+    );
+  });
+
+  // StrictMode 의 이중 effect 로 같은 시나리오가 두 번 저장되면 목록에 중복이 쌓인다.
+  it("가입_후_돌아오면_저장을_이어서_한다", async () => {
+    vi.mocked(scenario.getDraft).mockResolvedValue(draft);
+    vi.mocked(scenario.saveScenario).mockResolvedValue(
+      savedScenario(draft, "A안"),
+    );
+
+    renderRoute(
+      `/dashboard/simulator?resumeSave=1&name=${encodeURIComponent("A안")}`,
+      true,
+    );
+
+    expect(await screen.findByText("시나리오를 저장했습니다.")).toBeVisible();
+    expect(scenario.saveScenario).toHaveBeenCalledTimes(1);
+    expect(scenario.saveScenario).toHaveBeenCalledWith("A안", draft);
+    await waitFor(() =>
+      expect(screen.getByTestId("where")).toHaveTextContent(
+        /^\/dashboard\/simulator$/,
+      ),
+    );
+  });
+
+  it("게스트로_복귀_주소를_열면_저장하지_않는다", async () => {
+    setSession(guest);
+    vi.mocked(scenario.getDraft).mockResolvedValue(draft);
+
+    renderRoute("/dashboard/simulator?resumeSave=1&name=A", true);
+    await screen.findByText("따라잡는 시점");
+
+    expect(scenario.saveScenario).not.toHaveBeenCalled();
+    await waitFor(() =>
+      expect(screen.getByTestId("where")).toHaveTextContent(
+        /^\/dashboard\/simulator$/,
+      ),
+    );
   });
 });

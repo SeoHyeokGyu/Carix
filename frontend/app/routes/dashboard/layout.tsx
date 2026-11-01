@@ -1,7 +1,8 @@
 import { CircleHelp } from "lucide-react";
-import { redirect } from "react-router";
+import { redirect, useLoaderData, useLocation } from "react-router";
 
 import { AppShell, type NavItem } from "../../components/layout/AppShell";
+import { GuestBanner } from "../../components/layout/GuestBanner";
 import { guardOnboarded, LANDING_PATH } from "../../lib/routeGuards";
 import { requireSession } from "../../lib/session";
 
@@ -36,16 +37,21 @@ export async function clientLoader() {
   if (guard.allow !== true) {
     throw redirect(guard.allow === false ? guard.redirectTo : LANDING_PATH);
   }
-  return null;
+  return { guest: session.status === "authenticated" && session.guest };
 }
 
 export default function DashboardLayout() {
+  const { guest } = useLoaderData<typeof clientLoader>();
+  const { pathname } = useLocation();
   return (
-    <AppShell
-      navLabel="주 메뉴"
-      items={MAIN_NAV_ITEMS}
-      utilityItems={MAIN_UTILITY_ITEMS}
-      accountMenu
-    />
+    <>
+      {guest && <GuestBanner pathname={pathname} />}
+      <AppShell
+        navLabel="주 메뉴"
+        items={MAIN_NAV_ITEMS}
+        utilityItems={MAIN_UTILITY_ITEMS}
+        accountMenu
+      />
+    </>
   );
 }

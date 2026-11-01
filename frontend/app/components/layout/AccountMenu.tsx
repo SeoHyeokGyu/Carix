@@ -6,10 +6,16 @@ import {
   UserRound,
 } from "lucide-react";
 import { DropdownMenu } from "radix-ui";
-import { Link, useLocation, useSubmit } from "react-router";
+import { Link, useLocation, useNavigate, useSubmit } from "react-router";
 
 import { Button } from "@/components/ui/button";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { cn } from "@/lib/utils";
+
+import { logout } from "../../lib/authApi";
+import { withNext } from "../../lib/nextPath";
+import { REGISTER_PATH } from "../../lib/routeGuards";
+import { ANONYMOUS, getSession, setSession } from "../../lib/session";
 
 const MYPAGE_PATH = "/mypage";
 const RECORDS_PATH = "/mypage/records";
@@ -31,7 +37,16 @@ const ITEM_CLASS =
  */
 export function AccountMenu() {
   const { pathname } = useLocation();
-  const submit = useSubmit();
+  const navigate = useNavigate();
+  const session = getSession();
+  const isGuest = session?.status === "authenticated" && session.guest;
+
+  // 게스트는 마이페이지 가드(가입으로 보냄)를 거치지 않고 여기서 바로 끝낸다.
+  const endTrial = async () => {
+    await logout();
+    setSession(ANONYMOUS);
+    navigate("/", { replace: true });
+  };
   const isActive = pathname.startsWith(MYPAGE_PATH);
 
   return (
@@ -60,33 +75,70 @@ export function AccountMenu() {
           sideOffset={6}
           className="z-50 min-w-40 rounded-md border border-carix-border bg-carix-surface p-1 shadow-md"
         >
-          <DropdownMenu.Item asChild className={ITEM_CLASS}>
-            <Link to={RECORDS_PATH}>
-              <ClipboardPen aria-hidden className="size-4" />
-              입력 관리
-            </Link>
-          </DropdownMenu.Item>
-          <DropdownMenu.Item asChild className={ITEM_CLASS}>
-            <Link to={SETTINGS_PATH}>
-              <Settings aria-hidden className="size-4" />
-              설정
-            </Link>
-          </DropdownMenu.Item>
-          <DropdownMenu.Separator className="my-1 h-px bg-carix-border" />
-          <DropdownMenu.Item
-            className={ITEM_CLASS}
-            onSelect={() =>
-              submit(
-                { intent: "logout" },
-                { method: "post", action: SETTINGS_PATH },
-              )
-            }
-          >
-            <LogOut aria-hidden className="size-4" />
-            로그아웃
-          </DropdownMenu.Item>
+          {isGuest ? (
+            <>
+              <DropdownMenu.Item asChild className={ITEM_CLASS}>
+                <Link to={withNext(REGISTER_PATH, pathname)}>
+                  <UserRound aria-hidden className="size-4" />
+                  가입해서 저장
+                </Link>
+              </DropdownMenu.Item>
+              <DropdownMenu.Separator className="my-1 h-px bg-carix-border" />
+              <ConfirmDialog
+                trigger={
+                  <DropdownMenu.Item
+                    className={ITEM_CLASS}
+                    onSelect={(event) => event.preventDefault()}
+                  >
+                    <LogOut aria-hidden className="size-4" />
+                    체험 끝내기
+                  </DropdownMenu.Item>
+                }
+                title="체험을 끝낼까요?"
+                description="입력한 내용은 복구할 수 없습니다."
+                confirmLabel="체험 끝내기"
+                tone="danger"
+                onConfirm={endTrial}
+              />
+            </>
+          ) : (
+            <MemberItems />
+          )}
         </DropdownMenu.Content>
       </DropdownMenu.Portal>
     </DropdownMenu.Root>
+  );
+}
+
+function MemberItems() {
+  const submit = useSubmit();
+  return (
+    <>
+      <DropdownMenu.Item asChild className={ITEM_CLASS}>
+        <Link to={RECORDS_PATH}>
+          <ClipboardPen aria-hidden className="size-4" />
+          입력 관리
+        </Link>
+      </DropdownMenu.Item>
+      <DropdownMenu.Item asChild className={ITEM_CLASS}>
+        <Link to={SETTINGS_PATH}>
+          <Settings aria-hidden className="size-4" />
+          설정
+        </Link>
+      </DropdownMenu.Item>
+      <DropdownMenu.Separator className="my-1 h-px bg-carix-border" />
+      <DropdownMenu.Item
+        className={ITEM_CLASS}
+        onSelect={() =>
+          submit(
+            { intent: "logout" },
+            { method: "post", action: SETTINGS_PATH },
+          )
+        }
+      >
+        <LogOut aria-hidden className="size-4" />
+        로그아웃
+      </DropdownMenu.Item>
+    </>
   );
 }

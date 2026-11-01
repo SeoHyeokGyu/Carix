@@ -1,6 +1,11 @@
-import { type ReactNode, useId, useRef, useState } from "react";
+import { type ReactNode, useEffect, useId, useRef, useState } from "react";
 import { flushSync } from "react-dom";
-import { redirect, useLoaderData, useNavigate } from "react-router";
+import {
+  redirect,
+  useLoaderData,
+  useNavigate,
+  useSearchParams,
+} from "react-router";
 
 import { PageFrame } from "@/components/layout/PageFrame";
 import { PageHeader } from "@/components/layout/PageHeader";
@@ -46,7 +51,9 @@ import {
 } from "../../lib/api/scenario";
 import { UnauthorizedError } from "../../lib/coreApi";
 import { createDraftQueue } from "../../lib/draftQueue";
-import { LOGIN_PATH } from "../../lib/routeGuards";
+import { withNext } from "../../lib/nextPath";
+import { LOGIN_PATH, REGISTER_PATH } from "../../lib/routeGuards";
+import { getSession } from "../../lib/session";
 import {
   compareHint,
   type OfferMissing,
@@ -193,6 +200,13 @@ function ResultArea({
 
 const SUBTITLE =
   "지금 회사와 받은 오퍼를 세후·실질 소득으로 나란히 비교합니다.";
+const DASHBOARD_SIMULATOR_PATH = "/dashboard/simulator";
+
+function isGuest(): boolean {
+  const session = getSession();
+  return session?.status === "authenticated" && session.guest;
+}
+
 const SAVED_MESSAGE = "시나리오를 저장했습니다.";
 const NO_STAY_HINT =
   "올해 예상 인상률과 연봉을 넣으면 지금 회사 결과가 나옵니다";
@@ -319,6 +333,15 @@ export default function DashboardSimulator() {
     return true;
   };
 
+  const persistScenario = async (
+    name: string | null,
+    payload: EvaluateRequest,
+  ) => {
+    const saved = await saveScenario(name, payload);
+    setScenarios((prev) => [saved, ...prev]);
+    setSavedMessage(SAVED_MESSAGE);
+  };
+
   const save = async (name: string | null) => {
     if (!flushForms()) return false;
     const current = requestRef.current;
@@ -328,11 +351,38 @@ export default function DashboardSimulator() {
       stay: current.stay,
       move: offerOpen ? (current.move ?? null) : null,
     };
-    const saved = await saveScenario(name, payload);
-    setScenarios((prev) => [saved, ...prev]);
-    setSavedMessage(SAVED_MESSAGE);
+    if (isGuest()) {
+      // 게스트는 시나리오를 저장하지 않는다. 초안을 확정해 두고 가입 뒤 이어서 저장한다.
+      await queueDraft(payload);
+      const resume = `${DASHBOARD_SIMULATOR_PATH}?resumeSave=1${name ? `&name=${encodeURIComponent(name)}` : ""}`;
+      navigate(withNext(REGISTER_PATH, resume));
+      // 저장 폼이 성공 상태로 닫히지 않게 한다.
+      return false;
+    }
+    await persistScenario(name, payload);
     return true;
   };
+
+  // 가입 뒤 돌아온 주소(?resumeSave=1)면 불러온 초안으로 저장을 한 번 이어서 한다.
+  // 쿼리를 먼저 지우고 ref 로 막아, StrictMode 이중 effect·재렌더에서 두 번 저장되지 않게 한다.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const resumed = useRef(false);
+  useEffect(() => {
+    if (resumed.current || searchParams.get("resumeSave") !== "1") return;
+    resumed.current = true;
+    const name = searchParams.get("name");
+    setSearchParams({}, { replace: true });
+    const draft = loaded.draft;
+    if (!draft || isGuest()) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- 저장 완료 뒤 비동기로 갱신한다
+    persistScenario(name, { stay: draft.stay, move: draft.move ?? null }).catch(
+      (error: unknown) => {
+        if (error instanceof UnauthorizedError) return toLogin();
+        setNotice(`시나리오를 저장하지 못했습니다: ${describeError(error)}`);
+      },
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- 마운트 때 한 번만
+  }, []);
 
   const refreshContext = () => {
     getContext().then(setContext, (error: unknown) => {

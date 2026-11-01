@@ -1,8 +1,9 @@
-import { Outlet, redirect } from "react-router";
+import { Outlet, redirect, useLoaderData, useLocation } from "react-router";
 
 import { PageFrame } from "@/components/layout/PageFrame";
 
 import { AppShell } from "../../components/layout/AppShell";
+import { GuestBanner } from "../../components/layout/GuestBanner";
 import { StepIndicator } from "../../components/onboarding/StepIndicator";
 import { guardOnboarding, LANDING_PATH } from "../../lib/routeGuards";
 import { requireSession } from "../../lib/session";
@@ -16,19 +17,24 @@ export async function clientLoader({ request }: { request: Request }) {
   if (guard.allow !== true) {
     throw redirect(guard.allow === false ? guard.redirectTo : LANDING_PATH);
   }
-  return null;
+  return { guest: session.status === "authenticated" && session.guest };
 }
 
 export default function OnboardingLayout() {
+  const { guest } = useLoaderData<typeof clientLoader>();
+  const { pathname } = useLocation();
   return (
-    <AppShell navLabel="온보딩" items={[]}>
-      {/* 화면 내에 일관된 온보딩 Step 인디케이터 표시 */}
-      <div className="w-full border-b border-carix-border/60 bg-carix-surface/40 backdrop-blur-xs py-4 sm:py-6">
-        <PageFrame className="py-0 sm:py-0">
-          <StepIndicator />
-        </PageFrame>
-      </div>
-      <Outlet />
-    </AppShell>
+    <>
+      {guest && <GuestBanner pathname={pathname} />}
+      <AppShell navLabel="온보딩" items={[]}>
+        {/* 화면 내에 일관된 온보딩 Step 인디케이터 표시 */}
+        <div className="w-full border-b border-carix-border/60 bg-carix-surface/40 backdrop-blur-xs py-4 sm:py-6">
+          <PageFrame className="py-0 sm:py-0">
+            <StepIndicator />
+          </PageFrame>
+        </div>
+        <Outlet />
+      </AppShell>
+    </>
   );
 }
