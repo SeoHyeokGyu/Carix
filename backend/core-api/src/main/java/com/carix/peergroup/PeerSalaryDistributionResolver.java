@@ -12,6 +12,7 @@ import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -43,6 +44,9 @@ public class PeerSalaryDistributionResolver {
       DateTimeFormatter.ofPattern("yyyyMM");
   private static final int COMPARISON_WINDOW_MONTHS = SalaryTrendComparator.WINDOW_MONTHS * 2;
   private static final ZoneId SEOUL = ZoneId.of("Asia/Seoul");
+
+  /** "N년 이상" 공고를 구간에 넣는 여유. {@link #fitsBracket} 참고. */
+  private static final int OPEN_ENDED_TOLERANCE_YEARS = 1;
 
   private final JobPostingRepository jobPostingRepository;
   private final PeerGroupFallbackResolver peerGroupFallbackResolver;
@@ -136,20 +140,26 @@ public class PeerSalaryDistributionResolver {
             ladder(profile),
             candidate ->
                 candidate.postings().size() >= minSample
-                    && disclosedSalaries(candidate.postings()).size() >= minSample),
+                    && disclosedSalaries(candidate.postings()).size() >= minSample
+                    && disclosedCompanyCount(candidate.postings()) >= minSample),
         minSample);
   }
 
   private PeerSalaryDistribution toDistribution(ResolvedPeerPostings resolved, int minSample) {
     List<Long> disclosed = disclosedSalaries(resolved.postings());
-    boolean sufficient = resolved.postings().size() >= minSample && disclosed.size() >= minSample;
+    int companies = disclosedCompanyCount(resolved.postings());
+    boolean sufficient =
+        resolved.postings().size() >= minSample
+            && disclosed.size() >= minSample
+            && companies >= minSample;
     return new PeerSalaryDistribution(
         disclosed,
         resolved.postings().size(),
         resolved.level(),
         resolved.appliedConditions(),
         calculateTrend(resolved.postings()),
-        sufficient ? compareTrend(resolved.postings()) : null);
+        sufficient ? compareTrend(resolved.postings()) : null,
+        companies);
   }
 
   /**
@@ -248,7 +258,7 @@ public class PeerSalaryDistributionResolver {
 
     return new ResolvedPeerPostings(
         level,
-        dedupe(candidates),
+        dedupe(candidates).stream().filter(p -> fitsBracket(p, yearRange[0])).toList(),
         "%s / 경력 %s / %s".formatted(regionLabel, bracketLabel, companySizeLabel(companySize)));
   }
 
@@ -264,6 +274,34 @@ public class PeerSalaryDistributionResolver {
       byGroup.putIfAbsent(posting.dedupKey(), posting);
     }
     return new ArrayList<>(byGroup.values());
+  }
+
+  /**
+   * 최대 경력이 없는 공고는 "N년 이상" 이다. N 이 구간 하한보다 1년 넘게 낮으면 신입·저연차를 받는 공고라 그 연봉이 구간을 대표하지 않는다 — 겹침 조건(쿼리)만
+   * 보면 이런 공고가 모든 상위 구간에 걸려 분포를 끌어내린다. 1년 여유는 MID(4~7년)의 「3년 이상」처럼 구간에 붙은 공고를 남기려는 것이다 — 운영 실측에서 이를
+   * 빼면 추이 비교 표본이 기간당 7건으로 줄었다. 경력 정보가 아예 없는 공고는 판단할 수 없어 남긴다.
+   */
+  private static boolean fitsBracket(JobPosting posting, int bracketMinYears) {
+    return posting.getExperienceMax() != null
+        || posting.getExperienceMin() == null
+        || posting.getExperienceMin() >= bracketMinYears - OPEN_ENDED_TOLERANCE_YEARS;
+  }
+
+  /** 공개연봉 공고의 서로 다른 회사 수. 회사명이 없으면 같은 회사인지 알 수 없어 공고마다 따로 센다. */
+  private static int disclosedCompanyCount(List<JobPosting> postings) {
+    Set<String> companies = new HashSet<>();
+    for (JobPosting posting : postings) {
+      if (posting.disclosedSalary() == null) continue;
+      String name = normalizeCompany(posting.getCompanyName());
+      companies.add(name.isEmpty() ? "id:" + posting.getId() : name);
+    }
+    return companies.size();
+  }
+
+  /** 법인 표기와 공백만 걷는다 — `㈜인팩` 과 `(주) 인팩` 을 같은 회사로. */
+  private static String normalizeCompany(String name) {
+    if (name == null) return "";
+    return name.replace("㈜", "").replace("(주)", "").replaceAll("\\s+", "");
   }
 
   private List<Long> disclosedSalaries(List<JobPosting> postings) {

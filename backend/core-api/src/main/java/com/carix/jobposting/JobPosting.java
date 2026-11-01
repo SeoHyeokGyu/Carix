@@ -43,6 +43,10 @@ public class JobPosting {
   @Column(name = "dedup_group_id")
   private UUID dedupGroupId;
 
+  /** 같은 회사의 재등록 공고가 표본을 채우지 않게 서로 다른 회사 수를 셀 때 쓴다. */
+  @Column(name = "company_name")
+  private String companyName;
+
   /** 공개 연봉 하한. 상·하한이 모두 있어야 유효 공개연봉으로 센다. */
   @Column(name = "salary_min")
   private Long salaryMin;

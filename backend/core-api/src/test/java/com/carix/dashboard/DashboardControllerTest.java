@@ -121,7 +121,7 @@ class DashboardControllerTest {
                 new SalaryDistributionResponse.WageBaseline(
                     "WAGE_STAT", 72_000_000L, "초과급여 제외, 상여 포함"),
                 new SalaryDistributionResponse.PostingReference(
-                    45_000_000L, 58_000_000L, 65_000_000L, 74_000_000L, 95_000_000L, 41, 42.5),
+                    45_000_000L, 58_000_000L, 65_000_000L, 74_000_000L, 95_000_000L, 41, 42.5, 30),
                 new SalaryDistributionResponse.UserPosition(60_000_000L, 35),
                 new SalaryDistributionResponse.DistributionPeerGroup(3, "서울 / 경력 MID / 회사규모 무관"),
                 List.of(

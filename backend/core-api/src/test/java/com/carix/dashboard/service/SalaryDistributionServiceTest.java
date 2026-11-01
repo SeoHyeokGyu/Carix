@@ -311,6 +311,36 @@ class SalaryDistributionServiceTest {
     assertThat(response.postingReference().missingRate()).isEqualTo(97.5);
   }
 
+  // 화면은 건수와 회사 수를 함께 보고 무엇이 모자란지 밝힌다. 회사 수가 빠지면 「공개 연봉 20건
+  // (최소 10건 필요)」처럼 기준을 넘은 숫자로 표본 부족을 말하게 된다.
+  @Test
+  @DisplayName("공개 연봉 건수는 채워도 회사가 10곳 미만이면 표본 부족이고 회사 수를 싣는다")
+  void 공개연봉_회사부족_표본부족() {
+    List<JobPosting> candidates = new ArrayList<>();
+    for (int i = 0; i < 20; i++) {
+      candidates.add(
+          JobPosting.builder()
+              .id(UUID.randomUUID())
+              .companyName("회사" + (i % 3))
+              .salaryMin(50_000_000L)
+              .salaryMax(50_000_000L)
+              .jobFamily("DEVELOPER")
+              .region("서울 강남구")
+              .experienceMin(3)
+              .experienceMax(7)
+              .employmentType("FULL_TIME")
+              .postedStartDate(java.time.LocalDate.of(2026, 5, 1))
+              .build());
+    }
+    givenCandidates(candidates);
+
+    SalaryDistributionResponse response = service.resolve(USER_ID, BASE_YM);
+
+    assertThat(response.status()).isEqualTo("INSUFFICIENT_SAMPLE");
+    assertThat(response.postingReference().sampleSize()).isEqualTo(20);
+    assertThat(response.postingReference().companyCount()).isEqualTo(3);
+  }
+
   @Test
   @DisplayName("연봉 이력이 없으면 userPosition 을 채우지 않는다 — 임의 값으로 메우지 않는다")
   void 연봉이력_없음() {

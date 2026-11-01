@@ -153,7 +153,8 @@ public record SalaryDistributionResponse(
       @Schema(nullable = true) Long p75,
       @Schema(nullable = true) Long max,
       int sampleSize,
-      @Schema(description = "동료집단 공고 중 연봉 미공개 비율(%)") double missingRate) {}
+      @Schema(description = "동료집단 공고 중 연봉 미공개 비율(%)") double missingRate,
+      @Schema(description = "공개 연봉 공고의 서로 다른 회사 수. 건수와 함께 최소 기준을 채워야 분포를 낸다") int companyCount) {}
 
   public record UserPosition(Long grossSalary, Integer percentile) {}
 

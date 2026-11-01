@@ -333,9 +333,10 @@
     *   `year` (String, optional): 경력 사다리 기준 연도 (YYYY). 미지정 시 `baseYearMonth` 연도 또는 최근 기준선 연도 적용 ([개발 계획 §2 `b14`](../plans/carix-dev-plan.md)).
     *   *가상 프로필 탐색용 (MVP 범위 밖)*: `jobFamily`, `yearsOfExperience`, `region`, `companySize` — 의미와 동작은 §5.1과 동일. 파라미터만 MVP 에서 제외한다 ([개발 계획 §4](../plans/carix-dev-plan.md)).
 *   결합 분포와 percentile은 원천별 5수치 요약으로 재구성할 수 없으므로, **동료집단 조건의 원 공고(`job_posting`)를 직접 집계**해 계산한다: `dedup_group_id` 단위로 원천 간 중복을 제거하고 유효 공개연봉 행만 사용. `market_aggregate` 에는 연봉 5수치를 두지 않는다 — 원천별 행은 중복 미제거라 이 응답과 모수가 다르다. **연봉 숫자의 정본은 이 경로 하나다**(개발 계획 `b11`). `salary_missing_rate` 는 `demand_rate` 신뢰도 지표라 집계에 남는다. 이 응답의 산출원이 아니다.
-*   표본 부족은 동료집단 공고 < 10 **또는** 그중 공개연봉 < 10 이다. 완화 사다리는 두 수가 모두 10건을 채우는 단계에 안착하고, 공고만 채우면 한 단계 더 넓힌다(스킬 추천의 동료집단은 공고 수만 본다).
+*   표본 부족은 동료집단 공고 < 10 **또는** 그중 공개연봉 < 10 **또는** 공개연봉 공고의 서로 다른 회사 < 10 이다. 완화 사다리는 세 수가 모두 10을 채우는 단계에 안착하고, 하나라도 모자라면 한 단계 더 넓힌다(스킬 추천의 동료집단은 공고 수만 본다). 회사는 회사명에서 법인 표기(`㈜`·`(주)`)와 공백을 걷어 구분하고, 회사명이 없는 공고는 각각 다른 회사로 센다 — 한 회사가 같은 공고를 다시 올리면 건수만 늘어 그 회사 연봉이 분포를 정하기 때문이다(운영 사례: 대기업 1단계 공개 11건 중 5건이 한 회사의 재등록).
+*   경력 구간은 공고 경력 범위와 겹치면 포함하되, **최대 경력이 없는 「N년 이상」 공고는 N 이 구간 하한 − 1 이상일 때만** 넣는다. 「경력 0년~」 같은 공고는 신입을 받는 공고라 그 연봉이 상위 구간을 대표하지 않는다. 1년 여유는 MID(4~7년)의 「3년 이상」처럼 구간에 붙은 공고를 남기려는 것이다 — 운영 실측에서 이를 빼면 무작위 표본 공개연봉이 기간당 7건으로 줄어 제시 연봉 추이 비교가 늘 판단 보류였다. 경력 정보가 아예 없는 공고는 판단할 수 없어 남긴다. 이 규칙은 연봉 분포 동료집단(분포·협상 목표·오퍼 연봉 수준·스킬 추천 공고 수)에만 걸리고, 채용 활발도·시장가치의 동료집단에는 걸리지 않는다.
 *   표본 부족 시에도 `200 OK`로 상태와 표본 수를 반환한다 (204 금지 — 화면은 `표본 부족`과 표본 수를 표시해야 함). `sampleSize` 는 동료집단 공고 수다.
-    `userPosition` 은 `null` 이다. `postingReference` 는 공고가 모자라면 `null`, 공고는 충분한데 공개연봉이 모자라면 5수치가 모두 `null` 이고 `sampleSize`(공개연봉 수)·`missingRate` 만 있는 객체다(예: `{ "min": null, "p25": null, "median": null, "p75": null, "max": null, "sampleSize": 5, "missingRate": 97.5 }`). 공고가 모자란 경우의 예:
+    `userPosition` 은 `null` 이다. `postingReference` 는 공고가 모자라면 `null`, 공고는 충분한데 공개연봉(건수 또는 회사 수)이 모자라면 5수치가 모두 `null` 이고 `sampleSize`(공개연봉 수)·`missingRate`·`companyCount`(공개연봉 공고의 서로 다른 회사 수)만 있는 객체다(예: `{ "min": null, "p25": null, "median": null, "p75": null, "max": null, "sampleSize": 5, "missingRate": 97.5, "companyCount": 5 }`). 화면은 건수는 채웠는데 회사가 모자라면 회사 수 기준을 밝힌다. 공고가 모자란 경우의 예:
     ```json
     {
       "status": "INSUFFICIENT_SAMPLE",
@@ -370,7 +371,7 @@
       "baseline": { "basis": "AGE_BAND_PROXY", "source": "KOSIS", "median": 72000000, "wageDefinition": "ANNUAL_GROSS_MEDIAN" },
       "postingReference": {
         "min": 45000000, "p25": 58000000, "median": 65000000, "p75": 74000000, "max": 95000000,
-        "sampleSize": 41, "missingRate": 42.5
+        "sampleSize": 41, "missingRate": 42.5, "companyCount": 30
       },
       "userPosition": { "grossSalary": 60000000, "percentile": 35 },
       "peerGroup": {

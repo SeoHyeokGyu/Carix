@@ -39,6 +39,8 @@ export interface PostingReference {
   max: number | null;
   sampleSize: number;
   missingRate: number;
+  /** 공개 연봉 공고의 서로 다른 회사 수. 건수와 함께 최소 기준을 채워야 분포를 낸다. */
+  companyCount?: number;
 }
 
 export interface UserPosition {
