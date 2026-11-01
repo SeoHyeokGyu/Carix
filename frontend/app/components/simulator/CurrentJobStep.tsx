@@ -305,25 +305,30 @@ export function CurrentJobStep({
       className="flex flex-col gap-6"
     >
       {!noIncome && (
-        <div className="flex flex-col gap-1 text-sm">
+        // 바꾸기·취소는 연봉 줄 오른쪽 한 자리에서 토글한다. 따로 줄을 두면 버튼이 홀로 떠 보인다.
+        <div className="flex flex-wrap items-center justify-between gap-x-3 text-sm">
           <p>
             세전 연봉{" "}
             <strong>{formatKoreanSalary(context.currentAnnualGross)}</strong>
             {context.hireDate && <> · 입사일 {context.hireDate}</>}
           </p>
-          {!overrideOpen && (
-            <div>
-              <Button
-                type="button"
-                variant="ghost"
-                size="xs"
-                className="min-h-11"
-                onClick={() => setOverrideOpen(true)}
-              >
-                이번만 바꾸기
-              </Button>
-            </div>
-          )}
+          <Button
+            type="button"
+            variant="link"
+            className="min-h-11 px-0 sm:min-h-0"
+            aria-label={overrideOpen ? "이번만 바꾸기 취소" : undefined}
+            onClick={() => {
+              if (!overrideOpen) {
+                setOverrideOpen(true);
+                return;
+              }
+              setOverrideOpen(false);
+              setOverride("");
+              setErrors((prev) => ({ ...prev, override: undefined }));
+            }}
+          >
+            {overrideOpen ? "취소" : "이번만 바꾸기"}
+          </Button>
         </div>
       )}
 
@@ -347,22 +352,6 @@ export function CurrentJobStep({
           }}
           error={errors.override}
         />
-      )}
-      {overrideOpen && !noIncome && (
-        <div>
-          <Button
-            type="button"
-            variant="ghost"
-            size="xs"
-            onClick={() => {
-              setOverrideOpen(false);
-              setOverride("");
-              setErrors((prev) => ({ ...prev, override: undefined }));
-            }}
-          >
-            취소
-          </Button>
-        </div>
       )}
 
       <Field
