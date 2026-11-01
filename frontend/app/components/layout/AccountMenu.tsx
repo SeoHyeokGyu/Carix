@@ -6,12 +6,15 @@ import {
   UserRound,
 } from "lucide-react";
 import { DropdownMenu } from "radix-ui";
+import { useState } from "react";
 import { Link, useLocation, useNavigate, useSubmit } from "react-router";
 
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { InlineAlert } from "@/components/ui/inline-alert";
 import { cn } from "@/lib/utils";
 
+import { toUserMessage } from "../../lib/apiError";
 import { logout } from "../../lib/authApi";
 import { withNext } from "../../lib/nextPath";
 import { REGISTER_PATH } from "../../lib/routeGuards";
@@ -42,71 +45,89 @@ export function AccountMenu() {
   const isGuest = session?.status === "authenticated" && session.guest;
 
   // 게스트는 마이페이지 가드(가입으로 보냄)를 거치지 않고 여기서 바로 끝낸다.
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [endError, setEndError] = useState<string | null>(null);
   const endTrial = async () => {
-    await logout();
+    // 확인창이 열린 채 메뉴가 남으면 실패 알림이 가려진다.
+    setMenuOpen(false);
+    setEndError(null);
+    try {
+      await logout();
+    } catch (error) {
+      // 세션이 서버에 남아 있으니 끝난 것처럼 이동하지 않고 알린다.
+      setEndError(toUserMessage(error));
+      return;
+    }
     setSession(ANONYMOUS);
     navigate("/", { replace: true });
   };
   const isActive = pathname.startsWith(MYPAGE_PATH);
 
   return (
-    <DropdownMenu.Root>
-      <DropdownMenu.Trigger asChild>
-        <Button
-          variant="ghost"
-          size="sm"
-          aria-label="내 정보"
-          data-active={isActive}
-          className={cn(
-            "h-11 sm:h-7",
-            isActive
-              ? "bg-carix-info/10 text-carix-info font-semibold"
-              : "text-carix-text/70 hover:bg-carix-border/40 hover:text-carix-text",
-          )}
-        >
-          <UserRound aria-hidden />
-          <span className="hidden sm:inline">내 정보</span>
-          <ChevronDown aria-hidden className="size-3.5" />
-        </Button>
-      </DropdownMenu.Trigger>
-      <DropdownMenu.Portal>
-        <DropdownMenu.Content
-          align="end"
-          sideOffset={6}
-          className="z-50 min-w-40 rounded-md border border-carix-border bg-carix-surface p-1 shadow-md"
-        >
-          {isGuest ? (
-            <>
-              <DropdownMenu.Item asChild className={ITEM_CLASS}>
-                <Link to={withNext(REGISTER_PATH, pathname)}>
-                  <UserRound aria-hidden className="size-4" />
-                  가입해서 저장
-                </Link>
-              </DropdownMenu.Item>
-              <DropdownMenu.Separator className="my-1 h-px bg-carix-border" />
-              <ConfirmDialog
-                trigger={
-                  <DropdownMenu.Item
-                    className={ITEM_CLASS}
-                    onSelect={(event) => event.preventDefault()}
-                  >
-                    <LogOut aria-hidden className="size-4" />
-                    체험 끝내기
-                  </DropdownMenu.Item>
-                }
-                title="체험을 끝낼까요?"
-                description="입력한 내용은 복구할 수 없습니다."
-                confirmLabel="체험 끝내기"
-                tone="danger"
-                onConfirm={endTrial}
-              />
-            </>
-          ) : (
-            <MemberItems />
-          )}
-        </DropdownMenu.Content>
-      </DropdownMenu.Portal>
-    </DropdownMenu.Root>
+    <>
+      {endError && (
+        <div className="fixed top-14 right-4 z-50 max-w-sm rounded-md border border-carix-border bg-carix-surface p-3 shadow-md">
+          <InlineAlert message={endError} onDismiss={() => setEndError(null)} />
+        </div>
+      )}
+      <DropdownMenu.Root open={menuOpen} onOpenChange={setMenuOpen}>
+        <DropdownMenu.Trigger asChild>
+          <Button
+            variant="ghost"
+            size="sm"
+            aria-label="내 정보"
+            data-active={isActive}
+            className={cn(
+              "h-11 sm:h-7",
+              isActive
+                ? "bg-carix-info/10 text-carix-info font-semibold"
+                : "text-carix-text/70 hover:bg-carix-border/40 hover:text-carix-text",
+            )}
+          >
+            <UserRound aria-hidden />
+            <span className="hidden sm:inline">내 정보</span>
+            <ChevronDown aria-hidden className="size-3.5" />
+          </Button>
+        </DropdownMenu.Trigger>
+        <DropdownMenu.Portal>
+          <DropdownMenu.Content
+            align="end"
+            sideOffset={6}
+            className="z-50 min-w-40 rounded-md border border-carix-border bg-carix-surface p-1 shadow-md"
+          >
+            {isGuest ? (
+              <>
+                <DropdownMenu.Item asChild className={ITEM_CLASS}>
+                  <Link to={withNext(REGISTER_PATH, pathname)}>
+                    <UserRound aria-hidden className="size-4" />
+                    가입해서 저장
+                  </Link>
+                </DropdownMenu.Item>
+                <DropdownMenu.Separator className="my-1 h-px bg-carix-border" />
+                <ConfirmDialog
+                  trigger={
+                    <DropdownMenu.Item
+                      className={ITEM_CLASS}
+                      onSelect={(event) => event.preventDefault()}
+                    >
+                      <LogOut aria-hidden className="size-4" />
+                      체험 끝내기
+                    </DropdownMenu.Item>
+                  }
+                  title="체험을 끝낼까요?"
+                  description="입력한 내용은 복구할 수 없습니다."
+                  confirmLabel="체험 끝내기"
+                  tone="danger"
+                  onConfirm={endTrial}
+                />
+              </>
+            ) : (
+              <MemberItems />
+            )}
+          </DropdownMenu.Content>
+        </DropdownMenu.Portal>
+      </DropdownMenu.Root>
+    </>
   );
 }
 
