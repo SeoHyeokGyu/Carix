@@ -144,6 +144,23 @@ public class SnapshotRecalculationService {
     return written;
   }
 
+  /**
+   * 마지막 스냅샷 다음 달부터 현재월까지 비어 있으면 채운다. 재계산은 소득·소비·스킬·프로필을 바꿀 때만 돌아서, 월이 바뀌면 아무것도 바꾸지 않은 사용자는 새 달 스냅샷이
+   * 없다. 현재월만 채우면 사이 달이 비어 전월 대비가 몇 달 전과 비교된다. 스냅샷이 하나도 없는 사용자는 온보딩을 마치지 않은 것이라 건너뛴다.
+   *
+   * @return 한 달이라도 새로 기록했으면 {@code true}. CPI 최신월 발행 지연으로 현재월을 건너뛰었으면 그 달은 여전히 비어 있다
+   */
+  @Transactional
+  public boolean ensureCurrentMonth(UUID userId) {
+    String latestYearMonth = currentYearMonth.get();
+    return indexSnapshotRepository
+        .findFirstByUserIdOrderByBaseYearMonthDesc(userId)
+        .map(latest -> YearMonth.parse(latest.getBaseYearMonth(), YM).plusMonths(1).format(YM))
+        .filter(next -> next.compareTo(latestYearMonth) <= 0)
+        .map(next -> recalculateSnapshot(userId, next) > 0)
+        .orElse(false);
+  }
+
   private MonthCalculation calculateMonth(UUID userId, String ym, String latestYearMonth) {
     PpiResult ppi = ppiProvider.calculate(userId, ym);
     if (ppi.status() == IndexStatus.UPDATE_DELAYED && ym.equals(latestYearMonth)) {

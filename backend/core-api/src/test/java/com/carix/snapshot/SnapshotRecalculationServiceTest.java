@@ -176,6 +176,57 @@ class SnapshotRecalculationServiceTest {
     assertThat(snapshot.getRationale().salaryGapBucket()).isNull();
   }
 
+  // 2026-11-01 운영: 월이 바뀌자 사용자가 아무것도 바꾸지 않은 계정은 새 달 스냅샷이 없어 대시보드가
+  // "첫 지수를 계산하고 있습니다" 에 멈췄다. 재계산은 데이터 변경 시에만 돌고 월초 작업이 없었다.
+  @Test
+  @DisplayName("지난달 스냅샷만 있으면 현재월 스냅샷을 만든다 — 월이 바뀌어도 대시보드가 비지 않는다")
+  void ensureCurrentMonth_writesCurrentMonthWhenOnlyPastMonthsExist() {
+    service.recalculateSnapshot(userId, "202606");
+    indexSnapshotRepository.deleteAll(
+        indexSnapshotRepository.findByUserIdAndBaseYearMonth(userId, CURRENT_YM));
+
+    boolean calculated = service.ensureCurrentMonth(userId);
+
+    assertThat(calculated).isTrue();
+    assertThat(indexSnapshotRepository.findByUserIdAndBaseYearMonth(userId, CURRENT_YM)).hasSize(1);
+  }
+
+  @Test
+  @DisplayName("몇 달 비었으면 마지막 스냅샷 다음 달부터 채운다 — 전월 대비가 석 달 전과 비교되지 않는다")
+  void ensureCurrentMonth_fillsEveryMissingMonthSinceLatest() {
+    service.recalculateSnapshot(userId, "202605");
+    indexSnapshotRepository.deleteAll(
+        indexSnapshotRepository.findByUserIdAndBaseYearMonth(userId, "202606"));
+    indexSnapshotRepository.deleteAll(
+        indexSnapshotRepository.findByUserIdAndBaseYearMonth(userId, CURRENT_YM));
+
+    service.ensureCurrentMonth(userId);
+
+    assertThat(indexSnapshotRepository.findByUserIdOrderByBaseYearMonthDesc(userId))
+        .extracting(IndexSnapshot::getBaseYearMonth)
+        .containsExactly("202607", "202606", "202605");
+  }
+
+  @Test
+  @DisplayName("스냅샷이 하나도 없으면 만들지 않는다 — 온보딩을 마치지 않은 계정이다")
+  void ensureCurrentMonth_skipsUserWithoutAnySnapshot() {
+    boolean calculated = service.ensureCurrentMonth(userId);
+
+    assertThat(calculated).isFalse();
+    assertThat(indexSnapshotRepository.findByUserIdOrderByBaseYearMonthDesc(userId)).isEmpty();
+  }
+
+  @Test
+  @DisplayName("현재월 스냅샷이 이미 있으면 다시 계산하지 않는다 — 조회마다 새 버전 행이 쌓이지 않는다")
+  void ensureCurrentMonth_skipsWhenCurrentMonthExists() {
+    service.recalculateSnapshot(userId, CURRENT_YM);
+
+    boolean calculated = service.ensureCurrentMonth(userId);
+
+    assertThat(calculated).isFalse();
+    assertThat(indexSnapshotRepository.findByUserIdAndBaseYearMonth(userId, CURRENT_YM)).hasSize(1);
+  }
+
   @Test
   @DisplayName("같은 버전으로 재실행하면 행이 대체되고 늘어나지 않는다")
   void recalculate_isIdempotentWhenVersionIsFixed() {
