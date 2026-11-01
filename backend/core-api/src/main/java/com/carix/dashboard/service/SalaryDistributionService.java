@@ -135,14 +135,18 @@ public class SalaryDistributionService {
       return insufficient(
           baseline,
           distribution.peerSampleSize(),
-          countsOnly(distribution.disclosedSampleSize(), distribution.peerSampleSize()),
+          countsOnly(
+              distribution.disclosedSampleSize(),
+              distribution.peerSampleSize(),
+              distribution.disclosedCompanyCount()),
           distribution.appliedConditions(),
           buildCareerLadder(careerProfile, year));
     }
 
     List<Long> disclosed = distribution.disclosedSalaries();
     SalaryDistributionResponse.PostingReference reference =
-        buildReference(disclosed, distribution.peerSampleSize());
+        buildReference(
+            disclosed, distribution.peerSampleSize(), distribution.disclosedCompanyCount());
     List<SalaryDistributionResponse.SalaryTrendPoint> trend = toTrendDtos(distribution.trend());
 
     return new SalaryDistributionResponse(
@@ -274,13 +278,14 @@ public class SalaryDistributionService {
   }
 
   /** 공개연봉 부족 표본 부족 응답용 — 5수치 없이 공개연봉 수와 결측률만. */
-  private SalaryDistributionResponse.PostingReference countsOnly(int disclosed, int totalPostings) {
+  private SalaryDistributionResponse.PostingReference countsOnly(
+      int disclosed, int totalPostings, int companies) {
     double missingRate =
         totalPostings == 0
             ? 100.0
             : round2((double) (totalPostings - disclosed) / totalPostings * 100);
     return new SalaryDistributionResponse.PostingReference(
-        null, null, null, null, null, disclosed, missingRate);
+        null, null, null, null, null, disclosed, missingRate, companies);
   }
 
   /**
@@ -288,11 +293,11 @@ public class SalaryDistributionService {
    * 숫자가 어긋나지 않고, H2 와 Postgres 의 분위수 함수 차이도 타지 않는다.
    */
   private SalaryDistributionResponse.PostingReference buildReference(
-      List<Long> sorted, int totalPostings) {
+      List<Long> sorted, int totalPostings, int companies) {
 
     if (sorted.isEmpty()) {
       return new SalaryDistributionResponse.PostingReference(
-          null, null, null, null, null, 0, 100.0);
+          null, null, null, null, null, 0, 100.0, 0);
     }
     int n = sorted.size();
     double missingRate = round2((double) (totalPostings - n) / totalPostings * 100);
@@ -304,7 +309,8 @@ public class SalaryDistributionService {
         sorted.get(Math.min(n - 1, (int) Math.floor(n * 0.75))),
         sorted.get(n - 1),
         n,
-        missingRate);
+        missingRate,
+        companies);
   }
 
   /**

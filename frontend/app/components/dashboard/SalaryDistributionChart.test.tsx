@@ -260,6 +260,40 @@ describe("SalaryDistributionChart", () => {
     ).not.toBeInTheDocument();
   });
 
+  // 공개 연봉은 10건을 넘어도 한두 회사의 재등록이면 표본 부족이다. 건수만 보이면
+  // 「공개 연봉 20건 (최소 10건 필요)」처럼 스스로 모순된 문장이 된다.
+  it("공개 연봉 건수는 채웠지만 회사가 모자라면 회사 수 기준을 밝힌다", () => {
+    render(
+      <SalaryDistributionChart
+        data={{
+          status: "INSUFFICIENT_SAMPLE",
+          sampleSize: 200,
+          minRequired: 10,
+          baseline: null,
+          postingReference: {
+            min: null,
+            p25: null,
+            median: null,
+            p75: null,
+            max: null,
+            sampleSize: 20,
+            missingRate: 90,
+            companyCount: 3,
+          },
+          userPosition: null,
+          peerGroup: {
+            fallbackLevel: 5,
+            appliedConditions: "서울 / 경력 MID±1 / 회사규모 무관",
+          },
+        }}
+      />,
+    );
+
+    const insufficient = screen.getByTestId("insufficient-sample-state");
+    expect(insufficient).toHaveTextContent("공개 연봉 20건, 회사 3곳");
+    expect(insufficient).toHaveTextContent("서로 다른 회사 10곳 이상 필요");
+  });
+
   it("경력 사다리에 기준 연도(basePeriod)와 연도 선택 버튼이 표시되고 연도 변경이 동작한다 (b14)", async () => {
     const onYearChange = vi.fn();
     const dataWithYearAxis: SalaryDistributionResponse = {

@@ -437,4 +437,98 @@ class PeerSalaryDistributionResolverTest {
 
     assertThat(resolver.resolvePostings(profile).level()).isEqualTo(2);
   }
+
+  // 2026-11-01 운영: 개발·서울·MID·대기업 1단계가 공개 연봉 11건으로 안착했는데 그중 5건이 같은 회사의
+  // 재등록 공고였다. 소수 회사가 분포·협상 목표·오퍼 수준을 모두 정했다.
+  @Test
+  @DisplayName("resolve - 공개 연봉이 10건이어도 서로 다른 회사가 10곳 미만이면 다음 단계로 넓힌다")
+  void resolve_widensWhenDisclosedCompaniesAreFew() {
+    CareerProfile profile = new CareerProfile(UUID.randomUUID());
+    profile.patch("DEVELOPER", 5, "서울 강남구", "FULL_TIME", null, null);
+    List<JobPosting> sameCompany = new ArrayList<>();
+    for (int i = 0; i < 12; i++) {
+      sameCompany.add(posting("에스텍시스템", 31_000_000L, null, null));
+    }
+    List<JobPosting> manyCompanies = new ArrayList<>();
+    for (int i = 0; i < 12; i++) {
+      manyCompanies.add(posting("회사" + i, 60_000_000L, null, null));
+    }
+    given(
+            jobPostingRepository.findPeerGroupCandidates(
+                eq("DEVELOPER"), eq("서울 강남구"), eq("FULL_TIME"), isNull(), eq(4), eq(7)))
+        .willReturn(sameCompany);
+    given(
+            jobPostingRepository.findPeerGroupCandidates(
+                eq("DEVELOPER"), eq("서울"), eq("FULL_TIME"), isNull(), eq(4), eq(7)))
+        .willReturn(manyCompanies);
+
+    PeerSalaryDistribution distribution = resolver.resolve(profile);
+
+    assertThat(distribution.fallbackLevel()).isEqualTo(3);
+    assertThat(distribution.hasSufficientSalaries()).isTrue();
+  }
+
+  @Test
+  @DisplayName("resolve - 끝까지 서로 다른 회사가 10곳 미만이면 공개 연봉 부족이다 — 협상 목표·오퍼 수준도 이 판정을 쓴다")
+  void resolve_insufficientWhenCompaniesShortEverywhere() {
+    CareerProfile profile = new CareerProfile(UUID.randomUUID());
+    profile.patch("DEVELOPER", 5, "서울 강남구", "FULL_TIME", null, null);
+    List<JobPosting> fewCompanies = new ArrayList<>();
+    for (int i = 0; i < 20; i++) {
+      fewCompanies.add(posting("회사" + (i % 3), 50_000_000L, null, null));
+    }
+    given(
+            jobPostingRepository.findPeerGroupCandidates(
+                anyString(), anyString(), any(), any(), anyInt(), anyInt()))
+        .willReturn(fewCompanies);
+
+    PeerSalaryDistribution distribution = resolver.resolve(profile);
+
+    assertThat(distribution.disclosedSampleSize()).isEqualTo(20);
+    assertThat(distribution.hasSufficientSalaries()).isFalse();
+  }
+
+  // 같은 운영 사례에서 공개 11건 중 10건이 "경력 0년~"(최대 경력 없음) 신입 공고였다. 겹침 조건만 보면
+  // 최대 경력이 없는 공고는 모든 구간에 걸려 MID 분포를 신입 연봉으로 끌어내렸다.
+  @Test
+  @DisplayName("resolve - 최대 경력이 없는 공고는 최소 경력이 구간 하한보다 1년 넘게 낮으면 넣지 않는다 — 「3년~」은 MID 에 든다")
+  void resolve_excludesOpenEndedPostingsBelowBracket() {
+    CareerProfile profile = new CareerProfile(UUID.randomUUID());
+    profile.patch("DEVELOPER", 5, "서울 강남구", "FULL_TIME", null, null);
+    List<JobPosting> candidates = new ArrayList<>();
+    for (int i = 0; i < 12; i++) {
+      candidates.add(posting("신입" + i, 30_000_000L, 0, null));
+      candidates.add(posting("저연차" + i, 40_000_000L, 2, null));
+      candidates.add(posting("경력" + i, 60_000_000L, 3, null));
+      candidates.add(posting("범위" + i, 65_000_000L, 3, 8));
+    }
+    given(
+            jobPostingRepository.findPeerGroupCandidates(
+                eq("DEVELOPER"), eq("서울 강남구"), eq("FULL_TIME"), isNull(), eq(4), eq(7)))
+        .willReturn(candidates);
+
+    PeerSalaryDistribution distribution = resolver.resolve(profile);
+
+    assertThat(distribution.fallbackLevel()).isEqualTo(2);
+    assertThat(distribution.peerSampleSize()).isEqualTo(24);
+    assertThat(distribution.disclosedSalaries())
+        .contains(60_000_000L)
+        .doesNotContain(30_000_000L, 40_000_000L);
+  }
+
+  private JobPosting posting(
+      String companyName, long salary, Integer experienceMin, Integer experienceMax) {
+    return JobPosting.builder()
+        .id(UUID.randomUUID())
+        .companyName(companyName)
+        .region("서울 강남구")
+        .employmentType("FULL_TIME")
+        .experienceMin(experienceMin)
+        .experienceMax(experienceMax)
+        .salaryMin(salary)
+        .salaryMax(salary)
+        .dedupGroupId(UUID.randomUUID())
+        .postedStartDate(java.time.LocalDate.of(2026, 5, 1))
+        .build();
+  }
 }

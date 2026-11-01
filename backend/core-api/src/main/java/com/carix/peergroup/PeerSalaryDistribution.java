@@ -16,6 +16,7 @@ import java.util.List;
  * @param appliedConditions 화면에 그대로 쓸 비교 조건 문구
  * @param trend 등록월(posted_start_date)별 제시 연봉 추이 (기능 명세 §4.6)
  * @param trendComparison 무작위 표본 기준 최근·이전 3개월 비교. 표본 월이 없으면 null
+ * @param disclosedCompanyCount 공개연봉 공고의 서로 다른 회사 수. 회사명이 없는 공고는 각각 다른 회사로 센다
  */
 public record PeerSalaryDistribution(
     List<Long> disclosedSalaries,
@@ -23,18 +24,27 @@ public record PeerSalaryDistribution(
     int fallbackLevel,
     String appliedConditions,
     List<TrendPoint> trend,
-    TrendComparison trendComparison) {
+    TrendComparison trendComparison,
+    int disclosedCompanyCount) {
 
   public record TrendPoint(
       String yearMonth, Long median, int sampleSize, int disclosedSampleSize, double missingRate) {}
 
+  /** 회사 구성을 따지지 않는 자리(테스트 등) — 공개연봉 공고마다 다른 회사로 본다. */
   public PeerSalaryDistribution(
       List<Long> disclosedSalaries,
       int peerSampleSize,
       int fallbackLevel,
       String appliedConditions,
       List<TrendPoint> trend) {
-    this(disclosedSalaries, peerSampleSize, fallbackLevel, appliedConditions, trend, null);
+    this(
+        disclosedSalaries,
+        peerSampleSize,
+        fallbackLevel,
+        appliedConditions,
+        trend,
+        null,
+        disclosedSalaries.size());
   }
 
   public PeerSalaryDistribution(
@@ -55,9 +65,14 @@ public record PeerSalaryDistribution(
     return peerSampleSize >= PeerGroupFallbackResolver.MIN_SAMPLE_SIZE;
   }
 
-  /** 공개연봉이 최소 표본을 채웠는가. 5수치·백분위는 이 표본 위에서 매기므로 연봉 분포·실현 가능성은 이것까지 본다. */
+  /**
+   * 공개연봉이 최소 표본을 채웠는가. 5수치·백분위는 이 표본 위에서 매기므로 연봉 분포·실현 가능성·협상 목표는 이것까지 본다.
+   *
+   * <p>건수와 함께 서로 다른 회사 수도 본다 — 한 회사가 같은 공고를 다시 올리면 건수만 늘어 그 회사 연봉이 분포를 정한다.
+   */
   public boolean hasSufficientSalaries() {
-    return disclosedSalaries.size() >= PeerGroupFallbackResolver.MIN_SAMPLE_SIZE;
+    return disclosedSalaries.size() >= PeerGroupFallbackResolver.MIN_SAMPLE_SIZE
+        && disclosedCompanyCount >= PeerGroupFallbackResolver.MIN_SAMPLE_SIZE;
   }
 
   /**

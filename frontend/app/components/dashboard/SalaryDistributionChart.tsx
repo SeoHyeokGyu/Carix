@@ -267,6 +267,14 @@ export function SalaryDistributionChart({
     // 공고는 충분한데 공개 연봉이 모자란 경우 — 서버가 공개 연봉 수·결측률만 담은 postingReference 를 싣는다.
     const salaryShort =
       data.postingReference != null && data.sampleSize >= minRequired;
+    const disclosedCount = data.postingReference?.sampleSize ?? 0;
+    // 건수는 채웠는데 한두 회사의 재등록이라 모자란 경우 — 건수만 보이면 기준을 넘은 것처럼 읽힌다.
+    const companyCount = data.postingReference?.companyCount;
+    const companiesShort =
+      salaryShort &&
+      disclosedCount >= minRequired &&
+      companyCount != null &&
+      companyCount < minRequired;
     return (
       <EmptyState
         data-testid="insufficient-sample-state"
@@ -278,12 +286,19 @@ export function SalaryDistributionChart({
             : "동료집단 표본 수가 부족하여 연봉 분포를 산출할 수 없습니다."
         }
         description={
-          salaryShort ? (
+          companiesShort ? (
+            <>
+              동료집단 공고 {data.sampleSize}건 중{" "}
+              <strong className="text-carix-warning">
+                공개 연봉 {disclosedCount}건, 회사 {companyCount}곳
+              </strong>{" "}
+              (같은 회사 공고가 대부분이라 서로 다른 회사 {minRequired}곳 이상
+              필요)
+            </>
+          ) : salaryShort ? (
             <>
               동료집단 공고 {data.sampleSize}건 중 공개 연봉{" "}
-              <strong className="text-carix-warning">
-                {data.postingReference?.sampleSize ?? 0}건
-              </strong>{" "}
+              <strong className="text-carix-warning">{disclosedCount}건</strong>{" "}
               (최소 기준: {minRequired}건 이상 필요)
             </>
           ) : (
