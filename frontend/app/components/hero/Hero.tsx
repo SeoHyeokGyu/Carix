@@ -1,5 +1,6 @@
+import { Button } from "@/components/ui/button";
+
 import { HERO_INTRO } from "../../content/landing";
-import { GuestStartButton } from "../sections/GuestStartButton";
 import { IndexCrossoverLine } from "./IndexCrossoverLine";
 
 export function Hero() {
@@ -44,8 +45,10 @@ export function Hero() {
             </p>
           ))}
 
-          {/* 첫 화면에서 바로 써 볼 수 있게 — 하단 "시작하기" 까지 내려온 사람만 진입점을 보지 않도록 */}
-          <GuestStartButton className="mt-8 md:items-start" />
+          {/* 시작 버튼은 하단 "시작하기" 한 곳에만 둔다 — 첫 화면에서는 그쪽으로 안내만 한다. */}
+          <Button asChild size="lg" className="mt-8">
+            <a href="#beta-notice-heading">시작하기 ↓</a>
+          </Button>
 
           {/* 질문 카드 리스트 */}
           <ul className="mt-8 flex flex-col gap-3.5 text-left">

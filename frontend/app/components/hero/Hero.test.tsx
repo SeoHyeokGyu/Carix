@@ -1,16 +1,11 @@
 import { render, screen } from "@testing-library/react";
-import { MemoryRouter } from "react-router";
 import { describe, expect, it } from "vitest";
 
 import { Hero } from "./Hero";
 
 describe("Hero", () => {
   it("헤딩과 두 문단, 3가지 질문을 렌더링한다", () => {
-    render(
-      <MemoryRouter>
-        <Hero />
-      </MemoryRouter>,
-    );
+    render(<Hero />);
     expect(screen.getByRole("heading", { level: 1 })).toBeInTheDocument();
     expect(
       screen.getByText(/연봉이 올라도 물가가 더 빠르게 오르면/),

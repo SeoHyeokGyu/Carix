@@ -74,11 +74,7 @@ test.describe("게스트 체험부터 가입까지", () => {
     const email = `e2e-guest-${Date.now()}@example.com`;
 
     await page.goto("/");
-    // 히어로와 하단 "시작하기" 두 곳에 같은 버튼이 있다 — 첫 화면 것을 누른다.
-    await page
-      .getByRole("button", { name: "가입 없이 시작하기" })
-      .first()
-      .click();
+    await page.getByRole("button", { name: "가입 없이 시작하기" }).click();
     await expect(page).toHaveURL(/\/onboarding\/profile$/);
 
     await fillOnboarding(page);
