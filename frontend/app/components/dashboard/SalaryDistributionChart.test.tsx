@@ -137,9 +137,15 @@ describe("SalaryDistributionChart", () => {
       screen.getByText("서울 전체 / 경력 4~7년(미들) / 회사규모 무관"),
     ).toBeInTheDocument();
     expect(screen.getByText("내 구간")).toBeInTheDocument();
-    expect(screen.getByText("추정 · FALLBACK")).toBeInTheDocument();
+    expect(screen.getByText("추정 · 내부 기본값")).toBeInTheDocument();
     expect(screen.getAllByText("KOSIS 실측 보간")).toHaveLength(2);
-    expect(screen.getByText(/AGE_BAND_PROXY · KOSIS/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/연령대 기준 추정 · 통계청 \(/),
+    ).toBeInTheDocument();
+    // 운영에서 판정 기준선 줄에 AGE_BAND_PROXY·ANNUAL_GROSS_MEDIAN 같은 내부 코드가 그대로 보였다.
+    expect(
+      screen.queryByText(/AGE_BAND_PROXY|ANNUAL_GROSS_MEDIAN|FALLBACK/),
+    ).not.toBeInTheDocument();
   });
 
   it("임금통계 기준선이 없으면 각주가 기준선을 지어내지 않는다", () => {

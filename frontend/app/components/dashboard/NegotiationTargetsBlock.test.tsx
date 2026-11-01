@@ -31,7 +31,7 @@ describe("NegotiationTargetsBlock (US-D7)", () => {
     expect(screen.getByText("이미 상회")).toBeInTheDocument();
     expect(screen.getByText("2025년 3월 이후 물가 상승분")).toBeInTheDocument();
     expect(screen.getByText("+4.3%")).toBeInTheDocument();
-    expect(screen.getByText("연령대 기준 추정 · KOSIS")).toBeInTheDocument();
+    expect(screen.getByText("연령대 기준 추정 · 통계청")).toBeInTheDocument();
   });
 
   it("복구선 NONE 은 물가 상승분 없음이다", () => {
