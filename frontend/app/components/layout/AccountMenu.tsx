@@ -101,7 +101,7 @@ export function AccountMenu() {
                 <DropdownMenu.Item asChild className={ITEM_CLASS}>
                   <Link to={withNext(REGISTER_PATH, pathname)}>
                     <UserRound aria-hidden className="size-4" />
-                    가입해서 저장
+                    가입하고 계속 쓰기
                   </Link>
                 </DropdownMenu.Item>
                 <DropdownMenu.Separator className="my-1 h-px bg-carix-border" />
