@@ -8,7 +8,7 @@ export function FeatureList() {
 
   return (
     <section aria-labelledby="feature-heading" className="px-6 py-16">
-      <div className="mx-auto max-w-5xl">
+      <div className="mx-auto max-w-7xl">
         <div className="flex items-center justify-center gap-2">
           <span className="text-2xl" aria-hidden="true">
             ✨

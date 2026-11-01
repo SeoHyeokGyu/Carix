@@ -67,7 +67,8 @@ export function SkillRecommendationsSection({
       ) : (
         <ul
           aria-label="동료집단 추천 스킬 목록"
-          className="flex flex-col gap-3"
+          // 한 줄이 넓으면 스킬명과 수요율 배지 사이가 멀어져 행을 따라 읽기 어렵다 — 넓은 화면은 2열.
+          className="grid gap-3 lg:grid-cols-2"
         >
           {recommendations.map((item) => (
             <li

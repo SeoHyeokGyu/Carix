@@ -197,7 +197,7 @@ export default function DashboardGuide() {
         {/* 2. 결정 신호 (Decision Signal) 해석 */}
         <PageSection title="결정 신호 (Decision Signal) 해석">
           <Card id={GUIDE_SECTION.signal} className={`p-5 ${ANCHOR_OFFSET}`}>
-            <div className="text-xs text-carix-text/80 leading-relaxed mb-4">
+            <div className="mb-4 max-w-3xl text-xs leading-relaxed text-carix-text/80">
               결정 신호는 구매력 지수, 시장가치 지수, 그리고 내 세전 연봉과 공식
               임금통계 중앙값의 격차(연봉 격차)를 규칙표로 조합해 다음에 검토할
               행동을 제시합니다. 위에서부터 차례로 맞춰 보고 처음 맞는 신호를
@@ -230,7 +230,7 @@ export default function DashboardGuide() {
               <h3 className={HEADING.sub}>
                 Q. 수치가 100 미만이면 무조건 나쁜 건가요?
               </h3>
-              <p className="mt-1 text-xs text-carix-text/70 leading-relaxed">
+              <p className="mt-1 max-w-3xl text-xs leading-relaxed text-carix-text/70">
                 그렇지 않습니다. 채용 활발도(OWI)가 100 미만이라도 보유 스킬의
                 시장가치 지수(MVI)가 높다면, 전체 시장에서 동료집단 채용 비중은
                 다소 줄었더라도 내 핵심 스킬을 찾는 수요는 오히려 늘어난 상황일
@@ -243,7 +243,7 @@ export default function DashboardGuide() {
               <h3 className={HEADING.sub}>
                 Q. 과거 스냅샷 데이터에 새로운 지표가 비어 있어요.
               </h3>
-              <p className="mt-1 text-xs text-carix-text/70 leading-relaxed">
+              <p className="mt-1 max-w-3xl text-xs leading-relaxed text-carix-text/70">
                 대시보드 메인 화면의 <b>[지표 재계산]</b> 버튼을 누르면, 온보딩
                 이후 축적된 소득 및 스킬 정보를 바탕으로 과거 모든 월의 스냅샷을
                 최신 지표 알고리즘으로 소급 재계산합니다.

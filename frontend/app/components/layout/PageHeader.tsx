@@ -45,7 +45,9 @@ export function PageHeader({
             {title}
           </h1>
           {description && (
-            <p className="mt-1 text-sm text-carix-text/70">{description}</p>
+            <p className="mt-1 max-w-3xl text-sm text-carix-text/70">
+              {description}
+            </p>
           )}
         </div>
         {actions && (

@@ -10,7 +10,7 @@ export function IndexCrossoverLine() {
       viewBox="0 0 320 160"
       role="img"
       aria-label="구매력 지수는 하락하고 시장가치 지수는 상승하는 두 선이 서로 교차하는 그래프"
-      className="w-full max-w-md"
+      className="w-full max-w-md lg:max-w-lg"
     >
       {/* 1. 배경 격자선 (Faint Grid Lines - 테스트 통과를 위해 path 대신 line 사용) */}
       <line

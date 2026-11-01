@@ -192,7 +192,7 @@ export default function MypageProfile() {
   }, []);
 
   return (
-    <PageFrame width="narrow">
+    <PageFrame>
       <PageHeader
         title="설정"
         description="세션을 관리하고 온보딩 데이터 및 계정을 관리합니다."
@@ -207,7 +207,8 @@ export default function MypageProfile() {
         </div>
       )}
 
-      <div className="mt-8 flex flex-col gap-8">
+      {/* 서로 기대지 않는 설정 카드라 넓은 화면은 두 장씩 나란히 둔다. */}
+      <div className="mt-8 grid gap-6 lg:grid-cols-2 lg:items-start">
         {/* 0. 입사일 — 퇴직금 경계 경고와 성과급 범위 계산에 쓴다 */}
         <Card data-page-section="">
           <CardHeader>

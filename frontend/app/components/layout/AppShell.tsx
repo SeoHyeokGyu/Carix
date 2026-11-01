@@ -51,7 +51,7 @@ export function AppShell({
   return (
     <div className="min-h-screen bg-carix-bg text-carix-text transition-colors duration-300">
       <header className="sticky top-0 z-40 border-b border-carix-border bg-carix-surface/80 backdrop-blur-md">
-        <div className="mx-auto flex w-full max-w-5xl items-center justify-between gap-4 px-6 py-2.5">
+        <div className="mx-auto flex w-full max-w-7xl items-center justify-between gap-4 px-6 py-2.5">
           {/* 좌측: 로고 + 주 내비게이션 */}
           <div className="flex items-center gap-4 md:gap-6 overflow-x-auto min-w-0">
             <Link
