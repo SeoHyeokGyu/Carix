@@ -472,54 +472,36 @@ describe("이직 시뮬레이터 라우트", () => {
     expect(await screen.findByLabelText(/새 회사 연봉/)).toHaveValue("7,000");
   });
 
-  // 지금 회사 쪽 `넣기` 는 결과 블록에서 지금 회사 입력 카드로 옮겨졌다 — 라우트가 대상 카드를 잘못
-  // 넘기면 버튼은 보여도 포커스가 안 간다.
-  it("지금 회사 쪽 넣기는 지금 회사 카드의 접힌 칸을 펼치고 포커스한다", async () => {
+  // 선택 항목은 값이 있으면 펼친 채 그린다. 펼침이 포커스를 옮기면 불러오기가 제목으로 보낸 포커스를 빼앗는다.
+  it("선택 항목이 채워진 저장분을 불러와도 제목 포커스를 빼앗지 않는다", async () => {
     vi.mocked(scenario.getDraft).mockResolvedValue(draft);
-    vi.mocked(scenario.getContext).mockResolvedValue({
-      ...context,
-      hireDate: null,
-    });
-    vi.mocked(scenario.evaluate).mockResolvedValue({
-      ...evaluation,
-      unreflected: ["HIRE_DATE"],
-    });
-    const user = userEvent.setup();
-
-    renderRoute();
-    await user.click(
-      await screen.findByRole("button", { name: "입사일 넣기" }),
-    );
-
-    await waitFor(() => expect(screen.getByLabelText("입사일")).toHaveFocus());
-  });
-
-  // NOTE: (cjkang) 새 회사 쪽 미반영(`넣기`)은 비교가 있을 때만 오퍼 카드 접힌 칸 위에 뜬다.
-  // 그래서 열린 카드의 접힌 칸으로 보내는 경로를 본다 — 라우트가 대상 카드를 잘못 고르면 포커스가 안 간다.
-  it("새 회사 쪽 넣기는 오퍼 카드의 접힌 칸을 펼치고 포커스한다", async () => {
-    vi.mocked(scenario.getDraft).mockResolvedValue(draft);
-    vi.mocked(scenario.evaluate).mockResolvedValue({
-      ...evaluation,
-      unreflected: ["SIGNING_BONUS"],
-    });
     vi.mocked(scenario.listScenarios).mockResolvedValue([
-      savedScenario(draft, "B사"),
+      savedScenario(
+        {
+          stay: { ...draft.stay, stockVesting12m: 5_000_000 },
+          move: { ...draft.move!, signingBonus: 3_000_000 },
+        },
+        "B사",
+      ),
     ]);
     const user = userEvent.setup();
 
     renderRoute();
     await user.click(
-      await screen.findByRole("button", { name: "사이닝 보너스 넣기" }),
+      await screen.findByRole("button", { name: "저장된 시나리오 1" }),
     );
-
-    await waitFor(() =>
-      expect(screen.getByLabelText(/사이닝 보너스 \(만원\)/)).toHaveFocus(),
-    );
-
-    // 불러오기로 다시 그려진 오퍼 입력이 지난 `넣기` 대상을 다시 잡아 포커스를 빼앗으면 안 된다.
-    await user.click(screen.getByRole("button", { name: "저장된 시나리오 1" }));
     await user.click(await screen.findByRole("button", { name: "불러오기" }));
 
+    await waitFor(() =>
+      expect(screen.getByLabelText(/사이닝 보너스 \(만원\)/)).toHaveValue(
+        "300",
+      ),
+    );
+    expect(
+      screen.getByLabelText(/1년 안에 받을 주식/, {
+        selector: "#stockVesting12m",
+      }),
+    ).toHaveValue("500");
     await waitFor(() =>
       expect(screen.getByRole("heading", { level: 1 })).toHaveFocus(),
     );

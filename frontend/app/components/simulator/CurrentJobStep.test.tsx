@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { act, createRef } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -37,7 +37,12 @@ const context: ScenarioContext = {
   marketGapPercent: null,
 };
 
-function renderStep() {
+function renderStep(
+  overrides: {
+    context?: ScenarioContext;
+    initial?: EvaluateRequest | null;
+  } = {},
+) {
   const ref = createRef<StepFormHandle<Stay>>();
   const onChange = vi.fn();
   const onRecordSaved = vi.fn();
@@ -45,9 +50,9 @@ function renderStep() {
   render(
     <CurrentJobStep
       ref={ref}
-      context={context}
+      context={overrides.context ?? context}
       latestIncomeId="i-1"
-      initial={null}
+      initial={overrides.initial ?? null}
       onChange={onChange}
       onRecordSaved={onRecordSaved}
       onRecordSaving={onRecordSaving}
@@ -176,5 +181,78 @@ describe("CurrentJobStep", () => {
       expect(onRecordSaving.mock.calls).toEqual([[true], [false]]),
     );
     expect(onRecordSaved).toHaveBeenCalledTimes(2);
+  });
+
+  describe("선택 항목", () => {
+    function flushStay(ref: React.RefObject<StepFormHandle<Stay> | null>) {
+      let flushed: Stay | null = null;
+      act(() => {
+        flushed = ref.current!.flush();
+      });
+      return flushed as Stay | null;
+    }
+
+    it("추가한 항목을 빼면 그 값이 계산 요청에서 빠지고 칩으로 포커스가 돌아간다", async () => {
+      const { ref } = renderStep();
+      const user = userEvent.setup();
+
+      await user.click(screen.getByRole("button", { name: "주식 추가" }));
+      expect(screen.getByLabelText(/1년 안에 받을 주식/)).toHaveFocus();
+      await user.type(screen.getByLabelText(/1년 안에 받을 주식/), "500");
+      await user.click(screen.getByRole("button", { name: "주식 빼기" }));
+
+      expect(flushStay(ref)).toEqual(
+        expect.objectContaining({ stockVesting12m: null }),
+      );
+      expect(screen.getByRole("button", { name: "주식 추가" })).toHaveFocus();
+    });
+
+    // 빼기가 칸만 숨기고 값을 남기면, flush 가 늘 입사일을 저장해 사용자가 지운 입사일이 프로필에 들어간다.
+    it("입사일을 빼면 flush 해도 프로필에 저장하지 않는다", async () => {
+      const { ref } = renderStep({ context: { ...context, hireDate: null } });
+      const user = userEvent.setup();
+
+      await user.click(screen.getByRole("button", { name: "입사일 추가" }));
+      await user.type(screen.getByLabelText("입사일"), "2023-04-01");
+      await user.click(screen.getByRole("button", { name: "입사일 빼기" }));
+      flushStay(ref);
+
+      expect(profile.patchProfile).not.toHaveBeenCalled();
+    });
+
+    // Safari·Firefox(macOS)는 버튼을 눌러도 포커스를 옮기지 않아 blur 의 relatedTarget 이 null 이다.
+    // 그 순서(mousedown → blur → click)에서도 지운 입사일을 저장하면 안 된다.
+    it("버튼 클릭이 포커스를 옮기지 않는 브라우저에서도 입사일을 빼면 저장하지 않는다", async () => {
+      renderStep({ context: { ...context, hireDate: null } });
+      const user = userEvent.setup();
+
+      await user.click(screen.getByRole("button", { name: "입사일 추가" }));
+      const input = screen.getByLabelText("입사일");
+      fireEvent.change(input, { target: { value: "2023-04-01" } });
+      const remove = screen.getByRole("button", { name: "입사일 빼기" });
+      if (fireEvent.mouseDown(remove)) {
+        fireEvent.blur(input, { relatedTarget: null });
+      }
+      fireEvent.click(remove);
+      // 저장은 비동기 사슬에서 나간다 — 흘려 보낸 뒤에 본다.
+      await act(async () => {});
+
+      expect(profile.patchProfile).not.toHaveBeenCalled();
+    });
+
+    // 접힌 칸은 값을 숨긴 채 계산에 넣을 수 있었다. 값이 있는 항목은 늘 보여야 한다.
+    it("아직 못 받은 주식만 있는 저장분도 주식 칸을 펼친 채 그리고 포커스는 가져가지 않는다", () => {
+      renderStep({
+        initial: { stay: { raisePercent: 3, stockUnvested: 3_000_000 } },
+      });
+
+      const unvested = screen.getByLabelText(/아직 못 받은 주식/);
+      expect(unvested).toHaveValue("300");
+      expect(unvested).toBeVisible();
+      expect(
+        screen.queryByRole("button", { name: "주식 추가" }),
+      ).not.toBeInTheDocument();
+      expect(document.body).toHaveFocus();
+    });
   });
 });

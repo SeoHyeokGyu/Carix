@@ -1,5 +1,4 @@
 import { type ReactNode, useEffect, useId, useRef, useState } from "react";
-import { flushSync } from "react-dom";
 import {
   redirect,
   useLoaderData,
@@ -29,10 +28,6 @@ import { SavedScenarioMenu } from "../../components/simulator/SavedScenarioMenu"
 import { SaveScenarioButton } from "../../components/simulator/SaveScenarioButton";
 import { ScenarioTemplateMenu } from "../../components/simulator/ScenarioTemplateMenu";
 import { StayOutcome } from "../../components/simulator/StayOutcome";
-import {
-  CURRENT_UNREFLECTED,
-  MOVE_UNREFLECTED,
-} from "../../components/simulator/UnreflectedNotice";
 import type {
   EmitSource,
   StepFormHandle,
@@ -64,7 +59,6 @@ import {
   splitAssumptions,
 } from "../../lib/simulatorCompare";
 import { moveConclusion, stayHeadline } from "../../lib/simulatorCopy";
-import { type FillTarget, fillTargetOf } from "../../lib/simulatorFocus";
 import { describeError } from "../../lib/simulatorForm";
 import type { ScenarioTemplate } from "../../lib/simulatorTemplates";
 
@@ -242,7 +236,6 @@ export default function DashboardSimulator() {
   const [bonusUnsaved, setBonusUnsaved] = useState(false);
   const [invalid, setInvalid] = useState({ current: false, offer: false });
   const [offerMissing, setOfferMissing] = useState<OfferMissing | null>(null);
-  const [focus, setFocus] = useState<FillTarget | undefined>();
   const [notice, setNotice] = useState<string | null>(null);
   const [savedMessage, setSavedMessage] = useState<string | null>(null);
 
@@ -314,14 +307,6 @@ export default function DashboardSimulator() {
   const onOfferInvalid = (missing: OfferMissing) => {
     markInvalid("offer");
     setOfferMissing(missing);
-  };
-
-  const fill = (code: string) => {
-    const target = fillTargetOf(code);
-    if (!target) return;
-    // 같은 칸을 다시 눌러도 포커스가 가도록 한 번 비웠다가 넣는다.
-    flushSync(() => setFocus(undefined));
-    setFocus(target);
   };
 
   /** 대기 중인 편집을 반영한다. 무효면 false — flush 가 첫 오류 칸으로 포커스한다. */
@@ -419,8 +404,6 @@ export default function DashboardSimulator() {
       setInvalid({ current: false, offer: false });
     }
     setOfferOpen(next?.move != null);
-    // 다시 그려지는 입력이 지난 `넣기` 대상을 마운트 때 다시 잡아 포커스를 빼앗지 않게 한다.
-    setFocus(undefined);
     pendingOffer.current = null;
     commit(next);
     persisted.current = true;
@@ -485,7 +468,6 @@ export default function DashboardSimulator() {
       pendingOffer.current = null;
       setInvalid((prev) => ({ ...prev, offer: false }));
       setOfferMissing(null);
-      setFocus(undefined);
       setOfferOpen(false);
       return;
     }
@@ -586,11 +568,6 @@ export default function DashboardSimulator() {
                 context={context}
                 latestIncomeId={loaded.latestIncomeId}
                 initial={request}
-                focus={focus?.card === "current" ? focus.field : undefined}
-                unreflected={result?.unreflected.filter((code) =>
-                  CURRENT_UNREFLECTED.has(code),
-                )}
-                onFill={fill}
                 onChange={onStayChange}
                 onInvalid={() => markInvalid("current")}
                 onRecordSaving={setRecordSaving}
@@ -632,11 +609,6 @@ export default function DashboardSimulator() {
               key={offerVersion}
               ref={offerForm}
               initial={request}
-              focus={focus?.card === "offer" ? focus.field : undefined}
-              unreflected={compare?.unreflected.filter((code) =>
-                MOVE_UNREFLECTED.has(code),
-              )}
-              onFill={fill}
               onChange={onOfferChange}
               onInvalid={onOfferInvalid}
             />

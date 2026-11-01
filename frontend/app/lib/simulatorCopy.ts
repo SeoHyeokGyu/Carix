@@ -114,17 +114,3 @@ export function severanceNote(w: {
   const man = Math.round(w.estimatedAmount / MAN_WON).toLocaleString("ko-KR");
   return `${w.monthsToAnniversary}개월만 더 다니면 퇴직금 약 ${man}만원이 생깁니다`;
 }
-
-const UNREFLECTED_LABELS: Record<string, string> = {
-  PERFORMANCE_BONUS: "성과급",
-  STOCK: "주식",
-  HIRE_DATE: "입사일",
-  MOVE_PERFORMANCE_BONUS: "새 회사 성과급",
-  SIGNING_BONUS: "사이닝 보너스",
-  MOVE_STOCK: "새 회사 주식",
-};
-
-/** 모르는 코드는 숨기지 않고 코드 그대로 보인다. */
-export function unreflectedLabel(code: string): string {
-  return UNREFLECTED_LABELS[code] ?? code;
-}

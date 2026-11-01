@@ -702,7 +702,7 @@
 *   **`GET /api/v1/scenarios/context`** — 입력 기본값.
     *   `currentAnnualGross`(고정상여 포함 세전 연 소득), `monthlyNet`, `hireDate`, `bonusIncluded`, `fixedBonusAnnual` — 소득 이력이 없으면 해당 값은 `null`.
     *   `defaultRaisePercent` — 최신 소득 행의 변경 사유가 `RAISE` 일 때만 (최신÷직전 − 1)×100, 아니면 `null`. 직전 행의 사유는 보지 않는다(이직 뒤 첫 인상도 인상이다).
-    *   `performanceBonusRange {min, average, years}` — 올해를 뺀 최근 3개 연도 중 입사 연도 다음 해부터의 연도별 합(기록 없는 해는 0). 입사일이 없으면 첫 소득 행 연도 다음 해부터. 대상 연도가 없거나 대상 연도 안 기록이 한 건도 없으면 `null` — 이때 화면은 예상치 입력을 보이고 `PERFORMANCE_BONUS` 가 미반영으로 뜬다.
+    *   `performanceBonusRange {min, average, years}` — 올해를 뺀 최근 3개 연도 중 입사 연도 다음 해부터의 연도별 합(기록 없는 해는 0). 입사일이 없으면 첫 소득 행 연도 다음 해부터. 대상 연도가 없거나 대상 연도 안 기록이 한 건도 없으면 `null` — 이때 화면은 `+ 성과급` 칩으로 예상치 입력을 열 수 있고, 예상치도 없으면 `unreflected` 에 `PERFORMANCE_BONUS` 가 담긴다.
     *   `inflation` — 한국은행 전망(`governmentPercent`)과 개인물가(`personalPercent`, 계산 불가면 `null`), 격차 `gapPp`·`topGapCategory`·`similar`(|격차| < 0.3%p), `asOf`·`source`.
     *   `marketGapPercent` — 공식 임금통계(KOSIS) 중앙값 대비 격차(%, **세전·명목**). 양수면 중앙값이 더 높다. 상수 기준선뿐이거나 기준선이 없으면 `null`.
 *   **`GET /api/v1/scenarios/feasibility?targetGross={원}`** — 이직 연봉이 §5.2 동료집단 공고 분포에서 몇 번째 백분위(`targetPercentile`)인지로 실현 난이도를 낸다. 음수면 400.
