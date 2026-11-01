@@ -10,14 +10,14 @@ export function GuestBanner({ pathname }: { pathname: string }) {
       role="status"
       className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 border-b border-carix-border bg-carix-info/10 px-6 py-2 text-sm text-carix-text"
     >
-      <span>체험 중입니다. 입력한 내용은 24시간 뒤 사라집니다.</span>
+      <span>입력한 내용은 24시간 동안만 보관돼요.</span>
       <TextLink
         to={withNext(REGISTER_PATH, pathname)}
         direction="none"
         size="sm"
         className="font-semibold"
       >
-        가입해서 저장
+        가입하고 계속 쓰기
       </TextLink>
     </div>
   );

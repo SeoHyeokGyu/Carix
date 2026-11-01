@@ -74,18 +74,14 @@ test.describe("게스트 체험부터 가입까지", () => {
     const email = `e2e-guest-${Date.now()}@example.com`;
 
     await page.goto("/");
-    // 히어로와 하단 "시작하기" 두 곳에 같은 버튼이 있다 — 첫 화면 것을 누른다.
-    await page
-      .getByRole("button", { name: "가입 없이 시작하기" })
-      .first()
-      .click();
+    await page.getByRole("button", { name: "가입 없이 시작하기" }).click();
     await expect(page).toHaveURL(/\/onboarding\/profile$/);
 
     await fillOnboarding(page);
     const salaryAsGuest = await readReviewSalary(page);
     await page.getByRole("button", { name: "내 판정 보기" }).click();
     await expect(page).toHaveURL(/\/dashboard$/);
-    await expect(page.getByText(/체험 중입니다\./)).toBeVisible();
+    await expect(page.getByText(/24시간 동안만 보관돼요/)).toBeVisible();
 
     await page.goto("/dashboard/simulator");
     await page.getByLabel("올해 예상 인상률 (%)").fill("3");
@@ -107,7 +103,7 @@ test.describe("게스트 체험부터 가입까지", () => {
     await expect(page.getByText(scenarioName)).toBeVisible();
 
     await page.goto("/dashboard");
-    await expect(page.getByText(/체험 중입니다\./)).toHaveCount(0);
+    await expect(page.getByText(/24시간 동안만 보관돼요/)).toHaveCount(0);
 
     await page.goto("/onboarding/review");
     expect(await readReviewSalary(page)).toBe(salaryAsGuest);
