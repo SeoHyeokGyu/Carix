@@ -166,7 +166,7 @@ flowchart TD
 | `/onboarding/{profile,income,expense,skills,review}` | 온보딩 5단계 | 세션 |
 | `/dashboard` | 판정 히어로와 근거 지표 카드 (구매력·시장가치·채용 활발도) | 세션 + 온보딩 완료 |
 | `/dashboard/history` | 지난 판정 (월별 당시 판정 이력) | 세션 + 온보딩 완료 |
-| `/dashboard/trends` | 추이분석 (소득vs물가·연봉분포) | 세션 + 온보딩 완료 |
+| `/dashboard/trends` | 추이분석 (지수 추이·연봉 분포) | 세션 + 온보딩 완료 |
 | `/dashboard/skills` | 스킬 분석 (보유 스킬 수요·동료집단 추천 스킬) | 세션 + 온보딩 완료 |
 | `/dashboard/simulator` | 이직 시뮬레이터 (지금 회사·오퍼 한 화면 비교) | 세션 + 온보딩 완료 |
 | `/dashboard/guide` | 지표 가이드 (지표 3종·결정 신호·FAQ) | 세션 + 온보딩 완료 |

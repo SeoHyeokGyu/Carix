@@ -35,7 +35,7 @@ import { resolvePeerConditions } from "../../lib/peerConditions";
 import { toPpiInputs, toWireBaseMonth } from "../../lib/ppiInputs";
 import { LOGIN_PATH } from "../../lib/routeGuards";
 import { fetchSkillRecommendations } from "../../lib/skillApi";
-import { trendsTabHref } from "../../lib/trendsTabs";
+import { trendsSectionHref } from "../../lib/trendsSections";
 import { formatVerdictDescription } from "../../lib/verdict";
 
 /**
@@ -267,7 +267,7 @@ export default function DashboardHome() {
                 index={data.purchasingPowerIndex}
                 baselineHint="기준 100: 물가와 동일한 소득 변화"
                 helpContent={<PurchasingPowerHelp />}
-                detailHref={trendsTabHref("income")}
+                detailHref={trendsSectionHref("income")}
                 footer={
                   <>
                     <PriceDriverBadge driver={data.metadata.topPriceDriver} />

@@ -168,7 +168,7 @@ export interface SnapshotHistoryResponse {
  */
 
 /**
- * 보유 스킬별 상세 수요 정보 조회 (S-14 스킬수요 탭)
+ * 보유 스킬별 상세 수요 정보 조회 (S-18 스킬 분석)
  */
 export async function fetchSkillDemands(
   baseYearMonth?: string,
@@ -180,7 +180,7 @@ export async function fetchSkillDemands(
 }
 
 /**
- * 동료집단 연봉 분포 조회 (S-14 연봉분포 탭)
+ * 동료집단 연봉 분포 조회 (S-14 연봉 분포 섹션)
  */
 export async function fetchSalaryDistribution(
   baseYearMonth?: string,
@@ -200,7 +200,7 @@ export async function fetchSalaryDistribution(
 }
 
 /**
- * 지수 트렌드 시계열 데이터 조회 (S-14 소득 vs 물가 탭)
+ * 지수 트렌드 시계열 데이터 조회 (S-14 지수 추이 섹션)
  */
 export async function fetchTrends(
   baseYearMonth?: string,
