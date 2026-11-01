@@ -2,6 +2,7 @@ import type {
   NegotiationTarget,
   NegotiationTargets,
 } from "../../lib/api/dashboard";
+import { wageBasisLabel, wageSourceLabel } from "../../lib/sourceLabel";
 
 /** 협상 목표가 붙는 신호. 그 외 신호는 블록이 없다 (US-D7). */
 const NEGOTIATION_SIGNALS = new Set(["NEGOTIATE", "SEEK_JOB"]);
@@ -36,7 +37,9 @@ export function NegotiationTargetsBlock({
       label: isSeekJob ? "임금통계 중앙값 수준" : "임금통계 중앙값까지",
       // 이 줄은 KOSIS 기준선일 때만 온다(§4.8)
       note:
-        wageBasis === "AGE_BAND_PROXY" ? "연령대 기준 추정 · KOSIS" : "KOSIS",
+        wageBasis === "AGE_BAND_PROXY"
+          ? `${wageBasisLabel(wageBasis)} · ${wageSourceLabel("KOSIS")}`
+          : wageSourceLabel("KOSIS"),
       target: targets.toWageStatMedian,
     });
   }

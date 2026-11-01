@@ -12,7 +12,13 @@ import {
   type SalaryDistributionResponse,
 } from "../../lib/dashboardMarketApi";
 import { formatKoreanSalary } from "../../lib/koreanSalary";
-import { bracketLabel, formatAppliedConditions } from "../../lib/sourceLabel";
+import {
+  bracketLabel,
+  formatAppliedConditions,
+  wageBasisLabel,
+  wageDefinitionLabel,
+  wageSourceLabel,
+} from "../../lib/sourceLabel";
 import { SalaryTrend } from "./SalaryTrend";
 
 export { formatKoreanSalary };
@@ -211,7 +217,9 @@ function CareerLadderView({
                 <div
                   className={`mt-2 text-[10px] font-medium ${estimated ? "text-carix-warning" : "text-carix-positive"}`}
                 >
-                  {estimated ? `추정 · ${step.source}` : "KOSIS 실측 보간"}
+                  {estimated
+                    ? `추정 · ${wageSourceLabel(step.source)}`
+                    : "KOSIS 실측 보간"}
                 </div>
               </li>
             );
@@ -730,7 +738,8 @@ export function SalaryDistributionChart({
                       <div className="flex items-center justify-between rounded bg-carix-warning/5 px-2 py-1 border border-carix-warning/20">
                         <span className="flex items-center gap-1 text-[11px] font-medium text-carix-warning">
                           <span className="inline-block h-2 w-2 rounded-full bg-carix-warning" />
-                          공식 기준선 ({baseline?.source ?? "UNKNOWN"})
+                          공식 기준선 (
+                          {wageSourceLabel(baseline?.source ?? "UNKNOWN")})
                         </span>
                         <span className="font-bold text-carix-warning">
                           {formatKoreanSalary(officialMedian)}
@@ -899,10 +908,10 @@ export function SalaryDistributionChart({
           <span className="font-semibold text-carix-text">📌 판정 기준선:</span>
           {baseline ? (
             <span>
-              {baseline.basis ?? "AGE_BAND_PROXY"} ·{" "}
-              {baseline.source ?? "UNKNOWN"} (
-              {baseline.wageDefinition ?? "공식 임금통계"}) — 중앙값{" "}
-              {formatKoreanSalary(baseline.median)}
+              {wageBasisLabel(baseline.basis ?? "AGE_BAND_PROXY")} ·{" "}
+              {wageSourceLabel(baseline.source ?? "UNKNOWN")} (
+              {wageDefinitionLabel(baseline.wageDefinition ?? "공식 임금통계")})
+              — 중앙값 {formatKoreanSalary(baseline.median)}
             </span>
           ) : (
             // 임금통계에 없는 직무(예: 기타)는 기준선이 없다 — 있는 것처럼 기본값을 채우지 않는다

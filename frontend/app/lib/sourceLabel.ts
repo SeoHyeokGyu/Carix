@@ -71,3 +71,32 @@ export function formatAppliedConditions(raw: string): string {
     (match) => CONDITION_TOKEN_LABELS[match] ?? match,
   );
 }
+
+const WAGE_BASIS_LABELS: Record<string, string> = {
+  AGE_BAND_PROXY: "연령대 기준 추정",
+};
+
+/** 임금 기준선의 성격(`basis`)을 표시명으로. KOSIS 연령대 값을 경력 구간으로 옮긴 추정이라는 뜻을 감추지 않는다. */
+export function wageBasisLabel(code: string): string {
+  return WAGE_BASIS_LABELS[code] ?? code;
+}
+
+const WAGE_SOURCE_LABELS: Record<string, string> = {
+  KOSIS: "통계청",
+  FALLBACK: "내부 기본값",
+  UNKNOWN: "출처 미상",
+};
+
+/** 임금통계 행의 출처(`wage_stat_observation.source`)를 표시명으로. */
+export function wageSourceLabel(code: string): string {
+  return WAGE_SOURCE_LABELS[code] ?? code;
+}
+
+const WAGE_DEFINITION_LABELS: Record<string, string> = {
+  ANNUAL_GROSS_MEDIAN: "연간 총급여",
+};
+
+/** 임금 정의. 코드가 아니라 이미 문장("초과급여 제외, 상여 포함")으로 오는 값은 그대로 둔다. */
+export function wageDefinitionLabel(value: string): string {
+  return WAGE_DEFINITION_LABELS[value] ?? value;
+}
