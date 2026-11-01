@@ -48,7 +48,12 @@ export function PageHeader({
             <p className="mt-1 text-sm text-carix-text/70">{description}</p>
           )}
         </div>
-        {actions && <div className="flex items-center gap-4">{actions}</div>}
+        {actions && (
+          // 좁은 화면에서 버튼이 여럿이면 한 줄을 넘어 가로 스크롤이 생긴다 — 줄을 바꾼다.
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+            {actions}
+          </div>
+        )}
       </div>
     </header>
   );
