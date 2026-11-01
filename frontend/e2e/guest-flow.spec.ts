@@ -74,7 +74,11 @@ test.describe("게스트 체험부터 가입까지", () => {
     const email = `e2e-guest-${Date.now()}@example.com`;
 
     await page.goto("/");
-    await page.getByRole("button", { name: "가입 없이 시작하기" }).click();
+    // 히어로와 하단 "시작하기" 두 곳에 같은 버튼이 있다 — 첫 화면 것을 누른다.
+    await page
+      .getByRole("button", { name: "가입 없이 시작하기" })
+      .first()
+      .click();
     await expect(page).toHaveURL(/\/onboarding\/profile$/);
 
     await fillOnboarding(page);
@@ -85,7 +89,8 @@ test.describe("게스트 체험부터 가입까지", () => {
 
     await page.goto("/dashboard/simulator");
     await page.getByLabel("올해 예상 인상률 (%)").fill("3");
-    await page.getByRole("button", { name: "시나리오 저장" }).click();
+    // 상단과 결과 아래 두 곳에 같은 저장 버튼이 있다 — 상단 것을 누른다.
+    await page.getByRole("button", { name: "시나리오 저장" }).first().click();
     await page.getByLabel("시나리오 이름 (선택)").fill(scenarioName);
     await page.getByRole("button", { name: "저장", exact: true }).click();
     await expect(page).toHaveURL(/\/register\?next=/);
