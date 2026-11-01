@@ -31,6 +31,7 @@ describe("회원가입 라우트 (Register)", () => {
       userId: "u-10",
       email: "newuser@carix.kr",
       onboardingStep: "PROFILE",
+      guest: false,
     });
 
     render(
@@ -58,6 +59,7 @@ describe("회원가입 라우트 (Register)", () => {
         userId: "u-10",
         email: "newuser@carix.kr",
         onboardingStep: "PROFILE",
+        guest: false,
       });
       expect(mockNavigate).toHaveBeenCalledWith("/onboarding/profile", {
         replace: true,

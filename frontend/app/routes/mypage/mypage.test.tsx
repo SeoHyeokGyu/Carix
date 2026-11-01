@@ -22,6 +22,7 @@ describe("마이페이지 라우트 및 레이아웃 (Mypage)", () => {
         userId: "user-1",
         email: "user@carix.kr",
         onboardingStep: "COMPLETED",
+        guest: false,
       });
       const logoutSpy = vi.spyOn(authApi, "logout").mockResolvedValue();
       const logoutAllSpy = vi.spyOn(authApi, "logoutAll");

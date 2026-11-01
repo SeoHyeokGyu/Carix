@@ -193,6 +193,7 @@ describe("S-09 검토 화면", () => {
       userId: "u-1",
       email: "user@carix.kr",
       onboardingStep: "REVIEW",
+      guest: false,
     });
     vi.spyOn(profileApi, "getProfile").mockResolvedValue(COMPLETE_PROFILE);
     vi.spyOn(incomeApi, "listIncome").mockResolvedValue(ONE_INCOME);
@@ -489,6 +490,7 @@ describe("S-09 검토 화면", () => {
         userId: "u-1",
         email: "user@carix.kr",
         onboardingStep: "COMPLETED",
+        guest: false,
       });
     });
 

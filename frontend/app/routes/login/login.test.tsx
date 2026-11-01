@@ -31,6 +31,7 @@ describe("로그인 라우트 (Login)", () => {
       userId: "u-1",
       email: "user@carix.kr",
       onboardingStep: "COMPLETED",
+      guest: false,
     });
 
     render(
@@ -58,6 +59,7 @@ describe("로그인 라우트 (Login)", () => {
         userId: "u-1",
         email: "user@carix.kr",
         onboardingStep: "COMPLETED",
+        guest: false,
       });
       expect(mockNavigate).toHaveBeenCalledWith("/dashboard", {
         replace: true,
@@ -70,6 +72,7 @@ describe("로그인 라우트 (Login)", () => {
       userId: "u-1",
       email: "user@carix.kr",
       onboardingStep: "PROFILE",
+      guest: false,
     });
 
     render(

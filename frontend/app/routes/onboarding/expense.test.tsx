@@ -29,6 +29,7 @@ describe("S-07 소비 화면", () => {
       userId: "u-1",
       email: "user@carix.kr",
       onboardingStep: "EXPENSE",
+      guest: false,
     });
     vi.spyOn(incomeApi, "listIncome").mockResolvedValue([]);
   });

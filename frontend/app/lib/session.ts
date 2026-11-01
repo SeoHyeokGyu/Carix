@@ -16,8 +16,10 @@ export type Session =
   | {
       status: "authenticated";
       userId: string;
-      email: string;
+      /** 게스트는 이메일이 없다. */
+      email: string | null;
       onboardingStep: OnboardingStep;
+      guest: boolean;
     };
 
 export const LOADING: Session = { status: "loading" };
@@ -26,8 +28,9 @@ export const ANONYMOUS: Session = { status: "anonymous" };
 /** `GET /api/v1/auth/session` 응답 형식 (API 규격 §2.3). */
 export interface SessionResponse {
   userId: string;
-  email: string;
+  email: string | null;
   onboardingStep: OnboardingStep;
+  guest: boolean;
 }
 
 let cached: Session | null = null;

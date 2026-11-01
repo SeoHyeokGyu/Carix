@@ -1,7 +1,9 @@
+import { withNext } from "./nextPath";
 import type { OnboardingStep, Session } from "./session";
 
 export const LANDING_PATH = "/";
 export const LOGIN_PATH = "/login";
+export const REGISTER_PATH = "/register";
 export const DASHBOARD_PATH = "/dashboard";
 export const REVIEW_PATH = "/onboarding/review";
 
@@ -73,14 +75,16 @@ export function isForwardStep(
 }
 
 /**
- * 세션만 요구한다 (마이페이지). 온보딩 완료 여부는 보지 않는다.
+ * 정식 계정을 요구한다 (마이페이지). 온보딩 완료 여부는 보지 않는다.
  *
  * 세션이 없으면 랜딩으로 보낸다. 로그인 화면이 아니다 — 처음 온 사람은 가입해야 하고,
- * 랜딩이 가입과 로그인을 모두 안내한다.
+ * 랜딩이 가입과 로그인을 모두 안내한다. 게스트는 가입으로 보내되, 가입을 마치면
+ * 방금 열려던 화면으로 돌아오도록 경로를 들려 보낸다.
  */
-export function guardSession(session: Session): GuardResult {
+export function guardAccount(session: Session, pathname: string): GuardResult {
   if (session.status === "loading") return PENDING;
-  return session.status === "anonymous" ? redirect(LANDING_PATH) : ALLOW;
+  if (session.status === "anonymous") return redirect(LANDING_PATH);
+  return session.guest ? redirect(withNext(REGISTER_PATH, pathname)) : ALLOW;
 }
 
 /** 세션과 온보딩 완료를 모두 요구한다 (대시보드). 미완료면 남은 단계로 보낸다. */

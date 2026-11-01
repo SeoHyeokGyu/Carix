@@ -16,6 +16,7 @@ describe("StepIndicator (온보딩 단계 인디케이터)", () => {
       userId: "u-1",
       email: "test@carix.kr",
       onboardingStep: "SKILLS",
+      guest: false,
     });
 
     render(

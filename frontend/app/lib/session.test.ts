@@ -18,6 +18,7 @@ describe("requireSession / setSession / resetSession", () => {
       userId: "u-1",
       email: "a@b.kr",
       onboardingStep: "PROFILE",
+      guest: false,
     });
 
     const session = await requireSession();
@@ -27,6 +28,7 @@ describe("requireSession / setSession / resetSession", () => {
       userId: "u-1",
       email: "a@b.kr",
       onboardingStep: "PROFILE",
+      guest: false,
     });
     // 이후 호출은 캐시를 쓴다.
     await requireSession();
@@ -54,7 +56,12 @@ describe("requireSession / setSession / resetSession", () => {
     const call1 = requireSession();
     const call2 = requireSession();
 
-    resolveFetch({ userId: "u-1", email: "a@b.kr", onboardingStep: "SKILLS" });
+    resolveFetch({
+      userId: "u-1",
+      email: "a@b.kr",
+      onboardingStep: "SKILLS",
+      guest: false,
+    });
 
     const [session1, session2] = await Promise.all([call1, call2]);
 
@@ -65,6 +72,7 @@ describe("requireSession / setSession / resetSession", () => {
       userId: "u-1",
       email: "a@b.kr",
       onboardingStep: "SKILLS",
+      guest: false,
     });
   });
 
@@ -75,6 +83,7 @@ describe("requireSession / setSession / resetSession", () => {
       userId: "u-2",
       email: "b@b.kr",
       onboardingStep: "EXPENSE",
+      guest: false,
     });
 
     const session = await requireSession();
@@ -85,6 +94,7 @@ describe("requireSession / setSession / resetSession", () => {
       userId: "u-2",
       email: "b@b.kr",
       onboardingStep: "EXPENSE",
+      guest: false,
     });
   });
 });
