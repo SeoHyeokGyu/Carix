@@ -29,6 +29,10 @@ import { SavedScenarioMenu } from "../../components/simulator/SavedScenarioMenu"
 import { SaveScenarioButton } from "../../components/simulator/SaveScenarioButton";
 import { ScenarioTemplateMenu } from "../../components/simulator/ScenarioTemplateMenu";
 import { StayOutcome } from "../../components/simulator/StayOutcome";
+import {
+  CURRENT_UNREFLECTED,
+  MOVE_UNREFLECTED,
+} from "../../components/simulator/UnreflectedNotice";
 import type {
   EmitSource,
   StepFormHandle,
@@ -583,6 +587,10 @@ export default function DashboardSimulator() {
                 latestIncomeId={loaded.latestIncomeId}
                 initial={request}
                 focus={focus?.card === "current" ? focus.field : undefined}
+                unreflected={result?.unreflected.filter((code) =>
+                  CURRENT_UNREFLECTED.has(code),
+                )}
+                onFill={fill}
                 onChange={onStayChange}
                 onInvalid={() => markInvalid("current")}
                 onRecordSaving={setRecordSaving}
@@ -607,7 +615,6 @@ export default function DashboardSimulator() {
                     <StayOutcome
                       result={result}
                       raisePercent={request.stay.raisePercent}
-                      onFill={fill}
                     />
                   </>
                 )}
@@ -626,6 +633,10 @@ export default function DashboardSimulator() {
               ref={offerForm}
               initial={request}
               focus={focus?.card === "offer" ? focus.field : undefined}
+              unreflected={compare?.unreflected.filter((code) =>
+                MOVE_UNREFLECTED.has(code),
+              )}
+              onFill={fill}
               onChange={onOfferChange}
               onInvalid={onOfferInvalid}
             />
@@ -652,7 +663,6 @@ export default function DashboardSimulator() {
               <CompareResult
                 result={compare}
                 expectedRaisePercent={request?.stay.raisePercent ?? 0}
-                onFill={fill}
               />
             )}
           </ResultArea>

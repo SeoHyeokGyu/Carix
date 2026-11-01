@@ -12,22 +12,13 @@ import {
 import { amountLabel } from "./chartScale";
 import { CumulativeChart } from "./CumulativeChart";
 import { FirstYearBars } from "./FirstYearBars";
-import { UnreflectedNotice } from "./UnreflectedNotice";
 
 type MoveView = NonNullable<EvaluationResponse["move"]>;
-
-/** 새 회사 쪽 미반영만 비교 아래에 보인다. 지금 회사 항목은 지금 회사 카드 소관이다. */
-const MOVE_UNREFLECTED: ReadonlySet<string> = new Set([
-  "MOVE_PERFORMANCE_BONUS",
-  "SIGNING_BONUS",
-  "MOVE_STOCK",
-]);
 
 interface CompareResultProps {
   result: EvaluationResponse & { move: MoveView };
   /** 지금 회사에서 예상하는 인상률(%). */
   expectedRaisePercent: number;
-  onFill: (code: string) => void;
 }
 
 function StatCard({
@@ -67,7 +58,6 @@ function ChartBlock({
 export function CompareResult({
   result,
   expectedRaisePercent,
-  onFill,
 }: CompareResultProps) {
   const { move } = result;
   const { stock, expectedRange } = move;
@@ -158,11 +148,6 @@ export function CompareResult({
           {signedMan(stock.moveVesting12m ?? 0)}
         </p>
       )}
-
-      <UnreflectedNotice
-        codes={result.unreflected.filter((code) => MOVE_UNREFLECTED.has(code))}
-        onFill={onFill}
-      />
     </div>
   );
 }

@@ -5,20 +5,11 @@ import {
   stayHeadline,
 } from "../../lib/simulatorCopy";
 import { RaiseAxis } from "./RaiseAxis";
-import { UnreflectedNotice } from "./UnreflectedNotice";
-
-/** 지금 회사 카드 안에는 지금 회사 쪽 미반영만 보인다. 새 회사 항목은 오퍼 카드 쪽 소관이다. */
-const CURRENT_UNREFLECTED: ReadonlySet<string> = new Set([
-  "PERFORMANCE_BONUS",
-  "STOCK",
-  "HIRE_DATE",
-]);
 
 interface StayOutcomeProps {
   result: EvaluationResponse;
   /** 사용자가 입력한 예상 인상률(%). */
   raisePercent: number;
-  onFill: (code: string) => void;
 }
 
 function pct(value: number): string {
@@ -26,11 +17,7 @@ function pct(value: number): string {
 }
 
 /** 지금 회사 카드 안의 남을 때 결과. */
-export function StayOutcome({
-  result,
-  raisePercent,
-  onFill,
-}: StayOutcomeProps) {
+export function StayOutcome({ result, raisePercent }: StayOutcomeProps) {
   const { stay, severance } = result;
   const personal = stay.breakevenPersonalPercent;
   const government = stay.breakevenGovernmentPercent;
@@ -65,13 +52,6 @@ export function StayOutcome({
         )}
         {severance && <li>{severanceNote(severance)}</li>}
       </ul>
-
-      <UnreflectedNotice
-        codes={result.unreflected.filter((code) =>
-          CURRENT_UNREFLECTED.has(code),
-        )}
-        onFill={onFill}
-      />
     </div>
   );
 }

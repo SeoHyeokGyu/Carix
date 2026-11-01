@@ -24,6 +24,7 @@ import {
 } from "../../lib/simulatorForm";
 import { BonusRecordForm } from "./BonusRecordForm";
 import { ManAmountField } from "./ManAmountField";
+import { UnreflectedNotice } from "./UnreflectedNotice";
 import {
   type EmitSource,
   type StepFormHandle,
@@ -65,6 +66,9 @@ interface CurrentJobStepProps {
   initial: EvaluateRequest | null;
   /** 미반영 `넣기` 로 들어왔을 때 열고 포커스할 칸. */
   focus?: CurrentJobFocus;
+  /** 마지막 평가에서 비어 반영되지 않은 지금 회사 항목. 접힘 칸 위에 `넣기` 로 보인다. */
+  unreflected?: readonly string[];
+  onFill?: (code: string) => void;
   /** 유효한 입력. 처음 그릴 때 유효하면 `mount` 로 바로, 이후 편집은 400ms 뒤 `edit`. */
   onChange: (stay: Stay, source: EmitSource) => void;
   /** 편집·flush 결과가 무효일 때. 계산 요청은 직전 값으로 남고, 호출자가 결과를 흐리게 한다. */
@@ -88,6 +92,8 @@ export function CurrentJobStep({
   latestIncomeId,
   initial,
   focus,
+  unreflected = [],
+  onFill = () => {},
   onChange,
   onInvalid,
   onRecordSaving,
@@ -434,6 +440,7 @@ export function CurrentJobStep({
         </>
       )}
 
+      <UnreflectedNotice codes={unreflected} onFill={onFill} />
       <details ref={detailsRef} className="rounded-lg border px-4 py-3">
         <summary className="cursor-pointer text-sm font-medium">
           성과급·주식·입사일 (선택)

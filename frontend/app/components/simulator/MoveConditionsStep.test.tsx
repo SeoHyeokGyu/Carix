@@ -52,6 +52,38 @@ describe("MoveConditionsStep", () => {
     vi.useRealTimers();
   });
 
+  // 연봉 수준 줄이 칸을 벗어날 때만 조회돼, 저장분·템플릿으로 채워진 오퍼에는 나오지 않았다.
+  it("이미 연봉이 채워진 오퍼는 칸을 건드리지 않아도 연봉 수준 줄을 보인다", async () => {
+    vi.mocked(scenario.getFeasibility).mockResolvedValue({
+      status: "OK",
+      sampleSize: 30,
+      minRequired: 10,
+      feasibilityScore: 0.5,
+      targetPercentile: 40,
+      difficultyGrade: "REALISTIC",
+      feedbackMessage:
+        "새 회사 연봉은 동료집단 상위 40% 수준으로, 현실적입니다.",
+    });
+    render(
+      <MoveConditionsStep
+        initial={{
+          stay: { raisePercent: 3 },
+          move: {
+            grossSalary: 70_000_000,
+            unemploymentMonths: 1,
+            oneTimeCost: 0,
+            benefitEligible: false,
+            bonusIncluded: true,
+          },
+        }}
+        onChange={vi.fn()}
+      />,
+    );
+
+    expect(await screen.findByText(/동료집단 상위/)).toBeInTheDocument();
+    expect(scenario.getFeasibility).toHaveBeenCalledWith(70_000_000);
+  });
+
   it("실업급여를 고르지 않으면 flush 가 null 이고 반영하지 않는다", async () => {
     const { ref, onChange } = renderStep();
     const user = userEvent.setup();

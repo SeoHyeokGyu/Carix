@@ -68,9 +68,20 @@ export function inflationNote(basis: InflationBasis): string | null {
     return "개인물가를 계산할 수 없어 한국은행 전망을 사용했습니다";
   }
   if (basis.similar && basis.gapPp !== null) {
-    return `개인물가와 한국은행 전망 차이 ${Math.abs(basis.gapPp).toFixed(1)}%p — 소비구조가 평균과 비슷합니다`;
+    return `개인물가와 한국은행 전망 차이 ${similarGapLabel(basis.gapPp)} — 소비구조가 평균과 비슷합니다`;
   }
   return null;
+}
+
+/** 서버의 "비슷함" 기준(차이 0.3%p 미만). */
+const SIMILAR_GAP_THRESHOLD_PP = 0.3;
+
+/** 0.27 을 반올림해 "0.3%p — 비슷" 이라 쓰면 기준과 모순된다. 기준까지 반올림되면 "미만" 으로 적는다. */
+function similarGapLabel(gapPp: number): string {
+  const rounded = Number(Math.abs(gapPp).toFixed(1));
+  return rounded >= SIMILAR_GAP_THRESHOLD_PP
+    ? `${SIMILAR_GAP_THRESHOLD_PP.toFixed(1)}%p 미만`
+    : `${rounded.toFixed(1)}%p`;
 }
 
 /** 모르는 카테고리는 코드 그대로 보인다. */
