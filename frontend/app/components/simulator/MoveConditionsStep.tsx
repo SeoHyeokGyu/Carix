@@ -1,4 +1,10 @@
-import { type Ref, useImperativeHandle, useRef, useState } from "react";
+import {
+  type Ref,
+  useEffect,
+  useImperativeHandle,
+  useRef,
+  useState,
+} from "react";
 
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
@@ -18,6 +24,7 @@ import {
   wonToManInput,
 } from "../../lib/simulatorForm";
 import { ManAmountField } from "./ManAmountField";
+import { UnreflectedNotice } from "./UnreflectedNotice";
 import {
   type EmitSource,
   type StepFormHandle,
@@ -110,6 +117,9 @@ interface MoveConditionsStepProps {
   initial: EvaluateRequest | null;
   /** 미반영 `넣기` 로 들어왔을 때 열고 포커스할 칸. */
   focus?: MoveFocus;
+  /** 마지막 비교에서 비어 반영되지 않은 새 회사 항목. 접힘 칸 위에 `넣기` 로 보인다. */
+  unreflected?: readonly string[];
+  onFill?: (code: string) => void;
   /** 유효한 입력. 처음 그릴 때 유효하면 `mount` 로 바로, 이후 편집은 400ms 뒤 `edit`. */
   onChange: (offer: OfferEmit, source: EmitSource) => void;
   /** 편집·flush 결과가 무효일 때. 무엇이 빠졌는지 함께 알린다. 계산 요청은 직전 값으로 남고, 호출자가 결과를 흐리게 한다. */
@@ -120,6 +130,8 @@ export function MoveConditionsStep({
   ref,
   initial,
   focus,
+  unreflected = [],
+  onFill = () => {},
   onChange,
   onInvalid,
 }: MoveConditionsStepProps) {
@@ -165,6 +177,13 @@ export function MoveConditionsStep({
       }
     }
   };
+
+  // 저장분·템플릿으로 채워져 마운트되면 칸을 벗어날 일이 없어 연봉 수준 줄이 안 나온다 — 처음 한 번 조회한다.
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- 조회 결과는 비동기로 갱신한다
+    void checkFeasibility();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- 마운트 때 한 번만
+  }, []);
 
   const validate = (): FieldErrors => {
     const next: FieldErrors = {};
@@ -333,6 +352,7 @@ export function MoveConditionsStep({
         )}
       </fieldset>
 
+      <UnreflectedNotice codes={unreflected} onFill={onFill} />
       <details ref={detailsRef} className="rounded-lg border px-4 py-3">
         <summary className="cursor-pointer text-sm font-medium">
           상여·성과급·사이닝·주식 (선택)
