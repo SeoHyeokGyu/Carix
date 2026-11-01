@@ -551,7 +551,7 @@
 *   **MVP 포함.** `UPSKILL` 결정 신호가 "스킬 보강이 먼저입니다"에서 끝나 무엇을 배우라는지 말하지 않던 빈칸을 메운다. 대응 스토리는 [기능 명세 US-D6·US-D9](functional-specification.md), 화면은 `S-10` 1층 판정 히어로의 처방/추천 블록과 `S-18` 스킬 분석(`/dashboard/skills`)이다.
 *   **산출 경로.** 사용자 미보유 표준 스킬에 대해 **최근 3개월 대 이전 12개월 수요 상승률(수요 지수, `b23`)** 내림차순으로 우선 순위를 매기며, 표본 부족(`INSUFFICIENT_SAMPLE` 등 수집 이력 15개월 전이거나 표본 미달) 시 수요율(`demand_rate`) 순위로 폴백한다. 동료집단 완화는 `PeerGroupFallbackResolver` 를 쓴다.
 *   **`coOccurrence` 가 `reason` 을 만든다.** 순위는 최근 3개월 대 이전 12개월 수요 상승률(표본 부족 시 `demand_rate`)로 정하고, 근거는 **사용자 보유 스킬과 함께 요구되는 비율**로 쓴다 — 순위만으로는 왜 그걸 배우는지 말하지 못한다. 기준 스킬은 보유 스킬 중 동료집단 공고 수가 가장 많은 것이고, 비율은 `(기준 스킬과 후보를 함께 요구하는 공고) ÷ (기준 스킬을 요구하는 공고)` 다. `job_posting_skill` self-join 이며 중복제거는 `dedup_group_id`, 동료집단은 `PeerGroupFallbackResolver` 를 그대로 쓴다.
-*   **경계.** `skill.is_custom` 은 양쪽(기준·후보)에서 제외한다. 동료집단 표본이 `PeerGroupFallbackResolver.MIN_SAMPLE_SIZE` 미만이면 `recommendations` 는 빈 배열이고 임의 스킬을 채우지 않는다. 기준 스킬의 공고 수가 같은 기준에 미달하거나 동시출현율이 임계값 미만이면 `coOccurrence` 는 `null` 이고 `reason` 은 수요율 문구로 되돌린다 — 임계값은 `b8` 에서 `SkillDemandCalculator` 상수와 함께 Config Server 로 외부화한다.
+*   **경계.** `skill.is_custom` 은 양쪽(기준·후보)에서 제외한다. 동료집단 표본이 `PeerGroupFallbackResolver.MIN_SAMPLE_SIZE` 미만이면 `recommendations` 는 빈 배열이고 임의 스킬을 채우지 않는다. 기준 스킬의 공고 수가 같은 기준에 미달하거나 동시출현율이 임계값 미만이면 `coOccurrence` 는 `null` 이고 `reason` 은 숫자 없는 기본 문구로 되돌린다(수요율은 `demandRate` 가 따로 싣는다 — 화면이 같은 행에 배지로 보인다) — 임계값은 `b8` 에서 `SkillDemandCalculator` 상수와 함께 Config Server 로 외부화한다.
 *   **품질 상한.** `raw_ingest` 가 원문을 보관하지 않아 스킬 사전을 개선해도 **이미 수집된 공고에는 소급되지 않는다.** 동시출현율은 수집 시점의 파싱 품질에 묶인다.
 *   **Endpoint:** `GET /api/v1/skills/recommendations`
 *   **Query Parameters (선택):**
@@ -577,7 +577,7 @@
           "demandRate": 0.182,
           "growthTrend": "STABLE",
           "coOccurrence": null,
-          "reason": "동료집단 내 공고의 18.2%에서 요구되는 핵심 스택입니다."
+          "reason": "동료집단 공고에서 자주 요구되는 핵심 스택입니다."
         }
       ]
     }

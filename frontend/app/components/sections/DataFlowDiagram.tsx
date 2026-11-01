@@ -3,7 +3,7 @@ import { DATA_FLOW_NODES } from "../../content/landing";
 export function DataFlowDiagram() {
   return (
     <section aria-labelledby="data-flow-heading" className="px-6 py-16">
-      <div className="mx-auto max-w-5xl">
+      <div className="mx-auto max-w-7xl">
         <div className="flex items-center justify-center gap-2">
           <span className="text-2xl" aria-hidden="true">
             🔄
@@ -19,16 +19,17 @@ export function DataFlowDiagram() {
           개인 데이터와 시장 정보를 연결하여 가치를 분석하는 유기적 흐름입니다.
         </p>
 
-        {/* 모바일은 세로 피드, 데스크톱은 가로 레이아웃 배치 */}
-        <div className="mt-10 flex flex-col gap-4 md:flex-row md:flex-wrap md:items-stretch md:justify-center">
+        {/* 좁으면 세로 피드, 넓으면 여섯 단계를 한 줄에. 줄바꿈을 허용하면 마지막 단계만 아래로 떨어지고
+            앞줄 끝에 화살표가 홀로 남는다. */}
+        <div className="mt-10 flex flex-col gap-4 xl:flex-row xl:items-stretch xl:gap-3">
           {DATA_FLOW_NODES.map((node, index) => (
             <div
               key={node.id}
-              className="flex flex-col items-center md:flex-row md:items-center md:gap-3"
+              className="flex flex-col items-center xl:min-w-0 xl:flex-1 xl:flex-row xl:items-stretch xl:gap-3"
             >
-              <div className="w-full rounded-2xl border border-carix-border bg-carix-surface p-5 shadow-sm text-center md:text-left md:flex md:flex-col md:justify-center md:max-w-[260px] md:min-h-[110px]">
+              <div className="w-full max-w-xl break-keep rounded-2xl border border-carix-border bg-carix-surface p-5 shadow-sm text-center xl:flex xl:max-w-none xl:min-h-[110px] xl:flex-col xl:justify-center xl:text-left">
                 <div>
-                  <div className="flex items-center justify-center md:justify-start gap-2">
+                  <div className="flex items-center justify-center gap-2 xl:justify-start">
                     <span className="flex h-5 w-5 items-center justify-center rounded-full bg-carix-info/10 text-[10px] font-bold text-carix-info">
                       {index + 1}
                     </span>
@@ -46,13 +47,13 @@ export function DataFlowDiagram() {
               {index < DATA_FLOW_NODES.length - 1 && (
                 <>
                   <div
-                    className="my-2 text-carix-info text-xl font-bold md:hidden"
+                    className="my-2 text-carix-info text-xl font-bold xl:hidden"
                     aria-hidden="true"
                   >
                     ↓
                   </div>
                   <div
-                    className="hidden md:block text-carix-info text-xl font-bold"
+                    className="hidden self-center text-carix-info text-xl font-bold xl:block"
                     aria-hidden="true"
                   >
                     →

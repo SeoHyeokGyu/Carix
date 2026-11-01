@@ -11,8 +11,8 @@ export type PageFrameProps = HTMLAttributes<HTMLElement> & {
 };
 
 const WIDTH: Record<PageFrameWidth, string> = {
-  wide: "max-w-5xl py-8 sm:py-10",
-  narrow: "max-w-5xl py-8 sm:py-10 [&>*:not([data-page-header])]:max-w-3xl",
+  wide: "max-w-7xl py-8 sm:py-10",
+  narrow: "max-w-7xl py-8 sm:py-10 [&>*:not([data-page-header])]:max-w-3xl",
   admin: "max-w-7xl py-8",
 };
 

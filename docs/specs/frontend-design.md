@@ -190,7 +190,7 @@ OCI VM에서 다음 컨테이너를 Docker Compose로 운영한다.
 | 프리미티브 | 쓰는 자리 |
 | :--- | :--- |
 | `Button` | 모든 버튼. 크기 `xs`·`sm`·`default`(h-8, text-xs)·`lg`, 아이콘 `icon-*`. 링크처럼 보여야 하면 `variant="link"`, 링크 요소에 버튼 모양이 필요하면 `buttonVariants`. 위계는 셋 — 주(default)는 그 자리(한 폼·한 카드·한 단계 이동 줄)의 진행 동작 하나, 보조(`outline`)는 편집창 열기·이전·되돌릴 수 있는 계정 동작·초기화, 위험(`destructive`)은 데이터 삭제 |
-| `PageFrame` | 화면 바깥 틀. 폭·좌우 여백이 헤더와 같아(`max-w-5xl px-6`, 관리자 `max-w-7xl`) 제목이 로고 선에서 시작한다. `width` 는 `wide`(기본)·`narrow`(헤더 아래 내용만 3xl 왼쪽 정렬 — 폼 화면)·`admin`. 화면 파일은 `mx-auto max-w-*` 틀을 직접 쓰지 않는다 |
+| `PageFrame` | 화면 바깥 틀. 폭·좌우 여백이 헤더와 같아(`max-w-7xl px-6`, 관리자도 같은 폭) 제목이 로고 선에서 시작한다. `width` 는 `wide`(기본)·`narrow`(헤더 아래 내용만 3xl 왼쪽 정렬 — 폼 화면)·`admin`. 화면 파일은 `mx-auto max-w-*` 틀을 직접 쓰지 않는다 |
 | `PageHeader` | 화면 제목 줄. h1 하나(메뉴 이름, `font-display text-2xl sm:text-3xl bold`), 설명 한 줄, 하위 화면이면 위에 상위 복귀(`back`), 오른쪽 `actions`(보조 `TextLink` + 서버 동작 버튼 최대 하나, `outline sm` + 아이콘), `divider` 는 탭이 아닌 내용 위에서만 — 탭 줄은 자기 밑줄을 가진다. 날짜·부연은 설명으로 간다. 다시 불러오기 버튼은 두지 않는다 — 화면이 들어올 때 불러오고 실패하면 「다시 시도」가 있다 |
 | `PageSection` | 화면 안 섹션. h2 하나(섹션 제목 `font-display text-lg font-semibold`), 설명 한 줄, 오른쪽 `actions`, 제목 → 내용 12px. 섹션끼리 32px 는 `PageFrame` 이 `data-page-section` 형제에만 준다(탭 → 패널 등은 그대로). 탭 패널처럼 이미 이름이 있는 자리는 `titleHidden`(sr-only h2, region 아님) |
 | `ConfirmDialog` | 되돌리기 어려운 동작의 확인창(`radix-ui` `AlertDialog`). 열리면 포커스는 「취소」. 실행하지 않고 닫는 길은 Esc·「취소」뿐이다 — 바깥 클릭으로는 닫지 않는다. 버튼은 오른쪽 정렬 `[취소][실행]`, 실행은 데이터를 지우면 `destructive`(`tone` 기본), 지우지 않는 확인(초기화)은 주 버튼. 제목 「~할까요?」, 설명은 무엇이 사라지고 어떤 영향이 있는지 한 줄. 처리 중에는 여는 버튼을 `disabled` 로 막는다. 회원 탈퇴는 이메일 직접 입력 확인을 쓴다 |

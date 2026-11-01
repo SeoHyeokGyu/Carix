@@ -267,8 +267,9 @@ export default function RecordsExpense() {
     openMonth(wire);
   };
 
+  // 월 목록과 고르는 달의 편집 폼을 넓은 화면에서 나란히 둔다.
   return (
-    <div className="flex flex-col gap-8">
+    <div className="grid gap-8 lg:grid-cols-2 lg:items-start">
       <PageSection title="월별 소비">
         {/* 표와 기준월 추가 칸 사이 16px — 제목 → 내용 12px 는 섹션이 정한다. */}
         <div className="flex flex-col gap-4">

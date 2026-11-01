@@ -288,7 +288,7 @@ class SkillRecommendationServiceTest {
     assertThat(item.standardName()).isEqualTo("TypeScript");
     assertThat(item.growthTrend()).isEqualTo("STABLE");
     assertThat(item.coOccurrence()).isNull();
-    assertThat(item.reason()).isEqualTo("동료집단 내 공고의 25.0%에서 요구되는 핵심 스택입니다.");
+    assertThat(item.reason()).isEqualTo(SkillRecommendationService.DEFAULT_DEMAND_REASON);
   }
 
   @Test
@@ -347,7 +347,7 @@ class SkillRecommendationServiceTest {
     SkillRecommendationItem item = response.recommendations().get(0);
     assertThat(item.standardName()).isEqualTo("Go");
     assertThat(item.coOccurrence()).isNull();
-    assertThat(item.reason()).contains("동료집단 내 공고의 40.0%에서 요구되는 핵심 스택입니다.");
+    assertThat(item.reason()).isEqualTo(SkillRecommendationService.DEFAULT_DEMAND_REASON);
   }
 
   @Test

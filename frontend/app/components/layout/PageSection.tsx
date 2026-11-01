@@ -48,7 +48,9 @@ export function PageSection({
             {title}
           </h2>
           {description && (
-            <p className="mt-1 text-sm text-carix-text/70">{description}</p>
+            <p className="mt-1 max-w-3xl text-sm text-carix-text/70">
+              {description}
+            </p>
           )}
         </div>
         {actions && <div className="flex items-center gap-4">{actions}</div>}

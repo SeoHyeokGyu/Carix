@@ -1,5 +1,5 @@
 import { Badge } from "@/components/ui/badge";
-import { Card, CardTitle } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ToneBadge } from "@/components/ui/tone-badge";
 
@@ -42,19 +42,12 @@ export function SkillRecommendationsSection({
 
   return (
     <Card data-testid="skill-recommendations-section">
-      {/* 1. 섹션 헤더 및 동료집단 비교 조건 */}
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-carix-border pb-4">
+      {/* 1. 동료집단 비교 조건 — 제목·설명은 화면의 섹션 제목이 갖는다 */}
+      {appliedConditions && (
         <div>
-          <CardTitle>동료집단 수요 기반 추천 스킬</CardTitle>
-          <p className="mt-1 text-xs text-carix-text/70">
-            동료집단 채용공고에서 자주 요구되는 미보유 스킬과 보유 스킬 동시출현
-            근거
-          </p>
-        </div>
-        {appliedConditions && (
           <Badge variant="secondary">비교 기준: {appliedConditions}</Badge>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* 2. 추천 스킬 목록 */}
       {recommendations.length === 0 ? (
@@ -67,7 +60,8 @@ export function SkillRecommendationsSection({
       ) : (
         <ul
           aria-label="동료집단 추천 스킬 목록"
-          className="flex flex-col gap-3"
+          // 한 줄이 넓으면 스킬명과 수요율 배지 사이가 멀어져 행을 따라 읽기 어렵다 — 넓은 화면은 2열.
+          className="grid gap-3 lg:grid-cols-2"
         >
           {recommendations.map((item) => (
             <li

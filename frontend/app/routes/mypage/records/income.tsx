@@ -335,9 +335,10 @@ export default function RecordsIncome() {
     return digits ? Number(digits).toLocaleString() : "";
   };
 
+  // 이력 표는 한 줄을 다 쓰고, 그 아래 상여 조건·성과급 기록을 넓은 화면에서 나란히 둔다.
   return (
-    <div className="flex flex-col gap-8">
-      <PageSection title="소득 이력">
+    <div className="grid gap-8 lg:grid-cols-2 lg:items-start">
+      <PageSection title="소득 이력" className="lg:col-span-2">
         {income.length === 0 ? (
           <EmptyState
             icon="📋"

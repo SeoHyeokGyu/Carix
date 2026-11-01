@@ -167,7 +167,6 @@ describe("IncomeVsPriceChart", () => {
     expect(
       screen.getByTestId("income-vs-price-chart").querySelector("[data-tone]"),
     ).toBeNull();
-    expect(screen.getByText("소득 대 개인물가 지수 추이")).toBeInTheDocument();
     expect(screen.getByText("소득 지수 (실선)")).toBeInTheDocument();
     expect(screen.getByText("개인물가 지수 (점선)")).toBeInTheDocument();
     expect(screen.getByText("구매력 손실 구간")).toBeInTheDocument();

@@ -102,7 +102,7 @@ describe("S-14 DashboardTrends 라우트", () => {
       expect(screen.getByTestId("income-vs-price-chart")).toBeInTheDocument();
     });
     expect(
-      screen.getByRole("heading", { level: 3, name: "동료집단 연봉 분포" }),
+      screen.getByRole("heading", { level: 2, name: "동료집단 연봉 분포" }),
     ).toBeInTheDocument();
   });
 

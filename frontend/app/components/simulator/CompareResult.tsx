@@ -4,11 +4,7 @@ import {
   equalizingLine,
   splitAssumptions,
 } from "../../lib/simulatorCompare";
-import {
-  moveConclusion,
-  moveHeadline,
-  signedMan,
-} from "../../lib/simulatorCopy";
+import { moveConclusion, signedMan } from "../../lib/simulatorCopy";
 import { amountLabel } from "./chartScale";
 import { CumulativeChart } from "./CumulativeChart";
 import { FirstYearBars } from "./FirstYearBars";
@@ -61,7 +57,6 @@ export function CompareResult({
 }: CompareResultProps) {
   const { move } = result;
   const { stock, expectedRange } = move;
-  const { headline } = moveHeadline(move.firstYear.total, move.crossoverMonth);
   const equalizing = equalizingLine(
     move.equalizingRaisePercent,
     expectedRaisePercent,
@@ -73,13 +68,10 @@ export function CompareResult({
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex flex-col gap-1">
-        <p className="text-sm text-muted-foreground">{headline}</p>
-        {/* 바뀐 결론은 라우트의 알림 자리가 읽는다. */}
-        <h2 className="text-2xl font-semibold">
-          {moveConclusion(move.crossoverMonth)}
-        </h2>
-      </div>
+      {/* 바뀐 결론은 라우트의 알림 자리가 읽는다. 첫해 차이·따라잡는 달은 아래 카드가 보인다. */}
+      <h2 className="text-2xl font-semibold">
+        {moveConclusion(move.crossoverMonth)}
+      </h2>
 
       <div className="grid gap-3 sm:grid-cols-3">
         <StatCard

@@ -27,7 +27,7 @@ export const RECORDS_TAB_ITEMS: NavItem[] = [
 
 export default function RecordsLayout() {
   return (
-    <PageFrame width="narrow">
+    <PageFrame>
       <PageHeader
         title="입력 관리"
         description="소득·소비·스킬 이력을 고치면 그 시점 이후 지수가 다시 계산됩니다."

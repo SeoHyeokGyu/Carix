@@ -19,7 +19,7 @@ export function Hero() {
       aria-labelledby="hero-heading"
       className="px-6 py-20 md:py-28 relative overflow-hidden"
     >
-      <div className="mx-auto flex max-w-5xl flex-col items-center gap-12 text-center md:flex-row md:text-left">
+      <div className="mx-auto flex max-w-7xl flex-col items-center gap-12 text-center md:flex-row md:text-left">
         <div className="flex-1">
           {/* 눈길을 끄는 최상단 필 배지 */}
           <div className="inline-flex items-center gap-1.5 rounded-full border border-carix-info/20 bg-carix-info/5 px-3 py-1.5 text-xs font-semibold text-carix-info mb-6 animate-pulse select-none">

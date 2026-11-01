@@ -388,8 +388,9 @@ export default function RecordsSkills() {
     }
   };
 
+  // 목록과 추가 폼을 넓은 화면에서 나란히 — 추가하면서 목록을 본다.
   return (
-    <div className="flex flex-col gap-8">
+    <div className="grid gap-8 lg:grid-cols-2 lg:items-start">
       <PageSection title="보유 스킬">
         {skills.length === 0 ? (
           <EmptyState

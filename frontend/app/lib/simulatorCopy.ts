@@ -35,23 +35,6 @@ export function marketGapLine(gapPercent: number): string {
 const NO_CATCH_UP =
   "4년 안에 새 회사 누적이 지금 회사 누적을 따라잡지 못합니다";
 
-export function moveHeadline(
-  firstYearTotal: number,
-  crossoverMonth: number | null,
-): { headline: string; note: string | null } {
-  const first = `새 회사 첫해 ${signedMan(firstYearTotal)}`;
-  if (crossoverMonth === null) {
-    return {
-      headline: `${first}, 4년 안에 못 따라잡음`,
-      note: NO_CATCH_UP,
-    };
-  }
-  return {
-    headline: `${first}, ${crossoverMonth}개월째 따라잡음`,
-    note: null,
-  };
-}
-
 /** 역전이 있을 때만 조언을 낸다. */
 export function moveAdvice(crossoverMonth: number | null): string | null {
   if (crossoverMonth === null) return null;

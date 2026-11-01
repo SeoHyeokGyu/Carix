@@ -1,15 +1,38 @@
 import { useState } from "react";
 
-import { Card, CardTitle } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ToneBadge } from "@/components/ui/tone-badge";
 
+import { useElementWidth } from "../../hooks/useElementWidth";
 import type { IndexStatus } from "../../lib/api/dashboard";
 import type {
   TrendListResponse,
   TrendPoint,
 } from "../../lib/dashboardMarketApi";
 import { resolveIndexStatus } from "../../lib/indexStatus";
+
+// 차트는 실제 폭에 1:1 로 그린다 — 고정 viewBox 를 늘리면 넓은 화면에서 높이·글자가 같이 부푼다.
+const FALLBACK_WIDTH = 640;
+const HEIGHT = 280;
+const FONT = 12;
+// 월 라벨(「26.01」) 하나가 차지하는 폭. 이보다 촘촘하면 최근 달부터 건너뛰며 찍는다.
+const MIN_LABEL_SPACING = 44;
+// 이보다 좁으면 오른쪽 「기준 (100)」 라벨을 빼고 그 자리를 그래프에 준다 — Y축의 굵은 100 이 같은 말을 한다.
+const BASELINE_LABEL_MIN_WIDTH = 480;
+
+/** 섹션 제목. 소득·물가 지수가 있으면 그 둘을, 없으면 구매력·시장가치를 그린다. */
+export function incomeChartTitle(data: TrendListResponse): string {
+  return hasIncomeAndPriceSeries(data.trends ?? [])
+    ? "소득 대 개인물가 지수 추이"
+    : "구매력 및 시장가치 지수 추이";
+}
+
+function hasIncomeAndPriceSeries(trends: readonly TrendPoint[]): boolean {
+  return trends.some(
+    (p) => p.incomeIndex != null && p.personalPriceIndex != null,
+  );
+}
 
 export interface IncomeVsPriceChartProps {
   data: TrendListResponse;
@@ -37,6 +60,7 @@ function formatWon(amount: number | null | undefined): string {
 
 export function IncomeVsPriceChart({ data }: IncomeVsPriceChartProps) {
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
+  const [chartRef, width] = useElementWidth<HTMLDivElement>(FALLBACK_WIDTH);
 
   const { trends, purchasingPowerStatus } = data;
   // 지표 카드와 같은 해석 모듈이 문구·톤을 정한다. 와이어 타입은 string 이고, 모르는 코드는
@@ -69,15 +93,12 @@ export function IncomeVsPriceChart({ data }: IncomeVsPriceChartProps) {
   const isLessThan12Months = trends.length < 12;
 
   // 데이터 모드 판별: incomeIndex & personalPriceIndex가 있는지, 아니면 purchasingPowerIndex만 있는지
-  const hasIncomeAndPrice = trends.some(
-    (p) => p.incomeIndex != null && p.personalPriceIndex != null,
-  );
+  const hasIncomeAndPrice = hasIncomeAndPriceSeries(trends);
 
-  // 차트 뷰박스 크기
-  const width = 640;
-  const height = 280;
-  const paddingLeft = 45;
-  const paddingRight = 25;
+  const height = HEIGHT;
+  const paddingLeft = 40;
+  const showsBaselineLabel = width >= BASELINE_LABEL_MIN_WIDTH;
+  const paddingRight = showsBaselineLabel ? 64 : 16;
   const paddingTop = 30;
   const paddingBottom = 40;
 
@@ -113,6 +134,11 @@ export function IncomeVsPriceChart({ data }: IncomeVsPriceChartProps) {
   };
 
   const baselineY = getY(100);
+
+  const spacing =
+    trends.length > 1 ? chartWidth / (trends.length - 1) : chartWidth;
+  const labelStep = Math.max(1, Math.ceil(MIN_LABEL_SPACING / spacing));
+  const showsLabel = (i: number) => (trends.length - 1 - i) % labelStep === 0;
 
   // 선 세그먼트 생성 (결측치 갭 처리: null이 있으면 선을 잇지 않고 분리)
   const createLineSegments = (
@@ -196,21 +222,10 @@ export function IncomeVsPriceChart({ data }: IncomeVsPriceChartProps) {
 
   return (
     <Card data-testid="income-vs-price-chart">
-      {/* 1. 상단 타이틀 및 상태 */}
-      <div className="flex flex-wrap items-start justify-between gap-4 border-b border-carix-border pb-4">
+      {/* 1. 상태 및 범례 — 제목·설명은 화면의 섹션 제목이 갖는다 */}
+      <div className="flex flex-wrap items-center justify-between gap-4 border-b border-carix-border pb-4">
         <div>
-          <div className="flex items-center gap-2">
-            <CardTitle>
-              {hasIncomeAndPrice
-                ? "소득 대 개인물가 지수 추이"
-                : "구매력 및 시장가치 지수 추이"}
-            </CardTitle>
-            {status && <ToneBadge tone={status.tone}>{status.label}</ToneBadge>}
-          </div>
-          <p className="mt-1 text-xs text-carix-text/70">
-            기준월 지수(100) 대비 실질 구매력 변동 및 물가 압력 추이를
-            분석합니다.
-          </p>
+          {status && <ToneBadge tone={status.tone}>{status.label}</ToneBadge>}
         </div>
 
         {/* 범례 */}
@@ -251,10 +266,12 @@ export function IncomeVsPriceChart({ data }: IncomeVsPriceChartProps) {
       )}
 
       {/* 2. SVG 시계열 라인 차트 */}
-      <div className="relative my-2 w-full overflow-hidden">
+      <div ref={chartRef} className="relative my-2 w-full overflow-hidden">
         <svg
           viewBox={`0 0 ${width} ${height}`}
-          className="w-full h-auto overflow-visible select-none"
+          width={width}
+          height={height}
+          className="block w-full overflow-visible select-none"
           role="img"
           aria-label="소득 대 개인물가 지수 시계열 차트"
         >
@@ -282,7 +299,7 @@ export function IncomeVsPriceChart({ data }: IncomeVsPriceChartProps) {
                   x={paddingLeft - 8}
                   y={y + 3.5}
                   textAnchor="end"
-                  fontSize="10"
+                  fontSize={FONT}
                   fill="var(--color-carix-text)"
                   opacity={isBaseline ? 0.9 : 0.5}
                   fontWeight={isBaseline ? "bold" : "normal"}
@@ -294,15 +311,17 @@ export function IncomeVsPriceChart({ data }: IncomeVsPriceChartProps) {
           })}
 
           {/* 기준선(100) 기준 라벨 */}
-          <text
-            x={width - paddingRight + 4}
-            y={baselineY + 3}
-            fontSize="9"
-            fill="var(--color-carix-text)"
-            opacity={0.6}
-          >
-            기준 (100)
-          </text>
+          {showsBaselineLabel && (
+            <text
+              x={width - paddingRight + 4}
+              y={baselineY + 3}
+              fontSize={FONT - 1}
+              fill="var(--color-carix-text)"
+              opacity={0.6}
+            >
+              기준 (100)
+            </text>
+          )}
 
           {/* 구매력 손실 구간 음영 (소득 < 물가) */}
           {lossPolygons.map((poly, idx) => (
@@ -330,17 +349,19 @@ export function IncomeVsPriceChart({ data }: IncomeVsPriceChartProps) {
                   strokeDasharray="2 2"
                   opacity={isHovered ? 0.6 : 0.2}
                 />
-                <text
-                  x={x}
-                  y={height - paddingBottom + 16}
-                  textAnchor="middle"
-                  fontSize="10"
-                  fill="var(--color-carix-text)"
-                  opacity={isHovered ? 0.95 : 0.6}
-                  fontWeight={isHovered ? "bold" : "normal"}
-                >
-                  {formatYearMonth(p.yearMonth)}
-                </text>
+                {showsLabel(i) && (
+                  <text
+                    x={x}
+                    y={height - paddingBottom + 18}
+                    textAnchor="middle"
+                    fontSize={FONT}
+                    fill="var(--color-carix-text)"
+                    opacity={isHovered ? 0.95 : 0.6}
+                    fontWeight={isHovered ? "bold" : "normal"}
+                  >
+                    {formatYearMonth(p.yearMonth)}
+                  </text>
+                )}
               </g>
             );
           })}
