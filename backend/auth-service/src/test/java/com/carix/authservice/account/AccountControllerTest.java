@@ -52,7 +52,7 @@ class AccountControllerTest {
   @Test
   void 가입하면_세션_쿠키를_발급한다() throws Exception {
     given(accountService.register("beta@example.com", "password123", Optional.empty()))
-        .willReturn(registered("PROFILE"));
+        .willReturn(new RegistrationResult(registered("PROFILE"), false));
     given(sessionService.createSession(USER_ID, SessionLifetime.ACCOUNT))
         .willReturn("session-token");
 
@@ -184,11 +184,11 @@ class AccountControllerTest {
   }
 
   @Test
-  void 게스트_세션으로_가입하면_게스트_세션을_모두_폐기하고_30일_쿠키를_준다() throws Exception {
+  void 게스트_세션으로_가입하면_같은_id로_30일_쿠키를_준다() throws Exception {
     given(sessionService.findUserIdBySessionToken(TOKEN)).willReturn(Optional.of(GUEST_ID));
     User converted = new User(GUEST_ID, "beta@example.com", "$2a$10$hash", "PROFILE", NOW, NOW);
     given(accountService.register("beta@example.com", "password123", Optional.of(GUEST_ID)))
-        .willReturn(converted);
+        .willReturn(new RegistrationResult(converted, true));
     given(sessionService.createSession(GUEST_ID, SessionLifetime.ACCOUNT)).willReturn("new-token");
 
     mockMvc
@@ -202,15 +202,16 @@ class AccountControllerTest {
         .andExpect(jsonPath("$.guest").value(false))
         .andExpect(cookie().value("session_token", "new-token"))
         .andExpect(cookie().maxAge("session_token", 2_592_000));
-
-    verify(sessionService).revokeAll(GUEST_ID);
   }
 
   @Test
   void 정식_사용자_세션으로_가입해도_기존_세션은_폐기하지_않는다() throws Exception {
     given(sessionService.findUserIdBySessionToken(TOKEN)).willReturn(Optional.of(USER_ID));
     given(accountService.register(anyString(), anyString(), eq(Optional.of(USER_ID))))
-        .willReturn(new User(UUID.randomUUID(), "n@example.com", "$2a$10$h", "PROFILE", NOW, NOW));
+        .willReturn(
+            new RegistrationResult(
+                new User(UUID.randomUUID(), "n@example.com", "$2a$10$h", "PROFILE", NOW, NOW),
+                false));
     given(sessionService.createSession(any(), eq(SessionLifetime.ACCOUNT))).willReturn("t");
 
     mockMvc

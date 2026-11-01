@@ -58,13 +58,11 @@ public class AccountController {
         rateLimitService.isExceeded(
             "register-ip", httpRequest.getRemoteAddr(), REGISTER_IP_LIMIT_PER_HOUR));
 
-    Optional<UUID> currentUserId = currentUserId(sessionToken);
-    User user = accountService.register(request.email(), request.password(), currentUserId);
-    // 전환된 게스트의 옛 24시간 토큰이 남지 않게 모두 폐기하고 30일 세션으로 바꿔 발급한다.
-    // 정식 사용자의 기존 세션은 그 사용자의 것이므로 건드리지 않는다.
-    if (currentUserId.filter(user.getId()::equals).isPresent()) {
-      sessionService.revokeAll(user.getId());
-    }
+    // 전환된 게스트의 옛 24시간 세션 폐기는 서비스가 전환과 같은 트랜잭션으로 한다. 여기서는 30일 세션만 새로 발급한다.
+    User user =
+        accountService
+            .register(request.email(), request.password(), currentUserId(sessionToken))
+            .user();
     SessionCookies.issue(
         httpResponse,
         sessionService.createSession(user.getId(), SessionLifetime.ACCOUNT),

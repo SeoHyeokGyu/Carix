@@ -9,6 +9,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
+import com.carix.authservice.session.SessionRepository;
 import com.carix.authservice.user.User;
 import com.carix.authservice.user.UserRepository;
 import java.nio.charset.StandardCharsets;
@@ -26,6 +27,7 @@ class AccountServiceTest {
   private static final UUID GUEST_ID = UUID.randomUUID();
 
   private UserRepository userRepository;
+  private SessionRepository sessionRepository;
   private AccountService service;
 
   /** 이미 저장돼 있는 계정. 스터빙 인자 안에서 service 를 부르면 목 상호작용이 꼬인다. */
@@ -37,19 +39,20 @@ class AccountServiceTest {
   void setUp() {
     userRepository = mock(UserRepository.class);
     given(userRepository.save(any(User.class))).willAnswer(i -> i.getArgument(0));
-    service = new AccountService(userRepository, new BCryptPasswordEncoder());
+    sessionRepository = mock(SessionRepository.class);
+    service = new AccountService(userRepository, sessionRepository, new BCryptPasswordEncoder());
   }
 
   @Test
   void 가입하면_평문이_아니라_BCrypt_해시가_저장된다() {
-    User user = service.register("beta@example.com", "password123", Optional.empty());
+    User user = service.register("beta@example.com", "password123", Optional.empty()).user();
 
     assertThat(user.getPasswordHash()).isNotEqualTo("password123").startsWith("$2");
   }
 
   @Test
   void 이메일은_정규화해_저장한다_케이스만_다른_계정이_갈리면_안_된다() {
-    User user = service.register("  Beta@Example.COM  ", "password123", Optional.empty());
+    User user = service.register("  Beta@Example.COM  ", "password123", Optional.empty()).user();
 
     assertThat(user.getEmail()).isEqualTo("beta@example.com");
   }
@@ -73,7 +76,7 @@ class AccountServiceTest {
 
   @Test
   void 올바른_비밀번호면_사용자를_돌려준다() {
-    User stored = service.register("beta@example.com", "password123", Optional.empty());
+    User stored = service.register("beta@example.com", "password123", Optional.empty()).user();
     given(userRepository.findByEmail("beta@example.com")).willReturn(Optional.of(stored));
 
     assertThat(service.authenticate("beta@example.com", "password123")).isSameAs(stored);
@@ -81,7 +84,7 @@ class AccountServiceTest {
 
   @Test
   void 없는_이메일과_틀린_비밀번호는_같은_예외를_던진다() {
-    User stored = service.register("beta@example.com", "password123", Optional.empty());
+    User stored = service.register("beta@example.com", "password123", Optional.empty()).user();
     given(userRepository.findByEmail("beta@example.com")).willReturn(Optional.of(stored));
     given(userRepository.findByEmail("nobody@example.com")).willReturn(Optional.empty());
 
@@ -105,12 +108,16 @@ class AccountServiceTest {
     User guest = User.guest(GUEST_ID, NOW);
     given(userRepository.findById(GUEST_ID)).willReturn(Optional.of(guest));
 
-    User user = service.register("Me@Example.com ", "password123", Optional.of(GUEST_ID));
+    RegistrationResult result =
+        service.register("Me@Example.com ", "password123", Optional.of(GUEST_ID));
+    User user = result.user();
+    assertThat(result.converted()).isTrue();
 
     assertThat(user.getId()).isEqualTo(GUEST_ID);
     assertThat(user.isGuest()).isFalse();
     assertThat(user.getEmail()).isEqualTo("me@example.com");
     assertThat(user.getPasswordHash()).startsWith("$2");
+    verify(sessionRepository).deleteByUserId(GUEST_ID);
     verify(userRepository, never()).save(argThat(saved -> !saved.getId().equals(GUEST_ID)));
   }
 
@@ -126,6 +133,7 @@ class AccountServiceTest {
 
     assertThat(guest.isGuest()).isTrue();
     assertThat(guest.getEmail()).isNull();
+    verify(sessionRepository, never()).deleteByUserId(any());
   }
 
   @Test
@@ -135,9 +143,10 @@ class AccountServiceTest {
         .willReturn(
             Optional.of(new User(memberId, "old@example.com", "$2a$10$h", "PROFILE", NOW, NOW)));
 
-    User user = service.register("new@example.com", "password123", Optional.of(memberId));
+    User user = service.register("new@example.com", "password123", Optional.of(memberId)).user();
 
     assertThat(user.getId()).isNotEqualTo(memberId);
     assertThat(user.getEmail()).isEqualTo("new@example.com");
+    verify(sessionRepository, never()).deleteByUserId(any());
   }
 }

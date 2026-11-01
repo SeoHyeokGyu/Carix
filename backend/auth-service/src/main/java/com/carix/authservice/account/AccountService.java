@@ -1,5 +1,6 @@
 package com.carix.authservice.account;
 
+import com.carix.authservice.session.SessionRepository;
 import com.carix.authservice.user.User;
 import com.carix.authservice.user.UserRepository;
 import java.nio.charset.StandardCharsets;
@@ -20,10 +21,15 @@ public class AccountService {
   private static final int MAX_PASSWORD_BYTES = 72;
 
   private final UserRepository userRepository;
+  private final SessionRepository sessionRepository;
   private final PasswordEncoder passwordEncoder;
 
-  public AccountService(UserRepository userRepository, PasswordEncoder passwordEncoder) {
+  public AccountService(
+      UserRepository userRepository,
+      SessionRepository sessionRepository,
+      PasswordEncoder passwordEncoder) {
     this.userRepository = userRepository;
+    this.sessionRepository = sessionRepository;
     this.passwordEncoder = passwordEncoder;
   }
 
@@ -44,9 +50,12 @@ public class AccountService {
   /**
    * 가입. {@code currentUserId} 가 게스트이면 새 행을 만들지 않고 그 행을 정식 사용자로 전환한다 — 게스트 때 쌓은 데이터가 같은 id 로 이어진다.
    * 이메일이 이미 쓰이면 게스트 행은 바뀌지 않는다.
+   *
+   * <p>전환하면 그 사용자의 옛 24시간 세션을 같은 트랜잭션에서 모두 폐기한다. 따로 지우면 전환만 커밋되고 폐기가 실패해 옛 토큰이 정식 계정에 남는다.
    */
   @Transactional
-  public User register(String email, String rawPassword, Optional<UUID> currentUserId) {
+  public RegistrationResult register(
+      String email, String rawPassword, Optional<UUID> currentUserId) {
     String normalizedEmail = normalize(email);
     ensureWithinBcryptLimit(rawPassword);
 
@@ -61,10 +70,13 @@ public class AccountService {
     if (guest.isPresent()) {
       User user = guest.get();
       user.upgrade(normalizedEmail, passwordHash, now);
-      return userRepository.save(user);
+      sessionRepository.deleteByUserId(user.getId());
+      return new RegistrationResult(userRepository.save(user), true);
     }
-    return userRepository.save(
-        new User(UUID.randomUUID(), normalizedEmail, passwordHash, "PROFILE", now, now));
+    return new RegistrationResult(
+        userRepository.save(
+            new User(UUID.randomUUID(), normalizedEmail, passwordHash, "PROFILE", now, now)),
+        false);
   }
 
   /**
