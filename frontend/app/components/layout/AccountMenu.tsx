@@ -66,7 +66,8 @@ export function AccountMenu() {
   return (
     <>
       {endError && (
-        <div className="fixed top-14 right-4 z-50 max-w-sm rounded-md border border-carix-border bg-carix-surface p-3 shadow-md">
+        // 좁은 화면에서 max-w-sm(384px)이 뷰포트보다 넓어 왼쪽으로 잘렸다 — 양쪽 여백으로 묶는다.
+        <div className="fixed top-14 right-4 left-4 z-50 rounded-md border border-carix-border bg-carix-surface p-3 shadow-md sm:left-auto sm:max-w-sm">
           <InlineAlert message={endError} onDismiss={() => setEndError(null)} />
         </div>
       )}

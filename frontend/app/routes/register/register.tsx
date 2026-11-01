@@ -6,7 +6,7 @@ import { AuthForm } from "../../components/auth/AuthForm";
 import { SessionPending } from "../../components/layout/SessionPending";
 import { register } from "../../lib/authApi";
 import { safeNextPath, stripResumeParams, withNext } from "../../lib/nextPath";
-import { LOGIN_PATH, stepPath } from "../../lib/routeGuards";
+import { DASHBOARD_PATH, LOGIN_PATH, stepPath } from "../../lib/routeGuards";
 import { requireSession, setSession } from "../../lib/session";
 
 /** 게스트 여부를 서버 조회로 정하는 이유는 로그인 라우트의 clientLoader 주석과 같다. */
@@ -27,6 +27,8 @@ export default function Register() {
   const loginPath = next
     ? withNext(LOGIN_PATH, stripResumeParams(next))
     : LOGIN_PATH;
+  // 재개 쿼리를 남기면 돌아가자마자 저장이 다시 시도될 수 있어 경로만 쓴다.
+  const trialPath = next ? stripResumeParams(next) : DASHBOARD_PATH;
 
   async function handleRegister(email: string, password: string) {
     const response = await register(email, password);
@@ -65,6 +67,15 @@ export default function Register() {
           <TextLink to={loginPath} direction="none" size="sm">
             로그인
           </TextLink>
+          {guest ? (
+            <>
+              {" "}
+              또는{" "}
+              <TextLink to={trialPath} direction="none" size="sm">
+                체험으로 돌아가기
+              </TextLink>
+            </>
+          ) : null}
         </>
       }
     />

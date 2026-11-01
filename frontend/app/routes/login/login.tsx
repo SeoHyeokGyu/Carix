@@ -1,6 +1,5 @@
 import { useLoaderData, useNavigate, useSearchParams } from "react-router";
 
-import { InlineAlert } from "@/components/ui/inline-alert";
 import { TextLink } from "@/components/ui/text-link";
 
 import { AuthForm } from "../../components/auth/AuthForm";
@@ -50,22 +49,19 @@ export default function Login() {
       banner={
         guest ? (
           // 경고를 본 뒤의 제출이 곧 확인이다 — 별도 다이얼로그는 두지 않는다.
-          <InlineAlert
-            message={
-              <>
-                다른 계정으로 로그인하면 체험 중 입력한 내용은 이어지지
-                않습니다. 이 내용을 남기려면{" "}
-                <TextLink
-                  to={next ? withNext(REGISTER_PATH, next) : REGISTER_PATH}
-                  direction="none"
-                  size="sm"
-                >
-                  가입해 주세요
-                </TextLink>
-                .
-              </>
-            }
-          />
+          // 실패 문구와 같은 빨강이면 "로그인이 안 됐다"로 읽혀 주의 상자로 구분한다.
+          <p className="rounded-md border border-carix-warning/40 bg-carix-warning/10 px-3 py-2 text-sm leading-relaxed text-carix-text">
+            다른 계정으로 로그인하면 체험 중 입력한 내용은 이어지지 않습니다. 이
+            내용을 남기려면{" "}
+            <TextLink
+              to={next ? withNext(REGISTER_PATH, next) : REGISTER_PATH}
+              direction="none"
+              size="sm"
+            >
+              가입해 주세요
+            </TextLink>
+            .
+          </p>
         ) : null
       }
       footer={
@@ -78,10 +74,11 @@ export default function Login() {
           >
             가입하기
           </TextLink>
-          {/* 만료된 게스트는 쿠키가 없어 위 경고를 못 본다 — 새로 체험하는 출구는 늘 둔다. */}
-          <br />
+          {/* 만료된 게스트는 쿠키가 없어 위 경고를 못 본다 — 새로 체험하는 출구는 늘 둔다.
+              이름은 랜딩 버튼("가입 없이 시작하기")과 같은 말로 맞춘다. */}{" "}
+          또는{" "}
           <TextLink to="/" direction="none" size="sm">
-            새로 체험하기
+            가입 없이 체험하기
           </TextLink>
         </>
       }

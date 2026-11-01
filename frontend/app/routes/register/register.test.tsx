@@ -168,4 +168,32 @@ describe("회원가입 라우트 (Register)", () => {
       );
     }
   });
+
+  // 가입을 미루려는 게스트가 브라우저 뒤로 가기 말고는 체험으로 돌아갈 길이 없었다.
+  // 재개 쿼리를 남기면 돌아가자마자 저장이 다시 시도될 수 있어 경로만 쓴다.
+  it("게스트는_재개_쿼리를_뗀_경로로_체험에_돌아갈_수_있다", async () => {
+    stubSessionResponse({
+      userId: "g-1",
+      email: null,
+      onboardingStep: "COMPLETED",
+      guest: true,
+    });
+
+    renderRegister(
+      "/register?next=%2Fdashboard%2Fsimulator%3FresumeSave%3D1%26name%3DA",
+    );
+
+    expect(
+      await screen.findByRole("link", { name: "체험으로 돌아가기" }),
+    ).toHaveAttribute("href", "/dashboard/simulator");
+  });
+
+  it("게스트가_아니면_체험으로_돌아가기_링크가_없다", async () => {
+    renderRegister();
+
+    await screen.findByLabelText("이메일");
+    expect(
+      screen.queryByRole("link", { name: "체험으로 돌아가기" }),
+    ).not.toBeInTheDocument();
+  });
 });

@@ -148,10 +148,9 @@ describe("로그인 라우트 (Login)", () => {
     expect(await screen.findByLabelText("이메일")).toBeInTheDocument();
     expect(screen.queryByText(/이어지지 않습니다/)).not.toBeInTheDocument();
     // 만료된 게스트는 쿠키가 없어 경고를 못 본다 — 새로 체험하는 출구는 늘 있다.
-    expect(screen.getByRole("link", { name: "새로 체험하기" })).toHaveAttribute(
-      "href",
-      "/",
-    );
+    expect(
+      screen.getByRole("link", { name: "가입 없이 체험하기" }),
+    ).toHaveAttribute("href", "/");
   });
 
   it("로그인_성공_후_안전한_next_로_돌아간다", async () => {
