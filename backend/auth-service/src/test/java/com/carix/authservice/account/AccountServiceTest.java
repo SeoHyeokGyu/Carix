@@ -3,8 +3,11 @@ package com.carix.authservice.account;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 
 import com.carix.authservice.user.User;
 import com.carix.authservice.user.UserRepository;
@@ -19,6 +22,8 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 class AccountServiceTest {
 
   private static final OffsetDateTime NOW = OffsetDateTime.parse("2026-08-28T00:00:00Z");
+
+  private static final UUID GUEST_ID = UUID.randomUUID();
 
   private UserRepository userRepository;
   private AccountService service;
@@ -37,14 +42,14 @@ class AccountServiceTest {
 
   @Test
   void 가입하면_평문이_아니라_BCrypt_해시가_저장된다() {
-    User user = service.register("beta@example.com", "password123");
+    User user = service.register("beta@example.com", "password123", Optional.empty());
 
     assertThat(user.getPasswordHash()).isNotEqualTo("password123").startsWith("$2");
   }
 
   @Test
   void 이메일은_정규화해_저장한다_케이스만_다른_계정이_갈리면_안_된다() {
-    User user = service.register("  Beta@Example.COM  ", "password123");
+    User user = service.register("  Beta@Example.COM  ", "password123", Optional.empty());
 
     assertThat(user.getEmail()).isEqualTo("beta@example.com");
   }
@@ -53,7 +58,7 @@ class AccountServiceTest {
   void 이미_쓰이는_이메일이면_거부한다() {
     given(userRepository.findByEmail("beta@example.com")).willReturn(Optional.of(existing()));
 
-    assertThatThrownBy(() -> service.register("BETA@example.com", "password123"))
+    assertThatThrownBy(() -> service.register("BETA@example.com", "password123", Optional.empty()))
         .isInstanceOf(EmailTakenException.class);
   }
 
@@ -62,13 +67,13 @@ class AccountServiceTest {
     String tooLong = "가".repeat(25); // UTF-8 3바이트 × 25 = 75바이트
     assertThat(tooLong.getBytes(StandardCharsets.UTF_8).length).isGreaterThan(72);
 
-    assertThatThrownBy(() -> service.register("beta@example.com", tooLong))
+    assertThatThrownBy(() -> service.register("beta@example.com", tooLong, Optional.empty()))
         .isInstanceOf(PasswordTooLongException.class);
   }
 
   @Test
   void 올바른_비밀번호면_사용자를_돌려준다() {
-    User stored = service.register("beta@example.com", "password123");
+    User stored = service.register("beta@example.com", "password123", Optional.empty());
     given(userRepository.findByEmail("beta@example.com")).willReturn(Optional.of(stored));
 
     assertThat(service.authenticate("beta@example.com", "password123")).isSameAs(stored);
@@ -76,7 +81,7 @@ class AccountServiceTest {
 
   @Test
   void 없는_이메일과_틀린_비밀번호는_같은_예외를_던진다() {
-    User stored = service.register("beta@example.com", "password123");
+    User stored = service.register("beta@example.com", "password123", Optional.empty());
     given(userRepository.findByEmail("beta@example.com")).willReturn(Optional.of(stored));
     given(userRepository.findByEmail("nobody@example.com")).willReturn(Optional.empty());
 
@@ -93,5 +98,46 @@ class AccountServiceTest {
 
     assertThatThrownBy(() -> service.authenticate("legacy@example.com", "anything"))
         .isInstanceOf(InvalidCredentialsException.class);
+  }
+
+  @Test
+  void 게스트_세션으로_가입하면_같은_id의_정식_계정이_된다() {
+    User guest = User.guest(GUEST_ID, NOW);
+    given(userRepository.findById(GUEST_ID)).willReturn(Optional.of(guest));
+
+    User user = service.register("Me@Example.com ", "password123", Optional.of(GUEST_ID));
+
+    assertThat(user.getId()).isEqualTo(GUEST_ID);
+    assertThat(user.isGuest()).isFalse();
+    assertThat(user.getEmail()).isEqualTo("me@example.com");
+    assertThat(user.getPasswordHash()).startsWith("$2");
+    verify(userRepository, never()).save(argThat(saved -> !saved.getId().equals(GUEST_ID)));
+  }
+
+  @Test
+  void 게스트가_중복_이메일로_가입하면_게스트는_그대로다() {
+    User guest = User.guest(GUEST_ID, NOW);
+    given(userRepository.findById(GUEST_ID)).willReturn(Optional.of(guest));
+    given(userRepository.findByEmail("beta@example.com")).willReturn(Optional.of(existing()));
+
+    assertThatThrownBy(
+            () -> service.register("beta@example.com", "password123", Optional.of(GUEST_ID)))
+        .isInstanceOf(EmailTakenException.class);
+
+    assertThat(guest.isGuest()).isTrue();
+    assertThat(guest.getEmail()).isNull();
+  }
+
+  @Test
+  void 정식_사용자_세션으로_가입하면_새_계정을_만든다() {
+    UUID memberId = UUID.randomUUID();
+    given(userRepository.findById(memberId))
+        .willReturn(
+            Optional.of(new User(memberId, "old@example.com", "$2a$10$h", "PROFILE", NOW, NOW)));
+
+    User user = service.register("new@example.com", "password123", Optional.of(memberId));
+
+    assertThat(user.getId()).isNotEqualTo(memberId);
+    assertThat(user.getEmail()).isEqualTo("new@example.com");
   }
 }

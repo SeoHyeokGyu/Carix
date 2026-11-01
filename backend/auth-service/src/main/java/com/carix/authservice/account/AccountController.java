@@ -11,7 +11,10 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import java.util.Locale;
+import java.util.Optional;
+import java.util.UUID;
 import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.CookieValue;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
@@ -22,6 +25,7 @@ import org.springframework.web.server.ResponseStatusException;
 @Tag(name = "auth", description = "회원가입·로그인")
 public class AccountController {
 
+  private static final int GUEST_IP_LIMIT_PER_HOUR = 20;
   private static final int REGISTER_IP_LIMIT_PER_HOUR = 20;
   private static final int LOGIN_EMAIL_LIMIT_PER_HOUR = 10;
   private static final int LOGIN_IP_LIMIT_PER_HOUR = 30;
@@ -45,6 +49,7 @@ public class AccountController {
   @PostMapping("/v1/auth/register")
   public AuthResponse register(
       @Valid @RequestBody RegisterRequest request,
+      @CookieValue(name = SessionCookies.NAME, required = false) String sessionToken,
       HttpServletRequest httpRequest,
       HttpServletResponse httpResponse) {
 
@@ -53,7 +58,13 @@ public class AccountController {
         rateLimitService.isExceeded(
             "register-ip", httpRequest.getRemoteAddr(), REGISTER_IP_LIMIT_PER_HOUR));
 
-    User user = accountService.register(request.email(), request.password());
+    Optional<UUID> currentUserId = currentUserId(sessionToken);
+    User user = accountService.register(request.email(), request.password(), currentUserId);
+    // 전환된 게스트의 옛 24시간 토큰이 남지 않게 모두 폐기하고 30일 세션으로 바꿔 발급한다.
+    // 정식 사용자의 기존 세션은 그 사용자의 것이므로 건드리지 않는다.
+    if (currentUserId.filter(user.getId()::equals).isPresent()) {
+      sessionService.revokeAll(user.getId());
+    }
     SessionCookies.issue(
         httpResponse,
         sessionService.createSession(user.getId(), SessionLifetime.ACCOUNT),
@@ -65,6 +76,7 @@ public class AccountController {
   @PostMapping("/v1/auth/login")
   public AuthResponse login(
       @Valid @RequestBody LoginRequest request,
+      @CookieValue(name = SessionCookies.NAME, required = false) String sessionToken,
       HttpServletRequest httpRequest,
       HttpServletResponse httpResponse) {
 
@@ -80,11 +92,50 @@ public class AccountController {
     ensureWithinLimit(exceeded);
 
     User user = accountService.authenticate(request.email(), request.password());
+    // 다른 계정으로 로그인하면 쓰던 게스트는 버려진다. 남은 게스트 세션이 살아 있으면 정리 전까지 쓸 수 있으므로 폐기한다.
+    // 행·core 데이터는 정리 작업이 지운다.
+    currentUserId(sessionToken)
+        .filter(id -> !id.equals(user.getId()))
+        .flatMap(accountService::findGuest)
+        .ifPresent(guest -> sessionService.revokeAll(guest.getId()));
     SessionCookies.issue(
         httpResponse,
         sessionService.createSession(user.getId(), SessionLifetime.ACCOUNT),
         SessionLifetime.ACCOUNT);
     return AuthResponse.from(user);
+  }
+
+  @Operation(
+      summary = "게스트 시작",
+      description = "계정 없이 쓰는 24시간 세션을 발급한다. 유효한 세션이 이미 있으면 새로 만들지 않고 그 사용자를 돌려준다.")
+  @PostMapping("/v1/auth/guest")
+  public AuthResponse startGuest(
+      @CookieValue(name = SessionCookies.NAME, required = false) String sessionToken,
+      HttpServletRequest httpRequest,
+      HttpServletResponse httpResponse) {
+
+    Optional<User> existing = currentUserId(sessionToken).flatMap(accountService::findUser);
+    if (existing.isPresent()) {
+      return AuthResponse.from(existing.get());
+    }
+
+    // 기존 세션 확인 뒤에 둔다 — 이미 게스트인 사용자의 재진입이 제한 횟수를 쓰지 않게.
+    ensureWithinLimit(
+        rateLimitService.isExceeded(
+            "guest-ip", httpRequest.getRemoteAddr(), GUEST_IP_LIMIT_PER_HOUR));
+
+    User guest = accountService.createGuest();
+    SessionCookies.issue(
+        httpResponse,
+        sessionService.createSession(guest.getId(), SessionLifetime.GUEST),
+        SessionLifetime.GUEST);
+    return AuthResponse.from(guest);
+  }
+
+  private Optional<UUID> currentUserId(String sessionToken) {
+    return sessionToken == null
+        ? Optional.empty()
+        : sessionService.findUserIdBySessionToken(sessionToken);
   }
 
   private void ensureWithinLimit(boolean exceeded) {

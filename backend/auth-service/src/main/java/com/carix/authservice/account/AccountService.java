@@ -6,6 +6,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.Locale;
+import java.util.Optional;
 import java.util.UUID;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -26,8 +27,26 @@ public class AccountService {
     this.passwordEncoder = passwordEncoder;
   }
 
+  /** 게스트 행을 만든다. 이메일·비밀번호가 없어 로그인으로는 찾을 수 없다. */
   @Transactional
-  public User register(String email, String rawPassword) {
+  public User createGuest() {
+    return userRepository.save(User.guest(UUID.randomUUID(), OffsetDateTime.now(ZoneOffset.UTC)));
+  }
+
+  public Optional<User> findUser(UUID userId) {
+    return userRepository.findById(userId);
+  }
+
+  public Optional<User> findGuest(UUID userId) {
+    return userRepository.findById(userId).filter(User::isGuest);
+  }
+
+  /**
+   * 가입. {@code currentUserId} 가 게스트이면 새 행을 만들지 않고 그 행을 정식 사용자로 전환한다 — 게스트 때 쌓은 데이터가 같은 id 로 이어진다.
+   * 이메일이 이미 쓰이면 게스트 행은 바뀌지 않는다.
+   */
+  @Transactional
+  public User register(String email, String rawPassword, Optional<UUID> currentUserId) {
     String normalizedEmail = normalize(email);
     ensureWithinBcryptLimit(rawPassword);
 
@@ -36,14 +55,16 @@ public class AccountService {
     }
 
     OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
+    String passwordHash = passwordEncoder.encode(rawPassword);
+
+    Optional<User> guest = currentUserId.flatMap(this::findGuest);
+    if (guest.isPresent()) {
+      User user = guest.get();
+      user.upgrade(normalizedEmail, passwordHash, now);
+      return userRepository.save(user);
+    }
     return userRepository.save(
-        new User(
-            UUID.randomUUID(),
-            normalizedEmail,
-            passwordEncoder.encode(rawPassword),
-            "PROFILE",
-            now,
-            now));
+        new User(UUID.randomUUID(), normalizedEmail, passwordHash, "PROFILE", now, now));
   }
 
   /**

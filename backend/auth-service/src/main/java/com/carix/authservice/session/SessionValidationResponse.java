@@ -13,4 +13,5 @@ import java.util.UUID;
 public record SessionValidationResponse(
     UUID userId,
     String email,
-    @Schema(example = "PROFILE", description = "온보딩 진행 단계") String onboardingStep) {}
+    @Schema(example = "PROFILE", description = "온보딩 진행 단계") String onboardingStep,
+    @Schema(description = "게스트 여부. 게스트면 email 은 null") boolean guest) {}
