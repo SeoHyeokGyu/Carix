@@ -81,4 +81,28 @@ class UserTest {
     assertThat(user.isOnboardingComplete()).isFalse();
     assertThat(user.getUpdatedAt()).isEqualTo(later);
   }
+
+  private static final UUID GUEST_ID = UUID.fromString("00000000-0000-0000-0000-000000000001");
+  private static final OffsetDateTime GUEST_NOW = OffsetDateTime.parse("2026-11-01T00:00:00Z");
+
+  @Test
+  void 게스트를_정식으로_전환하면_같은_id에_자격증명이_붙는다() {
+    User user = User.guest(GUEST_ID, GUEST_NOW);
+
+    user.upgrade("me@example.com", "$2a$10$hash", GUEST_NOW.plusHours(1));
+
+    assertThat(user.getId()).isEqualTo(GUEST_ID);
+    assertThat(user.isGuest()).isFalse();
+    assertThat(user.getEmail()).isEqualTo("me@example.com");
+    assertThat(user.getPasswordHash()).isEqualTo("$2a$10$hash");
+    assertThat(user.getUpdatedAt()).isEqualTo(GUEST_NOW.plusHours(1));
+  }
+
+  @Test
+  void 정식_사용자는_다시_전환할_수_없다() {
+    User user = new User(GUEST_ID, "a@example.com", "$2a$10$hash", "PROFILE", GUEST_NOW, GUEST_NOW);
+
+    assertThatThrownBy(() -> user.upgrade("b@example.com", "$2a$10$other", GUEST_NOW))
+        .isInstanceOf(IllegalStateException.class);
+  }
 }

@@ -25,9 +25,10 @@ erDiagram
 
     users {
         uuid id PK
-        varchar email
-        varchar password_hash "BCrypt"
+        varchar email "게스트면 NULL"
+        varchar password_hash "BCrypt, 게스트면 NULL"
         varchar onboarding_step
+        boolean guest "가입 없이 쓰는 임시 사용자. 가입하면 같은 행이 false 로 바뀐다"
         timestamp created_at
         timestamp updated_at
     }
@@ -245,6 +246,9 @@ erDiagram
 > **`users` 외래키는 걸지 않는다.** `users`는 auth-service가 `auth` 스키마에 소유하고,
 > `core` 테이블은 core-api가 소유한다. 스키마를 가로지르는 외래키는 두 서비스의 배포를
 > 묶어 버리므로 `user_id UUID NOT NULL`만 두고 참조 무결성은 애플리케이션이 지킨다.
+>
+> **`users` 의 `email`·`password_hash` 는 게스트 때문에 nullable 이다.** `CHECK (guest OR (email IS NOT NULL AND password_hash IS NOT NULL))`
+> (`users_account_credentials`)가 정식 사용자의 두 값을 지킨다. `idx_users_guest_created_at` 는 `WHERE guest` 부분 인덱스다.
 >
 > **채용공고 수집 5개 테이블은 원 설계와 다르다.** 크롤링 실측에 맞춰 완화된 상태로
 > 운영 중이며, 정확한 정의는 [`01_job_posting.sql`](../../deploy/postgres/schema/01_job_posting.sql)에 있다.
