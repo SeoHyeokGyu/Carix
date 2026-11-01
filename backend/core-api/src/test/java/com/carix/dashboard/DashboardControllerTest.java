@@ -3,6 +3,7 @@ package com.carix.dashboard;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -28,6 +29,7 @@ import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.mockito.InOrder;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
@@ -223,5 +225,18 @@ class DashboardControllerTest {
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.data.recalculatedMonths").value(1))
         .andExpect(jsonPath("$.data.fromYearMonth").value(currentYm));
+  }
+
+  // 2026-11-01 운영: 월이 바뀌자 현재월 스냅샷이 없어 대시보드가 "첫 지수를 계산하고 있습니다" 에 멈췄다.
+  @Test
+  @DisplayName("GET /v1/dashboard/summary - 기준월 미지정이면 현재월 스냅샷을 먼저 보장하고 요약한다")
+  void summary_ensuresCurrentMonthBeforeResolving() throws Exception {
+    mockMvc
+        .perform(get("/v1/dashboard/summary").header("X-User-Id", USER_ID.toString()))
+        .andExpect(status().isOk());
+
+    InOrder order = inOrder(snapshotRecalculationService, dashboardSummaryService);
+    order.verify(snapshotRecalculationService).ensureCurrentMonth(USER_ID);
+    order.verify(dashboardSummaryService).resolve(USER_ID, YearMonths.current());
   }
 }

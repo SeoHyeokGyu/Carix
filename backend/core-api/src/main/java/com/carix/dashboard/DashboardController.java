@@ -87,6 +87,10 @@ public class DashboardController {
           @RequestParam(required = false)
           String companySize) {
 
+    if (baseYearMonth == null || baseYearMonth.isBlank()) {
+      // 재계산은 데이터를 바꿀 때만 돌아서, 월이 바뀌면 현재월 스냅샷이 없다 — 조회 시점에 채운다.
+      snapshotRecalculationService.ensureCurrentMonth(userId);
+    }
     return ResponseEntity.ok(
         ApiResult.success(
             dashboardSummaryService.resolve(userId, normalizeYearMonth(baseYearMonth))));
@@ -243,8 +247,8 @@ public class DashboardController {
   /** {@code YYYY-MM} 과 {@code YYYYMM} 을 모두 받아 {@code YYYYMM} 으로 맞춘다. 없으면 현재월이다. */
   private String normalizeYearMonth(String baseYearMonth) {
     if (baseYearMonth == null || baseYearMonth.isBlank()) {
-      return java.time.YearMonth.now()
-          .format(java.time.format.DateTimeFormatter.ofPattern("yyyyMM"));
+      // 스냅샷 현재월과 같은 UTC 기준이어야 한다. 서버 시간대를 따르면 월초에 방금 만든 달을 못 찾는다.
+      return YearMonths.current();
     }
     return baseYearMonth.replace("-", "");
   }

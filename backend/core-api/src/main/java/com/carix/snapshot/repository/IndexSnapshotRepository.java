@@ -13,6 +13,8 @@ public interface IndexSnapshotRepository extends JpaRepository<IndexSnapshot, UU
 
   List<IndexSnapshot> findByUserIdOrderByBaseYearMonthDesc(UUID userId);
 
+  Optional<IndexSnapshot> findFirstByUserIdOrderByBaseYearMonthDesc(UUID userId);
+
   List<IndexSnapshot> findByUserIdAndBaseYearMonth(UUID userId, String baseYearMonth);
 
   void deleteByUserId(UUID userId);
