@@ -75,6 +75,13 @@ const BODY_PARTS: Record<SalaryBand, BodyPartInfo> = {
   },
 };
 
+/** 내 연봉 위치. 구간 카드와 같은 방향으로 읽히게 중앙값 아래는 하위, 중앙값부터는 상위로만 쓴다. */
+export function positionText(percentile: number): string {
+  return percentile < 50
+    ? `하위 ${Math.max(1, percentile)}%`
+    : `상위 ${Math.max(1, 100 - percentile)}%`;
+}
+
 /** 백분위(0~100)가 속한 4분위 구간의 신체 부위. */
 export function getBodyPartInfo(percentile: number): BodyPartInfo {
   return BODY_PARTS[salaryBand(percentile)];
@@ -382,9 +389,9 @@ export function SalaryDistributionChart({
   const max = postingReference?.max ?? 0;
   const officialMedian = baseline?.median ?? null;
 
-  // 백분위 상위 % 계산 (100 - percentile)
+  // 헤더의 내 연봉 위치 (하위·상위 한 방향)
   const topPercentText = userPosition
-    ? `상위 ${Math.max(1, 100 - userPosition.percentile)}% (백분위 ${userPosition.percentile}%)`
+    ? positionText(userPosition.percentile)
     : "미등록";
 
   // 금액 기준 백분위 추정 (공식 임금통계 기준선 등의 위치 계산용)
@@ -692,7 +699,7 @@ export function SalaryDistributionChart({
                   </div>
                   <div className="text-right">
                     <span className="font-semibold text-xs text-carix-text">
-                      {formatKoreanSalary(p75)} 이상
+                      {formatKoreanSalary(p75)} ~ {formatKoreanSalary(max)}
                     </span>
                     {userPosition && userBand === "head" && (
                       <ToneBadge tone="positive" className="ml-2">
@@ -836,51 +843,6 @@ export function SalaryDistributionChart({
                       </ToneBadge>
                     )}
                   </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* 3. 5수치 상세 카드 그리드 (공고 표본 분위별 기준 연봉) */}
-          <div className="mt-4">
-            <div className="mb-2.5 flex items-center justify-between text-xs text-carix-text/70">
-              <span className="font-semibold text-carix-text/90">
-                📊 공고 표본 5분위 기준 연봉 (참고치)
-              </span>
-              <span className="text-[11px] text-carix-text/50">
-                공개 표본 {postingReference?.sampleSize ?? 0}건 기준
-              </span>
-            </div>
-
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-5 text-center text-xs">
-              <div className="rounded-lg bg-carix-bg/60 p-2.5 border border-carix-border">
-                <span className="text-carix-text/60">최소</span>
-                <div className="mt-1 font-semibold text-carix-text">
-                  {formatKoreanSalary(min)}
-                </div>
-              </div>
-              <div className="rounded-lg bg-carix-bg/60 p-2.5 border border-carix-border">
-                <span className="text-carix-text/60">하위 25%</span>
-                <div className="mt-1 font-semibold text-carix-text">
-                  {formatKoreanSalary(p25)}
-                </div>
-              </div>
-              <div className="rounded-lg bg-carix-bg/60 p-2.5 border border-carix-border">
-                <span className="text-carix-text/60">공고 중앙값 (50%)</span>
-                <div className="mt-1 font-semibold text-carix-text">
-                  {formatKoreanSalary(median)}
-                </div>
-              </div>
-              <div className="rounded-lg bg-carix-bg/60 p-2.5 border border-carix-border">
-                <span className="text-carix-text/60">상위 25% (75%)</span>
-                <div className="mt-1 font-semibold text-carix-text">
-                  {formatKoreanSalary(p75)}
-                </div>
-              </div>
-              <div className="rounded-lg bg-carix-bg/60 p-2.5 border border-carix-border">
-                <span className="text-carix-text/60">최대</span>
-                <div className="mt-1 font-semibold text-carix-text">
-                  {formatKoreanSalary(max)}
                 </div>
               </div>
             </div>

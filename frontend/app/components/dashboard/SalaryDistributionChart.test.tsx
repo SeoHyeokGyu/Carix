@@ -7,6 +7,7 @@ import {
   getBodyPartInfo,
   labelNudge,
   MARKER_LABEL_GAP,
+  positionText,
   salaryBand,
   SalaryDistributionChart,
 } from "./SalaryDistributionChart";
@@ -101,14 +102,18 @@ describe("SalaryDistributionChart", () => {
     expect(screen.getAllByText(/상위 35%/).length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText("[어깨]")).toBeInTheDocument();
 
-    // 5수치 확인
-    expect(screen.getAllByText("4,000만 원").length).toBeGreaterThanOrEqual(1);
-    expect(screen.getAllByText("5,200만 원").length).toBeGreaterThanOrEqual(1);
-    expect(screen.getAllByText("6,800만 원").length).toBeGreaterThanOrEqual(1);
-    expect(screen.getAllByText("8,500만 원").length).toBeGreaterThanOrEqual(1);
-    expect(screen.getAllByText("1억 2,000만 원").length).toBeGreaterThanOrEqual(
-      1,
-    );
+    // 5수치는 구간 카드 금액 범위로 모두 보인다 — 따로 있던 5분위 표를 뺐다.
+    for (const won of [
+      "4,000만 원",
+      "5,200만 원",
+      "6,800만 원",
+      "8,500만 원",
+      "1억 2,000만 원",
+    ]) {
+      expect(
+        screen.getAllByText(new RegExp(won)).length,
+      ).toBeGreaterThanOrEqual(1);
+    }
 
     // 공식 통계 기준선 및 결측률 정보
     expect(
@@ -370,5 +375,20 @@ describe("salaryBand", () => {
     expect(getBodyPartInfo(50).name).toBe("어깨");
     expect(getBodyPartInfo(10).name).toBe("발목");
     expect(getBodyPartInfo(90).name).toBe("머리");
+  });
+});
+
+// 「상위 68% (백분위 32%)」 옆에 「하위 25~50%」 카드가 있어 같은 위치를 두 방향으로 읽어야 했다.
+describe("positionText", () => {
+  it("중앙값 아래는 하위, 중앙값부터는 상위로 한 방향만 쓴다", () => {
+    expect(positionText(32)).toBe("하위 32%");
+    expect(positionText(49)).toBe("하위 49%");
+    expect(positionText(50)).toBe("상위 50%");
+    expect(positionText(90)).toBe("상위 10%");
+  });
+
+  it("끝에서도 0% 로 쓰지 않는다", () => {
+    expect(positionText(0)).toBe("하위 1%");
+    expect(positionText(100)).toBe("상위 1%");
   });
 });
