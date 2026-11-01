@@ -4,6 +4,10 @@ import { describe, expect, it, vi } from "vitest";
 import type { SalaryDistributionResponse } from "../../lib/dashboardMarketApi";
 import {
   formatKoreanSalary,
+  getBodyPartInfo,
+  labelNudge,
+  MARKER_LABEL_GAP,
+  salaryBand,
   SalaryDistributionChart,
 } from "./SalaryDistributionChart";
 
@@ -95,7 +99,6 @@ describe("SalaryDistributionChart", () => {
       expect(el).toHaveAttribute("data-tone", "positive");
     }
     expect(screen.getAllByText(/상위 35%/).length).toBeGreaterThanOrEqual(1);
-    expect(screen.getAllByText(/현재 세전:/).length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText("[어깨]")).toBeInTheDocument();
 
     // 5수치 확인
@@ -334,5 +337,38 @@ describe("SalaryDistributionChart", () => {
     });
 
     expect(onYearChange).toHaveBeenCalledWith("2024");
+  });
+});
+
+// 내 연봉 5,000만·공식 기준 4,769만처럼 가까우면 「공식기준」 이 내 연봉 선 끝에 붙어 그 선의 이름처럼 읽혔다.
+describe("labelNudge", () => {
+  it("가까운 표시와 최소 간격이 되도록 이름표를 그 반대쪽으로 민다", () => {
+    expect(labelNudge(30, 32)).toBe(MARKER_LABEL_GAP - 2);
+    expect(labelNudge(34, 32)).toBe(-(MARKER_LABEL_GAP - 2));
+  });
+
+  it("충분히 떨어져 있거나 비교할 표시가 없으면 그대로 둔다", () => {
+    expect(labelNudge(20, 20 + MARKER_LABEL_GAP)).toBe(0);
+    expect(labelNudge(30, null)).toBe(0);
+  });
+});
+
+// 헤드라인·구간 카드 문구·카드 금액이 서로 다른 경계를 써서 「무릎 (하위 20~35%)」 카드에
+// 하위 25~50% 금액(p25~중앙값)이 찍혔다. 금액이 4분위라 문구·강조도 4분위 하나로 맞춘다.
+describe("salaryBand", () => {
+  it("공고 연봉 4분위 경계에서 구간이 바뀐다", () => {
+    expect(salaryBand(24.9)).toBe("ankle");
+    expect(salaryBand(25)).toBe("knee");
+    expect(salaryBand(49.9)).toBe("knee");
+    expect(salaryBand(50)).toBe("shoulder");
+    expect(salaryBand(74.9)).toBe("shoulder");
+    expect(salaryBand(75)).toBe("head");
+  });
+
+  it("헤드라인의 신체 부위가 같은 구간을 가리킨다", () => {
+    expect(getBodyPartInfo(32).name).toBe("무릎");
+    expect(getBodyPartInfo(50).name).toBe("어깨");
+    expect(getBodyPartInfo(10).name).toBe("발목");
+    expect(getBodyPartInfo(90).name).toBe("머리");
   });
 });

@@ -59,6 +59,14 @@ public class SkillRecommendationService {
 
   public static final int DEFAULT_LIMIT = 10;
   public static final int MAX_LIMIT = 30;
+
+  /**
+   * 동시출현율 조건을 충족하지 못하거나 기준 스킬이 부족할 때의 기본 안내 문구.
+   *
+   * <p>수요율 숫자는 넣지 않는다 — 화면이 같은 행에 「수요율 N%」 배지로 이미 보여 같은 숫자가 두 번 나왔다.
+   */
+  static final String DEFAULT_DEMAND_REASON = "동료집단 공고에서 자주 요구되는 핵심 스택입니다.";
+
   private static final double DEFAULT_MIN_CO_OCCURRENCE_RATE = 0.20;
 
   private static final String TREND_UP = "UP";
@@ -485,7 +493,7 @@ public class SkillRecommendationService {
       Map<UUID, Set<UUID>> postingToSkillIds) {
     // 기준 스킬이 없거나 표본 수가 부족한 경우 기본 수요율 안내 문구 적용
     if (!baseSkillInfo.isSufficient(minSampleSize())) {
-      return new RecommendationReason(null, defaultDemandReason(candidate.demandRate()));
+      return new RecommendationReason(null, DEFAULT_DEMAND_REASON);
     }
 
     UUID baseId = baseSkillInfo.skill().getId();
@@ -498,7 +506,7 @@ public class SkillRecommendationService {
 
     // 동시출현율이 임계값 미만인 경우 전체 공고 수요율 문구로 대체 (US-D6)
     if (roundedRate < minCoOccurrenceRate()) {
-      return new RecommendationReason(null, defaultDemandReason(candidate.demandRate()));
+      return new RecommendationReason(null, DEFAULT_DEMAND_REASON);
     }
 
     CoOccurrenceInfo coOccurrence =
@@ -546,16 +554,6 @@ public class SkillRecommendationService {
    */
   private double roundToTwoDecimals(double value) {
     return Math.round(value * 100.0) / 100.0;
-  }
-
-  /**
-   * 동시출현율 조건을 충족하지 못하거나 기준 스킬이 부족할 때 사용할 기본 수요율 안내 문구를 생성합니다.
-   *
-   * @param demandRate 후보 스킬 수요율 (0.0 ~ 1.0)
-   * @return 기본 수요율 안내 문구
-   */
-  private String defaultDemandReason(double demandRate) {
-    return String.format("동료집단 내 공고의 %.1f%%에서 요구되는 핵심 스택입니다.", demandRate * 100.0);
   }
 
   /**

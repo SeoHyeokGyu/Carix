@@ -25,7 +25,7 @@ describe("SkillRecommendationsSection", () => {
           demandRate: 0.182,
           growthTrend: "STABLE",
           coOccurrence: null,
-          reason: "동료집단 내 공고의 18.2%에서 요구되는 핵심 스택입니다.",
+          reason: "동료집단 공고에서 자주 요구되는 핵심 스택입니다.",
         },
         {
           standardName: "Jenkins",
