@@ -1,18 +1,12 @@
 package com.carix.profile.service;
 
-import com.carix.expense.repository.ExpenseHistoryRepository;
-import com.carix.income.repository.IncomeHistoryRepository;
-import com.carix.income.repository.PerformanceBonusRepository;
 import com.carix.profile.domain.CareerProfile;
 import com.carix.profile.dto.ProfileRequest;
 import com.carix.profile.dto.ProfileResponse;
 import com.carix.profile.exception.InvalidHireDateException;
 import com.carix.profile.repository.CareerProfileRepository;
-import com.carix.scenario.CareerScenarioRepository;
-import com.carix.skill.repository.UserSkillRepository;
 import com.carix.snapshot.SnapshotRecalculationService;
 import com.carix.snapshot.YearMonths;
-import com.carix.snapshot.repository.IndexSnapshotRepository;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.util.List;
@@ -30,12 +24,7 @@ public class ProfileService {
 
   private final CareerProfileRepository careerProfileRepository;
   private final SnapshotRecalculationService snapshotRecalculationService;
-  private final UserSkillRepository userSkillRepository;
-  private final IncomeHistoryRepository incomeHistoryRepository;
-  private final ExpenseHistoryRepository expenseHistoryRepository;
-  private final IndexSnapshotRepository indexSnapshotRepository;
-  private final CareerScenarioRepository careerScenarioRepository;
-  private final PerformanceBonusRepository performanceBonusRepository;
+  private final UserDataEraser eraser;
   private final JdbcTemplate jdbcTemplate;
   private final Clock clock;
 
@@ -43,39 +32,19 @@ public class ProfileService {
       CareerProfileRepository careerProfileRepository,
       SnapshotRecalculationService snapshotRecalculationService,
       Clock clock) {
-    this(
-        careerProfileRepository,
-        snapshotRecalculationService,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        clock);
+    this(careerProfileRepository, snapshotRecalculationService, null, null, clock);
   }
 
   @org.springframework.beans.factory.annotation.Autowired
   public ProfileService(
       CareerProfileRepository careerProfileRepository,
       SnapshotRecalculationService snapshotRecalculationService,
-      UserSkillRepository userSkillRepository,
-      IncomeHistoryRepository incomeHistoryRepository,
-      ExpenseHistoryRepository expenseHistoryRepository,
-      IndexSnapshotRepository indexSnapshotRepository,
-      CareerScenarioRepository careerScenarioRepository,
-      PerformanceBonusRepository performanceBonusRepository,
+      UserDataEraser eraser,
       JdbcTemplate jdbcTemplate,
       Clock clock) {
     this.careerProfileRepository = careerProfileRepository;
     this.snapshotRecalculationService = snapshotRecalculationService;
-    this.userSkillRepository = userSkillRepository;
-    this.incomeHistoryRepository = incomeHistoryRepository;
-    this.expenseHistoryRepository = expenseHistoryRepository;
-    this.indexSnapshotRepository = indexSnapshotRepository;
-    this.careerScenarioRepository = careerScenarioRepository;
-    this.performanceBonusRepository = performanceBonusRepository;
+    this.eraser = eraser;
     this.jdbcTemplate = jdbcTemplate;
     this.clock = clock;
   }
@@ -102,7 +71,8 @@ public class ProfileService {
                 userId);
         if (!emails.isEmpty()) {
           String registeredEmail = emails.get(0);
-          if (!registeredEmail.trim().equalsIgnoreCase(email.trim())) {
+          // 게스트 행은 이메일이 없다. 불일치와 같은 응답으로 막는다.
+          if (registeredEmail == null || !registeredEmail.trim().equalsIgnoreCase(email.trim())) {
             throw new IllegalArgumentException("입력하신 이메일이 회원 정보와 일치하지 않습니다.");
           }
         }
@@ -111,26 +81,8 @@ public class ProfileService {
       }
     }
 
-    // 2. core 스키마 개인 데이터 완전 삭제
-    if (careerProfileRepository != null) careerProfileRepository.deleteByUserId(userId);
-    if (userSkillRepository != null) userSkillRepository.deleteByUserId(userId);
-    if (incomeHistoryRepository != null) incomeHistoryRepository.deleteByUserId(userId);
-    if (expenseHistoryRepository != null) expenseHistoryRepository.deleteByUserId(userId);
-    if (indexSnapshotRepository != null) indexSnapshotRepository.deleteByUserId(userId);
-    if (careerScenarioRepository != null) careerScenarioRepository.deleteByUserId(userId);
-    if (performanceBonusRepository != null) performanceBonusRepository.deleteByUserId(userId);
-
-    // 3. auth 스키마 세션 및 사용자 행 삭제 (auth 스키마 접근 가능 시)
-    if (jdbcTemplate != null) {
-      try {
-        jdbcTemplate.update("DELETE FROM auth.session WHERE user_id = ?", userId);
-        jdbcTemplate.update("DELETE FROM auth.users WHERE id = ?", userId);
-      } catch (org.springframework.dao.DataAccessException e) {
-        log.warn("auth 스키마 계정 삭제 건너뜀: {}", e.getMessage());
-      }
-    }
-
-    log.info("사용자({})의 모든 개인 데이터가 안전하게 삭제되었습니다.", userId);
+    // 2. core 개인 데이터와 auth 세션·사용자 행 삭제
+    eraser.erase(userId);
   }
 
   @Transactional(readOnly = true)
