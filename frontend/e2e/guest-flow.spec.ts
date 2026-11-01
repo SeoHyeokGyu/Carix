@@ -27,7 +27,9 @@ async function fillOnboarding(page: Page) {
   await page.getByLabel("월 실수령액 (만원)").fill("450");
   await page.getByLabel("연봉 적용 시작일").fill("2024-01-01");
   await page.getByRole("button", { name: "추가", exact: true }).click();
-  await expect(page.getByRole("cell", { name: "2024-01-01" })).toBeVisible();
+  await expect(
+    page.getByRole("cell", { name: "2024-01-01", exact: true }),
+  ).toBeVisible();
   await page.getByRole("button", { name: "다음", exact: true }).click();
 
   // 소비는 비워 두면 서버가 평균으로 채운다.
@@ -35,7 +37,7 @@ async function fillOnboarding(page: Page) {
   await page.getByRole("button", { name: "다음", exact: true }).click();
 
   await expect(page).toHaveURL(/\/onboarding\/skills$/);
-  await page.getByLabel("스킬 검색").fill("Java");
+  await page.getByLabel("스킬 검색", { exact: true }).fill("Java");
   await page.getByRole("option").first().click();
   await page.getByLabel(/실무 사용 기간/).fill("24");
   await page.getByLabel("마지막 사용일").fill(today());
@@ -44,17 +46,18 @@ async function fillOnboarding(page: Page) {
   await page.getByRole("button", { name: "다음", exact: true }).click();
 
   await expect(page).toHaveURL(/\/onboarding\/review$/);
-  await page.getByRole("button", { name: "내 판정 보기" }).click();
-  await expect(page).toHaveURL(/\/dashboard$/);
 }
 
-/** 구매력 카드 하단의 "세전 연봉 X · 월 생활비 Y" 에서 X 만 읽는다. */
-async function readDashboardSalary(page: Page): Promise<string> {
-  const line = page.getByText(/세전 연봉 .+ · 월 생활비/);
+/**
+ * 검토 화면 소득 카드의 "세전 연봉 X · 월 실수령액 Y" 에서 X 만 읽는다. 대시보드의 같은
+ * 줄은 첫 지수 계산이 끝나야 그려져 새 계정에서는 1~2분 걸리므로 쓰지 않는다.
+ */
+async function readReviewSalary(page: Page): Promise<string> {
+  const line = page.getByText(/세전 연봉 .+ · 월 실수령액/);
   await expect(line).toBeVisible();
   const text = (await line.textContent()) ?? "";
-  const match = text.match(/세전 연봉 (.+?) · 월 생활비/);
-  if (!match) throw new Error(`연봉 입력 줄을 읽지 못했습니다: ${text}`);
+  const match = text.match(/세전 연봉 (.+?) · 월 실수령액/);
+  if (!match) throw new Error(`연봉 줄을 읽지 못했습니다: ${text}`);
   return match[1];
 }
 
@@ -65,6 +68,8 @@ test.describe("게스트 체험부터 가입까지", () => {
   );
 
   test("게스트 — 체험부터 가입까지 입력이 이어진다", async ({ page }) => {
+    // 실제 백엔드에서 온보딩 다섯 단계와 가입까지 한 번에 돈다.
+    test.setTimeout(180_000);
     const scenarioName = `E2E-${Date.now()}`;
     const email = `e2e-guest-${Date.now()}@example.com`;
 
@@ -73,8 +78,10 @@ test.describe("게스트 체험부터 가입까지", () => {
     await expect(page).toHaveURL(/\/onboarding\/profile$/);
 
     await fillOnboarding(page);
+    const salaryAsGuest = await readReviewSalary(page);
+    await page.getByRole("button", { name: "내 판정 보기" }).click();
+    await expect(page).toHaveURL(/\/dashboard$/);
     await expect(page.getByText(/체험 중입니다\./)).toBeVisible();
-    const salaryAsGuest = await readDashboardSalary(page);
 
     await page.goto("/dashboard/simulator");
     await page.getByLabel("올해 예상 인상률 (%)").fill("3");
@@ -96,6 +103,8 @@ test.describe("게스트 체험부터 가입까지", () => {
 
     await page.goto("/dashboard");
     await expect(page.getByText(/체험 중입니다\./)).toHaveCount(0);
-    expect(await readDashboardSalary(page)).toBe(salaryAsGuest);
+
+    await page.goto("/onboarding/review");
+    expect(await readReviewSalary(page)).toBe(salaryAsGuest);
   });
 });
