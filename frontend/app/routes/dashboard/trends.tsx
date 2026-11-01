@@ -21,6 +21,9 @@ import {
 import { LOGIN_PATH } from "../../lib/routeGuards";
 import { TRENDS_SECTIONS } from "../../lib/trendsSections";
 
+/** 앵커로 왔을 때 고정 헤더가 섹션 위를 덮지 않게 둔다(도움말 화면과 같은 값). */
+const ANCHOR_OFFSET = "scroll-mt-24";
+
 /** 거절된 것 중 하나라도 세션 만료면 참. 순수 함수다. */
 function hasUnauthorized(results: PromiseSettledResult<unknown>[]): boolean {
   return results.some(
@@ -139,6 +142,7 @@ export default function DashboardTrends() {
               <PageSection
                 titleHidden
                 id={TRENDS_SECTIONS.income.id}
+                className={ANCHOR_OFFSET}
                 title={TRENDS_SECTIONS.income.title}
               >
                 {trendData ? (
@@ -153,6 +157,7 @@ export default function DashboardTrends() {
               <PageSection
                 titleHidden
                 id={TRENDS_SECTIONS.salary.id}
+                className={ANCHOR_OFFSET}
                 title={TRENDS_SECTIONS.salary.title}
               >
                 {salaryData ? (

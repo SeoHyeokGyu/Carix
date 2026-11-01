@@ -487,15 +487,14 @@ export function IncomeVsPriceChart({ data }: IncomeVsPriceChartProps) {
 
       {/* 3. 하단 안내 및 메타데이터 */}
       <div className="rounded-lg bg-carix-bg/40 p-3 text-xs text-carix-text/70 border border-carix-border/60 space-y-1">
-        <p className="flex items-center gap-1.5">
+        {/* 제목을 본문과 한 흐름으로 둔다 — flex 로 나란히 두면 좁은 화면에서 제목 칸이 글자 단위로 쪼개진다. */}
+        <p>
           <span className="font-semibold text-carix-text">
             💡 차트 해석 가이드:
-          </span>
-          <span>
-            소득 지수가 개인물가 지수보다 아래에 머무르는 구간은 물가 상승률에
-            소득 증가율이 미치지 못해 <strong>실질 구매력 손실</strong>이
-            발생하는 시기입니다.
-          </span>
+          </span>{" "}
+          소득 지수가 개인물가 지수보다 아래에 머무르는 구간은 물가 상승률에
+          소득 증가율이 미치지 못해 <strong>실질 구매력 손실</strong>이 발생하는
+          시기입니다.
         </p>
         <p className="text-[11px] text-carix-text/50">
           * 지수는 기준월을 100으로 산정한 상대 지표이며, 금액 축 혼용을
