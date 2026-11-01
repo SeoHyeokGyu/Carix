@@ -2,6 +2,7 @@ package com.carix.authservice.account;
 
 import com.carix.authservice.ratelimit.RateLimitService;
 import com.carix.authservice.session.SessionCookies;
+import com.carix.authservice.session.SessionLifetime;
 import com.carix.authservice.session.SessionService;
 import com.carix.authservice.user.User;
 import io.swagger.v3.oas.annotations.Operation;
@@ -53,7 +54,10 @@ public class AccountController {
             "register-ip", httpRequest.getRemoteAddr(), REGISTER_IP_LIMIT_PER_HOUR));
 
     User user = accountService.register(request.email(), request.password());
-    SessionCookies.issue(httpResponse, sessionService.createSession(user.getId()));
+    SessionCookies.issue(
+        httpResponse,
+        sessionService.createSession(user.getId(), SessionLifetime.ACCOUNT),
+        SessionLifetime.ACCOUNT);
     return AuthResponse.from(user);
   }
 
@@ -76,7 +80,10 @@ public class AccountController {
     ensureWithinLimit(exceeded);
 
     User user = accountService.authenticate(request.email(), request.password());
-    SessionCookies.issue(httpResponse, sessionService.createSession(user.getId()));
+    SessionCookies.issue(
+        httpResponse,
+        sessionService.createSession(user.getId(), SessionLifetime.ACCOUNT),
+        SessionLifetime.ACCOUNT);
     return AuthResponse.from(user);
   }
 

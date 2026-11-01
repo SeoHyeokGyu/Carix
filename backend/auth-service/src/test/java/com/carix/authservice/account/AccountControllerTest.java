@@ -14,6 +14,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.carix.authservice.ratelimit.RateLimitService;
+import com.carix.authservice.session.SessionLifetime;
 import com.carix.authservice.session.SessionService;
 import com.carix.authservice.user.User;
 import java.time.OffsetDateTime;
@@ -46,7 +47,8 @@ class AccountControllerTest {
   void 가입하면_세션_쿠키를_발급한다() throws Exception {
     given(accountService.register("beta@example.com", "password123"))
         .willReturn(registered("PROFILE"));
-    given(sessionService.createSession(USER_ID)).willReturn("session-token");
+    given(sessionService.createSession(USER_ID, SessionLifetime.ACCOUNT))
+        .willReturn("session-token");
 
     mockMvc
         .perform(
@@ -58,6 +60,7 @@ class AccountControllerTest {
         .andExpect(jsonPath("$.onboardingStep").value("PROFILE"))
         .andExpect(cookie().httpOnly("session_token", true))
         .andExpect(cookie().secure("session_token", true))
+        .andExpect(cookie().maxAge("session_token", 2_592_000))
         .andExpect(header().string("Set-Cookie", Matchers.containsString("SameSite=Lax")));
   }
 
@@ -121,7 +124,8 @@ class AccountControllerTest {
   @Test
   void 로그인_제한은_정규화한_이메일로_센다_케이스를_바꿔_우회할_수_없다() throws Exception {
     given(accountService.authenticate(anyString(), anyString())).willReturn(registered("PROFILE"));
-    given(sessionService.createSession(USER_ID)).willReturn("session-token");
+    given(sessionService.createSession(USER_ID, SessionLifetime.ACCOUNT))
+        .willReturn("session-token");
 
     mockMvc
         .perform(
