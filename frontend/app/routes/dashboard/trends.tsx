@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useState } from "react";
-import { useNavigate, useSearchParams } from "react-router";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useLocation, useNavigate } from "react-router";
 
 import { PageFrame } from "@/components/layout/PageFrame";
 import { PageHeader } from "@/components/layout/PageHeader";
@@ -8,13 +8,6 @@ import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { InlineAlert } from "@/components/ui/inline-alert";
 import { LoadingState } from "@/components/ui/loading-state";
-import {
-  TAB_ACTIVE,
-  TAB_IDLE,
-  TAB_ITEM,
-  TAB_LIST,
-} from "@/components/ui/tab-styles";
-import { cn } from "@/lib/utils";
 
 import { IncomeVsPriceChart } from "../../components/dashboard/IncomeVsPriceChart";
 import { SalaryDistributionChart } from "../../components/dashboard/SalaryDistributionChart";
@@ -26,11 +19,7 @@ import {
   type TrendListResponse,
 } from "../../lib/dashboardMarketApi";
 import { LOGIN_PATH } from "../../lib/routeGuards";
-import {
-  resolveTrendsTab,
-  TRENDS_TABS,
-  type TrendsTabKey,
-} from "../../lib/trendsTabs";
+import { TRENDS_SECTIONS } from "../../lib/trendsSections";
 
 /** 거절된 것 중 하나라도 세션 만료면 참. 순수 함수다. */
 function hasUnauthorized(results: PromiseSettledResult<unknown>[]): boolean {
@@ -52,18 +41,7 @@ export function meta() {
 }
 
 export default function DashboardTrends() {
-  const [searchParams, setSearchParams] = useSearchParams();
-  const activeTab = resolveTrendsTab(searchParams.get("tab"));
-  const selectTab = (tab: TrendsTabKey) =>
-    setSearchParams(
-      (prev) => {
-        const next = new URLSearchParams(prev);
-        next.set("tab", tab);
-        return next;
-      },
-      { replace: true },
-    );
-
+  const { hash } = useLocation();
   const navigate = useNavigate();
 
   // 데이터 상태
@@ -110,14 +88,22 @@ export default function DashboardTrends() {
   }, [loadData]);
 
   const hasAnyData = Boolean(salaryData || trendData);
-  // 둘 다 실패하고 받아 둔 것도 없으면 고를 탭이 없다 — 탭 대신 화면 단위 실패 하나.
+  // 둘 다 실패하고 받아 둔 것도 없으면 섹션마다 실패를 그리지 않고 화면 단위 실패 하나.
   const screenFailed = !isLoading && Boolean(errorMessage) && !hasAnyData;
+
+  // 섹션은 데이터가 온 뒤에 그려져 브라우저의 앵커 이동이 닿지 않는다 — 처음 그린 뒤 한 번 옮긴다.
+  const anchored = useRef(false);
+  useEffect(() => {
+    if (isLoading || anchored.current || !hash) return;
+    anchored.current = true;
+    document.getElementById(hash.slice(1))?.scrollIntoView();
+  }, [isLoading, hash]);
 
   return (
     <PageFrame>
       <PageHeader
         title="추이 분석"
-        description="소득 대 개인물가, 동료집단 연봉 분포를 다각도로 비교 분석합니다."
+        description="구매력·시장가치 지수 추이와 동료집단 안에서 내 연봉 위치를 함께 봅니다."
       />
 
       {screenFailed ? (
@@ -138,112 +124,69 @@ export default function DashboardTrends() {
         </EmptyState>
       ) : (
         <>
-          {/* 2. 탭 — 선택은 URL ?tab= 이 갖는다(대시보드 카드가 특정 탭으로 보낸다) */}
-          <div
-            role="tablist"
-            aria-label="추이 분석 종류"
-            className={cn("mb-6", TAB_LIST)}
-          >
-            {TRENDS_TABS.map((tab) => {
-              const selected = activeTab === tab.key;
-              return (
-                <Button
-                  key={tab.key}
-                  type="button"
-                  variant="ghost"
-                  role="tab"
-                  id={`trends-tab-${tab.key}`}
-                  aria-selected={selected}
-                  aria-controls="trends-panel"
-                  onClick={() => selectTab(tab.key)}
-                  className={cn(
-                    "h-auto rounded-none",
-                    TAB_ITEM,
-                    selected ? TAB_ACTIVE : TAB_IDLE,
-                  )}
-                >
-                  {tab.label}
-                </Button>
-              );
-            })}
-          </div>
-
-          {/* 4. 탭 콘텐츠 영역 */}
-          <div
-            role="tabpanel"
-            id="trends-panel"
-            aria-labelledby={`trends-tab-${activeTab}`}
-          >
-            <PageSection
-              titleHidden
-              title={TRENDS_TABS.find((t) => t.key === activeTab)?.label ?? ""}
-            >
-              {isLoading ? (
-                <LoadingState message="시장 분석 데이터를 집계 및 분석하고 있습니다..." />
-              ) : (
-                <div>
-                  {/* 받아 둔 데이터가 있으면 화면을 비우지 않고 위에 한 줄로 알린다. */}
-                  {errorMessage && (
-                    <div className="mb-4">
-                      <InlineAlert
-                        message={errorMessage}
-                        onRetry={() => void loadData()}
-                      />
-                    </div>
-                  )}
-                  {activeTab === "salary" && (
-                    <div>
-                      {salaryData ? (
-                        <SalaryDistributionChart data={salaryData} />
-                      ) : (
-                        <EmptyState
-                          variant="plain"
-                          tone="danger"
-                          icon="⚠️"
-                          title="연봉 분포 데이터를 불러오지 못했습니다"
-                        >
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={() => void loadData()}
-                          >
-                            다시 시도
-                          </Button>
-                        </EmptyState>
-                      )}
-                    </div>
-                  )}
-
-                  {activeTab === "income" && (
-                    <div>
-                      {trendData ? (
-                        <IncomeVsPriceChart data={trendData} />
-                      ) : (
-                        <EmptyState
-                          variant="plain"
-                          tone="danger"
-                          icon="⚠️"
-                          title="소득 대 물가 추이 데이터를 불러오지 못했습니다"
-                        >
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={() => void loadData()}
-                          >
-                            다시 시도
-                          </Button>
-                        </EmptyState>
-                      )}
-                    </div>
-                  )}
-                </div>
+          {isLoading ? (
+            <LoadingState message="시장 분석 데이터를 집계 및 분석하고 있습니다..." />
+          ) : (
+            <>
+              {/* 받아 둔 데이터가 있으면 화면을 비우지 않고 위에 한 줄로 알린다. */}
+              {errorMessage && (
+                <InlineAlert
+                  message={errorMessage}
+                  onRetry={() => void loadData()}
+                />
               )}
-            </PageSection>
-          </div>
+              {/* 섹션 제목은 차트 카드가 보인다 — 화면에는 sr-only h2 만 둔다. */}
+              <PageSection
+                titleHidden
+                id={TRENDS_SECTIONS.income.id}
+                title={TRENDS_SECTIONS.income.title}
+              >
+                {trendData ? (
+                  <IncomeVsPriceChart data={trendData} />
+                ) : (
+                  <SectionFailed
+                    title="지수 추이 데이터를 불러오지 못했습니다"
+                    onRetry={errorMessage ? null : () => void loadData()}
+                  />
+                )}
+              </PageSection>
+              <PageSection
+                titleHidden
+                id={TRENDS_SECTIONS.salary.id}
+                title={TRENDS_SECTIONS.salary.title}
+              >
+                {salaryData ? (
+                  <SalaryDistributionChart data={salaryData} />
+                ) : (
+                  <SectionFailed
+                    title="연봉 분포 데이터를 불러오지 못했습니다"
+                    onRetry={errorMessage ? null : () => void loadData()}
+                  />
+                )}
+              </PageSection>
+            </>
+          )}
         </>
       )}
     </PageFrame>
+  );
+}
+
+function SectionFailed({
+  title,
+  onRetry,
+}: {
+  title: string;
+  /** 위 알림이 이미 다시 시도를 가지면 null — 같은 버튼을 두 곳에 두지 않는다. */
+  onRetry: (() => void) | null;
+}) {
+  return (
+    <EmptyState variant="plain" tone="danger" icon="⚠️" title={title}>
+      {onRetry && (
+        <Button type="button" variant="outline" size="sm" onClick={onRetry}>
+          다시 시도
+        </Button>
+      )}
+    </EmptyState>
   );
 }

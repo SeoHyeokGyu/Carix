@@ -1,6 +1,6 @@
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { MemoryRouter, Route, Routes, useLocation } from "react-router";
+import { MemoryRouter, Route, Routes } from "react-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { UnauthorizedError } from "../../lib/coreApi";
@@ -22,23 +22,11 @@ vi.mock("../../lib/dashboardMarketApi", () => ({
   fetchTrends: vi.fn(),
 }));
 
-function LocationProbe() {
-  return <div data-testid="location-search">{useLocation().search}</div>;
-}
-
 function renderTrends(path = "/dashboard/trends") {
   render(
     <MemoryRouter initialEntries={[path]}>
       <Routes>
-        <Route
-          path="/dashboard/trends"
-          element={
-            <>
-              <DashboardTrends />
-              <LocationProbe />
-            </>
-          }
-        />
+        <Route path="/dashboard/trends" element={<DashboardTrends />} />
       </Routes>
     </MemoryRouter>,
   );
@@ -102,20 +90,32 @@ describe("S-14 DashboardTrends 라우트", () => {
     });
   });
 
-  it("화면 헤더와 기본 탭(소득 vs 물가)을 렌더링하고 화면 ID 는 보이지 않는다", async () => {
+  it("탭 없이 지수 추이와 연봉 분포를 한 화면에 함께 그리고 화면 ID 는 보이지 않는다", async () => {
     renderTrends();
 
     expect(screen.queryByText("S-14")).not.toBeInTheDocument();
     expect(
       screen.getByRole("heading", { name: "추이 분석" }),
     ).toBeInTheDocument();
-    expect(screen.getByRole("tab", { name: "소득 vs 물가" })).toHaveAttribute(
-      "aria-selected",
-      "true",
-    );
+    expect(screen.queryByRole("tab")).not.toBeInTheDocument();
     await waitFor(() => {
       expect(screen.getByTestId("income-vs-price-chart")).toBeInTheDocument();
     });
+    expect(
+      screen.getByRole("heading", { level: 3, name: "동료집단 연봉 분포" }),
+    ).toBeInTheDocument();
+  });
+
+  // 데이터가 온 뒤에야 섹션이 그려져 브라우저의 기본 앵커 이동이 닿지 않는다.
+  it("#salary 로 들어오면 데이터가 온 뒤 연봉 분포 섹션으로 스크롤한다", async () => {
+    const scrolled: string[] = [];
+    Element.prototype.scrollIntoView = vi.fn(function (this: Element) {
+      scrolled.push(this.id);
+    });
+
+    renderTrends("/dashboard/trends#salary");
+
+    await waitFor(() => expect(scrolled).toEqual(["salary"]));
   });
 
   // 세션이 죽으면 두 호출이 동시에 401 이다. 부분 성공 렌더링과 갈라 둬야 한다 —
@@ -168,27 +168,20 @@ describe("S-14 DashboardTrends 라우트", () => {
     );
     renderTrends();
     const user = userEvent.setup();
-    await within(
-      await screen.findByRole("tabpanel", { name: "소득 vs 물가" }),
-    ).findByRole("heading", { level: 3 });
+    await screen.findByTestId("income-vs-price-chart");
 
-    // 실패한 연봉 분포 탭에서 다시 시도 — 이번엔 소득 대 물가까지 둘 다 실패한다.
+    // 실패한 연봉 분포 섹션에서 다시 시도 — 이번엔 지수 추이까지 둘 다 실패한다.
     vi.mocked(dashboardMarketApi.fetchTrends).mockRejectedValue(new Error("x"));
-    await user.click(screen.getByRole("tab", { name: "연봉 분포" }));
-    await user.click(
-      await within(screen.getByRole("tabpanel")).findByRole("button", {
-        name: "다시 시도",
-      }),
-    );
+    await user.click(screen.getByRole("button", { name: "다시 시도" }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "시장 분석 데이터를 불러오지 못했습니다",
     );
-    // 받아 둔 소득 대 물가 차트는 그대로 남는다.
-    await user.click(screen.getByRole("tab", { name: "소득 vs 물가" }));
-    expect(
-      within(screen.getByRole("tabpanel")).getByRole("heading", { level: 3 }),
-    ).toBeInTheDocument();
+    // 받아 둔 지수 추이 차트는 그대로 남고, 다시 시도는 알림 한 곳에만 있다.
+    expect(screen.getByTestId("income-vs-price-chart")).toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: "다시 시도" })).toHaveLength(
+      1,
+    );
   });
 
   it("두 조회가 모두 실패하면 화면 단위 실패 하나만 보이고 다시 시도할 수 있다", async () => {
@@ -206,9 +199,8 @@ describe("S-14 DashboardTrends 라우트", () => {
     expect(screen.getAllByRole("button", { name: "다시 시도" })).toHaveLength(
       1,
     );
-    // 화면 전체 실패는 탭 패널 안이 아니라 탭을 대신한다 — 고를 탭이 없다.
-    expect(screen.queryByRole("tablist")).toBeNull();
-    expect(screen.queryByRole("tabpanel")).toBeNull();
+    // 화면 전체 실패는 섹션마다 실패를 그리지 않는다.
+    expect(screen.queryByTestId("income-vs-price-chart")).toBeNull();
 
     await user.click(screen.getByRole("button", { name: "다시 시도" }));
     await waitFor(() =>

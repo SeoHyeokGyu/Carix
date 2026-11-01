@@ -10,6 +10,8 @@ export type PageSectionProps = {
   actions?: ReactNode;
   /** 탭 패널처럼 이미 이름이 있는 자리 — 제목 단계만 지키고 보이지 않게. */
   titleHidden?: boolean;
+  /** 앵커(`#id`)로 바로 오는 섹션. */
+  id?: string;
   className?: string;
   children: ReactNode;
 };
@@ -20,13 +22,14 @@ export function PageSection({
   description,
   actions,
   titleHidden = false,
+  id: anchorId,
   className,
   children,
 }: PageSectionProps) {
   const id = useId();
   if (titleHidden) {
     return (
-      <div data-page-section="" className={className}>
+      <div data-page-section="" id={anchorId} className={className}>
         <h2 className="sr-only">{title}</h2>
         {children}
       </div>
@@ -35,6 +38,7 @@ export function PageSection({
   return (
     <section
       data-page-section=""
+      id={anchorId}
       aria-labelledby={id}
       className={cn("flex flex-col gap-3", className)}
     >
