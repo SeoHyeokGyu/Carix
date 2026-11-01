@@ -641,6 +641,7 @@ describe("대시보드 라우트 및 레이아웃 (Dashboard)", () => {
         userId: "user-1",
         email: "user@carix.kr",
         onboardingStep: "PROFILE",
+        guest: false,
       });
 
       const Stub = createRoutesStub([

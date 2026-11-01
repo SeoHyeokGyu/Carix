@@ -22,6 +22,7 @@ describe("S-05 프로필 화면", () => {
       userId: "u-1",
       email: "user@carix.kr",
       onboardingStep: "PROFILE",
+      guest: false,
     });
   });
 
@@ -187,6 +188,7 @@ describe("S-05 프로필 화면", () => {
       userId: "u-1",
       email: "user@carix.kr",
       onboardingStep: "REVIEW",
+      guest: false,
     });
     vi.spyOn(profileApi, "getProfile").mockResolvedValue({
       jobFamily: "DEVELOPER",

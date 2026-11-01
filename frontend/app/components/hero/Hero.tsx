@@ -1,4 +1,5 @@
 import { HERO_INTRO } from "../../content/landing";
+import { GuestStartButton } from "../sections/GuestStartButton";
 import { IndexCrossoverLine } from "./IndexCrossoverLine";
 
 export function Hero() {
@@ -42,6 +43,9 @@ export function Hero() {
               {paragraph}
             </p>
           ))}
+
+          {/* 첫 화면에서 바로 써 볼 수 있게 — 하단 "시작하기" 까지 내려온 사람만 진입점을 보지 않도록 */}
+          <GuestStartButton className="mt-8 md:items-start" />
 
           {/* 질문 카드 리스트 */}
           <ul className="mt-8 flex flex-col gap-3.5 text-left">

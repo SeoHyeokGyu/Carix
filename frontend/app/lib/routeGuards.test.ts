@@ -2,9 +2,9 @@ import { describe, expect, test } from "vitest";
 
 import {
   DASHBOARD_PATH,
+  guardAccount,
   guardOnboarded,
   guardOnboarding,
-  guardSession,
   isForwardStep,
   LANDING_PATH,
   REVIEW_PATH,
@@ -21,26 +21,54 @@ const signedIn = (onboardingStep: OnboardingStep): Session => ({
   userId: "3fa85f64-5717-4562-b3fc-2c963f66afa6",
   email: "beta@example.com",
   onboardingStep,
+  guest: false,
 });
 
-describe("guardSession — 마이페이지", () => {
+const guest: Session = {
+  status: "authenticated",
+  userId: "9b2f0c1e-1111-4222-8333-444455556666",
+  email: null,
+  onboardingStep: "PROFILE",
+  guest: true,
+};
+
+describe("guardAccount — 마이페이지", () => {
   test("세션 조회 중에는 판정하지 않는다", () => {
-    expect(guardSession(loading)).toEqual({ allow: "pending" });
+    expect(guardAccount(loading, "/mypage/profile")).toEqual({
+      allow: "pending",
+    });
   });
 
   test("세션이 없으면 랜딩으로 보낸다", () => {
-    expect(guardSession(anonymous)).toEqual({
+    expect(guardAccount(anonymous, "/mypage/profile")).toEqual({
       allow: false,
       redirectTo: LANDING_PATH,
     });
   });
 
   test("온보딩을 마치지 않았어도 통과시킨다", () => {
-    expect(guardSession(signedIn("INCOME"))).toEqual({ allow: true });
+    expect(guardAccount(signedIn("INCOME"), "/mypage/profile")).toEqual({
+      allow: true,
+    });
+  });
+});
+
+describe("guardAccount — 게스트", () => {
+  test("게스트가 마이페이지를 열면 돌아올 경로를 들고 가입으로 간다", () => {
+    expect(guardAccount(guest, "/mypage/profile")).toEqual({
+      allow: false,
+      redirectTo: "/register?next=%2Fmypage%2Fprofile",
+    });
   });
 });
 
 describe("guardOnboarded — 대시보드", () => {
+  test("게스트도 대시보드는 연다", () => {
+    expect(guardOnboarded({ ...guest, onboardingStep: "COMPLETED" })).toEqual({
+      allow: true,
+    });
+  });
+
   test("온보딩이 남아 있으면 마지막 미완료 단계로 보낸다", () => {
     expect(guardOnboarded(signedIn("EXPENSE"))).toEqual({
       allow: false,

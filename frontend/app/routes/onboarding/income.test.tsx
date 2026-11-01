@@ -20,6 +20,7 @@ describe("S-06 소득 화면", () => {
       userId: "u-1",
       email: "user@carix.kr",
       onboardingStep: "INCOME",
+      guest: false,
     });
   });
 

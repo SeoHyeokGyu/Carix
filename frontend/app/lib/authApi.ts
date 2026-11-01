@@ -13,12 +13,12 @@ export interface ApiError {
   message: string;
 }
 
-async function post(path: string, body: unknown): Promise<SessionResponse> {
+async function post(path: string, body?: unknown): Promise<SessionResponse> {
   const response = await fetch(`/api/v1/auth/${path}`, {
     method: "POST",
     credentials: "include",
     headers: JSON_HEADERS,
-    body: JSON.stringify(body),
+    body: body === undefined ? undefined : JSON.stringify(body),
   });
 
   if (!response.ok) {
@@ -92,6 +92,11 @@ export async function deleteAccount(email: string): Promise<void> {
   if (!response.ok) {
     throw await toApiError(response);
   }
+}
+
+/** 계정 없이 게스트 세션을 시작한다. 이미 세션이 있으면 서버가 그 사용자를 돌려준다. */
+export function startGuest(): Promise<SessionResponse> {
+  return post("guest");
 }
 
 /** 세션이 없으면 `null`. 401 은 오류가 아니라 "비로그인"이라는 정상 응답이다. */

@@ -10,13 +10,11 @@ public final class SessionCookies {
 
   public static final String NAME = "session_token";
 
-  /** SECURITY.md §1 의 세션 유효기간과 같아야 한다. 다르면 브라우저와 서버 중 짧은 쪽이 실제 만료가 된다. */
-  private static final Duration TTL = Duration.ofDays(30);
-
   private SessionCookies() {}
 
-  public static void issue(HttpServletResponse response, String sessionToken) {
-    response.addHeader(HttpHeaders.SET_COOKIE, build(sessionToken, TTL).toString());
+  public static void issue(
+      HttpServletResponse response, String sessionToken, SessionLifetime lifetime) {
+    response.addHeader(HttpHeaders.SET_COOKIE, build(sessionToken, lifetime.ttl()).toString());
   }
 
   public static void clear(HttpServletResponse response) {

@@ -1,10 +1,10 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { MemoryRouter } from "react-router";
+import { createRoutesStub } from "react-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import * as authApi from "../../lib/authApi";
 import * as sessionLib from "../../lib/session";
-import Register from "./register";
+import Register, { clientLoader, HydrateFallback } from "./register";
 
 const mockNavigate = vi.fn();
 
@@ -16,13 +16,51 @@ vi.mock("react-router", async () => {
   };
 });
 
-vi.mock("../../lib/authApi", () => ({
+vi.mock("../../lib/authApi", async () => ({
+  ...(await vi.importActual<typeof authApi>("../../lib/authApi")),
   register: vi.fn(),
 }));
+
+/** 세션 조회(`/api/v1/auth/session`)만 응답한다. null 이면 401(비로그인). */
+function stubSessionResponse(body: object | null) {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async () =>
+      body
+        ? new Response(JSON.stringify(body), { status: 200 })
+        : new Response(null, { status: 401 }),
+    ),
+  );
+}
+
+function renderRegister(entry = "/register") {
+  const Stub = createRoutesStub([
+    {
+      path: "/register",
+      Component: Register,
+      HydrateFallback,
+      loader: clientLoader,
+    },
+  ]);
+  render(<Stub initialEntries={[entry]} />);
+}
+
+async function submit(email: string) {
+  await screen.findByLabelText("이메일");
+  fireEvent.change(screen.getByLabelText("이메일"), {
+    target: { value: email },
+  });
+  fireEvent.change(screen.getByLabelText(/비밀번호/), {
+    target: { value: "password123" },
+  });
+  fireEvent.click(screen.getByRole("button", { name: "계정 만들기" }));
+}
 
 describe("회원가입 라우트 (Register)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    sessionLib.resetSession();
+    stubSessionResponse(null);
   });
 
   it("가입 성공 시 세션 캐시를 채우고 온보딩 단계 경로로 이동시킨다", async () => {
@@ -31,22 +69,11 @@ describe("회원가입 라우트 (Register)", () => {
       userId: "u-10",
       email: "newuser@carix.kr",
       onboardingStep: "PROFILE",
+      guest: false,
     });
 
-    render(
-      <MemoryRouter>
-        <Register />
-      </MemoryRouter>,
-    );
-
-    fireEvent.change(screen.getByLabelText("이메일"), {
-      target: { value: "newuser@carix.kr" },
-    });
-    fireEvent.change(screen.getByLabelText(/비밀번호/), {
-      target: { value: "password123" },
-    });
-
-    fireEvent.click(screen.getByRole("button", { name: "계정 만들기" }));
+    renderRegister();
+    await submit("newuser@carix.kr");
 
     await waitFor(() => {
       expect(authApi.register).toHaveBeenCalledWith(
@@ -58,10 +85,115 @@ describe("회원가입 라우트 (Register)", () => {
         userId: "u-10",
         email: "newuser@carix.kr",
         onboardingStep: "PROFILE",
+        guest: false,
       });
       expect(mockNavigate).toHaveBeenCalledWith("/onboarding/profile", {
         replace: true,
       });
     });
+  });
+
+  it("가입_후_안전한_next_가_있으면_그_경로로_돌아간다", async () => {
+    vi.mocked(authApi.register).mockResolvedValueOnce({
+      userId: "g-1",
+      email: "newuser@carix.kr",
+      onboardingStep: "INCOME",
+      guest: false,
+    });
+
+    renderRegister("/register?next=%2Fdashboard%2Fsimulator");
+    await submit("newuser@carix.kr");
+
+    await waitFor(() => {
+      expect(mockNavigate).toHaveBeenCalledWith("/dashboard/simulator", {
+        replace: true,
+      });
+    });
+  });
+
+  it("외부_주소_next_는_무시하고_온보딩_단계로_간다", async () => {
+    vi.mocked(authApi.register).mockResolvedValueOnce({
+      userId: "u-10",
+      email: "newuser@carix.kr",
+      onboardingStep: "PROFILE",
+      guest: false,
+    });
+
+    renderRegister("/register?next=%2F%2Fevil.com");
+    await submit("newuser@carix.kr");
+
+    await waitFor(() => {
+      expect(mockNavigate).toHaveBeenCalledWith("/onboarding/profile", {
+        replace: true,
+      });
+    });
+  });
+
+  it("게스트가_중복_이메일이면_로그인_시_유실을_안내한다", async () => {
+    stubSessionResponse({
+      userId: "g-1",
+      email: null,
+      onboardingStep: "INCOME",
+      guest: true,
+    });
+    vi.mocked(authApi.register).mockRejectedValueOnce({
+      code: "EMAIL_TAKEN",
+      message: "이미 가입된 이메일입니다.",
+    });
+
+    renderRegister("/register?next=%2Fdashboard");
+    await submit("taken@carix.kr");
+
+    expect(
+      await screen.findByText(/체험 중 입력한 내용은 이어지지 않습니다/),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "로그인하기" })).toHaveAttribute(
+      "href",
+      "/login?next=%2Fdashboard",
+    );
+  });
+
+  // 저장 재개 쿼리를 로그인으로 넘기면, 이미 쓰인 이메일의 기존 계정으로 로그인한 뒤
+  // 그 계정 draft 가 게스트의 시나리오 이름으로 저장된다.
+  it("로그인_링크는_저장_재개_쿼리를_떼고_경로만_넘긴다", async () => {
+    renderRegister(
+      "/register?next=%2Fdashboard%2Fsimulator%3FresumeSave%3D1%26name%3DA",
+    );
+
+    const links = await screen.findAllByRole("link", { name: /로그인/ });
+    for (const link of links) {
+      expect(link).toHaveAttribute(
+        "href",
+        "/login?next=%2Fdashboard%2Fsimulator",
+      );
+    }
+  });
+
+  // 가입을 미루려는 게스트가 브라우저 뒤로 가기 말고는 체험으로 돌아갈 길이 없었다.
+  // 재개 쿼리를 남기면 돌아가자마자 저장이 다시 시도될 수 있어 경로만 쓴다.
+  it("게스트는_재개_쿼리를_뗀_경로로_체험에_돌아갈_수_있다", async () => {
+    stubSessionResponse({
+      userId: "g-1",
+      email: null,
+      onboardingStep: "COMPLETED",
+      guest: true,
+    });
+
+    renderRegister(
+      "/register?next=%2Fdashboard%2Fsimulator%3FresumeSave%3D1%26name%3DA",
+    );
+
+    expect(
+      await screen.findByRole("link", { name: "체험으로 돌아가기" }),
+    ).toHaveAttribute("href", "/dashboard/simulator");
+  });
+
+  it("게스트가_아니면_체험으로_돌아가기_링크가_없다", async () => {
+    renderRegister();
+
+    await screen.findByLabelText("이메일");
+    expect(
+      screen.queryByRole("link", { name: "체험으로 돌아가기" }),
+    ).not.toBeInTheDocument();
   });
 });

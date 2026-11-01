@@ -52,6 +52,18 @@ class SessionControllerTest {
   }
 
   @Test
+  void 게스트_세션은_guest_true_이고_이메일이_없다() throws Exception {
+    given(sessionService.findUserIdBySessionToken(TOKEN)).willReturn(Optional.of(USER_ID));
+    given(userRepository.findById(USER_ID)).willReturn(Optional.of(User.guest(USER_ID, NOW)));
+
+    mockMvc
+        .perform(get("/v1/auth/session").cookie(sessionCookie()))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.guest").value(true))
+        .andExpect(jsonPath("$.email").isEmpty());
+  }
+
+  @Test
   void 쿠키가_없으면_401_이다() throws Exception {
     mockMvc.perform(get("/v1/auth/session")).andExpect(status().isUnauthorized());
   }

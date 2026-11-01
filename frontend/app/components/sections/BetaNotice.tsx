@@ -1,6 +1,7 @@
 import { Link } from "react-router";
 
 import { BETA_NOTICE } from "../../content/landing";
+import { GuestStartButton } from "./GuestStartButton";
 
 export function BetaNotice() {
   return (
@@ -15,10 +16,11 @@ export function BetaNotice() {
         <p className="mt-4 text-sm leading-relaxed text-carix-text/70">
           {BETA_NOTICE}
         </p>
-        <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
+        <GuestStartButton className="mt-8" />
+        <div className="mt-4 flex flex-wrap items-center justify-center gap-3">
           <Link
             to="/register"
-            className="rounded-lg bg-carix-info px-5 py-2.5 font-medium text-white transition-opacity hover:opacity-90"
+            className="rounded-lg border border-carix-border px-5 py-2.5 font-medium text-carix-text transition-colors hover:bg-carix-border/30"
           >
             가입하고 시작하기
           </Link>

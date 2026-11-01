@@ -38,6 +38,7 @@ describe("온보딩 라우트 및 레이아웃 (Onboarding)", () => {
         userId: "u-1",
         email: "user@carix.kr",
         onboardingStep: "PROFILE",
+        guest: false,
       });
 
       const Stub = createRoutesStub([
@@ -66,6 +67,7 @@ describe("온보딩 라우트 및 레이아웃 (Onboarding)", () => {
         userId: "u-1",
         email: "a@b.kr",
         onboardingStep: "COMPLETED",
+        guest: false,
       });
 
       const Stub = createRoutesStub([

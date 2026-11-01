@@ -15,7 +15,7 @@ public class User {
 
   private String email;
 
-  /** BCrypt 해시. 매직링크 코드가 남아 있는 동안만 {@code null} 일 수 있다. */
+  /** BCrypt 해시. 게스트면 {@code null}. */
   private String passwordHash;
 
   private String onboardingStep;
@@ -23,6 +23,8 @@ public class User {
   private OffsetDateTime createdAt;
 
   private OffsetDateTime updatedAt;
+
+  private boolean guest;
 
   protected User() {}
 
@@ -39,6 +41,28 @@ public class User {
     this.onboardingStep = onboardingStep;
     this.createdAt = createdAt;
     this.updatedAt = updatedAt;
+  }
+
+  /** 가입 없이 쓰는 임시 사용자. 이메일·비밀번호 없이 온보딩 첫 단계에서 시작한다. */
+  public static User guest(UUID id, OffsetDateTime now) {
+    User user = new User(id, null, null, "PROFILE", now, now);
+    user.guest = true;
+    return user;
+  }
+
+  /** 게스트에 자격증명을 붙여 정식 사용자로 바꾼다. id 는 그대로라 게스트 때 쌓은 데이터가 이어진다. */
+  public void upgrade(String email, String passwordHash, OffsetDateTime now) {
+    if (!guest) {
+      throw new IllegalStateException("게스트만 정식 사용자로 전환할 수 있다: " + id);
+    }
+    this.email = email;
+    this.passwordHash = passwordHash;
+    this.guest = false;
+    this.updatedAt = now;
+  }
+
+  public boolean isGuest() {
+    return guest;
   }
 
   public UUID getId() {

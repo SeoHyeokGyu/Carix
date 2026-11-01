@@ -28,6 +28,7 @@ describe("보호 레이아웃 (protected)", () => {
       userId: "u-1",
       email: "a@b.kr",
       onboardingStep: "PROFILE",
+      guest: false,
     };
 
     const Stub = createRoutesStub([
@@ -56,6 +57,7 @@ describe("보호 레이아웃 (protected)", () => {
         userId: "u-1",
         email: "user@carix.kr",
         onboardingStep: "PROFILE",
+        guest: false,
       });
 
       const result = await clientLoader();
@@ -66,6 +68,7 @@ describe("보호 레이아웃 (protected)", () => {
           userId: "u-1",
           email: "user@carix.kr",
           onboardingStep: "PROFILE",
+          guest: false,
         },
       });
     });

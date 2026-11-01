@@ -16,6 +16,10 @@ interface AuthFormProps {
   onSubmit: (email: string, password: string) => Promise<void>;
   footer: ReactNode;
   note?: ReactNode;
+  /** 제목 설명 아래, 폼 위에 놓는 알림. 제출 전에 읽혀야 하는 경고용. */
+  banner?: ReactNode;
+  /** 제출 실패 문구 아래에 덧붙일 안내. 오류 코드별로 다른 출구를 줄 때 쓴다. */
+  renderErrorHint?: (error: ApiError) => ReactNode;
 }
 
 /** 가입과 로그인이 같은 폼을 쓴다. 다른 것은 문구와 제출 동작뿐이다. */
@@ -28,10 +32,12 @@ export function AuthForm({
   onSubmit,
   footer,
   note,
+  banner,
+  renderErrorHint,
 }: AuthFormProps) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<ApiError | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -41,10 +47,16 @@ export function AuthForm({
     try {
       await onSubmit(email, password);
     } catch (caught) {
-      setError((caught as ApiError).message ?? "요청을 처리하지 못했습니다.");
+      const apiError = caught as Partial<ApiError>;
+      setError({
+        code: apiError.code ?? "UNKNOWN",
+        message: apiError.message ?? "요청을 처리하지 못했습니다.",
+      });
       setSubmitting(false);
     }
   }
+
+  const errorHint = error && renderErrorHint ? renderErrorHint(error) : null;
 
   return (
     <main className="flex min-h-screen items-center justify-center bg-carix-bg px-6 py-16">
@@ -61,6 +73,8 @@ export function AuthForm({
         <p className="mt-2 text-sm leading-relaxed text-carix-text/70">
           {description}
         </p>
+
+        {banner ? <div className="mt-6">{banner}</div> : null}
 
         <form onSubmit={handleSubmit} className="mt-8 flex flex-col gap-4">
           <div className="flex flex-col gap-1.5">
@@ -95,7 +109,12 @@ export function AuthForm({
             </span>
           </div>
 
-          {error ? <InlineAlert message={error} /> : null}
+          {error ? <InlineAlert message={error.message} /> : null}
+          {errorHint ? (
+            <p className="text-sm leading-relaxed text-carix-text/70">
+              {errorHint}
+            </p>
+          ) : null}
 
           <Button
             type="submit"

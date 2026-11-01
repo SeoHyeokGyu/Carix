@@ -31,7 +31,7 @@ class SessionServiceTest {
 
   @Test
   void 저장하는_것은_원본이_아니라_해시다() {
-    String rawToken = service.createSession(USER_ID);
+    String rawToken = service.createSession(USER_ID, SessionLifetime.ACCOUNT);
 
     ArgumentCaptor<Session> saved = ArgumentCaptor.forClass(Session.class);
     verify(repository).save(saved.capture());
@@ -39,6 +39,16 @@ class SessionServiceTest {
     assertThat(saved.getValue().getTokenHash())
         .isEqualTo(TokenHasher.sha256Hex(rawToken))
         .isNotEqualTo(rawToken);
+  }
+
+  @Test
+  void 게스트_세션은_24시간_뒤_만료된다() {
+    OffsetDateTime before = OffsetDateTime.now(ZoneOffset.UTC);
+    service.createSession(USER_ID, SessionLifetime.GUEST);
+    ArgumentCaptor<Session> saved = ArgumentCaptor.forClass(Session.class);
+    verify(repository).save(saved.capture());
+    assertThat(saved.getValue().getExpiresAt())
+        .isBetween(before.plusHours(24), OffsetDateTime.now(ZoneOffset.UTC).plusHours(24));
   }
 
   @Test

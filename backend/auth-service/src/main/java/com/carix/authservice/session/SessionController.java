@@ -39,7 +39,7 @@ public class SessionController {
             user ->
                 ResponseEntity.ok(
                     new SessionValidationResponse(
-                        user.getId(), user.getEmail(), user.getOnboardingStep())))
+                        user.getId(), user.getEmail(), user.getOnboardingStep(), user.isGuest())))
         .orElseGet(() -> ResponseEntity.status(HttpStatus.UNAUTHORIZED).build());
   }
 

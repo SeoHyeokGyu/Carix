@@ -36,12 +36,14 @@ describe("S-13 MypageProfile 라우트", () => {
       userId: "u-123",
       email: "user@example.com",
       onboardingStep: "COMPLETED",
+      guest: false,
     });
     vi.mocked(sessionModule.requireSession).mockResolvedValue({
       status: "authenticated",
       userId: "u-123",
       email: "user@example.com",
       onboardingStep: "COMPLETED",
+      guest: false,
     });
   });
 

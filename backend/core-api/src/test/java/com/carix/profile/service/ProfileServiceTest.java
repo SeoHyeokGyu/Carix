@@ -7,22 +7,18 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 
-import com.carix.expense.repository.ExpenseHistoryRepository;
-import com.carix.income.repository.IncomeHistoryRepository;
-import com.carix.income.repository.PerformanceBonusRepository;
 import com.carix.profile.domain.CareerProfile;
 import com.carix.profile.dto.ProfileRequest;
 import com.carix.profile.exception.InvalidHireDateException;
 import com.carix.profile.repository.CareerProfileRepository;
-import com.carix.scenario.CareerScenarioRepository;
-import com.carix.skill.repository.UserSkillRepository;
 import com.carix.snapshot.SnapshotRecalculationService;
-import com.carix.snapshot.repository.IndexSnapshotRepository;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -41,12 +37,7 @@ class ProfileServiceTest {
 
   private CareerProfileRepository careerProfileRepository;
   private SnapshotRecalculationService snapshotRecalculationService;
-  private UserSkillRepository userSkillRepository;
-  private IncomeHistoryRepository incomeHistoryRepository;
-  private ExpenseHistoryRepository expenseHistoryRepository;
-  private IndexSnapshotRepository indexSnapshotRepository;
-  private CareerScenarioRepository careerScenarioRepository;
-  private PerformanceBonusRepository performanceBonusRepository;
+  private UserDataEraser eraser;
   private JdbcTemplate jdbcTemplate;
 
   private ProfileService profileService;
@@ -55,26 +46,12 @@ class ProfileServiceTest {
   void setUp() {
     careerProfileRepository = mock(CareerProfileRepository.class);
     snapshotRecalculationService = mock(SnapshotRecalculationService.class);
-    userSkillRepository = mock(UserSkillRepository.class);
-    incomeHistoryRepository = mock(IncomeHistoryRepository.class);
-    expenseHistoryRepository = mock(ExpenseHistoryRepository.class);
-    indexSnapshotRepository = mock(IndexSnapshotRepository.class);
-    careerScenarioRepository = mock(CareerScenarioRepository.class);
-    performanceBonusRepository = mock(PerformanceBonusRepository.class);
+    eraser = mock(UserDataEraser.class);
     jdbcTemplate = mock(JdbcTemplate.class);
 
     profileService =
         new ProfileService(
-            careerProfileRepository,
-            snapshotRecalculationService,
-            userSkillRepository,
-            incomeHistoryRepository,
-            expenseHistoryRepository,
-            indexSnapshotRepository,
-            careerScenarioRepository,
-            performanceBonusRepository,
-            jdbcTemplate,
-            CLOCK);
+            careerProfileRepository, snapshotRecalculationService, eraser, jdbcTemplate, CLOCK);
   }
 
   @Test
@@ -88,13 +65,7 @@ class ProfileServiceTest {
 
     profileService.deleteUser(USER_ID, email);
 
-    verify(careerProfileRepository).deleteByUserId(USER_ID);
-    verify(userSkillRepository).deleteByUserId(USER_ID);
-    verify(incomeHistoryRepository).deleteByUserId(USER_ID);
-    verify(expenseHistoryRepository).deleteByUserId(USER_ID);
-    verify(indexSnapshotRepository).deleteByUserId(USER_ID);
-    verify(careerScenarioRepository).deleteByUserId(USER_ID);
-    verify(performanceBonusRepository).deleteByUserId(USER_ID);
+    verify(eraser).erase(USER_ID);
   }
 
   @Test
@@ -108,6 +79,21 @@ class ProfileServiceTest {
     assertThatThrownBy(() -> profileService.deleteUser(USER_ID, "wrong@example.com"))
         .isInstanceOf(IllegalArgumentException.class)
         .hasMessageContaining("일치하지 않습니다");
+    verifyNoInteractions(eraser);
+  }
+
+  @Test
+  @DisplayName("deleteUser - 게스트 행은 이메일이 null 이므로 NPE 가 아니라 불일치 예외를 던진다")
+  void deleteUser_게스트는_이메일이_없다() {
+    given(
+            jdbcTemplate.query(
+                anyString(), org.mockito.ArgumentMatchers.<RowMapper<String>>any(), eq(USER_ID)))
+        .willReturn(Collections.singletonList(null));
+
+    assertThatThrownBy(() -> profileService.deleteUser(USER_ID, "any@example.com"))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessageContaining("일치하지 않습니다");
+    verifyNoInteractions(eraser);
   }
 
   @Test
