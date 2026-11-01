@@ -42,10 +42,6 @@ describe("SkillDemandSection", () => {
       "card",
     );
     expect(container.querySelector('[data-slot="table"]')).not.toBeNull();
-    expect(screen.getByText("보유 스킬 수요 추세")).toHaveAttribute(
-      "data-slot",
-      "card-title",
-    );
     const coveragePill = screen.getByText(/보유 스킬 2개 중 2개 반영/);
     expect(coveragePill).toBeInTheDocument();
     // ToneBadge 를 실제로 거쳤는지 — data-tone 은 ToneBadge 만 찍는다.

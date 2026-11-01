@@ -9,7 +9,10 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { InlineAlert } from "@/components/ui/inline-alert";
 import { LoadingState } from "@/components/ui/loading-state";
 
-import { IncomeVsPriceChart } from "../../components/dashboard/IncomeVsPriceChart";
+import {
+  incomeChartTitle,
+  IncomeVsPriceChart,
+} from "../../components/dashboard/IncomeVsPriceChart";
 import { SalaryDistributionChart } from "../../components/dashboard/SalaryDistributionChart";
 import { UnauthorizedError } from "../../lib/coreApi";
 import {
@@ -138,12 +141,15 @@ export default function DashboardTrends() {
                   onRetry={() => void loadData()}
                 />
               )}
-              {/* 섹션 제목은 차트 카드가 보인다 — 화면에는 sr-only h2 만 둔다. */}
               <PageSection
-                titleHidden
                 id={TRENDS_SECTIONS.income.id}
                 className={ANCHOR_OFFSET}
-                title={TRENDS_SECTIONS.income.title}
+                title={
+                  trendData
+                    ? incomeChartTitle(trendData)
+                    : TRENDS_SECTIONS.income.title
+                }
+                description="기준월 지수(100) 대비 실질 구매력 변동과 물가 압력 추이입니다."
               >
                 {trendData ? (
                   <IncomeVsPriceChart data={trendData} />
@@ -155,10 +161,10 @@ export default function DashboardTrends() {
                 )}
               </PageSection>
               <PageSection
-                titleHidden
                 id={TRENDS_SECTIONS.salary.id}
                 className={ANCHOR_OFFSET}
                 title={TRENDS_SECTIONS.salary.title}
+                description="같은 직무·경력·지역 공고의 제시 연봉 안에서 내 연봉 위치입니다."
               >
                 {salaryData ? (
                   <SalaryDistributionChart data={salaryData} />

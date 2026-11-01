@@ -2,7 +2,7 @@ import { useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardTitle } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import {
   Table,
@@ -54,21 +54,14 @@ export function SkillDemandSection({ data }: SkillDemandSectionProps) {
 
   return (
     <Card data-testid="skill-demand-section">
-      {/* 1. 섹션 헤더 및 커버리지 정보 */}
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-carix-border pb-4">
+      {/* 1. 커버리지 정보 — 제목·설명은 화면의 섹션 제목이 갖는다 */}
+      {coverage && (
         <div>
-          <CardTitle>보유 스킬 수요 추세</CardTitle>
-          <p className="mt-1 text-xs text-carix-text/70">
-            최근 3개월 채용공고 수요율 대비 직전 12개월(4~15개월 전) 기준선(100)
-            비교 지수
-          </p>
-        </div>
-        {coverage && (
           <ToneBadge tone="info" className="rounded-full px-3 py-1 font-medium">
             {coverage}
           </ToneBadge>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* 2. 스킬 목록 테이블 */}
       {skills.length === 0 ? (

@@ -1,6 +1,6 @@
 import { useState } from "react";
 
-import { Card, CardTitle } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ToneBadge } from "@/components/ui/tone-badge";
 
@@ -20,6 +20,19 @@ const FONT = 12;
 const MIN_LABEL_SPACING = 44;
 // 이보다 좁으면 오른쪽 「기준 (100)」 라벨을 빼고 그 자리를 그래프에 준다 — Y축의 굵은 100 이 같은 말을 한다.
 const BASELINE_LABEL_MIN_WIDTH = 480;
+
+/** 섹션 제목. 소득·물가 지수가 있으면 그 둘을, 없으면 구매력·시장가치를 그린다. */
+export function incomeChartTitle(data: TrendListResponse): string {
+  return hasIncomeAndPriceSeries(data.trends ?? [])
+    ? "소득 대 개인물가 지수 추이"
+    : "구매력 및 시장가치 지수 추이";
+}
+
+function hasIncomeAndPriceSeries(trends: readonly TrendPoint[]): boolean {
+  return trends.some(
+    (p) => p.incomeIndex != null && p.personalPriceIndex != null,
+  );
+}
 
 export interface IncomeVsPriceChartProps {
   data: TrendListResponse;
@@ -80,9 +93,7 @@ export function IncomeVsPriceChart({ data }: IncomeVsPriceChartProps) {
   const isLessThan12Months = trends.length < 12;
 
   // 데이터 모드 판별: incomeIndex & personalPriceIndex가 있는지, 아니면 purchasingPowerIndex만 있는지
-  const hasIncomeAndPrice = trends.some(
-    (p) => p.incomeIndex != null && p.personalPriceIndex != null,
-  );
+  const hasIncomeAndPrice = hasIncomeAndPriceSeries(trends);
 
   const height = HEIGHT;
   const paddingLeft = 40;
@@ -211,21 +222,10 @@ export function IncomeVsPriceChart({ data }: IncomeVsPriceChartProps) {
 
   return (
     <Card data-testid="income-vs-price-chart">
-      {/* 1. 상단 타이틀 및 상태 */}
-      <div className="flex flex-wrap items-start justify-between gap-4 border-b border-carix-border pb-4">
+      {/* 1. 상태 및 범례 — 제목·설명은 화면의 섹션 제목이 갖는다 */}
+      <div className="flex flex-wrap items-center justify-between gap-4 border-b border-carix-border pb-4">
         <div>
-          <div className="flex items-center gap-2">
-            <CardTitle>
-              {hasIncomeAndPrice
-                ? "소득 대 개인물가 지수 추이"
-                : "구매력 및 시장가치 지수 추이"}
-            </CardTitle>
-            {status && <ToneBadge tone={status.tone}>{status.label}</ToneBadge>}
-          </div>
-          <p className="mt-1 text-xs text-carix-text/70">
-            기준월 지수(100) 대비 실질 구매력 변동 및 물가 압력 추이를
-            분석합니다.
-          </p>
+          {status && <ToneBadge tone={status.tone}>{status.label}</ToneBadge>}
         </div>
 
         {/* 범례 */}

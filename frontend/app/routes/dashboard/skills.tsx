@@ -100,7 +100,6 @@ export default function DashboardSkills() {
         actions={
           <TextLink to="/mypage/records/skills">보유 스킬 관리</TextLink>
         }
-        divider
       />
 
       {isLoading ? (

@@ -1,7 +1,7 @@
 import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
-import { Card, CardTitle } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { HEADING } from "@/components/ui/heading";
 import { ToneBadge } from "@/components/ui/tone-badge";
@@ -391,22 +391,19 @@ export function SalaryDistributionChart({
 
   return (
     <Card data-testid="salary-distribution-chart">
-      {/* 1. 상단 타이틀 및 사용자 연봉 위치 요약 */}
+      {/* 1. 비교 조건 및 사용자 연봉 위치 요약 — 제목은 화면의 섹션 제목이 갖는다 */}
       <div className="flex flex-wrap items-start justify-between gap-4 border-b border-carix-border pb-5">
-        <div>
-          <div className="flex items-center gap-2">
-            <CardTitle>동료집단 연봉 분포</CardTitle>
-            {peerGroup?.fallbackLevel && peerGroup.fallbackLevel > 1 && (
-              <ToneBadge tone="warning">
-                완화 {peerGroup.fallbackLevel}단계
-              </ToneBadge>
-            )}
-          </div>
-          <p className="mt-1 text-xs text-carix-text/70">
+        <div className="flex flex-wrap items-center gap-2">
+          <p className="text-sm font-medium text-carix-text">
             {peerGroup?.appliedConditions
               ? formatAppliedConditions(peerGroup.appliedConditions)
               : "동료집단 기준선"}
           </p>
+          {peerGroup?.fallbackLevel && peerGroup.fallbackLevel > 1 && (
+            <ToneBadge tone="warning">
+              완화 {peerGroup.fallbackLevel}단계
+            </ToneBadge>
+          )}
         </div>
 
         {userPosition ? (

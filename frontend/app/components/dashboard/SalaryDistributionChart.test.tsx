@@ -89,11 +89,7 @@ describe("SalaryDistributionChart", () => {
       "data-slot",
       "card",
     );
-    // 차트 제목 및 사용자 백분위 위치 확인
-    expect(screen.getByText("동료집단 연봉 분포")).toHaveAttribute(
-      "data-slot",
-      "card-title",
-    );
+    // 사용자 백분위 위치 확인
     // 신체 부위 라벨과 「내 위치」는 손수 배지가 아니라 ToneBadge 다.
     for (const el of screen.getAllByText(/^내 위치/)) {
       expect(el).toHaveAttribute("data-tone", "positive");

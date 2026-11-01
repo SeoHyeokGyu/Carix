@@ -44,10 +44,6 @@ describe("SkillRecommendationsSection", () => {
       "data-slot",
       "card",
     );
-    expect(screen.getByText("동료집단 수요 기반 추천 스킬")).toHaveAttribute(
-      "data-slot",
-      "card-title",
-    );
     expect(
       screen.getByText("비교 기준: 서울 전체 / 경력 미들 / 회사규모 무관"),
     ).toBeInTheDocument();
