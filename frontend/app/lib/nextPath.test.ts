@@ -18,6 +18,9 @@ describe("safeNextPath — 돌아갈 경로", () => {
     null,
     undefined,
     "dashboard",
+    "/\t/evil.com",
+    "/\n/evil.com",
+    "/\t\\evil.com",
   ])("외부·잘못된 경로 %s 는 버린다", (raw) => {
     expect(safeNextPath(raw)).toBeNull();
   });
