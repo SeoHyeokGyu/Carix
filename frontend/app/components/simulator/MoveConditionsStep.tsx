@@ -17,30 +17,37 @@ import {
 import type { FieldErrors } from "../../lib/fieldErrors";
 import { focusFirstInvalidField } from "../../lib/focusFirstInvalidField";
 import type { OfferMissing } from "../../lib/simulatorCompare";
-import type { MoveFocus } from "../../lib/simulatorFocus";
 import {
   describeError,
   manInputToWon,
   wonToManInput,
 } from "../../lib/simulatorForm";
 import { ManAmountField } from "./ManAmountField";
-import { UnreflectedNotice } from "./UnreflectedNotice";
+import { OptionalChips, OptionalGroup } from "./OptionalItems";
 import {
   type EmitSource,
   type StepFormHandle,
   useDebouncedEmit,
 } from "./useDebouncedEmit";
-import { useFillFocus } from "./useFillFocus";
+import { useOptionalGroups } from "./useOptionalGroups";
 import { useRevealedErrors } from "./useRevealedErrors";
 
 const MAX_GAP_MONTHS = 6;
 const BENEFIT_NOTE = "본인 의사로 그만두면 대개 받을 수 없습니다.";
 
-const FOCUS_SELECTORS: Record<MoveFocus, string> = {
-  performanceBonus: "#performanceBonus",
-  signingBonus: "#signingBonus",
-  stockVesting: "#stockVesting",
+type OptionalKey = "performanceBonus" | "signingBonus" | "stockVesting";
+
+/** 오퍼 카드 안이라 "새 회사" 는 붙이지 않는다. */
+const OPTIONAL_LABELS: Record<OptionalKey, string> = {
+  performanceBonus: "성과급",
+  signingBonus: "사이닝 보너스",
+  stockVesting: "주식",
 };
+const OPTIONAL_ORDER: readonly OptionalKey[] = [
+  "performanceBonus",
+  "signingBonus",
+  "stockVesting",
+];
 
 type Move = NonNullable<EvaluateRequest["move"]>;
 
@@ -115,11 +122,6 @@ interface MoveConditionsStepProps {
   ref?: Ref<StepFormHandle<OfferEmit>>;
   /** 이미 있는 계산 요청. 처음 그릴 때 `move` 만 읽는다. */
   initial: EvaluateRequest | null;
-  /** 미반영 `넣기` 로 들어왔을 때 열고 포커스할 칸. */
-  focus?: MoveFocus;
-  /** 마지막 비교에서 비어 반영되지 않은 새 회사 항목. 접힘 칸 위에 `넣기` 로 보인다. */
-  unreflected?: readonly string[];
-  onFill?: (code: string) => void;
   /** 유효한 입력. 처음 그릴 때 유효하면 `mount` 로 바로, 이후 편집은 400ms 뒤 `edit`. */
   onChange: (offer: OfferEmit, source: EmitSource) => void;
   /** 편집·flush 결과가 무효일 때. 무엇이 빠졌는지 함께 알린다. 계산 요청은 직전 값으로 남고, 호출자가 결과를 흐리게 한다. */
@@ -129,9 +131,6 @@ interface MoveConditionsStepProps {
 export function MoveConditionsStep({
   ref,
   initial,
-  focus,
-  unreflected = [],
-  onFill = () => {},
   onChange,
   onInvalid,
 }: MoveConditionsStepProps) {
@@ -146,7 +145,10 @@ export function MoveConditionsStep({
   } | null>(null);
   const feasibilityRun = useRef(0);
   const formRef = useRef<HTMLFormElement>(null);
-  const detailsRef = useFillFocus(focus && FOCUS_SELECTORS[focus]);
+  // 값이 있는 항목은 늘 보인다 — 숨긴 값이 계산에 들어가지 않게.
+  const optional = useOptionalGroups<OptionalKey>(
+    OPTIONAL_ORDER.filter((key) => values[key].trim() !== ""),
+  );
 
   const set = <K extends keyof MoveFormValues>(
     key: K,
@@ -284,6 +286,43 @@ export function MoveConditionsStep({
         )}
       </div>
 
+      {/* 계산에 바로 들어가는 질문이라 접지 않는다 — 지금 회사 카드도 같은 질문을 늘 보인다. */}
+      <fieldset className="flex flex-col gap-2">
+        <legend className="mb-2 text-sm font-medium">
+          새 회사 연봉에 고정상여가 들어 있나요?
+        </legend>
+        <label className="flex items-center gap-2 text-sm">
+          <input
+            type="radio"
+            name="moveBonusIncluded"
+            checked={values.bonusIncluded}
+            onChange={() => set("bonusIncluded", true)}
+          />
+          들어 있음
+        </label>
+        <label className="flex items-center gap-2 text-sm">
+          <input
+            type="radio"
+            name="moveBonusIncluded"
+            checked={!values.bonusIncluded}
+            onChange={() => {
+              // 금액 칸이 비어 무효가 되면 결과가 "입력을 고치면" 이라 말하므로 칸 오류도 함께 보인다.
+              touch("fixedBonus");
+              set("bonusIncluded", false);
+            }}
+          />
+          따로 받음
+        </label>
+      </fieldset>
+      {!values.bonusIncluded && (
+        <ManAmountField
+          id="fixedBonus"
+          label="연간 고정상여 (만원)"
+          value={values.fixedBonus}
+          onChange={(v) => set("fixedBonus", v)}
+          error={errors.fixedBonus}
+        />
+      )}
       <Field
         id="gapMonths"
         label="쉬는 기간 (개월)"
@@ -352,68 +391,64 @@ export function MoveConditionsStep({
         )}
       </fieldset>
 
-      <UnreflectedNotice codes={unreflected} onFill={onFill} />
-      <details ref={detailsRef} className="rounded-lg border px-4 py-3">
-        <summary className="cursor-pointer text-sm font-medium">
-          상여·성과급·사이닝·주식 (선택)
-        </summary>
-        <div className="mt-4 flex flex-col gap-4">
-          <fieldset className="flex flex-col gap-2">
-            <legend className="mb-2 text-sm font-medium">
-              새 회사 연봉에 고정상여가 들어 있나요?
-            </legend>
-            <label className="flex items-center gap-2 text-sm">
-              <input
-                type="radio"
-                name="moveBonusIncluded"
-                checked={values.bonusIncluded}
-                onChange={() => set("bonusIncluded", true)}
-              />
-              들어 있음
-            </label>
-            <label className="flex items-center gap-2 text-sm">
-              <input
-                type="radio"
-                name="moveBonusIncluded"
-                checked={!values.bonusIncluded}
-                onChange={() => {
-                  // 금액 칸이 비어 무효가 되면 결과가 "입력을 고치면" 이라 말하므로 칸 오류도 함께 보인다.
-                  touch("fixedBonus");
-                  set("bonusIncluded", false);
-                }}
-              />
-              따로 받음
-            </label>
-          </fieldset>
-          {!values.bonusIncluded && (
-            <ManAmountField
-              id="fixedBonus"
-              label="연간 고정상여 (만원)"
-              value={values.fixedBonus}
-              onChange={(v) => set("fixedBonus", v)}
-              error={errors.fixedBonus}
-            />
-          )}
+      {optional.isAdded("performanceBonus") && (
+        <OptionalGroup
+          label={OPTIONAL_LABELS.performanceBonus}
+          groupRef={optional.register("group", "performanceBonus")}
+          onRemove={() => {
+            set("performanceBonus", "");
+            optional.remove("performanceBonus");
+          }}
+        >
           <ManAmountField
             id="performanceBonus"
             label="예상 성과급 (만원)"
             value={values.performanceBonus}
             onChange={(v) => set("performanceBonus", v)}
           />
+        </OptionalGroup>
+      )}
+      {optional.isAdded("signingBonus") && (
+        <OptionalGroup
+          label={OPTIONAL_LABELS.signingBonus}
+          groupRef={optional.register("group", "signingBonus")}
+          onRemove={() => {
+            set("signingBonus", "");
+            optional.remove("signingBonus");
+          }}
+        >
           <ManAmountField
             id="signingBonus"
             label="사이닝 보너스 (만원)"
             value={values.signingBonus}
             onChange={(v) => set("signingBonus", v)}
           />
+        </OptionalGroup>
+      )}
+      {optional.isAdded("stockVesting") && (
+        <OptionalGroup
+          label={OPTIONAL_LABELS.stockVesting}
+          groupRef={optional.register("group", "stockVesting")}
+          onRemove={() => {
+            set("stockVesting", "");
+            optional.remove("stockVesting");
+          }}
+        >
           <ManAmountField
             id="stockVesting"
             label="1년 안에 받을 주식 (만원)"
             value={values.stockVesting}
             onChange={(v) => set("stockVesting", v)}
           />
-        </div>
-      </details>
+        </OptionalGroup>
+      )}
+      <OptionalChips
+        items={OPTIONAL_ORDER.filter((key) => !optional.isAdded(key)).map(
+          (key) => ({ key, label: OPTIONAL_LABELS[key] }),
+        )}
+        register={optional.register}
+        onAdd={optional.add}
+      />
     </form>
   );
 }

@@ -169,4 +169,63 @@ describe("MoveConditionsStep", () => {
 
     expect(onInvalid).toHaveBeenLastCalledWith("gross");
   });
+
+  describe("선택 항목", () => {
+    const offer = {
+      grossSalary: 70_000_000,
+      unemploymentMonths: 0,
+      oneTimeCost: 0,
+      benefitEligible: false,
+      bonusIncluded: true,
+    };
+
+    it("사이닝 보너스만 있는 저장분은 그 칸을 펼친 채 그린다", () => {
+      render(
+        <MoveConditionsStep
+          initial={{
+            stay: { raisePercent: 3 },
+            move: { ...offer, signingBonus: 5_000_000 },
+          }}
+          onChange={vi.fn()}
+        />,
+      );
+
+      const signing = screen.getByLabelText(/사이닝 보너스 \(만원\)/);
+      expect(signing).toHaveValue("500");
+      expect(signing).toBeVisible();
+    });
+
+    it("추가한 사이닝 보너스를 빼면 계산 요청에서 빠진다", async () => {
+      const ref = createRef<StepFormHandle<OfferEmit>>();
+      render(
+        <MoveConditionsStep
+          ref={ref}
+          initial={{ stay: { raisePercent: 3 }, move: offer }}
+          onChange={vi.fn()}
+        />,
+      );
+      const user = userEvent.setup();
+
+      await user.click(
+        screen.getByRole("button", { name: "사이닝 보너스 추가" }),
+      );
+      await user.type(screen.getByLabelText(/사이닝 보너스 \(만원\)/), "500");
+      await user.click(
+        screen.getByRole("button", { name: "사이닝 보너스 빼기" }),
+      );
+
+      expect(flush(ref)).toEqual(
+        expect.objectContaining({ signingBonus: null }),
+      );
+    });
+
+    // 고정상여 질문은 계산에 바로 들어간다 — 접힌 채 기본값으로 계산되지 않게 늘 보인다.
+    it("새 회사 고정상여 질문은 늘 보인다", () => {
+      renderStep();
+
+      expect(
+        screen.getByRole("group", { name: /새 회사 연봉에 고정상여가/ }),
+      ).toBeVisible();
+    });
+  });
 });

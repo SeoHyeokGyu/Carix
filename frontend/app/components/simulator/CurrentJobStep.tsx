@@ -16,7 +16,6 @@ import type { EvaluateRequest, ScenarioContext } from "../../lib/api/scenario";
 import type { FieldErrors } from "../../lib/fieldErrors";
 import { focusFirstInvalidField } from "../../lib/focusFirstInvalidField";
 import { formatKoreanSalary } from "../../lib/koreanSalary";
-import type { CurrentJobFocus } from "../../lib/simulatorFocus";
 import {
   manInputToWon,
   raisePercentError,
@@ -24,13 +23,13 @@ import {
 } from "../../lib/simulatorForm";
 import { BonusRecordForm } from "./BonusRecordForm";
 import { ManAmountField } from "./ManAmountField";
-import { UnreflectedNotice } from "./UnreflectedNotice";
+import { OptionalChips, OptionalGroup } from "./OptionalItems";
 import {
   type EmitSource,
   type StepFormHandle,
   useDebouncedEmit,
 } from "./useDebouncedEmit";
-import { useFillFocus } from "./useFillFocus";
+import { useOptionalGroups } from "./useOptionalGroups";
 import {
   RecordSaveNote,
   type RecordSaveTracker,
@@ -38,11 +37,7 @@ import {
 } from "./useRecordSave";
 import { useRevealedErrors } from "./useRevealedErrors";
 
-const FOCUS_SELECTORS: Record<CurrentJobFocus, string> = {
-  performanceBonus: "#performanceBonusEstimate, #recordMonth",
-  stock: "#stockVesting12m",
-  hireDate: "#hireDate",
-};
+type OptionalKey = "performanceBonus" | "stock" | "hireDate";
 
 const SAVED_NOTE = "마이페이지에 저장됨";
 const BONUS_AMOUNT_REQUIRED = "연간 고정상여 금액을 입력해 주세요.";
@@ -64,11 +59,6 @@ interface CurrentJobStepProps {
   latestIncomeId: string | null;
   /** 이미 있는 계산 요청. 처음 그릴 때만 읽는다. */
   initial: EvaluateRequest | null;
-  /** 미반영 `넣기` 로 들어왔을 때 열고 포커스할 칸. */
-  focus?: CurrentJobFocus;
-  /** 마지막 평가에서 비어 반영되지 않은 지금 회사 항목. 접힘 칸 위에 `넣기` 로 보인다. */
-  unreflected?: readonly string[];
-  onFill?: (code: string) => void;
   /** 유효한 입력. 처음 그릴 때 유효하면 `mount` 로 바로, 이후 편집은 400ms 뒤 `edit`. */
   onChange: (stay: Stay, source: EmitSource) => void;
   /** 편집·flush 결과가 무효일 때. 계산 요청은 직전 값으로 남고, 호출자가 결과를 흐리게 한다. */
@@ -91,9 +81,6 @@ export function CurrentJobStep({
   context,
   latestIncomeId,
   initial,
-  focus,
-  unreflected = [],
-  onFill = () => {},
   onChange,
   onInvalid,
   onRecordSaving,
@@ -125,7 +112,13 @@ export function CurrentJobStep({
   const { errors, setErrors, touch, revealAll, pickRevealed } =
     useRevealedErrors();
   const formRef = useRef<HTMLFormElement>(null);
-  const detailsRef = useFillFocus(focus && FOCUS_SELECTORS[focus]);
+  const optional = useOptionalGroups<OptionalKey>([
+    // 기록 범위가 있으면 예상치는 쓰이지 않는다 — 그때 성과급 칸은 기록 추가 폼일 뿐이다.
+    ...(estimate && !context.performanceBonusRange
+      ? (["performanceBonus"] as const)
+      : []),
+    ...(vesting || unvested ? (["stock"] as const) : []),
+  ]);
 
   const callbacks = useRef({ onRecordSaving, onRecordSaved, onBonusUnsaved });
   useEffect(() => {
@@ -164,6 +157,9 @@ export function CurrentJobStep({
   );
 
   const range = context.performanceBonusRange;
+  // 저장 중·저장 뒤에도 결과 표시를 위해 칸을 남긴다. 맥락을 다시 읽으면 입사일이 생긴다.
+  const hireDateAsked =
+    context.hireDate === null || hireDateSave.status !== "idle";
   const overrideShown = noIncome || overrideOpen;
   // 덮어쓴 연봉은 상여까지 더한 금액이라 상여 조건을 따로 묻지도 저장하지도 않는다.
   const overrideActive = overrideShown && manInputToWon(override) !== null;
@@ -429,18 +425,24 @@ export function CurrentJobStep({
         </>
       )}
 
-      <UnreflectedNotice codes={unreflected} onFill={onFill} />
-      <details ref={detailsRef} className="rounded-lg border px-4 py-3">
-        <summary className="cursor-pointer text-sm font-medium">
-          성과급·주식·입사일 (선택)
-        </summary>
-        <div className="mt-4 flex flex-col gap-4">
-          {range ? (
-            <p className="text-sm">
-              성과급 최근 {range.years}개년 최저 {formatKoreanSalary(range.min)}{" "}
-              · 평균 {formatKoreanSalary(range.average)}
-            </p>
-          ) : (
+      {range && (
+        <p className="text-sm">
+          성과급 최근 {range.years}개년 최저 {formatKoreanSalary(range.min)} ·
+          평균 {formatKoreanSalary(range.average)}
+        </p>
+      )}
+      {optional.isAdded("performanceBonus") && (
+        <OptionalGroup
+          label={range ? "성과급 기록" : "성과급"}
+          groupRef={optional.register("group", "performanceBonus")}
+          // 기록 폼만 있을 때는 비울 값이 없다 — `빼기` 가 저장된 기록을 지우는 것처럼 읽히지 않게 `닫기`.
+          removeText={range ? "닫기" : "빼기"}
+          onRemove={() => {
+            setEstimate("");
+            optional.remove("performanceBonus");
+          }}
+        >
+          {!range && (
             <ManAmountField
               id="performanceBonusEstimate"
               label="이번 시나리오용 성과급 예상치 (만원)"
@@ -453,6 +455,18 @@ export function CurrentJobStep({
             savedNote={SAVED_NOTE}
             onRecorded={onBonusRecorded}
           />
+        </OptionalGroup>
+      )}
+      {optional.isAdded("stock") && (
+        <OptionalGroup
+          label="주식"
+          groupRef={optional.register("group", "stock")}
+          onRemove={() => {
+            setVesting("");
+            setUnvested("");
+            optional.remove("stock");
+          }}
+        >
           <ManAmountField
             id="stockVesting12m"
             label="1년 안에 받을 주식 (만원)"
@@ -466,32 +480,67 @@ export function CurrentJobStep({
             value={unvested}
             onChange={setUnvested}
           />
-          {(context.hireDate === null || hireDateSave.status !== "idle") && (
-            <div className="flex flex-col gap-1">
-              <Field
-                id="hireDate"
-                label="입사일"
-                hint="입력하면 프로필에 저장됩니다. 퇴직금 계산에 쓰입니다."
-              >
-                {(aria) => (
-                  <Input
-                    {...aria}
-                    type="date"
-                    value={hireDate}
-                    onChange={(e) => setHireDate(e.target.value)}
-                    onBlur={commitHireDate}
-                  />
-                )}
-              </Field>
-              <RecordSaveNote
-                status={hireDateSave.status}
-                target="프로필"
-                onRetry={hireDateSave.retry}
-              />
-            </div>
-          )}
-        </div>
-      </details>
+        </OptionalGroup>
+      )}
+      {hireDateAsked && optional.isAdded("hireDate") && (
+        <OptionalGroup
+          label="입사일"
+          groupRef={optional.register("group", "hireDate")}
+          // 저장이 나간 입사일은 되돌릴 수 없으니 뺄 수 있는 것처럼 보이지 않는다. 빼면 값도 비워야
+          // flush 가 입사일을 저장하지 않는다.
+          onRemove={
+            hireDateSave.status === "idle"
+              ? () => {
+                  setHireDate("");
+                  optional.remove("hireDate");
+                }
+              : undefined
+          }
+        >
+          <div className="flex flex-col gap-1">
+            <Field
+              id="hireDate"
+              label="입사일"
+              hint="입력하면 프로필에 저장됩니다. 퇴직금 계산에 쓰입니다."
+            >
+              {(aria) => (
+                <Input
+                  {...aria}
+                  type="date"
+                  value={hireDate}
+                  onChange={(e) => setHireDate(e.target.value)}
+                  onBlur={commitHireDate}
+                />
+              )}
+            </Field>
+            <RecordSaveNote
+              status={hireDateSave.status}
+              target="프로필"
+              onRetry={hireDateSave.retry}
+            />
+          </div>
+        </OptionalGroup>
+      )}
+      <OptionalChips
+        items={[
+          ...(optional.isAdded("performanceBonus")
+            ? []
+            : [
+                {
+                  key: "performanceBonus" as const,
+                  label: range ? "성과급 기록" : "성과급",
+                },
+              ]),
+          ...(optional.isAdded("stock")
+            ? []
+            : [{ key: "stock" as const, label: "주식" }]),
+          ...(context.hireDate === null && !optional.isAdded("hireDate")
+            ? [{ key: "hireDate" as const, label: "입사일" }]
+            : []),
+        ]}
+        register={optional.register}
+        onAdd={optional.add}
+      />
     </form>
   );
 }
