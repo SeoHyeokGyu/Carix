@@ -3,12 +3,16 @@ package com.carix.income.service;
 import com.carix.income.domain.IncomeHistory;
 import com.carix.income.repository.IncomeHistoryRepository;
 import com.carix.index.CurrentSalaryProvider;
+import com.carix.index.EffectiveIncome;
 import com.carix.index.dto.CurrentSalary;
+import com.carix.index.dto.RecordedYearIncome;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.TreeMap;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -74,5 +78,24 @@ public class IncomeCurrentSalaryProvider implements CurrentSalaryProvider {
     return matched
         .filter(h -> h.getGrossSalary() != null && h.getGrossSalary() > 0)
         .map(h -> new CurrentSalary(h.getGrossSalary(), h.getEffectiveDate()));
+  }
+
+  @Override
+  @Transactional(readOnly = true)
+  public List<RecordedYearIncome> recordedYearIncomes(UUID userId) {
+    // 감사 목적의 디버그 로깅: 금액은 절대 포함하지 않고 요청 컨텍스트만 기록
+    log.debug("연도별 소득 복호화 조회: userId={}", userId);
+
+    // 내림차순이라 연도별 첫 행이 그해 말일 시점 행이다
+    Map<Integer, IncomeHistory> lastRowByYear = new TreeMap<>();
+    for (IncomeHistory history :
+        incomeHistoryRepository.findByUserIdOrderByEffectiveDateDesc(userId)) {
+      if (history.getGrossSalary() != null && history.getGrossSalary() > 0) {
+        lastRowByYear.putIfAbsent(history.getEffectiveDate().getYear(), history);
+      }
+    }
+    return lastRowByYear.entrySet().stream()
+        .map(e -> new RecordedYearIncome(e.getKey(), EffectiveIncome.annualGross(e.getValue())))
+        .toList();
   }
 }
