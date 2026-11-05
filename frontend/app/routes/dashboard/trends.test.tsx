@@ -20,7 +20,72 @@ vi.mock("react-router", async () => {
 vi.mock("../../lib/dashboardMarketApi", () => ({
   fetchSalaryDistribution: vi.fn(),
   fetchTrends: vi.fn(),
+  fetchWageGrowth: vi.fn(),
 }));
+
+const WAGE_GROWTH_OK: dashboardMarketApi.WageGrowthResponse = {
+  status: "OK",
+  bracket: "MID",
+  basis: "AGE_BAND_PROXY",
+  source: "KOSIS",
+  latestStatYear: "2025",
+  lastRecordedYear: "2025",
+  latest: {
+    fromYear: "2024",
+    toYear: "2025",
+    myGrowthPercent: 5,
+    marketGrowthPercent: 3,
+    gapPp: 2,
+  },
+  runs: [
+    {
+      points: [
+        {
+          year: "2024",
+          myIndex: 100,
+          marketIndex: 100,
+          recorded: true,
+          myGross: 40_000_000,
+          marketMedian: 10_000_000,
+        },
+        {
+          year: "2025",
+          myIndex: 105,
+          marketIndex: 103,
+          recorded: true,
+          myGross: 42_000_000,
+          marketMedian: 10_300_000,
+        },
+      ],
+      spans: [
+        {
+          fromYear: "2024",
+          toYear: "2025",
+          myGrowthPercent: 5,
+          marketGrowthPercent: 3,
+        },
+      ],
+    },
+  ],
+};
+
+const WAGE_GROWTH_EMPTY: dashboardMarketApi.WageGrowthResponse = {
+  ...WAGE_GROWTH_OK,
+  status: "NO_INCOME_HISTORY",
+  latest: null,
+  runs: [],
+};
+
+/** a 가 문서에서 b 보다 앞이면 참. */
+function isBefore(a: HTMLElement, b: HTMLElement): boolean {
+  return Boolean(
+    a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING,
+  );
+}
+
+function sectionHeading(name: string): HTMLElement {
+  return screen.getByRole("heading", { level: 2, name });
+}
 
 function renderTrends(path = "/dashboard/trends") {
   render(
@@ -63,6 +128,10 @@ describe("S-14 DashboardTrends 라우트", () => {
         appliedConditions: "수도권 / 경력 3년 이상",
       },
     });
+
+    vi.mocked(dashboardMarketApi.fetchWageGrowth).mockResolvedValue(
+      WAGE_GROWTH_OK,
+    );
 
     vi.mocked(dashboardMarketApi.fetchTrends).mockResolvedValue({
       trends: [
@@ -172,6 +241,9 @@ describe("S-14 DashboardTrends 라우트", () => {
 
     // 실패한 연봉 분포 섹션에서 다시 시도 — 이번엔 지수 추이까지 둘 다 실패한다.
     vi.mocked(dashboardMarketApi.fetchTrends).mockRejectedValue(new Error("x"));
+    vi.mocked(dashboardMarketApi.fetchWageGrowth).mockRejectedValue(
+      new Error("x"),
+    );
     await user.click(screen.getByRole("button", { name: "다시 시도" }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent(
@@ -184,11 +256,14 @@ describe("S-14 DashboardTrends 라우트", () => {
     );
   });
 
-  it("두 조회가 모두 실패하면 화면 단위 실패 하나만 보이고 다시 시도할 수 있다", async () => {
+  it("세 조회가 모두 실패하면 화면 단위 실패 하나만 보이고 다시 시도할 수 있다", async () => {
     vi.mocked(dashboardMarketApi.fetchSalaryDistribution).mockRejectedValue(
       new Error("x"),
     );
     vi.mocked(dashboardMarketApi.fetchTrends).mockRejectedValue(new Error("x"));
+    vi.mocked(dashboardMarketApi.fetchWageGrowth).mockRejectedValue(
+      new Error("x"),
+    );
     renderTrends();
     const user = userEvent.setup();
 
@@ -206,5 +281,101 @@ describe("S-14 DashboardTrends 라우트", () => {
     await waitFor(() =>
       expect(dashboardMarketApi.fetchTrends).toHaveBeenCalledTimes(2),
     );
+  });
+
+  it("비교할 수 있으면 지수 추이와 연봉 분포 사이에 둔다", async () => {
+    renderTrends();
+
+    await waitFor(() => {
+      expect(screen.getByTestId("wage-growth-section")).toBeInTheDocument();
+    });
+    const growth = sectionHeading("상승률 비교");
+    expect(isBefore(growth, sectionHeading("동료집단 연봉 분포"))).toBe(true);
+    expect(isBefore(screen.getByTestId("income-vs-price-chart"), growth)).toBe(
+      true,
+    );
+  });
+
+  // 빈 상태가 연봉 분포를 밀어내지 않게 한다
+  it("비교할 수 없으면 연봉 분포 아래에 둔다", async () => {
+    vi.mocked(dashboardMarketApi.fetchWageGrowth).mockResolvedValue(
+      WAGE_GROWTH_EMPTY,
+    );
+
+    renderTrends();
+
+    await waitFor(() => {
+      expect(screen.getByText(/연봉 기록이 두 해 이상/)).toBeInTheDocument();
+    });
+    expect(
+      isBefore(
+        sectionHeading("동료집단 연봉 분포"),
+        sectionHeading("상승률 비교"),
+      ),
+    ).toBe(true);
+  });
+
+  it("상승률 비교만 실패하면 그 자리에만 실패와 다시 시도를 보이고 다시 부른다", async () => {
+    vi.mocked(dashboardMarketApi.fetchWageGrowth).mockRejectedValueOnce(
+      new Error("boom"),
+    );
+
+    renderTrends();
+
+    const failure = await screen.findByText(
+      "상승률 비교 데이터를 불러오지 못했습니다",
+    );
+    expect(screen.getByTestId("income-vs-price-chart")).toBeInTheDocument();
+    expect(isBefore(sectionHeading("동료집단 연봉 분포"), failure)).toBe(true);
+
+    await userEvent.click(screen.getByRole("button", { name: "다시 시도" }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("wage-growth-section")).toBeInTheDocument();
+    });
+  });
+
+  it("상승률 비교만 401 이어도 로그인으로 보낸다", async () => {
+    vi.mocked(dashboardMarketApi.fetchWageGrowth).mockRejectedValue(
+      new UnauthorizedError(),
+    );
+
+    renderTrends();
+
+    await waitFor(() => {
+      expect(mockNavigate).toHaveBeenCalledWith("/login", { replace: true });
+    });
+  });
+
+  it("상승률 비교만 살아 있으면 화면 단위 실패가 아니다", async () => {
+    vi.mocked(dashboardMarketApi.fetchSalaryDistribution).mockRejectedValue(
+      new Error("boom"),
+    );
+    vi.mocked(dashboardMarketApi.fetchTrends).mockRejectedValue(
+      new Error("boom"),
+    );
+
+    renderTrends();
+
+    await waitFor(() => {
+      expect(screen.getByTestId("wage-growth-section")).toBeInTheDocument();
+    });
+    expect(
+      screen.queryByText("시장 분석 데이터를 불러오지 못했습니다"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("#growth 로 왔는데 비교할 수 없어도 그 섹션으로 스크롤한다", async () => {
+    vi.mocked(dashboardMarketApi.fetchWageGrowth).mockResolvedValue(
+      WAGE_GROWTH_EMPTY,
+    );
+    const scrolled: string[] = [];
+    Element.prototype.scrollIntoView = vi.fn(function (this: Element) {
+      scrolled.push(this.id);
+    });
+
+    renderTrends("/dashboard/trends#growth");
+
+    await waitFor(() => expect(scrolled).toEqual(["growth"]));
   });
 });

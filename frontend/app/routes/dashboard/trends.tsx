@@ -14,12 +14,15 @@ import {
   IncomeVsPriceChart,
 } from "../../components/dashboard/IncomeVsPriceChart";
 import { SalaryDistributionChart } from "../../components/dashboard/SalaryDistributionChart";
+import { WageGrowthSection } from "../../components/dashboard/WageGrowthSection";
 import { UnauthorizedError } from "../../lib/coreApi";
 import {
   fetchSalaryDistribution,
   fetchTrends,
+  fetchWageGrowth,
   type SalaryDistributionResponse,
   type TrendListResponse,
+  type WageGrowthResponse,
 } from "../../lib/dashboardMarketApi";
 import { LOGIN_PATH } from "../../lib/routeGuards";
 import { TRENDS_SECTIONS } from "../../lib/trendsSections";
@@ -41,7 +44,7 @@ export function meta() {
     { title: "추이 분석 | Carix" },
     {
       name: "description",
-      content: "소득 대 개인물가, 동료집단 연봉 분포 추이 분석",
+      content: "소득 대 개인물가, 시장 대비 연봉 상승, 동료집단 연봉 분포 분석",
     },
   ];
 }
@@ -54,6 +57,7 @@ export default function DashboardTrends() {
   const [salaryData, setSalaryData] =
     useState<SalaryDistributionResponse | null>(null);
   const [trendData, setTrendData] = useState<TrendListResponse | null>(null);
+  const [growthData, setGrowthData] = useState<WageGrowthResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -61,14 +65,15 @@ export default function DashboardTrends() {
     setIsLoading(true);
     setErrorMessage(null);
     try {
-      const [salaryRes, trendRes] = await Promise.allSettled([
+      const [salaryRes, trendRes, growthRes] = await Promise.allSettled([
         fetchSalaryDistribution(),
         fetchTrends(),
+        fetchWageGrowth(),
       ]);
 
-      // 세션이 죽으면 둘이 동시에 401 이다. 부분 성공 렌더링과 갈라 둔다 — 한 원천만 죽은
+      // 세션이 죽으면 모두 동시에 401 이다. 부분 성공 렌더링과 갈라 둔다 — 한 원천만 죽은
       // 경우에 멀쩡한 화면을 로그인으로 내쫓으면 안 된다.
-      if (hasUnauthorized([salaryRes, trendRes])) {
+      if (hasUnauthorized([salaryRes, trendRes, growthRes])) {
         void navigate(LOGIN_PATH, { replace: true });
         return;
       }
@@ -79,8 +84,15 @@ export default function DashboardTrends() {
       if (trendRes.status === "fulfilled") {
         setTrendData(trendRes.value);
       }
+      if (growthRes.status === "fulfilled") {
+        setGrowthData(growthRes.value);
+      }
 
-      if (salaryRes.status === "rejected" && trendRes.status === "rejected") {
+      if (
+        salaryRes.status === "rejected" &&
+        trendRes.status === "rejected" &&
+        growthRes.status === "rejected"
+      ) {
         setErrorMessage("시장 분석 데이터를 불러오지 못했습니다");
       }
     } finally {
@@ -93,8 +105,8 @@ export default function DashboardTrends() {
     void loadData();
   }, [loadData]);
 
-  const hasAnyData = Boolean(salaryData || trendData);
-  // 둘 다 실패하고 받아 둔 것도 없으면 섹션마다 실패를 그리지 않고 화면 단위 실패 하나.
+  const hasAnyData = Boolean(salaryData || trendData || growthData);
+  // 모두 실패하고 받아 둔 것도 없으면 섹션마다 실패를 그리지 않고 화면 단위 실패 하나.
   const screenFailed = !isLoading && Boolean(errorMessage) && !hasAnyData;
 
   // 섹션은 데이터가 온 뒤에 그려져 브라우저의 앵커 이동이 닿지 않는다 — 처음 그린 뒤 한 번 옮긴다.
@@ -105,11 +117,31 @@ export default function DashboardTrends() {
     document.getElementById(hash.slice(1))?.scrollIntoView();
   }, [isLoading, hash]);
 
+  const growthSection = (
+    <PageSection
+      id={TRENDS_SECTIONS.growth.id}
+      className={ANCHOR_OFFSET}
+      title={TRENDS_SECTIONS.growth.title}
+      description="같은 경력 구간 임금과 내 연봉이 오른 속도를 견줍니다."
+    >
+      {growthData ? (
+        <WageGrowthSection data={growthData} />
+      ) : (
+        <SectionFailed
+          title="상승률 비교 데이터를 불러오지 못했습니다"
+          onRetry={errorMessage ? null : () => void loadData()}
+        />
+      )}
+    </PageSection>
+  );
+  // 비교할 수 없을 때 빈 상태가 연봉 분포를 밀어내지 않게 맨 아래로 둔다.
+  const showsGrowthInline = growthData?.status === "OK";
+
   return (
     <PageFrame>
       <PageHeader
         title="추이 분석"
-        description="구매력·시장가치 지수 추이와 동료집단 안에서 내 연봉 위치를 함께 봅니다."
+        description="구매력·시장가치 지수 추이, 시장 대비 내 연봉 상승, 동료집단 안에서 내 연봉 위치를 함께 봅니다."
       />
 
       {screenFailed ? (
@@ -160,6 +192,7 @@ export default function DashboardTrends() {
                   />
                 )}
               </PageSection>
+              {showsGrowthInline && growthSection}
               <PageSection
                 id={TRENDS_SECTIONS.salary.id}
                 className={ANCHOR_OFFSET}
@@ -175,6 +208,7 @@ export default function DashboardTrends() {
                   />
                 )}
               </PageSection>
+              {!showsGrowthInline && growthSection}
             </>
           )}
         </>
