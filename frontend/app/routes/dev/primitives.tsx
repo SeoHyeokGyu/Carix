@@ -128,6 +128,7 @@ const WAGE_GROWTH_FIXTURE: WageGrowthResponse = {
   bracket: "MID",
   basis: "AGE_BAND_PROXY",
   source: "KOSIS",
+  firstStatYear: "2020",
   latestStatYear: "2025",
   lastRecordedYear: "2025",
   latest: {

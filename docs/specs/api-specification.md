@@ -611,6 +611,7 @@
       "bracket": "MID",
       "basis": "AGE_BAND_PROXY",
       "source": "KOSIS",
+      "firstStatYear": "2020",
       "latestStatYear": "2025",
       "lastRecordedYear": "2025",
       "latest": { "fromYear": "2021", "toYear": "2025", "myGrowthPercent": 12.5, "marketGrowthPercent": 13.3, "gapPp": -0.8 },
@@ -628,6 +629,7 @@
     ```
 *   `status`: `OK` / `NO_INCOME_HISTORY`(기록 연도 둘 미만, 최우선) / `NO_WAGE_STAT`(연속된 KOSIS 두 해 없음) / `NO_OVERLAP`(기록 연도가 둘 이상 들어간 실행 없음). `OK` 가 아니면 `latest` 는 `null`, `runs` 는 빈 배열이다.
 *   `runs`: KOSIS 실측·`ANNUAL_GROSS_MEDIAN`·양수 값이 이어지는 연도 묶음을 첫·마지막 기록 연도로 자른 것이다. 실행마다 100 에서 시작한다. `recorded: false` 점의 `myGross` 는 `null` 이다.
+*   `lastRecordedYear` 는 `latestStatYear` 이하의 마지막 기록 연도다 — 현재 연봉 행이 최신 통계 뒤에 있어도 통계 안의 빈 해를 안내할 수 있어야 한다. 통계가 없으면 전체의 마지막 기록 연도다.
 *   `gapPp` 는 표시되는 두 누적 상승률의 차다. `latest` 는 가장 최근 실행이다.
 *   **금액을 `index_snapshot.rationale` 에 저장하지 않고 로그에 남기지 않는다.** 금액을 담는 레코드는 `toString()` 에서 금액을 가린다.
 *   **오류:** 세션 없음 `401 UNAUTHORIZED`

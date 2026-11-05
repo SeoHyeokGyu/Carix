@@ -17,7 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
 /**
  * 품목 CPI 12대 분류를 Carix 6개 카테고리 전년 동월 대비 변화율로 합성한다.
  *
- * <p><b>사용자 가중치를 모른다.</b> 물가 기여도 뱃지(c12)가 처음 쓰고, 구매력 지수 본 엔진(a2)·임금 vs 개인물가(a10)가 같은 합성을 재사용하는 경계다.
+ * <p><b>사용자 가중치를 모른다.</b> 물가 기여도 뱃지(c12)가 처음 쓰고, 구매력 지수 본 엔진(a2)이 같은 합성을 재사용하는 경계다.
  *
  * <p>하위 가중치는 변화율에만 곱한다. 지수 수준을 평균하면 기준시점이 조용히 재설정된다 ({@code default-expense-weights.yml} 주석).
  */

@@ -28,6 +28,7 @@ const WAGE_GROWTH_OK: dashboardMarketApi.WageGrowthResponse = {
   bracket: "MID",
   basis: "AGE_BAND_PROXY",
   source: "KOSIS",
+  firstStatYear: "2021",
   latestStatYear: "2025",
   lastRecordedYear: "2025",
   latest: {

@@ -219,6 +219,7 @@ export interface WageGrowthResponse {
   bracket: string;
   basis: string;
   source: string;
+  firstStatYear: string | null;
   latestStatYear: string | null;
   lastRecordedYear: string | null;
   latest: WageGrowthLatest | null;

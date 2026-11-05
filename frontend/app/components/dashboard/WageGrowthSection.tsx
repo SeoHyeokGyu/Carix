@@ -38,6 +38,18 @@ function verdict(latest: WageGrowthLatest): string {
   return `시장 기본 상승분과 비슷합니다 · ${period}`;
 }
 
+function headline(latest: WageGrowthLatest): string {
+  const { marketGrowthPercent: market, myGrowthPercent: mine } = latest;
+  const marketPart =
+    market < 0
+      ? `${percent(Math.abs(market))} 줄어드는 동안`
+      : `${percent(market)} 오르는 동안`;
+  let minePart = `${percent(mine)} 올랐습니다`;
+  if (mine < 0) minePart = `${percent(Math.abs(mine))} 줄었습니다`;
+  if (mine === 0) minePart = "그대로였습니다";
+  return `같은 경력 구간 임금이 ${marketPart} 내 연봉은 ${minePart}`;
+}
+
 function spanLabel(span: WageGrowthSpan): string {
   return `${span.fromYear}→${span.toYear.slice(2)}`;
 }
@@ -56,7 +68,7 @@ function StaleNotice({
   if (lastRecordedYear === latest.toYear) {
     return (
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-carix-text/80">
-        <p>{`${latest.toYear}년 이후 연봉 기록이 없어 그때까지만 비교했습니다`}</p>
+        <p>{`${latest.toYear}년까지만 비교했습니다. ${latestStatYear}년까지의 연봉을 입력하면 더 볼 수 있어요`}</p>
         <TextLink to={INCOME_RECORDS_PATH}>소득 이력 입력하기</TextLink>
       </div>
     );
@@ -80,7 +92,7 @@ function NotComparable({ data }: { data: WageGrowthResponse }) {
     );
   }
   const title = data.latestStatYear
-    ? `${data.latestStatYear}년 이전 연봉 기록이 두 해 이상 있어야 비교할 수 있습니다`
+    ? `${data.firstStatYear}~${data.latestStatYear}년 연봉 기록이 두 해 이상 있어야 비교할 수 있습니다`
     : "연봉 기록이 두 해 이상 있어야 비교할 수 있습니다";
   return (
     <EmptyState
@@ -110,7 +122,7 @@ export function WageGrowthSection({ data }: WageGrowthSectionProps) {
     <Card data-testid="wage-growth-section">
       <div className="space-y-1">
         <p className="text-base font-bold text-carix-text">
-          {`같은 경력 구간 임금이 ${percent(latest.marketGrowthPercent)} 오르는 동안 내 연봉은 ${percent(latest.myGrowthPercent)} 올랐습니다`}
+          {headline(latest)}
         </p>
         <p className="text-sm text-carix-text/80">{verdict(latest)}</p>
         <StaleNotice

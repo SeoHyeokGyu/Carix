@@ -16,6 +16,7 @@ const BASE: WageGrowthResponse = {
   bracket: "MID",
   basis: "AGE_BAND_PROXY",
   source: "KOSIS",
+  firstStatYear: "2020",
   latestStatYear: "2025",
   lastRecordedYear: "2025",
   latest: {
@@ -95,7 +96,14 @@ function notOk(
   status: WageGrowthResponse["status"],
   latestStatYear: string | null = "2025",
 ): WageGrowthResponse {
-  return { ...BASE, status, latestStatYear, latest: null, runs: [] };
+  return {
+    ...BASE,
+    status,
+    firstStatYear: latestStatYear ? "2020" : null,
+    latestStatYear,
+    latest: null,
+    runs: [],
+  };
 }
 
 function renderSection(data: WageGrowthResponse) {
@@ -141,6 +149,40 @@ describe("WageGrowthSection", () => {
     ).toBeInTheDocument();
   });
 
+  // 이직 등으로 연봉이 줄 수 있다. 「-3.0% 올랐습니다」는 뜻이 뒤집힌다.
+  it("내 연봉이 줄면 줄었다고 말한다", () => {
+    renderSection(withLatest(-3, -16.3));
+
+    expect(
+      screen.getByText(
+        "같은 경력 구간 임금이 13.3% 오르는 동안 내 연봉은 3.0% 줄었습니다",
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it("내 연봉이 그대로면 그대로라고 말한다", () => {
+    renderSection(withLatest(0, -13.3));
+
+    expect(
+      screen.getByText(
+        "같은 경력 구간 임금이 13.3% 오르는 동안 내 연봉은 그대로였습니다",
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it("시장 임금이 줄면 줄어드는 동안이라고 말한다", () => {
+    renderSection({
+      ...BASE,
+      latest: { ...BASE.latest!, marketGrowthPercent: -1 },
+    });
+
+    expect(
+      screen.getByText(
+        "같은 경력 구간 임금이 1.0% 줄어드는 동안 내 연봉은 12.5% 올랐습니다",
+      ),
+    ).toBeInTheDocument();
+  });
+
   it("비교가 일찍 끝나고 그 뒤 기록이 없으면 입력을 안내한다", () => {
     renderSection({
       ...BASE,
@@ -149,7 +191,9 @@ describe("WageGrowthSection", () => {
     });
 
     expect(
-      screen.getByText("2023년 이후 연봉 기록이 없어 그때까지만 비교했습니다"),
+      screen.getByText(
+        "2023년까지만 비교했습니다. 2025년까지의 연봉을 입력하면 더 볼 수 있어요",
+      ),
     ).toBeInTheDocument();
     expect(screen.getByRole("link")).toHaveAttribute("href", "/mypage/records");
   });
@@ -180,7 +224,7 @@ describe("WageGrowthSection", () => {
 
       expect(
         screen.getByText(
-          "2025년 이전 연봉 기록이 두 해 이상 있어야 비교할 수 있습니다",
+          "2020~2025년 연봉 기록이 두 해 이상 있어야 비교할 수 있습니다",
         ),
       ).toBeInTheDocument();
       expect(screen.getByText(SIDE_EFFECT)).toBeInTheDocument();

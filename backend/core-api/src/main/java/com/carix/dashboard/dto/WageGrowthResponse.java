@@ -9,8 +9,9 @@ import java.util.List;
  * @param bracket 시장 계열의 경력 구간. 지금 내 구간에 고정한다
  * @param basis 기준선 성격. 연령대를 경력 구간으로 옮긴 값이고 전 직무 공통이다
  * @param source 기준선 출처. 상승률은 KOSIS 실측에서만 낸다
+ * @param firstStatYear 쓸 수 있는 KOSIS 의 첫 연도. 없으면 null
  * @param latestStatYear 쓸 수 있는 KOSIS 의 마지막 연도. 없으면 null
- * @param lastRecordedYear 사용자의 마지막 기록 연도. 없으면 null
+ * @param lastRecordedYear 최신 KOSIS 연도 이하의 마지막 기록 연도. 통계가 없으면 전체의 마지막 기록 연도, 없으면 null
  * @param latest 가장 최근 실행의 누적. {@code OK} 가 아니면 null
  * @param runs KOSIS 실측이 이어지는 묶음. {@code OK} 가 아니면 빈 목록
  */
@@ -20,6 +21,7 @@ public record WageGrowthResponse(
     String bracket,
     String basis,
     String source,
+    @Schema(nullable = true) String firstStatYear,
     @Schema(nullable = true) String latestStatYear,
     @Schema(nullable = true) String lastRecordedYear,
     @Schema(nullable = true) Latest latest,

@@ -61,10 +61,21 @@ final class WageGrowthCalculator {
         series.experienceBracket(),
         BASIS,
         SOURCE,
+        market.isEmpty() ? null : String.valueOf(market.firstKey()),
         market.isEmpty() ? null : String.valueOf(market.lastKey()),
-        recorded.isEmpty() ? null : String.valueOf(recorded.lastKey()),
+        lastRecordedYear(recorded, market),
         runs.isEmpty() ? null : latest(runs.getLast()),
         runs);
+  }
+
+  /** 현재 연봉 행은 보통 최신 통계 뒤에 있다. 그 행을 마지막 기록으로 보면 통계 안의 빈 해를 입력하라고 안내할 수 없다. */
+  private static String lastRecordedYear(
+      NavigableMap<Integer, Long> recorded, NavigableMap<Integer, Long> market) {
+    Integer year =
+        market.isEmpty()
+            ? (recorded.isEmpty() ? null : recorded.lastKey())
+            : recorded.floorKey(market.lastKey());
+    return year == null ? null : String.valueOf(year);
   }
 
   /** 상승률에 쓸 수 있는 연도 — 실측이고 같은 임금 정의이며 값이 있어야 한다. 정의가 바뀐 두 해의 차이는 가짜 상승률이다. */

@@ -168,7 +168,18 @@ class WageGrowthCalculatorTest {
     assertThat(afterStat.latest()).isNull();
     assertThat(afterStat.runs()).isEmpty();
     assertThat(afterStat.latestStatYear()).isEqualTo("2025");
-    assertThat(afterStat.lastRecordedYear()).isEqualTo("2026");
+    assertThat(afterStat.lastRecordedYear()).isEqualTo("2024");
+    assertThat(afterStat.firstStatYear()).isEqualTo("2021");
+  }
+
+  // 현재 연봉 행은 보통 최신 통계 뒤에 있다. 2026 을 마지막 기록으로 내면 화면이 2025 입력 안내를 못 한다.
+  @Test
+  @DisplayName("마지막 기록 연도는 최신 통계 연도 안에서 본다")
+  void lastRecordedYearStaysWithinStatYears() {
+    WageGrowthResponse response = calculate(incomes(2023, 2024, 2026), fullSeries());
+
+    assertThat(response.latest().toYear()).isEqualTo("2024");
+    assertThat(response.lastRecordedYear()).isEqualTo("2024");
   }
 
   @Test
