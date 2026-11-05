@@ -27,7 +27,8 @@ import org.springframework.transaction.annotation.Transactional;
  * <ul>
  *   <li><b>단일 진입점 계약:</b> 스냅샷 엔진(Member C의 {@code SnapshotRecalculationService})이나 대시보드는 소득 도메인의
  *       암호화 컬럼({@code gross_salary_encrypted})을 직접 조회하거나 복호화하지 않는다. 오직 이 서비스의 {@link
- *       #currentGrossSalary(UUID, String)} SPI를 통해서만 기준월 시점의 연봉을 얻는다.
+ *       #currentGrossSalary(UUID, String)} 와 연도별 기록용 {@link #recordedYearIncomes(UUID)} SPI를 통해서만
+ *       연봉을 얻는다.
  *   <li><b>복호화 캡슐화:</b> 연봉 복호화는 소득 도메인 내부의 JPA Converter({@code EncryptedConverter})에서만 수행되어 외부로
  *       복호화 키나 암호화 상세가 노출되지 않는다.
  *   <li><b>단기 휘발성(Ephemeral Lifecycle):</b> 반환된 {@link CurrentSalary} DTO는 스냅샷 재계산 루프 내에서 결정 신호 평가

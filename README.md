@@ -166,7 +166,7 @@ flowchart TD
 | `/onboarding/{profile,income,expense,skills,review}` | 온보딩 5단계 | 세션 |
 | `/dashboard` | 판정 히어로와 근거 지표 카드 (구매력·시장가치·채용 활발도) | 세션 + 온보딩 완료 |
 | `/dashboard/history` | 지난 판정 (월별 당시 판정 이력) | 세션 + 온보딩 완료 |
-| `/dashboard/trends` | 추이분석 (지수 추이·연봉 분포) | 세션 + 온보딩 완료 |
+| `/dashboard/trends` | 추이분석 (지수 추이·상승률 비교·연봉 분포) | 세션 + 온보딩 완료 |
 | `/dashboard/skills` | 스킬 분석 (보유 스킬 수요·동료집단 추천 스킬) | 세션 + 온보딩 완료 |
 | `/dashboard/simulator` | 이직 시뮬레이터 (지금 회사·오퍼 한 화면 비교) | 세션 + 온보딩 완료 |
 | `/dashboard/guide` | 지표 가이드 (지표 3종·결정 신호·FAQ) | 세션 + 온보딩 완료 |
@@ -272,7 +272,7 @@ API 원천의 이용 조건과 필드 규격은 구현 전 선행 검증에서 �
 | 프런트엔드 | Vite, React, TypeScript, React Router Framework Mode | UI, 라우팅, SSR·사전 렌더링 | 도입 — `S-01`~`S-20` 전 화면이 실제 API 에 연결돼 동작한다. `ssr: false` + `/` 사전 렌더링 구성이라 SSR 은 꺼져 있고 가드는 클라이언트에서 돈다 |
 | Node SSR | Node.js 24 LTS, Express, `@react-router/express` | HTML 렌더링, SEO metadata, 공개 콘텐츠 | 미도입 — `frontend/server.js`는 `node:http` 정적 파일 서버다. 사전 렌더링된 `/` 는 그대로 주고, 나머지 앱 경로는 SPA 셸(`__spa-fallback.html`)로 넘겨 클라이언트가 라우팅한다 (아래 §렌더링 전략 참조) |
 | 클라이언트 데이터 | React Router 7 `clientLoader`·`clientAction`, Zod | API 상태, 입력 폼, 검증 | 도입 — 프레임워크 loader·action 이 서버 상태를, Zod 스키마가 검증을 맡는다. TanStack Query·React Hook Form 은 역할이 겹쳐 채택하지 않았다 ([프런트엔드 설계 §기술 구성](docs/specs/frontend-design.md)) |
-| UI·시각화 | Tailwind CSS, shadcn/ui, 손수 SVG | 컴포넌트, 스타일, 지수 차트 | 도입 — Tailwind CSS 4(`@tailwindcss/vite`)·shadcn/ui(Button·Input·Card 등, `@/` 경로 별칭 배선 포함). **차트 라이브러리는 쓰지 않는다** — `S-14` 차트 3종은 손수 SVG 이고 소비 도넛은 CSS `conic-gradient` 다 |
+| UI·시각화 | Tailwind CSS, shadcn/ui, 손수 SVG | 컴포넌트, 스타일, 지수 차트 | 도입 — Tailwind CSS 4(`@tailwindcss/vite`)·shadcn/ui(Button·Input·Card 등, `@/` 경로 별칭 배선 포함). **차트 라이브러리는 쓰지 않는다** — `S-14` 차트는 손수 SVG 이고 소비 도넛은 CSS `conic-gradient` 다 |
 | 백엔드 | Java 25, Spring Boot 4.1, Gradle 멀티모듈 | 인증, 도메인 로직, REST API, 데이터 접근 | 도입 — auth-service(인증), core-api(프로필·소득·소비·스킬·지수·스냅샷·시나리오·대시보드), collector(수집·정규화·집계)가 모두 실데이터로 동작한다. 고정 응답 스텁은 전부 철거했다 |
 | API 문서 | springdoc-openapi | OpenAPI 문서, Swagger UI | 도입 |
 | 데이터 접근 | Spring Data JPA, Flyway | 영속화, 스키마 마이그레이션 | 모듈별로 다름 — auth-service(`auth` 스키마)는 Flyway 로 관리. `core` 스키마는 collector 와 core-api 가 공유하며 **Flyway 를 쓰지 않고 DDL 을 직접 적용**한다(정본은 [`deploy/postgres/schema/`](deploy/postgres/schema/), 절차는 [DEVELOPMENT.md §3.2](docs/DEVELOPMENT.md)). 셋 다 JPA 로 매핑돼 있다 |
