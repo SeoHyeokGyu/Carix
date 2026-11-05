@@ -29,8 +29,8 @@ import { TextLink } from "@/components/ui/text-link";
 import { TONE_CLASS, ToneBadge } from "@/components/ui/tone-badge";
 
 import { SalaryDistributionChart } from "../../components/dashboard/SalaryDistributionChart";
-import { WageGrowthSection } from "../../components/dashboard/WageGrowthSection";
 import { SignalBadge } from "../../components/dashboard/SignalBadge";
+import { WageGrowthSection } from "../../components/dashboard/WageGrowthSection";
 import { CumulativeChart } from "../../components/simulator/CumulativeChart";
 import { FirstYearBars } from "../../components/simulator/FirstYearBars";
 import { RaiseAxis } from "../../components/simulator/RaiseAxis";
