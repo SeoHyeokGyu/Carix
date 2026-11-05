@@ -11,9 +11,11 @@ import com.carix.dashboard.dto.SkillDemandListResponse.SkillDemandDetail;
 import com.carix.dashboard.dto.SkillDemandListResponse.SkillSourceStats;
 import com.carix.dashboard.dto.SnapshotHistoryResponse;
 import com.carix.dashboard.dto.TrendListResponse;
+import com.carix.dashboard.dto.WageGrowthResponse;
 import com.carix.dashboard.service.DashboardSummaryService;
 import com.carix.dashboard.service.SalaryDistributionService;
 import com.carix.dashboard.service.SnapshotSeriesService;
+import com.carix.dashboard.service.WageGrowthService;
 import com.carix.income.domain.IncomeHistory;
 import com.carix.income.repository.IncomeHistoryRepository;
 import com.carix.index.mvi.MarketValueIndexServiceImpl;
@@ -59,6 +61,7 @@ public class DashboardController {
   private final SnapshotSeriesService snapshotSeriesService;
   private final SnapshotRecalculationService snapshotRecalculationService;
   private final IncomeHistoryRepository incomeHistoryRepository;
+  private final WageGrowthService wageGrowthService;
 
   // =========================================================================
   // 1. [Member C 소유] 대시보드 지표 요약 (S-10)
@@ -189,6 +192,18 @@ public class DashboardController {
         ApiResult.success(
             snapshotSeriesService.trends(
                 userId, normalizeYearMonth(baseYearMonth), durationMonths)));
+  }
+
+  // =========================================================================
+  // 4-1. [Member C 소유] 상승률 비교 (S-14, US-D8)
+  // =========================================================================
+  @Operation(
+      summary = "상승률 비교",
+      description = "내 연봉과 같은 경력 구간 임금 중앙값의 누적 상승을 연도별로 비교합니다. 세션 사용자 본인 값만 반환합니다.")
+  @ApiResponse(responseCode = "200", description = "조회 성공")
+  @GetMapping("/wage-growth")
+  public ResponseEntity<ApiResult<WageGrowthResponse>> getWageGrowth(@CurrentUserId UUID userId) {
+    return ResponseEntity.ok(ApiResult.success(wageGrowthService.resolve(userId)));
   }
 
   // =========================================================================
