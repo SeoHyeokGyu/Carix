@@ -271,6 +271,31 @@ describe("WageGrowthSection", () => {
     expect(screen.getByText("같은 경력 구간 임금 중앙값")).toBeInTheDocument();
   });
 
+  // 눈금이 21개면 232px 높이에서 라벨이 겹친다
+  it("지수 범위가 넓어도 눈금 수를 제한하고 기준 100 은 눈금에 남긴다", () => {
+    const wide: WageGrowthResponse = {
+      ...BASE,
+      runs: [
+        {
+          points: [
+            { ...BASE.runs[0].points[0] },
+            { ...BASE.runs[0].points[3], myIndex: 300 },
+          ],
+          spans: [],
+        },
+      ],
+    };
+
+    renderSection(wide);
+
+    const svg = screen.getByRole("img");
+    const ticks = [...svg.querySelectorAll("text")]
+      .map((t) => t.textContent ?? "")
+      .filter((t) => /^\d{1,3}$/.test(t));
+    expect(ticks.length).toBeLessThanOrEqual(9);
+    expect(ticks).toContain("100");
+  });
+
   it("넓은 폭에서는 선 끝에 값을 적는다", () => {
     renderSection(BASE);
 
