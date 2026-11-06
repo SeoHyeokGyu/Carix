@@ -13,6 +13,7 @@ import com.carix.scenario.dto.EvaluationResponse;
 import com.carix.scenario.dto.ScenarioListItem;
 import com.carix.scenario.dto.ScenarioListItem.LegacyScenario;
 import com.carix.scenario.dto.ScenarioPayload;
+import com.carix.scenario.dto.ScenarioVerification;
 import com.carix.scenario.dto.SimulationRequest;
 import com.carix.scenario.dto.SimulationResponse;
 import java.time.Clock;
@@ -234,12 +235,7 @@ public class ScenarioService {
           payload.request(),
           payload.result(),
           null,
-          ScenarioVerifier.verify(
-              payload.request().stay().raisePercent(),
-              offerAnnualGross(payload.request().move()),
-              scenario.getCalculatedAt(),
-              LocalDate.now(clock),
-              incomes));
+          verificationOf(payload.request(), scenario, incomes));
     }
     return new ScenarioListItem(
         scenario.getId(),
@@ -255,6 +251,23 @@ public class ScenarioService {
             scenario.getCalculatedAt(),
             LocalDate.now(clock),
             incomes));
+  }
+
+  /** 저장 API 는 가정을 비우지 못하지만, 행 하나가 빠졌다고 목록 전체를 막지는 않는다. 그 행만 검증을 비운다. */
+  private ScenarioVerification verificationOf(
+      EvaluateRequest request, CareerScenario scenario, List<RecordedIncomeChange> incomes) {
+    if (request == null
+        || request.stay() == null
+        || request.stay().raisePercent() == null
+        || (request.move() != null && request.move().grossSalary() == null)) {
+      return null;
+    }
+    return ScenarioVerifier.verify(
+        request.stay().raisePercent(),
+        offerAnnualGross(request.move()),
+        scenario.getCalculatedAt(),
+        LocalDate.now(clock),
+        incomes);
   }
 
   /** 실제 쪽 {@code EffectiveIncome.annualGross} 와 같이 따로 받는 고정상여를 더한다. */

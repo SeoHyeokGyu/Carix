@@ -92,15 +92,18 @@ class IncomeCurrentSalaryProviderTest {
   @Test
   @DisplayName("소득 행은 유효일 오름차순으로 내고 세전 0 이하 행은 없는 행으로 본다")
   void recordedIncomeChanges_ascendingWithoutZeroRows() {
+    IncomeHistory jobChange =
+        new IncomeHistory(
+            userId,
+            65_000_000L,
+            4_000_000L,
+            LocalDate.of(2026, 2, 1),
+            IncomeChangeReasonEnum.JOB_CHANGE);
+    jobChange.applyBonusTerms(false, 4_000_000L);
     given(repository.findByUserIdOrderByEffectiveDateDesc(userId))
         .willReturn(
             List.of(
-                new IncomeHistory(
-                    userId,
-                    69_000_000L,
-                    4_000_000L,
-                    LocalDate.of(2026, 2, 1),
-                    IncomeChangeReasonEnum.JOB_CHANGE),
+                jobChange,
                 row(0L, LocalDate.of(2025, 9, 1)),
                 row(55_000_000L, LocalDate.of(2025, 7, 1))));
 

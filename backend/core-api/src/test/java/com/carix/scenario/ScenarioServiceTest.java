@@ -191,6 +191,26 @@ class ScenarioServiceTest {
   }
 
   @Test
+  @DisplayName("가정이 빠진 행 하나가 목록 전체를 막지 않는다 — 그 행만 검증을 비운다")
+  void 가정_없는_행() {
+    service.save(USER_ID, "정상", request(3.5), result());
+    store.add(
+        CareerScenario.builder()
+            .userId(USER_ID)
+            .scenarioName("깨진 행")
+            .engineVersion(CareerScenario.ENGINE_STAY_OR_MOVE)
+            .payload("{\"request\":{\"stay\":{}}}")
+            .calculatedAt(OffsetDateTime.parse("2025-10-15T01:00:00Z"))
+            .build());
+
+    List<ScenarioListItem> items = service.list(USER_ID);
+
+    assertThat(items).hasSize(2);
+    assertThat(items.get(0).verification()).isNotNull();
+    assertThat(items.get(1).verification()).isNull();
+  }
+
+  @Test
   @DisplayName("목록은 요청한 사용자의 소득만 한 번 읽는다")
   void 목록_소득_한번() {
     store.add(legacyScenario("A", "OK", 69));
