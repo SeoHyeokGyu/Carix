@@ -80,7 +80,8 @@ final class ScenarioVerifier {
     return new ScenarioVerification(
         Status.STAY_COMPARED,
         null,
-        expectedRaisePercent,
+        // 화면이 실제와 같은 자리로 나란히 보이므로 서버에서 같은 규칙으로 반올림한다.
+        BigDecimal.valueOf(expectedRaisePercent).setScale(1, RoundingMode.HALF_UP).doubleValue(),
         changePercent(after.getLast().annualGross(), baseline.get().annualGross()),
         null,
         null);

@@ -45,6 +45,16 @@ class ScenarioVerifierTest {
   }
 
   @Test
+  @DisplayName("예상 인상률도 실제와 같이 소수 첫째 자리로 반올림해 낸다")
+  void 예상_인상률_반올림() {
+    ScenarioVerification result =
+        ScenarioVerifier.verify(
+            1.15, OFFER, SAVED, TODAY, List.of(BASE, row("2026-03-01", 56_800_000L, RAISE)));
+
+    assertThat(result.expectedRaisePercent()).isEqualTo(1.2);
+  }
+
+  @Test
   @DisplayName("인상이 여러 번이면 12개월 안 마지막 행까지 누적한다")
   void 여러_인상_누적() {
     assertThat(

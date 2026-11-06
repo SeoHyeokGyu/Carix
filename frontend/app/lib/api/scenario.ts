@@ -139,7 +139,6 @@ export interface LegacyScenario {
   };
 }
 
-/** `engineVersion` 2 는 `request`·`result`, 1 은 `legacy` 만 채워진다. */
 /** 입력 가정과 12개월 뒤 실제 소득의 비교. 상태에 해당하지 않는 필드는 null 이다. */
 export interface ScenarioVerification {
   status:
@@ -157,6 +156,7 @@ export interface ScenarioVerification {
   actualAnnualGross: number | null;
 }
 
+/** `engineVersion` 2 는 `request`·`result`, 1 은 `legacy` 만 채워진다. */
 export interface SavedScenario {
   id: string;
   name: string | null;

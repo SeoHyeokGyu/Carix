@@ -69,6 +69,23 @@ describe("SavedScenarioMenu", () => {
     );
   };
 
+  it("이름 없는 시나리오의 날짜는 한국 날짜다 — 검증 기준일과 하루 어긋나면 안 된다", async () => {
+    render(
+      <SavedScenarioMenu
+        scenarios={[
+          { ...legacy, name: null, calculatedAt: "2026-10-14T15:30:00Z" },
+        ]}
+        onLoad={vi.fn()}
+        onRecalculate={vi.fn()}
+      />,
+    );
+    await userEvent.click(
+      screen.getByRole("button", { name: "저장된 시나리오 1" }),
+    );
+
+    expect(screen.getByText(/2026-10-15/)).toBeInTheDocument();
+  });
+
   it("비교 결과는 가정과 실제를 부호와 함께 나란히 보인다", async () => {
     await openWith({
       status: "STAY_COMPARED",

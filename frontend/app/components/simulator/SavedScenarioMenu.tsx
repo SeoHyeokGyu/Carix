@@ -26,11 +26,17 @@ interface SavedScenarioMenuProps {
   onRecalculate: (request: EvaluateRequest, title: string) => void;
 }
 
-const DATE_LENGTH = 10;
+/** 사후 검증의 저장일과 같은 한국 날짜. `en-CA` 는 YYYY-MM-DD 로 적는다. */
+const SEOUL_DATE = new Intl.DateTimeFormat("en-CA", {
+  timeZone: "Asia/Seoul",
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+});
 
 function title(item: SavedScenario): string {
   const name = item.name?.trim();
-  const date = item.calculatedAt.slice(0, DATE_LENGTH);
+  const date = SEOUL_DATE.format(new Date(item.calculatedAt));
   return name ? `${name} · ${date}` : date;
 }
 
