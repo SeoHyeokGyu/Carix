@@ -481,6 +481,11 @@ class SnapshotRecalculationServiceTest {
     public Optional<CurrentSalary> currentGrossSalary(UUID userId, String baseYearMonth) {
       return Optional.ofNullable(salary);
     }
+
+    @Override
+    public java.util.List<com.carix.index.dto.RecordedYearIncome> recordedYearIncomes(UUID userId) {
+      return java.util.List.of();
+    }
   }
 
   /** MVI provider 자리표. 어느 테스트도 MVI 결과를 바꾸지 않아 상태 없이 고정값만 돌려준다. */

@@ -1,6 +1,8 @@
 package com.carix.index;
 
 import com.carix.index.dto.CurrentSalary;
+import com.carix.index.dto.RecordedYearIncome;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -25,4 +27,14 @@ public interface CurrentSalaryProvider {
    * @return 현재 연봉. 이력이 없으면 empty
    */
   Optional<CurrentSalary> currentGrossSalary(UUID userId, String baseYearMonth);
+
+  /**
+   * 소득 행이 있는 연도별 말일 시점 연 소득을 조회한다 (US-D8).
+   *
+   * <p>행이 없는 해는 빠진다 — 동결인지 미입력인지 구분할 수 없어 값을 지어내지 않는다. 세전 연봉이 0 이하인 행은 없는 행으로 본다.
+   *
+   * @param userId 대상 사용자
+   * @return 연도 오름차순. 이력이 없으면 빈 목록
+   */
+  List<RecordedYearIncome> recordedYearIncomes(UUID userId);
 }

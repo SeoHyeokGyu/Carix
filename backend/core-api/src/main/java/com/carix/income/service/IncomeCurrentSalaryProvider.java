@@ -3,12 +3,16 @@ package com.carix.income.service;
 import com.carix.income.domain.IncomeHistory;
 import com.carix.income.repository.IncomeHistoryRepository;
 import com.carix.index.CurrentSalaryProvider;
+import com.carix.index.EffectiveIncome;
 import com.carix.index.dto.CurrentSalary;
+import com.carix.index.dto.RecordedYearIncome;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.TreeMap;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -23,7 +27,8 @@ import org.springframework.transaction.annotation.Transactional;
  * <ul>
  *   <li><b>단일 진입점 계약:</b> 스냅샷 엔진(Member C의 {@code SnapshotRecalculationService})이나 대시보드는 소득 도메인의
  *       암호화 컬럼({@code gross_salary_encrypted})을 직접 조회하거나 복호화하지 않는다. 오직 이 서비스의 {@link
- *       #currentGrossSalary(UUID, String)} SPI를 통해서만 기준월 시점의 연봉을 얻는다.
+ *       #currentGrossSalary(UUID, String)} 와 연도별 기록용 {@link #recordedYearIncomes(UUID)} SPI를 통해서만
+ *       연봉을 얻는다.
  *   <li><b>복호화 캡슐화:</b> 연봉 복호화는 소득 도메인 내부의 JPA Converter({@code EncryptedConverter})에서만 수행되어 외부로
  *       복호화 키나 암호화 상세가 노출되지 않는다.
  *   <li><b>단기 휘발성(Ephemeral Lifecycle):</b> 반환된 {@link CurrentSalary} DTO는 스냅샷 재계산 루프 내에서 결정 신호 평가
@@ -74,5 +79,24 @@ public class IncomeCurrentSalaryProvider implements CurrentSalaryProvider {
     return matched
         .filter(h -> h.getGrossSalary() != null && h.getGrossSalary() > 0)
         .map(h -> new CurrentSalary(h.getGrossSalary(), h.getEffectiveDate()));
+  }
+
+  @Override
+  @Transactional(readOnly = true)
+  public List<RecordedYearIncome> recordedYearIncomes(UUID userId) {
+    // 감사 목적의 디버그 로깅: 금액은 절대 포함하지 않고 요청 컨텍스트만 기록
+    log.debug("연도별 소득 복호화 조회: userId={}", userId);
+
+    // 내림차순이라 연도별 첫 행이 그해 말일 시점 행이다
+    Map<Integer, IncomeHistory> lastRowByYear = new TreeMap<>();
+    for (IncomeHistory history :
+        incomeHistoryRepository.findByUserIdOrderByEffectiveDateDesc(userId)) {
+      if (history.getGrossSalary() != null && history.getGrossSalary() > 0) {
+        lastRowByYear.putIfAbsent(history.getEffectiveDate().getYear(), history);
+      }
+    }
+    return lastRowByYear.entrySet().stream()
+        .map(e -> new RecordedYearIncome(e.getKey(), EffectiveIncome.annualGross(e.getValue())))
+        .toList();
   }
 }

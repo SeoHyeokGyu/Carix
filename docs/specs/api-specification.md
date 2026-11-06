@@ -600,6 +600,40 @@
     *(`recalculatedCount`: 신규 계산 및 갱신된 스냅샷 월 수, `fromYearMonth`: 재계산 시작월(최초 유효월), `toYearMonth`: 재계산 종료월(현재 기준월))*
 *   **오류:** 세션 없음 `401 UNAUTHORIZED` / 소득 이력이 전혀 없어 시작월을 알 수 없음 `400 INVALID_INPUT`
 
+### 5.8 상승률 비교
+
+*   **Endpoint:** `GET /api/v1/dashboard/wage-growth` (쿼리 파라미터 없음. 세션 사용자 본인 값만 반환)
+*   구현: `com.carix.dashboard.service.WageGrowthService`, `WageGrowthCalculator`. 규칙은 [기능 명세 US-D8·§4.9](functional-specification.md).
+*   **Response (200 OK)** `data`:
+    ```json
+    {
+      "status": "OK",
+      "bracket": "MID",
+      "basis": "AGE_BAND_PROXY",
+      "source": "KOSIS",
+      "firstStatYear": "2020",
+      "latestStatYear": "2025",
+      "lastRecordedYear": "2025",
+      "latest": { "fromYear": "2021", "toYear": "2025", "myGrowthPercent": 12.5, "marketGrowthPercent": 13.3, "gapPp": -0.8 },
+      "runs": [
+        {
+          "points": [
+            { "year": "2021", "myIndex": 100.0, "marketIndex": 100.0, "recorded": true, "myGross": 40000000, "marketMedian": 10000000 }
+          ],
+          "spans": [
+            { "fromYear": "2021", "toYear": "2022", "myGrowthPercent": 5.0, "marketGrowthPercent": 3.4 }
+          ]
+        }
+      ]
+    }
+    ```
+*   `status`: `OK` / `NO_INCOME_HISTORY`(기록 연도 둘 미만, 최우선) / `NO_WAGE_STAT`(연속된 KOSIS 두 해 없음) / `NO_OVERLAP`(기록 연도가 둘 이상 들어간 실행 없음). `OK` 가 아니면 `latest` 는 `null`, `runs` 는 빈 배열이다.
+*   `runs`: KOSIS 실측·`ANNUAL_GROSS_MEDIAN`·양수 값이 이어지는 연도 묶음을 첫·마지막 기록 연도로 자른 것이다. 실행마다 100 에서 시작한다. `recorded: false` 점의 `myGross` 는 `null` 이다.
+*   `lastRecordedYear` 는 `latestStatYear` 이하의 마지막 기록 연도다 — 현재 연봉 행이 최신 통계 뒤에 있어도 통계 안의 빈 해를 안내할 수 있어야 한다. 통계가 없으면 전체의 마지막 기록 연도다.
+*   `gapPp` 는 표시되는 두 누적 상승률의 차다. `latest` 는 가장 최근 실행이다.
+*   **금액을 `index_snapshot.rationale` 에 저장하지 않고 로그에 남기지 않는다.** 금액을 담는 레코드는 `toString()` 에서 금액을 가린다.
+*   **오류:** 세션 없음 `401 UNAUTHORIZED`
+
 ---
 
 ## 6. 시나리오 시뮬레이터 API

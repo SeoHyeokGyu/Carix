@@ -20,6 +20,7 @@
   --color-carix-warning: var(--carix-warning);
   --color-carix-danger: var(--carix-danger);
   --color-carix-info: var(--carix-info);
+  --color-carix-market: var(--carix-market);
   --color-carix-action: var(--carix-action);
 
   --font-display: "Outfit", "Pretendard", sans-serif;
@@ -69,6 +70,7 @@
     --carix-warning: #c2410c; /* 오렌지 다크 (접근성 대비 충족) */
     --carix-danger: #dc2626; /* 빨간색 다크 (흰 배경 4.83:1) */
     --carix-info: #4f46e5; /* 인디고 브랜드 컬러 */
+    --carix-market: #0d9488;
     --carix-action: #6d28d9; /* 바이올렛 (흰색 대비 7.10:1) */
 
     /* shadcn/ui 가 기대하는 토큰 이름 — carix 변수를 그대로 참조해 팔레트를 한 벌로 유지한다 */
@@ -107,6 +109,7 @@
       --carix-warning: #f97316; /* 오렌지 */
       --carix-danger: #f87171;
       --carix-info: #818cf8; /* 연한 인디고 */
+      --carix-market: #0d9488;
       --carix-action: #a78bfa; /* 연한 바이올렛 (다크 카드 대비 5.39:1) */
     }
   }
@@ -120,6 +123,7 @@
     --carix-warning: #f97316;
     --carix-danger: #f87171;
     --carix-info: #818cf8;
+    --carix-market: #0d9488;
     --carix-action: #a78bfa;
   }
 
@@ -132,6 +136,7 @@
     --carix-warning: #c2410c;
     --carix-danger: #dc2626;
     --carix-info: #4f46e5;
+    --carix-market: #0d9488;
     --carix-action: #6d28d9;
   }
 

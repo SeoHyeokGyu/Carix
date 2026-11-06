@@ -30,10 +30,14 @@ import { TONE_CLASS, ToneBadge } from "@/components/ui/tone-badge";
 
 import { SalaryDistributionChart } from "../../components/dashboard/SalaryDistributionChart";
 import { SignalBadge } from "../../components/dashboard/SignalBadge";
+import { WageGrowthSection } from "../../components/dashboard/WageGrowthSection";
 import { CumulativeChart } from "../../components/simulator/CumulativeChart";
 import { FirstYearBars } from "../../components/simulator/FirstYearBars";
 import { RaiseAxis } from "../../components/simulator/RaiseAxis";
-import type { SalaryDistributionResponse } from "../../lib/dashboardMarketApi";
+import type {
+  SalaryDistributionResponse,
+  WageGrowthResponse,
+} from "../../lib/dashboardMarketApi";
 
 /**
  * 프리미티브 갤러리 — 세션 가드 없이 여는 개발 프리뷰 (`dev/skills`·`dev/trends` 와 같은 자리).
@@ -117,6 +121,97 @@ const SIM_MOVE_CUMULATIVE = Array.from(
 );
 const SIM_CROSSOVER_MONTH =
   SIM_MOVE_CUMULATIVE.findIndex((v, i) => v >= SIM_STAY_CUMULATIVE[i]) + 1;
+
+// 기록 없는 해(2024)와 통계 단절 없는 한 실행. 금액은 예시다.
+const WAGE_GROWTH_FIXTURE: WageGrowthResponse = {
+  status: "OK",
+  bracket: "MID",
+  basis: "AGE_BAND_PROXY",
+  source: "KOSIS",
+  firstStatYear: "2020",
+  latestStatYear: "2025",
+  lastRecordedYear: "2025",
+  latest: {
+    fromYear: "2021",
+    toYear: "2025",
+    myGrowthPercent: 10.0,
+    marketGrowthPercent: 13.3,
+    gapPp: -3.3,
+  },
+  runs: [
+    {
+      points: [
+        {
+          year: "2021",
+          myIndex: 100,
+          marketIndex: 100,
+          recorded: true,
+          myGross: 40_000_000,
+          marketMedian: 10_000_000,
+        },
+        {
+          year: "2022",
+          myIndex: 105,
+          marketIndex: 103.4,
+          recorded: true,
+          myGross: 42_000_000,
+          marketMedian: 10_340_000,
+        },
+        {
+          year: "2023",
+          myIndex: 106.3,
+          marketIndex: 106.4,
+          recorded: true,
+          myGross: 42_500_000,
+          marketMedian: 10_640_000,
+        },
+        {
+          year: "2024",
+          myIndex: 106.3,
+          marketIndex: 110.2,
+          recorded: false,
+          myGross: null,
+          marketMedian: 11_020_000,
+        },
+        {
+          year: "2025",
+          myIndex: 110,
+          marketIndex: 113.3,
+          recorded: true,
+          myGross: 44_000_000,
+          marketMedian: 11_330_000,
+        },
+      ],
+      spans: [
+        {
+          fromYear: "2021",
+          toYear: "2022",
+          myGrowthPercent: 5,
+          marketGrowthPercent: 3.4,
+        },
+        {
+          fromYear: "2022",
+          toYear: "2023",
+          myGrowthPercent: 1.2,
+          marketGrowthPercent: 2.9,
+        },
+        {
+          fromYear: "2023",
+          toYear: "2025",
+          myGrowthPercent: 3.5,
+          marketGrowthPercent: 6.5,
+        },
+      ],
+    },
+  ],
+};
+
+const WAGE_GROWTH_EMPTY_FIXTURE: WageGrowthResponse = {
+  ...WAGE_GROWTH_FIXTURE,
+  status: "NO_OVERLAP",
+  latest: null,
+  runs: [],
+};
 
 function Section({
   id,
@@ -437,6 +532,13 @@ function Gallery() {
 
       <Section id="gallery-chart-marker" title="연봉 분포 마커 링">
         <SalaryDistributionChart data={SALARY_FIXTURE} />
+      </Section>
+
+      <Section id="gallery-wage-growth" title="상승률 비교">
+        <div className="grid max-w-3xl gap-6">
+          <WageGrowthSection data={WAGE_GROWTH_FIXTURE} />
+          <WageGrowthSection data={WAGE_GROWTH_EMPTY_FIXTURE} />
+        </div>
       </Section>
 
       <Section id="gallery-simulator-charts" title="시뮬레이터 그림">

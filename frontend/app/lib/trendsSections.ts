@@ -4,6 +4,7 @@
  */
 export const TRENDS_SECTIONS = {
   income: { id: "income", title: "지수 추이" },
+  growth: { id: "growth", title: "상승률 비교" },
   salary: { id: "salary", title: "동료집단 연봉 분포" },
 } as const;
 

@@ -181,6 +181,58 @@ export async function fetchSkillDemands(
   return coreGet<SkillDemandResponse>(`/v1/dashboard/skills${query}`);
 }
 
+export type WageGrowthStatus =
+  "OK" | "NO_INCOME_HISTORY" | "NO_WAGE_STAT" | "NO_OVERLAP";
+
+export interface WageGrowthLatest {
+  fromYear: string;
+  toYear: string;
+  myGrowthPercent: number;
+  marketGrowthPercent: number;
+  gapPp: number;
+}
+
+export interface WageGrowthPoint {
+  year: string;
+  myIndex: number;
+  marketIndex: number;
+  /** 그해에 소득 행이 있는가. 없으면 직전 지수를 유지한 값이고 금액이 없다. */
+  recorded: boolean;
+  myGross: number | null;
+  marketMedian: number;
+}
+
+export interface WageGrowthSpan {
+  fromYear: string;
+  toYear: string;
+  myGrowthPercent: number;
+  marketGrowthPercent: number;
+}
+
+export interface WageGrowthRun {
+  points: WageGrowthPoint[];
+  spans: WageGrowthSpan[];
+}
+
+export interface WageGrowthResponse {
+  status: WageGrowthStatus;
+  bracket: string;
+  basis: string;
+  source: string;
+  firstStatYear: string | null;
+  latestStatYear: string | null;
+  lastRecordedYear: string | null;
+  latest: WageGrowthLatest | null;
+  runs: WageGrowthRun[];
+}
+
+/**
+ * 상승률 비교 조회 (S-14 상승률 비교 섹션)
+ */
+export async function fetchWageGrowth(): Promise<WageGrowthResponse> {
+  return coreGet<WageGrowthResponse>("/v1/dashboard/wage-growth");
+}
+
 /**
  * 동료집단 연봉 분포 조회 (S-14 연봉 분포 섹션)
  */

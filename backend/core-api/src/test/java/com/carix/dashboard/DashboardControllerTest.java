@@ -5,6 +5,8 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -16,6 +18,7 @@ import com.carix.dashboard.dto.SalaryDistributionResponse;
 import com.carix.dashboard.service.DashboardSummaryService;
 import com.carix.dashboard.service.SalaryDistributionService;
 import com.carix.dashboard.service.SnapshotSeriesService;
+import com.carix.dashboard.service.WageGrowthService;
 import com.carix.income.domain.IncomeHistory;
 import com.carix.income.repository.IncomeHistoryRepository;
 import com.carix.index.mvi.MarketValueIndexServiceImpl;
@@ -44,6 +47,7 @@ class DashboardControllerTest {
   private SnapshotSeriesService snapshotSeriesService;
   private SnapshotRecalculationService snapshotRecalculationService;
   private IncomeHistoryRepository incomeHistoryRepository;
+  private WageGrowthService wageGrowthService;
 
   @BeforeEach
   void setUp() {
@@ -53,6 +57,7 @@ class DashboardControllerTest {
     snapshotSeriesService = mock(SnapshotSeriesService.class);
     snapshotRecalculationService = mock(SnapshotRecalculationService.class);
     incomeHistoryRepository = mock(IncomeHistoryRepository.class);
+    wageGrowthService = mock(WageGrowthService.class);
     mockMvc =
         MockMvcBuilders.standaloneSetup(
                 new DashboardController(
@@ -61,7 +66,8 @@ class DashboardControllerTest {
                     dashboardSummaryService,
                     snapshotSeriesService,
                     snapshotRecalculationService,
-                    incomeHistoryRepository))
+                    incomeHistoryRepository,
+                    wageGrowthService))
             .setCustomArgumentResolvers(new UserContextArgumentResolver())
             .build();
   }
@@ -238,5 +244,21 @@ class DashboardControllerTest {
     InOrder order = inOrder(snapshotRecalculationService, dashboardSummaryService);
     order.verify(snapshotRecalculationService).ensureCurrentMonth(USER_ID);
     order.verify(dashboardSummaryService).resolve(USER_ID, YearMonths.current());
+  }
+
+  @Test
+  @DisplayName("GET /v1/dashboard/wage-growth - 세션 사용자만 조회하고 쿼리의 userId 를 무시한다")
+  void getWageGrowth_ignoresUserIdParameter() throws Exception {
+    UUID other = UUID.randomUUID();
+
+    mockMvc
+        .perform(
+            get("/v1/dashboard/wage-growth")
+                .header("X-User-Id", USER_ID.toString())
+                .param("userId", other.toString()))
+        .andExpect(status().isOk());
+
+    verify(wageGrowthService).resolve(USER_ID);
+    verify(wageGrowthService, never()).resolve(other);
   }
 }
