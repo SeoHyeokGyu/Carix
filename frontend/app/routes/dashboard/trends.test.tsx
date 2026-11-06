@@ -366,6 +366,30 @@ describe("S-14 DashboardTrends 라우트", () => {
     ).not.toBeInTheDocument();
   });
 
+  // 첫 로드가 전부 실패하면 섹션이 없다. 그때 시도를 써 버리면 재시도 성공 뒤 앵커가 닿지 않는다.
+  it("첫 로드가 모두 실패해도 재시도 성공 뒤 앵커로 스크롤한다", async () => {
+    vi.mocked(dashboardMarketApi.fetchSalaryDistribution).mockRejectedValueOnce(
+      new Error("x"),
+    );
+    vi.mocked(dashboardMarketApi.fetchTrends).mockRejectedValueOnce(
+      new Error("x"),
+    );
+    vi.mocked(dashboardMarketApi.fetchWageGrowth).mockRejectedValueOnce(
+      new Error("x"),
+    );
+    const scrolled: string[] = [];
+    Element.prototype.scrollIntoView = vi.fn(function (this: Element) {
+      scrolled.push(this.id);
+    });
+    renderTrends("/dashboard/trends#growth");
+
+    await userEvent.click(
+      await screen.findByRole("button", { name: "다시 시도" }),
+    );
+
+    await waitFor(() => expect(scrolled).toEqual(["growth"]));
+  });
+
   it("#growth 로 왔는데 비교할 수 없어도 그 섹션으로 스크롤한다", async () => {
     vi.mocked(dashboardMarketApi.fetchWageGrowth).mockResolvedValue(
       WAGE_GROWTH_EMPTY,

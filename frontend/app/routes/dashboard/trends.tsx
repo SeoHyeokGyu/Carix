@@ -113,8 +113,11 @@ export default function DashboardTrends() {
   const anchored = useRef(false);
   useEffect(() => {
     if (isLoading || anchored.current || !hash) return;
+    const target = document.getElementById(hash.slice(1));
+    // 화면 단위 실패면 섹션이 없다 — 재시도 뒤에 다시 시도하게 둔다.
+    if (!target) return;
     anchored.current = true;
-    document.getElementById(hash.slice(1))?.scrollIntoView();
+    target.scrollIntoView();
   }, [isLoading, hash]);
 
   const growthSection = (

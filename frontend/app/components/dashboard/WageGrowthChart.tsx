@@ -18,9 +18,9 @@ const LABEL_PADDING_RIGHT = 96;
 // 이보다 좁으면 선 끝 라벨을 빼고 그 자리를 그래프에 준다 — 범례와 아래 표가 같은 말을 한다.
 const END_LABEL_MIN_WIDTH = 480;
 const BASELINE = 100;
-const TICK_STEP = 5;
-const WIDE_TICK_STEP = 10;
-const MAX_TICKS = 8;
+// 전부 100 의 약수라 기준선이 늘 눈금에 놓인다.
+const TICK_STEPS = [5, 10, 25, 50, 100];
+const MAX_TICK_INTERVALS = 8;
 const POINT_RADIUS = 4;
 const END_LABEL_GAP = 7;
 
@@ -33,12 +33,18 @@ interface Scale {
   y: (value: number) => number;
 }
 
+function tickStep(range: number): number {
+  const fitting = TICK_STEPS.find((s) => range / s <= MAX_TICK_INTERVALS);
+  if (fitting) return fitting;
+  const largest = TICK_STEPS[TICK_STEPS.length - 1];
+  return Math.ceil(range / (largest * MAX_TICK_INTERVALS)) * largest;
+}
+
 function yBounds(points: readonly WageGrowthPoint[]) {
   const values = points.flatMap((p) => [p.myIndex, p.marketIndex]);
   const low = Math.min(BASELINE, ...values);
   const high = Math.max(BASELINE, ...values);
-  const step =
-    (high - low) / TICK_STEP > MAX_TICKS ? WIDE_TICK_STEP : TICK_STEP;
+  const step = tickStep(high - low);
   const min = Math.floor(low / step) * step;
   const max = Math.max(Math.ceil(high / step) * step, min + step);
   const ticks: number[] = [];
