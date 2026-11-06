@@ -1,6 +1,7 @@
 package com.carix.index;
 
 import com.carix.index.dto.CurrentSalary;
+import com.carix.index.dto.RecordedIncomeChange;
 import com.carix.index.dto.RecordedYearIncome;
 import java.util.List;
 import java.util.Optional;
@@ -37,4 +38,12 @@ public interface CurrentSalaryProvider {
    * @return 연도 오름차순. 이력이 없으면 빈 목록
    */
   List<RecordedYearIncome> recordedYearIncomes(UUID userId);
+
+  /**
+   * 소득 행을 행 단위로 복호화해 낸다 (c21). 세전 연봉이 0 이하인 행은 없는 행으로 본다.
+   *
+   * @param userId 대상 사용자
+   * @return 유효일 오름차순. 이력이 없으면 빈 목록
+   */
+  List<RecordedIncomeChange> recordedIncomeChanges(UUID userId);
 }

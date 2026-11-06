@@ -4,7 +4,13 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 
+import com.carix.income.domain.IncomeChangeReasonEnum;
+import com.carix.index.CurrentSalaryProvider;
+import com.carix.index.dto.RecordedIncomeChange;
 import com.carix.peergroup.PeerSalaryDistribution;
 import com.carix.peergroup.PeerSalaryDistributionResolver;
 import com.carix.profile.domain.CareerProfile;
@@ -17,11 +23,17 @@ import com.carix.scenario.dto.EvaluationResponse;
 import com.carix.scenario.dto.EvaluationResponse.MoveView;
 import com.carix.scenario.dto.EvaluationResponse.StayView;
 import com.carix.scenario.dto.ScenarioListItem;
+import com.carix.scenario.dto.ScenarioVerification;
+import com.carix.scenario.dto.ScenarioVerification.Status;
 import com.carix.scenario.dto.SimulationResponse;
 import com.carix.scenario.inflation.InflationBasis;
 import com.carix.scenario.projection.ProjectionResult.FirstYear;
 import java.math.BigDecimal;
+import java.time.Clock;
+import java.time.Instant;
+import java.time.LocalDate;
 import java.time.OffsetDateTime;
+import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
@@ -30,6 +42,7 @@ import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.test.util.ReflectionTestUtils;
 import tools.jackson.databind.json.JsonMapper;
 
 /** 시나리오 저장·초안·목록과 실현 가능성 (API 규격 §6.1~§6.3). */
@@ -41,6 +54,7 @@ class ScenarioServiceTest {
   private CareerProfileRepository careerProfileRepository;
   private PeerSalaryDistributionResolver distributionResolver;
   private CareerScenarioRepository repository;
+  private CurrentSalaryProvider currentSalaryProvider;
   private final List<CareerScenario> store = new ArrayList<>();
   private ScenarioService service;
 
@@ -49,6 +63,7 @@ class ScenarioServiceTest {
     careerProfileRepository = mock(CareerProfileRepository.class);
     distributionResolver = mock(PeerSalaryDistributionResolver.class);
     repository = mock(CareerScenarioRepository.class);
+    currentSalaryProvider = mock(CurrentSalaryProvider.class);
     given(repository.save(any(CareerScenario.class))).willAnswer(call -> add(call.getArgument(0)));
     given(repository.saveAndFlush(any(CareerScenario.class)))
         .willAnswer(call -> add(call.getArgument(0)));
@@ -71,10 +86,27 @@ class ScenarioServiceTest {
             distributionResolver,
             new ScenarioCalculator(new UnemploymentBenefitAssumption(66_000L, 60_120L, "2026-01")),
             repository,
-            JsonMapper.builder().build());
+            JsonMapper.builder().build(),
+            currentSalaryProvider,
+            Clock.fixed(Instant.parse("2026-11-06T03:00:00Z"), ZoneId.of("Asia/Seoul")));
+  }
+
+  private ScenarioService serviceAt(Clock clock) {
+    return new ScenarioService(
+        careerProfileRepository,
+        distributionResolver,
+        new ScenarioCalculator(new UnemploymentBenefitAssumption(66_000L, 60_120L, "2026-01")),
+        repository,
+        JsonMapper.builder().build(),
+        currentSalaryProvider,
+        clock);
   }
 
   private CareerScenario add(CareerScenario scenario) {
+    if (scenario.getCalculatedAt() == null) {
+      ReflectionTestUtils.setField(
+          scenario, "calculatedAt", OffsetDateTime.parse("2026-11-06T03:00:00Z"));
+    }
     if (!store.contains(scenario)) {
       store.add(scenario);
     }
@@ -104,6 +136,70 @@ class ScenarioServiceTest {
     assertThat(listed.result().move().stayCumulative()).containsExactly(1L, 2L);
     assertThat(listed.result().move().firstYear()).isEqualTo(result.move().firstYear());
     assertThat(listed.result().inflation()).isEqualTo(result.inflation());
+  }
+
+  @Test
+  @DisplayName("방금 저장한 응답은 소득을 읽지 않고 12개월 대기를 낸다")
+  void 저장_응답_대기() {
+    ScenarioListItem saved = service.save(USER_ID, "A", request(3.5), result());
+
+    assertThat(saved.verification().status()).isEqualTo(Status.WAITING);
+    assertThat(saved.verification().monthsLeft()).isEqualTo(12);
+    verify(currentSalaryProvider, never()).recordedIncomeChanges(any());
+  }
+
+  @Test
+  @DisplayName("이전 방식 시나리오도 저장한 인상률과 오퍼로 비교한다")
+  void 이전_방식_비교() {
+    store.add(legacyScenario("A", "OK", 69));
+    given(currentSalaryProvider.recordedIncomeChanges(USER_ID))
+        .willReturn(
+            List.of(
+                new RecordedIncomeChange(
+                    LocalDate.of(2026, 1, 1), 60_000_000L, IncomeChangeReasonEnum.RAISE),
+                new RecordedIncomeChange(
+                    LocalDate.of(2027, 1, 1), 69_000_000L, IncomeChangeReasonEnum.JOB_CHANGE)));
+    Clock later = Clock.fixed(Instant.parse("2027-08-01T03:00:00Z"), ZoneId.of("Asia/Seoul"));
+    ScenarioService laterService = serviceAt(later);
+
+    ScenarioVerification verification = laterService.list(USER_ID).get(0).verification();
+
+    assertThat(verification.status()).isEqualTo(Status.MOVE_COMPARED);
+    assertThat(verification.offerAnnualGross()).isEqualTo(72_000_000L);
+    assertThat(verification.actualAnnualGross()).isEqualTo(69_000_000L);
+  }
+
+  @Test
+  @DisplayName("오퍼는 따로 받는 고정상여를 더해 실제 연 소득과 같은 기준으로 맞춘다")
+  void 오퍼_고정상여() {
+    Move move = new Move(68_000_000L, 0, 0L, false, false, 4_000_000L, null, null, null);
+    service.save(
+        USER_ID, "A", new EvaluateRequest(new Stay(3.5, null, null, null, null), move), result());
+    given(currentSalaryProvider.recordedIncomeChanges(USER_ID))
+        .willReturn(
+            List.of(
+                new RecordedIncomeChange(
+                    LocalDate.of(2027, 1, 1), 69_000_000L, IncomeChangeReasonEnum.JOB_CHANGE)));
+
+    ScenarioVerification verification =
+        serviceAt(Clock.fixed(Instant.parse("2027-12-01T03:00:00Z"), ZoneId.of("Asia/Seoul")))
+            .list(USER_ID)
+            .get(0)
+            .verification();
+
+    assertThat(verification.offerAnnualGross()).isEqualTo(72_000_000L);
+  }
+
+  @Test
+  @DisplayName("목록은 요청한 사용자의 소득만 한 번 읽는다")
+  void 목록_소득_한번() {
+    store.add(legacyScenario("A", "OK", 69));
+    store.add(legacyScenario("B", "OK", 69));
+
+    service.list(USER_ID);
+
+    verify(currentSalaryProvider, times(1)).recordedIncomeChanges(USER_ID);
+    verify(currentSalaryProvider, never()).recordedIncomeChanges(OTHER_USER_ID);
   }
 
   @Test

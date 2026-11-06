@@ -2,6 +2,7 @@ package com.carix.index.stub;
 
 import com.carix.index.CurrentSalaryProvider;
 import com.carix.index.dto.CurrentSalary;
+import com.carix.index.dto.RecordedIncomeChange;
 import com.carix.index.dto.RecordedYearIncome;
 import java.util.List;
 import java.util.Optional;
@@ -17,6 +18,11 @@ public class StubCurrentSalaryProvider implements CurrentSalaryProvider {
 
   @Override
   public List<RecordedYearIncome> recordedYearIncomes(UUID userId) {
+    return List.of();
+  }
+
+  @Override
+  public List<RecordedIncomeChange> recordedIncomeChanges(UUID userId) {
     return List.of();
   }
 }

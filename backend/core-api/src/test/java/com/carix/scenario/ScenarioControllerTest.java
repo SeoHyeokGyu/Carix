@@ -70,7 +70,8 @@ class ScenarioControllerTest {
                     new LegacyScenario(
                         new SimulationRequest(
                             null, 60_000_000L, 3.5, 72_000_000L, 3_000_000L, 2, true),
-                        response()))));
+                        response()),
+                    null)));
 
     mockMvc
         .perform(get("/v1/scenarios").header("X-User-Id", USER_ID.toString()))

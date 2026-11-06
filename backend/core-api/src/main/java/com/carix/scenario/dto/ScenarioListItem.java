@@ -13,7 +13,8 @@ public record ScenarioListItem(
     @Schema(description = "엔진 2 입력", nullable = true) EvaluateRequest request,
     @Schema(description = "엔진 2 저장 당시 평가 결과", nullable = true) EvaluationResponse result,
     @Schema(description = "엔진 1 저장분. 저장한 값 그대로이며 다시 계산하지 않는다", nullable = true)
-        LegacyScenario legacy) {
+        LegacyScenario legacy,
+    @Schema(description = "입력 가정과 실제 소득의 비교") ScenarioVerification verification) {
 
   public record LegacyScenario(SimulationRequest inputs, SimulationResponse result) {}
 }
