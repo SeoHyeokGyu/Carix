@@ -404,11 +404,11 @@ export default function Income() {
               )}
             </Field>
 
-            {/* 명세·와이어프레임은 선택이라 하지만 서버 IncomeRequest 가 @NotNull 이라
-                필수로 받는다 — 0 을 대신 넣으면 미입력과 구분이 안 돼 PPI 가 세전
-                기반 추정으로 잘못 떨어진다. "안 넣어도 된다"는 인상을 주면 안 되므로
-                필수라는 사실과 이유를 힌트로 남긴다 — Field 의 hint 는 aria-describedby
-                로 오류 문단과 함께 연결되어, 오류가 나도 이 안내가 밀려나지 않는다. */}
+            {/* 서버 IncomeRequest 가 @NotNull 이라 필수로 받는다 — 0 을 대신 넣으면
+                미입력과 구분이 안 돼 PPI 가 세전 기반 추정으로 잘못 떨어진다. "안 넣어도
+                된다"는 인상을 주면 안 되므로 필수라는 사실과 이유를 힌트로 남긴다 —
+                Field 의 hint 는 aria-describedby 로 오류 문단과 함께 연결되어, 오류가
+                나도 이 안내가 밀려나지 않는다. */}
             <Field
               id="netSalary"
               label="월 실수령액 (만원)"
