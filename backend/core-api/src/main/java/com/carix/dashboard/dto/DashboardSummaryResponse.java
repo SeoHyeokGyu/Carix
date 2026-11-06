@@ -42,7 +42,12 @@ public record DashboardSummaryResponse(
       @Schema(example = "SEEK_JOB") String code,
       @Schema(example = "이직 탐색") String label,
       @Schema(example = "[\"연봉 격차 15% 이상\"]") List<String> rulesApplied,
-      @Schema(example = "보유 중인 스킬의 가치는...") String rationale) {}
+      @Schema(example = "보유 중인 스킬의 가치는...") String rationale,
+      @Schema(
+              description = "공고 비중 변화 문장. 판정 조건이 아닌 관측 사실이며, 표시 조건을 못 넘으면 null",
+              example = "2026년 6~8월 내 동료집단 공고 비중이 이전 12개월보다 늘었습니다 (22.6% → 23.8%).",
+              nullable = true)
+          String timingEvidence) {}
 
   /**
    * 지수 산출의 근거·기준일 묶음.
@@ -131,7 +136,8 @@ public record DashboardSummaryResponse(
   }
 
   /**
-   * 채용 활발도(OWI)의 화면용 근거 (API 규격 §5.1, b22). 저장된 근거 일곱 중 셋만 나간다 — 나머지 넷은 쓰는 화면이 아직 없다.
+   * 채용 활발도(OWI)의 화면용 근거 (API 규격 §5.1, b22). 저장된 근거 중 셋만 그대로 나간다 — 시점 문장의 재료는 {@code
+   * DecisionSignal.timingEvidence} 로 접혀 나간다.
    *
    * <p>{@code recentSharePercent}·{@code baselineSharePercent} 는 퍼센트(0.00 ~ 100.00)다.
    */

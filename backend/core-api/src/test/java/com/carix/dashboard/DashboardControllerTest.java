@@ -171,7 +171,8 @@ class DashboardControllerTest {
                 detail,
                 detail,
                 null,
-                new DashboardSummaryResponse.DecisionSignal("HOLD", "유지 신호", List.of(), "2.0.0"),
+                new DashboardSummaryResponse.DecisionSignal(
+                    "HOLD", "유지 신호", List.of(), "2.0.0", null),
                 null,
                 new DashboardSummaryResponse.SummaryMetadata(
                     LocalDate.of(2026, 7, 31),
@@ -210,7 +211,8 @@ class DashboardControllerTest {
                 detail,
                 detail,
                 null,
-                new DashboardSummaryResponse.DecisionSignal("HOLD", "유지 신호", List.of(), "2.0.0"),
+                new DashboardSummaryResponse.DecisionSignal(
+                    "HOLD", "유지 신호", List.of(), "2.0.0", null),
                 null,
                 new DashboardSummaryResponse.SummaryMetadata(
                     LocalDate.now(),
