@@ -5,10 +5,12 @@ import com.carix.income.repository.IncomeHistoryRepository;
 import com.carix.index.CurrentSalaryProvider;
 import com.carix.index.EffectiveIncome;
 import com.carix.index.dto.CurrentSalary;
+import com.carix.index.dto.RecordedIncomeChange;
 import com.carix.index.dto.RecordedYearIncome;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.time.format.DateTimeFormatter;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -97,6 +99,24 @@ public class IncomeCurrentSalaryProvider implements CurrentSalaryProvider {
     }
     return lastRowByYear.entrySet().stream()
         .map(e -> new RecordedYearIncome(e.getKey(), EffectiveIncome.annualGross(e.getValue())))
+        .toList();
+  }
+
+  @Override
+  @Transactional(readOnly = true)
+  public List<RecordedIncomeChange> recordedIncomeChanges(UUID userId) {
+    // 감사 목적의 디버그 로깅: 금액은 절대 포함하지 않고 요청 컨텍스트만 남긴다
+    log.debug("소득 행 복호화 조회: userId={}", userId);
+
+    return incomeHistoryRepository.findByUserIdOrderByEffectiveDateDesc(userId).stream()
+        .filter(history -> history.getGrossSalary() != null && history.getGrossSalary() > 0)
+        .sorted(Comparator.comparing(IncomeHistory::getEffectiveDate))
+        .map(
+            history ->
+                new RecordedIncomeChange(
+                    history.getEffectiveDate(),
+                    EffectiveIncome.annualGross(history),
+                    history.getChangeReason()))
         .toList();
   }
 }

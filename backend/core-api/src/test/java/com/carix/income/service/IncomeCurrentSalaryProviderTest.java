@@ -6,9 +6,11 @@ import static org.mockito.Mockito.mock;
 
 import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.Logger;
+import com.carix.income.domain.IncomeChangeReasonEnum;
 import com.carix.income.domain.IncomeHistory;
 import com.carix.income.repository.IncomeHistoryRepository;
 import com.carix.index.dto.CurrentSalary;
+import com.carix.index.dto.RecordedIncomeChange;
 import com.carix.index.dto.RecordedYearIncome;
 import java.time.LocalDate;
 import java.util.List;
@@ -85,6 +87,31 @@ class IncomeCurrentSalaryProviderTest {
   private List<RecordedYearIncome> recorded(IncomeHistory... rowsDesc) {
     given(repository.findByUserIdOrderByEffectiveDateDesc(userId)).willReturn(List.of(rowsDesc));
     return provider.recordedYearIncomes(userId);
+  }
+
+  @Test
+  @DisplayName("소득 행은 유효일 오름차순으로 내고 세전 0 이하 행은 없는 행으로 본다")
+  void recordedIncomeChanges_ascendingWithoutZeroRows() {
+    IncomeHistory jobChange =
+        new IncomeHistory(
+            userId,
+            65_000_000L,
+            4_000_000L,
+            LocalDate.of(2026, 2, 1),
+            IncomeChangeReasonEnum.JOB_CHANGE);
+    jobChange.applyBonusTerms(false, 4_000_000L);
+    given(repository.findByUserIdOrderByEffectiveDateDesc(userId))
+        .willReturn(
+            List.of(
+                jobChange,
+                row(0L, LocalDate.of(2025, 9, 1)),
+                row(55_000_000L, LocalDate.of(2025, 7, 1))));
+
+    assertThat(provider.recordedIncomeChanges(userId))
+        .containsExactly(
+            new RecordedIncomeChange(LocalDate.of(2025, 7, 1), 55_000_000L, null),
+            new RecordedIncomeChange(
+                LocalDate.of(2026, 2, 1), 69_000_000L, IncomeChangeReasonEnum.JOB_CHANGE));
   }
 
   @Test

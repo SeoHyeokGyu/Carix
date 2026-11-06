@@ -667,7 +667,8 @@
 ### 6.3 저장된 시나리오 목록 조회
 *   **Endpoint:** `GET /api/v1/scenarios`
 *   **Response (200 OK):** 초안을 뺀 저장분 전부를 `calculatedAt DESC, id DESC` 로 반환한다. 저장분이 없으면 빈 배열 `[]` 이다 — 204 가 아니다.
-*   **비교 화면은 만들지 않는다.** `S-15` 안의 선택 컨트롤로 과거 입력 가정을 불러오는 데까지다. 같은 목록이 12개월 뒤 사후 검증(예측 vs 실제 소득)의 읽기 경로이기도 하다.
+*   **비교 화면은 만들지 않는다.** `S-15` 안의 선택 컨트롤로 과거 입력 가정을 불러오고, 각 줄에 사후 검증 결과(`verification`)를 한 줄로 보이는 데까지다.
+*   **`verification`.** 입력 가정과 12개월 뒤 실제 소득의 비교다. `status` 는 `WAITING`·`NO_INCOME_AFTER`·`NO_OFFER`·`MOVE_COMPARED`·`NO_BASELINE`·`UNKNOWN_REASON`·`STAY_COMPARED` 이고, `monthsLeft`·`expectedRaisePercent`·`actualRaisePercent`·`offerAnnualGross`·`actualAnnualGross` 중 그 상태에 해당하지 않는 필드는 `null` 이다. 저장된 가정이 빠진 행은 `verification` 자체가 `null` 이다. 저장 응답(§6.1)도 같은 필드를 싣고 `WAITING` 이다. 조회할 때 계산하고 저장하지 않는다. 판별 규칙은 [기능 명세 US-S1](functional-specification.md)이 정한다.
 *   **응답에 복호화된 금액이 여러 건 실린다.** 본인 데이터라 노출 문제는 아니지만 로그·분석 이벤트에 남기지 않는다 (완료 기준 10번).
     ```json
     [
@@ -678,7 +679,8 @@
         "calculatedAt": "2026-10-21T17:00:00Z",
         "request": { "stay": { "raisePercent": 3.5 }, "move": { "grossSalary": 72000000, "unemploymentMonths": 2, "oneTimeCost": 3000000, "benefitEligible": true, "bonusIncluded": false } },
         "result": { "stay": { "...": "§6.6 evaluate 응답과 같다" }, "move": { "...": "..." } },
-        "legacy": null
+        "legacy": null,
+        "verification": { "status": "WAITING", "monthsLeft": 12, "expectedRaisePercent": null, "actualRaisePercent": null, "offerAnnualGross": null, "actualAnnualGross": null }
       },
       {
         "id": "0b6c1d2e-7a4f-4c31-9a58-3e2f6d1b9c70",

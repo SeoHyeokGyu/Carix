@@ -7,11 +7,13 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { TextLink } from "@/components/ui/text-link";
 
 import type {
   EvaluateRequest,
   LegacyScenario,
   SavedScenario,
+  ScenarioVerification,
 } from "../../lib/api/scenario";
 import { formatKoreanSalary } from "../../lib/koreanSalary";
 import { signedMan } from "../../lib/simulatorCopy";
@@ -24,11 +26,17 @@ interface SavedScenarioMenuProps {
   onRecalculate: (request: EvaluateRequest, title: string) => void;
 }
 
-const DATE_LENGTH = 10;
+/** 사후 검증의 저장일과 같은 한국 날짜. `en-CA` 는 YYYY-MM-DD 로 적는다. */
+const SEOUL_DATE = new Intl.DateTimeFormat("en-CA", {
+  timeZone: "Asia/Seoul",
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+});
 
 function title(item: SavedScenario): string {
   const name = item.name?.trim();
-  const date = item.calculatedAt.slice(0, DATE_LENGTH);
+  const date = SEOUL_DATE.format(new Date(item.calculatedAt));
   return name ? `${name} · ${date}` : date;
 }
 
@@ -80,6 +88,53 @@ function rowView(item: SavedScenario): RowView | null {
   return null;
 }
 
+function signedPercent(value: number | null) {
+  if (value === null) return "-";
+  const text = `${value.toFixed(1)}%`;
+  return value > 0 ? `+${text}` : text;
+}
+
+/** 입력 가정과 실제를 사실로만 적는다. 선택이 옳았는지는 말하지 않는다. */
+function verificationText(verification: ScenarioVerification) {
+  switch (verification.status) {
+    case "WAITING":
+      return `검증 대기 (${verification.monthsLeft}개월 남음)`;
+    case "STAY_COMPARED":
+      return `예상 ${signedPercent(verification.expectedRaisePercent)}, 실제 ${signedPercent(verification.actualRaisePercent)}`;
+    case "MOVE_COMPARED":
+      return `오퍼 ${formatKoreanSalary(verification.offerAnnualGross)}, 실제 ${formatKoreanSalary(verification.actualAnnualGross)}`;
+    case "NO_INCOME_AFTER":
+      return "저장 후 소득 기록이 없어 비교할 수 없습니다";
+    case "UNKNOWN_REASON":
+      return "연봉 변경 사유가 없어 비교할 수 없습니다";
+    case "NO_BASELINE":
+      return "저장 당시 소득이 없어 비교할 수 없습니다";
+    case "NO_OFFER":
+      return "이직했지만 비교할 오퍼가 없습니다";
+  }
+}
+
+function VerificationLine({
+  verification,
+}: {
+  verification: ScenarioVerification;
+}) {
+  const needsIncome =
+    verification.status === "NO_INCOME_AFTER" ||
+    verification.status === "UNKNOWN_REASON";
+  return (
+    <p className="text-xs text-muted-foreground">
+      <span>{verificationText(verification)}</span>
+      {needsIncome && (
+        <>
+          {" "}
+          <TextLink to="/mypage/records">소득 입력</TextLink>
+        </>
+      )}
+    </p>
+  );
+}
+
 /** 제목 옆에 붙는 저장 목록. 최근 순이며 비어 있으면 그리지 않는다. 고르면 닫힌다. */
 export function SavedScenarioMenu({
   scenarios,
@@ -129,6 +184,9 @@ export function SavedScenarioMenu({
                     {row.legacy && <Badge variant="secondary">예전 계산</Badge>}
                     <span>{row.summary}</span>
                   </p>
+                  {item.verification && (
+                    <VerificationLine verification={item.verification} />
+                  )}
                 </div>
                 <Button
                   type="button"

@@ -92,6 +92,7 @@ Carix는 연봉·실수령액·소비 금액 등 민감한 개인 재무 정보�
   - `index_snapshot` 테이블 및 `rationale` JSONB에는 평문 연봉이나 역산 가능한 연속형 격차 비율을 일절 저장하지 않으며, 오직 `SalaryGapBucket` 구간명만 영속화한다 (`SnapshotDecryptionBoundarySecurityTest`로 누출 방지 불변식 보증).
   - `CurrentSalary.toString()`은 금액을 마스킹(`grossSalary=***`)하여 로그 출력을 원천 방어한다.
   - 상승률 비교(`US-D8`)는 같은 경계의 `CurrentSalaryProvider.recordedYearIncomes` 로 연도별 연 소득을 받는다. `RecordedYearIncome`·`WageGrowthResponse.Point` 도 `toString()`에서 금액을 가리고, 값은 응답으로만 나가며 저장하지 않는다.
+  - 시나리오 사후 검증(`c21`)은 같은 경계의 `CurrentSalaryProvider.recordedIncomeChanges` 로 소득 행을 받는다. `RecordedIncomeChange`·`ScenarioVerification` 의 `toString` 은 금액을 가리고, 비교 결과는 본인 응답으로만 나가며 저장하지 않는다.
 
 > **세션 검증 필터링**: 세션 검증은 Spring Cloud Gateway 필터가 수행하며, 하류 서비스는 `X-User-Id` 헤더를 신뢰합니다 ([Spring Cloud 아키텍처](specs/spring-cloud-architecture.md) 참조).
 > 헤더를 신뢰하는 구조이므로 게이트웨이는 인바운드 `X-User-Id` 를 전 라우트에서 무조건 벗깁니다 — 세션 검증 플래그가 꺼져 있어도 동작하며, 그래야 플래그가 꺼진 기간에 임의 UUID 로 다른 사용자를 사칭할 수 없습니다.

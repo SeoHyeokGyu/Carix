@@ -139,6 +139,23 @@ export interface LegacyScenario {
   };
 }
 
+/** 입력 가정과 12개월 뒤 실제 소득의 비교. 상태에 해당하지 않는 필드는 null 이다. */
+export interface ScenarioVerification {
+  status:
+    | "WAITING"
+    | "NO_INCOME_AFTER"
+    | "NO_OFFER"
+    | "MOVE_COMPARED"
+    | "NO_BASELINE"
+    | "UNKNOWN_REASON"
+    | "STAY_COMPARED";
+  monthsLeft: number | null;
+  expectedRaisePercent: number | null;
+  actualRaisePercent: number | null;
+  offerAnnualGross: number | null;
+  actualAnnualGross: number | null;
+}
+
 /** `engineVersion` 2 는 `request`·`result`, 1 은 `legacy` 만 채워진다. */
 export interface SavedScenario {
   id: string;
@@ -148,6 +165,7 @@ export interface SavedScenario {
   request: EvaluateRequest | null;
   result: EvaluationResponse | null;
   legacy: LegacyScenario | null;
+  verification?: ScenarioVerification | null;
 }
 
 export const getContext = () =>

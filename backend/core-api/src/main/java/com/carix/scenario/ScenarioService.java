@@ -1,5 +1,7 @@
 package com.carix.scenario;
 
+import com.carix.index.CurrentSalaryProvider;
+import com.carix.index.dto.RecordedIncomeChange;
 import com.carix.index.mvi.PeerGroupFallbackResolver;
 import com.carix.peergroup.PeerSalaryDistribution;
 import com.carix.peergroup.PeerSalaryDistributionResolver;
@@ -11,8 +13,11 @@ import com.carix.scenario.dto.EvaluationResponse;
 import com.carix.scenario.dto.ScenarioListItem;
 import com.carix.scenario.dto.ScenarioListItem.LegacyScenario;
 import com.carix.scenario.dto.ScenarioPayload;
+import com.carix.scenario.dto.ScenarioVerification;
 import com.carix.scenario.dto.SimulationRequest;
 import com.carix.scenario.dto.SimulationResponse;
+import java.time.Clock;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -49,6 +54,8 @@ public class ScenarioService {
   private final ScenarioCalculator calculator;
   private final CareerScenarioRepository repository;
   private final ObjectMapper objectMapper;
+  private final CurrentSalaryProvider currentSalaryProvider;
+  private final Clock clock;
 
   /** 입력과 평가 결과를 한 행으로 저장한다. 결과는 호출자가 방금 평가한 값이다 — 저장 후 입력 가정이 바뀌어도 사용자가 저장한 시점에 본 결과가 남는다. */
   @Transactional
@@ -62,7 +69,8 @@ public class ScenarioService {
                 .engineVersion(CareerScenario.ENGINE_STAY_OR_MOVE)
                 .payload(toJson(new ScenarioPayload(request, result)))
                 .build());
-    return toListItem(saved);
+    // 화면이 이 응답을 목록 맨 앞에 바로 넣는다. 방금 저장했으니 대기 상태라 소득을 읽지 않는다.
+    return toListItem(saved, List.of());
   }
 
   /**
@@ -100,8 +108,9 @@ public class ScenarioService {
   /** 저장된 시나리오 전부(초안 제외), 최근 순 (규격 §6.3). 응답에 복호화된 금액이 여러 건 실리므로 로그에 남기지 않는다 (완료 기준 10번). */
   @Transactional(readOnly = true)
   public List<ScenarioListItem> list(UUID userId) {
+    List<RecordedIncomeChange> incomes = currentSalaryProvider.recordedIncomeChanges(userId);
     return repository.findByUserIdAndDraftFalseOrderByCalculatedAtDescIdDesc(userId).stream()
-        .map(this::toListItem)
+        .map(scenario -> toListItem(scenario, incomes))
         .toList();
   }
 
@@ -214,7 +223,7 @@ public class ScenarioService {
 
   // --- 매핑 ---
 
-  private ScenarioListItem toListItem(CareerScenario scenario) {
+  private ScenarioListItem toListItem(CareerScenario scenario, List<RecordedIncomeChange> incomes) {
     int engineVersion = Integer.parseInt(scenario.getEngineVersion());
     if (CareerScenario.ENGINE_STAY_OR_MOVE.equals(scenario.getEngineVersion())) {
       ScenarioPayload payload = fromJson(scenario.getPayload());
@@ -225,7 +234,8 @@ public class ScenarioService {
           scenario.getCalculatedAt(),
           payload.request(),
           payload.result(),
-          null);
+          null,
+          verificationOf(payload.request(), scenario, incomes));
     }
     return new ScenarioListItem(
         scenario.getId(),
@@ -234,7 +244,42 @@ public class ScenarioService {
         scenario.getCalculatedAt(),
         null,
         null,
-        toLegacy(scenario));
+        toLegacy(scenario),
+        ScenarioVerifier.verify(
+            scenario.getStayExpectedRaiseRate().doubleValue(),
+            scenario.getMoveTargetGrossSalary(),
+            scenario.getCalculatedAt(),
+            LocalDate.now(clock),
+            incomes));
+  }
+
+  /** 저장 API 는 가정을 비우지 못하지만, 행 하나가 빠졌다고 목록 전체를 막지는 않는다. 그 행만 검증을 비운다. */
+  private ScenarioVerification verificationOf(
+      EvaluateRequest request, CareerScenario scenario, List<RecordedIncomeChange> incomes) {
+    if (request == null
+        || request.stay() == null
+        || request.stay().raisePercent() == null
+        || (request.move() != null && request.move().grossSalary() == null)) {
+      return null;
+    }
+    return ScenarioVerifier.verify(
+        request.stay().raisePercent(),
+        offerAnnualGross(request.move()),
+        scenario.getCalculatedAt(),
+        LocalDate.now(clock),
+        incomes);
+  }
+
+  /** 실제 쪽 {@code EffectiveIncome.annualGross} 와 같이 따로 받는 고정상여를 더한다. */
+  private static Long offerAnnualGross(EvaluateRequest.Move move) {
+    if (move == null) {
+      return null;
+    }
+    long separateBonus =
+        Boolean.TRUE.equals(move.bonusIncluded()) || move.fixedBonusAnnual() == null
+            ? 0L
+            : move.fixedBonusAnnual();
+    return move.grossSalary() + separateBonus;
   }
 
   /**
