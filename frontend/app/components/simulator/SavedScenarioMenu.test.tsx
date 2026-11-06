@@ -1,8 +1,12 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { MemoryRouter } from "react-router";
 import { describe, expect, it, vi } from "vitest";
 
-import type { SavedScenario } from "../../lib/api/scenario";
+import type {
+  SavedScenario,
+  ScenarioVerification,
+} from "../../lib/api/scenario";
 import * as scenarioApi from "../../lib/api/scenario";
 import { legacyToRequest, SavedScenarioMenu } from "./SavedScenarioMenu";
 
@@ -50,6 +54,53 @@ const legacy: SavedScenario = {
 };
 
 describe("SavedScenarioMenu", () => {
+  const openWith = async (verification: ScenarioVerification) => {
+    render(
+      <MemoryRouter>
+        <SavedScenarioMenu
+          scenarios={[{ ...legacy, verification }]}
+          onLoad={vi.fn()}
+          onRecalculate={vi.fn()}
+        />
+      </MemoryRouter>,
+    );
+    await userEvent.click(
+      screen.getByRole("button", { name: "저장된 시나리오 1" }),
+    );
+  };
+
+  it("비교 결과는 가정과 실제를 부호와 함께 나란히 보인다", async () => {
+    await openWith({
+      status: "STAY_COMPARED",
+      monthsLeft: null,
+      expectedRaisePercent: 5,
+      actualRaisePercent: -2,
+      offerAnnualGross: null,
+      actualAnnualGross: null,
+    });
+
+    expect(screen.getByText("예상 +5.0%, 실제 -2.0%")).toBeInTheDocument();
+  });
+
+  it("저장 후 소득이 없으면 소득 입력으로 안내한다", async () => {
+    await openWith({
+      status: "NO_INCOME_AFTER",
+      monthsLeft: null,
+      expectedRaisePercent: null,
+      actualRaisePercent: null,
+      offerAnnualGross: null,
+      actualAnnualGross: null,
+    });
+
+    expect(
+      screen.getByText("저장 후 소득 기록이 없어 비교할 수 없습니다"),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "소득 입력" })).toHaveAttribute(
+      "href",
+      "/mypage/records",
+    );
+  });
+
   it("엔진 1 항목은 다시 계산하지 않고 저장 결과에 예전 계산 표식을 붙인다", async () => {
     const onLoad = vi.fn();
     const onRecalculate = vi.fn();
