@@ -163,7 +163,14 @@ public class DashboardSummaryService {
         code.name(),
         code.label(),
         rationale == null ? List.of() : rationale.rulesApplied(),
-        gapSentence(rationale));
+        gapSentence(rationale),
+        rationale == null
+            ? null
+            : DecisionTimingEvidence.sentence(
+                code,
+                snapshot.getOpeningWindowIndex(),
+                rationale.indexStatuses().owi(),
+                rationale.openingWindow()));
   }
 
   /** 근거 문장. 격차는 구간으로만 저장되므로 문구도 구간이다 (기술 명세 §1.3). */
@@ -286,8 +293,8 @@ public class DashboardSummaryService {
   }
 
   /**
-   * 저장된 근거 일곱 중 화면이 쓰는 셋만 낸다 (API 규격 §5.1, b22). 나머지 넷(이전 창 동료집단 표본 수, 완화 단계, 조건 문구, 최근 창 전체시장 공고
-   * 수)은 저장만 하고 소비자가 생길 때 연다.
+   * 저장된 근거 중 화면이 그대로 쓰는 셋만 낸다 (API 규격 §5.1, b22). 시점 근거 재료는 {@link DecisionTimingEvidence} 가 문장으로
+   * 접어 내고, 나머지는 저장만 한다.
    *
    * <p>OWI 완화는 MVI 완화와 별개라 {@code metadata.peerGroup} 에 섞지 않는다 — 섞으면 어느 지수의 조건인지 화면이 구분하지 못한다.
    */
@@ -317,6 +324,7 @@ public class DashboardSummaryService {
             DecisionSignalCode.INSUFFICIENT_DATA.name(),
             DecisionSignalCode.INSUFFICIENT_DATA.label(),
             List.of(),
+            null,
             null),
         null,
         new SummaryMetadata(

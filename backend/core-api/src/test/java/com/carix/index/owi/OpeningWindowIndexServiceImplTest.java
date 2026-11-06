@@ -316,4 +316,153 @@ class OpeningWindowIndexServiceImplTest {
     assertThat(result.status()).isEqualTo(IndexStatus.OK);
     assertThat(result.value()).isEqualByComparingTo("100.00");
   }
+
+  // --- 시점 근거 재료 (c20) ---
+
+  private static final List<String> OWN = List.of("MID");
+  private static final List<String> WIDENED = List.of("ENTRY", "JUNIOR", "MID", "SENIOR", "LEAD");
+
+  /** 창 전체를 조회하면 {@code rowMonths} 달의 전체시장 행을 돌려준다. 같은 달을 두 번 넣으면 행이 둘이다. */
+  private void stubMarketRows(
+      String source, List<String> window, List<String> rowMonths, int totalPostingCount) {
+    int perRow = totalPostingCount / rowMonths.size();
+    int first = totalPostingCount - perRow * (rowMonths.size() - 1);
+    List<MarketAggregate> rows = new java.util.ArrayList<>();
+    for (int i = 0; i < rowMonths.size(); i++) {
+      rows.add(agg(source, rowMonths.get(i), "ALL", "ALL", i == 0 ? first : perRow));
+    }
+    given(
+            marketAggregateRepository.findTotalPostingAggregates(
+                eq(source),
+                eq(window),
+                eq("ALL"),
+                eq("ALL"),
+                eq(List.of("ALL")),
+                eq("ALL"),
+                eq("ALL")))
+        .willReturn(rows);
+  }
+
+  private void stubFullSource(String source, int recentPeer, int baselinePeer) {
+    stubMarketRows(source, RECENT_MONTHS, RECENT_MONTHS, 1000);
+    stubMarketRows(source, BASELINE_MONTHS, BASELINE_MONTHS, 4000);
+    stubTotals(source, RECENT_MONTHS, "DEVELOPER", OWN, recentPeer);
+    stubTotals(source, BASELINE_MONTHS, "DEVELOPER", OWN, baselinePeer);
+  }
+
+  @Test
+  @DisplayName("표준오차는 결합에 참여한 원천만으로 내고, 빠진 원천은 충족 여부와 완화 단계도 바꾸지 않는다")
+  void 표준오차_결합원천만() {
+    given(careerProfileRepository.findByUserId(USER_ID)).willReturn(Optional.of(createProfile(5)));
+    stubFullSource("JOBKOREA", 120, 400); // 12% / 10% -> 지수 120.00, 가중치 120
+    stubFullSource("WANTED", 200, 900); // 20% / 22.5% -> 지수 88.89, 가중치 200
+    // 이전 창 동료 5건이라 결합 제외. 월도 하나뿐이고 표본은 가장 크다.
+    stubTotals("SARAMIN", RECENT_MONTHS, "ALL", List.of("ALL"), 1000);
+    stubTotals("SARAMIN", BASELINE_MONTHS, "ALL", List.of("ALL"), 1000);
+    stubTotals("SARAMIN", RECENT_MONTHS, "DEVELOPER", OWN, 500);
+    stubTotals("SARAMIN", BASELINE_MONTHS, "DEVELOPER", OWN, 5);
+    stubTotals("SARAMIN", RECENT_MONTHS, "DEVELOPER", WIDENED, 500);
+    stubTotals("SARAMIN", BASELINE_MONTHS, "DEVELOPER", WIDENED, 5);
+
+    OwiResult result = service.calculate(USER_ID, "2026-08");
+
+    assertThat(result.status()).isEqualTo(IndexStatus.OK);
+    // √((120×120)²(1/120+1/400) + (200×88.89)²(1/200+1/900)) ÷ 320 = 6.39
+    assertThat(result.standardError()).isEqualByComparingTo("6.39");
+    assertThat(result.recentFromMonth()).isEqualTo("202605");
+    assertThat(result.recentToMonth()).isEqualTo("202607");
+    assertThat(result.windowsFullyCovered()).isTrue();
+    assertThat(result.maxFallbackLevel()).isEqualTo(1);
+  }
+
+  @Test
+  @DisplayName("결합 원천의 이전 창이 11개월뿐이면 값은 나와도 두 창을 채운 것이 아니다")
+  void 이전창_11개월() {
+    given(careerProfileRepository.findByUserId(USER_ID)).willReturn(Optional.of(createProfile(5)));
+    stubFullSource("JOBKOREA", 120, 400);
+    stubMarketRows("JOBKOREA", BASELINE_MONTHS, BASELINE_MONTHS.subList(1, 12), 4000);
+
+    OwiResult result = service.calculate(USER_ID, "2026-08");
+
+    assertThat(result.status()).isEqualTo(IndexStatus.OK);
+    assertThat(result.windowsFullyCovered()).isFalse();
+  }
+
+  @Test
+  @DisplayName("결합 원천의 최근 창이 2개월뿐이면 백필이 밀린 것이라 두 창을 채운 것이 아니다")
+  void 최근창_2개월() {
+    given(careerProfileRepository.findByUserId(USER_ID)).willReturn(Optional.of(createProfile(5)));
+    stubFullSource("JOBKOREA", 120, 400);
+    stubFullSource("WANTED", 100, 400);
+    stubMarketRows("WANTED", RECENT_MONTHS, RECENT_MONTHS.subList(0, 2), 1000);
+
+    OwiResult result = service.calculate(USER_ID, "2026-08");
+
+    assertThat(result.status()).isEqualTo(IndexStatus.OK);
+    assertThat(result.windowsFullyCovered()).isFalse();
+  }
+
+  @Test
+  @DisplayName("한 달에 행이 둘이어도 월은 한 번만 센다")
+  void 같은달_행_둘() {
+    given(careerProfileRepository.findByUserId(USER_ID)).willReturn(Optional.of(createProfile(5)));
+    stubFullSource("JOBKOREA", 120, 400);
+    List<String> twelveRowsElevenMonths = new java.util.ArrayList<>(BASELINE_MONTHS.subList(1, 12));
+    twelveRowsElevenMonths.add(BASELINE_MONTHS.get(1));
+    stubMarketRows("JOBKOREA", BASELINE_MONTHS, twelveRowsElevenMonths, 4000);
+
+    OwiResult result = service.calculate(USER_ID, "2026-08");
+
+    assertThat(result.windowsFullyCovered()).isFalse();
+  }
+
+  @Test
+  @DisplayName("대표 원천이 1단계여도 결합 원천 하나가 2단계면 최대 완화 단계는 2다")
+  void 최대_완화단계() {
+    given(careerProfileRepository.findByUserId(USER_ID)).willReturn(Optional.of(createProfile(5)));
+    stubFullSource("JOBKOREA", 120, 400);
+    stubMarketRows("WANTED", RECENT_MONTHS, RECENT_MONTHS, 1000);
+    stubMarketRows("WANTED", BASELINE_MONTHS, BASELINE_MONTHS, 4000);
+    stubTotals("WANTED", RECENT_MONTHS, "DEVELOPER", OWN, 100);
+    stubTotals("WANTED", BASELINE_MONTHS, "DEVELOPER", OWN, 5);
+    stubTotals("WANTED", RECENT_MONTHS, "DEVELOPER", WIDENED, 110);
+    stubTotals("WANTED", BASELINE_MONTHS, "DEVELOPER", WIDENED, 400);
+
+    OwiResult result = service.calculate(USER_ID, "2026-08");
+
+    assertThat(result.fallbackLevel()).isEqualTo(1);
+    assertThat(result.maxFallbackLevel()).isEqualTo(2);
+  }
+
+  @Test
+  @DisplayName("비교 창 월은 잡코리아 집계로 보정한 유효월 기준이다 — 기준월 11월이어도 6~8월일 수 있다")
+  void 창_월_유효월_기준() {
+    given(careerProfileRepository.findByUserId(USER_ID)).willReturn(Optional.of(createProfile(5)));
+    given(
+            marketAggregateRepository.findLatestAvailableYearMonthForSource(
+                eq("JOBKOREA"), eq("202611")))
+        .willReturn(Optional.of("202609"));
+
+    OwiResult result = service.calculate(USER_ID, "2026-11");
+
+    assertThat(result.baseYearMonth()).isEqualTo("202611");
+    assertThat(result.recentFromMonth()).isEqualTo("202606");
+    assertThat(result.recentToMonth()).isEqualTo("202608");
+  }
+
+  @Test
+  @DisplayName("표본 부족이면 창 월만 채우고 결합 원천이 있어야 뜻이 있는 값은 비운다")
+  void 표본부족_창월만() {
+    given(careerProfileRepository.findByUserId(USER_ID)).willReturn(Optional.of(createProfile(5)));
+    stubTotals("JOBKOREA", RECENT_MONTHS, "ALL", List.of("ALL"), 100);
+    stubTotals("JOBKOREA", RECENT_MONTHS, "DEVELOPER", OWN, 25);
+
+    OwiResult result = service.calculate(USER_ID, "2026-08");
+
+    assertThat(result.status()).isEqualTo(IndexStatus.INSUFFICIENT_SAMPLE);
+    assertThat(result.recentFromMonth()).isEqualTo("202605");
+    assertThat(result.standardError()).isNull();
+    assertThat(result.windowsFullyCovered()).isNull();
+    assertThat(result.maxFallbackLevel()).isNull();
+  }
 }

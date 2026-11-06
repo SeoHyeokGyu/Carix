@@ -86,7 +86,7 @@ import org.springframework.transaction.annotation.Transactional;
  *   <li><b>원천별 결합 가중치 ({@link SourceCombineWeights}):</b> 무작위 표본 원천({@code JOBKOREA}, {@code
  *       WANTED})은 최근 창 동료집단 표본 수를 그대로 가중치로 쓰고, 정기 수집 원천({@code SARAMIN}, {@code JUMPIT})은 합계가 표본 원천
  *       최대 표본 수를 넘지 않도록 비례 축소하여 특정 포털 목록 크기에 지수가 끌려가는 현상을 방지합니다.
- *   <li><b>표본 부족 처리 및 부분 근거 보존:</b> 수집 이력이 15개월 미만이거나 모든 원천에서 이전 12개월 창 표본이 부족하면 {@link
+ *   <li><b>표본 부족 처리 및 부분 근거 보존:</b> 모든 원천에서 최근 3개월이나 이전 12개월 창 표본이 부족하면 {@link
  *       IndexStatus#INSUFFICIENT_SAMPLE}과 {@code value = null}을 반환합니다. 단, 최근 3개월 창 표본이 기준 이상인 원천이
  *       존재하면 최근 비중({@code recentSharePercent})은 산출하여 화면 배지로 노출할 수 있도록 보존합니다.
  * </ol>
@@ -114,6 +114,12 @@ public class OpeningWindowIndexServiceImpl implements OpeningWindowIndexProvider
    * <p>과거 12개월 백필 표본이 적재되어 있는 {@code JOBKOREA} 집계의 최신·최초 가용 월을 기준으로 삼아 당월 미수집 시점을 보정합니다.
    */
   static final String SAMPLED_SOURCE = "JOBKOREA";
+
+  /** 최근 창의 개월 수 */
+  private static final int RECENT_WINDOW_MONTHS = 3;
+
+  /** 이전 창(기준선)의 개월 수 */
+  private static final int BASELINE_WINDOW_MONTHS = 12;
 
   /** 지수 하한 클램프 기본값 (기능 명세 §4.5: 25.00) */
   private static final BigDecimal DEFAULT_MIN_CLAMP = new BigDecimal("25.00");
@@ -221,8 +227,8 @@ public class OpeningWindowIndexServiceImpl implements OpeningWindowIndexProvider
     String effectiveYearMonth = resolveEffectiveYearMonth(normalizedYm);
     YearMonth targetYm = YearMonth.parse(effectiveYearMonth, YM_FORMATTER);
 
-    List<String> recentMonths = getMonthsRange(targetYm.minusMonths(3), 3);
-    List<String> baselineMonths = getMonthsRange(targetYm.minusMonths(15), 12);
+    List<String> recentMonths = getMonthsRange(targetYm.minusMonths(3), RECENT_WINDOW_MONTHS);
+    List<String> baselineMonths = getMonthsRange(targetYm.minusMonths(15), BASELINE_WINDOW_MONTHS);
 
     // 4. 프로필 연차 기반 Level 1(본인 구간) / Level 2(인접 확장 구간) 조회 명세 구성
     PeerGroupLadderSpec spec = buildLadderSpec(profile);
@@ -232,7 +238,7 @@ public class OpeningWindowIndexServiceImpl implements OpeningWindowIndexProvider
         fetchSourceStats(spec, recentMonths, baselineMonths);
 
     // 6. 원천별 결합 가중치 적용 및 최종 OwiResult 조립 (결과 기준월은 요청월 normalizedYm 유지)
-    return combineSourceStats(normalizedYm, spec, sourceStats);
+    return combineSourceStats(normalizedYm, spec, sourceStats, recentMonths);
   }
 
   // =========================================================================
@@ -307,18 +313,8 @@ public class OpeningWindowIndexServiceImpl implements OpeningWindowIndexProvider
     int minSample = minSampleSize();
 
     // 1. 전체 시장 모수(분모): 직무·경력·지역·고용형태·회사규모가 모두 'ALL'인 전체 공고 집계 행 합산
-    int recentMarket =
-        sumPostings(
-            source,
-            recentMonths,
-            PeerGroupFallbackResolver.DIMENSION_ALL,
-            List.of(PeerGroupFallbackResolver.BRACKET_ALL));
-    int baselineMarket =
-        sumPostings(
-            source,
-            baselineMonths,
-            PeerGroupFallbackResolver.DIMENSION_ALL,
-            List.of(PeerGroupFallbackResolver.BRACKET_ALL));
+    MarketWindow recentMarket = marketWindow(source, recentMonths);
+    MarketWindow baselineMarket = marketWindow(source, baselineMonths);
 
     // 2. Level 1: 사용자 본인 경력 구간(collector 6구간 매핑) 동료집단 공고 수 합산
     SourceShareStats level1 =
@@ -372,8 +368,8 @@ public class OpeningWindowIndexServiceImpl implements OpeningWindowIndexProvider
       List<String> collectorBrackets,
       List<String> recentMonths,
       List<String> baselineMonths,
-      int recentMarket,
-      int baselineMarket,
+      MarketWindow recentMarket,
+      MarketWindow baselineMarket,
       int minSample) {
     int recentPeer = sumPostings(source, recentMonths, jobFamily, collectorBrackets);
     int baselinePeer = sumPostings(source, baselineMonths, jobFamily, collectorBrackets);
@@ -383,8 +379,10 @@ public class OpeningWindowIndexServiceImpl implements OpeningWindowIndexProvider
         conditionText,
         recentPeer,
         baselinePeer,
-        recentMarket,
-        baselineMarket,
+        recentMarket.postings(),
+        baselineMarket.postings(),
+        recentMarket.coveredMonths(),
+        baselineMarket.coveredMonths(),
         minSample);
   }
 
@@ -416,7 +414,12 @@ public class OpeningWindowIndexServiceImpl implements OpeningWindowIndexProvider
    * @return 최종 채용 활발도 산출 결과 {@link OwiResult}
    */
   private OwiResult combineSourceStats(
-      String normalizedYm, PeerGroupLadderSpec spec, Map<String, SourceShareStats> sourceStats) {
+      String normalizedYm,
+      PeerGroupLadderSpec spec,
+      Map<String, SourceShareStats> sourceStats,
+      List<String> recentMonths) {
+    String recentFromMonth = recentMonths.getFirst();
+    String recentToMonth = recentMonths.getLast();
 
     // 전 원천 표본 수 총합 (근거 메타데이터 기록용)
     int totalRecentPeer =
@@ -452,7 +455,12 @@ public class OpeningWindowIndexServiceImpl implements OpeningWindowIndexProvider
           baselineShare,
           representative.fallbackLevel(),
           representative.appliedConditions(),
-          totalRecentMarket);
+          totalRecentMarket,
+          null,
+          recentFromMonth,
+          recentToMonth,
+          null,
+          null);
     }
 
     // 표본 원천(JOBKOREA·WANTED) 기준 정기 수집 원천(SARAMIN·JUMPIT) 상한이 적용된 결합 가중치 도출
@@ -461,10 +469,15 @@ public class OpeningWindowIndexServiceImpl implements OpeningWindowIndexProvider
     double weightedRecentShareSum = 0.0;
     double weightedBaselineShareSum = 0.0;
     double weightSum = 0.0;
+    double varianceSum = 0.0;
+    boolean windowsFullyCovered = true;
+    int maxFallbackLevel = 0;
 
     for (Map.Entry<String, Double> entry : weights.entrySet()) {
       SourceShareStats s = sourceStats.get(entry.getKey());
       double w = entry.getValue();
+      windowsFullyCovered &= s.coversBothWindows();
+      maxFallbackLevel = Math.max(maxFallbackLevel, s.fallbackLevel());
       double recentSharePct = s.recentSharePercent();
       double baselineSharePct = s.baselineSharePercent();
 
@@ -477,6 +490,10 @@ public class OpeningWindowIndexServiceImpl implements OpeningWindowIndexProvider
       weightedRecentShareSum += w * recentSharePct;
       weightedBaselineShareSum += w * baselineSharePct;
       weightSum += w;
+      // 시장가치 지수 표준오차와 같은 근사다. 전체시장 분모의 잡음은 넣지 않는다.
+      varianceSum +=
+          Math.pow(w * clampedSourceIndex, 2)
+              * (1.0 / s.recentPeerPostings() + 1.0 / s.baselinePeerPostings());
     }
 
     // 가중 평균 산출 및 소수점 둘째 자리 반올림
@@ -497,7 +514,12 @@ public class OpeningWindowIndexServiceImpl implements OpeningWindowIndexProvider
         combinedBaselineShare,
         representative.fallbackLevel(),
         representative.appliedConditions(),
-        totalRecentMarket);
+        totalRecentMarket,
+        BigDecimal.valueOf(Math.sqrt(varianceSum) / weightSum).setScale(2, RoundingMode.HALF_UP),
+        recentFromMonth,
+        recentToMonth,
+        windowsFullyCovered,
+        maxFallbackLevel);
   }
 
   /**
@@ -587,7 +609,7 @@ public class OpeningWindowIndexServiceImpl implements OpeningWindowIndexProvider
     return anyRep.orElseGet(
         () ->
             new SourceShareStats(
-                SAMPLED_SOURCE, 2, spec.widenedCondition(), 0, 0, 0, 0, minSampleSize()));
+                SAMPLED_SOURCE, 2, spec.widenedCondition(), 0, 0, 0, 0, 0, 0, minSampleSize()));
   }
 
   // =========================================================================
@@ -603,6 +625,26 @@ public class OpeningWindowIndexServiceImpl implements OpeningWindowIndexProvider
    */
   private int sumPostings(
       String source, List<String> months, String jobFamily, List<String> brackets) {
+    return findPostingRows(source, months, jobFamily, brackets).stream()
+        .mapToInt(MarketAggregate::getPostingCount)
+        .sum();
+  }
+
+  /** 한 창의 전체시장 공고 수와 그 원천에 전체시장 행이 있는 달의 수를 한 번의 조회로 구합니다. */
+  private MarketWindow marketWindow(String source, List<String> months) {
+    List<MarketAggregate> rows =
+        findPostingRows(
+            source,
+            months,
+            PeerGroupFallbackResolver.DIMENSION_ALL,
+            List.of(PeerGroupFallbackResolver.BRACKET_ALL));
+    return new MarketWindow(
+        rows.stream().mapToInt(MarketAggregate::getPostingCount).sum(),
+        (int) rows.stream().map(MarketAggregate::getBaseYearMonth).distinct().count());
+  }
+
+  private List<MarketAggregate> findPostingRows(
+      String source, List<String> months, String jobFamily, List<String> brackets) {
     List<MarketAggregate> rows =
         marketAggregateRepository.findTotalPostingAggregates(
             source,
@@ -612,10 +654,7 @@ public class OpeningWindowIndexServiceImpl implements OpeningWindowIndexProvider
             brackets,
             PeerGroupFallbackResolver.DIMENSION_ALL,
             PeerGroupFallbackResolver.DIMENSION_ALL);
-    if (rows == null || rows.isEmpty()) {
-      return 0;
-    }
-    return rows.stream().mapToInt(MarketAggregate::getPostingCount).sum();
+    return rows == null ? List.of() : rows;
   }
 
   /**
@@ -737,6 +776,9 @@ public class OpeningWindowIndexServiceImpl implements OpeningWindowIndexProvider
       List<String> widenedCollectorBrackets,
       String widenedCondition) {}
 
+  /** 한 기간 창의 전체시장 공고 수와 행이 있는 달의 수. */
+  private record MarketWindow(int postings, int coveredMonths) {}
+
   /**
    * 단일 원천에서 집계된 최근 3개월 및 이전 12개월의 동료집단·전체시장 공고 수와 비중 계산을 캡슐화하는 내부 레코드.
    *
@@ -747,6 +789,8 @@ public class OpeningWindowIndexServiceImpl implements OpeningWindowIndexProvider
    * @param baselinePeerPostings 이전 12개월(4~15개월 전) 동료집단 신규 수집 공고 수
    * @param recentMarketPostings 최근 3개월 전체 시장 신규 수집 공고 수 (분모)
    * @param baselineMarketPostings 이전 12개월 전체 시장 신규 수집 공고 수 (분모)
+   * @param recentCoveredMonths 최근 창에서 전체시장 행이 있는 달의 수
+   * @param baselineCoveredMonths 이전 창에서 전체시장 행이 있는 달의 수
    * @param minSampleSize 유효 표본 최소 기준치 (기본 10)
    */
   private record SourceShareStats(
@@ -757,7 +801,15 @@ public class OpeningWindowIndexServiceImpl implements OpeningWindowIndexProvider
       int baselinePeerPostings,
       int recentMarketPostings,
       int baselineMarketPostings,
+      int recentCoveredMonths,
+      int baselineCoveredMonths,
       int minSampleSize) {
+
+    /** 지수는 표본 기준만 넘으면 나오므로, 문구가 「이전 12개월」이라 말해도 되는지는 여기서 따로 본다. */
+    boolean coversBothWindows() {
+      return recentCoveredMonths == RECENT_WINDOW_MONTHS
+          && baselineCoveredMonths == BASELINE_WINDOW_MONTHS;
+    }
 
     /** 최근 3개월 동료집단 표본 수가 최소 표본 기준을 충족하는지 여부 */
     boolean meetsRecentSampleThreshold() {

@@ -290,13 +290,49 @@ class SnapshotReadServiceTest {
                         new BigDecimal("20.69"),
                         1,
                         "전국 / 4~7년 / 회사규모 무관 / 고용형태 무관",
-                        351))));
+                        351,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null))));
 
     DashboardSummaryResponse response = summaryService.resolve(USER_ID, "202607");
 
     assertThat(response.openingWindowIndex().value()).isEqualTo(118.4);
     assertThat(response.metadata().openingWindow())
         .isEqualTo(new DashboardSummaryResponse.OpeningWindowSummary(24.5, 20.69, 86));
+  }
+
+  @Test
+  @DisplayName("summary - 저장된 개방창 근거로 판정 근거에 시점 문장을 싣는다")
+  void summary_시점근거() {
+    given(repository.findByUserIdOrderByBaseYearMonthDesc(USER_ID))
+        .willReturn(
+            List.of(
+                snapshotWith(
+                    null,
+                    null,
+                    new BigDecimal("107.20"),
+                    new SnapshotRationale.IndexStatuses(null, null, IndexStatus.OK),
+                    new SnapshotRationale.OpeningWindowEvidence(
+                        314,
+                        825,
+                        new BigDecimal("24.40"),
+                        new BigDecimal("22.81"),
+                        1,
+                        "전국 / 4~7년 / 회사규모 무관 / 고용형태 무관",
+                        1500,
+                        new BigDecimal("7.10"),
+                        "202605",
+                        "202607",
+                        true,
+                        1))));
+
+    DashboardSummaryResponse response = summaryService.resolve(USER_ID, "202607");
+
+    assertThat(response.decisionSignal().timingEvidence())
+        .isEqualTo("2026년 5~7월 내 동료집단 공고 비중이 이전 12개월보다 늘었습니다 (22.8% → 24.4%).");
   }
 
   @Test
