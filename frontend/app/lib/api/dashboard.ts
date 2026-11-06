@@ -47,6 +47,9 @@ export interface OpeningWindowMetadata {
   /** 이전 12개월 동료집단 채용 비중(%). */
   baselineSharePercent: number | null;
   peerSampleSize: number | null;
+  /** 최근 창의 첫 달(`YYYYMM`). 집계가 늦으면 기준월보다 이르다. 이 값이 생기기 전 스냅샷은 없다. */
+  recentFromMonth?: string | null;
+  recentToMonth?: string | null;
 }
 
 /**

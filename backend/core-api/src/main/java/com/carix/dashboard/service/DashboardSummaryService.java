@@ -308,7 +308,9 @@ public class DashboardSummaryService {
         evidence.baselineSharePercent() == null
             ? null
             : evidence.baselineSharePercent().doubleValue(),
-        evidence.peerSampleSize());
+        evidence.peerSampleSize(),
+        evidence.recentFromMonth(),
+        evidence.recentToMonth());
   }
 
   private DashboardSummaryResponse empty() {

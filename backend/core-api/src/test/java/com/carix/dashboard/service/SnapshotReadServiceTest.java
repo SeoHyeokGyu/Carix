@@ -292,8 +292,8 @@ class SnapshotReadServiceTest {
                         "전국 / 4~7년 / 회사규모 무관 / 고용형태 무관",
                         351,
                         null,
-                        null,
-                        null,
+                        "202606",
+                        "202608",
                         null,
                         null))));
 
@@ -301,7 +301,8 @@ class SnapshotReadServiceTest {
 
     assertThat(response.openingWindowIndex().value()).isEqualTo(118.4);
     assertThat(response.metadata().openingWindow())
-        .isEqualTo(new DashboardSummaryResponse.OpeningWindowSummary(24.5, 20.69, 86));
+        .isEqualTo(
+            new DashboardSummaryResponse.OpeningWindowSummary(24.5, 20.69, 86, "202606", "202608"));
   }
 
   @Test

@@ -313,7 +313,9 @@
         "openingWindow": {
           "recentSharePercent": 24.5,
           "baselineSharePercent": 20.7,
-          "peerSampleSize": 86
+          "peerSampleSize": 86,
+          "recentFromMonth": "202606",
+          "recentToMonth": "202608"
         }
       }
     }

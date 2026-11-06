@@ -327,10 +327,26 @@ function BonusInclusiveIncomeLine({
 }
 
 /**
+ * 서버의 판정 근거 문장과 같은 반올림(HALF_UP)이다. `toFixed` 는 22.65 를 22.6 으로 적어 같은 화면의 두 숫자가 어긋난다.
+ */
+function formatSharePercent(value: number) {
+  const scaled = Number((value * 10).toFixed(6));
+  return (Math.round(scaled) / 10).toFixed(1);
+}
+
+function recentWindowLabel(from?: string | null, to?: string | null) {
+  if (!from || !to) return null;
+  const month = (yearMonth: string) => Number(yearMonth.slice(4));
+  return from.slice(0, 4) === to.slice(0, 4)
+    ? `${from.slice(0, 4)}년 ${month(from)}~${month(to)}월`
+    : `${from.slice(0, 4)}년 ${month(from)}월~${to.slice(0, 4)}년 ${month(to)}월`;
+}
+
+/**
  * 채용 활발도(OWI) 카드의 미니 뱃지 둘 (프런트엔드 설계 Card 4, b22).
  *
  * 전체 신규 수집 공고 중 동료집단 공고가 차지하는 최근 3개월 비중과 이전 12개월 비중을 표시한다.
- * 수집 이력 15개월 전이라 이전 창 표본이 부족하면 최근 비중 뱃지만 남는다.
+ * 이전 창 표본이 부족하면 최근 비중 뱃지만 남는다.
  */
 function OpeningWindowBadges({
   meta,
@@ -343,18 +359,24 @@ function OpeningWindowBadges({
   ) {
     return null;
   }
+  const period = recentWindowLabel(meta.recentFromMonth, meta.recentToMonth);
 
   return (
-    <div className="flex flex-wrap gap-1.5">
+    <div className="flex flex-wrap items-center gap-1.5">
       {meta.recentSharePercent !== null && (
         <Badge variant="secondary">
-          최근 비중 {meta.recentSharePercent.toFixed(1)}%
+          최근 비중 {formatSharePercent(meta.recentSharePercent)}%
         </Badge>
       )}
       {meta.baselineSharePercent !== null && (
         <Badge variant="secondary">
-          이전 비중 {meta.baselineSharePercent.toFixed(1)}%
+          이전 비중 {formatSharePercent(meta.baselineSharePercent)}%
         </Badge>
+      )}
+      {period && (
+        <span className="text-xs text-muted-foreground">
+          최근 비중 기준 {period}
+        </span>
       )}
     </div>
   );
