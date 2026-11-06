@@ -96,6 +96,11 @@ class SnapshotRationaleTest {
 
     assertThat(rationale.openingWindow()).isNotNull();
     assertThat(rationale.openingWindow().peerSampleSize()).isEqualTo(124);
+    assertThat(rationale.openingWindow().standardError()).isNull();
+    assertThat(rationale.openingWindow().recentFromMonth()).isNull();
+    assertThat(rationale.openingWindow().recentToMonth()).isNull();
+    assertThat(rationale.openingWindow().windowsFullyCovered()).isNull();
+    assertThat(rationale.openingWindow().maxFallbackLevel()).isNull();
     assertThat(rationale.openingWindow().recentSharePercent()).isNull();
     assertThat(rationale.openingWindow().baselineSharePercent()).isNull();
   }

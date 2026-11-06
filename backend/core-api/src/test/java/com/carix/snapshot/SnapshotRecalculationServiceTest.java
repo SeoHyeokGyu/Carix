@@ -272,7 +272,12 @@ class SnapshotRecalculationServiceTest {
                 new BigDecimal("20.69"),
                 1,
                 "전국 / 4~7년 / 회사규모 무관 / 고용형태 무관",
-                351));
+                351,
+                null,
+                null,
+                null,
+                null,
+                null));
   }
 
   /** 표본 부족은 결측이 아니다 — 아는 사실(최근 창 비중·표본 수)은 남긴다 (기능 명세 §4.5, b22). */
@@ -312,7 +317,12 @@ class SnapshotRecalculationServiceTest {
             null,
             2,
             "전국 / 경력 전체 / 회사규모 무관 / 고용형태 무관",
-            351);
+            351,
+            null,
+            null,
+            null,
+            null,
+            null);
     SnapshotRecalculationService withOwi = serviceWithOwi(relaxationOnlyOwi);
 
     withOwi.recalculateSnapshot(userId, CURRENT_YM);
@@ -322,7 +332,18 @@ class SnapshotRecalculationServiceTest {
     assertThat(saved.getRationale().openingWindow())
         .isEqualTo(
             new SnapshotRationale.OpeningWindowEvidence(
-                null, null, null, null, 2, "전국 / 경력 전체 / 회사규모 무관 / 고용형태 무관", 351));
+                null,
+                null,
+                null,
+                null,
+                2,
+                "전국 / 경력 전체 / 회사규모 무관 / 고용형태 무관",
+                351,
+                null,
+                null,
+                null,
+                null,
+                null));
   }
 
   /**
@@ -413,7 +434,12 @@ class SnapshotRecalculationServiceTest {
         new BigDecimal("20.69"),
         1,
         "전국 / 4~7년 / 회사규모 무관 / 고용형태 무관",
-        351);
+        351,
+        null,
+        null,
+        null,
+        null,
+        null);
   }
 
   private static OwiResult insufficientOwi() {
@@ -427,7 +453,12 @@ class SnapshotRecalculationServiceTest {
         null,
         2,
         "전국 / 경력 전체 / 회사규모 무관 / 고용형태 무관",
-        126);
+        126,
+        null,
+        null,
+        null,
+        null,
+        null);
   }
 
   /**

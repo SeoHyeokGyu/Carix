@@ -86,6 +86,7 @@ class IndexResultInvariantTest {
   }
 
   private static OwiResult owi(BigDecimal value, IndexStatus status) {
-    return new OwiResult(YM, value, status, null, null, null, null, null, null, null);
+    return new OwiResult(
+        YM, value, status, null, null, null, null, null, null, null, null, null, null, null, null);
   }
 }

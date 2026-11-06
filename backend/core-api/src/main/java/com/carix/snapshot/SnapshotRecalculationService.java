@@ -244,7 +244,12 @@ public class SnapshotRecalculationService {
         owi.baselineSharePercent(),
         owi.fallbackLevel(),
         owi.appliedConditions(),
-        owi.marketSampleSize());
+        owi.marketSampleSize(),
+        owi.standardError(),
+        owi.recentFromMonth(),
+        owi.recentToMonth(),
+        owi.windowsFullyCovered(),
+        owi.maxFallbackLevel());
   }
 
   private void save(

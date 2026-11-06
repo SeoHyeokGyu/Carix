@@ -290,7 +290,12 @@ class SnapshotReadServiceTest {
                         new BigDecimal("20.69"),
                         1,
                         "전국 / 4~7년 / 회사규모 무관 / 고용형태 무관",
-                        351))));
+                        351,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null))));
 
     DashboardSummaryResponse response = summaryService.resolve(USER_ID, "202607");
 

@@ -28,6 +28,13 @@ import java.math.BigDecimal;
  * @param fallbackLevel 안착한 완화 단계. MVI 경력 완화와 같은 사다리를 쓴다
  * @param appliedConditions 화면에 그대로 쓸 안착 조건 문구
  * @param marketSampleSize 최근 3개월 전체시장 신규 수집 공고 수 (분모 모수)
+ * @param standardError 지수의 표준오차(지수 포인트). 결합 원천으로만 낸다. 지수가 없으면 {@code null}
+ * @param recentFromMonth 최근 창의 첫 달. 잡코리아 집계로 보정한 유효월 기준이라 기준월보다 이를 수 있다. {@code YYYYMM}
+ * @param recentToMonth 최근 창의 마지막 달. {@code YYYYMM}
+ * @param windowsFullyCovered 결합 원천 전부가 최근 3개월·이전 12개월을 채웠는가. 표본 기준만 넘으면 지수는 나오므로 따로 본다. 지수가 없으면
+ *     {@code null}
+ * @param maxFallbackLevel 결합 원천 중 가장 넓은 완화 단계. {@code fallbackLevel} 은 대표 원천 하나의 값이다. 지수가 없으면
+ *     {@code null}
  */
 public record OwiResult(
     String baseYearMonth,
@@ -39,7 +46,12 @@ public record OwiResult(
     BigDecimal baselineSharePercent,
     Integer fallbackLevel,
     String appliedConditions,
-    Integer marketSampleSize) {
+    Integer marketSampleSize,
+    BigDecimal standardError,
+    String recentFromMonth,
+    String recentToMonth,
+    Boolean windowsFullyCovered,
+    Integer maxFallbackLevel) {
 
   public OwiResult {
     IndexValueContract.OWI.requireArgument(baseYearMonth, value, status);
@@ -48,6 +60,20 @@ public record OwiResult(
   /** 입력이 없거나 산출기가 준비되지 않은 상태. */
   public static OwiResult notAvailable(String baseYearMonth) {
     return new OwiResult(
-        baseYearMonth, null, IndexStatus.NOT_AVAILABLE, null, null, null, null, null, null, null);
+        baseYearMonth,
+        null,
+        IndexStatus.NOT_AVAILABLE,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null);
   }
 }

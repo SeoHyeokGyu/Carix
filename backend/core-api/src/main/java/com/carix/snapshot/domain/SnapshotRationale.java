@@ -177,9 +177,9 @@ public record SnapshotRationale(
   /**
    * 채용 활발도(OWI)의 산출 근거 (기능 명세 §4.5, b22). 비중·표본 수뿐이라 금액 제약에 걸리지 않는다.
    *
-   * <p>화면에 나가는 것은 API 규격 §5.1 의 셋뿐이지만 일곱을 다 저장한다 — 완화 결과는 당시 프로필에 의존해 나중에 재계산하면 같은 값이 안 나온다. {@code
-   * b22} 이전 스냅샷 행의 구 필드({@code medianWindowDays} 등)도 역직렬화 시 무시되도록 {@link JsonIgnoreProperties} 를
-   * 둔다.
+   * <p>화면에 나가는 것은 API 규격 §5.1 의 셋과 그 재료로 만든 시점 근거 문장뿐이지만 전부 저장한다 — 완화 결과는 당시 프로필에 의존해 나중에 재계산하면 같은
+   * 값이 안 나온다. {@code b22} 이전 스냅샷 행의 구 필드({@code medianWindowDays} 등)도 역직렬화 시 무시되도록 {@link
+   * JsonIgnoreProperties} 를 둔다.
    *
    * @param peerSampleSize 최근 3개월 동료집단 표본 수
    * @param baselineSampleSize 이전 12개월 동료집단 표본 수
@@ -188,6 +188,11 @@ public record SnapshotRationale(
    * @param fallbackLevel 안착한 완화 단계
    * @param appliedConditions 안착 조건 문구
    * @param marketSampleSize 최근 3개월 전체시장 공고 수
+   * @param standardError 지수의 표준오차(지수 포인트). 이 필드 도입 전 행은 {@code null}
+   * @param recentFromMonth 최근 창의 첫 달({@code YYYYMM}). 이 필드 도입 전 행은 {@code null}
+   * @param recentToMonth 최근 창의 마지막 달({@code YYYYMM}). 이 필드 도입 전 행은 {@code null}
+   * @param windowsFullyCovered 결합 원천 전부가 두 창을 채웠는가. 이 필드 도입 전 행은 {@code null}
+   * @param maxFallbackLevel 결합 원천 중 가장 넓은 완화 단계. 이 필드 도입 전 행은 {@code null}
    */
   @JsonIgnoreProperties(ignoreUnknown = true)
   public record OpeningWindowEvidence(
@@ -197,5 +202,10 @@ public record SnapshotRationale(
       BigDecimal baselineSharePercent,
       Integer fallbackLevel,
       String appliedConditions,
-      Integer marketSampleSize) {}
+      Integer marketSampleSize,
+      BigDecimal standardError,
+      String recentFromMonth,
+      String recentToMonth,
+      Boolean windowsFullyCovered,
+      Integer maxFallbackLevel) {}
 }
