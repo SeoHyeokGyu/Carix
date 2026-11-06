@@ -836,9 +836,15 @@ public class OpeningWindowIndexServiceImpl implements OpeningWindowIndexProvider
      *
      * <p>최근 3개월과 이전 12개월 모두 유효 표본 기준을 충족해야 합니다(이전 창 동료집단 표본이 {@code minSampleSize >= 10} 이상이므로 분모인
      * {@code baselineSharePercent()}가 0이 되는 나눗셈 오류도 원천 차단됨).
+     *
+     * <p>정기 수집 원천은 이전 창 12개월을 채운 뒤에만 참여합니다. 수집을 시작한 달은 그때 열려 있던 공고까지 한꺼번에 들어오는데, 그 한 달이 이전 창 전부가 되면
+     * 지수가 비교 대상을 잃기 때문입니다. 표본 원천은 달마다 같은 규모로 뽑으므로 표본 기준만 봅니다.
      */
     boolean usableForIndex() {
-      return usableForRecentShare() && usableForBaselineShare();
+      return usableForRecentShare()
+          && usableForBaselineShare()
+          && (SourceCombineWeights.SAMPLED_SOURCES.contains(source)
+              || baselineCoveredMonths == BASELINE_WINDOW_MONTHS);
     }
 
     /** 해당 원천의 최근 3개월 동료집단 채용 비중(%) */

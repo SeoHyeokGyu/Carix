@@ -257,7 +257,7 @@ class OpeningWindowIndexServiceImplTest {
     // SARAMIN (정기 수집 원천): 최근 60 / 150 (40%), 이전 40 / 200 (20%) -> 지수 200.00, 표본 60 (상한 20으로 축소)
     stubTotals("SARAMIN", RECENT_MONTHS, "ALL", List.of("ALL"), 150);
     stubTotals("SARAMIN", RECENT_MONTHS, "DEVELOPER", List.of("MID"), 60);
-    stubTotals("SARAMIN", BASELINE_MONTHS, "ALL", List.of("ALL"), 200);
+    stubMarketRows("SARAMIN", BASELINE_MONTHS, BASELINE_MONTHS, 200);
     stubTotals("SARAMIN", BASELINE_MONTHS, "DEVELOPER", List.of("MID"), 40);
 
     OwiResult result = service.calculate(USER_ID, BASE_YM);
@@ -373,6 +373,36 @@ class OpeningWindowIndexServiceImplTest {
     assertThat(result.recentToMonth()).isEqualTo("202607");
     assertThat(result.windowsFullyCovered()).isTrue();
     assertThat(result.maxFallbackLevel()).isEqualTo(1);
+  }
+
+  // 사람인은 첫 수집 달에 공고가 평소의 열 배 들어왔다. 그 한 달이 이전 창 전부가 되면 지수가 비교 대상을 잃는다.
+  @Test
+  @DisplayName("정기 수집 원천은 이전 창 12개월을 채우기 전에는 결합하지 않는다")
+  void 정기수집_12개월_전_제외() {
+    given(careerProfileRepository.findByUserId(USER_ID)).willReturn(Optional.of(createProfile(5)));
+    stubFullSource("JOBKOREA", 120, 400); // 12% / 10% -> 지수 120.00
+    stubMarketRows("SARAMIN", RECENT_MONTHS, RECENT_MONTHS, 1000);
+    stubMarketRows("SARAMIN", BASELINE_MONTHS, BASELINE_MONTHS.subList(11, 12), 1800);
+    stubTotals("SARAMIN", RECENT_MONTHS, "DEVELOPER", OWN, 500);
+    stubTotals("SARAMIN", BASELINE_MONTHS, "DEVELOPER", OWN, 200);
+
+    OwiResult result = service.calculate(USER_ID, "2026-08");
+
+    assertThat(result.value()).isEqualByComparingTo("120.00");
+    assertThat(result.windowsFullyCovered()).isTrue();
+  }
+
+  @Test
+  @DisplayName("표본 원천은 이전 창이 덜 차도 표본 기준만 넘으면 결합한다 — 현재 값이 바뀌지 않아야 한다")
+  void 표본원천_부분_이전창_유지() {
+    given(careerProfileRepository.findByUserId(USER_ID)).willReturn(Optional.of(createProfile(5)));
+    stubFullSource("JOBKOREA", 120, 400);
+    stubMarketRows("JOBKOREA", BASELINE_MONTHS, BASELINE_MONTHS.subList(4, 12), 4000);
+
+    OwiResult result = service.calculate(USER_ID, "2026-08");
+
+    assertThat(result.value()).isEqualByComparingTo("120.00");
+    assertThat(result.windowsFullyCovered()).isFalse();
   }
 
   @Test

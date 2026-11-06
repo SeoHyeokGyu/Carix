@@ -490,6 +490,49 @@ describe("대시보드 라우트 및 레이아웃 (Dashboard)", () => {
       expect(screen.getByText("이전 비중 20.7%")).toBeInTheDocument();
     });
 
+    it("채용 활발도 비중은 실제 비교 월과 함께 보이고 판정 문구와 같게 반올림한다", async () => {
+      vi.spyOn(dashboardApi, "fetchSummary").mockResolvedValue({
+        ok: true,
+        data: {
+          purchasingPowerIndex: {
+            value: null,
+            changeFromLastMonth: null,
+            indexStatus: "NOT_AVAILABLE",
+          },
+          marketValueIndex: {
+            value: null,
+            changeFromLastMonth: null,
+            indexStatus: "NOT_AVAILABLE",
+          },
+          openingWindowIndex: {
+            value: 100.4,
+            changeFromLastMonth: null,
+            indexStatus: "OK",
+          },
+          decisionSignal: null,
+          metadata: {
+            baseDate: "2026-11-01",
+            updateDelayed: false,
+            openingWindow: {
+              recentSharePercent: 22.65,
+              baselineSharePercent: 23.15,
+              peerSampleSize: 86,
+              recentFromMonth: "202606",
+              recentToMonth: "202608",
+            },
+          },
+        },
+      } as never);
+
+      renderScreen();
+
+      expect(await screen.findByText("최근 비중 22.7%")).toBeInTheDocument();
+      expect(screen.getByText("이전 비중 23.2%")).toBeInTheDocument();
+      expect(
+        screen.getByText("최근 비중 기준 2026년 6~8월"),
+      ).toBeInTheDocument();
+    });
+
     it("채용 활발도 표본이 부족하면 수치 대신 표본 부족을 두고 최근 비중 뱃지만 남긴다", async () => {
       vi.spyOn(dashboardApi, "fetchSummary").mockResolvedValue({
         ok: true,

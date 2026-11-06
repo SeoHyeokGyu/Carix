@@ -147,5 +147,12 @@ public record DashboardSummaryResponse(
       @Schema(description = "이전 12개월 동료집단 채용 비중(%)", example = "20.8", nullable = true)
           Double baselineSharePercent,
       @Schema(description = "최근 3개월 동료집단 표본 수", example = "86", nullable = true)
-          Integer peerSampleSize) {}
+          Integer peerSampleSize,
+      @Schema(
+              description = "최근 창의 첫 달. 유효월 기준이라 기준월보다 이를 수 있다",
+              example = "202606",
+              nullable = true)
+          String recentFromMonth,
+      @Schema(description = "최근 창의 마지막 달", example = "202608", nullable = true)
+          String recentToMonth) {}
 }
