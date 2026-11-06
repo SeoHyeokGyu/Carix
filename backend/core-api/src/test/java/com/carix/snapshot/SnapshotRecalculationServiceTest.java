@@ -273,11 +273,11 @@ class SnapshotRecalculationServiceTest {
                 1,
                 "전국 / 4~7년 / 회사규모 무관 / 고용형태 무관",
                 351,
-                null,
-                null,
-                null,
-                null,
-                null));
+                new BigDecimal("5.60"),
+                "202605",
+                "202607",
+                true,
+                2));
   }
 
   /** 표본 부족은 결측이 아니다 — 아는 사실(최근 창 비중·표본 수)은 남긴다 (기능 명세 §4.5, b22). */
@@ -435,11 +435,11 @@ class SnapshotRecalculationServiceTest {
         1,
         "전국 / 4~7년 / 회사규모 무관 / 고용형태 무관",
         351,
-        null,
-        null,
-        null,
-        null,
-        null);
+        new BigDecimal("5.60"),
+        "202605",
+        "202607",
+        true,
+        2);
   }
 
   private static OwiResult insufficientOwi() {

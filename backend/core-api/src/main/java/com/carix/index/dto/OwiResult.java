@@ -7,8 +7,8 @@ import java.math.BigDecimal;
  * 채용 활발도(Opening Window Index, OWI) 산출 결과 (Member B → Member C, b22).
  *
  * <p>API 규격 §5.1 이 화면에 노출하는 것은 {@code recentSharePercent}·{@code baselineSharePercent}·{@code
- * peerSampleSize} 셋뿐이지만, 계약은 개발 계획 §3 의 근거 항목과 시점 근거의 재료를 전부 담는다 — 완화 결과는 당시 프로필에 의존해 나중에 재계산하면 같은
- * 값이 안 나오므로 그때 저장해 두지 않으면 "표본이 부족해 조건을 넓혔다"는 이력이 사라진다.
+ * peerSampleSize} 셋과 시점 근거 문장뿐이지만, 계약은 개발 계획 §3 의 근거 항목과 시점 근거의 재료를 전부 담는다 — 완화 결과는 당시 프로필에 의존해 나중에
+ * 재계산하면 같은 값이 안 나오므로 그때 저장해 두지 않으면 "표본이 부족해 조건을 넓혔다"는 이력이 사라진다.
  *
  * <p><b>이상치 클램프 [25, 400] 은 이 결과가 나오기 전에 산출기 안에서 건다</b> (기능 명세 §4.5). core-api 는 받은 값을 그대로 쓴다.
  *
