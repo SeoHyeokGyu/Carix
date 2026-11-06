@@ -84,6 +84,14 @@ export function VerdictHero({
               ))}
             </ul>
           )}
+          {signal?.timingEvidence && (
+            <p
+              data-testid="verdict-timing"
+              className="text-sm text-carix-text/70"
+            >
+              {signal.timingEvidence}
+            </p>
+          )}
           {signal?.code === "SEEK_JOB" && (
             <TextLink to="/dashboard/simulator">
               옮기면 4년간 얼마가 달라지는지 지금 회사와 비교해 보기

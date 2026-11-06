@@ -31,6 +31,8 @@ export interface DecisionSignal {
   label: string;
   rulesApplied: string[];
   rationale: string;
+  /** 공고 비중 변화 문장. 판정 조건이 아닌 관측 사실이라 규칙 칩과 구분해 그대로 보인다. */
+  timingEvidence?: string | null;
 }
 
 export interface PeerGroupMetadata {

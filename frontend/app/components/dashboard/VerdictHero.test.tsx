@@ -60,6 +60,27 @@ describe("VerdictHero", () => {
     ).toHaveAttribute("href", "/dashboard/simulator");
   });
 
+  it("시점 근거는 규칙 칩 밖에 그대로 보이고 없으면 그리지 않는다", () => {
+    const sentence =
+      "2026년 6~8월 내 동료집단 공고 비중이 이전 12개월보다 늘었습니다 (22.6% → 23.8%).";
+    const { unmount } = renderHero(
+      <VerdictHero
+        signal={{ ...SEEK_JOB, timingEvidence: sentence }}
+        history={null}
+      />,
+    );
+    expect(screen.getByText(sentence)).toBeInTheDocument();
+    expect(
+      within(screen.getByRole("list", { name: "적용 규칙" })).queryByText(
+        sentence,
+      ),
+    ).toBeNull();
+    unmount();
+
+    renderHero(<VerdictHero signal={SEEK_JOB} history={null} />);
+    expect(screen.queryByTestId("verdict-timing")).toBeNull();
+  });
+
   it("프런트 description 이 판정 문장이고 label 은 상태 뱃지다", () => {
     renderHero(<VerdictHero signal={STAY} history={[]} />);
     const statement = screen.getByTestId("verdict-statement");
