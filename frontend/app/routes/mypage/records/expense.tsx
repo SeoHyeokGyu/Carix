@@ -45,6 +45,9 @@ import {
   toWireYearMonth,
 } from "../../../lib/yearMonth";
 
+/** 소득과 같은 만원 단위로 받고 서버에는 원으로 보낸다. */
+const MANWON = 10_000;
+
 type ActionData = { errors: FieldErrors } | null;
 
 /**
@@ -144,7 +147,10 @@ export async function clientAction({ request }: { request: Request }) {
     const raw = String(formData.get(`amount-${category.value}`) ?? "").trim();
     if (raw === "") return [];
     return [
-      { category: category.value, amount: Number(raw.replace(/,/g, "")) },
+      {
+        category: category.value,
+        amount: Number(raw.replace(/,/g, "")) * MANWON,
+      },
     ];
   });
 
@@ -241,7 +247,7 @@ export default function RecordsExpense() {
       // DEFAULT_CPI 는 사용자가 넣은 값이 아니다 — 폼을 서버 보간값으로 채우면
       // 저장할 때 그 값이 사용자 입력으로 굳어버린다. 빈 칸으로 연다.
       if (item.status === "USER_DEFINED")
-        next[item.category] = String(item.amount);
+        next[item.category] = String(Math.round(item.amount / MANWON));
     }
     setAmounts(next);
     setEditing(wire);
@@ -251,7 +257,7 @@ export default function RecordsExpense() {
     editing !== null && !months.some((m) => m.baseYearMonth === editing);
 
   const total = Object.values(amounts).reduce(
-    (sum, value) => sum + (Number(value.replace(/,/g, "")) || 0),
+    (sum, value) => sum + (Number(value.replace(/,/g, "")) || 0) * MANWON,
     0,
   );
   const exceedsNet = latestNet !== null && total > latestNet;
@@ -390,7 +396,7 @@ export default function RecordsExpense() {
                     <div className="flex-1">
                       <Field
                         id={`amount-${category.value}`}
-                        label={category.label}
+                        label={`${category.label} (만원/월)`}
                         error={fieldError}
                       >
                         {(aria) => (

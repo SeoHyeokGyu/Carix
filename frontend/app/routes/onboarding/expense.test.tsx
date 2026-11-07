@@ -66,10 +66,8 @@ describe("S-07 소비 화면", () => {
 
     renderScreen();
 
-    expect(await screen.findByLabelText(/주거·공공요금/)).toHaveValue(
-      "750,000",
-    );
-    expect(screen.getByLabelText(/식비/)).toHaveValue("250,000");
+    expect(await screen.findByLabelText(/주거·공공요금/)).toHaveValue("75");
+    expect(screen.getByLabelText(/식비/)).toHaveValue("25");
     expect(screen.getByLabelText(/교통/)).toHaveValue("");
   });
 
@@ -102,9 +100,7 @@ describe("S-07 소비 화면", () => {
     renderScreen();
     const user = userEvent.setup();
 
-    expect(await screen.findByLabelText(/주거·공공요금/)).toHaveValue(
-      "750,000",
-    );
+    expect(await screen.findByLabelText(/주거·공공요금/)).toHaveValue("75");
     expect(screen.getByLabelText(/교통/)).toHaveValue("");
 
     await user.click(screen.getByRole("button", { name: "다음" }));
@@ -143,8 +139,8 @@ describe("S-07 소비 화면", () => {
     renderScreen();
     const user = userEvent.setup();
 
-    await user.type(await screen.findByLabelText(/주거·공공요금/), "2000000");
-    await user.type(screen.getByLabelText(/식비/), "2000000");
+    await user.type(await screen.findByLabelText(/주거·공공요금/), "200");
+    await user.type(screen.getByLabelText(/식비/), "200");
 
     expect(
       await screen.findByText(/월 실수령액을 초과했습니다/),
@@ -153,7 +149,11 @@ describe("S-07 소비 화면", () => {
     await user.click(screen.getByRole("button", { name: "다음" }));
 
     expect(await screen.findByText("스킬 화면")).toBeInTheDocument();
-    expect(put).toHaveBeenCalled();
+    // 회귀: 소득은 만원, 소비는 원 단위라 "200" 을 넣으면 200원으로 저장됐다.
+    expect(put).toHaveBeenCalledWith(currentYearMonth(), [
+      { category: "HOUSING", amount: 2_000_000 },
+      { category: "FOOD", amount: 2_000_000 },
+    ]);
   });
 
   // 팀 리드 경고 — 소득·소비 화면과 달리 이 화면은 한 폼에서 여섯 카테고리를
@@ -172,8 +172,8 @@ describe("S-07 소비 화면", () => {
 
     // HOUSING 은 비운다 — FOOD·TRANSPORT 만 입력해 고정 위치(1,2)와 제출 위치
     // (0,1)를 어긋나게 만든다.
-    await user.type(await screen.findByLabelText(/식비/), "1000000");
-    await user.type(screen.getByLabelText(/교통/), "60000000"); // 5천만 원 초과 — 무효
+    await user.type(await screen.findByLabelText(/식비/), "100");
+    await user.type(screen.getByLabelText(/교통/), "6000"); // 6천만 원 — 5천만 원 초과라 무효
     await user.click(screen.getByRole("button", { name: "다음" }));
 
     const errorText = await screen.findByText(
@@ -215,7 +215,7 @@ describe("S-07 소비 화면", () => {
     renderScreen();
     const user = userEvent.setup();
 
-    await user.type(await screen.findByLabelText(/주거·공공요금/), "50000000");
+    await user.type(await screen.findByLabelText(/주거·공공요금/), "5000");
 
     expect(
       screen.queryByText(/월 실수령액을 초과했습니다/),
@@ -295,7 +295,7 @@ describe("S-07 소비 화면", () => {
     renderScreen();
     const user = userEvent.setup();
 
-    await user.type(await screen.findByLabelText(/주거·공공요금/), "750000");
+    await user.type(await screen.findByLabelText(/주거·공공요금/), "75");
     await user.click(screen.getByRole("button", { name: "다음" }));
 
     const banner = await screen.findByRole("alert");
@@ -306,7 +306,7 @@ describe("S-07 소비 화면", () => {
     // 이 오류가 특정 필드가 아니라 폼 전체(_form) 배너로 착지했다는 뜻이다
     // (income.test.tsx 와 같은 패턴 — 텍스트만으로는 착지 위치가 구분되지 않는다).
     expect(banner).not.toHaveAttribute("id");
-    expect(screen.getByLabelText(/주거·공공요금/)).toHaveValue("750,000");
+    expect(screen.getByLabelText(/주거·공공요금/)).toHaveValue("75");
   });
 
   it("조회 중 401 을 받으면 로그인 화면으로 보낸다", async () => {
