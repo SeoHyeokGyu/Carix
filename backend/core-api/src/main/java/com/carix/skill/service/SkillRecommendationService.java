@@ -7,6 +7,7 @@ import com.carix.index.enums.SkillDemandStatus;
 import com.carix.index.mvi.PeerGroupFallbackResolver;
 import com.carix.index.mvi.SkillDemandCalculator;
 import com.carix.index.mvi.SkillDemandCalculator.SkillDemandResult;
+import com.carix.index.mvi.SkillWeightCalculator;
 import com.carix.jobposting.JobPosting;
 import com.carix.jobposting.JobPostingSkill;
 import com.carix.jobposting.JobPostingSkillRepository;
@@ -22,6 +23,7 @@ import com.carix.skill.dto.SkillRecommendationsResponse.CoOccurrenceInfo;
 import com.carix.skill.dto.SkillRecommendationsResponse.PeerGroupInfo;
 import com.carix.skill.dto.SkillRecommendationsResponse.SkillRecommendationItem;
 import com.carix.skill.repository.UserSkillRepository;
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -57,6 +59,9 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class SkillRecommendationService {
 
+  /** 수집 태그의 성격 구분 값. 표준 스킬과 같은 {@code skill.category} 컬럼을 공유한다(ERD 스키마 설계 주석). */
+  static final Set<String> CRAWL_TAG_CATEGORIES = Set.of("SKILL", "JOB_CATEGORY", "INDUSTRY");
+
   public static final int DEFAULT_LIMIT = 10;
   public static final int MAX_LIMIT = 30;
 
@@ -85,6 +90,7 @@ public class SkillRecommendationService {
   private final PeerGroupFallbackResolver peerGroupFallbackResolver;
   private final SkillDemandCalculator skillDemandCalculator;
   private final MarketAggregateRepository marketAggregateRepository;
+  private final SkillWeightCalculator skillWeightCalculator;
   private final IndexThresholdProperties thresholds;
 
   /**
@@ -287,20 +293,30 @@ public class SkillRecommendationService {
    */
   private BaseSkillInfo resolveBaseSkill(
       List<UserSkill> userSkills, Map<UUID, Set<UUID>> postingToSkillIds) {
-    List<Skill> ownedStandardSkills =
+    List<UserSkill> ownedStandard =
         userSkills.stream()
-            .map(UserSkill::getSkill)
-            .filter(s -> s != null && !s.isCustom())
+            .filter(us -> us.getSkill() != null && !us.getSkill().isCustom())
             .toList();
+    // 기준 스킬은 사용자의 주력 스킬이어야 근거 문장이 설득력을 갖는다 — 공고 수 최다로 고르면 Java 개발자에게
+    // "AWS 공고의 N%"가 나왔다. 가중치는 시장가치 지수와 같은 사용 기간·최근 사용 가중치다.
+    Map<UUID, BigDecimal> weights =
+        skillWeightCalculator.calculateWeights(ownedStandard, resolveBaseYearMonth(), Set.of());
 
     Skill baseSkill = null;
+    BigDecimal maxWeight = null;
     int maxBasePostings = 0;
-
-    for (Skill ownedSkill : ownedStandardSkills) {
-      int count = countSkillPostings(ownedSkill.getId(), postingToSkillIds);
-      if (count > maxBasePostings) {
+    for (UserSkill owned : ownedStandard) {
+      Skill skill = owned.getSkill();
+      BigDecimal weight = weights.getOrDefault(skill.getId(), BigDecimal.ZERO);
+      int count = countSkillPostings(skill.getId(), postingToSkillIds);
+      if (count == 0) {
+        continue;
+      }
+      int byWeight = maxWeight == null ? 1 : weight.compareTo(maxWeight);
+      if (byWeight > 0 || (byWeight == 0 && count > maxBasePostings)) {
+        baseSkill = skill;
+        maxWeight = weight;
         maxBasePostings = count;
-        baseSkill = ownedSkill;
       }
     }
     return new BaseSkillInfo(baseSkill, maxBasePostings);
@@ -348,6 +364,9 @@ public class SkillRecommendationService {
         Skill skill = skillCatalog.get(sId);
         if (skill == null || skill.isCustom()) {
           continue; // 커스텀 스킬은 동료집단 공통 추천 대상에서 제외
+        }
+        if (skill.getCategory() != null && CRAWL_TAG_CATEGORIES.contains(skill.getCategory())) {
+          continue; // 수집 태그(직무·업종·일반 용어)는 배울 수 있는 스킬이 아니다
         }
         candidateCounts.put(sId, candidateCounts.getOrDefault(sId, 0) + 1);
       }

@@ -13,6 +13,7 @@ import com.carix.index.enums.SkillDemandStatus;
 import com.carix.index.mvi.PeerGroupFallbackResolver;
 import com.carix.index.mvi.SkillDemandCalculator;
 import com.carix.index.mvi.SkillDemandCalculator.SkillDemandResult;
+import com.carix.index.mvi.SkillWeightCalculator;
 import com.carix.jobposting.JobPosting;
 import com.carix.jobposting.JobPostingSkill;
 import com.carix.jobposting.JobPostingSkillRepository;
@@ -27,8 +28,10 @@ import com.carix.skill.dto.SkillRecommendationsResponse;
 import com.carix.skill.dto.SkillRecommendationsResponse.SkillRecommendationItem;
 import com.carix.skill.repository.SkillRepository;
 import com.carix.skill.repository.UserSkillRepository;
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
@@ -51,6 +54,7 @@ class SkillRecommendationServiceTest {
   @Mock private PeerGroupFallbackResolver peerGroupFallbackResolver;
   @Mock private SkillDemandCalculator skillDemandCalculator;
   @Mock private MarketAggregateRepository marketAggregateRepository;
+  @Mock private SkillWeightCalculator skillWeightCalculator;
 
   @InjectMocks private SkillRecommendationService service;
 
@@ -1210,5 +1214,93 @@ class SkillRecommendationServiceTest {
     assertThat(response.recommendations().get(4).standardName()).isEqualTo("T3A");
     assertThat(response.recommendations().get(5).standardName()).isEqualTo("T3B");
     assertThat(response.recommendations().get(4).growthTrend()).isEqualTo("DOWN");
+  }
+
+  // ---------- 추천 후보 정리 ----------
+
+  private Skill skill(String name, String category) {
+    return Skill.builder()
+        .id(UUID.randomUUID())
+        .standardName(name)
+        .category(category)
+        .isCustom(false)
+        .build();
+  }
+
+  /** 공고 20건. 보유 스킬별 출현 수와 후보별 출현 수를 받아 동료집단을 만든다. */
+  private void givenPeer(Map<Skill, Integer> appearances) {
+    List<JobPosting> postings = new ArrayList<>();
+    List<JobPostingSkill> links = new ArrayList<>();
+    for (int i = 0; i < 20; i++) {
+      JobPosting p = JobPosting.builder().id(UUID.randomUUID()).jobFamily("DEVELOPER").build();
+      postings.add(p);
+      for (Map.Entry<Skill, Integer> entry : appearances.entrySet()) {
+        if (i < entry.getValue()) {
+          links.add(new JobPostingSkill(p, entry.getKey()));
+        }
+      }
+    }
+    when(peerSalaryDistributionResolver.resolvePostings(profile))
+        .thenReturn(new ResolvedPeerPostings(1, postings, "전국 / 경력 전체"));
+    when(jobPostingSkillRepository.findByJobPostingIdIn(anyCollection())).thenReturn(links);
+    when(marketAggregateRepository.findLatestAvailableYearMonthForSource(eq("ALL"), any()))
+        .thenReturn(Optional.of("202609"));
+    when(peerGroupFallbackResolver.resolve(eq("ALL"), any(), eq(profile)))
+        .thenReturn(mock(PeerGroupFallbackResolver.ResolvedPeerGroup.class));
+  }
+
+  @Test
+  @DisplayName("수집 태그(SKILL·JOB_CATEGORY·INDUSTRY) 항목은 추천하지 않는다")
+  void 수집_태그_스킬은_추천하지_않는다() {
+    // 회귀: 수집 태그가 표준 스킬과 같은 컬럼에 들어와 Java 5년차에게 Ai·백엔드·API·CI·CD 가 추천됐다.
+    when(careerProfileRepository.findByUserId(userId)).thenReturn(Optional.of(profile));
+    Skill java = skill("Java", "BACKEND");
+    when(userSkillRepository.findByUserId(userId))
+        .thenReturn(List.of(UserSkill.builder().userId(userId).skill(java).build()));
+    Skill backendTag = skill("백엔드", "SKILL");
+    Skill jobTag = skill("서버개발자", "JOB_CATEGORY");
+    Skill python = skill("Python", "BACKEND");
+    givenPeer(Map.of(java, 12, backendTag, 15, jobTag, 14, python, 6));
+    when(skillDemandCalculator.calculate(eq(python.getId()), any(), any()))
+        .thenReturn(
+            SkillDemandResult.builder()
+                .skillId(python.getId())
+                .status(SkillDemandStatus.OK)
+                .demandIndex(110.0)
+                .build());
+
+    SkillRecommendationsResponse response = service.getRecommendations(userId);
+
+    assertThat(response.recommendations())
+        .extracting(SkillRecommendationItem::standardName)
+        .containsExactly("Python");
+  }
+
+  @Test
+  @DisplayName("동시출현 기준 스킬은 공고 수가 아니라 내 스킬 가중치 최상위다")
+  void 기준_스킬은_가중치_최상위다() {
+    // 회귀: 공고 수가 가장 많은 보유 스킬(AWS)을 기준으로 삼아 Java 개발자에게 "AWS 공고의 N%" 근거가 나왔다.
+    when(careerProfileRepository.findByUserId(userId)).thenReturn(Optional.of(profile));
+    Skill java = skill("Java", "BACKEND");
+    Skill aws = skill("AWS", "DEVOPS");
+    UserSkill javaSkill = UserSkill.builder().userId(userId).skill(java).build();
+    UserSkill awsSkill = UserSkill.builder().userId(userId).skill(aws).build();
+    when(userSkillRepository.findByUserId(userId)).thenReturn(List.of(javaSkill, awsSkill));
+    Skill kotlin = skill("Kotlin", "BACKEND");
+    givenPeer(Map.of(java, 10, aws, 18, kotlin, 8));
+    when(skillWeightCalculator.calculateWeights(any(), eq("202609"), any()))
+        .thenReturn(
+            Map.of(java.getId(), new BigDecimal("0.7"), aws.getId(), new BigDecimal("0.3")));
+    when(skillDemandCalculator.calculate(eq(kotlin.getId()), any(), any()))
+        .thenReturn(
+            SkillDemandResult.builder()
+                .skillId(kotlin.getId())
+                .status(SkillDemandStatus.OK)
+                .demandIndex(110.0)
+                .build());
+
+    SkillRecommendationsResponse response = service.getRecommendations(userId);
+
+    assertThat(response.recommendations().get(0).coOccurrence().withSkill()).isEqualTo("Java");
   }
 }
