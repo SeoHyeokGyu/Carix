@@ -6,6 +6,7 @@ import com.carix.index.dto.PpiResult;
 import com.carix.index.dto.SourceCoverage;
 import com.carix.index.enums.SkillExclusionReason;
 import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.List;
 import org.springframework.stereotype.Component;
 
@@ -20,7 +21,7 @@ import org.springframework.stereotype.Component;
 public class DecisionSignalEngine {
 
   /** 결정표 버전. 규칙표를 바꿔 배포할 때 수동으로 올린다 (기술 명세 §1.3). */
-  public static final String RULE_VERSION = "1.5.0";
+  public static final String RULE_VERSION = "1.6.0";
 
   private static final int MIN_SAMPLE_SIZE = 10;
   private static final BigDecimal GAP_SEEK_JOB = new BigDecimal("0.15");
@@ -30,6 +31,10 @@ public class DecisionSignalEngine {
   private static final BigDecimal MVI_NEGOTIATE = new BigDecimal("105");
   private static final BigDecimal MVI_STABLE = new BigDecimal("90");
   private static final BigDecimal PPI_UPSKILL = new BigDecimal("95");
+
+  private static final String GAP_15_PLUS = "연봉 격차 15% 이상";
+  private static final String DEMAND_STABLE = "스킬 수요 안정";
+  private static final String DEMAND_DECLINING = "보유 스킬 채용수요 감소세";
 
   /**
    * 부분 판정 근거 문구. 시장가치 지수 없이 연봉 격차만으로 낸 판정임을 화면 규칙 칩에 밝힌다 — 이직 탐색·스킬 보강 우선은 시장가치가 있어야 해서 이 경로에서 나오지
@@ -71,31 +76,61 @@ public class DecisionSignalEngine {
         return evaluateWithoutMvi(gap, MVI_UNCERTAIN);
       }
       return new DecisionOutcome(
-          DecisionSignalCode.SEEK_JOB, List.of("연봉 격차 15% 이상", "보유 스킬 시장수요 상승세"), gap);
+          DecisionSignalCode.SEEK_JOB, List.of(GAP_15_PLUS, "보유 스킬 시장수요 상승세"), gap);
     }
-    if (gap.compareTo(GAP_NEGOTIATE) >= 0
-        && gap.compareTo(GAP_SEEK_JOB) < 0
-        && mviValue.compareTo(MVI_NEGOTIATE) >= 0) {
-      if (mviLower.compareTo(MVI_NEGOTIATE) < 0) {
+    // 연봉 격차 자체가 협상 근거다. 시장가치는 "줄지 않음"(90 이상)이면 충분하다 — 1.5.0 은 105 를 요구해
+    // 격차 15% 이상·시장가치 90~110 이 어느 규칙에도 안 걸리고 유지로 떨어졌다.
+    if (gap.compareTo(GAP_NEGOTIATE) >= 0 && mviValue.compareTo(MVI_STABLE) >= 0) {
+      if (mviLower.compareTo(MVI_STABLE) < 0) {
         return evaluateWithoutMvi(gap, MVI_UNCERTAIN);
       }
-      return new DecisionOutcome(
-          DecisionSignalCode.NEGOTIATE, List.of("연봉 격차 5~15% 구간", "스킬 가치 상승세"), gap);
+      String trend = mviLower.compareTo(MVI_NEGOTIATE) >= 0 ? "스킬 가치 상승세" : DEMAND_STABLE;
+      return new DecisionOutcome(DecisionSignalCode.NEGOTIATE, List.of(gapChip(gap), trend), gap);
     }
-    if (mviValue.compareTo(MVI_STABLE) < 0 && ppiValue.compareTo(PPI_UPSKILL) < 0) {
+    boolean demandDeclining = mviValue.compareTo(MVI_STABLE) < 0;
+    boolean ppiLow = ppiValue.compareTo(PPI_UPSKILL) < 0;
+    boolean underpaid = gap.compareTo(GAP_NEGOTIATE) >= 0;
+    if (demandDeclining && (ppiLow || underpaid)) {
       if (mviUpper.compareTo(MVI_STABLE) >= 0) {
         return evaluateWithoutMvi(gap, MVI_UNCERTAIN);
       }
-      return new DecisionOutcome(
-          DecisionSignalCode.UPSKILL, List.of("구매력 지수 95 미만", "보유 스킬 채용수요 감소세"), gap);
+      List<String> rules = new ArrayList<>();
+      if (ppiLow) {
+        rules.add("구매력 지수 95 미만");
+      }
+      if (underpaid) {
+        rules.add(gapChip(gap));
+      }
+      rules.add(DEMAND_DECLINING);
+      return new DecisionOutcome(DecisionSignalCode.UPSKILL, List.copyOf(rules), gap);
     }
-    if (gap.compareTo(GAP_STAY_LOWER) > 0
-        && gap.compareTo(GAP_NEGOTIATE) < 0
-        && mviValue.compareTo(MVI_STABLE) >= 0) {
-      return new DecisionOutcome(
-          DecisionSignalCode.STAY, List.of("연봉이 시장 수준에 근접", "스킬 수요 안정"), gap);
+    return new DecisionOutcome(DecisionSignalCode.STAY, stayRules(gap, mviLower, mviUpper), gap);
+  }
+
+  /**
+   * 유지 판정의 칩은 실제 상태를 말한다. 여기 오는 격차는 늘 5% 미만이다(그 이상은 위에서 협상·보강으로 갈린다). 수요 칩은 오차 밖으로 확실할 때만 단다 — 90
+   * 경계가 오차 안이면 어느 쪽도 말하지 않는다.
+   */
+  private static List<String> stayRules(BigDecimal gap, BigDecimal mviLower, BigDecimal mviUpper) {
+    boolean declining = mviUpper.compareTo(MVI_STABLE) < 0;
+    boolean stable = mviLower.compareTo(MVI_STABLE) >= 0;
+    List<String> rules = new ArrayList<>();
+    if (gap.compareTo(GAP_STAY_LOWER) > 0) {
+      rules.add("연봉이 시장 수준에 근접");
+      if (stable) {
+        rules.add(DEMAND_STABLE);
+      }
+    } else {
+      rules.add("연봉이 기준선보다 높음");
     }
-    return new DecisionOutcome(DecisionSignalCode.STAY, List.of("뚜렷한 보상 격차나 가치 상승 신호 없음"), gap);
+    if (declining) {
+      rules.add(DEMAND_DECLINING);
+    }
+    return List.copyOf(rules);
+  }
+
+  private static String gapChip(BigDecimal gap) {
+    return gap.compareTo(GAP_SEEK_JOB) >= 0 ? GAP_15_PLUS : "연봉 격차 5~15% 구간";
   }
 
   /**
