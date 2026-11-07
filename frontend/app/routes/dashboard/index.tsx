@@ -18,6 +18,7 @@ import {
   PurchasingPowerHelp,
 } from "../../components/dashboard/IndexHelp";
 import { MarketValueTrend } from "../../components/dashboard/MarketValueTrend";
+import { PostingMedianNote } from "../../components/dashboard/PostingMedianNote";
 import { PpiInputLine } from "../../components/dashboard/PpiInputLine";
 import { PriceDriverBadge } from "../../components/dashboard/PriceDriverBadge";
 import { TrustPanel } from "../../components/dashboard/TrustPanel";
@@ -31,7 +32,10 @@ import { getAppliedExpenses } from "../../lib/api/expense";
 import { listIncome } from "../../lib/api/income";
 import { toUserMessage } from "../../lib/apiError";
 import { UnauthorizedError } from "../../lib/coreApi";
-import { fetchSnapshotHistory } from "../../lib/dashboardMarketApi";
+import {
+  fetchSalaryDistribution,
+  fetchSnapshotHistory,
+} from "../../lib/dashboardMarketApi";
 import { resolvePeerConditions } from "../../lib/peerConditions";
 import { toPpiInputs, toWireBaseMonth } from "../../lib/ppiInputs";
 import { LOGIN_PATH } from "../../lib/routeGuards";
@@ -64,18 +68,20 @@ export async function clientLoader() {
         ? loadOptional(() => getAppliedExpenses(baseMonth))
         : null;
     });
-    const [summary, history, recommendations, income, applied] =
+    const [summary, history, recommendations, income, applied, distribution] =
       await Promise.all([
         summaryRequest,
         loadOptional(fetchSnapshotHistory),
         loadOptional(fetchSkillRecommendations),
         loadOptional(listIncome),
         appliedRequest,
+        loadOptional(() => fetchSalaryDistribution()),
       ]);
     return {
       summary,
       history: history?.snapshots ?? null,
       recommendations,
+      distribution,
       ppiInputs:
         summary.ok && income && applied
           ? toPpiInputs(summary.data.metadata.baseDate, income, applied)
@@ -120,6 +126,7 @@ export default function DashboardHome() {
   const history = loaderData.history ?? null;
   const recommendations = loaderData.recommendations ?? null;
   const ppiInputs = loaderData.ppiInputs ?? null;
+  const distribution = loaderData.distribution ?? null;
   const revalidator = useRevalidator();
   // loader 는 실패를 예외가 아니라 {ok:false} 로 돌려준다(설계 §10) — 하지만 React Router 는
   // 재검증마다 loaderData 를 통째로 새 값으로 바꾼다. 재조회가 실패하면 이전 성공 데이터가
@@ -304,6 +311,12 @@ export default function DashboardHome() {
             metadata={data.metadata}
             rationale={data.decisionSignal?.rationale ?? null}
             peerConditions={resolvePeerConditions(data.metadata.peerGroup)}
+            reference={
+              <PostingMedianNote
+                distribution={distribution}
+                grossSalary={ppiInputs?.grossSalary ?? null}
+              />
+            }
           />
         </div>
       )}

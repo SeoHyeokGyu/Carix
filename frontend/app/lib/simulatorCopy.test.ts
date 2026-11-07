@@ -9,10 +9,14 @@ describe("moveAdvice", () => {
 });
 
 describe("marketGapLine", () => {
-  it("격차가 양수면 시장 중앙값보다 덜 받는다", () => {
+  it("격차가 양수면 통계청 중앙값보다 덜 받는다", () => {
     // 격차 = (중앙값 − 내 연봉) / 내 연봉
-    expect(marketGapLine(12.3)).toBe("시장 중앙값보다 12.3% 낮음 (세전 기준)");
-    expect(marketGapLine(-4)).toBe("시장 중앙값보다 4.0% 높음 (세전 기준)");
+    expect(marketGapLine(12.3)).toBe(
+      "통계청 전 직무 중앙값보다 12.3% 낮음 (세전 기준)",
+    );
+    expect(marketGapLine(-4)).toBe(
+      "통계청 전 직무 중앙값보다 4.0% 높음 (세전 기준)",
+    );
   });
 });
 
