@@ -16,10 +16,9 @@ import com.carix.dashboard.service.DashboardSummaryService;
 import com.carix.dashboard.service.SalaryDistributionService;
 import com.carix.dashboard.service.SnapshotSeriesService;
 import com.carix.dashboard.service.WageGrowthService;
-import com.carix.income.domain.IncomeHistory;
-import com.carix.income.repository.IncomeHistoryRepository;
 import com.carix.index.mvi.MarketValueIndexServiceImpl;
 import com.carix.index.mvi.MarketValueIndexServiceImpl.SkillDemandDetailData;
+import com.carix.snapshot.SnapshotRangeResolver;
 import com.carix.snapshot.SnapshotRecalculationService;
 import com.carix.snapshot.YearMonths;
 import com.carix.snapshot.domain.IndexSnapshot;
@@ -62,7 +61,7 @@ public class DashboardController {
   private final DashboardSummaryService dashboardSummaryService;
   private final SnapshotSeriesService snapshotSeriesService;
   private final SnapshotRecalculationService snapshotRecalculationService;
-  private final IncomeHistoryRepository incomeHistoryRepository;
+  private final SnapshotRangeResolver snapshotRangeResolver;
   private final WageGrowthService wageGrowthService;
   private final IndexSnapshotRepository indexSnapshotRepository;
 
@@ -256,15 +255,7 @@ public class DashboardController {
     if (fromYearMonth != null && !fromYearMonth.isBlank()) {
       return normalizeYearMonth(fromYearMonth);
     }
-    List<IncomeHistory> incomes =
-        incomeHistoryRepository.findByUserIdOrderByEffectiveDateDesc(userId);
-    if (!incomes.isEmpty()) {
-      return incomes
-          .get(incomes.size() - 1)
-          .getEffectiveDate()
-          .format(java.time.format.DateTimeFormatter.ofPattern("yyyyMM"));
-    }
-    return YearMonths.current();
+    return snapshotRangeResolver.earliestFrom(userId);
   }
 
   // =========================================================================

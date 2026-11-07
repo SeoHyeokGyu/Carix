@@ -12,8 +12,8 @@ import com.carix.dashboard.service.DashboardSummaryService;
 import com.carix.dashboard.service.SalaryDistributionService;
 import com.carix.dashboard.service.SnapshotSeriesService;
 import com.carix.dashboard.service.WageGrowthService;
-import com.carix.income.repository.IncomeHistoryRepository;
 import com.carix.index.mvi.MarketValueIndexServiceImpl;
+import com.carix.snapshot.SnapshotRangeResolver;
 import com.carix.snapshot.SnapshotRecalculationService;
 import com.carix.snapshot.YearMonths;
 import com.carix.snapshot.domain.IndexSnapshot;
@@ -47,7 +47,7 @@ class SkillDemandBaseMonthTest {
                     mock(DashboardSummaryService.class),
                     mock(SnapshotSeriesService.class),
                     mock(SnapshotRecalculationService.class),
-                    mock(IncomeHistoryRepository.class),
+                    mock(SnapshotRangeResolver.class),
                     mock(WageGrowthService.class),
                     indexSnapshotRepository))
             .setCustomArgumentResolvers(new UserContextArgumentResolver())
