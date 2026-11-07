@@ -25,8 +25,8 @@ public class ExpenseWeightResolver {
   record ResolvedCategory(ExpenseCategoryEnum category, long amount, WeightStatusEnum status) {}
 
   /**
-   * 여러 달의 가중치를 한 번의 조회로 구한다. 기록 행이 없는 달은 행은 있는데 항목이 빈 달과 같다 — 앞선 완전 입력 달을 상속하고(§1.1 2단계), 그마저 없으면
-   * 기본 가중치다(3단계).
+   * 여러 달의 가중치를 한 번의 조회로 구한다. 기록 행이 없는 달은 행은 있는데 항목이 빈 달과 같다 — 앞선 완전 입력 달을 상속하고(§1.1 2단계), 앞선 입력이
+   * 없으면 가장 이른 완전 입력을 소급하며, 완전 입력이 하나도 없을 때만 기본 가중치다(3단계).
    */
   public Map<String, MonthlyWeights> resolveMonths(UUID userId, List<String> yearMonths) {
     List<ExpenseHistory> historiesDesc = repository.findByUserIdOrderByBaseYearMonthDesc(userId);

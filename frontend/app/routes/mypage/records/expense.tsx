@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/table";
 import { type Tone, ToneBadge } from "@/components/ui/tone-badge";
 
+import { parseAmountInput } from "../../../lib/amountInput";
 import {
   type ExpenseItemStatus,
   listExpenses,
@@ -144,14 +145,11 @@ export async function clientAction({ request }: { request: Request }) {
   // 검증은 expenseSchema(app/lib/schemas/expense.ts) 하나로만 한다 — 화면마다
   // 범위 숫자를 다시 적지 않는다(onboarding/expense.tsx 와 같은 규약).
   const items = EXPENSE_CATEGORIES.flatMap((category) => {
-    const raw = String(formData.get(`amount-${category.value}`) ?? "").trim();
-    if (raw === "") return [];
-    return [
-      {
-        category: category.value,
-        amount: Number(raw.replace(/,/g, "")) * MANWON,
-      },
-    ];
+    const entered = parseAmountInput(
+      String(formData.get(`amount-${category.value}`) ?? ""),
+    );
+    if (entered === null) return [];
+    return [{ category: category.value, amount: entered * MANWON }];
   });
 
   // I1: 아직 목록에 없는 월(신규 기준월)을 전부 빈칸으로 저장하면 items=[] 가
@@ -257,7 +255,7 @@ export default function RecordsExpense() {
     editing !== null && !months.some((m) => m.baseYearMonth === editing);
 
   const total = Object.values(amounts).reduce(
-    (sum, value) => sum + (Number(value.replace(/,/g, "")) || 0) * MANWON,
+    (sum, value) => sum + (parseAmountInput(value) ?? 0) * MANWON,
     0,
   );
   const exceedsNet = latestNet !== null && total > latestNet;

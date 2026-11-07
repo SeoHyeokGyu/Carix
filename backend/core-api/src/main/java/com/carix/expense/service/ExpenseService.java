@@ -55,11 +55,13 @@ public class ExpenseService {
     history.replaceItems(items);
     var saved = repository.save(history);
 
-    // 가장 이른 완전 입력이 바뀌면 그 앞 달 전부가 새 입력을 소급하므로 최초 소득월부터 다시 계산한다.
-    String fromYearMonth =
-        weightResolver.earliestCompleteMonth(userId).equals(earliestBefore)
-            ? baseYearMonth
-            : rangeResolver.earliestFrom(userId);
+    // 가장 이른 완전 입력이 바뀌거나 그 달 자체를 고치면 그 앞 달 전부가 새 입력을 소급하므로 최초 소득월부터 다시 계산한다.
+    Optional<String> earliestAfter = weightResolver.earliestCompleteMonth(userId);
+    boolean touchesEarliest =
+        !earliestAfter.equals(earliestBefore)
+            || earliestBefore.filter(baseYearMonth::equals).isPresent()
+            || earliestAfter.filter(baseYearMonth::equals).isPresent();
+    String fromYearMonth = touchesEarliest ? rangeResolver.earliestFrom(userId) : baseYearMonth;
     eventPublisher.publishEvent(new SnapshotRecalculationRequested(userId, fromYearMonth));
     return toResponse(saved);
   }

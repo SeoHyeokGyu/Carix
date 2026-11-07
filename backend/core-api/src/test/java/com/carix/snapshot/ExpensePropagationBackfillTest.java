@@ -98,6 +98,25 @@ class ExpensePropagationBackfillTest {
         .isLessThan(latestByMonth(foodLight).get(past).getPurchasingPowerIndex());
   }
 
+  @Test
+  @DisplayName("가장 이른 완전 소비 달을 다시 고치면 앞선 달 구매력도 새 가중치로 바뀐다")
+  void 가장_이른_소비를_고치면_앞선_달이_바뀐다() {
+    // 회귀: 같은 달(가장 이른 완전 입력)을 고치면 이른 달 문자열이 그대로라 그 달부터만 재계산됐고,
+    // 그 앞 달 스냅샷은 이전 가중치로 저장된 채 남았다.
+    givenFoodInflation();
+    UUID userId = UUID.randomUUID();
+    incomeService.create(userId, new IncomeRequest(60_000_000L, 4_000_000L, BASE.atDay(1), null));
+
+    expenseService.upsert(userId, YM.format(NOW), expenses(100_000L));
+    String past = YM.format(BASE.plusMonths(2));
+    var before = latestByMonth(userId).get(past).getPurchasingPowerIndex();
+
+    expenseService.upsert(userId, YM.format(NOW), expenses(2_000_000L));
+    var after = latestByMonth(userId).get(past).getPurchasingPowerIndex();
+
+    assertThat(after).isNotEqualByComparingTo(before);
+  }
+
   /** 식품은 다른 다섯 카테고리 합계(500,000원)와 함께 6개 전부 입력한다 — 완전 입력이어야 뒤 달로 전파된다. */
   private ExpenseUpdateRequest expenses(long food) {
     List<ExpenseItemInput> items =

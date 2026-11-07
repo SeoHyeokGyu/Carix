@@ -149,6 +149,20 @@ class SnapshotRecalculationServiceTest {
   }
 
   @Test
+  @DisplayName("구매력 값이 없는 달은 소비 가중치 상태를 저장하지 않는다")
+  void recalculate_storesNoExpenseWeightStatusWhenPpiHasNoValue() {
+    // 값이 없는 달에 소비 가중치 뱃지가 붙으면 화면에 없는 숫자의 근거를 말하게 된다. 엔진이 상태를 채워 보내도 값이 없으면 비운다.
+    providers.ppiStatusOverrides = Map.of("202606", IndexStatus.UPDATE_DELAYED);
+
+    service.recalculateSnapshot(userId, "202605");
+
+    IndexSnapshot delayedMonth =
+        indexSnapshotRepository.findByUserIdAndBaseYearMonth(userId, "202606").get(0);
+    assertThat(delayedMonth.getPurchasingPowerIndex()).isNull();
+    assertThat(delayedMonth.getRationale().expenseWeightStatus()).isNull();
+  }
+
+  @Test
   @DisplayName("PPI 가 INSUFFICIENT_HISTORY(값 100, OK 아님)면 갭이 아니라 정상 행을 만든다")
   void recalculate_writesRowWhenPpiInsufficientHistory() {
     // 값이 있으면서 OK 가 아닌 유일한 상태다 — status == UPDATE_DELAYED && 최신월 판정과 value == null
