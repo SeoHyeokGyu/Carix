@@ -203,7 +203,7 @@ class ExpenseWeightResolverTest {
   }
 
   @Test
-  @DisplayName("resolveMonths: 기록 없는 달은 그보다 앞선 완전 입력 달을 상속하고, 그 전은 기본값이다")
+  @DisplayName("resolveMonths: 기록 없는 달은 앞선 완전 입력 달을 상속하고, 앞선 입력이 없으면 가장 이른 입력을 소급한다")
   void resolveMonths_monthWithoutRow_propagatesFromEarlierCompleteMonth() {
     ExpenseHistory complete =
         history(
@@ -216,12 +216,65 @@ class ExpenseWeightResolverTest {
     Map<String, MonthlyWeights> result =
         resolver.resolveMonths(USER_ID, List.of("202602", "202603", "202604"));
 
-    assertThat(result.get("202602").statuses().values()).containsOnly(DEFAULT_CPI);
-    assertThat(result.get("202602").weights().get(HOUSING)).isEqualByComparingTo("0.30");
+    // 회귀: 앞선 달로만 전파해 온보딩 소비(현재월 저장)보다 앞선 모든 달이 기본 가중치였다 — 신규 사용자의
+    // 구매력 지수가 입력한 소비 구조와 무관하게 같았다(운영 실측 93.2 동일).
+    assertThat(result.get("202602").statuses().values()).containsOnly(PROPAGATED);
+    assertThat(result.get("202602").weights().get(HOUSING)).isEqualByComparingTo("0.5");
     assertThat(result.get("202603").statuses().values()).containsOnly(USER_DEFINED);
     assertThat(result.get("202603").weights().get(HOUSING)).isEqualByComparingTo("0.5");
     assertThat(result.get("202604").statuses().values()).containsOnly(PROPAGATED);
     assertThat(result.get("202604").weights().get(HOUSING)).isEqualByComparingTo("0.5");
+  }
+
+  @Test
+  @DisplayName("소급: 앞선 완전 입력이 있으면 뒤 입력이 아니라 앞선 입력을 쓴다")
+  void resolveMonths_prefersEarlierCompleteMonth() {
+    ExpenseHistory early = completeMonth("202401", 100000L);
+    ExpenseHistory late =
+        history(
+            "202611",
+            Map.of(
+                HOUSING, 600000L, FOOD, 100000L, TRANSPORT, 100000L, MEDICAL, 100000L, EDUCATION,
+                50000L, LEISURE, 50000L));
+    given(repository.findByUserIdOrderByBaseYearMonthDesc(USER_ID))
+        .willReturn(List.of(late, early));
+
+    Map<String, MonthlyWeights> result = resolver.resolveMonths(USER_ID, List.of("202501"));
+
+    assertThat(result.get("202501").weights().get(HOUSING)).isEqualByComparingTo("0.1666666667");
+    assertThat(result.get("202501").statuses().values()).containsOnly(PROPAGATED);
+  }
+
+  @Test
+  @DisplayName("소급: 앞선 입력이 없으면 가장 이른 뒤 완전 입력을 쓴다")
+  void resolveMonths_backfillsFromEarliestLaterCompleteMonth() {
+    ExpenseHistory first =
+        history(
+            "202611",
+            Map.of(
+                HOUSING, 600000L, FOOD, 100000L, TRANSPORT, 100000L, MEDICAL, 100000L, EDUCATION,
+                50000L, LEISURE, 50000L));
+    ExpenseHistory second = completeMonth("202701", 100000L);
+    given(repository.findByUserIdOrderByBaseYearMonthDesc(USER_ID))
+        .willReturn(List.of(second, first));
+
+    Map<String, MonthlyWeights> result = resolver.resolveMonths(USER_ID, List.of("202301"));
+
+    assertThat(result.get("202301").weights().get(HOUSING)).isEqualByComparingTo("0.6");
+    assertThat(result.get("202301").statuses().values()).containsOnly(PROPAGATED);
+  }
+
+  @Test
+  @DisplayName("소급: 부분 입력과 합계 0 인 달은 소급 원천이 아니다")
+  void resolveMonths_partialOrZeroMonthsAreNotBackfillSources() {
+    ExpenseHistory partial = history("202611", Map.of(FOOD, 400000L, HOUSING, 900000L));
+    ExpenseHistory zero = completeMonth("202612", 0L);
+    given(repository.findByUserIdOrderByBaseYearMonthDesc(USER_ID))
+        .willReturn(List.of(zero, partial));
+
+    Map<String, MonthlyWeights> result = resolver.resolveMonths(USER_ID, List.of("202301"));
+
+    assertThat(result.get("202301").statuses().values()).containsOnly(DEFAULT_CPI);
   }
 
   // ---------------------------------------------------------------------------

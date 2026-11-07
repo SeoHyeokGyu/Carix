@@ -119,15 +119,27 @@ public class ExpenseWeightResolver {
     return result;
   }
 
-  /** Step 2 — 과거 "완전 입력" 월 역탐색. Step 3 — 그마저 없으면 기본 가중치 전체 대체. */
+  /**
+   * Step 2 — 앞선 "완전 입력" 월을 상속하고, 앞선 입력이 없으면 가장 이른 완전 입력을 소급한다. Step 3 — 그마저 없으면 기본 가중치 전체 대체.
+   *
+   * <p>소급이 없으면 온보딩 소비(현재월 저장)보다 앞선 모든 달이 기본 가중치라 신규 사용자의 구매력 지수가 입력한 소비 구조와 무관해진다.
+   */
   private List<ResolvedCategory> propagateOrDefault(
       List<ExpenseHistory> historiesDesc, String baseYearMonth) {
-    Optional<ExpenseHistory> source =
+    List<ExpenseHistory> completeDesc =
         historiesDesc.stream()
-            .filter(h -> h.getBaseYearMonth().compareTo(baseYearMonth) < 0)
             .filter(h -> h.getItems().size() == ExpenseCategoryEnum.values().length)
             .filter(h -> sumOf(h) > 0)
-            .findFirst();
+            .toList();
+    Optional<ExpenseHistory> source =
+        completeDesc.stream()
+            .filter(h -> h.getBaseYearMonth().compareTo(baseYearMonth) < 0)
+            .findFirst()
+            .or(
+                () ->
+                    completeDesc.isEmpty()
+                        ? Optional.empty()
+                        : Optional.of(completeDesc.getLast()));
 
     if (source.isPresent()) {
       return source.get().getItems().stream()
