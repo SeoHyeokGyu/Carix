@@ -295,7 +295,7 @@ flowchart TD
 
 2. **스냅샷 재계산 트리거 (A, B $\rightarrow$ C)**:
    - 사용자 소득/소비/스킬/프로필 변경 시 `SnapshotRecalculationService.recalculateSnapshot(userId, fromYearMonth)` 호출
-   - 트랜잭션 내 동기 직접 호출 방식이며, `pg_advisory_xact_lock` 및 `data_version`을 통해 멱등성 보장
+   - 저장 커밋 뒤 같은 스레드에서 도는 동기 호출(커밋 후 이벤트)이며, `pg_advisory_xact_lock` 및 `data_version`을 통해 멱등성 보장
 
 3. **스냅샷 갱신(Job 4) 주체**:
    - `core-api`가 스냅샷 계산/갱신 엔진을 전담 소유하며, `collector`는 `market_aggregate` 집계까지만 수행
