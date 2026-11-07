@@ -43,7 +43,7 @@ public class ExpenseWeightResolver {
     return result;
   }
 
-  private MonthlyWeights toWeights(List<ResolvedCategory> resolved) {
+  MonthlyWeights toWeights(List<ResolvedCategory> resolved) {
     long total = resolved.stream().mapToLong(ResolvedCategory::amount).sum();
     Map<ExpenseCategoryEnum, BigDecimal> defaults = defaultWeightProvider.getDefaultWeights();
     Map<ExpenseCategoryEnum, BigDecimal> weights = new EnumMap<>(ExpenseCategoryEnum.class);

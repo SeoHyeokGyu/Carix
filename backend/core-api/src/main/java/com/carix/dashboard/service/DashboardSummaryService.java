@@ -239,7 +239,7 @@ public class DashboardSummaryService {
                 rationale.wageStatVintage(),
                 "AGE_BAND_PROXY",
                 rationale.wageStatSource() != null ? rationale.wageStatSource() : "UNKNOWN"),
-        null,
+        rationale.expenseWeightStatus(),
         openingWindow(rationale),
         priceDriver(rationale));
   }

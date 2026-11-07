@@ -122,6 +122,31 @@ class AppliedExpenseServiceTest {
     assertThat(response.amountBasis()).isEqualTo("USER_INPUT");
   }
 
+  @Test
+  @DisplayName("사용자 입력 달은 입력 금액 비율을 가중치로 싣는다")
+  void 사용자_입력_달은_입력_비율을_가중치로_싣는다() {
+    // 회귀: 금액은 사용자 입력인데 가중치는 늘 통계청 기본값을 실어, 둘이 서로 다른 소비 구조를 말했다.
+    givenMonth(
+        YM,
+        java.util.Arrays.stream(ExpenseCategoryEnum.values())
+            .map(
+                c ->
+                    new ExpenseItemEntity(
+                        c, c == ExpenseCategoryEnum.HOUSING ? 1_000_000L : 200_000L))
+            .toList());
+
+    AppliedExpenseResponse response = service.resolve(userId, YM);
+
+    assertThat(response.categories())
+        .filteredOn(c -> c.category().equals("HOUSING"))
+        .singleElement()
+        .satisfies(c -> assertThat(c.weight()).isEqualByComparingTo("0.5"));
+    assertThat(response.categories())
+        .filteredOn(c -> c.category().equals("FOOD"))
+        .singleElement()
+        .satisfies(c -> assertThat(c.weight()).isEqualByComparingTo("0.1"));
+  }
+
   // --- 픽스처 ---
 
   private void givenMonth(String yearMonth, List<ExpenseItemEntity> items) {

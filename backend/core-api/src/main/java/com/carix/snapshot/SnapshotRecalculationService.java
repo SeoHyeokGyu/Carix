@@ -199,7 +199,8 @@ public class SnapshotRecalculationService {
             ? null
             : calc.mvi().wageBaseline().source().name(),
         calc.topPriceDriver(),
-        DefaultPurchasingPowerIndexProvider.FORMULA_VERSION);
+        DefaultPurchasingPowerIndexProvider.FORMULA_VERSION,
+        calc.ppi().weightStatus() == null ? null : calc.ppi().weightStatus().name());
   }
 
   private record MonthCalculation(

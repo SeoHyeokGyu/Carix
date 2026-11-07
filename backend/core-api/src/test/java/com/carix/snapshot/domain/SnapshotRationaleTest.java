@@ -41,6 +41,8 @@ class SnapshotRationaleTest {
 
     assertThat(rationale.indexStatuses()).isEqualTo(SnapshotRationale.IndexStatuses.unknown());
     assertThat(rationale.openingWindow()).isNull();
+    // 소비 가중치 상태 도입 전 행 — 값이 없으면 뱃지를 그리지 않는다. 0 이나 기본 상태로 채우지 않는다.
+    assertThat(rationale.expenseWeightStatus()).isNull();
   }
 
   @Test
