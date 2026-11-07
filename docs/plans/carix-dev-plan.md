@@ -324,8 +324,10 @@ flowchart TD
 
 - **판정 결과**:
   - **정식 승격 (6건)**: `GET /skills/recommendations` (`US-D6`), `GET /scenarios` (`US-S1`), `GET /expenses/applied` (`US-O6`), `GET /scenarios/context`·`POST /scenarios/evaluate`·`PUT/GET /scenarios/draft` (`US-S1`, `c38`)
-  - **폐기 확정 (3건)**: `POST /dashboard/predict` (머신러닝 단순 추세 예측의 이론적 결함으로 폐기 확정, API 규격 §6.5), `POST /scenarios/simulate`·`GET /scenarios/latest` (`evaluate`·명시 저장으로 대체, `c38`)
+  - **폐기 확정 (4건)**: `POST /dashboard/predict` (대응 스토리·화면 없음, API 규격 §6.5), `GET /reference/default-expenses` (정본 yml 에 없고 어느 분기에도 적용되지 않는 고정 금액을 약속, API 규격 §7), `POST /scenarios/simulate`·`GET /scenarios/latest` (`evaluate`·명시 저장으로 대체, `c38`)
   - **범위 밖 유지 (2건)**: `DELETE /scenarios/{id}`, `GET /reference/cpi`
+  - **파라미터만 제외**: 가상 프로필 탐색용 `jobFamily`·`yearsOfExperience`·`region`·`companySize` 는 대응 스토리·화면이 없어 MVP 에서 뺀다. 엔드포인트 자체는 MVP 포함이다 (API 규격 §5.1·§5.2·§5.5).
+  - **고정 응답 스텁**: 화면이 쓰지 않는 API 를 고정값으로 응답하는 스텁은 두지 않는다. 계산할 수 없는 값도 0·100 으로 채우지 않는다.
 - **승격 규칙**: 신규 API를 프로덕션 범위로 승격하기 위해서는 기능 명세에 명확한 사용자 스토리 및 인수 조건을 먼저 정의해야 합니다.
 
 ### 미결 후보 데이터 상태
