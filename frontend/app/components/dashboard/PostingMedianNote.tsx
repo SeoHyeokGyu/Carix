@@ -8,9 +8,10 @@ import { formatManwon } from "../../lib/dataExplore";
  */
 export function postingMedianText(
   distribution: SalaryDistributionResponse | null,
-  grossSalary: number | null,
 ): string | null {
   const reference = distribution?.postingReference;
+  // 서버가 고정 상여까지 합쳐 판정에 쓴 연봉이다 — 화면 쪽에서 입력값으로 다시 만들지 않는다.
+  const grossSalary = distribution?.userPosition?.grossSalary ?? null;
   if (
     distribution?.status !== "OK" ||
     !reference ||
@@ -29,12 +30,10 @@ export function postingMedianText(
 
 export function PostingMedianNote({
   distribution,
-  grossSalary,
 }: {
   distribution: SalaryDistributionResponse | null;
-  grossSalary: number | null;
 }) {
-  const text = postingMedianText(distribution, grossSalary);
+  const text = postingMedianText(distribution);
   if (!text) return null;
   return (
     <>

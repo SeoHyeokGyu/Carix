@@ -68,6 +68,15 @@ export async function clientLoader() {
         ? loadOptional(() => getAppliedExpenses(baseMonth))
         : null;
     });
+    // 분포도 판정 기준월로 묻는다 — 연봉이 판정에 쓰인 값과 같아야 공고 중앙값 비교가 어긋나지 않는다.
+    const distributionRequest = summaryRequest.then((summary) => {
+      const baseMonth = summary.ok
+        ? toWireBaseMonth(summary.data.metadata.baseDate)
+        : null;
+      return loadOptional(() =>
+        fetchSalaryDistribution(baseMonth ?? undefined),
+      );
+    });
     const [summary, history, recommendations, income, applied, distribution] =
       await Promise.all([
         summaryRequest,
@@ -75,7 +84,7 @@ export async function clientLoader() {
         loadOptional(fetchSkillRecommendations),
         loadOptional(listIncome),
         appliedRequest,
-        loadOptional(() => fetchSalaryDistribution()),
+        distributionRequest,
       ]);
     return {
       summary,
@@ -311,12 +320,7 @@ export default function DashboardHome() {
             metadata={data.metadata}
             rationale={data.decisionSignal?.rationale ?? null}
             peerConditions={resolvePeerConditions(data.metadata.peerGroup)}
-            reference={
-              <PostingMedianNote
-                distribution={distribution}
-                grossSalary={ppiInputs?.grossSalary ?? null}
-              />
-            }
+            reference={<PostingMedianNote distribution={distribution} />}
           />
         </div>
       )}
