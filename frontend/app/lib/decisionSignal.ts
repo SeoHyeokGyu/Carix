@@ -38,12 +38,12 @@ const SIGNALS: Record<
   UPSKILL: {
     label: "스킬 보강 우선",
     tone: "info",
-    description: "시장가치와 구매력이 모두 낮습니다. 스킬 보강이 먼저입니다.",
+    description: "보유 스킬 수요가 줄고 있습니다. 스킬 보강이 먼저입니다.",
   },
   STAY: {
     label: "현 상태 유지",
     tone: "positive",
-    description: "지표가 시장 수준 안에 있습니다. 당장 움직일 이유가 없습니다.",
+    description: "지금 바로 움직일 신호는 없습니다.",
   },
   INSUFFICIENT_DATA: {
     label: "데이터 부족",
