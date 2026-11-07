@@ -215,7 +215,7 @@ class DecisionSignalEngineTest {
   // ---------- 규칙 3: 협상 검토 ----------
 
   @Test
-  @DisplayName("격차 0.05 이상 0.15 미만 AND MVI 105 이상이면 협상 검토다 — 하한 경계 포함")
+  @DisplayName("격차 5% 이상이고 MVI 90 이상이면 협상 검토다 — 격차 정확히 0.05 에 MVI 105, 하한 경계 포함")
   void rule3_negotiate_atLowerBoundary() {
     // 중앙값 63,000,000 → 격차 정확히 0.05
     DecisionOutcome outcome = engine.evaluate(ppi(100), mvi(105.0, 63_000_000L), salary());
