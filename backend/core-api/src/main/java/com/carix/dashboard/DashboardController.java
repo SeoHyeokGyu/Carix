@@ -22,6 +22,8 @@ import com.carix.index.mvi.MarketValueIndexServiceImpl;
 import com.carix.index.mvi.MarketValueIndexServiceImpl.SkillDemandDetailData;
 import com.carix.snapshot.SnapshotRecalculationService;
 import com.carix.snapshot.YearMonths;
+import com.carix.snapshot.domain.IndexSnapshot;
+import com.carix.snapshot.repository.IndexSnapshotRepository;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -62,6 +64,7 @@ public class DashboardController {
   private final SnapshotRecalculationService snapshotRecalculationService;
   private final IncomeHistoryRepository incomeHistoryRepository;
   private final WageGrowthService wageGrowthService;
+  private final IndexSnapshotRepository indexSnapshotRepository;
 
   // =========================================================================
   // 1. [Member C 소유] 대시보드 지표 요약 (S-10)
@@ -109,11 +112,19 @@ public class DashboardController {
   @GetMapping("/skills")
   public ResponseEntity<ApiResult<SkillDemandListResponse>> getSkillDemands(
       @CurrentUserId UUID userId,
-      @Parameter(description = "인덱스 기준 월 (YYYYMM 또는 YYYY-MM, 기본: 202607)", example = "202607")
+      @Parameter(
+              description = "인덱스 기준 월 (YYYYMM 또는 YYYY-MM, 기본: 최신 스냅샷의 달, 없으면 현재월)",
+              example = "202607")
           @RequestParam(required = false)
           String baseYearMonth) {
 
-    String targetYm = baseYearMonth != null ? baseYearMonth.replace("-", "") : "202607";
+    String targetYm =
+        baseYearMonth != null && !baseYearMonth.isBlank()
+            ? baseYearMonth.replace("-", "")
+            : indexSnapshotRepository
+                .findFirstByUserIdOrderByBaseYearMonthDesc(userId)
+                .map(IndexSnapshot::getBaseYearMonth)
+                .orElseGet(YearMonths::current);
     List<SkillDemandDetailData> details =
         marketValueIndexService.getSkillDemandDetails(userId, targetYm);
 
