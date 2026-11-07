@@ -78,6 +78,26 @@ class ExpensePropagationBackfillTest {
     }
   }
 
+  @Test
+  @DisplayName("현재월에 처음 넣은 소비 구조가 과거 달 구매력에 반영된다")
+  void 소비_구조가_다르면_구매력이_다르다() {
+    // 회귀: 온보딩 소비는 현재월로 저장되는데 재계산이 그 달부터만 돌아, 앞선 달 스냅샷이 기본 가중치로 남았다 —
+    // 소비 구조가 정반대인 두 사용자의 구매력이 같았다(운영 실측 93.2 동일).
+    givenFoodInflation();
+    UUID foodHeavy = UUID.randomUUID();
+    UUID foodLight = UUID.randomUUID();
+    for (UUID userId : List.of(foodHeavy, foodLight)) {
+      incomeService.create(userId, new IncomeRequest(60_000_000L, 4_000_000L, BASE.atDay(1), null));
+    }
+
+    expenseService.upsert(foodHeavy, YM.format(NOW), expenses(2_000_000L));
+    expenseService.upsert(foodLight, YM.format(NOW), expenses(10_000L));
+
+    String past = YM.format(BASE.plusMonths(2));
+    assertThat(latestByMonth(foodHeavy).get(past).getPurchasingPowerIndex())
+        .isLessThan(latestByMonth(foodLight).get(past).getPurchasingPowerIndex());
+  }
+
   /** 식품은 다른 다섯 카테고리 합계(500,000원)와 함께 6개 전부 입력한다 — 완전 입력이어야 뒤 달로 전파된다. */
   private ExpenseUpdateRequest expenses(long food) {
     List<ExpenseItemInput> items =

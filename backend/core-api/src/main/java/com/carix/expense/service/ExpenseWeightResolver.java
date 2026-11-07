@@ -126,11 +126,7 @@ public class ExpenseWeightResolver {
    */
   private List<ResolvedCategory> propagateOrDefault(
       List<ExpenseHistory> historiesDesc, String baseYearMonth) {
-    List<ExpenseHistory> completeDesc =
-        historiesDesc.stream()
-            .filter(h -> h.getItems().size() == ExpenseCategoryEnum.values().length)
-            .filter(h -> sumOf(h) > 0)
-            .toList();
+    List<ExpenseHistory> completeDesc = historiesDesc.stream().filter(this::isComplete).toList();
     Optional<ExpenseHistory> source =
         completeDesc.stream()
             .filter(h -> h.getBaseYearMonth().compareTo(baseYearMonth) < 0)
@@ -154,6 +150,19 @@ public class ExpenseWeightResolver {
     return defaultWeightProvider.getDefaultWeights().keySet().stream()
         .map(category -> new ResolvedCategory(category, 0L, WeightStatusEnum.DEFAULT_CPI))
         .toList();
+  }
+
+  /** 가장 이른 완전 입력 월. 앞선 입력이 없는 달은 모두 이 달을 소급하므로, 이 값이 바뀌면 그 앞 달들의 가중치가 다 바뀐다. */
+  public Optional<String> earliestCompleteMonth(UUID userId) {
+    List<ExpenseHistory> historiesDesc = repository.findByUserIdOrderByBaseYearMonthDesc(userId);
+    List<ExpenseHistory> completeDesc = historiesDesc.stream().filter(this::isComplete).toList();
+    return completeDesc.isEmpty()
+        ? Optional.empty()
+        : Optional.of(completeDesc.getLast().getBaseYearMonth());
+  }
+
+  private boolean isComplete(ExpenseHistory h) {
+    return h.getItems().size() == ExpenseCategoryEnum.values().length && sumOf(h) > 0;
   }
 
   private long sumOf(ExpenseHistory h) {

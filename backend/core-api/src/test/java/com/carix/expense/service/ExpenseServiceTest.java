@@ -29,6 +29,7 @@ import com.carix.expense.dto.ExpenseUpdateRequest;
 import com.carix.expense.exception.InvalidExpenseCategoryException;
 import com.carix.expense.repository.ExpenseHistoryRepository;
 import com.carix.expense.service.ExpenseWeightResolver.ResolvedCategory;
+import com.carix.snapshot.SnapshotRangeResolver;
 import com.carix.snapshot.SnapshotRecalculationRequested;
 import java.util.List;
 import java.util.Optional;
@@ -56,7 +57,9 @@ class ExpenseServiceTest {
     repository = mock(ExpenseHistoryRepository.class);
     eventPublisher = mock(ApplicationEventPublisher.class);
     weightResolver = mock(ExpenseWeightResolver.class);
-    expenseService = new ExpenseService(repository, eventPublisher, weightResolver);
+    expenseService =
+        new ExpenseService(
+            repository, eventPublisher, weightResolver, mock(SnapshotRangeResolver.class));
   }
 
   @Test
