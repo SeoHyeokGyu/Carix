@@ -22,7 +22,7 @@ import org.yaml.snakeyaml.error.YAMLException;
 
 /**
  * 저장소 루트 {@code config/default-expense-weights.yml}(정본)의 기본 소비 가중치를 제공한다. domain-logic.md §1.1 Step
- * 3(DEFAULT_CPI 전체 대체)·Step 4(부분 입력 보간)와 {@code GET /reference/default-expenses} 가 쓴다.
+ * 3(DEFAULT_CPI 전체 대체)·Step 4(부분 입력 보간)가 쓴다.
  *
  * <p><b>파일을 읽는 방식.</b> 정본은 저장소 루트에 하나만 두고, core-api 빌드가 {@code processResources} 로 JAR 클래스패스 {@code
  * config/} 에 복사한다(core-api/build.gradle). 그래서 IDE·bootRun·단위 테스트·컨테이너 어디서나 같은 {@code classpath:}

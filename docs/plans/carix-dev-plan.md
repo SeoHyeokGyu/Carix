@@ -324,34 +324,32 @@ flowchart TD
 
 - **판정 결과**:
   - **정식 승격 (6건)**: `GET /skills/recommendations` (`US-D6`), `GET /scenarios` (`US-S1`), `GET /expenses/applied` (`US-O6`), `GET /scenarios/context`·`POST /scenarios/evaluate`·`PUT/GET /scenarios/draft` (`US-S1`, `c38`)
-  - **폐기 확정 (3건)**: `POST /dashboard/predict` (머신러닝 단순 추세 예측의 이론적 결함으로 폐기 확정, API 규격 §6.5), `POST /scenarios/simulate`·`GET /scenarios/latest` (`evaluate`·명시 저장으로 대체, `c38`)
+  - **폐기 확정 (4건)**: `POST /dashboard/predict` (대응 스토리·화면 없음, API 규격 §6.5), `GET /reference/default-expenses` (정본 yml 에 없고 어느 분기에도 적용되지 않는 고정 금액을 약속, API 규격 §7), `POST /scenarios/simulate`·`GET /scenarios/latest` (`evaluate`·명시 저장으로 대체, `c38`)
   - **범위 밖 유지 (2건)**: `DELETE /scenarios/{id}`, `GET /reference/cpi`
+  - **파라미터만 제외**: 가상 프로필 탐색용 `jobFamily`·`yearsOfExperience`·`region`·`companySize` 는 대응 스토리·화면이 없어 MVP 에서 뺀다. 엔드포인트 자체는 MVP 포함이다 (API 규격 §5.1·§5.2·§5.5).
+  - **고정 응답 스텁**: 화면이 쓰지 않는 API 를 고정값으로 응답하는 스텁은 두지 않는다. 계산할 수 없는 값도 0·100 으로 채우지 않는다.
 - **승격 규칙**: 신규 API를 프로덕션 범위로 승격하기 위해서는 기능 명세에 명확한 사용자 스토리 및 인수 조건을 먼저 정의해야 합니다.
 
 ### 미결 후보 데이터 상태
 
-수집·저장은 진행 중이나 화면 소비처가 아직 정의되지 않은 데이터(`company_badge`, `position_level` 등)는 ERD 주석으로 관리하며, 현재 별도 미결 후보는 없습니다.
+수집·저장은 진행 중이나 화면 소비처가 아직 정의되지 않은 데이터(`company_badge`, `position_level` 등)는 ERD 주석으로 관리하며, 이 범주의 미결 후보는 현재 없습니다.
 
 ---
 
 ### b23~b25 기반 향후 개선 및 운영 고도화 후보
 
-`b23`~`b25` 기능 구현 및 테스트 커버리지(91~100%) 확보 이후, 대규모 데이터 확장(Scale-out) 및 운영 안정성을 위해 도출된 후속 개선 후보 과제다:
+아직 착수하지 않은 후속 개선 후보다. 도입 전 실측으로 필요성을 확인한다. 캐싱은 [아키텍처 로드맵 §1](architecture-roadmap.md)이 소관이다.
 
-1. **[b23] 스킬 추천 연산 최적화 및 캐싱 (성능 & DB 부하 분산)**
-   - **후보 스킬 1차 프루닝(Pruning)**: 동료집단 공고 내 미보유 스킬이 많을 경우 DB 커넥션 풀(HikariCP) 경합을 방지하기 위해, 현재 수요율(`demandRate`) 상위 30~50개로 1차 필터링 후 시계열 지수를 계산하거나 15개월 시계열을 Batch In-query(`findBySkillIdInAndMonthsIn`)로 일괄 조회한다.
-   - **MVI 수요 지수 캐싱 (`@Cacheable`)**: 기준월(`baseYearMonth`) 및 직군(`jobFamily`) 단위의 스킬별 MVI 지수는 월 단위 불변 데이터이므로 캐싱(Redis/Caffeine)을 적용해 API 응답 속도를 수십 ms 이내로 단축한다.
+1. **[b23] 스킬 추천 조회 묶음 처리 (성능 & DB 부하 분산)**
+   - 후보 스킬별로 반복하는 15개월 시계열 조회를 Batch In-query 로 일괄 조회해 DB 커넥션 풀(HikariCP) 경합을 줄인다. 평가 대상 후보는 줄이지 않는다 — 현재 수요율로 먼저 자르면 점유율은 낮아도 빠르게 크는 스킬이 추천에서 빠진다.
 
-2. **[b24] KOSIS 공공데이터 최신 연도 자동 갱신 파이프라인 (자동화 & 관측성)**
-   - **신규 연도 자동 감지 탐색 (Probe Polling)**: 매월 1회 스케줄러가 KOSIS OpenAPI(`DT_118N_PAYM39`)에 다음 연도(`최신 base_period + 1`) 파라미터를 요청하여 공시 여부를 경량 자동 감지한다.
+2. **[b24] KOSIS 공공데이터 수집 품질 검증 (자동화 & 관측성)**
    - **4단계 데이터 품질 검증 (Quality Gate)**:
-     1. 완전성(Completeness): 24계층 × 5개 연령대 총 120개 레코드 누락 검사
+     1. 완전성(Completeness): 24계층 × 연령 코드 6개(`00` 전체 포함) 총 144개 레코드 누락 검사
      2. 수학적 정합성(Monotonicity): 계층별 누적 근로자 수 단조증가 검증
      3. 변동성 상식 범위(Sanity Check): 직전 연도 대비 비정상 급변(±10% 초과) 이상치 감지
-     4. 드라이런 보간 검증: 6구간(`ENTRY`~`LEAD`) 보간 실행 및 연차 역전 현상 검증
-   - **관측 가능성 메트릭(Observability)**: `AGE_BAND_PROXY` 프록시 기준선 노출 빈도 및 실측 수집 연봉과의 괴리율 분포를 추적하는 커스텀 메트릭(Micrometer/Prometheus)을 수집한다.
+     4. 드라이런 보간 검증: 구간별(`ENTRY`~`LEAD`) 보간 실행 및 연차 역전 현상 검증
+   - **후순위**: 신규 연도 자동 감지(Probe Polling)는 연 1회 공시 데이터인 데 비해 스케줄러 기반을 새로 세워야 한다. 커스텀 메트릭(Micrometer/Prometheus)은 수집 레지스트리와 저장소가 먼저 필요하다.
 
-3. **[b25] 수집기 다차원 롤업 배치 안정성 및 지역 계층 확장 (확장성)**
-   - **다차원 슬라이스 롤업 청크 분할 저장 (Batch Chunking)**: 수집 공고 대량 적재 시 인메모리 맵 부하 방지를 위해 유의미한 조합 선별 슬라이싱 또는 1,000건 단위 분할 `saveAll` + `flush`/`clear`를 적용한다.
-   - **`market_aggregate` 복합 인덱스 선두 컬럼 정렬**: `market_aggregate_lookup_idx`의 선두 컬럼에 필수 조건인 `source`를 추가하여 `(source, base_year_month, job_family, region)` 순으로 재정렬한다.
-   - **계층형 지역(Hierarchical Region) 확장 대비**: 17개 표준 시/도 정규화에서 향후 "강남/서초", "판교/분당", "가산/구로" 등 IT 핵심 클러스터 단위의 정밀 필터링을 지원할 수 있도록 `SIDO` -> `SIGUNGU` 계층 구조 인터페이스 확장을 대비한다.
+3. **[b25] 수집기 다차원 롤업 배치 안정성 (확장성)**
+   - **다차원 슬라이스 롤업 청크 분할 저장 (Batch Chunking)**: 다차원 행 적재로 재집계의 메모리·트랜잭션 부하가 실측되면 1,000건 단위 분할 `saveAll` + `flush`/`clear` 를 적용한다.
