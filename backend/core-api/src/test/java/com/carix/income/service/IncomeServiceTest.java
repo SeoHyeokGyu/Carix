@@ -15,7 +15,7 @@ import com.carix.income.dto.IncomeResponse;
 import com.carix.income.exception.DuplicateEffectiveDateException;
 import com.carix.income.exception.IncomeNotFoundException;
 import com.carix.income.repository.IncomeHistoryRepository;
-import com.carix.snapshot.SnapshotRecalculationService;
+import com.carix.snapshot.SnapshotRecalculationRequested;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
@@ -23,20 +23,21 @@ import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.context.ApplicationEventPublisher;
 
 class IncomeServiceTest {
 
   private static final UUID USER_ID = UUID.randomUUID();
 
   private IncomeHistoryRepository repository;
-  private SnapshotRecalculationService snapshotRecalculationService;
+  private ApplicationEventPublisher eventPublisher;
   private IncomeService service;
 
   @BeforeEach
   void setUp() {
     repository = mock(IncomeHistoryRepository.class);
-    snapshotRecalculationService = mock(SnapshotRecalculationService.class);
-    service = new IncomeService(repository, snapshotRecalculationService);
+    eventPublisher = mock(ApplicationEventPublisher.class);
+    service = new IncomeService(repository, eventPublisher);
   }
 
   @Test
@@ -258,7 +259,7 @@ class IncomeServiceTest {
 
     service.updateBonusTerms(USER_ID, new BonusTermsRequest(id, true, null));
 
-    verify(snapshotRecalculationService).recalculateSnapshot(USER_ID, "202503");
+    verify(eventPublisher).publishEvent(new SnapshotRecalculationRequested(USER_ID, "202503"));
   }
 
   @Test

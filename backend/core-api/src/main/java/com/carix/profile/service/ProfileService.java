@@ -5,7 +5,7 @@ import com.carix.profile.dto.ProfileRequest;
 import com.carix.profile.dto.ProfileResponse;
 import com.carix.profile.exception.InvalidHireDateException;
 import com.carix.profile.repository.CareerProfileRepository;
-import com.carix.snapshot.SnapshotRecalculationService;
+import com.carix.snapshot.SnapshotRecalculationRequested;
 import com.carix.snapshot.YearMonths;
 import java.time.Clock;
 import java.time.LocalDate;
@@ -13,6 +13,7 @@ import java.util.List;
 import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -23,27 +24,27 @@ public class ProfileService {
   private static final Logger log = LoggerFactory.getLogger(ProfileService.class);
 
   private final CareerProfileRepository careerProfileRepository;
-  private final SnapshotRecalculationService snapshotRecalculationService;
+  private final ApplicationEventPublisher eventPublisher;
   private final UserDataEraser eraser;
   private final JdbcTemplate jdbcTemplate;
   private final Clock clock;
 
   public ProfileService(
       CareerProfileRepository careerProfileRepository,
-      SnapshotRecalculationService snapshotRecalculationService,
+      ApplicationEventPublisher eventPublisher,
       Clock clock) {
-    this(careerProfileRepository, snapshotRecalculationService, null, null, clock);
+    this(careerProfileRepository, eventPublisher, null, null, clock);
   }
 
   @org.springframework.beans.factory.annotation.Autowired
   public ProfileService(
       CareerProfileRepository careerProfileRepository,
-      SnapshotRecalculationService snapshotRecalculationService,
+      ApplicationEventPublisher eventPublisher,
       UserDataEraser eraser,
       JdbcTemplate jdbcTemplate,
       Clock clock) {
     this.careerProfileRepository = careerProfileRepository;
-    this.snapshotRecalculationService = snapshotRecalculationService;
+    this.eventPublisher = eventPublisher;
     this.eraser = eraser;
     this.jdbcTemplate = jdbcTemplate;
     this.clock = clock;
@@ -110,7 +111,7 @@ public class ProfileService {
         request.companySize(),
         request.hireDate());
     // 동료집단 조건이 바뀌면 이후 MVI 가 달라진다. 과거월은 그때의 프로필로 계산된 값이라 다시 쓰지 않는다.
-    snapshotRecalculationService.recalculateSnapshot(userId, YearMonths.current());
+    eventPublisher.publishEvent(new SnapshotRecalculationRequested(userId, YearMonths.current()));
     return toResponse(profile);
   }
 

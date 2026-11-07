@@ -13,7 +13,6 @@ import com.carix.profile.domain.CareerProfile;
 import com.carix.profile.dto.ProfileRequest;
 import com.carix.profile.exception.InvalidHireDateException;
 import com.carix.profile.repository.CareerProfileRepository;
-import com.carix.snapshot.SnapshotRecalculationService;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -25,6 +24,7 @@ import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 
@@ -36,7 +36,7 @@ class ProfileServiceTest {
       Clock.fixed(Instant.parse("2026-10-21T15:30:00Z"), ZoneId.of("Asia/Seoul"));
 
   private CareerProfileRepository careerProfileRepository;
-  private SnapshotRecalculationService snapshotRecalculationService;
+  private ApplicationEventPublisher eventPublisher;
   private UserDataEraser eraser;
   private JdbcTemplate jdbcTemplate;
 
@@ -45,13 +45,12 @@ class ProfileServiceTest {
   @BeforeEach
   void setUp() {
     careerProfileRepository = mock(CareerProfileRepository.class);
-    snapshotRecalculationService = mock(SnapshotRecalculationService.class);
+    eventPublisher = mock(ApplicationEventPublisher.class);
     eraser = mock(UserDataEraser.class);
     jdbcTemplate = mock(JdbcTemplate.class);
 
     profileService =
-        new ProfileService(
-            careerProfileRepository, snapshotRecalculationService, eraser, jdbcTemplate, CLOCK);
+        new ProfileService(careerProfileRepository, eventPublisher, eraser, jdbcTemplate, CLOCK);
   }
 
   @Test

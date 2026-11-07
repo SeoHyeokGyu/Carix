@@ -6,8 +6,9 @@ import com.carix.expense.dto.ExpenseItem;
 import com.carix.expense.dto.ExpenseUpdateRequest;
 import com.carix.expense.exception.InvalidExpenseCategoryException;
 import com.carix.expense.repository.ExpenseHistoryRepository;
-import com.carix.snapshot.SnapshotRecalculationService;
+import com.carix.snapshot.SnapshotRecalculationRequested;
 import java.util.*;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -15,15 +16,15 @@ import org.springframework.transaction.annotation.Transactional;
 public class ExpenseService {
 
   private final ExpenseHistoryRepository repository;
-  private final SnapshotRecalculationService snapshotRecalculationService;
+  private final ApplicationEventPublisher eventPublisher;
   private final ExpenseWeightResolver weightResolver;
 
   public ExpenseService(
       ExpenseHistoryRepository repository,
-      SnapshotRecalculationService snapshotRecalculationService,
+      ApplicationEventPublisher eventPublisher,
       ExpenseWeightResolver weightResolver) {
     this.repository = repository;
-    this.snapshotRecalculationService = snapshotRecalculationService;
+    this.eventPublisher = eventPublisher;
     this.weightResolver = weightResolver;
   }
 
@@ -49,7 +50,7 @@ public class ExpenseService {
     history.replaceItems(items);
     var saved = repository.save(history);
 
-    snapshotRecalculationService.recalculateSnapshot(userId, baseYearMonth);
+    eventPublisher.publishEvent(new SnapshotRecalculationRequested(userId, baseYearMonth));
     return toResponse(saved);
   }
 

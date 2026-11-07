@@ -8,12 +8,13 @@ import com.carix.income.dto.IncomeResponse;
 import com.carix.income.exception.DuplicateEffectiveDateException;
 import com.carix.income.exception.IncomeNotFoundException;
 import com.carix.income.repository.IncomeHistoryRepository;
-import com.carix.snapshot.SnapshotRecalculationService;
+import com.carix.snapshot.SnapshotRecalculationRequested;
 import com.carix.snapshot.YearMonths;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.IntStream;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -21,13 +22,12 @@ import org.springframework.transaction.annotation.Transactional;
 public class IncomeService {
 
   private final IncomeHistoryRepository repository;
-  private final SnapshotRecalculationService snapshotRecalculationService;
+  private final ApplicationEventPublisher eventPublisher;
 
   public IncomeService(
-      IncomeHistoryRepository repository,
-      SnapshotRecalculationService snapshotRecalculationService) {
+      IncomeHistoryRepository repository, ApplicationEventPublisher eventPublisher) {
     this.repository = repository;
-    this.snapshotRecalculationService = snapshotRecalculationService;
+    this.eventPublisher = eventPublisher;
   }
 
   public List<IncomeResponse> getHistory(UUID userId) {
@@ -59,8 +59,8 @@ public class IncomeService {
         .ifPresent(
             prev -> created.applyBonusTerms(prev.isBonusIncluded(), prev.getFixedBonusAnnual()));
     var saved = repository.save(created);
-    snapshotRecalculationService.recalculateSnapshot(
-        userId, YearMonths.of(request.effectiveDate()));
+    eventPublisher.publishEvent(
+        new SnapshotRecalculationRequested(userId, YearMonths.of(request.effectiveDate())));
     return toResponse(saved, isEarliest(userId, request.effectiveDate()));
   }
 
@@ -84,7 +84,7 @@ public class IncomeService {
         request.netSalary(),
         request.effectiveDate(),
         request.changeReason());
-    snapshotRecalculationService.recalculateSnapshot(userId, fromYearMonth);
+    eventPublisher.publishEvent(new SnapshotRecalculationRequested(userId, fromYearMonth));
     return toResponse(entity, isEarliestExcluding(userId, request.effectiveDate(), id));
   }
 
@@ -102,8 +102,8 @@ public class IncomeService {
     repository.findByUserIdOrderByEffectiveDateDesc(userId).stream()
         .filter(e -> !e.getEffectiveDate().isBefore(from.getEffectiveDate()))
         .forEach(e -> e.applyBonusTerms(bonusIncluded, fixedBonusAnnual));
-    snapshotRecalculationService.recalculateSnapshot(
-        userId, YearMonths.of(from.getEffectiveDate()));
+    eventPublisher.publishEvent(
+        new SnapshotRecalculationRequested(userId, YearMonths.of(from.getEffectiveDate())));
     return getHistory(userId);
   }
 
@@ -116,7 +116,7 @@ public class IncomeService {
             .orElseThrow(() -> new IncomeNotFoundException(id));
     String fromYearMonth = YearMonths.of(entity.getEffectiveDate());
     repository.delete(entity);
-    snapshotRecalculationService.recalculateSnapshot(userId, fromYearMonth);
+    eventPublisher.publishEvent(new SnapshotRecalculationRequested(userId, fromYearMonth));
   }
 
   /**
