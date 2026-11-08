@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { type ReactNode, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -15,6 +15,8 @@ interface TrustPanelProps {
   metadata: DashboardMetadata;
   rationale: string | null;
   peerConditions: PeerConditionView | null;
+  /** 판정 근거 바로 뒤에 붙는 참고 줄(`dt`·`dd` 쌍). */
+  reference?: ReactNode;
 }
 
 /**
@@ -25,6 +27,7 @@ export function TrustPanel({
   metadata,
   rationale,
   peerConditions,
+  reference,
 }: TrustPanelProps) {
   const [isOpen, setIsOpen] = useState(false);
   const coverage = toSampleCoverage(
@@ -90,6 +93,7 @@ export function TrustPanel({
               <dd className="text-carix-text">{rationale}</dd>
             </>
           )}
+          {reference}
           <dt className="text-carix-text/70">기준</dt>
           <dd className="text-carix-text/70">
             {[

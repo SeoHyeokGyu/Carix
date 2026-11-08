@@ -117,8 +117,8 @@ export function ResultExample() {
               </div>
 
               <p className="mt-3 text-sm leading-relaxed text-carix-text/80">
-                보유 스킬의 채용 수요는 같은 기간 증가했고, 현재 연봉은 동일
-                조건의 공식 임금통계 중앙값보다 낮습니다.
+                보유 스킬의 채용 수요는 같은 기간 증가했고, 현재 연봉은 통계청
+                전 직무 중앙값보다 낮습니다.
               </p>
             </div>
 

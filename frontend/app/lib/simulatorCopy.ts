@@ -27,9 +27,9 @@ export function stayHeadline(pct: number): string {
 /** 격차는 (중앙값 − 내 연봉) / 내 연봉 이라 양수면 시장보다 덜 받는다. 대시보드 값과 같은 세전·명목이다. */
 export function marketGapLine(gapPercent: number): string {
   const size = Math.abs(gapPercent).toFixed(1);
-  if (size === "0.0") return "시장 중앙값과 같음 (세전 기준)";
+  if (size === "0.0") return "통계청 전 직무 중앙값과 같음 (세전 기준)";
   const side = gapPercent > 0 ? "낮음" : "높음";
-  return `시장 중앙값보다 ${size}% ${side} (세전 기준)`;
+  return `통계청 전 직무 중앙값보다 ${size}% ${side} (세전 기준)`;
 }
 
 const NO_CATCH_UP =

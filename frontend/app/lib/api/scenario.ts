@@ -109,7 +109,7 @@ export interface ScenarioContext {
   defaultRaisePercent: number | null;
   performanceBonusRange: { min: number; average: number; years: number } | null;
   inflation: InflationBasis;
-  /** 세전·명목 기준 시장 중앙값 격차(%). 산출 불가면 null. */
+  /** 세전·명목 기준 통계청 전 직무 중앙값 격차(%). 산출 불가면 null. */
   marketGapPercent: number | null;
 }
 

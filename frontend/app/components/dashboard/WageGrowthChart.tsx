@@ -262,7 +262,7 @@ export function WageGrowthChart({ runs }: WageGrowthChartProps) {
               <p className="text-carix-text/70">변동 기록 없음</p>
             )}
             <TooltipRow
-              label="시장 중앙값"
+              label="통계청 중앙값"
               value={formatKoreanSalary(hovered.marketMedian)}
             />
           </div>

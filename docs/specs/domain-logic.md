@@ -257,7 +257,7 @@ collector 가 지역·규모·고용형태 행을 다차원으로 집계하며(`
 ### 6.1 주요 변수 정의
 *   **소득 격차 비율 ($SalaryGapRatio$):**
     $$SalaryGapRatio = \frac{\text{공식 임금통계 기준 연봉 중앙값} - \text{현재 사용자 연봉}}{\text{현재 사용자 연봉}}$$
-    *(사용자 연봉이 기준 중앙값보다 낮을 때 양수가 됨. 기준선은 `wage_stat_observation`의 직종×경력구간×지역 중앙값을 사용하며, 공고 공개연봉은 결측률이 높아 참고 표시 전용)*
+    *(사용자 연봉이 기준 중앙값보다 낮을 때 양수가 됨. 기준선은 `wage_stat_observation`의 경력구간 중앙값이다. KOSIS 연령대를 경력구간으로 옮긴 프록시(`AGE_BAND_PROXY`)이고 직무·지역 구분이 없는 전 직무 공통 값이라, 화면은 `통계청 전 직무 중앙값`으로 부른다. 공고 제시 연봉 중앙값은 판정 근거 옆에 참고로만 보이며, 공고 공개연봉은 결측률이 높아 참고 표시 전용)*
 *   **현재 사용자 연봉:** `core.income_history`의 암호화 컬럼이 원천이며, 기준월 시점에 유효한(가장 늦은 `effective_date` $\le$ 기준월 말일) 세전 연봉이다. 결정 엔진은 이 컬럼을 직접 읽지 않고 `CurrentSalaryProvider`(구현체: `IncomeCurrentSalaryProvider`) 계약으로 받는다 — 복호화 경계를 소득 도메인 안에 둔다([API 규격 §5.1](api-specification.md)).
 *   **시장가치 지수 ($MVI_{recent}$):** 스킬 수요율 변화량 기준 (100점 기준값, 구현체: `MarketValueIndexServiceImpl`)
 *   **구매력 지수 ($PPI$):** 실질 구매력 수치 (100점 기준값, 구현체: `DefaultPurchasingPowerIndexProvider`). 소득지수 ÷ 개인물가 지수 × 100. 개인물가는 사용자 소비 가중치로 가중한 카테고리 CPI 변화율의 누적이다(§1.3).
