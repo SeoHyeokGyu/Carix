@@ -7,6 +7,7 @@ import com.carix.index.enums.SkillDemandStatus;
 import com.carix.index.mvi.PeerGroupFallbackResolver;
 import com.carix.index.mvi.SkillDemandCalculator;
 import com.carix.index.mvi.SkillDemandCalculator.SkillDemandResult;
+import com.carix.index.mvi.SkillWeightCalculator;
 import com.carix.jobposting.JobPosting;
 import com.carix.jobposting.JobPostingSkill;
 import com.carix.jobposting.JobPostingSkillRepository;
@@ -22,6 +23,7 @@ import com.carix.skill.dto.SkillRecommendationsResponse.CoOccurrenceInfo;
 import com.carix.skill.dto.SkillRecommendationsResponse.PeerGroupInfo;
 import com.carix.skill.dto.SkillRecommendationsResponse.SkillRecommendationItem;
 import com.carix.skill.repository.UserSkillRepository;
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -48,14 +50,17 @@ import org.springframework.transaction.annotation.Transactional;
 /**
  * 동료집단 기반 스킬 보강 추천 서비스 (API 규격 §5.6, 기능 명세 US-D6).
  *
- * <p>사용자의 동료집단 공고에서 수요율이 높으나 아직 보유하지 않은 스킬을 추천(기본 10개, 최대 30개)하고, 사용자의 기존 보유 스킬 중 공고 표본이 가장 풍부한 기준
- * 스킬과의 동시출현율(Co-occurrence Rate)을 근거로 제시합니다.
+ * <p>사용자의 동료집단 공고에서 수요율이 높으나 아직 보유하지 않은 스킬을 추천(기본 10개, 최대 30개)하고, 사용자의 기존 보유 스킬 중 가중치가 가장 높은(동률이면
+ * 공고가 많은) 기준 스킬과의 동시출현율(Co-occurrence Rate)을 근거로 제시합니다.
  */
 @Slf4j
 @Service
 @ReadOnlyRouting
 @RequiredArgsConstructor
 public class SkillRecommendationService {
+
+  /** 수집 태그의 성격 구분 값. 표준 스킬과 같은 {@code skill.category} 컬럼을 공유한다(ERD 스키마 설계 주석). */
+  static final Set<String> CRAWL_TAG_CATEGORIES = Set.of("SKILL", "JOB_CATEGORY", "INDUSTRY");
 
   public static final int DEFAULT_LIMIT = 10;
   public static final int MAX_LIMIT = 30;
@@ -85,6 +90,7 @@ public class SkillRecommendationService {
   private final PeerGroupFallbackResolver peerGroupFallbackResolver;
   private final SkillDemandCalculator skillDemandCalculator;
   private final MarketAggregateRepository marketAggregateRepository;
+  private final SkillWeightCalculator skillWeightCalculator;
   private final IndexThresholdProperties thresholds;
 
   /**
@@ -279,7 +285,7 @@ public class SkillRecommendationService {
   }
 
   /**
-   * 사용자 보유 표준 스킬 중 동료집단 공고에서 가장 빈번하게 등장하는 기준 스킬(Base Skill)을 도출합니다.
+   * 사용자 보유 표준 스킬 중 가중치가 가장 높은 기준 스킬(Base Skill)을 도출합니다. 동률이면 동료집단 공고 수가 많은 쪽이며, 공고에 없는 스킬은 제외합니다.
    *
    * @param userSkills 사용자 보유 스킬 목록
    * @param postingToSkillIds 공고별 스킬 ID 매핑
@@ -287,20 +293,30 @@ public class SkillRecommendationService {
    */
   private BaseSkillInfo resolveBaseSkill(
       List<UserSkill> userSkills, Map<UUID, Set<UUID>> postingToSkillIds) {
-    List<Skill> ownedStandardSkills =
+    List<UserSkill> ownedStandard =
         userSkills.stream()
-            .map(UserSkill::getSkill)
-            .filter(s -> s != null && !s.isCustom())
+            .filter(us -> us.getSkill() != null && !us.getSkill().isCustom())
             .toList();
+    // 기준 스킬은 사용자의 주력 스킬이어야 근거 문장이 설득력을 갖는다 — 공고 수 최다로 고르면 Java 개발자에게
+    // "AWS 공고의 N%"가 나왔다. 가중치는 시장가치 지수와 같은 사용 기간·최근 사용 가중치다.
+    Map<UUID, BigDecimal> weights =
+        skillWeightCalculator.calculateWeights(ownedStandard, resolveBaseYearMonth(), Set.of());
 
     Skill baseSkill = null;
+    BigDecimal maxWeight = null;
     int maxBasePostings = 0;
-
-    for (Skill ownedSkill : ownedStandardSkills) {
-      int count = countSkillPostings(ownedSkill.getId(), postingToSkillIds);
-      if (count > maxBasePostings) {
+    for (UserSkill owned : ownedStandard) {
+      Skill skill = owned.getSkill();
+      BigDecimal weight = weights.getOrDefault(skill.getId(), BigDecimal.ZERO);
+      int count = countSkillPostings(skill.getId(), postingToSkillIds);
+      if (count == 0) {
+        continue;
+      }
+      int byWeight = maxWeight == null ? 1 : weight.compareTo(maxWeight);
+      if (byWeight > 0 || (byWeight == 0 && count > maxBasePostings)) {
+        baseSkill = skill;
+        maxWeight = weight;
         maxBasePostings = count;
-        baseSkill = ownedSkill;
       }
     }
     return new BaseSkillInfo(baseSkill, maxBasePostings);
@@ -348,6 +364,9 @@ public class SkillRecommendationService {
         Skill skill = skillCatalog.get(sId);
         if (skill == null || skill.isCustom()) {
           continue; // 커스텀 스킬은 동료집단 공통 추천 대상에서 제외
+        }
+        if (skill.getCategory() != null && CRAWL_TAG_CATEGORIES.contains(skill.getCategory())) {
+          continue; // 수집 태그(직무·업종·일반 용어)는 배울 수 있는 스킬이 아니다
         }
         candidateCounts.put(sId, candidateCounts.getOrDefault(sId, 0) + 1);
       }
@@ -642,7 +661,7 @@ public class SkillRecommendationService {
       Map<UUID, Set<UUID>> postingToSkillIds, Map<UUID, Skill> skillCatalog) {}
 
   /**
-   * 사용자 보유 스킬 중 동료집단 공고 수가 가장 많은 기준 스킬(Base Skill) 정보.
+   * 사용자 보유 스킬 중 가중치 최상위(동률이면 공고 수 최다)인 기준 스킬(Base Skill) 정보.
    *
    * @param skill 기준 스킬 엔티티
    * @param postingCount 동료집단 내 해당 스킬이 요구된 공고 수
