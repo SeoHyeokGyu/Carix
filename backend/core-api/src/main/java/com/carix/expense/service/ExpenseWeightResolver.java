@@ -25,8 +25,8 @@ public class ExpenseWeightResolver {
   record ResolvedCategory(ExpenseCategoryEnum category, long amount, WeightStatusEnum status) {}
 
   /**
-   * 여러 달의 가중치를 한 번의 조회로 구한다. 기록 행이 없는 달은 행은 있는데 항목이 빈 달과 같다 — 앞선 완전 입력 달을 상속하고(§1.1 2단계), 그마저 없으면
-   * 기본 가중치다(3단계).
+   * 여러 달의 가중치를 한 번의 조회로 구한다. 기록 행이 없는 달은 행은 있는데 항목이 빈 달과 같다 — 앞선 완전 입력 달을 상속하고(§1.1 2단계), 앞선 입력이
+   * 없으면 가장 이른 완전 입력을 소급하며, 완전 입력이 하나도 없을 때만 기본 가중치다(3단계).
    */
   public Map<String, MonthlyWeights> resolveMonths(UUID userId, List<String> yearMonths) {
     List<ExpenseHistory> historiesDesc = repository.findByUserIdOrderByBaseYearMonthDesc(userId);
@@ -43,7 +43,7 @@ public class ExpenseWeightResolver {
     return result;
   }
 
-  private MonthlyWeights toWeights(List<ResolvedCategory> resolved) {
+  MonthlyWeights toWeights(List<ResolvedCategory> resolved) {
     long total = resolved.stream().mapToLong(ResolvedCategory::amount).sum();
     Map<ExpenseCategoryEnum, BigDecimal> defaults = defaultWeightProvider.getDefaultWeights();
     Map<ExpenseCategoryEnum, BigDecimal> weights = new EnumMap<>(ExpenseCategoryEnum.class);
@@ -119,15 +119,23 @@ public class ExpenseWeightResolver {
     return result;
   }
 
-  /** Step 2 — 과거 "완전 입력" 월 역탐색. Step 3 — 그마저 없으면 기본 가중치 전체 대체. */
+  /**
+   * Step 2 — 앞선 "완전 입력" 월을 상속하고, 앞선 입력이 없으면 가장 이른 완전 입력을 소급한다. Step 3 — 그마저 없으면 기본 가중치 전체 대체.
+   *
+   * <p>소급이 없으면 온보딩 소비(현재월 저장)보다 앞선 모든 달이 기본 가중치라 신규 사용자의 구매력 지수가 입력한 소비 구조와 무관해진다.
+   */
   private List<ResolvedCategory> propagateOrDefault(
       List<ExpenseHistory> historiesDesc, String baseYearMonth) {
+    List<ExpenseHistory> completeDesc = historiesDesc.stream().filter(this::isComplete).toList();
     Optional<ExpenseHistory> source =
-        historiesDesc.stream()
+        completeDesc.stream()
             .filter(h -> h.getBaseYearMonth().compareTo(baseYearMonth) < 0)
-            .filter(h -> h.getItems().size() == ExpenseCategoryEnum.values().length)
-            .filter(h -> sumOf(h) > 0)
-            .findFirst();
+            .findFirst()
+            .or(
+                () ->
+                    completeDesc.isEmpty()
+                        ? Optional.empty()
+                        : Optional.of(completeDesc.getLast()));
 
     if (source.isPresent()) {
       return source.get().getItems().stream()
@@ -142,6 +150,19 @@ public class ExpenseWeightResolver {
     return defaultWeightProvider.getDefaultWeights().keySet().stream()
         .map(category -> new ResolvedCategory(category, 0L, WeightStatusEnum.DEFAULT_CPI))
         .toList();
+  }
+
+  /** 가장 이른 완전 입력 월. 앞선 입력이 없는 달은 모두 이 달을 소급하므로, 이 값이 바뀌면 그 앞 달들의 가중치가 다 바뀐다. */
+  public Optional<String> earliestCompleteMonth(UUID userId) {
+    List<ExpenseHistory> historiesDesc = repository.findByUserIdOrderByBaseYearMonthDesc(userId);
+    List<ExpenseHistory> completeDesc = historiesDesc.stream().filter(this::isComplete).toList();
+    return completeDesc.isEmpty()
+        ? Optional.empty()
+        : Optional.of(completeDesc.getLast().getBaseYearMonth());
+  }
+
+  private boolean isComplete(ExpenseHistory h) {
+    return h.getItems().size() == ExpenseCategoryEnum.values().length && sumOf(h) > 0;
   }
 
   private long sumOf(ExpenseHistory h) {

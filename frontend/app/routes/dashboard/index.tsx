@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { InlineAlert } from "@/components/ui/inline-alert";
 import { TextLink } from "@/components/ui/text-link";
 
+import { ExpenseWeightBadge } from "../../components/dashboard/ExpenseWeightBadge";
 import { IndexCard } from "../../components/dashboard/IndexCard";
 import {
   MarketValueHelp,
@@ -270,6 +271,9 @@ export default function DashboardHome() {
                 detailHref={trendsSectionHref("income")}
                 footer={
                   <>
+                    <ExpenseWeightBadge
+                      status={data.metadata.expenseWeightStatus}
+                    />
                     <PriceDriverBadge driver={data.metadata.topPriceDriver} />
                     <PpiInputLine inputs={ppiInputs} />
                   </>

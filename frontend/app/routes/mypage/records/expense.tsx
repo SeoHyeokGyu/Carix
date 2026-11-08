@@ -23,6 +23,11 @@ import {
 import { type Tone, ToneBadge } from "@/components/ui/tone-badge";
 
 import {
+  keepUntouchedAmount,
+  parseAmountInput,
+  savedAmountFrom,
+} from "../../../lib/amountInput";
+import {
   type ExpenseItemStatus,
   listExpenses,
   putExpenses,
@@ -44,6 +49,9 @@ import {
   isFutureYearMonth,
   toWireYearMonth,
 } from "../../../lib/yearMonth";
+
+/** 소득과 같은 만원 단위로 받고 서버에는 원으로 보낸다. */
+const MANWON = 10_000;
 
 type ActionData = { errors: FieldErrors } | null;
 
@@ -141,10 +149,18 @@ export async function clientAction({ request }: { request: Request }) {
   // 검증은 expenseSchema(app/lib/schemas/expense.ts) 하나로만 한다 — 화면마다
   // 범위 숫자를 다시 적지 않는다(onboarding/expense.tsx 와 같은 규약).
   const items = EXPENSE_CATEGORIES.flatMap((category) => {
-    const raw = String(formData.get(`amount-${category.value}`) ?? "").trim();
-    if (raw === "") return [];
+    const entered = parseAmountInput(
+      String(formData.get(`amount-${category.value}`) ?? ""),
+    );
+    if (entered === null) return [];
     return [
-      { category: category.value, amount: Number(raw.replace(/,/g, "")) },
+      {
+        category: category.value,
+        amount: keepUntouchedAmount(
+          entered * MANWON,
+          savedAmountFrom(formData, category.value),
+        ),
+      },
     ];
   });
 
@@ -241,17 +257,24 @@ export default function RecordsExpense() {
       // DEFAULT_CPI 는 사용자가 넣은 값이 아니다 — 폼을 서버 보간값으로 채우면
       // 저장할 때 그 값이 사용자 입력으로 굳어버린다. 빈 칸으로 연다.
       if (item.status === "USER_DEFINED")
-        next[item.category] = String(item.amount);
+        next[item.category] = String(Math.round(item.amount / MANWON));
     }
     setAmounts(next);
     setEditing(wire);
   };
 
+  // 손대지 않은 칸이 반올림 값으로 다시 저장되지 않도록 원 단위 저장값을 숨은 칸으로 함께 보낸다.
+  const savedUserAmounts: Record<string, number> = Object.fromEntries(
+    (months.find((m) => m.baseYearMonth === editing)?.items ?? [])
+      .filter((item) => item.status === "USER_DEFINED")
+      .map((item) => [item.category, item.amount]),
+  );
+
   const isNewMonth =
     editing !== null && !months.some((m) => m.baseYearMonth === editing);
 
   const total = Object.values(amounts).reduce(
-    (sum, value) => sum + (Number(value.replace(/,/g, "")) || 0),
+    (sum, value) => sum + (parseAmountInput(value) ?? 0) * MANWON,
     0,
   );
   const exceedsNet = latestNet !== null && total > latestNet;
@@ -390,27 +413,36 @@ export default function RecordsExpense() {
                     <div className="flex-1">
                       <Field
                         id={`amount-${category.value}`}
-                        label={category.label}
+                        label={`${category.label} (만원/월)`}
                         error={fieldError}
                       >
                         {(aria) => (
-                          <Input
-                            {...aria}
-                            name={`amount-${category.value}`}
-                            type="text"
-                            inputMode="numeric"
-                            placeholder="미입력 시 통계청 평균으로 보간됩니다"
-                            value={amounts[category.value] ?? ""}
-                            onChange={(e) =>
-                              setAmounts((prev) => ({
-                                ...prev,
-                                [category.value]: e.target.value.replace(
-                                  /[^0-9]/g,
-                                  "",
-                                ),
-                              }))
-                            }
-                          />
+                          <>
+                            {savedUserAmounts[category.value] !== undefined && (
+                              <input
+                                type="hidden"
+                                name={`saved-${category.value}`}
+                                value={savedUserAmounts[category.value]}
+                              />
+                            )}
+                            <Input
+                              {...aria}
+                              name={`amount-${category.value}`}
+                              type="text"
+                              inputMode="numeric"
+                              placeholder="미입력 시 통계청 평균으로 보간됩니다"
+                              value={amounts[category.value] ?? ""}
+                              onChange={(e) =>
+                                setAmounts((prev) => ({
+                                  ...prev,
+                                  [category.value]: e.target.value.replace(
+                                    /[^0-9]/g,
+                                    "",
+                                  ),
+                                }))
+                              }
+                            />
+                          </>
                         )}
                       </Field>
                     </div>

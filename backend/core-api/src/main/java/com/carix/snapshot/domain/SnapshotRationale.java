@@ -36,6 +36,8 @@ import java.util.List;
  * @param topPriceDriver 물가 기여도 1위 카테고리 (c12). 산출 불가 또는 이 필드 도입 전 행은 {@code null}. 금액을 담지 않는다
  * @param ppiFormulaVersion 구매력 지수 산식 버전. 이 필드 도입 전 행은 {@code null} 로 읽히며 {@link
  *     #ppiFormulaVersionOrLegacy()} 가 {@code "1"} 로 돌려준다. 저장된 행은 다시 쓰지 않는다
+ * @param expenseWeightStatus 그 달 구매력 지수를 만든 소비 가중치 상태({@code ExpenseWeightStatus} 이름). 표시된 숫자와 같은
+ *     가중치를 말해야 하므로 조회 때 다시 계산하지 않고 저장한다. 이 필드 도입 전 행은 {@code null} 이고 뱃지를 그리지 않는다
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
 public record SnapshotRationale(
@@ -52,10 +54,44 @@ public record SnapshotRationale(
     OpeningWindowEvidence openingWindow,
     String wageStatSource,
     TopPriceDriver topPriceDriver,
-    String ppiFormulaVersion) {
+    String ppiFormulaVersion,
+    String expenseWeightStatus) {
 
   /** 구매력 지수 산식 버전이 없는 행(도입 전)이 읽힐 때의 버전. */
   public static final String LEGACY_PPI_FORMULA_VERSION = "1";
+
+  public SnapshotRationale(
+      List<String> rulesApplied,
+      String salaryGapBucket,
+      List<SourceCoverage> sourceCoverages,
+      List<SkillContribution> skillContributions,
+      List<String> excludedSkills,
+      LocalDate cpiAsOf,
+      LocalDate aggregateAsOf,
+      String wageStatVintage,
+      String runId,
+      IndexStatuses indexStatuses,
+      OpeningWindowEvidence openingWindow,
+      String wageStatSource,
+      TopPriceDriver topPriceDriver,
+      String ppiFormulaVersion) {
+    this(
+        rulesApplied,
+        salaryGapBucket,
+        sourceCoverages,
+        skillContributions,
+        excludedSkills,
+        cpiAsOf,
+        aggregateAsOf,
+        wageStatVintage,
+        runId,
+        indexStatuses,
+        openingWindow,
+        wageStatSource,
+        topPriceDriver,
+        ppiFormulaVersion,
+        null);
+  }
 
   public SnapshotRationale(
       List<String> rulesApplied,

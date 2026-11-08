@@ -94,9 +94,9 @@ describe("소비 탭 (S-12)", () => {
 
     // 202607 은 HOUSING·FOOD 만 USER_DEFINED 라 폼을 열면 이 둘만 채워진다 —
     // items 는 [HOUSING, FOOD] 순서로 나가므로 HOUSING 오류는 items.0.amount 다.
-    const housing = screen.getByLabelText("주거·공공요금");
+    const housing = screen.getByLabelText("주거·공공요금 (만원/월)");
     await user.clear(housing);
-    await user.type(housing, "60000000");
+    await user.type(housing, "6000"); // 6천만 원 — 5천만 원 초과
     await user.click(screen.getByRole("button", { name: "저장" }));
 
     // 이전에는 범위를 벗어난 값을 조용히 버려 items 에서 뺐다 — 그러면 사용자가
@@ -116,9 +116,9 @@ describe("소비 탭 (S-12)", () => {
       (await screen.findAllByRole("button", { name: "수정" }))[0],
     );
 
-    const housing = screen.getByLabelText("주거·공공요금");
+    const housing = screen.getByLabelText("주거·공공요금 (만원/월)");
     await user.clear(housing);
-    await user.type(housing, "9000000");
+    await user.type(housing, "900");
 
     expect(
       await screen.findByText(/월 실수령액을 초과합니다/),

@@ -55,7 +55,8 @@ public class AppliedExpenseService {
 
     List<ExpenseWeightResolver.ResolvedCategory> resolved = resolver.resolve(history);
     boolean hasAmountBasis = hasAmountBasis(resolved);
-    Map<ExpenseCategoryEnum, BigDecimal> weights = weightProvider.getDefaultWeights();
+    // 금액과 같은 소비 구조를 말해야 한다 — 기본 가중치를 실으면 입력 금액과 가중치가 서로 다른 구조가 된다.
+    Map<ExpenseCategoryEnum, BigDecimal> weights = resolver.toWeights(resolved).weights();
 
     List<AppliedExpenseResponse.Category> categories =
         resolved.stream()

@@ -6,6 +6,7 @@ import com.carix.expense.dto.ExpenseItem;
 import com.carix.expense.dto.ExpenseUpdateRequest;
 import com.carix.expense.exception.InvalidExpenseCategoryException;
 import com.carix.expense.repository.ExpenseHistoryRepository;
+import com.carix.snapshot.SnapshotRangeResolver;
 import com.carix.snapshot.SnapshotRecalculationRequested;
 import java.util.*;
 import org.springframework.context.ApplicationEventPublisher;
@@ -18,14 +19,17 @@ public class ExpenseService {
   private final ExpenseHistoryRepository repository;
   private final ApplicationEventPublisher eventPublisher;
   private final ExpenseWeightResolver weightResolver;
+  private final SnapshotRangeResolver rangeResolver;
 
   public ExpenseService(
       ExpenseHistoryRepository repository,
       ApplicationEventPublisher eventPublisher,
-      ExpenseWeightResolver weightResolver) {
+      ExpenseWeightResolver weightResolver,
+      SnapshotRangeResolver rangeResolver) {
     this.repository = repository;
     this.eventPublisher = eventPublisher;
     this.weightResolver = weightResolver;
+    this.rangeResolver = rangeResolver;
   }
 
   public List<ExpenseHistoryResponse> getHistory(UUID userId) {
@@ -43,6 +47,7 @@ public class ExpenseService {
       items.add(new ExpenseItemEntity(category, item.amount()));
     }
 
+    Optional<String> earliestBefore = weightResolver.earliestCompleteMonth(userId);
     ExpenseHistory history =
         repository
             .findByUserIdAndBaseYearMonth(userId, baseYearMonth)
@@ -50,7 +55,14 @@ public class ExpenseService {
     history.replaceItems(items);
     var saved = repository.save(history);
 
-    eventPublisher.publishEvent(new SnapshotRecalculationRequested(userId, baseYearMonth));
+    // 가장 이른 완전 입력이 바뀌거나 그 달 자체를 고치면 그 앞 달 전부가 새 입력을 소급하므로 최초 소득월부터 다시 계산한다.
+    Optional<String> earliestAfter = weightResolver.earliestCompleteMonth(userId);
+    boolean touchesEarliest =
+        !earliestAfter.equals(earliestBefore)
+            || earliestBefore.filter(baseYearMonth::equals).isPresent()
+            || earliestAfter.filter(baseYearMonth::equals).isPresent();
+    String fromYearMonth = touchesEarliest ? rangeResolver.earliestFrom(userId) : baseYearMonth;
+    eventPublisher.publishEvent(new SnapshotRecalculationRequested(userId, fromYearMonth));
     return toResponse(saved);
   }
 

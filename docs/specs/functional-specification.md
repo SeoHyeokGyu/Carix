@@ -164,7 +164,7 @@ DB 스키마는 [ERD](erd.md), REST 계약은 [API 규격](api-specification.md)
 - Given 각 지표 카드 / When 근거 펼치기 / Then 적용된 규칙, 사용 데이터 기준일, 규칙 버전, 제외된 데이터와 이유를 표시한다.
 - Given 품목별 CPI 와 사용자 소비 가중치 / When 구매력 지수 카드 표시 / Then 6대 카테고리 중 **그 사용자의 물가 상승에 가장 크게 기여한 1위 품목**을 뱃지로 함께 표시한다(예: `교통비 부담률 최대 상승`). 기여도는 `카테고리 가중치 × 그 품목 CPI 변화`이며, 원자료 CPI 가 아니라 계산된 값이다.
 - Given 품목별 CPI 결측 또는 기여도 산출 불가 / When 카드 표시 / Then 뱃지를 표시하지 않는다. 임의 품목을 고르지 않는다.
-- Given 소비 가중치 상태 / When 지수 표시 / Then `내 지출 기준`, `일부 추정 포함`, `이전 지출 기준`, `통계청 평균 기준` 중 해당 뱃지를 함께 표시한다 (enum 4종: `USER_DEFINED`/`PARTIALLY_ESTIMATED`/`PROPAGATED`/`DEFAULT_CPI`).
+- Given 소비 가중치 상태 / When 지수 표시 / Then `내 지출 기준`, `일부 추정 포함`, `입력한 지출 기준`, `통계청 평균 기준` 중 해당 뱃지를 함께 표시한다 (enum 4종: `USER_DEFINED`/`PARTIALLY_ESTIMATED`/`PROPAGATED`/`DEFAULT_CPI`).
 - Given 대시보드 헤더 / When [지표 재계산] 버튼 클릭 / Then `POST /api/v1/dashboard/recalculate`를 비동기 호출하여 최초 유효월부터 현재까지의 스냅샷을 멱등하게 소급 재계산하고 대시보드 지표를 즉시 새로고침한다.
 - Given 상단 유틸리티 메뉴 / When '도움말' 클릭 / Then `/dashboard/guide` (S-17) 화면으로 진입하여 상세 산출 공식, 결정 신호 의미, FAQ를 확인한다.
 - Given 성과급 수령 기록이 있음 / When 지표 카드 그리드 아래 / Then 「성과급 포함 연간 실소득」 실질 변화율과 최근 12개월 반영 건수를 한 줄로 표시한다. 최근 12개월 소득(고정급 + 성과급)을 직전 12개월 소득과 견주고 12개월 개인물가 상승률로 나눈 값이며, 구매력 지수에는 섞지 않는다. 정의와 산식은 [API 명세 §5.1](api-specification.md) `bonusInclusiveIncome`.

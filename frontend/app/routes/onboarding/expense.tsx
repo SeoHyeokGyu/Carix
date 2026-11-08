@@ -20,7 +20,9 @@ import { ExpenseDonut } from "../../components/expense/ExpenseDonut";
 import { onboardingStepLabel } from "../../components/onboarding/StepIndicator";
 import {
   formatAmountInput,
+  keepUntouchedAmount,
   parseAmountInput,
+  savedAmountFrom,
   withPlainAmounts,
 } from "../../lib/amountInput";
 import {
@@ -45,6 +47,9 @@ import {
 } from "../../lib/schemas/expense";
 import { requireSession, setSession } from "../../lib/session";
 import { currentYearMonth } from "../../lib/yearMonth";
+
+/** 소득과 같은 만원 단위로 받고 서버에는 원으로 보낸다. */
+const MANWON = 10_000;
 
 type ActionData = { errors: FieldErrors } | null;
 
@@ -105,7 +110,9 @@ export async function clientLoader() {
       statuses[item.category] = item.status;
       savedAmounts[item.category] = item.amount;
       if (item.status === "USER_DEFINED") {
-        amounts[item.category] = formatAmountInput(String(item.amount));
+        amounts[item.category] = formatAmountInput(
+          String(Math.round(item.amount / MANWON)),
+        );
       }
     }
 
@@ -135,14 +142,20 @@ export async function clientAction({ request }: { request: Request }) {
   // 여기서 카테고리 고정 순서로 훑으며 "실제로 값이 있는" 카테고리만 items 로
   // 옮긴다. 명시적 "0" 은 유효한 값(진짜 지출 없음)이라 남고, 빈 문자열만 빠진다.
   const categoryNames = EXPENSE_CATEGORIES.map((category) => category.value);
-  const raw = formDataToObject(withPlainAmounts(formData, categoryNames), {
-    numeric: EXPENSE_CATEGORIES.map((category) => category.value),
-  });
+  const raw = formDataToObject(
+    withPlainAmounts(formData, categoryNames, MANWON),
+    {
+      numeric: EXPENSE_CATEGORIES.map((category) => category.value),
+    },
+  );
   const items = EXPENSE_CATEGORIES.filter(
     (category) => category.value in raw,
   ).map((category) => ({
     category: category.value,
-    amount: raw[category.value] as number,
+    amount: keepUntouchedAmount(
+      raw[category.value] as number,
+      savedAmountFrom(formData, category.value),
+    ),
   }));
 
   // 메시지 맵을 items 길이만큼 동적으로 만든다 — 카테고리 개수가 고정이라도
@@ -211,7 +224,7 @@ export default function Expense() {
   // 보간한) 값은 사용자가 지금 선언하는 지출이 아니므로 합계에 넣지 않는다.
   const enteredTotal = EXPENSE_CATEGORIES.reduce(
     (sum, category) =>
-      sum + (parseAmountInput(amounts[category.value] ?? "") ?? 0),
+      sum + (parseAmountInput(amounts[category.value] ?? "") ?? 0) * MANWON,
     0,
   );
   const overBudget = takeHome != null && enteredTotal > takeHome;
@@ -224,7 +237,7 @@ export default function Expense() {
   const donutItems = EXPENSE_CATEGORIES.map((category) => {
     const entered = parseAmountInput(amounts[category.value] ?? "");
     if (entered !== null) {
-      return { category: category.value, amount: entered };
+      return { category: category.value, amount: entered * MANWON };
     }
     const saved = savedAmounts[category.value];
     return saved === undefined
@@ -257,16 +270,24 @@ export default function Expense() {
                 <Field
                   key={category.value}
                   id={`amount-${category.value}`}
-                  label={`${category.label} (원/월)`}
+                  label={`${category.label} (만원/월)`}
                   hint={
                     entered === null
                       ? undefined
-                      : `= ${formatKoreanSalary(entered)}`
+                      : `= ${formatKoreanSalary(entered * MANWON)}`
                   }
                   error={fieldError}
                 >
                   {(aria) => (
                     <div className="flex items-center gap-2">
+                      {statuses[category.value] === "USER_DEFINED" &&
+                        savedAmounts[category.value] !== undefined && (
+                          <input
+                            type="hidden"
+                            name={`saved-${category.value}`}
+                            value={savedAmounts[category.value]}
+                          />
+                        )}
                       <Input
                         {...aria}
                         aria-describedby={
