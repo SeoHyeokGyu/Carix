@@ -20,7 +20,9 @@ import { ExpenseDonut } from "../../components/expense/ExpenseDonut";
 import { onboardingStepLabel } from "../../components/onboarding/StepIndicator";
 import {
   formatAmountInput,
+  keepUntouchedAmount,
   parseAmountInput,
+  savedAmountFrom,
   withPlainAmounts,
 } from "../../lib/amountInput";
 import {
@@ -150,7 +152,10 @@ export async function clientAction({ request }: { request: Request }) {
     (category) => category.value in raw,
   ).map((category) => ({
     category: category.value,
-    amount: raw[category.value] as number,
+    amount: keepUntouchedAmount(
+      raw[category.value] as number,
+      savedAmountFrom(formData, category.value),
+    ),
   }));
 
   // 메시지 맵을 items 길이만큼 동적으로 만든다 — 카테고리 개수가 고정이라도
@@ -275,6 +280,14 @@ export default function Expense() {
                 >
                   {(aria) => (
                     <div className="flex items-center gap-2">
+                      {statuses[category.value] === "USER_DEFINED" &&
+                        savedAmounts[category.value] !== undefined && (
+                          <input
+                            type="hidden"
+                            name={`saved-${category.value}`}
+                            value={savedAmounts[category.value]}
+                          />
+                        )}
                       <Input
                         {...aria}
                         aria-describedby={

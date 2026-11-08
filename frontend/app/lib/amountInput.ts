@@ -37,3 +37,28 @@ export function withPlainAmounts(
   }
   return next;
 }
+
+const MANWON = 10_000;
+
+/**
+ * 만원 칸에서 다시 제출된 금액(원)이 저장값을 반올림해 보여준 그대로면 원래 원 단위 값을 돌려준다.
+ * 화면이 만원 단위로 바뀌기 전에 원 단위로 저장된 값이, 사용자가 손대지 않았는데 반올림 값으로
+ * 바뀌어 저장되지 않게 한다. 고쳤거나 저장값이 없으면 입력값 그대로다.
+ */
+export function keepUntouchedAmount(
+  enteredWon: number,
+  savedWon: number | null,
+): number {
+  if (savedWon === null) return enteredWon;
+  return Math.round(savedWon / MANWON) * MANWON === enteredWon
+    ? savedWon
+    : enteredWon;
+}
+
+/** 폼의 숨은 칸(`saved-<카테고리>`)에 실어 둔 저장값(원)을 읽는다. 없으면 `null`. */
+export function savedAmountFrom(
+  formData: FormData,
+  category: string,
+): number | null {
+  return parseAmountInput(String(formData.get(`saved-${category}`) ?? ""));
+}
