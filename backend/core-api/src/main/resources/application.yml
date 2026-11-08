@@ -105,3 +105,10 @@ carix:
       daily-upper-limit: 66000
       daily-lower-limit: 60120
       assumption-as-of: "2026-01"
+
+logging:
+  level:
+    # Hibernate 가 SQL 오류를 WARN 으로 남길 때 PostgreSQL 의 Detail 줄까지 그대로 찍는다 — 유일 제약 위반이면
+    # `Key (user_id, base_year_month)=(<uuid>, …)` 처럼 사용자 ID 가 로그에 남는다(운영 실측). 예외는 그대로 위로
+    # 올라가 GlobalExceptionHandler 가 종류만 기록하므로 이 로거의 경고는 끈다.
+    org.hibernate.orm.jdbc.error: ERROR
