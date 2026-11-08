@@ -53,7 +53,8 @@ public class ExpenseService {
             .findByUserIdAndBaseYearMonth(userId, baseYearMonth)
             .orElseGet(() -> new ExpenseHistory(userId, baseYearMonth));
     history.replaceItems(items);
-    var saved = repository.save(history);
+    // 즉시 flush 해 첫 저장 경합의 유일 제약 위반이 이 트랜잭션 안에서 드러나게 한다. 재시도는 호출자가 트랜잭션 밖에서 한다.
+    var saved = repository.saveAndFlush(history);
 
     // 가장 이른 완전 입력이 바뀌거나 그 달 자체를 고치면 그 앞 달 전부가 새 입력을 소급하므로 최초 소득월부터 다시 계산한다.
     Optional<String> earliestAfter = weightResolver.earliestCompleteMonth(userId);

@@ -70,7 +70,7 @@ class ExpenseServiceTest {
 
     given(repository.findByUserIdAndBaseYearMonth(userId, baseYearMonth))
         .willReturn(Optional.empty());
-    given(repository.save(any(ExpenseHistory.class)))
+    given(repository.saveAndFlush(any(ExpenseHistory.class)))
         .willAnswer(invocation -> invocation.getArgument(0));
     given(weightResolver.resolve(any(ExpenseHistory.class)))
         .willReturn(
@@ -92,7 +92,7 @@ class ExpenseServiceTest {
     // 저장은 입력한 2개만 — 6개 보완 행을 만들지 않는다
     ArgumentCaptor<ExpenseHistory> captor = ArgumentCaptor.forClass(ExpenseHistory.class);
     InOrder inOrder = inOrder(repository, eventPublisher);
-    inOrder.verify(repository).save(captor.capture());
+    inOrder.verify(repository).saveAndFlush(captor.capture());
     inOrder
         .verify(eventPublisher)
         .publishEvent(new SnapshotRecalculationRequested(userId, baseYearMonth));
