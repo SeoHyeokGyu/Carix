@@ -19,6 +19,7 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.Pattern;
 import java.util.List;
 import java.util.UUID;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -94,8 +95,14 @@ public class ExpenseController {
           @Schema(description = "기준 년월 (YYYYMM)", example = "202607")
           String baseYearMonth,
       @Valid @RequestBody ExpenseUpdateRequest request) {
-    return ResponseEntity.ok(
-        ApiResult.success(
-            expenseService.upsert(userId, baseYearMonth, request), "지출 정보가 업데이트되었습니다."));
+    ExpenseHistoryResponse saved;
+    try {
+      saved = expenseService.upsert(userId, baseYearMonth, request);
+    } catch (DataIntegrityViolationException e) {
+      // 그 달 첫 저장이 동시에 두 번 온 경우. 실패한 트랜잭션은 복구할 수 없어 밖에서 한 번만 다시 한다 —
+      // 새 트랜잭션은 먼저 들어간 행을 찾아 고친다(ScenarioController 초안 저장과 같은 방식).
+      saved = expenseService.upsert(userId, baseYearMonth, request);
+    }
+    return ResponseEntity.ok(ApiResult.success(saved, "지출 정보가 업데이트되었습니다."));
   }
 }

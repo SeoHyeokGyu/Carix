@@ -4,6 +4,9 @@ import com.carix.income.exception.InvalidPaidMonthException;
 import com.carix.profile.exception.InvalidHireDateException;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
@@ -19,6 +22,20 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
  */
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+
+  private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
+
+  /**
+   * 재시도 뒤에도 남은 무결성 위반(동시 저장 경합 등). 기본 처리는 500 과 함께 DB 메시지를 로그에 그대로 남기는데, 유일 제약 위반 문구의 {@code Key
+   * (user_id, …)=(…)} 에 사용자 ID 가 들어 있다. 응답과 로그 모두 예외 종류만 남긴다.
+   */
+  @ExceptionHandler(DataIntegrityViolationException.class)
+  public ResponseEntity<ErrorResponse> handleDataIntegrityViolation(
+      DataIntegrityViolationException e) {
+    log.warn("데이터 무결성 위반: {}", e.getMostSpecificCause().getClass().getName());
+    return ResponseEntity.status(HttpStatus.CONFLICT)
+        .body(ErrorResponse.of("CONFLICT", "같은 내용이 동시에 저장되었습니다. 다시 시도해 주세요.", null));
+  }
 
   @ExceptionHandler(MethodArgumentNotValidException.class)
   public ResponseEntity<ErrorResponse> handleValidation(MethodArgumentNotValidException e) {

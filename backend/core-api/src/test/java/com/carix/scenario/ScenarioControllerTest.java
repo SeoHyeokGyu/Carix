@@ -1,6 +1,5 @@
 package com.carix.scenario;
 
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
@@ -101,7 +100,7 @@ class ScenarioControllerTest {
   }
 
   @Test
-  @DisplayName("PUT /v1/scenarios/draft - 동시 첫 저장 충돌은 한 번 다시 해 204, 다시 충돌하면 오류가 전파된다")
+  @DisplayName("PUT /v1/scenarios/draft - 동시 첫 저장 충돌은 한 번 다시 해 204, 다시 충돌하면 409")
   void saveDraft_동시저장_재시도() throws Exception {
     String body = "{\"stay\":{\"raisePercent\":3}}";
     doThrow(new DataIntegrityViolationException("uk_draft"))
@@ -122,14 +121,14 @@ class ScenarioControllerTest {
         .when(scenarioService)
         .saveDraft(eq(USER_ID), any(EvaluateRequest.class));
 
-    assertThatThrownBy(
-            () ->
-                mockMvc.perform(
-                    put("/v1/scenarios/draft")
-                        .header("X-User-Id", USER_ID.toString())
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(body)))
-        .hasRootCauseInstanceOf(DataIntegrityViolationException.class);
+    // 다시 충돌해도 500 이 아니라 409 다 — 공통 처리기가 DB 메시지(사용자 ID 포함)를 싣지 않고 답한다.
+    mockMvc
+        .perform(
+            put("/v1/scenarios/draft")
+                .header("X-User-Id", USER_ID.toString())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(body))
+        .andExpect(status().isConflict());
   }
 
   private SimulationResponse response() {
