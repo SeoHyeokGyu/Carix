@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
 
 public interface IndexSnapshotRepository extends JpaRepository<IndexSnapshot, UUID> {
 
@@ -18,4 +19,7 @@ public interface IndexSnapshotRepository extends JpaRepository<IndexSnapshot, UU
   List<IndexSnapshot> findByUserIdAndBaseYearMonth(UUID userId, String baseYearMonth);
 
   void deleteByUserId(UUID userId);
+
+  @Query("select distinct s.userId from IndexSnapshot s")
+  List<UUID> findDistinctUserIds();
 }

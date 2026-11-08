@@ -18,7 +18,6 @@ import com.carix.skill.exception.UserSkillNotFoundException;
 import com.carix.skill.repository.SkillAliasRepository;
 import com.carix.skill.repository.SkillRepository;
 import com.carix.skill.repository.UserSkillRepository;
-import com.carix.snapshot.SnapshotRecalculationService;
 import java.time.LocalDate;
 import java.util.Optional;
 import java.util.UUID;
@@ -28,6 +27,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 
 @ExtendWith(MockitoExtension.class)
 class SkillServiceTest {
@@ -35,7 +35,7 @@ class SkillServiceTest {
   @Mock private SkillRepository skillRepository;
   @Mock private SkillAliasRepository skillAliasRepository;
   @Mock private UserSkillRepository userSkillRepository;
-  @Mock private SnapshotRecalculationService snapshotRecalculationService;
+  @Mock private ApplicationEventPublisher eventPublisher;
 
   @InjectMocks private SkillService skillService;
 

@@ -24,8 +24,10 @@ import com.carix.income.repository.IncomeHistoryRepository;
 import com.carix.index.mvi.MarketValueIndexServiceImpl;
 import com.carix.index.mvi.MarketValueIndexServiceImpl.SkillDemandDetailData;
 import com.carix.index.mvi.MarketValueIndexServiceImpl.SkillSourceStatData;
+import com.carix.snapshot.SnapshotRangeResolver;
 import com.carix.snapshot.SnapshotRecalculationService;
 import com.carix.snapshot.YearMonths;
+import com.carix.snapshot.repository.IndexSnapshotRepository;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
@@ -66,8 +68,9 @@ class DashboardControllerTest {
                     dashboardSummaryService,
                     snapshotSeriesService,
                     snapshotRecalculationService,
-                    incomeHistoryRepository,
-                    wageGrowthService))
+                    new SnapshotRangeResolver(incomeHistoryRepository),
+                    wageGrowthService,
+                    mock(IndexSnapshotRepository.class)))
             .setCustomArgumentResolvers(new UserContextArgumentResolver())
             .build();
   }

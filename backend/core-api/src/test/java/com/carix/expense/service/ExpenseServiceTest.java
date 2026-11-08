@@ -29,7 +29,7 @@ import com.carix.expense.dto.ExpenseUpdateRequest;
 import com.carix.expense.exception.InvalidExpenseCategoryException;
 import com.carix.expense.repository.ExpenseHistoryRepository;
 import com.carix.expense.service.ExpenseWeightResolver.ResolvedCategory;
-import com.carix.snapshot.SnapshotRecalculationService;
+import com.carix.snapshot.SnapshotRecalculationRequested;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -38,6 +38,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InOrder;
+import org.springframework.context.ApplicationEventPublisher;
 
 /**
  * 저장 경로(upsert)는 "사용자가 입력한 카테고리만 행으로 존재"하는 것을 검증한다. 6개 채우기·상태 도출은 ExpenseWeightResolver 몫이라 여기서는
@@ -46,16 +47,16 @@ import org.mockito.InOrder;
 class ExpenseServiceTest {
 
   private ExpenseHistoryRepository repository;
-  private SnapshotRecalculationService snapshotRecalculationService;
+  private ApplicationEventPublisher eventPublisher;
   private ExpenseWeightResolver weightResolver;
   private ExpenseService expenseService;
 
   @BeforeEach
   void setUp() {
     repository = mock(ExpenseHistoryRepository.class);
-    snapshotRecalculationService = mock(SnapshotRecalculationService.class);
+    eventPublisher = mock(ApplicationEventPublisher.class);
     weightResolver = mock(ExpenseWeightResolver.class);
-    expenseService = new ExpenseService(repository, snapshotRecalculationService, weightResolver);
+    expenseService = new ExpenseService(repository, eventPublisher, weightResolver);
   }
 
   @Test
@@ -87,9 +88,11 @@ class ExpenseServiceTest {
 
     // 저장은 입력한 2개만 — 6개 보완 행을 만들지 않는다
     ArgumentCaptor<ExpenseHistory> captor = ArgumentCaptor.forClass(ExpenseHistory.class);
-    InOrder inOrder = inOrder(repository, snapshotRecalculationService);
+    InOrder inOrder = inOrder(repository, eventPublisher);
     inOrder.verify(repository).save(captor.capture());
-    inOrder.verify(snapshotRecalculationService).recalculateSnapshot(userId, baseYearMonth);
+    inOrder
+        .verify(eventPublisher)
+        .publishEvent(new SnapshotRecalculationRequested(userId, baseYearMonth));
 
     assertThat(captor.getValue().getItems())
         .extracting(ExpenseItemEntity::getCategory, ExpenseItemEntity::getAmount)
@@ -121,7 +124,7 @@ class ExpenseServiceTest {
         .isInstanceOf(InvalidExpenseCategoryException.class);
 
     verify(repository, never()).save(any(ExpenseHistory.class));
-    verifyNoInteractions(snapshotRecalculationService);
+    verifyNoInteractions(eventPublisher);
   }
 
   // ---------------------------------------------------------------------------

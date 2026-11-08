@@ -1,7 +1,6 @@
 package com.carix.snapshot;
 
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -27,12 +26,14 @@ import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.context.ApplicationEventPublisher;
 
 /**
  * 스냅샷 재계산 트리거 배선 검증 (기술 명세 §1.3).
  *
  * <p>엔진은 1~2주차에 착지했으나 호출자가 없어 {@code core.index_snapshot} 에 행이 생기지 않았다. 계약(기술 명세 §1.3)이 규정한 네 경로 —
- * 소득·소비(A), 스킬(B), 프로필(C) — 이 변경 시 {@code recalculateSnapshot(userId, fromYm)} 을 부르는지 확인한다.
+ * 소득·소비(A), 스킬(B), 프로필(C) — 이 변경 시 {@code SnapshotRecalculationRequested(userId, fromYm)} 을 발행하는지
+ * 확인한다.
  *
  * <p>{@code fromYm} 규약: 값에 유효월이 있으면(소득·소비) 그 달, 없으면(스킬·프로필) 변경 시점의 달이다. 기술 명세 §1.3 의 "해당 시점 이후의
  * 스냅샷을 갱신"을 그대로 읽은 것이다.
@@ -41,11 +42,11 @@ class SnapshotTriggerWiringTest {
 
   private static final UUID USER_ID = UUID.randomUUID();
 
-  private SnapshotRecalculationService recalculation;
+  private ApplicationEventPublisher eventPublisher;
 
   @BeforeEach
   void setUp() {
-    recalculation = mock(SnapshotRecalculationService.class);
+    eventPublisher = mock(ApplicationEventPublisher.class);
   }
 
   @Test
@@ -56,7 +57,7 @@ class SnapshotTriggerWiringTest {
         new IncomeHistory(USER_ID, 60_000_000L, 4_000_000L, LocalDate.of(2026, 5, 1), null);
     given(repository.findById(any())).willReturn(Optional.of(entity));
     given(repository.existsByUserIdAndEffectiveDateAndIdNot(any(), any(), any())).willReturn(false);
-    IncomeService service = new IncomeService(repository, recalculation);
+    IncomeService service = new IncomeService(repository, eventPublisher);
 
     service.update(
         USER_ID,
@@ -64,7 +65,7 @@ class SnapshotTriggerWiringTest {
         new IncomeRequest(70_000_000L, 4_600_000L, LocalDate.of(2026, 2, 1), null));
 
     // 5월 → 2월로 당겼으면 2월부터 다시 계산해야 한다. 새 값만 보면 3~4월이 옛 연봉으로 남는다.
-    verify(recalculation).recalculateSnapshot(USER_ID, "202602");
+    verify(eventPublisher).publishEvent(new SnapshotRecalculationRequested(USER_ID, "202602"));
   }
 
   @Test
@@ -85,11 +86,12 @@ class SnapshotTriggerWiringTest {
             mock(SkillRepository.class),
             mock(SkillAliasRepository.class),
             userSkillRepository,
-            recalculation);
+            eventPublisher);
 
     service.deleteUserSkill(USER_ID, userSkill.getId());
 
-    verify(recalculation).recalculateSnapshot(eq(USER_ID), eq(YearMonths.current()));
+    verify(eventPublisher)
+        .publishEvent(new SnapshotRecalculationRequested(USER_ID, YearMonths.current()));
   }
 
   @Test
@@ -99,12 +101,12 @@ class SnapshotTriggerWiringTest {
     given(repository.existsByUserIdAndEffectiveDate(any(), any())).willReturn(false);
     given(repository.save(any(IncomeHistory.class)))
         .willAnswer(invocation -> invocation.getArgument(0));
-    IncomeService service = new IncomeService(repository, recalculation);
+    IncomeService service = new IncomeService(repository, eventPublisher);
 
     service.create(
         USER_ID, new IncomeRequest(60_000_000L, 4_000_000L, LocalDate.of(2026, 3, 15), null));
 
-    verify(recalculation).recalculateSnapshot(USER_ID, "202603");
+    verify(eventPublisher).publishEvent(new SnapshotRecalculationRequested(USER_ID, "202603"));
   }
 
   @Test
@@ -114,11 +116,11 @@ class SnapshotTriggerWiringTest {
     IncomeHistory entity =
         new IncomeHistory(USER_ID, 60_000_000L, 4_000_000L, LocalDate.of(2026, 4, 1), null);
     given(repository.findById(any())).willReturn(Optional.of(entity));
-    IncomeService service = new IncomeService(repository, recalculation);
+    IncomeService service = new IncomeService(repository, eventPublisher);
 
     service.delete(USER_ID, entity.getId());
 
-    verify(recalculation).recalculateSnapshot(USER_ID, "202604");
+    verify(eventPublisher).publishEvent(new SnapshotRecalculationRequested(USER_ID, "202604"));
   }
 
   @Test
@@ -127,11 +129,12 @@ class SnapshotTriggerWiringTest {
     CareerProfileRepository repository = mock(CareerProfileRepository.class);
     given(repository.findByUserId(USER_ID))
         .willReturn(Optional.of(CareerProfile.builder().userId(USER_ID).build()));
-    ProfileService service = new ProfileService(repository, recalculation, Clock.systemUTC());
+    ProfileService service = new ProfileService(repository, eventPublisher, Clock.systemUTC());
 
     service.patch(
         USER_ID, new ProfileRequest("DEVELOPER", 5, "서울 강남구", "FULL_TIME", "MEDIUM", null));
 
-    verify(recalculation).recalculateSnapshot(eq(USER_ID), eq(YearMonths.current()));
+    verify(eventPublisher)
+        .publishEvent(new SnapshotRecalculationRequested(USER_ID, YearMonths.current()));
   }
 }
