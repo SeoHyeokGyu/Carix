@@ -85,12 +85,10 @@ describe("VerdictHero", () => {
     renderHero(<VerdictHero signal={STAY} history={[]} />);
     const statement = screen.getByTestId("verdict-statement");
     expect(statement.tagName).toBe("P");
-    expect(statement).toHaveTextContent(
-      "지표가 시장 수준 안에 있습니다. 당장 움직일 이유가 없습니다.",
-    );
+    expect(statement).toHaveTextContent("지금 바로 움직일 신호는 없습니다.");
     // 문장이 제목이 아니어도 판정 구획의 이름은 그 문장이다.
     expect(
-      screen.getByRole("region", { name: /지표가 시장 수준 안에/ }),
+      screen.getByRole("region", { name: /지금 바로 움직일 신호는 없습니다/ }),
     ).toBeInTheDocument();
   });
 

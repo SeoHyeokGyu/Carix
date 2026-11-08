@@ -25,7 +25,7 @@ describe("DashboardGuide (지표 가이드 및 도움말)", () => {
       screen.getByText(/연봉 격차 15% 이상.*시장가치 지수 110 이상/),
     ).toBeInTheDocument();
     expect(
-      screen.getByText(/연봉 격차 5~15%.*시장가치 지수 105 이상/),
+      screen.getByText(/연봉 격차 5% 이상.*시장가치 지수 90 이상/),
     ).toBeInTheDocument();
     expect(
       screen.getByText(/시장가치 지수 90 미만.*구매력 지수 95 미만/),

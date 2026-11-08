@@ -204,18 +204,18 @@ class DecisionSignalEngineTest {
   }
 
   @Test
-  @DisplayName("MVI 가 110 미만이면 이직 탐색이 아니다")
+  @DisplayName("MVI 가 110 미만이면 이직 탐색이 아니라 협상 검토다")
   void rule2_notSeekJob_whenMviBelowThreshold() {
-    // 격차 0.20 이지만 MVI 100 — 규칙 3 의 격차 상한(0.15)도 넘어 기본행으로 떨어진다
+    // 격차 0.20, MVI 100 — 수요가 줄지 않았으니 격차만으로 협상 근거가 된다
     DecisionOutcome outcome = engine.evaluate(ppi(100), mvi(100.0, 72_000_000L), salary());
 
-    assertThat(outcome.code()).isEqualTo(DecisionSignalCode.STAY);
+    assertThat(outcome.code()).isEqualTo(DecisionSignalCode.NEGOTIATE);
   }
 
   // ---------- 규칙 3: 협상 검토 ----------
 
   @Test
-  @DisplayName("격차 0.05 이상 0.15 미만 AND MVI 105 이상이면 협상 검토다 — 하한 경계 포함")
+  @DisplayName("격차 5% 이상이고 MVI 90 이상이면 협상 검토다 — 격차 정확히 0.05 에 MVI 105, 하한 경계 포함")
   void rule3_negotiate_atLowerBoundary() {
     // 중앙값 63,000,000 → 격차 정확히 0.05
     DecisionOutcome outcome = engine.evaluate(ppi(100), mvi(105.0, 63_000_000L), salary());
@@ -224,12 +224,12 @@ class DecisionSignalEngineTest {
   }
 
   @Test
-  @DisplayName("격차가 0.15 이면 규칙 3 이 아니라 규칙 2 다 — 상한은 배타적이다")
-  void rule3_upperBoundIsExclusive() {
+  @DisplayName("격차 0.15 에 MVI 105 면 이직 탐색이 아니라 협상 검토다 — 협상 검토에는 격차 상한이 없다")
+  void rule3_negotiate_whenGapAboveSeekJobButMviBelow110() {
     DecisionOutcome outcome = engine.evaluate(ppi(100), mvi(105.0, 69_000_000L), salary());
 
-    // MVI 105 라 규칙 2(110 이상)에 못 미치고 규칙 3 의 격차 상한도 넘어 기본행이다
-    assertThat(outcome.code()).isEqualTo(DecisionSignalCode.STAY);
+    assertThat(outcome.code()).isEqualTo(DecisionSignalCode.NEGOTIATE);
+    assertThat(outcome.rulesApplied()).containsExactly("연봉 격차 15% 이상", "스킬 가치 상승세");
   }
 
   // ---------- 규칙 4: 스킬 보강 우선 ----------
@@ -262,14 +262,12 @@ class DecisionSignalEngineTest {
   }
 
   @Test
-  @DisplayName("MVI 가 90 미만이면 규칙 5 가 아니라 기본행이다 — 하한 경계는 배타적이고, 문구도 기본행 문구다")
-  void rule5_defaultRow_whenMviBelowStableBoundary() {
-    // 격차는 0 이라 규칙 5 의 격차 조건은 만족하지만 MVI 가 90 미만이라 규칙 5 에는 못 미친다.
-    // STAY 코드는 규칙 5 와 기본행이 공유하므로, 문구까지 봐야 어느 행이 발동했는지 구분된다.
+  @DisplayName("격차가 ±5% 안이고 MVI 가 90 미만이면 유지이되 수요 감소를 밝힌다")
+  void stay_withDecliningDemand() {
     DecisionOutcome outcome = engine.evaluate(ppi(100), mvi(89.9, 60_000_000L), salary());
 
     assertThat(outcome.code()).isEqualTo(DecisionSignalCode.STAY);
-    assertThat(outcome.rulesApplied()).containsExactly("뚜렷한 보상 격차나 가치 상승 신호 없음");
+    assertThat(outcome.rulesApplied()).containsExactly("연봉이 시장 수준에 근접", "보유 스킬 채용수요 감소세");
   }
 
   // ---------- 데이터 부족 5조건 ----------
@@ -414,13 +412,13 @@ class DecisionSignalEngineTest {
   }
 
   @Test
-  @DisplayName("협상 검토도 오차를 빼고 105 를 넘어야 시장가치 근거로 낸다")
-  void negotiate_uncertainMvi_fallsBackToGapOnly() {
+  @DisplayName("협상 검토의 「스킬 가치 상승세」는 오차를 빼고도 105 이상일 때만 단다")
+  void negotiate_risingChipNeedsMviBeyondError() {
     DecisionOutcome outcome =
         engine.evaluate(ppi(100), mviWithError(108, 5, 66_000_000L), salary());
 
     assertThat(outcome.code()).isEqualTo(DecisionSignalCode.NEGOTIATE);
-    assertThat(outcome.rulesApplied()).contains(DecisionSignalEngine.MVI_UNCERTAIN);
+    assertThat(outcome.rulesApplied()).containsExactly("연봉 격차 5~15% 구간", "스킬 수요 안정");
   }
 
   @Test
@@ -439,5 +437,75 @@ class DecisionSignalEngineTest {
   void unknownError_usesPointEstimate() {
     assertThat(engine.evaluate(ppi(100), mvi(114, 72_000_000L), salary()).code())
         .isEqualTo(DecisionSignalCode.SEEK_JOB);
+  }
+
+  // ---------- 규칙 1.6.0 경계 ----------
+
+  @Test
+  @DisplayName("격차 15% · MVI 100 이면 협상 검토다")
+  void v160_gap15_mvi100_negotiate() {
+    // 회귀: 1.5.0 에서는 이 조합이 어느 규칙에도 안 걸려 기본행 유지로 떨어졌고, 칩이 「뚜렷한 보상 격차나
+    // 가치 상승 신호 없음」이라 근거의 「중앙값보다 15% 이상 낮습니다」와 한 화면에서 모순됐다.
+    DecisionOutcome outcome = engine.evaluate(ppi(100), mvi(100, 69_000_000L), salary());
+
+    assertThat(outcome.code()).isEqualTo(DecisionSignalCode.NEGOTIATE);
+    assertThat(outcome.rulesApplied()).containsExactly("연봉 격차 15% 이상", "스킬 수요 안정");
+  }
+
+  @Test
+  @DisplayName("격차 5% · MVI 90 이면 협상 검토다 — 두 하한 모두 포함")
+  void v160_gap5_mvi90_negotiate() {
+    DecisionOutcome outcome = engine.evaluate(ppi(100), mvi(90, 63_000_000L), salary());
+
+    assertThat(outcome.code()).isEqualTo(DecisionSignalCode.NEGOTIATE);
+    assertThat(outcome.rulesApplied()).containsExactly("연봉 격차 5~15% 구간", "스킬 수요 안정");
+  }
+
+  @Test
+  @DisplayName("격차 4.9% · MVI 89 · 구매력 100 이면 유지다")
+  void v160_gapJustBelow5_mvi89_stay() {
+    DecisionOutcome outcome = engine.evaluate(ppi(100), mvi(89, 62_940_000L), salary());
+
+    assertThat(outcome.code()).isEqualTo(DecisionSignalCode.STAY);
+    assertThat(outcome.rulesApplied()).containsExactly("연봉이 시장 수준에 근접", "보유 스킬 채용수요 감소세");
+  }
+
+  @Test
+  @DisplayName("격차 20% · MVI 80 이면 구매력이 높아도 스킬 보강 우선이다")
+  void v160_gap20_mvi80_upskill() {
+    DecisionOutcome outcome = engine.evaluate(ppi(100), mvi(80, 72_000_000L), salary());
+
+    assertThat(outcome.code()).isEqualTo(DecisionSignalCode.UPSKILL);
+    assertThat(outcome.rulesApplied()).containsExactly("연봉 격차 15% 이상", "보유 스킬 채용수요 감소세");
+  }
+
+  @Test
+  @DisplayName("격차 15% · MVI 111 · SE 3 이면 시장가치 불확실 협상 검토다")
+  void v160_seekJobUncertain_negotiate() {
+    DecisionOutcome outcome =
+        engine.evaluate(ppi(100), mviWithError(111, 3, 69_000_000L), salary());
+
+    assertThat(outcome.code()).isEqualTo(DecisionSignalCode.NEGOTIATE);
+    assertThat(outcome.rulesApplied())
+        .containsExactly("연봉 격차 15% 이상", DecisionSignalEngine.MVI_UNCERTAIN);
+  }
+
+  @Test
+  @DisplayName("격차 10% · MVI 91 · SE 3 이면 90 경계가 불확실해 격차만으로 협상 검토다")
+  void v160_negotiateUncertainAt90() {
+    DecisionOutcome outcome = engine.evaluate(ppi(100), mviWithError(91, 3, 66_000_000L), salary());
+
+    assertThat(outcome.code()).isEqualTo(DecisionSignalCode.NEGOTIATE);
+    assertThat(outcome.rulesApplied())
+        .containsExactly("연봉 격차 5~15% 구간", DecisionSignalEngine.MVI_UNCERTAIN);
+  }
+
+  @Test
+  @DisplayName("격차 -10% 면 유지이고 기준선보다 높다고 밝힌다")
+  void v160_aboveBaseline_stay() {
+    DecisionOutcome outcome = engine.evaluate(ppi(100), mvi(100, 54_000_000L), salary());
+
+    assertThat(outcome.code()).isEqualTo(DecisionSignalCode.STAY);
+    assertThat(outcome.rulesApplied()).containsExactly("연봉이 기준선보다 높음");
   }
 }
