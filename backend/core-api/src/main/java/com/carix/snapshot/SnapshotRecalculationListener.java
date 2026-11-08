@@ -42,7 +42,12 @@ public class SnapshotRecalculationListener {
           status ->
               recalculationService.recalculateSnapshot(event.userId(), event.fromYearMonth()));
     } catch (RuntimeException e) {
-      log.warn("스냅샷 재계산 실패: {}", e.toString());
+      // 예외 메시지는 남기지 않는다 — DB 제약 위반 문구에 user_id 가 섞일 수 있다. 종류와 근본 원인 종류만으로 분류한다.
+      Throwable root = e;
+      while (root.getCause() != null && root.getCause() != root) {
+        root = root.getCause();
+      }
+      log.warn("스냅샷 재계산 실패: {} (원인 {})", e.getClass().getName(), root.getClass().getName());
     }
   }
 }
