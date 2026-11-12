@@ -5,7 +5,10 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.jdbc.core.simple.JdbcClient;
@@ -47,5 +50,18 @@ class RateLimitServiceTest {
     boolean exceeded = rateLimitService.isExceeded("LOGIN", "user@example.com", 5);
 
     assertThat(exceeded).isTrue();
+  }
+
+  // 현재 창을 지우면 그 시간의 카운터가 0 으로 돌아가 속도 제한이 풀린다. 지우는 것은 끝난 창뿐이다.
+  @Test
+  void 만료_창_정리는_현재_창_시작_이전만_지운다() {
+    given(statementSpec.update()).willReturn(3);
+    OffsetDateTime now = OffsetDateTime.of(2026, 11, 12, 12, 34, 56, 0, ZoneOffset.UTC);
+
+    int deleted = rateLimitService.deleteExpiredWindows(now);
+
+    assertThat(deleted).isEqualTo(3);
+    verify(statementSpec)
+        .param("currentWindowStart", OffsetDateTime.of(2026, 11, 12, 12, 0, 0, 0, ZoneOffset.UTC));
   }
 }

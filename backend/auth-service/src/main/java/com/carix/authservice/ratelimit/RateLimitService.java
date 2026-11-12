@@ -22,7 +22,7 @@ public class RateLimitService {
 
   public boolean isExceeded(String scope, String key, int limit) {
     String bucketKey = scope + ":" + key;
-    OffsetDateTime windowStart = OffsetDateTime.now(ZoneOffset.UTC).truncatedTo(ChronoUnit.HOURS);
+    OffsetDateTime windowStart = windowStart(OffsetDateTime.now(ZoneOffset.UTC));
 
     Integer requestCount =
         jdbcClient
@@ -41,5 +41,20 @@ public class RateLimitService {
             .single();
 
     return requestCount > limit;
+  }
+
+  /**
+   * 끝난 창의 행을 지운다. 키에 이메일·IP 가 평문으로 들어 있어 창이 끝나면 남길 이유가 없다 — 탈퇴한 사용자의 이메일도 여기서 사라진다. 현재 창은 남긴다. 지우면
+   * 그 시간의 카운터가 처음부터 다시 세져 제한이 풀린다.
+   */
+  public int deleteExpiredWindows(OffsetDateTime now) {
+    return jdbcClient
+        .sql("DELETE FROM auth.rate_limit_bucket WHERE window_start < :currentWindowStart")
+        .param("currentWindowStart", windowStart(now))
+        .update();
+  }
+
+  private static OffsetDateTime windowStart(OffsetDateTime now) {
+    return now.withOffsetSameInstant(ZoneOffset.UTC).truncatedTo(ChronoUnit.HOURS);
   }
 }
