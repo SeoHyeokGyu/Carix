@@ -34,6 +34,16 @@ class SeveranceCalculatorTest {
         .isTrue();
   }
 
+  // 2026-11-13: 1년 끝을 입사 전날+1년으로 구해, 3/1 입사가 윤년 2/29 를 건너 2/28 에 1년을 채운 것으로 봤다.
+  // 민법 제160조: 1년 뒤 입사 해당일의 전날(2/29)까지 일해야 1년이다.
+  @Test
+  void 삼월_1일_입사는_윤년이면_2월_29일까지_근무해야_지급() {
+    assertThat(SeveranceCalculator.isEligible(LocalDate.of(2023, 3, 1), LocalDate.of(2024, 2, 28)))
+        .isFalse();
+    assertThat(SeveranceCalculator.isEligible(LocalDate.of(2023, 3, 1), LocalDate.of(2024, 2, 29)))
+        .isTrue();
+  }
+
   @Test
   void 마지막_3개월에_인상이_들면_평균임금이_오른다() {
     var hire = LocalDate.of(2023, 3, 2);

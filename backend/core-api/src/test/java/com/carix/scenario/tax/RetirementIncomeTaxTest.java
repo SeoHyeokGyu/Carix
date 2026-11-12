@@ -55,6 +55,17 @@ class RetirementIncomeTaxTest {
         .isEqualTo(2);
   }
 
+  // 2026-11-13: #390 이 2/29 입사를 고치면서 3/1 입사가 윤년 2/29 까지 일한 정확한 N년을 N+1 년으로 셌다.
+  @Test
+  void 삼월_1일_입사가_윤년_2월_29일까지면_정확히_N년() {
+    assertThat(
+            RetirementIncomeTax.serviceYears(LocalDate.of(2023, 3, 1), LocalDate.of(2028, 2, 29)))
+        .isEqualTo(5);
+    assertThat(
+            RetirementIncomeTax.serviceYears(LocalDate.of(2023, 3, 1), LocalDate.of(2024, 2, 29)))
+        .isEqualTo(1);
+  }
+
   @Test
   void 근속연수는_하루라도_넘으면_올림() {
     assertThat(RetirementIncomeTax.serviceYears(LocalDate.of(2023, 3, 2), LocalDate.of(2026, 3, 1)))

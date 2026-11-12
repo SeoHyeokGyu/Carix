@@ -1,5 +1,6 @@
 package com.carix.scenario.severance;
 
+import com.carix.scenario.ServicePeriod;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
 import java.util.function.ToLongFunction;
@@ -37,8 +38,8 @@ public final class SeveranceCalculator {
     return !lastWorkDay.isBefore(anniversaryLastWorkDay(hireDate));
   }
 
-  /** 1년 근속이 채워지는 마지막 근무일. 순서가 중요하다: plusYears(1).minusDays(1) 은 2/29 입사를 2/27 로 만든다. */
+  /** 1년 근속이 채워지는 마지막 근무일. */
   public static LocalDate anniversaryLastWorkDay(LocalDate hireDate) {
-    return hireDate.minusDays(1).plusYears(1);
+    return ServicePeriod.nthYearLastWorkDay(hireDate, 1);
   }
 }
