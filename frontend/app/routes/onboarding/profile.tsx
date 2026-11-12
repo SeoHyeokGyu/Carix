@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Form,
   redirect,
@@ -27,11 +27,14 @@ import { isReturnToReview, REVIEW_PATH } from "../../lib/reviewReturn";
 import { isForwardStep, LANDING_PATH, LOGIN_PATH } from "../../lib/routeGuards";
 import {
   COMPANY_SIZES,
+  completeProfileSchema,
   EMPLOYMENT_TYPES,
+  isHireDateOptional,
   JOB_FAMILIES,
   PROFILE_FIELD_MESSAGES,
   profileSchema,
   REGIONS,
+  todayLocalDate,
 } from "../../lib/schemas/profile";
 import { requireSession, setSession } from "../../lib/session";
 
@@ -55,7 +58,8 @@ export async function clientAction({ request }: { request: Request }) {
 
   // "저장 후 나가기" 는 profileSchema.partial() 로(PATCH 는 부분 필드 저장을 허용한다 —
   // 전체 완비 검증은 검토 화면 몫이다), "다음" 은 profileSchema 전체로 검증한다.
-  const schema = intent === "exit" ? profileSchema.partial() : profileSchema;
+  const schema =
+    intent === "exit" ? profileSchema.partial() : completeProfileSchema;
   const result = schema.safeParse(raw);
   if (!result.success) {
     return {
@@ -111,6 +115,10 @@ export default function Profile() {
   const isSubmitting =
     navigation.state === "submitting" || navigation.state === "loading";
   const formRef = useRef<HTMLFormElement>(null);
+  // 입사일 필수 여부가 고용 형태를 따라 바뀌어 라벨에 보여야 한다.
+  const [employmentType, setEmploymentType] = useState(
+    profile.employmentType ?? "",
+  );
 
   useEffect(() => {
     if (errors) focusFirstInvalidField(formRef.current);
@@ -175,8 +183,28 @@ export default function Profile() {
                   {...aria}
                   name="employmentType"
                   defaultValue={profile.employmentType ?? ""}
+                  onChange={(event) => setEmploymentType(event.target.value)}
                   placeholder="선택해 주세요"
                   options={EMPLOYMENT_TYPES}
+                />
+              )}
+            </Field>
+
+            <Field
+              id="hireDate"
+              label={
+                isHireDateOptional(employmentType) ? "입사일 (선택)" : "입사일"
+              }
+              hint="지금 회사에 들어간 날입니다. 퇴직금과 근속 계산에 씁니다."
+              error={errors?.hireDate}
+            >
+              {(aria) => (
+                <Input
+                  {...aria}
+                  name="hireDate"
+                  type="date"
+                  max={todayLocalDate()}
+                  defaultValue={profile.hireDate ?? ""}
                 />
               )}
             </Field>

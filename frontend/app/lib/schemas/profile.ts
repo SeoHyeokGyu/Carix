@@ -59,9 +59,29 @@ export const profileSchema = z.object({
   region: z.enum(values(REGIONS)),
   employmentType: z.enum(values(EMPLOYMENT_TYPES)),
   companySize: z.enum(values(COMPANY_SIZES)).optional(),
+  hireDate: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .refine((date) => date <= todayLocalDate())
+    .optional(),
 });
 
 export type ProfileInput = z.infer<typeof profileSchema>;
+
+/** 입사일이 없어도 되는 고용 형태. 퇴직금·근속 계산은 입사일에 기대지만, 프리랜서는 입사일이 없을 수 있다. */
+export function isHireDateOptional(employmentType: string | null | undefined) {
+  return employmentType === "FREELANCE";
+}
+
+/**
+ * 온보딩 「다음」 의 전체 검증. 「저장 후 나가기」 는 `profileSchema.partial()` 로 부분 저장한다 —
+ * superRefine 을 거친 스키마는 `.partial()` 이 없어서 둘을 나눈다.
+ */
+export const completeProfileSchema = profileSchema.superRefine((data, ctx) => {
+  if (!data.hireDate && !isHireDateOptional(data.employmentType)) {
+    ctx.addIssue({ code: "custom", path: ["hireDate"], message: "required" });
+  }
+});
 
 /**
  * 화면(profile.tsx)이 쓰는 필드별 오류 문구. 규칙(위 스키마)과 그 규칙을 사람이
@@ -74,6 +94,8 @@ export const PROFILE_FIELD_MESSAGES: Record<keyof ProfileInput, string> = {
   region: "희망 근무 지역을 선택해 주세요.",
   employmentType: "고용 형태를 선택해 주세요.",
   companySize: "회사 규모를 올바르게 선택해 주세요.",
+  hireDate:
+    "입사일을 오늘 이전 날짜로 입력해 주세요. 프리랜서는 비워 둘 수 있습니다.",
 };
 
 /** 로컬(KST) 달력 기준 오늘 `YYYY-MM-DD`. 입사일 입력의 `max` 로 쓴다 — UTC 변환의 하루 오차를 피한다. */
