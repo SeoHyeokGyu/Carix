@@ -27,6 +27,7 @@ import { OverrideNotice } from "../../components/simulator/OverrideNotice";
 import { SavedScenarioMenu } from "../../components/simulator/SavedScenarioMenu";
 import { SaveScenarioButton } from "../../components/simulator/SaveScenarioButton";
 import { ScenarioTemplateMenu } from "../../components/simulator/ScenarioTemplateMenu";
+import { SeveranceBlock } from "../../components/simulator/SeveranceBlock";
 import { StayOutcome } from "../../components/simulator/StayOutcome";
 import type {
   EmitSource,
@@ -614,6 +615,14 @@ export default function DashboardSimulator() {
             />
           </OfferCard>
         </div>
+
+        {result?.severance && (
+          <SeveranceBlock
+            severance={result.severance}
+            notes={splitAssumptions(result.assumptions).severanceNotes}
+            dimmed={stayDimmed}
+          />
+        )}
 
         {/* 계산 중·오류 대체 표시는 남을 때 결과 자리가 맡는다. 비교 자리는 안내나 결과가 있을 때만. */}
         {offerOpen && (offerHint !== null || compare !== null) && (

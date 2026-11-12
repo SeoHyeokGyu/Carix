@@ -101,7 +101,7 @@ const severancePointSchema = z.object({
 });
 export type SeverancePoint = z.infer<typeof severancePointSchema>;
 
-/** 지금 회사 퇴직금 블록. 점은 마지막 근무일 순이고 `OK` 일 때만 채워진다. 금액은 명목 세후 원. */
+/** 퇴사 시점별 퇴직금 카드. 점은 마지막 근무일 순이고 `OK` 일 때만 채워진다. 금액은 명목 세후 원. */
 const severanceViewSchema = z.object({
   pensionType: z.enum(PENSION_TYPES),
   status: z.enum(["OK", "DC", "NO_HIRE_DATE"]),
