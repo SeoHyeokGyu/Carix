@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.carix.scenario.CareerScenarioRepository;
 import com.carix.scenario.domain.CareerScenario;
+import com.carix.scenario.dto.ScenarioPayload;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.UUID;
@@ -13,6 +14,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
 import org.springframework.boot.jdbc.test.autoconfigure.AutoConfigureTestDatabase;
 import org.springframework.boot.jpa.test.autoconfigure.TestEntityManager;
+import tools.jackson.databind.json.JsonMapper;
 
 /** 시나리오 저장 (ERD 적용 이력·SECURITY §3.1). */
 @DataJpaTest
@@ -95,6 +97,33 @@ class CareerScenarioRepositoryTest {
         .contains(":");
 
     assertThat(repository.findById(saved.getId()).orElseThrow().getPayload()).isEqualTo(json);
+  }
+
+  @Test
+  @DisplayName("세 시점 블록 이전의 퇴직금 경고 모양이 든 저장분도 목록에서 읽힌다")
+  void 옛_퇴직금_경고가_든_저장분도_읽힌다() {
+    UUID userId = UUID.randomUUID();
+    // 2026-11 이전 저장분은 result.severance 가 {monthsToAnniversary, estimatedAmount} 였다
+    String json =
+        "{\"request\":{\"stay\":{\"raisePercent\":3.0}},"
+            + "\"result\":{\"severance\":{\"monthsToAnniversary\":2,\"estimatedAmount\":5000000}}}";
+    repository.saveAndFlush(
+        CareerScenario.builder()
+            .userId(userId)
+            .engineVersion(CareerScenario.ENGINE_STAY_OR_MOVE)
+            .payload(json)
+            .build());
+    testEntityManager.clear();
+
+    JsonMapper mapper = JsonMapper.builder().build();
+    List<ScenarioPayload> payloads =
+        repository.findByUserIdAndDraftFalseOrderByCalculatedAtDescIdDesc(userId).stream()
+            .map(s -> mapper.readValue(s.getPayload(), ScenarioPayload.class))
+            .toList();
+
+    assertThat(payloads).hasSize(1);
+    assertThat(payloads.get(0).result().severance().status()).isNull();
+    assertThat(payloads.get(0).result().severance().points()).isEmpty();
   }
 
   @Test

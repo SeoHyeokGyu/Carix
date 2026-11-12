@@ -6,15 +6,19 @@ import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
 
+import com.carix.income.domain.IncomeHistory;
+import com.carix.income.repository.IncomeHistoryRepository;
 import com.carix.scenario.ScenarioService;
 import com.carix.scenario.UnemploymentBenefitAssumption;
 import com.carix.scenario.dto.EvaluateRequest;
 import com.carix.scenario.dto.EvaluationResponse;
+import com.carix.scenario.dto.EvaluationResponse.Assumption;
 import com.carix.scenario.dto.ScenarioContextResponse;
 import com.carix.scenario.dto.SimulationResponse.FeasibilityDetail;
 import com.carix.scenario.inflation.InflationAssumptions;
 import com.carix.scenario.inflation.InflationBasis;
 import com.carix.scenario.projection.StayMoveProjector;
+import com.carix.scenario.severance.SeveranceOutlookService;
 import com.carix.scenario.tax.TakeHomeEstimator;
 import com.carix.scenario.tax.TaxAssumption;
 import java.math.BigDecimal;
@@ -22,6 +26,7 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
+import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -46,6 +51,12 @@ class ScenarioEvaluationServiceTest {
             new TaxAssumption("2026", 0.0475, 410_000, 6_590_000, 0.03595, 0.1314, 0.009));
     InflationAssumptions inflation = mock(InflationAssumptions.class);
     given(inflation.effective(BASIS)).willReturn(new BigDecimal("2.0"));
+    IncomeHistoryRepository incomeRepository = mock(IncomeHistoryRepository.class);
+    given(incomeRepository.findByUserIdOrderByEffectiveDateDesc(USER_ID))
+        .willReturn(
+            List.of(
+                new IncomeHistory(USER_ID, 60_000_000L, null, LocalDate.of(2025, 11, 22), null)));
+    Clock clock = Clock.fixed(Instant.parse("2026-10-22T03:00:00Z"), ZoneId.of("Asia/Seoul"));
     service =
         new ScenarioEvaluationService(
             contextService,
@@ -54,7 +65,7 @@ class ScenarioEvaluationServiceTest {
             estimator,
             new StayMoveProjector(
                 estimator, new UnemploymentBenefitAssumption(66_000L, 60_120L, "2026-01")),
-            Clock.fixed(Instant.parse("2026-10-22T03:00:00Z"), ZoneId.of("Asia/Seoul")));
+            new SeveranceOutlookService(incomeRepository, clock));
   }
 
   private void givenContext(LocalDate hireDate) {
@@ -89,13 +100,37 @@ class ScenarioEvaluationServiceTest {
   }
 
   @Test
-  void 입사_11개월차면_퇴직금_경고() {
+  void 입사일이_있으면_퇴직금_블록과_그_가정을_낸다() {
     givenContext(LocalDate.parse("2025-11-22"));
 
     EvaluationResponse response =
-        service.evaluate(USER_ID, new EvaluateRequest(stay(null, null), null));
+        service.evaluate(USER_ID, new EvaluateRequest(stay(null, null), move(null)));
 
-    assertThat(response.severance().monthsToAnniversary()).isEqualTo(1);
-    assertThat(response.severance().estimatedAmount()).isEqualTo(5_000_000L);
+    // 옛 「N개월만 더 다니면」 경고 대신 세 시점 블록이다. 1주년 전이라 오늘 퇴사는 0원
+    assertThat(response.severance().status()).isEqualTo("OK");
+    assertThat(response.severance().points()).hasSize(3);
+    assertThat(response.severance().points().get(0).gross()).isZero();
+    assertThat(response.assumptions())
+        .extracting(Assumption::code)
+        .contains("SEVERANCE_BASIS", "SEVERANCE_IRP", "SEVERANCE_ASSUMED_DB")
+        .doesNotContain("SEVERANCE_ESTIMATE");
+    assertThat(response.assumptions())
+        .filteredOn(a -> a.code().equals("NEW_JOB_SEVERANCE"))
+        .extracting(Assumption::text)
+        .containsExactly("퇴직금은 양쪽 모두 그 달에 나간다고 보고 넣었습니다");
+  }
+
+  @Test
+  void 입사일이_없으면_퇴직금_가정_없이_미반영에_입사일() {
+    givenContext(null);
+
+    EvaluationResponse response =
+        service.evaluate(USER_ID, new EvaluateRequest(stay(null, null), move(null)));
+
+    assertThat(response.severance().status()).isEqualTo("NO_HIRE_DATE");
+    assertThat(response.assumptions())
+        .extracting(Assumption::code)
+        .doesNotContain("SEVERANCE_BASIS", "SEVERANCE_IRP", "SEVERANCE_ASSUMED_DB");
+    assertThat(response.unreflected()).contains("HIRE_DATE");
   }
 }

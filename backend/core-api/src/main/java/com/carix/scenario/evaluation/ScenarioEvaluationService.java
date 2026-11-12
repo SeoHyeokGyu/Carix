@@ -1,5 +1,6 @@
 package com.carix.scenario.evaluation;
 
+import com.carix.profile.domain.RetirementPensionType;
 import com.carix.scenario.ScenarioCalculator;
 import com.carix.scenario.ScenarioService;
 import com.carix.scenario.dto.EvaluateRequest;
@@ -9,7 +10,7 @@ import com.carix.scenario.dto.EvaluationResponse;
 import com.carix.scenario.dto.EvaluationResponse.Assumption;
 import com.carix.scenario.dto.EvaluationResponse.MoveView;
 import com.carix.scenario.dto.EvaluationResponse.Range;
-import com.carix.scenario.dto.EvaluationResponse.SeveranceWarning;
+import com.carix.scenario.dto.EvaluationResponse.SeveranceView;
 import com.carix.scenario.dto.EvaluationResponse.StayView;
 import com.carix.scenario.dto.EvaluationResponse.StockLine;
 import com.carix.scenario.dto.ScenarioContextResponse;
@@ -19,11 +20,9 @@ import com.carix.scenario.inflation.InflationBasis;
 import com.carix.scenario.projection.ProjectionInput;
 import com.carix.scenario.projection.ProjectionResult;
 import com.carix.scenario.projection.StayMoveProjector;
+import com.carix.scenario.severance.SeveranceOutlookService;
 import com.carix.scenario.tax.TakeHomeEstimator;
 import com.carix.scenario.tax.TakeHomeEstimator.Calibration;
-import java.time.Clock;
-import java.time.LocalDate;
-import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -40,7 +39,6 @@ import org.springframework.transaction.annotation.Transactional;
 public class ScenarioEvaluationService {
 
   private static final int MONTHS_PER_YEAR = 12;
-  private static final int SEVERANCE_WARNING_MONTHS = 3;
   private static final double PERCENT = 100.0;
 
   private final ScenarioContextService contextService;
@@ -48,7 +46,7 @@ public class ScenarioEvaluationService {
   private final InflationAssumptions inflationAssumptions;
   private final TakeHomeEstimator estimator;
   private final StayMoveProjector projector;
-  private final Clock clock;
+  private final SeveranceOutlookService severanceOutlookService;
 
   @Transactional(readOnly = true)
   public EvaluationResponse evaluate(UUID userId, EvaluateRequest request) {
@@ -93,7 +91,8 @@ public class ScenarioEvaluationService {
             projector.breakevenRaisePercent(currentGross, governmentInflation),
             marketGap);
 
-    SeveranceWarning severance = severance(context.hireDate(), currentGross);
+    SeveranceView severance =
+        severanceOutlookService.outlook(userId, context, raise, stay.currentGrossOverride());
     return new EvaluationResponse(
         stayView,
         move == null
@@ -109,7 +108,7 @@ public class ScenarioEvaluationService {
                 inflation,
                 calibration),
         basis,
-        assumptions(basis, calibration, severance != null, move, stay),
+        assumptions(basis, calibration, severance, move, stay),
         unreflected(stay, move, context),
         severance,
         move == null ? null : ScenarioCalculator.typeLabelOf(result.firstYear().total()));
@@ -223,28 +222,12 @@ public class ScenarioEvaluationService {
     return new StockLine(stay.stockVesting12m(), stay.stockUnvested(), move.stockVesting12m());
   }
 
-  /** 근속 12개월 미만이고 1년까지 3개월 이내일 때만. 금액은 현재 연봉 ÷ 12 (퇴직소득세 무시, 평균임금보다 적게 잡힘). */
-  private SeveranceWarning severance(LocalDate hireDate, long currentGross) {
-    if (hireDate == null) {
-      return null;
-    }
-    LocalDate today = LocalDate.now(clock);
-    LocalDate anniversary = hireDate.plusYears(1);
-    if (!today.isBefore(anniversary)) {
-      return null;
-    }
-    long remaining = ChronoUnit.MONTHS.between(today, anniversary);
-    if (today.plusMonths(remaining).isBefore(anniversary)) {
-      remaining++; // 남은 날이 있는 달은 한 달로 센다
-    }
-    if (remaining > SEVERANCE_WARNING_MONTHS) {
-      return null;
-    }
-    return new SeveranceWarning((int) remaining, currentGross / MONTHS_PER_YEAR);
-  }
-
   private List<Assumption> assumptions(
-      InflationBasis basis, Calibration calibration, boolean severance, Move move, Stay stay) {
+      InflationBasis basis,
+      Calibration calibration,
+      SeveranceView severance,
+      Move move,
+      Stay stay) {
     List<Assumption> list = new ArrayList<>();
     list.add(new Assumption("TAX_HOUSEHOLD", "본인 1인, 부양가족 없음 기준으로 세금을 계산했습니다."));
     list.add(new Assumption("TAX_SCOPE", "비과세 수당과 연말정산 공제는 반영하지 않았습니다."));
@@ -264,19 +247,35 @@ public class ScenarioEvaluationService {
               "개인물가를 계산할 수 없어 한국은행 전망을 사용했습니다."));
     }
     list.add(new Assumption("HORIZON_HOLD", "4년 동안 인상률과 물가가 지금 입력한 값으로 유지된다고 가정했습니다."));
-    if (severance) {
-      list.add(
-          new Assumption(
-              "SEVERANCE_ESTIMATE", "퇴직금은 현재 연봉÷12 로 어림했습니다. 퇴직소득세는 무시했고 평균임금보다 적게 잡힙니다."));
+    boolean severanceOk = SeveranceOutlookService.STATUS_OK.equals(severance.status());
+    if (severanceOk) {
+      list.addAll(severanceAssumptions(severance));
     }
     if (move != null) {
-      list.add(new Assumption("NEW_JOB_SEVERANCE", "새 회사를 1년 안에 나가면 그곳 퇴직금도 없습니다"));
+      // 퇴직금을 계산하지 못하면 비교에도 넣지 않으므로 옛 안내가 여전히 맞다
+      list.add(
+          new Assumption(
+              "NEW_JOB_SEVERANCE",
+              severanceOk ? "퇴직금은 양쪽 모두 그 달에 나간다고 보고 넣었습니다" : "새 회사를 1년 안에 나가면 그곳 퇴직금도 없습니다"));
       if (move.signingBonus() != null && move.signingBonus() > 0) {
         list.add(new Assumption("SIGNING_CLAWBACK", "조기 퇴사 시 사이닝 보너스를 돌려줘야 할 수 있습니다"));
       }
     }
     if (hasStock(stay, move)) {
       list.add(new Assumption("STOCK_VALUE", "주식은 현재 평가액 그대로이며 세금은 반영하지 않았습니다."));
+    }
+    return list;
+  }
+
+  private static List<Assumption> severanceAssumptions(SeveranceView severance) {
+    List<Assumption> list = new ArrayList<>();
+    list.add(new Assumption("SEVERANCE_BASIS", "퇴직금은 주 15시간 이상 정규 근무를 가정했고 성과급·연차수당은 넣지 않았습니다."));
+    list.add(
+        new Assumption(
+            "SEVERANCE_IRP",
+            "퇴직금은 IRP 계좌로 들어가며, 일시금으로 찾을 때 기준입니다. 55세 이후 연금으로 받으면 퇴직소득세가 30~40% 줄어듭니다."));
+    if (RetirementPensionType.UNKNOWN.name().equals(severance.pensionType())) {
+      list.add(new Assumption("SEVERANCE_ASSUMED_DB", "퇴직금·DB형으로 계산했습니다."));
     }
     return list;
   }
