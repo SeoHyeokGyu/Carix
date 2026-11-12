@@ -18,6 +18,8 @@ import com.carix.scenario.dto.ScenarioContextResponse;
 import com.carix.scenario.dto.SimulationResponse.FeasibilityDetail;
 import com.carix.scenario.inflation.InflationAssumptions;
 import com.carix.scenario.inflation.InflationBasis;
+import com.carix.scenario.projection.ProjectionInput;
+import com.carix.scenario.projection.ProjectionResult;
 import com.carix.scenario.projection.StayMoveProjector;
 import com.carix.scenario.severance.SeveranceOutlookService;
 import com.carix.scenario.tax.TakeHomeEstimator;
@@ -40,6 +42,7 @@ class ScenarioEvaluationServiceTest {
 
   private ScenarioContextService contextService;
   private ScenarioEvaluationService service;
+  private StayMoveProjector projector;
 
   @BeforeEach
   void setUp() {
@@ -58,14 +61,16 @@ class ScenarioEvaluationServiceTest {
             List.of(
                 new IncomeHistory(USER_ID, 60_000_000L, null, LocalDate.of(2025, 11, 22), null)));
     Clock clock = Clock.fixed(Instant.parse("2026-10-22T03:00:00Z"), ZoneId.of("Asia/Seoul"));
+    projector =
+        new StayMoveProjector(
+            estimator, new UnemploymentBenefitAssumption(66_000L, 60_120L, "2026-01"));
     service =
         new ScenarioEvaluationService(
             contextService,
             scenarioService,
             inflation,
             estimator,
-            new StayMoveProjector(
-                estimator, new UnemploymentBenefitAssumption(66_000L, 60_120L, "2026-01")),
+            projector,
             new SeveranceOutlookService(incomeRepository, clock),
             clock);
   }
@@ -172,5 +177,46 @@ class ScenarioEvaluationServiceTest {
     assertThat(firstYear.total()).isNotNegative();
     assertThat(firstYear.total() - firstYear.severance()).isNegative();
     assertThat(response.typeLabel()).isEqualTo("남으면 추정 이득");
+  }
+
+  /** move(null) 과 같은 입력을 퇴직금 없이 직접 투영한 결과. 물가 2.0%, 순월급 미입력이라 보정비 1.0 이다. */
+  private ProjectionResult projectionWithoutSeverance() {
+    return projector.project(
+        new ProjectionInput(60_000_000L, 0.03, 70_000_000L, 2, 3_000_000L, true, 0.02, 1.0, null));
+  }
+
+  private static void assertExcludesSeverance(
+      EvaluationResponse.MoveView view, ProjectionResult expected) {
+    assertThat(view.firstYear().severance()).isZero();
+    assertThat(view.stayCumulative()).isEqualTo(expected.stayCumulative());
+    assertThat(view.moveCumulative()).isEqualTo(expected.moveCumulative());
+    assertThat(view.crossoverMonth()).isEqualTo(expected.crossoverMonth());
+    assertThat(view.equalizingRaisePercent()).isEqualTo(expected.equalizingRaisePercent());
+  }
+
+  @Test
+  void DC형이면_비교에도_퇴직금을_넣지_않는다() {
+    // 근속이 길어 퇴직금을 넣으면 누적이 달라지는 입력이다
+    givenContext(LocalDate.parse("2010-03-02"));
+    EvaluationResponse withSeverance =
+        service.evaluate(USER_ID, new EvaluateRequest(stay(null, null), move(null)));
+    assertThat(withSeverance.move().moveCumulative())
+        .isNotEqualTo(projectionWithoutSeverance().moveCumulative());
+
+    givenContext(LocalDate.parse("2010-03-02"), RetirementPensionType.DC);
+    EvaluationResponse response =
+        service.evaluate(USER_ID, new EvaluateRequest(stay(null, null), move(null)));
+
+    assertExcludesSeverance(response.move(), projectionWithoutSeverance());
+  }
+
+  @Test
+  void 입사일이_없으면_비교에도_퇴직금을_넣지_않는다() {
+    givenContext(null);
+
+    EvaluationResponse response =
+        service.evaluate(USER_ID, new EvaluateRequest(stay(null, null), move(null)));
+
+    assertExcludesSeverance(response.move(), projectionWithoutSeverance());
   }
 }
