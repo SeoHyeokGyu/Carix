@@ -94,7 +94,7 @@ export function inflationSource(basis: InflationBasis): string {
   return `출처: ${basis.source} (${basis.asOf} 발표)`;
 }
 
-export const SEVERANCE_TITLE = "지금 나가면 받는 퇴직금 (세후)";
+export const SEVERANCE_TITLE = "언제 나가면 퇴직금을 얼마 받나 (세후)";
 export const SEVERANCE_DC_NOTE =
   "회사가 매년 적립해 둔 돈이라 퇴사 시점과 거의 무관합니다. 적립금은 퇴직연금 계좌에서 확인하세요.";
 export const SEVERANCE_NO_HIRE_DATE = "입사일을 넣으면 퇴직금을 계산합니다";
@@ -110,12 +110,22 @@ function man(won: number): string {
   return `${Math.round(won / MAN_WON).toLocaleString("ko-KR")}만`;
 }
 
-/** 「오늘 퇴사 1,512만」 · 오늘보다 늘면 「3개월 뒤 1,640만 (+128만)」. */
-export function severancePointLine(point: SeverancePoint): string {
-  const head = `${SEVERANCE_POINT_LABELS[point.kind]} ${man(point.net)}`;
-  return point.deltaFromToday > 0
-    ? `${head} (${signedMan(point.deltaFromToday)})`
-    : head;
+export interface SeverancePointParts {
+  label: string;
+  amount: string;
+  /** 오늘보다 늘 때만 「+128만」. */
+  delta: string | null;
+}
+
+/** 시점 타일 하나: 「오늘 퇴사」 「1,512만」, 늘면 「+128만」. */
+export function severancePointParts(
+  point: SeverancePoint,
+): SeverancePointParts {
+  return {
+    label: SEVERANCE_POINT_LABELS[point.kind],
+    amount: man(point.net),
+    delta: point.deltaFromToday > 0 ? signedMan(point.deltaFromToday) : null,
+  };
 }
 
 /** 세액은 금액이 생기는 첫 시점의 것이다. 근속 1년 전 「오늘 퇴사」 0원의 세금 0 을 보이지 않게. */

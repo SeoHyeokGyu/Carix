@@ -1,8 +1,6 @@
 import type { EvaluationResponse } from "../../lib/api/scenario";
-import { splitAssumptions } from "../../lib/simulatorCompare";
 import { marketGapLine, stayHeadline } from "../../lib/simulatorCopy";
 import { RaiseAxis } from "./RaiseAxis";
-import { SeveranceBlock } from "./SeveranceBlock";
 
 interface StayOutcomeProps {
   result: EvaluationResponse;
@@ -12,7 +10,7 @@ interface StayOutcomeProps {
 
 /** 지금 회사 카드 안의 남을 때 결과. */
 export function StayOutcome({ result, raisePercent }: StayOutcomeProps) {
-  const { stay, severance } = result;
+  const { stay } = result;
   const personal = stay.breakevenPersonalPercent;
   const government = stay.breakevenGovernmentPercent;
 
@@ -30,13 +28,6 @@ export function StayOutcome({ result, raisePercent }: StayOutcomeProps) {
 
       {stay.marketGapPercent !== null && (
         <p className="text-sm">{marketGapLine(stay.marketGapPercent)}</p>
-      )}
-
-      {severance && (
-        <SeveranceBlock
-          severance={severance}
-          notes={splitAssumptions(result.assumptions).severanceNotes}
-        />
       )}
     </div>
   );
