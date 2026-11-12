@@ -8,6 +8,7 @@ import static org.mockito.Mockito.mock;
 
 import com.carix.income.domain.IncomeHistory;
 import com.carix.income.repository.IncomeHistoryRepository;
+import com.carix.profile.domain.RetirementPensionType;
 import com.carix.scenario.ScenarioService;
 import com.carix.scenario.UnemploymentBenefitAssumption;
 import com.carix.scenario.dto.EvaluateRequest;
@@ -69,10 +70,14 @@ class ScenarioEvaluationServiceTest {
   }
 
   private void givenContext(LocalDate hireDate) {
+    givenContext(hireDate, null);
+  }
+
+  private void givenContext(LocalDate hireDate, RetirementPensionType pensionType) {
     given(contextService.context(USER_ID))
         .willReturn(
             new ScenarioContextResponse(
-                60_000_000L, null, hireDate, null, true, null, null, null, BASIS, null));
+                60_000_000L, null, hireDate, pensionType, true, null, null, null, BASIS, null));
   }
 
   private static EvaluateRequest.Stay stay(Long stockVesting, Long stockUnvested) {
@@ -115,6 +120,10 @@ class ScenarioEvaluationServiceTest {
         .contains("SEVERANCE_BASIS", "SEVERANCE_IRP", "SEVERANCE_ASSUMED_DB")
         .doesNotContain("SEVERANCE_ESTIMATE");
     assertThat(response.assumptions())
+        .filteredOn(a -> a.code().equals("SEVERANCE_TAX_AS_OF"))
+        .extracting(Assumption::text)
+        .containsExactly("퇴직소득세는 2026년 세법 기준입니다.");
+    assertThat(response.assumptions())
         .filteredOn(a -> a.code().equals("NEW_JOB_SEVERANCE"))
         .extracting(Assumption::text)
         .containsExactly("퇴직금은 양쪽 모두 그 달에 나간다고 보고 넣었습니다");
@@ -132,5 +141,18 @@ class ScenarioEvaluationServiceTest {
         .extracting(Assumption::code)
         .doesNotContain("SEVERANCE_BASIS", "SEVERANCE_IRP", "SEVERANCE_ASSUMED_DB");
     assertThat(response.unreflected()).contains("HIRE_DATE");
+  }
+
+  @Test
+  void DC형이면_퇴직금_가정을_넣지_않는다() {
+    givenContext(LocalDate.parse("2020-03-02"), RetirementPensionType.DC);
+
+    EvaluationResponse response =
+        service.evaluate(USER_ID, new EvaluateRequest(stay(null, null), null));
+
+    assertThat(response.severance().status()).isEqualTo("DC");
+    assertThat(response.assumptions())
+        .extracting(Assumption::code)
+        .doesNotContain("SEVERANCE_BASIS", "SEVERANCE_IRP", "SEVERANCE_TAX_AS_OF");
   }
 }

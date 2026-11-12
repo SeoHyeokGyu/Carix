@@ -267,13 +267,17 @@ public class ScenarioEvaluationService {
     return list;
   }
 
-  private static List<Assumption> severanceAssumptions(SeveranceView severance) {
+  private List<Assumption> severanceAssumptions(SeveranceView severance) {
     List<Assumption> list = new ArrayList<>();
     list.add(new Assumption("SEVERANCE_BASIS", "퇴직금은 주 15시간 이상 정규 근무를 가정했고 성과급·연차수당은 넣지 않았습니다."));
     list.add(
         new Assumption(
             "SEVERANCE_IRP",
             "퇴직금은 IRP 계좌로 들어가며, 일시금으로 찾을 때 기준입니다. 55세 이후 연금으로 받으면 퇴직소득세가 30~40% 줄어듭니다."));
+    // 퇴직소득세도 TakeHomeEstimator 와 같은 소득세법 기본세율 표를 쓰므로 기준 연도가 같다
+    list.add(
+        new Assumption(
+            "SEVERANCE_TAX_AS_OF", "퇴직소득세는 %s년 세법 기준입니다.".formatted(estimator.ratesAsOf())));
     if (RetirementPensionType.UNKNOWN.name().equals(severance.pensionType())) {
       list.add(new Assumption("SEVERANCE_ASSUMED_DB", "퇴직금·DB형으로 계산했습니다."));
     }
