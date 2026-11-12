@@ -20,6 +20,7 @@ async function fillOnboarding(page: Page) {
   await page.getByLabel("총 경력 (년)").fill("5");
   await page.getByLabel("희망 근무 지역").selectOption({ label: "서울" });
   await page.getByLabel("고용 형태").selectOption({ label: "정규직" });
+  await page.getByLabel("입사일", { exact: true }).fill("2022-03-02");
   await page.getByRole("button", { name: "다음", exact: true }).click();
 
   await expect(page).toHaveURL(/\/onboarding\/income$/);

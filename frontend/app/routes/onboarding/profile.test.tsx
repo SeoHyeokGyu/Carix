@@ -74,6 +74,7 @@ describe("S-05 프로필 화면", () => {
     await user.type(screen.getByLabelText("총 경력 (년)"), "5");
     await user.selectOptions(screen.getByLabelText("희망 근무 지역"), "서울");
     await user.selectOptions(screen.getByLabelText("고용 형태"), "FULL_TIME");
+    await user.type(screen.getByLabelText("입사일"), "2022-03-02");
     await user.click(screen.getByRole("button", { name: "다음" }));
 
     expect(await screen.findByText("소득 화면")).toBeInTheDocument();
@@ -85,6 +86,7 @@ describe("S-05 프로필 화면", () => {
       yearsOfExperience: 5,
       region: "서울",
       employmentType: "FULL_TIME",
+      hireDate: "2022-03-02",
     });
     expect(advance).toHaveBeenCalledWith("INCOME");
   });
@@ -110,6 +112,7 @@ describe("S-05 프로필 화면", () => {
     await user.type(screen.getByLabelText("총 경력 (년)"), "99");
     await user.selectOptions(screen.getByLabelText("희망 근무 지역"), "서울");
     await user.selectOptions(screen.getByLabelText("고용 형태"), "FULL_TIME");
+    await user.type(screen.getByLabelText("입사일"), "2022-03-02");
     await user.click(screen.getByRole("button", { name: "다음" }));
 
     // 라벨("총 경력 (년)")도 같은 부분 문자열을 포함해 느슨한 정규식은 다중 매치로 깨진다
@@ -163,6 +166,7 @@ describe("S-05 프로필 화면", () => {
     await user.type(screen.getByLabelText("총 경력 (년)"), "5");
     await user.selectOptions(screen.getByLabelText("희망 근무 지역"), "서울");
     await user.selectOptions(screen.getByLabelText("고용 형태"), "FULL_TIME");
+    await user.type(screen.getByLabelText("입사일"), "2022-03-02");
     await user.click(screen.getByRole("button", { name: "다음" }));
 
     await screen.findByText("소득 화면");
@@ -196,7 +200,7 @@ describe("S-05 프로필 화면", () => {
       region: "서울",
       employmentType: "FULL_TIME",
       companySize: null,
-      hireDate: null,
+      hireDate: "2022-03-02",
     });
     const patch = vi.spyOn(profileApi, "patchProfile").mockResolvedValue({
       jobFamily: "DEVELOPER",
@@ -244,7 +248,7 @@ describe("S-05 프로필 화면", () => {
       region: "서울",
       employmentType: "FULL_TIME",
       companySize: null,
-      hireDate: null,
+      hireDate: "2022-03-02",
     });
     const patch = vi.spyOn(profileApi, "patchProfile").mockResolvedValue({
       jobFamily: "DEVELOPER",
@@ -379,6 +383,7 @@ describe("S-05 프로필 화면", () => {
     );
     await user.selectOptions(screen.getByLabelText("희망 근무 지역"), "서울");
     await user.selectOptions(screen.getByLabelText("고용 형태"), "FULL_TIME");
+    await user.type(screen.getByLabelText("입사일"), "2022-03-02");
     await user.type(screen.getByLabelText("총 경력 (년)"), "5");
     await user.click(screen.getByRole("button", { name: "다음" }));
 

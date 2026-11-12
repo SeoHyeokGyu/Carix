@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { profileSchema, REGIONS } from "./profile";
+import { completeProfileSchema, profileSchema, REGIONS } from "./profile";
 
 describe("profileSchema", () => {
   const valid = {
@@ -51,5 +51,34 @@ describe("profileSchema", () => {
     expect(
       profileSchema.safeParse({ ...valid, yearsOfExperience: 51 }).success,
     ).toBe(false);
+  });
+
+  // 온보딩 「다음」 은 입사일까지 받는다. 퇴직금·근속 계산이 입사일에 기대고, 프리랜서만 입사일이 없을 수 있다.
+  describe("completeProfileSchema 입사일", () => {
+    it("정규직은 입사일이 없으면 hireDate 오류다", () => {
+      const result = completeProfileSchema.safeParse(valid);
+      expect(result.success).toBe(false);
+      expect(result.error?.issues.map((i) => i.path)).toEqual([["hireDate"]]);
+    });
+
+    it("프리랜서는 입사일 없이 통과한다", () => {
+      expect(
+        completeProfileSchema.safeParse({
+          ...valid,
+          employmentType: "FREELANCE",
+        }).success,
+      ).toBe(true);
+    });
+
+    it("입사일이 있으면 통과하고, 오늘 이후면 거부한다", () => {
+      expect(
+        completeProfileSchema.safeParse({ ...valid, hireDate: "2022-03-02" })
+          .success,
+      ).toBe(true);
+      expect(
+        completeProfileSchema.safeParse({ ...valid, hireDate: "2999-01-01" })
+          .success,
+      ).toBe(false);
+    });
   });
 });

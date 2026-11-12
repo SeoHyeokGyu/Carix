@@ -31,7 +31,7 @@ const COMPLETE_PROFILE: ProfileResponse = {
   region: "서울",
   employmentType: "FULL_TIME",
   companySize: "MEDIUM",
-  hireDate: null,
+  hireDate: "2022-03-02",
 };
 
 // 완비 게이트가 실제로 네 필수 필드 전부를 보는지, 그리고 선택 필드
@@ -61,6 +61,17 @@ const PROFILE_GATE_CASES: {
     name: "employmentType 없음",
     overrides: { employmentType: null },
     expectBlocked: true,
+  },
+  // 입사일은 퇴직금·근속 계산의 근거라 필수다. 프리랜서만 입사일이 없을 수 있다.
+  {
+    name: "hireDate 없음(정규직)",
+    overrides: { hireDate: null },
+    expectBlocked: true,
+  },
+  {
+    name: "hireDate 없음(프리랜서는 예외)",
+    overrides: { hireDate: null, employmentType: "FREELANCE" },
+    expectBlocked: false,
   },
   {
     // 경계값 — 0년 경력은 유효한 값이지 미입력이 아니다. falsy 체크

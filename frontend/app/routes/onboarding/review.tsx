@@ -41,6 +41,7 @@ import { EXPENSE_CATEGORIES } from "../../lib/schemas/expense";
 import {
   COMPANY_SIZES,
   EMPLOYMENT_TYPES,
+  isHireDateOptional,
   JOB_FAMILIES,
   REGIONS,
 } from "../../lib/schemas/profile";
@@ -73,7 +74,8 @@ function isProfileComplete(
     profile.jobFamily !== null &&
     profile.yearsOfExperience !== null &&
     profile.region !== null &&
-    profile.employmentType !== null
+    profile.employmentType !== null &&
+    (profile.hireDate !== null || isHireDateOptional(profile.employmentType))
   );
 }
 
@@ -286,6 +288,7 @@ export default function Review() {
         profile.companySize
           ? labelFor(COMPANY_SIZES, profile.companySize)
           : null,
+        profile.hireDate ? `입사 ${profile.hireDate}` : null,
       ]
         .filter((part): part is string => Boolean(part))
         .join(" · ")
