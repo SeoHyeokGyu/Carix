@@ -8,11 +8,15 @@ import com.carix.scenario.UnemploymentBenefitAssumption;
 import com.carix.scenario.projection.ProjectionResult.FirstYear;
 import com.carix.scenario.tax.TakeHomeEstimator;
 import com.carix.scenario.tax.TaxAssumption;
+import java.time.LocalDate;
 import org.junit.jupiter.api.Test;
 
 class StayMoveProjectorTest {
 
   private static final double INFLATION = 0.026;
+  private static final LocalDate TODAY = LocalDate.parse("2026-10-22");
+  // 오늘 기준 근속 1년 미만이라 지금 회사분 퇴직금이 0이다
+  private static final LocalDate SHORT_HIRE = LocalDate.parse("2026-03-02");
 
   private final StayMoveProjector projector =
       new StayMoveProjector(
@@ -21,8 +25,20 @@ class StayMoveProjectorTest {
           new UnemploymentBenefitAssumption(66_000L, 60_120L, "2026-01"));
 
   private ProjectionInput input(long moveGross, int gapMonths, long cost, boolean eligible) {
+    return input(moveGross, gapMonths, cost, eligible, null);
+  }
+
+  private ProjectionInput input(
+      long moveGross, int gapMonths, long cost, boolean eligible, SeveranceTerms severance) {
     return new ProjectionInput(
-        60_000_000L, 0.03, moveGross, gapMonths, cost, eligible, INFLATION, 1.0);
+        60_000_000L, 0.03, moveGross, gapMonths, cost, eligible, INFLATION, 1.0, severance);
+  }
+
+  /** 퇴직금 반영 투영과 미반영 투영의 m 번째 달 이직 누적 증가분 차이 — 그 달에 더해진 퇴직금 잔액의 변화다. */
+  private static long moveJump(ProjectionResult with, ProjectionResult without, int month) {
+    int i = month - 1;
+    return (with.moveCumulative()[i] - with.moveCumulative()[i - 1])
+        - (without.moveCumulative()[i] - without.moveCumulative()[i - 1]);
   }
 
   @Test
@@ -62,7 +78,65 @@ class StayMoveProjectorTest {
     Double breakeven = projector.breakevenRaisePercent(60_000_000L, INFLATION);
 
     ProjectionInput atBreakeven =
-        new ProjectionInput(60_000_000L, breakeven / 100, null, 0, 0L, false, INFLATION, 1.0);
+        new ProjectionInput(60_000_000L, breakeven / 100, null, 0, 0L, false, INFLATION, 1.0, null);
     assertThat(projector.project(atBreakeven).stayRealChangePercent()).isCloseTo(0.0, offset(0.1));
+  }
+
+  @Test
+  void 퇴직금이_연봉_차이에_섞이지_않는다() {
+    SeveranceTerms terms = new SeveranceTerms(LocalDate.parse("2018-04-02"), TODAY);
+    FirstYear without = projector.project(input(70_000_000L, 0, 0L, false)).firstYear();
+    FirstYear with = projector.project(input(70_000_000L, 0, 0L, false, terms)).firstYear();
+
+    assertThat(with.severance()).isNotZero();
+    assertThat(without.severance()).isZero();
+    assertThat(with.salaryDiff()).isEqualTo(without.salaryDiff());
+    assertThat(with.total() - without.total()).isEqualTo(with.severance());
+    assertThat(
+            with.salaryDiff() + with.gap() + with.oneTimeCost() + with.benefit() + with.severance())
+        .isEqualTo(with.total());
+  }
+
+  @Test
+  void 새_회사_12개월째에_이직_쪽_퇴직금이_생긴다() {
+    SeveranceTerms terms = new SeveranceTerms(SHORT_HIRE, TODAY);
+    ProjectionResult without = projector.project(input(70_000_000L, 0, 0L, false));
+    ProjectionResult with = projector.project(input(70_000_000L, 0, 0L, false, terms));
+
+    // 지금 회사분 0, 새 회사는 1년 미만이라 11개월째까지 이직 쪽 퇴직금이 없다
+    assertThat(with.moveCumulative()[10]).isEqualTo(without.moveCumulative()[10]);
+    // 12개월째에 새 회사 1년치(연봉 7천만 ÷ 12 ≈ 583만, 세후·실질) 잔액이 생긴다
+    long jump = moveJump(with, without, 12);
+    assertThat(jump).isBetween(5_000_000L, 6_000_000L);
+    // 잔액이지 흐름이 아니다: 13개월째 증가분은 한 달 근속분뿐이다
+    assertThat(moveJump(with, without, 13)).isBetween(0L, jump / 6);
+  }
+
+  @Test
+  void 쉬는_기간만큼_새_회사_퇴직금_시작이_밀린다() {
+    SeveranceTerms terms = new SeveranceTerms(SHORT_HIRE, TODAY);
+    ProjectionResult without = projector.project(input(70_000_000L, 2, 0L, false));
+    ProjectionResult with = projector.project(input(70_000_000L, 2, 0L, false, terms));
+
+    assertThat(with.moveCumulative()[12]).isEqualTo(without.moveCumulative()[12]);
+    assertThat(moveJump(with, without, 14)).isBetween(5_000_000L, 6_000_000L);
+  }
+
+  @Test
+  void severance_null_이면_기존_결과와_같다() {
+    // 퇴직금 반영 전 코드로 같은 입력을 투영해 얻은 값이다
+    ProjectionResult result = projector.project(input(70_000_000L, 2, 3_000_000L, true));
+
+    assertThat(result.stayCumulative()[0]).isEqualTo(4_258_352L);
+    assertThat(result.stayCumulative()[11]).isEqualTo(50_503_956L);
+    assertThat(result.stayCumulative()[47]).isEqualTo(202_499_047L);
+    assertThat(result.moveCumulative()[0]).isEqualTo(-1_017_821L);
+    assertThat(result.moveCumulative()[11]).isEqualTo(48_075_048L);
+    assertThat(result.moveCumulative()[47]).isEqualTo(217_633_398L);
+    assertThat(result.crossoverMonth()).isEqualTo(17);
+    assertThat(result.equalizingRaisePercent()).isEqualTo(6.4);
+    assertThat(result.firstYear())
+        .isEqualTo(
+            new FirstYear(6_163_184L, -9_545_819L, -2_993_590L, 3_947_317L, 0L, -2_428_908L));
   }
 }

@@ -66,7 +66,8 @@ class ScenarioEvaluationServiceTest {
             estimator,
             new StayMoveProjector(
                 estimator, new UnemploymentBenefitAssumption(66_000L, 60_120L, "2026-01")),
-            new SeveranceOutlookService(incomeRepository, clock));
+            new SeveranceOutlookService(incomeRepository, clock),
+            clock);
   }
 
   private void givenContext(LocalDate hireDate) {
@@ -154,5 +155,22 @@ class ScenarioEvaluationServiceTest {
     assertThat(response.assumptions())
         .extracting(Assumption::code)
         .doesNotContain("SEVERANCE_BASIS", "SEVERANCE_IRP", "SEVERANCE_TAX_AS_OF");
+  }
+
+  @Test
+  void 근속이_길어도_유형_라벨은_퇴직금을_빼고_정한다() {
+    givenContext(LocalDate.parse("2010-03-02"));
+    // 오퍼가 조금 낮아 급여는 손해지만, 퇴직금이 두 번에 나뉘어 세금이 줄어 퇴직금 차이가 그 손해보다 크다
+    EvaluateRequest request =
+        new EvaluateRequest(
+            new EvaluateRequest.Stay(0.0, null, null, null, null),
+            new EvaluateRequest.Move(59_000_000L, 0, 0L, false, true, null, null, null, null));
+
+    EvaluationResponse response = service.evaluate(USER_ID, request);
+
+    var firstYear = response.move().firstYear();
+    assertThat(firstYear.total()).isNotNegative();
+    assertThat(firstYear.total() - firstYear.severance()).isNegative();
+    assertThat(response.typeLabel()).isEqualTo("남으면 추정 이득");
   }
 }

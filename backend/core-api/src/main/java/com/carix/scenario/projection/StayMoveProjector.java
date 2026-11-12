@@ -33,7 +33,8 @@ public class StayMoveProjector {
 
   public ProjectionResult project(ProjectionInput in) {
     double[] stay = stayRealMonthly(in, in.raiseRate());
-    long[] stayCumulative = cumulative(stay);
+    double[] staySeverance = stayRealSeverance(in, in.raiseRate());
+    long[] stayCumulative = cumulative(stay, staySeverance);
     double stayChange = stayRealChangePercent(in);
 
     if (in.moveAnnualGross() == null) {
@@ -41,15 +42,19 @@ public class StayMoveProjector {
     }
 
     double[] move = moveRealMonthly(in);
-    long[] moveCumulative = cumulative(move);
+    double[] moveSeverance = moveRealSeverance(in);
+    long[] moveCumulative = cumulative(move, moveSeverance);
 
+    long firstYearSeverance =
+        Math.round(moveSeverance[FIRST_YEAR_MONTHS - 1])
+            - Math.round(staySeverance[FIRST_YEAR_MONTHS - 1]);
     return new ProjectionResult(
         stayChange,
         stayCumulative,
         moveCumulative,
         crossover(stayCumulative, moveCumulative),
-        firstYear(in, stay, stayCumulative, moveCumulative),
-        equalizingRaisePercent(in, sum(move)));
+        firstYear(in, stayCumulative, moveCumulative, firstYearSeverance),
+        equalizingRaisePercent(in, sum(move) + moveSeverance[HORIZON_MONTHS - 1]));
   }
 
   /** 잔류 1년차 세후 실질 변화가 0 이 되는 인상률(%). 구간 안에 해가 없거나 현재 세후가 0 이하면 null. */
@@ -74,15 +79,61 @@ public class StayMoveProjector {
     return firstYear / (1 + inflationRate) / current - 1;
   }
 
-  /** 잔류 월별 실질 세후. 연봉 = G₀ × (1+r)^(k+1). */
+  /** 잔류 월별 실질 세후. */
   private double[] stayRealMonthly(ProjectionInput in, double raiseRate) {
     double[] monthly = new double[HORIZON_MONTHS];
     for (int m = 1; m <= HORIZON_MONTHS; m++) {
-      int k = (m - 1) / MONTHS_PER_YEAR;
-      monthly[m - 1] =
-          real(netMonthly(in.currentAnnualGross() * Math.pow(1 + raiseRate, k + 1), in), m, in);
+      monthly[m - 1] = real(netMonthly(stayAnnualGross(m, in, raiseRate), in), m, in);
     }
     return monthly;
+  }
+
+  /** 잔류 m 개월째 연봉 = G₀ × (1+r)^(k+1). */
+  private static double stayAnnualGross(int m, ProjectionInput in, double raiseRate) {
+    int k = (m - 1) / MONTHS_PER_YEAR;
+    return in.currentAnnualGross() * Math.pow(1 + raiseRate, k + 1);
+  }
+
+  /** 이직 m 개월째 연봉 = 이직 연봉 × (1+r)^k. */
+  private static double moveAnnualGross(int m, ProjectionInput in) {
+    int k = (m - 1) / MONTHS_PER_YEAR;
+    return in.moveAnnualGross() * Math.pow(1 + in.raiseRate(), k);
+  }
+
+  /** 잔류 m 개월째 말에 나가면 받을 실질 세후 퇴직금 잔액. 반영 조건이 없으면 모두 0. */
+  private static double[] stayRealSeverance(ProjectionInput in, double raiseRate) {
+    double[] balances = new double[HORIZON_MONTHS];
+    if (in.severance() == null) {
+      return balances;
+    }
+    for (int m = 1; m <= HORIZON_MONTHS; m++) {
+      balances[m - 1] = stayRealSeveranceAt(m, in, raiseRate);
+    }
+    return balances;
+  }
+
+  private static double stayRealSeveranceAt(int m, ProjectionInput in, double raiseRate) {
+    long annualGross = Math.round(stayAnnualGross(m, in, raiseRate));
+    return real(SeverancePath.stay(in.severance(), m, annualGross), m, in);
+  }
+
+  /**
+   * 이직 m 개월째 말에 나가면 받을 실질 세후 퇴직금 잔액 = 오늘 받은 지금 회사분 + 새 회사분. 지금 회사분은 첫 달에 받으므로 한 번만 첫 달 물가로 할인한다.
+   */
+  private static double[] moveRealSeverance(ProjectionInput in) {
+    double[] balances = new double[HORIZON_MONTHS];
+    SeveranceTerms terms = in.severance();
+    if (terms == null) {
+      return balances;
+    }
+    double currentCompany =
+        real(SeverancePath.currentCompany(terms, in.currentAnnualGross()), 1, in);
+    for (int m = 1; m <= HORIZON_MONTHS; m++) {
+      long annualGross = Math.round(moveAnnualGross(m, in));
+      long newCompany = SeverancePath.newCompany(terms, in.unemploymentMonths(), m, annualGross);
+      balances[m - 1] = currentCompany + real(newCompany, m, in);
+    }
+    return balances;
   }
 
   /** 이직 월별 실질 세후. 공백 달은 급여 대신 실업급여, 첫 달에 일회성 비용을 뺀다. */
@@ -99,7 +150,7 @@ public class StayMoveProjector {
   }
 
   private FirstYear firstYear(
-      ProjectionInput in, double[] stay, long[] stayCumulative, long[] moveCumulative) {
+      ProjectionInput in, long[] stayCumulative, long[] moveCumulative, long severance) {
     double gap = 0;
     double benefit = 0;
     for (int m = 1; m <= FIRST_YEAR_MONTHS; m++) {
@@ -113,13 +164,20 @@ public class StayMoveProjector {
     long cost = -Math.round(real(in.oneTimeCost(), 1, in));
     long total = moveCumulative[FIRST_YEAR_MONTHS - 1] - stayCumulative[FIRST_YEAR_MONTHS - 1];
     // 반올림 순서: 나머지 항을 먼저 반올림하고 급여 차이가 잔차를 흡수해 합이 total 과 정확히 같다
-    long salaryDiff = total - roundedGap - roundedBenefit - cost;
-    return new FirstYear(salaryDiff, roundedGap, cost, roundedBenefit, total);
+    long salaryDiff = total - roundedGap - roundedBenefit - cost - severance;
+    return new FirstYear(salaryDiff, roundedGap, cost, roundedBenefit, severance, total);
   }
 
+  /** moveTotal 은 이직 48개월 소득 합 + 48개월째 퇴직금. 잔류 쪽 퇴직금도 시험 인상률의 연봉 경로로 다시 계산한다. */
   private Double equalizingRaisePercent(ProjectionInput in, double moveTotal) {
     return solvePercent(
-        EQUALIZING_LOWER, EQUALIZING_UPPER, rate -> sum(stayRealMonthly(in, rate)) - moveTotal);
+        EQUALIZING_LOWER,
+        EQUALIZING_UPPER,
+        rate -> sum(stayRealMonthly(in, rate)) + staySeveranceAtHorizon(in, rate) - moveTotal);
+  }
+
+  private static double staySeveranceAtHorizon(ProjectionInput in, double raiseRate) {
+    return in.severance() == null ? 0 : stayRealSeveranceAt(HORIZON_MONTHS, in, raiseRate);
   }
 
   /** 증가 함수 f 의 근을 이분법으로 찾아 %로 소수 첫째 자리까지 돌려준다. 구간 끝에서 부호가 같으면 null. */
@@ -150,8 +208,7 @@ public class StayMoveProjector {
   }
 
   private double movePay(int m, ProjectionInput in) {
-    int k = (m - 1) / MONTHS_PER_YEAR;
-    return netMonthly(in.moveAnnualGross() * Math.pow(1 + in.raiseRate(), k), in);
+    return netMonthly(moveAnnualGross(m, in), in);
   }
 
   private double benefit(int m, ProjectionInput in) {
@@ -174,12 +231,15 @@ public class StayMoveProjector {
     return nominal / Math.pow(1 + in.inflationRate(), (double) month / MONTHS_PER_YEAR);
   }
 
-  private static long[] cumulative(double[] monthly) {
+  /**
+   * 월 소득은 쌓고, 퇴직금은 그 달에 나가면 받을 잔액이라 쌓지 않고 그 달 값에만 더한다. 둘을 따로 반올림해야 첫해 분해의 퇴직금 항이 누적 차이와 원 단위로 맞는다.
+   */
+  private static long[] cumulative(double[] monthly, double[] severance) {
     long[] result = new long[monthly.length];
     double running = 0;
     for (int i = 0; i < monthly.length; i++) {
       running += monthly[i];
-      result[i] = Math.round(running);
+      result[i] = Math.round(running) + Math.round(severance[i]);
     }
     return result;
   }

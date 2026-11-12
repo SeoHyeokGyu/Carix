@@ -19,10 +19,14 @@ import com.carix.scenario.inflation.InflationAssumptions;
 import com.carix.scenario.inflation.InflationBasis;
 import com.carix.scenario.projection.ProjectionInput;
 import com.carix.scenario.projection.ProjectionResult;
+import com.carix.scenario.projection.ProjectionResult.FirstYear;
+import com.carix.scenario.projection.SeveranceTerms;
 import com.carix.scenario.projection.StayMoveProjector;
 import com.carix.scenario.severance.SeveranceOutlookService;
 import com.carix.scenario.tax.TakeHomeEstimator;
 import com.carix.scenario.tax.TakeHomeEstimator.Calibration;
+import java.time.Clock;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -47,6 +51,7 @@ public class ScenarioEvaluationService {
   private final TakeHomeEstimator estimator;
   private final StayMoveProjector projector;
   private final SeveranceOutlookService severanceOutlookService;
+  private final Clock clock;
 
   @Transactional(readOnly = true)
   public EvaluationResponse evaluate(UUID userId, EvaluateRequest request) {
@@ -66,14 +71,23 @@ public class ScenarioEvaluationService {
     double governmentInflation = basis.governmentPercent().doubleValue() / PERCENT;
     double raise = stay.raisePercent() / PERCENT;
 
+    // 블록과 비교가 같은 퇴직금 판정을 쓴다: DC형·입사일 없음이면 비교에도 퇴직금을 넣지 않는다
+    SeveranceView severance =
+        severanceOutlookService.outlook(userId, context, raise, stay.currentGrossOverride());
+    SeveranceTerms severanceTerms =
+        SeveranceOutlookService.STATUS_OK.equals(severance.status())
+            ? new SeveranceTerms(context.hireDate(), LocalDate.now(clock))
+            : null;
     Long moveGross = move == null ? null : moveAnnualGross(move);
     ProjectionResult result =
-        projector.project(input(currentGross, raise, moveGross, move, inflation, calibration));
+        projector.project(
+            input(currentGross, raise, moveGross, move, inflation, calibration, severanceTerms));
     double stayGovernmentChange =
         basis.personalPercent() == null
             ? result.stayRealChangePercent()
             : projector
-                .project(input(currentGross, raise, null, null, governmentInflation, calibration))
+                .project(
+                    input(currentGross, raise, null, null, governmentInflation, calibration, null))
                 .stayRealChangePercent();
 
     Double marketGap =
@@ -91,8 +105,6 @@ public class ScenarioEvaluationService {
             projector.breakevenRaisePercent(currentGross, governmentInflation),
             marketGap);
 
-    SeveranceView severance =
-        severanceOutlookService.outlook(userId, context, raise, stay.currentGrossOverride());
     return new EvaluationResponse(
         stayView,
         move == null
@@ -111,7 +123,12 @@ public class ScenarioEvaluationService {
         assumptions(basis, calibration, severance, move, stay),
         unreflected(stay, move, context),
         severance,
-        move == null ? null : ScenarioCalculator.typeLabelOf(result.firstYear().total()));
+        move == null ? null : typeLabel(result.firstYear()));
+  }
+
+  /** 라벨은 오퍼의 성격을 말하므로 지금 회사 근속 길이에 따라 바뀌는 퇴직금 차이를 빼고 정한다. */
+  private static String typeLabel(FirstYear firstYear) {
+    return ScenarioCalculator.typeLabelOf(firstYear.total() - firstYear.severance());
   }
 
   private static long currentGross(Stay stay, ScenarioContextResponse context) {
@@ -137,7 +154,8 @@ public class ScenarioEvaluationService {
       Long moveGross,
       Move move,
       double inflation,
-      Calibration calibration) {
+      Calibration calibration,
+      SeveranceTerms severance) {
     return new ProjectionInput(
         currentGross,
         raise,
@@ -146,7 +164,8 @@ public class ScenarioEvaluationService {
         move == null ? 0 : move.oneTimeCost(),
         move != null && move.benefitEligible(),
         inflation,
-        calibration.ratio());
+        calibration.ratio(),
+        severance);
   }
 
   private MoveView moveView(

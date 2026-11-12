@@ -375,7 +375,7 @@ class ScenarioServiceTest {
             new long[] {1L, 2L},
             new long[] {3L, 4L},
             7,
-            new FirstYear(12_000_000L, -5_000_000L, -3_000_000L, 3_960_000L, 7_000_000L),
+            new FirstYear(12_000_000L, -5_000_000L, -3_000_000L, 3_960_000L, 0L, 7_000_000L),
             new EvaluationResponse.Range(0L, 1_000_000L),
             null,
             6.1,

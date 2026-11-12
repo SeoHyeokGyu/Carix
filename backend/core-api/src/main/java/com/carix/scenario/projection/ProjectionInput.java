@@ -11,6 +11,7 @@ package com.carix.scenario.projection;
  * @param benefitEligible 실업급여 수급 자격
  * @param inflationRate 연 물가상승률 (0.026)
  * @param calibrationRatio 실수령 보정 비율. 잔류·이직 세후에 똑같이 곱한다
+ * @param severance 퇴직금 반영 조건. null 이면 양쪽 모두 퇴직금을 넣지 않는다(DC형·입사일 없음)
  */
 public record ProjectionInput(
     long currentAnnualGross,
@@ -20,4 +21,5 @@ public record ProjectionInput(
     long oneTimeCost,
     boolean benefitEligible,
     double inflationRate,
-    double calibrationRatio) {}
+    double calibrationRatio,
+    SeveranceTerms severance) {}

@@ -23,8 +23,10 @@ public record ProjectionResult(
   /**
    * 첫해 분해. {@code total == moveCumulative[11] - stayCumulative[11]} 이다.
    *
-   * <p>공백·실업급여·비용은 각자 반올림하고, 반올림 오차(수 원)는 {@code salaryDiff} 가 흡수해 합이 정확히 맞는다.
+   * <p>{@code severance} 는 12개월째에 나갈 때 받을 세후·실질 퇴직금의 이직 − 잔류 차이다. 공백·실업급여·비용·퇴직금은 각자 반올림하고, 반올림
+   * 오차(수 원)는 {@code salaryDiff} 가 흡수해 합이 정확히 맞는다.
    */
   @JsonIgnoreProperties(ignoreUnknown = true)
-  public record FirstYear(long salaryDiff, long gap, long oneTimeCost, long benefit, long total) {}
+  public record FirstYear(
+      long salaryDiff, long gap, long oneTimeCost, long benefit, long severance, long total) {}
 }
