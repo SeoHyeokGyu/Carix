@@ -1,7 +1,8 @@
 import { expect, type Page, test } from "@playwright/test";
 
 /**
- * 설계 §11 — 온보딩 → 대시보드 → 시뮬레이터 한 줄기의 E2E 골격. 본 점검은 7주차다.
+ * 온보딩 진입 가드와 소득 화면 포커스 순서. 가입부터 탈퇴까지 한 줄기는
+ * completion-criteria.spec.ts 가 갖는다.
  *
  * 상시로(백엔드 계정 없이) 도는 것은 진입 가드뿐이다 — Task 4 의 loader 가드가 실제
  * 빌드 산출물(`pnpm build && pnpm start`)에서도 동작해, 세션 없는 방문자를 전부
@@ -52,11 +53,6 @@ test.describe("로그인 후 온보딩 한 줄기", () => {
     // page.goto 가 로그인 요청과 경합해, 그 요청을 끊어버릴 수 있다.
     await expect(page).toHaveURL(/\/onboarding\/|\/dashboard/);
   }
-
-  test("프로필부터 시뮬레이터까지 진행한다", async ({ page }) => {
-    await loginAsE2eUser(page);
-    await expect(page).toHaveURL(/\/onboarding\/|\/dashboard/);
-  });
 
   /**
    * jsdom 은 레이아웃을 계산하지 않아 DOM 순서만 볼 수 있다 — profile.test.tsx 의
