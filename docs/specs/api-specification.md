@@ -120,7 +120,8 @@
       "region": "서울",
       "employmentType": "FULL_TIME",
       "companySize": "MEDIUM",
-      "hireDate": "2022-03-02"
+      "hireDate": "2022-03-02",
+      "retirementPensionType": "DC"
     }
     ```
 
@@ -135,10 +136,12 @@
       "region": "서울",
       "employmentType": "FULL_TIME",
       "companySize": "MEDIUM",
-      "hireDate": "2022-03-02"
+      "hireDate": "2022-03-02",
+      "retirementPensionType": "DC"
     }
     ```
-*   `hireDate` 는 현 직장 입사일(`yyyy-MM-dd`)이다. 선택 필드이며 보내지 않거나 `null` 이면 기존 값을 유지한다. 오늘 이후 날짜는 400. 퇴직금 경계 경고와 성과급 범위 계산에 쓰인다.
+*   `hireDate` 는 현 직장 입사일(`yyyy-MM-dd`)이다. 선택 필드이며 보내지 않거나 `null` 이면 기존 값을 유지한다. 오늘 이후 날짜는 400. 퇴직금 계산과 성과급 범위 계산에 쓰인다.
+*   `retirementPensionType` 은 퇴직연금 유형(`SEVERANCE_DB`·`DC`·`UNKNOWN`)이다. 선택 필드이며 보내지 않거나 `null` 이면 기존 값을 유지한다(값을 지우는 방법은 없다). 조회 응답에는 아직 고르지 않았으면 `null` 로 나오고, 퇴직금 계산은 `null` 을 `UNKNOWN` 과 같게 본다([도메인 정의서 §4.8](domain-logic.md)).
 *   **Response (200 OK):** (조회 응답과 동일)
 
 ---
@@ -742,6 +745,7 @@
 
 *   **`GET /api/v1/scenarios/context`** — 입력 기본값.
     *   `currentAnnualGross`(고정상여 포함 세전 연 소득), `monthlyNet`, `hireDate`, `bonusIncluded`, `fixedBonusAnnual` — 소득 이력이 없으면 해당 값은 `null`.
+    *   `retirementPensionType` — 프로필의 퇴직연금 유형(`SEVERANCE_DB`·`DC`·`UNKNOWN`), 아직 고르지 않았으면 `null`.
     *   `defaultRaisePercent` — 최신 소득 행의 변경 사유가 `RAISE` 일 때만 (최신÷직전 − 1)×100, 아니면 `null`. 직전 행의 사유는 보지 않는다(이직 뒤 첫 인상도 인상이다).
     *   `performanceBonusRange {min, average, years}` — 올해를 뺀 최근 3개 연도 중 입사 연도 다음 해부터의 연도별 합(기록 없는 해는 0). 입사일이 없으면 첫 소득 행 연도 다음 해부터. 대상 연도가 없거나 대상 연도 안 기록이 한 건도 없으면 `null` — 이때 화면은 `+ 성과급` 칩으로 예상치 입력을 열 수 있고, 예상치도 없으면 `unreflected` 에 `PERFORMANCE_BONUS` 가 담긴다.
     *   `inflation` — 한국은행 전망(`governmentPercent`)과 개인물가(`personalPercent`, 계산 불가면 `null`), 격차 `gapPp`·`topGapCategory`·`similar`(|격차| < 0.3%p), `asOf`·`source`.
@@ -751,10 +755,10 @@
     *   `sampleSize` 는 백분위를 매긴 **공개연봉** 표본 수이고 `minRequired` 는 표본 부족일 때만 채운다. 산출 조건은 동료집단 공고 수와 그중 공개연봉 건수가 **둘 다** `minRequired` 이상인 것이다(§5.2 연봉 분포와 같은 기준).
 *   **`POST /api/v1/scenarios/evaluate`** — 본문 `stay`(필수: `raisePercent` −100~100, 선택: `currentGrossOverride`, `performanceBonusEstimate`, `stockVesting12m`, `stockUnvested`), `move`(선택: `grossSalary`, `unemploymentMonths` 0~6, `oneTimeCost`, `benefitEligible`, `bonusIncluded`, `fixedBonusAnnual`, `performanceBonusExpected`, `signingBonus`, `stockVesting12m`).
     *   `stay`: `realChangePercent`(내 기준 물가)·`realChangeGovernmentPercent`, `breakevenPersonalPercent`·`breakevenGovernmentPercent`(실질 변화가 0 이 되는 인상률, 해가 없으면 `null`), `marketGapPercent`(양수면 중앙값이 더 높다 = 덜 받는다). 개인물가를 못 구하면 실질 변화 두 값이 같고 `breakevenPersonalPercent` 는 `null` 이다.
-    *   `move`(이직 입력이 있을 때만): `stayCumulative`·`moveCumulative`(48개월 누적), `crossoverMonth`, `firstYear`(`salaryDiff`+`gap`+`oneTimeCost`+`benefit` = `total`), `expectedRange {min,max}`(성과급·사이닝 첫해 차이, 결론에 더하지 않음), `stock`(불확실층, 입력이 없으면 `null` — `firstYear` 에 영향 없음), `equalizingRaisePercent`, `feasibility`.
-    *   `typeLabel` — 이직이 있을 때 `firstYear.total` 부호로 `옮기면 추정 이득` / `남으면 추정 이득`. 화면에는 표시하지 않는다(결론 문장과 어긋날 수 있어서).
-    *   `severance {monthsToAnniversary, estimatedAmount}` — 근속 12개월 미만이고 1년까지 남은 개월(남은 날이 있으면 올림)이 3 이하일 때만. 금액 = 현재 연봉 ÷ 12.
-    *   `assumptions [{code,text}]` — 세금 가정(본인 1인·비과세/연말정산 미반영·요율 기준연도), 실수령 보정 여부, 물가 출처, 4년 유지 가정, 이직이 있으면 `NEW_JOB_SEVERANCE`, 사이닝이 있으면 `SIGNING_CLAWBACK`, 개인물가 불가면 `PERSONAL_INFLATION_UNAVAILABLE`, 퇴직금 경고가 있으면 `SEVERANCE_ESTIMATE`, 주식 입력이 있으면 `STOCK_VALUE`. `unreflected [코드]` — 비어서 반영되지 않은 입력(`PERFORMANCE_BONUS`·`STOCK`·`HIRE_DATE`·`MOVE_PERFORMANCE_BONUS`·`SIGNING_BONUS`·`MOVE_STOCK`).
+    *   `move`(이직 입력이 있을 때만): `stayCumulative`·`moveCumulative`(48개월 누적, 양쪽의 세후 퇴직금 포함), `crossoverMonth`, `firstYear`(`salaryDiff`+`gap`+`oneTimeCost`+`benefit`+`severance` = `total`), `expectedRange {min,max}`(성과급·사이닝 첫해 차이, 결론에 더하지 않음), `stock`(불확실층, 입력이 없으면 `null` — `firstYear` 에 영향 없음), `equalizingRaisePercent`(퇴직금 포함), `feasibility`. `firstYear.severance` 는 12개월째에 나갈 때 받는 세후·실질 퇴직금의 이직 − 잔류 차이이고 DC형·입사일 없음이면 0 이다. 규칙은 [도메인 정의서 §4.8](domain-logic.md).
+    *   `typeLabel` — 이직이 있을 때 `firstYear.total` 에서 `severance` 를 뺀 값의 부호로 `옮기면 추정 이득` / `남으면 추정 이득`. 화면에는 표시하지 않는다(결론 문장과 어긋날 수 있어서).
+    *   `severance {pensionType, status, points}` — 지금 회사를 나갈 때 받는 세후 퇴직금(명목, IRP 일시금 기준)이고 오퍼 없이도 나온다. `pensionType` 은 `SEVERANCE_DB`·`DC`·`UNKNOWN`(미선택은 `UNKNOWN`), `status` 는 `OK`·`DC`(금액 없음)·`NO_HIRE_DATE`(입사일 없음)이며 `OK` 가 아니면 `points` 는 빈 목록이다. `points[{kind, lastWorkDay, gross, tax, net, deltaFromToday}]` 는 마지막 근무일 오름차순이고 `kind` 는 `TODAY`·`IN_3_MONTHS`·`AFTER_NEXT_RAISE`(근속 1년 전이면 `AFTER_ANNIVERSARY`), `tax` 는 퇴직소득세와 지방소득세의 합, `deltaFromToday` 는 `net` − 오늘 퇴사 `net` 이다. 시점 정의는 [도메인 정의서 §4.8](domain-logic.md).
+    *   `assumptions [{code,text}]` — 세금 가정(본인 1인·비과세/연말정산 미반영·요율 기준연도), 실수령 보정 여부, 물가 출처, 4년 유지 가정, 퇴직금을 계산했으면 `SEVERANCE_BASIS`·`SEVERANCE_IRP`·`SEVERANCE_TAX_AS_OF`(유형이 `UNKNOWN` 이면 `SEVERANCE_ASSUMED_DB` 도), 이직이 있으면 `NEW_JOB_SEVERANCE`, 사이닝이 있으면 `SIGNING_CLAWBACK`, 개인물가 불가면 `PERSONAL_INFLATION_UNAVAILABLE`, 주식 입력이 있으면 `STOCK_VALUE`. `unreflected [코드]` — 비어서 반영되지 않은 입력(`PERFORMANCE_BONUS`·`STOCK`·`HIRE_DATE`·`MOVE_PERFORMANCE_BONUS`·`SIGNING_BONUS`·`MOVE_STOCK`).
     *   400 — 범위 밖 입력, 소득 이력도 `currentGrossOverride` 도 없는 경우, 현재 연봉의 세후가 0 이하인 경우.
 
 ### 7.1 지출 이력
