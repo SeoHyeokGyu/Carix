@@ -394,6 +394,7 @@ export function CurrentJobStep({
           <RecordSaveNote
             status={pensionTypeSave.status}
             target="프로필"
+            staleNote="결과는 이전 답 기준입니다."
             onRetry={pensionTypeSave.retry}
           />
         </legend>
