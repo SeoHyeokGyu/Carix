@@ -12,7 +12,11 @@ import { Input } from "@/components/ui/input";
 
 import { updateBonusTerms } from "../../lib/api/income";
 import { patchProfile } from "../../lib/api/profile";
-import type { EvaluateRequest, ScenarioContext } from "../../lib/api/scenario";
+import type {
+  EvaluateRequest,
+  RetirementPensionType,
+  ScenarioContext,
+} from "../../lib/api/scenario";
 import type { FieldErrors } from "../../lib/fieldErrors";
 import { focusFirstInvalidField } from "../../lib/focusFirstInvalidField";
 import { formatKoreanSalary } from "../../lib/koreanSalary";
@@ -43,6 +47,12 @@ const SAVED_NOTE = "마이페이지에 저장됨";
 const BONUS_AMOUNT_REQUIRED = "연간 고정상여 금액을 입력해 주세요.";
 const BONUS_IDLE_NOTE = "마이페이지 소득 이력에 저장됩니다";
 const BONUS_UNSAVED_NOTE = "칸을 벗어나면 저장됩니다";
+const PENSION_TYPE_OPTIONS: { value: RetirementPensionType; label: string }[] =
+  [
+    { value: "SEVERANCE_DB", label: "퇴직금·DB형" },
+    { value: "DC", label: "DC형" },
+    { value: "UNKNOWN", label: "모름" },
+  ];
 
 type Stay = EvaluateRequest["stay"];
 
@@ -63,9 +73,9 @@ interface CurrentJobStepProps {
   onChange: (stay: Stay, source: EmitSource) => void;
   /** 편집·flush 결과가 무효일 때. 계산 요청은 직전 값으로 남고, 호출자가 결과를 흐리게 한다. */
   onInvalid?: () => void;
-  /** 상여 조건·입사일 기록 저장이 진행 중인지. 진행 중에는 호출자가 평가를 미룬다. */
+  /** 상여 조건·입사일·퇴직연금 유형 기록 저장이 진행 중인지. 진행 중에는 호출자가 평가를 미룬다. */
   onRecordSaving: (saving: boolean) => void;
-  /** 상여 조건·입사일 기록 저장이 성공한 뒤. 호출자가 맥락을 다시 읽고 재평가한다. */
+  /** 상여 조건·입사일·퇴직연금 유형 기록 저장이 성공한 뒤. 호출자가 맥락을 다시 읽고 재평가한다. */
   onRecordSaved: () => void;
   /** 성과급 기록을 마이페이지에 더한 뒤. 호출자가 컨텍스트(성과급 범위)를 다시 읽는다. */
   onBonusRecorded?: () => void;
@@ -109,6 +119,7 @@ export function CurrentJobStep({
   const [vesting, setVesting] = useState(wonToManInput(stay?.stockVesting12m));
   const [unvested, setUnvested] = useState(wonToManInput(stay?.stockUnvested));
   const [hireDate, setHireDate] = useState("");
+  const [pensionType, setPensionType] = useState(context.retirementPensionType);
   const { errors, setErrors, touch, revealAll, pickRevealed } =
     useRevealedErrors();
   const formRef = useRef<HTMLFormElement>(null);
@@ -124,7 +135,7 @@ export function CurrentJobStep({
   useEffect(() => {
     callbacks.current = { onRecordSaving, onRecordSaved, onBonusUnsaved };
   });
-  // 상여 조건·입사일 저장을 함께 센다. 모두 끝나야 평가 보류를 푼다.
+  // 상여 조건·입사일·퇴직연금 유형 저장을 함께 센다. 모두 끝나야 평가 보류를 푼다.
   const inFlight = useRef(0);
   const tracker: RecordSaveTracker = {
     begin: () => {
@@ -154,6 +165,12 @@ export function CurrentJobStep({
     (value) => patchProfile({ hireDate: value }),
     tracker,
     null,
+  );
+
+  const pensionTypeSave = useRecordSave<RetirementPensionType>(
+    (value) => patchProfile({ retirementPensionType: value }),
+    tracker,
+    context.retirementPensionType,
   );
 
   const range = context.performanceBonusRange;
@@ -370,6 +387,36 @@ export function CurrentJobStep({
           />
         )}
       </Field>
+
+      <fieldset className="flex flex-col gap-2">
+        <legend className="mb-2 text-sm font-medium">
+          퇴직연금 유형{" "}
+          <RecordSaveNote
+            status={pensionTypeSave.status}
+            target="프로필"
+            onRetry={pensionTypeSave.retry}
+          />
+        </legend>
+        <div className="flex flex-wrap gap-x-4 gap-y-2">
+          {PENSION_TYPE_OPTIONS.map((option) => (
+            <label
+              key={option.value}
+              className="flex items-center gap-2 text-sm"
+            >
+              <input
+                type="radio"
+                name="retirementPensionType"
+                checked={pensionType === option.value}
+                onChange={() => {
+                  setPensionType(option.value);
+                  pensionTypeSave.submit(option.value);
+                }}
+              />
+              {option.label}
+            </label>
+          ))}
+        </div>
+      </fieldset>
 
       {latestIncomeId && overrideActive && (
         <p className="text-sm text-muted-foreground">

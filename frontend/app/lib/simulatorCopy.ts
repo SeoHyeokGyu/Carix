@@ -1,4 +1,4 @@
-import type { InflationBasis } from "./api/scenario";
+import type { InflationBasis, SeverancePoint } from "./api/scenario";
 import { EXPENSE_CATEGORIES } from "./schemas/expense";
 
 const MAN_WON = 10_000;
@@ -90,10 +90,33 @@ export function inflationSource(basis: InflationBasis): string {
   return `출처: ${basis.source} (${basis.asOf} 발표)`;
 }
 
-export function severanceNote(w: {
-  monthsToAnniversary: number;
-  estimatedAmount: number;
-}): string {
-  const man = Math.round(w.estimatedAmount / MAN_WON).toLocaleString("ko-KR");
-  return `${w.monthsToAnniversary}개월만 더 다니면 퇴직금 약 ${man}만원이 생깁니다`;
+export const SEVERANCE_TITLE = "지금 나가면 받는 퇴직금 (세후)";
+export const SEVERANCE_DC_NOTE =
+  "회사가 매년 적립해 둔 돈이라 퇴사 시점과 거의 무관합니다. 적립금은 퇴직연금 계좌에서 확인하세요.";
+export const SEVERANCE_NO_HIRE_DATE = "입사일을 넣으면 퇴직금을 계산합니다";
+
+const SEVERANCE_POINT_LABELS: Record<SeverancePoint["kind"], string> = {
+  TODAY: "오늘 퇴사",
+  IN_3_MONTHS: "3개월 뒤",
+  AFTER_NEXT_RAISE: "다음 인상 뒤",
+  AFTER_ANNIVERSARY: "1주년까지 다니면",
+};
+
+function man(won: number): string {
+  return `${Math.round(won / MAN_WON).toLocaleString("ko-KR")}만`;
+}
+
+/** 「오늘 퇴사 1,512만」 · 오늘보다 늘면 「3개월 뒤 1,640만 (+128만)」. */
+export function severancePointLine(point: SeverancePoint): string {
+  const head = `${SEVERANCE_POINT_LABELS[point.kind]} ${man(point.net)}`;
+  return point.deltaFromToday > 0
+    ? `${head} (${signedMan(point.deltaFromToday)})`
+    : head;
+}
+
+/** 세액은 금액이 생기는 첫 시점의 것이다. 근속 1년 전 「오늘 퇴사」 0원의 세금 0 을 보이지 않게. */
+export function severanceBasisLine(points: readonly SeverancePoint[]): string {
+  const basis = "평균임금 = 최근 3개월 임금 + 연간 상여 × 3/12";
+  const taxed = points.find((p) => p.gross > 0);
+  return taxed ? `${basis} · 퇴직소득세 약 ${man(taxed.tax)} 뺌` : basis;
 }

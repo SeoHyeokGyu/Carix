@@ -1,10 +1,7 @@
 import type { EvaluationResponse } from "../../lib/api/scenario";
-import {
-  marketGapLine,
-  severanceNote,
-  stayHeadline,
-} from "../../lib/simulatorCopy";
+import { marketGapLine, stayHeadline } from "../../lib/simulatorCopy";
 import { RaiseAxis } from "./RaiseAxis";
+import { SeveranceBlock } from "./SeveranceBlock";
 
 interface StayOutcomeProps {
   result: EvaluationResponse;
@@ -30,14 +27,11 @@ export function StayOutcome({ result, raisePercent }: StayOutcomeProps) {
         breakevenGovernment={government}
       />
 
-      {(stay.marketGapPercent !== null || severance) && (
-        <ul className="flex flex-col gap-1.5 text-sm">
-          {stay.marketGapPercent !== null && (
-            <li>{marketGapLine(stay.marketGapPercent)}</li>
-          )}
-          {severance && <li>{severanceNote(severance)}</li>}
-        </ul>
+      {stay.marketGapPercent !== null && (
+        <p className="text-sm">{marketGapLine(stay.marketGapPercent)}</p>
       )}
+
+      {severance && <SeveranceBlock severance={severance} />}
     </div>
   );
 }

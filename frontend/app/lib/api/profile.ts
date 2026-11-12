@@ -1,5 +1,6 @@
 import { coreGet, coreSend } from "../coreApi";
 import type { ProfileInput } from "../schemas/profile";
+import type { RetirementPensionType } from "./scenario";
 
 export interface ProfileResponse {
   jobFamily: string | null;
@@ -16,7 +17,10 @@ export function getProfile() {
 }
 
 export function patchProfile(
-  input: Partial<ProfileInput> & { hireDate?: string },
+  input: Partial<ProfileInput> & {
+    hireDate?: string;
+    retirementPensionType?: RetirementPensionType;
+  },
 ) {
   return coreSend<ProfileResponse>("PATCH", "/v1/profile", input);
 }

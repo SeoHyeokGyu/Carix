@@ -571,6 +571,7 @@ function Gallery() {
               gap: -8_400_000,
               oneTimeCost: -SIM_ONE_TIME_COST,
               benefit: 5_000_000,
+              severance: 0,
               total: -400_000,
             }}
           />

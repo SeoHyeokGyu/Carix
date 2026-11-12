@@ -60,6 +60,7 @@ describe("firstYearItems", () => {
     gap: -40,
     oneTimeCost: -10,
     benefit: 0,
+    severance: 0,
     total: 50,
   };
   it("실업급여 0 은 빼고 합계를 마지막에", () => {
@@ -74,6 +75,16 @@ describe("firstYearItems", () => {
     expect(
       firstYearItems({ ...base, benefit: 20, total: 70 }).map((i) => i.key),
     ).toContain("benefit");
+  });
+  // 항이 없으면 퇴직금이 합계에만 들어가 막대 합이 합계와 어긋난다.
+  it("퇴직금이 있으면 합계 바로 앞에, 0 이면 뺀다", () => {
+    const labels = firstYearItems({
+      ...base,
+      severance: 3_000_000,
+      total: 3_000_050,
+    }).map((i) => i.label);
+    expect(labels.slice(-2)).toEqual(["퇴직금", "합계"]);
+    expect(firstYearItems(base).map((i) => i.label)).not.toContain("퇴직금");
   });
 });
 

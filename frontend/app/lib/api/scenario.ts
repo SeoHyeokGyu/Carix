@@ -67,6 +67,8 @@ const moveViewSchema = z.object({
     gap: z.number(),
     oneTimeCost: z.number(),
     benefit: z.number(),
+    /** 이 항이 생기기 전 저장분에는 없다. */
+    severance: z.number().default(0),
     total: z.number(),
   }),
   expectedRange: rangeSchema,
@@ -81,6 +83,32 @@ const moveViewSchema = z.object({
   feasibility: feasibilitySchema,
 });
 
+const PENSION_TYPES = ["SEVERANCE_DB", "DC", "UNKNOWN"] as const;
+export type RetirementPensionType = (typeof PENSION_TYPES)[number];
+
+const severancePointSchema = z.object({
+  kind: z.enum([
+    "TODAY",
+    "IN_3_MONTHS",
+    "AFTER_NEXT_RAISE",
+    "AFTER_ANNIVERSARY",
+  ]),
+  lastWorkDay: z.string(),
+  gross: z.number(),
+  tax: z.number(),
+  net: z.number(),
+  deltaFromToday: z.number(),
+});
+export type SeverancePoint = z.infer<typeof severancePointSchema>;
+
+/** 지금 회사 퇴직금 블록. 점은 마지막 근무일 순이고 `OK` 일 때만 채워진다. 금액은 명목 세후 원. */
+const severanceViewSchema = z.object({
+  pensionType: z.enum(PENSION_TYPES),
+  status: z.enum(["OK", "DC", "NO_HIRE_DATE"]),
+  points: z.array(severancePointSchema),
+});
+export type SeveranceView = z.infer<typeof severanceViewSchema>;
+
 export const evaluationResponseSchema = z.object({
   stay: z.object({
     realChangePercent: z.number(),
@@ -93,9 +121,8 @@ export const evaluationResponseSchema = z.object({
   inflation: inflationBasisSchema,
   assumptions: z.array(z.object({ code: z.string(), text: z.string() })),
   unreflected: z.array(z.string()),
-  severance: z
-    .object({ monthsToAnniversary: z.number(), estimatedAmount: z.number() })
-    .nullable(),
+  // 옛 경고 모양(`monthsToAnniversary`)이나 빈 블록은 그릴 것이 없으니 null 로 접는다.
+  severance: severanceViewSchema.nullable().catch(null),
   typeLabel: z.string().nullable(),
 });
 export type EvaluationResponse = z.infer<typeof evaluationResponseSchema>;
@@ -104,6 +131,8 @@ export interface ScenarioContext {
   currentAnnualGross: number | null;
   monthlyNet: number | null;
   hireDate: string | null;
+  /** 고른 적 없으면 null. */
+  retirementPensionType: RetirementPensionType | null;
   bonusIncluded: boolean;
   fixedBonusAnnual: number | null;
   defaultRaisePercent: number | null;

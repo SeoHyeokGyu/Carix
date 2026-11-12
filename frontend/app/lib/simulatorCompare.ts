@@ -37,7 +37,7 @@ export function cumulativeGap(
 }
 
 export interface FirstYearItem {
-  key: "salaryDiff" | "gap" | "oneTimeCost" | "benefit" | "total";
+  key: "salaryDiff" | "gap" | "oneTimeCost" | "benefit" | "severance" | "total";
   label: string;
   value: number;
   isTotal: boolean;
@@ -71,6 +71,14 @@ export function firstYearItems(
       key: "benefit",
       label: "실업급여",
       value: firstYear.benefit,
+      isTotal: false,
+    });
+  }
+  if (firstYear.severance !== 0) {
+    items.push({
+      key: "severance",
+      label: "퇴직금",
+      value: firstYear.severance,
       isTotal: false,
     });
   }
