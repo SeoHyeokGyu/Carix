@@ -61,7 +61,7 @@ class ScenarioEvaluationServiceTest {
     given(contextService.context(USER_ID))
         .willReturn(
             new ScenarioContextResponse(
-                60_000_000L, null, hireDate, true, null, null, null, BASIS, null));
+                60_000_000L, null, hireDate, null, true, null, null, null, BASIS, null));
   }
 
   private static EvaluateRequest.Stay stay(Long stockVesting, Long stockUnvested) {

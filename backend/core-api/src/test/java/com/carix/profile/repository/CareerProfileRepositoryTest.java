@@ -21,10 +21,10 @@ class CareerProfileRepositoryTest {
   void patch_updatesOnlyProvidedFields() {
     UUID userId = UUID.randomUUID();
     CareerProfile profile = careerProfileRepository.save(new CareerProfile(userId));
-    profile.patch("DEVELOPER", 5, "SEOUL_GANGNAM", "FULL_TIME", "MEDIUM", null);
+    profile.patch("DEVELOPER", 5, "SEOUL_GANGNAM", "FULL_TIME", "MEDIUM", null, null);
     careerProfileRepository.saveAndFlush(profile);
 
-    profile.patch(null, 7, null, null, null, null);
+    profile.patch(null, 7, null, null, null, null, null);
     careerProfileRepository.saveAndFlush(profile);
 
     CareerProfile reloaded = careerProfileRepository.findByUserId(userId).orElseThrow();

@@ -57,6 +57,7 @@ erDiagram
         varchar employment_type
         varchar company_size
         date hire_date
+        varchar retirement_pension_type
     }
 
     income_history {
