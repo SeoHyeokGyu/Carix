@@ -198,13 +198,16 @@ public class StayMoveProjector {
     return Math.round((lo + hi) / 2 * 1000) / 10.0;
   }
 
+  /**
+   * 48개월째까지 끊기지 않고 이직 누적이 잔류 이상인 마지막 구간의 첫 달. 퇴직금 잔액이 계단으로 붙어 차이가 오르내리므로 처음 앞선 달이 아니라 끝까지 앞서기 시작한
+   * 달을 쓴다. 48개월째에 뒤지면 null.
+   */
   private static Integer crossover(long[] stay, long[] move) {
-    for (int i = 0; i < HORIZON_MONTHS; i++) {
-      if (move[i] >= stay[i]) {
-        return i + 1;
-      }
+    Integer start = null;
+    for (int i = HORIZON_MONTHS - 1; i >= 0 && move[i] >= stay[i]; i--) {
+      start = i + 1;
     }
-    return null;
+    return start;
   }
 
   private double movePay(int m, ProjectionInput in) {

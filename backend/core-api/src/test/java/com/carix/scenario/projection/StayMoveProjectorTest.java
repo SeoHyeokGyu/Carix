@@ -139,4 +139,23 @@ class StayMoveProjectorTest {
         .isEqualTo(
             new FirstYear(6_163_184L, -9_545_819L, -2_993_590L, 3_947_317L, 0L, -2_428_908L));
   }
+
+  @Test
+  void 퇴직금_계단으로_잠깐_앞서도_역전월은_끝까지_앞서기_시작한_달이다() {
+    // 회귀: 첫 달은 연봉 차이로 앞서지만 2개월째 잔류 쪽이 근속 1년을 넘겨 퇴직금이 생기며 14개월째까지 뒤지는데,
+    // 처음 앞선 달을 역전월로 골라 1이 나왔다
+    LocalDate today = LocalDate.parse("2026-11-12");
+    SeveranceTerms terms = new SeveranceTerms(LocalDate.parse("2026-01-10"), today);
+    ProjectionResult result =
+        projector.project(
+            new ProjectionInput(
+                60_000_000L, 0.03, 66_000_000L, 0, 0L, false, INFLATION, 1.0, terms));
+
+    assertThat(result.moveCumulative()[0]).isGreaterThan(result.stayCumulative()[0]);
+    assertThat(result.moveCumulative()[1]).isLessThan(result.stayCumulative()[1]);
+    assertThat(result.crossoverMonth()).isGreaterThan(12);
+    for (int i = result.crossoverMonth() - 1; i < StayMoveProjector.HORIZON_MONTHS; i++) {
+      assertThat(result.moveCumulative()[i]).isGreaterThanOrEqualTo(result.stayCumulative()[i]);
+    }
+  }
 }
