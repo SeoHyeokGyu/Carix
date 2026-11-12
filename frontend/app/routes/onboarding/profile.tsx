@@ -29,6 +29,7 @@ import {
   COMPANY_SIZES,
   completeProfileSchema,
   EMPLOYMENT_TYPES,
+  HIRE_DATE_MISSING_MESSAGE,
   isHireDateOptional,
   JOB_FAMILIES,
   PROFILE_FIELD_MESSAGES,
@@ -62,9 +63,11 @@ export async function clientAction({ request }: { request: Request }) {
     intent === "exit" ? profileSchema.partial() : completeProfileSchema;
   const result = schema.safeParse(raw);
   if (!result.success) {
-    return {
-      errors: toFieldErrors(result.error.issues, PROFILE_FIELD_MESSAGES),
-    } satisfies ActionData;
+    const errors = toFieldErrors(result.error.issues, PROFILE_FIELD_MESSAGES);
+    if (errors.hireDate && raw.hireDate === undefined) {
+      errors.hireDate = HIRE_DATE_MISSING_MESSAGE;
+    }
+    return { errors } satisfies ActionData;
   }
 
   // 저장 구간만 감싼다 — safeParse 는 던지지 않으므로 바깥에 둔다. 401 은 로그인으로

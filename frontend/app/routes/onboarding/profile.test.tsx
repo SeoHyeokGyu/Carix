@@ -91,6 +91,31 @@ describe("S-05 프로필 화면", () => {
     expect(advance).toHaveBeenCalledWith("INCOME");
   });
 
+  // 비운 입사일과 틀린 입사일은 고칠 방법이 달라 문구를 나눈다.
+  it("정규직이 입사일을 비우면 저장하지 않고 입력을 요청한다", async () => {
+    vi.spyOn(profileApi, "getProfile").mockResolvedValue({
+      jobFamily: "DEVELOPER",
+      yearsOfExperience: 5,
+      region: "서울",
+      employmentType: "FULL_TIME",
+      companySize: null,
+      hireDate: null,
+    });
+    const patch = vi.spyOn(profileApi, "patchProfile");
+
+    renderScreen();
+    const user = userEvent.setup();
+    await screen.findByLabelText("입사일");
+    await user.click(screen.getByRole("button", { name: "다음" }));
+
+    expect(
+      await screen.findByText(
+        "입사일을 입력해 주세요. 프리랜서는 비워 둘 수 있습니다.",
+      ),
+    ).toBeInTheDocument();
+    expect(patch).not.toHaveBeenCalled();
+  });
+
   it("총 경력이 범위를 벗어나면 저장하지 않고 오류를 보여준다", async () => {
     vi.spyOn(profileApi, "getProfile").mockResolvedValue({
       jobFamily: null,

@@ -94,9 +94,12 @@ export const PROFILE_FIELD_MESSAGES: Record<keyof ProfileInput, string> = {
   region: "희망 근무 지역을 선택해 주세요.",
   employmentType: "고용 형태를 선택해 주세요.",
   companySize: "회사 규모를 올바르게 선택해 주세요.",
-  hireDate:
-    "입사일을 오늘 이전 날짜로 입력해 주세요. 프리랜서는 비워 둘 수 있습니다.",
+  hireDate: "입사일은 오늘 이전 날짜로 입력해 주세요.",
 };
+
+/** 입사일이 비었을 때. 날짜가 틀렸을 때(위 문구)와 나눈다 — 비운 사람에게 「오늘 이전 날짜로」는 엉뚱하다. */
+export const HIRE_DATE_MISSING_MESSAGE =
+  "입사일을 입력해 주세요. 프리랜서는 비워 둘 수 있습니다.";
 
 /** 로컬(KST) 달력 기준 오늘 `YYYY-MM-DD`. 입사일 입력의 `max` 로 쓴다 — UTC 변환의 하루 오차를 피한다. */
 export function todayLocalDate(): string {
