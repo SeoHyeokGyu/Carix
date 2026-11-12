@@ -10,6 +10,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 
 import com.carix.profile.domain.CareerProfile;
+import com.carix.profile.domain.RetirementPensionType;
 import com.carix.profile.dto.ProfileRequest;
 import com.carix.profile.exception.InvalidHireDateException;
 import com.carix.profile.repository.CareerProfileRepository;
@@ -103,14 +104,16 @@ class ProfileServiceTest {
 
     var res =
         profileService.patch(
-            USER_ID, new ProfileRequest(null, null, null, null, null, LocalDate.of(2026, 10, 22)));
+            USER_ID,
+            new ProfileRequest(null, null, null, null, null, LocalDate.of(2026, 10, 22), null));
     assertThat(res.hireDate()).isEqualTo(LocalDate.of(2026, 10, 22));
 
     assertThatThrownBy(
             () ->
                 profileService.patch(
                     USER_ID,
-                    new ProfileRequest(null, null, null, null, null, LocalDate.of(2026, 10, 23))))
+                    new ProfileRequest(
+                        null, null, null, null, null, LocalDate.of(2026, 10, 23), null)))
         .isInstanceOf(InvalidHireDateException.class);
   }
 
@@ -120,11 +123,29 @@ class ProfileServiceTest {
     CareerProfile profile = new CareerProfile(USER_ID);
     given(careerProfileRepository.findByUserId(USER_ID)).willReturn(Optional.of(profile));
     profileService.patch(
-        USER_ID, new ProfileRequest(null, null, null, null, null, LocalDate.of(2022, 3, 2)));
+        USER_ID, new ProfileRequest(null, null, null, null, null, LocalDate.of(2022, 3, 2), null));
 
     var res =
-        profileService.patch(USER_ID, new ProfileRequest("DEVELOPER", 5, null, null, null, null));
+        profileService.patch(
+            USER_ID, new ProfileRequest("DEVELOPER", 5, null, null, null, null, null));
 
     assertThat(res.hireDate()).isEqualTo(LocalDate.of(2022, 3, 2));
+  }
+
+  @Test
+  @DisplayName("patch - 퇴직연금 유형만 보내면 입사일은 그대로 두고 유형만 바뀐다")
+  void 퇴직연금_유형만_보내면_입사일은_그대로_두고_유형만_바뀐다() {
+    CareerProfile profile = new CareerProfile(USER_ID);
+    given(careerProfileRepository.findByUserId(USER_ID)).willReturn(Optional.of(profile));
+    profileService.patch(
+        USER_ID, new ProfileRequest(null, null, null, null, null, LocalDate.of(2022, 3, 2), null));
+
+    var res =
+        profileService.patch(
+            USER_ID,
+            new ProfileRequest(null, null, null, null, null, null, RetirementPensionType.DC));
+
+    assertThat(res.hireDate()).isEqualTo(LocalDate.of(2022, 3, 2));
+    assertThat(res.retirementPensionType()).isEqualTo(RetirementPensionType.DC);
   }
 }

@@ -1,6 +1,8 @@
 package com.carix.scenario.projection;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonSetter;
+import com.fasterxml.jackson.annotation.Nulls;
 
 /**
  * 48개월 세후·실질 투영 결과. 금액은 모두 현재 가치 환산 후 원 단위로 반올림한다.
@@ -23,8 +25,16 @@ public record ProjectionResult(
   /**
    * 첫해 분해. {@code total == moveCumulative[11] - stayCumulative[11]} 이다.
    *
-   * <p>공백·실업급여·비용은 각자 반올림하고, 반올림 오차(수 원)는 {@code salaryDiff} 가 흡수해 합이 정확히 맞는다.
+   * <p>{@code severance} 는 12개월째에 나갈 때 받을 세후·실질 퇴직금의 이직 − 잔류 차이다. 공백·실업급여·비용·퇴직금은 각자 반올림하고, 반올림
+   * 오차(수 원)는 {@code salaryDiff} 가 흡수해 합이 정확히 맞는다.
    */
   @JsonIgnoreProperties(ignoreUnknown = true)
-  public record FirstYear(long salaryDiff, long gap, long oneTimeCost, long benefit, long total) {}
+  public record FirstYear(
+      long salaryDiff,
+      long gap,
+      long oneTimeCost,
+      long benefit,
+      // 퇴직금 항 이전 저장분에는 이 필드가 없다. Jackson 3 는 빠진 원시 타입을 실패로 보므로 0 으로 읽는다
+      @JsonSetter(nulls = Nulls.AS_EMPTY) long severance,
+      long total) {}
 }

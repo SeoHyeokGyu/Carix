@@ -22,7 +22,9 @@ CREATE TABLE core.career_profile (
     region              character varying(100),
     employment_type     character varying(50),
     company_size        character varying(50),
-    hire_date           date
+    hire_date           date,
+    retirement_pension_type character varying(20)
+        CHECK (retirement_pension_type IN ('SEVERANCE_DB','DC','UNKNOWN'))
 );
 COMMENT ON TABLE core.career_profile IS
     '온보딩 자동 저장을 허용하려고 컬럼을 NULL 허용으로 둔다. 필수 필드 완비 검증은 온보딩 완료 제출 시 애플리케이션에서 한다.';

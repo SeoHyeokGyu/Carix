@@ -1,5 +1,6 @@
 package com.carix.profile.dto;
 
+import com.carix.profile.domain.RetirementPensionType;
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.time.LocalDate;
 
@@ -10,4 +11,5 @@ public record ProfileResponse(
     @Schema(example = "SEOUL_GANGNAM") String region,
     @Schema(example = "FULL_TIME") String employmentType,
     @Schema(example = "MEDIUM") String companySize,
-    @Schema(example = "2022-03-02", nullable = true) LocalDate hireDate) {}
+    @Schema(example = "2022-03-02", nullable = true) LocalDate hireDate,
+    @Schema(example = "DC", nullable = true) RetirementPensionType retirementPensionType) {}

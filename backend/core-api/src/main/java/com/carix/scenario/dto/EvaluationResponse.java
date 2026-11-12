@@ -5,6 +5,7 @@ import com.carix.scenario.inflation.InflationBasis;
 import com.carix.scenario.projection.ProjectionResult.FirstYear;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import io.swagger.v3.oas.annotations.media.Schema;
+import java.time.LocalDate;
 import java.util.List;
 
 @Schema(description = "세후·실질 평가 결과. 결론 숫자와 계단은 확정층만이다")
@@ -15,7 +16,7 @@ public record EvaluationResponse(
     InflationBasis inflation,
     List<Assumption> assumptions,
     @Schema(description = "넣지 않아 계산에 반영되지 않은 항목 코드") List<String> unreflected,
-    @Schema(description = "근속 1년 직전일 때만", nullable = true) SeveranceWarning severance,
+    @Schema(description = "지금 회사 세 시점 세후 퇴직금(명목)") SeveranceView severance,
     @Schema(description = "옮기면 추정 이득 / 남으면 추정 이득. 이직이 있을 때만", nullable = true) String typeLabel) {
 
   @JsonIgnoreProperties(ignoreUnknown = true)
@@ -49,6 +50,25 @@ public record EvaluationResponse(
   @JsonIgnoreProperties(ignoreUnknown = true)
   public record Assumption(String code, String text) {}
 
+  /** 옛 저장분의 {monthsToAnniversary, estimatedAmount} 도 읽혀야 해서 points 가 없으면 빈 목록이다. */
   @JsonIgnoreProperties(ignoreUnknown = true)
-  public record SeveranceWarning(int monthsToAnniversary, long estimatedAmount) {}
+  public record SeveranceView(
+      @Schema(description = "SEVERANCE_DB | DC | UNKNOWN. 미선택은 UNKNOWN") String pensionType,
+      @Schema(description = "OK | DC | NO_HIRE_DATE") String status,
+      @Schema(description = "마지막 근무일 오름차순. status 가 OK 가 아니면 빈 목록") List<SeverancePoint> points) {
+
+    public SeveranceView {
+      points = points == null ? List.of() : List.copyOf(points);
+    }
+  }
+
+  @JsonIgnoreProperties(ignoreUnknown = true)
+  public record SeverancePoint(
+      @Schema(description = "TODAY | IN_3_MONTHS | AFTER_NEXT_RAISE | AFTER_ANNIVERSARY")
+          String kind,
+      @Schema(description = "마지막 근무일. 퇴직일은 그 다음 날") LocalDate lastWorkDay,
+      long gross,
+      @Schema(description = "퇴직소득세 + 지방소득세") long tax,
+      long net,
+      @Schema(description = "net − 오늘 퇴사 net") long deltaFromToday) {}
 }

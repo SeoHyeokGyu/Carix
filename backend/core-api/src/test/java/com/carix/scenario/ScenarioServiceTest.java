@@ -211,6 +211,30 @@ class ScenarioServiceTest {
   }
 
   @Test
+  @DisplayName("첫해 퇴직금 항이 없던 저장분도 목록에서 읽히고 퇴직금은 0이다")
+  void 첫해_퇴직금_항_이전_저장분도_읽힌다() {
+    // 2026-11 이전 저장분은 firstYear 에 severance 가 없고 result.severance 도 옛 경고 모양이다.
+    // Jackson 3 는 빠진 원시 타입을 null 로 보고 실패해 목록 전체가 500 이 됐다
+    store.add(
+        CareerScenario.builder()
+            .userId(USER_ID)
+            .engineVersion(CareerScenario.ENGINE_STAY_OR_MOVE)
+            .payload(
+                "{\"request\":{\"stay\":{\"raisePercent\":3.0}},"
+                    + "\"result\":{\"move\":{\"firstYear\":{\"salaryDiff\":12000000,"
+                    + "\"gap\":-5000000,\"oneTimeCost\":-3000000,\"benefit\":3960000,"
+                    + "\"total\":7960000}},"
+                    + "\"severance\":{\"monthsToAnniversary\":2,\"estimatedAmount\":5000000}}}")
+            .calculatedAt(OffsetDateTime.parse("2026-10-15T01:00:00Z"))
+            .build());
+
+    FirstYear firstYear = service.list(USER_ID).get(0).result().move().firstYear();
+
+    assertThat(firstYear.severance()).isZero();
+    assertThat(firstYear.total()).isEqualTo(7_960_000L);
+  }
+
+  @Test
   @DisplayName("목록은 요청한 사용자의 소득만 한 번 읽는다")
   void 목록_소득_한번() {
     store.add(legacyScenario("A", "OK", 69));
@@ -375,7 +399,7 @@ class ScenarioServiceTest {
             new long[] {1L, 2L},
             new long[] {3L, 4L},
             7,
-            new FirstYear(12_000_000L, -5_000_000L, -3_000_000L, 3_960_000L, 7_000_000L),
+            new FirstYear(12_000_000L, -5_000_000L, -3_000_000L, 3_960_000L, 0L, 7_000_000L),
             new EvaluationResponse.Range(0L, 1_000_000L),
             null,
             6.1,

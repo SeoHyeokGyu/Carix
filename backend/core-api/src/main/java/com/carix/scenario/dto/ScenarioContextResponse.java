@@ -1,5 +1,6 @@
 package com.carix.scenario.dto;
 
+import com.carix.profile.domain.RetirementPensionType;
 import com.carix.scenario.inflation.InflationBasis;
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.time.LocalDate;
@@ -10,6 +11,8 @@ public record ScenarioContextResponse(
         Long currentAnnualGross,
     @Schema(description = "월 실수령액. 없으면 null", nullable = true) Long monthlyNet,
     @Schema(description = "입사일. 없으면 null", nullable = true) LocalDate hireDate,
+    @Schema(description = "퇴직연금 유형. 미선택이면 null", nullable = true)
+        RetirementPensionType retirementPensionType,
     @Schema(description = "연봉에 고정상여가 포함돼 있는지") boolean bonusIncluded,
     @Schema(description = "따로 받는 고정상여 연액", nullable = true) Long fixedBonusAnnual,
     @Schema(description = "직전 인상 이력에서 읽은 기본 인상률(%). 알 수 없으면 null", nullable = true)

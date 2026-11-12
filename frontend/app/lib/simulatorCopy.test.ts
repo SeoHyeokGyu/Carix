@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { inflationNote, marketGapLine, moveAdvice } from "./simulatorCopy";
+import {
+  inflationNote,
+  marketGapLine,
+  moveAdvice,
+  severanceAssumedDbNote,
+} from "./simulatorCopy";
 
 describe("moveAdvice", () => {
   it("역전이 없으면 조언을 내지 않는다", () => {
@@ -37,5 +42,32 @@ describe("inflationNote", () => {
     expect(note).toBe(
       "개인물가와 한국은행 전망 차이 0.3%p 미만 — 소비구조가 평균과 비슷합니다",
     );
+  });
+});
+
+describe("severanceAssumedDbNote", () => {
+  // 가정 목록에서 뺀 문장이라 여기서 빠지면 모름·미선택 사용자는 DB형 가정을 어디서도 못 본다.
+  it("유형을 모르고 금액이 나왔을 때만 DB형 가정을 적는다", () => {
+    expect(
+      severanceAssumedDbNote({
+        pensionType: "UNKNOWN",
+        status: "OK",
+        points: [],
+      }),
+    ).toBe("퇴직금·DB형으로 계산했습니다");
+    expect(
+      severanceAssumedDbNote({
+        pensionType: "SEVERANCE_DB",
+        status: "OK",
+        points: [],
+      }),
+    ).toBeNull();
+    expect(
+      severanceAssumedDbNote({
+        pensionType: "UNKNOWN",
+        status: "NO_HIRE_DATE",
+        points: [],
+      }),
+    ).toBeNull();
   });
 });

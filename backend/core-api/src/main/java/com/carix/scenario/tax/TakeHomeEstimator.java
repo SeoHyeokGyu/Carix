@@ -110,7 +110,7 @@ public class TakeHomeEstimator {
     return Math.min(deduction, EARNED_DEDUCTION_CAP);
   }
 
-  private static double progressiveTax(double taxBase) {
+  static double progressiveTax(double taxBase) {
     for (int i = 0; i < BRACKET_RATE.length; i++) {
       if (taxBase <= BRACKET_LIMIT_AND_DEDUCTION[i][0]) {
         return taxBase * BRACKET_RATE[i] - BRACKET_LIMIT_AND_DEDUCTION[i][1];

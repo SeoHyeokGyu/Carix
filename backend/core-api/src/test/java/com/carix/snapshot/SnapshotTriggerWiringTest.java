@@ -132,7 +132,7 @@ class SnapshotTriggerWiringTest {
     ProfileService service = new ProfileService(repository, eventPublisher, Clock.systemUTC());
 
     service.patch(
-        USER_ID, new ProfileRequest("DEVELOPER", 5, "서울 강남구", "FULL_TIME", "MEDIUM", null));
+        USER_ID, new ProfileRequest("DEVELOPER", 5, "서울 강남구", "FULL_TIME", "MEDIUM", null, null));
 
     verify(eventPublisher)
         .publishEvent(new SnapshotRecalculationRequested(USER_ID, YearMonths.current()));

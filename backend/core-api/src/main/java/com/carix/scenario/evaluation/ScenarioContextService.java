@@ -60,6 +60,7 @@ public class ScenarioContextService {
         gross,
         latest == null ? null : EffectiveIncome.monthlyNet(latest),
         hireDate,
+        profile.map(CareerProfile::getRetirementPensionType).orElse(null),
         latest == null || latest.isBonusIncluded(),
         latest == null ? null : latest.getFixedBonusAnnual(),
         defaultRaisePercent(history),

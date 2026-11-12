@@ -97,7 +97,7 @@ class ScenarioContextServiceTest {
   @Test
   void 입사_연도는_성과급_범위에서_제외() {
     CareerProfile profile = new CareerProfile(USER_ID);
-    profile.patch(null, null, null, null, null, LocalDate.parse("2024-05-01"));
+    profile.patch(null, null, null, null, null, LocalDate.parse("2024-05-01"), null);
     given(profileRepository.findByUserId(USER_ID)).willReturn(Optional.of(profile));
     given(incomeRepository.findByUserIdOrderByEffectiveDateDesc(USER_ID))
         .willReturn(List.of(row(60_000_000L, "2024-05-01", null)));
@@ -119,7 +119,7 @@ class ScenarioContextServiceTest {
   @Test
   void 대상_연도에_성과급_기록이_없으면_범위는_null() {
     CareerProfile profile = new CareerProfile(USER_ID);
-    profile.patch(null, null, null, null, null, LocalDate.parse("2023-05-01"));
+    profile.patch(null, null, null, null, null, LocalDate.parse("2023-05-01"), null);
     given(profileRepository.findByUserId(USER_ID)).willReturn(Optional.of(profile));
     given(incomeRepository.findByUserIdOrderByEffectiveDateDesc(USER_ID))
         .willReturn(List.of(row(60_000_000L, "2023-05-01", null)));

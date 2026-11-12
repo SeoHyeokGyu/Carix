@@ -21,6 +21,7 @@ const context: ScenarioContext = {
   currentAnnualGross: 60_000_000,
   monthlyNet: null,
   hireDate: "2022-03-01",
+  retirementPensionType: null,
   bonusIncluded: true,
   fixedBonusAnnual: null,
   defaultRaisePercent: 3,

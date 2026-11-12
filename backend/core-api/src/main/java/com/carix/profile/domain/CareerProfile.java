@@ -2,6 +2,8 @@ package com.carix.profile.domain;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
@@ -48,6 +50,10 @@ public class CareerProfile {
   @Column(name = "hire_date")
   private LocalDate hireDate;
 
+  @Enumerated(EnumType.STRING)
+  @Column(name = "retirement_pension_type", length = 20)
+  private RetirementPensionType retirementPensionType;
+
   public CareerProfile(UUID userId) {
     this.userId = userId;
   }
@@ -59,7 +65,8 @@ public class CareerProfile {
       String region,
       String employmentType,
       String companySize,
-      LocalDate hireDate) {
+      LocalDate hireDate,
+      RetirementPensionType retirementPensionType) {
     if (jobFamily != null) {
       this.jobFamily = jobFamily;
     }
@@ -77,6 +84,9 @@ public class CareerProfile {
     }
     if (hireDate != null) {
       this.hireDate = hireDate;
+    }
+    if (retirementPensionType != null) {
+      this.retirementPensionType = retirementPensionType;
     }
   }
 }

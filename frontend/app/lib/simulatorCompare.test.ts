@@ -60,6 +60,7 @@ describe("firstYearItems", () => {
     gap: -40,
     oneTimeCost: -10,
     benefit: 0,
+    severance: 0,
     total: 50,
   };
   it("실업급여 0 은 빼고 합계를 마지막에", () => {
@@ -75,6 +76,16 @@ describe("firstYearItems", () => {
       firstYearItems({ ...base, benefit: 20, total: 70 }).map((i) => i.key),
     ).toContain("benefit");
   });
+  // 항이 없으면 퇴직금이 합계에만 들어가 막대 합이 합계와 어긋난다.
+  it("퇴직금이 있으면 합계 바로 앞에, 0 이면 뺀다", () => {
+    const labels = firstYearItems({
+      ...base,
+      severance: 3_000_000,
+      total: 3_000_050,
+    }).map((i) => i.label);
+    expect(labels.slice(-2)).toEqual(["퇴직금", "합계"]);
+    expect(firstYearItems(base).map((i) => i.label)).not.toContain("퇴직금");
+  });
 });
 
 describe("splitAssumptions", () => {
@@ -85,5 +96,18 @@ describe("splitAssumptions", () => {
     ]);
     expect(warnings).toEqual(["b"]);
     expect(rest.map((a) => a.code)).toEqual(["TAX_SINGLE"]);
+  });
+  // 퇴직금 블록 아래에 이미 적으므로 가정 목록에 또 나오면 같은 문장이 두 번 보인다.
+  it("퇴직금 블록 아래에 적는 가정은 가정 목록에서 뺀다", () => {
+    const { warnings, rest, severanceNotes } = splitAssumptions([
+      { code: "TAX_SINGLE", text: "a" },
+      { code: "SEVERANCE_ASSUMED_DB", text: "c" },
+      { code: "SEVERANCE_BASIS", text: "d" },
+      { code: "SEVERANCE_IRP", text: "e" },
+    ]);
+    expect(warnings).toEqual([]);
+    expect(rest.map((a) => a.code)).toEqual(["TAX_SINGLE"]);
+    // 성과급·연차수당 제외와 IRP 일시금 기준은 블록 아래 기준 줄에 붙는다
+    expect(severanceNotes).toEqual(["d", "e"]);
   });
 });

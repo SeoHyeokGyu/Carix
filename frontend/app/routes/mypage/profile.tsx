@@ -209,12 +209,12 @@ export default function MypageProfile() {
 
       {/* 서로 기대지 않는 설정 카드라 넓은 화면은 두 장씩 나란히 둔다. */}
       <div className="mt-8 grid gap-6 lg:grid-cols-2 lg:items-start">
-        {/* 0. 입사일 — 퇴직금 경계 경고와 성과급 범위 계산에 쓴다 */}
+        {/* 0. 입사일 — 퇴직금 계산과 성과급 범위 계산에 쓴다 */}
         <Card data-page-section="">
           <CardHeader>
             <CardTitle as="h2">입사일</CardTitle>
             <CardDescription>
-              현 직장 입사일을 기록하면 퇴직금 경계 경고와 성과급 범위 계산에
+              현 직장 입사일을 기록하면 퇴직금 계산과 성과급 범위 계산에
               쓰입니다.
             </CardDescription>
           </CardHeader>
