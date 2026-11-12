@@ -105,7 +105,9 @@ test.describe("MVP 완료 기준 — 정식 계정 한 줄기", () => {
     // 소비를 비웠으니 구매력 카드는 통계청 평균 가중치로 계산했다고 밝혀야 한다.
     await expect(resumed.getByText("통계청 평균 기준")).toBeVisible();
     // 기준월은 머리말에 늘 보이고, 일 단위 기준일·규칙 버전은 신뢰 층 안에 있다.
-    await expect(resumed.getByText(/\d{4}년 \d{1,2}월 기준/)).toBeVisible();
+    await expect(
+      resumed.getByText(/\d{4}년 \d{1,2}월 데이터 기준/),
+    ).toBeVisible();
     await resumed.getByRole("button", { name: "근거 펼치기" }).click();
     await expect(resumed.getByText(/기준일 \d{4}-\d{2}-\d{2}/)).toBeVisible();
     await expect(resumed.getByText(/규칙 버전 \d+\.\d+\.\d+/)).toBeVisible();
