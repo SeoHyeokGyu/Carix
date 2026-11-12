@@ -158,4 +158,15 @@ class StayMoveProjectorTest {
       assertThat(result.moveCumulative()[i]).isGreaterThanOrEqualTo(result.stayCumulative()[i]);
     }
   }
+
+  @Test
+  void 같아지는_인상률에_48개월째_퇴직금이_들어간다() {
+    // 지금 회사 근속이 길면 잔류 48개월째 퇴직금이 새 회사 3년치보다 커서, 같은 4년 누적을 맞추는 잔류 인상률이 내려간다
+    SeveranceTerms terms = new SeveranceTerms(LocalDate.parse("2010-03-02"), TODAY);
+    ProjectionResult without = projector.project(input(70_000_000L, 0, 0L, false));
+    ProjectionResult with = projector.project(input(70_000_000L, 0, 0L, false, terms));
+
+    assertThat(without.equalizingRaisePercent()).isEqualTo(8.3);
+    assertThat(with.equalizingRaisePercent()).isEqualTo(5.9);
+  }
 }
