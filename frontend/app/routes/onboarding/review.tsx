@@ -424,8 +424,9 @@ export default function Review() {
       <div className="mt-6 flex flex-col gap-2 rounded-lg border border-carix-border bg-carix-surface px-5 py-4 text-sm text-carix-text/80">
         {appliedExpenseNote(applied)}
         <p>
-          <strong>계산 제한 사항:</strong> 세금, 성과급, 주식보상, 퇴직금은
-          추정하지 않으며 결과에 포함되지 않습니다.
+          <strong>계산 제한 사항:</strong> 세금, 성과급, 주식보상은 추정하지
+          않으며 결과에 포함되지 않습니다. 퇴직금은 이직 시뮬레이터에서 따로
+          계산합니다.
         </p>
       </div>
 
