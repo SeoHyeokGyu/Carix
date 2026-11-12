@@ -385,6 +385,8 @@ flowchart TD
 ### 5.3 Job 3(시장 데이터 집계) 및 Job 4(사용자 스냅샷 갱신 — core-api 전담)
 Job 3(원천별 집계)은 `collector`가 실행하며, Job 4(사용자 스냅샷 갱신)는 `core-api` 안에서 사용자 프로필·소득·소비·스킬 변경 시 **저장 커밋 뒤 같은 스레드의 동기 호출**(`recalculateSnapshot(userId, fromYm)`)로 실행한다. 스케줄러·스레드풀·재시도는 쓰지 않는다 ([도메인 정의서 §5](domain-logic.md)). 사용자 스냅샷 계산 및 저장은 `core-api`가 전담 소유한다. 수집된 원천 공고 및 CPI 데이터를 동료집단(Peer Group) 단위로 그룹핑하고 통계를 집계한 뒤 사용자 스냅샷을 갱신한다.
 
+**전 사용자 재계산은 core-api 를 `carix.snapshot.recalculate-all=true` 로 한 번 기동해 실행한다** (`SnapshotBulkRecalcRunner`, 기본값 꺼짐). 스냅샷이 있는 사용자 전원을 각자 최초 소득월부터 다시 계산하고 사용자마다 트랜잭션이 따로라 한 사용자의 실패가 나머지를 되돌리지 않으며, 끝나면 사용자 수와 실패 수를 로그에 남긴다. 다시 돌려도 새 `data_version` 이 발급될 뿐이다. 재집계·규칙·산식 변경 뒤에는 코드 배포만으로 저장된 행이 바뀌지 않으므로 이 실행을 잇는다. 한 사용자만 다시 계산할 때는 `POST /api/v1/dashboard/recalculate` 를 쓴다.
+
 롤업 집합(GROUPING SETS) 열거 — 롤업 차원은 `employment_type`, `company_size`, `skill_id` 3개이며, 원천×월×직무×지역×경력구간마다 다음 6개 집합을 생성합니다 (`NULL` = 전체 롤업, 원천 미상 `'UNKNOWN'`은 세분 값의 하나로 취급):
 
 | # | employment_type | company_size | skill_id | 용도 |
