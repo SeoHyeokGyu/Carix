@@ -94,17 +94,25 @@ export function firstYearItems(
 export const NEW_JOB_SEVERANCE = "NEW_JOB_SEVERANCE";
 /** 퇴직금 블록 아래에 적으므로 가정 목록에서는 뺀다. */
 const SEVERANCE_ASSUMED_DB = "SEVERANCE_ASSUMED_DB";
+/** 퇴직금 블록의 기준 줄 아래에 이 순서로 붙이는 가정. 문장은 응답의 가정 문구를 그대로 쓴다. */
+const SEVERANCE_NOTE_CODES = ["SEVERANCE_BASIS", "SEVERANCE_IRP"];
+const SEVERANCE_BLOCK_CODES = [SEVERANCE_ASSUMED_DB, ...SEVERANCE_NOTE_CODES];
 
 export function splitAssumptions(list: EvaluationResponse["assumptions"]): {
   warnings: string[];
+  severanceNotes: string[];
   rest: EvaluationResponse["assumptions"];
 } {
   return {
     warnings: list
       .filter((a) => a.code === NEW_JOB_SEVERANCE)
       .map((a) => a.text),
+    severanceNotes: SEVERANCE_NOTE_CODES.flatMap((code) =>
+      list.filter((a) => a.code === code).map((a) => a.text),
+    ),
     rest: list.filter(
-      (a) => a.code !== NEW_JOB_SEVERANCE && a.code !== SEVERANCE_ASSUMED_DB,
+      (a) =>
+        a.code !== NEW_JOB_SEVERANCE && !SEVERANCE_BLOCK_CODES.includes(a.code),
     ),
   };
 }

@@ -9,6 +9,7 @@ describe("SeveranceBlock", () => {
     render(
       <SeveranceBlock
         severance={{ pensionType: "DC", status: "DC", points: [] }}
+        notes={[]}
       />,
     );
     expect(

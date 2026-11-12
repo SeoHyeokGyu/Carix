@@ -98,12 +98,16 @@ describe("splitAssumptions", () => {
     expect(rest.map((a) => a.code)).toEqual(["TAX_SINGLE"]);
   });
   // 퇴직금 블록 아래에 이미 적으므로 가정 목록에 또 나오면 같은 문장이 두 번 보인다.
-  it("퇴직금·DB형 가정은 가정 목록에서 뺀다", () => {
-    const { warnings, rest } = splitAssumptions([
+  it("퇴직금 블록 아래에 적는 가정은 가정 목록에서 뺀다", () => {
+    const { warnings, rest, severanceNotes } = splitAssumptions([
       { code: "TAX_SINGLE", text: "a" },
       { code: "SEVERANCE_ASSUMED_DB", text: "c" },
+      { code: "SEVERANCE_BASIS", text: "d" },
+      { code: "SEVERANCE_IRP", text: "e" },
     ]);
     expect(warnings).toEqual([]);
     expect(rest.map((a) => a.code)).toEqual(["TAX_SINGLE"]);
+    // 성과급·연차수당 제외와 IRP 일시금 기준은 블록 아래 기준 줄에 붙는다
+    expect(severanceNotes).toEqual(["d", "e"]);
   });
 });

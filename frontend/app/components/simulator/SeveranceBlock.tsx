@@ -8,8 +8,14 @@ import {
   severancePointLine,
 } from "../../lib/simulatorCopy";
 
+interface SeveranceBlockProps {
+  severance: SeveranceView;
+  /** 기준 줄 아래에 붙이는 퇴직금 가정 문장(응답의 가정 문구). */
+  notes: string[];
+}
+
 /** 지금 회사 카드의 퇴직금 블록. DC형·입사일 없음이면 금액 대신 안내 한 줄. */
-export function SeveranceBlock({ severance }: { severance: SeveranceView }) {
+export function SeveranceBlock({ severance, notes }: SeveranceBlockProps) {
   const assumedDb = severanceAssumedDbNote(severance);
   return (
     <section
@@ -29,6 +35,11 @@ export function SeveranceBlock({ severance }: { severance: SeveranceView }) {
           <p className="text-xs text-muted-foreground">
             {severanceBasisLine(severance.points)}
           </p>
+          {notes.map((note) => (
+            <p key={note} className="text-xs text-muted-foreground">
+              {note}
+            </p>
+          ))}
           {assumedDb && (
             <p className="text-xs text-muted-foreground">{assumedDb}</p>
           )}

@@ -1,4 +1,5 @@
 import type { EvaluationResponse } from "../../lib/api/scenario";
+import { splitAssumptions } from "../../lib/simulatorCompare";
 import { marketGapLine, stayHeadline } from "../../lib/simulatorCopy";
 import { RaiseAxis } from "./RaiseAxis";
 import { SeveranceBlock } from "./SeveranceBlock";
@@ -31,7 +32,12 @@ export function StayOutcome({ result, raisePercent }: StayOutcomeProps) {
         <p className="text-sm">{marketGapLine(stay.marketGapPercent)}</p>
       )}
 
-      {severance && <SeveranceBlock severance={severance} />}
+      {severance && (
+        <SeveranceBlock
+          severance={severance}
+          notes={splitAssumptions(result.assumptions).severanceNotes}
+        />
+      )}
     </div>
   );
 }
