@@ -61,7 +61,8 @@ export function VerdictHero({
   return (
     <section aria-labelledby="verdict-title">
       <Card className="gap-6 md:flex-row md:items-start md:justify-between">
-        <div className="flex flex-col gap-3">
+        {/* 남는 폭을 다 쓴다 — 폭을 정하지 않으면 판정 문장 길이만큼만 넓어져 스킬 처방 블록이 판정마다 다른 폭으로 좁게 쌓였다. */}
+        <div className="flex min-w-0 flex-1 flex-col gap-3">
           <div className="flex items-center gap-2">
             {signal && (
               <SignalBadge code={signal.code} serverLabel={signal.label} />
@@ -293,7 +294,10 @@ function SkillPrescriptionBlock({
               동료집단 공고 표본이 부족하여 추천 스킬을 산출할 수 없습니다.
             </p>
           ) : (
-            <ul aria-label="추천 스킬 목록" className="flex flex-col gap-2">
+            <ul
+              aria-label="추천 스킬 목록"
+              className="grid gap-2 md:grid-cols-3"
+            >
               {currentItems.map((item) => (
                 <li
                   key={item.standardName}

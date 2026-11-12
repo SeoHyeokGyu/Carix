@@ -66,10 +66,11 @@ export function NegotiationTargetsBlock({
   );
   if (visible.length === 0) return null;
 
+  // 판정 카드 왼쪽 열이 남는 폭을 다 쓰므로 폭을 묶는다 — 항목과 값이 양끝 정렬이라 넓으면 서로 멀어진다.
   return (
     <section
       aria-label="협상 목표"
-      className="mt-1 flex flex-col gap-2 rounded-lg border border-carix-border bg-carix-surface/60 p-3.5"
+      className="mt-1 flex max-w-xl flex-col gap-2 rounded-lg border border-carix-border bg-carix-surface/60 p-3.5"
     >
       <h3 className="text-xs font-semibold text-carix-text/80">
         {isSeekJob ? "희망 연봉 목표" : "협상 목표 인상률"}
