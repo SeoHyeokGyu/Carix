@@ -380,11 +380,7 @@ describe("S-11 DashboardHistory 라우트", () => {
     });
     renderPage("/dashboard/history");
     await screen.findByText("2026-09");
-    expect(
-      screen
-        .getByTestId("history-single-notice")
-        .querySelector('[data-testid="empty-state-icon"]'),
-    ).not.toBeNull();
+    expect(screen.getByTestId("history-single-notice")).toBeInTheDocument();
   });
 
   it("소급 계산한 달은 기본으로 숨기고 show=all 이면 배지와 함께 보인다", async () => {

@@ -63,7 +63,11 @@ export function CompareResult({
   );
   const gapAtEnd =
     cumulativeGap(move.stayCumulative, move.moveCumulative).at(-1) ?? 0;
-  const { warnings } = splitAssumptions(result.assumptions);
+  // 퇴직금을 계산해 비교에 넣었으면 그 안내는 경고가 아니라 첫해 내역 퇴직금 줄의 설명이다.
+  // 계산하지 못했을 때(「새 회사를 1년 안에 나가면…」)만 경고로 둔다.
+  const { warnings: severanceLines } = splitAssumptions(result.assumptions);
+  const severanceCounted = result.severance?.status === "OK";
+  const warnings = severanceCounted ? [] : severanceLines;
   const forfeited = stock?.forfeitedUnvested ?? 0;
 
   return (
@@ -123,6 +127,12 @@ export function CompareResult({
         </ChartBlock>
         <ChartBlock title="첫해 내역">
           <FirstYearBars firstYear={move.firstYear} />
+          {severanceCounted &&
+            severanceLines.map((text) => (
+              <p key={text} className="text-sm text-muted-foreground">
+                {text}
+              </p>
+            ))}
         </ChartBlock>
       </div>
 
