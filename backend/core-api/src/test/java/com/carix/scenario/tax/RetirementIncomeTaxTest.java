@@ -40,6 +40,21 @@ class RetirementIncomeTaxTest {
     assertThat(t.total()).isZero();
   }
 
+  // 2026-11-13 리뷰: 2/29 입사는 Period.between 이 2025-03-01 까지를 P1Y1D 로 세어 정확히 1년을 2년으로 올렸다.
+  // 근속연수가 늘면 공제가 커져 세금이 적게 나온다. 퇴직금 1년 판정(SeveranceCalculator)과 같은 기념일 규칙을 쓴다.
+  @Test
+  void 윤년_2월29일_입사는_다음해_2월28일까지가_정확히_1년() {
+    assertThat(
+            RetirementIncomeTax.serviceYears(LocalDate.of(2024, 2, 29), LocalDate.of(2025, 2, 28)))
+        .isEqualTo(1);
+    assertThat(
+            RetirementIncomeTax.serviceYears(LocalDate.of(2024, 2, 29), LocalDate.of(2028, 2, 28)))
+        .isEqualTo(4);
+    assertThat(
+            RetirementIncomeTax.serviceYears(LocalDate.of(2024, 2, 29), LocalDate.of(2025, 3, 1)))
+        .isEqualTo(2);
+  }
+
   @Test
   void 근속연수는_하루라도_넘으면_올림() {
     assertThat(RetirementIncomeTax.serviceYears(LocalDate.of(2023, 3, 2), LocalDate.of(2026, 3, 1)))

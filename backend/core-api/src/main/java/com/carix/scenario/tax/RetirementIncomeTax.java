@@ -1,7 +1,6 @@
 package com.carix.scenario.tax;
 
 import java.time.LocalDate;
-import java.time.Period;
 
 /** 법정 퇴직금에 붙는 퇴직소득세와 지방소득세 (소득세법 제48조·제55조, 2023년 이후 귀속분). */
 public final class RetirementIncomeTax {
@@ -35,11 +34,18 @@ public final class RetirementIncomeTax {
     return new RetirementTax(incomeTax, Math.round(incomeTax * LOCAL_TAX_RATE));
   }
 
-  /** 1년 미만 끝수는 1년으로 올린다. */
+  /**
+   * 1년 미만 끝수는 1년으로 올린다. N년이 채워지는 마지막 근무일은 퇴직금 1년 판정과 같은 기념일 규칙 ({@code 입사일 - 1일 + N년})으로 센다 —
+   * Period.between 은 2/29 입사의 정확한 1년을 P1Y1D 로 세어 2년으로 올렸다.
+   */
   static int serviceYears(LocalDate hireDate, LocalDate lastWorkDay) {
-    Period served = Period.between(hireDate, lastWorkDay.plusDays(1));
-    boolean hasRemainder = served.getMonths() > 0 || served.getDays() > 0;
-    return Math.max(1, served.getYears() + (hasRemainder ? 1 : 0));
+    LocalDate dayBeforeHire = hireDate.minusDays(1);
+    int fullYears = 0;
+    while (!dayBeforeHire.plusYears(fullYears + 1).isAfter(lastWorkDay)) {
+      fullYears++;
+    }
+    boolean hasRemainder = dayBeforeHire.plusYears(fullYears).isBefore(lastWorkDay);
+    return Math.max(1, fullYears + (hasRemainder ? 1 : 0));
   }
 
   static long serviceDeduction(int years) {
