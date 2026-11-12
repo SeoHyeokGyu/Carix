@@ -77,7 +77,7 @@ public class PeerSalaryDistributionResolver {
     String jobFamily = orDefault(profile.getJobFamily(), "DEVELOPER");
     int years = profile.getYearsOfExperience() != null ? profile.getYearsOfExperience() : 3;
     String bracket = peerGroupFallbackResolver.mapExperienceBracket(years);
-    String detailRegion = orDefault(profile.getRegion(), "서울 강남구");
+    String detailRegion = postingRegion(orDefault(profile.getRegion(), "서울 강남구"));
     String broadPrefix = broadRegionPrefix(detailRegion);
     String employmentType = orDefault(profile.getEmploymentType(), "FULL_TIME");
     String companySize = profile.getCompanySize();
@@ -334,6 +334,18 @@ public class PeerSalaryDistributionResolver {
       max = Math.max(max, range[1]);
     }
     return new int[] {min, max};
+  }
+
+  /**
+   * 공고 지역은 「서울 강남구」 같은 한글이라 LIKE 접두사도 한글이어야 한다. 「SEOUL」 같은 영문 코드는 시도로 바꾸고, 바꿀 수 없으면 그대로 둔다(한글 상세
+   * 지역은 원문이 더 좁은 조건이다).
+   */
+  private String postingRegion(String rawRegion) {
+    if (!rawRegion.strip().matches("[A-Za-z_]+")) {
+      return rawRegion;
+    }
+    String sido = PeerGroupFallbackResolver.normalizeRegion(rawRegion);
+    return PeerGroupFallbackResolver.DIMENSION_ALL.equals(sido) ? rawRegion : sido;
   }
 
   private String broadRegionPrefix(String detailRegion) {

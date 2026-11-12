@@ -13,6 +13,7 @@ import com.carix.index.mvi.PeerGroupFallbackResolver;
 import com.carix.jobposting.JobPosting;
 import com.carix.jobposting.JobPostingRepository;
 import com.carix.jobposting.SourceMonth;
+import com.carix.peergroup.PeerSalaryDistributionResolver.ResolvedPeerPostings;
 import com.carix.profile.domain.CareerProfile;
 import java.time.Clock;
 import java.time.Instant;
@@ -436,6 +437,24 @@ class PeerSalaryDistributionResolverTest {
         .willReturn(concat(createPostings(11, 60_000_000L), createPostingsWithoutSalary(29)));
 
     assertThat(resolver.resolvePostings(profile).level()).isEqualTo(2);
+  }
+
+  // 2026-11-12 운영: API 로 지역을 「SEOUL」 코드로 넣은 프로필은 공고 지역(「서울 강남구」)과 LIKE 가 맞지 않아
+  // 다섯 단계 모두 0건이 됐다 — 연봉 분포·추천 스킬·협상 목표·오퍼 수준이 조용히 「표본 부족」이었다.
+  @Test
+  @DisplayName("resolvePostings - 영문 지역 코드는 공고의 한글 시도로 바꿔 찾는다")
+  void resolvePostings_normalizesRegionCode() {
+    CareerProfile profile = new CareerProfile(UUID.randomUUID());
+    profile.patch("DEVELOPER", 5, "SEOUL", "FULL_TIME", null, null, null);
+    given(
+            jobPostingRepository.findPeerGroupCandidates(
+                eq("DEVELOPER"), eq("서울"), eq("FULL_TIME"), isNull(), eq(4), eq(7)))
+        .willReturn(createPostingsWithoutSalary(12));
+
+    ResolvedPeerPostings resolved = resolver.resolvePostings(profile);
+
+    assertThat(resolved.level()).isEqualTo(2);
+    assertThat(resolved.appliedConditions()).startsWith("서울 / ");
   }
 
   // 2026-11-01 운영: 개발·서울·MID·대기업 1단계가 공개 연봉 11건으로 안착했는데 그중 5건이 같은 회사의

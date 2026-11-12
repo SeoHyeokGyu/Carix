@@ -12,7 +12,7 @@ public record ProfileRequest(
     // 허용값 자체(enum)는 검증하지 않는다 — 별도 제품 결정이다.
     @Size(max = 100) @Schema(example = "DEVELOPER", nullable = true) String jobFamily,
     @Min(0) @Schema(example = "5", nullable = true) Integer yearsOfExperience,
-    @Size(max = 100) @Schema(example = "SEOUL_GANGNAM", nullable = true) String region,
+    @Size(max = 100) @Schema(example = "서울", nullable = true) String region,
     @Size(max = 50) @Schema(example = "FULL_TIME", nullable = true) String employmentType,
     @Size(max = 50) @Schema(example = "MEDIUM", nullable = true) String companySize,
     @Schema(example = "2022-03-02", nullable = true) LocalDate hireDate,

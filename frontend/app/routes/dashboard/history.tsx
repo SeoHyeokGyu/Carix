@@ -170,14 +170,14 @@ export default function DashboardHistory() {
         </EmptyState>
       ) : (
         <div className="space-y-6">
-          {/* 스냅샷 1개 이하 시 안내 카드 (와이어프레임 준수) */}
+          {/* 스냅샷이 하나뿐이면 아래 표에 그 한 행이 있다 — 빈 상태 박스가 아니라 표 위 한 줄로 알린다. */}
           {isSingleOrEmpty && (
-            <EmptyState
+            <p
               data-testid="history-single-notice"
-              icon="🌱"
-              title="초기 스냅샷이 생성되었습니다"
-              description="다음 달부터 변화를 볼 수 있습니다."
-            />
+              className="text-sm text-muted-foreground"
+            >
+              첫 판정이 기록됐습니다. 다음 달부터 변화를 볼 수 있습니다.
+            </p>
           )}
 
           <div className="space-y-1">

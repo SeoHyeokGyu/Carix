@@ -8,7 +8,7 @@ import java.time.LocalDate;
 public record ProfileResponse(
     @Schema(example = "DEVELOPER") String jobFamily,
     @Schema(example = "5", nullable = true) Integer yearsOfExperience,
-    @Schema(example = "SEOUL_GANGNAM") String region,
+    @Schema(example = "서울") String region,
     @Schema(example = "FULL_TIME") String employmentType,
     @Schema(example = "MEDIUM") String companySize,
     @Schema(example = "2022-03-02", nullable = true) LocalDate hireDate,
