@@ -204,7 +204,7 @@ export default function DashboardHistory() {
             <Table variant="plain">
               <TableHeader>
                 <TableRow>
-                  <TableHead className="sm:px-6">기준월</TableHead>
+                  <TableHead className="sm:px-6">판정한 달</TableHead>
                   <TableHead>구매력 지수</TableHead>
                   <TableHead>시장가치 지수</TableHead>
                   <TableHead>채용 활발도</TableHead>
@@ -232,7 +232,7 @@ export default function DashboardHistory() {
                         isSelected ? "bg-carix-info/5" : ""
                       }`}
                     >
-                      {/* 기준월 */}
+                      {/* 판정한 달 */}
                       <TableCell className="font-semibold sm:px-6">
                         {formatYearMonth(item.baseYearMonth)}
                       </TableCell>
