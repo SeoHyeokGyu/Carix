@@ -97,4 +97,13 @@ describe("splitAssumptions", () => {
     expect(warnings).toEqual(["b"]);
     expect(rest.map((a) => a.code)).toEqual(["TAX_SINGLE"]);
   });
+  // 퇴직금 블록 아래에 이미 적으므로 가정 목록에 또 나오면 같은 문장이 두 번 보인다.
+  it("퇴직금·DB형 가정은 가정 목록에서 뺀다", () => {
+    const { warnings, rest } = splitAssumptions([
+      { code: "TAX_SINGLE", text: "a" },
+      { code: "SEVERANCE_ASSUMED_DB", text: "c" },
+    ]);
+    expect(warnings).toEqual([]);
+    expect(rest.map((a) => a.code)).toEqual(["TAX_SINGLE"]);
+  });
 });

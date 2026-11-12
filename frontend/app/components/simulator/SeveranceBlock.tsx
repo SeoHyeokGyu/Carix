@@ -3,12 +3,14 @@ import {
   SEVERANCE_DC_NOTE,
   SEVERANCE_NO_HIRE_DATE,
   SEVERANCE_TITLE,
+  severanceAssumedDbNote,
   severanceBasisLine,
   severancePointLine,
 } from "../../lib/simulatorCopy";
 
 /** 지금 회사 카드의 퇴직금 블록. DC형·입사일 없음이면 금액 대신 안내 한 줄. */
 export function SeveranceBlock({ severance }: { severance: SeveranceView }) {
+  const assumedDb = severanceAssumedDbNote(severance);
   return (
     <section
       aria-label={SEVERANCE_TITLE}
@@ -27,6 +29,9 @@ export function SeveranceBlock({ severance }: { severance: SeveranceView }) {
           <p className="text-xs text-muted-foreground">
             {severanceBasisLine(severance.points)}
           </p>
+          {assumedDb && (
+            <p className="text-xs text-muted-foreground">{assumedDb}</p>
+          )}
         </>
       )}
     </section>

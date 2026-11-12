@@ -1,4 +1,8 @@
-import type { InflationBasis, SeverancePoint } from "./api/scenario";
+import type {
+  InflationBasis,
+  SeverancePoint,
+  SeveranceView,
+} from "./api/scenario";
 import { EXPENSE_CATEGORIES } from "./schemas/expense";
 
 const MAN_WON = 10_000;
@@ -119,4 +123,11 @@ export function severanceBasisLine(points: readonly SeverancePoint[]): string {
   const basis = "평균임금 = 최근 3개월 임금 + 연간 상여 × 3/12";
   const taxed = points.find((p) => p.gross > 0);
   return taxed ? `${basis} · 퇴직소득세 약 ${man(taxed.tax)} 뺌` : basis;
+}
+
+/** 모름·미선택은 퇴직금·DB형으로 계산한다. 금액이 나올 때만 그 가정을 블록 아래에 적는다. */
+export function severanceAssumedDbNote(view: SeveranceView): string | null {
+  return view.status === "OK" && view.pensionType === "UNKNOWN"
+    ? "퇴직금·DB형으로 계산했습니다"
+    : null;
 }

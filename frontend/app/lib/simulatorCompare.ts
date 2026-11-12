@@ -92,6 +92,8 @@ export function firstYearItems(
 }
 
 export const NEW_JOB_SEVERANCE = "NEW_JOB_SEVERANCE";
+/** 퇴직금 블록 아래에 적으므로 가정 목록에서는 뺀다. */
+const SEVERANCE_ASSUMED_DB = "SEVERANCE_ASSUMED_DB";
 
 export function splitAssumptions(list: EvaluationResponse["assumptions"]): {
   warnings: string[];
@@ -101,6 +103,8 @@ export function splitAssumptions(list: EvaluationResponse["assumptions"]): {
     warnings: list
       .filter((a) => a.code === NEW_JOB_SEVERANCE)
       .map((a) => a.text),
-    rest: list.filter((a) => a.code !== NEW_JOB_SEVERANCE),
+    rest: list.filter(
+      (a) => a.code !== NEW_JOB_SEVERANCE && a.code !== SEVERANCE_ASSUMED_DB,
+    ),
   };
 }
