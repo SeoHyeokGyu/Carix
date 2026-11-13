@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 import com.carix.income.domain.IncomeChangeReasonEnum;
@@ -153,6 +154,39 @@ class IncomeServiceTest {
 
     assertThatThrownBy(() -> service.delete(USER_ID, id))
         .isInstanceOf(IncomeNotFoundException.class);
+  }
+
+  // QA 리뷰: 위 notFound 테스트는 Optional.empty() 만 스텁해 소유자 필터를 지워도 통과했다. 타인 행을 고치는 IDOR 회귀를 막는다.
+  @Test
+  @DisplayName("update - 타인 소유 행이면 IncomeNotFoundException, 그 행을 고치지도 재계산을 부르지도 않는다")
+  void update_otherUsersRow_rejected() {
+    UUID id = UUID.randomUUID();
+    IncomeHistory other =
+        new IncomeHistory(UUID.randomUUID(), 60000000L, 4500000L, LocalDate.of(2026, 1, 1), null);
+    given(repository.findById(id)).willReturn(Optional.of(other));
+
+    IncomeRequest req = new IncomeRequest(70000000L, 5000000L, LocalDate.of(2026, 2, 1), null);
+
+    assertThatThrownBy(() -> service.update(USER_ID, id, req))
+        .isInstanceOf(IncomeNotFoundException.class);
+    assertThat(other.getGrossSalary()).isEqualTo(60000000L);
+    verify(repository, never()).save(any());
+    verify(eventPublisher, never()).publishEvent(any());
+  }
+
+  // QA 리뷰: 같은 이유로 소유자 필터 없이도 통과하던 삭제 경로. 타인 행 삭제 IDOR 회귀를 막는다.
+  @Test
+  @DisplayName("delete - 타인 소유 행이면 IncomeNotFoundException, 지우지도 재계산을 부르지도 않는다")
+  void delete_otherUsersRow_rejected() {
+    UUID id = UUID.randomUUID();
+    IncomeHistory other =
+        new IncomeHistory(UUID.randomUUID(), 60000000L, 4500000L, LocalDate.of(2026, 1, 1), null);
+    given(repository.findById(id)).willReturn(Optional.of(other));
+
+    assertThatThrownBy(() -> service.delete(USER_ID, id))
+        .isInstanceOf(IncomeNotFoundException.class);
+    verify(repository, never()).delete(any());
+    verify(eventPublisher, never()).publishEvent(any());
   }
 
   @Test
