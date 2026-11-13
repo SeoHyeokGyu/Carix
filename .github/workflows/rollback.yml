@@ -41,7 +41,7 @@ jobs:
           echo "sha=$TARGET" >> "$GITHUB_OUTPUT"
 
           # 각 컴포넌트별 태그 계산
-          CORE_API_TAG=$(git log -1 --format=%H $TARGET -- backend/core-api/ backend/build.gradle backend/settings.gradle ':!*.md' .github/workflows/deploy.yml)
+          CORE_API_TAG=$(git log -1 --format=%H $TARGET -- backend/core-api/ backend/build.gradle backend/settings.gradle config/default-expense-weights.yml config/cpi-category-map.yml ':!*.md' .github/workflows/deploy.yml)
           FRONTEND_TAG=$(git log -1 --format=%H $TARGET -- frontend/ ':!*.md' .github/workflows/deploy.yml)
           EUREKA_TAG=$(git log -1 --format=%H $TARGET -- backend/eureka/ backend/build.gradle backend/settings.gradle ':!*.md' .github/workflows/deploy.yml)
           CONFIG_SERVER_TAG=$(git log -1 --format=%H $TARGET -- backend/config-server/ backend/build.gradle backend/settings.gradle ':!*.md' .github/workflows/deploy.yml)
