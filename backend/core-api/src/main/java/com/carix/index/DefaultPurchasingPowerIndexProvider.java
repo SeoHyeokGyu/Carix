@@ -125,7 +125,14 @@ public class DefaultPurchasingPowerIndexProvider implements PurchasingPowerIndex
         status,
         rollup(weights.get(baseYearMonth)),
         baseYm,
-        YearMonth.parse(min(cpiEnd, baseYearMonth), YM).atEndOfMonth());
+        YearMonth.parse(min(cpiEnd, baseYearMonth), YM).atEndOfMonth(),
+        asIndex(incomeRatio.get()),
+        asIndex(priceIndex.get()));
+  }
+
+  /** 기준월 대비 비율을 기준월 = 100 지수로. 추이 차트의 두 선이 된다. */
+  private static BigDecimal asIndex(BigDecimal ratio) {
+    return ratio.multiply(HUNDRED).setScale(2, RoundingMode.HALF_UP);
   }
 
   /**

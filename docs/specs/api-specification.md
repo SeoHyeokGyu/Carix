@@ -425,7 +425,7 @@
 
 ### 5.3 지수 트렌드 차트 데이터
 *   **Endpoint:** `GET /api/v1/dashboard/trends`
-*   구현: `com.carix.dashboard.service.SnapshotSeriesService`. **`incomeIndex`·`personalPriceIndex`·`nominalIncome`·`realIncome` 은 아직 항상 `null` 이다** — `index_snapshot` 에 그 컬럼이 없다. 0 으로 채우면 차트가 있지도 않은 하락을 그린다.
+*   구현: `com.carix.dashboard.service.SnapshotSeriesService`. `incomeIndex`·`personalPriceIndex` 는 그 달 스냅샷 근거(`rationale.ppiComponents`)에 저장된 구매력 지수의 분자·분모(소수 둘째 자리)다. 구매력 지수를 못 낸 달과 이 값을 저장하기 전에 쓰인 스냅샷은 `null` 이다 — 0 으로 채우면 차트가 있지도 않은 하락을 그린다. **`nominalIncome`·`realIncome` 은 항상 `null` 이다** — 금액이라 평문 스냅샷에 두지 않는다.
 *   **Query Parameters:**
     *   `baseYearMonth` (String, optional): 조회 상한 월 (`YYYYMM` 또는 `YYYY-MM`). 지정하지 않으면 현재월(UTC)이다. 이 달 이하에서 스냅샷이 있는 최근 `durationMonths` 개월을 오름차순으로 돌려준다.
     *   `durationMonths` (Integer, optional): 조회할 개월 수 (기본값: 12).

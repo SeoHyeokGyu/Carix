@@ -139,6 +139,33 @@ class DefaultPurchasingPowerIndexProviderTest {
   }
 
   @Test
+  @DisplayName("소득 지수와 개인물가 지수를 함께 내고 둘의 비가 구매력 지수다")
+  void components_incomeAndPriceIndex() {
+    givenIncomes(income("2026-02-01", 60_000_000L, null), income("2026-04-01", 66_000_000L, null));
+    givenCpi("202602", "202604", "0.01");
+
+    PpiResult r = provider.calculate(userId, "202604");
+
+    // 소득 66/60 = 110.00, 물가 1.01² = 102.01, 구매력 110 ÷ 1.0201 = 107.8
+    assertThat(r.incomeIndex()).isEqualByComparingTo("110.00");
+    assertThat(r.personalPriceIndex()).isEqualByComparingTo("102.01");
+    assertThat(r.value()).isEqualByComparingTo("107.8");
+  }
+
+  @Test
+  @DisplayName("값을 못 내면 소득 지수와 개인물가 지수도 없다 — 0 이나 100 으로 채우지 않는다")
+  void components_absentWhenValueAbsent() {
+    givenIncomes(income("2026-02-01", 60_000_000L, null));
+    givenCpi("202602", "202603", "0.01");
+
+    PpiResult delayed = provider.calculate(userId, "202612");
+
+    assertThat(delayed.value()).isNull();
+    assertThat(delayed.incomeIndex()).isNull();
+    assertThat(delayed.personalPriceIndex()).isNull();
+  }
+
+  @Test
   @DisplayName("기준월부터 12개월이 지나면 OK")
   void twelveMonths_ok() {
     givenIncomes(income("2025-02-01", 60_000_000L, null));

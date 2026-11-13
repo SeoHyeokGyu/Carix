@@ -38,6 +38,8 @@ import java.util.List;
  *     #ppiFormulaVersionOrLegacy()} 가 {@code "1"} 로 돌려준다. 저장된 행은 다시 쓰지 않는다
  * @param expenseWeightStatus 그 달 구매력 지수를 만든 소비 가중치 상태({@code ExpenseWeightStatus} 이름). 표시된 숫자와 같은
  *     가중치를 말해야 하므로 조회 때 다시 계산하지 않고 저장한다. 이 필드 도입 전 행은 {@code null} 이고 뱃지를 그리지 않는다
+ * @param ppiComponents 구매력 지수를 만든 소득 지수와 개인물가 지수. 추이 차트의 두 선이다. 산출 불가 또는 이 필드 도입 전 행은 {@code
+ *     null} 이고 차트는 그 달 두 선을 그리지 않는다
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
 public record SnapshotRationale(
@@ -55,10 +57,46 @@ public record SnapshotRationale(
     String wageStatSource,
     TopPriceDriver topPriceDriver,
     String ppiFormulaVersion,
-    String expenseWeightStatus) {
+    String expenseWeightStatus,
+    PpiComponents ppiComponents) {
 
   /** 구매력 지수 산식 버전이 없는 행(도입 전)이 읽힐 때의 버전. */
   public static final String LEGACY_PPI_FORMULA_VERSION = "1";
+
+  public SnapshotRationale(
+      List<String> rulesApplied,
+      String salaryGapBucket,
+      List<SourceCoverage> sourceCoverages,
+      List<SkillContribution> skillContributions,
+      List<String> excludedSkills,
+      LocalDate cpiAsOf,
+      LocalDate aggregateAsOf,
+      String wageStatVintage,
+      String runId,
+      IndexStatuses indexStatuses,
+      OpeningWindowEvidence openingWindow,
+      String wageStatSource,
+      TopPriceDriver topPriceDriver,
+      String ppiFormulaVersion,
+      String expenseWeightStatus) {
+    this(
+        rulesApplied,
+        salaryGapBucket,
+        sourceCoverages,
+        skillContributions,
+        excludedSkills,
+        cpiAsOf,
+        aggregateAsOf,
+        wageStatVintage,
+        runId,
+        indexStatuses,
+        openingWindow,
+        wageStatSource,
+        topPriceDriver,
+        ppiFormulaVersion,
+        expenseWeightStatus,
+        null);
+  }
 
   public SnapshotRationale(
       List<String> rulesApplied,
@@ -90,6 +128,7 @@ public record SnapshotRationale(
         wageStatSource,
         topPriceDriver,
         ppiFormulaVersion,
+        null,
         null);
   }
 
@@ -207,6 +246,23 @@ public record SnapshotRationale(
     /** 이 필드 도입 이전에 저장된 행. 세 지수 모두 사유를 모른다. */
     public static IndexStatuses unknown() {
       return new IndexStatuses(null, null, null);
+    }
+  }
+
+  /**
+   * 구매력 지수의 분자와 분모. 둘 다 기준월 = 100 인 비율이라 금액 제약에 걸리지 않는다 — 소득 지수는 기준 대비 배율이고, 이미 평문인 구매력 지수와 공개 CPI
+   * 로도 얻어지는 값이다.
+   *
+   * @param incomeIndex 소득 지수
+   * @param personalPriceIndex 개인물가 지수
+   */
+  public record PpiComponents(BigDecimal incomeIndex, BigDecimal personalPriceIndex) {
+
+    /** 둘 중 하나라도 없으면 {@code null} — 한 선만 있는 달을 만들지 않는다. */
+    public static PpiComponents ofNullable(BigDecimal incomeIndex, BigDecimal personalPriceIndex) {
+      return incomeIndex == null || personalPriceIndex == null
+          ? null
+          : new PpiComponents(incomeIndex, personalPriceIndex);
     }
   }
 

@@ -202,7 +202,11 @@ public class SnapshotRecalculationService {
         DefaultPurchasingPowerIndexProvider.FORMULA_VERSION,
         calc.ppi().value() == null || calc.ppi().weightStatus() == null
             ? null
-            : calc.ppi().weightStatus().name());
+            : calc.ppi().weightStatus().name(),
+        calc.ppi().value() == null
+            ? null
+            : SnapshotRationale.PpiComponents.ofNullable(
+                calc.ppi().incomeIndex(), calc.ppi().personalPriceIndex()));
   }
 
   private record MonthCalculation(

@@ -65,6 +65,17 @@ class SnapshotRecalculationServiceTest {
   }
 
   @Test
+  @DisplayName("구매력 지수의 소득·개인물가 구성값을 스냅샷 근거에 저장한다")
+  void recalculate_storesPpiComponents() {
+    service.recalculateSnapshot(userId, CURRENT_YM);
+
+    var saved = indexSnapshotRepository.findAll().getFirst();
+    assertThat(saved.getRationale().ppiComponents().incomeIndex()).isEqualByComparingTo("103.62");
+    assertThat(saved.getRationale().ppiComponents().personalPriceIndex())
+        .isEqualByComparingTo("110.00");
+  }
+
+  @Test
   @DisplayName("물가 기여도 1위를 스냅샷 근거에 저장한다")
   void recalculate_storesTopPriceDriver() {
     driver =
@@ -518,7 +529,9 @@ class SnapshotRecalculationServiceTest {
                 IndexStatus.OK,
                 ExpenseWeightStatus.USER_DEFINED,
                 "202601",
-                LocalDate.of(2026, 7, 1));
+                LocalDate.of(2026, 7, 1),
+                new BigDecimal("103.62"),
+                new BigDecimal("110.00"));
       };
     }
 

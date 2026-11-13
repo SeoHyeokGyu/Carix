@@ -42,9 +42,9 @@ public class SnapshotSeriesService {
   /**
    * `S-14` 추이. 차트는 왼쪽이 과거라 오름차순으로 싣는다.
    *
-   * <p>{@code incomeIndex}·{@code personalPriceIndex}·{@code nominalIncome}·{@code realIncome} 은
-   * 채우지 않는다 — {@code index_snapshot} 에 그 컬럼이 없고 원천인 PPI 도메인(Member A)이 아직 없다. 0 으로 채우면 차트가 있지도 않은
-   * 하락을 그린다.
+   * <p>{@code incomeIndex}·{@code personalPriceIndex} 는 그 달 스냅샷 근거의 구매력 구성값에서 읽는다. 구성값이 없는 달은
+   * {@code null} 이다 — 0 으로 채우면 차트가 있지도 않은 하락을 그린다. {@code nominalIncome}·{@code realIncome} 은 금액이라
+   * 평문 스냅샷에 두지 않으므로 채우지 않는다.
    */
   @Transactional(readOnly = true)
   public TrendListResponse trends(UUID userId, String baseYearMonth, int durationMonths) {
@@ -64,14 +64,16 @@ public class SnapshotSeriesService {
 
     List<TrendListResponse.TrendPoint> points = new ArrayList<>();
     for (IndexSnapshot snapshot : window) {
+      SnapshotRationale.PpiComponents components =
+          snapshot.getRationale() == null ? null : snapshot.getRationale().ppiComponents();
       points.add(
           new TrendListResponse.TrendPoint(
               snapshot.getBaseYearMonth(),
               toDouble(snapshot.getPurchasingPowerIndex()),
               toDouble(snapshot.getMarketValueIndex()),
               toDouble(snapshot.getOpeningWindowIndex()),
-              null,
-              null,
+              components == null ? null : toDouble(components.incomeIndex()),
+              components == null ? null : toDouble(components.personalPriceIndex()),
               null,
               null));
     }

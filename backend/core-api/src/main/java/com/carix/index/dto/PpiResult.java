@@ -17,6 +17,9 @@ import java.time.LocalDate;
  *     불가면 {@code null}
  * @param cpiAsOf 사용한 CPI 원천의 기준일. {@code index_snapshot.rationale} 의 `원천 기준일` 이 된다. 계산 불가면 {@code
  *     null}
+ * @param incomeIndex 소득 지수(기준월 = 100). {@code value} 의 분자다. {@code value} 가 없으면 {@code null}
+ * @param personalPriceIndex 개인물가 지수(기준월 = 100). {@code value} 의 분모다. {@code value} 가 없으면 {@code
+ *     null}
  */
 public record PpiResult(
     String baseYearMonth,
@@ -24,10 +27,23 @@ public record PpiResult(
     IndexStatus status,
     ExpenseWeightStatus weightStatus,
     String indexBaseYearMonth,
-    LocalDate cpiAsOf) {
+    LocalDate cpiAsOf,
+    BigDecimal incomeIndex,
+    BigDecimal personalPriceIndex) {
 
   public PpiResult {
     IndexValueContract.PPI.requireArgument(baseYearMonth, value, status);
+  }
+
+  /** 구성값 없이 만든다. 값이 없는 결과와 구성값이 필요 없는 테스트 대역이 쓴다. */
+  public PpiResult(
+      String baseYearMonth,
+      BigDecimal value,
+      IndexStatus status,
+      ExpenseWeightStatus weightStatus,
+      String indexBaseYearMonth,
+      LocalDate cpiAsOf) {
+    this(baseYearMonth, value, status, weightStatus, indexBaseYearMonth, cpiAsOf, null, null);
   }
 
   /** 입력이 없거나 산출기가 준비되지 않은 상태. */
