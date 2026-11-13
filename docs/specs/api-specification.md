@@ -127,7 +127,7 @@
 
 ### 3.2 커리어 프로필 수정 (온보딩 포함)
 *   **Endpoint:** `PATCH /api/v1/profile`
-*   온보딩 중 자동 저장을 위해 **부분 필드 저장을 허용**한다 (보낸 필드만 갱신). 필수 필드(주 직무, 총 경력, 지역, 고용 형태) 완비 검증은 온보딩 검토 단계 완료 제출 시 수행한다.
+*   온보딩 중 자동 저장을 위해 **부분 필드 저장을 허용**한다 (보낸 필드만 갱신). 필수 필드(주 직무, 총 경력, 지역, 고용 형태, 현 직장 입사일 — 고용 형태가 `FREELANCE` 면 입사일 제외) 완비 검증은 서버가 아니라 화면이 한다. 온보딩 1단계 「다음」과 검토 단계 완료 제출이 막는다.
 *   **Request Body (전체 예시):**
     ```json
     {
@@ -140,7 +140,7 @@
       "retirementPensionType": "DC"
     }
     ```
-*   `hireDate` 는 현 직장 입사일(`yyyy-MM-dd`)이다. 선택 필드이며 보내지 않거나 `null` 이면 기존 값을 유지한다. 오늘 이후 날짜는 400. 퇴직금 계산과 성과급 범위 계산에 쓰인다.
+*   `hireDate` 는 현 직장 입사일(`yyyy-MM-dd`)이다. 이 API 에서는 선택 필드이며(온보딩 필수 여부는 위 화면 검증이 정한다) 보내지 않거나 `null` 이면 기존 값을 유지한다. 오늘 이후 날짜는 400. 퇴직금 계산과 성과급 범위 계산에 쓰인다.
 *   `retirementPensionType` 은 퇴직연금 유형(`SEVERANCE_DB`·`DC`·`UNKNOWN`)이다. 선택 필드이며 보내지 않거나 `null` 이면 기존 값을 유지한다(값을 지우는 방법은 없다). 조회 응답에는 아직 고르지 않았으면 `null` 로 나오고, 퇴직금 계산은 `null` 을 `UNKNOWN` 과 같게 본다([도메인 정의서 §4.8](domain-logic.md)).
 *   **Response (200 OK):** (조회 응답과 동일)
 
@@ -427,14 +427,14 @@
 *   **Endpoint:** `GET /api/v1/dashboard/trends`
 *   구현: `com.carix.dashboard.service.SnapshotSeriesService`. **`incomeIndex`·`personalPriceIndex`·`nominalIncome`·`realIncome` 은 아직 항상 `null` 이다** — `index_snapshot` 에 그 컬럼이 없다. 0 으로 채우면 차트가 있지도 않은 하락을 그린다.
 *   **Query Parameters:**
-    *   `baseYearMonth` (String, optional): 인덱스 기준 월 (YYYY-MM). 지정하지 않으면 사용자의 첫 소득 이력 발생 월을 기준으로 자동 지정됨.
-    *   `durationMonths` (Integer, optional): 조회할 개원 수 (기본값: 12).
+    *   `baseYearMonth` (String, optional): 조회 상한 월 (`YYYYMM` 또는 `YYYY-MM`). 지정하지 않으면 현재월(UTC)이다. 이 달 이하에서 스냅샷이 있는 최근 `durationMonths` 개월을 오름차순으로 돌려준다.
+    *   `durationMonths` (Integer, optional): 조회할 개월 수 (기본값: 12).
 *   **Response (200 OK):**
     ```json
     {
       "trends": [
         {
-          "yearMonth": "2026-01",
+          "yearMonth": "202601",
           "purchasingPowerIndex": 100.0,
           "marketValueIndex": 100.0,
           "openingWindowIndex": 100.0,
@@ -444,7 +444,7 @@
           "realIncome": 5000000
         },
         {
-          "yearMonth": "2026-02",
+          "yearMonth": "202602",
           "purchasingPowerIndex": 99.1,
           "marketValueIndex": 102.3,
           "openingWindowIndex": 104.7,
@@ -454,7 +454,7 @@
           "realIncome": 4955000
         },
         {
-          "yearMonth": "2026-03",
+          "yearMonth": "202603",
           "purchasingPowerIndex": null,
           "marketValueIndex": 103.1,
           "openingWindowIndex": null,
@@ -592,20 +592,22 @@
 
 ### 5.7 지표 소급 재계산 (Recalculate Snapshot History)
 *   **Endpoint:** `POST /api/v1/dashboard/recalculate`
-*   구현: `com.carix.dashboard.controller.DashboardController.recalculateSnapshot()`, `com.carix.snapshot.SnapshotRecalculationService.recalculateSnapshot(userId, fromYearMonth)`.
-*   **용도:** 온보딩 이후 축적된 소득·소비·스킬 데이터와 최신 지표 알고리즘(개방창 지수 OWI 산출기 포함)을 바탕으로, 사용자의 최초 유효월부터 현재 기준월까지의 모든 과거 월 스냅샷을 멱등하게 소급 재계산한다.
+*   구현: `com.carix.dashboard.DashboardController.recalculate()`, `com.carix.snapshot.SnapshotRecalculationService.recalculateSnapshot(userId, fromYearMonth)`.
+*   **용도:** 온보딩 이후 축적된 소득·소비·스킬 데이터와 최신 지표 알고리즘(채용 활발도 OWI 산출기 포함)을 바탕으로, 시작월부터 현재 기준월까지의 모든 과거 월 스냅샷을 멱등하게 소급 재계산한다.
 *   **호출 시점:** 대시보드 메인(`S-10`) 헤더의 **[지표 재계산]** 버튼 클릭 시 호출.
-*   **Request Body:** 없음 (인증 세션의 `userId` 기준으로 소득 유효월을 자동 탐색)
+*   **Request Body:** 없음
+*   **Query Parameters:**
+    *   `fromYearMonth` (String, optional): 재계산 시작월 (`YYYYMM` 또는 `YYYY-MM`). 지정하지 않으면 사용자의 최초 소득월이고, 소득 이력이 없으면 현재월이다. 사용자의 최초 소득월보다 이르면 최초 소득월로 올려 계산한다(소득 이력이 없으면 현재월).
 *   **Response (200 OK):**
     ```json
     {
-      "recalculatedCount": 3,
+      "recalculatedMonths": 3,
       "fromYearMonth": "202604",
-      "toYearMonth": "202606"
+      "summary": { "...": "5.1 대시보드 지표 요약의 Response 와 같다" }
     }
     ```
-    *(`recalculatedCount`: 신규 계산 및 갱신된 스냅샷 월 수, `fromYearMonth`: 재계산 시작월(최초 유효월), `toYearMonth`: 재계산 종료월(현재 기준월))*
-*   **오류:** 세션 없음 `401 UNAUTHORIZED` / 소득 이력이 전혀 없어 시작월을 알 수 없음 `400 INVALID_INPUT`
+    *(`recalculatedMonths`: 다시 계산한 스냅샷 월 수, `fromYearMonth`: 실제로 쓴 재계산 시작월(`YYYYMM`), `summary`: 재계산 뒤 현재월 기준 대시보드 요약)*
+*   **오류:** 세션 없음 `401 UNAUTHORIZED` / `fromYearMonth` 가 `YYYYMM`·`YYYY-MM` 형식이 아니면 `400 INVALID_INPUT`
 
 ### 5.8 상승률 비교
 
@@ -778,7 +780,7 @@
     `auth-service` 가 소유한 컬럼이고 세션 조회 응답도 같은 서비스가 만들어, 갱신과 재조회가 한 서비스에 모인다. 단계
     진행만 갱신하며 `REVIEW` → `COMPLETED` 전환에서 별도로 첫 지수 계산을 트리거하지 않는다 —
     소득·소비·스킬·프로필 저장마다 걸린 스냅샷 재계산 트리거([도메인 정의서 §5](domain-logic.md))가
-    이미 8곳에 있어 검토 단계에 닿을 때는 스냅샷이 먼저 나와 있다.
+    이미 9곳에 있어 검토 단계에 닿을 때는 스냅샷이 먼저 나와 있다.
     *   **역방향 전환 방어:** 클라이언트 버그 등으로 이전 단계로 역행하는 요청은 `400 Bad Request`(`ONBOARDING_STEP_REGRESSION`)로 거부한다.
 *   **`POST /api/v1/auth/onboarding/reset`**(`auth-service` 소유).
     *   **목적:** 온보딩을 완료(`COMPLETED`)했거나 진행 중인 사용자가 온보딩을 처음부터 다시 시작할 수 있도록 단계를 `PROFILE`로 초기화한다.
@@ -857,7 +859,7 @@
 수집기(Collector)의 공고 수집, KOSIS 임금통계 보간, 공고 중복제거, 다차원 시장 집계 등 백그라운드 파이프라인을 수동 트리거하고 상태를 모니터링하는 API다 (관리자 콘솔 `/admin/collector` 연동).
 
 *   **Gateway 경유 Base URL:** `/api/v1/admin/collector` (내부 경로 `/internal/pipeline`으로 자동 Rewrite 매핑)
-*   **보안 인증:** 모든 요청에 요청 헤더 `X-Admin-Key: <ADMIN_SECRET_KEY>` 필수 전송 (누락 또는 불일치 시 `403 FORBIDDEN`).
+*   **보안 인증:** 모든 요청에 요청 헤더 `X-Admin-Key` 필수 전송 — 값은 collector 의 환경변수 `CARIX_ADMIN_KEY` 다 (누락 또는 불일치 시 `403 FORBIDDEN`).
 
 ### 8.1 채용공고 크롤링 비동기 실행
 *   `POST /internal/pipeline/crawl` — 잡코리아·사람인·점핏·원티드·프로그래머스 IT/개발 채용공고 실시간 스크래핑 트리거.

@@ -55,12 +55,16 @@ dashboard·expense·income·profile·scenario·skill 도메인 컨트롤러를 R
 | `GET /api/health` | 헬스체크 |
 | `POST /api/v1/auth/register` | 회원가입. 가입 즉시 세션 쿠키 발급 |
 | `POST /api/v1/auth/login` | 이메일·비밀번호 로그인 |
-| `GET /api/v1/auth/session` | 세션 조회. `{userId, email, onboardingStep}`. 게이트웨이 필터는 `userId` 만 읽는다 |
+| `POST /api/v1/auth/guest` | 게스트 시작. 계정 없이 쓰는 24시간 세션 쿠키 발급, 유효한 세션이 있으면 그 사용자를 돌려준다 |
+| `GET /api/v1/auth/session` | 세션 조회. `{userId, email, onboardingStep, guest}`(가입·로그인·게스트 시작 응답도 같은 형식, 게스트면 `email` 은 `null`). 게이트웨이 필터는 `userId` 만 읽는다 |
+| `PATCH /api/v1/auth/onboarding` | 온보딩 단계 갱신 |
+| `POST /api/v1/auth/onboarding/reset` | 온보딩 단계를 `PROFILE` 로 초기화 |
 | `POST /api/v1/auth/logout` | 현재 세션 폐기 |
 | `POST /api/v1/auth/logout-all` | 사용자의 전체 세션 폐기 |
 
-**계정이 있어야 쓴다.** 계정 없이 접근할 수 있는 경로를 두지 않는다. 가입하면 곧바로
-세션을 발급해 온보딩으로 보낸다.
+**계정 또는 게스트 세션이 있어야 쓴다.** 세션 없이 쓸 수 있는 사용자 API 는 없다. 가입하면 곧바로
+세션을 발급해 온보딩으로 보낸다. 계정 없이 둘러보려는 방문자는 게스트 시작으로 `guest` 사용자 행과
+24시간 세션을 받는다 — 가입 계정과 같은 `userId` 체계를 쓴다.
 
 **세션 토큰은 해시로 저장한다.** `session.token_hash` 에 SHA-256 hex 만 남기고 원본은
 쿠키에만 있다. 세션은 30일짜리 자격증명이라 DB 유출 시 피해가 가장 크다.
@@ -81,12 +85,12 @@ dashboard·expense·income·profile·scenario·skill 도메인 컨트롤러를 R
 **정리 잡.** 만료 세션과 창이 끝난 `rate_limit_bucket` 행을 `AuthCleanupJob` 이 매시 5분에 지운다.
 현재 창은 남긴다 — 지우면 그 시간의 카운터가 다시 세져 제한이 풀린다. 속도 제한 키에는 이메일·IP 가
 평문으로 들어 있어, 탈퇴한 사용자의 이메일도 창이 끝난 뒤 1시간 안에 사라진다.
-auth-service 단일 인스턴스를 전제한다 — 여러 개 띄우면 중복 실행되지만 두 삭제 모두 멱등이다. 사용자 행은 정리
-대상이 아니다. 계정 없이 만들어지는 행이 없고, 삭제는 사용자가 직접 하는 기능(US-C2)이다.
+auth-service 단일 인스턴스를 전제한다 — 여러 개 띄우면 중복 실행되지만 두 삭제 모두 멱등이다. 사용자 행은 이 잡의
+정리 대상이 아니다. 세션이 모두 만료된 게스트는 core-api `GuestCleanupJob` 이 매시 정각에 데이터와 함께 지우고,
+가입 계정의 삭제는 사용자가 직접 하는 기능(US-C2)이다.
 
 **구현 상태 — 백엔드 인증은 끝났다.** 가입·로그인·세션 조회·로그아웃, 세션 토큰 해시
-저장, 매직링크·초대·메일 코드 폐기가 모두 반영됐다. 프런트 화면(S-01~03)과 가드 연결이
-남았다. 진행 상태는
+저장, 매직링크·초대·메일 코드 폐기가 모두 반영됐다. 진행 상태는
 [`docs/README.md` 진행 상태](../docs/README.md#진행-상태) 절을 따른다.
 
 로컬 기동은 `core-api`와 동일한 순서다(config-server 먼저, 그다음 `EUREKA_CLIENT_ENABLED=false`
@@ -107,6 +111,7 @@ Spring Cloud Gateway(WebFlux/reactive). `carix_caddy(:80)`의 업스트림으로
 | --- | --- | --- | --- |
 | `auth` | `/api/v1/auth/**` | `auth-service` (Eureka `lb://`) | 없음 |
 | `core-health` | `/api/health` | `core-api` (Eureka `lb://`) | 없음 |
+| `collector-admin` | `/api/v1/admin/collector/**`, `/api/v1/admin/pipeline/**` → `/internal/pipeline/**` 로 바꿔 씀 | `collector` (Eureka `lb://`) | 없음 — collector 가 `X-Admin-Key` 로 막는다 |
 | `core` | `/api/v1/**`, `/api/swagger-ui/**`, `/api/v3/api-docs/**` | `core-api` (Eureka `lb://`) | 적용 |
 | `web` | 그 외 | `frontend-node` (정적 URI, Eureka 미등록) | 없음 |
 
@@ -125,8 +130,10 @@ Spring Cloud Gateway(WebFlux/reactive). `carix_caddy(:80)`의 업스트림으로
 세션을 요구하지만 같은 출처 요청이라 로그인한 개발자의 브라우저는 쿠키를 실어 보내 그대로
 열리고, 쿠키 없는 접근에는 API 표면이 닫힙니다.
 
-**플래그를 되돌릴 때는 `.env` 롤백으로 부족합니다** — `config/spring/gateway.yml` 을 직접
-되돌리고 게이트웨이 `/actuator/refresh` 를 다시 호출합니다. 플래그는 켜져 있습니다.
+**플래그는 켜져 있고, 끄는 것은 롤백 수단이 아닙니다.** 끄면 필터가 `X-User-Id` 를 붙이지 않고
+인바운드 헤더는 아래 필터가 벗기므로, core-api 의 사용자 API 가 전부 실패합니다 — `@CurrentUserId` 를 쓰는 곳은
+`401 UNAUTHORIZED`(`UserContextArgumentResolver`), `@RequestHeader("X-User-Id")` 를 쓰는 곳은 `400` 입니다. 플래그를 바꿀 때는 `.env` 롤백으로 부족합니다 —
+`config/spring/gateway.yml` 을 직접 고치고 게이트웨이 `/actuator/refresh` 를 다시 호출합니다.
 
 인바운드 `X-User-Id` 는 `UserIdHeaderStripGlobalFilter` 가 플래그와 무관하게 전 라우트에서
 벗깁니다. 하류는 이 헤더를 인증된 사용자로 신뢰하므로 출처가 게이트웨이여야 합니다.
@@ -182,9 +189,12 @@ Dockerfile은 컴파일하지 않는다. CI 러너가 Gradle 캐시로 만든 JA
 
 ## 테스트 주의
 
-- **배포 CI는 테스트를 안 돌린다.** `.github/workflows/deploy.yml`의 6개 빌드 잡 중
-  backend 5개(`core-api`·`eureka`·`config-server`·`gateway`·`auth-service`)는
+- **배포 CI는 테스트를 안 돌린다.** `.github/workflows/deploy.yml`의 빌드 잡 중
+  backend 6개(`core-api`·`eureka`·`config-server`·`gateway`·`auth-service`·`collector`)는
   전부 `./gradlew :모듈:build -x test`, `frontend`는 `docker build`(테스트 스텝 없음)다.
   빌드·이미지 푸시·배포는 빠른 빌드를 위해 테스트를 건너뛴다.
-- 테스트용 DB를 별도로 두지 않기로 결정하여([DEVELOPMENT.md §6](../docs/DEVELOPMENT.md#db를-쓰는-테스트는-두지-않는다) 참조), Testcontainers 의존성을 제거하고 DB 연결 없이도 컨텍스트 로드가 검증되도록 모킹/단위 테스트 방식으로 전환했다.
-- **PR 단계에서 자동 검증한다.** `.github/workflows/pr-check.yml`이 PR 단계에서 전체 모듈의 테스트(`./gradlew check`)를 자동 검증하므로, 테스트가 통과된 코드만 main에 머지된다.
+- core-api·collector 의 DB 테스트는 인메모리 H2 로 돌고, 실제 PostgreSQL 로 도는 테스트는 없다
+  ([DEVELOPMENT.md §6](../docs/DEVELOPMENT.md#테스트-db-는-인메모리-h2-다)).
+- **PR 단계 검증은 머지를 막지 않는다.** `.github/workflows/pr-check.yml`이 바뀐 모듈마다 `./gradlew :모듈:check` 를
+  돌리지만, `main` 에 브랜치 보호가 없어 검사가 실패해도 머지할 수 있다. draft PR 과 `skip-ci` 라벨이 붙은 PR,
+  문서(`**.md`·`docs/**`)만 바꾼 PR 은 검사 자체가 돌지 않는다.

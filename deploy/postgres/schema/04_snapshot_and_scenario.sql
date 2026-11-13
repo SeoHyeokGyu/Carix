@@ -24,7 +24,7 @@ COMMENT ON TABLE core.index_snapshot IS
 COMMENT ON COLUMN core.index_snapshot.purchasing_power_index IS
     '계산 불가(표본 부족·CPI 결측 등)면 NULL 이다. 0 이나 100 으로 채우지 않는다.';
 COMMENT ON COLUMN core.index_snapshot.opening_window_index IS
-    '개방창 지수. 동료집단 중앙 개방일수 ÷ 전체시장 중앙 개방일수 × 100. 계산 불가면 NULL 이다.';
+    '채용 활발도. 동료집단 공고 비중의 최근 3개월 ÷ 이전 12개월(4~15개월 전) × 100. 계산 불가면 NULL 이다.';
 COMMENT ON COLUMN core.index_snapshot.rationale IS
     '적용 규칙, 사용한 근거, 제외한 데이터와 그 사유, 원천 기준일, 배치 실행 ID.';
 

@@ -120,7 +120,6 @@ erDiagram
         uuid id PK
         varchar source
         varchar source_item_id
-        varchar schema_version
         varchar first_seen_month
         varchar last_seen_month
         timestamp collected_at
@@ -166,7 +165,6 @@ erDiagram
         varchar company_badge
         varchar position_level
         varchar job_family
-        text content
         date posted_start_date
         date posted_end_date
         varchar first_seen_month
@@ -263,7 +261,7 @@ erDiagram
 > | `skill.category` | `'BACKEND'`·`'FRONTEND'` 등 기술 분야 | `'SKILL'`·`'JOB_CATEGORY'`·`'INDUSTRY'` — 수집 태그의 성격 구분 |
 > | `skill_alias` | `alias_name VARCHAR(100) UNIQUE` | `VARCHAR(255)`, UNIQUE 없음. `SkillService`·`SkillRepository` 가 자동완성 검색에서 읽는다(`US-O5`) |
 > | `raw_ingest` | 원문 보관 + 24개월 purge | **원문을 보관하지 않는다.** `payload`·`purged_at`·`schema_version` 컬럼 없음. 수집 이력만 남는다 |
-> | `job_posting.content` | 공고 상세 본문 텍스트 | **컬럼 없음.** 스킬 파싱은 `raw_ingest` 원문에서 직접 한다 |
+> | `job_posting.content` | 공고 상세 본문 텍스트 | **컬럼 없음.** 스킬은 수집 시점에 목록·상세 응답에서 파싱해 `job_posting_skill` 에 넣는다 |
 > | `job_posting.first_seen_month`·`last_seen_month` | 공고를 처음·마지막 본 월 | 크롤러가 처음 본 월로 채우고 재관측 시 `last_seen_month` 를 갱신한다. 다만 크롤러가 최근 등록순 몇 페이지만 훑어 재관측이 거의 없어 **두 값이 사실상 같다** — 관측 기간을 재는 데 쓸 수 없다. 등록·마감은 `posted_start_date`·`posted_end_date` 를 쓴다. 등록일은 약 56% 가 비어 있다 — 원천이 싣지 않은 공고에 더해, 사람인 목록의 마감일을 등록일로 읽어 만들어진 값(마감일과 월일이 같은 365일 창)을 비웠기 때문이다. 사람인 등록일은 목록의 `.job_sector .job_day` 에서 읽는다 |
 > | `job_posting.sampled_month` | 무작위 ID 표본으로 뽑힌 달(게시일 기준) | 잡코리아 시장 집계(`market_aggregate` 의 `JOBKOREA` 행)는 이 값이 그 달인 공고만 같은 회사 월 3건까지 센다. 정기 수집(목록 상단)과 무작위 표본은 모집단이 달라 섞으면 수요율이 수집 방식만으로 움직인다. 정기 수집으로 들어온 공고도 표본에 뽑히면 값을 단다. 표본이 아니면 `NULL` |
 >
