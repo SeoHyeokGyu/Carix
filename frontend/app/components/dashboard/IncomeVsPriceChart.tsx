@@ -518,8 +518,7 @@ export function IncomeVsPriceChart({ data }: IncomeVsPriceChartProps) {
           시기입니다.
         </p>
         <p className="text-[11px] text-carix-text/50">
-          * 지수는 기준월을 100으로 산정한 상대 지표이며, 금액 축 혼용을
-          방지하기 위해 원화 금액은 툴팁 보조 정보로만 확인하실 수 있습니다.
+          * 지수는 기준월을 100으로 산정한 상대 지표입니다.
         </p>
       </div>
     </Card>

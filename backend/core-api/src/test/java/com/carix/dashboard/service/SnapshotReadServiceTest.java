@@ -1,6 +1,7 @@
 package com.carix.dashboard.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.tuple;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
@@ -495,6 +496,52 @@ class SnapshotReadServiceTest {
     assertThat(response.trends().get(0).yearMonth()).isEqualTo("202606");
     assertThat(response.trends().get(1).yearMonth()).isEqualTo("202607");
     assertThat(response.trends().get(1).purchasingPowerIndex()).isEqualTo(94.2);
+  }
+
+  @Test
+  @DisplayName("trends - 근거에 구매력 구성값이 있는 달만 소득·개인물가 지수를 싣고 없는 달은 null 이다")
+  void trends_소득_개인물가_지수() {
+    IndexSnapshot withComponents =
+        IndexSnapshot.builder()
+            .userId(USER_ID)
+            .baseYearMonth("202607")
+            .dataVersion("20260701093000-000")
+            .ruleVersion("1.2.0")
+            .purchasingPowerIndex(new BigDecimal("107.80"))
+            .decisionSignal(DecisionSignalCode.STAY)
+            .rationale(
+                new SnapshotRationale(
+                    List.of(),
+                    null,
+                    List.of(),
+                    List.of(),
+                    List.of(),
+                    null,
+                    null,
+                    null,
+                    "20260701093000-000",
+                    null,
+                    null,
+                    null,
+                    null,
+                    "2",
+                    null,
+                    new SnapshotRationale.PpiComponents(
+                        new BigDecimal("110.00"), new BigDecimal("102.01"))))
+            .build();
+    given(repository.findByUserIdOrderByBaseYearMonthDesc(USER_ID))
+        .willReturn(
+            List.of(
+                withComponents, snapshot("202606", "95.40", "113.70", DecisionSignalCode.STAY)));
+
+    TrendListResponse response = seriesService.trends(USER_ID, "202607", 12);
+
+    assertThat(response.trends())
+        .extracting(
+            TrendListResponse.TrendPoint::yearMonth,
+            TrendListResponse.TrendPoint::incomeIndex,
+            TrendListResponse.TrendPoint::personalPriceIndex)
+        .containsExactly(tuple("202606", null, null), tuple("202607", 110.0, 102.01));
   }
 
   @Test
