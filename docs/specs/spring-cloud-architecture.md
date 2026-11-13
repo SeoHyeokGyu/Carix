@@ -57,7 +57,7 @@ DB는 하나(`carix`, 근거는 DEVELOPMENT.md §3), 스키마는 **둘**로 나
 | 스키마 | 소유 | 테이블 |
 | --- | --- | --- |
 | `auth` | auth-service | `users` `session` `rate_limit_bucket` |
-| `core` | core-api, collector | 나머지 15개 — 사용자 도메인, 지수, 수집 원천, 집계 |
+| `core` | core-api, collector | 나머지 16개 — 사용자 도메인, 지수, 수집 원천, 집계 |
 
 ### 왜 둘인가
 

@@ -593,7 +593,7 @@
 ### 5.7 지표 소급 재계산 (Recalculate Snapshot History)
 *   **Endpoint:** `POST /api/v1/dashboard/recalculate`
 *   구현: `com.carix.dashboard.DashboardController.recalculate()`, `com.carix.snapshot.SnapshotRecalculationService.recalculateSnapshot(userId, fromYearMonth)`.
-*   **용도:** 온보딩 이후 축적된 소득·소비·스킬 데이터와 최신 지표 알고리즘(개방창 지수 OWI 산출기 포함)을 바탕으로, 시작월부터 현재 기준월까지의 모든 과거 월 스냅샷을 멱등하게 소급 재계산한다.
+*   **용도:** 온보딩 이후 축적된 소득·소비·스킬 데이터와 최신 지표 알고리즘(채용 활발도 OWI 산출기 포함)을 바탕으로, 시작월부터 현재 기준월까지의 모든 과거 월 스냅샷을 멱등하게 소급 재계산한다.
 *   **호출 시점:** 대시보드 메인(`S-10`) 헤더의 **[지표 재계산]** 버튼 클릭 시 호출.
 *   **Request Body:** 없음
 *   **Query Parameters:**
