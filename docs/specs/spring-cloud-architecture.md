@@ -63,8 +63,10 @@ DB는 하나(`carix`, 근거는 DEVELOPMENT.md §3), 스키마는 **둘**로 나
 
 스키마 분리는 소유 경계를 따라간다. 미리 깔아두지 않는다.
 
-`auth-service`만이 독립된 바운디드 컨텍스트다. 인증 데이터는 다른 서비스가 쓰기는커녕
-읽을 일도 없다(FK 참조 제외).
+`auth-service`만이 독립된 바운디드 컨텍스트다. 인증 데이터를 만들고 바꾸는 것은 auth-service 뿐이다.
+예외는 사용자 삭제다 — core-api 가 탈퇴(`ProfileService`·`UserDataEraser`)와 게스트 정리(`GuestCleanupJob`)에서
+`auth.users`·`auth.session` 을 직접 읽고 지운다. 세 서비스가 같은 DB 계정으로 붙으므로 스키마 분리가 권한을
+나누지는 않는다.
 
 `core-api`와 `collector`는 **같은 스키마를 쓰기·읽기로 나눠 쓰는 두 프로세스**다. 쓰기는
 전부 `collector` 가 한다 — `raw_ingest`, `job_posting`, `job_posting_skill`, `skill`,
@@ -100,17 +102,18 @@ flowchart TD
     Collector --> DBC
 ```
 
-**Gateway 는 관리자 콘솔을 위해 `collector` 를 라우팅한다 (`/api/v1/admin/collector/**` $\rightarrow$ `lb://collector/internal/pipeline/**`).**
+**Gateway 는 관리자 콘솔을 위해 `collector` 를 라우팅한다 (`/api/v1/admin/collector/**`·`/api/v1/admin/pipeline/**` $\rightarrow$ `lb://collector/internal/pipeline/**`).**
 - **순서(Order)**: `-12` (`core`의 `-10`보다 앞서 매칭되도록 보장)
-- **필터**: `RewritePath=/api/v1/admin/collector/(?<segment>.*), /internal/pipeline/${segment}`
+- **필터**: `RewritePath=/api/v1/admin/(collector|pipeline)/(?<segment>.*), /internal/pipeline/${segment}`
 - **보안**: `collector`의 `AdminKeyInterceptor`가 모든 요청에 대해 `X-Admin-Key` 헤더를 검증하여 인가되지 않은 외부 호출을 차단합니다 (`403 Forbidden`).
 
 ### Gateway 필터 체인
 
 전역 필터 둘이 먼저 돌고(둘 다 `HIGHEST_PRECEDENCE`, 상호 순서는 무관) 그 뒤에 라우트 필터가 돈다.
 
-1. **상관관계 ID** (`CorrelationIdGlobalFilter`) — `X-Request-Id`를 생성해 하류와 로그에 전파한다.
-   [프론트엔드 설계](frontend-design.md)의 "동일 요청 식별자를 로그에 기록한다" 요구사항을 구현한다.
+1. **상관관계 ID** (`CorrelationIdGlobalFilter`) — 인바운드 `X-Request-Id` 가 없으면 만들어 하류 요청과
+   응답 헤더에 싣는다. 하류 서비스에는 이 헤더를 읽거나 로그에 남기는 코드가 없어, [프론트엔드 설계](frontend-design.md)의
+   "동일 요청 식별자를 로그에 기록한다" 요구사항은 헤더 전달까지만 구현돼 있다.
 2. **인바운드 `X-User-Id` 제거** (`UserIdHeaderStripGlobalFilter`) — 전 라우트에서 무조건 벗긴다.
    하류가 이 헤더를 인증된 사용자로 신뢰하므로 출처는 게이트웨이여야 한다. 벗기지 않으면 외부에서
    임의 UUID 를 실어 그 사용자로 행세할 수 있다. **세션 검증 플래그와 무관하게 항상 동작한다** —
@@ -120,10 +123,11 @@ flowchart TD
    - 유효 → `X-User-Id` 헤더를 붙여 하류로
    - 무효·쿠키 없음 → 401 반환, 하류 호출 없음
    - **`core` 라우트에만 붙는다.** `auth`(`/api/v1/auth/**`), `core-health`(`/api/health`),
-     `web`(`/**`)에는 필터가 없어 우회한다. `/api/health` 를 뺀 이유는 배포 워크플로가 쿠키 없이
+     `collector-admin`(`X-Admin-Key` 로 막는다), `web`(`/**`)에는 필터가 없어 우회한다. `/api/health` 를 뺀 이유는 배포 워크플로가 쿠키 없이
      200 을 요구하기 때문이다
    - `carix.gateway.session-validation.enabled` 로 켜고 끈다. **꺼져 있으면 요청을 그대로 통과시킨다.**
-     현재 운영 값은 `false` 이고, 전환·롤백 절차는 [`backend/README.md` 게이트웨이](../../backend/README.md)가 규정한다
+     현재 운영 값은 `true` 다(`config/spring/gateway.yml`). 끄면 `X-User-Id` 가 붙지 않아 core-api 사용자 API 가
+     전부 실패하므로 롤백 수단이 아니다 — 절차는 [`backend/README.md` 게이트웨이](../../backend/README.md)가 규정한다
 
 ### 경로 규약
 
@@ -217,13 +221,14 @@ JGit 기반 git 백엔드는 ED25519 deploy key 형식 제약 및 로컬 마운�
 **대가**: 설정만 바꾼 커밋도 배포 워크플로를 한 번 태워야 `/etc/carix-repo`가 갱신된다.
 다만 그 실행은 이미지를 만들지 않고 컨테이너도 재생성하지 않는다 — 태그가 그대로라
 `docker compose up -d`가 no-op이다. 체크아웃 동기화만 일어나고, 값 반영은 `/actuator/refresh`가
-한다. 재시작 없는 갱신이라는 성질은 그대로다.
+한다. 배포 워크플로는 게이트웨이에만 refresh 를 보낸다 — core-api·collector 설정은 그 서비스의
+`/actuator/refresh` 를 컨테이너망 안에서 직접 부르거나 컨테이너가 재생성돼야 반영된다.
 
 ### 시크릿은 Config Server가 담당하지 않는다
 
 | 위치 | 담는 것 |
 | --- | --- |
-| Config Server (`config/spring/`) | 라우트 정의, 타임아웃, 로그 레벨, 기능 플래그, 지수 계산 임계값·가중치, 수집 파이프라인/스케줄 설정 |
+| Config Server (`config/spring/`) | 타임아웃, 로그 레벨, 기능 플래그, 지수 계산 임계값·가중치, 수집 파이프라인/스케줄 설정 |
 | `.env` (compose) | DB 자격증명, `CARIX_ENCRYPTION_KEY`, 외부 API 키, 이미지 태그 |
 
 Config Server의 `{cipher}` 암호화는 쓰지 않는다. "설정 중앙화"를 위해 "복호화 키 관리"를
@@ -239,7 +244,7 @@ Config Server의 `{cipher}` 암호화는 쓰지 않는다. "설정 중앙화"를
 | 지수 계산 임계값·가중치 | 가능 (`@RefreshScope` + refresh 호출) |
 | 로그 레벨 | 가능 (`/actuator/loggers`는 refresh도 불필요) |
 | 기능 플래그 | 가능 |
-| Gateway 라우트 | 가능 (`/actuator/gateway/refresh`) |
+| Gateway 라우트 | **불가 — 이미지 재배포 필요.** 라우트는 Config Server 가 아니라 게이트웨이 jar 의 `application.yml` 에 있다. `/actuator/gateway/**` 엔드포인트도 노출하지 않는다 — 운영 `/actuator` 는 `health`·`info`·`refresh` 만 낸다(`config/spring/application.yml`) |
 | 수집 파이프라인 설정 | 가능 (`@RefreshScope` + refresh 호출). 스케줄러는 도입하지 않았다 ([데이터 아키텍처 §5](data-architecture.md)) |
 | DataSource·커넥션 풀 | **불가 — 재기동 필요** |
 
@@ -352,5 +357,5 @@ JVM 6개가 실사용 250~400MB씩이면 1.5~2.4GB 증가한다. 여유 범위 �
 | Feign·Resilience4j | 학습 대상으로 선택하지 않음. 설계가 서비스 간 호출을 Gateway→auth 하나로 제한한다 |
 | Spring Cloud Stream·브로커 | 같음. 지수 재계산은 사용자 입력 시 `core-api` 안에서 동기로 계산하고, 시장 데이터 집계는 관리자가 `S-16` 콘솔에서 직접 구동한다 |
 | Spring Cloud Bus | 설정 갱신 브로드캐스트. 서비스 4개면 `/actuator/refresh` 직접 호출로 충분 |
-| Redis | 세션 캐시는 인메모리, rate limit은 도입하지 않음 |
+| Redis | 세션 캐시는 인메모리, 속도 제한은 auth-service 가 DB 테이블(`rate_limit_bucket`)로 한다 ([SECURITY.md §2](../SECURITY.md)) |
 | 서비스별 DB 인스턴스 | 단일 DB(DEVELOPMENT.md §3)이므로 `auth`만 스키마로 분리한다 |

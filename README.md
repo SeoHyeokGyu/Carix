@@ -116,7 +116,7 @@ flowchart TD
 
 - 세전 연봉과 선택적 월 실수령액, 유효 시작일 기준 이력 관리
 - 연봉 계약 금액의 상여 포함 여부와 따로 받는 연간 고정상여, 성과급 수령 기록(지급월·금액)
-- 현 직장 입사일 (선택)
+- 현 직장 입사일 (온보딩 필수, 프리랜서는 선택)
 - 월 소비 금액 입력 (주거·공공요금, 식비, 교통, 의료, 교육·자기계발, 여가·기타)
 - 미입력 카테고리는 통계청 전체 가구 평균 소비지출 비중으로 보완하고 `추정`으로 표시
 - 표준 스킬 사전 검색 + 사용자 정의 스킬, 실무 사용 기간과 마지막 사용일 기록
@@ -339,7 +339,7 @@ flowchart TD
     Auth --> DBA[("PostgreSQL (auth 스키마)")]
     CoreApi --> DBC[("PostgreSQL (core 스키마)")]
     Collector["collector (수집/배치)"] --> DBC
-    Auth -.-> Config["config-server :8890"]
+    Auth -.-> Config["config-server :8888"]
     CoreApi -.-> Config
     Auth -.-> Eureka["eureka :8761"]
     CoreApi -.-> Eureka
@@ -371,12 +371,12 @@ Node SSR 전환(Express + `@react-router/express`)은 **MVP 범위 밖으로 미
 | 대상 | 기술 | 현재 |
 | --- | --- | --- |
 | 백엔드 단위·슬라이스 | JUnit 5, Spring Boot Test, MockMvc | 도입 |
-| 백엔드 통합 | — | **두지 않는다.** 테스트용 DB를 쓰지 않기로 했다. 로컬에 Docker가 없어 Testcontainers 테스트가 어디서도 실행되지 않던 상태라, auth-service의 해당 테스트 10개와 의존성을 제거했다 |
+| 백엔드 통합 | H2 (PostgreSQL 호환 모드) | core-api·collector 의 DB 테스트는 인메모리 H2 로 돈다. 실제 PostgreSQL 로 도는 테스트는 없다 ([DEVELOPMENT §6](docs/DEVELOPMENT.md)) |
 | 프런트 단위·컴포넌트 | Vitest, Testing Library | 도입 — `pnpm test:unit` |
 | API 모킹 | `vi.spyOn`(모듈 함수 직접 모킹) | 도입 — 네트워크 계층을 가로챌 MSW는 채택하지 않았다 |
 | 브라우저 E2E | Playwright | 도입 — 랜딩·온보딩·입력 관리 흐름 E2E, `/dev/primitives` 시각 회귀, `@axe-core/playwright` 접근성 검사 (`pnpm test:e2e`) |
 
-PR 단계 CI(`pr-check.yml`)를 통해 백엔드 전체 테스트(`./gradlew check`) 및 프런트엔드 타입체크·린트·단위테스트(`pnpm`)를 자동 검증한다. `main` 푸시 시 배포 워크플로(`deploy.yml`)가 동작한다.
+PR 단계 CI(`pr-check.yml`)는 바뀐 백엔드 모듈마다 `./gradlew :{모듈}:check` 를, 프런트엔드가 바뀌면 `pnpm` typecheck·lint·format:check·test:unit·build 를 돌린다. `main` 푸시 시 배포 워크플로(`deploy.yml`)가 동작한다.
 
 OCI VM에서는 `carix-caddy`, `frontend-node`, `config-server`, `eureka`, `gateway`,
 `auth-service`, `core-api`, `collector`, `postgres` 컨테이너를 Docker Compose로 운영한다. 이미지는 컴포넌트별로

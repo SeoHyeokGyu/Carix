@@ -54,6 +54,7 @@ cp .env.example .env
 | `CARIX_ENCRYPTION_KEYS` | 컬럼 암호화 키 링(로테이션 시) | `v1:<key1>,v2:<key2>` (SECURITY §3.2) |
 | `CARIX_ENCRYPTION_ACTIVE_KEY_ID` | 신규 암호화 활성 키 ID | 기본값 `v1` (로테이션 시 `v2` 등으로 승격) |
 | `KOSIS_API_KEY` | KOSIS 통계청 OpenAPI 연동 | KOSIS Open API 발급 키 (임금통계/CPI 수집용) |
+| `CARIX_ADMIN_KEY` | collector 관리자 API 키(`X-Admin-Key`, §5) | `.env.example` 에 없다. 비우면 collector 가 코드 기본값으로 돈다 |
 
 ## 3. OCI DB 원격 연결
 
@@ -84,8 +85,8 @@ cp .env.example .env
 - **DBLab 자체 호스팅** — thin clone 으로 공유 데이터 + 격리를 동시에 얻는 정석이나,
   ZFS 가 필요하고 서버 디스크 여유가 25GB 뿐이라 이 호스트에는 과하다.
 
-**감수하는 위험** — 지금은 사용자와 데이터가 없어 실질 피해가 없으나, **실데이터가
-들어오는 시점 전에 재검토해야 한다.**
+**감수하는 위험** — 운영 DB 에 게스트와 가입 사용자의 실데이터가 들어 있어 아래 위험이 실제로
+걸려 있다. 분리는 [진행 상태](README.md#진행-상태)의 남은 일이다.
 
 | 위험 | 내용 |
 | --- | --- |
@@ -220,9 +221,10 @@ psql "postgresql://<user>@144.24.90.88:5432/carix?sslmode=require" \
 
 #### auth 스키마 — 정리
 
-만료 세션과 윈도가 지난 `rate_limit_bucket` 행은 auth-service 스케줄러가 일 1회
-지운다. 손으로 지울 일은 없다. 계정 없이 만들어지는 사용자 행이 없으므로 사용자
-정리 대상도 없다 — 계정 삭제는 사용자가 직접 하는 기능(US-C2)이다.
+만료 세션과 윈도가 지난 `rate_limit_bucket` 행은 auth-service 스케줄러(`AuthCleanupJob`)가
+매시 5분에 지운다. 세션이 모두 만료된 게스트 사용자는 core-api 스케줄러(`GuestCleanupJob`)가
+매시 정각에 그 데이터와 함께 지운다. 손으로 지울 일은 없다. 가입 계정의 삭제는 사용자가 직접
+하는 기능(US-C2)이다.
 
 #### auth 스키마 — Flyway
 
@@ -339,19 +341,19 @@ CONFIG_SERVER_URL=http://144.24.90.88:8890 EUREKA_URL=http://144.24.90.88:8761/e
 
 #### Collector 파이프라인 관리 (관리자 콘솔 `/admin/collector` & API)
 
-`collector`는 관리자가 관리자 콘솔 화면(`S-16`, `/admin/collector` 또는 `/admin/pipeline`) 또는 관리 전용 API(`/api/v1/admin/collector/**` / `http://localhost:8083/internal/pipeline/**`)로 직접 파이프라인을 구동하고 모니터링한다. 모든 API 호출 시 `X-Admin-Key: <ADMIN_SECRET_KEY>` 헤더가 필요하다:
+`collector`는 관리자가 관리자 콘솔 화면(`S-16`, `/admin/collector` 또는 `/admin/pipeline`) 또는 관리 전용 API(`/api/v1/admin/collector/**` / `http://localhost:8083/internal/pipeline/**`)로 직접 파이프라인을 구동하고 모니터링한다. 모든 API 호출 시 `X-Admin-Key` 헤더에 환경변수 `CARIX_ADMIN_KEY` 값을 실어야 한다(아래 예시는 셸에 그 변수를 내보낸 상태를 전제한다):
 
 | 메서드 & 경로 | 설명 | 호출 예시 |
 | --- | --- | --- |
-| `POST /internal/pipeline/crawl` | 5개 포털(잡코리아·사람인·점핏·원티드·프로그래머스) 일괄 비동기 병렬 수집 또는 단건 수집 & DB 적재 | `curl -X POST http://localhost:8083/internal/pipeline/crawl -H "X-Admin-Key: carix-admin-secret-dev-key" -H "Content-Type: application/json" -d '{"portal": "ALL", "maxPages": 5}'` |
-| `POST /internal/pipeline/cpi` | KOSIS 지출목적별 소비자물가지수(12대 분류와 총지수, 전국) 적재. 기간 지정 백필 지원, 미지정 시 최신 1개월만 적재. **매월 공표(첫째 주) 뒤 전월분을 적재한다** — 두 달 넘게 빠지면 `S-10` 물가 기여도 뱃지가 사라진다. 이미 있는 행은 건너뛴다 | `curl -X POST http://localhost:8083/internal/pipeline/cpi -H "X-Admin-Key: carix-admin-secret-dev-key"`<br>`curl -X POST http://localhost:8083/internal/pipeline/cpi -H "X-Admin-Key: carix-admin-secret-dev-key" -H "Content-Type: application/json" -d '{"startYearMonth": "202608", "endYearMonth": "202609"}'` |
-| `POST /internal/pipeline/wage-stat` | KOSIS 임금 통계 수집 & 24구간 누적분포 보간 적재 (기간 지정 백필 지원) | `curl -X POST http://localhost:8083/internal/pipeline/wage-stat -H "X-Admin-Key: carix-admin-secret-dev-key"`<br>`curl -X POST http://localhost:8083/internal/pipeline/wage-stat -H "X-Admin-Key: carix-admin-secret-dev-key" -H "Content-Type: application/json" -d '{"startYear": "2020", "endYear": "2024"}'` |
-| `POST /internal/pipeline/dedup` | 원천 간 채용공고 중복제거(`dedup_group_id`) | `curl -X POST http://localhost:8083/internal/pipeline/dedup -H "X-Admin-Key: carix-admin-secret-dev-key"` |
-| `POST /internal/pipeline/aggregate` | 월별 채용 시장 데이터 다차원 사전 집계 (P50 연봉, 스킬수요율) | `curl -X POST "http://localhost:8083/internal/pipeline/aggregate?month=2026-08" -H "X-Admin-Key: carix-admin-secret-dev-key"` |
-| `POST /internal/pipeline/seed-load` | 파일시스템 스냅샷 시드 파일 DB 적재 | `curl -X POST http://localhost:8083/internal/pipeline/seed-load -H "X-Admin-Key: carix-admin-secret-dev-key"` |
-| `GET /internal/pipeline/jobs/{jobId}` | 특정 비동기 파이프라인 작업 상태 조회 | `curl http://localhost:8083/internal/pipeline/jobs/{jobId} -H "X-Admin-Key: carix-admin-secret-dev-key"` |
-| `GET /internal/pipeline/jobs` | 최근 실행된 파이프라인 작업 히스토리 목록 조회 | `curl http://localhost:8083/internal/pipeline/jobs -H "X-Admin-Key: carix-admin-secret-dev-key"` |
-| `GET /internal/pipeline/stats` | 수집 DB(`raw_ingest`, `job_posting`, `skill`, `wage_stat`) 건수 통계 | `curl http://localhost:8083/internal/pipeline/stats -H "X-Admin-Key: carix-admin-secret-dev-key"` |
+| `POST /internal/pipeline/crawl` | 5개 포털(잡코리아·사람인·점핏·원티드·프로그래머스) 일괄 비동기 병렬 수집 또는 단건 수집 & DB 적재 | `curl -X POST http://localhost:8083/internal/pipeline/crawl -H "X-Admin-Key: $CARIX_ADMIN_KEY" -H "Content-Type: application/json" -d '{"portal": "ALL", "maxPages": 5}'` |
+| `POST /internal/pipeline/cpi` | KOSIS 지출목적별 소비자물가지수(12대 분류와 총지수, 전국) 적재. 기간 지정 백필 지원, 미지정 시 최신 1개월만 적재. **매월 공표(첫째 주) 뒤 전월분을 적재한다** — 두 달 넘게 빠지면 `S-10` 물가 기여도 뱃지가 사라진다. 이미 있는 행은 건너뛴다 | `curl -X POST http://localhost:8083/internal/pipeline/cpi -H "X-Admin-Key: $CARIX_ADMIN_KEY"`<br>`curl -X POST http://localhost:8083/internal/pipeline/cpi -H "X-Admin-Key: $CARIX_ADMIN_KEY" -H "Content-Type: application/json" -d '{"startYearMonth": "202608", "endYearMonth": "202609"}'` |
+| `POST /internal/pipeline/wage-stat` | KOSIS 임금 통계 수집 & 24구간 누적분포 보간 적재 (기간 지정 백필 지원) | `curl -X POST http://localhost:8083/internal/pipeline/wage-stat -H "X-Admin-Key: $CARIX_ADMIN_KEY"`<br>`curl -X POST http://localhost:8083/internal/pipeline/wage-stat -H "X-Admin-Key: $CARIX_ADMIN_KEY" -H "Content-Type: application/json" -d '{"startYear": "2020", "endYear": "2024"}'` |
+| `POST /internal/pipeline/dedup` | 원천 간 채용공고 중복제거(`dedup_group_id`) | `curl -X POST http://localhost:8083/internal/pipeline/dedup -H "X-Admin-Key: $CARIX_ADMIN_KEY"` |
+| `POST /internal/pipeline/aggregate` | 월별 채용 시장 데이터 다차원 사전 집계 (P50 연봉, 스킬수요율) | `curl -X POST "http://localhost:8083/internal/pipeline/aggregate?month=2026-08" -H "X-Admin-Key: $CARIX_ADMIN_KEY"` |
+| `POST /internal/pipeline/seed-load` | 파일시스템 스냅샷 시드 파일 DB 적재 | `curl -X POST http://localhost:8083/internal/pipeline/seed-load -H "X-Admin-Key: $CARIX_ADMIN_KEY"` |
+| `GET /internal/pipeline/jobs/{jobId}` | 특정 비동기 파이프라인 작업 상태 조회 | `curl http://localhost:8083/internal/pipeline/jobs/{jobId} -H "X-Admin-Key: $CARIX_ADMIN_KEY"` |
+| `GET /internal/pipeline/jobs` | 최근 실행된 파이프라인 작업 히스토리 목록 조회 | `curl http://localhost:8083/internal/pipeline/jobs -H "X-Admin-Key: $CARIX_ADMIN_KEY"` |
+| `GET /internal/pipeline/stats` | 수집 DB(`raw_ingest`, `job_posting`, `skill`, `wage_stat`) 건수 통계 | `curl http://localhost:8083/internal/pipeline/stats -H "X-Admin-Key: $CARIX_ADMIN_KEY"` |
 
 프로젝트 진행 상태는 [`README.md` 진행 상태](README.md#진행-상태)를 참조.
 
@@ -373,28 +375,28 @@ cd backend && ./gradlew test
 > - **작업 중 스킵 (Draft PR)**: PR이 Draft 상태일 때는 CI가 돌지 않으며, "Ready for review" 전환 시 검증이 실행됩니다.
 > - **수동 스킵 (`[skip ci]` / 라벨)**: 커밋 메시지에 `[skip ci]`를 포함하거나 PR에 `skip-ci` 라벨 부착 시 검증을 건너뜁니다.
 > - **빌드 캐시 가속**: `ubuntu-latest` 러너와 Gradle 빌드 캐시, pnpm 캐시를 통해 수십 초 내로 빠르게 완료됩니다.
-> - **배포 후 게이트웨이 자동 리프레시**: 배포 워크플로(`.github/workflows/deploy.yml`)가 헬스체크 완료 후 Spring Cloud Gateway의 `/actuator/refresh`를 자동 호출하여, 재기동 없이도 동적 설정(`@RefreshScope`, 세션 검증 토글 등)이 즉시 메모리에 반영됩니다.
+> - **배포 후 게이트웨이 자동 리프레시**: 배포 워크플로(`.github/workflows/deploy.yml`)가 헬스체크 완료 후 Spring Cloud Gateway의 `/actuator/refresh`를 자동 호출하여, 게이트웨이의 동적 설정(세션 검증 토글 등)이 재기동 없이 반영됩니다. core-api·collector 에는 refresh 를 보내지 않습니다([Spring Cloud 아키텍처 §5](specs/spring-cloud-architecture.md)).
 
-### DB를 쓰는 테스트는 두지 않는다
+### 테스트 DB 는 인메모리 H2 다
 
-테스트용 DB를 쓰지 않기로 했다. 로컬에 Docker가 없고 운영 DB를 테스트 대상으로 삼을 수도
-없으므로, DB 연결이 필요한 테스트는 실행할 곳이 없다.
-
-원래는 Testcontainers 설계였고 auth-service에 해당 테스트가 있었으나, 로컬 개발 환경의 Docker 부재로 실행이 어려웠고 CI에서도 실질적인 검증 지점이 없어 의존성과 함께 제거했습니다.
-
-대신 컨텍스트를 띄우는 테스트는 **연결하지 않는 DataSource**로 돌린다
-(`backend/collector/build.gradle`의 `test` 블록):
+로컬에 Docker가 없고 운영 DB를 테스트 대상으로 삼을 수도 없으므로, core-api·collector 테스트는
+PostgreSQL 호환 모드의 인메모리 H2 로 돈다(`backend/core-api/build.gradle`·`backend/collector/build.gradle`의
+`test` 블록):
 
 ```gradle
-systemProperty 'spring.datasource.url', 'jdbc:postgresql://127.0.0.1:1/unused'
-systemProperty 'spring.datasource.hikari.initialization-fail-timeout', '-1'
-systemProperty 'spring.jpa.database-platform', 'org.hibernate.dialect.PostgreSQLDialect'
-systemProperty 'spring.jpa.hibernate.ddl-auto', 'none'
+systemProperty 'spring.datasource.url', 'jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;INIT=CREATE SCHEMA IF NOT EXISTS core'
+systemProperty 'spring.jpa.database-platform', 'org.hibernate.dialect.H2Dialect'
+systemProperty 'spring.jpa.hibernate.ddl-auto', 'create-drop'
 ```
 
-커넥션은 잡지 않고 방언만 고정해 `EntityManagerFactory`를 만든다. 그래서 **엔티티 매핑과
-`@Query` JPQL은 컨텍스트 로드 시점에 검증된다** — 잘못된 필드명을 쓰면 `contextLoads`가 깨진다.
-DB를 실제로 읽고 쓰는 테스트를 새로 쓰면 연결 거부로 실패한다. 조용히 통과하지 않는다.
+테이블은 `deploy/postgres/schema/*.sql` 이 아니라 **엔티티 매핑에서 생성된다.** 그래서 엔티티 매핑과
+`@Query` JPQL, H2 가 흉내 내는 범위의 쿼리는 테스트가 검증하지만, 아래는 검증하지 못한다.
+
+- 정본 DDL 과 엔티티의 차이(스키마 드리프트)
+- PostgreSQL 전용 동작 — 자문 잠금(`PostgresDataVersionIssuer` 의 `pg_advisory_xact_lock`), 부분 유니크
+  인덱스(`career_scenario` 의 초안 1건), `ON CONFLICT`(auth-service `RateLimitService`)
+
+auth-service 테스트는 DB 에 연결하지 않는다.
 
 DB 동작 확인이 필요하면 테스트가 아니라 앱을 OCI DB에 붙여 직접 확인한다(§3).
 
