@@ -196,6 +196,10 @@ jobs:
         working-directory: frontend
         run: pnpm test:unit
 
+      - name: Server Tests
+        working-directory: frontend
+        run: pnpm test
+
       - name: Build Check
         working-directory: frontend
         run: pnpm build

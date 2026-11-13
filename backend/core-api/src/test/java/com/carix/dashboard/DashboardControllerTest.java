@@ -12,6 +12,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.carix.common.GlobalExceptionHandler;
 import com.carix.common.usercontext.UserContextArgumentResolver;
 import com.carix.dashboard.dto.DashboardSummaryResponse;
 import com.carix.dashboard.dto.SalaryDistributionResponse;
@@ -72,6 +73,7 @@ class DashboardControllerTest {
                     wageGrowthService,
                     mock(IndexSnapshotRepository.class)))
             .setCustomArgumentResolvers(new UserContextArgumentResolver())
+            .setControllerAdvice(new GlobalExceptionHandler())
             .build();
   }
 
@@ -236,6 +238,76 @@ class DashboardControllerTest {
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.data.recalculatedMonths").value(1))
         .andExpect(jsonPath("$.data.fromYearMonth").value(currentYm));
+  }
+
+  // QA 리뷰: fromYearMonth 를 검증 없이 넘겨, 형식이 틀린 값은 파싱 예외로 500 이 났다.
+  @Test
+  @DisplayName("POST /v1/dashboard/recalculate - 시작월 형식이 틀리면 재계산하지 않고 400 INVALID_INPUT")
+  void recalculate_malformedFrom_rejected() throws Exception {
+    for (String malformed : List.of("202613", "2026-00", "2026/03", "abc", "20260")) {
+      mockMvc
+          .perform(
+              post("/v1/dashboard/recalculate")
+                  .header("X-User-Id", USER_ID.toString())
+                  .param("fromYearMonth", malformed))
+          .andExpect(status().isBadRequest())
+          .andExpect(jsonPath("$.code").value("INVALID_INPUT"));
+    }
+    verify(snapshotRecalculationService, never()).recalculateSnapshot(any(), any());
+  }
+
+  // QA 리뷰: fromYearMonth=000101 이면 한 사용자가 약 24,000 개월을 락을 쥔 채 한 트랜잭션에서 계산했다.
+  @Test
+  @DisplayName("POST /v1/dashboard/recalculate - 최초 소득월보다 이른 시작월은 최초 소득월로 올린다")
+  void recalculate_fromBeforeEarliestIncome_raisedToEarliest() throws Exception {
+    givenEarliestIncome(LocalDate.of(2025, 3, 15));
+
+    mockMvc
+        .perform(
+            post("/v1/dashboard/recalculate")
+                .header("X-User-Id", USER_ID.toString())
+                .param("fromYearMonth", "000101"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.data.fromYearMonth").value("202503"));
+    verify(snapshotRecalculationService).recalculateSnapshot(USER_ID, "202503");
+  }
+
+  // QA 리뷰: 현재월보다 늦은 시작월도 그대로 넘어갔다. 현재월로 묶는다.
+  @Test
+  @DisplayName("POST /v1/dashboard/recalculate - 현재월보다 늦은 시작월은 현재월로 묶는다")
+  void recalculate_futureFrom_clampedToCurrent() throws Exception {
+    givenEarliestIncome(LocalDate.of(2025, 3, 15));
+
+    mockMvc
+        .perform(
+            post("/v1/dashboard/recalculate")
+                .header("X-User-Id", USER_ID.toString())
+                .param("fromYearMonth", "9999-12"))
+        .andExpect(status().isOk());
+    verify(snapshotRecalculationService).recalculateSnapshot(USER_ID, YearMonths.current());
+  }
+
+  // 범위를 묶다가 범위 안의 정상 요청까지 최초 소득월로 끌어내리면 안 된다.
+  @Test
+  @DisplayName("POST /v1/dashboard/recalculate - 범위 안의 시작월은 그대로 쓴다")
+  void recalculate_inRangeFrom_passedThrough() throws Exception {
+    givenEarliestIncome(LocalDate.of(2025, 3, 15));
+
+    mockMvc
+        .perform(
+            post("/v1/dashboard/recalculate")
+                .header("X-User-Id", USER_ID.toString())
+                .param("fromYearMonth", "2025-06"))
+        .andExpect(status().isOk());
+    verify(snapshotRecalculationService).recalculateSnapshot(USER_ID, "202506");
+  }
+
+  private void givenEarliestIncome(LocalDate effectiveDate) {
+    IncomeHistory recent =
+        new IncomeHistory(USER_ID, 60000000L, 48000000L, LocalDate.of(2026, 1, 1), null);
+    IncomeHistory earliest = new IncomeHistory(USER_ID, 50000000L, 40000000L, effectiveDate, null);
+    given(incomeHistoryRepository.findByUserIdOrderByEffectiveDateDesc(USER_ID))
+        .willReturn(List.of(recent, earliest));
   }
 
   // 2026-11-01 운영: 월이 바뀌자 현재월 스냅샷이 없어 대시보드가 "첫 지수를 계산하고 있습니다" 에 멈췄다.

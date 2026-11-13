@@ -253,7 +253,7 @@ public class DashboardController {
 
   private String resolveFromYearMonth(UUID userId, String fromYearMonth) {
     if (fromYearMonth != null && !fromYearMonth.isBlank()) {
-      return normalizeYearMonth(fromYearMonth);
+      return snapshotRangeResolver.clampFrom(userId, fromYearMonth);
     }
     return snapshotRangeResolver.earliestFrom(userId);
   }
