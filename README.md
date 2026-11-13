@@ -101,6 +101,13 @@ flowchart TD
 수치는 진단 근거와 표본 수를 함께 제공하며, 확정적인 연봉 예측이나 재무 조언으로
 표현하지 않는다.
 
+| 판정과 근거 | 이직 시뮬레이터 |
+| --- | --- |
+| ![판정 카드](docs/images/showcase/verdict-seek.png) | ![잔류 대 이직 비교](docs/images/showcase/simulator-result.png) |
+| ![지수 카드](docs/images/showcase/dashboard-indices.png) | ![소득 대 개인물가](docs/images/showcase/trends-index.png) |
+
+기능별 화면과 사용자 유형별 판정 다섯 가지는 [화면 소개](docs/showcase.md)에 있다.
+
 ## MVP 범위
 
 첫 번째 버전은 개발·데이터·AI 직군에 집중한다. 가입 절차 없이 링크로 들어와 바로

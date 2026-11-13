@@ -12,6 +12,7 @@
 | --- | --- |
 | [기능 명세서](specs/functional-specification.md) | 제품 범위·사용자 흐름·지표 규칙과 화면 맵·인수 조건·입력 검증·계산 경계·추적 매트릭스 |
 | [와이어프레임 인덱스](specs/wireframes/README.md) | HTML 와이어프레임 맵 및 UI 화면 스크린샷 인덱스 |
+| [화면 소개](showcase.md) | 운영 화면 캡처로 보는 기능별 화면과 사용자 유형별 판정 |
 
 ## 아키텍처 (Architecture)
 
