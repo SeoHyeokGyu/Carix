@@ -54,7 +54,7 @@ cp .env.example .env
 | `CARIX_ENCRYPTION_KEYS` | 컬럼 암호화 키 링(로테이션 시) | `v1:<key1>,v2:<key2>` (SECURITY §3.2) |
 | `CARIX_ENCRYPTION_ACTIVE_KEY_ID` | 신규 암호화 활성 키 ID | 기본값 `v1` (로테이션 시 `v2` 등으로 승격) |
 | `KOSIS_API_KEY` | KOSIS 통계청 OpenAPI 연동 | KOSIS Open API 발급 키 (임금통계/CPI 수집용) |
-| `CARIX_ADMIN_KEY` | collector 관리자 API 키(`X-Admin-Key`, §5) | `.env.example` 에 없다. 비우면 collector 가 코드 기본값으로 돈다 |
+| `CARIX_ADMIN_KEY` | collector 관리자 API 키(`X-Admin-Key`, §5) | 비우면 collector 가 코드 기본값으로 돈다 |
 
 ## 3. OCI DB 원격 연결
 

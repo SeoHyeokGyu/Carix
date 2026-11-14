@@ -7,8 +7,8 @@
 
 1. `config.example.json`을 `config.json`으로 복사한다. 엔드포인트는 실측값으로
    채워져 있으므로 그대로 쓰면 된다.
-2. API 키를 환경변수로 설정한다. 이름은 루트 `.env.example`과 동일하다:
-   `KOSIS_API_KEY`, `SARAMIN_API_KEY`, `WORK24_API_KEY`, `WAGE_STAT_API_KEY`
+2. API 키를 환경변수로 설정한다:
+   `KOSIS_API_KEY`, `SARAMIN_API_KEY`, `WORK24_API_KEY`, `WAGE_STAT_API_KEY` (실제 수집기에서는 `KOSIS_API_KEY`만 사용하며 나머지는 선행 검증 당시 확인용)
 3. `python3 probe.py <source> --params '<JSON>' --key-param <키 파라미터명>` 으로 실행한다.
 
 키 파라미터명은 원천마다 다르다. KOSIS는 `apiKey`, 사람인은 `access-key`,
