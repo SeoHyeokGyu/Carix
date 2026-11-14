@@ -115,13 +115,13 @@ flowchart TD
 
 ### 계정과 온보딩
 
-- 이메일·비밀번호 회원가입과 로그인 (이메일 인증·비밀번호 재설정 없음)
+- 이메일·비밀번호 회원가입과 로그인 (이메일 인증·비밀번호 재설정 없음), 가입 없이 둘러보는 24시간 게스트 세션과 정식 계정 전환
 - 프로필 → 소득 → 소비 → 스킬 → 검토 순서의 온보딩, 단계별 자동 저장과 중단 지점 재개
 - 계정과 개인 데이터 전체 삭제
 
 ### 데이터 입력과 이력 관리
 
-- 세전 연봉과 선택적 월 실수령액, 유효 시작일 기준 이력 관리
+- 세전 연봉과 월 실수령액(온보딩 필수), 유효 시작일 기준 이력 관리
 - 연봉 계약 금액의 상여 포함 여부와 따로 받는 연간 고정상여, 성과급 수령 기록(지급월·금액)
 - 현 직장 입사일 (온보딩 필수, 프리랜서는 선택)
 - 월 소비 금액 입력 (주거·공공요금, 식비, 교통, 의료, 교육·자기계발, 여가·기타)
@@ -138,10 +138,10 @@ flowchart TD
 
 ### 의사결정 시나리오
 
-- 12개월 잔류 vs 이직 보상 비교
-- 입력값: 예상 인상률, 이직 목표 연봉, 이직 일회성 비용, 예상 공백 기간(0~6개월)
-- 이직 보상에 실업급여 추정 반영 (세전 기준, 세금 미추정)
-- 결과는 `추정 기회비용`/`추정 추가보상`으로 표시하고 보장된 수치로 표현하지 않음
+- 4년(48개월) 잔류 vs 이직 세후·실질 보상 비교
+- 입력값: 예상 인상률, 이직 목표 연봉, 이직 일회성 비용, 예상 공백 기간(0~6개월), 실업급여 수급 여부, 상여·성과급·사이닝·주식(선택)
+- 이직·잔류 보상에 실업급여 추정과 시점별 세후 퇴직금([도메인 정의서 §4.8](docs/specs/domain-logic.md)) 반영
+- 결과는 `옮기면 추정 이득`/`남으면 추정 이득`으로 표시하고 보장된 수치로 표현하지 않음
 
 ### 데이터 신뢰성 표시
 
@@ -170,19 +170,19 @@ flowchart TD
 | `/` | 랜딩 | 공개 |
 | `/login` | 로그인 (이메일·비밀번호) | 공개 |
 | `/register` | 회원가입 (이메일·비밀번호) | 공개 |
-| `/onboarding/{profile,income,expense,skills,review}` | 온보딩 5단계 | 세션 |
-| `/dashboard` | 판정 히어로와 근거 지표 카드 (구매력·시장가치·채용 활발도) | 세션 + 온보딩 완료 |
-| `/dashboard/history` | 지난 판정 (월별 당시 판정 이력) | 세션 + 온보딩 완료 |
-| `/dashboard/trends` | 추이분석 (지수 추이·상승률 비교·연봉 분포) | 세션 + 온보딩 완료 |
-| `/dashboard/skills` | 스킬 분석 (보유 스킬 수요·동료집단 추천 스킬) | 세션 + 온보딩 완료 |
-| `/dashboard/simulator` | 이직 시뮬레이터 (지금 회사·오퍼 한 화면 비교) | 세션 + 온보딩 완료 |
-| `/dashboard/guide` | 지표 가이드 (지표 3종·결정 신호·FAQ) | 세션 + 온보딩 완료 |
-| `/mypage/records` | 입력 관리 (소득·소비·스킬 이력) | 세션 |
-| `/mypage/profile` | 세션 관리·계정 삭제 | 세션 |
+| `/onboarding/{profile,income,expense,skills,review}` | 온보딩 5단계 | 세션(게스트 포함) |
+| `/dashboard` | 판정 히어로와 근거 지표 카드 (구매력·시장가치·채용 활발도) | 세션(게스트 포함) + 온보딩 완료 |
+| `/dashboard/history` | 지난 판정 (월별 당시 판정 이력) | 세션(게스트 포함) + 온보딩 완료 |
+| `/dashboard/trends` | 추이분석 (지수 추이·상승률 비교·연봉 분포) | 세션(게스트 포함) + 온보딩 완료 |
+| `/dashboard/skills` | 스킬 분석 (보유 스킬 수요·동료집단 추천 스킬) | 세션(게스트 포함) + 온보딩 완료 |
+| `/dashboard/simulator` | 이직 시뮬레이터 (지금 회사·오퍼 한 화면 비교) | 세션(게스트 포함) + 온보딩 완료 |
+| `/dashboard/guide` | 지표 가이드 (지표 3종·결정 신호·FAQ) | 세션(게스트 포함) + 온보딩 완료 |
+| `/mypage/records` | 입력 관리 (소득·소비·스킬 이력) | 정식 계정 |
+| `/mypage/profile` | 세션 관리·계정 삭제 | 정식 계정 |
 | `/admin/data` | 관리자 수집 데이터 (맨 위 데이터 상태 점검 줄, 월별 현황·공고·CPI·임금통계 열람). `/admin` 진입 시 이 화면으로 | 관리자 키 (`X-Admin-Key`) |
 | `/admin/collector` | 수집기 파이프라인 관리 콘솔 (별칭: `/admin/pipeline`) | 관리자 키 (`X-Admin-Key`) |
 
-라우팅 가드: 세션 없으면 랜딩(`/`)으로, 온보딩 미완료면 마지막 미완료 단계로,
+라우팅 가드: 세션 없으면 랜딩(`/`)으로, 게스트가 `/mypage/*`에 접근하면 가입 화면(`/register?next=`)으로, 온보딩 미완료면 마지막 미완료 단계로,
 온보딩 완료 후 `/onboarding/*` 접근은 `/dashboard`로 이동한다
 (검토 화면 `/onboarding/review`는 재진입 허용).
 
@@ -190,11 +190,12 @@ flowchart TD
 
 **인증**
 - 가입 즉시 세션(30일)을 발급하고 온보딩 첫 단계로 보냄
+- 게스트 시작 시 24시간 임시 세션을 발급하고, 가입하면 같은 `userId`의 정식 계정으로 전환해 입력 데이터를 유지함
 - 이메일 소유를 증명하지 않고 비밀번호 재설정도 두지 않음 — 메일 발송 경로가 없음
 - 로그인 실패는 없는 이메일과 비밀번호 불일치를 구분하지 않음 (계정 열거 방지)
 - 가입의 이메일 중복은 알려줌 — 숨기면 사용자가 실패 원인을 알 수 없음
 - 비밀번호는 최소 8자, 문자 구성은 강제하지 않음
-- 속도 제한: 가입 IP당 20회/시간, 로그인 이메일당 10회·IP당 30회/시간
+- 속도 제한: 가입·게스트 시작 IP당 20회/시간, 로그인 이메일당 10회·IP당 30회/시간
 
 **온보딩**
 - 필드 변경 2초 후 또는 단계 이동 시 자동 저장, 재로그인 시 마지막 단계에서 재개
@@ -339,21 +340,25 @@ flowchart TD
     Router -->|"carix.…sslip.io"| CarixCaddy["carix_caddy (:80)"]
     CarixCaddy --> GW["gateway :8080"]
     GW -->|"/api/v1/auth/**"| Auth["auth-service :8081"]
+    GW -->|"/api/v1/admin/collector/**"| Collector["collector :8083"]
     GW -->|"/api/v1/**"| CoreApi["core-api :8082"]
     GW -->|"그 외"| NodeSSR["frontend-node :3000"]
     GW -.->|"세션 검증"| Auth
     NodeSSR -.->|"SSR 도입 시 API 호출"| GW
     Auth --> DBA[("PostgreSQL (auth 스키마)")]
     CoreApi --> DBC[("PostgreSQL (core 스키마)")]
-    Collector["collector (수집/배치)"] --> DBC
+    Collector --> DBC
     Auth -.-> Config["config-server :8888"]
     CoreApi -.-> Config
+    Collector -.-> Config
     Auth -.-> Eureka["eureka :8761"]
     CoreApi -.-> Eureka
+    Collector -.-> Eureka
 ```
 
 단일 진입점인 `carix_caddy(:80)`는 모든 애플리케이션 요청을 `gateway:8080`으로 포워딩하며, Spring Cloud Gateway가 경로 기반 라우팅 및 필터링을 수행한다:
 - `/api/v1/auth/**` ➡️ `auth-service:8081` (가입·로그인·세션)
+- `/api/v1/admin/collector/**`, `/api/v1/admin/pipeline/**` ➡️ `collector:8083` (`/internal/pipeline/**`로 재작성, `X-Admin-Key` 검증)
 - `/api/v1/**` ➡️ `core-api:8082` (도메인 API)
 - `/**` (그 외) ➡️ `frontend-node:3000` (UI 화면 및 정적 에셋)
 
@@ -409,14 +414,15 @@ Carix/
 │   ├── postgres/schema/       core 스키마 DDL 실행 정본 (Flyway 미사용)
 │   ├── infra-edge/            라우터 Caddy·infra compose 참조용 사본 (정본은 서버 ~/infra)
 ├── config/                    CPI 분류 매핑, 기본 지출 가중치
-├── verification/              데이터 원천 선행 검증 스크립트와 실측 노트
+├── verification/              데이터 원천 선행 검증 스크립트와 완료 기준 점검 기록
 ├── frontend/                  React Router 7 + Vite + Tailwind (S-01~S-20 전 화면 동작 — SSR 미도입)
 ├── backend/                   Gradle 멀티모듈 — config-server, eureka, gateway, auth-service, core-api, collector
 │                               (Spring Batch 미도입 — collector 는 관리자 콘솔·내부 API 로 구동)
 ├── docs/
 │   ├── README.md             문서 맵 (주제별 인덱스 — 여기서 시작)
+│   ├── showcase.md           화면 소개 (운영 화면 캡처 및 판정 5종)
 │   ├── specs/                설계 문서 정본 (MVP, API, DB, UI/UX 등)
-│   ├── plans/                진행 중인 계획 (개발 계획, UI 통일, 아키텍처 로드맵)
+│   ├── plans/                개발 계획·UI 통일·아키텍처 로드맵
 │   ├── SECURITY.md           보안·개인정보 처리
 │   └── DEVELOPMENT.md        로컬 개발 가이드
 ├── .github/workflows/         Deploy (main 푸시), PR Check (PR 검증 CI), Rollback (수동 1-클릭 롤백)
@@ -448,16 +454,16 @@ PR 단계에서 `pr-check.yml` 워크플로가 백엔드 테스트와 프런트�
 - API 문서: `https://carix.144.24.90.88.sslip.io/api/swagger-ui/index.html`
 - `GET /api/health` — 배포 헬스체크 대상
 - `GET /api/v1/demo/thresholds` — Config Server 연동 확인 도구 ([DEVELOPMENT.md](docs/DEVELOPMENT.md))
-- `POST /api/v1/auth/register`, `/login`, `/logout`, `/logout-all`, `/onboarding/reset`,
+- `POST /api/v1/auth/register`, `/login`, `/guest`, `/logout`, `/logout-all`, `/onboarding/reset`,
   `PATCH /api/v1/auth/onboarding`, `GET /api/v1/auth/session` — auth-service
 - `/api/v1/profile`, `/api/v1/income/**`, `/api/v1/expenses/**`, `/api/v1/skills/**`,
   `/api/v1/user-skills/**`, `/api/v1/dashboard/**`, `/api/v1/scenarios/**`, `/api/v1/meta/versions`,
   `DELETE /api/v1/users` — core-api, 전부 실데이터로 응답한다. 엔드포인트별 계약은
   [API 규격](docs/specs/api-specification.md)
 
-`collector`의 파이프라인 관리 API(`/internal/pipeline/**`)는 게이트웨이가 라우팅하지 않아
-위 공개 URL 로 도달하지 않는다. 호출 방법은
-[DEVELOPMENT.md §5](docs/DEVELOPMENT.md)를 참조한다.
+`collector`의 파이프라인 관리 API(`/internal/pipeline/**`)는 게이트웨이가 `/api/v1/admin/collector/**`
+(별칭 `/api/v1/admin/pipeline/**`)로 라우팅하며, `collector`가 `X-Admin-Key` 헤더를 검증해 인가되지 않은
+호출을 막는다. 상세 호출 방법은 [DEVELOPMENT.md §5](docs/DEVELOPMENT.md)를 참조한다.
 
 ## 협업 방식
 

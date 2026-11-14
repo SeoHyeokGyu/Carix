@@ -24,7 +24,7 @@ API·데이터 접근은 전부 Spring Boot가 담당하는 경계를 유지하�
 - 검증: Zod. `clientAction` 이 제출을 받아 Zod 로 파싱하면 React Hook Form 이 더할 역할이
   제어 컴포넌트 상태 관리뿐이고 온보딩 화면들은 필드가 적어 넣지 않는다
 - 스타일·컴포넌트: Tailwind CSS, shadcn/ui
-- 차트: Recharts
+- 차트: 손수 SVG (차트 라이브러리를 쓰지 않음 — `IncomeVsPriceChart`, `WageGrowthSection`, `SalaryDistributionChart`, `MarketValueTrend` 등을 직접 그림)
 - 프런트엔드 테스트: Vitest, Testing Library, Playwright. API 모듈 함수를 `vi.spyOn`으로 직접
   모킹해 네트워크 계층을 가로챌 MSW 가 필요 없다
 
@@ -38,12 +38,14 @@ flowchart TD
     Router -->|"호스트명 분기"| CarixCaddy["carix_caddy (:80)"]
     CarixCaddy --> GW["gateway :8080"]
     GW -->|"/api/v1/auth/**"| Auth["auth-service :8081"]
+    GW -->|"/api/v1/admin/collector/**"| Collector["collector :8083"]
     GW -->|"/api/v1/**"| Core["core-api :8082"]
     GW -->|"그 외"| NodeSSR["frontend-node :3000"]
     GW -.->|"세션 검증"| Auth
     NodeSSR -.->|"SSR 중 API 호출"| GW
     Auth --> DB[("PostgreSQL (auth / core)")]
     Core --> DB
+    Collector --> DB
 ```
 
 - 엣지는 2단이다. 호스트 레벨의 라우터 Caddy(`infra_caddy`)가 80/443과 TLS 종료·호스트명 분기를 담당하고, 프로젝트 전용 `carix_caddy`가 `gateway:8080`으로 트래픽을 전달한다. 애플리케이션 계층의 경로별 라우팅과 세션 검증은 Spring Cloud Gateway가 전담한다 ([Spring Cloud 아키텍처](spring-cloud-architecture.md)).
@@ -130,14 +132,14 @@ OCI VM에서 다음 컨테이너를 Docker Compose로 운영한다.
 
 - `carix-caddy` — 애플리케이션 라우팅 진입점. 위 시스템 경계에서 설명한 대로 `gateway`로만
   전달하고, 경로별 분기는 Gateway가 담당한다
-- `gateway` — 경로별 분기(`core-api`/`auth-service`/`frontend-node`) 담당
+- `gateway` — 경로별 분기(`core-api`/`auth-service`/`collector`/`frontend-node`) 담당
 - `frontend-node`
 - `core-api` — Config Server·Eureka 클라이언트. 구성은 위 Spring Cloud 아키텍처 참조
 - `auth-service` — Config Server·Eureka 클라이언트. 계정 가입·로그인·세션 발급 담당
 - `config-server`, `eureka`
 - `postgres`
-- `collector` — 수집·정규화·집계. Gateway 라우팅 대상이 아니다. compose 서비스와
-  `Dockerfile`, CI 빌드 잡은 배선돼 있다
+- `collector` — 수집·정규화·집계. Gateway가 `/api/v1/admin/collector/**`(별칭 `/api/v1/admin/pipeline/**`)를 `/internal/pipeline/**`로 재작성해 라우팅하며 `X-Admin-Key`로 보호된다. compose 서비스와
+  `Dockerfile`, CI 빌드 잡이 배선돼 있다
 
 > 초안은 `nginx`였으나 `carix-caddy`로 대체됐다. 이 호스트는 여러 프로젝트를 함께 돌리는데,
 > 80/443은 한 컨테이너만 바인딩할 수 있고 Let's Encrypt는 그 두 포트로만 검증하러 온다.
