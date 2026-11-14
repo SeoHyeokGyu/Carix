@@ -30,18 +30,18 @@
 ### 1.2 파이프라인
 
 ```text
-[KosisAdapter] [JobKoreaAdapter] [SaraminAdapter] [WageStatAdapter]
-       │              │               │               │
-       └── 원천별 원문 보존 (RawIngest: 출처, 원문ID, 원문, 수집시각) ──┘
-                              │
-                    정규화 (공통 도메인 모델)
-                    - 직무·지역·경력 코드 통일
-                    - 스킬 사전 + 별칭 매칭
-                    - 원천 간 중복 공고 매칭 (dedup_group)
-                              │
-                    월별 시장 집계 (MarketAggregate, 원천별 행만)
-                              │
-                    사용자 지수 스냅샷 (IndexSnapshot)
+[KosisAdapter] [JobKoreaAdapter] [SaraminAdapter] [Jumpit/Wanted/Programmers] [WageStatAdapter]
+       │               │                 │                      │                     │
+       └── 원천별 수집 이력 기록 (RawIngest: 출처, 원문ID, 수집시각, 활동월) ───────────┘
+                                         │
+                               정규화 (공통 도메인 모델)
+                               - 직무·지역·경력 코드 통일
+                               - 스킬 사전 + 별칭 매칭
+                               - 원천 간 중복 공고 매칭 (dedup_group)
+                                         │
+                               월별 시장 집계 (MarketAggregate, 원천별·통합 행)
+                                         │
+                               사용자 지수 스냅샷 (IndexSnapshot)
 ```
 
 - 어댑터는 도메인 지식 없이 원문을 표준 DTO로만 변환한다. 원천 스키마 변경을
@@ -148,10 +148,10 @@
 2. **Google RE2J (`com.google.re2j:re2j`)**:
    - `CompanyNormalizer`, `TitleNormalizer`, `JobPostingDateParser`: 선형 시간 $O(N)$을 보장하는 DFA 정규식 엔진으로 ReDoS 백트래킹 지수 시간 위험 원천 차단.
 
-### 1.6 원문 보존 정책
+### 1.6 수집 이력 보존 정책
 
-- RawIngest 원문은 JSONB로 저장하고 `schema_version`을 기록한다.
-- 보존 기간은 24개월로 하며, 초과분은 원문만 삭제하고 메타데이터를 유지한다.
+- `raw_ingest`는 원문(payload)을 보관하지 않고 수집 이력(출처 `source`, 원문 식별자 `source_item_id`, 수집 시각 `collected_at`, 관측 월 `first_seen_month`·`last_seen_month`)만 남긴다 ([ERD 스키마 설계 주석](erd.md), [SECURITY §5](../SECURITY.md)).
+- 보관할 원문이 없으므로 별도 보존 기간이나 purge 작업을 두지 않는다.
 
 ## 2. 지수와 결정 규칙
 
@@ -197,8 +197,7 @@
   경계 ±1년이면 인접 구간을 병기한다.
 - 임금통계의 임금 정의(`wage_definition`, 표준값 `ANNUAL_GROSS_MEDIAN`: 연간 세전 중위임금)를
   화면에 명시한다. 사용자 입력(세전 연봉)과 공식 통계 간의 산정 기준(초과급여·상여 등)을 투명하게
-  안내하며, 정의가 다를 경우 `정의 차이 존재` 캐비앳을 고정 표시한다. 상여 포함 여부 입력을
-  추가할지는 아직 정하지 않았다 — 판단 조건은 §3 에 있다.
+  안내하며, 정의가 다를 경우 `정의 차이 존재` 캐비앳을 고정 표시한다. 소득 이력에는 상여 포함 여부(`bonus_included`)와 따로 받는 연간 고정상여(`fixed_bonus_annual_encrypted`)를 함께 기록해 유효 연봉 계산에 반영한다(`c37`).
 
 ### 2.3 결정 신호
 
@@ -216,9 +215,10 @@
 
 ## 3. 선행 검증 잔여
 
-선행 검증 여섯 중 둘이 남아 있다. 닫힌 셋은 소관이 따로 생겼다 — 채용공고 원천 비교는
+선행 검증 여섯 중 하나가 남아 있다. 닫힌 다섯은 소관이 따로 생겼다 — 채용공고 원천 비교는
 사람인 API 를 폐기하며 전제가 사라졌고(§1.1), CPI 카테고리 매핑은 `CpiIngestService` 가,
-최소 표본 기준(`N ≥ 10`)은 [기능 명세 §6](functional-specification.md)이 가져갔다.
+최소 표본 기준(`N ≥ 10`)은 [기능 명세 §6](functional-specification.md)이, 상여 포함 여부 입력은
+소득 이력 상여 조건(`c37`, [API 명세 §4.3](api-specification.md))이 가져갔다.
 
 스크래핑 대상 다섯 사이트(잡코리아·사람인·원티드·점핏·프로그래머스, §1.1)의 이용약관은 **검토하지 않기로
 했다.** 학습·포트폴리오 범위에서 홍보·모집 없이 운영한다는 전제다. 이 전제가 깨지면 — 일반
@@ -229,8 +229,6 @@ API 원천의 이용 조건은 결론이 나 있다 (`verification/notes/source-
   보정하는 일이 남았다 ([도메인 정의서 §7.2](domain-logic.md)). 이 수치가 부족할
   때 GiST·`pg_trgm` 도입을 판단하므로 [아키텍처 로드맵](../plans/architecture-roadmap.md)의 확장안이
   여기에 걸려 있다.
-- **상여 포함 여부 미결.** 임금통계의 임금 정의에 상여가 어떻게 들어가는지 확인한 뒤
-  §2.2 의 상여 포함 여부 입력을 추가할지 정한다.
 
 검증 결과는 `verification/` 에 기록한다. 측정값과
 판단 근거를 남겨 이후 설정값(최소 표본, 가중치)의 출처로 삼는다.
@@ -247,7 +245,8 @@ API 원천의 이용 조건은 결론이 나 있다 (`verification/notes/source-
 ```mermaid
 flowchart TD
     %% 관리자 트리거 (Top Left)
-    Admin[("관리자 (Admin)")] -->|"관리자 화면(S-16) / 내부 API 호출"| AdminTrigger
+    Admin[("관리자 (Admin)")] -->|"관리자 화면(S-16·S-20)"| GW
+    GW -->|"/api/v1/admin/collector/** 라우팅"| AdminTrigger
 
     %% 1. 외부 데이터 및 수집 (Top Right)
     subgraph External ["외부 원천"]
@@ -337,7 +336,7 @@ flowchart TD
     DecEng -->|"결정 신호 반환"| DC
     DC -->|"결과 렌더링"| UI
     UI -->|"시뮬레이션 인풋"| SC
-    SC -->|"세전 비교 결과 반환"| Sim
+    SC -->|"세후·실질 비교 결과 반환"| Sim
 ```
 
 ---
@@ -354,7 +353,7 @@ flowchart TD
 ```mermaid
 stateDiagram-v2
     [*] --> KosisReader : 관리자 수동 기동 (통계청 공표 일정 기준)
-    KosisReader --> RawIngest : 원문 응답 raw_ingest 보존
+    KosisReader --> RawIngest : 수집 이력 raw_ingest 기록
     RawIngest --> KosisProcessor : KOSIS API 연월별 데이터 (JSON)
     KosisProcessor --> KosisWriter : 12분류와 총지수('0') 원값 보존 (6대 카테고리 합성은 읽는 쪽)
     KosisWriter --> cpi_observation : DB 벌크 삽입 (bulk insert)
